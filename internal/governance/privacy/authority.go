@@ -219,14 +219,14 @@ func EvaluateAuthority(in AuthorityInput) AuthorityDecision {
 	if in.Presentation.PresentedAt.After(in.EffectiveAt) {
 		return deny(in, AuthorityNoticeNotPresented)
 	}
+	if !in.Presentation.Accessible {
+		return deny(in, AuthorityPresentationNotA11y)
+	}
 	if !in.Presentation.AcknowledgedAt.IsSet() || in.Presentation.AcknowledgedAt.After(in.EffectiveAt) {
 		return deny(in, AuthorityPresentationNotAck)
 	}
 	if !localeSupported(in.Presentation.Locale, in.SupportedLocales) {
 		return deny(in, AuthorityUnsupportedLocale)
-	}
-	if !in.Presentation.Accessible {
-		return deny(in, AuthorityPresentationNotA11y)
 	}
 	if in.Consent == nil {
 		return deny(in, AuthorityConsentNotGranted)

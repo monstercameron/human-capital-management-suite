@@ -197,3 +197,38 @@ func TestTodo_SVC_013(t *testing.T) {
 		}
 	})
 }
+
+func TestMigrateCommandFields_AvoidDuplicateApplyFlags(t *testing.T) {
+	noEnv := func(string) (string, bool) { return "", false }
+	cases := []struct {
+		name    string
+		command string
+		args    []string
+		want    bool
+	}{
+		{name: "status", command: "status", args: []string{"-database-url=postgres://core"}, want: false},
+		{name: "document seed upgrade", command: "document seed-upgrade", args: []string{"-database-url=postgres://core", "-document-database-url=postgres://docs", "-tenant=ironridge-demo", "-apply=true"}, want: true},
+		{name: "document prune", command: "document prune", args: []string{"-database-url=postgres://core", "-document-database-url=postgres://docs", "-tenant=harborcare-demo", "-owner=hc-050-rafael-torres", "-title-prefix=Bughunt doc ", "-apply=true"}, want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := bootstrap.ParseConfig(tc.args, noEnv, migrateCommandFields(tc.command))
+			if err != nil {
+				t.Fatalf("ParseConfig(%q): %v", tc.command, err)
+			}
+			if !v.Has("apply") {
+				if tc.want {
+					t.Fatal("apply flag was not declared")
+				}
+				return
+			}
+			got, err := v.Bool("apply")
+			if err != nil {
+				t.Fatalf("apply value: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("apply = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

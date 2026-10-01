@@ -542,13 +542,13 @@ func (m *MemorySlateStore) Save(s SuccessionSlate) error {
 		if s.Revision != 1 {
 			return ErrConflictingCurrentRevision
 		}
-		m.current[s.CriticalRoleID] = s
+		m.current[s.CriticalRoleID] = cloneSlate(s)
 		return nil
 	}
 	if s.Revision != prior.Revision+1 || s.ParentDigest != prior.CanonicalDigest {
 		return ErrConflictingCurrentRevision
 	}
-	m.current[s.CriticalRoleID] = s
+	m.current[s.CriticalRoleID] = cloneSlate(s)
 	return nil
 }
 func (m *MemorySlateStore) Current(roleID string) (SuccessionSlate, error) {
@@ -558,7 +558,7 @@ func (m *MemorySlateStore) Current(roleID string) (SuccessionSlate, error) {
 	if !ok {
 		return SuccessionSlate{}, fmt.Errorf("%w: role_id %q", ErrInvalidSlate, roleID)
 	}
-	return s, nil
+	return cloneSlate(s), nil
 }
 
 func validateRefs(refs []string, base error, field string) error {

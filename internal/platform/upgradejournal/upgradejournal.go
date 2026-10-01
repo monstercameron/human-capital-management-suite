@@ -76,6 +76,27 @@ func (c *Coordinator) RunToCutover(source []schemaupgrade.Row, watermark uint64)
 	return c.RunToCutoverWithTarget(source, source, watermark)
 }
 
+// RunToContract drives the complete migration gate sequence, including the
+// irreversible contract boundary. Each boundary is saved through the same
+// durable journal as RunToCutover, so a retry cannot report contract before
+// its cutover evidence is committed.
+func (c *Coordinator) RunToContract(source []schemaupgrade.Row, watermark uint64) (schemaupgrade.State, error) {
+	state, err := c.RunToCutover(source, watermark)
+	if err != nil {
+		return schemaupgrade.State{}, err
+	}
+	if state.Phase != schemaupgrade.PhaseCutover {
+		return state, nil
+	}
+	if err := state.Contract(c.now()); err != nil {
+		return schemaupgrade.State{}, err
+	}
+	if err := c.save(state); err != nil {
+		return schemaupgrade.State{}, err
+	}
+	return state, nil
+}
+
 // RunToCutoverWithTarget is RunToCutover with an explicit shadow target for
 // callers whose new projection is built separately from the source rows. A
 // target that differs from the source is refused with the protocol's typed

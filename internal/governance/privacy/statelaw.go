@@ -190,7 +190,7 @@ type Resolution struct {
 // A law whose effective date is after the evaluation date is not honored:
 // upcoming obligations never leak into current releases.
 func (r Roster) Resolve(state StateCode, asOf time.Time) (Resolution, error) {
-	if strings.TrimSpace(r.Signature) == "" || strings.TrimSpace(r.SignedBy) == "" {
+	if strings.TrimSpace(r.Signature) == "" || strings.TrimSpace(r.SignedBy) == "" || r.SignedAt.IsZero() {
 		return Resolution{}, fmt.Errorf("%w: roster %q is unsigned", ErrStateLawRefused, r.Version)
 	}
 	// The signature is tamper-evident: any post-seal edit to the law set
@@ -207,6 +207,9 @@ func (r Roster) Resolve(state StateCode, asOf time.Time) (Resolution, error) {
 	for _, l := range r.Laws {
 		if l.State != state {
 			continue
+		}
+		if r.Review.ReviewedAt.After(l.Effective) {
+			return Resolution{}, fmt.Errorf("%w: primary-source review for %s/%s was recorded after its effective date", ErrStateLawRefused, state, l.Version)
 		}
 		if asOf.Before(l.Effective) {
 			return Resolution{}, fmt.Errorf("%w: %s/%s is not effective until %s", ErrStateLawRefused, state, l.Version, l.Effective.Format("2006-01-02"))

@@ -16,6 +16,59 @@ import (
 
 const schemaVersion = 1
 
+// ServingContractID identifies the revalidation contract composed by the
+// shipped application cell.
+const ServingContractID = "hcmnext.config.revalidation/v1"
+
+// ValidateServingContract proves the served path fences a changed workload
+// before it can resume. The check is deterministic and keeps all state local
+// to this invocation.
+func ValidateServingContract() error {
+	dependency := func(key string, kind DependencyKind) Dependency {
+		return Dependency{Key: key, Kind: kind, Version: "v1", Digest: "sha256:" + strings.Repeat("a", 64), Active: true}
+	}
+	dependencies := []Dependency{
+		dependency("serving:rule", KindRule),
+		dependency("serving:form", KindForm),
+		dependency("serving:mapping", KindMapping),
+		dependency("serving:population", KindPopulation),
+		dependency("serving:schema", KindSchema),
+		dependency("serving:capability", KindCapability),
+	}
+	workload := Workload{
+		ID:           "serving-contract:config-revalidation",
+		TenantID:     "serving-contract",
+		State:        "PAUSED",
+		Dependencies: dependencies,
+	}
+	registry := NewRegistry()
+	if err := registry.Put(workload); err != nil {
+		return fmt.Errorf("revalidation: serving contract put: %w", err)
+	}
+	graph := Graph{SchemaVersion: schemaVersion}
+	decision, err := registry.Revalidate(workload.ID, dependencies, graph)
+	if err != nil {
+		return fmt.Errorf("revalidation: serving contract baseline: %w", err)
+	}
+	if decision.Status != StatusValid {
+		return fmt.Errorf("revalidation: serving contract baseline status = %s", decision.Status)
+	}
+	current := append([]Dependency(nil), dependencies...)
+	current[0].Active = false
+	decision, err = registry.Revalidate(workload.ID, current, graph)
+	if err != nil {
+		return fmt.Errorf("revalidation: serving contract revoke: %w", err)
+	}
+	if decision.Status != StatusInvalidated || decision.FenceToken == 0 {
+		return fmt.Errorf("revalidation: serving contract revoke decision = %+v", decision)
+	}
+	stored, ok := registry.Get(workload.ID)
+	if !ok || !stored.Fenced || stored.FenceToken != decision.FenceToken {
+		return fmt.Errorf("revalidation: serving contract did not retain fence: %+v", stored)
+	}
+	return nil
+}
+
 // Version reports the live configuration revalidation schema version.
 func Version() int { return schemaVersion }
 

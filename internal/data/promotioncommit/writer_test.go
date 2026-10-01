@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ type fixture struct {
 	db                                                    *pgtest.DB
 	tenant, person, worker, legal, employment, assignment uuid.UUID
 	org, job, position, occupancy, packageID, baseID      uuid.UUID
-	budget, reservation, proposal                         uuid.UUID
+	budget, reservation, proposal, intent                 uuid.UUID
 	at, recorded                                          time.Time
 	workerFact                                            aggregates.Worker
 	employmentFact                                        aggregates.Employment
@@ -67,7 +68,7 @@ func newFixture(t *testing.T) fixture {
 	f := fixture{
 		db: pgtest.New(t), tenant: uuid.New(), person: uuid.New(), worker: uuid.New(), legal: uuid.New(),
 		employment: uuid.New(), assignment: uuid.New(), org: uuid.New(), job: uuid.New(), position: uuid.New(),
-		occupancy: uuid.New(), packageID: uuid.New(), baseID: uuid.New(), budget: uuid.New(), reservation: uuid.New(), proposal: uuid.New(),
+		occupancy: uuid.New(), packageID: uuid.New(), baseID: uuid.New(), budget: uuid.New(), reservation: uuid.New(), proposal: uuid.New(), intent: uuid.New(),
 		at: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC), recorded: time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
 	}
 	f.db.Exec(t, `INSERT INTO tenant (tenant_id, tenant_key, cell_id, display_name, status, effective_from)
@@ -140,7 +141,7 @@ func (f fixture) command(t *testing.T) domaincommit.Command {
 	t.Helper()
 	pay := mustValue(values.NewMoney("180000.00", "USD", 2, values.RoundingExactRequired))
 	cmd := domaincommit.Command{
-		TenantID: f.tenant.String(), ProposalRevisionID: f.proposal.String(), ProposalDigest: "sha256:proposal",
+		TenantID: f.tenant.String(), IntentID: f.intent.String(), ProposalRevisionID: f.proposal.String(), ProposalRevisionNumber: 1, ProposalDigest: "sha256:proposal",
 		PlanID: "plan:promotion", PlanDigest: "sha256:transaction-resolution", WorkflowPlanDigest: "sha256:workflow-plan",
 		AuthorityDigest: "sha256:authority", ActorPrincipalID: "principal:hrbp",
 		EffectiveAt: f.at, RecordedAt: f.recorded.Add(time.Hour), WorkerID: f.worker.String(), EmploymentID: f.employment.String(),
@@ -157,6 +158,7 @@ func (f fixture) command(t *testing.T) domaincommit.Command {
 			{EffectID: "payroll:" + f.proposal.String(), DestinationRef: "payroll", SchemaRef: "hcmnext.promotion.payroll/v1", Payload: []byte(`{"kind":"PAYROLL_SYNC"}`)},
 			{EffectID: "iam:" + f.proposal.String(), DestinationRef: "iam", SchemaRef: "hcmnext.promotion.iam/v1", Payload: []byte(`{"kind":"IAM_SYNC"}`)},
 		},
+		AssignmentWrites: []domaincommit.AssignmentWrite{{FieldPath: "assignment.grade", CurrentValue: "P3", ProposedValue: "M1", AuthorityDecision: "authority.promotion/v1", ExpectedSource: "revision:1"}},
 	}
 	cmd.PlanParticipants = cmd.Participants()
 	return cmd
@@ -182,6 +184,9 @@ func commitCommand(t *testing.T, f fixture, writer promotioncommit.Writer, cmd d
 
 func TestTodo_PROMO_005(t *testing.T) {
 	f := newFixture(t)
+	if _, err := promotioncommit.ReadAssignmentWriteEvidence(context.Background(), nil, promotioncommit.AssignmentWriteEvidenceRequest{}); err == nil {
+		t.Fatal("reader accepted a nil caller-owned executor")
+	}
 	receipt, err := commitCommand(t, f, promotioncommit.Writer{}, f.command(t))
 	if err != nil {
 		t.Fatalf("commit promotion: %v", err)
@@ -209,7 +214,7 @@ func TestTodo_PROMO_005(t *testing.T) {
 	if budgetStatus != "COMMITTED" {
 		t.Fatalf("budget status = %s", budgetStatus)
 	}
-	for table, want := range map[string]int{"assignment": 2, "position_occupancy": 1, "compensation_component": 2, "budget_reservation": 2, "outbox": 2} {
+	for table, want := range map[string]int{"assignment": 2, "position_occupancy": 1, "compensation_component": 2, "budget_reservation": 2, "outbox": 2, "people_promotion_write_evidence": 1} {
 		var got int
 		if err := f.db.Conn.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 			t.Fatal(err)
@@ -217,6 +222,90 @@ func TestTodo_PROMO_005(t *testing.T) {
 		if got != want {
 			t.Errorf("%s rows = %d, want %d", table, got, want)
 		}
+	}
+	var assignmentDigest string
+	if err := f.db.Conn.QueryRow(ctx, `SELECT digest FROM assignment WHERE tenant_id=$1 AND row_id=$2`, f.tenant, receipt.AssignmentRowID).Scan(&assignmentDigest); err != nil {
+		t.Fatal(err)
+	}
+	proofs, err := promotioncommit.ReadAssignmentWriteEvidence(ctx, f.db.Conn, promotioncommit.AssignmentWriteEvidenceRequest{
+		TenantID: f.tenant, IntentID: f.intent, ProposalRevisionID: f.proposal, WorkerID: f.worker, AssignmentID: f.assignment,
+		ProposalRevisionNumber: 1, ProposalDigest: "sha256:proposal", AssignmentRowID: receipt.AssignmentRowID, AssignmentDigest: assignmentDigest,
+	})
+	if err != nil || len(proofs) != 1 || proofs[0].CurrentValue != "P3" || proofs[0].ProposedValue != "M1" || proofs[0].FieldPath != "assignment.grade" {
+		t.Fatalf("exact assignment proof = %+v, error=%v", proofs, err)
+	}
+	for name, mutate := range map[string]func(*promotioncommit.AssignmentWriteEvidenceRequest){
+		"wrong tenant":   func(req *promotioncommit.AssignmentWriteEvidenceRequest) { req.TenantID = uuid.New() },
+		"wrong revision": func(req *promotioncommit.AssignmentWriteEvidenceRequest) { req.ProposalRevisionNumber++ },
+		"wrong worker":   func(req *promotioncommit.AssignmentWriteEvidenceRequest) { req.WorkerID = uuid.New() },
+		"wrong material": func(req *promotioncommit.AssignmentWriteEvidenceRequest) { req.ProposalDigest = "sha256:other" },
+		"wrong row":      func(req *promotioncommit.AssignmentWriteEvidenceRequest) { req.AssignmentRowID = uuid.NewString() },
+		"wrong digest": func(req *promotioncommit.AssignmentWriteEvidenceRequest) {
+			req.AssignmentDigest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := promotioncommit.AssignmentWriteEvidenceRequest{
+				TenantID: f.tenant, IntentID: f.intent, ProposalRevisionID: f.proposal, AssignmentID: f.assignment,
+				ProposalRevisionNumber: 1, ProposalDigest: "sha256:proposal", AssignmentRowID: receipt.AssignmentRowID, AssignmentDigest: assignmentDigest,
+			}
+			mutate(&req)
+			if _, err := promotioncommit.ReadAssignmentWriteEvidence(ctx, f.db.Conn, req); err == nil {
+				t.Fatal("mismatched binding returned proof")
+			}
+		})
+	}
+	legacyProposal := uuid.New()
+	f.db.Exec(t, `INSERT INTO people_promotion_write_evidence (
+		tenant_id, write_id, proposal_revision_id, proposal_digest, actor_principal_id,
+		authority_decision, worker_id, assignment_id, field_path, current_value,
+		proposed_value, expected_revision, effective_from, recorded_at)
+		VALUES ($1,$2,$3,'sha256:legacy','legacy','legacy',$4,$5,'assignment.grade','old','new','revision:old',$6,$7)`,
+		f.tenant, uuid.New(), legacyProposal.String(), f.worker.String(), f.assignment.String(), f.at, f.recorded)
+	if _, err := promotioncommit.ReadAssignmentWriteEvidence(ctx, f.db.Conn, promotioncommit.AssignmentWriteEvidenceRequest{
+		TenantID: f.tenant, IntentID: uuid.New(), ProposalRevisionID: legacyProposal, WorkerID: f.worker, AssignmentID: f.assignment,
+		ProposalRevisionNumber: 1, ProposalDigest: "sha256:legacy", AssignmentRowID: receipt.AssignmentRowID, AssignmentDigest: assignmentDigest,
+	}); err == nil {
+		t.Fatal("legacy row without provenance returned proof")
+	}
+	for _, missing := range []string{"intent_id", "proposal_revision_number", "assignment_row_id", "assignment_digest"} {
+		t.Run("partial provenance missing "+missing, func(t *testing.T) {
+			intentValue, revisionValue, rowValue, digestValue := any(uuid.New()), any(int64(1)), any(uuid.New()), any(strings.Repeat("a", 64))
+			switch missing {
+			case "intent_id":
+				intentValue = nil
+			case "proposal_revision_number":
+				revisionValue = nil
+			case "assignment_row_id":
+				rowValue = nil
+			case "assignment_digest":
+				digestValue = nil
+			}
+			_, err := f.db.Conn.Exec(ctx, `INSERT INTO people_promotion_write_evidence (
+				tenant_id, write_id, proposal_revision_id, proposal_digest, actor_principal_id,
+				authority_decision, worker_id, assignment_id, field_path, current_value,
+				proposed_value, expected_revision, effective_from, recorded_at,
+				intent_id, proposal_revision_number, assignment_row_id, assignment_digest)
+				VALUES ($1,$2,$3,'sha256:partial','principal:test','authority:test',$4,$5,
+				'assignment.grade','P3','M1','revision:1',$6,$7,$8,$9,$10,$11)`,
+				f.tenant, uuid.New(), uuid.NewString(), f.worker.String(), f.assignment.String(), f.at, f.recorded,
+				intentValue, revisionValue, rowValue, digestValue)
+			if err == nil {
+				t.Fatalf("partial provenance missing %s was accepted", missing)
+			}
+		})
+	}
+	if _, err := f.db.Conn.Exec(ctx, `INSERT INTO people_promotion_write_evidence (
+		tenant_id, write_id, proposal_revision_id, proposal_digest, actor_principal_id,
+		authority_decision, worker_id, assignment_id, field_path, current_value,
+		proposed_value, expected_revision, effective_from, recorded_at,
+		intent_id, proposal_revision_number, assignment_row_id, assignment_digest)
+		SELECT tenant_id, $1, proposal_revision_id, proposal_digest, actor_principal_id,
+		authority_decision, worker_id, assignment_id, field_path, current_value,
+		proposed_value, expected_revision, effective_from, recorded_at,
+		intent_id, proposal_revision_number, assignment_row_id, assignment_digest
+		FROM people_promotion_write_evidence WHERE tenant_id=$2 AND intent_id=$3`, uuid.New(), f.tenant, f.intent); err == nil {
+		t.Fatal("duplicate proposal/assignment/field proof was accepted")
 	}
 }
 
@@ -237,7 +326,7 @@ func TestTodo_PROMO_005_Fault(t *testing.T) {
 				t.Fatalf("error = %v", err)
 			}
 			ctx := context.Background()
-			for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0} {
+			for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0, "people_promotion_write_evidence": 0} {
 				var got int
 				if err := f.db.Conn.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 					t.Fatal(err)
@@ -278,7 +367,7 @@ func TestTodo_PROMO_005_Mutation(t *testing.T) {
 	if _, err := commitCommand(t, f, promotioncommit.Writer{}, cmd); err == nil {
 		t.Fatal("an outbox effect with an unregistered payload schema committed")
 	}
-	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0} {
+	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0, "people_promotion_write_evidence": 0} {
 		var got int
 		if err := f.db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 			t.Fatal(err)
@@ -332,7 +421,7 @@ func TestTodo_PROMO_005_Race(t *testing.T) {
 		t.Fatalf("race results: successes=%d baseline conflicts=%d", successes, baselineConflicts)
 	}
 
-	for table, want := range map[string]int{"assignment": 2, "position_occupancy": 1, "compensation_component": 2, "budget_reservation": 2, "outbox": 2} {
+	for table, want := range map[string]int{"assignment": 2, "position_occupancy": 1, "compensation_component": 2, "budget_reservation": 2, "outbox": 2, "people_promotion_write_evidence": 1} {
 		var got int
 		if err := f.db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 			t.Fatal(err)
@@ -380,7 +469,7 @@ func TestTodo_PROMO_005_TerminalFailureRollsBackDomainChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0} {
+	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0, "people_promotion_write_evidence": 0} {
 		var got int
 		if err := f.db.Conn.QueryRow(ctx, fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 			t.Fatal(err)
@@ -439,7 +528,7 @@ func TestTodo_PROMO_EXEC_007_CommitComplete_Recovery(t *testing.T) {
 	if _, err := commitCommand(t, f, fail, f.command(t)); err == nil {
 		t.Fatal("failed commit returned nil")
 	}
-	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0} {
+	for table, want := range map[string]int{"assignment": 1, "position_occupancy": 0, "compensation_component": 1, "budget_reservation": 1, "outbox": 0, "people_promotion_write_evidence": 0} {
 		var got int
 		if err := f.db.Conn.QueryRow(context.Background(), fmt.Sprintf("SELECT count(*) FROM %s WHERE tenant_id=$1", table), f.tenant).Scan(&got); err != nil {
 			t.Fatal(err)

@@ -186,7 +186,7 @@ func assertWorkflowFields(t *testing.T, config projectworkflow.Config) {
 	}
 }
 
-func TestTodo_PM_013_PublishMigrationRecheck(t *testing.T) {
+func TestTodo_PM_013_Integration(t *testing.T) {
 	projects, store, tenant, project, _ := configStoreFixture(t)
 	ctx := context.Background()
 	if err := store.InitializeProject(ctx, tenant, project, "owner"); err != nil {
@@ -360,7 +360,7 @@ func TestTodo_PM_013_PublishMigrationRecheck(t *testing.T) {
 	}
 }
 
-func TestTodo_PM_014_PublishSnapshotUsesPreviewFieldValues(t *testing.T) {
+func TestTodo_PM_014_Integration(t *testing.T) {
 	projects, _, tenant, project, _ := configStoreFixture(t)
 	ctx := context.Background()
 	stored, err := json.Marshal(map[string]projectdomain.TaskFieldEdit{

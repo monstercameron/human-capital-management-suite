@@ -155,9 +155,11 @@ func (s *MemoryStore) PutEndpointRevision(ctx context.Context, tenant values.Ten
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	latest := uint64(0)
+	var prior ContactEndpointRevision
 	for key, candidate := range s.endpoints {
 		if key == endpointKey(tenant, revision.EndpointID, candidate.Revision) && candidate.Revision > latest {
 			latest = candidate.Revision
+			prior = candidate
 		}
 	}
 	if _, exists := s.endpoints[endpointKey(tenant, revision.EndpointID, revision.Revision)]; exists {
@@ -169,6 +171,9 @@ func (s *MemoryStore) PutEndpointRevision(ctx context.Context, tenant values.Ten
 		}
 	} else if expected[0] != latest || revision.Revision != latest+1 || revision.SupersedesRevision != latest {
 		return staleStore(fmt.Sprintf("%d", expected[0]), latest)
+	}
+	if latest != 0 && (revision.Subject != prior.Subject || revision.Kind != prior.Kind || revision.Purpose != prior.Purpose) {
+		return storeFailure(StoreInvalidCode, "endpoint identity or immutable scope changed", ErrStoreInvalid)
 	}
 	if latest == 0 && revision.Revision != 1 || latest == 0 && revision.SupersedesRevision != 0 {
 		return storeFailure(StoreInvalidCode, "initial endpoint revision must start at one", ErrStoreInvalid)
@@ -227,6 +232,9 @@ func (s *MemoryStore) PutChallenge(ctx context.Context, tenant values.TenantId, 
 	if err := challenge.Validate(); err != nil {
 		return storeFailure(StoreInvalidCode, err.Error(), err)
 	}
+	if duplicateChallengeEvent(challenge.Events) {
+		return storeFailure(StoreDuplicateEventCode, "challenge event digest already exists", ErrStoreDuplicate)
+	}
 	if len(expected) > 1 {
 		return storeFailure(StoreInvalidCode, "at most one expected digest is allowed", ErrStoreInvalid)
 	}
@@ -245,6 +253,14 @@ func (s *MemoryStore) PutChallenge(ctx context.Context, tenant values.TenantId, 
 		actual := prior.CanonicalDigest
 		return &StoreError{Code: StoreStaleCASCode, Detail: "challenge canonical digest changed", Expected: firstExpected(expected), Actual: actual, Cause: ErrStoreStaleCAS}
 	}
+	if challenge.Subject != prior.Subject || challenge.EndpointID != prior.EndpointID ||
+		challenge.EndpointRevisionDigest != prior.EndpointRevisionDigest ||
+		challenge.NormalizedValueDigest != prior.NormalizedValueDigest ||
+		challenge.Purpose != prior.Purpose || challenge.IssuedAt != prior.IssuedAt ||
+		challenge.ExpiresAt != prior.ExpiresAt || challenge.AttemptBudget != prior.AttemptBudget ||
+		challenge.TokenDigest != prior.TokenDigest {
+		return storeFailure(StoreInvalidCode, "challenge identity or immutable scope changed", ErrStoreInvalid)
+	}
 	if len(challenge.Events) < len(prior.Events) {
 		return storeFailure(StoreStaleCASCode, "challenge event history regressed", ErrStoreStaleCAS)
 	}
@@ -262,6 +278,17 @@ func firstExpected(values []string) string {
 		return ""
 	}
 	return values[0]
+}
+
+func duplicateChallengeEvent(events []ContactChallengeEvent) bool {
+	seen := make(map[string]struct{}, len(events))
+	for _, event := range events {
+		if _, ok := seen[event.Digest]; ok {
+			return true
+		}
+		seen[event.Digest] = struct{}{}
+	}
+	return false
 }
 
 func cloneChallenge(in ContactVerificationChallenge) ContactVerificationChallenge {

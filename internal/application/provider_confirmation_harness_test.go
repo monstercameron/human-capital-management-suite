@@ -97,6 +97,23 @@ func (h *promoux015Harness) confirmProvider(w providerWait, receipt promotionste
 	var instanceID uuid.UUID
 	if err := h.pool.QueryRow(ctx, `SELECT instance_id FROM workflow_signal_subscription WHERE tenant_id = $1 AND node_id = $2 AND subscription_state = 'OPEN'`,
 		tenantID, w.node).Scan(&instanceID); err != nil {
+		h.t.Logf("DIAG routes: %+v", h.wfrun034Routes())
+		if rows, qerr := h.pool.Query(ctx, `SELECT node_id, subscription_state FROM workflow_signal_subscription`); qerr == nil {
+			for rows.Next() {
+				var n, s string
+				_ = rows.Scan(&n, &s)
+				h.t.Logf("DIAG sub %s %s", n, s)
+			}
+			rows.Close()
+		}
+		if rows, qerr := h.pool.Query(ctx, `SELECT node_id, timer_state FROM workflow_timer`); qerr == nil {
+			for rows.Next() {
+				var n, s string
+				_ = rows.Scan(&n, &s)
+				h.t.Logf("DIAG timer %s %s", n, s)
+			}
+			rows.Close()
+		}
 		h.t.Fatalf("find the open %s wait: %v", w.node, err)
 	}
 	tx, err := h.pool.Begin(ctx)

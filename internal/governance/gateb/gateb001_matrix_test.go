@@ -56,6 +56,15 @@ func TestTodo_GATEB_EVID_001_Property(t *testing.T) {
 	}
 }
 
+func TestTodo_GATEB_EVID_001_Served(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("serving contract ID is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+}
+
 // TestTodo_GATEB_EVID_001_Golden pins the healthy-report digest: any
 // silent change to the manifest math moves the digest and fails here.
 func TestTodo_GATEB_EVID_001_Golden(t *testing.T) {

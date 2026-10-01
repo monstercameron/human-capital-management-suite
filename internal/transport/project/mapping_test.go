@@ -164,6 +164,9 @@ func TestBoardViewAndLinkMappings(t *testing.T) {
 	if state := linkMessage(projectservice.TaskLink{ID: "l1", Reference: projectlink.Reference{Kind: projectlink.ChatConversation, ID: "conv"}, Resolution: projectlink.Result{State: projectlink.Available, Preview: &projectlink.Preview{Title: "Conversation", Snippet: "Preview"}}}); state.GetPreview().GetTitle() != "Conversation" {
 		t.Fatalf("available link=%+v", state)
 	}
+	if state := linkMessage(projectservice.TaskLink{ID: "l2", Reference: projectlink.Reference{Kind: projectlink.WorkItem, ID: "work"}, Resolution: projectlink.Result{State: projectlink.Available, Preview: &projectlink.Preview{Version: "8", Status: "ASSIGNED", Freshness: "CURRENT"}}}); state.GetPreview().GetObservedWorkItemVersion() != 8 {
+		t.Fatalf("WorkItem observed version did not map: %+v", state.GetPreview())
+	}
 }
 
 func TestTransportErrorMapping(t *testing.T) {

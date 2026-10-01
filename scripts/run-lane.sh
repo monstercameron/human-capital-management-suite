@@ -29,5 +29,7 @@ export GOTMPDIR="$art/tmp" TMP="$art/tmp" TEMP="$art/tmp" GOCACHE="$art/gocache"
 codex exec --sandbox workspace-write -m gpt-5.6-luna -C "$root" -o "$dir/codex_$name.out" - < "$brief" > "$dir/codex_$name.log" 2>&1
 code=$?
 echo "lane $name codex exit=$code"
+# Keep only the short report after a clean run; the full log is kept for failures.
+[ "$code" -eq 0 ] && [ -s "$dir/codex_$name.out" ] && rm -f "$dir/codex_$name.log"
 tail -c 3500 "$dir/codex_$name.out" 2>/dev/null
 exit "$code"

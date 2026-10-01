@@ -120,6 +120,9 @@ func TestTodo_INTENT_013_Integration(t *testing.T) {
 		if finding.File == "" || finding.Kind == "" {
 			t.Errorf("untyped live finding: %#v", finding)
 		}
+		if finding.Kind == FindingUnscopedHandlerPath {
+			t.Errorf("live IntentService lifecycle contract is incomplete: %#v", finding)
+		}
 	}
 }
 
@@ -158,6 +161,42 @@ func Handle() { _ = outbox.Commit }
 	}
 	if len(findings) != 1 || findings[0].Kind != FindingOutbox || findings[0].File != "handler.go" {
 		t.Fatalf("direct effect mutation was not denied: %v", findings)
+	}
+
+	contract := validIntentServiceContractSources()
+	findings, err = CheckIntentServiceContract(testModule, contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("valid IntentService lifecycle contract was rejected: %v", findings)
+	}
+	contract[0].Content = strings.Replace(contract[0].Content, "s.gateway.Invoke()", "handler()", 1)
+	findings, err = CheckIntentServiceContract(testModule, contract)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasKind(findings, FindingUnscopedHandlerPath) {
+		t.Fatalf("gateway invocation mutation was not denied: %v", findings)
+	}
+}
+
+func validIntentServiceContractSources() []Source {
+	return []Source{
+		{Package: "internal/intent/app", Filename: "service.go", Content: `package app
+import capability "github.com/monstercameron/human-capital-management-suite/internal/capability"
+type Options struct { Gateway *capability.Gateway }
+type IntentService struct { gateway *capability.Gateway }
+func NewIntentService(opts Options) (*IntentService, error) {
+ if opts.Gateway == nil { return nil, nil }
+ return &IntentService{gateway: opts.Gateway}, nil
+}
+func (s *IntentService) invoke() { s.gateway.Invoke() }
+`},
+		{Package: "internal/intent/app", Filename: "cell.go", Content: `package app
+import capability "github.com/monstercameron/human-capital-management-suite/internal/capability"
+func NewCell(gateway *capability.Gateway) { _ = Options{Gateway: gateway} }
+`},
 	}
 }
 

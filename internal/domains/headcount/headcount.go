@@ -33,6 +33,32 @@ const (
 
 func (u CapacityUnit) Valid() bool { return u == UnitHead || u == UnitFTE }
 
+// ServingContractID identifies the read-only conformance contract composed by
+// the shipped application cell. It does not grant authority or persist state.
+const ServingContractID = "hcmnext.conformance.headcount-requisition/v1"
+
+// ValidateServingContract checks the closed vocabularies that the served
+// conformance path depends on. Keeping this check here makes the application
+// composition depend on the same production symbols exercised by CONF-021.
+func ValidateServingContract() error {
+	for _, unit := range []CapacityUnit{UnitHead, UnitFTE} {
+		if !unit.Valid() {
+			return fmt.Errorf("headcount: serving contract unit %q is not valid", unit)
+		}
+	}
+	for _, state := range []PositionState{PositionProposed, PositionRequested, PositionCreated, PositionReconciliationRequired} {
+		if !state.Valid() {
+			return fmt.Errorf("headcount: serving contract position state %q is not valid", state)
+		}
+	}
+	for _, state := range []RequisitionState{RequisitionProposed, RequisitionRequested, RequisitionOpen, RequisitionReconciliationRequired} {
+		if !state.Valid() {
+			return fmt.Errorf("headcount: serving contract requisition state %q is not valid", state)
+		}
+	}
+	return nil
+}
+
 type HeadcountState string
 
 const (

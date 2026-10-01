@@ -21,9 +21,13 @@ import (
 	"net"
 	"sync"
 
+	connectivityapplication "github.com/monstercameron/human-capital-management-suite/internal/connectivity/application"
+	dataanalytics "github.com/monstercameron/human-capital-management-suite/internal/data/analytics"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/assurance"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/reliability"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
+	telemetrylifecycle "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/lifecycle"
 )
 
 // Lifecycle is what a command invokes once it has selected a role.
@@ -46,13 +50,22 @@ type App struct {
 	graph  Graph
 	logger bootstrap.Logger
 	cell   *app.Cell
+	// analytics is the immutable export/query substrate composed for the
+	// serving process. It carries no authoritative state of its own.
+	analytics dataanalytics.Service
+	// installationLifecycle is the served installation control boundary. It
+	// owns lifecycle state for this composed process; the connectivity package
+	// remains the semantic owner of its transition and evidence rules.
+	installationLifecycle *connectivityapplication.Manager
 	// disposition is the serve cell's governed retention, legal-hold and
 	// verified-deletion gate (REV-004-02). It is composed with the cell so
 	// the libraries it fronts are reachable from the running process.
-	disposition      *DispositionGate
-	pilotReliability *reliability.Manifest
-	grpcAddr         string
-	httpAddr         string
+	disposition        *DispositionGate
+	assuranceRegister  *assurance.Register
+	telemetryLifecycle *telemetrylifecycle.Store
+	pilotReliability   *reliability.Manifest
+	grpcAddr           string
+	httpAddr           string
 
 	workloads []bootstrap.Workload
 	shutdown  []bootstrap.ShutdownStep
@@ -79,9 +92,16 @@ func (a *App) Graph() Graph { return a.graph }
 // Cell is the composed application cell, or nil for a role that has none.
 func (a *App) Cell() *app.Cell { return a.cell }
 
+// Analytics is the composed analytical export/query boundary.
+func (a *App) Analytics() dataanalytics.Service { return a.analytics }
+
 // Disposition is the composed governed-disposition gate, or nil for a role
 // that composes none.
 func (a *App) Disposition() *DispositionGate { return a.disposition }
+
+// TelemetryLifecycle is the serve process's tenant-scoped telemetry query and
+// disposition policy store, or nil for a role that composes none.
+func (a *App) TelemetryLifecycle() *telemetrylifecycle.Store { return a.telemetryLifecycle }
 
 // GRPCAddr and HTTPAddr are the addresses the two surfaces actually bound.
 // They are read back rather than read from configuration because ":0" is a

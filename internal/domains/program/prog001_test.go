@@ -70,6 +70,12 @@ func TestTodo_PROGRAM_001_Golden(t *testing.T) {
 }
 
 func TestTodo_PROGRAM_001_Conformance(t *testing.T) {
+	if ServingContractID != "hcmnext.conformance.program/v1" {
+		t.Fatalf("ServingContractID = %q", ServingContractID)
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
 	c := testCatalog(t)
 	def := mustDefine(t, c)
 	// The shared oracle reseals the definition digest from its fields.

@@ -20,9 +20,62 @@ type AuthorityScope struct {
 	Resources           []string
 	Fields              []string
 	Purposes            []string
+	SkillAuthorities    SkillAuthorities
 	Assurance           Assurance
 	NotBefore           time.Time
 	ExpiresAt           time.Time
+}
+
+// SkillAuthority is the current authority for one registered skill. Empty
+// resources and purposes are never wildcards; fields may be empty to narrow
+// disclosure without denying the capability.
+type SkillAuthority struct {
+	Capabilities []string
+	Resources    []string
+	Fields       []string
+	Purposes     []string
+}
+
+// SkillAuthorities maps each skill to its independently scoped authority.
+type SkillAuthorities map[string]SkillAuthority
+
+// CloneSkillAuthorities defensively copies a per-skill authority map.
+func CloneSkillAuthorities(in SkillAuthorities) SkillAuthorities {
+	if in == nil {
+		return nil
+	}
+	out := make(SkillAuthorities, len(in))
+	for skill, authority := range in {
+		out[skill] = SkillAuthority{Capabilities: slices.Clone(authority.Capabilities), Resources: slices.Clone(authority.Resources), Fields: slices.Clone(authority.Fields), Purposes: slices.Clone(authority.Purposes)}
+	}
+	return out
+}
+
+// IntersectSkillAuthorities intersects authority dimensions for matching keys.
+// A missing key is denied and never treated as a wildcard.
+func IntersectSkillAuthorities(sets ...SkillAuthorities) SkillAuthorities {
+	if len(sets) == 0 || sets[0] == nil {
+		return nil
+	}
+	out := CloneSkillAuthorities(sets[0])
+	for _, set := range sets[1:] {
+		if set == nil {
+			return nil
+		}
+		for skill, authority := range out {
+			other, ok := set[skill]
+			if !ok {
+				delete(out, skill)
+				continue
+			}
+			authority.Capabilities = intersect(authority.Capabilities, other.Capabilities)
+			authority.Resources = intersect(authority.Resources, other.Resources)
+			authority.Fields = intersect(authority.Fields, other.Fields)
+			authority.Purposes = intersect(authority.Purposes, other.Purposes)
+			out[skill] = authority
+		}
+	}
+	return out
 }
 
 // DelegationGrant is a bounded, attributable grant from Delegator to Delegate.
@@ -44,6 +97,7 @@ type DelegationGrant struct {
 	Resources           []string
 	Fields              []string
 	Purposes            []string
+	SkillAuthorities    SkillAuthorities
 	NotBefore           time.Time
 	ExpiresAt           time.Time
 	RequiredAssurance   Assurance
@@ -81,6 +135,7 @@ type EffectiveAuthority struct {
 	Resources           []string
 	Fields              []string
 	Purposes            []string
+	SkillAuthorities    SkillAuthorities
 	Assurance           Assurance
 	NotBefore           time.Time
 	ExpiresAt           time.Time
@@ -195,6 +250,20 @@ func EvaluateDelegation(req DelegationRequest) (EffectiveAuthority, error) {
 	if len(capabilities) == 0 || len(resources) == 0 || len(purposes) == 0 {
 		return EffectiveAuthority{}, ErrDelegationExpanded
 	}
+	skillAuthorities := IntersectSkillAuthorities(req.Delegator.SkillAuthorities, req.Delegate.SkillAuthorities, g.SkillAuthorities)
+	if g.SkillAuthorities != nil {
+		if len(skillAuthorities) == 0 {
+			return EffectiveAuthority{}, ErrDelegationExpanded
+		}
+		for skill, authority := range skillAuthorities {
+			if len(authority.Capabilities) == 0 || len(authority.Resources) == 0 || len(authority.Purposes) == 0 {
+				delete(skillAuthorities, skill)
+			}
+		}
+		if len(skillAuthorities) == 0 {
+			return EffectiveAuthority{}, ErrDelegationExpanded
+		}
+	}
 	if len(fields) == 0 {
 		fields = nil
 	}
@@ -203,6 +272,17 @@ func EvaluateDelegation(req DelegationRequest) (EffectiveAuthority, error) {
 		nb = maxTime(nb, req.Parent.NotBefore)
 		exp = minTime(exp, req.Parent.ExpiresAt)
 	}
+	if skillAuthorities != nil && req.Parent != nil {
+		skillAuthorities = IntersectSkillAuthorities(skillAuthorities, req.Parent.SkillAuthorities)
+		if len(skillAuthorities) == 0 {
+			return EffectiveAuthority{}, ErrDelegationExpanded
+		}
+		for skill, authority := range skillAuthorities {
+			if len(authority.Capabilities) == 0 || len(authority.Resources) == 0 || len(authority.Purposes) == 0 {
+				delete(skillAuthorities, skill)
+			}
+		}
+	}
 	if !exp.After(nb) || req.EvaluatedAt.Before(nb) || !req.EvaluatedAt.Before(exp) {
 		return EffectiveAuthority{}, ErrDelegationExpired
 	}
@@ -210,7 +290,7 @@ func EvaluateDelegation(req DelegationRequest) (EffectiveAuthority, error) {
 	if req.Parent != nil {
 		chain = append(slices.Clone(req.Parent.Chain), g.GrantID)
 	}
-	e := EffectiveAuthority{GrantID: g.GrantID, RootID: g.RootID, Kind: g.Kind.normalize(), Chain: chain, Delegator: g.Delegator, Delegate: g.Delegate, Tenant: g.Tenant, OrganizationScopeID: g.OrganizationScopeID, Capabilities: capabilities, Resources: resources, Fields: fields, Purposes: purposes, Assurance: minAssurance(req.Delegator.Assurance, req.Delegate.Assurance), NotBefore: nb, ExpiresAt: exp, AllowRedelegation: g.AllowRedelegation, MaxDepth: g.MaxDepth}
+	e := EffectiveAuthority{GrantID: g.GrantID, RootID: g.RootID, Kind: g.Kind.normalize(), Chain: chain, Delegator: g.Delegator, Delegate: g.Delegate, Tenant: g.Tenant, OrganizationScopeID: g.OrganizationScopeID, Capabilities: capabilities, Resources: resources, Fields: fields, Purposes: purposes, SkillAuthorities: CloneSkillAuthorities(skillAuthorities), Assurance: minAssurance(req.Delegator.Assurance, req.Delegate.Assurance), NotBefore: nb, ExpiresAt: exp, AllowRedelegation: g.AllowRedelegation, MaxDepth: g.MaxDepth}
 	e.DecisionID = delegationDecisionID(e)
 	return e, nil
 }
@@ -244,6 +324,18 @@ func NarrowToCurrentAuthority(eff EffectiveAuthority, current AuthorityScope, at
 	if len(capabilities) == 0 || len(resources) == 0 || len(purposes) == 0 {
 		return EffectiveAuthority{}, ErrDelegationExpanded
 	}
+	skillAuthorities := eff.SkillAuthorities
+	if skillAuthorities != nil {
+		skillAuthorities = IntersectSkillAuthorities(skillAuthorities, current.SkillAuthorities)
+		for skill, authority := range skillAuthorities {
+			if len(authority.Capabilities) == 0 || len(authority.Resources) == 0 || len(authority.Purposes) == 0 {
+				delete(skillAuthorities, skill)
+			}
+		}
+		if len(skillAuthorities) == 0 {
+			return EffectiveAuthority{}, ErrDelegationExpanded
+		}
+	}
 	if len(fields) == 0 {
 		fields = nil
 	}
@@ -257,6 +349,7 @@ func NarrowToCurrentAuthority(eff EffectiveAuthority, current AuthorityScope, at
 	narrowed.Resources = resources
 	narrowed.Fields = fields
 	narrowed.Purposes = purposes
+	narrowed.SkillAuthorities = CloneSkillAuthorities(skillAuthorities)
 	narrowed.Assurance = minAssurance(eff.Assurance, current.Assurance)
 	narrowed.NotBefore = nb
 	narrowed.ExpiresAt = exp
@@ -310,8 +403,24 @@ func minAssurance(a, b Assurance) Assurance {
 func delegationDecisionID(e EffectiveAuthority) string {
 	h := sha256.New()
 	fmt.Fprintf(h, "%s|%s|%s|%s|%s|%v|%v", e.GrantID, e.RootID, e.Kind, e.Tenant, e.Delegate, e.NotBefore.UnixNano(), e.ExpiresAt.UnixNano())
-	for _, s := range [][]string{e.Chain, e.Capabilities, e.Resources, e.Fields, e.Purposes} {
-		fmt.Fprintf(h, "|%v", s)
+	fmt.Fprintf(h, "|%v", e.Chain)
+	for _, s := range [][]string{e.Capabilities, e.Resources, e.Fields, e.Purposes} {
+		fmt.Fprintf(h, "|%v", canonicalSet(s))
+	}
+	keys := make([]string, 0, len(e.SkillAuthorities))
+	for skill := range e.SkillAuthorities {
+		keys = append(keys, skill)
+	}
+	slices.Sort(keys)
+	for _, skill := range keys {
+		a := e.SkillAuthorities[skill]
+		fmt.Fprintf(h, "|skill:%s|%v|%v|%v|%v", skill, canonicalSet(a.Capabilities), canonicalSet(a.Resources), canonicalSet(a.Fields), canonicalSet(a.Purposes))
 	}
 	return "ev:delegation:" + hex.EncodeToString(h.Sum(nil))[:32]
+}
+
+func canonicalSet(set []string) []string {
+	out := slices.Clone(set)
+	slices.Sort(out)
+	return slices.Compact(out)
 }

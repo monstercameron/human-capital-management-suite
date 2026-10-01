@@ -54,7 +54,9 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin, FieldLocalDevNow,
 		FieldParameterEnvironment,
 		FieldPageCursorKey, FieldPageCursorPreviousKey,
-		FieldDocumentDatabaseURL,
+		FieldDocumentDatabaseURL, FieldAgentDatabaseURL, FieldPersonaReviewAuthorityDatabaseURL,
+		FieldAgentModelConfigFile, FieldPersonaOutputSigningSeed, FieldPersonaWorkloadSigningSeed,
+		FieldPersonaEvaluationPublicKeys,
 		FieldPayrollWebhookEndpointID, FieldPayrollWebhookSecret,
 		FieldIAMWebhookEndpointID, FieldIAMWebhookSecret,
 	} {
@@ -67,6 +69,11 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 	}
 	if !declared[FieldDocumentDatabaseURL].Secret {
 		t.Error("document database URL is not marked Secret")
+	}
+	for _, name := range []string{FieldAgentDatabaseURL, FieldPersonaReviewAuthorityDatabaseURL} {
+		if !declared[name].Secret || declared[name].Default != "" {
+			t.Errorf("-%s field=%+v, want secret redaction and no default", name, declared[name])
+		}
 	}
 	if declared[FieldDevHMACKey].Default != "" {
 		t.Error("the signing key has a default; a listener with a default signing key is one anyone can forge against")
@@ -172,6 +179,7 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		"-public-origin=https://HCM.example.com:8443",
 		"-page-cursor-key="+testPageCursorKey,
 		"-page-cursor-previous-key="+testPageCursorKey+"-previous-00",
+		"-persona-review-authority-database-url=postgres://review_reader:private@db.internal:5432/hcm_next_agents?sslmode=require",
 		"-payroll-webhook-endpoint-id=payroll-prod", "-payroll-webhook-secret="+testPayrollWebhookSecret,
 		"-iam-webhook-endpoint-id=iam-prod", "-iam-webhook-secret="+testIAMWebhookSecret,
 		"-chat-media-root=/srv/chat", "-artifact-root=/srv/artifacts",
@@ -198,7 +206,8 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
 		PublicOrigin:  "https://hcm.example.com:8443",
 		PageCursorKey: testPageCursorKey, PageCursorPreviousKey: testPageCursorKey + "-previous-00",
-		PayrollWebhookEndpointID: "payroll-prod", PayrollWebhookSecret: testPayrollWebhookSecret,
+		PersonaReviewAuthorityDatabaseURL: "postgres://review_reader:private@db.internal:5432/hcm_next_agents?sslmode=require",
+		PayrollWebhookEndpointID:          "payroll-prod", PayrollWebhookSecret: testPayrollWebhookSecret,
 		IAMWebhookEndpointID: "iam-prod", IAMWebhookSecret: testIAMWebhookSecret,
 		ChatMediaRoot: "/srv/chat", ArtifactRoot: "/srv/artifacts",
 	}

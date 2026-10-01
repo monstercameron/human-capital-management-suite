@@ -79,3 +79,51 @@ func TestMigrationCIRejectsUnreviewedCompatibility(t *testing.T) {
 		t.Fatalf("unreviewed compatibility findings=%+v, want COMPATIBILITY_UNREVIEWED", result.Findings)
 	}
 }
+
+func TestTodo_CICD_002_ObservedStateRequiresCompleteEvidence(t *testing.T) {
+	t.Run("fresh database is a clean starting point", func(t *testing.T) {
+		fresh := InputFromObserved(testManifest(), ObservedState{})
+		if !fresh.BackfillComplete || !fresh.ShadowExact || !fresh.MixedVersionCompatible {
+			t.Fatalf("fresh input = %+v, want all clean checkpoints complete", fresh)
+		}
+		observed := ObservedState{Applied: []Entry{{Version: 177}}}
+		input := InputFromObserved(testManifest(), observed)
+		input.Applied[0].Version = 999
+		if observed.Applied[0].Version != 177 {
+			t.Fatal("observed input unexpectedly shared its applied slice")
+		}
+	})
+
+	t.Run("partial journal refuses phase completion", func(t *testing.T) {
+		manifest := testManifest()
+		observed := ObservedState{JournalPresent: true, Applied: []Entry{manifest.Entries[0]}}
+		result, err := Rehearse(InputFromObserved(manifest, observed))
+		if !errors.Is(err, ErrRehearsalFailed) {
+			t.Fatalf("partial observed state err = %v, want ErrRehearsalFailed", err)
+		}
+		if len(result.Steps) != 1 || result.Steps[0] != PhaseExpand {
+			t.Fatalf("partial observed steps = %v, want expansion only", result.Steps)
+		}
+		if result.Findings[0].Code != "BACKFILL_INCOMPLETE" {
+			t.Fatalf("partial observed findings = %+v, want BACKFILL_INCOMPLETE", result.Findings)
+		}
+	})
+}
+
+func TestTodo_CICD_002_ObservedStateRejectsForgedJournalEntry(t *testing.T) {
+	manifest := testManifest()
+	observed := ObservedState{
+		JournalPresent: true,
+		Applied:        []Entry{{Version: manifest.Entries[0].Version, Name: manifest.Entries[0].Name, Checksum: strings.Repeat("f", 64), Direction: "UP"}},
+	}
+	result, err := Rehearse(InputFromObserved(manifest, observed))
+	if !errors.Is(err, ErrRehearsalFailed) {
+		t.Fatalf("forged journal entry err = %v, want ErrRehearsalFailed", err)
+	}
+	for _, finding := range result.Findings {
+		if finding.Code == "CHECKSUM_MISMATCH" {
+			return
+		}
+	}
+	t.Fatalf("forged journal findings = %+v, want CHECKSUM_MISMATCH", result.Findings)
+}

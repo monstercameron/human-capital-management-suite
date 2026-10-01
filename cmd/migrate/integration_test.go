@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	fixtureseed "github.com/monstercameron/human-capital-management-suite/internal/data/seed"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/migrations"
 )
 
 func TestMain(m *testing.M) {
@@ -115,6 +118,49 @@ func TestTodo_SVC_013_Integration(t *testing.T) {
 		t.Fatalf("status output = %q, want a schema-version report line", statusOut.String())
 	}
 
+	phaseDir := t.TempDir()
+	phasePlanPath := filepath.Join(phaseDir, "phase-plan.json")
+	phaseRowsPath := filepath.Join(phaseDir, "phase-rows.json")
+	phaseJournalPath := filepath.Join(phaseDir, "phase-journal.json")
+	files, err := migrations.Files()
+	if err != nil {
+		t.Fatalf("phase migration files: %v", err)
+	}
+	digest, err := migrations.ArtifactDigest()
+	if err != nil {
+		t.Fatalf("phase migration digest: %v", err)
+	}
+	phasePlan := migrationPhasePlanFile{
+		MigrationID:    releaseVersion(files, digest),
+		ManifestDigest: digest,
+		Plan:           upgradeTestPlan(),
+	}
+	phasePlanRaw, err := json.Marshal(phasePlan)
+	if err != nil {
+		t.Fatalf("encode phase plan: %v", err)
+	}
+	if err := os.WriteFile(phasePlanPath, phasePlanRaw, 0o600); err != nil {
+		t.Fatalf("write phase plan: %v", err)
+	}
+	phaseRowsRaw, err := json.Marshal(upgradeTestRows())
+	if err != nil {
+		t.Fatalf("encode phase rows: %v", err)
+	}
+	if err := os.WriteFile(phaseRowsPath, phaseRowsRaw, 0o600); err != nil {
+		t.Fatalf("write phase rows: %v", err)
+	}
+	var phaseOut bytes.Buffer
+	if err := runMigrationPhaseCommand(ctx, db.SQL, phaseJournalPath, phasePlanPath, phaseRowsPath, 3, &phaseOut); err != nil {
+		t.Fatalf("phase gates: %v", err)
+	}
+	var phaseReceipt migrationPhaseReceipt
+	if err := json.Unmarshal(phaseOut.Bytes(), &phaseReceipt); err != nil {
+		t.Fatalf("decode phase receipt %q: %v", phaseOut.String(), err)
+	}
+	if phaseReceipt.MigrationID != releaseVersion(files, digest) || phaseReceipt.Phase != "CONTRACTED" || len(phaseReceipt.Gates) != 5 || phaseReceipt.CopiedRows != 3 {
+		t.Fatalf("phase receipt = %+v, want identified CONTRACTED run through five gates", phaseReceipt)
+	}
+
 	// Migration 00363 permits rollback only while its durable receipt table is
 	// empty. Put a receipt in the fresh schema so this exercises the live-data
 	// guard and proves Down cannot discard it.
@@ -126,24 +172,24 @@ func TestTodo_SVC_013_Integration(t *testing.T) {
 		t.Fatalf("insert receipt tenant: %v", err)
 	}
 	receiptID := uuid.New()
-	digest := "sha256:" + strings.Repeat("0", 64)
+	receiptDigest := "sha256:" + strings.Repeat("0", 64)
 	if _, err := db.SQL.ExecContext(ctx, `
 		INSERT INTO integration_webhook_receipt
 			(tenant_id, receipt_id, provider, endpoint_id, event_id, event_type, schema_ref,
 			 payload_digest, request_digest, payload_bytes, parsed_receipt, received_at)
 		VALUES ($1, $2, 'payroll', 'payroll-endpoint', 'event-durable', 'APPLIED', 'payroll.v1',
 			$3, $3, $4, '{}', $5)`,
-		tenantID, receiptID, digest, []byte(`{"event_id":"event-durable"}`), time.Now().UTC()); err != nil {
+		tenantID, receiptID, receiptDigest, []byte(`{"event_id":"event-durable"}`), time.Now().UTC()); err != nil {
 		t.Fatalf("insert durable webhook receipt: %v", err)
 	}
 
 	var downOut bytes.Buffer
-	err := runMigrateCommand(ctx, "down", db.SQL, &downOut)
-	if err == nil {
+	downErr := runMigrateCommand(ctx, "down", db.SQL, &downOut)
+	if downErr == nil {
 		t.Fatalf("down succeeded with a durable webhook receipt; output = %q", downOut.String())
 	}
-	if !strings.Contains(err.Error(), "cannot remove durable provider webhook receipts") {
-		t.Fatalf("down error = %v, want the durable-receipt guard", err)
+	if !strings.Contains(downErr.Error(), "cannot remove durable provider webhook receipts") {
+		t.Fatalf("down error = %v, want the durable-receipt guard", downErr)
 	}
 	var preserved int
 	if err := db.SQL.QueryRowContext(ctx, `

@@ -82,6 +82,17 @@ const (
 	FieldPayZone          FieldID = "assignment.pay_zone"
 	FieldFTE              FieldID = "assignment.fte"
 	FieldManagerRelation  FieldID = "assignment.manager_relationship_ref"
+
+	// FieldExemptionStatus, FieldTimeCaptureMode and FieldTimeProfileRef back
+	// WTIME-001's per-assignment time profile: the overtime exemption
+	// classification, the "hour tracking" capture mode and the named time
+	// profile a worker's capture mode and exemption were resolved from. They
+	// are employment facts, not assignment facts, for the same reason
+	// FieldWorkerType is: exemption and capture mode describe the worker's
+	// legal and payroll relationship, not the placement.
+	FieldExemptionStatus FieldID = "employment.exemption_status"
+	FieldTimeCaptureMode FieldID = "employment.time_capture_mode"
+	FieldTimeProfileRef  FieldID = "employment.time_profile_ref"
 )
 
 // knownFields is the closed set of defined fields.
@@ -104,6 +115,9 @@ var knownFields = map[FieldID]struct{}{
 	FieldPayZone:          {},
 	FieldFTE:              {},
 	FieldManagerRelation:  {},
+	FieldExemptionStatus:  {},
+	FieldTimeCaptureMode:  {},
+	FieldTimeProfileRef:   {},
 }
 
 // Validate reports whether f is a defined worker-state field.

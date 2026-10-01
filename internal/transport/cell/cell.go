@@ -23,6 +23,7 @@ package cell
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -35,7 +36,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	clockservice "github.com/monstercameron/human-capital-management-suite/internal/application/clockservice"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -55,6 +58,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/otelmw"
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
+	transporttimeclock "github.com/monstercameron/human-capital-management-suite/internal/transport/timeclock"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
 	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -69,6 +73,10 @@ type ServiceHandlers struct {
 	Integration          transport.IntegrationHandler
 	IntegrationPublisher http.Handler
 	Parameters           http.Handler
+	ClockDevice          clockservice.DeviceAPI
+	ClockWorker          transporttimeclock.WorkerSelfService
+	ClockMissingPunch    transporttimeclock.MissingPunchApplication
+	ClockEvents          transporttimeclock.EventFeed
 	Project              *transportproject.Dependencies
 	WorkOrder            *transportworkorder.Dependencies
 }
@@ -187,6 +195,10 @@ func newGRPCServerWithWorkflowInspectorAndOperations(
 	if err != nil {
 		return nil, err
 	}
+	registerClockDevice(srv, services.ClockDevice)
+	registerWorkerClock(srv, services.ClockWorker)
+	registerAgents(srv, c)
+	registerMissingPunch(srv, services.ClockMissingPunch)
 	// The operator surface (SVC-011 / ADMIN-001) is hosted by the same
 	// server under the same interceptor chain; its distinct trust policy is
 	// the operator role check inside internal/operations/admin, not a
@@ -340,7 +352,7 @@ func newTunnelGRPCServerWithDocumentAndProjectActivity(
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(c, instances, workQueue,
 		cursorKey, previousCursorKey, workWrites, thresholds, chatService, extensions, documentService,
-		positionDeps, projectService, projectActivity, projectSearch, nil, opts...)
+		positionDeps, projectService, projectActivity, projectSearch, nil, nil, opts...)
 }
 
 func newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(
@@ -353,6 +365,7 @@ func newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(
 	projectActivity transportproject.ActivityService,
 	projectSearch transportproject.TaskSearchService,
 	workOrder *transportworkorder.Dependencies,
+	workerClock transporttimeclock.WorkerSelfService,
 	opts ...grpc.ServerOption,
 ) (*grpc.Server, error) {
 	if c == nil {
@@ -406,6 +419,8 @@ func newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(
 		workOrderDeps = *workOrder
 	}
 	transportworkorder.Register(srv, workOrderDeps)
+	registerTunnelWorkerClock(srv, workerClock)
+	registerAgents(srv, c)
 	return srv, nil
 }
 
@@ -513,16 +528,22 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 			Now:             c.Config.Now,
 			DevBrowserLogin: c.DevBrowserLogin(),
 			OIDCFlow:        c.OIDCFlow, OIDCTenant: c.OIDCTenant, OIDCIssuerURL: c.OIDCIssuerURL,
-			OIDCSessionIssuer: c.OIDCSessionIssuer,
-			Secure:            strings.HasPrefix(strings.ToLower(c.OIDCRedirectURI), "https://"),
-			DevPersonas:       c.DevPersonas(),
-			DevDirectory:      c.DevDirectory(),
-			RoleAccess:        c.RoleAccess,
-			BrandAssets:       c.BrandAssets,
-			Preferences:       c.Preferences,
-			PageLedger:        c.PageLedger,
-			Catalogs:          c.Catalogs,
-			PublicOrigin:      c.PublicOrigin(),
+			OIDCSessionIssuer:         c.OIDCSessionIssuer,
+			Secure:                    strings.HasPrefix(strings.ToLower(c.OIDCRedirectURI), "https://"),
+			DevPersonas:               c.DevPersonas(),
+			DevDirectory:              c.DevDirectory(),
+			RoleAccess:                c.RoleAccess,
+			BrandAssets:               c.BrandAssets,
+			Preferences:               c.Preferences,
+			PageLedger:                c.PageLedger,
+			Catalogs:                  c.Catalogs,
+			WorkflowStarts:            c.WorkflowStartSource(),
+			AgentSettings:             c.AgentSettings,
+			Agents:                    c.Agents,
+			PersonaAdminClientFactory: personaAdminClientFactory(c),
+			PersonaAdminCommands:      personaAdminCommandTransport(c),
+			ClockEnabled:              services.ClockWorker != nil,
+			PublicOrigin:              c.PublicOrigin(),
 		})
 		if wsErr != nil {
 			return nil, fmt.Errorf("transport cell: compose the promotion workspace: %w", wsErr)
@@ -542,12 +563,36 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 	if services.IntegrationPublisher != nil {
 		mux.Handle("/v1/integration/connector-definitions", trustedPrincipalHTTP(c.Config, services.IntegrationPublisher))
 	}
+	if services.ClockDevice != nil {
+		clockHTTP := trustedPrincipalHTTP(c.Config, clockDeviceHTTP(services.ClockDevice))
+		mux.Handle("/v1/time/clock-device/", clockHTTP)
+		for _, method := range []string{"CreateEnrollmentCode", "EnrollDevice", "RotateDeviceKey", "RevokeDevice", "SyncRoster", "IdentifyWorker", "SubmitPunches", "Heartbeat", "GetWorkerStatus"} {
+			mux.Handle("/hcmnext.time.v1.ClockDeviceService/"+method, clockHTTP)
+		}
+	}
+	if services.ClockWorker != nil {
+		clockHTTP := workerClockHTTP(c.Config, services.ClockWorker)
+		mux.Handle("/v1/time/self", clockHTTP)
+		mux.Handle("/v1/time/self/", clockHTTP)
+	}
+	if services.ClockEvents != nil {
+		mux.Handle(transporttimeclock.ClockEventsPath, trustedPrincipalHTTP(c.Config, transporttimeclock.ClockEventHTTPHandler(services.ClockEvents)))
+	}
+	if services.ClockMissingPunch != nil {
+		clockHTTP := missingPunchHTTP(c.Config, services.ClockMissingPunch)
+		mux.Handle("/v1/time/missing-punch/", clockHTTP)
+	}
 	discovery, err := newDiscoveryHandler(c.Config, c.Discovery, routes)
 	if err != nil {
 		return nil, fmt.Errorf("transport cell: render the discovery document: %w", err)
 	}
 	mux.Handle(app.DiscoveryPath, discovery)
 	mux.Handle(openapidoc.Path, trustedPrincipalHTTP(c.Config, openapidoc.Handler()))
+	clockDocument, err := transporttimeclock.OpenAPIHandler()
+	if err != nil {
+		return nil, fmt.Errorf("transport cell: clock OpenAPI: %w", err)
+	}
+	mux.Handle(transporttimeclock.OpenAPIPath, trustedPrincipalHTTP(c.Config, clockDocument))
 	if grpcServer != nil {
 		var publicHost string
 		if publicOrigin != nil {
@@ -561,6 +606,32 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 	}
 	mux.Handle("/", rpc)
 	return edge.BrowserPolicy(mux, browserPolicyOptions(publicOrigin)), nil
+}
+
+// personaAdminClientFactory is intentionally capability-based so the cell
+// transport does not construct or cache a persona client. The application
+// composition may attach an isolated, request-binding factory to a cell;
+// absent that capability the route remains reachable but unavailable.
+func personaAdminClientFactory(c *app.Cell) interface {
+	ClientForRequest(context.Context) productui.PersonaAdminClient
+} {
+	if c == nil {
+		return nil
+	}
+	if factory, ok := any(c).(interface {
+		ClientForRequest(context.Context) productui.PersonaAdminClient
+	}); ok {
+		return factory
+	}
+	return nil
+}
+
+func personaAdminCommandTransport(c *app.Cell) productui.PersonaAdminCommandTransport {
+	if c == nil || c.PersonaAdminClientFactory == nil {
+		return nil
+	}
+	commands, _ := c.PersonaAdminClientFactory.(productui.PersonaAdminCommandTransport)
+	return commands
 }
 
 func healthServer(c *app.Cell) *transporthealth.Server {

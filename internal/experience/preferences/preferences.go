@@ -44,6 +44,9 @@ type Accessibility struct {
 	Contrast string `json:"contrast"`
 	Motion   string `json:"motion"`
 	Links    string `json:"links"`
+	// ColorMode is empty when this principal follows the organization's
+	// appearance; light and dark are personal overrides.
+	ColorMode string `json:"color_mode,omitempty"`
 }
 
 // User is the complete replaceable preference document for one principal.
@@ -186,6 +189,7 @@ func NormalizeUser(value User) User {
 	if value.WorkflowUses == nil {
 		value.WorkflowUses = map[string]int64{}
 	}
+	value.Accessibility.ColorMode = NormalizePersonalColorMode(value.Accessibility.ColorMode)
 	value.Density = NormalizeUserDensity(value.Density)
 	return value
 }

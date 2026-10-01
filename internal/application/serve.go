@@ -36,6 +36,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/application/projectrefs"
 	"github.com/monstercameron/human-capital-management-suite/internal/application/projectsearch"
 	"github.com/monstercameron/human-capital-management-suite/internal/application/projectservice"
+	dataanalytics "github.com/monstercameron/human-capital-management-suite/internal/data/analytics"
 	dataconfigbundlekill "github.com/monstercameron/human-capital-management-suite/internal/data/configbundlekill"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/configparamstore"
 	dataconfigregistry "github.com/monstercameron/human-capital-management-suite/internal/data/configregistry"
@@ -81,9 +82,11 @@ import (
 	platformconfig "github.com/monstercameron/human-capital-management-suite/internal/platform/config"
 	platformexecution "github.com/monstercameron/human-capital-management-suite/internal/platform/execution"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/logging"
+	telemetrylifecycle "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/lifecycle"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	transportadmin "github.com/monstercameron/human-capital-management-suite/internal/transport/admin"
 	transportcell "github.com/monstercameron/human-capital-management-suite/internal/transport/cell"
+	transportconformance "github.com/monstercameron/human-capital-management-suite/internal/transport/conformance"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/endpoint"
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
@@ -91,6 +94,7 @@ import (
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportreviewparticipants "github.com/monstercameron/human-capital-management-suite/internal/transport/reviewparticipants"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/streaming"
+	transporttimeclock "github.com/monstercameron/human-capital-management-suite/internal/transport/timeclock"
 	transportwebhook "github.com/monstercameron/human-capital-management-suite/internal/transport/webhook"
 	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -113,6 +117,7 @@ const (
 	ComponentCredentialVerifier       = "credential-verifier"
 	ComponentLegalEvidenceVerifier    = "legal-evidence-verifier"
 	ComponentTelemetryProvider        = "telemetry-provider"
+	ComponentTelemetryLifecycle       = "telemetry-lifecycle"
 	ComponentEvidenceSink             = "evidence-sink"
 	ComponentDomainInputs             = "domain-inputs"
 	ComponentWorkerFacts              = "worker-facts"
@@ -127,6 +132,7 @@ const (
 	ComponentConfigBundleReceiver     = "configbundle-receiver"
 	ComponentStoreHealth              = "store-health"
 	ComponentPilotReliability         = "pilot-reliability"
+	ComponentProductSliceReleaseGate  = "product-slice-release-gate"
 	ComponentProposalExecutor         = "proposal-executor"
 	ComponentWorkflowResolver         = "workflow-resolver"
 	ComponentWorkflowVersions         = "workflow-versions"
@@ -144,6 +150,7 @@ const (
 	ComponentRoleAccess               = "role-access"
 	ComponentGRPCSurface              = "grpc-surface"
 	ComponentHTTPEdge                 = "http-edge"
+	ComponentEdgeQualification        = "edge-qualification"
 	ComponentWorkloadGRPC             = "workload:grpc-surface"
 	ComponentWorkloadHTTP             = "workload:http-edge"
 	ComponentShutdownHTTP             = "shutdown:stop-http-edge"
@@ -152,6 +159,9 @@ const (
 	ComponentChatService              = "chat-service"
 	ComponentChatDatabasePool         = "chat-database-pool"
 	ComponentShutdownChat             = "shutdown:close-chat-database"
+	ComponentAgentDatabasePool        = "agent-database-pool"
+	ComponentAgentPersonaStore        = "agent-persona-store"
+	ComponentShutdownAgentDatabase    = "shutdown:close-agent-database"
 	ComponentDocumentStore            = "document-store"
 	ComponentShutdownDocument         = "shutdown:close-document-database"
 	ComponentShutdownWorkOrder        = "shutdown:close-workorder-database"
@@ -160,6 +170,7 @@ const (
 	shutdownNameHTTP                  = "stop-http-edge"
 	shutdownNameGRPC                  = "stop-grpc-surface"
 	shutdownNameChat                  = "close-chat-database"
+	shutdownNameAgentDatabase         = "close-agent-database"
 	shutdownNameWorkOrder             = "close-workorder-database"
 	shutdownNameDocument              = "close-document-database"
 	shutdownNameTelemetry             = "shutdown-telemetry"
@@ -335,18 +346,33 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := NewExperienceContracts(); err != nil {
+		return nil, fmt.Errorf("application: compile experience contracts: %w", err)
+	}
+	if err := transportconformance.ValidateServingContract(); err != nil {
+		return nil, fmt.Errorf("application: qualify product-slice release gate: %w", err)
+	}
 	logger := in.Logger
 	if logger == nil {
 		logger = discardLogger{}
 	}
+	analyticsService := dataanalytics.NewService()
 	graph := newGraphBuilder(RoleServe)
 	graph.add(ComponentConfig, KindConfig, cfg)
+	assuranceRegister := composeAssuranceRegister()
+	graph.add(ComponentAssuranceRegister, KindGovernance, assuranceRegister, ComponentConfig)
+	edgeEvidence, err := qualifyServedEdge()
+	if err != nil {
+		return nil, fmt.Errorf("application: qualify served edge: %w", err)
+	}
+	graph.add(ComponentEdgeQualification, KindGovernance, edgeEvidence, ComponentConfig)
 	graph.add(ComponentDatabasePool, KindAdapter, in.Pool)
 	pilotReliability, err := loadPilotReliability(time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("application: %w", err)
 	}
 	graph.add(ComponentPilotReliability, KindGovernance, pilotReliability, ComponentConfig)
+	graph.add(ComponentProductSliceReleaseGate, KindGovernance, transportconformance.ServingContractID, ComponentConfig)
 
 	graph.add(ComponentSchemaMigrator, KindAdapter, options.Migrate)
 	if cfg.Migrate {
@@ -376,6 +402,28 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 	}
 
+	if err := applyClockMigrations(ctx, cfg, options, logger); err != nil {
+		return nil, err
+	}
+
+	// Persona definitions and installations live on their own bounded pool.
+	// Keep the pool's lifetime in this composition, so every startup failure
+	// after this point rolls it back and normal shutdown closes it exactly once.
+	agentDatabase, err := composeAgentDatabase(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	agentDatabaseCommitted := false
+	defer func() {
+		if !agentDatabaseCommitted && agentDatabase.close != nil {
+			agentDatabase.close()
+		}
+	}()
+	if agentDatabase.store != nil {
+		graph.add(ComponentAgentDatabasePool, KindAdapter, agentDatabase.store, ComponentConfig)
+		graph.add(ComponentAgentPersonaStore, KindAdapter, agentDatabase.personas, ComponentAgentDatabasePool)
+	}
+
 	store, err := composeStore(in.Pool, cfg, options)
 	if err != nil {
 		return nil, err
@@ -391,10 +439,30 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		logger.Info("hcmnext.tenant_registered", "tenant", tenant, "cell_id", cfg.CellID)
 	}
 	if cfg.DevBrowserLogin && cfg.DevWorkforceBootstrap {
+		populationProvisioner := NewLocalDemoPopulationProvisioner(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), options.Now)
+		homeOrganizationProvisioner := NewLocalDemoHomeOrganizationProvisioner(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), options.Now)
 		for _, tenant := range cfg.ServedTenants() {
 			workforceSummary, organizationSummary, seedErr := bootstrapLocalDevWorkforce(ctx, in.Pool, tenant)
 			if seedErr != nil {
 				return nil, seedErr
+			}
+			if _, isDemo := demoworkforce.PackFor(tenant); in.Pool != nil && isDemo {
+				populationSummary, populationErr := populationProvisioner.Provision(ctx, tenant)
+				if populationErr != nil {
+					return nil, populationErr
+				}
+				if populationSummary.Created > 0 || populationSummary.Existing > 0 {
+					logger.Info("hcmnext.local_dev_population_ready", "tenant", tenant,
+						"facts_created", populationSummary.Created, "facts_existing", populationSummary.Existing)
+				}
+				homeOrganizationSummary, homeOrganizationErr := homeOrganizationProvisioner.Provision(ctx, tenant)
+				if homeOrganizationErr != nil {
+					return nil, homeOrganizationErr
+				}
+				if homeOrganizationSummary.Created > 0 || homeOrganizationSummary.Existing > 0 {
+					logger.Info("hcmnext.local_dev_home_organizations_ready", "tenant", tenant,
+						"facts_created", homeOrganizationSummary.Created, "facts_existing", homeOrganizationSummary.Existing)
+				}
 			}
 			if workforceSummary.Planned > 0 {
 				logger.Info("hcmnext.local_dev_workforce_ready",
@@ -404,7 +472,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 	}
 
-	verifier, err := composeVerifier(cfg, options)
+	verifier, machineAuth, err := composeServedVerifier(cfg, options, in.Pool)
 	if err != nil {
 		return nil, err
 	}
@@ -440,6 +508,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		return nil, fmt.Errorf("build telemetry provider: %w", err)
 	}
 	graph.add(ComponentTelemetryProvider, KindAdapter, telemetryProvider, ComponentConfig)
+	telemetryLifecycle, err := telemetrylifecycle.New(telemetrylifecycle.DefaultPolicy())
+	if err != nil {
+		return nil, fmt.Errorf("build telemetry lifecycle policy: %w", err)
+	}
+	graph.add(ComponentTelemetryLifecycle, KindAdapter, telemetryLifecycle, ComponentConfig, ComponentTelemetryProvider)
 	telemetryCommitted := false
 	defer func() {
 		if telemetryCommitted || telemetryProvider == nil {
@@ -464,6 +537,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// are reachable from the running process instead of library-only.
 	disposition := NewDispositionGate()
 	graph.add(ComponentDispositionGate, KindAdapter, disposition, ComponentConfig)
+	installationLifecycle, err := composeInstallationLifecycle(options.Now)
+	if err != nil {
+		return nil, fmt.Errorf("application: compose installation lifecycle: %w", err)
+	}
+	graph.add(ComponentInstallationLifecycle, KindGovernance, installationLifecycle, ComponentConfig)
 
 	workspaceEnabled := cfg.Workspace
 	workerIDs := workeridstore.New(in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID))
@@ -569,6 +647,20 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if err != nil {
 			return nil, err
 		}
+		clockPublishNow := options.Now
+		if clockPublishNow == nil {
+			clockPublishNow = time.Now
+		}
+		clockVersions, err := bootstrapLocalDevTimeclockWorkflowVersion(ctx, cfg, cellConfig.ExecutionVersions, clockPublishNow)
+		if err != nil {
+			return nil, err
+		}
+		released = append(released, clockVersions...)
+		correctionVersions, err := bootstrapLocalDevMissingPunchWorkflowVersion(ctx, cfg, cellConfig.ExecutionVersions, clockPublishNow)
+		if err != nil {
+			return nil, err
+		}
+		released = append(released, correctionVersions...)
 		for _, v := range released {
 			logger.Info("hcmnext.local_dev_workflow_version_ready",
 				"tenant", cfg.Tenant, "workflow", v.WorkflowID, "semantic_version", v.SemanticVersion,
@@ -585,6 +677,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	platformAgentRuntime := wireAgentRuntime(ctx, in, cell, logger, graph, options.Now)
+	personaWiring, personaWiringErr := composePersonaServeWiring(in.Pool, cell, agentDatabase.personas, options.Now)
+	if personaWiringErr != nil {
+		logger.Error("hcmnext.persona_catalog_unavailable", "stage", personaServeWiringStage(personaWiringErr))
+	}
 	var serviceHandlers transportcell.ServiceHandlers
 	if in.Pool != nil {
 		tenantUUID := tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)
@@ -599,6 +696,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			TenantID: func(tenant string) uuid.UUID {
 				return tenantUUID(kernelvalues.TenantId(tenant))
 			},
+			Connections: []IntegrationConnection{{
+				Connection:  cell.Connection,
+				Connector:   cell.Incumbent,
+				OrgID:       cell.Connection.OrgID(),
+				SystemID:    cell.Connection.SystemID(),
+				AuthMode:    cell.Connection.AuthMode(),
+				Environment: cell.Connection.Environment(),
+				Residency:   cell.Connection.Residency(),
+			}},
 			Observations: cell.Observations,
 			Now:          options.Now,
 		})
@@ -633,6 +739,38 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			Parameters: parameterHandler,
 		}
 	}
+	clockRuntime, err := composeConfiguredClock(ctx, cfg, in.Pool, options)
+	if err != nil {
+		return nil, err
+	}
+	if clockRuntime == nil {
+		clockRuntime, err = composeLocalDevSelfClock(ctx, localDevSelfClockInput{Config: cfg, Pool: in.Pool, Logger: logger, Options: options, Telemetry: telemetryProvider})
+		if err != nil {
+			return nil, err
+		}
+	}
+	if clockRuntime == nil {
+		// The workspace tells people the time clock is not turned on; the
+		// operator's detail belongs here, not on that page.
+		logger.Info("hcmnext.time_clock_not_enabled",
+			"enable_with", "-"+FieldTimeDatabaseURL+" and -"+FieldTimeWorkerTokenKey+" with the signed registry flags, or run -profile=local-dev with the demo workforce, which serves the worker self clock on its own")
+	}
+	clockCommitted := false
+	defer func() {
+		if clockRuntime != nil && !clockCommitted {
+			clockRuntime.Close()
+		}
+	}()
+	if clockRuntime != nil {
+		if clockRuntime.API != nil {
+			serviceHandlers.ClockDevice = clockRuntime.API
+			graph.add("service:clock-device", KindEngine, clockRuntime.API, ComponentDatabasePool, ComponentConfig)
+		}
+		if clockRuntime.Worker != nil {
+			serviceHandlers.ClockWorker = clockRuntime.Worker
+			graph.add("service:clock-worker", KindEngine, clockRuntime.Worker, ComponentDatabasePool, ComponentConfig)
+		}
+	}
 	graph.add(ComponentCell, KindRegistry, cell,
 		ComponentIntentStore, ComponentCredentialVerifier, ComponentTelemetryProvider,
 		ComponentEvidenceSink, ComponentLegalEvidenceVerifier, ComponentPayBandCatalog, ComponentProposalExecutor)
@@ -663,7 +801,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if chatSessions != nil || cfg.Profile == ServeProfileLocalDev {
 		chatFacts = newCurrentWorkerChatFacts(roleAccess, in.Pool, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), chatSessions)
 	}
-	chatRuntime, err := composeChat(ctx, cfg, options.Now, chatFacts, in.Pool, cell.Service)
+	chatComposition := ChatComposition{}
+	if personaWiring != nil {
+		chatComposition = personaWiring.chatComposition()
+	}
+	chatRuntime, err := composeChat(ctx, cfg, options.Now, chatFacts, in.Pool, cell.Service, chatComposition)
 	if err != nil {
 		// composeChat returns nil unless -chat-enabled is set, so this is an
 		// enabled surface that cannot answer: mounting its routes would serve
@@ -678,6 +820,30 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			chatRuntime.close()
 		}
 	}()
+	if options.PersonaInvocation != nil && (personaWiring == nil || chatRuntime.service == nil) {
+		return nil, fmt.Errorf("compose configured persona invocation: %w", errPersonaInvocationProductionComposition)
+	}
+	var personaAudience *PersonaPublicAudienceAuthority
+	if chatRuntime.extensions != nil && chatRuntime.extensions.TodoStore != nil {
+		personaAudience = NewPersonaPublicAudienceAuthority(chatRuntime.extensions.TodoStore)
+	}
+	if personaWiring != nil && chatRuntime.service != nil {
+		if bindErr := personaWiring.bindChat(chatRuntime.service); bindErr != nil {
+			logger.Error("hcmnext.persona_catalog_unavailable", "stage", personaServeWiringStage(bindErr))
+		} else {
+			if cell.Agents != nil {
+				cell.Agents = personaWiring.bindAgents(cell.Agents)
+			}
+			var placements []PersonaAdminPlacementSource
+			if personaAudience != nil {
+				placements = append(placements, personaAudience)
+			}
+			if bindErr := personaWiring.bindAdminCommands(agentDatabase.store, agentDatabase.review, placements...); bindErr != nil {
+				logger.Error("hcmnext.persona_admin_commands_unavailable", "stage", personaServeWiringStage(bindErr))
+			}
+		}
+		cell.PersonaAdminClientFactory = personaWiring.adminClientFactory()
+	}
 	graph.add(ComponentChatService, KindEngine, chatRuntime.service, ComponentConfig)
 	documentRuntime, err := composeDocument(ctx, cfg)
 	if err != nil {
@@ -704,6 +870,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			routes: documentRoutes, aud: documentAudienceEligibility(chatRuntime.service), agentApps: agentApps, agentNow: options.Now,
 		}
 		documentRuntime.service = withDocumentChat(documentRuntime.service, chatRuntime.service)
+		if personaWiring != nil {
+			policySearcher, searcherErr := NewPersonaPolicyDocumentSearcher(documentRuntime.service, documentRuntime.store)
+			if searcherErr != nil {
+				return nil, fmt.Errorf("compose persona policy document source: %w", searcherErr)
+			}
+			if _, bindErr := bindPersonaPolicySearchSkill(personaWiring.capabilities, personaWiring.skills, policySearcher); bindErr != nil {
+				logger.Error("hcmnext.persona_policy_search_unavailable", "error", bindErr.Error())
+			}
+		}
 	}
 	documentCommitted := false
 	defer func() {
@@ -713,6 +888,86 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}()
 	if documentRuntime.store != nil {
 		graph.add(ComponentDocumentStore, KindAdapter, documentRuntime.store, ComponentConfig)
+	}
+	var localPolicyRegistry composedAgentModelPolicyRegistry
+	localPolicyRegistryCommitted := false
+	defer func() {
+		if !localPolicyRegistryCommitted && localPolicyRegistry.close != nil {
+			localPolicyRegistry.close()
+		}
+	}()
+	var localPersonaBootstrap LocalDevPersonaBootstrapper
+	if cfg.Profile == ServeProfileLocalDev && personaWiring != nil && agentDatabase.store != nil &&
+		chatRuntime.extensions != nil && chatRuntime.extensions.TodoStore != nil && os.Getenv(EnvLocalAgentPolicyAuthorityDatabaseURL) != "" {
+		material, materialErr := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaModelSigningPath)
+		if materialErr != nil {
+			return nil, materialErr
+		}
+		deploymentPath := cfg.AgentModelConfigFile
+		if deploymentPath == "" {
+			deploymentPath = localPersonaModelDeploymentPath
+		}
+		localPolicyRegistry, err = composeLocalAgentModelPolicyRegistry(ctx, agentModelPolicyRegistryCompositionInput{
+			Config: cfg, Core: in.Pool, Agents: agentDatabase, Material: material,
+			PublisherDSN: os.Getenv(EnvLocalAgentPolicyAuthorityDatabaseURL), Now: personaServeClock(options.Now),
+			CurrentDeployment: PersonaModelDeploymentPolicyAuthority{Routes: agentDatabase.store,
+				Deployment: func(context.Context, kernelvalues.TenantId) (PersonaModelDeployment, error) {
+					return LoadPersonaModelDeployment(deploymentPath)
+				}, TenantUUID: tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), Now: personaServeClock(options.Now)},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("compose local agent model policy: %w", err)
+		}
+		localPersonaBootstrap, err = personaWiring.localDevBootstrap(cfg.Profile, in.Pool, agentDatabase.store, localPolicyRegistry.References, chatRuntime.extensions.TodoStore, agentDatabase.review)
+		if err != nil {
+			return nil, fmt.Errorf("compose local persona bootstrap: %w", err)
+		}
+	}
+	cell.PersonaAdminClientFactory = withLocalDevPersonaBootstrapAvailability(cell.PersonaAdminClientFactory, localPersonaBootstrap != nil)
+	var servedPersonaInvocation *PersonaInvocationProductionRuntime
+	if personaWiring != nil {
+		if streaming, ok := chatRuntime.service.(*streamingChatService); ok && streaming.personaInvocation == nil {
+			var bodyClassifier *LocalDevPersonaPostClassifier
+			var classifiers []PersonaAcceptedHumanPostClassifier
+			if chatRuntime.extensions != nil && chatRuntime.extensions.TodoStore != nil {
+				var classifierErr error
+				bodyClassifier, classifierErr = NewLocalDevPersonaPostClassifier(chatRuntime.extensions.TodoStore, cfg.Profile == ServeProfileLocalDev)
+				if classifierErr != nil {
+					return nil, fmt.Errorf("compose served persona post classifier: %w", classifierErr)
+				}
+				classifiers = append(classifiers, bodyClassifier)
+			}
+			invocationConfig := options.PersonaInvocation
+			if invocationConfig == nil {
+				modelFactory, modelErr := newPersonaServedProviderConfiguration(ctx, cfg, platformAgentRuntime, os.Getenv)
+				if modelErr != nil {
+					return nil, fmt.Errorf("compose served persona provider: %w", modelErr)
+				}
+				if modelFactory != nil {
+					floor := &PersonaRuntimeAudienceFloor{Chat: chatRuntime.service, Personas: agentDatabase.personas,
+						Authority: NewPersonaAudienceFloorAdapter(personaAudience, personaAudience, personaAudience), Classes: personaAudience, BodyClasses: bodyClassifier}
+					invocationConfig, modelErr = composePersonaRuntimeDependencies(ctx, personaRuntimeCompositionInput{
+						AgentDatabase: agentDatabase, Pool: in.Pool, Cell: cell, Personas: personaWiring,
+						Chat: streaming, ChatRuntime: chatRuntime, Documents: documentRuntime,
+						ModelFactory: modelFactory, AudienceSnapshots: personaAudience, AudienceFloor: floor,
+					})
+					if modelErr != nil {
+						return nil, fmt.Errorf("compose served persona owners: %w", modelErr)
+					}
+				}
+			}
+			personaRuntime, invocationErr := composeServedPersonaInvocation(streaming, personaWiring, agentDatabase, invocationConfig, logger, classifiers...)
+			if invocationErr != nil {
+				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_invalid")
+				return nil, fmt.Errorf("compose configured persona invocation: %w", invocationErr)
+			}
+			if personaRuntime == nil {
+				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_missing", "missing_ports", personaInvocationServeMissingPorts())
+			} else {
+				servedPersonaInvocation = personaRuntime
+				graph.add("persona-run-model-worker", KindEngine, personaRuntime.Worker, ComponentChatService, ComponentAgentDatabasePool)
+			}
+		}
 	}
 	// Both WorkService and safe project references use the same tenant-scoped
 	// WorkItem reader. The project projection still applies current WorkService
@@ -770,6 +1025,22 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		serviceHandlers.Project = &transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search}
 	}
 
+	agentServiceInput := agentServedAssemblyInput{
+		Core: in.Pool, AgentDatabase: agentDatabase, Cell: cell, Personas: personaWiring,
+		Audience: personaAudience, Now: options.Now,
+	}
+	if projects.store != nil {
+		agentServiceInput.Projects, agentServiceInput.ProjectStore = &projects.service, projects.store
+	}
+	agentServices, err := composeAgentServedAssembly(agentServiceInput)
+	if err != nil {
+		return nil, fmt.Errorf("compose served agent services: %w", err)
+	}
+	if agentServices != nil && platformAgentRuntime != nil {
+		if err := agentServices.BindPlatform(platformAgentRuntime); err != nil {
+			return nil, fmt.Errorf("bind served agent task and memory owners: %w", err)
+		}
+	}
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
 		schedulerWorkload, err = composeServedSchedulers(cfg, in.Pool, in.Identity, cell, telemetryProvider, logger, options.Now)
@@ -902,9 +1173,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		browserProjectActivity = projects.activity
 		browserProjectSearch = projects.search
 	}
-	tunnelServer, err := transportcell.NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearchAndWorkOrder(
+	// The browser reads and drives the worker self clock over the same tunnel
+	// as every other page; nil is the workspace not running the clock.
+	var browserWorkerClock transporttimeclock.WorkerSelfService
+	if clockRuntime != nil && clockRuntime.Worker != nil {
+		browserWorkerClock = clockRuntime.Worker
+	}
+	tunnelServer, err := transportcell.NewTunnelGRPCServerWithWorkerClock(
 		cell, workflowControlReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
-		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch, workOrderDeps)
+		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch, workOrderDeps, browserWorkerClock)
 	if err != nil {
 		return nil, err
 	}
@@ -952,6 +1229,21 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 		edgeHandler = OverlayChatMedia(edgeHandler, mediaCfg, cell.Config)
 	}
+	if personaWiring != nil && chatRuntime.service != nil && agentDatabase.store != nil {
+		personaChat, surfaceErr := personaWiring.chatSurface(chatRuntime.service, agentDatabase.store)
+		if surfaceErr != nil {
+			return nil, fmt.Errorf("compose persona chat surface: %w", surfaceErr)
+		}
+		edgeHandler = OverlayPersonaChatSurface(edgeHandler, personaChat, cell.Config,
+			PersonaChatBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled()})
+	}
+	if agentServices != nil {
+		edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
+	}
+	if localPersonaBootstrap != nil {
+		edgeHandler = OverlayLocalDevPersonaBootstrap(edgeHandler, localPersonaBootstrap, cell.Config,
+			LocalDevPersonaBootstrapBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled()})
+	}
 	if documentRuntime.store != nil {
 		edgeHandler = OverlayDocumentMedia(edgeHandler, documentRuntime.store, DefaultDocumentMediaRoot(cfg.ChatMediaRoot, cfg.ArtifactRoot), cell.Config)
 		edgeHandler = transportcell.DocumentHTTPOverlay(edgeHandler, cell.Config, documentRuntime.service, pageCursorKey)
@@ -983,12 +1275,18 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		edgeHandler = transportwebhook.OverlayProviderReceivers(edgeHandler, providerWebhooks.payroll, providerWebhooks.iam)
 		graph.add(ComponentProviderWebhookReceivers, KindTransport, providerWebhooks, ComponentDatabasePool, ComponentConfig)
 	}
-	httpDependencies := []string{ComponentCell, ComponentGRPCSurface}
+	kioskAssets := cfg.ClockKiosk
+	if options.ClockKiosk.WASMPath != "" || options.ClockKiosk.WASMExecPath != "" {
+		kioskAssets = options.ClockKiosk
+	}
+	edgeHandler, err = overlayClockKiosk(edgeHandler, kioskAssets)
+	if err != nil {
+		return nil, err
+	}
+	httpDependencies := []string{ComponentCell, ComponentGRPCSurface, ComponentEdgeQualification}
 	if providerWebhooks.payroll != nil || providerWebhooks.iam != nil {
 		httpDependencies = append(httpDependencies, ComponentProviderWebhookReceivers)
 	}
-	graph.add(ComponentHTTPEdge, KindTransport, edgeHandler, httpDependencies...)
-
 	listen := options.listen()
 	grpcListener, err := listen("tcp", cfg.GRPCListen)
 	if err != nil {
@@ -999,6 +1297,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		_ = grpcListener.Close()
 		return nil, fmt.Errorf("listen on %s: %w", cfg.HTTPListen, err)
 	}
+	if routes, routeErr := machineAuth.routes(cfg, httpListener.Addr().String()); routeErr != nil {
+		_ = grpcListener.Close()
+		_ = httpListener.Close()
+		return nil, routeErr
+	} else {
+		edgeHandler = mountMachineAuth(edgeHandler, routes)
+	}
+	graph.add(ComponentHTTPEdge, KindTransport, edgeHandler, httpDependencies...)
 	httpServer := &http.Server{Handler: edgeHandler, ReadHeaderTimeout: httpEdgeReadHeaderTimeoutValue}
 
 	workspacePath := "disabled"
@@ -1090,6 +1396,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if cfg.Scheduler {
 		workloads = append(workloads, schedulerWorkload, progressWorkload)
 	}
+	if personaWorkload := personaInvocationBackgroundWorkload(servedPersonaInvocation, cfg.ServedTenants(), logger); personaWorkload != nil {
+		workloads = append(workloads, *personaWorkload)
+	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is
 	// stopped rather than allowed to hold the process open.
@@ -1123,6 +1432,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			},
 		},
 		{
+			Name: shutdownNameAgentDatabase,
+			Run: func(context.Context) error {
+				if agentDatabase.close != nil {
+					agentDatabase.close()
+				}
+				return nil
+			},
+		},
+		{
 			Name: shutdownNameTelemetry,
 			Run: func(stepCtx context.Context) error {
 				if telemetryProvider == nil {
@@ -1148,11 +1466,23 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			Run:  func(context.Context) error { workOrders.close(); return nil },
 		})
 	}
+	if clockRuntime != nil {
+		shutdown = append(shutdown, bootstrap.ShutdownStep{
+			Name: "shutdown:close-time-database",
+			Run:  func(context.Context) error { clockRuntime.Close(); return nil },
+		})
+	}
 	if projects.close != nil {
 		shutdown = append(shutdown, bootstrap.ShutdownStep{
 			Name: "shutdown:close-project-database",
 			Run:  func(context.Context) error { projects.close(); return nil },
 		})
+	}
+	if localPolicyRegistry.close != nil {
+		shutdown = append(shutdown, bootstrap.ShutdownStep{Name: "shutdown:close-agent-policy-authority", Run: func(context.Context) error {
+			localPolicyRegistry.close()
+			return nil
+		}})
 	}
 	graph.add(ComponentWorkloadGRPC, KindWorkload, workloads[0].Run, ComponentGRPCSurface)
 	graph.add(ComponentWorkloadHTTP, KindWorkload, workloads[1].Run, ComponentHTTPEdge)
@@ -1168,9 +1498,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	graph.add(ComponentShutdownHTTP, KindShutdown, shutdown[0].Run, ComponentHTTPEdge)
 	graph.add(ComponentShutdownGRPC, KindShutdown, shutdown[1].Run, ComponentGRPCSurface)
 	graph.add(ComponentShutdownChat, KindShutdown, shutdown[2].Run, ComponentChatService)
-	graph.add(ComponentShutdownTelemetry, KindShutdown, shutdown[3].Run, ComponentTelemetryProvider)
+	if agentDatabase.store != nil {
+		graph.add(ComponentShutdownAgentDatabase, KindShutdown, shutdown[3].Run, ComponentAgentDatabasePool)
+	} else {
+		graph.add(ComponentShutdownAgentDatabase, KindShutdown, shutdown[3].Run)
+	}
+	graph.add(ComponentShutdownTelemetry, KindShutdown, shutdown[4].Run, ComponentTelemetryProvider)
 	if documentRuntime.close != nil {
-		graph.add(ComponentShutdownDocument, KindShutdown, shutdown[4].Run, ComponentDocumentStore)
+		graph.add(ComponentShutdownDocument, KindShutdown, shutdown[5].Run, ComponentDocumentStore)
 	}
 	if projects.close != nil {
 		graph.add("shutdown:close-project-database", KindShutdown, func(context.Context) error { projects.close(); return nil }, ComponentProjectService)
@@ -1182,23 +1517,30 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// From here the caller's lifecycle owns the provider's lifetime through
 	// the ordered shutdown step above. Earlier returns leave this function
 	// responsible for cleaning up the partially composed provider.
+	clockCommitted = true
 	telemetryCommitted = true
+	agentDatabaseCommitted = true
 	chatCommitted = true
 	documentCommitted = true
 	projectsCommitted = true
 	workOrdersCommitted = true
+	localPolicyRegistryCommitted = true
 	return &App{
-		role:             RoleServe,
-		graph:            graph.graph(),
-		logger:           logger,
-		cell:             cell,
-		disposition:      disposition,
-		pilotReliability: pilotReliability,
-		grpcAddr:         grpcListener.Addr().String(),
-		httpAddr:         httpListener.Addr().String(),
-		workloads:        workloads,
-		shutdown:         shutdown,
-		listeners:        []net.Listener{grpcListener, httpListener},
+		role:                  RoleServe,
+		graph:                 graph.graph(),
+		logger:                logger,
+		cell:                  cell,
+		analytics:             analyticsService,
+		installationLifecycle: installationLifecycle,
+		assuranceRegister:     assuranceRegister,
+		disposition:           disposition,
+		telemetryLifecycle:    telemetryLifecycle,
+		pilotReliability:      pilotReliability,
+		grpcAddr:              grpcListener.Addr().String(),
+		httpAddr:              httpListener.Addr().String(),
+		workloads:             workloads,
+		shutdown:              shutdown,
+		listeners:             []net.Listener{grpcListener, httpListener},
 	}, nil
 }
 
@@ -1298,6 +1640,26 @@ type developmentTokenIssuer interface {
 	Issue(trust.Claims) (string, error)
 }
 
+// devTokenIssuerOf returns the development token issuer behind the served
+// verifier. The machine-client ServedVerifier (INTAPI-001) wraps the local-dev
+// HMAC verifier as its Dev fallback and deliberately does not expose Issue
+// itself, so the issuer is taken from Dev; outside local-dev Dev is nil and no
+// issuer exists.
+func devTokenIssuerOf(verifier trust.Verifier) (developmentTokenIssuer, bool) {
+	if issuer, ok := verifier.(developmentTokenIssuer); ok {
+		return issuer, true
+	}
+	if served, ok := verifier.(*trust.ServedVerifier); ok && served.Dev != nil {
+		return served.Dev, true
+	}
+	if wrapped, ok := verifier.(*machineFallbackVerifier); ok {
+		if issuer, ok := wrapped.fallback.(developmentTokenIssuer); ok {
+			return issuer, true
+		}
+	}
+	return nil, false
+}
+
 // composeDevPersonas creates local identities only when the operator enabled
 // the dev browser login and the configured verifier can issue development
 // tokens. A federation verifier therefore never acquires an implicit issuer.
@@ -1336,7 +1698,7 @@ func ledgerMetadataOnlyDecision() *authz.Decision {
 }
 
 func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() time.Time) []workspace.DevPersona {
-	issuer, ok := verifier.(developmentTokenIssuer)
+	issuer, ok := devTokenIssuerOf(verifier)
 	if !ok {
 		return nil
 	}

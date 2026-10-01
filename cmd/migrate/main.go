@@ -72,10 +72,11 @@ const (
 	fieldChatSeedReset = "reset"
 	// fieldDocumentEmbedDrain makes `document embed` run the indexer in
 	// process until the queue is empty.
-	fieldDocumentEmbedDrain = "drain"
-	fieldChatSeedMediaRoot  = "chat-media-root"
-	fieldAssetDir           = "asset-dir"
-	fieldOriginalDir        = "original-dir"
+	fieldDocumentEmbedDrain       = "drain"
+	fieldDocumentSeedUpgradeApply = "apply"
+	fieldChatSeedMediaRoot        = "chat-media-root"
+	fieldAssetDir                 = "asset-dir"
+	fieldOriginalDir              = "original-dir"
 )
 
 // migrationTimeout bounds one migrate invocation, matching the original
@@ -183,15 +184,15 @@ func migrateConfigFields() []bootstrap.Field {
 		},
 		{
 			Name:  fieldUpgradeJournal,
-			Usage: "durable upgrade journal file for the upgrade subcommand (resume-aware)",
+			Usage: "durable upgrade journal file for the upgrade and phase subcommands (resume-aware)",
 		},
 		{
 			Name:  fieldUpgradePlan,
-			Usage: "JSON file carrying the schemaupgrade plan for the upgrade subcommand",
+			Usage: "JSON file carrying the schemaupgrade plan for the upgrade or phase subcommand",
 		},
 		{
 			Name:  fieldUpgradeRows,
-			Usage: "JSON file carrying the source rows for the upgrade subcommand",
+			Usage: "JSON file carrying the source rows for the upgrade or phase subcommand",
 		},
 		{
 			Name:    fieldUpgradeWatermark,
@@ -202,13 +203,29 @@ func migrateConfigFields() []bootstrap.Field {
 	}
 }
 
+func migrateCommandFields(command string) []bootstrap.Field {
+	fields := migrateConfigFields()
+	switch command {
+	case "document prune":
+		fields = append(fields, documentPruneFields()...)
+	case "document seed-upgrade":
+		fields = append(fields, bootstrap.Field{
+			Name:    fieldDocumentSeedUpgradeApply,
+			Usage:   "document seed-upgrade: apply eligible pristine upgrades (default is read-only preflight)",
+			Kind:    bootstrap.KindBool,
+			Default: "false",
+		})
+	}
+	return fields
+}
+
 // spec builds the full migrate Spec for one invocation's subcommand and
 // remaining flag arguments.
 func spec(command string, rest []string) bootstrap.Spec {
 	return bootstrap.Spec{
 		Role:         bootstrap.RoleMigrate,
 		Args:         rest,
-		ConfigFields: append(migrateConfigFields(), documentPruneFields()...),
+		ConfigFields: migrateCommandFields(command),
 		Validate:     validateConfig(command),
 		// No DatabaseURLField/DBPoolFactory: Goose and schema.Journal both
 		// need a database/sql.DB (via pgx's stdlib adapter), not
@@ -291,6 +308,13 @@ func spec(command string, rest []string) bootstrap.Spec {
 						return runChatMigrateCommand(ctx, action, db, os.Stdout)
 					}
 					if action := documentSubcommand(command); action != "" || command == documentCommandPrefix {
+						if action == "seed-upgrade" {
+							apply, applyErr := deps.Values.Bool(fieldDocumentSeedUpgradeApply)
+							if applyErr != nil {
+								return applyErr
+							}
+							return runDocumentSeedUpgradeAction(ctx, deps.Values.String(fieldDocumentDatabaseURL), url, deps.Values.String(fieldTenant), apply, os.Stdout)
+						}
 						if action == "seed" {
 							return runDocumentSeedAction(ctx, deps.Values.String(fieldDocumentDatabaseURL), url, deps.Values.String(fieldChatDatabaseURL), deps.Values.String(fieldTenant), os.Stdout)
 						}
@@ -310,6 +334,26 @@ func spec(command string, rest []string) bootstrap.Spec {
 						}
 						defer func() { _ = db.Close() }()
 						return runDocumentMigrateCommand(ctx, action, db, os.Stdout)
+					}
+
+					if command == "phase" {
+						watermark, err := deps.Values.Int(fieldUpgradeWatermark)
+						if err != nil {
+							return err
+						}
+						if watermark < 0 {
+							return fmt.Errorf("-%s must not be negative", fieldUpgradeWatermark)
+						}
+						db, err := openMigrateDB(ctx, url)
+						if err != nil {
+							return err
+						}
+						defer func() { _ = db.Close() }()
+						return runMigrationPhaseCommand(ctx, db,
+							deps.Values.String(fieldUpgradeJournal),
+							deps.Values.String(fieldUpgradePlan),
+							deps.Values.String(fieldUpgradeRows),
+							uint64(watermark), os.Stdout)
 					}
 
 					if command == "upgrade" {
@@ -369,26 +413,33 @@ func validateConfig(command string) func(*bootstrap.Values) error {
 			if v.String(fieldPhotoSource) == "" {
 				return fmt.Errorf("-%s is required for the demo-people subcommand", fieldPhotoSource)
 			}
-		case "upgrade":
+		case "upgrade", "phase":
 			if v.String(fieldUpgradeJournal) == "" {
-				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradeJournal)
+				return fmt.Errorf("-%s is required for the %s subcommand", fieldUpgradeJournal, command)
 			}
 			if v.String(fieldUpgradePlan) == "" {
-				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradePlan)
+				return fmt.Errorf("-%s is required for the %s subcommand", fieldUpgradePlan, command)
 			}
 			if v.String(fieldUpgradeRows) == "" {
-				return fmt.Errorf("-%s is required for the upgrade subcommand", fieldUpgradeRows)
+				return fmt.Errorf("-%s is required for the %s subcommand", fieldUpgradeRows, command)
 			}
-			// The upgrade subcommand journals to a file and never opens a
-			// database, so it is validated without a database URL.
-			return nil
+			if command == "upgrade" {
+				// The upgrade subcommand journals to a file and never opens a
+				// database, so it is validated without a database URL.
+				return nil
+			}
 		case "":
-			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status|document seed|document embed")
+			return fmt.Errorf("usage: migrate up|down|status|seed|demo-people|upgrade|phase|chat up|chat status|document up|document status|document seed|document embed")
 		default:
-			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|chat up|chat status|document up|document status|document seed|document embed", command)
+			return fmt.Errorf("unknown command %q; usage: migrate up|down|status|seed|demo-people|upgrade|phase|chat up|chat status|document up|document status|document seed|document embed", command)
 		}
 		if v.String("database-url") == "" {
 			return fmt.Errorf("%s is not set; pass -database-url or set the environment variable", EnvDatabaseURL)
+		}
+		if command == "phase" {
+			if err := validateMigrationPhaseFiles(v.String(fieldUpgradePlan), v.String(fieldUpgradeRows)); err != nil {
+				return err
+			}
 		}
 		return nil
 	}

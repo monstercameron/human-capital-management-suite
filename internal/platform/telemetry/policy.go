@@ -5,6 +5,8 @@ import (
 	"math"
 	"sort"
 	"sync"
+
+	operationstelemetry "github.com/monstercameron/human-capital-management-suite/internal/operations/telemetry"
 )
 
 // SinkClass names an export destination category eligible to receive
@@ -165,6 +167,7 @@ type SamplingDecision struct {
 	Retained      bool
 	Reason        string
 	PolicyVersion int
+	Receipt       operationstelemetry.Receipt
 }
 
 // SamplingPolicy is a versioned, deterministic head/tail sampling rule.
@@ -236,12 +239,17 @@ type Evaluator struct {
 	Cardinality *CardinalityGovernor
 	Export      ExportPolicy
 	Sampling    SamplingPolicy
+	// OperationsPolicy is the shared OPS-002 contract. Keeping it on the
+	// live evaluator prevents the platform path from silently diverging from
+	// the operational policy package.
+	OperationsPolicy operationstelemetry.Policy
 }
 
 // NewEvaluator builds an Evaluator whose CardinalityGovernor reads budgets
 // from allow.
 func NewEvaluator(allow *Allowlist, export ExportPolicy, sampling SamplingPolicy) *Evaluator {
-	return &Evaluator{Allow: allow, Cardinality: NewCardinalityGovernor(allow), Export: export, Sampling: sampling}
+	policy := operationstelemetry.DefaultPolicy()
+	return &Evaluator{Allow: allow, Cardinality: NewCardinalityGovernor(allow), Export: export, Sampling: sampling, OperationsPolicy: policy}
 }
 
 // EvaluateAttribute classifies key, and — only once the key is known,
@@ -270,6 +278,9 @@ func (e *Evaluator) EvaluateAttribute(kind SignalKind, key, value string) Decisi
 	}
 	out := value
 	if kind == SignalMetric {
+		if def.MaxCardinality > e.OperationsPolicy.MetricCardinalityLimit {
+			return Decision{Key: key, Class: def.Class, Kept: false, DropReason: "policy_cardinality_budget_exceeded"}
+		}
 		if e.Cardinality == nil {
 			return Decision{Key: key, Class: def.Class, Kept: false, DropReason: "cardinality_governor_unconfigured"}
 		}
@@ -293,5 +304,20 @@ func (e *Evaluator) Decide(correlationID string, retention RetentionClass) Sampl
 	if e == nil {
 		return SamplingDecision{Retained: true, Reason: "forced_retain_evaluator_unconfigured"}
 	}
-	return e.Sampling.Decide(correlationID, retention)
+	decision := e.Sampling.Decide(correlationID, retention)
+	if e.OperationsPolicy.RequiresRetention(string(retention)) {
+		decision.Retained = true
+		decision.Reason = "forced_retain_" + string(retention)
+	}
+	decision.Receipt = e.OperationsPolicy.Receipt(decision.Reason, operationstelemetry.CriticalFailure(retention), decision.Retained)
+	return decision
+}
+
+// PolicyReceipt returns a deterministic receipt for the evaluator's active
+// policy. It contains no customer, tenant, correlation or payload data.
+func (e *Evaluator) PolicyReceipt() operationstelemetry.Receipt {
+	if e == nil {
+		return operationstelemetry.Receipt{}
+	}
+	return e.OperationsPolicy.Receipt("evaluator_ready", "", true)
 }

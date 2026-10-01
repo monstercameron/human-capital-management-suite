@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/timeprofile"
 )
 
 // Refusals this package reports. Both are matchable with errors.Is.
@@ -64,6 +66,44 @@ const (
 	WorkArrangementHybrid = "HYBRID"
 	WorkArrangementRemote = "REMOTE"
 )
+
+// WorkerCategoryFor maps journey_worker's free-text worker_type column onto
+// internal/domains/timeprofile's closed WorkerCategory vocabulary.
+//
+// worker_type carries no CHECK constraint (migrations/00023 and 00316 both
+// left it free text), so this is a mapping rather than a second column: the
+// per-assignment time profile WTIME-001 asks for needs a worker category, and
+// a created worker's category is fully determined by the worker_type its
+// creator already asserted -- storing it a second time would let the two
+// disagree. AGENCY_TEMP and PLATFORM_WORKER are not among the four tokens
+// journey_worker's callers write today (EMPLOYEE, CONTRACTOR, INTERN,
+// TEMPORARY), but they are handled here so a writer that starts asserting
+// them needs no schema change to be understood correctly. An unrecognized
+// worker_type maps to nothing, reported as ok=false, rather than guessing a
+// category for a token nobody has defined the meaning of.
+func WorkerCategoryFor(workerType string) (timeprofile.WorkerCategory, bool) {
+	switch strings.ToUpper(strings.TrimSpace(workerType)) {
+	case "EMPLOYEE", "INTERN", "TEMPORARY":
+		return timeprofile.CategoryEmployee, true
+	case "CONTRACTOR":
+		return timeprofile.CategoryContractor, true
+	case "AGENCY_TEMP":
+		return timeprofile.CategoryAgencyTemp, true
+	case "PLATFORM_WORKER":
+		return timeprofile.CategoryPlatform, true
+	default:
+		return "", false
+	}
+}
+
+// payBasisIsSalaried reports whether a journey_worker pay_basis token names a
+// salary rather than an hourly, piece-rate or contract rate. journey_worker's
+// own pay_basis vocabulary (ANNUAL_SALARY, HOURLY_RATE, ...) is a different,
+// wider spelling from internal/domains/timeprofile's PayBasis tokens, so this
+// checks the word rather than requiring an exact token match.
+func payBasisIsSalaried(payBasis string) bool {
+	return strings.Contains(strings.ToUpper(payBasis), "SALARY")
+}
 
 // fteIsFullTime reports whether a decimal FTE text is exactly 1, and whether
 // it was a number at all.
@@ -143,6 +183,18 @@ type WorkerRow struct {
 	BusinessUnit    string
 	CostCenter      string
 	WorkArrangement string
+
+	// ExemptionStatus, TimeCaptureMode and TimeProfileRef are the three facts
+	// migrations/00380 added, backing the per-assignment time profile
+	// WTIME-001 asks for. ExemptionStatus and TimeCaptureMode carry the
+	// closed tokens internal/domains/timeprofile/vocabulary.go declares
+	// (ExemptionStatus, CaptureMode); TimeProfileRef is a name, not a token,
+	// naming which time profile this worker's capture mode and exemption were
+	// resolved from. All three are optional, for the same reason the six
+	// migrations/00316 columns are: NULL means nobody asserted the fact yet.
+	ExemptionStatus string
+	TimeCaptureMode string
+	TimeProfileRef  string
 
 	// ProfilePhotoOriginalRef is the private retained upload reference;
 	// ProfilePhotoProxyRef is the same-origin, display-safe derivative. Both
@@ -270,6 +322,38 @@ func (w WorkerRow) Validate() error {
 		if f.value != "" && strings.TrimSpace(f.value) == "" {
 			return fmt.Errorf("%w: %s is blank padding rather than a value", ErrInvalidRow, f.name)
 		}
+	}
+	if w.TimeProfileRef != "" && strings.TrimSpace(w.TimeProfileRef) == "" {
+		return fmt.Errorf("%w: time_profile_ref is blank padding rather than a value", ErrInvalidRow)
+	}
+	// exemption_status and time_capture_mode carry the closed tokens
+	// internal/domains/timeprofile/vocabulary.go declares; a value outside
+	// that vocabulary is refused here rather than left for the object page to
+	// render literally.
+	if w.ExemptionStatus != "" && !timeprofile.ExemptionStatus(w.ExemptionStatus).Valid() {
+		return fmt.Errorf("%w: exemption_status %q is not a recognised exemption status", ErrInvalidRow, w.ExemptionStatus)
+	}
+	if w.TimeCaptureMode != "" && !timeprofile.CaptureMode(w.TimeCaptureMode).Valid() {
+		return fmt.Errorf("%w: time_capture_mode %q is not a recognised capture mode", ErrInvalidRow, w.TimeCaptureMode)
+	}
+	// A contractor is NOT_APPLICABLE for overtime exemption: FLSA exemption
+	// status is a question about employees, and asserting EXEMPT or
+	// NON_EXEMPT on a contractor would misrepresent the worker's legal
+	// relationship as employment. The check only fires when worker_type maps
+	// to a recognised category, so an unrecognised worker_type does not also
+	// fail this rule -- that is [WorkerRow.Validate]'s presence check's job,
+	// not this one's.
+	if category, ok := WorkerCategoryFor(w.WorkerType); ok && category == timeprofile.CategoryContractor &&
+		w.ExemptionStatus != "" && w.ExemptionStatus != string(timeprofile.NotApplicable) {
+		return fmt.Errorf("%w: exemption_status %q on a contractor must be %s",
+			ErrInvalidRow, w.ExemptionStatus, timeprofile.NotApplicable)
+	}
+	// SALARIED_NON_EXEMPT is the pay-basis-and-exemption pair WTIME-001 calls
+	// out by name as the case most often collapsed into plain EXEMPT, so a
+	// worker asserting it has to actually be paid a salary.
+	if w.ExemptionStatus == string(timeprofile.SalariedNonExempt) && !payBasisIsSalaried(w.PayBasis) {
+		return fmt.Errorf("%w: exemption_status %s requires a salaried pay_basis, got %q",
+			ErrInvalidRow, timeprofile.SalariedNonExempt, w.PayBasis)
 	}
 	if w.KnownAt.After(w.RecordedAt) {
 		return fmt.Errorf("%w: known_at %s is after recorded_at %s",

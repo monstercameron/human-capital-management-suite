@@ -729,7 +729,11 @@ func (f promotionWorkItems) CurrentWorkItemAudience(ctx context.Context, ex work
 			if len(item.SubjectRefs) == 0 {
 				return "", "", errors.New("platform execution: approval has no current manager subject")
 			}
-			route, _, err := f.managerRoute(ctx, ex, item.TenantID, item.SubjectRefs[0])
+			requester, err := f.routedRequesterOf(ctx, ex, item, item.SubjectRefs[0])
+			if err != nil {
+				return "", "", err
+			}
+			route, _, err := f.managerRoute(ctx, ex, item.TenantID, item.SubjectRefs[0], requester)
 			if err != nil {
 				return "", "", err
 			}

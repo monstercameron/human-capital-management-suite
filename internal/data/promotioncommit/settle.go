@@ -25,10 +25,12 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	datalogger "github.com/monstercameron/human-capital-management-suite/internal/data/ledger"
+	ledgercommit "github.com/monstercameron/human-capital-management-suite/internal/data/ledger/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/promotionguard"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/provenance"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	ledgerport "github.com/monstercameron/human-capital-management-suite/internal/ledger"
 )
@@ -129,9 +131,9 @@ type Settler struct {
 // instance's COMPLETE continuation raises: it registers the instance's own
 // ledger stream and projection checkpoint (both idempotent), registers the
 // outcome payload schema, appends the promotion outcome through
-// internal/data/outbox.Commit -- one ledger event, one projection advance,
-// one outbox message -- and releases the admission guard and budget hold
-// the run leaves behind, all inside tx.
+// internal/data/ledger/commit -- one ledger event, one projection advance,
+// one business outbox message and one provenance root -- and releases the
+// admission guard and budget hold the run leaves behind, all inside tx.
 func (s Settler) Settle(ctx context.Context, tx dbport.Tx, req SettleRequest) (SettleResult, error) {
 	if tx == nil {
 		return SettleResult{}, fmt.Errorf("promotion settlement: a transaction is required")
@@ -159,7 +161,7 @@ func (s Settler) Settle(ctx context.Context, tx dbport.Tx, req SettleRequest) (S
 		return SettleResult{}, err
 	}
 
-	receipt, err := outbox.Commit(ctx, tx, s.Appender, outbox.CommitRequest{
+	receipt, err := ledgercommit.Commit(ctx, tx, s.Appender, ledgercommit.Request{
 		Append: datalogger.AppendRequest{
 			Tenant: req.TenantID, StreamKey: streamKey, ExpectedHead: 0,
 			AssertionClass: datalogger.TransactionFact,
@@ -171,13 +173,21 @@ func (s Settler) Settle(ctx context.Context, tx dbport.Tx, req SettleRequest) (S
 			CorrelationID:  CorrelationUUID(req.CorrelationID),
 			IdempotencyKey: req.IdempotencyKey,
 		},
-		Projection: outbox.ProjectionSpec{Name: s.ProjectionName},
+		Projection: s.ProjectionName,
 		Outbox: outbox.OutboxSpec{
 			EffectIdentity: "workflow.promotion.apply:" + req.InstanceID.String(),
 			OrderingKey:    streamKey,
 			SchemaRef:      PromotionOutcomeSchema,
 			Payload:        payload,
 		},
+		Provenance: provenance.PublishRequest{
+			Tenant:          req.TenantID,
+			IntentRef:       req.Proposal.IntentID,
+			SourceAuthority: s.SourceRef,
+			PrincipalRef:    "workflow:" + req.WorkflowID,
+			EvidenceIDs:     []string{"plan:" + req.PlanDigest},
+		},
+		RecordedAt: req.RecordedAt,
 	})
 	if err != nil {
 		return SettleResult{}, fmt.Errorf("promotion settlement: commit the settlement ledger write: %w", err)

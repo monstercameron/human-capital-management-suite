@@ -17,8 +17,15 @@ func TestMain(m *testing.M) { pgtest.RunMain(m) }
 func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()
+	otherTenantID := uuid.New()
 	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Persona Access','ACTIVE',$3)`, tenantID, "persona-access-test", time.Now().UTC())
-	store := New(db.Conn, func(values.TenantId) uuid.UUID { return tenantID })
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Other Tenant','ACTIVE',$3)`, otherTenantID, "persona-access-other", time.Now().UTC())
+	store := New(db.Conn, func(tenant values.TenantId) uuid.UUID {
+		if tenant == "persona-access-other" {
+			return otherTenantID
+		}
+		return tenantID
+	}, roleaccess.FeatureDefinition{PageID: "persona-admin", FeatureID: "content", View: true})
 	ctx := context.Background()
 	tenant := values.TenantId("persona-access-test")
 	if err := store.Bootstrap(ctx, tenant, "system:bootstrap"); err != nil {
@@ -31,6 +38,14 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 			t.Fatal(err)
 		}
 		return roleaccess.EffectivePagePermissions(snapshot, roles)
+	}
+	features := func(roles ...string) []roleaccess.FeaturePermission {
+		t.Helper()
+		snapshot, err := store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return roleaccess.EffectiveFeaturePermissions(snapshot, roles)
 	}
 	payrollRoles := []string{"payroll_manager", "promotion_operator"}
 	orgPages := []string{"organization", "org-explorer", "org-outline", "org-responsive"}
@@ -47,6 +62,36 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	}
 	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
 		t.Fatal(err)
+	}
+	if !roleaccess.CanPageAction(permissions("hcm_admin"), "persona-admin", roleaccess.ActionView) {
+		t.Fatal("local-development HCM administrator cannot view persona administration")
+	}
+	if !roleaccess.CanFeatureAction(permissions("hcm_admin"), features("hcm_admin"), "persona-admin", "content", roleaccess.ActionView) {
+		t.Fatal("local-development HCM administrator cannot view persona catalog content")
+	}
+	otherTenant := values.TenantId("persona-access-other")
+	if err := store.Bootstrap(ctx, otherTenant, "system:bootstrap"); err != nil {
+		t.Fatal(err)
+	}
+	otherSnapshot, err := store.Load(ctx, otherTenant, "org:persona-access-other:people-ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherPages := roleaccess.EffectivePagePermissions(otherSnapshot, []string{"hcm_admin"})
+	otherFeatures := roleaccess.EffectiveFeaturePermissions(otherSnapshot, []string{"hcm_admin"})
+	if roleaccess.CanPageAction(otherPages, "persona-admin", roleaccess.ActionView) ||
+		roleaccess.CanFeatureAction(otherPages, otherFeatures, "persona-admin", "content", roleaccess.ActionView) {
+		t.Fatal("local-development persona catalog grant leaked to another tenant")
+	}
+	if roleaccess.CanPageAction(permissions("hcm_admin"), "persona-admin", roleaccess.ActionCreate) ||
+		roleaccess.CanPageAction(permissions("hcm_admin"), "persona-admin", roleaccess.ActionUpdate) ||
+		roleaccess.CanPageAction(permissions("hcm_admin"), "persona-admin", roleaccess.ActionDelete) ||
+		roleaccess.CanPageAction(permissions("comp_admin"), "persona-admin", roleaccess.ActionView) ||
+		roleaccess.CanPageAction(permissions("manager"), "persona-admin", roleaccess.ActionView) ||
+		roleaccess.CanFeatureAction(permissions("hcm_admin"), features("hcm_admin"), "persona-admin", "content", roleaccess.ActionCreate) ||
+		roleaccess.CanFeatureAction(permissions("hcm_admin"), features("hcm_admin"), "persona-admin", "content", roleaccess.ActionUpdate) ||
+		roleaccess.CanFeatureAction(permissions("hcm_admin"), features("hcm_admin"), "persona-admin", "content", roleaccess.ActionDelete) {
+		t.Fatal("local-development persona administration grant exceeds view-only HCM admin")
 	}
 	for _, page := range orgPages {
 		if roleaccess.CanPageAction(permissions(payrollRoles...), page, roleaccess.ActionView) {
@@ -79,6 +124,60 @@ func TestTodo_UXAUDIT_014_Integration(t *testing.T) {
 	}
 	if !roleaccess.CanPageAction(permissions(payrollRoles...), "organization", roleaccess.ActionView) {
 		t.Fatal("local-dev replay overwrote an administrator-edited role grant")
+	}
+	personaCatalogGrantedAt := time.Now().UTC()
+	snapshot, err = store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	featureEdited := false
+	for _, grant := range snapshot.FeaturePermissions {
+		if grant.RoleID == "hcm_admin" && grant.PageID == "persona-admin" && grant.FeatureID == "content" {
+			grant.View = false
+			if _, err := testSaveFeaturePermission(store, ctx, tenant, "admin", grant); err != nil {
+				t.Fatal(err)
+			}
+			featureEdited = true
+			break
+		}
+	}
+	if !featureEdited {
+		t.Fatal("local-development persona catalog feature grant was not persisted")
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if roleaccess.CanFeatureAction(permissions("hcm_admin"), features("hcm_admin"), "persona-admin", "content", roleaccess.ActionView) {
+		t.Fatal("local-dev replay overwrote an administrator-denied persona catalog feature grant")
+	}
+	snapshot, err = store.Load(ctx, tenant, "org:persona-access-test:people-ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, grant := range snapshot.PagePermissions {
+		if grant.RoleID == "hcm_admin" && grant.PageID == "persona-admin" {
+			grant.View = false
+			if _, err := testSavePagePermission(store, ctx, tenant, "admin", grant); err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	if err := store.BootstrapLocalDevPersonaPermissions(ctx, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if roleaccess.CanPageAction(permissions("hcm_admin"), "persona-admin", roleaccess.ActionView) {
+		t.Fatal("local-dev replay overwrote an administrator-denied persona catalog grant")
+	}
+	historical, err := store.LoadAt(ctx, tenant, "org:persona-access-test:people-ops", personaCatalogGrantedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !roleaccess.CanPageAction(roleaccess.EffectivePagePermissions(historical, []string{"hcm_admin"}), "persona-admin", roleaccess.ActionView) {
+		t.Fatal("history lost the local-development view grant before administrator denial")
+	}
+	if !roleaccess.CanFeatureAction(roleaccess.EffectivePagePermissions(historical, []string{"hcm_admin"}), roleaccess.EffectiveFeaturePermissions(historical, []string{"hcm_admin"}), "persona-admin", "content", roleaccess.ActionView) {
+		t.Fatal("history lost the local-development content grant before administrator denial")
 	}
 }
 

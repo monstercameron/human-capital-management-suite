@@ -205,6 +205,9 @@ func TestTodo_MOBILITY_001_Security(t *testing.T) {
 func fmtPlanExplanation(x PlanExplanation) string { return fmt.Sprintf("%+v", x) }
 
 func TestTodo_MOBILITY_001_Conformance(t *testing.T) {
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("serving contract: %v", err)
+	}
 	for _, kind := range []ImmigrationMilestoneKind{ImmigrationPetition, ImmigrationApproval, ImmigrationExpiry, ImmigrationReverification} {
 		if !kind.Valid() {
 			t.Fatal(kind)

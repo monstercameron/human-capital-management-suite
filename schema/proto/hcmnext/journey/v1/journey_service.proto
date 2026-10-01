@@ -1564,6 +1564,9 @@ message AccessibilityPreferences {
   string contrast = 2;
   string motion = 3;
   string links = 4;
+  // Empty inherits the organization's color mode; light and dark are
+  // principal-scoped overrides that affect only this viewer.
+  string color_mode = 5;
 }
 
 message UserPreferences {

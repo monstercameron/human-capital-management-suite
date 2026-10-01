@@ -168,7 +168,9 @@ func (p *promotionStepPorts) runner() *promotionsteps.Runner {
 	if p.bound() == nil {
 		return promotionsteps.New(promotionsteps.Config{})
 	}
-	threshold := promotionsteps.RulesThresholdPort{Inputs: p.thresholdInputs}
+	threshold := promotionsteps.RulesThresholdPort{Inputs: func(ctx context.Context, req execute.StepRequest) (rules.PromotionApprovalInput, error) {
+		return p.thresholdInputs(ctx, nil, req)
+	}}
 	return promotionsteps.New(promotionsteps.Config{
 		SnapshotWorker: p, SimulateCompensation: p, EvaluateBand: p, RaiseThreshold: threshold,
 		// REV-010-01: the served threshold freezes its decision per
@@ -267,7 +269,7 @@ func (p *promotionStepPorts) call(ctx context.Context, ex runtime.Executor, req 
 		return app.PromotionStepCall{}, nil, errNoDelegation
 	}
 	return app.PromotionStepCall{
-		Delegation: delegation, IntentID: req.Proposal.Revision.IntentID, NodeID: req.Node.ID,
+		Delegation: delegation, ProposalRevision: req.Proposal.Revision, IntentID: req.Proposal.Revision.IntentID, NodeID: req.Node.ID,
 		IdempotencyKey:  fmt.Sprintf("workflow:%s:%s:%s:%d", req.TenantID, req.InstanceID, req.Node.ID, req.Attempt),
 		Deadline:        req.RecordedAt.UTC().Add(stepInvocationBudget),
 		DeclaredEffects: declaredEffects(req.Node),
@@ -329,10 +331,10 @@ func (p *promotionStepPorts) governed(ctx context.Context, req execute.StepReque
 
 // thresholdInputs sources RULE-003's inputs for promotionsteps'
 // RulesThresholdPort through governed reads.
-func (p *promotionStepPorts) thresholdInputs(ctx context.Context, req execute.StepRequest) (ret0 rules.PromotionApprovalInput, retErr error) {
+func (p *promotionStepPorts) thresholdInputs(ctx context.Context, ex runtime.Executor, req execute.StepRequest) (ret0 rules.PromotionApprovalInput, retErr error) {
 	ctx, obsOp := observe.Begin(ctx, "workflow.promotion_step_ports.threshold_inputs", req)
 	defer func() { observe.DoneWith(obsOp, retErr, ret0) }()
-	call, services, err := p.call(ctx, nil, req)
+	call, services, err := p.call(ctx, ex, req)
 	if err != nil {
 		return rules.PromotionApprovalInput{}, err
 	}
@@ -396,6 +398,7 @@ func (p *promotionStepPorts) evaluateRevalidation(ctx context.Context, req execu
 	if err != nil {
 		return revalidation{}, err
 	}
+	println("S3DIAG revalidation", string(out.requirement), fmt.Sprint(out.sourced))
 	out.digest = digestOf(append([]string{"govern-003.revalidation/v1", string(out.requirement), fmt.Sprintf("confirmed=%t", out.confirmed)}, out.sourced...)...)
 	return out, nil
 }
@@ -525,12 +528,80 @@ func (p *promotionStepPorts) ExecutePromotion(ctx context.Context, req execute.S
 	if err != nil {
 		return promotionsteps.Artifact{}, err
 	}
+	if err := validateAssignmentWriteEvidence(ctx, tx, req, cmd, receipt); err != nil {
+		return promotionsteps.Artifact{}, err
+	}
 	stepRefs := refs(req, answer)
 	stepRefs.EffectRefs = append(stepRefs.EffectRefs, receipt.OutboxIDs...)
 	return promotionsteps.Artifact{
 		OutputDigest: digestOf("promotion.core_commit/v1", cmd.ProposalDigest, receipt.AssignmentRowID, receipt.OccupancyRowID, receipt.BasePayRowID, receipt.BudgetRowID),
 		Refs:         stepRefs,
 	}, nil
+}
+
+// validateAssignmentWriteEvidence proves that the committed assignment row
+// and its append-only provenance are the exact material transition authorized
+// by this proposal. Both reads use the advance transaction's snapshot.
+func validateAssignmentWriteEvidence(ctx context.Context, ex dbport.Querier, req execute.StepRequest, cmd domaincommit.Command, receipt promotioncommit.Receipt) error {
+	tenantID, err := uuid.Parse(cmd.TenantID)
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof tenant: %w", err)
+	}
+	intentID, err := uuid.Parse(cmd.IntentID)
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof intent: %w", err)
+	}
+	proposalID, err := uuid.Parse(cmd.ProposalRevisionID)
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof proposal: %w", err)
+	}
+	assignmentID, err := uuid.Parse(cmd.AssignmentID)
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof assignment: %w", err)
+	}
+	workerID, err := uuid.Parse(cmd.WorkerID)
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof worker: %w", err)
+	}
+	if req.Proposal.Revision.IntentID != cmd.IntentID || req.Proposal.Revision.ProposalRevisionID != cmd.ProposalRevisionID ||
+		req.Proposal.Revision.Revision != cmd.ProposalRevisionNumber || req.Proposal.Revision.MaterialDigest.Digest != cmd.ProposalDigest {
+		return fmt.Errorf("platform execution: assignment proof is not bound to the exact proposal revision")
+	}
+	var assignmentDigest string
+	if err := ex.QueryRow(ctx, `SELECT digest FROM assignment WHERE tenant_id=$1 AND row_id=$2`, tenantID, receipt.AssignmentRowID).Scan(&assignmentDigest); err != nil {
+		return fmt.Errorf("platform execution: assignment successor row: %w", err)
+	}
+	proofs, err := promotioncommit.ReadAssignmentWriteEvidence(ctx, ex, promotioncommit.AssignmentWriteEvidenceRequest{
+		TenantID: tenantID, IntentID: intentID, ProposalRevisionID: proposalID, WorkerID: workerID, AssignmentID: assignmentID,
+		ProposalRevisionNumber: int64(cmd.ProposalRevisionNumber), ProposalDigest: cmd.ProposalDigest,
+		AssignmentRowID: receipt.AssignmentRowID, AssignmentDigest: assignmentDigest,
+	})
+	if err != nil {
+		return fmt.Errorf("platform execution: assignment proof: %w", err)
+	}
+	if len(proofs) != len(cmd.AssignmentWrites) {
+		return fmt.Errorf("platform execution: assignment proof has %d fields, want %d", len(proofs), len(cmd.AssignmentWrites))
+	}
+	for _, want := range cmd.AssignmentWrites {
+		matches := 0
+		for _, got := range proofs {
+			if got.FieldPath != want.FieldPath {
+				continue
+			}
+			matches++
+			if got.TenantID != cmd.TenantID || got.IntentID != cmd.IntentID || got.ProposalRevisionID != cmd.ProposalRevisionID ||
+				got.ProposalRevisionNumber != int64(cmd.ProposalRevisionNumber) || got.AssignmentRowID != receipt.AssignmentRowID || got.AssignmentDigest != assignmentDigest ||
+				got.WorkerID != cmd.WorkerID || got.AssignmentID != cmd.AssignmentID || got.CurrentValue != want.CurrentValue || got.ProposedValue != want.ProposedValue ||
+				got.AuthorityDecision != want.AuthorityDecision || got.ExpectedSource != want.ExpectedSource || !got.EffectiveFrom.Equal(cmd.EffectiveAt) || got.RecordedAt.After(req.RecordedAt.UTC()) ||
+				strings.TrimSpace(got.ActorPrincipalID) == "" || strings.TrimSpace(got.ExpectedSource) == "" || got.CurrentValue == got.ProposedValue {
+				return fmt.Errorf("platform execution: assignment proof mismatch for %s", want.FieldPath)
+			}
+		}
+		if matches != 1 {
+			return fmt.Errorf("platform execution: assignment proof field %s is missing or duplicated", want.FieldPath)
+		}
+	}
+	return nil
 }
 
 // CompensateHold implements promotionsteps.HoldReleasePort: the bounded

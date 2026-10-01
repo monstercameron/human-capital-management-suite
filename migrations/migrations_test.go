@@ -153,6 +153,39 @@ func TestTargetVersionIsTheHighestEmbeddedVersion(t *testing.T) {
 	}
 }
 
+func TestTodo_AGENT2_025_HistoricalTaskEventEvidenceMigration(t *testing.T) {
+	const name = "00716_agent_task_event_evidence.sql"
+	body, err := FS.ReadFile(name)
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	files, err := Files()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var previous, evidence bool
+	for _, file := range files {
+		if file.Name == "00715_agent_task_events.sql" {
+			previous = true
+		}
+		if file.Name == name && file.Version == 716 {
+			evidence = true
+		}
+	}
+	if !previous || !evidence {
+		t.Fatalf("migration ordering lacks 00715 predecessor or 00716 evidence migration: %+v", files[len(files)-3:])
+	}
+	text := string(body)
+	for _, required := range []string{"plan_snapshot", "STEP_EXECUTION", "STEP_VERIFICATION", "STEP_EFFECT", "side_effect_tier", "evidence_digest"} {
+		if !strings.Contains(text, required) {
+			t.Errorf("%s does not declare %q", name, required)
+		}
+	}
+	if !strings.Contains(text, "event.plan_digest = task.plan->>'digest'") || !strings.Contains(text, "cannot drop") || strings.Contains(text, "DROP POLICY tenant_isolation") {
+		t.Fatal("migration does not restrict backfill to matching current-plan identity or protect retained evidence")
+	}
+}
+
 // TestNewestReversibleVersionFindsHighestReversibleMigration proves the
 // helper returns the highest version whose Down section lacks the declared
 // "is irreversible" marker. Older irreversible migrations can be followed

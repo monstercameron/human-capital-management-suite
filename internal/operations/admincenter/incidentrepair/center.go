@@ -221,9 +221,14 @@ func View(incidents []Incident, auth Authorization, now time.Time) CenterView {
 		}
 		if !auth.CanCustomerView {
 			v.Withheld = true
+			v.Incident = Incident{ID: in.ID, TenantID: in.TenantID, State: in.State, Version: in.Version}
+			out.Incidents = append(out.Incidents, v)
+			continue
 		}
+		v.Incident.Evidence = customerEvidence(in)
+		v.Incident.Timeline = customerTimeline(in)
 		for _, e := range in.Timeline {
-			if e.TenantID == in.TenantID && (e.Compartment == "" || e.Compartment == "customer") {
+			if customerVisible(in.TenantID, e.TenantID, e.Compartment) {
 				v.Timeline = append(v.Timeline, e)
 			}
 		}
@@ -236,4 +241,28 @@ func View(incidents []Incident, auth Authorization, now time.Time) CenterView {
 	}
 	sort.SliceStable(out.Incidents, func(i, j int) bool { return out.Incidents[i].Incident.ID < out.Incidents[j].Incident.ID })
 	return out
+}
+
+func customerEvidence(in Incident) []Evidence {
+	var out []Evidence
+	for _, e := range in.Evidence {
+		if customerVisible(in.TenantID, e.TenantID, e.Compartment) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func customerTimeline(in Incident) []TimelineEvent {
+	var out []TimelineEvent
+	for _, e := range in.Timeline {
+		if customerVisible(in.TenantID, e.TenantID, e.Compartment) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func customerVisible(incidentTenant, entryTenant, compartment string) bool {
+	return entryTenant == incidentTenant && (compartment == "" || compartment == "customer")
 }

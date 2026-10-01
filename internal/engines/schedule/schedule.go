@@ -19,7 +19,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-const schemaVersion = 1
+const (
+	legacyIntentSchemaVersion = 1
+	schemaVersion             = 2
+)
 
 // PublisherIntentTypeID and PublisherIntentVersion identify the intent whose
 // governed operation publishes trigger definitions.
@@ -54,6 +57,8 @@ var (
 	ErrNoStore            = errors.New("schedule: publication store is required")
 	ErrActivation         = errors.New("schedule: activation is invalid")
 	ErrUnknownRevision    = errors.New("schedule: trigger revision is unknown")
+	ErrTargetKind         = errors.New("schedule: trigger target kind is invalid")
+	ErrAgentRunTarget     = errors.New("schedule: agent-run target is invalid")
 )
 
 // Error is a typed refusal. Field names the contract field that caused it and
@@ -165,6 +170,78 @@ func (p StormPolicy) Validate() error {
 // IntentRef identifies an exact versioned intent definition.
 type IntentRef = intent.Ref
 
+// TargetKind is the closed set of target contracts that a published trigger
+// can name. The empty value remains the legacy INTENT spelling.
+type TargetKind string
+
+const (
+	TargetIntent   TargetKind = "INTENT"
+	TargetAgentRun TargetKind = "AGENT_RUN"
+)
+
+// AgentVersionRef pins one exact published manifest. A zero/empty version is
+// never a request to resolve the latest agent.
+type AgentVersionRef struct {
+	ID      string
+	Version string
+	Digest  string
+}
+
+// AgentRunBudget contains strict positive upper bounds carried to admission.
+type AgentRunBudget struct {
+	MaxCostMicros   uint64
+	MaxInputTokens  uint64
+	MaxOutputTokens uint64
+}
+
+// AgentRunDestination pins the approved output audience and membership
+// snapshot selected by the schedule publisher.
+type AgentRunDestination struct {
+	AudienceID         string
+	AudienceSnapshotID string
+	AudienceDigest     string
+}
+
+// AgentRunTarget is the immutable, authority-neutral portion of a scheduled
+// agent request. Current grants and installation authority are rechecked when
+// the occurrence is admitted; this value never contains a delegated token.
+type AgentRunTarget struct {
+	Agent       AgentVersionRef
+	SponsorID   string
+	Purpose     string
+	Budget      AgentRunBudget
+	Destination AgentRunDestination
+}
+
+func (t AgentRunTarget) validate() error {
+	version, versionErr := strconv.ParseUint(t.Agent.Version, 10, 64)
+	if strings.TrimSpace(t.Agent.ID) == "" || versionErr != nil || version == 0 || strconv.FormatUint(version, 10) != t.Agent.Version || !looksLikeDigest(t.Agent.Digest) {
+		return refuse("INVALID_AGENT_VERSION", "target.agent", ErrAgentRunTarget,
+			"agent id, exact version, and manifest digest are required")
+	}
+	if strings.TrimSpace(t.SponsorID) == "" {
+		return refuse("MISSING_AGENT_SPONSOR", "target.sponsor_id", ErrAgentRunTarget, "sponsor id is required")
+	}
+	if strings.TrimSpace(t.Purpose) == "" {
+		return refuse("MISSING_AGENT_PURPOSE", "target.purpose", ErrAgentRunTarget, "purpose is required")
+	}
+	if t.Budget.MaxCostMicros == 0 || t.Budget.MaxInputTokens == 0 || t.Budget.MaxOutputTokens == 0 {
+		return refuse("INVALID_AGENT_BUDGET", "target.budget", ErrAgentRunTarget, "all budget ceilings must be positive")
+	}
+	if strings.TrimSpace(t.Destination.AudienceID) == "" || strings.TrimSpace(t.Destination.AudienceSnapshotID) == "" || !looksLikeDigest(t.Destination.AudienceDigest) {
+		return refuse("INVALID_AGENT_DESTINATION", "target.destination", ErrAgentRunTarget,
+			"audience id, membership snapshot, and digest are required")
+	}
+	return nil
+}
+
+func (d TriggerDefinition) targetKind() TargetKind {
+	if d.TargetKind == "" {
+		return TargetIntent
+	}
+	return d.TargetKind
+}
+
 // AuthorizedTarget is the caller-supplied target allowlist entry. The
 // scheduler never discovers targets or purposes by name; both are supplied by
 // the caller and checked against the definition being published.
@@ -172,6 +249,10 @@ type AuthorizedTarget struct {
 	Ref          IntentRef
 	Purposes     []string
 	AllowedModes []intent.Mode
+	// AgentRun is an exact target authorization for AGENT_RUN publications.
+	// It does not authorize other versions, sponsors, purposes, budgets, or
+	// destinations.
+	AgentRun *AgentRunTarget
 	// PublisherRef names the intent that owns trigger publication. It is an
 	// authorization-context field, not part of target identity.
 	PublisherRef IntentRef
@@ -257,6 +338,8 @@ type TriggerDefinition struct {
 	Version              string
 	TenantID             string
 	Target               IntentRef
+	TargetKind           TargetKind
+	AgentRun             *AgentRunTarget
 	InputTemplateDigest  string
 	Purpose              string
 	Owner                string
@@ -278,8 +361,26 @@ func (d TriggerDefinition) Validate() error {
 	if strings.TrimSpace(d.TenantID) == "" {
 		return refuse("MISSING_TENANT", "tenant_id", ErrTenant, "tenant id is required")
 	}
-	if err := d.Target.Validate(); err != nil {
-		return refuse("INVALID_TARGET", "target", ErrTarget, "%v", err)
+	switch d.targetKind() {
+	case TargetIntent:
+		if d.AgentRun != nil {
+			return refuse("INVALID_TARGET_KIND", "target_kind", ErrTargetKind, "intent target cannot carry AGENT_RUN fields")
+		}
+		if err := d.Target.Validate(); err != nil {
+			return refuse("INVALID_TARGET", "target", ErrTarget, "%v", err)
+		}
+	case TargetAgentRun:
+		if d.Target != (IntentRef{}) || d.AgentRun == nil {
+			return refuse("INVALID_AGENT_TARGET", "target", ErrAgentRunTarget, "AGENT_RUN requires only its explicit target payload")
+		}
+		if err := d.AgentRun.validate(); err != nil {
+			return err
+		}
+		if d.AgentRun.Purpose != d.Purpose {
+			return refuse("AGENT_PURPOSE_MISMATCH", "target.purpose", ErrAgentRunTarget, "agent-run purpose must equal trigger purpose")
+		}
+	default:
+		return refuse("INVALID_TARGET_KIND", "target_kind", ErrTargetKind, "target kind %q is not supported", d.TargetKind)
 	}
 	if !looksLikeDigest(d.InputTemplateDigest) {
 		return refuse("INVALID_INPUT_TEMPLATE", "input_template_digest", ErrInputTemplate,
@@ -426,6 +527,21 @@ func looksLikeDigest(s string) bool {
 // ValidateTargetAuthorization applies the caller's allowlist and the
 // target-declared purpose/mode boundary.
 func (d TriggerDefinition) ValidateTargetAuthorization(targets []AuthorizedTarget) error {
+	if d.targetKind() == TargetAgentRun {
+		if d.AgentRun == nil {
+			return refuse("INVALID_AGENT_TARGET", "target", ErrAgentRunTarget, "AGENT_RUN payload is required")
+		}
+		for _, target := range targets {
+			if target.AgentRun != nil && *target.AgentRun == *d.AgentRun {
+				return nil
+			}
+		}
+		return refuse("UNAUTHORIZED_AGENT_TARGET", "target", ErrUnauthorizedTarget,
+			"exact agent version, sponsor, purpose, budget, and destination are absent from the caller's allowlist")
+	}
+	if d.targetKind() != TargetIntent {
+		return refuse("INVALID_TARGET_KIND", "target_kind", ErrTargetKind, "target kind %q is not supported", d.TargetKind)
+	}
 	for _, target := range targets {
 		if target.Ref != d.Target {
 			continue
@@ -464,7 +580,7 @@ func (d TriggerDefinition) ValidateTargetAuthorization(targets []AuthorizedTarge
 // recursion. The publisher intent is an input to this cross-boundary check,
 // never inferred from owner or target names.
 func (d TriggerDefinition) ValidateRecursion(publisherIntent IntentRef) error {
-	if d.Target == publisherIntent || d.Target == PublisherIntentRef {
+	if d.targetKind() == TargetIntent && (d.Target == publisherIntent || d.Target == PublisherIntentRef) {
 		return refuse("RECURSION_REFUSED", "target", ErrRecursion,
 			"target %s is the intent that publishes triggers", d.Target)
 	}
@@ -524,6 +640,10 @@ func equalBytes(a, b []byte) bool {
 func cloneDefinition(d TriggerDefinition) TriggerDefinition {
 	c := d
 	c.Source.Event.Attributes = cloneStringMap(d.Source.Event.Attributes)
+	if d.AgentRun != nil {
+		target := *d.AgentRun
+		c.AgentRun = &target
+	}
 	return c
 }
 
@@ -553,7 +673,11 @@ func canonicalDefinition(d TriggerDefinition) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := canonicalbytes.New("hcmnext.engines.schedule.TriggerDefinition", schemaVersion).
+	canonicalVersion := schemaVersion
+	if d.targetKind() == TargetIntent {
+		canonicalVersion = legacyIntentSchemaVersion
+	}
+	w := canonicalbytes.New("hcmnext.engines.schedule.TriggerDefinition", canonicalVersion).
 		String("id", d.ID).
 		String("version", d.Version).
 		String("tenant_id", d.TenantID).
@@ -569,6 +693,24 @@ func canonicalDefinition(d TriggerDefinition) ([]byte, error) {
 		Int("storm_jitter_bound_nanos", int64(storm.JitterBound)).
 		String("execution_mode", d.ExecutionMode.String()).
 		String("execution_environment", d.ExecutionEnvironment.String())
+	if d.targetKind() == TargetAgentRun {
+		target := d.AgentRun
+		if target == nil {
+			return nil, refuse("INVALID_AGENT_TARGET", "target", ErrAgentRunTarget, "AGENT_RUN payload is required")
+		}
+		w.String("target_kind", string(TargetAgentRun)).
+			String("agent_id", target.Agent.ID).
+			String("agent_version", target.Agent.Version).
+			String("agent_manifest_digest", target.Agent.Digest).
+			String("agent_sponsor_id", target.SponsorID).
+			String("agent_purpose", target.Purpose).
+			String("agent_budget_max_cost_micros", strconv.FormatUint(target.Budget.MaxCostMicros, 10)).
+			String("agent_budget_max_input_tokens", strconv.FormatUint(target.Budget.MaxInputTokens, 10)).
+			String("agent_budget_max_output_tokens", strconv.FormatUint(target.Budget.MaxOutputTokens, 10)).
+			String("agent_destination_audience_id", target.Destination.AudienceID).
+			String("agent_destination_snapshot_id", target.Destination.AudienceSnapshotID).
+			String("agent_destination_digest", target.Destination.AudienceDigest)
+	}
 	switch d.Source.Kind {
 	case SourceCron:
 		parsed, err := ParseCron(d.Source.Cron.Expression)
@@ -620,9 +762,16 @@ func (d TriggerDefinition) Digest() string {
 // Explain is a deterministic audit explanation of the definition's bindings.
 func (d TriggerDefinition) Explain() string {
 	return fmt.Sprintf("trigger %s/%s for tenant %q targets %s for purpose %q from %s; overlap=%s storm=%d/%s jitter<=%s; runs under %s/%s; canonical=%s",
-		d.ID, d.Version, d.TenantID, d.Target, d.Purpose, d.Source.Kind,
+		d.ID, d.Version, d.TenantID, d.targetDescription(), d.Purpose, d.Source.Kind,
 		d.Overlap, d.Storm.MaxFiringsPerWindow, d.Storm.Window, d.Storm.JitterBound,
 		d.ExecutionMode, d.ExecutionEnvironment, d.Digest())
+}
+
+func (d TriggerDefinition) targetDescription() string {
+	if d.targetKind() == TargetAgentRun && d.AgentRun != nil {
+		return fmt.Sprintf("AGENT_RUN %s@%s", d.AgentRun.Agent.ID, d.AgentRun.Agent.Version)
+	}
+	return d.Target.String()
 }
 
 // Explain returns the immutable receipt's explanation.

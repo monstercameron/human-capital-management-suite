@@ -11,7 +11,7 @@ func stateEffectiveDate() time.Time {
 }
 
 func stateReviewAt() time.Time {
-	return time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
+	return time.Date(2023, 1, 15, 0, 0, 0, 0, time.UTC)
 }
 
 func fixtureStateLaws() []StateLaw {
@@ -154,6 +154,14 @@ func TestTodo_PRIV_010(t *testing.T) {
 		stale := Roster{Version: "roster-8", Laws: laws, Signature: "sig", SignedBy: "x", Review: review}
 		if _, err := stale.Resolve(StateCO, evalDate()); !errors.Is(err, ErrStateLawRefused) {
 			t.Fatalf("review covering another version must not admit roster-8, got %v", err)
+		}
+	})
+
+	t.Run("RED: a review recorded after the effective date cannot admit a law", func(t *testing.T) {
+		late := fixtureRoster(t)
+		late.Review.ReviewedAt = late.Laws[0].Effective.Add(time.Nanosecond)
+		if _, err := late.Resolve(StateCA, evalDate()); !errors.Is(err, ErrStateLawRefused) {
+			t.Fatalf("late primary-source review must be refused, got %v", err)
 		}
 	})
 }

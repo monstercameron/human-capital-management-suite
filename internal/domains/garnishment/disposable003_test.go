@@ -114,6 +114,9 @@ func TestTodo_GARN_003_Fault(t *testing.T) {
 		"negative": func(in *EarningsInput) {
 			in.Deductions[1].Amount = values.MustDecimal("-1.00", 2, values.RoundingHalfUp)
 		},
+		"negative floor": func(in *EarningsInput) {
+			in.ProtectedFloor = values.MustDecimal("-0.01", 2, values.RoundingHalfUp)
+		},
 	} {
 		in := garn003Input()
 		mutate(&in)
@@ -171,7 +174,12 @@ func TestTodo_GARN_003_Mutation(t *testing.T) {
 		},
 		"limit":        func(in *EarningsInput) { in.LimitBps = 2501 },
 		"jurisdiction": func(in *EarningsInput) { in.Jurisdiction = "US-NV" },
+		"basis":        func(in *EarningsInput) { in.Deductions[0].BasisRef = "statute:26-3402" },
+		"floor":        func(in *EarningsInput) { in.ProtectedFloor = values.MustDecimal("218.00", 2, values.RoundingHalfUp) },
 		"ordered":      func(in *EarningsInput) { in.OrderedAmount = values.MustDecimal("10.00", 2, values.RoundingHalfUp) },
+		"ordered above cap": func(in *EarningsInput) {
+			in.OrderedAmount = values.MustDecimal("600.00", 2, values.RoundingHalfUp)
+		},
 	} {
 		in := garn003Input()
 		mutate(&in)

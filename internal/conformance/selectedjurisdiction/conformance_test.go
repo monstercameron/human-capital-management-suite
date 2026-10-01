@@ -68,6 +68,15 @@ func TestSelectedJurisdictionPromotionAndLeaveHandleAmbiguityRuleTimeAndReplanCo
 	}
 }
 
+func TestTodo_CROSS_CONF_001_Served(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("serving contract ID is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+}
+
 func TestTodo_CROSS_CONF_001_Conformance(t *testing.T) {
 	ctx := contextFixture(t, legal.Jurisdiction{Country: "US", State: "CA"})
 	for _, slice := range []Slice{Promotion, MedicalLeave} {

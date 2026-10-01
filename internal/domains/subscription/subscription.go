@@ -72,7 +72,10 @@ func (k EventKind) Valid() bool {
 	case EventWorkerCreated, EventWorkerChanged, EventEmploymentChanged,
 		EventAssignmentChanged, EventOrganizationChanged, EventCompensationChanged,
 		EventApplicationRevoked, EventCustomObjectCreated, EventCustomObjectChanged,
-		EventCustomObjectCorrected, EventCustomObjectRetired, EventSecurityAlert, EventSecurityAudit:
+		EventCustomObjectCorrected, EventCustomObjectRetired, EventSecurityAlert, EventSecurityAudit,
+		EventClockPunchAccepted, EventClockPunchRejected, EventClockSessionOpened,
+		EventClockSessionClosed, EventClockExceptionRaised, EventClockTimecardApproved,
+		EventClockTimecardReopened, EventClockDeviceOffline:
 		return true
 	default:
 		return false

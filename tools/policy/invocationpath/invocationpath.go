@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"hash"
@@ -151,7 +152,7 @@ func Analyze(root string) (Report, error) {
 	var sources []Source
 	for _, pkg := range packages {
 		rel, ok := trimModule(module, pkg.ImportPath)
-		if !ok || !isHandlerRoot(rel) {
+		if !ok || (!isHandlerRoot(rel) && rel != "internal/intent/app") {
 			continue
 		}
 		entries, readErr := os.ReadDir(pkg.Dir)
@@ -178,6 +179,12 @@ func Analyze(root string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	contractFindings, contractErr := CheckIntentServiceContract(module, sources)
+	if contractErr != nil {
+		return Report{}, contractErr
+	}
+	findings = append(findings, contractFindings...)
+	sort.Slice(findings, func(i, j int) bool { return findingKey(findings[i]) < findingKey(findings[j]) })
 	manifestFindings, manifestErr := CheckDeclaredManifest(root)
 	if manifestErr != nil {
 		return Report{}, manifestErr
@@ -191,6 +198,206 @@ func Analyze(root string) (Report, error) {
 		}
 	}
 	return report, nil
+}
+
+// CheckIntentServiceContract proves the application half of INTENT-013's
+// invocation path from the live source tree. Import scanning protects the
+// trusted boundary; this check protects the composition point that makes the
+// gateway mandatory and the only route from IntentService to a capability
+// handler. It is intentionally syntax-only so policy checks cannot create a
+// second runtime invocation path.
+func CheckIntentServiceContract(module string, sources []Source) ([]Finding, error) {
+	service, ok := contractSource(module, sources, "internal/intent/app", "service.go")
+	if !ok {
+		return []Finding{{Kind: FindingUnscopedHandlerPath, File: "internal/intent/app/service.go", Detail: "IntentService source is missing"}}, nil
+	}
+	cell, ok := contractSource(module, sources, "internal/intent/app", "cell.go")
+	if !ok {
+		return []Finding{{Kind: FindingUnscopedHandlerPath, File: "internal/intent/app/cell.go", Detail: "IntentService composition source is missing"}}, nil
+	}
+	serviceFile, err := parseContractSource(service)
+	if err != nil {
+		return nil, err
+	}
+	cellFile, err := parseContractSource(cell)
+	if err != nil {
+		return nil, err
+	}
+
+	var findings []Finding
+	if !hasImport(serviceFile, module+"/internal/capability") {
+		findings = append(findings, contractFinding(service, "IntentService", "service.go must import internal/capability for the governed gateway"))
+	}
+	if !hasStructField(serviceFile, "Options", "Gateway", "*capability.Gateway") {
+		findings = append(findings, contractFinding(service, "Options.Gateway", "Options must require a capability gateway"))
+	}
+	if !hasStructField(serviceFile, "IntentService", "gateway", "*capability.Gateway") {
+		findings = append(findings, contractFinding(service, "IntentService.gateway", "IntentService must retain the governed gateway"))
+	}
+	constructor := findFunction(serviceFile, "NewIntentService", "")
+	if constructor == nil || !hasNilGuard(constructor, "opts.Gateway") {
+		findings = append(findings, contractFinding(service, "NewIntentService", "constructor must refuse a nil capability gateway"))
+	}
+	invoke := findFunction(serviceFile, "invoke", "IntentService")
+	if invoke == nil || !hasMethodCall(invoke, "s.gateway", "Invoke") {
+		findings = append(findings, contractFinding(service, "IntentService.invoke", "domain capability dispatch must call the gateway"))
+	}
+	if !hasOptionsGatewayComposition(cellFile) {
+		findings = append(findings, contractFinding(cell, "NewCell", "production composition must pass Gateway: gateway to NewIntentService"))
+	}
+	sort.Slice(findings, func(i, j int) bool { return findingKey(findings[i]) < findingKey(findings[j]) })
+	return findings, nil
+}
+
+func contractSource(module string, sources []Source, pkg, filename string) (Source, bool) {
+	for _, source := range sources {
+		if normalizePackage(module, source.Package) == pkg && path.Base(filepath.ToSlash(source.Filename)) == filename {
+			return source, true
+		}
+	}
+	return Source{}, false
+}
+
+func parseContractSource(source Source) (*ast.File, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), source.Filename, source.Content, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, fmt.Errorf("invocationpath: parsing %s: %w", source.Filename, err)
+	}
+	return file, nil
+}
+
+func hasImport(file *ast.File, want string) bool {
+	for _, spec := range file.Imports {
+		if imported, err := strconv.Unquote(spec.Path.Value); err == nil && imported == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasStructField(file *ast.File, typeName, fieldName, typeNameWant string) bool {
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok || typeSpec.Name.Name != typeName {
+				continue
+			}
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range structType.Fields.List {
+				if exprPath(field.Type) != typeNameWant {
+					continue
+				}
+				for _, name := range field.Names {
+					if name.Name == fieldName {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func findFunction(file *ast.File, name, receiver string) *ast.FuncDecl {
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != name || receiver == "" && fn.Recv != nil || receiver != "" && fn.Recv == nil {
+			continue
+		}
+		if receiver == "" {
+			return fn
+		}
+		for _, field := range fn.Recv.List {
+			if strings.TrimPrefix(exprPath(field.Type), "*") == receiver {
+				return fn
+			}
+		}
+	}
+	return nil
+}
+
+func hasNilGuard(fn *ast.FuncDecl, want string) bool {
+	if fn == nil || fn.Body == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		binary, ok := node.(*ast.BinaryExpr)
+		if !ok || binary.Op != token.EQL {
+			return true
+		}
+		left, right := exprPath(binary.X), exprPath(binary.Y)
+		if (left == want && right == "nil") || (left == "nil" && right == want) {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+func hasMethodCall(fn *ast.FuncDecl, receiver, method string) bool {
+	if fn == nil || fn.Body == nil {
+		return false
+	}
+	found := false
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && selector.Sel.Name == method && exprPath(selector.X) == receiver {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+func hasOptionsGatewayComposition(file *ast.File) bool {
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok || exprPath(literal.Type) != "Options" {
+			return true
+		}
+		for _, element := range literal.Elts {
+			keyValue, ok := element.(*ast.KeyValueExpr)
+			if ok && exprPath(keyValue.Key) == "Gateway" && exprPath(keyValue.Value) == "gateway" {
+				found = true
+			}
+		}
+		return true
+	})
+	return found
+}
+
+func exprPath(expr ast.Expr) string {
+	switch value := expr.(type) {
+	case *ast.Ident:
+		return value.Name
+	case *ast.SelectorExpr:
+		prefix := exprPath(value.X)
+		if prefix == "" {
+			return value.Sel.Name
+		}
+		return prefix + "." + value.Sel.Name
+	case *ast.StarExpr:
+		return "*" + exprPath(value.X)
+	default:
+		return ""
+	}
+}
+
+func contractFinding(source Source, function, detail string) Finding {
+	return Finding{Kind: FindingUnscopedHandlerPath, File: filepath.ToSlash(source.Filename), Function: function, Detail: detail}
 }
 
 // CheckDeclaredManifest compares the live generated endpoint manifest with

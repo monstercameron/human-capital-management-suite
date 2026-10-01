@@ -4,6 +4,14 @@
       "type": "WORKFLOW",
       "version": "v1.2.0"
     },
+    "kill_target": {
+      "TenantID": "tenant-a",
+      "CellID": "",
+      "Service": "",
+      "Capability": "promotion.execute",
+      "Model": "",
+      "Connector": ""
+    },
     "target": "fleet=prod-eu AND ring\u003c=2",
     "stages": [
       {
@@ -28,5 +36,5 @@
     "owner": "release-captains",
     "expiry": "2030-01-01T00:00:00Z"
   },
-  "digest": "sha256:ff90f1f1046508f9805be281b4a1fb8785a451e69a3ad53f91b703c2e0170fe2"
+  "digest": "sha256:83b8725b725162be35d2000148172fe3314dd87c41a734d0f56eb72ec7dbfc60"
 }

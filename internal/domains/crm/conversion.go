@@ -79,7 +79,11 @@ type ConversionCommitFence struct {
 
 // ConversionWrite is the durable recruiting command produced by CRM.
 type ConversionWrite struct {
-	Proposal       CandidateConversionProposal
+	Proposal CandidateConversionProposal
+	// Identity is present for the governed execution path after MODEL-022
+	// resolution. The legacy preflight executor leaves it nil so callers that
+	// only own proposal validation remain source-compatible.
+	Identity       *CanonicalPersonBinding
 	IdempotencyKey string
 	Fence          ConversionCommitFence
 }
@@ -108,6 +112,21 @@ type ConversionWriter interface {
 // calling the recruiting owner. The recruiting owner is responsible for
 // atomically writing candidate, application and identity-link roles.
 func ExecuteProspectConversion(ctx context.Context, proposal CandidateConversionProposal, authority ConversionAuthority, writer ConversionWriter, fence ConversionCommitFence, idempotencyKey string) (ConversionResult, error) {
+	return executeProspectConversion(ctx, proposal, authority, writer, fence, idempotencyKey, nil)
+}
+
+// ExecuteProspectConversionWithIdentity is the governed execution path used
+// when MODEL-022 has resolved the prospect's external identity. The resolved
+// binding is carried into the recruiting write so the writer can create the
+// candidate, application and identity-link roles as one fenced operation.
+func ExecuteProspectConversionWithIdentity(ctx context.Context, proposal CandidateConversionProposal, identity CanonicalPersonBinding, authority ConversionAuthority, writer ConversionWriter, fence ConversionCommitFence, idempotencyKey string) (ConversionResult, error) {
+	if err := validateConversionIdentity(proposal, identity); err != nil {
+		return ConversionResult{}, err
+	}
+	return executeProspectConversion(ctx, proposal, authority, writer, fence, idempotencyKey, &identity)
+}
+
+func executeProspectConversion(ctx context.Context, proposal CandidateConversionProposal, authority ConversionAuthority, writer ConversionWriter, fence ConversionCommitFence, idempotencyKey string, identity *CanonicalPersonBinding) (ConversionResult, error) {
 	if err := validateConversionProposal(proposal); err != nil {
 		return ConversionResult{}, err
 	}
@@ -117,7 +136,7 @@ func ExecuteProspectConversion(ctx context.Context, proposal CandidateConversion
 	if err := authority.AuthorizeProspectConversion(ctx, proposal); err != nil {
 		return ConversionResult{}, fmt.Errorf("%w: governed intent authorization rejected", ErrCRM005Rejected)
 	}
-	result, err := writer.CommitProspectConversion(ctx, ConversionWrite{Proposal: proposal, IdempotencyKey: idempotencyKey, Fence: fence})
+	result, err := writer.CommitProspectConversion(ctx, ConversionWrite{Proposal: proposal, Identity: identity, IdempotencyKey: idempotencyKey, Fence: fence})
 	if err != nil {
 		return ConversionResult{}, fmt.Errorf("%w: recruiting conversion commit failed", ErrCRM005Rejected)
 	}
@@ -125,6 +144,13 @@ func ExecuteProspectConversion(ctx context.Context, proposal CandidateConversion
 		return ConversionResult{}, fmt.Errorf("%w: recruiting conversion returned inconsistent roles", ErrCRM005Rejected)
 	}
 	return result, nil
+}
+
+func validateConversionIdentity(proposal CandidateConversionProposal, identity CanonicalPersonBinding) error {
+	if identity.Person.Validate() != nil || identity.Person.Kind != values.Kind("person") || identity.Person.Tenant != proposal.Prospect.ProspectID.Tenant || identity.Tenant != proposal.Prospect.ProspectID.Tenant || strings.TrimSpace(identity.LinkRef) == "" || strings.TrimSpace(identity.EvidenceRef) == "" || strings.TrimSpace(identity.SourceAuthorityRef) == "" || identity.Purpose != "candidate_conversion" {
+		return fmt.Errorf("%w: invalid resolved identity binding", ErrCRM005Rejected)
+	}
+	return nil
 }
 
 func validateConversionProposal(p CandidateConversionProposal) error {

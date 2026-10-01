@@ -128,6 +128,7 @@ func FuzzTodo_THREAT_002(f *testing.F) {
 	f.Add("grpc", "tenant-a", "worker:secret")
 	f.Add("http", "tenant-b", "worker:x")
 	f.Fuzz(func(t *testing.T, channel, tenant, target string) {
+		target = "FUZZ_TARGET<" + target + ">"
 		engine := NewEngine(DefaultDenyHandler)
 		j := Journey{ID: "fuzz", Kind: KindAuthz, Channel: channel, Principal: "user-a", Tenant: tenant, Target: target, Action: "read"}
 		r := engine.Run(context.Background(), j)

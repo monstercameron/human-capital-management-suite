@@ -140,10 +140,34 @@ func TestTodo_SUCCESSION_001_Conformance(t *testing.T) {
 
 func TestTodo_SUCCESSION_001_Mutation(t *testing.T) {
 	s := successionSlate(t, DisclosureScoped, []string{"talent.read"}, true)
-	if _, err := s.Revise([]SuccessorReadinessRevision{successionAssessment(t, "worker-2")}, "manager-2", "authority-2"); err != nil {
+	revised, err := s.Revise([]SuccessorReadinessRevision{successionAssessment(t, "worker-2")}, "manager-2", "authority-2")
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(s.Candidates) != 1 || s.Candidates[0].SuccessorID != "worker-1" {
 		t.Fatal("parent slate was mutated")
+	}
+	store := NewMemorySlateStore()
+	if err := store.Save(s); err != nil {
+		t.Fatal(err)
+	}
+	s.Candidates[0].EvidenceRefs[0] = "tampered-parent"
+	current, err := store.Current(s.CriticalRoleID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Candidates[0].EvidenceRefs[0] == "tampered-parent" {
+		t.Fatal("store retained caller-owned candidate evidence")
+	}
+	current.Candidates[0].EvidenceRefs[0] = "tampered-read"
+	again, err := store.Current(s.CriticalRoleID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Candidates[0].EvidenceRefs[0] == "tampered-read" {
+		t.Fatal("Current returned caller-owned candidate evidence")
+	}
+	if revised.ParentDigest != s.CanonicalDigest {
+		t.Fatal("revision did not preserve parent digest")
 	}
 }

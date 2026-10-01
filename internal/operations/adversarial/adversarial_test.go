@@ -35,6 +35,7 @@ func FuzzTodo_THREAT_002(f *testing.F) {
 	f.Add("PLACEHOLDER_SECRET")
 	f.Add("salary=private")
 	f.Fuzz(func(t *testing.T, secret string) {
+		secret = "FUZZ_SECRET<" + secret + ">"
 		journey := DefaultJourneys()[0]
 		journey.Secret = secret
 		report, err := Run([]Journey{journey})

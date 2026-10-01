@@ -116,6 +116,8 @@ type Provider struct {
 	tracer  trace.TracerProvider // filtering wrapper around tp
 	metrics *Metrics
 
+	contracts RuntimeContracts
+
 	shutdownTimeout time.Duration
 }
 
@@ -143,6 +145,10 @@ func NewProvider(ctx context.Context, cfg Config) (*Provider, error) {
 	}
 	if cfg.Metric.Interval < 0 {
 		return nil, errors.New("otel: Config.Metric.Interval must not be negative")
+	}
+	contracts, err := newServingContracts()
+	if err != nil {
+		return nil, fmt.Errorf("otel: compose runtime contracts: %w", err)
 	}
 
 	res, err := buildResource(cfg.Resource)
@@ -172,6 +178,7 @@ func NewProvider(ctx context.Context, cfg Config) (*Provider, error) {
 		mp:              mp,
 		tracer:          newTracerProvider(tp, cfg.Evaluator),
 		metrics:         metrics,
+		contracts:       contracts,
 		shutdownTimeout: cfg.ShutdownTimeout,
 	}, nil
 }

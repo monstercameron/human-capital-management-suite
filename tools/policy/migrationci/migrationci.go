@@ -1,8 +1,8 @@
 // Package migrationci validates migration manifests and models the durable
-// upgrade decision policy without applying migrations. Its pure Rehearse
-// function consumes caller-supplied state and is not evidence that a database
-// or mixed-version deployment was actually exercised. Production adapters
-// still own execution, observation, and journal writes.
+// upgrade decision policy without applying migrations. Rehearse consumes
+// observed state supplied by a production adapter; it never treats a caller's
+// assertion as database evidence. Production adapters still own execution,
+// observation, and journal writes.
 package migrationci
 
 import (
@@ -63,6 +63,17 @@ type Input struct {
 	AbortRequested         bool
 }
 
+// ObservedState is the read-only state collected from a migration database
+// before an upgrade. Applied contains only active, successful UP journal
+// entries; JournalPresent distinguishes a fresh database from a database
+// whose journal was unexpectedly emptied.
+type ObservedState struct {
+	JournalPresent bool
+	Applied        []Entry
+	Dirty          bool
+	LockHeld       bool
+}
+
 // Finding is a stable, field-oriented policy diagnostic.
 type Finding struct {
 	Code   string
@@ -83,6 +94,42 @@ var (
 	ErrInvalidManifest = errors.New("migration ci: invalid manifest")
 	ErrRehearsalFailed = errors.New("migration ci: rehearsal failed")
 )
+
+// InputFromObserved converts database evidence into rehearsal input. A fresh
+// database (no journal table) and a database with every manifest entry active
+// are the only states for which the phase checkpoints can be considered
+// complete without a separate backfill/shadow evidence source. Partial or
+// malformed state remains fail-closed in Rehearse.
+func InputFromObserved(manifest Manifest, observed ObservedState) Input {
+	input := Input{
+		Manifest: manifest,
+		Applied:  append([]Entry(nil), observed.Applied...),
+		Dirty:    observed.Dirty,
+		LockHeld: observed.LockHeld,
+	}
+	complete := !observed.JournalPresent && len(observed.Applied) == 0
+	if observed.JournalPresent && len(observed.Applied) == len(manifest.Entries) {
+		complete = true
+	}
+	input.BackfillComplete = complete
+	input.ShadowExact = complete
+	input.MixedVersionCompatible = !observed.JournalPresent || len(observed.Applied) > 0
+	for _, applied := range observed.Applied {
+		if entry, ok := entryByVersion(manifest, applied.Version); ok && entry.Compatibility == "BREAKING" {
+			input.MixedVersionCompatible = false
+		}
+	}
+	return input
+}
+
+func entryByVersion(manifest Manifest, version int64) (Entry, bool) {
+	for _, entry := range manifest.Entries {
+		if entry.Version == version {
+			return entry, true
+		}
+	}
+	return Entry{}, false
+}
 
 // Validate checks ordering, checksums, dependency declarations and the
 // required expand/contract phase sequence.
@@ -152,6 +199,10 @@ func Rehearse(input Input) (Result, error) {
 	if len(result.Findings) > 0 {
 		return result, ErrRehearsalFailed
 	}
+	validateApplied(&result, input)
+	if len(result.Findings) > 0 {
+		return result, ErrRehearsalFailed
+	}
 	if input.Dirty {
 		result.Findings = append(result.Findings, Finding{Code: "DIRTY_TREE", Field: "working_tree", State: "DIRTY", Detail: "uncommitted or generated drift is present"})
 	}
@@ -185,6 +236,38 @@ func Rehearse(input Input) (Result, error) {
 	result.Steps = append(result.Steps, PhaseContract)
 	result.Status = "PASS"
 	return result, nil
+}
+
+func validateApplied(result *Result, input Input) {
+	expected := make(map[int64]Entry, len(input.Manifest.Entries))
+	for _, entry := range input.Manifest.Entries {
+		expected[entry.Version] = entry
+	}
+	seen := make(map[int64]bool, len(input.Applied))
+	for _, applied := range input.Applied {
+		want, ok := expected[applied.Version]
+		if !ok {
+			result.Findings = append(result.Findings, Finding{
+				Code: "APPLIED_UNKNOWN_VERSION", Field: "applied", State: "UNKNOWN",
+				Detail: fmt.Sprintf("database journal contains migration version %d absent from the manifest", applied.Version),
+			})
+			continue
+		}
+		if seen[applied.Version] {
+			result.Findings = append(result.Findings, Finding{
+				Code: "APPLIED_DUPLICATE", Field: "applied", State: "DUPLICATE",
+				Detail: fmt.Sprintf("database journal contains migration version %d more than once", applied.Version),
+			})
+			continue
+		}
+		seen[applied.Version] = true
+		if applied.Direction != "UP" || applied.Name != want.Name || applied.Checksum != want.Checksum {
+			result.Findings = append(result.Findings, Finding{
+				Code: "CHECKSUM_MISMATCH", Field: "migration_checksum", State: "MISMATCH",
+				Detail: fmt.Sprintf("database journal entry for migration %d differs from the manifest", applied.Version),
+			})
+		}
+	}
 }
 
 // ExplainResult renders only stable state and phase names.

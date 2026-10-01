@@ -80,6 +80,7 @@ type ChronologyBucket struct {
 type ClosedCampaign struct {
 	Tenant         string
 	CampaignRef    string
+	AuthorityRef   string
 	LockedAt       time.Time
 	ResultDigest   string
 	EvidenceDigest string
@@ -99,6 +100,7 @@ func (c ClosedCampaign) computedDigest() string {
 	w := canonicalbytes.New("hcmnext.domains.survey.ClosedCampaign", 1).
 		String("tenant", c.Tenant).
 		String("campaign", c.CampaignRef).
+		String("authority", c.AuthorityRef).
 		String("locked_at", c.LockedAt.UTC().Format(time.RFC3339)).
 		String("result", c.ResultDigest).
 		String("evidence", c.EvidenceDigest).
@@ -150,10 +152,24 @@ func CloseCampaign(in CloseInput, chronology []ChronologyBucket) (ClosedCampaign
 	if in.Retention.LegalHold && !in.Retention.DestructionDue.IsZero() {
 		return ClosedCampaign{}, closeReject("close.retention.destruction_due", "HELD", "held records carry no destruction date")
 	}
+	if !in.Retention.LegalHold && !in.Retention.DestructionDue.After(in.Retention.RetainUntil) {
+		return ClosedCampaign{}, closeReject("close.retention.destruction_due", "BEFORE_RETENTION", "destruction must follow the retention horizon")
+	}
+	if !in.Retention.ChronologyOnly {
+		return ClosedCampaign{}, closeReject("close.retention.chronology_only", "INVALID", "survey archives preserve chronology only")
+	}
 	total := 0
+	periods := make(map[string]struct{}, len(chronology))
 	for i, b := range chronology {
 		if strings.TrimSpace(b.Period) == "" || b.ResponseCount < 0 {
 			return ClosedCampaign{}, closeReject(fmt.Sprintf("close.chronology[%d]", i), "INVALID", "chronology buckets carry period and non-negative count only")
+		}
+		if _, exists := periods[b.Period]; exists {
+			return ClosedCampaign{}, closeReject(fmt.Sprintf("close.chronology[%d].period", i), "DUPLICATE", "chronology periods must be unique")
+		}
+		periods[b.Period] = struct{}{}
+		if b.ResponseCount > int(^uint(0)>>1)-total {
+			return ClosedCampaign{}, closeReject("close.chronology", "OVERFLOW", "chronology count is not representable")
 		}
 		total += b.ResponseCount
 	}
@@ -161,7 +177,7 @@ func CloseCampaign(in CloseInput, chronology []ChronologyBucket) (ClosedCampaign
 		return ClosedCampaign{}, closeReject("close.chronology", "MISMATCH", fmt.Sprintf("chronology sums to %d, cohort is %d", total, in.CohortCount))
 	}
 	closed := ClosedCampaign{
-		Tenant: in.Tenant, CampaignRef: in.CampaignRef, LockedAt: in.ClosedAt.UTC(),
+		Tenant: in.Tenant, CampaignRef: in.CampaignRef, AuthorityRef: in.AuthorityRef, LockedAt: in.ClosedAt.UTC(),
 		ResultDigest: in.ResultDigest, EvidenceDigest: in.EvidenceDigest,
 		RetainUntil: in.Retention.RetainUntil.UTC(), LegalHold: in.Retention.LegalHold,
 		DestructionDue: in.Retention.DestructionDue.UTC(),

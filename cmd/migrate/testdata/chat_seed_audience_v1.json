@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "tenants": [
+    { "tenant_id": "harborcare-demo", "residency": "us" },
+    { "tenant_id": "ironridge-demo", "residency": "us" }
+  ],
+  "rooms": [
+    { "room_key": "leadership-private", "classification": "T3", "role_mode": 1 },
+    { "room_key": "payroll-close", "classification": "T3", "role_mode": 1 },
+    { "room_key": "incident-review", "classification": "T3", "role_mode": 1 },
+    { "room_key": "dm-0", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-1", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-2", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-3", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-4", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-5", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-6", "classification": "T2", "role_mode": 1 },
+    { "room_key": "dm-7", "classification": "T2", "role_mode": 1 },
+    { "room_key": "group-comp-cycle", "classification": "T3", "role_mode": 1 },
+    { "room_key": "group-q4-hiring", "classification": "T3", "role_mode": 1 }
+  ]
+}

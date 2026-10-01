@@ -80,6 +80,39 @@ type CatalogTable struct {
 	PartitionNames []string `json:"partition_names"`
 }
 
+// Service is the application-facing analytics boundary. It is intentionally
+// stateless: snapshots remain immutable values and callers supply the
+// governed source rows and policy evidence for each rebuild.
+type Service struct{}
+
+// NewService constructs the analytics boundary used by a composed process.
+func NewService() Service { return Service{} }
+
+// BuildSnapshot delegates snapshot construction to the semantic owner.
+func (Service) BuildSnapshot(req SnapshotRequest) (Snapshot, error) {
+	return BuildSnapshot(req)
+}
+
+// BuildExport delegates export construction to the semantic owner.
+func (Service) BuildExport(req SnapshotRequest) (Export, error) {
+	return BuildExport(req)
+}
+
+// Query reads an immutable snapshot without changing authoritative state.
+func (Service) Query(s Snapshot, q Query) (Result, error) {
+	return s.Query(q)
+}
+
+// Metric computes a deterministic metric over an immutable snapshot.
+func (Service) Metric(s Snapshot, entity, field string) (Metric, error) {
+	return s.Metric(entity, field)
+}
+
+// PromoteOLAP delegates evidence-gated promotion to the semantic owner.
+func (Service) PromoteOLAP(s Snapshot, e PromotionEvidence) error {
+	return PromoteOLAP(s, e)
+}
+
 // BuildSnapshot validates governance before producing any artifact bytes.
 func BuildSnapshot(req SnapshotRequest) (Snapshot, error) {
 	if req.TenantID == "" || req.SourceWatermark == "" || req.PolicyDigest == "" || req.ProvenanceRef == "" {

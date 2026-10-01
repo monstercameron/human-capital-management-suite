@@ -163,7 +163,7 @@ func composeSchedulerWorkload(cfg ServeConfig, pool *pgxadapter.Pool, identity s
 		Misfire:    schedule.MisfireConfig{Policy: schedule.MisfireCatchUpOnce, Grace: time.Hour, MaxCatchUp: 1},
 		Dispatcher: signals.Route(dispatcher), Logger: logger, Clock: now,
 		Recorder: schedulerRecorder(provider, logger, now), SignalRole: signals,
-		RecoveryRole: recovery,
+		RecoveryRole: newSchedulerRecoveryRole(recovery, cfg.Tenant, cell),
 	})
 	if err != nil {
 		return bootstrap.Workload{}, err

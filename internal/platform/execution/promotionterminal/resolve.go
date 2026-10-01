@@ -194,7 +194,7 @@ func (r Resolver) Resolve(ctx context.Context, tx dbport.Tx, req execute.Termina
 	if err != nil {
 		return domaincommit.Command{}, fmt.Errorf("promotion terminal: decode approved revision: %w", err)
 	}
-	if dto.Revision != revisionNo || dto.ProposalRevisionID != proposalID.String() {
+	if dto.Revision != revisionNo || dto.ProposalRevisionID != proposalID.String() || dto.IntentID != intentID.String() {
 		return domaincommit.Command{}, fmt.Errorf("%w: decoded revision does not match the terminal request", ErrPlanBinding)
 	}
 	// The revision's own tenant is the kernel tenant key the cell minted it
@@ -317,7 +317,7 @@ func (r Resolver) materialize(ctx context.Context, tx dbport.Tx, tenant, instanc
 		return domaincommit.Command{}, fmt.Errorf("promotion terminal: read instance decisions: %w", err)
 	}
 	cmd := domaincommit.Command{
-		TenantID: tenant.String(), ProposalRevisionID: proposalID.String(),
+		TenantID: tenant.String(), IntentID: dto.IntentID, ProposalRevisionID: proposalID.String(), ProposalRevisionNumber: dto.Revision,
 		ProposalDigest: req.Proposal.Revision.MaterialDigest.Digest,
 		WorkerID:       workerID.String(), EmploymentID: employment.EntityID.String(), AssignmentID: assignment.EntityID.String(),
 		TargetJobID: job.EntityID.String(), TargetJobCode: job.Code, TargetGrade: job.Grade,
@@ -339,6 +339,10 @@ func (r Resolver) materialize(ctx context.Context, tx dbport.Tx, tenant, instanc
 		AuthorityDigest:     r.AuthorityDigest, ActorPrincipalID: r.ActorPrincipalID,
 		WorkflowPlanDigest: req.PlanDigest,
 		Effects:            renderEffects(proposalID),
+	}
+	cmd.AssignmentWrites, err = approvedAssignmentWrites(dto, workerID)
+	if err != nil {
+		return domaincommit.Command{}, err
 	}
 	if err := matchApprovedEffects(dto, cmd.Effects); err != nil {
 		return domaincommit.Command{}, err
@@ -371,6 +375,33 @@ func (r Resolver) materialize(ctx context.Context, tx dbport.Tx, tenant, instanc
 		return domaincommit.Command{}, fmt.Errorf("promotion terminal: bind transaction plan: %w", err)
 	}
 	return bound, nil
+}
+
+func approvedAssignmentWrites(dto intent.ProposalRevision, worker uuid.UUID) ([]domaincommit.AssignmentWrite, error) {
+	var writes []domaincommit.AssignmentWrite
+	seen := map[string]bool{}
+	for _, write := range dto.Writes {
+		var field string
+		switch write.FieldPath {
+		case resolvePlacementGradePath:
+			field = "assignment.grade"
+		case resolvePlacementJobCodePath:
+			field = "assignment.job_code"
+		default:
+			continue
+		}
+		if write.Subject.Kind != "EMPLOYMENT" || write.Subject.SubjectID != worker.String() || seen[field] ||
+			strings.TrimSpace(write.CurrentCanonicalText) == "" || strings.TrimSpace(write.ProposedCanonicalText) == "" ||
+			strings.TrimSpace(write.SourceAuthorityDecision) == "" || !write.ExpectedRevision.IsSpecified() {
+			return nil, fmt.Errorf("%w: assignment write %s is incomplete, duplicated, or names another worker", ErrPlanBinding, field)
+		}
+		seen[field] = true
+		writes = append(writes, domaincommit.AssignmentWrite{
+			FieldPath: field, CurrentValue: write.CurrentCanonicalText, ProposedValue: write.ProposedCanonicalText,
+			AuthorityDecision: write.SourceAuthorityDecision, ExpectedSource: write.ExpectedRevision.String(),
+		})
+	}
+	return writes, nil
 }
 
 // deterministicOccupancyID names the occupancy row for a proposal: stable

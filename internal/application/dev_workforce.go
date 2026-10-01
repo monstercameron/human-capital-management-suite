@@ -128,6 +128,9 @@ func bootstrapLocalDevWorkforce(ctx context.Context, pool *pgxadapter.Pool, tena
 	if _, err := pack.SeedPayroll(ctx, tx, tenantID); err != nil {
 		return demoworkforce.Summary{}, demoworkforce.OrganizationSummary{}, fmt.Errorf("seed the local development payroll history: %w", err)
 	}
+	if err := pack.SeedWorkerIDPolicy(ctx, tx, tenantID); err != nil {
+		return demoworkforce.Summary{}, demoworkforce.OrganizationSummary{}, fmt.Errorf("seed the demo worker ID policy: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return demoworkforce.Summary{}, demoworkforce.OrganizationSummary{}, fmt.Errorf("commit local development workforce seed: %w", err)
 	}

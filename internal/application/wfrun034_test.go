@@ -258,10 +258,12 @@ func (h *promoux015Harness) committedPlacement(at time.Time) committedfacts.Plac
 	h.t.Helper()
 	ctx := context.Background()
 	tenantID := pgstore.TenantID(demoworkforce.CompanyKey)
-	var workerID uuid.UUID
-	if err := h.pool.QueryRow(ctx, `SELECT worker_id FROM journey_worker WHERE tenant_id = $1 AND worker_key = $2`, tenantID, h.subject).Scan(&workerID); err != nil {
-		h.t.Fatalf("read the promoted worker: %v", err)
-	}
+	// h.subject is the display-slug WorkerRef every API surface addresses the
+	// worker by, not its persisted worker_key: a created worker's worker_key
+	// is that same durable worker_id (internal/intent/app/journey_workforce.go
+	// sets WorkerKey to workerID.String()), so a lookup keyed on subject here
+	// would never match. h.subjectWorkerID is captured once, at creation.
+	workerID := h.subjectWorkerID
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
 		h.t.Fatalf("begin: %v", err)

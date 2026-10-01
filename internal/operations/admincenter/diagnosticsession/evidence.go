@@ -36,6 +36,10 @@ type AuditEvent struct {
 func PrepareEvidence(e Evidence) Evidence {
 	e.Payload = Redact(e.Payload)
 	e.Redacted = true
+	// A redaction marshal failure or an oversized payload must never leave a
+	// caller-supplied digest behind: clear it before attempting to derive a
+	// fresh one over the redacted bytes.
+	e.Digest = ""
 	if b, err := json.Marshal(e.Payload); err == nil && len(b) <= MaxEvidenceBytes {
 		e.Digest = fmt.Sprintf("sha256:%x", sha256.Sum256(b))
 	}

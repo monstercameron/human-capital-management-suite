@@ -37,6 +37,7 @@ Four gates hold the project on track. All of them run in the pre-commit hook (`.
 The coverage policy is `definitions/toolchain/coverage-gate.yaml`. A package below the floor either gets tests or an exception naming its exact path, kind, owner, reason and expiry; prefixes and wildcards are refused, and an expired exception waives nothing. The gate judges by `go test` result lines, so the Windows "unlinkat ... Access is denied" exit is not a failure.
 
 The hook also runs typecheck and the drift, API, substrate-coverage, engine-coverage, race-policy and decomposition gates, the nested-module tests and the build. Never bypass it: no `--no-verify`, ever. If the hook is red because of another session's half-written file, wait for that file to compile; do not edit it.
+The `test:all` sequence also runs the libfirewall, workflowconformance, reachability and testcoverage gates.
 
 Root `go test ./...` is not a gate on the development machine: every data package starts an embedded PostgreSQL and the full run takes hours. Test one package at a time with `go test -count=1 ./<pkg>/`; CI runs the whole module with the race detector.
 
@@ -93,8 +94,10 @@ stage that owns the defect; the defect is fixed at the source, never bypassed, n
 10. **Commit gates.** Tick the todo with its evidence line, update `CHANGELOG.md` and the current `planning/devlog/` entry (the commits, the defects found,
     the decisions taken; what was verified and what was left partial, in plain prose), then give that todo its own focused commit through the full pre-commit hook: format,
     lint, typecheck, unit tests, coverage floor, drift, API, substrate and engine coverage, race policy, decomposition, nested-module tests and build.
-11. **Shared-index check.** Only one agent stages or commits at a time. Before staging, inspect `git status` and the staged diff; stage explicit paths, verify the staged diff contains only this todo, and do not include another agent's edits. Coordinate if files or staged changes overlap.
-12. **Report.** The commit lands on local `main` after review and the available gates pass. Record the exact local checks run and any CI-only checks that remain unverified; do not represent local verification as a green CI run. A PR is not required.
+11. **Pull request.** Push the topic branch (`git push origin <branch>`, topic branches only — never main or master, never force-push or delete; see Git discipline) and open a PR naming the todos closed and their evidence. A PR never contains scratch directories, credentials or
+    files outside the change.
+12. **Shared-index check.** Only one agent stages or commits at a time. Before staging, inspect `git status` and the staged diff; stage explicit paths, verify the staged diff contains only this todo, and do not include another agent's edits. Coordinate if files or staged changes overlap.
+13. **Report.** The commit lands on local `main` after review and the available gates pass. Record the exact local checks run and any CI-only checks that remain unverified; do not represent local verification as a green CI run.
 
 ## One artifact root
 
@@ -105,7 +108,7 @@ stage that owns the defect; the defect is fixed at the source, never bypassed, n
 - Work in the shared checkout on local `main`. Do not create feature branches or worktrees. Any agent may own and commit any part of its assigned work, including planning, definitions and migrations.
 - Give each completed todo a focused commit whenever its code and tests can stand on their own. If two todos are inseparable, use one commit naming both IDs and explain the coupling in the devlog.
 - Agents may edit concurrently, but must coordinate overlapping files, migration numbers and commits. Treat the Git index as shared: only one agent stages or commits at a time, stages explicit paths, and verifies the staged diff immediately before committing. Leave unrelated dirty or staged files untouched.
-- A PR is not required. Publishing local `main` to a remote is a separate operation; do it only when the user asks and after checking the remote state. Never force-push or rewrite history.
+- Push only topic branches with an explicit `git push origin <branch>`, only to open or update a PR — never main or master, never force-push or delete; the agent settings deny those pushes. Merge into main only through a PR whose CI is green.
 - Never `git stash`, `git reset --hard`, `git commit --amend` or `git rebase`. Never `--no-verify`.
 - Attribute commits to the actual contributor; do not add a fixed co-author trailer for an agent that did not contribute.
 - Update `CHANGELOG.md` and the current `planning/devlog/` entry with the commits, the defects found and the decisions taken. Devlog updates say what was verified and what was left partial, in plain prose.

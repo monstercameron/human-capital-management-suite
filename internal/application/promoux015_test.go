@@ -123,9 +123,29 @@ func (h *promoux015Harness) discoverPromotion(persona string) (*journeyv1.Propos
 		if path.GetSourceJobCode() != subject.GetJobCode() || path.GetSourceGrade() != subject.GetGrade() {
 			continue
 		}
+		var vacancy *journeyv1.PositionVacancyOption
+		for _, candidate := range listed.GetOptions().GetPositionVacancies() {
+			if candidate.GetJobCode() == path.GetTargetJobCode() {
+				vacancy = candidate
+				break
+			}
+		}
+		positionID, orgUnit, payZone := "", "", ""
+		if vacancy != nil {
+			positionID, orgUnit = vacancy.GetReference(), vacancy.GetOrgUnit()
+		}
+		for _, placement := range listed.GetOptions().GetPlacements() {
+			if placement.GetJobCode() == path.GetTargetJobCode() && placement.GetGrade() == path.GetTargetGrade() {
+				payZone = placement.GetPayZone()
+				break
+			}
+		}
 		base := promoux015ProposedBase(h.t, subject.GetBasePay(), path.GetMinimumBaseIncrease())
 		return &journeyv1.ProposeJourneyRequest{
-			WorkerRef: subject.GetWorkerRef(), Target: &journeyv1.Placement{JobCode: path.GetTargetJobCode(), Grade: path.GetTargetGrade()},
+			WorkerRef: subject.GetWorkerRef(), Target: &journeyv1.Placement{
+				JobCode: path.GetTargetJobCode(), Grade: path.GetTargetGrade(),
+				PositionId: positionID, OrgUnit: orgUnit, PayZone: payZone,
+			},
 			ProposedBase: base, EffectiveDate: h.effective, BusinessReason: "Promotion fixture " + promoux015FixtureVersion,
 		}, path
 	}
@@ -223,7 +243,7 @@ func (h *promoux015Harness) journeyFor(persona, id string) *journeyv1.Journey {
 // persona then reviews the outcome from the surfaces it may reach, with the
 // server's own relationship-to-viewer projection.
 func TestTodo_PROMOUX_015(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	before := h.effects()
 
 	id := h.runSeparatedPromotion()

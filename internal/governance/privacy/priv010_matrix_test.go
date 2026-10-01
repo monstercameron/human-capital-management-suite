@@ -67,6 +67,12 @@ func TestTodo_PRIV_010_Security(t *testing.T) {
 // state blocks release rather than falling back to another state.
 func TestTodo_PRIV_010_Integration(t *testing.T) {
 	roster := fixtureRoster(t)
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+	if err := ValidateStateLawRoster(roster, evalDate()); err != nil {
+		t.Fatalf("ValidateStateLawRoster: %v", err)
+	}
 	signals := map[StateCode]string{}
 	for _, state := range []StateCode{StateCA, StateCO, StateVA, StateTX} {
 		res, err := roster.Resolve(state, evalDate())
@@ -83,6 +89,9 @@ func TestTodo_PRIV_010_Integration(t *testing.T) {
 	}
 	if _, err := roster.Resolve("NY", evalDate()); !errors.Is(err, ErrStateLawRefused) {
 		t.Fatalf("unenacted state must block release, got %v", err)
+	}
+	if err := ValidateStateLawRoster(Roster{Version: roster.Version, Laws: roster.Laws, Signature: roster.Signature, SignedBy: roster.SignedBy, Review: roster.Review}, evalDate()); err == nil {
+		t.Fatal("serving roster without SignedAt must not bypass the signed roster contract")
 	}
 }
 

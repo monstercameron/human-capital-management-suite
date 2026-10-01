@@ -5,14 +5,76 @@
 package selectedjurisdiction
 
 import (
+	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
+
+// ServingContractID identifies the cross-slice jurisdiction contract
+// composed by the shipped application cell.
+const ServingContractID = "hcmnext.conformance.selected-jurisdiction/v1"
+
+// ValidateServingContract proves both slices use a verified legal context and
+// that an explicit ambiguity cannot produce an allowed result.
+func ValidateServingContract() error {
+	pack, err := legal.CaliforniaPromotionPack()
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract pack: %w", err)
+	}
+	registry := legal.NewRegistry()
+	if err := registry.Register(pack); err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract registry: %w", err)
+	}
+	signer, err := legal.NewSigner(ed25519.NewKeyFromSeed(bytes.Repeat([]byte{7}, ed25519.SeedSize)))
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract signer: %w", err)
+	}
+	effectiveDate, err := values.NewLocalDate(2026, time.March, 1)
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract effective date: %w", err)
+	}
+	knownInstant, err := values.NewInstantFromUnix(1770000000, 0)
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract known-at: %w", err)
+	}
+	knownAt, err := values.NewKnownAt(knownInstant)
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract known-at wrapper: %w", err)
+	}
+	recordedAt, err := values.NewInstantFromUnix(1770100000, 0)
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract recorded-at: %w", err)
+	}
+	context, err := legal.Resolve(legal.LegalContextInput{
+		LegalEntityID:          "serving-contract",
+		WorkLocation:           legal.Jurisdiction{Country: "US", State: "CA"},
+		EmploymentJurisdiction: legal.Jurisdiction{Country: "US", State: "CA"},
+		EffectiveDate:          effectiveDate,
+		KnownAt:                knownAt,
+	}, registry, signer, recordedAt)
+	if err != nil {
+		return fmt.Errorf("selected jurisdiction: serving contract context: %w", err)
+	}
+	for _, slice := range []Slice{Promotion, MedicalLeave} {
+		allowed, err := Evaluate(Request{Slice: slice, Context: context})
+		if err != nil || allowed.Status != Allowed || allowed.CompositionDigest == "" {
+			return fmt.Errorf("selected jurisdiction: serving contract allowed %s = %+v: %v", slice, allowed, err)
+		}
+		blocked, err := Evaluate(Request{Slice: slice, Context: context, Ambiguous: true})
+		if err != nil || blocked.Status != Blocked || blocked.StaleEffects != 0 {
+			return fmt.Errorf("selected jurisdiction: serving contract ambiguous %s = %+v: %v", slice, blocked, err)
+		}
+	}
+	return nil
+}
 
 // Slice identifies a product slice covered by this conformance contract.
 type Slice string

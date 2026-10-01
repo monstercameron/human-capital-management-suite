@@ -15,6 +15,7 @@ import (
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportintegration "github.com/monstercameron/human-capital-management-suite/internal/transport/integration"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
 	transportoperations "github.com/monstercameron/human-capital-management-suite/internal/transport/operations"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
 	transportworkflow "github.com/monstercameron/human-capital-management-suite/internal/transport/workflow"
@@ -54,6 +55,10 @@ type Options struct {
 	// BurstGate optionally enforces an in-process edge burst budget. Tenant
 	// quotas remain owned by internal/operations/admission.
 	BurstGate *BurstGate
+	// DeprecationPolicies is keyed by the canonical RPC procedure or its
+	// resource alias. Deprecated routes receive RFC 9745/RFC 8594 headers;
+	// removal remains governed by manifest.DeprecationPolicy.
+	DeprecationPolicies map[string]manifest.DeprecationPolicy
 }
 
 // Configuration errors for [NewHandler].
@@ -182,6 +187,8 @@ func NewHandler(opts Options) (http.Handler, error) {
 	}
 
 	handler := strictJSONMiddleware(mux, opts.Config, maxBody)
+	handler = resourceAliasMiddleware(handler, resourceAliasRules())
+	handler = deprecationMiddleware(handler, opts.DeprecationPolicies, opts.Config.Now)
 	handler = IngressMiddleware(handler, opts.IngressPolicy, opts.BurstGate)
 	return statusOverrideMiddleware(handler), nil
 }

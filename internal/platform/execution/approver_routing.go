@@ -32,9 +32,11 @@ const (
 	termConfiguredApprover      = "term:execution-authority-approver"
 	termFinancePartner          = "term:finance-partner-for-cost-center"
 	termCurrentManager          = "term:current-manager-of-worker"
+	termSkipLevelManager        = "term:current-manager-of-requester"
 	directoryConfiguredApprover = "directory.execution-authority/1"
 	directoryFinancePartner     = "directory.finance-partner.configured/1"
 	directoryCurrentManager     = "directory.journey_worker.manager_relationship/1"
+	directorySkipLevelManager   = "directory.journey_worker.manager_relationship.skip_requester/1"
 )
 
 // ErrUnresolvedManager is the reference workflow's UNRESOLVED_MANAGER: the
@@ -46,6 +48,49 @@ var ErrUnresolvedManager = errors.New("platform execution: the worker's current 
 // ErrApproverSeparation wraps an [approverclass.RequireSeparated] refusal so a
 // caller can classify the routing refusal without importing approverclass.
 var ErrApproverSeparation = errors.New("platform execution: the resolved approvers violate separation of duties")
+
+// Routing refusal codes. The workflow telemetry seam logs an error's
+// classified code and never its message (internal/workflow/observe), so an
+// uncoded routing refusal reached the log as a bare "ERROR" and hid which
+// rule refused the route (UXBLIND-001). Each refusal carries its own code.
+const (
+	CodeUnresolvedManager            = "APPROVAL_ROUTE_UNRESOLVED_MANAGER"
+	CodeApproverSharedOwner          = "APPROVAL_ROUTE_SHARED_OWNER"
+	CodeApproverIsRequester          = "APPROVAL_ROUTE_REQUESTER_APPROVER"
+	CodeApproverIsSubject            = "APPROVAL_ROUTE_SUBJECT_APPROVER"
+	CodeApproverSeparationUnresolved = "APPROVAL_ROUTE_SEPARATION_UNRESOLVED"
+)
+
+// routingRefusal is a routing refusal with a stable telemetry code. It
+// unwraps to its cause, so errors.Is against [ErrUnresolvedManager],
+// [ErrApproverSeparation] and the approverclass sentinels is unchanged.
+type routingRefusal struct {
+	code string
+	err  error
+}
+
+func (e *routingRefusal) Error() string     { return e.err.Error() }
+func (e *routingRefusal) Unwrap() error     { return e.err }
+func (e *routingRefusal) ErrorCode() string { return e.code }
+
+// separationRefusal codes an [approverclass.RequireSeparated] refusal.
+func separationRefusal(err error) error {
+	code := CodeApproverSeparationUnresolved
+	switch {
+	case errors.Is(err, approverclass.ErrSharedOwner):
+		code = CodeApproverSharedOwner
+	case errors.Is(err, approverclass.ErrRequesterApprover):
+		code = CodeApproverIsRequester
+	case errors.Is(err, approverclass.ErrSubjectApprover):
+		code = CodeApproverIsSubject
+	}
+	return &routingRefusal{code: code, err: fmt.Errorf("%w: %w", ErrApproverSeparation, err)}
+}
+
+// unresolvedManager codes an [ErrUnresolvedManager] refusal for worker.
+func unresolvedManager(worker string) error {
+	return &routingRefusal{code: CodeUnresolvedManager, err: fmt.Errorf("%w: %s", ErrUnresolvedManager, worker)}
+}
 
 // ManagerOf is one CurrentManagerOf(worker) answer.
 type ManagerOf struct {
@@ -134,16 +179,16 @@ func (f promotionWorkItems) resolveApprovers(ctx context.Context, ex workitem.Ex
 	route.finance = finance
 
 	subjectID := employmentSubject(req)
-	manager, managerOf, err := f.managerRoute(ctx, ex, req.Continuation.TenantID, subjectID)
+	requester := req.Proposal.Revision.CreatedBy.PrincipalID
+	manager, managerOf, err := f.managerRoute(ctx, ex, req.Continuation.TenantID, subjectID, requester)
 	if err != nil {
 		return approverRoute{}, err
 	}
 	route.manager = manager
 
-	requester := req.Proposal.Revision.CreatedBy.PrincipalID
 	subjects := append([]string{subjectID, managerOf.SubjectKey}, req.SubjectRefs...)
 	if err := approverclass.RequireSeparated(requester, subjects, route.finance.principal, route.manager.principal); err != nil {
-		return approverRoute{}, fmt.Errorf("%w: %w", ErrApproverSeparation, err)
+		return approverRoute{}, separationRefusal(err)
 	}
 	return route, nil
 }
@@ -173,20 +218,34 @@ func (f promotionWorkItems) financeRoute(tenant uuid.UUID) (routedApprover, erro
 // subject whose manager does not resolve. Routing and the decision-time
 // authority recheck both call it, so the two can never disagree about which
 // relationship grants the manager approval.
-func (f promotionWorkItems) managerRoute(ctx context.Context, ex workitem.Executor, tenantID uuid.UUID, subjectID string) (routedApprover, ManagerOf, error) {
-	managers := f.managers
-	if managers == nil {
-		managers = JourneyWorkerManagers{}
-	}
+//
+// UXBLIND-001: when the subject's current manager is the proposal's requester
+// -- a manager proposing their own report, the ordinary case -- the manager
+// approval cannot go to them (RequesterMayNotApprove), and refusing the route
+// left every such promotion unable to start. The approval escalates one level
+// up the requester's own reporting line, CurrentManagerOf(requester), recorded
+// under its own term so the rechecks re-derive the same rule. A requester
+// whose own manager does not resolve is refused with [ErrUnresolvedManager].
+func (f promotionWorkItems) managerRoute(ctx context.Context, ex workitem.Executor, tenantID uuid.UUID, subjectID, requester string) (routedApprover, ManagerOf, error) {
+	managers := f.managerResolver()
 	managerOf, err := managers.CurrentManagerOf(ctx, ex, tenantID, subjectID)
 	if err != nil {
 		return routedApprover{}, ManagerOf{}, err
 	}
 	switch {
+	case managerOf.ManagerPrincipal != "" && requester != "" && managerOf.ManagerPrincipal == requester:
+		skip, err := managers.CurrentManagerOf(ctx, ex, tenantID, requester)
+		if err != nil {
+			return routedApprover{}, ManagerOf{}, err
+		}
+		if !skip.InGraph || skip.ManagerPrincipal == "" || skip.ManagerPrincipal == requester {
+			return routedApprover{}, managerOf, unresolvedManager(requester)
+		}
+		return routedApprover{principal: skip.ManagerPrincipal, termRef: termSkipLevelManager, directoryVersion: directorySkipLevelManager}, managerOf, nil
 	case managerOf.ManagerPrincipal != "":
 		return routedApprover{principal: managerOf.ManagerPrincipal, termRef: termCurrentManager, directoryVersion: directoryCurrentManager}, managerOf, nil
 	case managerOf.InGraph:
-		return routedApprover{}, managerOf, fmt.Errorf("%w: %s", ErrUnresolvedManager, subjectID)
+		return routedApprover{}, managerOf, unresolvedManager(subjectID)
 	default:
 		derived, deriveErr := promotionexec.ManagerApproverFor(f.approver)
 		if deriveErr != nil {
@@ -194,6 +253,37 @@ func (f promotionWorkItems) managerRoute(ctx context.Context, ex workitem.Execut
 		}
 		return routedApprover{principal: derived, termRef: termConfiguredApprover, directoryVersion: directoryConfiguredApprover}, managerOf, nil
 	}
+}
+
+// managerResolver is the configured CurrentManagerOf source, defaulting to
+// journey_worker's manager relationships.
+func (f promotionWorkItems) managerResolver() ManagerResolver {
+	if f.managers == nil {
+		return JourneyWorkerManagers{}
+	}
+	return f.managers
+}
+
+// routedRequesterOf recovers, for the audience recheck that holds only the
+// routed item, the requester a skip-level manager route skipped: an item
+// routed under [termSkipLevelManager] was escalated past the subject's current
+// manager because that manager was the requester, so re-deriving the route
+// treats that same manager as the requester. Any other item skipped nobody.
+func (f promotionWorkItems) routedRequesterOf(ctx context.Context, ex workitem.Executor, item workitem.WorkItem, subjectID string) (string, error) {
+	skipped := false
+	for _, candidate := range item.Assignment.Resolution.Candidates {
+		if candidate.TermRef == termSkipLevelManager {
+			skipped = true
+		}
+	}
+	if !skipped {
+		return "", nil
+	}
+	managerOf, err := f.managerResolver().CurrentManagerOf(ctx, ex, item.TenantID, subjectID)
+	if err != nil {
+		return "", err
+	}
+	return managerOf.ManagerPrincipal, nil
 }
 
 // employmentSubject is the proposal's EMPLOYMENT subject id, falling back to

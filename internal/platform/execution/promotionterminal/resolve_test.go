@@ -237,8 +237,8 @@ func build016DTO(t *testing.T, tenantID uuid.UUID, ids promoux016IDs, at time.Ti
 		// Only changed writes travel: the simulations omit unchanged fields,
 		// and the envelope refuses a write whose current equals proposed.
 		Writes: []intent.PlannedWrite{
-			write("assignment.job_code", "ENG-SWE3", "ENG-MGR1"),
-			write("assignment.grade", "P3", "M1"),
+			write("assignment.assignment.job_code", "ENG-SWE3", "ENG-MGR1"),
+			write("assignment.assignment.grade", "P3", "M1"),
 			write("assignment.position_id", "", ids.position.String()),
 			write("rewards.compensation.annualized_base_pay", "165000.00", basePay),
 			write("org.manager_relationship.manager_id", "manager-rel:old", ids.manager.String()),
@@ -519,6 +519,20 @@ func TestTodo_PROMOUX_016(t *testing.T) {
 	}
 	if cmd.TargetJobCode != "ENG-MGR1" || cmd.TargetGrade != "M1" || cmd.TargetOrganizationID != ids.org.String() {
 		t.Fatalf("command target = %q/%q/%q, want ENG-MGR1/M1/%v", cmd.TargetJobCode, cmd.TargetGrade, cmd.TargetOrganizationID, ids.org)
+	}
+	if cmd.IntentID != req.Proposal.Revision.IntentID || cmd.ProposalRevisionNumber != req.Proposal.Revision.Revision {
+		t.Fatalf("command proposal identity = %s/%d, want %s/%d", cmd.IntentID, cmd.ProposalRevisionNumber,
+			req.Proposal.Revision.IntentID, req.Proposal.Revision.Revision)
+	}
+	if len(cmd.AssignmentWrites) != 2 {
+		t.Fatalf("assignment provenance writes = %+v, want exact grade and job code transitions", cmd.AssignmentWrites)
+	}
+	fields := map[string]bool{}
+	for _, proof := range cmd.AssignmentWrites {
+		fields[proof.FieldPath] = proof.CurrentValue != "" && proof.ProposedValue != "" && proof.AuthorityDecision != "" && proof.ExpectedSource != ""
+	}
+	if !fields["assignment.grade"] || !fields["assignment.job_code"] {
+		t.Fatalf("incomplete assignment provenance: %+v", cmd.AssignmentWrites)
 	}
 	if cmd.BasePay.Amount().String() != "180000.00" || cmd.BasePay.Currency() != "USD" || cmd.PayFrequency != "ANNUAL" {
 		t.Fatalf("command pay = %q/%q, want 180000.00/ANNUAL", cmd.BasePay.String(), cmd.PayFrequency)

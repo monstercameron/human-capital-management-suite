@@ -59,6 +59,8 @@ var tunnelAllowedServices = map[string]bool{
 	"hcmnext.position.v1.PositionService":       true,
 	"hcmnext.project.v1.ProjectService":         true,
 	"hcmnext.workorder.v1.WorkOrderService":     true,
+	"hcmnext.time.v1.WorkerClockService":        true,
+	"hcmnext.agent.v1.AgentService":             true,
 	"hcmnext.evidence.v1.EvidenceService":       false,
 	"hcmnext.dataops.v1.DataOpsService":         false,
 	"hcmnext.integration.v1.IntegrationService": false,

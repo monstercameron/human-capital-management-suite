@@ -1107,6 +1107,68 @@ func (m *MemoryStore) ensureMapsLocked() {
 // Version is the account/identity lifecycle contract version.
 func Version() int { return 1 }
 
+// ValidateServingContract exercises the lifecycle authority that a composed
+// serving cell depends on. It deliberately uses the kernel-pure store: the
+// production persistence adapter supplies the same Store contract, while this
+// check proves the serving composition cannot omit an authority kind or the
+// committed epoch fence.
+func ValidateServingContract() error {
+	at := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
+	service := NewMemory(func() time.Time { return at })
+	if _, _, err := service.CreateAccount(AccountSpec{ID: "serving-account", PersonID: "serving-person", Tenant: "tenant-serving", At: at}); err != nil {
+		return fmt.Errorf("create account: %w", err)
+	}
+	identity, _, err := service.LinkIdentity(IdentitySpec{
+		ID: "serving-identity", AccountID: "serving-account", Tenant: "tenant-serving",
+		ProviderRef: "serving-provider", SubjectDigest: strings.Repeat("a", sha256.Size*2), At: at,
+	})
+	if err != nil {
+		return fmt.Errorf("link identity: %w", err)
+	}
+	kinds := []DependentKind{
+		DependentPrincipal, DependentSession, DependentTokenFamily,
+		DependentAuthenticator, DependentFederation, DependentDelegation, DependentSubjectLink,
+	}
+	for i, kind := range kinds {
+		if _, err := service.RegisterDependent(DependentSpec{
+			ID: fmt.Sprintf("serving-dependent-%d", i), AccountID: "serving-account", IdentityID: identity.ID,
+			Tenant: "tenant-serving", Kind: kind, Assurance: trust.AssuranceSubstantial, At: at,
+		}); err != nil {
+			return fmt.Errorf("register %s authority: %w", kind, err)
+		}
+	}
+	fanoutCount := 0
+	service.SetRevocationSink(revocationSinkFunc(func(context.Context, RevocationTarget) error {
+		fanoutCount++
+		return nil
+	}))
+	account, event, err := service.Disable(context.Background(), "serving-account", Evidence{
+		Actor: "serving-contract", Authority: "account-governance", Reason: "serving contract", At: at,
+	})
+	if err != nil {
+		return fmt.Errorf("disable account: %w", err)
+	}
+	if account.Status != AccountDisabled || account.RevocationEpoch != 2 || len(event.Affected) != len(kinds) || fanoutCount != len(kinds) {
+		return fmt.Errorf("revocation contract incomplete: status=%s epoch=%d affected=%d fanout=%d", account.Status, account.RevocationEpoch, len(event.Affected), fanoutCount)
+	}
+	if _, err := service.Authenticate(AuthenticationRequest{AccountID: account.ID, IdentityID: identity.ID, At: at}); !errors.Is(err, ErrAccountNotActive) {
+		return fmt.Errorf("disabled account authentication error = %v", err)
+	}
+	for i, kind := range kinds {
+		dependent, ok, err := service.Dependent(fmt.Sprintf("serving-dependent-%d", i))
+		if err != nil || !ok || dependent.Kind != kind || dependent.Status != DependentRevoked || dependent.RevocationEpoch != account.RevocationEpoch {
+			return fmt.Errorf("%s authority is not fenced: dependent=%+v ok=%t err=%v", kind, dependent, ok, err)
+		}
+	}
+	return nil
+}
+
+type revocationSinkFunc func(context.Context, RevocationTarget) error
+
+func (f revocationSinkFunc) Revoke(ctx context.Context, target RevocationTarget) error {
+	return f(ctx, target)
+}
+
 // Explain returns a redaction-safe summary of lifecycle authority.
 func Explain() string {
 	return "subscriber account epochs fence principals, sessions, token families, authenticators, federation, delegation and subject links; recovery cannot elevate assurance."

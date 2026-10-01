@@ -24,6 +24,24 @@ const (
 	Expired   Status = "EXPIRED"
 )
 
+// ServingContractID identifies the read-only reservation contract composed by
+// the shipped application cell. It does not acquire or mutate a reservation.
+const ServingContractID = "hcmnext.conformance.resource-reservation/v1"
+
+// ValidateServingContract checks the immutable status and quantity vocabulary
+// needed by the served reservation path.
+func ValidateServingContract() error {
+	for _, status := range []Status{Held, Committed, Consumed, Released, Expired} {
+		if !status.Valid() {
+			return fmt.Errorf("reservation: serving contract status %q is not valid", status)
+		}
+	}
+	if err := (Quantity{Value: 1, Scale: 3}).Validate(); err != nil {
+		return fmt.Errorf("reservation: serving contract quantity: %w", err)
+	}
+	return nil
+}
+
 func (s Status) Terminal() bool { return s == Consumed || s == Released || s == Expired }
 func (s Status) Valid() bool    { return s == Held || s == Committed || s.Terminal() }
 

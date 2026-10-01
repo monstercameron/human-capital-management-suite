@@ -31,10 +31,16 @@ type SQLDisposition struct {
 
 // SQLDispositionSet is the complete deterministic disposition input set.
 type SQLDispositionSet struct {
-	GeneratedBy    string
-	RegistryDigest string
-	Entities       []SQLDisposition
+	GeneratedBy        string
+	RegistryDigest     string
+	SpecificationOwner string
+	Entities           []SQLDisposition
 }
+
+// SpecificationOwner is the accountable owner for the model-derived SQL
+// disposition library. It governs generated review inputs; it is not a
+// database role and grants no migration or write authority.
+const SpecificationOwner = "PLATFORM_ENGINEERING_OWNER"
 
 // MigrationPreview is a review-only CREATE TABLE skeleton. Preview files are
 // deliberately emitted under tools/gen/modelgen/testdata/preview and never
@@ -91,9 +97,10 @@ func BuildSQLDisposition(reg *model.Registry) (SQLDispositionSet, error) {
 		})
 	}
 	return SQLDispositionSet{
-		GeneratedBy:    "tools/gen/modelgen (MSRC-008)",
-		RegistryDigest: reg.Digest(),
-		Entities:       rows,
+		GeneratedBy:        "tools/gen/modelgen (MSRC-008)",
+		RegistryDigest:     reg.Digest(),
+		SpecificationOwner: SpecificationOwner,
+		Entities:           rows,
 	}, nil
 }
 
@@ -188,6 +195,7 @@ func SQLArtifactsDigest(artifacts SQLArtifacts) string {
 			_, _ = h.Write([]byte{0})
 		}
 	}
+	write("OWNER", artifacts.Disposition.SpecificationOwner)
 	write("REGISTRY", artifacts.Disposition.RegistryDigest)
 	for _, row := range artifacts.Disposition.Entities {
 		write("ENTITY", row.SourceRef, row.EntityKey, row.TableName, row.Disposition, row.Target, row.TenantColumn, fmt.Sprint(row.TenantScoped), fmt.Sprint(row.AppendOnly), row.RetentionClass, row.EncryptionClass)

@@ -82,6 +82,155 @@ func mustConnection(t *testing.T) *connectivity.ConnectorConnection {
 	return conn
 }
 
+func TestConnectorConnection_OrgID_SystemID_AuthMode(t *testing.T) {
+	conn := mustConnection(t)
+
+	if got := conn.OrgID(); got != "org-harborcare-us" {
+		t.Fatalf("OrgID() = %q, want org-harborcare-us", got)
+	}
+	if got := conn.SystemID(); got != "sys-workday-prod" {
+		t.Fatalf("SystemID() = %q, want sys-workday-prod", got)
+	}
+	if got := conn.AuthMode(); got != connectivity.AuthOAuth2ClientCredentials {
+		t.Fatalf("AuthMode() = %q, want %q", got, connectivity.AuthOAuth2ClientCredentials)
+	}
+}
+
+func TestTodo_INTG_017_ConnectionCoverage(t *testing.T) {
+	t.Run("constructor rejects invalid tenant scope and bounds", func(t *testing.T) {
+		pub := publishedDefinition(t)
+		cases := []struct {
+			name   string
+			mutate func(*connectivity.ConnectionSpec)
+			want   error
+		}{
+			{name: "missing tenant", mutate: func(s *connectivity.ConnectionSpec) { s.TenantID = "" }, want: connectivity.ErrInvalid},
+			{name: "missing organization", mutate: func(s *connectivity.ConnectionSpec) { s.OrgID = "" }, want: connectivity.ErrInvalid},
+			{name: "missing external system", mutate: func(s *connectivity.ConnectionSpec) { s.SystemID = "" }, want: connectivity.ErrInvalid},
+			{name: "unpublished auth mode", mutate: func(s *connectivity.ConnectionSpec) { s.AuthMode = connectivity.AuthAPIKey }, want: connectivity.ErrCapabilityBroadened},
+			{name: "missing scopes", mutate: func(s *connectivity.ConnectionSpec) { s.Scopes = nil }, want: connectivity.ErrInvalid},
+			{name: "missing creation time", mutate: func(s *connectivity.ConnectionSpec) { s.CreatedAt = time.Time{} }, want: connectivity.ErrInvalid},
+			{name: "missing capabilities", mutate: func(s *connectivity.ConnectionSpec) { s.Capabilities = nil }, want: connectivity.ErrInvalid},
+			{name: "empty allowed host", mutate: func(s *connectivity.ConnectionSpec) { s.EndpointPolicy.AllowedHosts = []string{""} }, want: connectivity.ErrInvalid},
+			{name: "non-positive page size", mutate: func(s *connectivity.ConnectionSpec) { s.Bounds.MaxPageSize = 0 }, want: connectivity.ErrInvalid},
+			{name: "non-positive pages per run", mutate: func(s *connectivity.ConnectionSpec) { s.Bounds.MaxPagesPerRun = 0 }, want: connectivity.ErrInvalid},
+			{name: "non-positive records per run", mutate: func(s *connectivity.ConnectionSpec) { s.Bounds.MaxRecordsPerRun = 0 }, want: connectivity.ErrInvalid},
+			{name: "non-positive record bytes", mutate: func(s *connectivity.ConnectionSpec) { s.Bounds.MaxRecordBytes = 0 }, want: connectivity.ErrInvalid},
+			{name: "negative request interval", mutate: func(s *connectivity.ConnectionSpec) { s.Bounds.MinRequestInterval = -time.Nanosecond }, want: connectivity.ErrInvalid},
+			{name: "less than one page per run", mutate: func(s *connectivity.ConnectionSpec) {
+				s.Bounds.MaxRecordsPerRun = s.Bounds.MaxPageSize - 1
+			}, want: connectivity.ErrInvalid},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				spec := validSpec(t)
+				tc.mutate(&spec)
+				conn, err := connectivity.NewConnection(pub, spec)
+				if conn != nil {
+					t.Fatalf("NewConnection returned a connection in state %s", conn.State())
+				}
+				if !errors.Is(err, tc.want) {
+					t.Fatalf("NewConnection returned %v, want %v", err, tc.want)
+				}
+			})
+		}
+	})
+
+	t.Run("metadata remains authoritative through valid lifecycle transitions", func(t *testing.T) {
+		pub := publishedDefinition(t)
+		spec := validSpec(t)
+		conn, err := connectivity.NewConnection(pub, spec)
+		if err != nil {
+			t.Fatalf("NewConnection: %v", err)
+		}
+		wantCapabilities := append([]connectivity.Capability(nil), spec.Capabilities...)
+		wantScopes := []string{"compensation.read", "position.read", "worker.read"}
+		assertMetadata := func(stage string) {
+			t.Helper()
+			if conn.ID() != spec.ConnectionID || conn.TenantID() != spec.TenantID || conn.OrgID() != spec.OrgID || conn.SystemID() != spec.SystemID {
+				t.Fatalf("%s: connection identity changed: id=%q tenant=%q org=%q system=%q", stage, conn.ID(), conn.TenantID(), conn.OrgID(), conn.SystemID())
+			}
+			if conn.ConnectorID() != pub.Definition.ConnectorID || conn.ConnectorVersion() != pub.Definition.Version {
+				t.Fatalf("%s: connector authority changed: %s@%s", stage, conn.ConnectorID(), conn.ConnectorVersion())
+			}
+			if conn.Environment() != spec.Environment || conn.Residency() != spec.Residency || conn.AuthMode() != spec.AuthMode {
+				t.Fatalf("%s: deployment or auth metadata changed: env=%s residency=%q auth=%s", stage, conn.Environment(), conn.Residency(), conn.AuthMode())
+			}
+			if conn.CredentialRef().String() != spec.CredentialRef.String() || strings.Join(conn.Scopes(), ",") != strings.Join(wantScopes, ",") {
+				t.Fatalf("%s: credential or scopes changed: credential=%q scopes=%v", stage, conn.CredentialRef(), conn.Scopes())
+			}
+			policy := conn.EndpointPolicy()
+			if len(policy.AllowedHosts) != len(spec.EndpointPolicy.AllowedHosts) || policy.AllowedHosts[0] != spec.EndpointPolicy.AllowedHosts[0] || policy.RequireTLS != spec.EndpointPolicy.RequireTLS || policy.EgressProfile != spec.EndpointPolicy.EgressProfile {
+				t.Fatalf("%s: endpoint policy changed: %+v", stage, policy)
+			}
+			if conn.Bounds() != spec.Bounds {
+				t.Fatalf("%s: bounds changed: %+v", stage, conn.Bounds())
+			}
+			gotCapabilities := conn.Capabilities()
+			if len(gotCapabilities) != len(wantCapabilities) {
+				t.Fatalf("%s: capabilities changed: %v", stage, gotCapabilities)
+			}
+			for i := range gotCapabilities {
+				if gotCapabilities[i] != wantCapabilities[i] {
+					t.Fatalf("%s: capability %d changed: %v", stage, i, gotCapabilities[i])
+				}
+			}
+			if !conn.Supports(connectivity.Capability{Object: connectivity.ObjectWorker, Operation: connectivity.OperationRead}) {
+				t.Fatalf("%s: worker read capability disappeared", stage)
+			}
+			if conn.Supports(connectivity.Capability{Object: connectivity.ObjectWorker, Operation: connectivity.OperationWrite}) {
+				t.Fatalf("%s: unsupported worker write capability appeared", stage)
+			}
+		}
+
+		assertMetadata("DRAFT")
+		steps := []struct {
+			name string
+			to   connectivity.LifecycleState
+		}{
+			{name: "validating", to: connectivity.StateValidating},
+			{name: "ready", to: connectivity.StateReady},
+			{name: "active", to: connectivity.StateActive},
+			{name: "degraded", to: connectivity.StateDegraded},
+			{name: "active again", to: connectivity.StateActive},
+			{name: "suspended", to: connectivity.StateSuspended},
+			{name: "ready after suspension", to: connectivity.StateReady},
+			{name: "active after re-enable", to: connectivity.StateActive},
+		}
+		for i, step := range steps {
+			t.Run(step.name, func(t *testing.T) {
+				if err := conn.Transition(step.to, evidenceAt(step.name, time.Duration(i+1)*time.Minute)); err != nil {
+					t.Fatalf("Transition(%s): %v", step.to, err)
+				}
+				assertMetadata(step.name)
+			})
+		}
+
+		t.Run("unknown state is rejected without mutation", func(t *testing.T) {
+			beforeVersion := conn.StateVersion()
+			beforeHistory := len(conn.History())
+			err := conn.Transition(connectivity.LifecycleState("UNKNOWN"), evidenceAt("bad-state", time.Hour))
+			if !errors.Is(err, connectivity.ErrInvalid) {
+				t.Fatalf("Transition(UNKNOWN) returned %v, want ErrInvalid", err)
+			}
+			if conn.State() != connectivity.StateActive || conn.StateVersion() != beforeVersion || len(conn.History()) != beforeHistory {
+				t.Fatalf("rejected unknown state mutated lifecycle: state=%s version=%d history=%d", conn.State(), conn.StateVersion(), len(conn.History()))
+			}
+			assertMetadata("rejected unknown state")
+		})
+	})
+
+	t.Run("zero credential reference remains empty", func(t *testing.T) {
+		if got := (connectivity.CredentialRef{}).String(); got != "" {
+			t.Fatalf("zero credential reference rendered as %q", got)
+		}
+		if _, err := connectivity.ParseCredentialRef("secretref://harborcare/workday/client!"); !errors.Is(err, connectivity.ErrCredential) {
+			t.Fatalf("invalid credential path character returned %v, want ErrCredential", err)
+		}
+	})
+}
+
 // enable walks a fresh connection to ACTIVE through the legal path.
 func enable(t *testing.T, conn *connectivity.ConnectorConnection) {
 	t.Helper()

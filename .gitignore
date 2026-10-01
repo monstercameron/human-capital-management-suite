@@ -133,3 +133,5 @@ go-build[0-9]*/
 
 # Stray wasm build output if journeywasm is run without -out
 /journeywasm
+artifacts/cache/go/README
+artifacts/*

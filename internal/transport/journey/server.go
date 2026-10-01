@@ -342,8 +342,13 @@ const (
 // path mints no cursors for the same reason: an opaque cursor it cannot
 // honor is refused rather than silently answered as the first page.
 func (s *server) listJourneyPage(ctx context.Context, eng workspace.JourneyEngine, principal *trust.Principal, inv *transport.Invocation, req *journeyv1.ListJourneysRequest) ([]workspace.JourneySummary, string, int, *envelope.Error) {
+	pageReq, finishCursor, cursorErr := s.prepareHistoryPageRequest(principal, inv, req)
+	if cursorErr != nil {
+		return nil, "", 0, cursorErr
+	}
 	if hist, ok := eng.(workspace.HistoryEngine); ok {
-		return s.engineJourneyPage(ctx, hist, principal, inv, req)
+		page, next, total, err := s.engineJourneyPage(ctx, hist, principal, inv, pageReq)
+		return page, finishCursor(next), total, err
 	}
 	summaries, err := eng.ListJourneys(ctx)
 	if err != nil {
@@ -352,10 +357,10 @@ func (s *server) listJourneyPage(ctx context.Context, eng workspace.JourneyEngin
 	if req.GetTerminalOnly() {
 		summaries = closedJourneys(summaries)
 	}
-	if req.GetPage().GetCursor() != "" {
+	if pageReq.GetPage().GetCursor() != "" {
 		return nil, "", 0, pageCursorRefused(inv, principal)
 	}
-	size, number := fallbackPageBounds(req)
+	size, number := fallbackPageBounds(pageReq)
 	start := 0
 	if number > 1 {
 		start = (number - 1) * size
@@ -839,8 +844,18 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
+	// UXBLIND-003: a role without the People directory (worker_self, the
+	// finance partner) was refused this read outright, so Myself -- whose only
+	// worker source is this listing -- could never find the viewer's own
+	// record. Such a caller is served exactly its own row when its role may
+	// view the Myself employment profile, and nothing else: no other worker,
+	// no workforce options.
+	selfOnly := false
 	if err := s.requireFeatureAction(ctx, principal, inv, "people", "directory", roleaccess.ActionView); err != nil {
-		return nil, err
+		if s.requireFeatureAction(ctx, principal, inv, "myself", "employment_profile", roleaccess.ActionView) != nil {
+			return nil, err
+		}
+		selfOnly = true
 	}
 	eng, depErr := s.engine(principal, inv, "list_workers")
 	if depErr != nil {
@@ -850,6 +865,17 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	workers, options, err := eng.ListWorkers(ctx)
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "list_workers")
+	}
+	if selfOnly {
+		own := make([]workspace.WorkerSummary, 0, 1)
+		for _, worker := range workers {
+			if workerMatchesPrincipal(worker, principal.Subject()) {
+				own = append(own, worker)
+			}
+		}
+		return &journeyv1.ListWorkersResponse{
+			Workers: s.authorizeWorkers(ctx, principal, workers, projectAuthorizedManagers(workers, own)),
+		}, nil
 	}
 	// The complete listing stays available as the reporting-line source for
 	// per-subject field disclosure; visibleWorkforce only filters rows.

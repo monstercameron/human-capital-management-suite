@@ -107,7 +107,7 @@ func devEmployeeBundle(worker demoworkforce.Employee, managesAnybody bool) works
 // A process serving several demo companies mints every company's employees,
 // each credential bound to its own company's tenant.
 func composeDevEmployeePersonas(verifier trust.Verifier, cfg ServeConfig, now func() time.Time) []workspace.DevPersona {
-	issuer, isIssuer := verifier.(developmentTokenIssuer)
+	issuer, isIssuer := devTokenIssuerOf(verifier)
 	if !isIssuer {
 		return nil
 	}

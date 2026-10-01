@@ -22,6 +22,7 @@ import (
 	transporthumanwork "github.com/monstercameron/human-capital-management-suite/internal/transport/humanwork"
 	transportposition "github.com/monstercameron/human-capital-management-suite/internal/transport/position"
 	transportproject "github.com/monstercameron/human-capital-management-suite/internal/transport/project"
+	transporttimeclock "github.com/monstercameron/human-capital-management-suite/internal/transport/timeclock"
 	transportworkorder "github.com/monstercameron/human-capital-management-suite/internal/transport/workorder"
 )
 
@@ -158,7 +159,26 @@ func NewTunnelGRPCServerWithChatDocumentPositionProjectActivityAndSearchAndWorkO
 ) (*grpc.Server, error) {
 	return newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(c, instances, workQueue, cursorKey, previousCursorKey,
 		workWrites, thresholds, chatService, extensions, documentService, &positionDeps,
-		projectService, projectActivity, projectSearch, workOrder, opts...)
+		projectService, projectActivity, projectSearch, workOrder, nil, opts...)
+}
+
+// NewTunnelGRPCServerWithWorkerClock adds the worker self-clock service to the
+// authenticated browser tunnel, so the Time clock page reads and acts over the
+// same gRPC socket as every other page. A nil service registers the generated
+// "not turned on" answer, which the page reads as "not turned on for this
+// workspace".
+func NewTunnelGRPCServerWithWorkerClock(
+	c *app.Cell, instances app.WorkflowControlReader, workQueue app.WorkItemQueueReader,
+	cursorKey, previousCursorKey []byte, workWrites transporthumanwork.WritePorts,
+	thresholds transporthumanwork.Thresholds, chatService chatcore.ConversationService,
+	extensions transportextensions.Service, documentService transportdocument.Service,
+	positionDeps transportposition.Dependencies, projectService transportproject.Service,
+	projectActivity transportproject.ActivityService, projectSearch transportproject.TaskSearchService,
+	workOrder *transportworkorder.Dependencies, workerClock transporttimeclock.WorkerSelfService, opts ...grpc.ServerOption,
+) (*grpc.Server, error) {
+	return newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(c, instances, workQueue, cursorKey, previousCursorKey,
+		workWrites, thresholds, chatService, extensions, documentService, &positionDeps,
+		projectService, projectActivity, projectSearch, workOrder, workerClock, opts...)
 }
 
 // registerTunnelChat puts both chat services on a tunnel server: composed

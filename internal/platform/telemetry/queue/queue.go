@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -82,6 +83,7 @@ type Receipt struct {
 type Exporter func(Item) error
 
 type Pipeline struct {
+	mu        sync.Mutex
 	config    Config
 	items     []Item
 	seen      map[string]bool
@@ -102,14 +104,16 @@ func New(config Config) (*Pipeline, error) {
 }
 
 func (p *Pipeline) Submit(item Item) (SubmitResult, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(item.Digest) == "" || item.Priority > PriorityCritical {
 		return SubmitResult{}, ErrInvalidItem
 	}
 	if !p.accepting {
-		return p.drop(DropShutdownTimeout), nil
+		return p.dropLocked(DropShutdownTimeout), nil
 	}
 	if p.seen[item.ID] {
-		return p.drop(DropDuplicate), nil
+		return p.dropLocked(DropDuplicate), nil
 	}
 	if len(p.items) >= p.config.Capacity {
 		lowest := 0
@@ -119,7 +123,7 @@ func (p *Pipeline) Submit(item Item) (SubmitResult, error) {
 			}
 		}
 		if p.items[lowest].Priority >= item.Priority {
-			return p.drop(DropQueueFull), nil
+			return p.dropLocked(DropQueueFull), nil
 		}
 		p.removeAt(lowest)
 		p.recordDrop(DropQueueFull)
@@ -132,6 +136,12 @@ func (p *Pipeline) Submit(item Item) (SubmitResult, error) {
 }
 
 func (p *Pipeline) Flush(exporter Exporter) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.flushLocked(exporter)
+}
+
+func (p *Pipeline) flushLocked(exporter Exporter) {
 	for len(p.items) > 0 {
 		item := p.items[0]
 		p.items = p.items[1:]
@@ -163,6 +173,8 @@ func (p *Pipeline) Flush(exporter Exporter) {
 // that order. The caller supplies time so a test and a production coordinator
 // can use the same deterministic contract.
 func (p *Pipeline) Shutdown(exporter Exporter, now, deadline time.Time) Receipt {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.accepting = false
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -175,7 +187,7 @@ func (p *Pipeline) Shutdown(exporter Exporter, now, deadline time.Time) Receipt 
 		}
 		receipt.Status = StatusTimedOut
 	} else {
-		p.Flush(exporter)
+		p.flushLocked(exporter)
 		receipt.Status = StatusComplete
 		if p.health.Dropped > 0 {
 			receipt.Status = StatusPartial
@@ -193,6 +205,8 @@ func (p *Pipeline) Shutdown(exporter Exporter, now, deadline time.Time) Receipt 
 }
 
 func (p *Pipeline) Health() Health {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	result := p.health
 	result.DropReasons = make(map[DropReason]int, len(p.health.DropReasons))
 	for reason, count := range p.health.DropReasons {
@@ -203,7 +217,7 @@ func (p *Pipeline) Health() Health {
 	return result
 }
 
-func (p *Pipeline) drop(reason DropReason) SubmitResult {
+func (p *Pipeline) dropLocked(reason DropReason) SubmitResult {
 	p.recordDrop(reason)
 	return SubmitResult{Dropped: true, Reason: reason}
 }

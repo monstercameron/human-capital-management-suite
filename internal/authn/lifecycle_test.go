@@ -242,6 +242,9 @@ func TestTodo_AUTHN_009_Security(t *testing.T) {
 // TestTodo_AUTHN_009_Conformance proves relink increments revision, preserves
 // old events, and does not resurrect old derived authority.
 func TestTodo_AUTHN_009_Conformance(t *testing.T) {
+	if err := authn.ValidateServingContract(); err != nil {
+		t.Fatalf("serving lifecycle contract: %v", err)
+	}
 	service, identity, _ := lifecycleFixture(t)
 	dependent, err := service.RegisterDependent(authn.DependentSpec{ID: "dependent-history", AccountID: "account-1", IdentityID: identity.ID, Tenant: "tenant-a", Kind: authn.DependentSubjectLink, Assurance: trust.AssuranceSubstantial, At: lifecycleAt})
 	if err != nil {

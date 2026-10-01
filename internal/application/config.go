@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -60,6 +61,19 @@ const EnvChatCursorKey = "HCMNEXT_CHAT_CURSOR_KEY"
 
 // EnvDocumentDatabaseURL selects Knowledge's independent PostgreSQL database.
 const EnvDocumentDatabaseURL = "HCMNEXT_DOCUMENT_DATABASE_URL"
+
+// EnvAgentDatabaseURL selects the independent PostgreSQL database that stores
+// agent definitions, runs and persona installations.
+const EnvAgentDatabaseURL = "HCMNEXT_AGENT_DATABASE_URL"
+
+const EnvAgentModelConfigFile = "HCMNEXT_AGENT_MODEL_CONFIG_FILE"
+const EnvPersonaOutputSigningSeed = "HCMNEXT_PERSONA_OUTPUT_SIGNING_SEED"
+const EnvPersonaWorkloadSigningSeed = "HCMNEXT_PERSONA_WORKLOAD_SIGNING_SEED"
+const EnvPersonaEvaluationPublicKeys = "HCMNEXT_PERSONA_EVALUATION_PUBLIC_KEYS"
+
+// EnvPersonaReviewAuthorityDatabaseURL selects the PostgreSQL connection used
+// only to read current persona-review grants.
+const EnvPersonaReviewAuthorityDatabaseURL = "HCMNEXT_PERSONA_REVIEW_AUTHORITY_DATABASE_URL"
 
 // EnvProjectDatabaseURL selects the project schema's restricted PostgreSQL role.
 const EnvProjectDatabaseURL = "HCMNEXT_PROJECT_DATABASE_URL"
@@ -151,23 +165,29 @@ const (
 	// pinned-keys document backing it. When both are set the listener
 	// authenticates with the federation verifier instead of the dev HMAC
 	// key.
-	FieldFederationIssuers         = "federation-issuers"
-	FieldFederationKeysFile        = "federation-keys-file"
-	FieldOIDCIssuerURL             = "oidc-issuer-url"
-	FieldOIDCClientID              = "oidc-client-id"
-	FieldOIDCClientSecret          = "oidc-client-secret"
-	FieldOIDCAuthorizationEndpoint = "oidc-authorization-endpoint"
-	FieldOIDCTokenEndpoint         = "oidc-token-endpoint"
-	FieldOIDCRedirectURI           = "oidc-redirect-uri"
-	FieldOIDCSessionSigningKey     = "oidc-session-signing-key"
-	FieldChatEnabled               = "chat-enabled"
-	FieldChatDatabaseURL           = "chat-database-url"
-	FieldDocumentDatabaseURL       = "document-database-url"
-	FieldProjectDatabaseURL        = "project-database-url"
-	FieldWorkOrderDatabaseURL      = "workorder-database-url"
-	FieldChatCursorKey             = "chat-cursor-key"
-	FieldChatMediaRoot             = "chat-media-root"
-	FieldArtifactRoot              = "artifact-root"
+	FieldFederationIssuers                 = "federation-issuers"
+	FieldFederationKeysFile                = "federation-keys-file"
+	FieldOIDCIssuerURL                     = "oidc-issuer-url"
+	FieldOIDCClientID                      = "oidc-client-id"
+	FieldOIDCClientSecret                  = "oidc-client-secret"
+	FieldOIDCAuthorizationEndpoint         = "oidc-authorization-endpoint"
+	FieldOIDCTokenEndpoint                 = "oidc-token-endpoint"
+	FieldOIDCRedirectURI                   = "oidc-redirect-uri"
+	FieldOIDCSessionSigningKey             = "oidc-session-signing-key"
+	FieldChatEnabled                       = "chat-enabled"
+	FieldChatDatabaseURL                   = "chat-database-url"
+	FieldDocumentDatabaseURL               = "document-database-url"
+	FieldAgentDatabaseURL                  = "agent-database-url"
+	FieldAgentModelConfigFile              = "agent-model-config-file"
+	FieldPersonaOutputSigningSeed          = "persona-output-signing-seed"
+	FieldPersonaWorkloadSigningSeed        = "persona-workload-signing-seed"
+	FieldPersonaEvaluationPublicKeys       = "persona-evaluation-public-keys"
+	FieldPersonaReviewAuthorityDatabaseURL = "persona-review-authority-database-url"
+	FieldProjectDatabaseURL                = "project-database-url"
+	FieldWorkOrderDatabaseURL              = "workorder-database-url"
+	FieldChatCursorKey                     = "chat-cursor-key"
+	FieldChatMediaRoot                     = "chat-media-root"
+	FieldArtifactRoot                      = "artifact-root"
 	// FieldPageCursorKey is the dedicated page/stream cursor signing key
 	// (INTAPI-006): the development HMAC key also signed page cursors, so
 	// rotating either meant rotating both. FieldPageCursorPreviousKey is
@@ -191,14 +211,15 @@ const (
 	ServeProfileStandard = "standard"
 	ServeProfileLocalDev = devprofile.Name
 
-	LocalDevDatabaseURL     = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next?sslmode=disable"
-	LocalDevChatDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next_chat?sslmode=disable"
-	LocalDevHMACKey         = devprofile.HMACKey
-	LocalDevTenant          = devprofile.Tenant
-	LocalDevSubject         = devprofile.Subject
-	LocalDevOrgScope        = devprofile.OrgScope
-	LocalDevRoles           = devprofile.Roles
-	LocalDevPurpose         = devprofile.Purpose
+	LocalDevDatabaseURL      = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next?sslmode=disable"
+	LocalDevChatDatabaseURL  = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next_chat?sslmode=disable"
+	LocalDevAgentDatabaseURL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next_agents?sslmode=disable"
+	LocalDevHMACKey          = devprofile.HMACKey
+	LocalDevTenant           = devprofile.Tenant
+	LocalDevSubject          = devprofile.Subject
+	LocalDevOrgScope         = devprofile.OrgScope
+	LocalDevRoles            = devprofile.Roles
+	LocalDevPurpose          = devprofile.Purpose
 	// LocalDevFinancePartner is the local-dev profile's default
 	// -execution-finance-partner: HarborCare's Finance Director worker, the
 	// finance partner the demo tenant's promotion approvals route to
@@ -273,6 +294,8 @@ type ServeConfig struct {
 	GRPCListen        string
 	HTTPListen        string
 	DatabaseURL       string
+	ClockRuntime      ClockRuntimeConfigInput
+	ClockKiosk        ClockKioskAssets
 	// DevHMACKey is the development signing key. It is carried, never
 	// logged: bootstrap.Field marks it Secret so the config fingerprint and
 	// the startup log attributes redact it.
@@ -347,11 +370,22 @@ type ServeConfig struct {
 	// ChatEnabled composes the native chat surface and its independent pool.
 	// It is opt in so standard deployments do not acquire a second database
 	// dependency by default.
-	ChatEnabled          bool
-	ChatDatabaseURL      string
-	DocumentDatabaseURL  string
-	ProjectDatabaseURL   string
-	WorkOrderDatabaseURL string
+	ChatEnabled                bool
+	ChatDatabaseURL            string
+	DocumentDatabaseURL        string
+	AgentDatabaseURL           string
+	AgentModelConfigFile       string
+	PersonaOutputSigningSeed   string
+	PersonaWorkloadSigningSeed string
+	// PersonaEvaluationPublicKeys contains the trusted evaluator's public keyring.
+	// Private evaluation signing keys are never loaded by the serving process.
+	PersonaEvaluationPublicKeys string
+	// PersonaReviewAuthorityDatabaseURL is the separately credentialed
+	// connection used to check current persona-review grants. It has no
+	// fallback to the agent or core database credentials.
+	PersonaReviewAuthorityDatabaseURL string
+	ProjectDatabaseURL                string
+	WorkOrderDatabaseURL              string
 	// ParameterEnvironment selects the deployment-owned value namespace. Empty
 	// leaves parameter serving unconfigured; when set it must name one of the
 	// two isolated environments exactly.
@@ -381,7 +415,7 @@ type ServeConfig struct {
 // serve role accepts. It is the single declaration: the command does not
 // add, rename or re-default one.
 func ServeConfigFields() []bootstrap.Field {
-	return []bootstrap.Field{
+	fields := []bootstrap.Field{
 		{Name: FieldProfile, Usage: "runtime default profile: standard or local-dev", Default: ServeProfileStandard},
 		{Name: FieldGRPCListen, Usage: "address the canonical gRPC surface listens on", Default: "127.0.0.1:8443"},
 		{Name: FieldHTTPListen, Usage: "address the HTTP edge listens on", Default: "127.0.0.1:8080"},
@@ -430,6 +464,12 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldChatEnabled, Usage: "compose native chat over its independent database", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "PostgreSQL connection URL for the independent chat database"},
 		{Name: FieldDocumentDatabaseURL, Env: EnvDocumentDatabaseURL, Usage: "PostgreSQL connection URL for the independent document database", Secret: true},
+		{Name: FieldAgentDatabaseURL, Env: EnvAgentDatabaseURL, Usage: "PostgreSQL connection URL for the independent agent database", Secret: true},
+		{Name: FieldAgentModelConfigFile, Env: EnvAgentModelConfigFile, Usage: "Explicit approved OpenAI model deployment JSON file"},
+		{Name: FieldPersonaOutputSigningSeed, Env: EnvPersonaOutputSigningSeed, Usage: "Dedicated persistent standard-base64 Ed25519 final-output signing seed", Secret: true},
+		{Name: FieldPersonaWorkloadSigningSeed, Env: EnvPersonaWorkloadSigningSeed, Usage: "Dedicated persistent standard-base64 Ed25519 persona worker signing seed", Secret: true},
+		{Name: FieldPersonaEvaluationPublicKeys, Env: EnvPersonaEvaluationPublicKeys, Usage: "JSON public evaluator keyring; empty keeps persona publication disabled"},
+		{Name: FieldPersonaReviewAuthorityDatabaseURL, Env: EnvPersonaReviewAuthorityDatabaseURL, Usage: "separately credentialed PostgreSQL URL for current persona-review grants; empty disables production review authority", Secret: true},
 		{Name: FieldProjectDatabaseURL, Env: EnvProjectDatabaseURL, Usage: "PostgreSQL connection URL for the restricted project schema role; empty disables project services", Secret: true},
 		{Name: FieldWorkOrderDatabaseURL, Env: EnvWorkOrderDatabaseURL, Usage: "PostgreSQL connection URL for the restricted work order schema role; requires project services", Secret: true},
 		{Name: FieldChatCursorKey, Env: EnvChatCursorKey, Usage: "HMAC key for chat cursors; required when chat is enabled", Secret: true},
@@ -444,6 +484,8 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldIAMWebhookEndpointID, Env: EnvIAMWebhookEndpointID, Usage: "fixed IAM provider receipt endpoint ID; requires -tenant and -" + FieldIAMWebhookSecret},
 		{Name: FieldIAMWebhookSecret, Env: EnvIAMWebhookSecret, Usage: "HMAC secret for IAM provider receipts; at least 32 bytes", Secret: true},
 	}
+	fields = append(fields, ClockConfigFields()...)
+	return append(fields, ClockKioskFields()...)
 }
 
 // ServeConfigFieldsForArgs returns the same declared field set with the
@@ -481,6 +523,7 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		FieldExecutionFinancePartner: pack.FinancePartnerKey,
 		FieldChatEnabled:             "true",
 		FieldChatDatabaseURL:         LocalDevChatDatabaseURL,
+		FieldAgentDatabaseURL:        LocalDevAgentDatabaseURL,
 		FieldChatCursorKey:           LocalDevHMACKey,
 		FieldPageCursorKey:           LocalDevPageCursorKey,
 	}
@@ -539,56 +582,75 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		return ServeConfig{}, fmt.Errorf("application: serve configuration needs parsed values")
 	}
 	cfg := ServeConfig{
-		ConfigFingerprint:         values.Fingerprint(),
-		Profile:                   values.String(FieldProfile),
-		GRPCListen:                values.String(FieldGRPCListen),
-		HTTPListen:                values.String(FieldHTTPListen),
-		DatabaseURL:               values.String(FieldDatabaseURL),
-		DevHMACKey:                values.String(FieldDevHMACKey),
-		Issuer:                    values.String(FieldIssuer),
-		Audience:                  values.String(FieldAudience),
-		Tenant:                    values.String(FieldTenant),
-		Tenants:                   values.String(FieldTenants),
-		CellID:                    values.String(FieldCellID),
-		OTelExporter:              values.String(FieldOTelExporter),
-		OTelEndpoint:              values.String(FieldOTelEndpoint),
-		ExecutionAuthorityDigest:  values.String(FieldExecutionAuthorityDigest),
-		ExecutionAuthorityRole:    values.String(FieldExecutionAuthorityRole),
-		ExecutionApprover:         values.String(FieldExecutionApprover),
-		ExecutionManagerApprover:  values.String(FieldExecutionManagerApprover),
-		ExecutionFinancePartner:   values.String(FieldExecutionFinancePartner),
-		TimerTzdbVersion:          values.String(FieldTimerTzdbVersion),
-		TimerCalendarVersion:      values.String(FieldTimerCalendarVersion),
-		HealthAddr:                values.String(FieldHealthAddr),
-		WorkflowPlan:              values.String(FieldWorkflowPlan),
-		LegalEvidenceIssuerKeys:   values.String(FieldLegalEvidenceIssuerKeys),
-		ExecutionRetryVersion:     values.String(FieldExecutionRetryVersion),
-		LocalDevNow:               values.String(FieldLocalDevNow),
-		FederationIssuers:         values.String(FieldFederationIssuers),
-		FederationKeysFile:        values.String(FieldFederationKeysFile),
-		OIDCIssuerURL:             values.String(FieldOIDCIssuerURL),
-		OIDCClientID:              values.String(FieldOIDCClientID),
-		OIDCClientSecret:          values.String(FieldOIDCClientSecret),
-		OIDCAuthorizationEndpoint: values.String(FieldOIDCAuthorizationEndpoint),
-		OIDCTokenEndpoint:         values.String(FieldOIDCTokenEndpoint),
-		OIDCRedirectURI:           values.String(FieldOIDCRedirectURI),
-		OIDCSessionSigningKey:     values.String(FieldOIDCSessionSigningKey),
-		ChatDatabaseURL:           values.String(FieldChatDatabaseURL),
-		DocumentDatabaseURL:       values.String(FieldDocumentDatabaseURL),
-		ProjectDatabaseURL:        values.String(FieldProjectDatabaseURL),
-		WorkOrderDatabaseURL:      values.String(FieldWorkOrderDatabaseURL),
-		ParameterEnvironment:      values.String(FieldParameterEnvironment),
-		ChatCursorKey:             values.String(FieldChatCursorKey),
-		ChatMediaRoot:             values.String(FieldChatMediaRoot),
-		ArtifactRoot:              values.String(FieldArtifactRoot),
-		PageCursorKey:             values.String(FieldPageCursorKey),
-		PageCursorPreviousKey:     values.String(FieldPageCursorPreviousKey),
-		ConfigBundleSigningSeed:   values.String(FieldConfigBundleSigningSeed),
-		ConfigBundleReceiptSeed:   values.String(FieldConfigBundleReceiptSeed),
-		PayrollWebhookEndpointID:  values.String(FieldPayrollWebhookEndpointID),
-		PayrollWebhookSecret:      values.String(FieldPayrollWebhookSecret),
-		IAMWebhookEndpointID:      values.String(FieldIAMWebhookEndpointID),
-		IAMWebhookSecret:          values.String(FieldIAMWebhookSecret),
+		ConfigFingerprint: values.Fingerprint(),
+		Profile:           values.String(FieldProfile),
+		GRPCListen:        values.String(FieldGRPCListen),
+		HTTPListen:        values.String(FieldHTTPListen),
+		DatabaseURL:       values.String(FieldDatabaseURL),
+		ClockRuntime: ClockRuntimeConfigInput{
+			TimeDatabaseURL:              values.String(FieldTimeDatabaseURL),
+			TimeSchema:                   values.String(FieldTimeSchema),
+			CoreDatabaseURL:              values.String(FieldDatabaseURL),
+			WorkerTokenKey:               values.String(FieldTimeWorkerTokenKey),
+			SignedRegistryPath:           values.String(FieldTimeRegistryPath),
+			SignedRegistryKey:            values.String(FieldTimeRegistryKey),
+			SignedRegistryPinnedRevision: values.String(FieldTimeRegistryRevision),
+		},
+		ClockKiosk: ClockKioskAssets{
+			WASMPath:     values.String(FieldClockKioskWASMPath),
+			WASMExecPath: values.String(FieldClockKioskExecPath),
+		},
+		DevHMACKey:                        values.String(FieldDevHMACKey),
+		Issuer:                            values.String(FieldIssuer),
+		Audience:                          values.String(FieldAudience),
+		Tenant:                            values.String(FieldTenant),
+		Tenants:                           values.String(FieldTenants),
+		CellID:                            values.String(FieldCellID),
+		OTelExporter:                      values.String(FieldOTelExporter),
+		OTelEndpoint:                      values.String(FieldOTelEndpoint),
+		ExecutionAuthorityDigest:          values.String(FieldExecutionAuthorityDigest),
+		ExecutionAuthorityRole:            values.String(FieldExecutionAuthorityRole),
+		ExecutionApprover:                 values.String(FieldExecutionApprover),
+		ExecutionManagerApprover:          values.String(FieldExecutionManagerApprover),
+		ExecutionFinancePartner:           values.String(FieldExecutionFinancePartner),
+		TimerTzdbVersion:                  values.String(FieldTimerTzdbVersion),
+		TimerCalendarVersion:              values.String(FieldTimerCalendarVersion),
+		HealthAddr:                        values.String(FieldHealthAddr),
+		WorkflowPlan:                      values.String(FieldWorkflowPlan),
+		LegalEvidenceIssuerKeys:           values.String(FieldLegalEvidenceIssuerKeys),
+		ExecutionRetryVersion:             values.String(FieldExecutionRetryVersion),
+		LocalDevNow:                       values.String(FieldLocalDevNow),
+		FederationIssuers:                 values.String(FieldFederationIssuers),
+		FederationKeysFile:                values.String(FieldFederationKeysFile),
+		OIDCIssuerURL:                     values.String(FieldOIDCIssuerURL),
+		OIDCClientID:                      values.String(FieldOIDCClientID),
+		OIDCClientSecret:                  values.String(FieldOIDCClientSecret),
+		OIDCAuthorizationEndpoint:         values.String(FieldOIDCAuthorizationEndpoint),
+		OIDCTokenEndpoint:                 values.String(FieldOIDCTokenEndpoint),
+		OIDCRedirectURI:                   values.String(FieldOIDCRedirectURI),
+		OIDCSessionSigningKey:             values.String(FieldOIDCSessionSigningKey),
+		ChatDatabaseURL:                   values.String(FieldChatDatabaseURL),
+		DocumentDatabaseURL:               values.String(FieldDocumentDatabaseURL),
+		AgentDatabaseURL:                  values.String(FieldAgentDatabaseURL),
+		AgentModelConfigFile:              values.String(FieldAgentModelConfigFile),
+		PersonaOutputSigningSeed:          values.String(FieldPersonaOutputSigningSeed),
+		PersonaWorkloadSigningSeed:        values.String(FieldPersonaWorkloadSigningSeed),
+		PersonaEvaluationPublicKeys:       values.String(FieldPersonaEvaluationPublicKeys),
+		PersonaReviewAuthorityDatabaseURL: values.String(FieldPersonaReviewAuthorityDatabaseURL),
+		ProjectDatabaseURL:                values.String(FieldProjectDatabaseURL),
+		WorkOrderDatabaseURL:              values.String(FieldWorkOrderDatabaseURL),
+		ParameterEnvironment:              values.String(FieldParameterEnvironment),
+		ChatCursorKey:                     values.String(FieldChatCursorKey),
+		ChatMediaRoot:                     values.String(FieldChatMediaRoot),
+		ArtifactRoot:                      values.String(FieldArtifactRoot),
+		PageCursorKey:                     values.String(FieldPageCursorKey),
+		PageCursorPreviousKey:             values.String(FieldPageCursorPreviousKey),
+		ConfigBundleSigningSeed:           values.String(FieldConfigBundleSigningSeed),
+		ConfigBundleReceiptSeed:           values.String(FieldConfigBundleReceiptSeed),
+		PayrollWebhookEndpointID:          values.String(FieldPayrollWebhookEndpointID),
+		PayrollWebhookSecret:              values.String(FieldPayrollWebhookSecret),
+		IAMWebhookEndpointID:              values.String(FieldIAMWebhookEndpointID),
+		IAMWebhookSecret:                  values.String(FieldIAMWebhookSecret),
 	}
 	var err error
 	if cfg.PublicOrigin, err = canonicalPublicOrigin(values.String(FieldPublicOrigin)); err != nil {
@@ -680,6 +742,14 @@ func (c ServeConfig) Validate() error {
 		return fmt.Errorf("%s is not set; pass -%s or set the environment variable",
 			EnvDatabaseURL, FieldDatabaseURL)
 	}
+	clockRuntime := c.ClockRuntime
+	clockRuntime.CoreDatabaseURL = c.DatabaseURL
+	if err := ValidateClockRuntimeConfig(clockRuntime, c.DevHMACKey, c.PageCursorKey, c.OIDCSessionSigningKey, c.ChatCursorKey, c.PageCursorPreviousKey); err != nil {
+		return err
+	}
+	if err := ValidateClockKioskAssets(c.ClockKiosk); err != nil {
+		return err
+	}
 	if len(c.DevHMACKey) < MinimumHMACKeyBytes {
 		return fmt.Errorf("-%s must be at least %d bytes; a listener that cannot authenticate must not start",
 			FieldDevHMACKey, MinimumHMACKeyBytes)
@@ -688,6 +758,9 @@ func (c ServeConfig) Validate() error {
 		return err
 	}
 	if err := c.validateConfigBundleKeys(); err != nil {
+		return err
+	}
+	if err := c.validatePersonaModelConfiguration(); err != nil {
 		return err
 	}
 	if err := c.validateProviderWebhookCredentials(); err != nil {
@@ -749,6 +822,17 @@ func (c ServeConfig) Validate() error {
 		}
 		if c.ChatDatabaseURL == c.DatabaseURL {
 			return fmt.Errorf("-%s must use a database independent from -%s", FieldChatDatabaseURL, FieldDatabaseURL)
+		}
+	}
+	if err := c.validateAgentDatabaseURL(); err != nil {
+		return err
+	}
+	if err := c.validatePersonaReviewAuthorityDatabaseURL(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(c.PersonaEvaluationPublicKeys) != "" {
+		if _, err := ParsePersonaEvaluationVerificationKeys(c.PersonaEvaluationPublicKeys); err != nil {
+			return fmt.Errorf("-%s: %w", FieldPersonaEvaluationPublicKeys, err)
 		}
 	}
 	return nil
@@ -855,6 +939,46 @@ func canonicalPublicOrigin(raw string) (string, error) {
 		return "", fmt.Errorf("-%s must be an absolute http(s) origin like https://hcm.example.com; got %q", FieldPublicOrigin, raw)
 	}
 	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host), nil
+}
+
+// sameLogicalDatabaseURL compares PostgreSQL endpoint and database identity,
+// ignoring credentials and pool settings. A malformed URL falls back to an
+// exact comparison so validation remains fail-closed without exposing a
+// parser error that could include connection details.
+func sameLogicalDatabaseURL(a, b string) bool {
+	left, leftErr := pgconn.ParseConfig(strings.TrimSpace(a))
+	right, rightErr := pgconn.ParseConfig(strings.TrimSpace(b))
+	if leftErr != nil || rightErr != nil {
+		return strings.TrimSpace(a) == strings.TrimSpace(b)
+	}
+	return strings.EqualFold(left.Host, right.Host) && left.Port == right.Port && left.Database == right.Database
+}
+
+// validatePersonaReviewAuthorityDatabaseURL requires a distinct PostgreSQL
+// login role for review grants. Sharing the agent database is intentional:
+// PostgreSQL privileges, rather than database identity, isolate the reader.
+func (c ServeConfig) validatePersonaReviewAuthorityDatabaseURL() error {
+	reviewDSN := strings.TrimSpace(c.PersonaReviewAuthorityDatabaseURL)
+	if reviewDSN == "" {
+		return nil
+	}
+	review, err := pgconn.ParseConfig(reviewDSN)
+	if err != nil || strings.TrimSpace(review.User) == "" {
+		return fmt.Errorf("-%s must be a valid PostgreSQL URL with a dedicated login role", FieldPersonaReviewAuthorityDatabaseURL)
+	}
+	for _, source := range []struct{ field, dsn string }{
+		{FieldDatabaseURL, c.DatabaseURL},
+		{FieldAgentDatabaseURL, c.AgentDatabaseURL},
+	} {
+		if strings.TrimSpace(source.dsn) == "" {
+			continue
+		}
+		other, parseErr := pgconn.ParseConfig(strings.TrimSpace(source.dsn))
+		if parseErr == nil && review.User == other.User {
+			return fmt.Errorf("-%s must use a login role distinct from -%s", FieldPersonaReviewAuthorityDatabaseURL, source.field)
+		}
+	}
+	return nil
 }
 
 func parseLegalEvidenceIssuerKeys(raw string) ([][]byte, error) {

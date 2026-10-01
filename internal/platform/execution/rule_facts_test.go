@@ -30,7 +30,7 @@ type stubRuleDeriver struct {
 	last  execute.StepRequest
 }
 
-func (s *stubRuleDeriver) thresholdInputs(_ context.Context, req execute.StepRequest) (rules.PromotionApprovalInput, error) {
+func (s *stubRuleDeriver) thresholdInputs(_ context.Context, _ runtime.Executor, req execute.StepRequest) (rules.PromotionApprovalInput, error) {
 	s.calls++
 	s.last = req
 	return s.input, s.err
@@ -39,12 +39,44 @@ func (s *stubRuleDeriver) thresholdInputs(_ context.Context, req execute.StepReq
 func TestServedRuleFactsCurrentThresholdInputsRejectsZeroCheckedAt(t *testing.T) {
 	deriver := &stubRuleDeriver{}
 	facts := &ServedRuleFacts{Thresholds: deriver}
-	_, err := facts.currentThresholdInputs(context.Background(), rulethreshold.Decision{}, uuid.New(), intent.ProposalRevision{}, time.Time{})
+	_, err := facts.currentThresholdInputs(context.Background(), nil, rulethreshold.Decision{}, uuid.New(), intent.ProposalRevision{}, time.Time{})
 	if err == nil || !strings.Contains(err.Error(), "has no checked_at instant") {
 		t.Fatalf("currentThresholdInputs with zero CheckedAt = %v, want fail-closed timestamp diagnostic", err)
 	}
 	if deriver.calls != 0 {
 		t.Fatalf("threshold deriver calls = %d, want no call for zero CheckedAt", deriver.calls)
+	}
+}
+
+func TestAssignmentGradesBindsResourceToProposalTenantKey(t *testing.T) {
+	tenantKey := values.TenantId("harborcare-demo")
+	workerID := uuid.New()
+	resource, err := values.NewResourceKey(tenantKey, values.Kind("assignment"), "worker", workerID.String())
+	if err != nil {
+		t.Fatalf("NewResourceKey: %v", err)
+	}
+	subject := intent.SubjectReference{Kind: "WORKER", SubjectID: workerID.String()}
+	revision := intent.ProposalRevision{
+		Tenant: tenantKey,
+		CurrentState: []intent.StateAssertion{{
+			Subject: subject, ResourceKey: resource, FieldPath: "assignment.grade", CanonicalText: "P4",
+		}},
+		ProposedState: []intent.StateAssertion{{
+			Subject: subject, ResourceKey: resource, FieldPath: "assignment.grade", CanonicalText: "P5",
+		}},
+	}
+	gotWorker, current, proposed, err := assignmentGrades(revision, tenantKey)
+	if err != nil || gotWorker != workerID || current != "P4" || proposed != "P5" {
+		t.Fatalf("assignmentGrades = %s, %q -> %q, %v; want %s, P4 -> P5", gotWorker, current, proposed, err, workerID)
+	}
+
+	wrongTenant, err := values.NewResourceKey(values.TenantId("ironridge-demo"), values.Kind("assignment"), "worker", workerID.String())
+	if err != nil {
+		t.Fatalf("NewResourceKey wrong tenant: %v", err)
+	}
+	revision.CurrentState[0].ResourceKey = wrongTenant
+	if _, _, _, err := assignmentGrades(revision, tenantKey); err == nil || !strings.Contains(err.Error(), "invalid resource binding") {
+		t.Fatalf("assignmentGrades accepted resource from another tenant: %v", err)
 	}
 }
 

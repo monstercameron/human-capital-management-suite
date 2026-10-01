@@ -122,10 +122,14 @@ func Scan(root string) (Inventory, error) {
 		return Inventory{}, fmt.Errorf("tableinventory: validate registry: %w", err)
 	}
 	allowed := make(map[string]bool)
+	registered := make(map[string]bool)
 	for _, table := range registry.Tables {
 		allowed[table.Migration] = true
+		registered[strings.ToLower(table.Table)] = true
 	}
-	created, sourceFiles, err := scanMigrationTables(filepath.Join(root, "migrations"), allowed)
+	// A registry migration may be a later extension, so locate registered
+	// tables across the migration history while keeping other registries out.
+	created, sourceFiles, err := scanMigrationTables(filepath.Join(root, "migrations"), allowed, registered)
 	if err != nil {
 		return Inventory{}, fmt.Errorf("tableinventory: scan table declarations: %w", err)
 	}
@@ -256,7 +260,7 @@ func findingsError(findings []Finding) error {
 // as default PostgreSQL storage.
 var createTablePattern = regexp.MustCompile(`(?im)^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:(\w+)\.)?(\w+)`)
 
-func scanMigrationTables(migrationsDir string, allowed map[string]bool) ([]MigrationTable, []string, error) {
+func scanMigrationTables(migrationsDir string, allowed, registered map[string]bool) ([]MigrationTable, []string, error) {
 	entries, err := os.ReadDir(migrationsDir)
 	if err != nil {
 		return nil, nil, err
@@ -265,9 +269,6 @@ func scanMigrationTables(migrationsDir string, allowed map[string]bool) ([]Migra
 	var sourceFiles []string
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
-			continue
-		}
-		if len(allowed) != 0 && !allowed[entry.Name()] {
 			continue
 		}
 		body, err := os.ReadFile(filepath.Join(migrationsDir, entry.Name()))
@@ -279,7 +280,11 @@ func scanMigrationTables(migrationsDir string, allowed map[string]bool) ([]Migra
 			if match[1] != "" && match[1] != "public" {
 				continue
 			}
-			out = append(out, MigrationTable{Name: strings.ToLower(match[2]), Migration: entry.Name()})
+			name := strings.ToLower(match[2])
+			if len(allowed) != 0 && !allowed[entry.Name()] && !registered[name] {
+				continue
+			}
+			out = append(out, MigrationTable{Name: name, Migration: entry.Name()})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {

@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
+	agentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -65,7 +66,7 @@ func tunnelBridgeCell(t *testing.T) (*app.Cell, string) {
 	if err != nil {
 		t.Fatalf("BearerToken: %v", err)
 	}
-	return &app.Cell{Config: transporttest.Config(verifier, func() time.Time { return now }, "tunnel-services", nil)}, token
+	return &app.Cell{Config: transporttest.Config(verifier, func() time.Time { return now }, "tunnel-services", nil), AgentSettings: agentSettingsStub{}}, token
 }
 
 // TestTunnelServesOnlyWorkspaceServices is INTAPI-006's RED for the tunnel
@@ -97,6 +98,7 @@ func TestTunnelServesOnlyWorkspaceServices(t *testing.T) {
 		"/hcmnext.document.v1.DocumentService/GetDocument":               true,
 		"/hcmnext.position.v1.PositionService/ListPositionObjectOptions": true,
 		"/hcmnext.project.v1.ProjectService/ListProjects":                true,
+		"/hcmnext.agent.v1.AgentService/SetAgentsEnabled":                true,
 		"/hcmnext.evidence.v1.EvidenceService/GetEvidence":               false,
 	} {
 		if got := tunnelAllowsService(path); got != want {
@@ -173,5 +175,8 @@ func TestTunnelServesOnlyWorkspaceServices(t *testing.T) {
 	}
 	if _, err := adminv1.NewAdminServiceClient(conn).GetWorkflowInstance(callCtx, &adminv1.GetWorkflowInstanceRequest{}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("AdminService over the tunnel = %v, want UNIMPLEMENTED at the bridge", err)
+	}
+	if _, err := agentv1.NewAgentServiceClient(conn).SetAgentsEnabled(callCtx, &agentv1.SetAgentsEnabledRequest{Enabled: false}); status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("AgentService over the tunnel = %v, want PERMISSION_DENIED through the registered service", err)
 	}
 }

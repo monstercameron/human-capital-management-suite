@@ -82,6 +82,15 @@ type ExecutionComposer func(cellConfig *app.CellConfig, pool *pgxadapter.Pool, e
 // Options are the explicit composition seams. The zero value is the
 // production composition; a test fills only the fields it means to replace.
 type Options struct {
+	// PersonaInvocation supplies the configured model, current authority,
+	// sealed output and security-fence ports for persona chat execution. The
+	// serve root binds its own agent database, chat writer, canonical reference
+	// resolver and failure logger. Nil keeps invocation unavailable.
+	PersonaInvocation *PersonaInvocationProductionConfig
+	// ClockKiosk supplies the standalone kiosk browser bundle.
+	ClockKiosk ClockKioskAssets
+	// ClockDependencies supplies published authority and workflow ports.
+	ClockDependencies ClockDependencies
 	// HealthPoolPing replaces only the PostgreSQL Ping call, allowing an
 	// adapter or integration fixture to observe connection failure and recovery
 	// while the production schema check still runs against the composed pool.
@@ -117,6 +126,8 @@ type Options struct {
 	MigrateProject ProjectMigrator
 	// MigrateWorkOrder applies the work order schema when its restricted role is configured.
 	MigrateWorkOrder WorkOrderMigrator
+	// MigrateTime applies the isolated time-keeping schema.
+	MigrateTime TimeMigrator
 	// Listen opens the two surfaces' listeners.
 	Listen ListenFunc
 

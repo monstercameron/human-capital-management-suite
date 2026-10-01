@@ -64,6 +64,47 @@ var RequiredBullets = []string{
 	BulletRetentionDisposition,
 }
 
+// ServingContractID identifies the evidence-manifest compiler composed by
+// the shipped application cell.
+const ServingContractID = "hcmnext.governance.gateb/v1"
+
+// ValidateServingContract proves a complete, signed manifest grants only the
+// requested continuation scope after every required bullet passes.
+func ValidateServingContract() error {
+	const now = int64(1_700_000_000_000)
+	criteria := make([]AcceptanceCriterion, 0, len(RequiredBullets))
+	for _, bullet := range RequiredBullets {
+		criteria = append(criteria, AcceptanceCriterion{
+			Bullet:            bullet,
+			TodoID:            "GATEB-EVID-001",
+			Test:              "TestGateBEvidenceManifestRejectsUnboundStaleFailedOrUnsignedCriterion",
+			Fixture:           "gateb-serving-contract",
+			Command:           "go test ./internal/governance/gateb/",
+			Result:            ResultPass,
+			EvidenceDigest:    "sha256:" + bullet,
+			Owner:             "serving-contract",
+			RetentionDays:     365,
+			ObservedUnixMilli: now,
+			MaxAgeMillis:      90 * 24 * 60 * 60 * 1000,
+			SignOff:           "serving-contract",
+		})
+	}
+	report, err := Compile(Manifest{
+		GateRef:             "GATE_B_LIMITED_WRITE",
+		NowUnixMilli:        now + 24*60*60*1000,
+		Criteria:            criteria,
+		RequestContinuation: true,
+		ContinuationScope:   "serving-contract",
+	})
+	if err != nil {
+		return fmt.Errorf("gateb: serving contract compile: %w", err)
+	}
+	if report.Verdict != VerdictContinue || !report.Grant.Permitted || report.Grant.Scope != "serving-contract" {
+		return fmt.Errorf("gateb: serving contract report = %+v", report)
+	}
+	return nil
+}
+
 // CriterionResult is the closed result vocabulary for one evidence item.
 type CriterionResult string
 

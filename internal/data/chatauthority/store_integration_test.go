@@ -32,7 +32,7 @@ func TestMain(m *testing.M) { pgtest.RunMain(m) }
 func TestTodo_CHAT_012_Integration(t *testing.T) {
 	db := pgtest.NewEmpty(t)
 	ctx := context.Background()
-	db.Exec(t, `CREATE TABLE chat_conversation (tenant_id text NOT NULL,id text NOT NULL,PRIMARY KEY (tenant_id,id))`)
+	db.Exec(t, `CREATE TABLE chat_conversation (tenant_id text NOT NULL,id text NOT NULL,audience_revision bigint NOT NULL DEFAULT 1,PRIMARY KEY (tenant_id,id))`)
 	db.Exec(t, `CREATE TABLE chat_outbox (id bigserial PRIMARY KEY,tenant_id text NOT NULL,aggregate_id text NOT NULL,event_type text NOT NULL,payload jsonb NOT NULL,created_at timestamptz NOT NULL DEFAULT now())`)
 	migration, err := chatstore.Migrations.ReadFile("migrations/00003_chat_authority.sql")
 	if err != nil {
@@ -47,11 +47,21 @@ func TestTodo_CHAT_012_Integration(t *testing.T) {
 	if err := s.PutPolicy(ctx, "host", "conversation", []string{"manager"}, nil, nil, nil, chatpolicy.RolesAny, "internal", "US", 0, "host-admin"); err != nil {
 		t.Fatal(err)
 	}
+	var audienceRevision int64
+	if err := db.SQL.QueryRowContext(ctx, `SELECT audience_revision FROM chat_conversation WHERE tenant_id='host' AND id='conversation'`).Scan(&audienceRevision); err != nil || audienceRevision != 2 {
+		t.Fatalf("policy creation audience revision=%d err=%v; want 2", audienceRevision, err)
+	}
 	if err := s.PutPolicy(ctx, "host", "conversation", []string{"admin"}, nil, nil, nil, chatpolicy.RolesAll, "internal", "US", 1, "host-admin"); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.SQL.QueryRowContext(ctx, `SELECT audience_revision FROM chat_conversation WHERE tenant_id='host' AND id='conversation'`).Scan(&audienceRevision); err != nil || audienceRevision != 3 {
+		t.Fatalf("policy update audience revision=%d err=%v; want 3", audienceRevision, err)
+	}
 	if err := s.PutPolicy(ctx, "host", "conversation", nil, nil, nil, nil, chatpolicy.RolesAny, "internal", "US", 1, "host-admin"); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale policy update: %v", err)
+	}
+	if err := db.SQL.QueryRowContext(ctx, `SELECT audience_revision FROM chat_conversation WHERE tenant_id='host' AND id='conversation'`).Scan(&audienceRevision); err != nil || audienceRevision != 3 {
+		t.Fatalf("rejected policy update changed audience revision=%d err=%v; want 3", audienceRevision, err)
 	}
 	p, err := s.Policy(ctx, "host", "conversation")
 	if err != nil || p.Revision != 2 || len(p.RequiredRoles) != 1 || p.RequiredRoles[0] != "admin" {

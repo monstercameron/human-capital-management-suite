@@ -160,7 +160,7 @@ func toUserPreferences(value preferences.User) *journeyv1.UserPreferences {
 		tables[key] = &journeyv1.TablePreferences{PageSize: int32(table.PageSize), Filters: table.Filters, Sort: table.Sort, Direction: table.Direction}
 	}
 	return &journeyv1.UserPreferences{Version: value.Version, Locale: value.Locale, NavCollapsed: value.NavCollapsed,
-		Accessibility:    &journeyv1.AccessibilityPreferences{TextSize: value.Accessibility.TextSize, Contrast: value.Accessibility.Contrast, Motion: value.Accessibility.Motion, Links: value.Accessibility.Links},
+		Accessibility:    &journeyv1.AccessibilityPreferences{TextSize: value.Accessibility.TextSize, Contrast: value.Accessibility.Contrast, Motion: value.Accessibility.Motion, Links: value.Accessibility.Links, ColorMode: value.Accessibility.ColorMode},
 		NavigationGroups: value.NavigationGroups, FavoritePages: value.FavoritePages, Tables: tables, WorkflowUses: value.WorkflowUses,
 		Density: value.Density}
 }
@@ -178,7 +178,7 @@ func fromUserPreferences(value *journeyv1.UserPreferences) preferences.User {
 	access := value.GetAccessibility()
 	result := preferences.User{Version: value.GetVersion(), Locale: value.GetLocale(), NavCollapsed: value.GetNavCollapsed(), NavigationGroups: value.GetNavigationGroups(), FavoritePages: value.GetFavoritePages(), Tables: tables, WorkflowUses: value.GetWorkflowUses(), Density: value.GetDensity()}
 	if access != nil {
-		result.Accessibility = preferences.Accessibility{TextSize: access.GetTextSize(), Contrast: access.GetContrast(), Motion: access.GetMotion(), Links: access.GetLinks()}
+		result.Accessibility = preferences.Accessibility{TextSize: access.GetTextSize(), Contrast: access.GetContrast(), Motion: access.GetMotion(), Links: access.GetLinks(), ColorMode: access.GetColorMode()}
 	}
 	return preferences.NormalizeUser(result)
 }

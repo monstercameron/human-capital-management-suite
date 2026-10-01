@@ -63,8 +63,43 @@ type Delegation struct {
 	ExpiresAt      values.Instant
 }
 
+// SpecificationOwnerRegistry resolves a stable capability/intent reference
+// to the accountable specification owner. It is immutable after construction;
+// presentation labels and participant roles are never used as lookup keys.
+type SpecificationOwnerRegistry struct {
+	owners map[string]string
+}
+
+// NewSpecificationOwnerRegistry builds an immutable owner registry from
+// stable references. Empty entries are rejected so one stage cannot silently
+// resolve to an unowned capability.
+func NewSpecificationOwnerRegistry(owners map[string]string) (*SpecificationOwnerRegistry, error) {
+	if len(owners) == 0 {
+		return nil, fmt.Errorf("participants: specification owner registry is empty")
+	}
+	copy := make(map[string]string, len(owners))
+	for ref, owner := range owners {
+		if ref == "" || owner == "" {
+			return nil, fmt.Errorf("participants: specification owner registry has an incomplete entry")
+		}
+		copy[ref] = owner
+	}
+	return &SpecificationOwnerRegistry{owners: copy}, nil
+}
+
+// Resolve returns the accountable owner for a stable reference.
+func (r *SpecificationOwnerRegistry) Resolve(ref string) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	owner, ok := r.owners[ref]
+	return owner, ok
+}
+
 type Stage struct {
 	StageID        string
+	CapabilityRef  string
+	OwnerRegistry  *SpecificationOwnerRegistry
 	Principal      *trust.Principal
 	Subject        values.EntityRef
 	Purpose        string
@@ -82,6 +117,8 @@ type Resolution struct {
 	Allowed            bool
 	SubjectDisclosable bool
 	Principal          string
+	CapabilityRef      string
+	CapabilityOwner    string
 	Subject            values.EntityRef
 	Relationship       authz.RelationshipKind
 	Role               Role
@@ -109,8 +146,8 @@ func ResolveStage(s Stage) (Resolution, error) { return Resolve(s) }
 // assistance. Denials intentionally omit subject, relationship and action
 // detail to prevent existence and authority disclosure.
 func Resolve(s Stage) (Resolution, error) {
-	if s.Principal == nil || s.StageID == "" || !s.EffectiveAt.IsSet() {
-		return Resolution{}, fmt.Errorf("%w: principal, stage_id and effective_at are required", ErrInvalidStage)
+	if s.Principal == nil || s.StageID == "" || s.CapabilityRef == "" || s.OwnerRegistry == nil || !s.EffectiveAt.IsSet() {
+		return Resolution{}, fmt.Errorf("%w: principal, stage_id, capability_ref, owner_registry and effective_at are required", ErrInvalidStage)
 	}
 	if err := s.Subject.Validate(); err != nil {
 		return Resolution{}, fmt.Errorf("%w: subject: %v", ErrInvalidStage, err)
@@ -133,6 +170,12 @@ func Resolve(s Stage) (Resolution, error) {
 		base.Reason = "not_authorized"
 		return base, nil
 	}
+	owner, ok := s.OwnerRegistry.Resolve(s.CapabilityRef)
+	if !ok {
+		return Resolution{}, fmt.Errorf("%w: capability %q has no accountable specification owner", ErrInvalidStage, s.CapabilityRef)
+	}
+	base.CapabilityRef = s.CapabilityRef
+	base.CapabilityOwner = owner
 	base.Subject = s.Subject
 	base.Relationship = d.Scope.Relationship
 	base.Role = roleFor(d.Scope.Relationship)

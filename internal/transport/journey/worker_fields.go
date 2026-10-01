@@ -30,9 +30,16 @@ const redactedPayStandIn = "REDACTED"
 func (s *server) authorizeWorkers(ctx context.Context, principal *trust.Principal, all, visible []workspace.WorkerSummary) []*journeyv1.Worker {
 	roles := s.effectiveRoles(ctx, principal)
 	subject := strings.ToLower(strings.TrimSpace(principal.Subject()))
-	byRef := make(map[string]workspace.WorkerSummary, len(all)*2)
+	// See organization_visibility.go's workerMatchesPrincipal and
+	// workerIdentityIndex: a persisted manager relationship names the manager
+	// by its stored worker key (SubjectID), not by the display-slug
+	// WorkerRef, so the chain walk below must resolve that key too or a
+	// manager's reports through that reference are silently treated as
+	// outside the reporting line and their pay, name and linkage disclosure
+	// all fail closed (UXBLIND-004).
+	byRef := make(map[string]workspace.WorkerSummary, len(all)*3)
 	for _, worker := range all {
-		for _, key := range []string{worker.WorkerRef, worker.WorkerID} {
+		for _, key := range []string{worker.WorkerRef, worker.WorkerID, worker.SubjectID} {
 			if k := strings.ToLower(strings.TrimSpace(key)); k != "" {
 				byRef[k] = worker
 			}

@@ -161,6 +161,10 @@ func (w Writer) Write(ctx context.Context, tx dbport.Tx, cmd promotioncommit.Com
 	if err != nil {
 		return Receipt{}, err
 	}
+	intentID, err := parseID("intent_id", cmd.IntentID)
+	if err != nil {
+		return Receipt{}, err
+	}
 
 	// Serialize promotions that target the same assignment. Baseline digests
 	// detect an already-committed change, while this transaction-scoped lock
@@ -313,6 +317,11 @@ func (w Writer) Write(ctx context.Context, tx dbport.Tx, cmd promotioncommit.Com
 		return Receipt{}, fmt.Errorf("promotion commit: append assignment successor: %w", err)
 	}
 	receipt.AssignmentRowID = rowID.String()
+	for _, proof := range cmd.AssignmentWrites {
+		if err := writeAssignmentEvidence(ctx, tx, tenant, intentID, proposalID, cmd, assignment, newAssignment, rowID, proof); err != nil {
+			return Receipt{}, err
+		}
+	}
 	if err := w.fail(promotioncommit.ParticipantAssignment); err != nil {
 		return Receipt{}, err
 	}

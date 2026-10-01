@@ -11,8 +11,10 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/monstercameron/human-capital-management-suite/migrations"
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/migrationci"
 )
@@ -78,7 +83,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	if err := rehearseDatabase(ctx, *root, *databaseURL, stdout, stderr); err != nil {
+	if err := rehearseDatabaseWithOptions(ctx, *root, *databaseURL, manifest, *jsonOutput, stdout, stderr); err != nil {
 		fmt.Fprintf(stderr, "migrationci: database rehearsal failed: %v\n", err)
 		return 1
 	}
@@ -95,8 +100,21 @@ func run(args []string, stdout, stderr io.Writer) int {
 // CI's disposable PostgreSQL instance. Migration SQL includes cluster-wide
 // role changes, so the target server must be discarded after the run.
 func rehearseDatabase(ctx context.Context, root, databaseURL string, stdout, stderr io.Writer) error {
+	return rehearseDatabaseWithOptions(ctx, root, databaseURL, migrationci.Manifest{}, false, stdout, stderr)
+}
+
+func rehearseDatabaseWithOptions(ctx context.Context, root, databaseURL string, manifest migrationci.Manifest, jsonOutput bool, stdout, stderr io.Writer) error {
 	if strings.TrimSpace(databaseURL) == "" {
 		return fmt.Errorf("-database-url or HCMNEXT_MIGRATIONCI_DATABASE_URL is required with -rehearse")
+	}
+	observed, err := observeDatabase(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("observe migration state: %w", err)
+	}
+	result, err := migrationci.Rehearse(migrationci.InputFromObserved(manifest, observed))
+	writeRehearsalResult(result, jsonOutput, stdout, stderr)
+	if err != nil {
+		return err
 	}
 	absoluteRoot, err := filepath.Abs(root)
 	if err != nil {
@@ -110,6 +128,102 @@ func rehearseDatabase(ctx context.Context, root, databaseURL string, stdout, std
 		return fmt.Errorf("production migration runner: %w", err)
 	}
 	return nil
+}
+
+func writeRehearsalResult(result migrationci.Result, jsonOutput bool, stdout, _ io.Writer) {
+	if jsonOutput {
+		data, _ := json.MarshalIndent(result, "", "  ")
+		fmt.Fprintln(stdout, string(data))
+		return
+	}
+	fmt.Fprintln(stdout, migrationci.ExplainResult(result))
+	for _, finding := range result.Findings {
+		fmt.Fprintf(stdout, "  - %s %s: %s\n", finding.Code, finding.Field, finding.Detail)
+	}
+}
+
+type journalObservation struct {
+	entry      migrationci.Entry
+	status     string
+	rolledBack bool
+}
+
+func stateFromJournalRows(lockHeld, journalPresent bool, rows []journalObservation) migrationci.ObservedState {
+	state := migrationci.ObservedState{JournalPresent: journalPresent, LockHeld: lockHeld}
+	for _, row := range rows {
+		if row.status == "PLANNED" || row.status == "RUNNING" || row.status == "FAILED" {
+			state.Dirty = true
+		}
+		if row.status == "APPLIED" && row.entry.Direction == "UP" && !row.rolledBack {
+			state.Applied = append(state.Applied, row.entry)
+		}
+	}
+	return state
+}
+
+func observeDatabase(ctx context.Context, databaseURL string) (migrationci.ObservedState, error) {
+	config, err := pgx.ParseConfig(databaseURL)
+	if err != nil {
+		return migrationci.ObservedState{}, fmt.Errorf("parse database URL: %w", err)
+	}
+	db := stdlib.OpenDB(*config)
+	defer func() { _ = db.Close() }()
+	db.SetMaxOpenConns(1)
+	if err := db.PingContext(ctx); err != nil {
+		return migrationci.ObservedState{}, fmt.Errorf("connect: %w", err)
+	}
+	return observeDatabaseDB(ctx, db)
+}
+
+func observeDatabaseDB(ctx context.Context, db *sql.DB) (migrationci.ObservedState, error) {
+	lockHeld, err := observeMigrationLock(ctx, db)
+	if err != nil {
+		return migrationci.ObservedState{}, err
+	}
+	rows, err := db.QueryContext(ctx, `
+		SELECT migration_version, migration_name, checksum, direction, status,
+		       rolled_back_at IS NOT NULL
+		FROM migration_journal
+		ORDER BY started_at, journal_id`)
+	if err != nil {
+		if isUndefinedTable(err) {
+			return migrationci.ObservedState{LockHeld: lockHeld}, nil
+		}
+		return migrationci.ObservedState{}, fmt.Errorf("read migration journal: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	observedRows := make([]journalObservation, 0)
+	for rows.Next() {
+		var entry migrationci.Entry
+		var status string
+		var rolledBack bool
+		if err := rows.Scan(&entry.Version, &entry.Name, &entry.Checksum, &entry.Direction, &status, &rolledBack); err != nil {
+			return migrationci.ObservedState{}, fmt.Errorf("read migration journal row: %w", err)
+		}
+		observedRows = append(observedRows, journalObservation{entry: entry, status: status, rolledBack: rolledBack})
+	}
+	if err := rows.Err(); err != nil {
+		return migrationci.ObservedState{}, fmt.Errorf("read migration journal rows: %w", err)
+	}
+	return stateFromJournalRows(lockHeld, true, observedRows), nil
+}
+
+func observeMigrationLock(ctx context.Context, db *sql.DB) (bool, error) {
+	var acquired bool
+	if err := db.QueryRowContext(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, 0))`, "hcmnext:migration").Scan(&acquired); err != nil {
+		return false, fmt.Errorf("observe migration lock: %w", err)
+	}
+	if acquired {
+		if _, err := db.ExecContext(ctx, `SELECT pg_advisory_unlock(hashtextextended($1, 0))`, "hcmnext:migration"); err != nil {
+			return false, fmt.Errorf("release observed migration lock: %w", err)
+		}
+	}
+	return !acquired, nil
+}
+
+func isUndefinedTable(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "42P01"
 }
 
 // loadManifest reads a checked-in manifest file when -manifest is set, or

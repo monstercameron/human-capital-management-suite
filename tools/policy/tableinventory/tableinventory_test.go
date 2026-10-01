@@ -78,6 +78,19 @@ func TestTodo_ALIGN_008_Conformance(t *testing.T) {
 	}
 }
 
+func TestScanIncludesRegisteredTablesFromEarlierMigrations(t *testing.T) {
+	inventory := loadInventory(t)
+	for _, table := range inventory.MigrationTables {
+		if table.Name == "access_role_revision" {
+			if table.Migration != "00327_role_access_revision_ledger.sql" {
+				t.Fatalf("access_role_revision creation migration = %q, want 00327_role_access_revision_ledger.sql", table.Migration)
+			}
+			return
+		}
+	}
+	t.Fatal("registered access_role_revision table was not found in the migration inventory")
+}
+
 func TestTodo_ALIGN_009(t *testing.T) {
 	inventory := loadInventory(t)
 	if findings := tableinventory.Validate(inventory); len(findings) != 0 {

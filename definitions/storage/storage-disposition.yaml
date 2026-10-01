@@ -50,7 +50,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00346_rev084_action_plan_binding.sql
+source: migrations/00001_platform_control.sql .. migrations/00718_agent_current_home_organization.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -2966,7 +2966,7 @@ tables:
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
-      PEOPLE-004: append-only evidence of the bounded people write (job and level) performed inside the Promotion local ACID commit, keyed by write_id and proposal revision; forbid_mutation.
+      PEOPLE-004 (extended by 00711): append-only evidence of each approved assignment field write, bound to its intent, exact proposal revision, worker, aggregate and committed assignment row/digest inside the Promotion local ACID transaction; legacy rows remain explicitly unproven and fail closed.
   - table: promotion_manager_relationship_evidence
     migration: 00062_promotion_organization_manager_evidence.sql
     owner_package: internal/domains/org
@@ -6462,3 +6462,419 @@ tables:
     notes: >-
       UXAUDIT-022: tenant current revision pointer; recoverable from the
       immutable revision history.
+  - table: agent_delegation_grant
+    migration: 00366_agent_delegation_grants.sql
+    owner_package: internal/data/agentdelegationstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-003: durable delegation grant ceilings. AGENTP-008 adds the exact
+      optional target agent identity in 00717; updates remain limited to
+      revocation by trigger; DELETE forbidden.
+  - table: agent_delegation_epoch
+    migration: 00366_agent_delegation_grants.sql
+    owner_package: internal/data/agentdelegationstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-003: per-user revocation epoch. Monotonic by trigger; DELETE
+      forbidden.
+  - table: agent_task
+    migration: 00367_agent_task_runtime.sql
+    owner_package: internal/data/agentrunstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-010/011/013: long-horizon task state machine, plan and context
+      ledger (jsonb; the ledger is mutable because source revocation flags
+      entries). Optimistic concurrency by version; wake and expiry columns
+      find parked and stale tasks.
+  - table: agent_task_wake_receipt
+    migration: 00367_agent_task_runtime.sql
+    owner_package: internal/data/agentrunstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-011: wake-event dedupe inbox, unique per tenant, task and event.
+  - table: agent_task_event
+    migration: 00715_agent_task_events.sql
+    owner_package: internal/data/agentrunstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-025 prerequisite: task-scoped plan revision/confirmation and
+      approval request/outcome observations; ordered per task and immutable.
+  - table: agent_budget_task
+    migration: 00368_agent_budget_ledger.sql
+    owner_package: internal/data/agentbudgetstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-012/017: task budget spec, settled usage, pause card, retry
+      counters and CAS revision. In-flight reservations are not stored.
+  - table: agent_budget_period
+    migration: 00368_agent_budget_ledger.sql
+    owner_package: internal/data/agentbudgetstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-012: settled usage per user-day and tenant-month.
+  - table: agent_budget_event
+    migration: 00368_agent_budget_ledger.sql
+    owner_package: internal/data/agentbudgetstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-012/017: journal of budget open, settle, fail, extension and pause
+      decisions, including request and revision fences.
+  - table: agent_budget_extension_replay
+    migration: 00712_agent_budget_extension_replay.sql
+    owner_package: internal/data/agentbudgetstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-012/017: immutable, tenant-scoped budget extension request replay
+      records with expected and result revisions.
+  - table: agent_skill_grant
+    migration: 00713_agent_skill_grants.sql
+    owner_package: internal/data/agentskillgrantstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-005: retained administrator grants for exact skill versions,
+      with tenant isolation, bounded validity and monotonic revocation.
+  - table: agent_audit_record
+    migration: 00369_agent_audit_chain.sql
+    owner_package: internal/data/agentauditstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-014: immutable per-tenant hash chain of agent-for-user audit
+      events; gap-free sequence, idempotent by event id.
+  - table: agent_audit_edge
+    migration: 00369_agent_audit_chain.sql
+    owner_package: internal/data/agentauditstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: agent_audit_record
+    notes: >-
+      AGENT2-014: queryable (kind, from, to) index of provenance edges for
+      intent, approval, workflow and connector joins; derived from the entry
+      on agent_audit_record.
+  - table: agent_connection_revision
+    migration: 00370_agent_system_connections.sql
+    owner_package: internal/data/agentconnectionstore
+    plane: DATA
+    data_role: LEDGER
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-007: agent-facing connection revision (skills, grants, second-
+      admin approval). Only epoch and revocation evidence may change; DELETE
+      forbidden.
+  - table: agent_connection_user_state
+    migration: 00370_agent_system_connections.sql
+    owner_package: internal/data/agentconnectionstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-007: per-user external account link metadata (credential
+      reference and custody handle only, never secrets) and user epoch. Epoch
+      monotonic; DELETE forbidden.
+  - table: tenant_agent_setting
+    migration: 00424_tenant_agent_setting.sql
+    owner_package: internal/data/agentsettingstore
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      UXBLIND-122: one current row per tenant holding whether agents are
+      enabled (default off) and a revision that rises by one on every
+      change; DELETE forbidden.
+  - table: agent_current_population
+    migration: 00714_agent_current_population.sql
+    owner_package: internal/application
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-027: authoritative source-attributed current named population
+      membership, tenant-isolated with immutable identity and effective-window
+      fields; only revocation or supersession closure is mutable and DELETE is
+      forbidden by the database guard.
+  - table: agent_current_home_organization
+    migration: 00718_agent_current_home_organization.sql
+    owner_package: internal/application
+    plane: DATA
+    data_role: CONTROL
+    tenant_scoping_column: tenant_id
+    isolation_package: internal/data/tenancy
+    append_only: false
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    rebuild_source: null
+    notes: >-
+      AGENT2-029: authoritative source-attributed current home organization;
+      tenant-isolated with immutable identity, source, revision and
+      effective-window fields; only revocation or supersession closure is
+      mutable and DELETE is forbidden by the database guard. Role visibility
+      grants are not an identity source.
+  - table: agent_owner_grant
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00721_agent_owner_operations.sql
+    owner_package: internal/data/agentownerstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_owner_binding
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00721_agent_owner_operations.sql
+    owner_package: internal/data/agentownerstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_owner_stop_audit
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00721_agent_owner_operations.sql
+    owner_package: internal/data/agentownerstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_memory_copy
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_memory_invalidation
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_memory_policy
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_memory_source
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_memory_disposition
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_memory_grant
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00722_agent_memory.sql
+    owner_package: internal/data/agentmemorystore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: worker_onboarding_snapshot
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00727_worker_onboarding_snapshot.sql
+    owner_package: internal/data/workerlifecyclestore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_schedule_state
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00730_agent_schedule_source.sql
+    owner_package: internal/data/agenttriggerstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_schedule_audit
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00730_agent_schedule_source.sql
+    owner_package: internal/data/agenttriggerstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_schedule_outbox
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00730_agent_schedule_source.sql
+    owner_package: internal/data/agenttriggerstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_schedule_receipt
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00730_agent_schedule_source.sql
+    owner_package: internal/data/agenttriggerstore
+    tenant_scoping_column: tenant_id
+    append_only: true

@@ -6,6 +6,7 @@ package evidenceexport
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -143,16 +144,23 @@ func (m *Manager) Start(req Request, now time.Time) (Operation, error) {
 	defer m.mu.Unlock()
 	m.next++
 	id := fmt.Sprintf("evidence-%d", m.next)
-	chunks := make([][]Record, 0, (len(req.Records)+req.ChunkSize-1)/req.ChunkSize)
-	for i := 0; i < len(req.Records); i += req.ChunkSize {
+	sorted := SortRecords(req.Records)
+	chunks := make([][]Record, 0, (len(sorted)+req.ChunkSize-1)/req.ChunkSize)
+	for i := 0; i < len(sorted); i += req.ChunkSize {
 		e := i + req.ChunkSize
-		if e > len(req.Records) {
-			e = len(req.Records)
+		if e > len(sorted) {
+			e = len(sorted)
 		}
-		chunks = append(chunks, append([]Record(nil), req.Records[i:e]...))
+		chunk := make([]Record, e-i)
+		for k, r := range sorted[i:e] {
+			chunk[k] = cloneRecord(r)
+		}
+		chunks = append(chunks, chunk)
 	}
-	man := Manifest{Query: req.Query, From: req.From, To: req.To, TenantID: req.Authorization.TenantID, Scope: req.Authorization.Scope, Purpose: req.Authorization.Purpose, RedactionProfile: req.Authorization.RedactionProfile, AllowedFields: append([]string(nil), req.Authorization.AllowedFields...), SourceProof: req.Authorization.SourceProof, ConfigProof: req.Authorization.ConfigProof, PolicyProof: req.Authorization.PolicyProof, RecordCount: len(req.Records), ChunkCount: len(chunks), ExpiresAt: req.Authorization.ExpiresAt}
-	j := &job{op: Operation{ID: id, Status: StatusPending, Total: len(req.Records), Manifest: man}, req: req, chunks: chunks}
+	man := Manifest{Query: req.Query, From: req.From, To: req.To, TenantID: req.Authorization.TenantID, Scope: req.Authorization.Scope, Purpose: req.Authorization.Purpose, RedactionProfile: req.Authorization.RedactionProfile, AllowedFields: append([]string(nil), req.Authorization.AllowedFields...), SourceProof: req.Authorization.SourceProof, ConfigProof: req.Authorization.ConfigProof, PolicyProof: req.Authorization.PolicyProof, RecordCount: len(sorted), ChunkCount: len(chunks), ExpiresAt: req.Authorization.ExpiresAt}
+	reqCopy := req
+	reqCopy.Records = sorted
+	j := &job{op: Operation{ID: id, Status: StatusPending, Total: len(sorted), Manifest: man}, req: reqCopy, chunks: chunks}
 	m.ops[id] = j
 	return j.op, nil
 }
@@ -210,8 +218,61 @@ func manifestDigest(m Manifest) string {
 func (m Manifest) VerifyDigest() bool {
 	return m.ManifestDigest != "" && m.ManifestDigest == manifestDigest(m)
 }
+
+// SortRecords returns the canonical export order: a copy sorted by ID with
+// deterministic content tie-breakers. The caller's slice and nested field
+// maps are never reordered or retained.
 func SortRecords(rs []Record) []Record {
-	out := append([]Record(nil), rs...)
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	if rs == nil {
+		return nil
+	}
+	out := make([]Record, len(rs))
+	for i, r := range rs {
+		out[i] = cloneRecord(r)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].ID != out[j].ID {
+			return out[i].ID < out[j].ID
+		}
+		if out[i].Digest != out[j].Digest {
+			return out[i].Digest < out[j].Digest
+		}
+		return fieldsKey(out[i].Fields) < fieldsKey(out[j].Fields)
+	})
 	return out
+}
+
+func cloneRecord(r Record) Record {
+	if r.Fields != nil {
+		cp := make(map[string]string, len(r.Fields))
+		for k, v := range r.Fields {
+			cp[k] = v
+		}
+		r.Fields = cp
+	}
+	return r
+}
+
+// fieldsKey returns a collision-resistant canonical representation of the
+// complete field map. encoding/json sorts string map keys and safely escapes
+// control characters, so distinct maps cannot share a key the way NUL/SOH
+// concatenation allowed (e.g. {"a":"b","c":"d"} vs {"a":"b\x01c\x00d"}).
+func fieldsKey(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var sb strings.Builder
+		for _, k := range keys {
+			fmt.Fprintf(&sb, "%q:%q;", k, m[k])
+		}
+		return sb.String()
+	}
+	return string(b)
 }

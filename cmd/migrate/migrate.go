@@ -24,6 +24,10 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/migrations"
 )
 
+const migrationLockName = "hcmnext:migration"
+
+var errMigrationDirty = errors.New("migration: dirty journal requires operator repair")
+
 // releaseOwner is the team accountable for this schema artifact.
 const releaseOwner = "data-plane"
 
@@ -125,6 +129,27 @@ func ensureSeedTenant(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, ten
 // journal, kept independent of how db was opened so a test can hand it a
 // pgtest-managed connection directly.
 func runMigrateCommand(ctx context.Context, command string, db *sql.DB, out io.Writer) error {
+	return withMigrationLock(ctx, db, func() error {
+		return runMigrateCommandLocked(ctx, command, db, out)
+	})
+}
+
+func withMigrationLock(ctx context.Context, db *sql.DB, fn func() error) error {
+	// Goose receives *sql.DB, so a session advisory lock is used instead of a
+	// transaction lock. Limiting this command's pool to one connection keeps
+	// the lock and every Goose/journal statement on the same PostgreSQL
+	// session, while a second migrate process waits instead of interleaving.
+	db.SetMaxOpenConns(1)
+	if _, err := db.ExecContext(ctx, `SELECT pg_advisory_lock(hashtextextended($1, 0))`, migrationLockName); err != nil {
+		return fmt.Errorf("acquire migration lock: %w", err)
+	}
+	defer func() {
+		_, _ = db.ExecContext(context.Background(), `SELECT pg_advisory_unlock(hashtextextended($1, 0))`, migrationLockName)
+	}()
+	return fn()
+}
+
+func runMigrateCommandLocked(ctx context.Context, command string, db *sql.DB, out io.Writer) error {
 	info := buildinfo.Current()
 	tool := toolVersion(info)
 
@@ -148,7 +173,7 @@ func runMigrateCommand(ctx context.Context, command string, db *sql.DB, out io.W
 
 	switch command {
 	case "status":
-		return status(ctx, provider, out, digest, files)
+		return status(ctx, provider, db, out, digest, files, tool)
 	case "up":
 		return up(ctx, provider, db, out, digest, files, tool)
 	default:
@@ -218,6 +243,9 @@ func up(ctx context.Context, provider *goose.Provider, db *sql.DB, out io.Writer
 		!errors.Is(err, goose.ErrAlreadyApplied) {
 		return fmt.Errorf("apply %s: %w", files[0].Name, err)
 	}
+	if err := verifyMigrationJournalClean(ctx, db); err != nil {
+		return err
+	}
 
 	journal, version, err := prepare(ctx, db, digest, files, tool)
 	if err != nil {
@@ -267,6 +295,9 @@ func up(ctx context.Context, provider *goose.Provider, db *sql.DB, out io.Writer
 }
 
 func down(ctx context.Context, provider *goose.Provider, db *sql.DB, out io.Writer, digest string, files []migrations.File, tool string) error {
+	if err := verifyMigrationJournalClean(ctx, db); err != nil {
+		return err
+	}
 	journal, version, err := prepare(ctx, db, digest, files, tool)
 	if err != nil {
 		return err
@@ -313,7 +344,19 @@ func down(ctx context.Context, provider *goose.Provider, db *sql.DB, out io.Writ
 	return report(ctx, provider, out, digest, version)
 }
 
-func status(ctx context.Context, provider *goose.Provider, out io.Writer, digest string, files []migrations.File) error {
+func status(ctx context.Context, provider *goose.Provider, db *sql.DB, out io.Writer, digest string, files []migrations.File, tool string) error {
+	current, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
+	if current > 0 {
+		if err := verifyMigrationJournalClean(ctx, db); err != nil {
+			return err
+		}
+		if _, _, err := prepare(ctx, db, digest, files, tool); err != nil {
+			return err
+		}
+	}
 	statuses, err := provider.Status(ctx)
 	if err != nil {
 		return fmt.Errorf("read migration status: %w", err)
@@ -326,6 +369,25 @@ func status(ctx context.Context, provider *goose.Provider, out io.Writer, digest
 		fmt.Fprintf(out, "%-9s %-32s %s\n", s.State, s.Source.Path, applied)
 	}
 	return report(ctx, provider, out, digest, releaseVersion(files, digest))
+}
+
+func verifyMigrationJournalClean(ctx context.Context, db *sql.DB) error {
+	var version int64
+	var name, status, direction string
+	err := db.QueryRowContext(ctx, `
+		SELECT migration_version, migration_name, status, direction
+		FROM migration_journal
+		WHERE status IN ('PLANNED', 'RUNNING', 'FAILED')
+		  AND (direction = 'DOWN' OR rolled_back_at IS NULL)
+		ORDER BY started_at, journal_id
+		LIMIT 1`).Scan(&version, &name, &status, &direction)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read migration journal state: %w", err)
+	}
+	return fmt.Errorf("%w: migration %d (%s) is %s/%s", errMigrationDirty, version, name, direction, status)
 }
 
 func report(ctx context.Context, provider *goose.Provider, out io.Writer, digest, version string) error {

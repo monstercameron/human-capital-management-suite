@@ -10,6 +10,7 @@ package survey
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -89,16 +90,27 @@ func (r AggregateResult) computedDigest(in AggregateInput) string {
 		buckets = append(buckets, fmt.Sprintf("%d:%d", score, count))
 	}
 	sort.Strings(buckets)
-	scores := make([]string, 0, len(in.Scores))
-	for _, s := range in.Scores {
-		scores = append(scores, fmt.Sprintf("%d", s))
+	weightedScores := make([]string, 0, len(in.Scores))
+	weights := in.Weights
+	if len(weights) == 0 {
+		weights = make([]int64, len(in.Scores))
+		for i := range weights {
+			weights[i] = 1
+		}
 	}
-	sort.Strings(scores)
+	for i, s := range in.Scores {
+		weightedScores = append(weightedScores, fmt.Sprintf("%d:%d", s, weights[i]))
+	}
+	sort.Strings(weightedScores)
 	w := canonicalbytes.New("hcmnext.domains.survey.AggregateResult", 1).
 		String("tenant", in.Tenant).
 		String("campaign", in.CampaignRef).
 		String("rule_version", in.RuleVersion).
-		SortedStrings("scores", scores).
+		Int("score_min", in.ScoreMin).
+		Int("score_max", in.ScoreMax).
+		Int("minimum_cohort", int64(in.MinimumCohort)).
+		String("decided_at", in.DecidedAt.UTC().Format(time.RFC3339Nano)).
+		SortedStrings("weighted_scores", weightedScores).
 		Int("nonresponse", in.Nonresponse).
 		Value("mean", r.Mean).
 		Value("uncertainty", r.Uncertainty).
@@ -151,7 +163,8 @@ func ComputeAggregate(in AggregateInput) (AggregateResult, error) {
 	if len(weights) != len(in.Scores) {
 		return AggregateResult{}, aggregateReject("aggregate.weights", "MISMATCH", "weights parallel scores")
 	}
-	var weightedSum, weightTotal int64
+	weightedSum := new(big.Int)
+	weightTotal := new(big.Int)
 	distribution := make(map[int64]int, len(in.Scores))
 	for i, s := range in.Scores {
 		if s < in.ScoreMin || s > in.ScoreMax {
@@ -160,15 +173,15 @@ func ComputeAggregate(in AggregateInput) (AggregateResult, error) {
 		if weights[i] <= 0 {
 			return AggregateResult{}, aggregateReject("aggregate.weights", "INVALID", "weights must be positive")
 		}
-		weightedSum += s * weights[i]
-		weightTotal += weights[i]
+		weightedSum.Add(weightedSum, new(big.Int).Mul(big.NewInt(s), big.NewInt(weights[i])))
+		weightTotal.Add(weightTotal, big.NewInt(weights[i]))
 		distribution[s]++
 	}
-	mean, err := values.NewDecimal(fmt.Sprintf("%d.00", weightedSum), 2, values.RoundingHalfUp)
+	mean, err := values.NewDecimal(weightedSum.String(), 0, values.RoundingHalfUp)
 	if err != nil {
 		return AggregateResult{}, aggregateReject("aggregate.mean", "INVALID", "weighted sum is not representable")
 	}
-	divisor, err := values.NewDecimal(fmt.Sprintf("%d.00", weightTotal), 2, values.RoundingHalfUp)
+	divisor, err := values.NewDecimal(weightTotal.String(), 0, values.RoundingHalfUp)
 	if err != nil {
 		return AggregateResult{}, aggregateReject("aggregate.mean", "INVALID", "weight total is not representable")
 	}
@@ -176,18 +189,33 @@ func ComputeAggregate(in AggregateInput) (AggregateResult, error) {
 	if err != nil {
 		return AggregateResult{}, aggregateReject("aggregate.mean", "INEXACT", fmt.Sprintf("mean is not computable: %v", err))
 	}
-	invited := int64(len(in.Scores)) + in.Nonresponse
-	nonresponseBps := in.Nonresponse * 10000 / invited
+	invited := new(big.Int).Add(big.NewInt(int64(len(in.Scores))), big.NewInt(in.Nonresponse))
+	nonresponseBpsBig := new(big.Int).Mul(big.NewInt(in.Nonresponse), big.NewInt(10000))
+	nonresponseBpsBig.Quo(nonresponseBpsBig, invited)
+	nonresponseBps := nonresponseBpsBig.Int64()
 	// Uncertainty widens with nonresponse: half the score range scaled
 	// by the nonresponse rate, so silence can never sharpen a result.
-	halfRange := float64(in.ScoreMax-in.ScoreMin) / 2
-	uncertainty, err := values.NewDecimal(fmt.Sprintf("%.2f", halfRange*float64(nonresponseBps)/10000), 2, values.RoundingHalfUp)
+	scoreRange := new(big.Int).Sub(big.NewInt(in.ScoreMax), big.NewInt(in.ScoreMin))
+	rangeDecimal, err := values.NewDecimal(scoreRange.String(), 0, values.RoundingHalfUp)
+	if err != nil {
+		return AggregateResult{}, aggregateReject("aggregate.uncertainty", "INVALID", "score range is not representable")
+	}
+	bpsDecimal, err := values.NewDecimal(nonresponseBpsBig.String(), 0, values.RoundingHalfUp)
+	if err != nil {
+		return AggregateResult{}, aggregateReject("aggregate.uncertainty", "INVALID", "nonresponse rate is not representable")
+	}
+	uncertaintyNumerator, err := rangeDecimal.Mul(bpsDecimal, 2, values.RoundingHalfUp)
+	if err != nil {
+		return AggregateResult{}, aggregateReject("aggregate.uncertainty", "INEXACT", fmt.Sprintf("uncertainty is not computable: %v", err))
+	}
+	denominator := values.MustDecimal("20000", 0, values.RoundingHalfUp)
+	uncertainty, err := uncertaintyNumerator.Div(denominator, 2, values.RoundingHalfUp)
 	if err != nil {
 		return AggregateResult{}, aggregateReject("aggregate.uncertainty", "INEXACT", fmt.Sprintf("uncertainty is not computable: %v", err))
 	}
 	representativeness := RepresentativeUnknown
 	switch {
-	case nonresponseBps == 0 && len(in.Scores) >= minimum*2:
+	case nonresponseBps == 0 && minimum <= len(in.Scores)/2:
 		representativeness = RepresentativeCohort
 	case nonresponseBps <= 2000:
 		representativeness = RepresentativeLimited
@@ -197,6 +225,9 @@ func ComputeAggregate(in AggregateInput) (AggregateResult, error) {
 		NonresponseRateBps: nonresponseBps, Uncertainty: uncertainty,
 		Representativeness: representativeness, RuleVersion: in.RuleVersion,
 	}
+	// Seal the effective threshold, so an omitted default and an explicit
+	// equivalent threshold describe the same aggregation contract.
+	in.MinimumCohort = minimum
 	res.Digest = res.computedDigest(in)
 	return res, nil
 }

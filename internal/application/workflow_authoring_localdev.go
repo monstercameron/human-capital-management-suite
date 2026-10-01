@@ -69,6 +69,12 @@ func localDevelopmentWorkflowAuthoring(cfg ServeConfig) (draftcompile.Capability
 			Expansion:            designerpalette.Expansion{Template: &hireDefinition},
 		},
 	}
+	if clockEntry, ok := localDevelopmentTimeclockWorkflowEntry(cfg); ok {
+		extensions = append(extensions, clockEntry)
+	}
+	if correctionEntry, ok := localDevelopmentMissingPunchWorkflowEntry(cfg); ok {
+		extensions = append(extensions, correctionEntry)
+	}
 	return policy, extensions
 }
 

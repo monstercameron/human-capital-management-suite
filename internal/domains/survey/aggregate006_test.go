@@ -89,6 +89,36 @@ func TestTodo_SURVEY_006(t *testing.T) {
 			t.Fatalf("weighted mean must be 3.00, got %s", got.Mean.String())
 		}
 	})
+
+	t.Run("arithmetic extremes remain panic-free", func(t *testing.T) {
+		in := survey006Input()
+		in.Nonresponse = int64(^uint64(0) >> 1)
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				t.Fatalf("extreme nonresponse panicked: %v", recovered)
+			}
+		}()
+		if _, err := ComputeAggregate(in); err != nil && !errors.Is(err, ErrAggregateRejected) {
+			t.Fatalf("extreme nonresponse returned unrelated error: %v", err)
+		}
+	})
+
+	t.Run("weight binding and decision instant are sealed", func(t *testing.T) {
+		in := survey006Input()
+		in.Weights = []int64{1, 1, 1, 1, 1, 2}
+		a, err := ComputeAggregate(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		in.DecidedAt = in.DecidedAt.Add(time.Minute)
+		b, err := ComputeAggregate(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if a.Digest == b.Digest {
+			t.Fatal("decision instant mutation must move the seal")
+		}
+	})
 }
 
 func TestTodo_SURVEY_006_Property(t *testing.T) {

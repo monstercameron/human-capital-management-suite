@@ -69,3 +69,12 @@ func TestValidationRejectsMalformedRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTodo_CONF_021_ReservationServedPath(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("served contract id is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("serving contract: %v", err)
+	}
+}

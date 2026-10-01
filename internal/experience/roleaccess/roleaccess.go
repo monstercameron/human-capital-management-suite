@@ -327,7 +327,7 @@ func DefaultFeaturePermissions(features []FeatureDefinition, pages []PagePermiss
 			})
 		}
 	}
-	return result
+	return ConstrainDefaultTimeClockFeaturePermissions(result)
 }
 
 func (value FeaturePermission) Allows(action string) bool {
@@ -573,5 +573,19 @@ func DefaultPagePermissions() []PagePermission {
 		grant(role, "projects", false, false, false)
 		grant(role, "project", false, false, false)
 	}
-	return result
+	// WFPAGE-001/007, AGENT2-016: the workflow start and history pages and the
+	// agents page extend an existing surface, so each inherits exactly the
+	// grants of the page it extends rather than widening any role.
+	for _, grantFor := range result {
+		switch grantFor.PageID {
+		case "journeys":
+			grant(grantFor.RoleID, "workflow-start", false, false, false)
+		case "history":
+			grant(grantFor.RoleID, "workflow-history", false, false, false)
+		case "chat":
+			grant(grantFor.RoleID, "agents", false, false, false)
+		}
+	}
+	result = append(result, DefaultTimeClockPagePermissions()...)
+	return append(result, DefaultTimePagePermissions()...)
 }

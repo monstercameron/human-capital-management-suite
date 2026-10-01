@@ -32,6 +32,12 @@ func appendCaseEvent(t *testing.T, projector *ProcessProjector, event ProcessEve
 	}
 }
 
+func TestTodo_PROCESS_001_ServingContract(t *testing.T) {
+	if err := ValidateProcessLogContract(); err != nil {
+		t.Fatalf("ValidateProcessLogContract: %v", err)
+	}
+}
+
 // TestTodo_PROCESS_001 is PROCESS-001: the projection emits canonical
 // case/activity/lifecycle/timestamp/resource tuples with scope, redaction,
 // watermark and completeness state — and never mixes tenants or workflows,

@@ -74,8 +74,9 @@ func TestSettleRequiresATransactionTenantAndAppender(t *testing.T) {
 
 // TestSettleCommitsTheTerminalSettlement proves the capability's own
 // contract in its own package: one ledger event under the outcome schema,
-// one projection checkpoint, one outbox message, one payload-schema row and
-// a released admission guard, with a replay resolving to the same fact.
+// one projection checkpoint, one business outbox message, one provenance
+// root plus its outbox message, one payload-schema row and a released
+// admission guard, with a replay resolving to the same fact.
 func TestSettleCommitsTheTerminalSettlement(t *testing.T) {
 	ctx := context.Background()
 	db := pgtest.New(t)
@@ -146,6 +147,19 @@ func TestSettleCommitsTheTerminalSettlement(t *testing.T) {
 	}
 	if schemaRef != promotioncommit.PromotionOutcomeSchema {
 		t.Fatalf("ledger event schema_ref = %q, want %q", schemaRef, promotioncommit.PromotionOutcomeSchema)
+	}
+	var provenanceCount, outboxCount int
+	if err := db.Conn.QueryRow(ctx, `
+		SELECT count(*) FROM provenance_record
+		WHERE tenant_id = $1 AND event_id = (SELECT event_id FROM ledger_event WHERE tenant_id = $1 AND stream_key = $2)`,
+		tenant, streamKey).Scan(&provenanceCount); err != nil {
+		t.Fatalf("count the settlement provenance root: %v", err)
+	}
+	if err := db.Conn.QueryRow(ctx, `SELECT count(*) FROM outbox WHERE tenant_id = $1`, tenant).Scan(&outboxCount); err != nil {
+		t.Fatalf("count the settlement outbox rows: %v", err)
+	}
+	if provenanceCount != 1 || outboxCount != 2 {
+		t.Fatalf("settlement roots = provenance %d/outbox %d, want one provenance root and two outbox rows", provenanceCount, outboxCount)
 	}
 	var effectiveAt time.Time
 	if err := db.Conn.QueryRow(ctx, `

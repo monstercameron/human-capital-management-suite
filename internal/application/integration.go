@@ -20,6 +20,7 @@ import (
 	integrationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/integration/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/diagnostics"
+	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/integrationcontracts"
 	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
@@ -78,6 +79,7 @@ type IntegrationService struct {
 	tenantID     func(string) uuid.UUID
 	connections  []IntegrationConnection
 	observations observe.ObservationStore
+	contracts    []integrationcontracts.Contract
 	now          func() time.Time
 }
 
@@ -87,6 +89,10 @@ var _ transport.IntegrationHandler = (*IntegrationService)(nil)
 func NewIntegrationService(opts IntegrationOptions) (*IntegrationService, error) {
 	if opts.Definitions == nil || opts.TenantID == nil {
 		return nil, errors.New("application: scoped integration definition loader and tenant id resolver are required")
+	}
+	contracts := integrationcontracts.Contracts()
+	if err := integrationcontracts.Validate(contracts); err != nil {
+		return nil, fmt.Errorf("application: validate served integration contracts: %w", err)
 	}
 	now := opts.Now
 	if now == nil {
@@ -106,7 +112,7 @@ func NewIntegrationService(opts IntegrationOptions) (*IntegrationService, error)
 		}
 		seenConnections[item.Connection.ID()] = struct{}{}
 	}
-	return &IntegrationService{definitions: opts.Definitions, tenantID: opts.TenantID, connections: connections, observations: opts.Observations, now: now}, nil
+	return &IntegrationService{definitions: opts.Definitions, tenantID: opts.TenantID, connections: connections, observations: opts.Observations, contracts: contracts, now: now}, nil
 }
 
 func (s *IntegrationService) ListConnectorDefinitions(ctx context.Context, req *integrationv1.ListConnectorDefinitionsRequest) (*integrationv1.ListConnectorDefinitionsResponse, error) {
@@ -217,6 +223,7 @@ func (s *IntegrationService) TestConnectorConnection(ctx context.Context, req *i
 	}
 	at := s.now().UTC()
 	diagnostic := &integrationv1.ConnectionDiagnostic{ConnectionId: item.Connection.ID(), TestedAt: timestamppb.New(at)}
+	appendServedContractChecks(diagnostic, s.contracts)
 	objects := make([]connectivity.ObjectKind, 0, len(req.GetObjects()))
 	for _, object := range req.GetObjects() {
 		objects = append(objects, objectKindFromProto(object))
@@ -241,7 +248,7 @@ func (s *IntegrationService) TestConnectorConnection(ctx context.Context, req *i
 		for _, name := range []string{"authentication", "reachability", "scopes"} {
 			diagnostic.Checks = append(diagnostic.Checks, &integrationv1.DiagnosticCheck{Name: name, Result: integrationv1.DiagnosticResult_DIAGNOSTIC_RESULT_SKIPPED, Detail: "connector diagnostics are unavailable"})
 		}
-		diagnostic.Impact = []string{"connector implementation is not composed"}
+		diagnostic.Impact = []string{"connector implementation is not composed", "health_status:UNKNOWN", "health_cause:CONNECTOR_NOT_COMPOSED"}
 		return &integrationv1.TestConnectorConnectionResponse{Diagnostic: diagnostic}, nil
 	}
 	probeObject := connectivity.ObjectWorker
@@ -253,6 +260,10 @@ func (s *IntegrationService) TestConnectorConnection(ctx context.Context, req *i
 	if runErr != nil {
 		return nil, integrationUnavailable(runErr)
 	}
+	healthReport, healthErr := projectIntegrationHealth(report, at)
+	if healthErr != nil {
+		return nil, integrationUnavailable(healthErr)
+	}
 	for _, finding := range report.Findings {
 		check := &integrationv1.DiagnosticCheck{Name: string(finding.Check), Result: diagnosticResult(finding.Status), Detail: finding.Detail}
 		if finding.Capability.Valid() {
@@ -263,7 +274,28 @@ func (s *IntegrationService) TestConnectorConnection(ctx context.Context, req *i
 	if !report.Healthy() {
 		diagnostic.Impact = []string{"connector capability or permission checks require attention"}
 	}
+	appendIntegrationHealth(diagnostic, healthReport)
 	return &integrationv1.TestConnectorConnectionResponse{Diagnostic: diagnostic}, nil
+}
+
+// appendServedContractChecks keeps the connector test bench honest about the
+// schema/mapping stages it can serve. Discovery is available as a quarantined
+// review contract; diff and mapping validation remain skipped until the caller
+// supplies two admitted bodies and an explicit profile respectively.
+func appendServedContractChecks(diagnostic *integrationv1.ConnectionDiagnostic, contracts []integrationcontracts.Contract) {
+	for _, contract := range contracts {
+		check := &integrationv1.DiagnosticCheck{Name: "surface:" + contract.Name, Result: integrationv1.DiagnosticResult_DIAGNOSTIC_RESULT_SKIPPED}
+		switch contract.Name {
+		case integrationcontracts.SchemaDiscovery:
+			check.Result = integrationv1.DiagnosticResult_DIAGNOSTIC_RESULT_PASS
+			check.Detail = "external schema metadata enters quarantine review; it is not auto-published"
+		case integrationcontracts.SchemaDiff:
+			check.Detail = "requires two admitted schema snapshots and declared consumer mappings"
+		case integrationcontracts.MappingValidate:
+			check.Detail = "requires an explicit bounded MappingProfile; no mapping is inferred"
+		}
+		diagnostic.Checks = append(diagnostic.Checks, check)
+	}
 }
 
 func (s *IntegrationService) definitionRegistry(ctx context.Context, principal *trust.Principal) (*connectivity.Registry, *envelope.Error) {

@@ -175,6 +175,101 @@ internal_package_roots:
     layer: transport
     phase: P1A
     description: Versioned assistive-technology, browser, locale and input-mode compatibility matrix (A11Y-001) the product UI qualification consumes.
+  - name: agentaudit
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-014 agent-for-user audit chain and provenance joins.
+  - name: agentbudget
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-012 hierarchical task, user and tenant budget ledger.
+  - name: agentconnect
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-007 admin-granted system connections with per-user delegated or brokered credentials.
+  - name: agentdelegation
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-003 run-bound on-behalf-of delegated credentials by token exchange.
+  - name: agentegress
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-021 DLP, residency and minimum-necessary evaluation for connections and model providers.
+  - name: agentmodel
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-026 SchemaFlux model gateway, the only production boundary for agent model calls.
+  - name: agentrun
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-010/011/013 durable long-horizon task state machine, parked waits and task ledger.
+  - name: agentskills
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2-004 typed versioned skill registry with MCP tools/list projection.
+  - name: agentsystem
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: AGENT2 composition root wiring model, skills, delegation, budget, audit, egress, connections and the run state machine.
+  - name: agentapproval
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Exact-digest approval boundary for agent actions, including invoker-bound persona approval cards.
+  - name: agentcontext
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Server-resolved authority and provenance assembly for agent runs, with current-grant checks before protected delivery.
+  - name: agentdeliver
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Commit-time disclosure boundary for persona results, enforcing audience readability and channel policy.
+  - name: agentgate
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Per-call policy gate for on-behalf-of skills, checking the invoking user's current roles, scope, purpose and consent.
+  - name: agentinvoke
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Chat post-boundary resolver for eligible persona mentions and invocation context.
+  - name: agentmanifest
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Canonical provider-neutral agent version manifest with strict validation, compatibility references and content digests.
+  - name: agentmcp
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: MCP client and server boundaries for administrator-owned external connections and HCM skill exposure.
+  - name: agentpersona
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Immutable reviewed persona profiles, with tenant-local handles and installation admission under conversation policy.
+  - name: agentrevoke
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Revocation-epoch fence for delegated agent work when its authority or grants change.
+  - name: agenttemplate
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Immutable capability-neutral agent starting templates copied into tenant-owned drafts with pinned provenance.
   - name: agentsecurity
     owner: governance-and-trust
     layer: trust

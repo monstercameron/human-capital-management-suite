@@ -9,9 +9,17 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/slo"
 )
 
 func Version() int { return 1 }
+
+const (
+	ExecutionModeProductionSynthetic = "PRODUCTION_SYNTHETIC"
+	OwnerConformancePlatform         = "conformance-platform"
+)
 
 var (
 	ErrInvalidJourney = errors.New("synthetic: invalid journey")
@@ -72,21 +80,32 @@ type Journey struct {
 	PrincipalID             string
 	ExecutionMode           string
 	Purpose                 string
+	CapabilityOwner         string
 	CredentialReadOnly      bool
 	CustomerMetricsExcluded bool
 	Steps                   []Step
 	Dependencies            []Dependency
 	AttemptedEffects        []Effect
+	SLOTarget               slo.Target
+	SLOObservation          slo.Observation
+	Now                     time.Time
 }
 
 type Result struct {
 	Status                  Status
 	TenantID                string
 	PrincipalID             string
+	CapabilityOwner         string
 	DependencyFailures      []string
 	FencedEffects           []Effect
 	ObservedLayers          []Layer
 	CustomerMetricsExcluded bool
+	SLOTargetID             string
+	SLOCapability           string
+	SLOVersion              string
+	SLOStatus               slo.Status
+	SLOReason               string
+	SLOValue                float64
 	Digest                  string
 }
 
@@ -97,15 +116,18 @@ func (j Journey) Validate() error {
 	if !strings.HasPrefix(j.PrincipalID, "synthetic-") || strings.TrimSpace(j.PrincipalID) == "synthetic-" {
 		return fmt.Errorf("%w: principal must use the synthetic- prefix", ErrInvalidJourney)
 	}
-	if j.ExecutionMode != "PRODUCTION_SYNTHETIC" {
+	if j.ExecutionMode != ExecutionModeProductionSynthetic {
 		return fmt.Errorf("%w: execution mode must be PRODUCTION_SYNTHETIC", ErrInvalidJourney)
 	}
-	if strings.TrimSpace(j.Purpose) == "" || !j.CredentialReadOnly || !j.CustomerMetricsExcluded {
-		return fmt.Errorf("%w: purpose, read-only credential and metric exclusion are required", ErrInvalidJourney)
+	if strings.TrimSpace(j.Purpose) == "" || j.CapabilityOwner != OwnerConformancePlatform || !j.CredentialReadOnly || !j.CustomerMetricsExcluded {
+		return fmt.Errorf("%w: purpose, capability owner, read-only credential and metric exclusion are required", ErrInvalidJourney)
+	}
+	if err := j.SLOTarget.Validate(); err != nil {
+		return fmt.Errorf("%w: SLO target: %v", ErrInvalidJourney, err)
 	}
 	seen := make(map[Layer]bool, len(j.Steps))
 	for _, step := range j.Steps {
-		if strings.TrimSpace(step.Name) == "" || step.TenantID != j.TenantID || !step.ReadOnly {
+		if strings.TrimSpace(step.Name) == "" || step.TenantID != j.TenantID || !step.ReadOnly || !isRequiredLayer(step.Layer) || seen[step.Layer] {
 			return fmt.Errorf("%w: step %q is not a tenant-scoped read", ErrInvalidJourney, step.Name)
 		}
 		seen[step.Layer] = true
@@ -115,12 +137,35 @@ func (j Journey) Validate() error {
 			return fmt.Errorf("%w: required layer %s is absent", ErrInvalidJourney, layer)
 		}
 	}
+	for _, dependency := range j.Dependencies {
+		if strings.TrimSpace(dependency.Name) == "" {
+			return fmt.Errorf("%w: dependency name is required", ErrInvalidJourney)
+		}
+	}
 	for _, effect := range j.AttemptedEffects {
-		if effect == "" {
-			return fmt.Errorf("%w: empty effect class", ErrInvalidJourney)
+		if !isEffect(effect) {
+			return fmt.Errorf("%w: unknown effect class %q", ErrInvalidJourney, effect)
 		}
 	}
 	return nil
+}
+
+func isRequiredLayer(layer Layer) bool {
+	for _, required := range requiredLayers {
+		if layer == required {
+			return true
+		}
+	}
+	return false
+}
+
+func isEffect(effect Effect) bool {
+	switch effect {
+	case EffectDomainWrite, EffectIntentCreate, EffectWorkItem, EffectMessageSend, EffectOutboxPublish, EffectProviderCall, EffectTelemetryWrite:
+		return true
+	default:
+		return false
+	}
 }
 
 // Evaluate compiles the observed path into bounded operational evidence. A
@@ -131,7 +176,7 @@ func Evaluate(j Journey) (Result, error) {
 		return Result{}, err
 	}
 	r := Result{
-		Status: StatusReady, TenantID: j.TenantID, PrincipalID: j.PrincipalID,
+		Status: StatusReady, TenantID: j.TenantID, PrincipalID: j.PrincipalID, CapabilityOwner: j.CapabilityOwner,
 		CustomerMetricsExcluded: j.CustomerMetricsExcluded,
 		FencedEffects:           append([]Effect(nil), j.AttemptedEffects...),
 	}
@@ -145,13 +190,14 @@ func Evaluate(j Journey) (Result, error) {
 		}
 	}
 	sort.Strings(r.DependencyFailures)
-	if len(r.FencedEffects) > 0 {
-		// The fence is evidence of a safe probe, not a failed journey.
-		for _, effect := range r.FencedEffects {
-			if effect == EffectDomainWrite || effect == EffectIntentCreate || effect == EffectProviderCall {
-				continue
-			}
-		}
+	sloResult, err := slo.Evaluate(j.SLOTarget, j.SLOObservation, j.Now)
+	if err != nil {
+		return Result{}, fmt.Errorf("%w: SLO evaluation: %v", ErrInvalidJourney, err)
+	}
+	r.SLOTargetID, r.SLOCapability, r.SLOVersion = sloResult.TargetID, sloResult.Capability, sloResult.Version
+	r.SLOStatus, r.SLOReason, r.SLOValue = sloResult.Status, sloResult.Reason, sloResult.Value
+	if sloResult.Status != slo.Healthy {
+		r.Status = StatusDegraded
 	}
 	r.Digest = digestResult(r)
 	return r, nil
@@ -167,14 +213,14 @@ func Refuse(effect Effect) error {
 }
 
 func (r Result) Explain() string {
-	return fmt.Sprintf("synthetic status=%s tenant=%s dependencies_failed=%d fenced_effects=%d metrics_excluded=%t digest=%s", r.Status, r.TenantID, len(r.DependencyFailures), len(r.FencedEffects), r.CustomerMetricsExcluded, r.Digest)
+	return fmt.Sprintf("synthetic status=%s tenant=%s owner=%s dependencies_failed=%d fenced_effects=%d slo_status=%s slo_reason=%s metrics_excluded=%t digest=%s", r.Status, r.TenantID, r.CapabilityOwner, len(r.DependencyFailures), len(r.FencedEffects), r.SLOStatus, r.SLOReason, r.CustomerMetricsExcluded, r.Digest)
 }
 
 func Explain(r Result) string { return r.Explain() }
 
 func digestResult(r Result) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "v1|%s|%s|%s|%t|", r.Status, r.TenantID, r.PrincipalID, r.CustomerMetricsExcluded)
+	fmt.Fprintf(h, "v1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%.17g|%t|", r.Status, r.TenantID, r.PrincipalID, r.CapabilityOwner, r.SLOTargetID, r.SLOCapability, r.SLOVersion, r.SLOStatus, r.SLOReason, r.SLOValue, r.CustomerMetricsExcluded)
 	for _, layer := range r.ObservedLayers {
 		fmt.Fprintf(h, "%s|", layer)
 	}

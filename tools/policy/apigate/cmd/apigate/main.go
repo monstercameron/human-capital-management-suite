@@ -26,12 +26,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if !report.OK() {
-		fmt.Fprintf(stderr, "apigate: FAIL: %d buf violation(s), %d consumer impact(s); register %s\n", len(report.Compatibility.Violations), len(report.ConsumerFindings), report.RegisterDigest)
+		fmt.Fprintf(stderr, "apigate: FAIL: decision=%s owner=%s class=%s; %d buf violation(s), %d consumer impact(s); register %s\n", report.Decision, report.Disposition.Owner, report.Disposition.Class, len(report.Compatibility.Violations), len(report.ConsumerFindings), report.RegisterDigest)
+		for _, decision := range report.ConsumerDecisions {
+			if decision.Decision != apigate.OutcomeCompatible {
+				fmt.Fprintf(stderr, "  - consumer %s: %s (owner=%s sunset=%s)\n", decision.ConsumerID, decision.Decision, decision.Owner, decision.Sunset)
+			}
+		}
 		for _, violation := range report.Compatibility.Violations {
 			fmt.Fprintf(stderr, "  - %s: %s\n", violation.Path, violation.Message)
 		}
 		return 1
 	}
-	fmt.Fprintf(stdout, "apigate: PASS: register %s\n", report.RegisterDigest)
+	fmt.Fprintf(stdout, "apigate: PASS: owner=%s class=%s register %s\n", report.Disposition.Owner, report.Disposition.Class, report.RegisterDigest)
 	return 0
 }

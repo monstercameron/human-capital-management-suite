@@ -43,10 +43,21 @@ type Consumer struct {
 	Fields         []FieldDependency `json:"fields" yaml:"fields"`
 }
 
+// Disposition identifies the accountable owner and governance class for this
+// gate. The checker is library tooling, but its compatibility decision still
+// needs one authoritative owner before it can be used as a release gate.
+type Disposition struct {
+	Specification string `json:"specification" yaml:"specification"`
+	Owner         string `json:"owner" yaml:"owner"`
+	Class         string `json:"class" yaml:"class"`
+	Status        string `json:"status" yaml:"status"`
+}
+
 // Register is the checked-in consumer adoption register.
 type Register struct {
-	Version   int        `json:"version" yaml:"version"`
-	Consumers []Consumer `json:"consumers" yaml:"consumers"`
+	Version     int         `json:"version" yaml:"version"`
+	Disposition Disposition `json:"disposition" yaml:"disposition"`
+	Consumers   []Consumer  `json:"consumers" yaml:"consumers"`
 }
 
 // Finding names a compatibility violation that affects a registered
@@ -57,23 +68,52 @@ type Finding struct {
 	Detail     string `json:"detail"`
 }
 
+// Outcome is the explicit gate disposition. MIGRATE is a consumer-level
+// outcome: the overall gate remains BLOCK until the affected consumer has
+// moved past the registered adoption watermark.
+type Outcome string
+
+const (
+	OutcomeCompatible Outcome = "COMPATIBLE"
+	OutcomeMigrate    Outcome = "MIGRATE"
+	OutcomeBlock      Outcome = "BLOCK"
+)
+
+// ConsumerDecision records the decision for one registered consumer and
+// carries the owner and sunset evidence needed to act on it.
+type ConsumerDecision struct {
+	ConsumerID string    `json:"consumer_id"`
+	Decision   Outcome   `json:"decision"`
+	Owner      string    `json:"owner"`
+	Sunset     string    `json:"sunset"`
+	Findings   []Finding `json:"findings,omitempty"`
+}
+
 // Report is the complete API gate result.
 type Report struct {
-	Decision         string                          `json:"decision"`
-	RegisterDigest   string                          `json:"register_digest"`
-	Compatibility    compatibility.BufBreakingReport `json:"compatibility"`
-	ConsumerFindings []Finding                       `json:"consumer_findings"`
+	Decision          Outcome                         `json:"decision"`
+	Disposition       Disposition                     `json:"disposition"`
+	RegisterDigest    string                          `json:"register_digest"`
+	Compatibility     compatibility.BufBreakingReport `json:"compatibility"`
+	ConsumerFindings  []Finding                       `json:"consumer_findings"`
+	ConsumerDecisions []ConsumerDecision              `json:"consumer_decisions"`
 }
 
 // OK reports whether wire compatibility and consumer adoption both pass.
 func (r Report) OK() bool {
-	return r.Decision == "COMPATIBLE" && r.Compatibility.OK() && len(r.ConsumerFindings) == 0
+	return r.Decision == OutcomeCompatible && r.Compatibility.OK() && len(r.ConsumerFindings) == 0
 }
 
 // Validate checks register identity, ownership, and dependency completeness.
 func Validate(r Register) error {
 	if r.Version <= 0 {
 		return fmt.Errorf("apigate: register version must be positive")
+	}
+	if strings.TrimSpace(r.Disposition.Specification) == "" ||
+		strings.TrimSpace(r.Disposition.Owner) == "" ||
+		strings.TrimSpace(r.Disposition.Class) == "" ||
+		strings.TrimSpace(r.Disposition.Status) == "" {
+		return fmt.Errorf("apigate: disposition requires specification, owner, class, and status")
 	}
 	if len(r.Consumers) == 0 {
 		return fmt.Errorf("apigate: consumer register is empty")
@@ -131,7 +171,7 @@ func CanonicalJSON(r Register) ([]byte, error) {
 	if err := Validate(r); err != nil {
 		return nil, err
 	}
-	copyRegister := Register{Version: r.Version, Consumers: append([]Consumer(nil), r.Consumers...)}
+	copyRegister := Register{Version: r.Version, Disposition: r.Disposition, Consumers: append([]Consumer(nil), r.Consumers...)}
 	sort.Slice(copyRegister.Consumers, func(i, j int) bool { return copyRegister.Consumers[i].ID < copyRegister.Consumers[j].ID })
 	for i := range copyRegister.Consumers {
 		copyRegister.Consumers[i].Methods = append([]string(nil), copyRegister.Consumers[i].Methods...)
@@ -200,6 +240,33 @@ func ConsumerFindings(r Register, violations []compatibility.BufBreakingViolatio
 	return findings
 }
 
+// ConsumerDecisions produces one explicit outcome per registered consumer.
+// A matched compatibility violation requires migration evidence; the gate
+// remains blocked until that consumer advances beyond its watermark.
+func ConsumerDecisions(r Register, violations []compatibility.BufBreakingViolation) []ConsumerDecision {
+	findings := ConsumerFindings(r, violations)
+	byConsumer := make(map[string][]Finding, len(findings))
+	for _, finding := range findings {
+		byConsumer[finding.ConsumerID] = append(byConsumer[finding.ConsumerID], finding)
+	}
+	decisions := make([]ConsumerDecision, 0, len(r.Consumers))
+	for _, consumer := range r.Consumers {
+		decision := ConsumerDecision{
+			ConsumerID: consumer.ID,
+			Decision:   OutcomeCompatible,
+			Owner:      consumer.Owner,
+			Sunset:     consumer.Sunset,
+		}
+		if affected := byConsumer[consumer.ID]; len(affected) > 0 {
+			decision.Decision = OutcomeMigrate
+			decision.Findings = append([]Finding(nil), affected...)
+		}
+		decisions = append(decisions, decision)
+	}
+	sort.Slice(decisions, func(i, j int) bool { return decisions[i].ConsumerID < decisions[j].ConsumerID })
+	return decisions
+}
+
 // Options configures Run. Empty paths use the repository's checked-in API
 // module, baseline, register, and local buf executable.
 type Options struct {
@@ -255,11 +322,18 @@ func Run(root string, options Options) (Report, error) {
 		return Report{}, err
 	}
 	consumerFindings := ConsumerFindings(register, compatibilityReport.Violations)
-	decision := "COMPATIBLE"
+	decision := OutcomeCompatible
 	if !compatibilityReport.OK() || len(consumerFindings) != 0 {
-		decision = "BLOCK"
+		decision = OutcomeBlock
 	}
-	return Report{Decision: decision, RegisterDigest: digest, Compatibility: compatibilityReport, ConsumerFindings: consumerFindings}, nil
+	return Report{
+		Decision:          decision,
+		Disposition:       register.Disposition,
+		RegisterDigest:    digest,
+		Compatibility:     compatibilityReport,
+		ConsumerFindings:  consumerFindings,
+		ConsumerDecisions: ConsumerDecisions(register, compatibilityReport.Violations),
+	}, nil
 }
 
 // Evaluate is a compatibility spelling for callers that use policy-check

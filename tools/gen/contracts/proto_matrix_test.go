@@ -62,17 +62,19 @@ func TestTodo_PROTO_003_Golden(t *testing.T) {
 func TestTodo_PROTO_003_Integration(t *testing.T) {
 	fds := buildDescriptorSet(t, findRepoRoot(t), t.TempDir(), "workflow.binpb")
 	for _, pkg := range []string{"hcmnext.workflow.v1", "hcmnext.humanwork.v1"} {
-		found := false
+		found, serviceFound := false, false
 		for _, fd := range fds.GetFile() {
 			if fd.GetPackage() == pkg {
 				found = true
-				if len(fd.GetService()) == 0 {
-					t.Errorf("%s has no service", pkg)
+				if len(fd.GetService()) > 0 {
+					serviceFound = true
 				}
 			}
 		}
 		if !found {
 			t.Errorf("descriptor set omits %s", pkg)
+		} else if !serviceFound {
+			t.Errorf("%s has no service", pkg)
 		}
 	}
 }
@@ -132,17 +134,19 @@ func TestTodo_PROTO_004_Golden(t *testing.T) {
 func TestTodo_PROTO_004_Integration(t *testing.T) {
 	fds := buildDescriptorSet(t, findRepoRoot(t), t.TempDir(), "ops.binpb")
 	for _, pkg := range []string{"hcmnext.dataops.v1", "hcmnext.integration.v1", "hcmnext.evidence.v1"} {
-		found := false
+		found, serviceFound := false, false
 		for _, fd := range fds.GetFile() {
 			if fd.GetPackage() == pkg {
 				found = true
-				if len(fd.GetService()) == 0 {
-					t.Errorf("%s has no service", pkg)
+				if len(fd.GetService()) > 0 {
+					serviceFound = true
 				}
 			}
 		}
 		if !found {
 			t.Errorf("descriptor set omits %s", pkg)
+		} else if !serviceFound {
+			t.Errorf("%s has no service", pkg)
 		}
 	}
 }

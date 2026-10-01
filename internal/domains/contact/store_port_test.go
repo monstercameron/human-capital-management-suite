@@ -24,6 +24,27 @@ func TestStorePortMemoryStorePreservesCASAndDigestOnlyHistory(t *testing.T) {
 	if got := CodeOf(store.PutEndpointRevision(ctx, tenant, endpoint)); got != StoreDuplicateCode {
 		t.Fatalf("duplicate endpoint code = %q", got)
 	}
+	verified, err := endpoint.MarkVerified()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := CodeOf(store.PutEndpointRevision(ctx, tenant, verified, 0)); got != StoreStaleCASCode {
+		t.Fatalf("out-of-sequence endpoint code = %q", got)
+	}
+	if got := CodeOf(store.PutEndpointRevision(ctx, tenant, verified)); got != StoreStaleCASCode {
+		t.Fatalf("unfenced endpoint code = %q", got)
+	}
+	if err := store.PutEndpointRevision(ctx, tenant, verified, endpoint.Revision); err != nil {
+		t.Fatalf("verified endpoint: %v", err)
+	}
+	foreign := verified
+	foreign.Subject = values.EntityRef{Tenant: tenant, Kind: "worker", Id: "00000000-0000-4000-8000-000000000099"}
+	foreign.Revision++
+	foreign.SupersedesRevision = verified.Revision
+	foreign.CanonicalDigest = foreign.computedDigest()
+	if got := CodeOf(store.PutEndpointRevision(ctx, tenant, foreign, verified.Revision)); got != StoreInvalidCode {
+		t.Fatalf("cross-subject endpoint code = %q", got)
+	}
 	challenge, _, err := IssueContactChallenge("00000000-0000-4000-8000-000000000003", subject, endpoint, "recovery", "123456", time.Unix(100, 0), time.Hour, 2)
 	if err != nil {
 		t.Fatal(err)
@@ -40,6 +61,18 @@ func TestStorePortMemoryStorePreservesCASAndDigestOnlyHistory(t *testing.T) {
 	}
 	if err := store.PutChallenge(ctx, tenant, updated, challenge.CanonicalDigest); err != nil {
 		t.Fatal(err)
+	}
+	duplicateEvent := updated
+	duplicateEvent.Events = append(append([]ContactChallengeEvent(nil), updated.Events...), updated.Events[1])
+	duplicateEvent.CanonicalDigest = duplicateEvent.computedDigest()
+	if got := CodeOf(store.PutChallenge(ctx, tenant, duplicateEvent, updated.CanonicalDigest)); got != StoreDuplicateEventCode {
+		t.Fatalf("duplicate challenge event code = %q", got)
+	}
+	scopeChanged := updated
+	scopeChanged.Purpose = "payroll"
+	scopeChanged.CanonicalDigest = scopeChanged.computedDigest()
+	if got := CodeOf(store.PutChallenge(ctx, tenant, scopeChanged, updated.CanonicalDigest)); got != StoreInvalidCode {
+		t.Fatalf("changed challenge scope code = %q", got)
 	}
 	loaded, err := store.GetChallenge(ctx, tenant, challenge.ChallengeID)
 	if err != nil || len(loaded.Events) != 2 {

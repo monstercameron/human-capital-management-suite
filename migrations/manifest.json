@@ -1,5 +1,5 @@
 {
-  "ReleaseDigest": "1366ec055c2c863c2d8a310f98b4f68d4ff4acf35aeabfb98c030a57adad7ec4",
+  "ReleaseDigest": "9802b928915f6002dd3f4290b020bb074a27326b0e827a5d61e5407e7528cbcf",
   "Entries": [
     {
       "Version": 1,
@@ -1688,6 +1688,150 @@
       "Compatibility": "UNREVIEWED",
       "Direction": "UP",
       "Requires": [363]
+    },
+    {
+      "Version": 365,
+      "Name": "00365_workflow_draft_author_delete",
+      "Checksum": "3591ceb17202555de1651386a9b8cccced99bc8c77118fa3cfcd7e16e68a08ed",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [364]
+    },
+    {
+      "Version": 366,
+      "Name": "00366_agent_delegation_grants",
+      "Checksum": "8ad457b9e465b3a28a92ec4affe8381bc43a2113d90deee1a9ac175290485234",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [365]
+    },
+    {
+      "Version": 367,
+      "Name": "00367_agent_task_runtime",
+      "Checksum": "bf99c719850b0b71b1cb776bc6af94c871e543d049af0e2b36d23bc93bf9be2b",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [366]
+    },
+    {
+      "Version": 368,
+      "Name": "00368_agent_budget_ledger",
+      "Checksum": "cd4d5069d466bb36c6879c01e83bce898d81adf90d4548cdb7b4a02f88bfdb32",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [367]
+    },
+    {
+      "Version": 369,
+      "Name": "00369_agent_audit_chain",
+      "Checksum": "633a03155c42e5a83cac39e9f6acb282bc3ff452babd796b89641be5f329e16e",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [368]
+    },
+    {
+      "Version": 370,
+      "Name": "00370_agent_system_connections",
+      "Checksum": "c881a73d1eb68a25e0c50c4b776d13e6126ee026ecd49197b4443df928d9d2e1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [369]
+    },
+    {
+      "Version": 380,
+      "Name": "00380_journey_worker_time_tracking",
+      "Checksum": "1de04795413c315624c044d1ed97f90e82ece0a3e761ff614b1ed9f6e9e2a59a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [370]
+    },
+    {
+      "Version": 423,
+      "Name": "00423_agent_persona_store",
+      "Checksum": "2f86521e78d3b82497fb03a1bc869dc2fb4534c33b25b6b07096ec3005561989",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [380]
+    },
+    {
+      "Version": 424,
+      "Name": "00424_tenant_agent_setting",
+      "Checksum": "9118ce15527fc32a26e5b931b61545af0295e1826963a9c3a8cdaa1f9cf6dd53",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [423]
+    },
+    {
+      "Version": 710,
+      "Name": "00710_workflow_page",
+      "Checksum": "9346ed53a0c91bd73736027491e5a9e3c8186792f63a5b244884d9d411933541",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [424]
+    },
+    {
+      "Version": 711,
+      "Name": "00711_promotion_write_provenance",
+      "Checksum": "594ffb0cb95bfc8070a0557a543666e26e942bf43f243ae41c49103726f5ba13",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [710]
+    },
+    {
+      "Version": 712,
+      "Name": "00712_agent_budget_extension_replay",
+      "Checksum": "4d34e0689dc1277b02422e0d3967411913c5ea97e081b453765d01746d363186",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [711]
+    },
+    {
+      "Version": 713,
+      "Name": "00713_agent_skill_grants",
+      "Checksum": "91a755c55d568c68be829a2383a06120b2478ed558a3bb41e04d126ef5a59344",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [712]
+    },
+    {
+      "Version": 714,
+      "Name": "00714_agent_current_population",
+      "Checksum": "57c165c634b21df609f2bb81bc83534776c43db32ce4e687d1489743ebf5178f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [713]
+    },
+    {
+      "Version": 715,
+      "Name": "00715_agent_task_events",
+      "Checksum": "afde7718cf0deb7fd647509892be6665137d8c00cede26bd3a343c708f7882b1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [714]
+    },
+    {
+      "Version": 716,
+      "Name": "00716_agent_task_event_evidence",
+      "Checksum": "b637989d98911b5b94ca7264537ecc5c81b9ac40621d62b4b440de74541027d1",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [715]
+    },
+    {
+      "Version": 717,
+      "Name": "00717_agent_delegation_target_identity",
+      "Checksum": "fcb31c625cb30b046c509e4e4519a5880fef7dd1e952db1d31049d2c08d57d0f",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [716]
+    },
+    {
+      "Version": 718,
+      "Name": "00718_agent_current_home_organization",
+      "Checksum": "dc3681d1944f148c5ccb2799cab39dfc288d3b73115bd4144be00fa3c0a6316a",
+      "Compatibility": "UNREVIEWED",
+      "Direction": "UP",
+      "Requires": [717]
     }
   ],
   "Phases": ["EXPAND", "BACKFILL", "SHADOW", "CUTOVER", "CONTRACT"],

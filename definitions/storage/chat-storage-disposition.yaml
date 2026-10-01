@@ -25,6 +25,9 @@ sources:
   - internal/data/chatstore/migrations/00012_chat_channel_widgets.sql
   - internal/data/chatstore/migrations/00013_chat_channel_poll.sql
   - internal/data/chatstore/migrations/00014_chat_channel_poll_ballots.sql
+  - internal/data/chatstore/migrations/00015_chat_ephemeral.sql
+  - internal/data/chatstore/migrations/00016_chat_audience_revision.sql
+  - internal/data/chatstore/migrations/00017_chat_public_audience.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -37,6 +40,26 @@ defaults:
   encryption_class: PLATFORM_MANAGED
 
 tables:
+  - table: chat_persona_source_classification
+    migration: internal/data/chatstore/migrations/00017_chat_public_audience.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_persona_channel_policy
+    migration: internal/data/chatstore/migrations/00017_chat_public_audience.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_public_audience_policy
+    migration: internal/data/chatstore/migrations/00017_chat_public_audience.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_public_audience_principal
+    migration: internal/data/chatstore/migrations/00017_chat_public_audience.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
   - table: chat_channel_todo
     plane: CHAT_DATA
     data_role: CONTROL
@@ -166,6 +189,18 @@ tables:
     retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     migration: internal/data/chatstore/migrations/00001_chat.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_ephemeral_post
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00015_chat_ephemeral.sql
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false

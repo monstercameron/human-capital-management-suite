@@ -28,6 +28,9 @@ func TestTodo_MSRC_008(t *testing.T) {
 	if len(artifacts.Disposition.Entities) != len(reg.Entities()) {
 		t.Fatalf("disposition rows = %d, want %d", len(artifacts.Disposition.Entities), len(reg.Entities()))
 	}
+	if artifacts.Disposition.SpecificationOwner != SpecificationOwner {
+		t.Fatalf("specification owner = %q, want %q", artifacts.Disposition.SpecificationOwner, SpecificationOwner)
+	}
 	if len(artifacts.Previews) == 0 {
 		t.Fatal("generated no migration previews")
 	}
@@ -107,6 +110,11 @@ func TestTodo_MSRC_008_Mutation(t *testing.T) {
 	artifacts, err := BuildSQLArtifacts(reg)
 	if err != nil {
 		t.Fatal(err)
+	}
+	ownerless := artifacts
+	ownerless.Disposition.SpecificationOwner = ""
+	if SQLArtifactsDigest(ownerless) == SQLArtifactsDigest(artifacts) {
+		t.Fatal("removing the specification owner did not change the generated artifact digest")
 	}
 	current, err := readStorageDisposition(filepath.Join(root, "definitions", "model", "storage-disposition.yaml"))
 	if err != nil {

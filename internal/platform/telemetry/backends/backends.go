@@ -69,7 +69,12 @@ type Qualification struct {
 type Stack struct {
 	mu      sync.RWMutex
 	specs   map[Kind]Spec
-	signals map[string]Signal
+	signals map[signalKey]Signal
+}
+
+type signalKey struct {
+	tenant string
+	id     string
 }
 
 var (
@@ -90,7 +95,7 @@ func DefaultSpecs() []Spec {
 }
 
 func New(specs []Spec) (*Stack, Qualification, error) {
-	stack := &Stack{specs: make(map[Kind]Spec), signals: make(map[string]Signal)}
+	stack := &Stack{specs: make(map[Kind]Spec), signals: make(map[signalKey]Signal)}
 	for _, spec := range specs {
 		if _, ok := stack.specs[spec.Kind]; ok {
 			return nil, Qualification{}, fmt.Errorf("%w: duplicate kind %s", ErrInvalidSpec, spec.Kind)
@@ -116,7 +121,15 @@ func (s *Stack) Qualify() Qualification {
 			q.Missing = append(q.Missing, kind)
 			continue
 		}
-		if !spec.OpenSource || strings.TrimSpace(spec.License) == "" {
+		licenseIssue := false
+		for _, reason := range specCompatibilityIssues(spec) {
+			q.Unsafe = append(q.Unsafe, string(kind)+":"+reason)
+			if reason == "license" {
+				licenseIssue = true
+				q.LicenseOK = false
+			}
+		}
+		if !spec.OpenSource && !licenseIssue {
 			q.LicenseOK = false
 			q.Unsafe = append(q.Unsafe, string(kind)+":license")
 		}
@@ -132,16 +145,19 @@ func (s *Stack) Qualify() Qualification {
 			q.Unsafe = append(q.Unsafe, string(kind)+":cost")
 		}
 	}
+	for kind := range s.specs {
+		if !knownKind(kind) {
+			q.Unsafe = append(q.Unsafe, string(kind)+":kind")
+		}
+	}
+	sort.Strings(q.Unsafe)
 	q.Complete = len(q.Missing) == 0 && len(q.Unsafe) == 0 && q.LicenseOK && q.CostOK && q.RestoreOK
 	return q
 }
 
 func (s *Stack) Ingest(signal Signal) error {
-	if strings.TrimSpace(signal.ID) == "" || strings.TrimSpace(signal.TenantToken) == "" || strings.ContainsAny(signal.TenantToken, " \t\r\n") || signal.Kind == "" || strings.TrimSpace(signal.Region) == "" || strings.TrimSpace(signal.Digest) == "" || signal.ObservedAt.IsZero() || signal.RetainUntil.IsZero() || signal.Bytes < 0 {
-		return ErrInvalidSignal
-	}
-	if len(signal.TenantToken) > 128 {
-		return ErrInvalidSignal
+	if err := validateSignal(signal); err != nil {
+		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -149,23 +165,7 @@ func (s *Stack) Ingest(signal Signal) error {
 	if !ok || !spec.Private || !spec.TenantScoped {
 		return ErrInvalidSpec
 	}
-	if signal.RetainUntil.Before(signal.ObservedAt) {
-		return ErrExpired
-	}
-	var used int64
-	for _, existing := range s.signals {
-		if existing.Kind == signal.Kind {
-			used += existing.Bytes
-		}
-	}
-	if used+signal.Bytes > spec.CostBudgetBytes {
-		return ErrOverBudget
-	}
-	if _, exists := s.signals[signal.ID]; exists {
-		return nil
-	}
-	s.signals[signal.ID] = signal
-	return nil
+	return ingestInto(s.signals, s.specs, signal)
 }
 
 // Query always requires one exact tenant token and never supports a wildcard.
@@ -192,22 +192,129 @@ func (s *Stack) ExportSnapshot() Snapshot {
 	for _, signal := range s.signals {
 		result.Signals = append(result.Signals, signal)
 	}
-	sort.Slice(result.Signals, func(i, j int) bool { return result.Signals[i].ID < result.Signals[j].ID })
+	sort.Slice(result.Signals, func(i, j int) bool {
+		if result.Signals[i].ID != result.Signals[j].ID {
+			return result.Signals[i].ID < result.Signals[j].ID
+		}
+		return result.Signals[i].TenantToken < result.Signals[j].TenantToken
+	})
 	return result
 }
 
 func (s *Stack) Restore(snapshot Snapshot) error {
-	newSignals := make(map[string]Signal, len(snapshot.Signals))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	newSignals := make(map[signalKey]Signal, len(snapshot.Signals))
 	for _, signal := range snapshot.Signals {
-		if err := s.Ingest(signal); err != nil {
+		if err := ingestInto(newSignals, s.specs, signal); err != nil {
 			return err
 		}
-		newSignals[signal.ID] = signal
 	}
-	s.mu.Lock()
 	s.signals = newSignals
-	s.mu.Unlock()
 	return nil
+}
+
+func ingestInto(signals map[signalKey]Signal, specs map[Kind]Spec, signal Signal) error {
+	if err := validateSignal(signal); err != nil {
+		return err
+	}
+	spec, ok := specs[signal.Kind]
+	if !ok || !spec.Private || !spec.TenantScoped {
+		return ErrInvalidSpec
+	}
+	if len(specCompatibilityIssues(spec)) != 0 || !spec.OpenSource || spec.Retention <= 0 || spec.CostBudgetBytes <= 0 {
+		return ErrInvalidSpec
+	}
+	if err := validateRetention(signal, spec); err != nil {
+		return err
+	}
+	key := signalKey{tenant: signal.TenantToken, id: signal.ID}
+	if existing, exists := signals[key]; exists {
+		if sameSignal(existing, signal) {
+			return nil
+		}
+		return ErrInvalidSignal
+	}
+	var used int64
+	for _, existing := range signals {
+		if existing.Kind == signal.Kind {
+			used += existing.Bytes
+		}
+	}
+	if signal.Bytes > spec.CostBudgetBytes-used {
+		return ErrOverBudget
+	}
+	signals[key] = signal
+	return nil
+}
+
+func validateSignal(signal Signal) error {
+	if strings.TrimSpace(signal.ID) == "" || strings.TrimSpace(signal.TenantToken) == "" || strings.ContainsAny(signal.TenantToken, " \t\r\n") || signal.Kind == "" || strings.TrimSpace(signal.Region) == "" || strings.TrimSpace(signal.Digest) == "" || signal.ObservedAt.IsZero() || signal.RetainUntil.IsZero() || signal.Bytes < 0 {
+		return ErrInvalidSignal
+	}
+	if len(signal.TenantToken) > 128 {
+		return ErrInvalidSignal
+	}
+	return nil
+}
+
+func validateRetention(signal Signal, spec Spec) error {
+	retention := signal.RetainUntil.Sub(signal.ObservedAt)
+	if retention <= 0 || retention > spec.Retention {
+		return ErrExpired
+	}
+	return nil
+}
+
+func sameSignal(first, second Signal) bool {
+	return first.ID == second.ID && first.TenantToken == second.TenantToken && first.Kind == second.Kind && first.Region == second.Region && first.Digest == second.Digest && first.ObservedAt.Equal(second.ObservedAt) && first.RetainUntil.Equal(second.RetainUntil) && first.Bytes == second.Bytes
+}
+
+func knownKind(kind Kind) bool {
+	switch kind {
+	case KindMetrics, KindLogs, KindTraces, KindDashboards:
+		return true
+	default:
+		return false
+	}
+}
+
+func expectedProtocol(kind Kind) string {
+	switch kind {
+	case KindMetrics:
+		return "prometheus-remote-write"
+	case KindLogs, KindTraces:
+		return "otlp-http"
+	case KindDashboards:
+		return "grafana-http-api"
+	default:
+		return ""
+	}
+}
+
+func expectedLicense(kind Kind) string {
+	switch kind {
+	case KindMetrics, KindTraces:
+		return "Apache-2.0"
+	case KindLogs, KindDashboards:
+		return "AGPL-3.0"
+	default:
+		return ""
+	}
+}
+
+func specCompatibilityIssues(spec Spec) []string {
+	if !knownKind(spec.Kind) {
+		return []string{"kind"}
+	}
+	issues := make([]string, 0, 2)
+	if strings.TrimSpace(spec.Protocol) == "" || spec.Protocol != expectedProtocol(spec.Kind) {
+		issues = append(issues, "protocol")
+	}
+	if strings.TrimSpace(spec.License) == "" || spec.License != expectedLicense(spec.Kind) {
+		issues = append(issues, "license")
+	}
+	return issues
 }
 
 func (q Qualification) Explain() string {

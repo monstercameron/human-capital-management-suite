@@ -79,6 +79,12 @@ type NavigateRequest struct {
 	At               time.Time
 }
 
+// DeleteRequest identifies a draft and proves the author who may remove it.
+type DeleteRequest struct {
+	DraftID   uuid.UUID
+	AuthorRef string
+}
+
 // Store is the PostgreSQL-backed mutable draft store.
 type Store struct {
 	db     dbport.Beginner
@@ -276,6 +282,30 @@ func (parseStore *Store) Load(parseContext context.Context, parseTenant values.T
 		return parseLoadErr
 	})
 	return parseDraft, parseErr
+}
+
+// Delete removes an untouched draft through the narrowly granted database
+// function. The edit service checks the document before this call; the SQL
+// predicate repeats the empty-document guard so a direct store caller cannot
+// turn this into deletion of an authored workflow.
+func (parseStore *Store) Delete(parseContext context.Context, parseTenant values.TenantId, parseRequest DeleteRequest) error {
+	parseRequest.AuthorRef = strings.TrimSpace(parseRequest.AuthorRef)
+	if parseRequest.DraftID == uuid.Nil || parseRequest.AuthorRef == "" {
+		return ErrInvalid
+	}
+	return parseStore.withTenant(parseContext, parseTenant, func(parseTx dbport.Tx, parseTenantID uuid.UUID) error {
+		var parseRemoved int64
+		parseErr := parseTx.QueryRow(parseContext,
+			`SELECT hcmnext_delete_workflow_draft($1,$2,$3)`,
+			parseTenantID, parseRequest.DraftID, parseRequest.AuthorRef).Scan(&parseRemoved)
+		if parseErr != nil {
+			return fmt.Errorf("workflowdraftstore: delete draft: %w", parseErr)
+		}
+		if parseRemoved != 1 {
+			return ErrNotFound
+		}
+		return nil
+	})
 }
 
 // PurgeExpired removes abandoned drafts whose explicit retention window has

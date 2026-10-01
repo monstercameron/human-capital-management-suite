@@ -112,6 +112,9 @@ func (s *Store) PutPolicy(ctx context.Context, host, conversation string, requir
 			if n != 1 {
 				return ErrConflict
 			}
+			if err := advanceAudienceRevision(ctx, tx, host, conversation); err != nil {
+				return err
+			}
 			return appendEvent(ctx, tx, host, conversation, "chat.policy.created", "", "", host, actor)
 		}
 		n, err := tx.Exec(ctx, `UPDATE chat_channel_policy SET revision=revision+1,required_roles=$3,role_mode=$4,required_qualifications=$5,allowed_principals=$6,allowed_tenants=$7,classification=$8,residency=$9 WHERE tenant_id=$1 AND conversation_id=$2 AND revision=$10`, host, conversation, requiredRoles, int(mode), qualifications, allowedPrincipals, allowedTenants, classification, residency, expected)
@@ -121,8 +124,22 @@ func (s *Store) PutPolicy(ctx context.Context, host, conversation string, requir
 		if n != 1 {
 			return ErrConflict
 		}
+		if err := advanceAudienceRevision(ctx, tx, host, conversation); err != nil {
+			return err
+		}
 		return appendEvent(ctx, tx, host, conversation, "chat.policy.updated", "", "", host, actor)
 	})
+}
+
+func advanceAudienceRevision(ctx context.Context, tx dbport.Tx, tenantID, conversationID string) error {
+	n, err := tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, tenantID, conversationID)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return ErrDenied
+	}
+	return nil
 }
 
 func (s *Store) Policy(ctx context.Context, host, conversation string) (chatpolicy.Channel, error) {

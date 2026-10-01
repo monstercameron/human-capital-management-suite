@@ -21,11 +21,13 @@ import (
 func routedApproverContexts(t *testing.T, verifier *trust.HMACVerifier, cfg ServeConfig, at time.Time) (finance, manager context.Context) {
 	t.Helper()
 	contextFor := func(subject string) context.Context {
+		issuedAt := at.UTC().Truncate(time.Second).Add(-time.Minute)
+		expiresAt := issuedAt.Add(23 * time.Hour)
 		token, err := verifier.Issue(trust.Claims{
 			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subject, SubjectKind: "human", Tenant: cfg.Tenant,
 			OrganizationScopeID: "org-north-america", Roles: []string{"comp_admin"},
 			Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
-			SessionRef: "session:" + subject, IssuedAtUnix: at.Add(-time.Minute).Unix(), ExpiresAtUnix: at.Add(48 * time.Hour).Unix(),
+			SessionRef: "session:" + subject, IssuedAtUnix: issuedAt.Unix(), ExpiresAtUnix: expiresAt.Unix(),
 		})
 		if err != nil {
 			t.Fatalf("issue routed approver credential %s: %v", subject, err)

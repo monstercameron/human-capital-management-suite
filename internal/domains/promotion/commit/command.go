@@ -42,17 +42,19 @@ type ExternalEffect struct {
 // identifier names an already-resolved local aggregate; callers cannot ask
 // this command to create employment or merge identity records.
 type Command struct {
-	TenantID           string
-	ProposalRevisionID string
-	ProposalDigest     string
-	PlanID             string
-	PlanDigest         string
-	PlanParticipants   []string
-	WorkflowPlanDigest string
-	AuthorityDigest    string
-	ActorPrincipalID   string
-	EffectiveAt        time.Time
-	RecordedAt         time.Time
+	TenantID               string
+	IntentID               string
+	ProposalRevisionID     string
+	ProposalRevisionNumber uint64
+	ProposalDigest         string
+	PlanID                 string
+	PlanDigest             string
+	PlanParticipants       []string
+	WorkflowPlanDigest     string
+	AuthorityDigest        string
+	ActorPrincipalID       string
+	EffectiveAt            time.Time
+	RecordedAt             time.Time
 
 	WorkerID     string
 	EmploymentID string
@@ -84,6 +86,7 @@ type Command struct {
 	ExpectedWorkerDigest     string
 	ExpectedEmploymentDigest string
 	ExpectedAssignmentDigest string
+	AssignmentWrites         []AssignmentWrite
 	ExpectedJobDigest        string
 	ExpectedPositionDigest   string
 	ExpectedPackageDigest    string
@@ -93,6 +96,16 @@ type Command struct {
 	ApprovalDecisionIDs []string
 	TaskSubmissionIDs   []string
 	Effects             []ExternalEffect
+}
+
+// AssignmentWrite is the exact approved assignment field transition recorded
+// with the successor row produced by the local commit.
+type AssignmentWrite struct {
+	FieldPath         string
+	CurrentValue      string
+	ProposedValue     string
+	AuthorityDecision string
+	ExpectedSource    string
 }
 
 // Participants is the exact local ACID set. Manager placement is part of the
@@ -105,7 +118,7 @@ func (c Command) Participants() []string {
 // Validate fails closed before any mutation is attempted.
 func (c Command) Validate() error {
 	required := []struct{ name, value string }{
-		{"tenant_id", c.TenantID}, {"proposal_revision_id", c.ProposalRevisionID},
+		{"tenant_id", c.TenantID}, {"intent_id", c.IntentID}, {"proposal_revision_id", c.ProposalRevisionID},
 		{"proposal_digest", c.ProposalDigest}, {"plan_id", c.PlanID}, {"plan_digest", c.PlanDigest},
 		{"workflow_plan_digest", c.WorkflowPlanDigest},
 		{"authority_digest", c.AuthorityDigest}, {"actor_principal_id", c.ActorPrincipalID},
@@ -127,10 +140,25 @@ func (c Command) Validate() error {
 		{"expected_base_pay_digest", c.ExpectedBasePayDigest},
 		{"expected_budget_digest", c.ExpectedBudgetDigest},
 	}
+	if c.ProposalRevisionNumber == 0 {
+		return fmt.Errorf("%w: proposal_revision_number must be positive", ErrInvalidCommand)
+	}
 	for _, field := range required {
 		if strings.TrimSpace(field.value) == "" {
 			return fmt.Errorf("%w: %s is required", ErrInvalidCommand, field.name)
 		}
+	}
+	if len(c.AssignmentWrites) == 0 {
+		return fmt.Errorf("%w: assignment write evidence is required", ErrInvalidCommand)
+	}
+	seenFields := map[string]bool{}
+	for _, write := range c.AssignmentWrites {
+		if (write.FieldPath != "assignment.job_code" && write.FieldPath != "assignment.grade") ||
+			strings.TrimSpace(write.CurrentValue) == "" || strings.TrimSpace(write.ProposedValue) == "" ||
+			strings.TrimSpace(write.AuthorityDecision) == "" || strings.TrimSpace(write.ExpectedSource) == "" || seenFields[write.FieldPath] {
+			return fmt.Errorf("%w: invalid or duplicate assignment write evidence for %q", ErrInvalidCommand, write.FieldPath)
+		}
+		seenFields[write.FieldPath] = true
 	}
 	if c.EffectiveAt.IsZero() || c.RecordedAt.IsZero() {
 		return fmt.Errorf("%w: effective_at and recorded_at are required", ErrInvalidCommand)

@@ -44,12 +44,33 @@ func declareJourneyTracker() {
 	declareGlobal(`.jn-journey-filter-panel[data-open="false"]`,
 		gwccss.Display.None,
 	)
-	// From a tablet up there is room for every control: the toggle goes and
-	// the panel's children join the form's own grid.
+	// Preserve the wide-list layout contract; the scoped rules below restore
+	// the disclosure for short lists at the same widths.
 	declareGlobal(`.jn-journey-filter-toggle`,
 		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.Display.None),
 	)
 	declareGlobal(`.jn-journey-filter-panel,.jn-journey-filter-panel[data-open="false"]`,
+		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.Raw("display", "contents")),
+	)
+	// Long lists show every control; short lists keep their secondary controls
+	// behind Filters at every width so a wide viewport does not undo the
+	// information hierarchy.
+	declareGlobal(`.jn-journey-filter[data-collapsible="false"] .jn-journey-filter-toggle`,
+		gwccss.Display.None,
+	)
+	declareGlobal(`.jn-journey-filter[data-collapsible="false"] .jn-journey-filter-panel`,
+		gwccss.Raw("display", "contents"),
+	)
+	declareGlobal(`.jn-journey-filter[data-collapsible="true"] .jn-journey-filter-panel[data-open="false"]`,
+		gwccss.Display.None,
+	)
+	declareGlobal(`.jn-journey-filter[data-collapsible="true"] .jn-journey-filter-toggle`,
+		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.Display.InlineFlex),
+	)
+	declareGlobal(`.jn-journey-filter[data-collapsible="true"] .jn-journey-filter-panel[data-open="false"]`,
+		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.Display.None),
+	)
+	declareGlobal(`.jn-journey-filter[data-collapsible="false"] .jn-journey-filter-panel`,
 		mediaRule(gwccss.RawMedia("(min-width:40rem)"), gwccss.Raw("display", "contents")),
 	)
 	declareGlobal(`.jn-journey-filter-fields`,
@@ -63,6 +84,9 @@ func declareJourneyTracker() {
 	)
 	declareGlobal(`.jn-journey-filter-fields>.jn-field:first-child`,
 		mediaRule(gwccss.RawMedia("(min-width:68.75rem)"), gwccss.Raw("grid-column", "span 2")),
+	)
+	declareGlobal(`.jn-journey-filter .jn-field[data-field-id="journey-filter-sort"]`,
+		gwccss.Raw("min-inline-size", "13rem"),
 	)
 	declareGlobal(`.jn-journey-filter-actions`,
 		mediaRule(gwccss.RawMedia("(min-width:68.75rem)"), gwccss.Raw("grid-column", "span 3")),

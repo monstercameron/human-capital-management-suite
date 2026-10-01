@@ -64,6 +64,15 @@ func TestActiveWorkloadDependencyRevocationProducesDeterministicInvalidateReplan
 	}
 }
 
+func TestTodo_CONFIG_010_Served(t *testing.T) {
+	if ServingContractID == "" {
+		t.Fatal("serving contract ID is empty")
+	}
+	if err := ValidateServingContract(); err != nil {
+		t.Fatalf("ValidateServingContract: %v", err)
+	}
+}
+
 func TestTodo_CONFIG_010_Property(t *testing.T) {
 	w, current, graph := placeholderWorkload()
 	current[1].Version = "v2"

@@ -6263,11 +6263,14 @@ func (x *TablePreferences) GetDirection() string {
 }
 
 type AccessibilityPreferences struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TextSize      string                 `protobuf:"bytes,1,opt,name=text_size,json=textSize,proto3" json:"text_size,omitempty"`
-	Contrast      string                 `protobuf:"bytes,2,opt,name=contrast,proto3" json:"contrast,omitempty"`
-	Motion        string                 `protobuf:"bytes,3,opt,name=motion,proto3" json:"motion,omitempty"`
-	Links         string                 `protobuf:"bytes,4,opt,name=links,proto3" json:"links,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TextSize string                 `protobuf:"bytes,1,opt,name=text_size,json=textSize,proto3" json:"text_size,omitempty"`
+	Contrast string                 `protobuf:"bytes,2,opt,name=contrast,proto3" json:"contrast,omitempty"`
+	Motion   string                 `protobuf:"bytes,3,opt,name=motion,proto3" json:"motion,omitempty"`
+	Links    string                 `protobuf:"bytes,4,opt,name=links,proto3" json:"links,omitempty"`
+	// Empty inherits the organization's color mode; light and dark are
+	// principal-scoped overrides that affect only this viewer.
+	ColorMode     string `protobuf:"bytes,5,opt,name=color_mode,json=colorMode,proto3" json:"color_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6326,6 +6329,13 @@ func (x *AccessibilityPreferences) GetMotion() string {
 func (x *AccessibilityPreferences) GetLinks() string {
 	if x != nil {
 		return x.Links
+	}
+	return ""
+}
+
+func (x *AccessibilityPreferences) GetColorMode() string {
+	if x != nil {
+		return x.ColorMode
 	}
 	return ""
 }
@@ -9351,12 +9361,14 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\tdirection\x18\x04 \x01(\tR\tdirection\x1a:\n" +
 	"\fFiltersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x81\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa0\x01\n" +
 	"\x18AccessibilityPreferences\x12\x1b\n" +
 	"\ttext_size\x18\x01 \x01(\tR\btextSize\x12\x1a\n" +
 	"\bcontrast\x18\x02 \x01(\tR\bcontrast\x12\x16\n" +
 	"\x06motion\x18\x03 \x01(\tR\x06motion\x12\x14\n" +
-	"\x05links\x18\x04 \x01(\tR\x05links\"\xf1\x05\n" +
+	"\x05links\x18\x04 \x01(\tR\x05links\x12\x1d\n" +
+	"\n" +
+	"color_mode\x18\x05 \x01(\tR\tcolorMode\"\xf1\x05\n" +
 	"\x0fUserPreferences\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x16\n" +
 	"\x06locale\x18\x02 \x01(\tR\x06locale\x12R\n" +

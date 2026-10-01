@@ -10,10 +10,12 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/approverclass"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/promotionexec"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
 )
@@ -24,10 +26,17 @@ type fakeManagers struct {
 	answer ManagerOf
 	err    error
 	asked  string
+	// byWorker, when set, answers per worker instead of the fixed answer.
+	byWorker map[string]ManagerOf
 }
 
 func (f *fakeManagers) CurrentManagerOf(_ context.Context, _ workitem.Executor, _ uuid.UUID, workerRef string) (ManagerOf, error) {
-	f.asked = workerRef
+	if f.asked == "" {
+		f.asked = workerRef
+	}
+	if f.byWorker != nil {
+		return f.byWorker[workerRef], f.err
+	}
 	return f.answer, f.err
 }
 
@@ -94,17 +103,56 @@ func TestPromotionApproverRoutingFollowsTheReferenceWorkflow(t *testing.T) {
 		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-054-thomas-baker",
 			managers: &fakeManagers{answer: ManagerOf{InGraph: true, SubjectKey: "hc-056-peter-murphy", ManagerPrincipal: "hc-054-thomas-baker"}}, plan: PLAN_EXECUTE}
 		_, err := factory.resolveApprovers(ctx, nil, routingRequest(requester))
-		if !errors.Is(err, ErrApproverSeparation) || !errors.Is(err, approverclass.ErrSharedOwner) {
+		if !errors.Is(err, ErrApproverSeparation) || !errors.Is(err, approverclass.ErrSharedOwner) || observe.ErrorCode(err) != CodeApproverSharedOwner {
 			t.Fatalf("resolveApprovers = %v, want ErrApproverSeparation wrapping ErrSharedOwner", err)
 		}
 	})
 
 	t.Run("the requester may not be routed an approval", func(t *testing.T) {
-		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-054-thomas-baker",
-			managers: &fakeManagers{answer: ManagerOf{InGraph: true, SubjectKey: "hc-051-linh-tran", ManagerPrincipal: "hc-050-rafael-torres"}}, plan: PLAN_EXECUTE}
+		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-050-rafael-torres",
+			managers: &fakeManagers{answer: ManagerOf{InGraph: true, SubjectKey: "hc-051-linh-tran", ManagerPrincipal: "hc-004-darius-bennett"}}, plan: PLAN_EXECUTE}
 		_, err := factory.resolveApprovers(ctx, nil, routingRequest("hc-050-rafael-torres"))
-		if !errors.Is(err, approverclass.ErrRequesterApprover) {
-			t.Fatalf("resolveApprovers = %v, want ErrRequesterApprover", err)
+		if !errors.Is(err, approverclass.ErrRequesterApprover) || observe.ErrorCode(err) != CodeApproverIsRequester {
+			t.Fatalf("resolveApprovers = %v (code %s), want ErrRequesterApprover coded %s", err, observe.ErrorCode(err), CodeApproverIsRequester)
+		}
+	})
+
+	t.Run("a manager proposing their own report escalates the manager approval to their manager", func(t *testing.T) {
+		managers := &fakeManagers{byWorker: map[string]ManagerOf{
+			"worker-uuid-linh":     {InGraph: true, SubjectKey: "hc-051-linh-tran", ManagerPrincipal: "hc-050-rafael-torres"},
+			"hc-050-rafael-torres": {InGraph: true, SubjectKey: "hc-050-rafael-torres", ManagerPrincipal: "hc-004-darius-bennett"},
+		}}
+		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-054-thomas-baker", managers: managers, plan: PLAN_EXECUTE}
+		route, err := factory.resolveApprovers(ctx, nil, routingRequest("hc-050-rafael-torres"))
+		if err != nil {
+			t.Fatalf("resolveApprovers: %v", err)
+		}
+		if route.manager.principal != "hc-004-darius-bennett" || route.manager.termRef != termSkipLevelManager || route.manager.directoryVersion != directorySkipLevelManager {
+			t.Fatalf("manager route = %+v, want the requester's own manager under the skip-level term", route.manager)
+		}
+		if route.finance.principal != "hc-054-thomas-baker" {
+			t.Fatalf("finance route = %+v, want the finance partner", route.finance)
+		}
+		// The audience recheck holds only the routed item; it must re-derive
+		// the same skip-level owner from the recorded term.
+		item := workitem.WorkItem{Kind: workitem.KindApproval, NodeID: promotionexec.NodeApproveManager, SubjectRefs: []string{"worker-uuid-linh"}}
+		item.Assignment.ChosenOwner = "hc-004-darius-bennett"
+		item.Assignment.Resolution.Candidates = []humanwork.Candidate{{PrincipalID: "hc-004-darius-bennett", TermRef: termSkipLevelManager}}
+		owner, policy, err := factory.CurrentWorkItemAudience(ctx, nil, item)
+		if err != nil || owner != "hc-004-darius-bennett" || policy != directorySkipLevelManager {
+			t.Fatalf("CurrentWorkItemAudience = %q, %q, %v; want the skip-level manager", owner, policy, err)
+		}
+	})
+
+	t.Run("a requester with no manager of their own is refused with a coded unresolved manager", func(t *testing.T) {
+		managers := &fakeManagers{byWorker: map[string]ManagerOf{
+			"worker-uuid-linh":     {InGraph: true, SubjectKey: "hc-051-linh-tran", ManagerPrincipal: "hc-050-rafael-torres"},
+			"hc-050-rafael-torres": {InGraph: true, SubjectKey: "hc-050-rafael-torres"},
+		}}
+		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-054-thomas-baker", managers: managers, plan: PLAN_EXECUTE}
+		_, err := factory.resolveApprovers(ctx, nil, routingRequest("hc-050-rafael-torres"))
+		if !errors.Is(err, ErrUnresolvedManager) || observe.ErrorCode(err) != CodeUnresolvedManager {
+			t.Fatalf("resolveApprovers = %v (code %s), want ErrUnresolvedManager coded %s", err, observe.ErrorCode(err), CodeUnresolvedManager)
 		}
 	})
 
@@ -112,7 +160,7 @@ func TestPromotionApproverRoutingFollowsTheReferenceWorkflow(t *testing.T) {
 		factory := promotionWorkItems{approver: "principal:base", financePartner: "hc-051-linh-tran",
 			managers: &fakeManagers{answer: ManagerOf{InGraph: true, SubjectKey: "hc-051-linh-tran", ManagerPrincipal: "hc-050-rafael-torres"}}, plan: PLAN_EXECUTE}
 		_, err := factory.resolveApprovers(ctx, nil, routingRequest(requester))
-		if !errors.Is(err, approverclass.ErrSubjectApprover) {
+		if !errors.Is(err, approverclass.ErrSubjectApprover) || observe.ErrorCode(err) != CodeApproverIsSubject {
 			t.Fatalf("resolveApprovers = %v, want ErrSubjectApprover", err)
 		}
 	})

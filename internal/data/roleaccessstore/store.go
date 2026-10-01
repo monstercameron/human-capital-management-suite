@@ -73,15 +73,17 @@ func (s *Store) Bootstrap(ctx context.Context, tenant values.TenantId, actor str
 	})
 }
 
-// BootstrapLocalDevPersonaPermissions narrows only untouched version-one
-// HarborCare demo grants. The payroll persona reviews assigned promotion work
-// but does not initiate requests or browse the organization tree. A grant an
-// administrator has edited (and therefore versioned) is never overwritten.
+// BootstrapLocalDevPersonaPermissions adjusts only local-development demo
+// grants. It narrows untouched payroll permissions and gives the HCM admin a
+// view-only persona catalog grant. An administrator's later edit is preserved.
 // This is called only by the local-dev composition, never for production.
 func (s *Store) BootstrapLocalDevPersonaPermissions(ctx context.Context, tenant values.TenantId) error {
 	return s.withTenant(ctx, tenant, func(tx dbport.Tx, tenantID uuid.UUID) error {
 		const actor = "system:local-dev-personas"
 		const reason = "Narrow demo persona grants to prevent unintended administrative access"
+		if err := s.grantLocalDevPersonaCatalog(ctx, tx, tenantID, actor); err != nil {
+			return fmt.Errorf("roleaccessstore: grant local-dev persona catalog: %w", err)
+		}
 		for _, roleID := range []string{"payroll_manager", "promotion_operator"} {
 			for _, pageID := range []string{"organization", "org-explorer", "org-outline", "org-responsive"} {
 				if err := narrowLocalDevPermission(ctx, tx, tenantID, roleID, pageID, actor, reason, "can_view"); err != nil {
@@ -94,6 +96,36 @@ func (s *Store) BootstrapLocalDevPersonaPermissions(ctx context.Context, tenant 
 		}
 		return nil
 	})
+}
+
+func (s *Store) grantLocalDevPersonaCatalog(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, actor string) error {
+	const reason = "Allow the local-development HCM administrator to view persona administration"
+	permission := roleaccess.PagePermission{RoleID: "hcm_admin", PageID: "persona-admin", Version: 1, View: true}
+	affected, err := tx.Exec(ctx, `INSERT INTO role_page_permission (tenant_id,role_id,page_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,1,true,false,false,false,$4) ON CONFLICT DO NOTHING`, tenantID, permission.RoleID, permission.PageID, actor)
+	if err != nil {
+		return err
+	}
+	if affected > 0 {
+		if err := appendRevision(ctx, tx, tenantID, actor, reason, RevisionPagePermission, permission.RoleID, "", "", permission.PageID, "", nil, permission); err != nil {
+			return err
+		}
+	}
+	if len(s.features) == 0 {
+		return nil
+	}
+	definition, registered := s.featureDefinition(permission.PageID, "content")
+	if !registered || !definition.View {
+		return roleaccess.ErrInvalid
+	}
+	feature := roleaccess.FeaturePermission{RoleID: permission.RoleID, PageID: permission.PageID, FeatureID: "content", Version: 1, View: true}
+	affected, err = tx.Exec(ctx, `INSERT INTO role_page_feature_permission (tenant_id,role_id,page_id,feature_id,version,can_view,can_create,can_update,can_delete,updated_by) VALUES ($1,$2,$3,$4,1,true,false,false,false,$5) ON CONFLICT DO NOTHING`, tenantID, feature.RoleID, feature.PageID, feature.FeatureID, actor)
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return nil
+	}
+	return appendRevision(ctx, tx, tenantID, actor, reason, RevisionFeaturePermission, feature.RoleID, "", "", feature.PageID, feature.FeatureID, nil, feature)
 }
 
 func narrowLocalDevPermission(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, roleID, pageID, actor, reason, field string) error {

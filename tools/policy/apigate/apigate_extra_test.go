@@ -11,7 +11,7 @@ import (
 )
 
 func TestAPIGate_ReportAndRegisterValidation(t *testing.T) {
-	if (Report{Decision: "COMPATIBLE"}).OK() != true || (Report{Decision: "BLOCK"}).OK() {
+	if (Report{Decision: OutcomeCompatible}).OK() != true || (Report{Decision: OutcomeBlock}).OK() {
 		t.Fatal("Report.OK did not honor decision")
 	}
 	violations := []struct {

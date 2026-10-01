@@ -77,7 +77,7 @@ func (a PromotionApprovalAuthority) CurrentApprovalAuthority(
 		}
 		holder = route
 	case promotionexec.AuthorityClassCurrentManager:
-		route, _, err := a.routes.managerRoute(ctx, ex, q.TenantID, q.SubjectID)
+		route, _, err := a.routes.managerRoute(ctx, ex, q.TenantID, q.SubjectID, q.RequesterID)
 		switch {
 		case errors.Is(err, ErrUnresolvedManager):
 			return current, nil

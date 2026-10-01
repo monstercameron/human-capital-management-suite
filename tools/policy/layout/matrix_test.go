@@ -19,7 +19,7 @@ func TestTodo_ARCH_GO_001_Golden(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := fmt.Sprintf("%X", sha256.Sum256(content))
-	const want = "F801BD09728EA18357442B7563E36D2A836E15591A6EE4A71F99A74F7B0DE45E"
+	const want = "4411EE4E09DA7176A2C1C56E64BF33DDDDE105E312516BC4E93195DFF6BAA446"
 	if got != want {
 		t.Fatalf("repository-layout.yaml SHA256 = %s, want %s", got, want)
 	}

@@ -32,3 +32,9 @@ func TestTodo_ABUSE_001_Golden(t *testing.T) {
 		}
 	}
 }
+
+func TestTodo_ABUSE_005_Served(t *testing.T) {
+	if err := abuse.ValidateServingContract(); err != nil {
+		t.Fatalf("abuse serving contract: %v", err)
+	}
+}

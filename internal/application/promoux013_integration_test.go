@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -11,8 +12,25 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/fixtures"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+type promoux013DiagnosticGrant struct{}
+
+func (promoux013DiagnosticGrant) AllowsInternalDiagnostics() bool { return true }
+
+func promoux013Diagnostic(err error) string {
+	var owned *envelope.Error
+	if !errors.As(err, &owned) {
+		return ""
+	}
+	diagnostic, ok := owned.Diagnostic(promoux013DiagnosticGrant{})
+	if !ok {
+		return ""
+	}
+	return diagnostic.Error()
+}
 
 // promoux013Composed builds one full production composition (real
 // PostgreSQL via pgtest, the real journey engine, the real P1B execution
@@ -66,11 +84,13 @@ func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspac
 	if err != nil {
 		t.Fatalf("build verifier: %v", err)
 	}
+	issuedAt := now.UTC().Truncate(time.Second).Add(-time.Minute)
+	expiresAt := issuedAt.Add(23 * time.Hour)
 	token, err := verifier.Issue(trust.Claims{
 		Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: subject, SubjectKind: "human", Tenant: tenant,
 		OrganizationScopeID: "org-north-america", Roles: []string{"intent_author", "comp_admin", "promotion_operator"},
 		Purposes: []string{"compensation_review"}, AuthenticationMethod: "bearer_token", Assurance: "substantial",
-		SessionRef: "session:promoux013-integration", IssuedAtUnix: now.Add(-time.Minute).Unix(), ExpiresAtUnix: now.Add(48 * time.Hour).Unix(),
+		SessionRef: "session:promoux013-integration", IssuedAtUnix: issuedAt.Unix(), ExpiresAtUnix: expiresAt.Unix(),
 	})
 	if err != nil {
 		t.Fatalf("issue journey credential: %v", err)
@@ -179,7 +199,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 		// The successor is a genuinely independent, executable proposal.
 		successorFinance, err := journey.Execute(ctx, successor.IntentID)
 		if err != nil {
-			t.Fatalf("Journey.Execute(successor): %v", err)
+			t.Fatalf("Journey.Execute(successor): %v; diagnostic: %s", err, promoux013Diagnostic(err))
 		}
 		if successorFinance.Summary.Stage != workspace.JourneyStage("FINANCE_APPROVAL") {
 			t.Fatalf("successor after execute stage = %s, want FINANCE_APPROVAL", successorFinance.Summary.Stage)
@@ -200,7 +220,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 
 		financeWaiting, err := journey.Execute(ctx, proposed.IntentID)
 		if err != nil {
-			t.Fatalf("Journey.Execute: %v", err)
+			t.Fatalf("Journey.Execute: %v; diagnostic: %s", err, promoux013Diagnostic(err))
 		}
 		if financeWaiting.Summary.Stage != workspace.JourneyStage("FINANCE_APPROVAL") {
 			t.Fatalf("after execute stage = %s, want FINANCE_APPROVAL", financeWaiting.Summary.Stage)
@@ -331,7 +351,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 
 		financeWaiting, err := journey.Execute(ctx, proposed.IntentID)
 		if err != nil {
-			t.Fatalf("Journey.Execute: %v", err)
+			t.Fatalf("Journey.Execute: %v; diagnostic: %s", err, promoux013Diagnostic(err))
 		}
 		_ = financeWaiting
 		now = now.Add(10 * time.Minute)
@@ -389,7 +409,7 @@ func TestTodo_PROMOUX_013_Integration(t *testing.T) {
 		}
 
 		if _, err := journey.Execute(ctx, proposed.IntentID); err != nil {
-			t.Fatalf("Journey.Execute: %v", err)
+			t.Fatalf("Journey.Execute: %v; diagnostic: %s", err, promoux013Diagnostic(err))
 		}
 		// WITHDRAW is no longer available once the workflow has started.
 		started, err := journey.PreviewIntervention(ctx, proposed.IntentID, workspace.JourneyInterventionWithdraw)

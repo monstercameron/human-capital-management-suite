@@ -1,5 +1,11 @@
 {
   "version": 1,
+  "disposition": {
+    "specification": "planning/specs/platform-responsibility-boundaries.md",
+    "owner": "platform-engineering",
+    "class": "library-tooling",
+    "status": "ACTIVE_REGISTER"
+  },
   "consumers": [
     {
       "id": "workflow-ui",

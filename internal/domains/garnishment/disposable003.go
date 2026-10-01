@@ -90,7 +90,9 @@ func (l WithholdingLimit) computedDigest(in EarningsInput) string {
 		String("rule_pack", in.RulePackRef).
 		String("rule_version", in.RulePackVersion).
 		String("rule_digest", in.RulePackDigest).
+		Value("protected_floor", in.ProtectedFloor).
 		Value("gross", in.Gross).
+		Value("ordered_amount", in.OrderedAmount).
 		Value("disposable", l.Disposable).
 		Value("max_withholding", l.MaxWithholding).
 		Value("ordered_capped", l.OrderedCapped).
@@ -98,6 +100,7 @@ func (l WithholdingLimit) computedDigest(in EarningsInput) string {
 	for i, d := range in.Deductions {
 		w.String(fmt.Sprintf("deduction_%d_kind", i), d.Kind)
 		w.Value(fmt.Sprintf("deduction_%d_amount", i), d.Amount)
+		w.String(fmt.Sprintf("deduction_%d_basis", i), d.BasisRef)
 	}
 	digest, err := w.Digest()
 	if err != nil {
@@ -137,14 +140,19 @@ func ComputeWithholdingLimit(in EarningsInput) (WithholdingLimit, error) {
 	if err := in.OrderedAmount.Validate(); err != nil || in.OrderedAmount.Sign() < 0 {
 		return WithholdingLimit{}, limitBlocked("earnings.ordered_amount", "INVALID", "ordered amount must be a valid non-negative decimal")
 	}
-	if err := in.ProtectedFloor.Validate(); err != nil {
-		return WithholdingLimit{}, limitBlocked("earnings.protected_floor", "INVALID", "protected floor must be a valid decimal")
+	if err := in.ProtectedFloor.Validate(); err != nil || in.ProtectedFloor.Sign() < 0 {
+		return WithholdingLimit{}, limitBlocked("earnings.protected_floor", "INVALID", "protected floor must be a valid non-negative decimal")
 	}
 	if in.LimitBps <= 0 || in.LimitBps > 10000 {
 		return WithholdingLimit{}, limitBlocked("earnings.limit_bps", "OUT_OF_RANGE", "legal limit must be within (0, 10000] basis points")
 	}
 	total := in.Gross
-	trace := []string{fmt.Sprintf("gross %s", in.Gross.String())}
+	trace := []string{
+		fmt.Sprintf("jurisdiction %s", in.Jurisdiction),
+		fmt.Sprintf("rule pack %s version %s digest %s", in.RulePackRef, in.RulePackVersion, in.RulePackDigest),
+		fmt.Sprintf("legal limit %d bps protected floor %s", in.LimitBps, in.ProtectedFloor.String()),
+		fmt.Sprintf("gross %s", in.Gross.String()),
+	}
 	for i, d := range in.Deductions {
 		if strings.TrimSpace(d.Kind) == "" || strings.TrimSpace(d.BasisRef) == "" {
 			return WithholdingLimit{}, limitBlocked(fmt.Sprintf("earnings.deductions[%d]", i), "MISSING", "each deduction carries kind and legal basis")

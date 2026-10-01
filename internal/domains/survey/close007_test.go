@@ -15,6 +15,7 @@ func survey007Input() CloseInput {
 		Retention: RetentionPolicy{
 			RetainUntil:    survey007At.AddDate(2, 0, 0),
 			DestructionDue: survey007At.AddDate(2, 0, 1),
+			ChronologyOnly: true,
 		},
 		ClosedAt: survey007At, AuthorityRef: "privacy-steward:ops-1",
 	}
@@ -40,6 +41,9 @@ func TestTodo_SURVEY_007(t *testing.T) {
 	}
 	if got.LockedAt.IsZero() || got.ResultDigest != "sha256:aggregate-result" {
 		t.Fatalf("close must lock and freeze: %+v", got)
+	}
+	if got.AuthorityRef != "privacy-steward:ops-1" {
+		t.Fatalf("close must retain the approving authority: %+v", got)
 	}
 	if got.Digest == "" {
 		t.Fatalf("archive must seal a digest")
@@ -98,6 +102,24 @@ func TestTodo_SURVEY_007(t *testing.T) {
 			t.Fatalf("short chronology must be SURVEY_007_REJECTED, got %v", err)
 		}
 	})
+
+	t.Run("archive policy is fail closed", func(t *testing.T) {
+		in := survey007Input()
+		in.Retention.DestructionDue = in.Retention.RetainUntil
+		if _, err := CloseCampaign(in, survey007Chronology()); !errors.Is(err, ErrCloseRejected) {
+			t.Fatalf("destruction at the retention horizon must be rejected, got %v", err)
+		}
+		in = survey007Input()
+		in.Retention.ChronologyOnly = false
+		if _, err := CloseCampaign(in, survey007Chronology()); !errors.Is(err, ErrCloseRejected) {
+			t.Fatalf("non-chronology archive policy must be rejected, got %v", err)
+		}
+		in = survey007Input()
+		chronology := []ChronologyBucket{{Period: "2026-01", ResponseCount: 2}, {Period: "2026-01", ResponseCount: 4}}
+		if _, err := CloseCampaign(in, chronology); !errors.Is(err, ErrCloseRejected) {
+			t.Fatalf("duplicate chronology periods must be rejected, got %v", err)
+		}
+	})
 }
 
 func TestTodo_SURVEY_007_Fault(t *testing.T) {
@@ -138,6 +160,15 @@ func TestTodo_SURVEY_007_Mutation(t *testing.T) {
 	}
 	if b.Digest == a.Digest {
 		t.Fatalf("evidence change must move the seal")
+	}
+	in = survey007Input()
+	in.AuthorityRef = "privacy-steward:other"
+	c, err := CloseCampaign(in, survey007Chronology())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Digest == a.Digest {
+		t.Fatalf("authority change must move the seal")
 	}
 	// Chronology carries counts only: no respondent identity field exists
 	// to mutate, so assert the shape directly.

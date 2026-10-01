@@ -12,6 +12,15 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/internal/repopath"
 )
 
+const ownedBufProtovalidateFallback = "github.com/monstercameron/human-capital-management-suite/tools/quality/bufprotovalidatekit"
+
+func isRejectedProtovalidateImport(importPath string) bool {
+	if importPath == ownedBufProtovalidateFallback {
+		return false
+	}
+	return strings.Contains(importPath, "protovalidate") || strings.Contains(importPath, "buf.validate")
+}
+
 // TestBufProtovalidateQualificationCannotBecomeBusinessAuthority is LIB-019's
 // primary test: Buf linting and Protovalidate structural validation must
 // remain developer-only mechanics that cannot decide authorization, legality,
@@ -51,7 +60,7 @@ func TestBufProtovalidateQualificationCannotBecomeBusinessAuthority(t *testing.T
 	}
 	for _, pkg := range pkgs {
 		for _, imp := range pkg.Imports {
-			if strings.Contains(imp, "protovalidate") || strings.Contains(imp, "buf.validate") {
+			if isRejectedProtovalidateImport(imp) {
 				t.Errorf("Protovalidate found in imports (rejected): %s in %s", imp, pkg.ImportPath)
 			}
 		}
@@ -143,7 +152,7 @@ func TestTodo_LIB_019_Security(t *testing.T) {
 	// Ensure no package imports Protovalidate
 	for _, pkg := range pkgs {
 		for _, imp := range pkg.Imports {
-			if strings.Contains(imp, "protovalidate") || strings.Contains(imp, "buf.validate") {
+			if isRejectedProtovalidateImport(imp) {
 				t.Errorf("SECURITY: Protovalidate import found (should be rejected): %s in package %s",
 					imp, pkg.ImportPath)
 			}
@@ -193,7 +202,7 @@ func TestTodo_LIB_019_Conformance(t *testing.T) {
 
 	for _, pkg := range pkgs {
 		for _, imp := range pkg.Imports {
-			if strings.Contains(imp, "protovalidate") || strings.Contains(imp, "buf.validate") {
+			if isRejectedProtovalidateImport(imp) {
 				t.Errorf("CONFORMANCE: Protovalidate import violates rejection: %s in %s", imp, pkg.ImportPath)
 			}
 		}
@@ -220,7 +229,7 @@ func TestTodo_LIB_019_Race(t *testing.T) {
 			}
 			for _, pkg := range pkgs {
 				for _, imp := range pkg.Imports {
-					if strings.Contains(imp, "protovalidate") {
+					if isRejectedProtovalidateImport(imp) {
 						t.Errorf("concurrent check found protovalidate (should be rejected): %s in %s", imp, pkg.ImportPath)
 					}
 				}

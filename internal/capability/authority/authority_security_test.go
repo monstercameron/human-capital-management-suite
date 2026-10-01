@@ -15,6 +15,31 @@ import (
 // stale or misbound step-up proofs, wildcard roles and single-approver
 // "dual" approvals never authorize a capability call.
 func TestTodo_INTAPI_003_Security(t *testing.T) {
+	t.Run("a scoped delegation cannot authorize through flat capability unions", func(t *testing.T) {
+		principal := authorityPrincipal(t, principalOpts{
+			subject: "delegate-1",
+			roles:   []string{"intent_author"}, purposes: []string{authorityPurpose},
+		})
+		read := readDef()
+		comp := compDef()
+		eff := verifiedDelegation(t, "delegate-1", []string{read.ID, comp.ID}, []string{authorityPurpose})
+		eff.SkillAuthorities = trust.SkillAuthorities{
+			"people.read": {
+				Capabilities: []string{read.ID}, Resources: []string{"worker:read"},
+				Fields: []string{"status"}, Purposes: []string{authorityPurpose},
+			},
+			"rewards.read": {
+				Capabilities: []string{comp.ID}, Resources: []string{"worker:comp"},
+				Fields: []string{"base_salary"}, Purposes: []string{authorityPurpose},
+			},
+		}
+
+		got := Authorize(principal, authorityPurpose, read, Authority{Delegation: &eff}, authorityBaseNow)
+		if got.Decision != capability.Deny {
+			t.Fatalf("decision = %s (%q), want DENY without an exact skill identity", got.Decision, got.Reason)
+		}
+	})
+
 	t.Run("a machine with forged delegation references is still refused", func(t *testing.T) {
 		principal := authorityPrincipal(t, principalOpts{
 			kind:  trust.SubjectKindService,

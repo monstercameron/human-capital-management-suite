@@ -52,7 +52,12 @@ type ComposeResult struct {
 	Digest       string
 	ValidUntil   time.Time
 	EvaluatedAt  time.Time
+	Privacy      PrivacyRuntime `json:"-"`
 }
+
+// PrivacyRuntime returns the composed privacy boundary without adding
+// implementation details to serialized governance projections.
+func (r ComposeResult) PrivacyRuntime() PrivacyRuntime { return r.Privacy }
 
 func composeDigest(r ComposeRequest) string {
 	h := sha256.New()
@@ -135,6 +140,7 @@ func unionDedup(lists ...[]string) []string {
 
 func Compose(r ComposeRequest) ComposeResult {
 	digest := composeDigest(r)
+	privacyRuntime := NewPrivacyRuntime()
 	now := r.Now
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -157,6 +163,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	if r.AuthZ.Effect == "DENY" {
@@ -169,6 +176,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	if r.Legal.Effect == "NON_COMPLIANT" {
@@ -181,6 +189,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	if !r.Purpose.Allowed {
@@ -192,6 +201,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	if r.AuthZ.Effect == "UNKNOWN" || r.Legal.Effect == "UNKNOWN" || r.Risk.Level == "UNKNOWN" {
@@ -204,6 +214,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	restrictions := intersect(r.AuthZ.Restrictions, r.Legal.Obligations)
@@ -221,6 +232,7 @@ func Compose(r ComposeRequest) ComposeResult {
 			Digest:       digest,
 			ValidUntil:   validUntil,
 			EvaluatedAt:  evaluatedAt,
+			Privacy:      privacyRuntime,
 		}
 	}
 	return ComposeResult{
@@ -231,5 +243,6 @@ func Compose(r ComposeRequest) ComposeResult {
 		Digest:       digest,
 		ValidUntil:   validUntil,
 		EvaluatedAt:  evaluatedAt,
+		Privacy:      privacyRuntime,
 	}
 }

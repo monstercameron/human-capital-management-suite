@@ -162,6 +162,13 @@ func checkDelegation(principal *trust.Principal, def capability.Definition, purp
 		return "the verified delegation does not cover this capability"
 	case purpose != "" && !contains(d.Purposes, purpose):
 		return "the verified delegation does not cover this purpose"
+	case d.SkillAuthorities != nil:
+		// A scoped delegation cannot be evaluated through this legacy flat
+		// entry point. Using the top-level dimensions here would allow one
+		// skill's capability to combine with another skill's resources,
+		// fields or purpose. Callers must use an exact skill-bound evaluator
+		// that keeps every dimension under the same map key.
+		return "the verified delegation is skill-scoped and requires an exact skill identity"
 	default:
 		return ""
 	}

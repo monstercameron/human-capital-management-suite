@@ -48,9 +48,18 @@ func withManagedReports(principal *trust.Principal, roles []string, all, visible
 	if !roleaccess.ContainsRole(roles, "manager") || subject == "" {
 		return visible, options, nil
 	}
-	byRef := make(map[string]workspace.WorkerSummary, len(all)*2)
+	// A persisted manager relationship names the manager by the stored worker
+	// key, which the listing exposes as SubjectID (see workerMatchesPrincipal
+	// and workerIdentityIndex above), not by the display-slug WorkerRef a
+	// governed read hands back. Indexing only WorkerRef and WorkerID left
+	// every reporting-line walk unable to resolve a manager reference
+	// recorded in that raw key form -- a hiring manager whose reports were
+	// created through CreateWorker (ManagerRef stored verbatim as the
+	// manager's worker key) or whose reports are seeded demo workers saw none
+	// of them (UXBLIND-004).
+	byRef := make(map[string]workspace.WorkerSummary, len(all)*3)
 	for _, worker := range all {
-		for _, key := range []string{worker.WorkerRef, worker.WorkerID} {
+		for _, key := range []string{worker.WorkerRef, worker.WorkerID, worker.SubjectID} {
 			if k := strings.ToLower(strings.TrimSpace(key)); k != "" {
 				byRef[k] = worker
 			}
@@ -179,12 +188,18 @@ func visibleWorkforceForRolePolicies(principal *trust.Principal, workers []works
 	return visible, visibleWorkforceOptions(options, visible)
 }
 
+// workerMatchesPrincipal reports whether worker is the principal's own record.
+// A durable worker's WorkerRef is a display slug ("linh-5c1e..."); the
+// identity a signed-in employee carries is the stored worker key, which the
+// listing exposes as SubjectID. Without it no durable worker ever matched its
+// own principal, so self-visibility, own-unit visibility and self disclosure
+// all silently failed for every non-administrator (UXBLIND-003).
 func workerMatchesPrincipal(worker workspace.WorkerSummary, subject string) bool {
 	subject = strings.ToLower(strings.TrimSpace(subject))
 	if subject == "" {
 		return false
 	}
-	for _, candidate := range []string{worker.WorkerRef, worker.WorkerID, worker.WorkerNumber} {
+	for _, candidate := range []string{worker.WorkerRef, worker.WorkerID, worker.WorkerNumber, worker.SubjectID} {
 		if strings.ToLower(strings.TrimSpace(candidate)) == subject {
 			return true
 		}

@@ -123,6 +123,7 @@ func (p *promotionStepPorts) governanceFacts(ctx context.Context, tx governanceE
 		return revalidate.Facts{}, err
 	}
 	facts.Conflict = conflict
+	println("S3DIAG facts budget", string(budget.Effect), budget.ObservationID, "position", string(position.Effect), position.ObservationID, "conflict", fmt.Sprintf("%+v", conflict))
 	return facts, nil
 }
 

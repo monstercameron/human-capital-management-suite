@@ -71,8 +71,17 @@ type promoux015Harness struct {
 	principals map[string]*trust.Principal
 	verifier   *trust.HMACVerifier
 	effective  string
-	// subject is the created worker every promotion here is about.
+	// subject is the created worker every promotion here is about, by its
+	// display-slug WorkerRef -- the reference every API surface (ListWorkers,
+	// ProposeJourney) addresses it by.
 	subject string
+	// subjectWorkerID is the same worker's durable worker_id (journey_worker's
+	// primary key). A created worker's persisted worker_key is that same raw
+	// id (internal/intent/app/journey_workforce.go sets WorkerKey to
+	// workerID.String()), never the display slug subject carries, so a helper
+	// that reads the row directly by key needs this rather than re-deriving
+	// it from subject.
+	subjectWorkerID uuid.UUID
 	// receipts is the provider-receipt reader composed for the promotion
 	// 1.1.0 observations; confirmProviders records the providers' answers.
 	receipts *fakeProviderReceipts
@@ -103,7 +112,7 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
 		DevHMACKey: promoux015SigningKey, PageCursorKey: integrationPageCursorKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-promoux015-separation", MaxDeadline: 60 * time.Second,
-		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
+		Workspace: true, DevBrowserLogin: true, Profile: ServeProfileLocalDev, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux015-separation",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
@@ -168,6 +177,11 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 		t.Fatalf("CreateWorker reporting to %s: %v", promoux015Manager, err)
 	}
 	h.subject = created.GetWorker().GetWorkerRef()
+	workerID, parseErr := uuid.Parse(created.GetWorker().GetWorkerId())
+	if parseErr != nil {
+		t.Fatalf("parse the created worker's id %q: %v", created.GetWorker().GetWorkerId(), parseErr)
+	}
+	h.subjectWorkerID = workerID
 	return h
 }
 
@@ -180,6 +194,61 @@ func (h *promoux015Harness) rpc(persona string) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	h.t.Cleanup(cancel)
 	return metadata.AppendToOutgoingContext(ctx, transport.AuthorizationMetadataKey, "Bearer "+token)
+}
+
+// promoux015ComposeWithWorkforce is [promoux015Compose] plus the demo
+// workforce seed the PROMOUX-015 tests that discover or act through the
+// hiring-manager persona need but the shared harness does not carry by
+// default. The proposer in this suite is the hiring-manager persona (Darius
+// Bennett), whose read authorization over the discovered or created subject
+// is granted only through a MANAGER_CHAIN relationship fact
+// (internal/intent/app/manager_chain_facts.go), and that fact is built by
+// walking journey_worker.manager_relationship_ref up from the subject. The
+// subject's manager reference names Rafael Torres by his demo-seeded worker
+// key, and Rafael's own reference names Darius the same way, but neither row
+// exists unless the demo workforce is actually seeded -- promoux015Compose
+// composes with DevWorkforceBootstrap left at its default false, exactly so
+// the many other callers of this harness elsewhere in the package (promotion
+// execution, workflow run and recovery suites that never act as the
+// hiring-manager persona) are not slowed down loading the whole HarborCare
+// population on every run. Seeding here, after the harness's own CreateWorker
+// call, is safe: bootstrapLocalDevWorkforce is documented replay-safe and
+// re-running it against a tenant that already holds one extra created worker
+// leaves that worker untouched.
+func promoux015ComposeWithWorkforce(t *testing.T) *promoux015Harness {
+	t.Helper()
+	h := promoux015Compose(t)
+	if _, _, err := bootstrapLocalDevWorkforce(context.Background(), h.pool, h.cfg.Tenant); err != nil {
+		t.Fatalf("seed the local development workforce: %v", err)
+	}
+	return h
+}
+
+// promoux015ComposeWithPublishedWorkforce keeps the full-pack subject and its
+// authored reporting line for integration flows that must use a real pack
+// promotion target. The legacy created worker remains available to the
+// separation suite, but is not a valid subject for the HarborCare ladder.
+func promoux015ComposeWithPublishedWorkforce(t *testing.T) *promoux015Harness {
+	t.Helper()
+	h := promoux015ComposeWithWorkforce(t)
+	listed, err := h.client.ListWorkers(h.rpc("individual-contributor"), &journeyv1.ListWorkersRequest{})
+	if err != nil {
+		t.Fatalf("list the published workforce: %v", err)
+	}
+	for _, worker := range listed.GetWorkers() {
+		if worker.GetLegalName() != "Linh Tran" && worker.GetWorkerRef() != promoux015Employee {
+			continue
+		}
+		h.subject = worker.GetWorkerRef()
+		workerID, parseErr := uuid.Parse(worker.GetWorkerId())
+		if parseErr != nil {
+			t.Fatalf("parse published subject worker id %q: %v", worker.GetWorkerId(), parseErr)
+		}
+		h.subjectWorkerID = workerID
+		return h
+	}
+	t.Fatalf("published workforce did not contain subject %s", promoux015Employee)
+	return nil
 }
 
 // engine is the composed journey engine and a context carrying a persona's
@@ -301,7 +370,7 @@ func promoux015Code(t *testing.T, err error, want codes.Code, what string) {
 // decides only the manager approval; the employee can neither propose nor
 // decide. Every decision row names the caller.
 func TestPromotionDecisionSeparationOfDutiesFourPersonasEachDoExactlyTheirStep(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	subjects := map[string]string{}
 	for persona, principal := range h.principals {
 		subjects[persona] = principal.Subject()
@@ -407,7 +476,7 @@ func TestPromotionDecisionSeparationOfDutiesFourPersonasEachDoExactlyTheirStep(t
 // credential that holds every administrative role but is no member of the open
 // approval is refused with the route sentinel before any write.
 func TestPromotionDecisionSeparationOfDutiesRefusesANonMemberHoldingTheExecutionRole(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	before := h.items(id)[promotionexec.NodeApproveFinance]
 
@@ -508,7 +577,7 @@ func (h *promoux015Harness) promoux015Delegate(node, owner, delegate, requester 
 // the item, and proves the initiator is still refused with the separation
 // sentinel before any write.
 func TestPromotionDecisionSeparationOfDutiesRefusesTheInitiator(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	h.promoux015Delegate(promotionexec.NodeApproveFinance, promoux015Finance, promoux015Proposer, "principal:promoux015-misrouted-requester")
 	before := h.items(id)[promotionexec.NodeApproveFinance]
@@ -528,7 +597,7 @@ func TestPromotionDecisionSeparationOfDutiesRefusesTheInitiator(t *testing.T) {
 // manager approval to the same finance partner, and proves they cannot decide
 // the sibling approval of the same proposal.
 func TestPromotionDecisionSeparationOfDutiesRefusesOnePrincipalDecidingBothApprovals(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	if _, err := h.client.DecideJourney(h.rpc("finance-partner"), &journeyv1.DecideJourneyRequest{IntentId: id, Approve: true, Reason: "finance approves"}); err != nil {
 		t.Fatalf("DecideJourney as the finance partner: %v", err)

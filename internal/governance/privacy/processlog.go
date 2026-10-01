@@ -162,6 +162,42 @@ func NewProcessProjector(scope ProcessScope) (*ProcessProjector, error) {
 	}, nil
 }
 
+// ValidateProcessLogContract exercises the immutable projector from the
+// serving composition. It keeps the process-log capability on a real product
+// path without creating a durable synthetic case or widening the projector's
+// caller-controlled scope.
+func ValidateProcessLogContract() error {
+	const (
+		tenant   = "serving-contract"
+		purpose  = "PROCESS_MINING"
+		workflow = "serving-contract"
+	)
+	projector, err := NewProcessProjector(ProcessScope{
+		TenantID: tenant, Purpose: purpose, AllowedWorkflows: []string{workflow},
+		RedactResources: true, RedactionSalt: "serving-contract-salt",
+	})
+	if err != nil {
+		return fmt.Errorf("privacy: process-log projector: %w", err)
+	}
+	if err := projector.Append(ProcessEvent{
+		EventID: "serving-contract-event", TenantID: tenant, WorkflowID: workflow,
+		CaseID: "serving-contract-case", CaseSequence: 1,
+		Activity: "serving contract", Lifecycle: LifecycleCompleted,
+		At: time.Unix(0, 0).UTC(), Resource: "serving-contract-resource",
+	}); err != nil {
+		return fmt.Errorf("privacy: process-log append: %w", err)
+	}
+	projection, err := projector.Project("serving-contract-case")
+	if err != nil {
+		return fmt.Errorf("privacy: process-log projection: %w", err)
+	}
+	if projection.Completeness != CompletenessComplete || len(projection.Events) != 1 ||
+		!projection.Events[0].Redacted || projection.Events[0].Resource == "serving-contract-resource" {
+		return fmt.Errorf("privacy: process-log serving projection is not canonical: %+v", projection)
+	}
+	return nil
+}
+
 // Append validates and records one event. Scope violations, unknown
 // causation, missing effective time and replays are refused.
 func (p *ProcessProjector) Append(event ProcessEvent) error {

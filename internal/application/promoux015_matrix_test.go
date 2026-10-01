@@ -115,7 +115,7 @@ func (h *promoux015Harness) redial() {
 // worker already in flight, and a reconnect that must neither lose nor repeat
 // the journey.
 func TestTodo_PROMOUX_015_Integration(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 
 	t.Run("a denial records its one terminal fact and nothing more", func(t *testing.T) {
 		before := h.effects()
@@ -194,7 +194,7 @@ func TestTodo_PROMOUX_015_Integration(t *testing.T) {
 // from what PostgreSQL recorded -- the second approval, the effective-date
 // wait and exactly one commit -- with no approval repeated or lost.
 func TestTodo_PROMOUX_015_Recovery(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	before := h.effects()
 	req, _ := h.discoverPromotion("hiring-manager")
 	proposed, err := h.client.ProposeJourney(h.rpc("hiring-manager"), req)
@@ -246,7 +246,7 @@ func TestTodo_PROMOUX_015_Recovery(t *testing.T) {
 // the listing's reporting-line visibility expands only a manager's own
 // reports, and no ordinary reviewer receives raw work item identifiers.
 func TestTodo_PROMOUX_015_Security(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	before := h.effects()
 
@@ -300,7 +300,7 @@ func TestTodo_PROMOUX_015_Security(t *testing.T) {
 // vacuous by planting the defects they exist to catch into real rows and real
 // projections and observing each oracle refuse them.
 func TestTodo_PROMOUX_015_Mutation(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	before := h.effects()
 	id := h.runSeparatedPromotion()
 	approved := h.effects()
@@ -363,7 +363,7 @@ func TestTodo_PROMOUX_015_Mutation(t *testing.T) {
 // to review the promotion to a latency budget over real gRPC and PostgreSQL,
 // with 100 samples so a nearest-rank p95 breach needs six slow calls.
 func TestTodo_PROMOUX_015_Performance(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	for _, probe := range []struct {
 		name string
@@ -441,7 +441,7 @@ var untranslatedKey = regexp.MustCompile(`>\s*(work|person|journey|shell|nav|his
 // and direction, renders no raw message key, and that a role's denied page is
 // refused in every locale.
 func TestTodo_PROMOUX_015_I18N(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	h.runSeparatedPromotion()
 	for _, surface := range promoux015Pages {
 		for _, loc := range promoux015Locales {
@@ -470,7 +470,7 @@ func TestTodo_PROMOUX_015_I18N(t *testing.T) {
 // qualification checks (tools/uxqual/qual) over every persona's served review
 // pages in every locale.
 func TestTodo_PROMOUX_015_Accessibility(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	h.runSeparatedPromotion()
 	for _, surface := range promoux015Pages {
 		for _, loc := range promoux015Locales {
@@ -511,7 +511,7 @@ func TestTodo_PROMOUX_015_Browser(t *testing.T) {
 		}
 	}
 
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	h.runSeparatedPromotion()
 	for _, surface := range promoux015Pages {
 		for _, page := range surface.pages {

@@ -91,6 +91,25 @@ func TestTodo_EXPORT_001_Security(t *testing.T) {
 			t.Fatalf("value %q was not neutralized: %q", value, artifact.Content)
 		}
 	}
+	for _, value := range []string{"=1+1", "+1", "-1", "@cmd", "\t=1", "\r=1", "\n=1", "\uFF1D1", "\uFF0B1", "\uFF0D1", "\uFF20cmd"} {
+		r := exportRequest(MachineData)
+		r.Records[1].Fields[1].Value = value
+		artifact, err := Export(r, exportNow)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var document struct {
+			Records []struct {
+				Fields []Field `json:"fields"`
+			} `json:"records"`
+		}
+		if err := json.Unmarshal(artifact.Content, &document); err != nil {
+			t.Fatal(err)
+		}
+		if got := document.Records[0].Fields[1].Value; got != value {
+			t.Fatalf("machine value %q changed to %q", value, got)
+		}
+	}
 	r := exportRequest(MachineData)
 	r.Records[0].Fields = append(r.Records[0].Fields, Field{Name: "secret", Value: "x"})
 	if _, err := Export(r, exportNow); !errors.Is(err, ErrUnauthorized) {

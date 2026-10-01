@@ -191,12 +191,19 @@ func EvidenceRef(row WorkerRow) string {
 // rather than as an empty string pretending to be an answer -- which is the
 // distinction [Facts.project] draws from an empty value here.
 //
-// The other five facts that migration added -- employment and time type,
-// business unit, cost center, work arrangement -- have no people.FieldID and
-// deliberately get none. [people.FieldID] is the closed projection the
-// promotion authorization contract is written against; widening it would
-// re-open that contract for facts no governed read asks for. They travel to
-// the object page on the worker listing row instead.
+// Employment type, time type, business unit, cost center and work
+// arrangement -- the other five facts migration 00316 added -- have no
+// people.FieldID and deliberately get none. [people.FieldID] is the closed
+// projection the promotion authorization contract is written against;
+// widening it would re-open that contract for facts no governed read asks
+// for. They travel to the object page on the worker listing row instead.
+//
+// migrations/00380's three facts -- exemption status, time capture mode and
+// the time profile reference -- are the exception: WTIME-001's per-assignment
+// time profile is itself something promotion preflight and simulation need to
+// read, so people.FieldExemptionStatus, people.FieldTimeCaptureMode and
+// people.FieldTimeProfileRef are defined and projected here alongside
+// people.FieldWorkerType.
 func FieldValues(row WorkerRow) map[people.FieldID]string {
 	return map[people.FieldID]string{
 		people.FieldWorkerNumber:    row.WorkerNumber,
@@ -221,6 +228,9 @@ func FieldValues(row WorkerRow) map[people.FieldID]string {
 		people.FieldPayZone:          row.PayZone,
 		people.FieldFTE:              row.FTE,
 		people.FieldManagerRelation:  row.ManagerRelationshipRef,
+		people.FieldExemptionStatus:  row.ExemptionStatus,
+		people.FieldTimeCaptureMode:  row.TimeCaptureMode,
+		people.FieldTimeProfileRef:   row.TimeProfileRef,
 	}
 }
 

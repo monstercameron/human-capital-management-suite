@@ -11,7 +11,12 @@ import (
 )
 
 func testRegister() Register {
-	return Register{Version: 1, Consumers: []Consumer{{
+	return Register{Version: 1, Disposition: Disposition{
+		Specification: "planning/specs/platform-responsibility-boundaries.md",
+		Owner:         "platform-engineering",
+		Class:         "library-tooling",
+		Status:        "ACTIVE_REGISTER",
+	}, Consumers: []Consumer{{
 		ID: "workflow-ui", Owner: "experience", Service: "hcmnext.intents.v1.IntentService", AdoptedVersion: 1,
 		Watermark: "schema-baseline-2026-09-05", Sunset: "2027-09-05",
 		Methods: []string{"ExplainIntent", "GetIntent"},
@@ -31,16 +36,20 @@ func TestTodo_PROTO_008(t *testing.T) {
 	if len(findings) != 1 || findings[0].ConsumerID != "workflow-ui" {
 		t.Fatalf("ConsumerFindings = %+v, want workflow-ui field impact", findings)
 	}
-	if (Report{Decision: "BLOCK", Compatibility: compatibility.BufBreakingReport{Violations: violations}, ConsumerFindings: findings}).OK() {
+	if (Report{Decision: OutcomeBlock, Compatibility: compatibility.BufBreakingReport{Violations: violations}, ConsumerFindings: findings}).OK() {
 		t.Fatal("breaking consumer change was accepted")
+	}
+	decisions := ConsumerDecisions(register, violations)
+	if len(decisions) != 1 || decisions[0].Decision != OutcomeMigrate || decisions[0].Owner != "experience" || decisions[0].Sunset == "" {
+		t.Fatalf("ConsumerDecisions = %+v, want owner/sunset-backed MIGRATE", decisions)
 	}
 }
 
 func TestTodo_PROTO_008_Property(t *testing.T) {
 	if err := Validate(Register{Version: 1}); err == nil {
-		t.Fatal("empty consumer register was accepted")
+		t.Fatal("register without disposition was accepted")
 	}
-	if err := Validate(Register{Version: 1, Consumers: []Consumer{{ID: "x", Owner: "y", Service: "z", Methods: []string{"M"}}}}); err == nil {
+	if err := Validate(Register{Version: 1, Disposition: testRegister().Disposition, Consumers: []Consumer{{ID: "x", Owner: "y", Service: "z", Methods: []string{"M"}}}}); err == nil {
 		t.Fatal("consumer without field dependencies was accepted")
 	}
 }

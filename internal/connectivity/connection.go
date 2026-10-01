@@ -424,6 +424,12 @@ func (c *ConnectorConnection) ID() string { return c.spec.ConnectionID }
 // TenantID returns the owning tenant.
 func (c *ConnectorConnection) TenantID() string { return c.spec.TenantID }
 
+// OrgID returns the owning organization.
+func (c *ConnectorConnection) OrgID() string { return c.spec.OrgID }
+
+// SystemID returns the external system identity.
+func (c *ConnectorConnection) SystemID() string { return c.spec.SystemID }
+
 // ConnectorID returns the definition identity this connection is bound to.
 func (c *ConnectorConnection) ConnectorID() string { return c.definition.ConnectorID }
 
@@ -435,6 +441,9 @@ func (c *ConnectorConnection) Environment() Environment { return c.spec.Environm
 
 // Residency returns the residency profile.
 func (c *ConnectorConnection) Residency() string { return c.spec.Residency }
+
+// AuthMode returns the connection's authentication mode.
+func (c *ConnectorConnection) AuthMode() AuthMode { return c.spec.AuthMode }
 
 // CredentialRef returns the opaque credential reference. There is no accessor
 // for credential material because no credential material is held.

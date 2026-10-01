@@ -607,6 +607,9 @@ func declareJourneyTokens() {
 		gwccss.Gap(gwccss.VarLength("jn-s2")),
 		gwccss.Raw("grid-template-columns", "repeat(auto-fill,minmax(min(19rem,100%),1fr))"),
 	)
+	declareGlobal(`.jn-grid:has(> .jn-griditem:only-child)`,
+		gwccss.Raw("grid-template-columns", "1fr"),
+	)
 	declareGlobal(`.jn-journey-groups`,
 		gwccss.Display.Grid,
 		gwccss.Gap(gwccss.VarLength("jn-s4")),
@@ -675,6 +678,14 @@ func declareJourneyTokens() {
 	declareGlobal(`.jn-journey-headline`,
 		gwccss.FontSize(gwccss.Rem(0.875)),
 		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
+	)
+	declareGlobal(`.jn-journey-codes`,
+		gwccss.FontSize(gwccss.Rem(0.75)),
+		gwccss.TextColor(gwccss.Var("jn-ink-muted")),
+		gwccss.Raw("font-variant-numeric", "tabular-nums"),
+		gwccss.Raw("letter-spacing", ".025em"),
+		gwccss.Raw("margin-block-start", "-.375rem"),
+		gwccss.Raw("margin-block-end", "0"),
 	)
 	declareGlobal(`.jn-journey-pay`,
 		// One step above the card title: the pay change is the loudest fact

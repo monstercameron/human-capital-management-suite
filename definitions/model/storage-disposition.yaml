@@ -212,6 +212,24 @@ migrationfiles:
   - 00362_inbound_reply_thread_binding.sql
   - 00363_integration_webhook_receipt_inbox.sql
   - 00364_brand_asset_library.sql
+  - 00365_workflow_draft_author_delete.sql
+  - 00366_agent_delegation_grants.sql
+  - 00367_agent_task_runtime.sql
+  - 00368_agent_budget_ledger.sql
+  - 00369_agent_audit_chain.sql
+  - 00370_agent_system_connections.sql
+  - 00380_journey_worker_time_tracking.sql
+  - 00423_agent_persona_store.sql
+  - 00424_tenant_agent_setting.sql
+  - 00710_workflow_page.sql
+  - 00711_promotion_write_provenance.sql
+  - 00712_agent_budget_extension_replay.sql
+  - 00713_agent_skill_grants.sql
+  - 00714_agent_current_population.sql
+  - 00715_agent_task_events.sql
+  - 00716_agent_task_event_evidence.sql
+  - 00717_agent_delegation_target_identity.sql
+  - 00718_agent_current_home_organization.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

@@ -1074,7 +1074,8 @@ func linkMessage(link projectservice.TaskLink) *projectv1.ResolvedTaskLink {
 	if link.Resolution.State == projectlink.Available {
 		result.State = projectv1.TaskLinkResolutionState_TASK_LINK_RESOLUTION_STATE_AVAILABLE
 		if p := link.Resolution.Preview; p != nil {
-			result.Preview = &projectv1.TaskLinkPreview{Title: p.Title, Snippet: p.Snippet, SafeWorkItemStatus: p.Status, Freshness: p.Freshness}
+			observedVersion, _ := strconv.ParseUint(p.Version, 10, 64)
+			result.Preview = &projectv1.TaskLinkPreview{Title: p.Title, Snippet: p.Snippet, ObservedWorkItemVersion: observedVersion, SafeWorkItemStatus: p.Status, Freshness: p.Freshness}
 		}
 	}
 	return result

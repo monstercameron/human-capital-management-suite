@@ -644,18 +644,19 @@ modules:
 
   - path: github.com/monstercameron/schemaflux
     version: v1.2.0
-    role: DEV_TEST_ONLY
+    role: INFRASTRUCTURE_MECHANIC
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [tools/gen]
-    direct_import_expected: false
-    upgrade_sla: Best-effort; pinned for the TOOL-004 qualification fixture.
+    allowed_import_roots: [tools/gen, internal/agentmodel]
+    direct_import_expected: true
+    upgrade_sla: Minor within 90 days; security patch within 14 days.
     exposure: >-
-      Offline, deterministic definition generation only (TOOL-004); its model
-      and web-search surfaces are never invoked and no production package may
-      import it.
-    replacement_strategy: protoc with Go plugins (TOOL-004 fallback).
+      Typed model-gateway mechanics only. internal/agentmodel is the sole
+      production import root; it owns actor, skill, redaction, budget and audit
+      policy around SchemaFlux. SchemaFlux's provider clients remain
+      transitive and have no allowed import roots.
+    replacement_strategy: A reviewed typed model gateway with equivalent schema validation, retry, and accounting guarantees.
 
   - path: github.com/fxamacker/cbor/v2
     version: v2.9.0
