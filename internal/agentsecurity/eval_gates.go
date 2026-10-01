@@ -22,14 +22,18 @@ type EvalFixture struct {
 // Release pins the exact prompt, model and tool versions under evaluation.
 // Any version change is a different release and must re-pass evaluation.
 type Release struct {
-	Agent       string
-	AgentBuild  string
-	Model       string
-	ModelDigest string
-	Tool        string
-	ToolVersion uint32
-	Prompt      string
-	PromptHash  string
+	Agent          string
+	AgentBuild     string
+	AgentVersion   string
+	PersonaID      string
+	PersonaVersion string
+	InstallationID string
+	Model          string
+	ModelDigest    string
+	Tool           string
+	ToolVersion    uint32
+	Prompt         string
+	PromptHash     string
 }
 
 // EvalRun is the immutable evaluation record gating publication.
@@ -156,24 +160,33 @@ func (p *Publisher) Published(digest string) bool {
 	return ok
 }
 
-// DisableScope selects one kill-switch dimension.
+// DisableScope selects leases by the conjunction of its non-empty fields.
+// An empty scope matches nothing; AllAI explicitly selects every lease.
 type DisableScope struct {
-	Agent  string
-	Model  string
-	Tool   string
-	Tenant string
-	AllAI  bool
+	Agent          string
+	AgentVersion   string
+	PersonaID      string
+	PersonaVersion string
+	InstallationID string
+	Model          string
+	Tool           string
+	Tenant         string
+	AllAI          bool
 }
 
 // Lease is one revocable write-capable call binding.
 type Lease struct {
-	ID           string
-	Agent        string
-	Model        string
-	Tool         string
-	Tenant       string
-	WriteCapable bool
-	revoked      bool
+	ID             string
+	Agent          string
+	AgentVersion   string
+	PersonaID      string
+	PersonaVersion string
+	InstallationID string
+	Model          string
+	Tool           string
+	Tenant         string
+	WriteCapable   bool
+	revoked        bool
 }
 
 // Fallback is the deterministic non-AI continuation returned when AI
@@ -183,11 +196,12 @@ type Fallback struct {
 	NonAIAvailable bool
 }
 
-// KillSwitch revokes leases by scope and answers every disabled call with
-// the deterministic fallback. No revoked write-capable call stays in flight.
+// KillSwitch revokes leases by scope and fences later work with the
+// deterministic fallback. RunStep serializes a step start with revocation.
 type KillSwitch struct {
-	mu     sync.Mutex
-	leases map[string]*Lease
+	mu       sync.Mutex
+	leases   map[string]*Lease
+	disabled []DisableScope
 }
 
 // NewKillSwitch starts an empty kill switch.
@@ -208,6 +222,11 @@ func (k *KillSwitch) Grant(lease Lease) error {
 	if _, dup := k.leases[lease.ID]; dup {
 		return refusal(RefusalInvalid, "lease", "duplicate lease")
 	}
+	for _, scope := range k.disabled {
+		if scopeMatches(scope, &lease) {
+			return refusal(RefusalEffectClass, "lease", "disabled scope cannot grant a new lease")
+		}
+	}
 	held := lease
 	k.leases[lease.ID] = &held
 	return nil
@@ -217,24 +236,61 @@ func scopeMatches(scope DisableScope, lease *Lease) bool {
 	if scope.AllAI {
 		return true
 	}
-	if scope.Agent != "" && scope.Agent == lease.Agent {
-		return true
+	selected := false
+	if scope.Agent != "" {
+		selected = true
+		if scope.Agent != lease.Agent {
+			return false
+		}
 	}
-	if scope.Model != "" && scope.Model == lease.Model {
-		return true
+	if scope.AgentVersion != "" {
+		selected = true
+		if scope.AgentVersion != lease.AgentVersion {
+			return false
+		}
 	}
-	if scope.Tool != "" && scope.Tool == lease.Tool {
-		return true
+	if scope.PersonaID != "" {
+		selected = true
+		if scope.PersonaID != lease.PersonaID {
+			return false
+		}
 	}
-	if scope.Tenant != "" && scope.Tenant == lease.Tenant {
-		return true
+	if scope.PersonaVersion != "" {
+		selected = true
+		if scope.PersonaVersion != lease.PersonaVersion {
+			return false
+		}
 	}
-	return false
+	if scope.InstallationID != "" {
+		selected = true
+		if scope.InstallationID != lease.InstallationID {
+			return false
+		}
+	}
+	if scope.Model != "" {
+		selected = true
+		if scope.Model != lease.Model {
+			return false
+		}
+	}
+	if scope.Tool != "" {
+		selected = true
+		if scope.Tool != lease.Tool {
+			return false
+		}
+	}
+	if scope.Tenant != "" {
+		selected = true
+		if scope.Tenant != lease.Tenant {
+			return false
+		}
+	}
+	return selected
 }
 
 // Disable revokes every lease in scope and returns the deterministic
-// fallback. Revocation is total within scope: no write-capable call
-// survives, and non-AI HCM stays available.
+// fallback. Once it returns, later step starts for matching leases are
+// refused, and non-AI HCM stays available.
 func (k *KillSwitch) Disable(scope DisableScope) (revoked int, fallback Fallback) {
 	fallback = Fallback{Reason: "ai capability disabled", NonAIAvailable: true}
 	if k == nil {
@@ -242,6 +298,18 @@ func (k *KillSwitch) Disable(scope DisableScope) (revoked int, fallback Fallback
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	if scope != (DisableScope{}) {
+		known := false
+		for _, disabled := range k.disabled {
+			if disabled == scope {
+				known = true
+				break
+			}
+		}
+		if !known {
+			k.disabled = append(k.disabled, scope)
+		}
+	}
 	for _, lease := range k.leases {
 		if !lease.revoked && scopeMatches(scope, lease) {
 			lease.revoked = true
@@ -251,9 +319,9 @@ func (k *KillSwitch) Disable(scope DisableScope) (revoked int, fallback Fallback
 	return revoked, fallback
 }
 
-// Invoke admits one lease use. Revoked leases are refused with the
-// deterministic fallback.
-func (k *KillSwitch) Invoke(id string) (Fallback, error) {
+// Check admits one lease use. Revoked leases are refused with the
+// deterministic fallback. Call before beginning a new unit of work.
+func (k *KillSwitch) Check(id string) (Fallback, error) {
 	if k == nil {
 		return Fallback{}, refusal(RefusalInvalid, "kill_switch", "nil kill switch")
 	}
@@ -265,6 +333,38 @@ func (k *KillSwitch) Invoke(id string) (Fallback, error) {
 	}
 	if lease.revoked {
 		return Fallback{Reason: "lease revoked", NonAIAvailable: true}, refusal(RefusalEffectClass, "lease", "revoked lease cannot invoke")
+	}
+	return Fallback{Reason: "ai admitted", NonAIAvailable: true}, nil
+}
+
+// Invoke is the legacy name for Check.
+func (k *KillSwitch) Invoke(id string) (Fallback, error) {
+	return k.Check(id)
+}
+
+// RunStep starts one bounded unit of work only while its lease is active.
+// The callback runs under the switch lock, so Disable and the step start
+// have a single order: a running callback completes before Disable returns,
+// or Disable returns first and the callback never starts. Callers must keep
+// the callback to one step and must not call KillSwitch methods from it.
+func (k *KillSwitch) RunStep(id string, step func() error) (Fallback, error) {
+	if k == nil {
+		return Fallback{}, refusal(RefusalInvalid, "kill_switch", "nil kill switch")
+	}
+	if step == nil {
+		return Fallback{}, refusal(RefusalInvalid, "step", "step is required")
+	}
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	lease, ok := k.leases[id]
+	if !ok {
+		return Fallback{}, refusal(RefusalCapability, "lease", "unknown lease")
+	}
+	if lease.revoked {
+		return Fallback{Reason: "lease revoked", NonAIAvailable: true}, refusal(RefusalEffectClass, "lease", "revoked lease cannot start a step")
+	}
+	if err := step(); err != nil {
+		return Fallback{Reason: "step failed", NonAIAvailable: true}, err
 	}
 	return Fallback{Reason: "ai admitted", NonAIAvailable: true}, nil
 }

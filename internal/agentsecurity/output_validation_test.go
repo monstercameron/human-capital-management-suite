@@ -91,13 +91,18 @@ func validPersonDraft() personDraft {
 
 func outputValidationFixture(t *testing.T) (*ToolGateway, Admission) {
 	t.Helper()
+	return outputValidationFixtureWithNonce(t, "nonce")
+}
+
+func outputValidationFixtureWithNonce(t *testing.T, nonce string) (*ToolGateway, Admission) {
+	t.Helper()
 	g, err := NewToolGateway([]ToolDescriptor{{Name: "people.lookup", Capability: "people.read", Version: 3, Class: ToolDraft, DataScope: []string{"people.basic"}, Cost: 1, Schema: "people.v3", Validate: func(v any) (TypedResult, error) {
 		return TypedResult{Schema: "people.v3", Value: v, Validated: true, Taint: []string{"DERIVED"}, Provenance: []string{"validator"}}, nil
 	}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	call := ToolCall{Agent: AgentIdentity{Identity: "identity", AgentID: "agent", Tenant: "tenant", Purpose: "purpose", ToolSet: []string{"people.lookup"}, DataScope: []string{"people.basic"}, Budget: 2}, Delegation: []DelegationLink{{GrantID: "grant", Delegator: "root", Delegate: "agent", Tenant: "tenant", Purpose: "purpose", ToolSet: []string{"people.lookup"}, DataScope: []string{"people.basic"}, Budget: 2}}, Tenant: "tenant", Purpose: "purpose", Tool: "people.lookup", Capability: "people.read", Version: 3, Nonce: "nonce", Args: map[string]any{"id": "p1"}, InputTaint: []string{"DERIVED"}, Provenance: []string{"validator"}, CostBudget: 1, DataScope: []string{"people.basic"}}
+	call := ToolCall{Agent: AgentIdentity{Identity: "identity", AgentID: "agent", Tenant: "tenant", Purpose: "purpose", ToolSet: []string{"people.lookup"}, DataScope: []string{"people.basic"}, Budget: 2}, Delegation: []DelegationLink{{GrantID: "grant", Delegator: "root", Delegate: "agent", Tenant: "tenant", Purpose: "purpose", ToolSet: []string{"people.lookup"}, DataScope: []string{"people.basic"}, Budget: 2}}, Tenant: "tenant", Purpose: "purpose", Tool: "people.lookup", Capability: "people.read", Version: 3, Nonce: nonce, Args: map[string]any{"id": "p1"}, InputTaint: []string{"DERIVED"}, Provenance: []string{"validator"}, CostBudget: 1, DataScope: []string{"people.basic"}}
 	call.ArgsDigest, _ = DigestArguments(call.Args)
 	admission, err := g.Admit(call)
 	if err != nil {

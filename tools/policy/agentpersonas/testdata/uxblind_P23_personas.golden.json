@@ -1,0 +1,48 @@
+{
+  "templates": [
+    {
+      "id": "hcmnext.persona_template.comp_analyst",
+      "file": "uxblind_P23_comp_analyst.yaml",
+      "version": 1,
+      "canonical_digest": "sha256:9823a9d8ccecaf50fc1da3b0ea731f00792f5d15f64a910d33afc63220bedbda",
+      "skill_pins": [
+        "hcmnext.skill.comp_band_read/v1:0dcb17b21823f7f4f570b07900317a07973aad0a0f8826eb44995c16cf62a278",
+        "hcmnext.skill.compa_ratio_read/v1:22e1119f388f3606ba8d08417c5a09c2883f78cda5d067abf4279039145a76e3",
+        "hcmnext.skill.comp_scenario_draft/v1:2bad8fae2d4ac4a56d650a14804448638bd9e8bb85b5c367a75074e426c1b910"
+      ]
+    },
+    {
+      "id": "hcmnext.persona_template.onboarding_coordinator",
+      "file": "uxblind_P23_onboarding_coordinator.yaml",
+      "version": 1,
+      "canonical_digest": "sha256:ed679febf614579bf26ea75aae7cf4c52b8ac1ca2264c752f5ab5cf4a2c3ce38",
+      "skill_pins": [
+        "hcmnext.skill.onboarding_checklist_read/v1:4534e82fd9a4e36dc252a71bbf6e687ddc68c30e24d5786d3d4a9480e955622a",
+        "hcmnext.skill.onboarding_task_read/v1:157941c5688505bb73909de82f8b3dc0da9b7c248c0eede74471e29483f0e7e3",
+        "hcmnext.skill.welcome_note_draft/v1:7319cbb5556625bb36ca2adf90cce5433fe4e6647abce15dc64fa4a8e5e44016",
+        "hcmnext.skill.onboarding_channel_post/v1:ca91519f867a30013ecb8414467b826efc0e278b13516799f901c64d03d3f2d0"
+      ]
+    },
+    {
+      "id": "hcmnext.persona_template.policy_helper",
+      "file": "uxblind_P23_policy_helper.yaml",
+      "version": 1,
+      "canonical_digest": "sha256:d82154c1947ab539c8826190e596de4f3a704172c05102f58f5dd769e427bf0b",
+      "skill_pins": [
+        "hcmnext.skill.knowledge_search_with_citations/v1:48e8ccb43001e5e194687178bc7c23873e01aee12fe2c34b9e7d2eca3bfe1e20",
+        "persona.chat_reply/v1:1f7e3a8ac15c6530bdfecab8a76c3e68208aefbeba89f9bc2426cbb3b2347790"
+      ]
+    },
+    {
+      "id": "hcmnext.persona_template.schedule_fixer",
+      "file": "uxblind_P23_schedule_fixer.yaml",
+      "version": 1,
+      "canonical_digest": "sha256:e7dee0bcbec0b83acb2638c45350e94c711e5e0169e728a85f0c1a0a4a6fd469",
+      "skill_pins": [
+        "hcmnext.skill.schedule_read/v1:07743574cea975ee3b2ad07f57c2a38afb7484801c1be17145ab1ccffdc77fae",
+        "hcmnext.skill.schedule_swap_draft/v1:766a0e48756ceb2ddea7bd1dad11e78a1befe62c061dd6409c0717bd18d33d9c",
+        "hcmnext.skill.shift_change_submit/v1:2dc2d1fdfaa2712a30679f244398051000ad5b5e45f1dc655ae80dd32d801cc7"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"canonical_digest":"sha256:84794b389e60e8f6451013b07d8ef6620adee1ecaf2e9f9aef620d40e5a1a959","decision_id":"AGENTP-001","default_ids":["authority","invocation","context","audience_floor","writes_and_approvals","ownership_and_lifecycle","placement","limits","stop","ux","audit","output_safety","release_gate"]}

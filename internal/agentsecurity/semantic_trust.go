@@ -12,11 +12,14 @@ import (
 type SourceKind string
 
 const (
-	SourceUser     SourceKind = "user"
-	SourceResume   SourceKind = "resume"
-	SourceEmail    SourceKind = "email"
-	SourceDocument SourceKind = "document"
-	SourceWeb      SourceKind = "web"
+	SourceUser      SourceKind = "user"
+	SourceResume    SourceKind = "resume"
+	SourceEmail     SourceKind = "email"
+	SourceDocument  SourceKind = "document"
+	SourceWeb       SourceKind = "web"
+	SourceChat      SourceKind = "chat"
+	SourceConnector SourceKind = "connector"
+	SourceMCP       SourceKind = "mcp"
 )
 
 type TrustLevel string
@@ -215,7 +218,7 @@ func DefaultInstructionDetector(content string) (bool, error) {
 	return false, nil
 }
 func (s SourceKind) valid() bool {
-	return s == SourceUser || s == SourceResume || s == SourceEmail || s == SourceDocument || s == SourceWeb
+	return s == SourceUser || s == SourceResume || s == SourceEmail || s == SourceDocument || s == SourceWeb || s == SourceChat || s == SourceConnector || s == SourceMCP
 }
 func (k AssertionKind) valid() bool {
 	return k == KindFact || k == KindObservation || k == KindClaim || k == KindInference
