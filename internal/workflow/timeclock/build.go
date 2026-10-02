@@ -95,15 +95,15 @@ const placeholderWakeInstant = "1970-01-01T00:00:00Z"
 // Signal sources admitted by the time templates. A subscription that accepts
 // anyone is not a subscription.
 const (
-	SourceFirstPartyClock = "hcmnext.time.clock"
-	SourceKiosk           = "hcmnext.time.kiosk"
-	SourceDeviceAdapter   = "hcmnext.integrations.time_device"
-	SourcePunchImport     = "hcmnext.integrations.time_import"
-	SourceTimesheetPortal = "hcmnext.time.timesheet"
+	SourceFirstPartyClock  = "hcmnext.time.clock"
+	SourceKiosk            = "hcmnext.time.kiosk"
+	SourceDeviceAdapter    = "hcmnext.integrations.time_device"
+	SourcePunchImport      = "hcmnext.integrations.time_import"
+	SourceTimesheetPortal  = "hcmnext.time.timesheet"
 	SourceContractorPortal = "hcmnext.time.contractor_portal"
-	SourceAgencyPortal    = "hcmnext.integrations.agency"
-	SourceVMSConnector    = "hcmnext.integrations.vms"
-	SourceDestination     = "hcmnext.integrations.time_destination"
+	SourceAgencyPortal     = "hcmnext.integrations.agency"
+	SourceVMSConnector     = "hcmnext.integrations.vms"
+	SourceDestination      = "hcmnext.integrations.time_destination"
 )
 
 // kit builds the nodes of one template with shared identity and governance.
@@ -206,7 +206,7 @@ func (k kit) transform(nodeID, ref string, gap string) workflow.Node {
 		Inputs: k.inputs(), InputMappings: k.mappings(),
 		Transform: &workflow.TransformSpec{TransformRef: ref, Version: 1, NormalizationProfile: "hcmnext.canonical." + nodeID + "/v1",
 			OutputTaint: workflow.TaintDerived,
-			Limits: workflow.TransformLimits{MaxInputBytes: 256 * 1024, MaxOutputBytes: 64 * 1024, MaxSteps: 20_000}},
+			Limits:      workflow.TransformLimits{MaxInputBytes: 256 * 1024, MaxOutputBytes: 64 * 1024, MaxSteps: 20_000}},
 		Governance: k.governance(nil, workflow.RevalidateNone),
 	}
 	if gap != "" {
@@ -381,8 +381,8 @@ func (k kit) definition(version uint32, name, intentType, start string, nodes []
 	return workflow.Definition{
 		WorkflowID: k.workflowID, Version: version, Name: name, IntentType: intentType,
 		InputSchema: k.schema("Input"), OutputSchema: k.schema("Result"), VariablesSchema: k.schema("Variables"),
-		Inputs:  k.workflowInputs(),
-		Outputs: []workflow.Field{{Path: "subject_key", Type: k.subjectType()}},
+		Inputs:      k.workflowInputs(),
+		Outputs:     []workflow.Field{{Path: "subject_key", Type: k.subjectType()}},
 		TenantScope: k.params.TenantScope, OrganizationScope: k.params.OrganizationScope, RiskClass: "HIGH",
 		DeclaredModes: []workflow.ExecutionMode{workflow.ModeExecute}, TerminalProfile: workflow.TerminalProfileExecute,
 		StartNodeID: start, Nodes: nodes, Edges: edges,

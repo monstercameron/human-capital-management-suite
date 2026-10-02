@@ -28560,7 +28560,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep release decisions in the execution plan and leave design-only security evidence distinct from served capability.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [execution plan](execution-plan.md).
 
-- [ ] `AGENT-007` **[GATE_C][SOL_HIGH] Define versioned agent manifests and schema compatibility.**
+- [x] `AGENT-007` **[GATE_C][SOL_HIGH] Define versioned agent manifests and schema compatibility.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_007`, `TestTodo_AGENT_007_Golden`, `TestTodo_AGENT_007_Security` exist and passed in `internal/agentmanifest` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-006`, `AGENT-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=bind a customer agent to a validated immutable manifest and compatible schema versions`.
   - **TEST:** `TestTodo_AGENT_007`.
@@ -28570,7 +28571,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Separate manifest parsing from policy resolution and provider request formats.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [agent architecture](specs/platform-architecture-catalog.md).
 
-- [ ] `AGENT-008` **[GATE_C][SOL_HIGH] Provision the agent-owned database and tenant-isolated repositories.**
+- [x] `AGENT-008` **[GATE_C][SOL_HIGH] Provision the agent-owned database and tenant-isolated repositories.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_008`, `TestTodo_AGENT_008_Integration`, `TestTodo_AGENT_008_Recovery`, `TestTodo_AGENT_008_Security` exist and passed in `internal/data/agentstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-007`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=persist agent definitions, schedules, installations, runs, budgets, and outbox without sharing message or workflow tables`.
   - **TEST:** `TestTodo_AGENT_008`.
@@ -28580,9 +28582,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep persistence behind owned repositories and cross-database exchange behind idempotent messages.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [storage disposition](../definitions/storage/storage-disposition.yaml).
 
-- [ ] `AGENT-009` **[GATE_C][SOL_HIGH] Publish reviewed immutable agent versions with rollback and quarantine.**
+- [x] `AGENT-009` **[GATE_C][SOL_HIGH] Publish reviewed immutable agent versions with rollback and quarantine.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_009`, `TestTodo_AGENT_009_Fault`, `TestTodo_AGENT_009_Golden`, `TestTodo_AGENT_009_Mutation`, `TestTodo_AGENT_009_Race`, `TestTodo_AGENT_009_Recovery`, `TestTodo_AGENT_009_Security` exist and passed in `internal/agentsystem/publication` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-007`, `AGENT-008`, `AGENT-004`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=promote exact agent versions only after required evaluation and independent review`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=promote exact agent versions only after required evaluation and independent review`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_009`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_009`; `RACE=TestTodo_AGENT_009_Race`; `SECURITY=TestTodo_AGENT_009_Security`; `MUTATION=TestTodo_AGENT_009_Mutation`; `FAULT=TestTodo_AGENT_009_Fault`; `GOLDEN=TestTodo_AGENT_009_Golden`; `RECOVERY=TestTodo_AGENT_009_Recovery`.
   - **RED:** An author self-approves a widened grant, a stale digest publishes, an upgrade silently enlarges installations, or quarantine permits a new run.
@@ -28590,9 +28593,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Reuse existing publication and kill-switch controls without treating a mutable pointer as the version.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [agent safety](specs/platform-architecture-catalog.md).
 
-- [ ] `AGENT-010` **[GATE_C][SOL_HIGH] Resolve layered business charters and scoped organization policy.**
+- [x] `AGENT-010` **[GATE_C][SOL_HIGH] Resolve layered business charters and scoped organization policy.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_010`, `TestTodo_AGENT_010_Golden`, `TestTodo_AGENT_010_Property`, `TestTodo_AGENT_010_Security` exist and passed in `internal/agentsystem/charter` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-007`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.TENANT; DIRECT=none; WHY=let different business types configure agents without weakening mandatory policy`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.TENANT; DIRECT=none; WHY=let different business types configure agents without weakening mandatory policy`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_010`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_010`; `PROPERTY=TestTodo_AGENT_010_Property`; `SECURITY=TestTodo_AGENT_010_Security`; `GOLDEN=TestTodo_AGENT_010_Golden`.
   - **RED:** A template or installation overrides a platform/legal denial, or a branch manager gains another entity by name matching.
@@ -28600,9 +28604,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep policy composition typed and independent of prompt wording or model provider.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [organization AuthZ](specs/organization-scope-and-authz.md).
 
-- [ ] `AGENT-011` **[GATE_C][SOL_HIGH] Issue nonhuman agent principals and current context grants.**
+- [x] `AGENT-011` **[GATE_C][SOL_HIGH] Issue nonhuman agent principals and current context grants.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_011`, `TestTodo_AGENT_011_Golden`, `TestTodo_AGENT_011_Integration`, `TestTodo_AGENT_011_Mutation`, `TestTodo_AGENT_011_Security` exist and passed in `internal/agentsystem/authority` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-008`, `AGENT-010`, `TRUST-018`, `AGENT2-003`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=bind autonomous and human-invoked runs to distinct, revocable authority chains`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=bind autonomous and human-invoked runs to distinct, revocable authority chains`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_011`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_011`; `SECURITY=TestTodo_AGENT_011_Security`; `INTEGRATION=TestTodo_AGENT_011_Integration`; `MUTATION=TestTodo_AGENT_011_Mutation`; `GOLDEN=TestTodo_AGENT_011_Golden`.
   - **RED:** An autonomous run borrows a human's rights or a revoked source, sponsor, or purpose remains usable from a cached grant.
@@ -28640,7 +28645,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep rollout reconciliation separate from chat-owned membership and post storage.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENT-015` **[GATE_C][SOL_HIGH] Admit one idempotent AgentRunRequest across all invocation modes.**
+- [x] `AGENT-015` **[GATE_C][SOL_HIGH] Admit one idempotent AgentRunRequest across all invocation modes.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_015`, `TestTodo_AGENT_015_Fault`, `TestTodo_AGENT_015_Race`, `TestTodo_AGENT_015_Security` exist and passed in `internal/agentrun`, `internal/data/agentrunstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-008`, `AGENT-011`, `AGENT-001`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.TRIGGERS; DIRECT=none; WHY=share one durable authorization and dedupe path for chat, UI/API, event, schedule, and workflow calls`.
   - **TEST:** `TestTodo_AGENT_015`.
@@ -28650,7 +28656,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep entry-point adapters thin and all authority in the shared admission service.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-016` **[GATE_C][SOL_HIGH] Execute durable agent runs with checkpoints, cancellation, and recovery.**
+- [x] `AGENT-016` **[GATE_C][SOL_HIGH] Execute durable agent runs with checkpoints, cancellation, and recovery.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_016`, `TestTodo_AGENT_016_Fault`, `TestTodo_AGENT_016_Race`, `TestTodo_AGENT_016_Recovery` exist and passed in `internal/agentsystem/runstate`, `internal/data/agentrunstate` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-015`, `AGENT-008`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=resume model and tool planning after crashes without replaying uncertain effects`.
   - **TEST:** `TestTodo_AGENT_016`.
@@ -28660,9 +28667,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep model attempts and business effects as distinct durable records.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
 
-- [ ] `AGENT-017` **[GATE_C][SOL_HIGH] Build current EffectiveAgentContext from owning services.**
+- [x] `AGENT-017` **[GATE_C][SOL_HIGH] Build current EffectiveAgentContext from owning services.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_017`, `TestTodo_AGENT_017_Fault`, `TestTodo_AGENT_017_Golden`, `TestTodo_AGENT_017_Security` exist and passed in `internal/agentcontext` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-011`, `AGENT-015`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=assemble only current authorized business facts, audience, and source versions for each run`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=assemble only current authorized business facts, audience, and source versions for each run`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_017`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_017`; `SECURITY=TestTodo_AGENT_017_Security`; `FAULT=TestTodo_AGENT_017_Fault`; `GOLDEN=TestTodo_AGENT_017_Golden`.
   - **RED:** A chat message supplies tenant or role, stale HCM facts are presented as current, or a source grant revoked mid-run survives delivery.
@@ -28680,7 +28688,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Use source-owner RPCs and shared retrieval envelopes rather than new cross-database joins.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [documentation hub](specs/channel-documentation-hub.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENT-019` **[GATE_C][SOL_HIGH] Define the provider-neutral model request and result contract.**
+- [x] `AGENT-019` **[GATE_C][SOL_HIGH] Define the provider-neutral model request and result contract.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_019`, `TestTodo_AGENT_019_Conformance`, `TestTodo_AGENT_019_Fault`, `TestTodo_AGENT_019_Golden`, `TestTodo_AGENT_019_Integration` exist and passed in `internal/agentmodel` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-007`, `AGENT-015`, `AGENT-003`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=own prompts, tool proposals, usage, errors, and canonical run state independently of an AI vendor`.
   - **TEST:** `TestTodo_AGENT_019`.
@@ -28690,7 +28699,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep vendor wire syntax inside replaceable adapters and HCM authorization outside them.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-020` **[GATE_C][SOL_HIGH] Gate provider egress, credentials, retention, and data class.**
+- [x] `AGENT-020` **[GATE_C][SOL_HIGH] Gate provider egress, credentials, retention, and data class.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_020`, `TestTodo_AGENT_020_Golden`, `TestTodo_AGENT_020_Integration`, `TestTodo_AGENT_020_Mutation`, `TestTodo_AGENT_020_Security` exist and passed in `internal/agentegress` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-019`, `AGENT-011`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY,BI.SECURITY; DIRECT=none; WHY=send only eligible minimized context to approved external or private model endpoints`.
   - **TEST:** `TestTodo_AGENT_020`.
@@ -28702,7 +28712,8 @@ Related open items are not duplicated here:
 
 ### Provider adapters, tools, and invocation bridges
 
-- [ ] `AGENT-021` **[GATE_C][SOL_HIGH] Serve the OpenAI inference adapter behind the owned model contract.**
+- [x] `AGENT-021` **[GATE_C][SOL_HIGH] Serve the OpenAI inference adapter behind the owned model contract.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_021`, `TestTodo_AGENT_021_Conformance`, `TestTodo_AGENT_021_Fault`, `TestTodo_AGENT_021_Integration`, `TestTodo_AGENT_021_Security` exist and passed in `internal/agentmodel/openai` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-019`, `AGENT-020`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=use an approved OpenAI model without delegating agent state or tool authority`.
   - **TEST:** `TestTodo_AGENT_021`.
@@ -28712,9 +28723,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep OpenAI SDK and wire details inside the adapter with no HCM policy branching.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-022` **[GATE_C][SOL_HIGH] Serve the Anthropic inference adapter behind the owned model contract.**
+- [x] `AGENT-022` **[GATE_C][SOL_HIGH] Serve the Anthropic inference adapter behind the owned model contract.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_022`, `TestTodo_AGENT_022_Conformance`, `TestTodo_AGENT_022_Fault`, `TestTodo_AGENT_022_Integration`, `TestTodo_AGENT_022_Security` exist and passed in `internal/agentmodel/anthropic` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-019`, `AGENT-020`.
-  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=use an approved Anthropic model with the same HCM Next run and tool rules`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=use an approved Anthropic model with the same HCM Next run and tool rules`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_022`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_022`; `CONFORMANCE=TestTodo_AGENT_022_Conformance`; `FAULT=TestTodo_AGENT_022_Fault`; `SECURITY=TestTodo_AGENT_022_Security`; `INTEGRATION=TestTodo_AGENT_022_Integration`.
   - **RED:** Anthropic tool-use or structured-output differences change business authority, bypass validation, or miscount cost.
@@ -28722,9 +28734,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Confine provider-specific schema limits and tool syntax to the adapter.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-023` **[GATE_C][SOL_HIGH] Qualify private-model endpoints through the same inference port.**
+- [x] `AGENT-023` **[GATE_C][SOL_HIGH] Qualify private-model endpoints through the same inference port.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_023`, `TestTodo_AGENT_023_Conformance`, `TestTodo_AGENT_023_Fault`, `TestTodo_AGENT_023_Security` exist and passed in `internal/agentmodel/private` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-019`, `AGENT-020`.
-  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=admit customer or platform private models only after endpoint, policy, and behavior qualification`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=admit customer or platform private models only after endpoint, policy, and behavior qualification`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_023`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_023`; `CONFORMANCE=TestTodo_AGENT_023_Conformance`; `SECURITY=TestTodo_AGENT_023_Security`; `FAULT=TestTodo_AGENT_023_Fault`.
   - **RED:** A private endpoint receives production context without service identity, residency proof, health contract, or schema conformance.
@@ -28732,7 +28745,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Do not fork agent execution or authorization for private hosting.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-024` **[GATE_C][SOL_HIGH] Route eligible models with pinned fallback and budget rules.**
+- [x] `AGENT-024` **[GATE_C][SOL_HIGH] Route eligible models with pinned fallback and budget rules.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_024`, `TestTodo_AGENT_024_Fault`, `TestTodo_AGENT_024_Golden`, `TestTodo_AGENT_024_Property`, `TestTodo_AGENT_024_Security` exist and passed in `internal/agentmodel` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-019`, `AGENT-020`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=select only evaluated models that meet task, data, region, latency, and cost constraints`.
   - **TEST:** `TestTodo_AGENT_024`.
@@ -28742,9 +28756,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep routing policy independent of a provider's marketing model name.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-025` **[GATE_C][SOL_HIGH] Bridge model tool proposals to typed capability execution.**
+- [x] `AGENT-025` **[GATE_C][SOL_HIGH] Bridge model tool proposals to typed capability execution.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_025`, `TestTodo_AGENT_025_Integration`, `TestTodo_AGENT_025_Mutation`, `TestTodo_AGENT_025_Security` exist and passed in `internal/agentsystem/toolbridge` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-015`, `AGENT-017`, `AGENT-001`, `AGENT-003`, `AGENT2-004`, `AGENT2-005`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.WORK; DIRECT=none; WHY=let agents use registered HCM and project tools without raw HTTP, SQL, or hidden credentials`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.WORK; DIRECT=none; WHY=let agents use registered HCM and project tools without raw HTTP, SQL, or hidden credentials`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_025`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_025`; `SECURITY=TestTodo_AGENT_025_Security`; `INTEGRATION=TestTodo_AGENT_025_Integration`; `MUTATION=TestTodo_AGENT_025_Mutation`.
   - **RED:** Unknown tool, forged arguments, parallel-call burst, or source text can add a tool, broaden scope, or execute an effect.
@@ -28752,7 +28767,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep tool discovery separate from tool admission and invoke owning capabilities only.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [capability registry](specs/capability-registry-and-lifecycle.md).
 
-- [ ] `AGENT-026` **[GATE_C][SOL_HIGH] Validate agent outputs and final delivery audience.**
+- [x] `AGENT-026` **[GATE_C][SOL_HIGH] Validate agent outputs and final delivery audience.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_026`, `TestTodo_AGENT_026_Golden`, `TestTodo_AGENT_026_Mutation`, `TestTodo_AGENT_026_Security` exist and passed in `internal/agentsecurity` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-016`, `AGENT-017`, `AGENT-025`, `AGENT-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.PRIVACY; DIRECT=none; WHY=stop unvalidated model text or hidden data from entering chat, workflows, or action drafts`.
   - **TEST:** `TestTodo_AGENT_026`.
@@ -28772,9 +28788,10 @@ Related open items are not duplicated here:
   - **REFACTOR:** Let Chat own post ordering and Agent own inference and tool execution.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENT-028` **[GATE_C][SOL_HIGH] Admit bounded autonomous channel triggers without loops.**
+- [x] `AGENT-028` **[GATE_C][SOL_HIGH] Admit bounded autonomous channel triggers without loops.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_028`, `TestTodo_AGENT_028_Fault`, `TestTodo_AGENT_028_Golden`, `TestTodo_AGENT_028_Race`, `TestTodo_AGENT_028_Security` exist and passed in `internal/agentsystem/trigger` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-027`, `CHAT-044`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=allow opt-in agent participation while controlling spam, recursion, and cost`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=allow opt-in agent participation while controlling spam, recursion, and cost`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT_028`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT_028`; `RACE=TestTodo_AGENT_028_Race`; `FAULT=TestTodo_AGENT_028_Fault`; `SECURITY=TestTodo_AGENT_028_Security`; `GOLDEN=TestTodo_AGENT_028_Golden`.
   - **RED:** Two agents recursively trigger each other, a replay double-posts, or an event storm exhausts another tenant's model allowance.
@@ -28782,7 +28799,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Use chat outbox causes and shared run admission rather than special model callbacks.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENT-029` **[PHASE_2][SOL_HIGH] Add a versioned AGENT_RUN target to published scheduling.**
+- [x] `AGENT-029` **[PHASE_2][SOL_HIGH] Add a versioned AGENT_RUN target to published scheduling.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_029`, `TestTodo_AGENT_029_Conformance`, `TestTodo_AGENT_029_Golden`, `TestTodo_AGENT_029_Security` exist and passed in `internal/engines/schedule` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-015`, `SCHED-001`, `SCHED-002`, `SCHED-003`, `SCHED-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=reuse the Scheduling plane's occurrence identity for agent runs without inventing a second cron service`.
   - **TEST:** `TestTodo_AGENT_029`.
@@ -28802,7 +28820,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Reuse Scheduling rules and make every management action revisioned and auditable.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/schedule.go).
 
-- [ ] `AGENT-031` **[PHASE_2][SOL_HIGH] Dispatch scheduled firings into the agent inbox without duplicate runs.**
+- [x] `AGENT-031` **[PHASE_2][SOL_HIGH] Dispatch scheduled firings into the agent inbox without duplicate runs.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_031`, `TestTodo_AGENT_031_Fault`, `TestTodo_AGENT_031_Race`, `TestTodo_AGENT_031_Recovery` exist and passed in `internal/agentsystem/scheduled` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-029`, `AGENT-030`, `AGENT-016`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=bridge separate Scheduling and Agent databases through replayable receipts`.
   - **TEST:** `TestTodo_AGENT_031`.
@@ -28812,7 +28831,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Do not create a distributed transaction or a BusinessIntent for read-only agent inference.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/dispatch.go).
 
-- [ ] `AGENT-032` **[PHASE_2][SOL_HIGH] Admit governed domain-event agent subscriptions.**
+- [x] `AGENT-032` **[PHASE_2][SOL_HIGH] Admit governed domain-event agent subscriptions.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_032`, `TestTodo_AGENT_032_Fault`, `TestTodo_AGENT_032_Golden`, `TestTodo_AGENT_032_Integration`, `TestTodo_AGENT_032_Security` exist and passed in `internal/agentsystem/subscription` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-015`, `AGENT-016`, `SCHED-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=trigger agents from authorized business events without unrestricted event-bus access`.
   - **TEST:** `TestTodo_AGENT_032`.
@@ -28842,7 +28862,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep Workflow owner authoritative for state, timers, approval, and repair.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
 
-- [ ] `AGENT-035` **[GATE_C][SOL_HIGH] Connect agent action compilation to the served BusinessIntent catalog.**
+- [x] `AGENT-035` **[GATE_C][SOL_HIGH] Connect agent action compilation to the served BusinessIntent catalog.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_035`, `TestTodo_AGENT_035_Integration`, `TestTodo_AGENT_035_Mutation`, `TestTodo_AGENT_035_Security` exist and passed in `internal/application`, `internal/intent/app` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-005`, `AGENT-025`, `INTENT-012`, `INTENT-014`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.PEOPLE,BI.REWARDS,BI.WORK; DIRECT=none; WHY=replace the private draft-definition stand-in with actual discoverable governed intents`.
   - **TEST:** `TestTodo_AGENT_035`.
@@ -28864,7 +28885,8 @@ Related open items are not duplicated here:
 
 ### Operations, extension, and release proof
 
-- [ ] `AGENT-037` **[GATE_C][SOL_HIGH] Gate cross-company agent installation and output by bilateral policy.**
+- [x] `AGENT-037` **[GATE_C][SOL_HIGH] Gate cross-company agent installation and output by bilateral policy.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_037`, `TestTodo_AGENT_037_Golden`, `TestTodo_AGENT_037_Integration`, `TestTodo_AGENT_037_Mutation`, `TestTodo_AGENT_037_Security` exist and passed in `internal/agentsystem/bilateral`, `internal/application` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-014`, `AGENT-026`, `CHAT-051`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=keep a shared-channel agent inside each participating company's processing and disclosure grant`.
   - **TEST:** `TestTodo_AGENT_037`.
@@ -28874,7 +28896,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Reuse chat share grants and current audience checks without cross-tenant database joins.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENT-038` **[GATE_C][SOL_HIGH] Isolate agent queues, pools, provider quotas, and hierarchical budgets.**
+- [x] `AGENT-038` **[GATE_C][SOL_HIGH] Isolate agent queues, pools, provider quotas, and hierarchical budgets.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_038`, `TestTodo_AGENT_038_Fault`, `TestTodo_AGENT_038_Integration`, `TestTodo_AGENT_038_Race` exist and passed in `internal/agentsystem/resources` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-015`, `AGENT-016`, `CHAT-046`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.WORK; DIRECT=none; WHY=prevent model-bound and autonomous work from starving chat, workflow, or other tenants`.
   - **TEST:** `TestTodo_AGENT_038`.
@@ -28944,7 +28967,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Treat desired rollout and actual installation as separate revisioned records.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-045` **[GATE_C][SOL_HIGH] Export and import portable agent definitions without authority.**
+- [x] `AGENT-045` **[GATE_C][SOL_HIGH] Export and import portable agent definitions without authority.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_045`, `TestTodo_AGENT_045_Conformance`, `TestTodo_AGENT_045_Golden`, `TestTodo_AGENT_045_Security` exist and passed in `internal/agentportable`, `internal/agentsystem/portable` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-007`, `AGENT-009`, `AGENT-010`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.TENANT; DIRECT=none; WHY=let companies reuse agent designs without copying secrets, grants, or private history`.
   - **TEST:** `TestTodo_AGENT_045`.
@@ -28954,7 +28978,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Version one manifest format and keep tenant mapping outside provider prompts.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT-046` **[PHASE_2][SOL_HIGH] Restore the agent store and reconcile in-flight runs and firings.**
+- [x] `AGENT-046` **[PHASE_2][SOL_HIGH] Restore the agent store and reconcile in-flight runs and firings.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_046`, `TestTodo_AGENT_046_Fault`, `TestTodo_AGENT_046_Recovery`, `TestTodo_AGENT_046_Security` exist and passed in `internal/application`, `internal/data/agentstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-008`, `AGENT-016`, `AGENT-031`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.TRIGGERS; DIRECT=none; WHY=restore agent state independently and resume without duplicate scheduled posts or HCM effects`.
   - **TEST:** `TestTodo_AGENT_046`.
@@ -28984,7 +29009,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Measure and shed optional inference before increasing workflow or chat critical-path capacity.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [SLO contract](specs/slo-sli-error-budget.md).
 
-- [ ] `AGENT-049` **[PHASE_4][SOL_HIGH] Extend agent task skills into ordinary project boards.**
+- [x] `AGENT-049` **[PHASE_4][SOL_HIGH] Extend agent task skills into ordinary project boards.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_049`, `TestTodo_AGENT_049_Conformance`, `TestTodo_AGENT_049_Integration`, `TestTodo_AGENT_049_Security` exist and passed in `internal/application`, `internal/data/projectstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-025`, `AGENT-018`, `PM-067`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.WORK,BI.INTELLIGENCE; DIRECT=none; WHY=let project agents propose scoped ordinary task changes without confusing them with HCM work`.
   - **TEST:** `TestTodo_AGENT_049`.
@@ -28994,7 +29020,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep project data, task revisions, and search with the Project owner.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [project boards](specs/customer-project-management-and-adaptive-boards.md).
 
-- [ ] `AGENT-050` **[PHASE_4][SOL_HIGH] Admit bounded specialist-agent delegation with inherited authority.**
+- [x] `AGENT-050` **[PHASE_4][SOL_HIGH] Admit bounded specialist-agent delegation with inherited authority.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT_050`, `TestTodo_AGENT_050_Conformance`, `TestTodo_AGENT_050_Golden`, `TestTodo_AGENT_050_Race`, `TestTodo_AGENT_050_Security` exist and passed in `internal/agentdelegation`, `internal/agentsystem` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-011`, `AGENT-015`, `AGENT-039`, `AGENT2-003`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE; DIRECT=none; WHY=allow later specialist agents to cooperate without expanding scope or creating loops`.
   - **TEST:** `TestTodo_AGENT_050`.
@@ -31133,9 +31160,10 @@ This section plans the workflow start page, the workflow history page and custom
 
 This section plans the agents experience inside Chat from the owner request for a strong agent system that can do long-horizon work, can reach any system an administrator connects, and gates every skill by the signed-in user's own context so an agent acts only on behalf of that user. It refines section 87 rather than replacing it: section 87 keeps the agent definition, manifest, store, run admission, durable run substrate, provider adapters, chat invocation, schedules and operations; this section adds the on-behalf-of identity mode, the skill registry and per-call gating, admin-granted system connections, the long-horizon task model, the user-facing task view, side-effect tiers with the user's own approval, prompt-injection containment across connections, and the conformance proof. The thesis is unchanged: agents interpret and compose; every side effect goes through the existing BusinessIntent, capability and workflow path with the user's own authorization. There is no privileged agent identity in on-behalf-of mode: the agent definition and installation are ceilings, the user's current authority is the grant, and authority is decided server-side on every call. Phase 1 defers autonomous AI execution (plan section 7.4); `AGENT2-001` records how this design stays inside that deferral (every write is a user-approved, user-authored submission) and names the release gate for the two places it pushes on it (unattended long-horizon read and draft work, and batched approval of many exact drafts in one step-up).
 
-- [ ] `AGENT2-001` **[DESIGN][SOL_HIGH] Record the on-behalf-of agent product decision, side-effect tiers and the Phase 1 autonomous-execution gate.**
+- [x] `AGENT2-001` **[DESIGN][SOL_HIGH] Record the on-behalf-of agent product decision, side-effect tiers and the Phase 1 autonomous-execution gate.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_001`, `TestTodo_AGENT2_001_Golden`, `TestTodo_AGENT2_001_Security` exist and passed in `tools/policy/agentobo` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT-005`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=fix the identity mode, the write ladder, the approval defaults and the deferral boundary before any on-behalf-of agent is built`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.WORK,BI.EXPERIENCE; DIRECT=none; WHY=fix the identity mode, the write ladder, the approval defaults and the deferral boundary before any on-behalf-of agent is built`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_001`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_001`; `GOLDEN=TestTodo_AGENT2_001_Golden`; `SECURITY=TestTodo_AGENT2_001_Security`.
   - **RED:** nothing states whether a chat agent acts as the user, as itself or as its sponsor; which actions it may take without asking; or how long-horizon work and batched approvals relate to the Phase 1 deferral of autonomous AI execution, so each later todo would invent its own answer.
@@ -31144,9 +31172,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** reference the record from `AGENT-006` and every `AGENT2-*` Refs field instead of restating defaults.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [plan deferred scope](plan.md#74-explicitly-deferred-scope), [AI governance](plan.md#96-ai-governance-contract).
 
-- [ ] `AGENT2-002` **[DESIGN][SOL_HIGH] Threat-model the delegated agent against privilege abuse, confused deputy, injection and exfiltration.**
+- [x] `AGENT2-002` **[DESIGN][SOL_HIGH] Threat-model the delegated agent against privilege abuse, confused deputy, injection and exfiltration.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_002`, `TestTodo_AGENT2_002_Golden`, `TestTodo_AGENT2_002_Security` exist and passed in `tools/planning/threatregister`, `tools/policy/agentobo` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-001`, `AGENT-002`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=name the attack classes the on-behalf-of design must close and bind each to a control todo and a red-team case`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=name the attack classes the on-behalf-of design must close and bind each to a control todo and a red-team case`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_002`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_002`; `GOLDEN=TestTodo_AGENT2_002_Golden`; `SECURITY=TestTodo_AGENT2_002_Security`.
   - **RED:** the threat register has no entry for an agent that holds a user's delegated identity across days and many connections, so goal hijack through a read document, token replay against another connection, a cached grant outliving a role change, argument smuggling into a write, or exfiltration through a tool argument has no owning control.
@@ -31178,7 +31207,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** derive skill metadata from the capability registry instead of copying it, and make section 87 manifests reference skills by id and version.
   - **Refs:** [capability registry](specs/capability-registry-and-lifecycle.md), [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), `internal/agentsecurity/catalog.go`.
 
-- [ ] `AGENT2-005` **[GATE_C][SOL_HIGH] Gate every skill call by the signed-in user's roles, organization scope, purpose and consent at call time.**
+- [x] `AGENT2-005` **[GATE_C][SOL_HIGH] Gate every skill call by the signed-in user's roles, organization scope, purpose and consent at call time.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_005`, `TestTodo_AGENT2_005_Golden`, `TestTodo_AGENT2_005_Mutation`, `TestTodo_AGENT2_005_Property`, `TestTodo_AGENT2_005_Security` exist and passed in `internal/agentgate` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-003`, `AGENT2-004`, `RBAC-RT-013`, `TRUST-010`, `TRUST-024`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.ACCESS,BI.INTELLIGENCE; DIRECT=none; WHY=an agent may use a skill only where the user it acts for could invoke every underlying capability on those records and fields right now`.
   - **TEST:** `TestTodo_AGENT2_005`.
@@ -31188,7 +31218,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** the agents page, the MCP server of `AGENT2-009` and chat invocation use this one gate.
   - **Refs:** [organization AuthZ](specs/organization-scope-and-authz.md), `internal/trust/authz/policy.go`, `internal/capability/authority`.
 
-- [ ] `AGENT2-006` **[GATE_C][SOL_HIGH] Require the user's own exact-digest approval with step-up before any governed submission or external write.**
+- [x] `AGENT2-006` **[GATE_C][SOL_HIGH] Require the user's own exact-digest approval with step-up before any governed submission or external write.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_006`, `TestTodo_AGENT2_006_Golden`, `TestTodo_AGENT2_006_Mutation`, `TestTodo_AGENT2_006_Race`, `TestTodo_AGENT2_006_Security` exist and passed in `internal/agentapproval` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-004`, `AGENT2-005`, `AGENT-005`, `AUTHN-005`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.SECURITY,BI.INTELLIGENCE; DIRECT=none; WHY=keep every T3 and T4 effect a human decision by the user the agent serves, before the normal business approvals begin`.
   - **TEST:** `TestTodo_AGENT2_006`.
@@ -31210,9 +31241,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** reuse ConnectorConnection lifecycle and destination-scoped leases; add no agent-specific credential store.
   - **Refs:** [integration platform](specs/integration-platform.md), [credential leases](specs/secrets-key-custody-and-credential-leases.md).
 
-- [ ] `AGENT2-008` **[PHASE_3][SOL_HIGH] Consume external MCP servers as admin connections through the tool gateway without token passthrough.**
+- [x] `AGENT2-008` **[PHASE_3][SOL_HIGH] Consume external MCP servers as admin connections through the tool gateway without token passthrough.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_008`, `TestTodo_AGENT2_008_Integration`, `TestTodo_AGENT2_008_Security` exist and passed in `internal/agentmcp/client` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-007`, `AGENT-025`, `AGENT-002`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=let administrators attach any MCP-speaking system while keeping discovery, authorization, taint and audit inside HCM Next`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=let administrators attach any MCP-speaking system while keeping discovery, authorization, taint and audit inside HCM Next`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_008`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_008`; `SECURITY=TestTodo_AGENT2_008_Security`; `INTEGRATION=TestTodo_AGENT2_008_Integration`; `FUZZ=FuzzTodo_AGENT2_008`.
   - **RED:** a remote MCP server adds tools at runtime that the agent can call, a tool description carries instructions the planner follows, a user's HCM token is forwarded to the server, or a server response is treated as trusted fact.
@@ -31220,9 +31252,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** the MCP client is one connector adapter behind the connector SPI.
   - **Refs:** [integration platform](specs/integration-platform.md), `internal/agentsecurity/toolgateway.go`.
 
-- [ ] `AGENT2-009` **[PHASE_4][SOL_HIGH] Expose HCM skills to external agent clients as an MCP server under the caller's delegated authority.**
+- [x] `AGENT2-009` **[PHASE_4][SOL_HIGH] Expose HCM skills to external agent clients as an MCP server under the caller's delegated authority.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_009`, `TestTodo_AGENT2_009_Conformance`, `TestTodo_AGENT2_009_Integration`, `TestTodo_AGENT2_009_Security` exist and passed in `internal/agentmcp/server` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-004`, `AGENT2-005`, `AGENT-042`, `INTAPI-003`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=let a user's own external agent use HCM skills with the same per-user gating instead of a broad integration token`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTEGRATION,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=let a user's own external agent use HCM skills with the same per-user gating instead of a broad integration token`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_009`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_009`; `SECURITY=TestTodo_AGENT2_009_Security`; `INTEGRATION=TestTodo_AGENT2_009_Integration`; `CONFORMANCE=TestTodo_AGENT2_009_Conformance`.
   - **RED:** an external client calls HCM skills with a token issued for another resource, reaches T3 or T4 skills without the in-product approval, or sees skills the user may not use.
@@ -31242,7 +31275,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** plan steps run as checkpoints of the `AGENT-016` run; keep plan storage in the agent store.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [workflow runtime](specs/workflow-runtime.md).
 
-- [ ] `AGENT2-011` **[PHASE_3][SOL_HIGH] Park waiting tasks without holding workers and wake them on approval, signal, timer or user reply.**
+- [x] `AGENT2-011` **[PHASE_3][SOL_HIGH] Park waiting tasks without holding workers and wake them on approval, signal, timer or user reply.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_011`, `TestTodo_AGENT2_011_Fault`, `TestTodo_AGENT2_011_Race`, `TestTodo_AGENT2_011_Recovery` exist and passed in `internal/agentrun`, `internal/data/agentrunstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-010`, `AGENT-033`, `WF-EXT-014`, `SVC-004`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.WORK,BI.TRIGGERS; DIRECT=none; WHY=a task that waits days for approvers or a workflow outcome must cost nothing while waiting and resume exactly once`.
   - **TEST:** `TestTodo_AGENT2_011`.
@@ -31264,7 +31298,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** reuse the section 87 hierarchical budget ledger.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT2-013` **[PHASE_3][SOL_HIGH] Carry context across long tasks through a structured task ledger instead of transcript replay.**
+- [x] `AGENT2-013` **[PHASE_3][SOL_HIGH] Carry context across long tasks through a structured task ledger instead of transcript replay.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_013`, `TestTodo_AGENT2_013_Golden`, `TestTodo_AGENT2_013_Security` exist and passed in `internal/agentrun` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-010`, `AGENT-040`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=a task that outlives one model context must resume from durable structured state, not a lossy summary that can drop constraints or carry injected text`.
   - **TEST:** `TestTodo_AGENT2_013`.
@@ -31274,7 +31309,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** the task view in `AGENT2-017` renders the same ledger.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [records](specs/records-management-and-disposition.md).
 
-- [ ] `AGENT2-014` **[PHASE_3][SOL_HIGH] Record every agent step as agent-for-user provenance joined to intents, approvals and connector operations.**
+- [x] `AGENT2-014` **[PHASE_3][SOL_HIGH] Record every agent step as agent-for-user provenance joined to intents, approvals and connector operations.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_014`, `TestTodo_AGENT2_014_Golden`, `TestTodo_AGENT2_014_Integration`, `TestTodo_AGENT2_014_Security` exist and passed in `internal/agentaudit`, `internal/data/agentauditstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-003`, `AGENT2-010`, `MODEL-020`, `INTENT-012`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=an auditor must answer which agent version acting for which user, under which plan and approval, caused each read and each change`.
   - **TEST:** `TestTodo_AGENT2_014`.
@@ -31296,9 +31332,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** reuse AGENT-002 taint labels and AGENT-003 owner validators.
   - **Refs:** `internal/agentsecurity/semantic_trust.go`, `internal/agentsecurity/draft_ingestion.go`.
 
-- [ ] `AGENT2-016` **[PHASE_3][TERRA] Build the agents page inside Chat with personal agent threads and a task list.**
+- [x] `AGENT2-016` **[PHASE_3][TERRA] Build the agents page inside Chat with personal agent threads and a task list.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_016`, `TestTodo_AGENT2_016_Accessibility`, `TestTodo_AGENT2_016_Browser`, `TestTodo_AGENT2_016_I18n` exist and passed in `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
   - **Depends:** `AGENT-027`, `AGENT2-005`, `AGENT2-010`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=users need one place to talk to their agents, start long tasks and see everything running on their behalf`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=users need one place to talk to their agents, start long tasks and see everything running on their behalf`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_016`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_016`; `BROWSER=TestTodo_AGENT2_016_Browser`; `ACCESSIBILITY=TestTodo_AGENT2_016_Accessibility`; `I18N=TestTodo_AGENT2_016_I18n`.
   - **RED:** agents appear only as channel members, a user cannot see which tasks are running for them, and agent threads look like human messages.
@@ -31336,7 +31373,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** reuse the roles and bindings administration surface.
   - **Refs:** `internal/humanwork/productui`, [integration platform](specs/integration-platform.md).
 
-- [ ] `AGENT2-020` **[PHASE_3][SOL_HIGH] Revoke delegated agent authority on deprovision, role change, session revoke, unlink or kill switch before the next step.**
+- [x] `AGENT2-020` **[PHASE_3][SOL_HIGH] Revoke delegated agent authority on deprovision, role change, session revoke, unlink or kill switch before the next step.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_020`, `TestTodo_AGENT2_020_Golden`, `TestTodo_AGENT2_020_Race`, `TestTodo_AGENT2_020_Security` exist and passed in `internal/agentrevoke` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-003`, `AGENT2-011`, `AGENT-039`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.ACCESS,BI.INTELLIGENCE; DIRECT=none; WHY=a long task must never outlive the authority of the user it serves`.
   - **TEST:** `TestTodo_AGENT2_020`.
@@ -31358,7 +31396,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** one egress policy evaluator for model providers and connections.
   - **Refs:** [data classification](specs/data-classification-and-dlp.md), [Agent plan](specs/customer-agent-creation-business-context-and-chat.md).
 
-- [ ] `AGENT2-022` **[PHASE_3][SOL_HIGH] Expose agent task operations, traces and cost to users, owners and operators with redaction.**
+- [x] `AGENT2-022` **[PHASE_3][SOL_HIGH] Expose agent task operations, traces and cost to users, owners and operators with redaction.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_022`, `TestTodo_AGENT2_022_Integration`, `TestTodo_AGENT2_022_Security` exist and passed in `internal/agentsystem/ownerops`, `internal/data/agentownerstore`, `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-014`, `AGENT2-012`, `AGENT-041`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=failures, stalls and spend of long tasks must be visible to the right audience without exposing private task content`.
   - **TEST:** `TestTodo_AGENT2_022`.
@@ -31368,9 +31407,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** extend the `AGENT-041` owner dashboard with task projections.
   - **Refs:** [observability](specs/structured-logging-and-opentelemetry.md).
 
-- [ ] `AGENT2-023` **[CONFORMANCE][SOL_HIGH] Red-team the on-behalf-of agent for privilege escalation, confused deputy, injection and exfiltration.**
+- [x] `AGENT2-023` **[CONFORMANCE][SOL_HIGH] Red-team the on-behalf-of agent for privilege escalation, confused deputy, injection and exfiltration.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_023`, `TestTodo_AGENT2_023_Conformance`, `TestTodo_AGENT2_023_Security` exist and passed in `tools/conformance/agentredteam` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-002`, `AGENT2-005`, `AGENT2-006`, `AGENT2-008`, `AGENT2-015`, `AGENT2-020`, `AGENT2-021`.
-  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=release needs adversarial proof that an agent can never do more than its user or be steered by content`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=release needs adversarial proof that an agent can never do more than its user or be steered by content`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_023`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_023`; `CONFORMANCE=TestTodo_AGENT2_023_Conformance`; `SECURITY=TestTodo_AGENT2_023_Security`; `FUZZ=FuzzTodo_AGENT2_023`.
   - **RED:** no suite attacks the agent through documents, chat, connector and MCP results, forged approvals, revoked users, cross-tenant references and token replay.
@@ -31388,9 +31428,10 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** publish the scenario as the reference example in the agents page onboarding.
   - **Refs:** `internal/workflow`, `tools/uxqual/cmd/journeywasm`, [business intent catalog](specs/business-intent-catalog.md).
 
-- [ ] `AGENT2-025` **[CONFORMANCE][SOL_HIGH] Qualify long-horizon task quality with versioned task-suite evaluations before release.**
+- [x] `AGENT2-025` **[CONFORMANCE][SOL_HIGH] Qualify long-horizon task quality with versioned task-suite evaluations before release.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_025`, `TestTodo_AGENT2_025_Conformance`, `TestTodo_AGENT2_025_Golden` exist and passed in `tools/agenteval` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-010`, `AGENT2-012`, `AGENT-039`.
-  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=safety alone does not make a long task useful; completion, correctness and cost need measured thresholds per agent and model version`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=safety alone does not make a long task useful; completion, correctness and cost need measured thresholds per agent and model version`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENT2_025`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENT2_025`; `CONFORMANCE=TestTodo_AGENT2_025_Conformance`; `GOLDEN=TestTodo_AGENT2_025_Golden`.
   - **RED:** a model or prompt change ships because single-turn evals pass while multi-step tasks stall, loop, skip VERIFY or overspend.
@@ -31420,7 +31461,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** keep population ownership in the directory and return only the narrow current fact needed by the skill gate.
   - **Refs:** `internal/application/agent_directory_db.go`, `internal/application/agent_discovery_context.go`, `AGENT2-005`, `AGENTP-019`.
 
-- [ ] `AGENT2-028` **[PHASE_3][SOL_HIGH] Provision exact named population facts for local-demo workers.**
+- [x] `AGENT2-028` **[PHASE_3][SOL_HIGH] Provision exact named population facts for local-demo workers.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENT2_028`, `TestTodo_AGENT2_028_Integration`, `TestTodo_AGENT2_028_Recovery`, `TestTodo_AGENT2_028_Security` exist and passed in `internal/application` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-027`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=the seeded workforce has no source-owned population rows, so current persona audience discovery fails for every demo chat member`.
   - **TEST:** `TestTodo_AGENT2_028`.
@@ -31444,9 +31486,10 @@ This section plans the agents experience inside Chat from the owner request for 
 
 This section plans agent personas: administrator-defined agents built for one job (for example Onboarding Coordinator, Comp Analyst, Policy Helper, Schedule Fixer), each pinned to a small set of skills, listed in Chat and invoked by `@mention` in channels, group DMs, 1:1 DMs and threads. It builds on section 91 and does not redesign it: a persona is a profile over a section 87 agent version whose skills come from the `AGENT2-004` registry, and every invocation runs in the `AGENT2-001` ON_BEHALF_OF mode, gated per call by `AGENT2-005`, approved through `AGENT2-006`, run as an `AGENT2-010` task and audited through `AGENT2-014`. What this section adds is what changes when the agent answers in a room rather than in a private thread: the persona definition and its lifecycle, channel placement under a channel policy ceiling, mention resolution into one invocation for one invoker, isolation between several invokers in one thread, a bounded and tainted view of other members' messages, the audience-floor rule for where results may be posted, invoker-only approval cards in chat, persona rate limits and kill switches, the extended actor chain and the mention UX. The research behind the defaults: invoker-delegated authority is the norm (Glean, ServiceNow Now Assist, Agentforce in Slack, Workday delegate mode) and maker or owner credentials on shared agents are a named misconfiguration (Copilot Studio); shared-channel answers must not contain what only the asker may see (Teams group-chat Copilot previews privately and asks the asker to share; Glean either replies privately or restricts retrieval to the org-wide audience); and every public incident combined untrusted text with private access and an exfiltration path (Slack AI private-channel exfiltration through a crafted link, 2024; Microsoft 365 Copilot EchoLeak, CVE-2025-32711; the GitHub MCP toxic flow; ServiceNow second-order injection through agent discovery). `AGENTP-001` records the defaults; nothing here ships before gate `G-AGENT-OBO`.
 
-- [ ] `AGENTP-001` **[DESIGN][SOL_HIGH] Record the agent persona decision: invoker authority, audience floor, in-chat approval, ownership and release gate.**
+- [x] `AGENTP-001` **[DESIGN][SOL_HIGH] Record the agent persona decision: invoker authority, audience floor, in-chat approval, ownership and release gate.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_001`, `TestTodo_AGENTP_001_Golden`, `TestTodo_AGENTP_001_Security` exist and passed in `tools/policy/agentobo`, `tools/policy/agentpersona` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENT2-001`, `AGENT2-002`, `AGENT-006`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY,BI.PRIVACY; DIRECT=none; WHY=fix whose authority a mentioned persona uses, where its output may appear, who may approve its writes and how personas are owned before any persona is built`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY,BI.PRIVACY; DIRECT=none; WHY=fix whose authority a mentioned persona uses, where its output may appear, who may approve its writes and how personas are owned before any persona is built`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENTP_001`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTP_001`; `GOLDEN=TestTodo_AGENTP_001_Golden`; `SECURITY=TestTodo_AGENTP_001_Security`.
   - **RED:** nothing states whether a persona mentioned in a channel acts as the person who mentioned it, as its author or as itself; whether its answer may quote records other members cannot see; whether any member can click its approval card; or who owns and can stop it, so each later todo would invent its own answer.
@@ -31455,9 +31498,10 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reference the record from every `AGENTP-*` Refs field and from `AGENT-027` instead of restating defaults.
   - **Refs:** `AGENT2-001` record, [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENTP-002` **[DESIGN][SOL_HIGH] Threat-model shared-channel personas for peer injection, audience leakage, approval hijack, handle impersonation and agent recruitment.**
+- [x] `AGENTP-002` **[DESIGN][SOL_HIGH] Threat-model shared-channel personas for peer injection, audience leakage, approval hijack, handle impersonation and agent recruitment.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_002`, `TestTodo_AGENTP_002_Golden`, `TestTodo_AGENTP_002_Security` exist and passed in `tools/policy/agentobo` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-001`, `AGENT2-002`.
-  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.PRIVACY,BI.INTELLIGENCE; DIRECT=none; WHY=a persona that reads a room and answers into it has attack classes a private agent thread does not, and each needs an owning control and a red-team case`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.PRIVACY,BI.INTELLIGENCE; DIRECT=none; WHY=a persona that reads a room and answers into it has attack classes a private agent thread does not, and each needs an owning control and a red-team case`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENTP_002`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTP_002`; `GOLDEN=TestTodo_AGENTP_002_Golden`; `SECURITY=TestTodo_AGENTP_002_Security`.
   - **RED:** the threat register has no entry for a low-privilege member planting instructions in a channel that a manager's persona later reads, a persona answer that quotes a private record into a public channel, a member approving another member's card, a persona handle that looks like a person, or a persona that recruits a stronger persona.
@@ -31465,7 +31509,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** add the entries to the existing threat register next to the `AGENT2-002` entries, not a separate persona list.
   - **Refs:** `tools/planning/threatregister`, `AGENT2-002`, `AGENTP-001` record.
 
-- [ ] `AGENTP-003` **[PHASE_3][SOL_HIGH] Define the versioned persona profile on the agent manifest with pinned skills, audience, tier ceiling and channel classes.**
+- [x] `AGENTP-003` **[PHASE_3][SOL_HIGH] Define the versioned persona profile on the agent manifest with pinned skills, audience, tier ceiling and channel classes.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_003`, `TestTodo_AGENTP_003_Golden`, `TestTodo_AGENTP_003_Property`, `TestTodo_AGENTP_003_Security` exist and passed in `internal/agentpersona` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-001`, `AGENT-007`, `AGENT2-004`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.ACCESS; DIRECT=none; WHY=a persona must be a reviewed, immutable description of one job whose reach is derived from its pinned skills, not from its name or prompt`.
   - **TEST:** `TestTodo_AGENTP_003`.
@@ -31475,9 +31520,10 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the manifest schema and compatibility checks; add no persona-only skill format.
   - **Refs:** `internal/agentskills/types.go`, [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), `AGENTP-001` record.
 
-- [ ] `AGENTP-004` **[PHASE_3][SOL_HIGH] Store persona versions, owners, installations and lifecycle in the agent database with migration and restore proof.**
+- [x] `AGENTP-004` **[PHASE_3][SOL_HIGH] Store persona versions, owners, installations and lifecycle in the agent database with migration and restore proof.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_004`, `TestTodo_AGENTP_004_Fault`, `TestTodo_AGENTP_004_Integration`, `TestTodo_AGENTP_004_Recovery`, `TestTodo_AGENTP_004_Security` exist and passed in `internal/data/agentpersonastore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-003`, `AGENT-008`, `AGENT-046`.
-  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=persona definitions and their lifecycle must be durable, tenant-isolated and restorable before chat can depend on them`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=persona definitions and their lifecycle must be durable, tenant-isolated and restorable before chat can depend on them`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENTP_004`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTP_004`; `SECURITY=TestTodo_AGENTP_004_Security`; `INTEGRATION=TestTodo_AGENTP_004_Integration`; `FAULT=TestTodo_AGENTP_004_Fault`; `RECOVERY=TestTodo_AGENTP_004_Recovery`.
   - **RED:** personas live in memory, a tenant reads another tenant's persona, a lifecycle transition is overwritten in place, or a restore leaves an installation pointing at a persona version that no longer exists.
@@ -31485,7 +31531,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** keep persona tables in the agent-owned database and reuse the `AGENT-046` reconcile path.
   - **Refs:** `internal/data/pgtest`, `definitions/storage/storage-disposition.yaml`, `AGENTP-001` record.
 
-- [ ] `AGENTP-005` **[PHASE_3][SOL_HIGH] Register persona chat identities with a reserved handle namespace, confusable checks and a permanent agent badge.**
+- [x] `AGENTP-005` **[PHASE_3][SOL_HIGH] Register persona chat identities with a reserved handle namespace, confusable checks and a permanent agent badge.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_005`, `TestTodo_AGENTP_005_Golden`, `TestTodo_AGENTP_005_Property`, `TestTodo_AGENTP_005_Security` exist and passed in `internal/agentpersona/handle` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-003`, `CHAT-043`, `CHAT-027`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=members must never mistake a persona for a colleague or a colleague for a persona, in the composer, in posts or in notifications`.
   - **TEST:** `TestTodo_AGENTP_005`.
@@ -31495,7 +31542,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the `CHAT-043` agent identity record; add a namespace check, not a second identity table.
   - **Refs:** `internal/collaboration/chatapps/chatapps.go`, [company chat](specs/company-chat-and-collaboration.md), `AGENTP-001` record.
 
-- [ ] `AGENTP-006` **[PHASE_3][SOL_HIGH] Publish persona versions only after separate review and a passing persona evaluation, with rollback.**
+- [x] `AGENTP-006` **[PHASE_3][SOL_HIGH] Publish persona versions only after separate review and a passing persona evaluation, with rollback.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_006`, `TestTodo_AGENTP_006_Fault`, `TestTodo_AGENTP_006_Golden`, `TestTodo_AGENTP_006_Race`, `TestTodo_AGENTP_006_Recovery`, `TestTodo_AGENTP_006_Security` exist and passed in `internal/agentpersona`, `internal/data/agentpersonastore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-004`, `AGENTP-021`, `AGENT-009`, `AGENT-039`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=a persona placed in shared rooms must reach users only in a version someone other than its author reviewed and that passed its own evaluation`.
   - **TEST:** `TestTodo_AGENTP_006`.
@@ -31505,7 +31553,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse `AGENT-009` publication and separation-of-duties records.
   - **Refs:** `internal/agentsecurity/eval_gates.go`, [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), `AGENTP-001` record.
 
-- [ ] `AGENTP-007` **[PHASE_3][SOL_HIGH] Install personas into conversations under a channel policy ceiling for tier, data class and external membership.**
+- [x] `AGENTP-007` **[PHASE_3][SOL_HIGH] Install personas into conversations under a channel policy ceiling for tier, data class and external membership.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_007`, `TestTodo_AGENTP_007_Golden`, `TestTodo_AGENTP_007_Race`, `TestTodo_AGENTP_007_Security` exist and passed in `internal/agentpersona/install` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-003`, `AGENT-014`, `AGENT-037`, `CHAT-010`, `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.ACCESS,BI.PRIVACY; DIRECT=none; WHY=the room decides the outer bound of what a persona may do and show there, independent of who mentions it`.
   - **TEST:** `TestTodo_AGENTP_007`.
@@ -31515,7 +31564,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** extend `AGENT-014` installations; keep membership owned by chat.
   - **Refs:** `internal/collaboration/chatapps/chatapps.go`, `internal/collaboration/chatpolicy`, `AGENTP-001` record.
 
-- [ ] `AGENTP-008` **[PHASE_3][SOL_HIGH] Resolve an @persona mention into one on-behalf-of invocation whose authority is persona ∩ installation ∩ channel policy ∩ invoker.**
+- [x] `AGENTP-008` **[PHASE_3][SOL_HIGH] Resolve an @persona mention into one on-behalf-of invocation whose authority is persona ∩ installation ∩ channel policy ∩ invoker.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_008`, `TestTodo_AGENTP_008_Golden`, `TestTodo_AGENTP_008_Integration`, `TestTodo_AGENTP_008_Mutation`, `TestTodo_AGENTP_008_Property`, `TestTodo_AGENTP_008_Security` exist and passed in `internal/agentinvoke`, `internal/data/agentinvocationstore`, `internal/data/agentpersonastore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-007`, `AGENT-027`, `AGENT2-003`, `AGENT2-005`, `CHAT-027`, `CHAT-028`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.ACCESS,BI.INTELLIGENCE; DIRECT=none; WHY=a mention must start exactly one run that can never do more than the person who typed it`.
   - **TEST:** `TestTodo_AGENTP_008`.
@@ -31525,7 +31575,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** `AGENT-027` becomes the persona invocation path for mentions; slash commands and DMs use the same resolver.
   - **Refs:** `internal/collaboration/chatapps/chat028_invocation.go`, `internal/agentdelegation/delegation.go`, `internal/trust/authz/policy.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-009` **[PHASE_3][SOL_HIGH] Keep several invokers of one persona in one thread isolated in authority, context, results and approvals.**
+- [x] `AGENTP-009` **[PHASE_3][SOL_HIGH] Keep several invokers of one persona in one thread isolated in authority, context, results and approvals.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_009`, `TestTodo_AGENTP_009_Golden`, `TestTodo_AGENTP_009_Property`, `TestTodo_AGENTP_009_Race`, `TestTodo_AGENTP_009_Security` exist and passed in `internal/agentinvoke` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-008`, `AGENT2-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.PRIVACY,BI.INTELLIGENCE; DIRECT=none; WHY=in a busy thread the persona serves each person separately and never lends one member's view or approval to another`.
   - **TEST:** `TestTodo_AGENTP_009`.
@@ -31535,7 +31586,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** key conversational memory by (persona, invoker, thread), never by thread alone.
   - **Refs:** `internal/agentrun/uxblind_a5_runtime.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-010` **[PHASE_3][SOL_HIGH] Bound persona context to the invoker-readable thread and quarantine other members' posts as untrusted.**
+- [x] `AGENTP-010` **[PHASE_3][SOL_HIGH] Bound persona context to the invoker-readable thread and quarantine other members' posts as untrusted.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_010`, `TestTodo_AGENTP_010_Golden`, `TestTodo_AGENTP_010_Security` exist and passed in `internal/agentinvoke` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-008`, `AGENT-018`, `AGENT2-015`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=a persona reads text written by people other than the invoker, and none of it may steer the plan, pick a subject or recipient, or open an exfiltration path`.
   - **TEST:** `TestTodo_AGENTP_010`.
@@ -31555,7 +31607,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse chat ordering and cursors; ephemeral posts do not enter the outbox that feeds shared projections.
   - **Refs:** `internal/collaboration/chatstream`, `internal/collaboration/chat`, [company chat](specs/company-chat-and-collaboration.md).
 
-- [ ] `AGENTP-012` **[PHASE_3][SOL_HIGH] Deliver persona results by the audience-floor rule and route anything narrower privately to the invoker.**
+- [x] `AGENTP-012` **[PHASE_3][SOL_HIGH] Deliver persona results by the audience-floor rule and route anything narrower privately to the invoker.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_012`, `TestTodo_AGENTP_012_Golden`, `TestTodo_AGENTP_012_Mutation`, `TestTodo_AGENTP_012_Property`, `TestTodo_AGENTP_012_Race`, `TestTodo_AGENTP_012_Security` exist and passed in `internal/agentdeliver`, `internal/application`, `internal/collaboration/chatrecipient` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-008`, `AGENTP-011`, `AGENT-026`, `CHAT-013`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=an answer computed with the invoker's authority may be posted into a room only when everyone who can read that room could have read every part of it`.
   - **TEST:** `TestTodo_AGENTP_012`.
@@ -31585,7 +31638,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** chat cards are a rendering of `AGENT2-006` AgentActionApproval, not a second approval model.
   - **Refs:** `internal/collaboration/chatapps/chatapps.go`, `internal/agentsecurity/action_compiler.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-015` **[PHASE_3][SOL_HIGH] Enforce per-invoker, per-conversation and per-persona rate, concurrency and spend limits for mentions.**
+- [x] `AGENTP-015` **[PHASE_3][SOL_HIGH] Enforce per-invoker, per-conversation and per-persona rate, concurrency and spend limits for mentions.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_015`, `TestTodo_AGENTP_015_Golden`, `TestTodo_AGENTP_015_Property`, `TestTodo_AGENTP_015_Race` exist and passed in `internal/agentpersona/install`, `internal/agentpersona/limits` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-008`, `AGENT2-012`, `CHAT-044`, `CHAT-046`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.COMMERCIAL,BI.INTELLIGENCE; DIRECT=none; WHY=a popular persona in a large channel must not flood the room, starve other members or exhaust the tenant allowance`.
   - **TEST:** `TestTodo_AGENTP_015`.
@@ -31595,7 +31649,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the `agentbudget` ledger and `CHAT-044` trigger budgets.
   - **Refs:** `internal/agentbudget`, `internal/collaboration/chatapps/chat044_triggers.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-016` **[PHASE_3][SOL_HIGH] Suspend, kill and orphan-fence personas per version, installation and tenant before the next step.**
+- [x] `AGENTP-016` **[PHASE_3][SOL_HIGH] Suspend, kill and orphan-fence personas per version, installation and tenant before the next step.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_016`, `TestTodo_AGENTP_016_Fault`, `TestTodo_AGENTP_016_Golden`, `TestTodo_AGENTP_016_Race`, `TestTodo_AGENTP_016_Security` exist and passed in `internal/agentpersona/install`, `internal/agentsecurity` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-006`, `AGENT2-020`, `AGENT-039`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=an administrator must be able to stop one persona everywhere, one persona in one room, or all personas, and an unowned persona must stop on its own`.
   - **TEST:** `TestTodo_AGENTP_016`.
@@ -31605,7 +31660,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse `AGENT-039` quarantine and the identity change subscriptions of `AGENT2-020`.
   - **Refs:** `internal/agentdelegation/delegation.go`, [incident management](specs/incident-management.md), `AGENTP-001` record.
 
-- [ ] `AGENTP-017` **[PHASE_3][SOL_HIGH] Extend the agent actor chain with persona version, installation, conversation, invoking post and invocation.**
+- [x] `AGENTP-017` **[PHASE_3][SOL_HIGH] Extend the agent actor chain with persona version, installation, conversation, invoking post and invocation.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_017`, `TestTodo_AGENTP_017_Golden`, `TestTodo_AGENTP_017_Integration`, `TestTodo_AGENTP_017_Security` exist and passed in `internal/agentaudit`, `internal/agentinvoke` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-008`, `AGENT2-014`, `CHAT-047`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=an auditor must answer who asked which persona version, in which room, from which post, what it read and what it changed`.
   - **TEST:** `TestTodo_AGENTP_017`.
@@ -31645,7 +31701,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the agents page task components; no second task renderer.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/chatui`, `AGENTP-001` record.
 
-- [ ] `AGENTP-021` **[CONFORMANCE][SOL_HIGH] Qualify each persona version with a persona evaluation suite for routing, refusals, audience leaks and peer injection.**
+- [x] `AGENTP-021` **[CONFORMANCE][SOL_HIGH] Qualify each persona version with a persona evaluation suite for routing, refusals, audience leaks and peer injection.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_021`, `TestTodo_AGENTP_021_Conformance`, `TestTodo_AGENTP_021_Golden`, `TestTodo_AGENTP_021_Security` exist and passed in `internal/agenteval`, `internal/data/agentpersonastore`, `tools/agentpersonaeval` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-003`, `AGENTP-010`, `AGENTP-012`, `AGENT2-025`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.OPERATIONS; DIRECT=none; WHY=a persona is only safe to place in rooms if it measurably stays inside its job, refuses what it cannot do and never leaks into a wider audience`.
   - **TEST:** `TestTodo_AGENTP_021`.
@@ -31655,9 +31712,10 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** extend the `AGENT-004` evaluation record with persona fields.
   - **Refs:** `internal/agentsecurity/eval_gates.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-022` **[CONFORMANCE][SOL_HIGH] Red-team shared-channel personas for peer injection, audience leakage, approval hijack, impersonation and recruitment.**
+- [x] `AGENTP-022` **[CONFORMANCE][SOL_HIGH] Red-team shared-channel personas for peer injection, audience leakage, approval hijack, impersonation and recruitment.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTP_022`, `TestTodo_AGENTP_022_Conformance`, `TestTodo_AGENTP_022_Security` exist and passed in `tools/agentpersonaeval`, `tools/conformance/agentredteam` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTP-002`, `AGENTP-009`, `AGENTP-010`, `AGENTP-012`, `AGENTP-014`, `AGENTP-016`, `AGENT2-023`.
-  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.SECURITY,BI.PRIVACY,BI.INTELLIGENCE; DIRECT=none; WHY=release needs adversarial proof that a persona in a room never does or shows more than its invoker may, whoever else is in the room`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.SECURITY,BI.PRIVACY,BI.INTELLIGENCE; DIRECT=none; WHY=release needs adversarial proof that a persona in a room never does or shows more than its invoker may, whoever else is in the room`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
   - **TEST:** `TestTodo_AGENTP_022`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTP_022`; `CONFORMANCE=TestTodo_AGENTP_022_Conformance`; `SECURITY=TestTodo_AGENTP_022_Security`; `FUZZ=FuzzTodo_AGENTP_022`.
   - **RED:** no suite attacks a persona through planted channel posts, mixed-audience channels, a colleague's clicks on approval cards, look-alike handles, bot posts that mention personas, or a suspend racing a waiting task.
@@ -31704,3 +31762,2846 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **GREEN:** a trusted directory adapter resolves each current chat member's roles, named population IDs, and organization scope from its own home tenant, rechecking membership and revisions on discovery and invocation; missing, revoked, ambiguous, or cross-tenant facts yield no persona candidates or grant. Browser and integration tests prove hidden personas are absent from autocomplete payloads.
   - **REFACTOR:** share the `AGENT2-027` source of truth with the `AGENT2-005` per-call discovery gate; do not duplicate population policy in chat.
   - **Refs:** `internal/application/persona_audience_source.go`, `internal/application/agent_directory_db.go`, `AGENTP-019`.
+
+## 93. Agent experience review and document-referenced instructions
+
+This section holds the owner-requested agent experience work of 2026-09-30: the adversarial UI, UX and flow review of the agent surfaces (the Agents page under Chat, the Personas administration page, and persona mentions in Chat), the defects that stop those surfaces working from the browser to the runtime, and one new capability, agent instructions that reference documents from the documentation hub. It refines sections 87, 91 and 92 and adds no agent authority: a referenced document is reference data read under the invoking user's own document access, never an instruction with authority, and never a grant. `AGENTUX-*` items are review findings; the recurring review appends new ones here.
+
+- [x] `AGENTDOC-001` **[DESIGN][SOL_HIGH] Record the decision for document references in agent instructions.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTDOC_001`, `TestTodo_AGENTDOC_001_Golden`, `TestTodo_AGENTDOC_001_Security` exist and passed in `tools/policy/agentobo` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `AGENT2-001`, `AGENTP-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.DOCUMENTS,BI.EXPERIENCE; DIRECT=none; WHY=fix what a document reference is, who may add one, how it is pinned and what authority it carries before two surfaces and a runtime implement it`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
+  - **TEST:** `TestTodo_AGENTDOC_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_001`; `GOLDEN=TestTodo_AGENTDOC_001_Golden`; `SECURITY=TestTodo_AGENTDOC_001_Security`.
+  - **RED:** nothing states whether instructions may name hub documents, so a persona author pastes policy text into instructions where it goes stale, and a user who wants an agent to work from a document has no way to say which one.
+  - **GREEN:** a checked-in decision record under definitions/planning fixes: (1) two reference sites, the persona version (author: persona administrator) and the user's task or chat request (author: the invoking user); (2) a reference is `{document_id, version_mode PINNED|LATEST_PUBLISHED, pinned_version, section_anchor, label}`; persona references default to PINNED, user references default to LATEST_PUBLISHED; (3) at most 8 references per persona version and 5 per request, at most 48,000 characters of referenced content per run, truncated by section with a visible notice; (4) persona references are part of the sealed profile digest, so changing them is a new version that needs review and evaluation; (5) content is resolved at run time under the invoking user's current document read access; a reference the invoker cannot read is omitted and reported to the invoker by label only when the invoker can see that the document exists, otherwise as one generic count; (6) referenced content is reference data: it is quarantined from planning authority under `AGENT2-015`, cannot add skills, recipients or tiers, and answers cite the document and section; a golden pins the record and SECURITY fails when a default is missing.
+  - **Decision (2026-09-30, owner request):** agent instructions can reference documents from the documentation hub. Both the persona instructions and the user's request can carry references; access is always the invoking user's own.
+  - **REFACTOR:** reference the record from every `AGENTDOC-*` Refs field instead of restating defaults.
+  - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [Documentation hub](specs/channel-documentation-hub.md), `AGENT2-001` record.
+
+- [x] `AGENTDOC-002` **[PHASE_3][SOL_HIGH] Carry sealed document references on the persona profile.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTDOC_002`, `TestTodo_AGENTDOC_002_Golden`, `TestTodo_AGENTDOC_002_Integration`, `TestTodo_AGENTDOC_002_Property`, `TestTodo_AGENTDOC_002_Security` exist and passed in `internal/agentdocref`, `internal/agentpersona`, `internal/data/agentpersonastore`, `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `AGENTDOC-001`, `AGENTP-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a persona's reference documents must be versioned, reviewed and evaluated with the profile they belong to`.
+  - **TEST:** `TestTodo_AGENTDOC_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_002`; `GOLDEN=TestTodo_AGENTDOC_002_Golden`; `PROPERTY=TestTodo_AGENTDOC_002_Property`; `SECURITY=TestTodo_AGENTDOC_002_Security`; `INTEGRATION=TestTodo_AGENTDOC_002_Integration`.
+  - **RED:** the persona profile has only instruction text, the validator rejects any reference in it, and a reviewer approves a version without seeing which documents it will read.
+  - **GREEN:** `PersonaProfile` carries `document_references` validated for shape, the limits of `AGENTDOC-001`, unique document ids and labels, and a pinned version when PINNED; references are included in the sealed profile digest, so two profiles differing only in references have different digests; instruction text still may not name tools, recipients or URLs; the persona store persists and returns references unchanged across restart; a version created before this field reads as an empty list with an unchanged digest; PROPERTY proves reference order is significant and preserved through seal and store; SECURITY proves a reference cannot carry a URL, a tenant other than the profile's, or free text beyond the label limit.
+  - **REFACTOR:** one reference value type shared by the persona profile and the request path of `AGENTDOC-004`.
+  - **Refs:** `internal/agentpersona`, `internal/data/agentpersonastore`, `AGENTDOC-001` record.
+
+- [ ] `AGENTDOC-003` **[PHASE_3][SOL_HIGH] Resolve referenced documents at run time under the invoking user's read access.**
+  - **Depends:** `AGENTDOC-002`, `AGENT2-005`, `AGENT2-015`, `AGENTP-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.DOCUMENTS,BI.INTELLIGENCE; DIRECT=none; WHY=a reference must never let an agent read a document its invoker cannot read, and referenced text must never gain instruction authority`.
+  - **TEST:** `TestTodo_AGENTDOC_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_003`; `GOLDEN=TestTodo_AGENTDOC_003_Golden`; `SECURITY=TestTodo_AGENTDOC_003_Security`; `INTEGRATION=TestTodo_AGENTDOC_003_Integration`; `PROPERTY=TestTodo_AGENTDOC_003_Property`; `MUTATION=TestTodo_AGENTDOC_003_Mutation`.
+  - **RED:** referenced documents are read with the agent's or the author's access, a user outside a document's audience receives its content through a persona, a later edit of a pinned document changes a reviewed persona's behaviour, or text inside a referenced document tells the agent to use another skill and it does.
+  - **GREEN:** the persona run request builder and the task runtime resolve each reference through the documentation hub's authorized read for the invoking user at run time; PINNED reads the exact version, LATEST_PUBLISHED the current published version; unreadable, deleted or unpublished references are omitted and reported per `AGENTDOC-001`; resolved content enters the model request as quarantined reference data with document id, version, section and label for citation, inside the content budget; a golden pins the model request section; INTEGRATION uses real PostgreSQL document and persona stores; PROPERTY proves content delivered for a run is a subset of what the same user can read in the hub; MUTATION removes the access check, the pin and the quarantine in turn and a test fails each time.
+  - **REFACTOR:** reuse the existing document grounding and citation path of the knowledge-search skill; add no second document reader.
+  - **Refs:** `internal/application`, `internal/agentsecurity`, [Documentation hub](specs/channel-documentation-hub.md), `AGENTDOC-001` record.
+
+- [x] `AGENTDOC-004` **[PHASE_3][SOL_HIGH] Accept document references on a user's agent task and chat request.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTDOC_004`, `TestTodo_AGENTDOC_004_Golden`, `TestTodo_AGENTDOC_004_Integration`, `TestTodo_AGENTDOC_004_Security` exist and passed in `internal/agentrun`, `internal/application`, `internal/transport/agents` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `AGENTDOC-003`, `AGENT2-010`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.DOCUMENTS,BI.WORK; DIRECT=none; WHY=a user must be able to tell an agent which documents to work from when starting a task`.
+  - **TEST:** `TestTodo_AGENTDOC_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_004`; `SECURITY=TestTodo_AGENTDOC_004_Security`; `INTEGRATION=TestTodo_AGENTDOC_004_Integration`; `GOLDEN=TestTodo_AGENTDOC_004_Golden`.
+  - **RED:** the task start request carries only text, so a user pastes document content into the prompt, and a document id typed into the text is treated as an instruction.
+  - **GREEN:** the agent task start RPC and its stored task accept up to five typed document references validated against the invoker's current read access at admission (an unreadable reference refuses the start with a typed reason naming no document content); the references are stored with the task, shown on the task record, and resolved by `AGENTDOC-003` on every step; a golden pins the request and task projections; INTEGRATION starts a task through the served gRPC surface against real stores.
+  - **REFACTOR:** the same reference type and validator as `AGENTDOC-002`.
+  - **Refs:** `schema/proto/hcmnext/agent/v1`, `internal/transport/agents`, `internal/agentrun`, `AGENTDOC-001` record.
+
+- [ ] `AGENTDOC-005` **[PHASE_3][TERRA] Let a persona administrator add reference documents next to the instructions.**
+  - **Depends:** `AGENTDOC-002`, `AGENTP-018`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=the person who shapes a persona needs to pick its reference documents by title, see what is pinned and understand who will be able to read them`.
+  - **TEST:** `TestTodo_AGENTDOC_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_005`; `BROWSER=TestTodo_AGENTDOC_005_Browser`; `SECURITY=TestTodo_AGENTDOC_005_Security`.
+  - **RED:** the version editor shows a read-only instructions box and no way to attach a document, so the only way to ground a persona is to ask an engineer to change its manifest.
+  - **GREEN:** the persona version editor has a "Reference documents" field under Instructions: a labelled search-as-you-type picker over documents the administrator can read, results by title with space and last-updated, a chip per chosen document showing title, "Pinned to version N" or "Always latest published" as a per-chip choice, a remove button named for the document, a count against the limit, and one sentence saying that each person only gets content from documents they can already read; saving creates a new version carrying the references; the catalog card lists a version's reference documents by title; empty, loading, no-result, limit-reached and failed-search states each say what to do; keyboard, screen-reader names, en-US, de-DE and RTL ar, 1440, 800, 390 and 320 px, light and dark are covered.
+  - **REFACTOR:** reuse the documentation hub suggest component used by chat document chips.
+  - **Refs:** `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record.
+
+- [ ] `AGENTDOC-006` **[PHASE_3][TERRA] Let a user attach hub documents to an agent request from the Agents composer.**
+  - **Depends:** `AGENTDOC-004`, `AGENT2-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a user should point an agent at the documents to work from without pasting them`.
+  - **TEST:** `TestTodo_AGENTDOC_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_006`; `BROWSER=TestTodo_AGENTDOC_006_Browser`.
+  - **RED:** the composer is a bare text box; there is no way to attach a document and no sign on a finished task of which documents it used.
+  - **GREEN:** the Agents composer has an "Add document" control and accepts typing `#` to search hub documents by title; chosen documents appear as removable chips above the buttons, the request carries them as typed references, the task row and task detail show "Documents used" with links to the hub, and an answer's citations link to the document section; when the documentation hub is not set up the control is hidden with no dead end; states, keyboard, locales and widths as in `AGENTDOC-005`.
+  - **REFACTOR:** one picker component for the composer and the persona editor.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record.
+
+- [ ] `AGENTDOC-007` **[CONFORMANCE][SOL_HIGH] Prove document-referenced instructions end to end.**
+  - **Depends:** `AGENTDOC-003`, `AGENTDOC-005`, `AGENTDOC-006`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.DOCUMENTS,BI.SECURITY; DIRECT=none; WHY=one journey proves the references are honoured, cited and never widen access`.
+  - **TEST:** `TestTodo_AGENTDOC_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_007`; `CONFORMANCE=TestTodo_AGENTDOC_007_Conformance`; `SECURITY=TestTodo_AGENTDOC_007_Security`; `BROWSER=TestTodo_AGENTDOC_007_Browser`.
+  - **RED:** each layer passes alone while a referenced document never reaches the model, or reaches it for a user who cannot read it.
+  - **GREEN:** with real stores and a deterministic model fixture, an administrator adds a pinned policy document to a persona version, a reader of that document asks the persona and receives an answer citing the pinned version, a non-reader asks the same question and receives no content from it and a notice, the document is then edited and the pinned persona still answers from the pinned version, and a user attaches a second document to a task from the composer and the task record lists it; the browser run drives the same journey through the served workspace.
+  - **REFACTOR:** reuse the persona chat and task conformance harnesses.
+  - **Refs:** `test/workflow`, `internal/application`, `AGENTDOC-001` record.
+
+- [x] `AGENTUX-001` **[PHASE_3][TERRA] Give the Agents page one clear job per region and a scannable task list.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_001`, `TestTodo_AGENTUX_001_Browser` exist and passed in `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENT2-016`, `UXBLIND-122`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a first-time user must see what an agent can do for them, start, and find a result within seconds`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
+  - **TEST:** `TestTodo_AGENTUX_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_001`; `BROWSER=TestTodo_AGENTUX_001_Browser`.
+  - **RED:** (2026-09-30 review, 1440 px, Ironridge administrator) the page opens with an "Agents" card saying "No agents are available for your account" beside an enabled composer, so it is unclear whether asking will work; "No agent conversations yet." sits in its own empty card; every task repeats its text twice and shows its status three times (group heading, chip and inline word); "Open task" is a full-size button per row; ten test tasks fill the page with no time, no result preview and no way to clear them; failed tasks give no reason.
+  - **GREEN:** the composer is the page's first region with one primary action and a plain sentence on what quick answers and long tasks are; available agents appear as named choices in the composer, and when none exist the page says what a general request will do instead of contradicting the enabled composer; tasks are one list with the request once, a status chip once, a relative time, a one-line result or failure reason, and the whole row opens the task; filters for Active, Completed and Failed with counts; paging beyond 20; empty, loading and failure states each say what to do next; task detail shows request, answer, steps and documents used with a way back that keeps list position.
+  - **REFACTOR:** one task row component for the list and the chat hand-off.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`, `tools/uxqual/cmd/journeywasm`.
+
+- [x] `AGENTUX-002` **[PHASE_3][TERRA] Move owner controls and portable definitions off the user's Agents page.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_002`, `TestTodo_AGENTUX_002_Browser`, `TestTodo_AGENTUX_002_Security` exist and passed in `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENT-041`, `AGENT-045`, `AGENTP-018`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=administration controls on a personal page confuse every user who is not an agent owner and bury the owner's tools under a task list`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
+  - **TEST:** `TestTodo_AGENTUX_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_002`; `BROWSER=TestTodo_AGENTUX_002_Browser`; `SECURITY=TestTodo_AGENTUX_002_Security`.
+  - **RED:** (2026-09-30 review) "Agent owner controls", two "Refresh controls" buttons, "Export portable definition", "Import as draft" and "Review imported draft" render at the bottom of "Your agents" below the task list, with engineering wording and unstyled inline forms, and a link labelled only "Personas".
+  - **GREEN:** the user's Agents page holds only the composer, agents and tasks; owner operations, rollout and portable definition export and import live on an administration surface reached from Admin and from one "Manage agents" link shown only to people who may use it; each control there has a verb label, a one-line explanation, a named confirmation where it changes state, and feedback after the action; SECURITY proves a user without the owner permission receives neither the link nor the controls.
+  - **REFACTOR:** reuse the Personas administration page frame rather than a third layout.
+  - **Refs:** `internal/humanwork/productui/agent_controls_page.go`, `internal/humanwork/productui/agent_rollout_portable.go`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `AGENTUX-003` **[PHASE_3][TERRA] Make the Personas administration page readable and its lifecycle actions self-explaining.**
+  - **Depends:** `AGENTP-018`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=an administrator must understand a persona's state and the next step without knowing internal identifiers`.
+  - **TEST:** `TestTodo_AGENTUX_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_003`; `BROWSER=TestTodo_AGENTUX_003_Browser`.
+  - **RED:** (2026-09-30 review) the page shows `IN_REVIEW`, `ir-001-walt-brennan`, `comp_admin, employees, hcm_admin, intent_author, org:ironridge-demo:executive, promotion_operator`, `POLICY_DOCUMENT`, `hcmnext.skill.knowledge_search_with_citationsT0POLICY_DOCUMENT`, "AGENTP-006 review" and "Not reported"; Publish, Rollback, Suspend and Retire are disabled with no reason beside them; "Create a persona draft" is the first card but only says it cannot be used; the effective access preview lists 38 first names with no surnames and conversations with no kind.
+  - **GREEN:** states, roles, data classes, skills and tiers render as words a business owner understands, with identifiers available under a details disclosure; people render as full names with role; each lifecycle button that is unavailable says why and what unlocks it in one sentence next to it (for example "Publish needs a passing evaluation."), and the next available step is the one primary action on the card; the creation card is hidden when no starter can be used and replaced by one sentence under the catalog; the access preview uses searchable pickers with full names and conversation kind; no todo ids or internal codes appear in the page.
+  - **REFACTOR:** one humanizing vocabulary shared with the Agents page and chat persona cards.
+  - **Refs:** `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agent_access_admin.go`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `AGENTUX-004` **[PHASE_3][SOL_HIGH] Let the chat page load the personas a user may mention.**
+  - **Depends:** `AGENTP-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY,BI.INTELLIGENCE; DIRECT=none; WHY=persona mention autocomplete cannot work while the page's own content security policy blocks the lookup`.
+  - **TEST:** `TestTodo_AGENTUX_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_004`; `SECURITY=TestTodo_AGENTUX_004_Security`; `INTEGRATION=TestTodo_AGENTUX_004_Integration`; `BROWSER=TestTodo_AGENTUX_004_Browser`.
+  - **RED:** (2026-09-30 review) opening Chat logs "Connecting to /api/chat/personas?conversation_id=… violates the following Content Security Policy directive: connect-src …" twice per conversation, the fetch is refused, and typing `@` offers no persona.
+  - **GREEN:** the served chat page's policy admits the same-origin persona lookup path it calls and the invocation watch and retry routes beneath it (or these move onto the already-admitted workspace tunnel), no other origin or path is added, the browser console is free of policy violations on Chat, and typing `@` lists the personas invocable by this user in this conversation; SECURITY pins the full directive and fails on any widening beyond the named path; INTEGRATION proves the lookup returns only invocable personas through the served edge.
+  - **REFACTOR:** derive admitted paths from the transport package's route constants so a renamed route cannot drift from the policy.
+  - **Refs:** `internal/humanwork/workspace/csp.go`, `internal/transport/personachat/contracts.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `AGENTUX-005` **[PHASE_3][SOL_HIGH] Compose persona invocation in the local-dev cell and provide one published, installed demo persona.**
+  - **Depends:** `AGENTP-006`, `AGENTP-007`, `AGENTP-008`, `AGENTP-021`, `AGENTP-023`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=the agent experience cannot be reviewed or demonstrated while no persona can be invoked from the browser`.
+  - **TEST:** `TestTodo_AGENTUX_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_005`; `INTEGRATION=TestTodo_AGENTUX_005_Integration`; `SECURITY=TestTodo_AGENTUX_005_Security`; `BROWSER=TestTodo_AGENTUX_005_Browser`; `FAULT=TestTodo_AGENTUX_005_Fault`; `RECOVERY=TestTodo_AGENTUX_005_Recovery`.
+  - **RED:** (2026-09-30 review) the served local-dev cell logs `hcmnext.persona_invocation_unavailable` with stage `production_run_composition_missing` and five missing ports; the only persona, Policy Helper version 4, is in review with evaluation required and no conversation installation, so the Agents page says no agents are available and a mention in Chat can never answer.
+  - **GREEN:** with the local-dev profile and a configured model provider the cell composes the persona run worker and logs no unavailable event; a local-dev-only preparation command takes Policy Helper through the normal lifecycle (evaluation by the local evaluation signer, publication, installation in the demo conversations) using the same stores and validators as production, refuses to run outside the local-dev profile, and is idempotent; after it, the Agents page lists Policy Helper, `@policy-helper` in a demo conversation produces a delivered answer that cites a policy document, and the task appears in the task list; SECURITY proves the preparation is unreachable without the local-dev profile and creates no evaluation result that a production verifier would accept.
+  - **REFACTOR:** no persona-specific branch in the runtime; the preparation is data and lifecycle calls only.
+  - **Refs:** `internal/application/serve.go`, `internal/application/persona_serve_wiring.go`, `internal/application/persona_runtime_composition.go`, `cmd/migrate`.
+
+- [x] `AGENTUX-006` **[PHASE_3][SOL_HIGH] Never block the browser's main thread from a timer callback in the workspace client.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_006`, `TestTodo_AGENTUX_006_Browser`, `TestTodo_AGENTUX_006_Fault` exist and passed in `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `AGENTP-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a blocking read inside a browser callback freezes the whole tab, which the user experiences as the application crashing`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
+  - **TEST:** `TestTodo_AGENTUX_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_006`; `BROWSER=TestTodo_AGENTUX_006_Browser`; `FAULT=TestTodo_AGENTUX_006_Fault`.
+  - **RED:** (2026-09-30 review and owner report) opening Chat froze the tab within about three seconds: every debugger stack sample showed `browserDebounceScheduler` (a `setTimeout` callback) calling the persona directory refresh, which made a blocking HTTP read; the Go runtime cannot yield to the browser from inside a callback, so the response never arrived and the scheduler spun forever. Screenshots timed out, navigation away failed and the page had to be closed.
+  - **GREEN:** the persona directory refresh runs its read on its own goroutine (done 2026-09-30); every refresh, draft-write and navigation function handed to `browserDebounceScheduler` or run from a `js.FuncOf` callback is non-blocking, proved by a native test that fails when a scheduled function blocks on a channel, a lock held by a pending read or an HTTP round trip before returning; FAULT proves a refused, failed or never-answered persona lookup leaves the page responsive and shows the retry row; the browser run loads Chat, waits ten seconds and proves the main thread answers within 100 ms and the composer is present.
+  - **REFACTOR:** make the scheduler seam run blocking work off the callback by construction rather than relying on each caller.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`, `tools/uxqual/cmd/journeywasm/product_invalidation.go`.
+
+- [x] `AGENTUX-007` **[PHASE_3][TERRA] Mount the persona mention menu in the live chat composer.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_007`, `TestTodo_AGENTUX_007_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=the reviewed mention menu exists as a component but the live composer still renders the older menu, so users never see agents distinguished from people`.
+  - **TEST:** `TestTodo_AGENTUX_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_007`; `BROWSER=TestTodo_AGENTUX_007_Browser`.
+  - **RED:** (2026-09-30 review) the live composer renders the chat package's own mention menu; the persona menu with avatar, handle, purpose, Agent badge, loading, empty and retry rows is not mounted, and the lookup's loading and failure state is not carried in the chat model.
+  - **GREEN:** typing `@` in the live composer shows people and agents in one list with agents carrying the Agent badge, handle and one-line purpose; the chat model carries lookup loading and failure state and a retry callback wired to the directory refresh; arrow keys, Enter, Tab and Escape work across both groups; the watch stream stops retrying and says so once after a refusal instead of logging an error every three seconds; 1440, 800, 390 and 320 px, light, dark and RTL hold.
+  - **REFACTOR:** one mention row component shared by people and agents.
+  - **Refs:** `internal/humanwork/chatui`, `internal/humanwork/productui/chat_persona_mention.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `AGENTUX-008` **[PHASE_3][TERRA] Project task time, failure reason and documents to the Agents task list.**
+  - **Depends:** `AGENTUX-001`, `AGENTDOC-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a task row cannot say when it ran, why it failed or which documents it used because the projection does not carry those facts`.
+  - **TEST:** `TestTodo_AGENTUX_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_008`; `INTEGRATION=TestTodo_AGENTUX_008_Integration`; `BROWSER=TestTodo_AGENTUX_008_Browser`.
+  - **RED:** (2026-09-30 review) task rows show no time; failed tasks show one generic sentence; "Documents used" cannot render; there is no loading or load-failure state for the task list; checkpoint values such as `09:14` are display strings that cannot give a relative time.
+  - **GREEN:** the task projection carries created and updated instants, a sanitized failure summary in words and the task's document references through the service, the workspace configuration, the client model and the page; rows show a relative time with the exact time on hover and focus, a failure reason a user can act on, and document chips linking to the hub; the list has loading and load-failure states with retry; INTEGRATION reads a stored failed task through the served surface and gets its reason.
+  - **REFACTOR:** one task projection type from transport to page.
+  - **Refs:** `schema/proto/hcmnext/agent/v1`, `tools/uxqual/journeyclient`, `internal/humanwork/productui/agents_page.go`.
+
+- [x] `AGENTUX-009` **[PHASE_3][SOL_HIGH] Let the chosen agent on the composer decide who answers.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_009`, `TestTodo_AGENTUX_009_Browser`, `TestTodo_AGENTUX_009_Integration`, `TestTodo_AGENTUX_009_Security` exist and passed in `internal/application`, `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-001`, `AGENTUX-005`, `AGENT2-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=offering named agents as choices that do not change who answers is a control that lies`.
+  - **TEST:** `TestTodo_AGENTUX_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_009`; `SECURITY=TestTodo_AGENTUX_009_Security`; `INTEGRATION=TestTodo_AGENTUX_009_Integration`; `BROWSER=TestTodo_AGENTUX_009_Browser`.
+  - **RED:** (2026-09-30 review) the composer lists named agents but the task start request has no agent field, so every request goes to the same general agent whatever the user picked.
+  - **GREEN:** the task start request names the chosen persona; admission checks through the existing gate that this user may invoke it now and refuses with a reason the page shows; the task record and row name the agent that answered; with no choice the general agent answers and the page says so; SECURITY proves a persona the user may not invoke cannot be selected by editing the request.
+  - **REFACTOR:** the same invocation resolver as chat mentions.
+  - **Refs:** `schema/proto/hcmnext/agent/v1`, `internal/transport/agents`, `internal/application/persona_chat_invocation.go`, `internal/humanwork/productui/agents_page.go`.
+
+- [x] `AGENTUX-010` **[PHASE_3][TERRA] Keep the workspace shell and say why when a page is refused or unavailable.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_010`, `TestTodo_AGENTUX_010_Browser`, `TestTodo_AGENTUX_010_Security` exist and passed in `internal/humanwork/workspace` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-002`, `UXBLIND-029`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a refused page that drops the navigation and gives a generic sentence strands the user and hides whether the cause is access or failure`.
+  - **TEST:** `TestTodo_AGENTUX_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_010`; `SECURITY=TestTodo_AGENTUX_010_Security`; `BROWSER=TestTodo_AGENTUX_010_Browser`.
+  - **RED:** (2026-09-30 visual scan) the "Manage agents" link on the Agents page opens `/workspace/app/admin/agents`, which answers 403 with a bare "Page unavailable" card: no sidebar, no header, the sentence "We couldn't load the latest information. Try again" for what is an access refusal, and one long link as the only way out; the link was offered to a user the page then refused.
+  - **GREEN:** the Agent operations page is admitted for people who may use owner controls and the link is shown only to them; any refused or unavailable workspace page renders inside the normal shell with the page's name, a sentence that distinguishes "you do not have access" from "this could not be loaded", who to ask or a Try again button as fits, and a Back link to where the user came from; SECURITY proves the refusal body reveals nothing about the page's data.
+  - **REFACTOR:** one refusal component for every workspace page.
+  - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/registry.go`, `internal/humanwork/productui/agentux_ops_page.go`.
+
+- [ ] `AGENTUX-011` **[PHASE_3][TERRA] Make the agent task detail explain what happened and offer the next step.**
+  - **Depends:** `AGENTUX-001`, `AGENTUX-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a user who opens a task wants the answer or the reason it failed and what to do, in their words`.
+  - **TEST:** `TestTodo_AGENTUX_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_011`; `BROWSER=TestTodo_AGENTUX_011_Browser`.
+  - **RED:** (2026-09-30 visual scan) a failed task's detail shows the request, then "Confirmed plan" with a bare "1" and "2" on their own lines, steps named "Read own worker state" and "Summarize request" with captions "Read information" and "Prepare a private draft", a grey "Failed" chip on the step and the task, no reason, no "Try again" and no answer region; the page heading stays "Your agents" with the list's subtitle; "Manage agents" floats under the card.
+  - **GREEN:** the detail's heading is the request (truncated) with the status chip in its tone beside it and the time; the answer, or for a failed task a sentence saying what failed and whether trying again can help, is the first region, with "Try again" and "Ask a follow-up" actions; steps are a numbered list under "What the agent did" with plain-language names, a status per step in tone, and a per-step reason on failure; internal wording is replaced ("Looked up your own record", "Wrote a draft only you can see"); "Back to tasks" returns to the same filter and scroll position; administration links stay out of the detail.
+  - **REFACTOR:** share the step list with the chat task card.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/persona_chat_task.go`.
+
+- [ ] `AGENTUX-012` **[PHASE_3][LUNA] Align the Agents task list with the composer and fix its copy.**
+  - **Depends:** `AGENTUX-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=misaligned regions and inconsistent chips make a simple page look unfinished`.
+  - **TEST:** `TestTodo_AGENTUX_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_012`; `BROWSER=TestTodo_AGENTUX_012_Browser`.
+  - **RED:** (2026-09-30 visual scan) the task list is about 110 px narrower than the composer card above it; the status chip sits right-aligned on a two-line request and inline after a one-line request; the no-agents note is a grey box above the question label and uses the British spelling "specialised" in en-US; the filter chips look like buttons but the selected one is only tinted.
+  - **GREEN:** composer and list share one content width at every breakpoint; the status chip is always at the row's inline end, vertically centered on the first line; the no-agents note is a muted sentence under the composer help, spelled "specialized" in en-US; filters are a labelled tab list with a clear selected state and keyboard arrows.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`, `internal/humanwork/productui/i18n.go`.
+
+- [ ] `AGENTUX-013` **[PHASE_3][TERRA] Show nothing misleading in the effective access preview before a choice, and fit it to its card.**
+  - **Depends:** `AGENTUX-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY,BI.INTELLIGENCE; DIRECT=none; WHY=an access preview that prints empty results before anything is chosen reads as "this persona can do nothing"`.
+  - **TEST:** `TestTodo_AGENTUX_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_013`; `BROWSER=TestTodo_AGENTUX_013_Browser`.
+  - **RED:** (2026-09-30 visual scan) before a user and conversation are chosen the preview already prints "Who can use it: No limits set", "Reply placement: No limits set", "What it can read: Nothing available", "No effective skills in this context" and "No additional warnings"; each picker is a search box stacked on a select; the labels sit flush against the card's left border and the third column runs to the card's right edge at an 800 px content width; "Reply placement" and "data classes" are internal terms.
+  - **GREEN:** until persona, user and conversation are all chosen the result area shows one sentence saying what to pick and nothing else; each picker is one combobox that filters as the user types; the three pickers and the result sit inside the card's padding at every width and stack below 800 px; results are sentences ("Ana Flores can ask Policy Helper in #benefits. It can read policy documents. It replies in the thread, visible to everyone in the channel."); withheld items say why.
+  - **REFACTOR:** reuse the combobox used by the People directory.
+  - **Refs:** `internal/humanwork/productui/agent_access_admin.go`, `internal/humanwork/productui/agent_access_page.go`.
+
+- [ ] `AGENTUX-014` **[PHASE_3][SOL_HIGH] Give a persona in review a way forward to evaluation and publication from the page.**
+  - **Depends:** `AGENTUX-003`, `AGENTP-006`, `AGENTP-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=a lifecycle page whose every button is disabled and which names no next step is a dead end for the administrator`.
+  - **TEST:** `TestTodo_AGENTUX_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_014`; `SECURITY=TestTodo_AGENTUX_014_Security`; `INTEGRATION=TestTodo_AGENTUX_014_Integration`; `BROWSER=TestTodo_AGENTUX_014_Browser`.
+  - **RED:** (2026-09-30 visual scan) Policy Helper is approved by an independent reviewer; Publish says it needs a passing evaluation, Rollback and Suspend say they need publication, Retire says it needs a permission; all four buttons are disabled and the page offers no action that starts an evaluation, shows its status or says who runs it, so the administrator cannot move the persona forward; a skill row reads "No skill description was supplied."
+  - **GREEN:** the card's one primary action is the next real step: "Run evaluation" when review has passed and no fresh passing evaluation exists, with a sentence on what the evaluation does and how long it takes, a running state, and a result with pass or fail counts and a link to the failures; when the viewer may not run it, the card names the role that can; "Publish" becomes the primary action after a passing evaluation; every skill has a description; SECURITY proves the action goes through the existing evaluation authority and cannot be used to publish without evidence; INTEGRATION runs it against real stores with the deterministic model fixture.
+  - **REFACTOR:** the evaluation run uses the same executor as the release gate.
+  - **Refs:** `internal/application/persona_live_evaluation_executor.go`, `internal/application/persona_admin_commands.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
+
+- [x] `AGENTUX-015` **[PHASE_3][TERRA] Make each region of Agent operations usable without knowing internal names.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_015`, `TestTodo_AGENTUX_015_Browser`, `TestTodo_AGENTUX_015_Security` exist and passed in `internal/application`, `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-002`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=an owner page that says its controls are unavailable to the owner, names agents by internal ids and asks for identifiers cannot be operated`; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER.
+  - **TEST:** `TestTodo_AGENTUX_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_015`; `BROWSER=TestTodo_AGENTUX_015_Browser`; `SECURITY=TestTodo_AGENTUX_015_Security`.
+  - **RED:** (2026-09-30 visual scan, administrator) "Running agents" says "Agent states and available actions are up to date." above a full-width Refresh button and then "Owner controls are unavailable for your current access." on a page the same person was admitted to; "Move an agent between workspaces" lists the agent as "agent · 2", has an empty "Definition version" box, a button "Export definition for agent", a "Destination mappings" select and then an empty "Destination mappings" fieldset, and "Imported draft identifier" asks the user to type an id; export, import and review are one undivided form; Refresh is full-width in one region and small in the next; the Admin submenu does not show the page as current.
+  - **GREEN:** every agent is named by its display name and version ("Policy Helper, version 2"); a region whose controls the viewer cannot use says which role can and shows no dead Refresh; "Running agents" lists each running agent with state, since when, and its pause, resume and stop actions, or one sentence when none is running; export, import and review are three titled steps, each with one action; export offers a file download and a copy button rather than a text box; import takes a file or pasted text, shows what it will create and where each reference maps before the user confirms, and lists imported drafts to choose from instead of asking for an identifier; empty mapping sets are not rendered; buttons share one size; the page is highlighted in the Admin submenu; SECURITY proves the names shown come only from definitions the viewer may see.
+  - **REFACTOR:** share the agent naming with the Personas page vocabulary.
+  - **Refs:** `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/productui/agent_controls_page.go`, `internal/humanwork/productui/agent_rollout_portable.go`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `AGENTUX-016` **[PHASE_3][SOL_HIGH] Do not read the user's worker record for a request that needs no data.**
+  - **Depends:** `AGENT2-010`, `AGENT2-021`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=minimum-necessary reading applies to an agent's own plan: a general question must not cause a personnel record read`.
+  - **TEST:** `TestTodo_AGENTUX_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_016`; `SECURITY=TestTodo_AGENTUX_016_Security`; `GOLDEN=TestTodo_AGENTUX_016_Golden`; `INTEGRATION=TestTodo_AGENTUX_016_Integration`.
+  - **RED:** (2026-09-30 visual scan) the request "In one sentence, what is a good way to welcome a new teammate? Use no company data." produced a plan whose first step is "Looked up your own record" (read own worker state), completed, before a draft step; every quick answer reads the worker record whether or not the request needs it, and the task page shows the user that it did.
+  - **GREEN:** the quick-answer plan contains a read step only when the request needs that data; a request that needs none has a single answer step and performs no capability read; the plan and the audit trail agree; a golden pins both plan shapes; SECURITY proves no worker-state capability call is made for a no-data request, and that a request that does need the user's record still reads only that record under the user's authority; INTEGRATION runs both through the served task path with the deterministic model fixture.
+  - **REFACTOR:** derive plan steps from declared data needs rather than a fixed two-step template.
+  - **Refs:** `internal/agentsystem`, `internal/application/agent_platform_starter.go`, `internal/agentrun`.
+
+- [ ] `AGENTUX-017` **[PHASE_3][LUNA] Give the agent task detail a readable heading and one step layout.**
+  - **Depends:** `AGENTUX-011`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a three-line truncated headline and orphaned step numbers make a finished answer hard to read`.
+  - **TEST:** `TestTodo_AGENTUX_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_017`; `BROWSER=TestTodo_AGENTUX_017_Browser`.
+  - **RED:** (2026-09-30 visual scan) the task detail prints the request as a display-size heading over three lines cut mid-word ("Use no company d…") and repeats it in full under "Request"; "Answer" is a smaller heading than "Request"; each step shows a bare number on its own line above the name and an internal caption ("Read information", "Prepare a private draft") under a name that already says the same thing; there is no time and no follow-up action on a completed task.
+  - **GREEN:** the heading is a short label ("Your question") with the status chip and time beside it; the request appears once in body size; "Answer" is the dominant region, then "What the agent did" as a numbered list where number, name and status sit on one line; internal captions are removed; a completed task offers "Ask a follow-up" and "Copy answer"; headings step down in size in document order.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`.
+
+- [ ] `AGENTUX-018` **[DESIGN][TERRA] Use one name, "agent", across the Agents page, Chat and administration.**
+  - **Depends:** `AGENTP-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=one concept shown under six names makes every agent surface harder to understand and to connect`.
+  - **TEST:** `TestTodo_AGENTUX_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_018`; `GOLDEN=TestTodo_AGENTUX_018_Golden`; `BROWSER=TestTodo_AGENTUX_018_Browser`.
+  - **RED:** (2026-09-30 adversarial review round 1, finding F9) the same thing is called "agent", "specialized agent", "persona", "agent definition", "agent · 2" and "conversation installation" across the Agents page, the Chat mention menu, Personas and Agent operations; the link "Manage agents" opens a page titled "Agent operations"; the two administration pages are separated in the Admin menu.
+  - **GREEN:** the user-facing noun is "agent" everywhere; "persona" remains an internal term and appears in no visible string; the Personas administration page is labelled "Agent setup" (route unchanged) and says in one line what an agent is; "Agent setup" and "Agent operations" are adjacent in the Admin menu and link to each other in their headers; an agent is always named by its display name and version; "added to a conversation" replaces "installation" and "placement"; a golden pins the vocabulary in en-US, de-DE and ar, and the browser kind fails on any visible "persona" on the four surfaces.
+  - **Decision (2026-09-30):** one noun, "agent"; the administration pages are "Agent setup" and "Agent operations".
+  - **REFACTOR:** one vocabulary file shared by the four surfaces.
+  - **Refs:** `internal/humanwork/productui/agentux_personas_vocabulary.go`, `internal/humanwork/productui/i18n.go`, `internal/humanwork/chatui/copy.go`.
+
+- [ ] `AGENTUX-019` **[PHASE_3][TERRA] Close the adversarial review round 1 findings on the agent surfaces.**
+  - **Depends:** `AGENTUX-001`, `AGENTUX-002`, `AGENTUX-003`, `AGENTUX-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=an independent critic scored the agent surfaces 5.5 for interface, 5.0 for clarity and 4.5 for flow against a bar of 9`.
+  - **TEST:** `TestTodo_AGENTUX_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_019`; `BROWSER=TestTodo_AGENTUX_019_Browser`.
+  - **RED:** (2026-09-30 adversarial review round 1; scores Agents 6.0/6.5/6.0, Task detail 5.0/5.5/5.0, Agent operations 4.5/3.5/3.5, Personas 5.0/4.5/3.0, Chat mention 6.5/5.0/4.5, refused page 5.0/6.0/6.0) findings not already filed elsewhere: F2 the "Reads only" pill wraps mid-word at every width; F4 "Show more" is always visible because a button style overrides `hidden`; F5 a first-time user lands on a selected "Failed (0)" tab; F6 no way to create an agent from the administration page; F7 the Agents group of the `@` menu is below the menu's scroll fold; F8 the mention empty state gives no reason or next step; F11 "Running agents" has neither a list nor an empty state; F12 two buttons labelled "Refresh" at different sizes; F13 no vertical rhythm in the first operations card; F15 editable inputs filled with the canvas grey look disabled; F16 to F19 three content widths, a status pill that changes position, seven identical pills inside the tab that already says "Completed (7)", and a selected tab styled like a second primary button; F20 a 24 px hole and an orphaned word in the composer; F22 a completed task has no next action; F25 to F27 misaligned left edges, the state shown three times and a progress bar that does not mark the current step; F29 state-unaware copy and an editor nested in the review card; F30 internal language in skill descriptions; F31 empty states as bullets; F32 first names for owner and steward; F33 and F34 the refused page loses the tenant brand, never hydrates and offers no permitted destination; F35 the two administration pages are separated in the menu; F36 English content is not isolated in right-to-left layouts; F37 Chat chrome is English and unmirrored in Arabic while loading; F39 and F40 untranslated role, skill and data labels and a broken Arabic preposition join; F41 an 11 px hint; F42 unlabeled grey image placeholders; F43 different page gutters at 390 px; F44 the window title does not change on a task detail.
+  - **GREEN:** each listed finding is fixed and covered by a test that fails when it regresses; a second adversarial review of fresh screenshots (1440, 800, 390 and 320 px, light and real dark theme, en-US, de-DE and ar, including the Failed filter and a failed task) scores every surface at 9 or above on interface, clarity and flow, or the remaining gaps are filed as new todos with their scores.
+  - **REFACTOR:** shared status pill, shared content measure and shared empty-state component across the agent surfaces.
+  - **Refs:** `internal/humanwork/productui`, `internal/humanwork/chatui`, `internal/humanwork/workspace/product_shell.go`.
+
+- [ ] `AGENTUX-020` **[PHASE_3][SOL_HIGH] Group agent tasks by their real state and open every listed task.**
+  - **Depends:** `AGENTUX-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a task list that files completed answers under Failed and cannot open a listed task makes every result doubtful`.
+  - **TEST:** `TestTodo_AGENTUX_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_020`; `INTEGRATION=TestTodo_AGENTUX_020_Integration`; `BROWSER=TestTodo_AGENTUX_020_Browser`.
+  - **RED:** (2026-09-30 scan after the page moved to the owner-scoped task reads) the tabs read "Active (0)", "Completed (0)", "Failed (11)" and the Failed list contains tasks that completed with an answer; the server log shows `GetAgentTask` answering `NOT_FOUND agents.task_not_found` twelve times while `ListAgentTasks` answers OK, so listed tasks cannot be opened.
+  - **GREEN:** every stored state maps to exactly one group, including tasks stored before the newer projection fields existed; counts equal the rows shown; every task `ListAgentTasks` returns opens through `GetAgentTask` for its owner; INTEGRATION seeds tasks in every state, with and without the newer fields, and reads them through the served surface; the browser kind opens the first row of each group.
+  - **REFACTOR:** one state mapping from stored state to group, shared by server projection and page.
+  - **Refs:** `internal/transport/agents`, `internal/agentrun`, `tools/uxqual/journeyclient/uxblind_122_agents.go`, `internal/humanwork/productui/agents_page.go`.
+
+- [ ] `AGENTUX-021` **[PHASE_3][SOL_HIGH] Offer a published, placed agent on the Agents page and in the mention menu, and never list it as a person.**
+  - **Depends:** `AGENTUX-005`, `AGENTUX-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=publication and placement that do not make the agent reachable leave the whole feature invisible`.
+  - **TEST:** `TestTodo_AGENTUX_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_021`; `SECURITY=TestTodo_AGENTUX_021_Security`; `INTEGRATION=TestTodo_AGENTUX_021_Integration`; `BROWSER=TestTodo_AGENTUX_021_Browser`.
+  - **RED:** (2026-09-30 scan) with Policy Helper version 4 published and placed in #general and in a direct conversation with the administrator, the Agents page still says no agents are set up, the mention menu's Agents group is empty in both conversations while "Policy Helper" appears under "People in this conversation" with initials, and Agent operations names the placements "Conversation 1" and "Conversation 2".
+  - **GREEN:** an invocable agent is listed as a named choice on the Agents page and in the Agents group of the mention menu for every conversation where it is placed and the user is in its audience; an agent identity never appears among people or members; placements are named as Chat names the conversation; SECURITY proves a user outside the audience sees no agent and no difference in timing or shape; INTEGRATION composes the lookup and page projection exactly as the served cell does, on a local-dev seed plus the demo preparation.
+  - **REFACTOR:** one availability reader for the Agents page, the mention lookup and task admission.
+  - **Refs:** `internal/application/agent_available_personas.go`, `internal/transport/personachat`, `internal/humanwork/chatui/mention.go`.
+
+- [ ] `AGENTUX-022` **[PHASE_3][SOL_HIGH] Keep Agent setup available when one part of its snapshot fails.**
+  - **Depends:** `AGENTUX-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=the administration page went down twice in one evening because a single conversation or preview could not be resolved`.
+  - **TEST:** `TestTodo_AGENTUX_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_022`; `FAULT=TestTodo_AGENTUX_022_Fault`; `INTEGRATION=TestTodo_AGENTUX_022_Integration`; `BROWSER=TestTodo_AGENTUX_022_Browser`.
+  - **RED:** (2026-09-30 scan) after publication the page shows "Agent setup is unavailable. The agent service is not connected to this workspace." with the snapshot failing at its `preview` stage; earlier it failed at `target_data` because a direct conversation had no name; the sentence blames a disconnected service when the service is connected; the snapshot reports the document service as unavailable although the cell has one.
+  - **GREEN:** catalog, targets, preview, commands, starters and the document reader degrade independently, each with its own failure state, retry and a sentence naming what could not be loaded; only an authorization refusal or a missing store takes the page down, and the sentence says which; unresolvable items are omitted and counted; FAULT fails each stage in turn and the others still render; the document reader availability reflects the composed runtime.
+  - **REFACTOR:** one staged snapshot builder with a per-stage result type.
+  - **Refs:** `internal/application/persona_admin_sources.go`, `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
+
+- [ ] `AGENTUX-023` **[PHASE_3][SOL_HIGH] Name the database authority that writes a persona run policy and repairs chat state.**
+  - **Depends:** `AGENTUX-005`, `AGENT-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=two steps of making an agent available can only be done by a database owner today, and no role or command owns them`.
+  - **TEST:** `TestTodo_AGENTUX_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_023`; `GOLDEN=TestTodo_AGENTUX_023_Golden`; `SECURITY=TestTodo_AGENTUX_023_Security`; `INTEGRATION=TestTodo_AGENTUX_023_Integration`; `FAULT=TestTodo_AGENTUX_023_Fault`; `RECOVERY=TestTodo_AGENTUX_023_Recovery`.
+  - **RED:** (2026-09-30 preparation on a cell with separated database roles) the serving role holds only SELECT on `persona_run_policy` and no role is granted INSERT, so the preparation failed until it was given the agent database owner's connection; the chat serving role may not delete a malformed conversation or its persona channel policy, so the repair needed the chat database owner's connection; the integration tests passed because they run as a superuser.
+  - **GREEN:** a recorded decision names the authority role that inserts run policy revisions and the operator procedure for repairing chat state, with grants in migrations; the preparation and the production path use that role instead of an owner connection; integration tests run with the same separated roles a deployed cell has, so a missing grant fails a test; SECURITY proves the serving role still cannot write policy.
+  - **REFACTOR:** a least-privilege test harness shared by the agent and chat stores.
+  - **Refs:** `internal/data/agentstore/migrations`, `internal/data/chatstore/migrations`, `internal/application/agentux_runtime_prepare.go`, `internal/data/pgtest`.
+
+- [ ] `AGENTUX-024` **[PHASE_3][LUNA] Apply the viewer's locale and direction to the Chat loading state.**
+  - **Depends:** `AGENTUX-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=an Arabic or German user sees an English, left-to-right Chat until the first conversation loads`.
+  - **TEST:** `TestTodo_AGENTUX_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_024`; `BROWSER=TestTodo_AGENTUX_024_Browser`.
+  - **RED:** (2026-09-30 adversarial review round 1, finding F37) in Arabic the Chat loading state shows "Conversations", "Search messages", "New section", "Browse channels", "Quiet hours", "Off" and "Loading conversation…" in English and unmirrored, because the loading proxy builds the chat model without the locale context; the image placeholder says "Loading attachment…" rather than naming an image.
+  - **GREEN:** the loading proxy carries the locale context into the chat model for the loading, content-loading and failure states, so the first paint is localized and mirrored; the image placeholder is named "Image loading" in each locale.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/loading_components.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`, `internal/humanwork/chatui/copy.go`.
+
+- [ ] `AGENTUX-025` **[PHASE_3][SOL_HIGH] Carry an agent mention from the post to a delivered answer on a served cell.**
+  - **Depends:** `AGENTUX-005`, `AGENTUX-021`, `AGENTDOC-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=every unit of the mention path passed its tests while the composed path failed at seventeen consecutive gates on a real cell`.
+  - **TEST:** `TestTodo_AGENTUX_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_025`; `SECURITY=TestTodo_AGENTUX_025_Security`; `INTEGRATION=TestTodo_AGENTUX_025_Integration`; `FAULT=TestTodo_AGENTUX_025_Fault`.
+  - **RED:** (2026-10-01 review cell, Policy Helper published and placed in #general) a mention was refused or failed in turn at: the sign-in token lacking the mention purpose; role visibility missing for the audience roles; skill discovery demanding record subjects and fields for a chat reply; an unresolved organization scope; a version compared as "2" against "agent.starter.policy_helper@2"; the request context cancelled when the post returned; an instruction digest compared against the wrong value; a route that excluded the policy document class; a latency limit shrunk below the model's; no resource lease; a wall-clock reservation larger than the time left; a re-issued lease compared by issue time; conflicting tool filters refused; a continuation priced out by its own first call; a cost limit that had to equal the route's; a budget limit compared at nanosecond precision against a stored microsecond value; announcement text beside a tool proposal; a second search proposed on the answer turn; an instruction that asked for written citations which the reply schema forbids; a grant shape the output authority did not recognise; a delivery composed with the chat service that cannot resolve the agent conversation; no invocation bound for the private delivery; a final checkpoint that rechecked the audience its own reply had changed. Each was fixed by hand with the cause logged under `HCMNEXT_AGENT_DEBUG_CAUSES`; none had a test.
+  - **GREEN:** one integration test composes the run exactly as the served cell does (same wiring function, separated database roles, a deterministic model fixture that proposes one document search and then answers) on a local-dev seed plus the demo preparation, posts a mention as the administrator in a public channel and in the direct conversation, and asserts a delivered answer grounded in the placed document, a completed run and a recorded delivery checkpoint; FAULT removes each precondition in turn and asserts the typed refusal that names it; SECURITY proves a member outside the audience, a revoked grant and a suspended installation are still refused at every boundary; each hand fix has its own regression test.
+  - **REFACTOR:** one served-composition test harness shared with `AGENTUX-005` and `AGENTUX-021`.
+  - **Refs:** `internal/application/persona_chat_invocation.go`, `internal/application/persona_run_executor.go`, `internal/application/persona_run_model_work.go`, `internal/application/persona_runtime_composition.go`, `internal/agentgate`, `internal/agentmodel/schemaflux_adapter.go`.
+
+- [ ] `AGENTUX-026` **[PHASE_3][SOL_HIGH] Show the asker that the agent is working, then its answer or its failure, where the question was asked.**
+  - **Depends:** `AGENTUX-025`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a mention that shows nothing for half a minute and then answers somewhere else reads as a broken feature`.
+  - **TEST:** `TestTodo_AGENTUX_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_026`; `BROWSER=TestTodo_AGENTUX_026_Browser`; `FAULT=TestTodo_AGENTUX_026_Fault`.
+  - **RED:** (2026-10-01 scan) after `@Policy Helper` in #general the conversation shows nothing while the run works; a failed run leaves the message with no response at all; a private answer is stored for the asker in the thread but never rendered there.
+  - **GREEN:** under the invoking message the asker sees one agent row that reads "is working on this" with elapsed time from admission, then resolves to the public reply, to the answer marked "Only visible to you" with a link to the conversation with the agent, or to one plain sentence saying why it could not answer with "Try again" when retryable; the row survives reload and conversation switch and is announced once per state change; no code or internal word is shown.
+  - **REFACTOR:** one invocation-state projection shared by the stream event and the list read.
+  - **Refs:** `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/agentp011_ephemeral.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/application/persona_reply_delivery.go`.
+
+- [ ] `AGENTUX-027` **[GATE_C][SOL_HIGH] Leave no public trace of a private agent answer.**
+  - **Depends:** `AGENTUX-026`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=a receipt posted to the whole channel under the asker's name both misattributes authorship and discloses that a private answer exists`.
+  - **TEST:** `TestTodo_AGENTUX_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_027`; `SECURITY=TestTodo_AGENTUX_027_Security`; `BROWSER=TestTodo_AGENTUX_027_Browser`.
+  - **RED:** (2026-10-01 scan) the private path writes a durable thread reply in the public channel authored as the asker ("Walt Brennan") reading "The persona reply was sent privately to you." followed by the raw key `chat.persona.open_private_reply`; every member sees it.
+  - **GREEN:** the private path writes no durable post in the source conversation; another member's projection, search, unread count, thread count and export contain nothing about it; no visible text uses the word "persona"; SECURITY asserts the absence for a second member and for the audit export's public view.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_reply_delivery.go`, `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/productui/i18n.go`.
+
+- [ ] `AGENTUX-028` **[PHASE_3][SOL_HIGH] Answer a mention in the model's time plus three seconds.**
+  - **Depends:** `AGENTUX-025`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=thirty-one seconds of server overhead on a five second answer makes the agent slower than opening the document`.
+  - **TEST:** `TestTodo_AGENTUX_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_028`; `INTEGRATION=TestTodo_AGENTUX_028_Integration`; `SECURITY=TestTodo_AGENTUX_028_Security`.
+  - **RED:** (2026-10-01, one user, loopback PostgreSQL) a run took 36.4 s: 11 s before the first model request, 3.3 s model, 13 s between the two model requests, 1.7 s model, 7 s to deliver; the same authority resolution reruns at about ten boundaries and helpers.
+  - **GREEN:** one log line per run reports stage durations and counts of authority resolutions, fence steps and store calls with no content; with an instant model the run completes within three seconds on the test database and the test fails above ten; mutable authority (installation, revocation epoch, stop controls, membership, audience) is still read at every boundary and before every side effect, which SECURITY proves by changing each mid-run; the post itself returns without waiting for the run.
+  - **REFACTOR:** a per-run verified snapshot passed to helpers within one boundary.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_run_tenant_runtime.go`, `internal/application/persona_foreground_run_authority.go`, `internal/agentsystem/runstate`.
+
+- [ ] `AGENTUX-029` **[PHASE_3][TERRA] Open the mention menu on the first try in every load order.**
+  - **Depends:** `AGENTUX-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=one failed open teaches a user that agents cannot be mentioned`.
+  - **TEST:** `TestTodo_AGENTUX_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_029`; `BROWSER=TestTodo_AGENTUX_029_Browser`.
+  - **RED:** (2026-10-01 harness, about one run in three after a first load) typing `@pol` while the conversation and the agent lookup are still loading never opens the menu, even fifteen seconds later; retyping one letter opens it at once.
+  - **GREEN:** the menu opens for every ordering of projection load, lookup response and key presses; while the lookup is pending the Agents group says so, and a failed lookup shows a retry; a projection adoption keeps the typed text and the open menu; switching conversation closes it.
+  - **REFACTOR:** one pure function from composer text, caret, lookup state and members to the menu model.
+  - **Refs:** `internal/humanwork/chatui/mention.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `tools/uxqual/cmd/journeywasm/chat_state.go`.
+
+- [ ] `AGENTUX-030` **[PHASE_3][TERRA] Name a direct conversation with an agent after the agent.**
+  - **Depends:** `AGENTUX-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a conversation titled with a 36 character identifier cannot be found or trusted`.
+  - **TEST:** `TestTodo_AGENTUX_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_030`; `INTEGRATION=TestTodo_AGENTUX_030_Integration`; `BROWSER=TestTodo_AGENTUX_030_Browser`.
+  - **RED:** (2026-10-01 scan) the list row, header, composer placeholder and avatar of the administrator's conversation with Policy Helper show "673214ec-4402-5f09-bf93-0d42e691712f" and the letter "6".
+  - **GREEN:** the conversation is named "Policy Helper" with the Agent badge in the list, header, placeholder, search results and browser title; INTEGRATION reads the served projection of a conversation prepared the way the demo preparation prepares it.
+  - **REFACTOR:** one display-name resolver for direct conversations with a person or an agent.
+  - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/data/chatstore`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `AGENTUX-031` **[PHASE_3][TERRA] Attribute a stored agent answer to the agent and drop the raw path.**
+  - **Depends:** `AGENTUX-030`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=an answer stored and shown as the asker's own message misstates who said it`.
+  - **TEST:** `TestTodo_AGENTUX_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_031`; `INTEGRATION=TestTodo_AGENTUX_031_Integration`; `BROWSER=TestTodo_AGENTUX_031_Browser`.
+  - **RED:** (2026-10-01 scan) the durable copy of a private answer is posted with the asker's principal, so it renders as the asker's message, and its text ends with "Open the source conversation: /chat/share/aXJvbn…" above a linked-message card for the same message.
+  - **GREEN:** the copy is authored or attributed as the agent with name, badge and avatar; earlier copies render the same way; the body carries no path, and exactly one control leads back to the source message.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `AGENTUX-032` **[PHASE_3][SOL_HIGH] List the documents an answer used, as links the reader may open.**
+  - **Depends:** `AGENTDOC-004`, `AGENTUX-031`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=an agent that says "the policy states" without a link asks to be trusted instead of checked`.
+  - **TEST:** `TestTodo_AGENTUX_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_032`; `SECURITY=TestTodo_AGENTUX_032_Security`; `BROWSER=TestTodo_AGENTUX_032_Browser`.
+  - **RED:** (2026-10-01 scan) an answer drawn from "Paid time off policy" names it in a sentence and offers no way to open it; delivery renders only the agent's reference documents, not the documents a search returned.
+  - **GREEN:** under the answer a "Sources" list names each cited document with its version date; a reader who may open it gets a link into the Documents hub at that version, another reader sees the title as text or nothing when the title itself is restricted; SECURITY covers a reader whose access was revoked after delivery.
+  - **REFACTOR:** one cited-documents value passed from tool grounding to delivery.
+  - **Refs:** `internal/application/persona_runtime_tool_documents.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/chatui`.
+
+- [ ] `AGENTUX-033` **[PHASE_3][TERRA] Treat an agent identity as an agent in member and audience projections.**
+  - **Depends:** `AGENTUX-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=none; WHY=looking an agent up in the human directory fails on every page load and floods the log`.
+  - **TEST:** `TestTodo_AGENTUX_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_033`; `INTEGRATION=TestTodo_AGENTUX_033_Integration`.
+  - **RED:** (2026-10-01 server log) `hcmnext.persona_projection_item_omitted … item_id=policy-helper reason=directory_facts_missing` is written dozens of times per Chat page load, and several conversations are omitted with `members_unavailable`.
+  - **GREEN:** an agent identity is classified from the agent identity registry without a directory lookup, appears once in the member list with the Agent badge, and produces no omission line; a conversation is omitted only when a human member cannot be resolved, once per request, with a count.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_audience_source.go`, `internal/application/persona_admin_sources.go`.
+
+- [ ] `AGENTUX-034` **[PHASE_3][SOL_HIGH] Show an administrator which documents an agent can read in each conversation, and let them place one.**
+  - **Depends:** `AGENTDOC-002`, `AGENTUX-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=an agent with nothing placed in a conversation answers every question with "nothing found" and nothing on the setup page says why`.
+  - **TEST:** `TestTodo_AGENTUX_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_034`; `SECURITY=TestTodo_AGENTUX_034_Security`; `BROWSER=TestTodo_AGENTUX_034_Browser`.
+  - **RED:** (2026-10-01 review cell) Policy Helper was published and placed in #general, and its document search returned no hits for every question because no document was officially placed in that conversation; the 662 seeded documents are personal drafts; Agent setup shows "Reference documents: None" and nothing about placed documents; the demo preparation had to place a policy document through the store.
+  - **GREEN:** each placement row on Agent setup states how many official documents the agent can search there for a typical audience member, lists their titles for an administrator who may see them, warns in words when the count is zero, and links to the conversation's Docs tab to place one; the local-dev seed includes at least one deployed, officially placed policy document so a fresh cell can answer.
+  - **REFACTOR:** one placed-document count reader shared by Agent setup and Agent operations.
+  - **Refs:** `internal/data/documenthubstore/placement.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
+
+- [ ] `AGENTUX-035` **[GATE_C][SOL_HIGH] Post a document-grounded answer publicly when every member may read the document.**
+  - **Depends:** `AGENTUX-032`, `AGENTP-011`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a policy answer the whole channel is entitled to read is hidden from everyone but the asker, so the same question is asked again`.
+  - **TEST:** `TestTodo_AGENTUX_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_035`; `SECURITY=TestTodo_AGENTUX_035_Security`; `INTEGRATION=TestTodo_AGENTUX_035_Integration`; `FAULT=TestTodo_AGENTUX_035_Fault`.
+  - **RED:** (2026-10-01 review cell) the audience floor admits only chat-sourced material, so an answer drawn from a document officially placed in that very channel is always delivered privately (`reason=audience_decision … permission denied`).
+  - **GREEN:** a recorded decision defines when a document source may be disclosed to a conversation's current and future audience (official placement in that conversation, a classification the conversation allows, and read access for every current member and for the membership policy); the floor evaluates it atomically with the audience revision and falls back to private delivery on any doubt or race; SECURITY covers a member without read access, a member added between evaluation and commit, a document re-classified mid-run and a guest.
+  - **REFACTOR:** one disclosure evaluation for chat and document sources.
+  - **Refs:** `internal/application/persona_runtime_audience_floor.go`, `internal/collaboration/chatrecipient`, `internal/data/documenthubstore/placement.go`.
+
+- [x] `AGENTUX-036` **[PHASE_3][TERRA] Tell an operator why an agent run failed without a debug switch.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_AGENTUX_036`, `TestTodo_AGENTUX_036_Browser`, `TestTodo_AGENTUX_036_Security` exist and passed in `internal/humanwork/productui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-015`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=every failure on the mention path reported one of five generic codes, and finding each cause took a rebuilt server with an environment variable`.
+  - **TEST:** `TestTodo_AGENTUX_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_036`; `SECURITY=TestTodo_AGENTUX_036_Security`; `BROWSER=TestTodo_AGENTUX_036_Browser`.
+  - **RED:** (2026-10-01) run failures are stored as `CONTEXT_UNAVAILABLE`, `MODEL_UNAVAILABLE`, `OUTPUT_REJECTED`, `TOOL_EXECUTION_FAILED` or `DELIVERY_FAILED` with the cause discarded unless `HCMNEXT_AGENT_DEBUG_CAUSES=1`; fail-closed sentinels returned from dozens of sites were indistinguishable until tagged with a location; Agent operations says "Running agents could not be loaded" beside "Agent states and available actions are up to date".
+  - **GREEN:** each failed run stores a sanitized cause from a closed vocabulary (which gate, which owner, never request content) and the refusing check's location; Agent operations lists recent failures with that cause in words and the action an administrator can take; the server log carries the same fields at warning level by default; SECURITY proves no cause text contains request, document or model content.
+  - **REFACTOR:** one refusal type carrying sentinel, gate name and location.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_runtime_tools.go`, `internal/application/agentux_ops2_projections.go`.
+
+- [ ] `AGENTUX-037` **[GATE_C][SOL_HIGH] Apply a conversation's current agent policy to live installations, and let an administrator remove and re-add an agent.**
+  - **Depends:** `AGENTUX-025`, `AGENTP-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.EXPERIENCE; DIRECT=none; WHY=an installation keeps the policy copied when it was added, so narrowing a conversation's policy later does not narrow the agent already working there`.
+  - **TEST:** `TestTodo_AGENTUX_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_037`; `SECURITY=TestTodo_AGENTUX_037_Security`; `INTEGRATION=TestTodo_AGENTUX_037_Integration`; `BROWSER=TestTodo_AGENTUX_037_Browser`.
+  - **RED:** (2026-10-01 review cell) the direct conversation's agent policy was changed to allow document search and the installed agent still refused every search, because `persona_installations.channel_policy` is a copy taken at install and the run path reads only the copy; the same mechanism means turning search off, or making a conversation always private, leaves a live installation with the wider copy; the admin command set had no way to remove or re-add an installation, and Agent setup listed placements read-only.
+  - **GREEN:** every run-path read of an installation's policy uses the intersection of the accepted copy and the conversation's current policy, so a narrowing takes effect at the next boundary and a widening never widens; UNINSTALL retires one installation and REINSTALL replaces it with a fresh copy in one transaction, both audited, authorized like INSTALL, idempotent, and bumping the revocation epoch; Agent setup offers "Remove" per placement and "Add to a conversation"; SECURITY narrows each policy field mid-run and asserts the next search or delivery obeys it.
+  - **REFACTOR:** one effective-policy reader used by search scope, audience floor and authority resolution.
+  - **Refs:** `internal/application/agentux_dmpath_policy.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/data/agentpersonastore`, `internal/application/persona_admin_commands.go`.
+
+- [ ] `AGENTUX-038` **[PHASE_3][SOL_HIGH] Answer a question asked in a person's direct conversation with an agent, once.**
+  - **Depends:** `AGENTUX-025`, `AGENTUX-030`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=private answers are delivered to that conversation, so it is where a person asks the follow-up, and it refused every question`.
+  - **TEST:** `TestTodo_AGENTUX_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_038`; `INTEGRATION=TestTodo_AGENTUX_038_Integration`; `SECURITY=TestTodo_AGENTUX_038_Security`; `BROWSER=TestTodo_AGENTUX_038_Browser`.
+  - **RED:** (2026-10-01 review cell) a mention in the administrator's direct conversation with Policy Helper was refused at admission because a direct conversation is created with no audience policy row and the private-conversation authorizer treats an absent policy as no authority; with the row added by hand through the preparation, the search was refused by the stale installation policy (`AGENTUX-037`); once it answered, the answer appeared twice in the same conversation, as an "Only visible to you" card linking to the conversation the reader was already in and again as the stored message; a typed follow-up without a mention is not treated as a question to the agent.
+  - **GREEN:** the product path that creates a direct conversation with an agent creates its audience policy and one-to-one agent policy in the same transaction; a message posted there by its human member is an invocation of that agent with or without a typed mention; exactly one answer is stored, attributed to the agent, with no private-visibility card and no self-link; SECURITY proves a second person cannot be added to that conversation's audience and that the conversation cannot be used to reach another person's documents.
+  - **REFACTOR:** conversation creation with policy as one chat service operation.
+  - **Refs:** `internal/application/persona_dm_provision.go`, `internal/data/chatstore/conversation_audience_policy.go`, `internal/application/persona_private_chat_authorizer.go`, `internal/application/persona_reply_delivery.go`.
+
+- [ ] `AGENTDOC-008` **[PHASE_3][SOL_HIGH] Let an administrator write an agent's instructions and reference documents inside them.**
+  - **Depends:** `AGENTDOC-002`, `AGENTDOC-003`, `AGENTDOC-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=the references exist but the instructions that would say how to use them are a read-only starter text, so "follow the travel policy" cannot be written`.
+  - **TEST:** `TestTodo_AGENTDOC_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTDOC_008`; `SECURITY=TestTodo_AGENTDOC_008_Security`; `INTEGRATION=TestTodo_AGENTDOC_008_Integration`; `BROWSER=TestTodo_AGENTDOC_008_Browser`.
+  - **RED:** (2026-10-01 scan) the Instructions field in the new-agent and new-version forms is read-only and marked server-owned; referenced documents sit in a separate list with no way to say in the instructions what each is for.
+  - **GREEN:** an administrator who may create a version edits the instructions (plain text, 8000 characters, counter); typing `@` offers documents and inserts a titled token that also adds the reference, and removing either removes the other; the stored text carries `{{doc:<id>}}` tokens, validated against the version's references; at run time each token becomes the document's current title for a reader who may read it and "a document you cannot read" otherwise, with the existing omission notice; a changed instruction changes the profile digest so review and evaluation are required again; SECURITY proves a token cannot name a document outside the references, cannot reveal a title to a reader without access, and that instruction text cannot widen the agent's skills, audience or data classes.
+  - **REFACTOR:** token parse and render in `internal/agentdocref`.
+  - **Refs:** `internal/agentdocref`, `internal/application/persona_admin_draft.go`, `internal/application/persona_run_model_work.go`, `internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/agentdoc_ui_picker.go`.
+
+- [ ] `AGENTUX-039` **[PHASE_3][TERRA] Edit an agent in place, and keep the document picker working when one document is unreadable.**
+  - **Depends:** `AGENTUX-013`, `AGENTDOC-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the editor was cut off by the navigation at common window widths and its document search failed for every query`.
+  - **TEST:** `TestTodo_AGENTUX_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_039`; `BROWSER=TestTodo_AGENTUX_039_Browser`; `FAULT=TestTodo_AGENTUX_039_Fault`.
+  - **RED:** (2026-10-01 scan, 800 px wide window) the new-version editor is an absolutely positioned popover anchored to "Edit": its left third lies under the navigation and it is taller than the viewport; the picker answered "Search is unavailable. Try again." for every query because one listed document returned NOT_FOUND for its versions and the search returned that error; its status text is rendered twice and its counter "0 of 8" has no label.
+  - **GREEN:** "Edit" switches the card into an editing state in normal page flow at every width, with focus on the first field, Cancel and Escape (confirming when text changed); the picker leaves out a document it cannot read and offers the rest, reports a failure only when the search itself fails, shows one status line and a labelled counter; FAULT returns NOT_FOUND, permission denied and a timeout for one document among several.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/persona_admin_styles.go`, `tools/uxqual/cmd/journeywasm/agentdoc_ui_picker.go`.
+
+- [ ] `AGENTUX-040` **[PHASE_3][TERRA] Keep the Agents page question field visible and the page where the user left it.**
+  - **Depends:** `AGENTUX-009`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the page offered an Ask button and no visible place to type a question`.
+  - **TEST:** `TestTodo_AGENTUX_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_040`; `BROWSER=TestTodo_AGENTUX_040_Browser`.
+  - **RED:** (2026-10-01 scan, every width and locale) the question textarea was not displayed: `.agents-composer > :empty{display:none}` matched the empty textarea, and a test asserted that rule as required CSS; every load jumped to `#agents-tasks` because a missing `task` query parameter was read from a null `URLSearchParams.get` as the text "<null>" and treated as a stale selection; the status "Task started. Loading it now." stayed after the answer was listed; the default tab was Failed while Completed had rows.
+  - **GREEN:** the field is visible and focusable at every width, theme and locale, asserted over the stylesheet (no rule hides an empty form control); a URL without `task` selects nothing and does not scroll; the status clears when the task is final and the new row is announced and focused; the default tab is the first of Active, Completed, Failed that has rows.
+  - **REFACTOR:** a tested helper for the selected task id from a query string.
+  - **Refs:** `internal/humanwork/productui/agents_styles.go`, `tools/uxqual/cmd/journeywasm/agentux_page3_agents_wasm.go`, `internal/humanwork/productui/agents_page.go`.
+
+- [ ] `AGENTUX-041` **[GATE_C][TERRA] Admit the agent owner to Agent operations on a tenant with feature-level role policy.**
+  - **Depends:** `AGENTUX-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=the administrator who owns the agents was refused the page that runs them, and the navigation still linked to it`.
+  - **TEST:** `TestTodo_AGENTUX_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_041`; `SECURITY=TestTodo_AGENTUX_041_Security`; `BROWSER=TestTodo_AGENTUX_041_Browser`.
+  - **RED:** (2026-10-01 scan, review cell) the HCM administrator opened Agent operations from the navigation and received 403 "You do not have access to this page"; the stored role policy has no row for `agent-operations` (the page's default audience is denied) and the derived owner grant added a page permission only, while a tenant with any feature-level grants admits a page only when its `content` feature is granted too; the unit test covered only a tenant without feature-level policy.
+  - **GREEN:** (orchestrator fix on disk, `TestAgentOperationsOwnerGrantSurvivesFeatureLevelPolicy`) the derived grant carries the page and its content feature, view only; a person who cannot change agent settings receives neither; BROWSER opens the page as the administrator on a tenant seeded with feature-level policy and as an employee, and asserts the navigation offers the link only to the former.
+  - **REFACTOR:** one function decides both whether the navigation shows the link and whether the route admits it.
+  - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/agentux_ops_feature_access_test.go`, `internal/experience/roleaccess/roleaccess.go`.
+
+- [ ] `AGENTUX-042` **[PHASE_3][TERRA] Lay out the "no access" and "could not load" pages inside the workspace shell.**
+  - **Depends:** `AGENTUX-010`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a refused person lands on a page with no navigation and the message pushed to the bottom of an empty screen`.
+  - **TEST:** `TestTodo_AGENTUX_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_042`; `BROWSER=TestTodo_AGENTUX_042_Browser`.
+  - **RED:** (2026-10-01 scan, 800 by 752 window) the refused Agent operations page shows the brand mark alone in the top bar, no navigation rail, no search and no account control, an empty grey area filling the upper two thirds of the viewport, and the message card starting at 545 px; the navigation element is in the document and not visible; the two buttons touch with no gap.
+  - **GREEN:** the problem page renders the same shell as every page (rail, top bar, account control) with the message at the top of the content area, the primary and secondary actions separated by the standard gap, at 1440, 1024, 800 and 390 px in light and dark; BROWSER measures the message card's top edge against the content area's and the rail's visibility at each width.
+  - **REFACTOR:** the problem page uses the shared page frame.
+  - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/agentux_polish_ops_problem_copy.go`, `internal/humanwork/productui/shell.go`.
+
+- [ ] `AGENTUX-043` **[PHASE_3][TERRA] Replace the unknown-address page with one that belongs to the workspace.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a mistyped or stale address shows an unstyled developer message about a different product area`.
+  - **TEST:** `TestTodo_AGENTUX_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_043`; `BROWSER=TestTodo_AGENTUX_043_Browser`.
+  - **RED:** (2026-10-01 scan) `/workspace/app/agents` (the Agents page lives at `/workspace/app/chat/agents`) answers "No such workspace route" on a bare white page with the text "This cell serves the Promotion workspace at /workspace/promotion?worker=<ref>." and a "Back to the workspace" link; no shell, no theme, no locale, and the copy names an internal term ("cell") and an unrelated page.
+  - **GREEN:** an unknown address under `/workspace/app/` renders in the shell with "This page does not exist", the closest matching page as a link when one exists (`agents` offers Agents), and a link to Home, localized in en-US, de-DE and ar; the old `/workspace/app/agents` address redirects to the Agents page.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/workspace/handler.go`, `internal/humanwork/productui/registry.go`.
+
+- [ ] `AGENTUX-044` **[PHASE_3][TERRA] Name a favorite by its page, not by its position in the menu.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the favorites list shows "Overview" with no indication it is Chat`.
+  - **TEST:** `TestTodo_AGENTUX_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_044`; `BROWSER=TestTodo_AGENTUX_044_Browser`.
+  - **RED:** (2026-10-01 scan) Chat's first child in the navigation is labelled "Overview" and its favorite is listed as "Overview" under Favorites; two favorites from different sections would both read "Overview"; under Chat the pair "Overview / Agents" does not say that Overview is the conversations.
+  - **GREEN:** a favorite of a section's overview is labelled with the section name ("Chat"); under Chat the first child is "Conversations"; the same rule applies to every section with an overview child; localized in en-US, de-DE and ar.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/agentux_page7_nav.go`, `internal/humanwork/productui/i18n.go`, `internal/humanwork/productui/shell.go`.
+
+- [ ] `AGENTUX-045` **[GATE_C][SOL_HIGH] Let a version be evaluated and published on a cell that serves more than one tenant, and keep the result after a reload.**
+  - **Depends:** `AGENTUX-026`, `AGENTDOC-008`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a reviewed version could not be evaluated, so instructions that reference a document could never be published`.
+  - **TEST:** `TestTodo_AGENTUX_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_045`; `INTEGRATION=TestTodo_AGENTUX_045_Integration`; `SECURITY=TestTodo_AGENTUX_045_Security`; `BROWSER=TestTodo_AGENTUX_045_Browser`.
+  - **RED:** (2026-10-01 review cell, version 6 of Policy Helper approved by the independent reviewer) the owner saw "Evaluation is done by ir-003-loretta-haynes. Message them" and no way to run it, and the named technical contact receives 403 on Agent setup; cause one: the local evaluator was bound only when the process's single default tenant was the demo tenant, and the cell serves `harborcare-demo,ironridge-demo`; with that fixed the evaluation ran and passed (8 of 8) and the page offered "Publish version 6", and after a reload it offered "Run evaluation" again; cause two: the catalog was bound to the persona store before the local evaluator replaced it with one that can verify the local seal, so the stored evidence (present in `persona_evaluation_evidence`) could not be read back.
+  - **GREEN:** (orchestrator fixes on disk: `serve.go` prepares the local evaluator before any binding and for the demo tenant among the served tenants; `PersonaAdminLifecycleExecutor.PersonaAdminCommandAvailable` asks a tenant-scoped runner; `TestPersonaAdminEvaluationAvailabilityFollowsTheRunnerScope`) INTEGRATION composes a two-tenant local cell, runs review, evaluation and publication, reloads the catalog between each step and asserts the step holds; SECURITY proves the other tenant's administrator is not offered evaluation and is refused if they send the command; BROWSER drives draft, review as the reviewer, evaluation, publish and roll-out, reloading after each.
+  - **REFACTOR:** one persona store per process, composed once with every verifier it needs, so no component can hold an earlier copy.
+  - **Refs:** `internal/application/serve.go`, `internal/application/agentux_runtime_evaluation.go`, `internal/application/persona_admin_lifecycle_executor.go`, `internal/application/persona_admin_composition.go`, `internal/data/agentpersonastore/publication_evidence_query.go`.
+
+- [ ] `AGENTUX-046` **[PHASE_3][TERRA] Make the version lifecycle on Agent setup say what is true at each step.**
+  - **Depends:** `AGENTUX-013`, `AGENTUX-045`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the card contradicts itself at every step between draft and published, so the owner cannot tell what has happened or who acts next`.
+  - **TEST:** `TestTodo_AGENTUX_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_046`; `BROWSER=TestTodo_AGENTUX_046_Browser`; `ACCESSIBILITY=TestTodo_AGENTUX_046_Accessibility`.
+  - **RED:** (2026-10-01 review cell, captures `shots/life2` to `life9`) after "Request review" the header reads "Version 6 In review" and the line under it "Version 4 is live. Version 6 is a draft."; the stepper reads "Step 2 of 4: Reviewed" while the review has not happened, and still reads "Step 2 of 4: Reviewed" after the reviewer approves; the requester sees a disabled "Approve version" button with the reason in a sentence that starts lower-case ("an independent reviewer must review version 6; ..."); every command ends with "Command completed. The server confirmed the change."; the reviewer is shown "Paid time off policy · Pinned to version 1 · Cannot be read by you" for a document the instructions depend on and may approve regardless; the reviewer is named by first name only ("Reviewer: Curtis") while owners are raw ids; "Evaluation is done by <technical contact>. Message them" names a person who cannot open the page.
+  - **GREEN:** the step label names the step in progress, not the last one finished ("Step 2 of 4: Waiting for review", "Step 3 of 4: Ready to evaluate", "Step 4 of 4: Ready to publish"), and the header badge, the "Version N is ..." line and the stepper always agree; the requester sees no approve button, only "Waiting for <reviewer name> to review" with a way to message them; each command confirms what changed ("Review requested from Curtis Bell", "Version 6 approved", "Evaluation passed: 8 of 8", "Version 6 published"); a reviewer who cannot read a referenced document is told the review is incomplete and offered "Ask for access", and approval states that the reviewer did not read it; people are shown by full name everywhere; when evaluation is not available to the viewer, the page names a person who can run it and can open the page; BROWSER walks the lifecycle as owner and reviewer and asserts the three status places agree after every step.
+  - **REFACTOR:** one function maps (lifecycle, review, evaluation) to the badge, the sentence and the step.
+  - **Refs:** `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agentux_setup2_components.go`, `internal/humanwork/productui/i18n.go`, `tools/uxqual/cmd/journeywasm/persona_admin_wasm.go`.
+
+- [ ] `AGENTUX-047` **[GATE_C][SOL_HIGH] Publishing an agent version through the product must leave a version that can run.**
+  - **Depends:** `AGENTUX-045`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=a version published and rolled out through the product silently took the agent out of every conversation`.
+  - **TEST:** `TestTodo_AGENTUX_047`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_047`; `INTEGRATION=TestTodo_AGENTUX_047_Integration`; `SECURITY=TestTodo_AGENTUX_047_Security`; `BROWSER=TestTodo_AGENTUX_047_Browser`.
+  - **RED:** (2026-10-01 review cell) version 6 of Policy Helper was drafted, reviewed, evaluated, published and rolled out to #general and the administrator's conversation through the product; the first question got no reply and no error, and after the next server start the agent was no longer offered in any conversation: a version needs a service identity bound to that exact version and a model route, only the local preparation command creates them, and the start-up reconciler suspended both installations with `AGENT_PRINCIPAL_MISSING_AFTER_RESTORE`; nothing on Agent setup or Agent operations said the installations were suspended or why; running the preparation command again installed fresh copies and left the suspended ones as duplicates of the same conversations.
+  - **GREEN:** PUBLISH has a required provisioning step supplied by the composition and refuses, with a sentence the page shows, when the version cannot be given a runtime identity and model route; a suspended installation is shown on Agent setup as "Stopped: <plain reason>" with "Start again" once the cause is cured; one conversation never lists two installations of one agent; INTEGRATION publishes through the executor on a two-tenant local composition, restarts the reconciler and asserts nothing is suspended and a mention is answered; SECURITY proves the provisioning step cannot bind an identity from another tenant or reuse another version's identity.
+  - **REFACTOR:** the preparation command and the publish step call one provisioning implementation.
+  - **Refs:** `internal/application/persona_admin_lifecycle_executor.go`, `internal/application/agentux_runtime_prepare.go`, `internal/application/persona_run_principal_resolver.go`, `internal/application/agent_restore_installations.go`, `internal/data/agentpersonastore/persona_agent_principal.go`.
+
+- [ ] `AGENTUX-048` **[PHASE_3][SOL_HIGH] Let an agent post first: announcements written from documents, posted publicly, once or on a schedule.**
+  - **Depends:** `AGENTUX-047`, `AGENTDOC-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=agents only answer when asked and every document-grounded answer is private, so an agent cannot tell employees about the upcoming holidays from the 2026 holiday guide`.
+  - **TEST:** `TestTodo_AGENTUX_048`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_048`; `SECURITY=TestTodo_AGENTUX_048_Security`; `INTEGRATION=TestTodo_AGENTUX_048_Integration`; `BROWSER=TestTodo_AGENTUX_048_Browser`; `ACCESSIBILITY=TestTodo_AGENTUX_048_Accessibility`.
+  - **RED:** (2026-10-01) there is no way to have an agent post without being asked; a schedule substrate exists for task agents but has no chat destination; an answer that cites a document in a public channel is always delivered privately, even when the document is officially placed in that channel and every member can read it.
+  - **GREEN:** an owner creates an announcement on Agent operations (agent, conversation, what to post, documents to use, now or a recurrence with time and time zone), previews the exact message, posts it now or saves the schedule; the run uses only the listed documents under the agent's own service identity, seals its output with a citation per document, and posts a normal public message with Sources and "Posted on a schedule set by <owner>"; a message is public only when every cited document is readable by every member of the conversation, otherwise the occurrence is refused with a plain reason and nothing is posted; a mention answer follows the same rule and is public when it qualifies; occurrences are idempotent and honour pause; SECURITY covers a member who cannot read a document, a revoked placement, a member added later and a cross-tenant document; BROWSER posts "which company holidays are coming up, using the 2026 holiday guide" to #general and reads it as a second member.
+  - **REFACTOR:** one audience rule shared by mention answers and announcements.
+  - **Refs:** `internal/application/agent_schedule_service.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/transport/agentcontrols/http.go`.
+
+- [ ] `AGENTUX-049` **[PHASE_3][SOL_HIGH] Offer a general-purpose agent in Chat and a template for new agents.**
+  - **Depends:** `AGENTUX-047`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=the only agent in Chat answers policy questions, the General agent exists only on the Agents page, and "New agent" is a dead end because no template is installed`.
+  - **TEST:** `TestTodo_AGENTUX_049`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_049`; `INTEGRATION=TestTodo_AGENTUX_049_Integration`; `SECURITY=TestTodo_AGENTUX_049_Security`; `BROWSER=TestTodo_AGENTUX_049_Browser`.
+  - **RED:** (2026-10-01) the demo cell prepares exactly one hard-coded agent; Agent setup's primary button answers "No template is installed in this workspace yet"; the demo cell has no "2026 holiday guide".
+  - **GREEN:** a second starter, Assistant, with general instructions and its own eight-case evaluation suite, is prepared, reviewed, evaluated, published and added to #general and the administrator's conversation by the idempotent preparation command; "New agent" offers the template; the preparation command places a "2026 holiday guide" (rules and a table of ten observed days with verified weekdays) in #general; Policy Helper's published versions keep verifying; SECURITY includes a prompt-injection case inside a document.
+  - **REFACTOR:** the preparation command iterates a list of agents instead of naming one.
+  - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/agenteval`, `cmd/migrate/agentux_demo.go`.
+
+- [ ] `AGENTUX-050` **[PHASE_3][TERRA] Make the staged rollout readable and stop the emoji picker from taking over a sentence.**
+  - **Depends:** `AGENTUX-041`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=moving a conversation to a new version takes four presses named in internal terms behind browser confirm dialogs, and a colon in a question stops the message being sent`.
+  - **TEST:** `TestTodo_AGENTUX_050`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_050`; `BROWSER=TestTodo_AGENTUX_050_Browser`.
+  - **RED:** (2026-10-01 review cell) rolling #general to version 6 needed "Approve rollout", "Advance rollout", "Promote rollout", "Advance rollout", each behind a native browser confirm, with statuses "Canary rollout completed and ready for promotion" and finally "Rollout progress is available in the technical details"; a preview with no first conversation was refused with 400 and left the button on "Working…" (client fixed on disk); in Chat, typing "explain our PTO policy in detail: accrual" opened emoji completion at ": acc" and Enter no longer sent the message; the mention chip still sits on its own line above the question in the composer and in the posted message.
+  - **GREEN:** the rollout reads "Approve", "Update the first conversation", "Looks right, update the rest", "Done: every selected conversation runs version N" with in-page confirmation and one sentence of status per step; emoji completion opens only for a colon at the start of a word followed by two letters with no space, and Enter sends when the completion list has no highlighted match; the mention chip is inline in the sentence.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/agent_rollout_portable_wasm.go`, `internal/humanwork/productui/agent_rollout*.go`, `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
+
+- [ ] `AGENTUX-051` **[PHASE_3][SOL_HIGH] Link every answer source to its document and say why an agent could not answer.**
+  - **Depends:** `AGENTUX-032`, `AGENTDOC-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a source that cannot be opened is not a citation, and "couldn't answer just now" tells the person nothing they can act on`.
+  - **TEST:** `TestTodo_AGENTUX_051`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_051`; `SECURITY=TestTodo_AGENTUX_051_Security`; `INTEGRATION=TestTodo_AGENTUX_051_Integration`; `BROWSER=TestTodo_AGENTUX_051_Browser`; `FAULT=TestTodo_AGENTUX_051_Fault`.
+  - **RED:** (2026-10-01 owner screenshots) "Sources · Paid time off policy" under an answer is plain text: the renderer writes a link only when a tenant origin is configured and falls back to the bare title; "give me a list of the top 5 policies here" answered "Policy Helper couldn't answer just now." with "Try again" and no cause, while the cause was a refused outbound check on a version whose instructions reference a document; every failure class (no permission, nothing found, model unavailable, took too long, version cannot run, limit reached) shows one of two generic sentences.
+  - **GREEN:** a source is a link to the document in the Documents hub (relative when no origin is configured) for every reader who may open it and plain text with "You cannot open this document" otherwise; the link goes to the section the answer drew from (owner request 2026-10-01: "the source must also be a link to the document and preferably an in-page link to the section"): the citation carries the section's stable anchor, the source reads "Paid time off policy · Carryover · v1.0.0", and opening it scrolls to that section and marks it for a few seconds; when the cited version is no longer current the link opens the cited version with "A newer version exists" and a way to compare; when the section no longer exists the link opens the document top and says so; the same linked form replaces the plain "(Paid time off policy, version 1, Carryover section)" text inside the answer; each failure class has its own sentence and next step ("Policy Helper found nothing about this in the documents it can read here. Try naming the document." / "Policy Helper is not available in this conversation right now. Walt Brennan has been told." / "This took too long. Try again."), with "Try again" only when retrying can help; the owner is notified once per cause, not per failure; a transient model or network failure is retried once with backoff before anything is shown; FAULT injects each failure class and asserts the sentence, the retry rule and that no internal code or name is shown.
+  - **REFACTOR:** one table maps failure class to sentence, next step and whether retry is offered.
+  - **Refs:** `internal/application/persona_reply_output_renderer.go`, `internal/application/persona_run_executor.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/persona_progress.go`.
+
+- [ ] `AGENTUX-052` **[PHASE_3][SOL_HIGH] Let an agent react to the message it answers with a fitting emoji.**
+  - **Depends:** `AGENTUX-051`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=an agent that only returns paragraphs feels like a form; a small contextual reaction makes it feel present`.
+  - **TEST:** `TestTodo_AGENTUX_052`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_052`; `SECURITY=TestTodo_AGENTUX_052_Security`; `INTEGRATION=TestTodo_AGENTUX_052_Integration`; `BROWSER=TestTodo_AGENTUX_052_Browser`.
+  - **RED:** (2026-10-01) the agent never reacts; the reaction bar on its own answer is the only emoji on screen.
+  - **GREEN:** when it starts work the agent adds 👀 to the asking message and replaces it with one contextual reaction when it answers (chosen by the model from a fixed set of about forty work-safe emoji, for example 🏖️ for time off, 🎂 for a birthday, 💸 for pay, ✅ when nothing fits) or with none on a failure; the reaction is authored by the agent identity, visible to whoever can see the asking message, and never reveals a private answer's topic in a public channel (public channel plus private answer: ✅ only); a conversation or the workspace can turn agent reactions off in Chat settings; SECURITY proves an emoji outside the set, more than one reaction, or a reaction on another person's message cannot be produced by model output.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/agentmodel/schemaflux_adapter.go`, `internal/collaboration/chat`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `AGENTUX-053` **[PHASE_3][SOL_HIGH] A birthday agent that congratulates people in public, and a #general that shows what agents do.**
+  - **Depends:** `AGENTUX-048`, `AGENTUX-049`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=the demo workspace shows one policy agent and a wall of failed test questions`.
+  - **TEST:** `TestTodo_AGENTUX_053`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_053`; `SECURITY=TestTodo_AGENTUX_053_Security`; `INTEGRATION=TestTodo_AGENTUX_053_Integration`; `BROWSER=TestTodo_AGENTUX_053_Browser`.
+  - **RED:** (2026-10-01) no agent posts on its own; #general's recent history is test questions and failures.
+  - **GREEN:** a third starter, "Birthday Buddy", posts one message in #general on the morning of a member's birthday (day and month only, never the year or age; only for people who have not opted out in their profile; none when nobody has a birthday), built on the announcement mechanism with a people source instead of a document; the preparation command seeds #general with a short, dated, realistic history: a holiday announcement from Assistant with its source, a birthday post, two answered policy questions with linked sources, and one question an agent declined with a clear reason; the old test questions and failures are archived out of the demo channel by the preparation command; SECURITY proves the birth year is never read by the agent, an opted-out person is never named, and a person outside the conversation is never named in it.
+  - **REFACTOR:** the announcement run accepts a source provider (documents, or a people query) instead of documents only.
+  - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_proactive_*.go`, `internal/data/demoworkforce`, `cmd/migrate/chat_seed.go`.
+
+- [ ] `AGENTUX-054` **[PHASE_3][SOL_HIGH] A customer-service agent that turns customer email into a support ticket and tells the incident channel.**
+  - **Depends:** `AGENTUX-048`, `AGENTUX-049`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=agents so far only read and answer; this one acts on outside input and changes work items, the hardest case for trust`.
+  - **TEST:** `TestTodo_AGENTUX_054`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_054`; `SECURITY=TestTodo_AGENTUX_054_Security`; `INTEGRATION=TestTodo_AGENTUX_054_Integration`; `BROWSER=TestTodo_AGENTUX_054_Browser`; `FAULT=TestTodo_AGENTUX_054_Fault`.
+  - **RED:** (2026-10-01) no agent has a skill with a side effect; nothing reads customer email; there is no support project.
+  - **GREEN:** a fourth starter, "Support Desk", is triggered by a new message in a support inbox (a governed inbound-message source; the demo cell has a seeded inbox of customer emails and a "Simulate a customer email" control for the owner), reads it as untrusted data, and through two declared skills creates one task in the "Customer support" project's kanban board (title, summary, customer, severity, the email attached as a reference) and posts one alert in #incident-review with the ticket link and severity; both effects are idempotent per email, recorded in the run with before and after, bounded by per-day limits, and shown on Agent operations; an email that asks the agent to do anything else (ignore instructions, send data, close tickets) creates a ticket marked "Needs human review" and nothing more; SECURITY covers prompt injection in the email body, a spoofed sender, replay of the same email, an email naming another tenant, and a severity that exceeds the agent's limits; FAULT covers the project service or chat being unavailable between the two effects (no duplicate ticket, alert sent once on recovery).
+  - **REFACTOR:** skills with side effects declare their effect, limit and idempotency key in one manifest shape.
+  - **Refs:** `internal/data/inboundmsg`, `internal/application/projectservice`, `internal/domains/projectboard`, `internal/agentskills`, `internal/application/persona_run_executor.go`.
+
+- [ ] `AGENTUX-055` **[PHASE_3][SOL_HIGH] Refine the Agents page and the agent settings pages for the people who use each one.**
+  - **Depends:** `AGENTUX-046`, `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=an employee, an agent owner and a platform administrator see the same vocabulary and density; round 4 scored the pages 6.4, 5.9 and 5.6`.
+  - **TEST:** `TestTodo_AGENTUX_055`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_055`; `BROWSER=TestTodo_AGENTUX_055_Browser`; `ACCESSIBILITY=TestTodo_AGENTUX_055_Accessibility`.
+  - **RED:** (2026-10-01 scans) Agent setup drew its "More" menu and "Add to a conversation" form permanently over the page (closed popovers not hidden; fixed on disk); Running shows times in UTC and first names; the Rollout page cannot move a conversation back to an earlier version; the Agents page speaks to an employee in the same terms as to an owner.
+  - **GREEN:** the Agents page is written for an employee (who can help me, ask, see my answers, recover from a failure) with owner controls behind the page switcher; Agent setup and Agent operations are written for an owner (what each agent may do, who can use it, what it did, what it cost, how to stop it); a hostile design review scores UI, UX and flow at 9 or higher on full-height captures in three languages and four widths, repeated until it does; a conversation can be moved back to any earlier reviewed version from Rollout.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agentux_ops_page.go`, `.artifacts/lanes/agent-ui/critic`.
+
+- [ ] `AGENTUX-056` **[PHASE_3][SOL_HIGH] Let the general-purpose agent search every workspace-public document by meaning.**
+  - **Depends:** `AGENTUX-049`, `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=an agent that only knows the documents placed in one conversation cannot answer "what are our top policies"; the hub already has a semantic index nobody uses`.
+  - **TEST:** `TestTodo_AGENTUX_056`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_056`; `SECURITY=TestTodo_AGENTUX_056_Security`; `INTEGRATION=TestTodo_AGENTUX_056_Integration`; `BROWSER=TestTodo_AGENTUX_056_Browser`; `PERFORMANCE=TestTodo_AGENTUX_056_Performance`.
+  - **RED:** (2026-10-01 review cell) the Documents hub has per-section vectors, an in-process embedding model and a "meaning" search mode, and the cell has 663 documents and no vectors because no embedding model is configured, so search falls back to keywords without saying so; an agent's search is limited to documents officially placed in the conversation; "give me a list of the top 5 policies here" cannot be answered.
+  - **GREEN:** Assistant has a read-only skill "Search workspace documents" that runs the hub's meaning search over documents every workspace member may read (the hub's own definition of workspace-wide read access, never a folder-name convention), re-checks the asker's access to each hit at read time, returns the best sections with document, version and section, and cites them; an answer that cites only workspace-public documents may be posted publicly under the shared audience rule; the preparation command configures the embedding model and indexes the cell, and Agent setup shows "Searches N workspace documents (indexed <time>)" and says so plainly when the index is behind or absent; Policy Helper keeps its narrower scope; SECURITY proves a document restricted after indexing is never returned or cited, a section of a document the asker cannot read never reaches the model, another tenant's vectors are never read, and text inside a document cannot change the agent's skills or audience; PERFORMANCE holds a search under 300 ms at the cell's corpus size.
+  - **REFACTOR:** one searcher with a scope parameter (conversation placements, workspace-public) instead of two.
+  - **Refs:** `internal/data/documenthubstore/embeddings.go`, `internal/application/documentembed`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_run_t0_tools.go`, `internal/transport/document/document.go`, `internal/application/agentux_runtime_prepare.go`.
+
+- [ ] `AGENTUX-057` **[GATE_C][SOL_HIGH] Enter must send a question that starts with a mention picked from the menu.**
+  - **Depends:** `AGENTUX-038`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=the main way to ask an agent in a channel silently does nothing`.
+  - **TEST:** `TestTodo_AGENTUX_057`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_057`; `BROWSER=TestTodo_AGENTUX_057_Browser`.
+  - **RED:** (2026-10-01 hands-on, #general) type "@pol", press Enter to insert "@Policy Helper" from the menu, type "how many PTO hours carry over?", press Enter: nothing is sent and nothing is said; pressing Enter again does nothing; the Send button sends it. In the agent's own conversation Enter sends. The capture script had the same failure three times before a person reproduced it.
+  - **GREEN:** Enter sends whenever the mention menu and the emoji list are closed, including immediately after a mention was inserted by Enter, Tab or click; while a list is open Enter picks the highlighted item and a second Enter sends; BROWSER types the sequence above with the keyboard only, in a channel and in a direct conversation, for a one-word and a two-word agent name.
+  - **REFACTOR:** one keydown decision function (pure, unit-tested) for the composer instead of handlers that each consume Enter.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `AGENTUX-058` **[PHASE_3][SOL_HIGH] Hovering a message must not move the page.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner report and hands-on QA 2026-10-01; WHY=moving the pointer over the conversation makes the whole list jump`.
+  - **TEST:** `TestTodo_AGENTUX_058`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_058`; `BROWSER=TestTodo_AGENTUX_058_Browser`.
+  - **RED:** (2026-10-01 measured in the agent conversation, and again in #general with motion allowed at 1440: 8 of 8 rows tested change the list height by 36px) hovering a message raises its top padding from 8px to 44px (`.message:hover{padding-block-start:44px}` in `agentux_chat4_styles.go`), the row grows 36px, the list's scroll height goes 7425 to 7461 and every message above shifts 36px because the list is anchored to its end; the rule was added so the action bar would stop covering the first line of text (it sat at `top:2px` inside the row); after a click the action bar and row tint stay on the message with the pointer elsewhere; the last answer's feedback row can end up under the composer.
+  - **GREEN:** no rule changes a message row's box on hover, focus or when its actions are shown (asserted over the stylesheet: no padding, margin, border-width, height or line-height in any `:hover`, `:focus-within` or `:has(...:hover)` rule for message rows); the action bar is absolutely positioned straddling the row's top edge at the inline end, never over message text, and flips below the top edge for the first visible row; hover and focus state clear when the pointer or focus leaves; BROWSER hovers every visible row in a channel, a direct conversation and a thread at 1440, 800 and 390 and asserts the list's scroll height and every row's top are unchanged.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat4_styles.go`, `internal/humanwork/chatui/agentux_chat2_styles.go`, `internal/humanwork/chatui/agentux_chat3_styles.go`.
+
+- [ ] `AGENTUX-059` **[GATE_C][SOL_HIGH] Feedback and stop on an agent answer must reach the server, and the page must not show a save that failed.**
+  - **Depends:** `AGENTUX-051`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=hands-on QA 2026-10-01; WHY=the page tells a person their rating was recorded when the server refused it`.
+  - **TEST:** `TestTodo_AGENTUX_059`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_059`; `INTEGRATION=TestTodo_AGENTUX_059_Integration`; `BROWSER=TestTodo_AGENTUX_059_Browser`; `FAULT=TestTodo_AGENTUX_059_Fault`.
+  - **RED:** (2026-10-01 hands-on) "Helpful" on an answer sends `POST /api/chat/personas/invocations/<id>/feedback` and receives 503; the button turns to its selected state anyway and stays selected; the handlers, store and migration exist (`agentux_r5srv_*`) and are not composed into the served surface.
+  - **GREEN:** the served composition wires feedback submit, feedback undo and stop; a rating is stored, survives a reload and can be undone; on any failure the button returns to its previous state with "Your rating was not saved. Try again." beside it; INTEGRATION composes the served handler and round-trips a rating; FAULT returns 503, a timeout and 409 and asserts the visible state after each.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/personachat/http.go`, `internal/application/agentux_r5srv_persona_actions.go`, `internal/application/agent_served_assembly.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `AGENTUX-060` **[PHASE_3][SOL_HIGH] Make retry, the answer card and the composer hints say one true thing at a time.**
+  - **Depends:** `AGENTUX-051`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=hands-on QA 2026-10-01; WHY=the answer experience repeats itself, cites what it did not use and hides what retry is doing`.
+  - **TEST:** `TestTodo_AGENTUX_060`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_060`; `BROWSER=TestTodo_AGENTUX_060_Browser`; `INTEGRATION=TestTodo_AGENTUX_060_Integration`.
+  - **RED:** (2026-10-01 hands-on) "Try again" shows no working state for several seconds, leaves the failed card with its button in place, and appends the new answer at the end of the conversation after later questions, unconnected to the question it answers; the retried answer to "give me a list of the top 5 policies here" was the three words "Paid time off policy"; an answer in a channel quotes the question it sits directly under ("You asked in #general · 11:18 AM", the question again, "View in #general"); one answer names its document three times (a "Paid time off policy:" prefix, "(Paid time off policy, version 1, Carryover section)" in the text, and Sources); an answer about PTO carryover lists "2026 holiday guide" as a source although nothing in it was used; while the mention menu is open the composer also shows "Did you mean @Policy Helper?" and "Send as an ordinary message to everyone; no agent will answer.", and the same hint appeared under an empty composer after a send; the working card is a bordered box of a different width from the answer that replaces it and has no elapsed time and no stop control.
+  - **GREEN:** retry replaces the failed card in place with the working state and then the answer, under its question; the quoted question appears only on the saved copy in the agent conversation; Sources lists exactly the documents the sealed answer cites and the model is instructed to cite only what it used (INTEGRATION: a search returning two documents with an answer drawn from one cites one); the answer text does not repeat the document title as a prefix; a list question is answered as a list that says how many documents were found; composer hints are mutually exclusive (menu open: no "Did you mean"; nothing typed: no hint) and never change the composer's height while typing; the working and answered cards share one frame, and the working state shows elapsed seconds after 5 s and a "Stop" control.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/application/agentux_run_cited_documents.go`, `internal/agentmodel/schemaflux_adapter.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `AGENTUX-061` **[PHASE_3][TERRA] Finish the Chat details found in hands-on QA: placeholders that never resolve, phone and right-to-left, names for assistive technology, request churn.**
+  - **Depends:** `AGENTUX-058`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=small defects that together read as unfinished`.
+  - **TEST:** `TestTodo_AGENTUX_061`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_061`; `BROWSER=TestTodo_AGENTUX_061_Browser`; `ACCESSIBILITY=TestTodo_AGENTUX_061_Accessibility`; `PERFORMANCE=TestTodo_AGENTUX_061_Performance`.
+  - **RED:** (2026-10-01 hands-on) a grey placeholder bar stays at the top of the message list and in place of the feedback buttons on saved copies of answers; older saved copies read "You asked in the conversation" and "View in the conversation"; the agent conversation says "Only you can see this conversation" in its header and "This conversation is private to the people in it." at its start; in the conversation list "Policy Helper" is cut to "Policy He..." by its Agent badge while "Assistant" shows the badge only some of the time; on a phone a second header row holds only a search and an action icon, the opened search field covers the conversation header, and a source's icon is centred on a two-line title; in Arabic the card time reads "AM 11:18" in Latin digits beside a message time in Arabic-Indic digits, and "2026 holiday guide" displays as "holiday guide 2026"; "Helpful", "Not right", "Ask a follow-up" and the Agent operations tabs are exposed without a role or name; one chat session issued 347 requests in a few minutes, most of them `GET /api/chat/personas?conversation_id=...` started and aborted in bursts.
+  - **GREEN:** every placeholder resolves to content or is removed within the load it belongs to; one privacy sentence; the badge never truncates a name shorter than 24 characters and is shown for every agent row always; the phone header is one row and search opens as its own layer with a close control; source rows align the icon to the first line and show the version as secondary text; one numeral system and one time format per locale across message time and card time; document titles are isolated for direction; every control has a role and an accessible name (ACCESSIBILITY walks the rendered tree); the agents-in-conversation request is made once per conversation selection and on change events only (PERFORMANCE: at most 3 such requests in 60 s of idle viewing).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/productui/agentux_ops_page.go`.
+
+- [ ] `AGENTUX-062` **[PHASE_3][SOL_HIGH] Chat panels and pickers must float over the conversation, never push or cover it, and every one must close with Escape.**
+  - **Depends:** `AGENTUX-058`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01 (control-by-control pass); WHY=opening a small control rearranges the whole conversation`.
+  - **TEST:** `TestTodo_AGENTUX_062`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_062`; `BROWSER=TestTodo_AGENTUX_062_Browser`; `ACCESSIBILITY=TestTodo_AGENTUX_062_Accessibility`.
+  - **RED:** (2026-10-01 hands-on and measured with motion allowed at 1440) the channel poll and the to-do list are `position: static` sections above the message list: opening them moves the list's top edge by 186 to 366 px and leaves a blank band; the to-do list button turns to its pressed state and shows nothing when the list is empty; the composer's emoji picker opens over the draft text; reacting to a message that is also the root of the open thread opens two pickers, one in each pane, each covering message text; the picker offers eight emoji with no search; the message "more" button shows a pressed state and no menu; the conversation details panel ignores Escape (three presses); the thread pane closes with a bare left arrow; "Jump to newest" sits on top of message text.
+  - **GREEN:** poll, to-do list, emoji and reaction pickers and the message menu are anchored layers that change no other element's position (BROWSER asserts the message list's top and scroll height before and after each opens); exactly one picker opens per action, anchored to the control that opened it, never over the text being reacted to or typed; the emoji picker has search, recent and categories; the message menu opens with its actions (copy link, edit and delete for own messages, pin, mark unread) or the button is not shown; every layer and panel closes with Escape and returns focus to its opener; an empty to-do list says "No tasks yet" with "Add a task"; the thread pane has a labelled close control; "Jump to newest" sits in its own gutter above the composer.
+  - **REFACTOR:** one anchored-layer helper for Chat popovers.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/styles.go`.
+
+- [ ] `AGENTUX-063` **[PHASE_3][TERRA] Give every Chat control the same interaction feedback and a name, and keep the page light.**
+  - **Depends:** `AGENTUX-058`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01 (control, style and transition inventory); WHY=some controls respond with motion and some snap, some have names and some do not, and one channel renders 1318 controls`.
+  - **TEST:** `TestTodo_AGENTUX_063`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_063`; `ACCESSIBILITY=TestTodo_AGENTUX_063_Accessibility`; `PERFORMANCE=TestTodo_AGENTUX_063_Performance`; `BROWSER=TestTodo_AGENTUX_063_Browser`.
+  - **RED:** (2026-10-01 inventory of #general, 32 kinds of control) buttons, rows, reactions and the composer transition colour and shadow in 80 ms with one easing, while the feedback buttons, the mention chip, the answer card, the to-do and poll triggers, the row menu trigger, section titles and reply counts have no transition (`all 0s`); the stylesheets carry about thirty literal durations (0.32s, 0.5s, 720ms, 1.15s, ...) beside the motion tokens; two buttons, the quiet-hours switch, two text inputs and one select in the conversation list have no accessible name; the quiet-hours switch is 38 by 22 px; 111 messages render 777 action buttons, all present in the document and the tab order whether or not their row is hovered; Bold inserts literal `**` markers into the draft with no preview; the agent conversation and a channel differ in where a hover tint appears.
+  - **GREEN:** every interactive Chat control uses the motion tokens for hover, focus and pressed states (asserted over the stylesheet: no literal duration in Chat styles), and reduced motion still removes them all; every control has a role and an accessible name; no target is under 24 by 24 px; message action bars are rendered for the hovered or focused row only and are reachable by keyboard from the row (PERFORMANCE: under 400 interactive elements for a 111-message channel); formatting shows as formatted text in the draft or the toolbar says "Markdown"; hover tint is the same in every conversation kind.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_chat4_styles.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
+
+- [ ] `AGENTUX-064` **[PHASE_3][TERRA] Show which agents are in a conversation and what they can do there.**
+  - **Depends:** `AGENTUX-049`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=the only way to learn an agent is in a channel is to type "@" and wait`.
+  - **TEST:** `TestTodo_AGENTUX_064`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_064`; `BROWSER=TestTodo_AGENTUX_064_Browser`; `SECURITY=TestTodo_AGENTUX_064_Security`.
+  - **RED:** (2026-10-01 hands-on) the conversation details panel for #general lists team labels, a project, pins, notifications and 18 members, and says nothing about the two agents added to the channel; the channel header shows "Public · 18 members" only.
+  - **GREEN:** conversation details has an "Agents here" section listing each agent a viewer may use in that conversation with its one-line purpose, what it reads there ("documents placed in this channel", "workspace documents") and "Ask" (starts a mention in the composer); the header shows "2 agents" beside the member count, opening that section; a viewer who may not use an agent does not see it (SECURITY); owners get "Manage in Agent setup".
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `internal/application/agent_available_personas.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `AGENTUX-065` **[PHASE_3][SOL_HIGH] Use semantic versions for documents, agents and gates.**
+  - **Depends:** `AGENTDOC-002`, `AGENTUX-046`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.DOCUMENTS,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("use semver"); WHY="version 1" and "Version 6" say that something changed and nothing about how much`.
+  - **TEST:** `TestTodo_AGENTUX_065`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_065`; `PROPERTY=TestTodo_AGENTUX_065_Property`; `INTEGRATION=TestTodo_AGENTUX_065_Integration`; `SECURITY=TestTodo_AGENTUX_065_Security`; `BROWSER=TestTodo_AGENTUX_065_Browser`.
+  - **RED:** (2026-10-01 owner screenshot) an answer's source reads "Paid time off policy (version 1)" and the same answer text says "(Paid time off policy, version 1, Carryover section)"; an agent is "Version 6" although versions 1, 2, 3 and 5 were never live; a reference pinned to "version 1" cannot say "follow corrections, stop at a rewrite".
+  - **GREEN:** every document version and agent version carries a semantic version `MAJOR.MINOR.PATCH` chosen at publish by the author from three plain choices ("Fixes wording" patch, "Adds or clarifies" minor, "Changes what it says or does" major), with the next number computed, never typed; the stored sequence number stays the immutable identity used in digests, seals and citations, and the semantic version is a sealed label on it; existing versions are labelled once by a migration (sequence n becomes `n.0.0`, documented as such); every surface shows `v1.2.0` (sources, document history, agent cards, rollout, operations, announcements); a reference can pin exactly (`=1.2.0`) or follow compatible versions (`^1`, the default for instructions and announcements), and a major change to a referenced document shows the agent's owner "Paid time off policy changed to v2.0.0; this agent still reads v1.4.2" with "Review and update"; an agent version that only changes wording in its instructions may be a patch, anything that changes skills, audience or documents is at least a minor, and the server refuses a smaller label than the change requires; PROPERTY: ordering and compatibility follow the semantic versioning rules for every generated pair; SECURITY: a label can never be changed after publication and a compatible-range reference never resolves to a version the reader may not open.
+  - **REFACTOR:** one version value type and comparator shared by documents, agents and gates.
+  - **Refs:** `internal/data/documenthubstore`, `internal/agentdocref`, `internal/agentpersona`, `internal/application/persona_reply_output_renderer.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
+
+- [ ] `AGENTUX-066` **[GATE_C][SOL_HIGH] Let an agent read every message in a conversation it is added to, visibly, cheaply and only there.**
+  - **Depends:** `AGENTUX-048`, `AGENTUX-054`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.COLLABORATION,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("they read each chat"); WHY=today an agent sees a conversation only when someone mentions it; an agent that notices things must read without being asked, which is the point where people stop trusting it unless the rules are plain`.
+  - **TEST:** `TestTodo_AGENTUX_066`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_066`; `SECURITY=TestTodo_AGENTUX_066_Security`; `INTEGRATION=TestTodo_AGENTUX_066_Integration`; `PERFORMANCE=TestTodo_AGENTUX_066_Performance`; `BROWSER=TestTodo_AGENTUX_066_Browser`; `FAULT=TestTodo_AGENTUX_066_Fault`.
+  - **RED:** (2026-10-01) the only run triggers are a mention, a task and (in progress) a schedule and a support email; nothing lets an agent act on a message that does not name it.
+  - **GREEN:** an installation can be granted "Reads every message here" by the conversation's administrator, per conversation, off by default, never in a direct conversation between two people; the conversation header and details say so to every member ("Task Catcher and Reminder read messages here"), and a member can turn it off for their own messages ("Don't act on my messages"), which the server enforces before any read; each new human message becomes a candidate through the chat outbox (source kind `CHAT_MESSAGE`, cause the post), is first screened by an in-process check with no model call (length, language cues, the agent's declared triggers), and only a message that passes is sent to the model, as quarantined untrusted data, with that one message and its thread parent and nothing else; per-conversation and per-day budgets with a visible "paused: daily limit reached" state; an edited message is re-evaluated once and a deleted message cancels anything it caused; agent, system and other agents' messages are never candidates (no agent loops); every read is in the run record; SECURITY: a message in a conversation the agent is not installed in, a member who opted out, a second tenant, and instruction-like text in a message are each refused or ignored; PERFORMANCE: the screen adds under 5 ms to posting and no model call for at least 80 percent of ordinary messages in the seeded corpus; FAULT: outbox replay never produces two actions for one message.
+  - **REFACTOR:** one candidate pipeline shared by every message-triggered agent.
+  - **Refs:** `internal/application/persona_chat_invocation.go`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/application/agentdoc_runtime_model.go`, `internal/agentskills`.
+
+- [ ] `AGENTUX-067` **[PHASE_3][SOL_HIGH] A to-do agent that notices tasks in conversation and puts each where it belongs: the person's own list or the channel's.**
+  - **Depends:** `AGENTUX-066`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=commitments made in chat are lost in chat`.
+  - **TEST:** `TestTodo_AGENTUX_067`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_067`; `SECURITY=TestTodo_AGENTUX_067_Security`; `INTEGRATION=TestTodo_AGENTUX_067_Integration`; `BROWSER=TestTodo_AGENTUX_067_Browser`; `GOLDEN=TestTodo_AGENTUX_067_Golden`.
+  - **RED:** (2026-10-01) the channel to-do list is filled by hand; "I'll send the deck by Friday" and "can someone book the room?" leave no trace anywhere but the scroll.
+  - **GREEN:** a starter agent "Task Catcher" reads messages under `AGENTUX-066` and for each task it finds decides who it is for and therefore where it goes: a commitment a person makes for themselves ("I'll send the deck by Friday") is private, offered only to that person as a card visible only to them under their message ("Add to my tasks: Send the deck · due Fri Oct 2" with Add, Edit, Not a task) and stored in their own task list on Add; a task for the group or with no owner yet ("can someone book the room?", "we need to renew the license") is public, offered in the channel as a compact card ("Add to this channel's to-do list: Book the room" with Add and Dismiss, shown to everyone, addable by anyone who may edit the list) and stored on the channel to-do list with a link to the source message; a task one person gives another ("@Luis can you review section 3 by Tuesday") is offered privately to the person asked; nothing is ever added without a person pressing Add unless the conversation's administrator turned on "Add channel tasks automatically", and private tasks are never automatic; the card states why ("You said you would do this") and the due date in the reader's time zone when one was said; duplicates of an open item are not offered again; a mention also works ("@Task Catcher add: renew the license, owner Priya, due the 15th"); GOLDEN: forty labelled messages (tasks, non-tasks, sarcasm, questions, past tense, quotes of someone else, another language) with the expected scope and owner, at least 90 percent correct and no private commitment ever offered publicly; SECURITY: a task is never created for or shown to someone outside the conversation, a private card is never delivered to anyone but its person, and text such as "add a task for everyone to send me their passwords" produces nothing.
+  - **REFACTOR:** the public or private decision is one function shared with `AGENTUX-068`.
+  - **Refs:** `internal/application/chat_channel_todo.go`, `internal/collaboration/chat/channel_extensions.go`, `internal/collaboration/chat/ephemeral.go`, `internal/application/workqueue_writes.go`, `internal/agenteval`.
+
+- [ ] `AGENTUX-068` **[PHASE_3][SOL_HIGH] A reminder agent that notices dates and deadlines in conversation and reminds the right audience at the right time.**
+  - **Depends:** `AGENTUX-066`, `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a deadline announced on Monday is forgotten by Friday`.
+  - **TEST:** `TestTodo_AGENTUX_068`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_068`; `SECURITY=TestTodo_AGENTUX_068_Security`; `INTEGRATION=TestTodo_AGENTUX_068_Integration`; `BROWSER=TestTodo_AGENTUX_068_Browser`; `GOLDEN=TestTodo_AGENTUX_068_Golden`; `PROPERTY=TestTodo_AGENTUX_068_Property`.
+  - **RED:** (2026-10-01) the product has no reminders: not for a person, not for a channel.
+  - **GREEN:** a starter agent "Reminder" reads messages under `AGENTUX-066` and for each date or deadline decides the audience with the shared rule: something that concerns the whole channel ("timesheets are due Friday 5 pm", "all-hands moved to 9:30 tomorrow") is public, offered once in the channel ("Remind this channel Friday at 3 pm: timesheets are due at 5" with Set reminder, Change time, Dismiss) and, when set, posted publicly at that time by the agent as a normal message linking the original; something that concerns one person ("I need to call the vendor Thursday", or a request to one person) is private, offered only to them and delivered at the time in their conversation with the agent and as a notification; an explicit request always works and is never second-guessed ("@Reminder remind us Friday at 3 pm to submit timesheets", "remind me tomorrow at 9 to call the vendor"); times are understood in the author's time zone, shown in each reader's, and a time that is ambiguous or already past is asked about instead of guessed; the default lead time is stated and editable (deadline: two hours before and the morning of; meeting: fifteen minutes before); a person can list, change, snooze and cancel their reminders, and anyone who may manage the channel can do so for channel reminders; editing or deleting the source message updates or cancels the reminder and says so; a reminder's text comes only from the message it was made from, in the same conversation, so a public reminder never tells a channel something its members could not already read; GOLDEN: forty labelled messages with expected audience, time and lead time; PROPERTY: time zone conversion and daylight-saving transitions never fire a reminder twice or skip it; SECURITY: a private reminder is never posted publicly, a reminder is never delivered to someone who left the conversation, and a message cannot schedule a reminder into another conversation.
+  - **REFACTOR:** reminders are announcements with a message source: one scheduler, one delivery path.
+  - **Refs:** `internal/application/agentux_proactive_schedule.go`, `internal/application/agentux_proactive_announcement.go`, `internal/collaboration/chat/ephemeral.go`, `internal/agenteval`.
+
+- [ ] `AGENTUX-069` **[PHASE_3][SOL_HIGH] Give every agent a generated icon of its own, derived from its instructions.**
+  - **Depends:** `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("make sure all the agents spawn with a randomly generated icon based on their instructions"); WHY=every agent is two initials in a circle, so in a channel with five of them nobody can tell at a glance which one spoke`.
+  - **TEST:** `TestAgentUXIcon_Generated`.
+  - **TEST MATRIX:** `PRIMARY=TestAgentUXIcon_Generated`; `PROPERTY=TestAgentUXIcon_Generated_Property`; `GOLDEN=TestAgentUXIcon_Generated_Golden`; `SECURITY=TestAgentUXIcon_Generated_Security`; `ACCESSIBILITY=TestAgentUXIcon_Generated_Accessibility`; `BROWSER=TestAgentUXIcon_Generated_Browser`.
+  - **RED:** (2026-10-01) `personaMentionAvatar` draws the agent's initials, with a photo only when an address for one is set, and none is; Policy Helper, Assistant and every planned agent look the same apart from two letters.
+  - **GREEN:** when an agent is created, by any path (New agent, a template, the preparation command, a starter, the service interface), the server generates its icon and stores it with the agent: an inline vector drawing composed in Go from three parts chosen from the agent's own text: a glyph picked by meaning from a fixed, product-drawn set of at least sixty (a calendar for holidays and schedules, a cake for birthdays, a headset for support, a checklist for tasks, a bell for reminders, a book for policy, and so on) by matching the instructions, name, description and skills against each glyph's keywords, with a neutral default; and a background shape and a two-colour pair taken from a digest of the instructions, so two agents with similar purposes still differ; the same text always yields the same icon, and no network call or model is needed to make one (a typed question to the decision port may refine the glyph choice later, and is not required); colours come from the theme's tokens, pass contrast in light and dark themes, and the glyph is recognisable at 20 pixels; within a workspace a new agent whose icon would match an existing one gets the next variation; the icon belongs to the agent, not the version: it stays the same across versions so people keep recognising it, and Agent setup offers "Regenerate from instructions" (with a preview and Undo), "Shuffle" for another variation, and upload of the owner's own image; it is shown everywhere the agent appears: beside its messages and answers, in the mention menu, the direct message header, the sidebar, notifications, the Agents page cards, Agent setup, Agent operations, and the workflow designer of `WF-CTRL-007`; existing agents are given icons by a one-time backfill; the icon is decoration beside the name and the "Agent" badge, never the only thing that marks an agent as an agent, and is hidden from assistive technology where the name is present; PROPERTY: generation is deterministic, total over any input text, and always yields a valid drawing within a size bound; SECURITY: the drawing is built only from the product's own shapes and token colours (instruction text is used to choose, and is never written into the drawing), and an uploaded image is re-encoded, size-limited and served from the product's own origin under the existing image policy.
+  - **REFACTOR:** `personaMentionAvatar` and the page avatars call one icon component.
+  - **Refs:** `internal/humanwork/chatui` (`personaMentionAvatar`), `internal/humanwork/productui/persona_admin_styles.go`, `internal/application/persona_admin_starter_source.go`, `internal/application/agentux_runtime_prepare.go`, `internal/data/agentpersonastore`.
+
+- [ ] `AGENTUX-070` **[GATE_C][SOL_HIGH] An agent's answer in a channel is visible to the channel by default; privacy is the exception and is stated.**
+  - **Depends:** `AGENTUX-048`, `AGENTUX-051`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTELLIGENCE,BI.COLLABORATION,BI.SECURITY; DIRECT=owner request 2026-10-01 ("the only reason we want to ... call an agent in a chat is for others to see the response too so agent responses should default to publicly visible unless the agent is strict about it, make it an override to enforce privacy like saying keep in private in the prompt"); WHY=every answer in a channel is "Only visible to you" today, so the channel never benefits from a question one person asked`.
+  - **TEST:** `TestAgentUXPublicAnswer_Default`.
+  - **TEST MATRIX:** `PRIMARY=TestAgentUXPublicAnswer_Default`; `PROPERTY=TestAgentUXPublicAnswer_Default_Property`; `SECURITY=TestAgentUXPublicAnswer_Default_Security`; `INTEGRATION=TestAgentUXPublicAnswer_Default_Integration`; `BROWSER=TestAgentUXPublicAnswer_Default_Browser`.
+  - **RED:** (2026-10-01 review cell) every agent answer to a mention in #general is delivered as a private card marked "Only visible to you" with "Saved in your conversation with …"; other members see the question and never the answer.
+  - **GREEN:** when a person mentions an agent in a channel, the answer is posted in the channel as a normal message from the agent, threaded under the question, visible to everyone who can read the channel; three things make it private instead, each visible to the asker before or as it happens: (1) the agent is set to answer privately (a per-agent setting "Answers in channels: Visible to everyone / Only to the person who asked", per version, default visible; an owner sets strict agents such as a payroll or personal-record agent to private, and a channel administrator can also require private answers in their channel); (2) the asker says so in the message ("keep this private", "privately", "just for me", and their equivalents in the product's languages, or a "Private answer" toggle on the composer when an agent is mentioned): recognised by a deterministic phrase list first and removed from the question sent to the model; (3) the answer cannot be shown to everyone: it draws on something not every member of the channel can read (the audience floor and public-delivery rule the announcement path already enforces) or on the asker's own records; then it is delivered privately with one line saying why ("Only you can see this: it uses a document not everyone in #general can open"); a public answer shows no "Only visible to you" chrome and can be reacted to, replied to, pinned, saved, removed by a moderator and found by search like any message; the working status while the agent runs is public too for a public answer; a follow-up asked in the thread inherits the thread's visibility; direct conversations with an agent are unchanged; the asker can make a private answer public afterwards with "Share in channel" (re-checked against the audience at that moment), and cannot make a public one private except by removing it; SECURITY: the visibility decision is made on the server from the agent's setting, the channel's setting, the phrase in the authored question, and the audience check of the sealed answer's sources and data classes, never from the client, and a failure of the audience check always falls to private; PROPERTY: for every combination of agent setting, channel setting, phrase and audience result, the delivered visibility equals the table in the decision record and is never wider than the audience check allows.
+  - **Decision (2026-10-01, owner request):** answers in a channel default to visible to the channel; an agent can be strict, and the asker can ask for privacy in the message.
+  - **REFACTOR:** the private card becomes one presentation of the same answer, not a separate path.
+  - **Refs:** `internal/application/persona_reply_delivery.go`, `internal/application/persona_public_reply_authority.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/collaboration/chat/ephemeral.go`, `internal/data/chatstore/sealed_public_delivery.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/productui/persona_admin_styles.go`.
+
+- [ ] `AGENTUX-071` **[PHASE_3][SOL_HIGH] Bring the ten Chat features added on 2026-10-01 up to one finished presentation.**
+  - **Depends:** `AGENTUX-058`, `AGENTUX-062`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do another every inch visual and interactive inspection of all the chat ui surfaces"); WHY=the features work in their own tests and look unfinished together`.
+  - **TEST:** `TestChatPolish_Surfaces`.
+  - **TEST MATRIX:** `PRIMARY=TestChatPolish_Surfaces`; `ACCESSIBILITY=TestChatPolish_Surfaces_Accessibility`; `BROWSER=TestChatPolish_Surfaces_Browser`.
+  - **RED:** (2026-10-01, combined build, headless inspection of 46 interactions at 1440 by 900) the reaction picker and the search dialog open in the top-left corner of the page; the message menu mixes menu items with underlined links and covers its own hover bar; every thread reply has a stray bookmark under it and typing in the thread composer hides the thread; typing any draft grows the composer to about 350 px and prints "Writing styles are unavailable"; "Location" is raw text that opens an unstyled form with latitude and longitude inputs; "Reading languages" and "Quiet hours" open as unstyled forms inside the sidebar and announce "Settings could not be saved" before anything was done; the Saved list did not appear on screen and Escape does not close it; search shows empty headings and "Search is unavailable"; channel details shows "Data this agent can reach: POLICY_DOCUMENT"; the agent's icon differs between message, mention menu and sidebar; the client reports inline styles refused by the page security policy; the client bundle is 61.3 MB against a 60 MB ceiling.
+  - **GREEN:** each finding lettered A to O in the lane brief of 2026-10-01 is fixed; one visual language for every composer tool, hover action and menu item; every panel and picker is an anchored layer that closes on Escape and returns focus; no feature announces a problem before the person acts, and an unavailable feature hides or disables its control; no internal identifier or key is visible anywhere in Chat; the scripted inspection (`chat-inspect.mjs`, 46 steps) completes with no step error and no finding of the kinds unstyled-disclosure, overlap, child-outside-row, raw-identifier or control-without-name, at 1440 and 390 px, light and dark, en-US and ar; the bundle is under both ceilings.
+  - **REFACTOR:** the scripted inspection becomes a checked-in browser test once the harness owner agrees where it lives.
+  - **Refs:** `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `tools/uxqual/cmd/journeywasm/performance_budget.go`.
+
+- [ ] `AGENTUX-072` **[PHASE_3][SOL_HIGH] Make a posted announcement read as an agent's message, and make "Post now" post what was previewed.**
+  - **Depends:** `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTELLIGENCE,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("tell me when the holiday announcement posts"); WHY=the first announcement on the served product reached the channel as raw data`.
+  - **TEST:** `TestAgentUXProactiveLive_PostedMessage`.
+  - **TEST MATRIX:** `PRIMARY=TestAgentUXProactiveLive_PostedMessage`; `INTEGRATION=TestAgentUXProactiveLive_PostedMessage_Integration`; `FAULT=TestAgentUXProactiveLive_PostedMessage_Fault`; `BROWSER=TestAgentUXProactiveLive_PostedMessage_Browser`.
+  - **RED:** (2026-10-01 16:30, review cell) the Assistant's holiday announcement posted in #general after four fixes made by hand that day (a document reference sent with a pinned version in "latest" mode, an admission record looked up under the wrong source key, a prompt with no format rule so the model's "Source:" lines were refused, and a store write without a route lease); it appears with the author "Hcmnext Local Persona Assistant", the literal text `<hcm_agent_announcement>` and its JSON, and lists Labor Day (September 7) as upcoming; "Post now" after "Preview" was refused because the text is generated a second time; each failed attempt became its own row in the owner's list; picking a document with the mouse did nothing.
+  - **GREEN:** the posted message shows the agent's icon, name and badge, the text with its lines, linked sources and who it was posted for; "Post now" delivers exactly the previewed text after re-checking authority, audience and document versions, with no second model call; a refused reply gets one repair attempt naming the rule it broke; an instruction asking for upcoming dates does not list past ones (an evaluation case with the real guide); one definition is one row with its attempts as history and plain reasons; the served-path test uses the lease-enforcing store, the real model evidence path and a fake provider transport.
+  - **REFACTOR:** one prompt builder for announcements; the unused one is removed.
+  - **Refs:** `internal/application/agentux_proactive_delivery.go`, `internal/application/agentux_proactive_runtime.go`, `internal/application/agent_openai_evidence.go`, `internal/humanwork/chatui/agentux_proactive_message.go`, `tools/uxqual/cmd/journeywasm/agentux_proactive_wasm.go`.
+
+## 94. Channel gates: a form to join a channel, and what its answers can drive
+
+This section holds the owner-requested channel gates work of 2026-10-01. A channel gate is a short form a person fills in to gain access to a channel. The channel's administrators design the form, decide how answers admit people (automatically, by a rule, or by review), and use the answers through named consumers: role labels, segments for visibility and targeting, polls, and agents. The contract is built to be extended: field kinds and consumers are registered, versioned and declared, so a new use of gate answers is a new consumer, not a change to the gate. Gates add a requirement to joining; they never widen who may join a channel or what a member may see. Answers are personal data given for a stated purpose and are handled that way: each field states why it is asked, who may see it and how long it is kept.
+
+- [ ] `CHATGATE-001` **[DESIGN][SOL_HIGH] Record the decisions for channel gates.**
+  - **Depends:** `AGENTUX-065`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=a gate collects personal answers and decides access, so its rules must be fixed before a form builder and five consumers each invent their own`.
+  - **TEST:** `TestTodo_CHATGATE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_001`; `GOLDEN=TestTodo_CHATGATE_001_Golden`; `SECURITY=TestTodo_CHATGATE_001_Security`.
+  - **RED:** joining a channel is all or nothing: a public channel admits anyone eligible and a private one admits whoever an administrator adds; nothing lets an administrator ask a joiner anything, and role labels, polls and agents have no member-supplied facts to work with.
+  - **GREEN:** a checked-in decision record under definitions/planning fixes: (1) a gate is an additional requirement evaluated after the channel's existing eligibility policy, never instead of it; (2) a gate is a versioned form with a semantic version, where a major version requires members to answer again, a minor adds optional questions and a patch changes wording; (3) admission modes are automatic, rule and review, and review is the default for private channels; (4) every field declares its purpose, data class, who may see answers (administrators, members, named consumers) and retention, and the record lists categories a gate may not ask for (credentials, government identifiers, health, and the protected categories the tenant's policy names); (5) answers belong to the member, who can see, change and withdraw them, and withdrawing a required answer leaves the channel; (6) consumers read only the fields they declare and every read is audited; (7) answers passed to an agent are untrusted data, never instructions; (8) what a gate must never do: grant a role in the organization, change what a non-member can discover, or hide a message from someone the channel's own policy lets read it unless the segment-visibility todo's rules are met. GOLDEN pins the record; SECURITY asserts each "never" as a named refusal.
+  - **Decision (2026-10-01, owner request):** channel gates are custom forms a person fills in to gain access to a channel; the channel administrator can use that information with specific controls or agents to perform tasks such as polls, roles and visibility filters; the interface must be extensible.
+  - **REFACTOR:** reference the record from every `CHATGATE-*` Refs field instead of restating defaults.
+  - **Refs:** `internal/collaboration/chat/channel_extensions.go`, `internal/collaboration/chat/service.go`, `internal/forms`, `planning/specs`.
+
+- [x] `CHATGATE-002` **[PHASE_3][SOL_HIGH] Store gate definitions as immutable, semantically versioned forms.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATGATE_002`, `TestTodo_CHATGATE_002_Integration`, `TestTodo_CHATGATE_002_Property`, `TestTodo_CHATGATE_002_Security` exist and passed in `internal/collaboration/chatgate`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATGATE-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY; DIRECT=none; WHY=an answer is only meaningful against the exact questions that were asked`.
+  - **TEST:** `TestTodo_CHATGATE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_002`; `PROPERTY=TestTodo_CHATGATE_002_Property`; `SECURITY=TestTodo_CHATGATE_002_Security`; `INTEGRATION=TestTodo_CHATGATE_002_Integration`.
+  - **RED:** there is no gate model, table or service.
+  - **GREEN:** a gate has one draft and any number of published versions per conversation, each published version immutable with a content digest and a semantic version; publishing computes the smallest allowed bump from the difference (a new required field or a changed field kind is major, a new optional field or option is minor, wording is patch) and refuses a smaller one; one version is current; storage is tenant- and conversation-scoped with row-level security in the chat database; a gate can be paused (joining reverts to the channel's own policy) and retired; SECURITY: another tenant or a non-administrator cannot read a draft or publish; PROPERTY: the bump rule is monotone and total over generated form pairs.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-001` record, `internal/data/chatstore`, `internal/collaboration/chat/channel_extensions.go`.
+
+- [x] `CHATGATE-003` **[PHASE_3][SOL_HIGH] Make gate field kinds a registry with validation, classification and limits.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATGATE_003`, `TestTodo_CHATGATE_003_Accessibility`, `TestTodo_CHATGATE_003_Property`, `TestTodo_CHATGATE_003_Security` exist and passed in `internal/collaboration/chatgate` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATGATE-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=new kinds of question must not require changing the gate, and no kind may collect what the tenant forbids`.
+  - **TEST:** `TestTodo_CHATGATE_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_003`; `PROPERTY=TestTodo_CHATGATE_003_Property`; `SECURITY=TestTodo_CHATGATE_003_Security`; `ACCESSIBILITY=TestTodo_CHATGATE_003_Accessibility`.
+  - **RED:** the product's form controls serve workflow pages only.
+  - **GREEN:** a field kind is registered with an identifier and semantic version, a value schema, a validator, a renderer for the three locales and an accessible name; shipped kinds: short text, long text (500 characters), single choice, multiple choice, yes or no, date, a person from the directory, a team or location from the organization, and an acknowledgement of a Documents hub document at a pinned version; every field carries purpose, data class, visibility and retention, and the publish step refuses a field whose label or help text matches the tenant's forbidden categories or asks for a secret; limits: 12 fields, 20 options, one acknowledgement per document; an unknown kind or version is refused at publish and renders as "This question cannot be shown" for an old answer, never dropped silently; a kind registered by an extension declares its data class and cannot exceed the tenant's ceiling for gates.
+  - **REFACTOR:** share the value schema and validator shape with workflow page controls where one exists.
+  - **Refs:** `CHATGATE-001` record, `internal/forms/wfpage_k2_controls.go`, `internal/humanwork/productui`.
+
+- [x] `CHATGATE-004` **[PHASE_3][SOL_HIGH] Admit people through a gate: submissions, the three admission modes, and membership.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATGATE_004`, `TestTodo_CHATGATE_004_Fault`, `TestTodo_CHATGATE_004_Integration`, `TestTodo_CHATGATE_004_Property`, `TestTodo_CHATGATE_004_Security` exist and passed in `internal/collaboration/chat`, `internal/collaboration/chatgate`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATGATE-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY; DIRECT=none; WHY=the gate decides access, so the decision must be exact, auditable and impossible to skip`.
+  - **TEST:** `TestTodo_CHATGATE_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_004`; `SECURITY=TestTodo_CHATGATE_004_Security`; `INTEGRATION=TestTodo_CHATGATE_004_Integration`; `PROPERTY=TestTodo_CHATGATE_004_Property`; `FAULT=TestTodo_CHATGATE_004_Fault`.
+  - **RED:** `AddMembership` admits on policy alone.
+  - **GREEN:** a submission is an immutable record of answers against one gate version, validated server-side, one current submission per person per conversation; automatic mode admits when every required field validates; rule mode evaluates a declared expression over answers and directory facts (allowed operators: equals, in, and, or, not; no free code) and admits, refuses with the administrator's stated reason, or sends to review; review mode queues the submission for a channel administrator who admits or declines with a reason; admission calls the existing membership path with the gate version recorded as the grant's basis, in one transaction with the decision; every other way into the channel (direct add by an administrator, invitation, group lifecycle, an agent identity being added) either satisfies the gate or is an explicit, audited administrator override, with no path that skips both; SECURITY: forged answers, a submission against a retired version, a replayed admission, a rule referencing a field the form does not have, and a second tenant are refused; FAULT: a crash between decision and membership leaves neither or both.
+  - **REFACTOR:** one admission function for join, invite and add.
+  - **Refs:** `CHATGATE-001` record, `internal/collaboration/chat/service.go`, `internal/collaboration/chat/group_lifecycle.go`.
+
+- [ ] `CHATGATE-005` **[PHASE_3][SOL_HIGH] Let a person join through a gate without guessing what happens to their answers.**
+  - **Depends:** `CHATGATE-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION; DIRECT=none; WHY=a form in front of a channel is friction, and unexplained friction reads as surveillance`.
+  - **TEST:** `TestTodo_CHATGATE_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_005`; `BROWSER=TestTodo_CHATGATE_005_Browser`; `ACCESSIBILITY=TestTodo_CHATGATE_005_Accessibility`; `SECURITY=TestTodo_CHATGATE_005_Security`.
+  - **RED:** a channel in the browse list offers only "Join".
+  - **GREEN:** a gated channel shows "Answer 3 questions to join" with the channel's purpose; the form states under each question why it is asked and who will see the answer, shows required and optional plainly, saves a draft, validates inline, and submits to one of three clear states: joined, waiting for an administrator (with who and since when, and "Withdraw request"), or not admitted with the reason and what would change it; "My answers" in conversation details lets a member see, change and withdraw answers, with the consequence stated before withdrawing a required one; a major gate version shows members "This channel's questions changed. Answer by <date> to stay." with the form; usable by keyboard and screen reader, in en-US, de-DE and ar, at 1440, 800 and 390 px; SECURITY: a non-member sees the questions and nothing of the channel's content or members beyond what browse already shows.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-001` record, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `CHATGATE-006` **[PHASE_3][SOL_HIGH] Give channel administrators a gate builder, a review queue and an answers view.**
+  - **Depends:** `CHATGATE-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.SECURITY; DIRECT=none; WHY=the administrator must be able to build, test and run a gate without a developer`.
+  - **TEST:** `TestTodo_CHATGATE_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_006`; `BROWSER=TestTodo_CHATGATE_006_Browser`; `ACCESSIBILITY=TestTodo_CHATGATE_006_Accessibility`; `SECURITY=TestTodo_CHATGATE_006_Security`.
+  - **RED:** conversation details offers a team label, a project and pins.
+  - **GREEN:** conversation details gains "Gate" for administrators: a builder (add, reorder, edit and remove questions; purpose, visibility and retention per question with safe defaults; admission mode; a rule editor with plain-language preview "Admit people whose team is Payroll or Finance"; "Try it" as a sample person), a publish step that names the version and what it means for current members, a review queue (who, when, answers, admit or decline with a reason, bulk actions), and an answers view (a table with filters and counts per answer, export to CSV for administrators with export permission, every view and export audited); a paused or retired gate says what joining does now; SECURITY: an administrator sees only the fields whose visibility includes administrators, and an export never includes a field marked for one consumer only.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-001` record, `internal/humanwork/chatui`, `internal/collaboration/chat/channel_extensions.go`.
+
+- [x] `CHATGATE-007` **[GATE_C][SOL_HIGH] Treat gate answers as personal data: purpose, visibility, retention, audit and erasure.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATGATE_007`, `TestTodo_CHATGATE_007_Integration`, `TestTodo_CHATGATE_007_Property`, `TestTodo_CHATGATE_007_Security` exist and passed in `internal/collaboration/chatgate`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATGATE-004`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.COLLABORATION; DIRECT=none; WHY=answers given to join a channel must not become a general profile of the person`.
+  - **TEST:** `TestTodo_CHATGATE_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_007`; `SECURITY=TestTodo_CHATGATE_007_Security`; `INTEGRATION=TestTodo_CHATGATE_007_Integration`; `PROPERTY=TestTodo_CHATGATE_007_Property`.
+  - **RED:** no store holds member-supplied facts scoped to a conversation.
+  - **GREEN:** answers are readable only inside the conversation they were given for, by the audiences the field declares, through one reader that enforces field visibility and records each read (who or which consumer, which fields, why); leaving, removal, withdrawal and the field's retention period each delete or anonymize the answers on schedule, and a legal hold suspends deletion visibly; a person finds their own answers in search, administrators find answers only inside the gate's answers view, and answers never appear in anyone else's workspace search (`CHATSEARCH-001`), in another channel's consumers or to any agent not installed in that conversation with the gate skill; a tenant-wide report lists every gate, its fields, their data classes and retention; SECURITY: cross-conversation, cross-tenant, former-member and consumer-over-reach reads are refused; PROPERTY: no sequence of gate version changes exposes a field to an audience its declaration at submission time did not include.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-001` record, `internal/data/chatstore`, `internal/documentsecurity`, `internal/governance`.
+
+- [x] `CHATGATE-008` **[PHASE_3][SOL_HIGH] Make the gate interface extensible: a versioned service, registered consumers and events.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATGATE_008`, `TestTodo_CHATGATE_008_Contract`, `TestTodo_CHATGATE_008_Integration`, `TestTodo_CHATGATE_008_Property`, `TestTodo_CHATGATE_008_Security` exist and passed in `internal/application`, `internal/collaboration/chatgate`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATGATE-004`, `CHATGATE-007`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.INTEGRATION,BI.SECURITY; DIRECT=owner request 2026-10-01 ("make sure the api there is extensible"); WHY=roles, polls, filters and agents are the first four uses of gate answers, not the last`.
+  - **TEST:** `TestTodo_CHATGATE_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_008`; `CONTRACT=TestTodo_CHATGATE_008_Contract`; `SECURITY=TestTodo_CHATGATE_008_Security`; `INTEGRATION=TestTodo_CHATGATE_008_Integration`; `PROPERTY=TestTodo_CHATGATE_008_Property`.
+  - **RED:** channel extensions (to-do list, team, project, poll) are each a hand-written type and mutation.
+  - **GREEN:** `hcmnext.chat.v1.ChannelGateService` (gRPC, the product's envelope and error model) exposes define, publish, pause, retire, get, submit, withdraw, review, list submissions and read answers, each with idempotency keys and optimistic revisions; a consumer is a registered descriptor (identifier, semantic version, the field identifiers or kinds it reads, the effect it has, the permission its installer needs) that a channel administrator installs on a gate with a mapping from fields to the consumer's inputs, and the service refuses a consumer reading an undeclared field, an unknown consumer version, or an installation the installer may not grant; accepted, changed, withdrawn and expired submissions and gate version changes are published as events through the existing outbox with field values included only for consumers entitled to them; consumers may be in-process (the four shipped ones) or external through the integration framework's signed webhook, with the same descriptor and entitlement check; the wire contract is additive within a major version (CONTRACT pins it; unknown fields are preserved, unknown consumers fail closed); documented with one worked example of adding a consumer without touching the gate packages.
+  - **REFACTOR:** express the existing channel poll and team label extensions as consumers where they use gate answers.
+  - **Refs:** `CHATGATE-001` record, `schema/proto/hcmnext/chat`, `internal/collaboration/chat`, `internal/application/integration`, `internal/data/chatstore`.
+
+- [ ] `CHATGATE-009` **[PHASE_3][TERRA] Consumer: assign channel role labels and segments from answers.**
+  - **Depends:** `CHATGATE-008`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 (roles); WHY=the first thing an administrator wants from "what do you do here?" is a label on the person`.
+  - **TEST:** `TestTodo_CHATGATE_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_009`; `SECURITY=TestTodo_CHATGATE_009_Security`; `BROWSER=TestTodo_CHATGATE_009_Browser`.
+  - **RED:** channel role labels are typed by hand per member.
+  - **GREEN:** the administrator maps a choice field to role labels ("Reviewer", "On call") and to segments (a named set of members defined by answers, such as "Denver office"); labels and segment membership update when answers change and are removed when the person leaves; a label from a gate is marked as such and is informal, exactly like today's labels: it grants nothing in the organization or in the channel's permissions; members see which segments they are in and why; SECURITY: a label or segment can never be derived from a field whose visibility excludes members when the label itself is visible to members.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-008`, `internal/collaboration/chat/channel_extensions.go`.
+
+- [ ] `CHATGATE-010` **[PHASE_3][TERRA] Consumer: target polls by segment and report results without exposing individuals.**
+  - **Depends:** `CHATGATE-009`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01 (polls); WHY=a poll of the whole channel is noise when the question is for one group`.
+  - **TEST:** `TestTodo_CHATGATE_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_010`; `SECURITY=TestTodo_CHATGATE_010_Security`; `PROPERTY=TestTodo_CHATGATE_010_Property`; `BROWSER=TestTodo_CHATGATE_010_Browser`.
+  - **RED:** a channel poll goes to every member and reports one total.
+  - **GREEN:** a poll can be addressed to one or more segments (only they can vote; others see that it exists and who it is for), and results can be broken down by segment; any breakdown cell with fewer than five voters is merged or withheld, and combinations of breakdowns cannot be used to recover one person's vote (PROPERTY over generated memberships); a poll can be created from a gate question ("Ask everyone who answered 'Night shift'"); SECURITY: a member outside the segment cannot vote by calling the service directly.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-008`, `internal/collaboration/chat/channel_extensions.go`.
+
+- [ ] `CHATGATE-011` **[GATE_C][SOL_HIGH] Consumer: visibility filters, so a message, pin or task can be addressed to a segment.**
+  - **Depends:** `CHATGATE-009`, `CHATGATE-007`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 (visibility filters); WHY=a filter that hides content inside a channel changes who can read what, the most sensitive thing a gate can drive`.
+  - **TEST:** `TestTodo_CHATGATE_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_011`; `SECURITY=TestTodo_CHATGATE_011_Security`; `PROPERTY=TestTodo_CHATGATE_011_Property`; `INTEGRATION=TestTodo_CHATGATE_011_Integration`; `BROWSER=TestTodo_CHATGATE_011_Browser`.
+  - **RED:** everything in a channel is visible to every member.
+  - **GREEN:** two levels, decided per channel by its administrators and off by default: (a) addressing, where a message, pin, to-do or mention names a segment ("@Denver office"), notifies only that segment and is still readable by every member; (b) restricted visibility, available only in private channels whose policy allows it, where a message addressed to a segment is delivered only to its members at that moment, is marked "Visible to Denver office (12 people)" to them, is excluded from search, threads, exports, agent context and notifications for everyone else, and stays invisible to a person who joins the segment later unless the author chose otherwise; administrators can always see that restricted messages exist and how many, and retention, legal hold and audit treat them as channel content; SECURITY: every read path (history, thread, search, reference preview, export, agent thread snapshot, notification, reaction list) is tested for a non-segment member; PROPERTY: no sequence of segment changes reveals a restricted message to someone outside its audience at send time.
+  - **REFACTOR:** one audience check used by every chat read path.
+  - **Refs:** `CHATGATE-001` record, `internal/collaboration/chat/service.go`, `internal/collaboration/chat/thread_snapshot.go`, `internal/data/chatstore`.
+
+- [ ] `CHATGATE-012` **[PHASE_3][SOL_HIGH] Consumer: let an agent use gate answers for welcome, triage and routing.**
+  - **Depends:** `CHATGATE-008`, `AGENTUX-048`, `AGENTUX-054`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.COLLABORATION,BI.SECURITY; DIRECT=owner request 2026-10-01 (agents); WHY=answers are most useful when something acts on them at once, and most dangerous when that something is a model`.
+  - **TEST:** `TestTodo_CHATGATE_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_012`; `SECURITY=TestTodo_CHATGATE_012_Security`; `INTEGRATION=TestTodo_CHATGATE_012_Integration`; `BROWSER=TestTodo_CHATGATE_012_Browser`.
+  - **RED:** an agent in a channel knows nothing about its members.
+  - **GREEN:** a read-only agent skill "Read gate answers" is granted per installation for named fields only; an accepted submission can trigger the installed agent (a run with source kind `GATE_SUBMISSION`) to post a welcome that uses the answers the member chose to share, apply a role label or segment through the consumer of `CHATGATE-009`, summarize a review-mode submission for the administrator ("3 of 3 required answers; team is Payroll; acknowledged the confidentiality policy v2.1.0") without deciding it, or open a task; answers reach the model only as quarantined untrusted data with the same containment as referenced documents; an agent never admits or declines a person; every agent read of answers is in the member's "who has seen my answers" list; SECURITY: instruction-like text in an answer, a request to reveal another member's answers, a field the installation was not granted, and a submission from another conversation are refused or ignored.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-008`, `internal/application/persona_runtime_tools.go`, `internal/application/agentdoc_runtime_model.go`, `internal/agentskills`.
+
+- [ ] `CHATGATE-013` **[PHASE_3][TERRA] Run gates in production: limits, abuse, metrics and migration of existing members.**
+  - **Depends:** `CHATGATE-006`, `CHATGATE-007`.
+  - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.OPERATIONS,BI.COLLABORATION; DIRECT=none; WHY=a gate on a busy channel is a queue, and a queue needs someone watching it`.
+  - **TEST:** `TestTodo_CHATGATE_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATGATE_013`; `PERFORMANCE=TestTodo_CHATGATE_013_Performance`; `FAULT=TestTodo_CHATGATE_013_Fault`; `INTEGRATION=TestTodo_CHATGATE_013_Integration`.
+  - **RED:** nothing measures or limits joining.
+  - **GREEN:** per-person and per-channel submission rate limits; a review queue older than the administrator's chosen time notifies the administrators and then the workspace administrator; adding a gate to a channel with members offers "Ask current members to answer by <date>" or "Only new members", with reminders and the stated consequence, and never removes anyone without the administrator confirming a list; metrics per gate (started, submitted, admitted, declined, median time to decision, drop-off per question) for administrators; a gate with 10,000 submissions lists and filters within 300 ms; FAULT: the outbox and the membership path being unavailable in turn never loses a submission or double-admits.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATGATE-004`, `CHATGATE-006`, `internal/data/chatstore`.
+
+## 95. Voice messages, transcripts, read-aloud, and search over everything in Chat
+
+This section holds the owner-requested work of 2026-10-01: voice messages in Chat that every reader can listen to or read, a "Listen" action for typed messages, and one rule for search: everything a person can see in Chat, they can find. A voice message is the sender recording themselves; recording calls or other people is out of scope. The audio is the record and the transcript is a labelled aid produced inside the deployment. Search never widens access: a result exists for a person only if they could open the thing it points to.
+
+- [ ] `CHATVOICE-001` **[DESIGN][SOL_HIGH] Record the decisions for voice messages, transcripts and read-aloud.**
+  - **Depends:** `CHAT-057`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=voice identifies the speaker and a transcript can be wrong, so what is recorded, where it is processed and which one is the record must be fixed before anything is built`.
+  - **TEST:** `TestTodo_CHATVOICE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_001`; `GOLDEN=TestTodo_CHATVOICE_001_Golden`; `SECURITY=TestTodo_CHATVOICE_001_Security`.
+  - **RED:** Chat carries text, images and files; its media store accepts MP3 and WAV but nothing records, transcribes or speaks.
+  - **GREEN:** a checked-in decision record under definitions/planning fixes: (1) a voice message is a self-recording of at most two minutes, never a recording of a call or of other people; (2) transcription runs inside the deployment, and audio is not sent to a model provider unless a tenant enables a named provider under the existing egress terms; (3) the audio is the record and the transcript is marked "Transcribed automatically", correctable by its author with the correction recorded; (4) audio and transcript carry the message's audience, retention, legal hold, export and data-loss rules, and deleting the message deletes both; (5) no speaker identification, voiceprint or emotion inference is derived from audio; (6) agents and every automated consumer read the transcript only, as untrusted data; (7) defaults: voice on in direct conversations, off in channels until a channel administrator enables it, with a workspace switch above both; (8) read-aloud of typed messages uses the reader's own device and stores nothing. GOLDEN pins the record; SECURITY asserts each "never" as a named refusal.
+  - **Decision (2026-10-01, owner request):** voice messages in Chat with voice to text so viewers can listen or read; everything searchable.
+  - **REFACTOR:** reference the record from every `CHATVOICE-*` Refs field instead of restating defaults.
+  - **Refs:** `internal/collaboration/chatmedia/media.go`, `internal/collaboration/chat`, `planning/specs`.
+
+- [ ] `CHATVOICE-002` **[PHASE_3][SOL_HIGH] Record, preview and send a voice message.**
+  - **Depends:** `CHATVOICE-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION; DIRECT=owner request 2026-10-01; WHY=some things are faster to say, and some people find typing hard`.
+  - **TEST:** `TestTodo_CHATVOICE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_002`; `SECURITY=TestTodo_CHATVOICE_002_Security`; `INTEGRATION=TestTodo_CHATVOICE_002_Integration`; `BROWSER=TestTodo_CHATVOICE_002_Browser`; `ACCESSIBILITY=TestTodo_CHATVOICE_002_Accessibility`.
+  - **RED:** the composer has no microphone; the media store refuses the Opus audio browsers record (it accepts `audio/mpeg` and `audio/wav` only).
+  - **GREEN:** a microphone control in the composer asks for the microphone only when pressed, shows a level meter and timer, stops at two minutes, and offers Listen, Re-record, Discard and Send, with a text field for an optional typed note; recording is Opus in WebM or Ogg at a speech bitrate, accepted by the media store after the same quarantine, sniffing and scanning as other media, with duration and size limits enforced server-side from the decoded stream, never from the client's claim; the control is absent where voice is off, with the reason on hover; a denied microphone permission says how to allow it; the whole flow works by keyboard and announces recording state; written in Go through the browser's recording interface, no script shim; SECURITY: a file that is not audio, an over-long or over-size recording, a mismatched content type, and a recording posted to a conversation the sender cannot post in are refused; INTEGRATION round-trips a recording through quarantine to playback.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATVOICE-001` record, `internal/collaboration/chatmedia/media.go`, `internal/collaboration/chatmedia/store.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `CHATVOICE-003` **[PHASE_3][SOL_HIGH] Transcribe every voice message inside the deployment.**
+  - **Depends:** `CHATVOICE-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("voice to text"); WHY=without a transcript a voice message is unsearchable, inaccessible and invisible to retention, hold and agents`.
+  - **TEST:** `TestTodo_CHATVOICE_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_003`; `SECURITY=TestTodo_CHATVOICE_003_Security`; `INTEGRATION=TestTodo_CHATVOICE_003_Integration`; `PERFORMANCE=TestTodo_CHATVOICE_003_Performance`; `FAULT=TestTodo_CHATVOICE_003_Fault`; `GOLDEN=TestTodo_CHATVOICE_003_Golden`.
+  - **RED:** no speech model is configured or called anywhere in the product.
+  - **GREEN:** a transcription worker takes admitted voice artifacts from the chat outbox and runs a speech model in process or in a sidecar inside the deployment (the same placement rule as the documents hub's embedding model), detects the spoken language among the product's locales and others the model supports, and stores the transcript with the model name and version, language, per-segment timings and a confidence per segment; the message shows "Transcribing…" until it is ready; a failed transcription is a visible state with "Try again" and never an empty transcript; the model's files, their source and their absence are reported plainly at start-up and on the administration page, never a silent fallback; re-transcription with a newer model keeps the author's corrections; GOLDEN: a fixed set of recordings in en-US, de-DE and ar with expected text and a word error ceiling per language; PERFORMANCE: a two-minute message is transcribed in under thirty seconds on the reference machine and never blocks posting; SECURITY: audio is read through the media store's authorization as the worker identity for that conversation only, and no audio or transcript leaves the deployment unless `CHATVOICE-001`'s provider option is enabled; FAULT: a worker crash, a missing model and an oversize backlog each leave messages readable and retryable.
+  - **REFACTOR:** share the worker, backlog and watermark shape with the document indexer.
+  - **Refs:** `CHATVOICE-001` record, `internal/application/documentembed`, `internal/data/documenthubstore/index_jobs.go`, `internal/collaboration/chatmedia`, `internal/data/chatstore`.
+
+- [ ] `CHATVOICE-004` **[PHASE_3][SOL_HIGH] Show a voice message so anyone can listen or read.**
+  - **Depends:** `CHATVOICE-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("so they can listen or read"); WHY=half the readers are somewhere they cannot play sound, and some cannot hear it at all`.
+  - **TEST:** `TestTodo_CHATVOICE_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_004`; `BROWSER=TestTodo_CHATVOICE_004_Browser`; `ACCESSIBILITY=TestTodo_CHATVOICE_004_Accessibility`; `SECURITY=TestTodo_CHATVOICE_004_Security`.
+  - **RED:** an audio attachment renders as a download link.
+  - **GREEN:** a voice message renders a player (play and pause, a seekable progress bar, elapsed and total time, speed 1x, 1.5x and 2x remembered per person) and the transcript under it, three lines with "Show more", marked "Transcribed automatically" with the language when it differs from the reader's; while playing, the spoken segment is highlighted in the transcript, and selecting a transcript sentence seeks the audio to it; the author can correct the transcript ("Edited by author" shown) and anyone can report a wrong transcript; low-confidence segments are visually marked; the player and transcript work by keyboard and screen reader, in three languages and right-to-left, at 1440, 800 and 390 px, with no layout change when playback starts; a preference "Show transcripts collapsed" and "Play voice messages automatically: never" as the default; SECURITY: the audio address is authorized on every read and expires, and a person removed from the conversation can no longer play or read it.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATVOICE-001` record, `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/collaboration/chatmedia/store.go`.
+
+- [ ] `CHATVOICE-005` **[GATE_C][SOL_HIGH] Give audio and transcripts the same governance as the message they belong to, and give agents the transcript only.**
+  - **Depends:** `CHATVOICE-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=none; WHY=voice must not become the way around retention, hold, export, data-loss rules or the agent boundary`.
+  - **TEST:** `TestTodo_CHATVOICE_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_005`; `SECURITY=TestTodo_CHATVOICE_005_Security`; `INTEGRATION=TestTodo_CHATVOICE_005_Integration`; `PROPERTY=TestTodo_CHATVOICE_005_Property`.
+  - **RED:** media attachments are governed as files; nothing treats derived text as part of a message.
+  - **GREEN:** retention, legal hold, export, redaction and deletion apply to a voice message's audio, transcript, corrections and timings as one unit (PROPERTY: no sequence of edit, correction, re-transcription, hold and delete leaves any part behind or readable); the content policy and data-loss checks that run on typed messages run on the transcript, with a hit handled as for text; agents, the to-do and reminder agents, document references and every automated consumer receive the transcript as quarantined untrusted data and never the audio; the tenant's data report lists voice as a category with its retention; workspace, channel and personal switches for voice are enforced server-side; SECURITY: instruction-like speech in a voice message changes no agent's skills or audience, a transcript is never readable by someone who cannot read the message, and audio is never returned to an agent tool call.
+  - **REFACTOR:** one "message content" reader that yields text for typed and voice messages alike.
+  - **Refs:** `CHATVOICE-001` record, `internal/collaboration/chat/content_policy.go`, `internal/collaboration/chat/thread_snapshot.go`, `internal/application/agentdoc_runtime_model.go`, `internal/data/chatstore`.
+
+- [ ] `CHATVOICE-006` **[PHASE_3][TERRA] Add "Listen" to typed messages and agent answers.**
+  - **Depends:** `CHATVOICE-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("listen or read"); WHY=the same choice should exist for a message that was typed`.
+  - **TEST:** `TestTodo_CHATVOICE_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATVOICE_006`; `BROWSER=TestTodo_CHATVOICE_006_Browser`; `ACCESSIBILITY=TestTodo_CHATVOICE_006_Accessibility`.
+  - **RED:** a typed message can only be read.
+  - **GREEN:** a "Listen" action on a typed message, an agent answer and a thread ("Listen to this thread") speaks the text with the reader's device voice in the message's language, with pause, stop and speed, highlighting the sentence being spoken; it reads what a person would read (names for mentions, "link to" for links, a source's title for a citation, nothing for hidden or private content the reader cannot see); nothing is sent to the server and nothing is stored; where the device has no voice for the language the action says so and is not offered as if it worked; it does not start by itself and stops on navigation; coexists with a screen reader without double speech (it is not offered while one is detected to be reading the same region).
+  - **REFACTOR:** none.
+  - **Refs:** `CHATVOICE-001` record, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/render.go`.
+
+- [x] `CHATSEARCH-001` **[GATE_C][SOL_HIGH] Everything a person can see in Chat, they can find; nothing they cannot see, they can find.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATSEARCH_001`, `TestTodo_CHATSEARCH_001_Contract`, `TestTodo_CHATSEARCH_001_Integration`, `TestTodo_CHATSEARCH_001_Property`, `TestTodo_CHATSEARCH_001_Security` exist and passed in `internal/application`, `internal/collaboration/chatsearch`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `WEB-041`, `CHATVOICE-005`, `AGENTUX-048`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("make sure everything is searchable"); WHY=this effort adds a dozen new kinds of content to Chat, and each one is invisible to search until someone decides it is not, and a leak if someone decides wrongly`.
+  - **TEST:** `TestTodo_CHATSEARCH_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSEARCH_001`; `SECURITY=TestTodo_CHATSEARCH_001_Security`; `PROPERTY=TestTodo_CHATSEARCH_001_Property`; `INTEGRATION=TestTodo_CHATSEARCH_001_Integration`; `CONTRACT=TestTodo_CHATSEARCH_001_Contract`.
+  - **RED:** (2026-10-01) message search covers typed message text; agent answers shown only to one person, saved copies in agent conversations, source titles, announcements, reminders, channel to-dos and polls, pins, attachments' names, and (when built) voice transcripts, private task cards and gate questions each have their own storage and no stated search behaviour.
+  - **GREEN:** one registry lists every kind of Chat content with three declared facts: what text is indexed, who may find it, and where a result opens; a content kind cannot be added to Chat without an entry (a test enumerates the stored kinds and fails on an unregistered one); registered kinds: typed messages and thread replies, voice transcripts and author corrections, agent answers (public ones for members; private ones only for the person they were shown to), an answer's source titles and cited sections, announcements and reminders, channel to-do items, private tasks and private reminders (their owner only), polls and their options, pins, attachment and document names, conversation names, purposes and members' names, gate questions (members and applicants) and a person's own gate answers (that person; administrators find answers only inside the gate's answers view, never in workspace search); every result is authorized at query time against current membership and visibility, not from what was true at indexing; results from a conversation a person left, a message deleted or redacted, a restricted segment they are not in, or another tenant never appear, including in counts, suggestions, highlights and "no results in N hidden conversations" hints; PROPERTY: for generated histories of joins, leaves, deletions, visibility changes and segment changes, the set of results equals the set of things the person could open at query time; CONTRACT pins the registry.
+  - **REFACTOR:** one indexing path and one authorization filter for every Chat content kind.
+  - **Refs:** `internal/collaboration/chat/service.go`, `internal/collaboration/chat/chat_reference_visibility.go`, `internal/data/chatstore`, `internal/collaboration/chat/ephemeral.go`, `CHATGATE-007`.
+
+- [ ] `CHATSEARCH-002` **[PHASE_3][SOL_HIGH] Search by meaning and by filter, and open each result at the exact place.**
+  - **Depends:** `CHATSEARCH-001`, `AGENTUX-056`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=being indexed is not the same as being findable`.
+  - **TEST:** `TestTodo_CHATSEARCH_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSEARCH_002`; `BROWSER=TestTodo_CHATSEARCH_002_Browser`; `PERFORMANCE=TestTodo_CHATSEARCH_002_Performance`; `ACCESSIBILITY=TestTodo_CHATSEARCH_002_Accessibility`; `SECURITY=TestTodo_CHATSEARCH_002_Security`.
+  - **RED:** "Search messages" matches words in typed messages and lists them.
+  - **GREEN:** one search box in Chat and the workspace search both return every registered kind, grouped with a label per kind ("Voice message", "Agent answer · only you", "Reminder", "To-do", "Poll", "Source"), with the matching words highlighted; filters: conversation, person, kind, date range, "has a voice message", "from an agent", "mine only"; searching by meaning uses the in-deployment embedding model the documents hub uses, over the same authorized set, and says which mode produced the results; a result opens its conversation scrolled to the message, a voice result seeks to the matching sentence, a source result opens the document at the cited section and version, a to-do or reminder opens its list with the item in view; recent searches are per person and private; results for a common word in a workspace of 100,000 messages return in under 300 ms; SECURITY: filters and meaning search return nothing a keyword search would withhold.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATSEARCH-001`, `internal/application/documentembed`, `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
+
+- [ ] `CHATSEARCH-003` **[PHASE_3][TERRA] Make the agent pages and their records searchable.**
+  - **Depends:** `CHATSEARCH-001`, `AGENTUX-055`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("everything"); WHY=an owner looking for "the run that failed on Tuesday" or "the agent that reads the holiday guide" has only scrolling`.
+  - **TEST:** `TestTodo_CHATSEARCH_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSEARCH_003`; `BROWSER=TestTodo_CHATSEARCH_003_Browser`; `SECURITY=TestTodo_CHATSEARCH_003_Security`.
+  - **RED:** the Agents page, Agent setup and Agent operations have no search; the run history is a list of fifty.
+  - **GREEN:** the Agents page searches a person's own questions and answers; Agent setup searches agents by name, purpose, instructions, skill and the documents they read ("which agents read the holiday guide?"); Agent operations searches runs by agent, version, person, conversation, outcome, failure reason and date, announcements by text and document, and reminders by text; the workspace search offers agents and a person's own tasks as kinds; SECURITY: an owner finds only runs they are entitled to see, with the requester's question text shown only where the run view already shows it, and an employee never finds another person's private answers or an agent they may not use.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATSEARCH-001`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agentux_ops_page.go`, `internal/application/agentux_ops4_persona_runs.go`.
+
+## 96. Agent cost: decision models and spend controls (research)
+
+This section holds the owner-requested research of 2026-10-01: reduce what the agent architecture spends by moving decision-shaped work (is this a task, private or public, which tool, is this safe, which emoji, how severe) off a general language model and onto something built for decisions, and by measuring spend before changing it. Two candidates were named: Jev, a decision model from TypeSafe AI launched in September 2026, and the OpenAI Decisions API announced at DevDay 2026 and reported to be in invite-only preview. Everything known about either at the time of writing comes from public reporting and vendor-adjacent articles and is to be verified against primary sources; nothing here is a decision to adopt. Every todo in this section produces a checked-in record with evidence, not product code, unless it says otherwise.
+
+- [ ] `AGENTCOST-001` **[DESIGN][SOL_HIGH] Measure where agent spend goes today, by stage and by kind of call.**
+  - **Depends:** `AGENTUX-025`.
+  - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("refine costs expenditure"); WHY=a cheaper decision layer is only worth adopting for the calls that are decisions, and nobody has counted them`.
+  - **TEST:** `TestTodo_AGENTCOST_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_001`; `GOLDEN=TestTodo_AGENTCOST_001_Golden`; `INTEGRATION=TestTodo_AGENTCOST_001_Integration`.
+  - **RED:** a run records one cost figure and a stage timing line; nothing reports tokens and cost per model call, per stage (admission, answer, tool continuation, validation, evaluation, announcement, screening), per agent and per trigger, so the share of spend that is "choose one of a few options" is unknown.
+  - **GREEN:** a checked-in report under definitions/planning built from the review cell's run records and a seeded replay: tokens in and out, cost and latency per model call, classified as generation (text a person reads), extraction (structured output from content) or decision (one of a bounded set); totals per agent, per trigger kind and per answered question; the ten most expensive call sites; a projection for the planned agents (message screening at channel volume, to-do and reminder detection, support email triage, announcements) at 50, 500 and 5,000 people; the instrumentation that produced it lands as product code (a per-call ledger line in the run record, fields named in GOLDEN) so the numbers can be regenerated.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_runtime_budget.go`, `internal/agentmodel`, `internal/data/agentrunstate`.
+
+- [ ] `AGENTCOST-002` **[DESIGN][SOL_HIGH] Inventory the decision points in the agent architecture and define one decision port.**
+  - **Depends:** `AGENTCOST-001`, `AGENTUX-066`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.OPERATIONS; DIRECT=owner request 2026-10-01; WHY=whichever decision model is chosen, the product should ask typed questions through one governed interface, not call a vendor from ten places`.
+  - **TEST:** `TestTodo_AGENTCOST_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_002`; `GOLDEN=TestTodo_AGENTCOST_002_Golden`; `SECURITY=TestTodo_AGENTCOST_002_Security`.
+  - **RED:** every model interaction goes through one text-generation contract (`agentmodel.ModelRequest`), including calls whose answer is yes or no.
+  - **GREEN:** a checked-in decision record lists each decision point with its question type, option set, cost of a wrong answer in each direction, and required confidence: screening a message for an ambient agent; private or public audience for a to-do or reminder; whether to search before answering and which search; choosing a reaction from the fixed set; support email severity and "needs human review"; instruction-like content in untrusted input (documents, email, gate answers, transcripts); whether a sealed answer is supported by its citations; whether a run's actions stayed inside its declared skills (monitoring); which model profile should write the answer; and it specifies a provider-neutral decision port beside the generation contract: typed questions (yes or no, one of N, score), per-option probabilities and a confidence, a threshold per decision point, and an explicit abstain that escalates to the general model or to a person; the record states how the port is governed exactly like generation: named in the model route policy, covered by the outbound verifier's source classes and data-class ceilings, charged to the run budget, sealed in the run record with the question, options, probabilities and threshold, and evaluated by a labelled suite per decision point before it may be enabled; SECURITY lists what a decision may never do alone (admit a person, publish, widen an audience, spend above a limit, execute a side effect whose refusal direction is unsafe).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/agentmodel/contract.go`, `internal/agentegress/agent020_provider_dispatch.go`, `internal/application/agent_model_policy_registry.go`, `internal/agenteval`.
+
+- [ ] `AGENTCOST-003` **[DESIGN][SOL_HIGH] Research Jev against primary sources and our own labelled data.**
+  - **Depends:** `AGENTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("researching jev"); WHY=the published numbers are large and come from the vendor and its partners`.
+  - **TEST:** `TestTodo_AGENTCOST_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_003`; `GOLDEN=TestTodo_AGENTCOST_003_Golden`; `SECURITY=TestTodo_AGENTCOST_003_Security`.
+  - **RED:** what is known is second-hand: a decision model from TypeSafe AI launched in September 2026 that answers typed questions (reported as yes or no, choice and score) with calibrated probabilities and a confidence value, reported around 100 ms and far cheaper than a language model, reached through a hosted interface; no primary source has been read for price, limits, regions, retention, training use, sub-processors, availability commitments or whether it can run inside a deployment.
+  - **GREEN:** a checked-in research record with primary citations (vendor documentation, terms, data processing addendum, pricing page, status history) answering: interface and limits (context size, options per question, questions per call, languages including German and Arabic, images); what "calibrated" is claimed to mean and the evidence; price and how it is metered; data handling (retention, training use, regions, deletion, sub-processors) set against this product's outbound terms for each data class, and whether self-hosting or a private deployment exists; failure behaviour, rate limits and availability; then a measured comparison on our own data using the labelled suites of `AGENTUX-067`, `AGENTUX-068` and the persona evaluation suites, with synthetic or demo content only: accuracy, calibration (reliability curve and expected calibration error), abstain rate at the thresholds of `AGENTCOST-002`, latency and cost per thousand decisions, against the current general model and against an in-deployment small classifier; a recommendation per decision point (adopt, adopt behind escalation, do not adopt) with the break-even volume; SECURITY: the record states which data classes could lawfully be sent under the vendor's terms and the answer is "none" for any class the terms do not cover.
+  - **REFACTOR:** none.
+  - **Refs:** `AGENTCOST-002` record, `internal/application/persona_openai_local_deployment.go`, `internal/agentegress`, `internal/agenteval`.
+
+- [ ] `AGENTCOST-004` **[DESIGN][SOL_HIGH] Research the OpenAI Decisions API and plan for it while it is in preview.**
+  - **Depends:** `AGENTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("the openai decisions api"); WHY=the product already has an approved route to this provider, so a decision interface from it would need the least new governance, if it is real, priced and stable`.
+  - **TEST:** `TestTodo_AGENTCOST_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_004`; `GOLDEN=TestTodo_AGENTCOST_004_Golden`; `SECURITY=TestTodo_AGENTCOST_004_Security`.
+  - **RED:** public reporting says the interface was announced at DevDay 2026, takes context (text and images), a question and a fixed list of answers, returns one answer with a confidence value in about 150 ms, is in invite-only preview, and has no published price, limits, error behaviour or data controls; its confidence is described as model-reported, not independently calibrated; none of this has been confirmed from the provider's own documentation.
+  - **GREEN:** a checked-in research record with primary citations stating what is confirmed and what is not: availability and how to request preview access (request it); request and response shape; whether per-option probabilities are returned or only a chosen answer; price; limits; data handling compared with the existing approved terms for this provider; whether the model gateway the product uses can reach it or needs a new adapter; the same measured comparison as `AGENTCOST-003` as soon as access exists, and until then a paper comparison plus an emulation through the existing structured-output route to establish the accuracy ceiling of the same model family; a plan that does not depend on the preview: the decision port of `AGENTCOST-002` gets a first adapter that can ship without it, the preview adapter sits behind a feature flag with a fallback, and nothing in the product requires an interface whose contract is not final.
+  - **REFACTOR:** none.
+  - **Refs:** `AGENTCOST-002` record, `internal/agentmodel/schemaflux_adapter.go`, `internal/application/persona_openai_local_deployment.go`.
+
+- [ ] `AGENTCOST-005` **[DESIGN][SOL_HIGH] Compare the decision models with the cost levers that need no new vendor.**
+  - **Depends:** `AGENTCOST-001`.
+  - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=the cheapest call is the one not made, and several reductions are available with the provider and deployment the product already has`.
+  - **TEST:** `TestTodo_AGENTCOST_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_005`; `GOLDEN=TestTodo_AGENTCOST_005_Golden`.
+  - **RED:** no lever has been costed against another.
+  - **GREEN:** a checked-in comparison, using the measurements of `AGENTCOST-001`, of: an in-process screen with no model call (rules and the in-deployment embedding model) before any paid call; a small classifier that runs inside the deployment, which keeps content from leaving and so applies to every data class; provider prompt caching for the stable instruction prefix; batch processing for evaluations and other work nobody is waiting on; routing by difficulty to a smaller generation model; trimming context (thread parent only, cited sections only); caching identical decisions and answers where the sealed inputs are identical; each with expected saving, effect on quality and latency, engineering cost and risk, ranked by saving per unit of effort, and a recommended order in which the hosted decision models of `AGENTCOST-003` and `AGENTCOST-004` appear only where they beat the in-deployment options.
+  - **REFACTOR:** none.
+  - **Refs:** `AGENTCOST-001` report, `internal/application/documentembed`, `internal/agentmodel`, `internal/agenteval`.
+
+- [ ] `AGENTCOST-006` **[PHASE_3][SOL_HIGH] Give owners spend limits they can set and a cost they can see.**
+  - **Depends:** `AGENTCOST-001`, `AGENTUX-055`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=whatever the unit cost becomes, an owner needs to know what an agent costs and to cap it`.
+  - **TEST:** `TestTodo_AGENTCOST_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTCOST_006`; `SECURITY=TestTodo_AGENTCOST_006_Security`; `INTEGRATION=TestTodo_AGENTCOST_006_Integration`; `BROWSER=TestTodo_AGENTCOST_006_Browser`.
+  - **RED:** Agent setup says "No limits set · Set a limit" and Agent operations shows runs with no cost.
+  - **GREEN:** per agent, per conversation and per day limits in money and in runs, enforced by the existing budget ledger before a call is made, with a plain state when reached ("Policy Helper reached today's limit for #general. It resets at 00:00.") and an owner notification at 80 percent; Agent operations shows cost per run, per agent per day and per answered question, a thirty-day trend, the share spent on screening and decisions versus answers, and a forecast for the month; ambient agents show cost per hundred messages read; SECURITY: a limit cannot be raised by anyone but an owner of that agent, a limit change is audited, and a cost figure never reveals another tenant's or another owner's spend.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_runtime_budget.go`, `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
+
+## 97. Voice and video calls in Chat over WebRTC (research)
+
+This section holds the owner-requested research of 2026-10-01 into calls started from Chat: one-to-one voice and video, and group calls in a channel. Every todo here produces a checked-in record with evidence, plus at most a throwaway prototype on the review cell; none is a decision to build. Calls raise questions the rest of Chat does not: media leaves the browser in real time, needs servers that relay it, and tempts recording. `CHATVOICE-001` rules out recording other people for voice messages; whether a call may be recorded or transcribed at all is an open question this section must answer, not assume.
+
+- [ ] `CHATCALL-001` **[DESIGN][SOL_HIGH] Record the scope and the decisions a call feature would rest on.**
+  - **Depends:** `CHATVOICE-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("research webrtc for chat based voice and video calls"); WHY=topology, cost and compliance all follow from how many people, whether video, and whether anything is recorded`.
+  - **TEST:** `TestTodo_CHATCALL_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_001`; `GOLDEN=TestTodo_CHATCALL_001_Golden`.
+  - **RED:** Chat has no real-time media; nothing states what kind of calls the product would offer or to whom.
+  - **GREEN:** a checked-in decision record proposes, with reasons and the alternatives rejected: the call kinds in order of delivery (one-to-one voice, one-to-one video, a drop-in call in a channel, screen sharing) and a participant ceiling for each; who may start a call where, following the conversation's existing membership and policy; what a call leaves behind in the conversation (a "Call started", "Call ended · 12 min · 3 people" line and nothing else by default); presence and ringing rules, quiet hours and do-not-disturb; whether recording, live captions and after-call transcripts are offered at all, and if so under what consent (every participant told before it starts and able to refuse by leaving), retention and hold rules, with the jurisdictions where one party's consent is not enough named; what is explicitly out of scope (calls to phone numbers, external guests, webinars).
+  - **Decision (2026-10-01, owner request):** research WebRTC for chat-based voice and video calls.
+  - **REFACTOR:** reference the record from every `CHATCALL-*` Refs field.
+  - **Refs:** `internal/collaboration/chat`, `planning/specs`, `CHATVOICE-001` record.
+
+- [ ] `CHATCALL-002` **[DESIGN][SOL_HIGH] Research media topology: direct, relayed, or through a forwarding server.**
+  - **Depends:** `CHATCALL-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.OPERATIONS; DIRECT=owner request 2026-10-01; WHY=the topology fixes the server cost, the participant limit and whether end-to-end encryption is possible`.
+  - **TEST:** `TestTodo_CHATCALL_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_002`; `GOLDEN=TestTodo_CHATCALL_002_Golden`; `PERFORMANCE=TestTodo_CHATCALL_002_Performance`.
+  - **RED:** no option has been compared for this product.
+  - **GREEN:** a checked-in comparison of direct peer-to-peer (two people), a mesh (small groups), a selective forwarding unit and a mixing server, for the call kinds of `CHATCALL-001`: participant limits, upstream and downstream bandwidth per person, server processor and bandwidth per call, behaviour on poor networks (simulcast, scalable video, audio-only fallback), and what each permits for encryption, captions and recording; candidate implementations with licence, maturity, maintenance and how each would sit beside a Go monolith: a Go-native stack that could run in or beside the server process, and the established forwarding servers written in other languages; a recommendation per call kind and the point (participants, video) at which the recommendation changes; PERFORMANCE: a measured prototype of the recommended one-to-one path on the review cell with packet loss and latency injected, reporting setup time, audio quality score and recovery time.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-001` record, `internal/connectivity`, `cmd/hcmnext`.
+
+- [ ] `CHATCALL-003` **[DESIGN][SOL_HIGH] Research signalling and getting media through real networks.**
+  - **Depends:** `CHATCALL-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY,BI.OPERATIONS; DIRECT=owner request 2026-10-01; WHY=most failed calls fail before any media flows, at a firewall`.
+  - **TEST:** `TestTodo_CHATCALL_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_003`; `GOLDEN=TestTodo_CHATCALL_003_Golden`; `SECURITY=TestTodo_CHATCALL_003_Security`.
+  - **RED:** the product's only real-time channel is the gRPC-over-WebSocket tunnel used for requests and streams; nothing negotiates a media session or relays media.
+  - **GREEN:** a checked-in record covering: signalling carried over the existing authenticated tunnel (offer, answer, candidates, renegotiation, ringing, hang-up) with the same tenant and membership checks as posting a message, and what the tunnel's allowlist and keepalive rules need; address discovery and relay (how often a relay is needed on corporate networks, relay over TCP and TLS on port 443 for restrictive firewalls, short-lived relay credentials minted per call and per person); the bandwidth a relay carries and what that costs per hour of audio and of video; where relays and forwarding servers must run for data residency; SECURITY: a relay credential cannot be used by another person, tenant or call, signalling cannot be used to learn another person's network address without a call they accepted (relay-only as the privacy default, with the trade-off stated), and a person removed from a conversation mid-call is disconnected.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-002` record, `internal/connectivity`, `internal/transport`, `internal/collaboration/chat/service.go`.
+
+- [ ] `CHATCALL-004` **[DESIGN][SOL_HIGH] Research the browser side: WebRTC from the Go client, devices, codecs and testing.**
+  - **Depends:** `CHATCALL-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.COLLABORATION; DIRECT=owner request 2026-10-01; WHY=the client is Go compiled to WebAssembly with no script layer, and real-time media has never been driven from it`.
+  - **TEST:** `TestTodo_CHATCALL_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_004`; `GOLDEN=TestTodo_CHATCALL_004_Golden`; `BROWSER=TestTodo_CHATCALL_004_Browser`.
+  - **RED:** the client has never requested a microphone or camera or held a peer connection.
+  - **GREEN:** a checked-in record and a throwaway prototype answering: whether the browser's peer connection, media device and track interfaces can be driven entirely from Go through the script bridge without blocking the client's single thread (the known trap: a blocking call inside a callback freezes the page) and what the event flow looks like; device permission prompts, device selection and hot-plug, echo cancellation and noise suppression defaults; audio and video codecs each supported browser negotiates and which to prefer; screen sharing; behaviour on phones and when the tab is in the background; accessibility of the call controls and of captions; a test strategy that runs unattended (fake media devices in the automated browser, two browser contexts calling each other, injected network impairment) and what cannot be tested that way; BROWSER: the prototype completes a two-context audio call with synthetic devices.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-002` record, `tools/uxqual/cmd/journeywasm`, `internal/humanwork/chatui`.
+
+- [ ] `CHATCALL-005` **[DESIGN][SOL_HIGH] Research security, privacy and compliance for calls.**
+  - **Depends:** `CHATCALL-001`, `CHATCALL-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.COLLABORATION; DIRECT=owner request 2026-10-01; WHY=this is an HR product: a call may be a disciplinary conversation, and recording law differs by place`.
+  - **TEST:** `TestTodo_CHATCALL_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_005`; `GOLDEN=TestTodo_CHATCALL_005_Golden`; `SECURITY=TestTodo_CHATCALL_005_Security`.
+  - **RED:** the product's content controls (retention, legal hold, export, data-loss rules, audit) are defined for stored content; live media has none.
+  - **GREEN:** a checked-in record covering: transport encryption that is always on, and end-to-end encryption through a forwarding server (what it protects, what it prevents: server-side captions, recording and agent features), with a recommendation per call kind; recording and transcription consent by jurisdiction (one-party and all-party rules, works councils and employee monitoring rules in the product's markets), and the product behaviour that satisfies the strictest (announce, show continuously, let anyone decline); what metadata a call creates (who, when, how long) and its retention, hold and export; what administrators and the tenant can and cannot see about calls; abuse handling (unwanted calls, blocking, rate limits); how a recording or transcript, if allowed, would inherit the conversation's governance exactly as `CHATVOICE-005` requires for voice messages; SECURITY: a threat model with each threat's mitigation or accepted risk (eavesdropping at a relay, a participant silently recording with their own tools, a compromised forwarding server, call injection, address disclosure).
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-001` record, `CHATVOICE-005`, `internal/governance`, `internal/documentsecurity`.
+
+- [ ] `CHATCALL-006` **[DESIGN][SOL_HIGH] Research build against buy, and what calls would cost to run.**
+  - **Depends:** `CHATCALL-002`, `CHATCALL-003`, `CHATCALL-005`.
+  - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.OPERATIONS,BI.COLLABORATION,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=running media servers is an operational commitment of a different kind from running an application server`.
+  - **TEST:** `TestTodo_CHATCALL_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_006`; `GOLDEN=TestTodo_CHATCALL_006_Golden`.
+  - **RED:** no cost or operating model exists for real-time media.
+  - **GREEN:** a checked-in comparison of running the relay and forwarding servers as part of the deployment against using a managed real-time media service, for a customer of 50, 500 and 5,000 people with stated call minutes: monthly cost, the operational work (capacity, monitoring, upgrades, incident response), data residency and sub-processor consequences under the product's outbound terms, what a tenant on a private network would need, vendor lock-in and exit cost, and how each option constrains `CHATCALL-005`'s encryption and recording answers; a recommendation with the volume at which it flips; the quality measures the product would watch whichever is chosen (setup success rate, time to first audio, drop rate, audio quality score) and where they would be shown to an operator.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-002` record, `CHATCALL-005` record, `internal/commercial`, `internal/agentegress`.
+
+- [ ] `CHATCALL-007` **[DESIGN][TERRA] Research what agents may do with a call.**
+  - **Depends:** `CHATCALL-005`, `CHATVOICE-003`, `AGENTUX-067`, `AGENTUX-068`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.COLLABORATION; DIRECT=owner request 2026-10-01; WHY=notes, tasks and reminders from a call are the obvious next request, and they depend on a transcript the consent rules may forbid`.
+  - **TEST:** `TestTodo_CHATCALL_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCALL_007`; `GOLDEN=TestTodo_CHATCALL_007_Golden`; `SECURITY=TestTodo_CHATCALL_007_Security`.
+  - **RED:** nothing states whether an agent could ever attend to a call.
+  - **GREEN:** a checked-in record that, given the answers of `CHATCALL-005`, says for each idea whether it is permissible and under what consent: live captions for accessibility (in-deployment speech model, nothing stored); an after-call summary, tasks and reminders posted to the conversation by the to-do and reminder agents from a transcript every participant agreed to; a private "notes for me" that only the requester receives; and the things that are ruled out (silent attendance, scoring or assessing a participant, sentiment or emotion inference, any use in an employment decision); the in-deployment speech model's fitness for live use (latency, speaker separation, the three product languages) measured on recorded test audio; SECURITY: each permitted feature names the consent it needs and what happens when one participant declines.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATCALL-005` record, `CHATVOICE-003`, `AGENTUX-066`.
+
+## 98. Crash-only operation: durable queues and continuity for agent and chat processes (research)
+
+This section holds the owner-requested research of 2026-10-01: every multi-step process this effort adds must survive the program dying at any instant and continue as if nothing happened. The target is crash-only operation: the program has one way to stop (it dies) and one way to start (it recovers), recovery is fast, and no step is lost, repeated or left half-visible to a person. The product already has parts of this (transactional outboxes in several stores, run state with leases and fences, an effect journal around tool calls, schedule recovery, a start-up reconciler); what it lacks is one stated model, an inventory of which processes follow it, and proof by killing the process at every step. Each todo here produces a checked-in record with evidence, and where stated a test harness; none changes product behaviour by itself.
+
+- [ ] `DURABLE-001` **[DESIGN][SOL_HIGH] Inventory every multi-step process and what happens when the program dies inside it.**
+  - **Depends:** `AGENTUX-048`, `AGENTUX-066`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.INTELLIGENCE,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("durable queues and continuities ... withstand crashes and safely resume"); WHY=durability is a property of each step, and nobody has listed the steps`.
+  - **TEST:** `TestTodo_DURABLE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_001`; `GOLDEN=TestTodo_DURABLE_001_Golden`.
+  - **RED:** (2026-10-01 review cell) after the server was restarted during this effort: three agent runs showed "Running" for hours and were never reaped; a question's "working" card stayed until the person reloaded; the start-up reconciler suspended both installations of a published agent and nothing said so; a rollout preview and an evaluation each had to be repeated by hand; the preparation command, safe on a fresh database, failed on an existing one. Each process has its own partial answer to "what if we die here" and none is written down.
+  - **GREEN:** a checked-in inventory with one row per process and one sub-row per step: answering a mention (admission, claim, model call, checkpoint, tool effect, continuation, validation, delivery, receipt); a task on the Agents page; a scheduled announcement occurrence; a reminder; a message read by an ambient agent; a to-do or reminder offer and its acceptance; a support email becoming a ticket and an alert; voice transcription; document and chat indexing; version review, evaluation, publication with provisioning, and staged rollout; a channel gate submission becoming a membership; feedback, stop and retry; the preparation command; for each step: where its state lives, what makes it durable (transaction, outbox row, lease, journal entry) or that nothing does, its idempotency key, who resumes it and when, the worst case if the program dies immediately before, during and after it (lost, repeated, stuck, visible half-state), whether a person can tell, and the measured or estimated time to resume; every "nothing does", "stuck" and "repeated" is listed as a finding with the todo that would fix it.
+  - **Decision (2026-10-01, owner request):** the program needs to be able to crash and recover itself quickly and continue like nothing happened.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/agentsystem/runstate/run.go`, `internal/application/persona_run_executor.go`, `internal/application/agent_schedule_recovery.go`, `internal/application/agent_restore_installations.go`, `internal/data/chatstore`, `internal/data/agentstore`, `internal/effectgraph`.
+
+- [ ] `DURABLE-002` **[DESIGN][SOL_HIGH] Research the queue model: one durable work queue in the databases the product already runs.**
+  - **Depends:** `DURABLE-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("durable queues"); WHY=each feature has grown its own outbox, lease and worker loop, and each new one repeats the same mistakes`.
+  - **TEST:** `TestTodo_DURABLE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_002`; `GOLDEN=TestTodo_DURABLE_002_Golden`; `PERFORMANCE=TestTodo_DURABLE_002_Performance`; `SECURITY=TestTodo_DURABLE_002_Security`.
+  - **RED:** at least nine stores have their own outbox or job table with different claim, retry and expiry rules.
+  - **GREEN:** a checked-in comparison and recommendation covering: a queue kept in PostgreSQL beside the data it acts on (enqueue in the same transaction as the state change, claim with skip-locked row leases, visibility timeout and heartbeat, fencing token so a worker that lost its lease cannot write, bounded retries with backoff, a dead-letter state a person can see and replay, ordering per key, per-tenant fairness and limits, row-level security so a job is never claimed across tenants) against an external message broker and against adopting a durable-execution engine; what each costs to operate, what each guarantees (at-least-once delivery with idempotent handlers versus claimed exactly-once), and what the product's separated databases (core, chat, agents, documents) mean for a job that spans two of them; the product's own workflow engine as a candidate for long agent processes, with what it would and would not give; a recommended single queue contract (enqueue, claim, heartbeat, complete, fail, dead-letter, replay) that the existing outboxes can be expressed in without a rewrite; PERFORMANCE: a measured prototype of the recommended queue at 1,000 jobs per second with workers killed at random, reporting loss (must be zero), duplicates delivered, and time to drain after restart; SECURITY: a job payload carries references and digests, never content or credentials, and a replay re-checks authority at execution time.
+  - **REFACTOR:** none.
+  - **Refs:** `DURABLE-001` inventory, `internal/data/dbport`, `internal/data/agenttriggerstore/source.go`, `internal/data/chatstore`, `internal/engines`, `internal/flow`.
+
+- [ ] `DURABLE-003` **[DESIGN][SOL_HIGH] Research continuity: how a process resumes mid-way without paying or acting twice.**
+  - **Depends:** `DURABLE-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS,BI.INTELLIGENCE,BI.SECURITY; DIRECT=owner request 2026-10-01 ("continuities ... safely resume"); WHY=a queue redelivers the job; continuity is what stops the redelivered job from calling the model again, creating a second ticket or posting twice`.
+  - **TEST:** `TestTodo_DURABLE_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_003`; `GOLDEN=TestTodo_DURABLE_003_Golden`; `PROPERTY=TestTodo_DURABLE_003_Property`.
+  - **RED:** the run executor checkpoints at some steps and journals tool effects; other processes (announcements, rollouts, the preparation command, publication with provisioning) are sequences of calls with no recorded position.
+  - **GREEN:** a checked-in design record stating one continuity model for every process in the inventory: a process is a recorded sequence of steps, each step's result is stored before the next begins, and resuming means reading the record and continuing from the first step without a result; rules for the three kinds of step: a pure decision (may be recomputed), a paid or slow call such as a model call (its result is stored with its request digest and reused on resume, never paid for twice; an in-flight call at the moment of death is the one place a repeat is allowed and is bounded to one), and a side effect (an intent is recorded first, the effect carries an idempotency key the receiving system honours, and the outcome is resolved from the receiver when the result is unknown, as the effect journal does today); timers and waits (a reminder due in three days, a rollout waiting for a go-ahead) are stored facts, not sleeping code; compensation for a process that cannot complete; versioning, so a process started by an older build resumes correctly or is retired explicitly; what is recorded is references and digests under the same sealing rules as a run; PROPERTY: for a model of the process, every interleaving of "die here" and "resume" yields the same final state and the same set of effects as an uninterrupted run.
+  - **REFACTOR:** none.
+  - **Refs:** `DURABLE-002` record, `internal/application/persona_run_executor.go`, `internal/effectgraph/graph.go`, `internal/forms/continuity/continuity.go`, `internal/agentsystem/runstate/run.go`.
+
+- [ ] `DURABLE-004` **[DESIGN][SOL_HIGH] Build the proof: kill the program at every step and show nothing was lost, repeated or left stuck.**
+  - **Depends:** `DURABLE-003`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("crash and recover itself quickly and continue like nothing happened"); WHY=durability that has not been tested by dying is a belief`.
+  - **TEST:** `TestTodo_DURABLE_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_004`; `FAULT=TestTodo_DURABLE_004_Fault`; `PROPERTY=TestTodo_DURABLE_004_Property`; `INTEGRATION=TestTodo_DURABLE_004_Integration`; `PERFORMANCE=TestTodo_DURABLE_004_Performance`.
+  - **RED:** fault tests exist per feature and stop a dependency; none kills the server process and starts it again.
+  - **GREEN:** a harness (this todo does ship test code) that runs the real server binary against test databases, drives a process from the inventory, kills the process without warning at a named point (every checkpoint and every point between a state change and its queue row, selected by a build-tagged crash point registry, plus random times), restarts it, and asserts the three properties for that process: nothing lost (the work completes), nothing repeated (each effect and each paid call happened once, counted at the receiving side), nothing stuck (no "working", "running" or "waiting" state older than its deadline, and a person watching sees the answer arrive without reloading); the same for a database restart, a dropped connection mid-transaction, a full disk and a clock jump; start-up is itself tested for being repeatable and harmless (run twice, die during it, run again: no installation suspended that was healthy, no duplicate created); recovery time is measured and has a stated objective: ready to serve within 5 seconds of start, every interrupted process resumed within 30 seconds; the harness runs the mention path first, then each process as it is brought under the model, and its results are a table in the report.
+  - **REFACTOR:** none.
+  - **Refs:** `DURABLE-003` record, `cmd/hcmnext`, `internal/data/pgtest`, `internal/application/serve.go`, `internal/application/agent_restore_installations.go`.
+
+- [ ] `DURABLE-005` **[DESIGN][TERRA] Research what a person sees across a crash, and how the browser carries on.**
+  - **Depends:** `DURABLE-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("continue like nothing happened"); WHY=the server can recover perfectly and the person still sees a dead page`.
+  - **TEST:** `TestTodo_DURABLE_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_005`; `GOLDEN=TestTodo_DURABLE_005_Golden`; `BROWSER=TestTodo_DURABLE_005_Browser`.
+  - **RED:** (2026-10-01) after a server restart the browser logged repeated failed tunnel connections and aborted requests, a "working" card did not resolve, and a signed-in session in one browser was gone while another continued.
+  - **GREEN:** a checked-in record covering: reconnection of the tunnel with backoff and without a reload; resubscription to everything on screen (a working answer, a running task, a rollout in progress, a transcription) from stored state, so each shows its true current state within seconds; what is shown during the gap (nothing for under two seconds, then a quiet "Reconnecting…", never an error for a restart); drafts, half-filled forms and an unsent voice recording kept across the gap and across a reload; sessions surviving a restart; an action taken during the gap either queued and sent once on reconnection or refused plainly, never silently dropped or sent twice; BROWSER: the harness of `DURABLE-004` extended with a page open during the kill, asserting the person-visible properties for a mention, a task and an announcement post.
+  - **REFACTOR:** none.
+  - **Refs:** `DURABLE-004`, `tools/uxqual/cmd/journeywasm`, `internal/transport`, `internal/authn`.
+
+- [ ] `DURABLE-006` **[DESIGN][TERRA] Research operating a program that is meant to crash: supervision, backpressure, and seeing stuck work.**
+  - **Depends:** `DURABLE-002`, `DURABLE-004`.
+  - **INTENT CONTEXT:** `ROLE=OPERATIONS; SETS=BI.OPERATIONS; DIRECT=owner request 2026-10-01; WHY=recovery that depends on a clean shutdown, a single instance or someone noticing is not recovery`.
+  - **TEST:** `TestTodo_DURABLE_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_DURABLE_006`; `GOLDEN=TestTodo_DURABLE_006_Golden`; `FAULT=TestTodo_DURABLE_006_Fault`.
+  - **RED:** shutdown has an ordered sequence of steps and start-up reconciles by suspending; queue depth, lease age and dead-lettered work are visible nowhere.
+  - **GREEN:** a checked-in record covering: start-up and shutdown designed so that dying is always safe and a clean shutdown is only an optimization (nothing may rely on a shutdown step having run); supervision and restart policy, including what stops a crash loop and how a poison job is isolated instead of taking the process down each time it is claimed; two or more instances running at once (leases and fencing make this safe: state the proof and the test); backpressure when a queue grows (shed or defer optional work such as ambient screening before required work such as answering a person); what operators and agent owners see: queue depth and oldest job per queue, lease age, retries, dead-lettered jobs with replay and discard, each interrupted process and its resume time, on Agent operations for agent work and on an operations view for the rest; alerts and their thresholds; the runbook for "the server restarted" which should read "nothing to do".
+  - **REFACTOR:** none.
+  - **Refs:** `DURABLE-002` record, `DURABLE-004`, `internal/application/serve.go`, `internal/data/health`, `internal/humanwork/productui/agentux_ops_page.go`.
+
+## 99. Chat moderation, channel status, saved messages, and tables that hold up at volume
+
+This section holds the owner request of 2026-10-01: a way to censor language, a way to add custom filters, a way for administrators to delete messages, a way to change the status of a channel with that power gated by role, a way to save a message for later, and tables that stay fast at large message volumes. What exists today (read 2026-10-01): the chat service has a content policy port (`SetContentPolicy`) that nothing in the served composition sets; `DeletePost` is the author's alone and marks the row `tombstoned`; report and moderation-action tables exist in the record store and no page uses them; a conversation has a `lifecycle` column and the store only ever tests it for `ACTIVE`; pins are shared with the channel and there is nothing private to one person; `chat_post` is one unpartitioned table with a full-text index, and unread counts are a bounded scan. The same rules as sections 94 and 95 apply: every list and record added here is searchable under `CHATSEARCH-001`, every kind (filter, action, status) is a registry entry and not a switch statement, and every decision made about a person's message is explained to that person.
+
+- [ ] `CHATMOD-001` **[DESIGN][SOL_HIGH] Record the decisions for language filters, removal by administrators, and channel status.**
+  - **Depends:** `CHATSEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a way to censor language on the chat ... custom filters ... admins to delete messages ... change the status of channels and rbac gate that"); WHY=moderation in a workplace product touches employment records, legal holds and trust; the choices must be made once and written down`.
+  - **TEST:** `TestTodo_CHATMOD_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMOD_001`; `GOLDEN=TestTodo_CHATMOD_001_Golden`.
+  - **RED:** none of these decisions is recorded.
+  - **GREEN:** a checked-in decision record stating, with the alternative rejected and why: (1) a filter's three possible outcomes: the message is not sent and the author is told why and can edit it (default for a blocked term); the message is sent with the term masked for readers; the message is sent and flagged for review; nothing is ever silently dropped or silently altered; (2) what is stored when a term is masked: the original is kept under the same retention and hold rules as any message, readers and search see the masked form, and who may see the original (the author, and a reviewer with a recorded reason); (3) where filters apply: new messages, edits, thread replies, channel names and topics, display names, voice transcripts (`CHATVOICE-003`), gate answers, and agent output, which passes the same filters as a person's; direct messages are filtered only for the tenant's hard rules, and that choice is stated; (4) removal by an administrator is a recorded action with a reason, never an erasure: the row stays, a hold still preserves it, readers see "Removed by an administrator", the author is told; (5) who may do what: the named permissions of `CHATMOD-005` and `CHATSTATE-001` and their default role assignment; (6) appeals: the author can ask for a review once; (7) what an administrator can never do: read a private conversation they are not in by way of a filter hit; a hit there shows that a rule matched and which rule, not the text.
+  - **Decision (2026-10-01, owner request):** censoring, custom filters, removal by administrators and channel status are product features; the power to change a channel's status is gated by role.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chat/content_policy.go`, `internal/data/chatrecordstore/store.go`, `internal/data/chatstore/record_hold.go`.
+
+- [x] `CHATMOD-002` **[PHASE_3][SOL_HIGH] Filter language with built-in lists a workspace turns on, and tell the author what happened.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATMOD_002`, `TestTodo_CHATMOD_002_Accessibility`, `TestTodo_CHATMOD_002_Browser`, `TestTodo_CHATMOD_002_Performance`, `TestTodo_CHATMOD_002_Property`, `TestTodo_CHATMOD_002_Security` exist and passed in `internal/application`, `internal/collaboration/chat`, `internal/collaboration/chatfilter`, `internal/data/chatstore`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATMOD-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("a way to censor language on the chat"); WHY=the port exists and nothing is plugged into it`.
+  - **TEST:** `TestTodo_CHATMOD_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMOD_002`; `PROPERTY=TestTodo_CHATMOD_002_Property`; `SECURITY=TestTodo_CHATMOD_002_Security`; `PERFORMANCE=TestTodo_CHATMOD_002_Performance`; `ACCESSIBILITY=TestTodo_CHATMOD_002_Accessibility`; `BROWSER=TestTodo_CHATMOD_002_Browser`.
+  - **RED:** any text can be posted anywhere; `SetContentPolicy` has no served implementation.
+  - **GREEN:** a served implementation of the content policy port, evaluated on the server for every place `CHATMOD-001` lists; built-in lists per language (profanity, slurs, harassment), each off by default and switched on per workspace with a per-channel override in either direction; matching that is correct for real text: case and accent folding, common letter substitutions and spacing tricks, whole-word matching so an innocent word containing a listed one is not caught (tested against a list of known false positives per language), and locale-aware; the three outcomes of the decision record; the author's experience: a blocked message stays in the composer with the term underlined and one sentence ("This word is not allowed in #general. Edit and send again."), a masked message shows the author what readers see; readers see the mask as text, announced to a screen reader as "removed word", never a blank; an edit is filtered like a new message; PROPERTY: no input can make the filter pass a listed term by adding zero-width or combining characters; PERFORMANCE: under 2 ms per message at the 95th percentile with every built-in list on; SECURITY: the filter result never reveals a list's contents beyond the matched term, and a filtered message's original is readable only as the decision record says.
+  - **REFACTOR:** the composer's client-side hint uses the same compiled lists the server uses; the server remains the decision.
+  - **Refs:** `internal/collaboration/chat/content_policy.go`, `internal/collaboration/chat/service.go`, `internal/application/chat_authority.go`, `internal/humanwork/chatui`.
+
+- [ ] `CHATMOD-003` **[PHASE_3][SOL_HIGH] Let administrators write their own filters, and make filter kinds and actions extensible.**
+  - **Depends:** `CHATMOD-002`, `CHATGATE-008`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY; DIRECT=owner request 2026-10-01 ("a way to add custom filters"); WHY=every workplace has its own words: project code names, client names, account-number shapes`.
+  - **TEST:** `TestTodo_CHATMOD_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMOD_003`; `PROPERTY=TestTodo_CHATMOD_003_Property`; `SECURITY=TestTodo_CHATMOD_003_Security`; `INTEGRATION=TestTodo_CHATMOD_003_Integration`; `BROWSER=TestTodo_CHATMOD_003_Browser`.
+  - **RED:** there is nowhere to define a rule.
+  - **GREEN:** a filter is a stored, semantically versioned definition (a change to its terms is a new version; the version that judged a message is recorded with the judgement) with a name, a kind, what it matches, an action, a scope (workspace, selected channels, or one channel by its administrator) and exemptions (roles, named agents); kinds come from a registry and the first set is: word or phrase list, pattern (a restricted pattern language with guaranteed linear-time matching; a pattern that could backtrack is refused when saved), detector (built-in recognisers for card numbers with checksum, national identifiers, access keys and secrets, links to domains outside an allowed list), and attachment type; actions come from a registry and the first set is: block with explanation, mask, flag for review, and notify a named channel or agent; a new kind or action is added by registering it with its schema and tests, not by editing the evaluator; a "Try it" box on the editor shows what a sample message would do before the filter is saved, and a dry-run mode records what a filter would have done for a week without acting; a versioned service interface for filters (list, create version, enable, disable, test, read hits) with typed errors, so an agent or integration can manage them under the same permission; filter definitions and hits are searchable to people who hold the permission; SECURITY: a channel administrator's filter cannot weaken a workspace filter, a detector hit never stores the matched secret in the hit record (a digest and a masked form only), and patterns are bounded in length, count and evaluation time; PROPERTY: evaluation is deterministic and the order of filters does not change the outcome (the strictest action wins).
+  - **REFACTOR:** the built-in lists of `CHATMOD-002` become ordinary definitions of the word-list kind owned by the product.
+  - **Refs:** `CHATMOD-002`, `internal/collaboration/chat/content_policy.go`, `internal/data/chatstore`, `internal/transport`.
+
+- [ ] `CHATMOD-004` **[PHASE_3][SOL_HIGH] Let an administrator remove a message, with a reason, a trace and a way back.**
+  - **Depends:** `CHATMOD-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.SECURITY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a way for admins to delete messages"); WHY=today only the author can delete, so a harmful message stays until its author chooses otherwise`.
+  - **TEST:** `TestTodo_CHATMOD_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMOD_004`; `SECURITY=TestTodo_CHATMOD_004_Security`; `INTEGRATION=TestTodo_CHATMOD_004_Integration`; `FAULT=TestTodo_CHATMOD_004_Fault`; `BROWSER=TestTodo_CHATMOD_004_Browser`.
+  - **RED:** `mutatePost` refuses anyone but the author; the message menu offers Delete only on one's own messages.
+  - **GREEN:** a separate command (not the author's delete) that a holder of "Remove messages" in that channel can run on any message there: it requires a reason chosen from a short list plus optional text, marks the message removed with who, when and why, and leaves the row, its revisions and any hold untouched; readers see "Removed by an administrator" in place of the text, with reactions, attachments, link previews and voice audio hidden and the thread kept; the author is told privately, with the reason and how to ask for a review; the removed text is readable afterwards only by a holder of "Review removed messages" and each read is audited; Restore within thirty days puts it back and says so; removing several messages at once (selected, or one person's messages in a channel over a time range) with a count shown before confirming; an agent's message can be removed the same way and the removal is recorded against the run; a removed message leaves search, notifications, unread counts, pins, saved lists (shown there as "This message was removed") and agents' context at once; SECURITY: a workspace administrator who is not a member of a private channel cannot remove or read there without the recorded break-glass access the product already defines, the permission is checked on the server at the moment of the command, and a removal cannot be used to defeat a hold or an export; FAULT: a crash between the removal and its notifications leaves the message removed and the notification delivered once on resume.
+  - **REFACTOR:** the author's own delete and the administrator's removal share one tombstone presentation with different wording.
+  - **Refs:** `internal/collaboration/chat/service.go` (`DeletePost`, `mutatePost`), `internal/data/chatstore/chat_026_tombstone_test.go`, `internal/data/chatrecordstore/store.go`, `internal/application/chat_audit.go`, `internal/humanwork/chatui`.
+
+- [ ] `CHATMOD-005` **[PHASE_3][SOL_HIGH] Give moderators one queue: reports, filter hits, removals and appeals.**
+  - **Depends:** `CHATMOD-003`, `CHATMOD-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=report and action tables exist with no page, so a report today goes nowhere a person looks`.
+  - **TEST:** `TestTodo_CHATMOD_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMOD_005`; `SECURITY=TestTodo_CHATMOD_005_Security`; `ACCESSIBILITY=TestTodo_CHATMOD_005_Accessibility`; `BROWSER=TestTodo_CHATMOD_005_Browser`.
+  - **RED:** `chat_moderation_report` and `chat_moderation_action` are written by the record store and read by no page.
+  - **GREEN:** "Report message" on every message (reason, optional note, private to moderators, the reporter is told the outcome); a Moderation page for holders of the moderation permissions listing open items (reports, flagged filter hits, appeals) with the message in its context, the rule that matched, and the actions Remove, Dismiss, Restore and "Message the author"; each action is recorded with its actor and reason and closes the item; named permissions, each assignable to a role per workspace and per channel: "Report" (everyone), "Remove messages", "Review removed messages", "Manage filters", with defaults of channel administrators for the first and workspace administrators for all; counts on the page are honest (no item a moderator cannot open is counted); the queue, its history and the filter definitions are searchable; an agent can be given the queue as a tool only through a skill with a stated grant, and it may flag and summarise but never remove; SECURITY: a moderator sees a reported private message only if they are in that conversation or use recorded break-glass access, and the reporter's identity is shown to moderators only.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/chatrecordstore/store.go`, `internal/humanwork/chatui/copy.go`, `internal/trust/authz`, `internal/humanwork/productui`.
+
+- [x] `CHATSTATE-001` **[PHASE_3][SOL_HIGH] Give a channel a status, enforce it on the server, and gate changing it by role.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATSTATE_001`, `TestTodo_CHATSTATE_001_Integration`, `TestTodo_CHATSTATE_001_Property`, `TestTodo_CHATSTATE_001_Security` exist and passed in `internal/application`, `internal/collaboration/chat`, `internal/collaboration/chatpolicy`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATMOD-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY; DIRECT=owner request 2026-10-01 ("a way to change the status of channels and rbac gate that"); WHY=a channel today is active or it is nothing; announcement channels, frozen channels and archived channels all need the same mechanism`.
+  - **TEST:** `TestTodo_CHATSTATE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSTATE_001`; `PROPERTY=TestTodo_CHATSTATE_001_Property`; `SECURITY=TestTodo_CHATSTATE_001_Security`; `INTEGRATION=TestTodo_CHATSTATE_001_Integration`.
+  - **RED:** the store tests `lifecycle='ACTIVE'` and offers no command that sets anything else for a channel; nothing a person can do makes a channel read-only.
+  - **GREEN:** a status on every channel drawn from a registry, the first set being: Open (anyone who may post, posts), Announcements only (people with "Post announcements" and installed agents with a public-delivery grant post; everyone else may react and reply in threads if the channel allows it), Locked (nobody posts, reacts or edits; reading and search continue; for an incident review or a legal freeze), and Archived (read-only, out of the sidebar and the channel list by default, still searchable, restorable); each status is a declared set of allowed actions, and the server checks the action against the status in the same authorization step as membership, so no client can post into a locked channel; a status change is a command with an expected revision, a reason, an optional end time (a lock that lifts itself), an audit event and a system line in the channel ("Walt Brennan locked this channel: incident review in progress"); the permission "Change channel status" is separate from managing members and from renaming, is assignable per workspace and per channel, defaults to channel administrators for Open and Announcements only and to workspace administrators for Locked and Archived, and each transition names the permission it needs; scheduled posts, reminders, ambient agents and gates respect the status (an announcement to a locked channel is held and its owner told, not dropped); a versioned service interface (read status, list allowed transitions for this caller, change status) with typed refusals; PROPERTY: for every status and every action, the server's answer equals the registry's table; SECURITY: a change is refused without the permission at the moment of the command, a held or locked channel cannot be archived or deleted around a hold, and the last person able to reopen a channel cannot remove their own ability.
+  - **Decision (2026-10-01, owner request):** changing a channel's status is gated by role.
+  - **REFACTOR:** the existing `lifecycle` column carries the status; `ACTIVE` reads as Open.
+  - **Refs:** `internal/collaboration/chat/contracts.go`, `internal/collaboration/chat/service.go` (`authorize`), `internal/collaboration/chat/group_lifecycle.go`, `internal/collaboration/chatpolicy`, `internal/data/chatstore/store.go`.
+
+- [ ] `CHATSTATE-002` **[PHASE_3][TERRA] Show a channel's status wherever the channel appears, and make changing it obvious and safe.**
+  - **Depends:** `CHATSTATE-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=a rule a person meets only as a failed send is a bad rule`.
+  - **TEST:** `TestTodo_CHATSTATE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSTATE_002`; `ACCESSIBILITY=TestTodo_CHATSTATE_002_Accessibility`; `BROWSER=TestTodo_CHATSTATE_002_Browser`.
+  - **RED:** there is no status to show.
+  - **GREEN:** the status is shown in the channel header (words and an icon, not colour alone), in the sidebar row, in the channel list and in search results; where a person cannot post, the composer is replaced by one sentence saying why and who can ("Only announcers can post in #announcements. You can reply in threads."), never a disabled box with no explanation; channel details has a Status section showing the current status, who set it, when, why and when it ends, and, for a holder of the permission, a "Change status" control listing only the transitions that person may make, each with what will change for members before they confirm; a person without the permission sees the status and no control; archived channels are found under "Archived" in the channel list with Restore for those who may; the change is announced to assistive technology and arrives live for everyone in the channel without a reload.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATSTATE-001`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`.
+
+- [x] `CHATSAVE-001` **[PHASE_3][SOL_HIGH] Save a message for later: private to the person, with a list they can work through.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATSAVE_001`, `TestTodo_CHATSAVE_001_Accessibility`, `TestTodo_CHATSAVE_001_Browser`, `TestTodo_CHATSAVE_001_Integration`, `TestTodo_CHATSAVE_001_Security` exist and passed in `internal/application`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATSEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.PRIVACY; DIRECT=owner request 2026-10-01 ("a way to save message for later"); WHY=a pin is the channel's; nothing is the person's own`.
+  - **TEST:** `TestTodo_CHATSAVE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSAVE_001`; `SECURITY=TestTodo_CHATSAVE_001_Security`; `INTEGRATION=TestTodo_CHATSAVE_001_Integration`; `ACCESSIBILITY=TestTodo_CHATSAVE_001_Accessibility`; `BROWSER=TestTodo_CHATSAVE_001_Browser`.
+  - **RED:** the message menu has Pin (visible to everyone in the channel) and nothing private.
+  - **GREEN:** "Save for later" on every message, thread reply, agent answer, file and voice message, by menu, by the hover bar and by a keyboard shortcut, with the saved state shown on the message to that person only; a "Saved" entry in the sidebar opening a list with three tabs (To do, Done, All), each row showing the author, channel, time and the first lines, opening the message at its exact place; a row can be marked done, removed, given a private note, and given a reminder (handing to the reminder path of `AGENTUX-068` when that exists, a plain due time until then); the list is the person's alone: nobody else, no administrator page and no agent can see what a person saved, and saving tells nobody; access is checked again on every read: a saved message in a channel the person has left shows "You no longer have access to this message", a removed or deleted one shows that and nothing of its text; saved items and their notes are searchable by their owner only ("in: saved"); the list syncs across the person's devices live; a stored reference and a note, never a copy of the message text; limits (5,000 per person) with a plain message at the limit; SECURITY: the save is refused for a message the person cannot read at that moment, the saved list is tenant- and person-scoped under row-level security, and erasure of the person removes it.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chat/service.go` (`PinPost`), `internal/data/chatstore/migrations` (`chat_personal_sidebar`), `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `CHATSCALE-001` **[DESIGN][SOL_HIGH] Measure Chat's tables at volume before changing them.**
+  - **Depends:** none.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("perf optimizing the tables for large volumes of messaging"); WHY=the tables have only ever held a seeded review cell; which query fails first at volume is not known`.
+  - **TEST:** `TestTodo_CHATSCALE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSCALE_001`; `GOLDEN=TestTodo_CHATSCALE_001_Golden`; `PERFORMANCE=TestTodo_CHATSCALE_001_Performance`.
+  - **RED:** the largest chat database ever exercised holds thousands of posts; `chat_post` is unpartitioned with a primary key on a text id, a history index, a full-text index over every body, a reference index and a touched index; unread counts are a bounded scan per conversation; one path counts every post in a conversation.
+  - **GREEN:** a repeatable load generator (this todo ships it) that fills the chat database to a stated target (200 tenants, 100,000 channels, 500 million posts with a realistic skew: a few very large channels, many small ones, 20 percent threads, reactions, edits, removals, attachments and mentions) and a mixed workload (a stated ratio of open channel, page back, send, mark read, sidebar unread counts, search, thread open, outbox drain); a checked-in report with, for every query the chat store issues: its plan, its 50th, 95th and 99th percentile at 1, 10, 100 and 500 million posts, rows read per row returned, and whether it degrades with table size, channel size or neither; write throughput and the cost of each index on it; table, index and dead-row sizes and vacuum behaviour; lock waits on the per-conversation sequence under 1,000 senders in one channel; the outbox and receipt tables' growth and the retention job's cost; a ranked list of what fails first, each tied to the todo below that addresses it; budgets the later todos must meet: open a channel under 50 ms, page back under 50 ms at any depth, send under 30 ms, sidebar counts under 80 ms for a person in 300 channels, all at the 95th percentile at the full target.
+  - **Decision (2026-10-01, owner request):** the chat tables are to be optimized for large message volumes.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/recipient_state.go`, `internal/data/queryplans`, `cmd/migrate/chat_seed_corpus.go`.
+
+- [ ] `CHATSCALE-002` **[PHASE_3][SOL_HIGH] Partition and index message tables so cost follows the channel, not the table.**
+  - **Depends:** `CHATSCALE-001`, `DATA-017`.
+  - **INTENT CONTEXT:** `ROLE=DATA; SETS=BI.OPERATIONS,BI.COLLABORATION,BI.TENANT; DIRECT=owner request 2026-10-01; WHY=every read a person makes is "this channel, near this point"; the storage should be shaped the same way`.
+  - **TEST:** `TestTodo_CHATSCALE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSCALE_002`; `PROPERTY=TestTodo_CHATSCALE_002_Property`; `INTEGRATION=TestTodo_CHATSCALE_002_Integration`; `PERFORMANCE=TestTodo_CHATSCALE_002_Performance`; `FAULT=TestTodo_CHATSCALE_002_Fault`; `SECURITY=TestTodo_CHATSCALE_002_Security`.
+  - **RED:** as measured by `CHATSCALE-001`.
+  - **GREEN:** the changes the measurements justify, each proved against the budgets, chosen from and not limited to: `chat_post`, its revisions, reactions, the outbox and audit events partitioned (by tenant hash and by time, or by conversation hash, as the report decides) with partitions created ahead and old ones detached to cheaper storage without changing what a person can read; history, thread and "around this message" reads served only by keyset on `(tenant_id, conversation_id, sequence)` with no offset and no count, at any depth; covering indexes for the hot reads so they do not touch the heap; the full-text index moved off the write path (built per partition, or replaced by the search index of `CHATSEARCH-002`) so a send does not pay for it; partial indexes that exclude tombstoned and removed rows; large bodies and reference lists stored so a history page does not read them unless shown; the per-conversation sequence allocated without holding a row lock across the insert; fill factor, autovacuum and statistics settings per table recorded with their reason; every migration online: no table rewrite under an exclusive lock, backfilled in batches, resumable after a crash, reversible, and run against the 500-million-post database with sends continuing; PROPERTY: for any sequence of operations the partitioned store returns exactly what the unpartitioned one returns, in the same order; SECURITY: row-level security and tenant isolation hold on every partition, including ones created later, proved by the existing isolation suite run against the new layout.
+  - **REFACTOR:** partition policy is operational metadata declared once beside the ledger's, not scattered in migrations.
+  - **Refs:** `CHATSCALE-001` report, `internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/tenant_isolation_test.go`, `internal/data/ledger/partition`.
+
+- [ ] `CHATSCALE-003` **[PHASE_3][SOL_HIGH] Make unread counts, the sidebar and delivery independent of how much history exists.**
+  - **Depends:** `CHATSCALE-002`.
+  - **INTENT CONTEXT:** `ROLE=DATA; SETS=BI.OPERATIONS,BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=the page a person opens most is the sidebar, and it is computed from the largest table`.
+  - **TEST:** `TestTodo_CHATSCALE_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSCALE_003`; `PROPERTY=TestTodo_CHATSCALE_003_Property`; `INTEGRATION=TestTodo_CHATSCALE_003_Integration`; `PERFORMANCE=TestTodo_CHATSCALE_003_Performance`; `FAULT=TestTodo_CHATSCALE_003_Fault`.
+  - **RED:** unread and mention counts are computed per conversation by scanning posts after the person's cursor up to a limit, once per channel in the sidebar.
+  - **GREEN:** a per-person, per-conversation read state (last read sequence, unread count, mention count, last activity) maintained from the outbox so the sidebar is one indexed read of the person's own rows; counts stay exact up to the display limit and are corrected by a removal, a deletion, a filter mask, a membership change and a mark-unread, and rebuilt from history on demand when they are suspected wrong; the head of each conversation (last sequence, last post time, last author) kept on the conversation row; fan-out to very large channels bounded (per-member rows are written lazily for members who are not connected); the outbox drained in batches per partition with receipts trimmed by the retention job in bounded time; retention and hold checks done per partition; slow-query and table-growth figures exposed on the operations view with thresholds from the budgets; the load of `CHATSCALE-001` re-run and the report updated, showing every budget met at the full target and the worst remaining query; PROPERTY: for any interleaving of sends, reads, removals and membership changes, the maintained counts equal the counts computed from history; FAULT: a crash between a send and the read-state update is repaired on resume with no double count (the crash points of `DURABLE-004`).
+  - **REFACTOR:** the bounded scan remains as the rebuild path and the test oracle.
+  - **Refs:** `internal/data/chatstore/recipient_state.go`, `internal/data/chatstore/agentux_chat2_unread_test.go`, `internal/data/chatstore/event_stream.go`, `internal/data/chatstore/migrations/00008_chat_sequence_and_outbox_retention.sql`.
+
+## 100. Workflow engine: rule, decision-model and agent control, and a cost record for every external call
+
+This section holds the owner request of 2026-10-01: make the workflow engine more flexible by bringing three kinds of control into it (deterministic control flow, a decision model such as Jev, and agents), and make sure the cost of every external call, agents included, is tracked where a cost applies. What the engine is today (read 2026-10-01): the kernel has ten core step types and three structural ones; `AGENT` was specified as a step type and retired on 2026-09-02 (`WF-STEP-012`) because an agent is a capability with a manifest, not a node type, and its production use was left out "until a signed scope exchange"; a `DECISION` routes on a predicate that is a name backed by Go (`WF-EXT-006` will make it a published rule); loops exist only as declared, guarded, bounded cycles; retries, timers, parallel budgets, shadow runs, simulation and replay exist. What cost tracking is today: a model call is priced from a schedule pinned to the model identity (`internal/agentmodel/pricing.go`), refused when the price is zero or does not reconcile, and its cost lands on the agent run; the outbound gateway (`internal/connectivity/egress`) authorizes every other external call and records a data-protection receipt with no usage or cost; nothing joins the two. The design position this section takes, to be confirmed by `WF-CTRL-001`: no new node types. A decision model is a way of evaluating a `DECISION`; an agent is a `CAPABILITY`; richer control flow is authoring constructs the compiler lowers to the existing primitives. The run stays replayable because everything a model said is recorded as a node output and read back, never asked again.
+
+- [ ] `WF-CTRL-001` **[DESIGN][SOL_HIGH] Record how rules, decision models and agents each control a workflow, and when to use which.**
+  - **Depends:** `AGENTCOST-002`, `WF-EXT-006`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=owner request 2026-10-01 ("add agent, jev and deterministic control flow into the workflow engine to make it more flexible"); WHY=the kernel deliberately has no AGENT step; flexibility must be added without undoing why`.
+  - **TEST:** `TestTodo_WF_CTRL_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_001`; `GOLDEN=TestTodo_WF_CTRL_001_Golden`.
+  - **RED:** the only recorded position is the retirement of `WF-STEP-012`; nothing says how a workflow uses a decision model, how it uses an agent in production, or which to prefer.
+  - **GREEN:** a checked-in decision record stating: (1) the ladder, cheapest and most certain first: a rule when the inputs are structured and the policy can be written down; a decision model when the question is a bounded judgement over unstructured content (which of these four categories is this email, is this request complete) and a wrong answer has a stated cost; an agent when the output is text a person reads or the work needs tools and several steps; a person when authority or accountability requires one; an author must be able to say why a node is not one rung lower; (2) where each sits in the kernel with no new step type: a decision model is an evaluator kind on `DECISION`, an agent is an agent-eligible `CAPABILITY`, and the retired step types stay retired; (3) what the "signed scope exchange" of `WF-STEP-012` has to contain for an agent capability to run in a served workflow (the principal, the data scope, the tools, the budget, the effect class, and who signed), and that it is the published agent version's own bindings; (4) determinism: a model-backed node's answer, confidence, model identity, prompt digest and cost are its recorded output; replay, recovery and simulation read the record; only a new attempt, itself recorded, asks again; (5) every model-backed node has explicit routes for abstained or below threshold, unavailable, refused, and budget exhausted, each leading to a rule, a person, or a stated end; there is no implicit default route; (6) what a model-backed node may never do: commit an effect that a rule or a person has not gated, widen the run's access, or see data outside the run's access policy.
+  - **Decision (2026-10-01, owner request):** agents, a decision model and richer deterministic control flow are to be usable from the workflow engine.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/steptype.go`, `internal/workflow/definition.go`, `internal/workflow/conformance/triage/triage.go`, `internal/workflow/replay`, section 96 (`AGENTCOST-002` decision port).
+
+- [ ] `WF-CTRL-002` **[DESIGN][SOL_HIGH] Research which control-flow shapes authors need and the kernel cannot express, and how each lowers to it.**
+  - **Depends:** `WF-CTRL-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.ALL; DIRECT=owner request 2026-10-01 ("deterministic control flow ... more flexible"); WHY=flexibility should come from what an author can write, not from loosening what the runtime guarantees`.
+  - **TEST:** `TestTodo_WF_CTRL_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_002`; `GOLDEN=TestTodo_WF_CTRL_002_Golden`; `PROPERTY=TestTodo_WF_CTRL_002_Property`.
+  - **RED:** an author has two-way decisions on named predicates, declared bounded cycles, and the structural steps; a multi-way switch, a loop over a list, "whichever happens first" and "try this, otherwise that" are each hand-built from nodes or not possible.
+  - **GREEN:** a checked-in record that takes the published catalogue of workflow control-flow patterns (sequence, exclusive and multi-choice, simple and structured merge, structured and arbitrary loops, multiple instances with and without prior knowledge of the count, deferred choice, milestone, cancel activity, cancel region, interleaved routing, discriminator and partial join) and, for each, states whether the kernel expresses it today, whether it can be an authoring construct lowered by the compiler to existing step types, or whether it needs a kernel change, with the reason; from the reference workflows and the agent processes of section 98, the constructs worth adding first, each with its lowering and the guarantees it keeps (every outcome has an explicit edge, every loop is bounded and guarded, the compiled graph is flat and digestible): switch on a value or decision table; for-each over a collection, in order or in bounded parallel; repeat-until with a maximum count and a route for reaching it; first-of (a signal, a timer, a task: the losers are cancelled); attempt-otherwise (an error boundary around a group of nodes with a typed catch route); a timeout route on any waiting node; early return; PROPERTY: a model of each lowering is shown equivalent to the construct's stated semantics for all inputs up to a bound.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/graph.go` (`checkCycles`), `internal/workflow/compile.go`, `internal/workflow/parallel`, `internal/workflow/timer`, `WF-EXT-017`, `WF-EXT-019`.
+
+- [ ] `WF-CTRL-003` **[GATE_C][SOL_HIGH] Add the control-flow constructs as authoring forms the compiler lowers to the kernel.**
+  - **Depends:** `WF-CTRL-002`, `WF-EXT-006`, `WF-EXT-017`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL; DIRECT=owner request 2026-10-01; WHY=the constructs researched are worth nothing until an author can write them and the runtime runs them unchanged`.
+  - **TEST:** `TestTodo_WF_CTRL_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_003`; `PROPERTY=TestTodo_WF_CTRL_003_Property`; `GOLDEN=TestTodo_WF_CTRL_003_Golden`; `CONFORMANCE=TestTodo_WF_CTRL_003_Conformance`; `MUTATION=TestTodo_WF_CTRL_003_Mutation`; `FAULT=TestTodo_WF_CTRL_003_Fault`.
+  - **RED:** as recorded by `WF-CTRL-002`.
+  - **GREEN:** each construct chosen by `WF-CTRL-002` exists in the definition schema, is validated (bounds present, every route explicit, collection size limited, no unbounded loop), and is lowered by the compiler to a flat graph of existing step types with recorded provenance so an inspector can show both the construct the author wrote and the nodes that ran; the driver, recovery, replay, cancellation and compensation are unchanged and proved so by running the existing conformance suite over lowered graphs; iteration state (index, accumulator, attempt) is a typed node output on the durable path of `WF-EXT-004`, so a crash in the middle of a loop resumes at the same iteration; a reference workflow that needs one of the constructs is rewritten with it and produces the same run records as before; GOLDEN pins each lowering; MUTATION shows that removing a bound or a route is caught by the compiler; FAULT kills the run at each iteration boundary and shows nothing repeated.
+  - **REFACTOR:** hand-built loops and switches in the reference workflows move to the constructs.
+  - **Refs:** `internal/workflow/compile.go`, `internal/workflow/definition.go`, `internal/workflow/graph.go`, `internal/workflow/execute`, `internal/workflow/recover`, `internal/workflow/inspect`.
+
+- [ ] `WF-CTRL-004` **[GATE_C][SOL_HIGH] Let a DECISION be answered by a decision model, with a threshold, an abstain route and a recorded answer.**
+  - **Depends:** `WF-CTRL-001`, `WF-EXT-006`, `AGENTCOST-002`, `AGENTCOST-005`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("jev ... into the workflow engine"); WHY=many routing questions are judgements over text that no rule can state and a full agent is too slow and too costly for`.
+  - **TEST:** `TestTodo_WF_CTRL_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_004`; `PROPERTY=TestTodo_WF_CTRL_004_Property`; `SECURITY=TestTodo_WF_CTRL_004_Security`; `INTEGRATION=TestTodo_WF_CTRL_004_Integration`; `FAULT=TestTodo_WF_CTRL_004_Fault`; `CONFORMANCE=TestTodo_WF_CTRL_004_Conformance`.
+  - **RED:** a `DECISION` has one way of being answered.
+  - **GREEN:** evaluator kinds for `DECISION` are a registry; `RULE` is the existing path; `DECISION_MODEL` asks the provider-neutral decision port of `AGENTCOST-002` (whichever provider the research of `AGENTCOST-003` to `AGENTCOST-005` selects, or a small language model behind the same port) a typed question whose options are exactly the node's declared outcomes; the definition states the question, the inputs by mapping (so only declared fields leave), the threshold, and the mandatory routes for abstained, below threshold, unavailable and budget exhausted; the node output records the chosen outcome, the per-option probabilities, the confidence, the provider and model identity, the question digest, the latency and the cost; replay and recovery route from that record; a "shadow" setting runs the model beside a rule or a person's decision without routing on it and records agreement, so a decision can be moved down the ladder on evidence; simulation uses recorded fixtures and never calls a provider; a tenant switch turns every model-evaluated decision back to its fallback route at once; SECURITY: inputs pass the outbound verifier with their data classes, untrusted content cannot change the option set or the threshold, and the question text is author-controlled and versioned with the definition; PROPERTY: for a fixed record the route is the same on every replay; FAULT: provider timeout, malformed answer and an option not in the set each take the declared route.
+  - **REFACTOR:** the agent runtime's own decision points (section 96) and the workflow's use one port and one record shape.
+  - **Refs:** `internal/workflow/definition.go` (`DecisionRoute`), `internal/workflow/simulate/decisions.go`, `internal/workflow/shadow`, `internal/workflow/replay`, `internal/agentegress`, `internal/agentmodel`.
+
+- [ ] `WF-CTRL-005` **[GATE_C][SOL_HIGH] Run a published agent as a capability inside a workflow.**
+  - **Depends:** `WF-CTRL-001`, `WF-EXT-005`, `WF-EXT-024`, `AGENT2-014`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.ALL,BI.INTELLIGENCE,BI.SECURITY; DIRECT=owner request 2026-10-01 ("add agent ... into the workflow engine"); WHY=the agent runtime and the workflow runtime are both served and cannot call each other`.
+  - **TEST:** `TestTodo_WF_CTRL_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_005`; `PROPERTY=TestTodo_WF_CTRL_005_Property`; `SECURITY=TestTodo_WF_CTRL_005_Security`; `INTEGRATION=TestTodo_WF_CTRL_005_Integration`; `FAULT=TestTodo_WF_CTRL_005_Fault`; `CONFORMANCE=TestTodo_WF_CTRL_005_Conformance`.
+  - **RED:** the only agent capability the engine has run is a conformance fixture limited to read, analyse and draft; a published agent version cannot be named by a workflow node.
+  - **GREEN:** a published, evaluated agent version is registered as an agent-eligible capability with a manifest generated from its own bindings: input and output schemas, data scope, tools, budget, effect class and the service principal it runs as; a `CAPABILITY` node names it with typed input mappings; the capability gateway starts an agent run tied to the workflow instance and node (one cause identifier, so retries of the node are one run and one charge), with the run's access limited to the intersection of the agent's bindings and the workflow run's access policy; the result is schema-validated, grounded and taint-marked before it becomes the node's output, and maps to the capability outcomes (succeeded, rejected, unknown, ambiguous) with a route for each; by default an agent capability is read and draft only, and anything it drafts that would change a record is committed by a later node the definition gates with a rule or an approval; an agent capability with side-effecting skills needs that stated in its manifest and is refused by the compiler unless the path to it passes a gate; a long agent run does not hold a workflow lease: the node waits on the run's completion event and resumes; the workflow timeline shows the agent run (what it read, what it produced, its cost) and Agent operations shows the workflow that caused it; kill switches on the agent, the capability and the tenant each stop new runs and route in-flight nodes to their fallback; SECURITY: a workflow cannot give an agent authority the agent's own published bindings lack, a suspended or retired agent version fails closed at compile time and at run time, and the agent never receives the workflow's credentials; FAULT: the crash points of `DURABLE-004` between node start, run start, run completion and node completion.
+  - **REFACTOR:** the triage conformance fixture becomes one registered agent capability among others.
+  - **Refs:** `internal/capability/gateway.go`, `internal/capability/registry.go`, `internal/workflow/conformance/triage/triage.go`, `internal/workflow/runtime/nodeexec.go`, `internal/application/persona_run_executor.go`, `internal/agentskills`.
+
+- [ ] `WF-CTRL-006` **[PHASE_3][SOL_HIGH] Let an agent start, signal and follow a workflow through governed skills.**
+  - **Depends:** `WF-CTRL-005`, `AGENTUX-054`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.INTELLIGENCE,BI.WORK,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=the useful direction for most agents is the other one: the agent notices something and the workflow, with its approvals and audit, does it`.
+  - **TEST:** `TestTodo_WF_CTRL_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_006`; `SECURITY=TestTodo_WF_CTRL_006_Security`; `INTEGRATION=TestTodo_WF_CTRL_006_Integration`; `FAULT=TestTodo_WF_CTRL_006_Fault`.
+  - **RED:** an agent's side effects are its own skills; it cannot hand work to a workflow.
+  - **GREEN:** three skills an agent version can be granted, each naming the workflow definitions it covers: start a run (with typed inputs validated against the definition's start schema and an idempotency key from the agent run and step), deliver a signal to a waiting run, and read a run's status and outcome; the run is started on behalf of the person who asked where there is one, and as the agent's service principal otherwise, and the workflow's own start authorization decides; the agent's answer says what it started and links to it; the support agent of `AGENTUX-054` uses this to open its ticket through a support workflow rather than writing the ticket directly, as the proving case; SECURITY: an agent cannot start a workflow its grant does not name, cannot complete a person's approval or task, and content from a message cannot choose the workflow or widen the inputs beyond the schema; FAULT: a crash after the start is recorded and before the agent's step resolves leaves one run, found by its idempotency key.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/agentskills`, `internal/application/persona_run_executor.go` (`BeginEffect`, `ResolveEffect`), `internal/workflow/runtime`, `internal/workflow/authoring.go`.
+
+- [ ] `WF-CTRL-007` **[PHASE_3][TERRA] Show how each step is controlled in the designer, the simulator and the run timeline.**
+  - **Depends:** `WF-CTRL-003`, `WF-CTRL-004`, `WF-CTRL-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.WORK,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a workflow whose steps are decided three different ways must show which, or nobody can trust or debug it`.
+  - **TEST:** `TestTodo_WF_CTRL_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_WF_CTRL_007`; `ACCESSIBILITY=TestTodo_WF_CTRL_007_Accessibility`; `BROWSER=TestTodo_WF_CTRL_007_Browser`.
+  - **RED:** the designer palette and the run inspector know rules, tasks and capabilities; nothing marks a step as decided by a model or done by an agent.
+  - **GREEN:** the designer palette offers the constructs of `WF-CTRL-003` by plain names (Switch, For each, Repeat until, First of, Try) and, on a decision, a "Decided by" choice of Rule, Decision model or Person, and on a capability, the registered agents with what each can read and do; choosing a model or an agent requires the fallback routes before the definition can be published and shows the estimated cost per run; every model-backed or agent step carries a visible mark, in words, wherever the workflow is drawn; simulation shows the route each recorded answer would take and lets the author try "what if it abstains"; the run timeline says, for each step, who or what decided ("Rule: tenure over two years", "Decision model: complete, 94% confident", "Agent: Support Desk drafted the reply", "Curtis Bell approved"), with the cost where one applies and a link to the agent run; a person who receives a task after a model abstained is told that is why.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/workflow/designerpalette`, `internal/workflow/designeredit`, `internal/workflow/inspect`, `internal/workflow/simulate`, `internal/humanwork/productui`.
+
+- [ ] `EXTCOST-001` **[DESIGN][SOL_HIGH] Inventory every external call the product makes and whether it costs money.**
+  - **Depends:** `AGENTCOST-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.INTEGRATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("make sure all external api calls (agents too) costs are being tracked if applicable"); WHY=only model calls are priced today, and "all" cannot be claimed without a list`.
+  - **TEST:** `TestTodo_EXTCOST_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_001`; `GOLDEN=TestTodo_EXTCOST_001_Golden`; `SECURITY=TestTodo_EXTCOST_001_Security`.
+  - **RED:** model calls are priced from a schedule and recorded on the agent run; the outbound gateway records who called what and which data classes left, with no usage; whether document embedding, object storage, message delivery providers and connectors record any usage is not established.
+  - **GREEN:** a checked-in inventory, generated from the code where possible (every place an outbound client is constructed, every operation registered with the outbound gateway, every model, embedding and decision adapter) and completed by hand, with one row per provider operation: the calling package, whether it passes through the outbound gateway, what it is for, the unit the provider charges in (tokens in and out, cached tokens, seconds of audio, characters, requests, messages, bytes stored and bytes transferred, minutes relayed) or "no charge" with the reason (identity provider discovery, a customer's own endpoint), where the price comes from, whether usage is recorded today and where, and who the cost should be attributed to; it covers the calls that exist (language models at three providers and a private one, embeddings, object storage, provider delivery, payroll and identity connectors, token and identity endpoints) and the planned ones in this file (decision models, transcription and read-aloud, web search, call relays, virus scanning); every row without a record is a finding; SECURITY: any outbound call found outside the outbound gateway is listed as a defect in its own right.
+  - **Decision (2026-10-01, owner request):** the cost of every external call is tracked where a cost applies.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/egress/egress.go`, `internal/agentmodel/pricing.go`, `internal/agentmodel/priced_adapter.go`, `internal/application/documentembed/embedder.go`, `internal/store/object/aws`, `internal/connectivity/providerdelivery`, `internal/connectivity/oauthcc`.
+
+- [ ] `EXTCOST-002` **[GATE_C][SOL_HIGH] Record one usage line for every external call, priced and attributed, in the same step as the call.**
+  - **Depends:** `EXTCOST-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS,BI.INTEGRATION,BI.TENANT; DIRECT=owner request 2026-10-01; WHY=a cost that is not written where the call is made is reconstructed later from logs, and is wrong`.
+  - **TEST:** `TestTodo_EXTCOST_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_002`; `PROPERTY=TestTodo_EXTCOST_002_Property`; `SECURITY=TestTodo_EXTCOST_002_Security`; `INTEGRATION=TestTodo_EXTCOST_002_Integration`; `FAULT=TestTodo_EXTCOST_002_Fault`; `PERFORMANCE=TestTodo_EXTCOST_002_Performance`.
+  - **RED:** an agent run carries a cost total; nothing else does.
+  - **GREEN:** an append-only usage ledger with one line per external call attempt: tenant and legal entity, provider, operation and model identity, the purpose and data classes from the outbound receipt, the measured units by kind, the price schedule version applied, the cost in micro-units and its currency, whether the figure is measured from the provider's response or estimated, the outcome (a failed call that the provider still bills is recorded as billed), the idempotency key, and the attribution: workflow instance and node, agent run and step, conversation, document or index job, scheduled job, and the person on whose behalf it ran, whichever apply; the line is written by the outbound gateway and the model adapters themselves, in the same transaction or journal entry as the call's result, so no caller can forget it and a crash cannot separate them; a call with no charge still gets a line with zero cost and the declared reason, so coverage is countable; retries are separate lines under one cause so the total is what the provider bills and the per-step view is not inflated; the agent run's cost total and the workflow's parallel budget read from the ledger rather than keeping their own sums; lines hold identifiers, units and digests, never request or response content; PROPERTY: the sum of lines for a cause equals the cause's reported cost for every interleaving of retries and crashes; SECURITY: tenant isolation under row-level security, and a line cannot be altered or deleted, only corrected by a later line; PERFORMANCE: under 1 ms added per call.
+  - **REFACTOR:** the per-call ledger line that `AGENTCOST-001` adds to the run record is this ledger.
+  - **Refs:** `internal/connectivity/egress/egress.go` (`Gateway.Do`, `Result`), `internal/trust/dlp`, `internal/agentmodel/priced_adapter.go`, `internal/application/persona_runtime_budget.go`, `internal/workflow/parallel`, `internal/commercial/economic_evidence.go`.
+
+- [ ] `EXTCOST-003` **[GATE_C][SOL_HIGH] Make untracked external calls impossible to add.**
+  - **Depends:** `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("make sure all"); WHY=an inventory is true on the day it is written; a gate keeps it true`.
+  - **TEST:** `TestTodo_EXTCOST_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_003`; `CONFORMANCE=TestTodo_EXTCOST_003_Conformance`; `MUTATION=TestTodo_EXTCOST_003_Mutation`.
+  - **RED:** nothing stops a new package from constructing its own client.
+  - **GREEN:** a repository gate that fails when an outbound network client is constructed or a dial is made outside the packages allowed to (the outbound gateway, the model adapters behind it, test support), with the allowed list checked in and each entry carrying its reason; every provider operation registered with the gateway must declare a cost model (the units it is charged in and the schedule that prices them) or "no charge" with a reason, and registration without one does not compile or fails at start-up; a conformance test drives one call through every registered operation against a simulator and asserts exactly one usage line with the declared units; the inventory of `EXTCOST-001` is regenerated by the gate and a difference fails it; MUTATION: removing the ledger write from the gateway, or adding a raw client in a new package, is caught.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/connectivity/egress`, `internal/agentegress/agent020_provider_dispatch.go`, `tools/planning`, `scripts`.
+
+- [ ] `EXTCOST-004` **[PHASE_3][SOL_HIGH] Keep prices as versioned, dated schedules for every provider, and reconcile against what the provider reports.**
+  - **Depends:** `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=DATA; SETS=BI.OPERATIONS,BI.INTEGRATION; DIRECT=owner request 2026-10-01; WHY=a recorded cost is only as right as the price it was multiplied by`.
+  - **TEST:** `TestTodo_EXTCOST_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_004`; `PROPERTY=TestTodo_EXTCOST_004_Property`; `GOLDEN=TestTodo_EXTCOST_004_Golden`; `INTEGRATION=TestTodo_EXTCOST_004_Integration`.
+  - **RED:** the pricing schedule covers language-model tokens only, pinned to a model identity.
+  - **GREEN:** the schedule generalised to any unit kind (per token, per second, per character, per request, per message, per byte-month, per byte transferred, tiered and with minimums), versioned and effective-dated so a price change never rewrites a past line, with the existing refusals kept (no silent zero, overflow refused, an unpriced operation fails closed where a cost applies); where a provider returns its own usage or cost on the response it is recorded beside the computed figure and a difference beyond a tolerance is a finding; a scheduled reconciliation reads each provider's usage or billing report where one exists and compares it with the ledger per day and per operation, recording the difference and correcting by a later line; an operator is told when a schedule is older than its review date or a provider has announced a change; PROPERTY: cost is integer arithmetic, exact and independent of evaluation order; currencies are never summed without a recorded rate.
+  - **REFACTOR:** `agentmodel.PricingEntry` becomes one kind of schedule entry.
+  - **Refs:** `internal/agentmodel/pricing.go`, `internal/agentmodel/priced_adapter.go`, `internal/operations/reconcile`, `internal/application/agent_model_policy_registry_deployment.go`.
+
+- [ ] `EXTCOST-005` **[GATE_C][SOL_HIGH] Budget before the call: reserve, settle, and route when the money runs out.**
+  - **Depends:** `EXTCOST-002`, `WF-CTRL-004`, `WF-CTRL-005`, `AGENTCOST-006`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.OPERATIONS,BI.INTELLIGENCE,BI.TENANT; DIRECT=owner request 2026-10-01; WHY=tracking says what was spent; a loop with a model in it needs to be stopped before it spends`.
+  - **TEST:** `TestTodo_EXTCOST_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_005`; `PROPERTY=TestTodo_EXTCOST_005_Property`; `SECURITY=TestTodo_EXTCOST_005_Security`; `INTEGRATION=TestTodo_EXTCOST_005_Integration`; `FAULT=TestTodo_EXTCOST_005_Fault`.
+  - **RED:** an agent run has a maximum cost and a parallel step has a cost budget; a workflow run, a definition, a node, an agent across its runs, and a tenant across everything have none, and the two that exist are separate mechanisms.
+  - **GREEN:** one budget mechanism over the ledger with scopes that nest (tenant, workflow definition or agent, run, node or step) and periods (per run, per day, per month); before a call the caller reserves its estimated maximum against every enclosing budget, and after it settles the measured cost and releases the rest, so concurrent calls cannot overspend together; a refused reservation is not an error: in a workflow it takes the node's declared "budget exhausted" route, in an agent run it ends the run with its stated message; a loop construct of `WF-CTRL-003` whose body contains a priced call must declare a budget and the compiler refuses it otherwise; warnings at stated fractions go to the owner before the limit; an operator can raise a budget with a reason and that is audited; PROPERTY: for any interleaving of reservations, settlements, crashes and retries, settled spend never exceeds the budget and no reservation is leaked; FAULT: a crash between reserve and settle is resolved on resume from the ledger; SECURITY: a budget cannot be raised by the workflow or agent it limits.
+  - **REFACTOR:** the run budget and the parallel cost budget become scopes of this mechanism.
+  - **Refs:** `internal/application/persona_runtime_budget.go`, `internal/workflow/parallel`, `internal/workflow/runtime/nodeexec.go`, `WF-STEP-022`.
+
+- [ ] `EXTCOST-006` **[PHASE_3][TERRA] Show external spend where each person needs it, and let them search it.**
+  - **Depends:** `EXTCOST-002`, `EXTCOST-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.OPERATIONS,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a ledger nobody can read is tracking in name only`.
+  - **TEST:** `TestTodo_EXTCOST_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_EXTCOST_006`; `SECURITY=TestTodo_EXTCOST_006_Security`; `ACCESSIBILITY=TestTodo_EXTCOST_006_Accessibility`; `BROWSER=TestTodo_EXTCOST_006_Browser`.
+  - **RED:** cost appears as one figure on an agent run.
+  - **GREEN:** an "External usage" page for administrators: spend by day with the period's total and its budget, broken down by provider, by purpose (answers, announcements, screening, indexing, transcription, delivery, storage), by agent and by workflow, each row opening the calls behind it; filters and search by provider, operation, agent, workflow, person and date, and export; the agent's own pages show cost per answer and per trigger (with `AGENTCOST-006`), a workflow definition shows cost per run and per node at the median and the 95th percentile, and a run timeline shows cost per step; figures say whether they are measured or estimated and when they were last reconciled; unpriced or unreconciled usage is shown as such, never as zero; amounts use the tenant's currency format and are read out sensibly by a screen reader; SECURITY: a person sees spend only for what they administer, and the page shows identifiers and counts, never content.
+  - **REFACTOR:** none.
+  - **Refs:** `EXTCOST-002` ledger, `internal/humanwork/productui/agentux_ops_page.go`, `internal/workflow/inspect`, `internal/humanwork/productui`.
+
+## 101. Message renderings: reworded messages, writing-style controls, and every message in the reader's language
+
+This section holds two owner requests of 2026-10-01. First, an optional "redirection" mode for the chat filter: the writer may be as angry as they like, a language model rewrites the message in a neutral or positive way, three controls on the message box change the style of the writing and can use the conversation to choose the best style for the audience, and both the administrator and each person can choose whether they see messages as written or the reworded version, so that people can still work together when they are angry at each other. Second, multi-language Chat: a person sees every message in their own language even when the messages were written in another, so that people who share no language can work together almost as if they did. Both are the same thing underneath: a message has one original, which is the record, and any number of derived renderings (reworded, translated, or both) chosen per reader. What exists today (read 2026-10-01): a message is one `body` with revisions; nothing records the language a message was written in; the interface is localized through `internal/i18n` and message text is not; there is a per-person, per-conversation preference table; the composer has a toolbar and no writing aids. Three rules hold throughout: the original is never changed and is the only thing that is a record; a reader is always told when what they are reading is not what was written; and a rendering never gives anyone access to words that policy keeps from them.
+
+- [x] `CHATRENDER-001` **[PHASE_3][SOL_HIGH] Give a message derived renderings: stored beside the original, chosen per reader, never the record.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATRENDER_001`, `TestTodo_CHATRENDER_001_Fault`, `TestTodo_CHATRENDER_001_Integration`, `TestTodo_CHATRENDER_001_Performance`, `TestTodo_CHATRENDER_001_Property`, `TestTodo_CHATRENDER_001_Security` exist and passed in `internal/application`, `internal/collaboration/chatrender`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATMOD-001`, `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 (reworded view and native-language view); WHY=rewording and translation both need "another version of this message for this reader"; built twice they will disagree about caching, edits, access and retention`.
+  - **TEST:** `TestTodo_CHATRENDER_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATRENDER_001`; `PROPERTY=TestTodo_CHATRENDER_001_Property`; `SECURITY=TestTodo_CHATRENDER_001_Security`; `INTEGRATION=TestTodo_CHATRENDER_001_Integration`; `FAULT=TestTodo_CHATRENDER_001_Fault`; `PERFORMANCE=TestTodo_CHATRENDER_001_Performance`.
+  - **RED:** a message has one body; any second version of it would have to be a second message or an edit.
+  - **GREEN:** a rendering is a derived row keyed by message, message revision, tone (as written or reworded) and language, holding the rendered text, the detected source language, what produced it (provider, model identity, instruction digest, glossary version), its checks (meaning and placeholder checks passed or which failed), its confidence and its cost line; an edit makes a new revision and its renderings are produced afresh, a removal or deletion removes them at once, and they follow the original's retention, hold and erasure exactly; kinds of rendering come from a registry (the first two are reworded and translated; a rendering can be both, produced in that order); a single selection function, on the server, decides for a reader and a message which rendering they receive from the channel's policy, the person's preferences and what exists, and every surface that shows message text (the timeline, threads, previews, notifications, digests, search results, pins, saved items, quotes, exports for a reader, and the context given to an agent) calls it rather than reading the body; production is a durable job per message and rendering kind (the queue of section 98), requested eagerly for the readers present in a conversation and lazily otherwise, de-duplicated so two readers wanting the same rendering cause one call; while a rendering is being produced the reader sees a stated placeholder for a bounded time and then a stated fallback, never nothing; a versioned service interface (list a message's renderings, request one, read the selection for a reader, report a bad rendering) so a new kind is added by registration; PROPERTY: the selection is a pure function of policy, preference and available renderings, and never returns text the reader's policy forbids; SECURITY: a rendering inherits the original's audience and nothing wider, tenant isolation under row-level security, rendered text is untrusted output and is escaped and filtered like any message; PERFORMANCE: selection adds under 1 ms per message to a timeline read and renderings for a page are fetched in one query.
+  - **REFACTOR:** the mask of `CHATMOD-002` becomes a rendering kind produced without a model.
+  - **Refs:** `internal/collaboration/chat/contracts.go`, `internal/data/chatstore/migrations` (`chat_post`, `chat_post_revision`, `chat_preference`), `internal/data/chatstore/store.go`, `internal/collaboration/chat/thread_snapshot.go`, section 98 (`DURABLE-002`).
+
+- [ ] `CHATTONE-001` **[DESIGN][SOL_HIGH] Record the decisions for reworded messages.**
+  - **Depends:** `CHATMOD-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a redirection mode where the llm rewrites the message in a neutral or positive way but allows the writer to be as angry as they want ... but it's an option"); WHY=software that changes what a colleague appears to have said needs its limits written down before it is built`.
+  - **TEST:** `TestTodo_CHATTONE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATTONE_001`; `GOLDEN=TestTodo_CHATTONE_001_Golden`.
+  - **RED:** none of these decisions is recorded.
+  - **GREEN:** a checked-in decision record stating, with the alternative rejected and why: (1) rewording is off unless a workspace turns it on, and can be turned on per channel; (2) what is reworded: tone only (insults, sarcasm, shouting, blame); every fact, request, refusal, number, date, name, mention, link, code block and commitment survives, nothing is added (no apology, promise or agreement the writer did not make), and a "no" stays a "no"; (3) what is never reworded into acceptability: threats, slurs, harassment and anything the workspace's hard filters block or flag still follow those outcomes; rewording is not a way to launder reportable conduct, and a reworded message can still be reported with its original attached; (4) the writer is never blocked or lectured by this mode: they send what they wrote, are shown what others will read, and can edit that wording or send as written where policy allows; (5) every reader is told a message was reworded, in words, on the message; (6) who may see the original: the writer always; readers according to the administrator's setting ("Members may view messages as written": yes or no, per workspace with a channel override) and then their own preference; moderators under the removal rules; and that the workforce is told plainly that originals are kept and who can read them; (7) the original is the record for retention, holds, export and investigation, and an export says which readers saw which rendering; (8) agents receive the rendering a reader of that conversation is allowed, so an agent cannot leak an original the channel hides; (9) direct messages: offered to the writer, never imposed on the reader, and that choice is stated; (10) when the model is unavailable, over budget, or the meaning checks fail, the stated fallback (deliver as written with the workspace's ordinary filter applied) and that the reader is not shown a failed rewrite.
+  - **Decision (2026-10-01, owner request):** rewording is an option, the writer is not restrained, and administrators and each person choose between the written and the reworded view.
+  - **REFACTOR:** none.
+  - **Refs:** section 99 (`CHATMOD-001`, `CHATMOD-003`), `internal/collaboration/chat/content_policy.go`, `internal/data/chatstore/record_hold.go`.
+
+- [ ] `CHATTONE-002` **[PHASE_3][SOL_HIGH] Add "Reword" as a filter action: detect heat cheaply, rewrite with a model, and prove the meaning survived.**
+  - **Depends:** `CHATTONE-001`, `CHATRENDER-001`, `CHATMOD-003`, `AGENTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.INTELLIGENCE,BI.SECURITY; DIRECT=owner request 2026-10-01 ("the llm rewrites the message in a neutral or positive way"); WHY=blocking or masking stops the message; rewording keeps the work moving`.
+  - **TEST:** `TestTodo_CHATTONE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATTONE_002`; `PROPERTY=TestTodo_CHATTONE_002_Property`; `SECURITY=TestTodo_CHATTONE_002_Security`; `INTEGRATION=TestTodo_CHATTONE_002_Integration`; `FAULT=TestTodo_CHATTONE_002_Fault`; `PERFORMANCE=TestTodo_CHATTONE_002_Performance`; `GOLDEN=TestTodo_CHATTONE_002_Golden`.
+  - **RED:** the filter actions of `CHATMOD-003` are block, mask, flag and notify.
+  - **GREEN:** "Reword" registered as a filter action in the action registry, selectable for the built-in lists and for custom filters and as a standing channel setting ("Reword heated messages"); a screen that decides whether a message needs rewording at all, by word lists and the decision port (a typed question: calm, firm, heated, abusive), so calm messages cost nothing and are untouched; for a heated message, one model call through the governed model route produces the reworded rendering with the conversation's recent messages as context for register only; deterministic checks before it is accepted: every mention, link, number, date, code span and quoted text in the original is present and unchanged (they are passed to the model as placeholders and restored), the length is within stated bounds, and it passes the workspace's filters itself; a meaning check (a second typed question to the decision port: does the rewrite assert, request, refuse or promise anything the original does not, or drop anything it does) with a threshold; a failed check retries once and then falls back as the decision record says; the message is sent at once and never waits on the model for those reading as written; readers of the reworded view see it within 3 seconds at the 95th percentile or the stated fallback; the writer sees "Others see:" with the wording under their own message, with Edit wording and, where allowed, Send as written; an abusive classification follows the hard filter outcome, not this action; message text is untrusted data in the prompt and cannot change the instruction; the labelled suite: 200 messages across the product's languages with the facts each must preserve, scored for preservation (at least 99 percent of listed facts), added content (none), residual hostility, and naturalness; every call writes its usage line; SECURITY: the model receives only the message and the bounded context under the outbound verifier's classes, direct messages follow the decision record, and a rewrite is never stored as the body; FAULT: the crash points of `DURABLE-004` between send, job, rendering and delivery.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATRENDER-001`, `CHATMOD-003`, `internal/agentmodel`, `internal/agentegress`, `internal/agenteval`, `internal/collaboration/chat/content_policy.go`.
+
+- [ ] `CHATTONE-003` **[PHASE_3][SOL_HIGH] Let the administrator and each person choose between messages as written and reworded, everywhere a message appears.**
+  - **Depends:** `CHATTONE-002`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01 ("allow the admin and user to toggle if they wanna see the raw chats or the corporate friendly clean chat"); WHY=some people want the calm version and some need to know exactly what was said; both are legitimate`.
+  - **TEST:** `TestTodo_CHATTONE_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATTONE_003`; `SECURITY=TestTodo_CHATTONE_003_Security`; `ACCESSIBILITY=TestTodo_CHATTONE_003_Accessibility`; `BROWSER=TestTodo_CHATTONE_003_Browser`.
+  - **RED:** there is one view of a message.
+  - **GREEN:** administrator settings, per workspace with a per-channel override shown in channel details: "Reword heated messages" (Off, Offered to writers, On) and "Members may view messages as written" (Yes, No), each with one sentence saying what members will experience; a personal preference "Show heated messages: Reworded / As written" (available only where the administrator allows the choice), with a per-channel override; on each reworded message a quiet mark in words ("Reworded") and, where allowed, "Show as written" on that message alone, which reveals the original in place, marked as such, and "Show reworded" to return; the writer always sees both; the chosen view is the one used in the timeline, threads, the sidebar preview, notifications and digests, search results and their highlights, quotes and forwards (a quote carries the rendering its reader is entitled to, not the quoter's view), pins and saved items; search matches the original's words only for a reader allowed to see originals; where the administrator has set "No", no surface, export for a member, agent context or developer tool view contains the original for a non-writer, proved by a test that searches every response a member's session receives; the mark and the switch are reachable by keyboard and announced ("Reworded message from Dana. Show as written, button"); a person changing their preference sees the open conversation switch without a reload.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATRENDER-001`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/data/chatstore/migrations` (`chat_preference`), `internal/data/chatstore/public_source_classification.go`.
+
+- [ ] `CHATTONE-004` **[PHASE_3][SOL_HIGH] Put three writing-style controls on the message box, with the best one for this audience suggested.**
+  - **Depends:** `CHATTONE-001`, `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("add 3 controls to the input box to change the style of the writing and it can use the chat to determine the best style for the audience"); WHY=the best time to fix tone is before sending, by the writer, with their consent`.
+  - **TEST:** `TestTodo_CHATTONE_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATTONE_004`; `SECURITY=TestTodo_CHATTONE_004_Security`; `INTEGRATION=TestTodo_CHATTONE_004_Integration`; `ACCESSIBILITY=TestTodo_CHATTONE_004_Accessibility`; `BROWSER=TestTodo_CHATTONE_004_Browser`; `GOLDEN=TestTodo_CHATTONE_004_Golden`.
+  - **RED:** the composer toolbar has formatting and attachments; nothing helps with wording.
+  - **GREEN:** three controls in the composer toolbar, shown once the draft has at least a few words, each with a text label and a tooltip saying what it does: Professional (neutral, courteous, no heat), Friendly (warm and positive), Concise (shorter and direct, same content); choosing one replaces the draft with the rewritten text as a preview the writer can edit, with Undo restoring exactly what they typed and "See changes" showing the difference; nothing is sent until the writer sends; the same preservation checks as `CHATTONE-002` apply and a rewrite that fails them is not offered; one control is marked "Suggested" for this conversation, chosen from the conversation itself (how formal recent messages are, how many people are in it, whether it is an announcement or incident channel, whether the draft answers a manager, a customer-facing channel or a close colleague) by a typed question to the decision port, computed at most once per conversation per hour and never from other conversations; the suggestion's reason is available in plain words ("Most messages in #incident-review are short and direct"); the three styles and their instructions are a registry, so a workspace can rename, replace or add a style (a house style) without a code change, and an administrator can turn the controls off; the writer's draft is sent to the model only when they press a control, and the composer says so the first time; keyboard shortcuts, focus kept in the draft, and the controls collapse into one "Style" menu at narrow widths; every call writes its usage line and counts against a per-person daily limit with a plain message at the limit; SECURITY: draft text is untrusted data in the prompt, the conversation context sent is bounded and governed by the outbound verifier, and a rewrite is never sent without the writer's action.
+  - **Decision (2026-10-01):** the three controls are Professional, Friendly and Concise; the audience-aware choice is a suggestion marked on one of them, not a fourth control that rewrites without being asked.
+  - **REFACTOR:** the rewrite call is the one `CHATTONE-002` uses, with a different instruction.
+  - **Refs:** `internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/copy.go`, `tools/uxqual/cmd/journeywasm`, `internal/agentmodel`, section 96 (`AGENTCOST-002`).
+
+- [ ] `CHATLANG-001` **[DESIGN][SOL_HIGH] Research how to translate Chat: engines, language detection, quality, cost and where the text may go.**
+  - **Depends:** `EXTCOST-001`, `AGENTCOST-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.INTELLIGENCE,BI.PRIVACY,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("research and add todos for multi lang support in chat ... see all messages in their native language ... near native chat based collab"); WHY=translating every message for every reader is the largest volume of model work this product would do; the engine choice decides cost, speed, quality and whether workplace conversation leaves the deployment`.
+  - **TEST:** `TestTodo_CHATLANG_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_001`; `GOLDEN=TestTodo_CHATLANG_001_Golden`; `PERFORMANCE=TestTodo_CHATLANG_001_Performance`; `SECURITY=TestTodo_CHATLANG_001_Security`.
+  - **RED:** nothing translates message text; no engine has been compared on this product's kind of text (short, informal, full of names, jargon, mentions and code).
+  - **GREEN:** a checked-in research record with primary sources and our own measurements, comparing three families: a general language model through the existing governed route; a dedicated translation service (the candidates to assess include DeepL, Google Cloud Translation, Azure Translator and Amazon Translate); and an open translation model run inside the deployment (the candidates to assess include MADLAD-400 and NLLB-200, with each one's licence checked for commercial use before anything else); for each: languages and pairs covered, quality on a labelled set of 300 real-shaped chat messages per pair for a first set of pairs (English with German, French, Spanish, Portuguese, Arabic, Japanese and Hindi, and German with French without passing through English) scored by a standard automatic metric and by bilingual reviewers for meaning, tone and names; behaviour on mixed-language messages, slang, abbreviations, emoji, code and product names; support for a glossary and for formality (German du or Sie, Japanese politeness); latency at the 50th and 95th percentile; price per million characters and the projected monthly cost at 50, 500 and 5,000 people with a stated share of cross-language readers; data handling (retention, training use, regions, sub-processors) against this product's outbound terms; whether it can run with no text leaving the deployment; language identification compared separately (a small local classifier against asking the engine), with accuracy on messages under ten words; a recommendation: one default engine, one in-deployment option, the fallback order, and the pairs each is trusted for; PERFORMANCE: the measured figures behind the budgets of `CHATLANG-003`.
+  - **Decision (2026-10-01, owner request):** a person can read every message in their own language.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/agentmodel`, `internal/agentegress`, `internal/connectivity/egress`, `internal/i18n`, section 100 (`EXTCOST-001`).
+
+- [ ] `CHATLANG-002` **[PHASE_3][SOL_HIGH] Know what language each message is in and which languages each person reads.**
+  - **Depends:** `CHATLANG-001`, `CHATRENDER-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.PRIVACY; DIRECT=owner request 2026-10-01; WHY=translation is only needed where the message's language and the reader's differ, and neither is recorded`.
+  - **TEST:** `TestTodo_CHATLANG_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_002`; `PROPERTY=TestTodo_CHATLANG_002_Property`; `SECURITY=TestTodo_CHATLANG_002_Security`; `INTEGRATION=TestTodo_CHATLANG_002_Integration`; `PERFORMANCE=TestTodo_CHATLANG_002_Performance`.
+  - **RED:** a message has no language; a person has an interface locale and nothing saying which languages they can read.
+  - **GREEN:** every message revision records its detected language (a language tag, a confidence, and for a mixed message the spans), detected inside the deployment when the message is sent, in under 2 ms; very short or ambiguous messages ("ok", an emoji, a name, code) are recorded as "no language" and never translated; a person's language settings: the language they read Chat in (defaulting to their interface locale) and any further languages they read well enough not to want translated, with "Translate messages into my language" on or off, overridable per conversation and per source language ("Never translate French"); the writer can correct a wrong detection on their own message; a conversation shows which languages are in use among its members so a writer knows they will be translated; the detected language is available to search, to agents and to the rendering selection; PROPERTY: detection is deterministic for a revision and an edit re-detects; SECURITY: a person's language settings are theirs (visible to themselves and, as a count per language only, to a channel's members), and are not used for any purpose but rendering.
+  - **REFACTOR:** the interface locale and the reading language are separate settings with one default.
+  - **Refs:** `internal/collaboration/chat/contracts.go`, `internal/data/chatstore/migrations` (`chat_post_revision`, `chat_preference`), `internal/i18n/locale.go`, `internal/humanwork/chatui`.
+
+- [ ] `CHATLANG-003` **[PHASE_3][SOL_HIGH] Translate each message once per language, fast enough that a conversation still feels live.**
+  - **Depends:** `CHATLANG-002`, `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("near native chat based collab"); WHY=a translation that arrives after the reader has moved on is not collaboration`.
+  - **TEST:** `TestTodo_CHATLANG_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_003`; `PROPERTY=TestTodo_CHATLANG_003_Property`; `SECURITY=TestTodo_CHATLANG_003_Security`; `INTEGRATION=TestTodo_CHATLANG_003_Integration`; `FAULT=TestTodo_CHATLANG_003_Fault`; `PERFORMANCE=TestTodo_CHATLANG_003_Performance`.
+  - **RED:** as `CHATLANG-001`.
+  - **GREEN:** a translated rendering per message revision and target language, produced through the engine port chosen by `CHATLANG-001` (provider-neutral, with the in-deployment engine as one implementation) and the rendering jobs of `CHATRENDER-001`; when a message is sent, renderings are requested at once for each reading language among the members currently in the conversation and lazily for the rest (on open, on notification), so a channel of two languages costs one translation per message and history is translated a page at a time as it is read; what must survive is taken out before translation and restored after, and checked: mentions, channel and document links, addresses, code spans and blocks, emoji, numbers with their units, dates and times (which are shown in the reader's own format and time zone from the original value, not translated as text), file names and anything in the workspace's do-not-translate list; a workspace glossary (term, language, required translation) and a formality setting per language are applied and their versions recorded on the rendering; the previous few messages are given to the engine as context so short replies translate correctly, and never appear in the output; mixed-language messages translate only the spans that need it; budgets: a new message appears to a present reader in their language within 700 ms at the 95th percentile after it is sent, and a page of fifty historical messages within 2 seconds, with the original shown and marked "Translating…" beyond that and replaced in place without moving the page; an edit shows the new original at once and its translation when ready; a failed or low-confidence translation shows the original with "Could not translate" or "Translation may be inaccurate"; a person who writes in their own language needs to do nothing else; cost controls: translations are cached for the life of the revision, identical short messages share a cache within a tenant, a per-workspace monthly budget with a stated behaviour at the limit (translation pauses for history, continues for new messages, and the administrator is told), and every call writes its usage line; SECURITY: text goes only to an engine the workspace has approved for its data classes, a channel can be marked "Do not send to external translation" and then uses only the in-deployment engine or none, and translated text is escaped and filtered as a message; PROPERTY: placeholders restored exactly for any input; FAULT: engine timeout, partial output and a crash between job and rendering.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATRENDER-001`, `CHATLANG-001` record, `internal/data/chatstore/event_stream.go`, `internal/agentegress`, `internal/connectivity/egress`.
+
+- [x] `CHATLANG-004` **[PHASE_3][SOL_HIGH] Make reading and writing across languages feel native, and always one step from the original.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATLANG_004`, `TestTodo_CHATLANG_004_Accessibility`, `TestTodo_CHATLANG_004_Browser`, `TestTodo_CHATLANG_004_Security` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATLANG-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("see all messages in their native language even if they are in a chat where the real messages are in another lang"); WHY=the feature succeeds when a person forgets it is there, and fails if they ever cannot tell what was really said`.
+  - **TEST:** `TestTodo_CHATLANG_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_004`; `ACCESSIBILITY=TestTodo_CHATLANG_004_Accessibility`; `BROWSER=TestTodo_CHATLANG_004_Browser`; `SECURITY=TestTodo_CHATLANG_004_Security`.
+  - **RED:** there is nothing to show.
+  - **GREEN:** a translated message reads like any other, with a small mark in words ("Translated from German") and "Show original" on that message, which shows the original beneath the translation; a conversation-level switch "Show originals" and the personal settings of `CHATLANG-002` reachable from it; each message carries its own language and direction in the page (the original and the translation each marked with their language, right-to-left text laid out correctly inside a left-to-right page and the reverse, mixed names and numbers ordered correctly), so screen readers pronounce each in the right voice; threads, sidebar previews, notifications, digests, pins, saved items, quotes, link unfurl text, polls, channel to-dos and reminders show the reader's language; channel names are not translated and channel topics and descriptions are; system lines ("Walt joined") are produced in the reader's language from the event, not translated; reactions and emoji are untouched; the composer shows "Your message will be translated for readers in French and Arabic" when that is true, and an optional preview of one translation before sending; a reader can press "This translation is wrong", optionally suggest a better one, and the report goes to the glossary owners; when reworded view and translation both apply the reader gets the reworded text in their language and both marks; copy copies what is shown and "Copy original" is offered; nothing shifts when a translation arrives (space is reserved and the swap is in place); SECURITY: "Show original" never shows more than the reader may see under `CHATTONE-003`.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/i18n`, `CHATTONE-003`.
+
+- [ ] `CHATLANG-005` **[PHASE_3][SOL_HIGH] Carry the reader's language through agents, voice and search.**
+  - **Depends:** `CHATLANG-003`, `CHATSEARCH-002`, `CHATVOICE-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=a channel is not multilingual if its agent answers in one language, its voice notes in another and its search only finds the words as typed`.
+  - **TEST:** `TestTodo_CHATLANG_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_005`; `SECURITY=TestTodo_CHATLANG_005_Security`; `INTEGRATION=TestTodo_CHATLANG_005_Integration`; `GOLDEN=TestTodo_CHATLANG_005_Golden`; `BROWSER=TestTodo_CHATLANG_005_Browser`.
+  - **RED:** agents answer in whatever language the model chooses; search matches the stored words.
+  - **GREEN:** agents: an agent is told the asker's language and answers in it; a public answer, announcement or reminder is one message with one original and is translated for other readers like any message, with its sources and section links unchanged and the source's own language stated ("Paid time off policy, in English"); when a document exists in the reader's language that version is the one cited for them; ambient agents (to-dos, reminders) read the original and write their cards in each recipient's language; agent instructions, skills and evaluation suites include cases in each supported language and a cross-language case (asked in Arabic about an English document); voice: a transcript is translated like a message, and "Listen" reads the translation in the reader's language while the original audio stays one press away; search: a query in the reader's language finds messages written in any language (by meaning through the multilingual index of `CHATSEARCH-002`, and by keyword through the reader-language renderings that exist), results are shown in the reader's language with the original's language marked, and a filter "written in" narrows by source language; mentions and names are matched across scripts where a person has recorded how their name is written; SECURITY: translation never widens what an agent or a search may read, and a rendering is indexed only for readers entitled to it.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/documentembed/embedder.go`, sections 93 and 95 (`AGENTUX-066`, `CHATVOICE-003`, `CHATSEARCH-002`).
+
+- [ ] `CHATLANG-006` **[GATE_C][SOL_HIGH] Govern translations: the original is the record, quality is measured, and administrators hold the controls.**
+  - **Depends:** `CHATLANG-003`, `EXTCOST-005`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.REGULATORY,BI.PRIVACY,BI.OPERATIONS; DIRECT=owner request 2026-10-01; WHY=a mistranslated instruction at work has consequences; the product must be able to say what was written, what was shown, and how good its translations are`.
+  - **TEST:** `TestTodo_CHATLANG_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_006`; `SECURITY=TestTodo_CHATLANG_006_Security`; `INTEGRATION=TestTodo_CHATLANG_006_Integration`; `GOLDEN=TestTodo_CHATLANG_006_Golden`; `BROWSER=TestTodo_CHATLANG_006_Browser`.
+  - **RED:** there is nothing to govern.
+  - **GREEN:** the original is the only record: holds, retention, exports and investigations use it, and an export can include, marked as derived, the rendering each reader was shown; administrator settings: translation on or off per workspace and per channel, the approved engines per data class and region, channels that must not use an external engine, the languages offered, the monthly budget and what happens at it; a glossary page (terms, required translations per language, do-not-translate list, formality per language) with versions, an owner per language, import and export, and the "wrong translation" reports as its work queue; a quality gate that runs before an engine or a pair is offered and on every engine or glossary change: the labelled set of `CHATLANG-001` extended with workplace-critical cases (negation, dates and deadlines, quantities, safety and legal wording, names), with a pass mark per pair below which the pair is offered only with the "may be inaccurate" mark or not at all; monitoring in production without reading content: translations per pair, latency, failures, low-confidence share, report rate, cost per pair; a person is told the first time they read a translated message what it is and that the original is one step away; SECURITY: glossary terms are not secrets but the reports may quote messages, so a report is visible to glossary owners who could already read that conversation and otherwise shows the pair and the reporter's suggestion only.
+  - **REFACTOR:** none.
+  - **Refs:** `CHATRENDER-001`, `internal/data/chatstore/record_hold.go`, `internal/data/chatrecordstore/store.go`, `internal/agenteval`, section 100 (`EXTCOST-005`, `EXTCOST-006`).
+
+## 102. Locations in Chat: map embeds from GPS or an address, for people working in the field
+
+This section holds the owner request of 2026-10-01: let field workers show where they are with a map embedded in a message, from the device's position or from an address. What exists today (read 2026-10-01): a message's references are people, agents, conversations, media and workflow pages, and the composer embeds workflow items, to-dos and polls; there is no location kind. Location appears elsewhere only as evidence for time capture, and that work (`FTIME-010`) says in terms "do not build general employee tracking". The page security policy allows no frames at all (`frame-src 'none'`), starts from `default-src 'none'`, and pins the addresses the page may connect to, so the usual embedded third-party map cannot load and should not. Three positions follow, to be confirmed by `CHATMAP-001`: a location in Chat is something a person chooses to share, never something collected; it is a statement by the sender and is never evidence for time or pay; and the reader's browser talks only to the product, which draws or relays the map, so no map company learns who looked at which place.
+
+- [ ] `CHATMAP-001` **[DESIGN][SOL_HIGH] Research maps, address lookup and location privacy, and record the decisions.**
+  - **Depends:** `EXTCOST-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.WORKFORCE,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("allow for gps or address based map embeds for field workers to show their locations, research and add this as a todo"); WHY=a worker's location is sensitive personal data, employer location tracking is regulated differently in each country, and the map itself normally comes from a third party who sees every request`.
+  - **TEST:** `TestTodo_CHATMAP_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_001`; `GOLDEN=TestTodo_CHATMAP_001_Golden`; `SECURITY=TestTodo_CHATMAP_001_Security`; `PERFORMANCE=TestTodo_CHATMAP_001_Performance`.
+  - **RED:** nothing in Chat carries a location; no map source, address lookup or legal position has been assessed.
+  - **GREEN:** a checked-in research record with primary sources answering: (1) map data and drawing: map tiles served by the product from open map data it hosts (assess OpenStreetMap extracts packaged as a single tile archive, with the data licence and its attribution duty, storage size per region, and update cadence) against a commercial map service reached only through the product as a relay (assess the terms of the candidates, including whether relaying and caching are permitted, and price per thousand map loads), and that the public community tile servers are not a production source under their usage policy; (2) how the map is drawn under the page security policy and the product's Go-first client rule: a picture composed on the server (works with images from the product's own origin, no client library, no third-party request) with pan and zoom as tile swaps, against a client-side vector renderer, with the cost of each in latency, bytes and interaction quality on a phone, measured; (3) address lookup: turning typed text into a place and a position into a readable address, hosted inside the deployment against a commercial service through the relay; coverage and quality per country for the customers' regions, rate limits, price, and that a typed address is itself personal data sent to whoever does the lookup; (4) the device position: what the browser gives (a position and an accuracy radius, permission per site, secure pages only), how accuracy varies indoors and on desktop, behaviour when permission is refused or the signal is weak, and what works with no connection; (5) law and policy for worker location in the customers' jurisdictions: what consent means in employment, where employee representatives must agree first, limits on monitoring outside working time, and retention; (6) the decisions: sharing is always the worker's own act; the kinds of share offered (a point now, an address, a job site, live for a bounded time); defaults for precision and expiry; that no page lists where people are unless they are sharing live to that conversation at that moment; that a Chat location is never used for time, pay or discipline evidence (that is `FTIME-010`'s separate, governed path); what is kept and for how long.
+  - **Decision (2026-10-01, owner request):** field workers can show their location in Chat as a map, from the device's position or from an address.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chat/chat_references.go`, `internal/humanwork/productui` (page security policy), `internal/connectivity/egress`, `FTIME-010`, section 100 (`EXTCOST-001`).
+
+- [x] `CHATMAP-002` **[PHASE_3][SOL_HIGH] Make a location a kind of message reference with its own audience, precision and expiry.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATMAP_002`, `TestTodo_CHATMAP_002_Integration`, `TestTodo_CHATMAP_002_Property`, `TestTodo_CHATMAP_002_Security` exist and passed in `internal/application`, `internal/collaboration/chat`, `internal/data/chatstore` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); not checked in a browser in this pass. CI remains the run evidence.
+  - **Depends:** `CHATMAP-001`, `CHATSEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.PRIVACY,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=a location pasted as text or a picture cannot expire, cannot be made approximate and cannot be governed`.
+  - **TEST:** `TestTodo_CHATMAP_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_002`; `PROPERTY=TestTodo_CHATMAP_002_Property`; `SECURITY=TestTodo_CHATMAP_002_Security`; `INTEGRATION=TestTodo_CHATMAP_002_Integration`.
+  - **RED:** reference kinds are person, agent, conversation, media and workflow page.
+  - **GREEN:** a `LOCATION` reference on a message: the position, its accuracy radius, how it was obtained (device, typed address, picked on the map, job site, or supplied by an agent or integration), an optional label and readable address, when it was captured, the precision shared (exact, or approximate to a stated radius, in which case only the coarsened position is ever stored), and when it expires (after which the message says "Location no longer shared" and the position is deleted, not hidden); validated on the server (a real position, a sane accuracy, a capture time near now for a device share); it has exactly the message's audience and follows the message's edit, removal, retention, hold and erasure, with expiry able to delete it sooner than the message; a job-site share stores a reference to the site record rather than a copy, so a corrected site address is corrected everywhere; a versioned service interface (attach a location, read one, end one early) used by the composer, by agents through a granted skill, and by other producers such as a support ticket or a work order, so location is not a Chat-only idea; found by search through its label and address for people who can read the message, never by position by anyone, and not at all once expired; given to an agent only when its skills name location, and then at the precision shared; PROPERTY: an approximate share cannot be refined from anything the server stores or returns; SECURITY: tenant and audience isolation, positions never appear in logs, traces, notifications sent outside the product or addresses of pages.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chat/chat_references.go`, `internal/collaboration/chat/contracts.go`, `internal/data/chatstore`, `internal/application/chat_references.go`.
+
+- [ ] `CHATMAP-003` **[PHASE_3][SOL_HIGH] Draw the map from the product's own origin, so nobody outside learns who looked where.**
+  - **Depends:** `CHATMAP-002`, `EXTCOST-002`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.PRIVACY,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("map embeds"); WHY=the page security policy forbids frames and third-party loads, and that is the right policy for a workforce product`.
+  - **TEST:** `TestTodo_CHATMAP_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_003`; `SECURITY=TestTodo_CHATMAP_003_Security`; `INTEGRATION=TestTodo_CHATMAP_003_Integration`; `PERFORMANCE=TestTodo_CHATMAP_003_Performance`; `FAULT=TestTodo_CHATMAP_003_Fault`; `ACCESSIBILITY=TestTodo_CHATMAP_003_Accessibility`.
+  - **RED:** `frame-src 'none'` and a pinned connection list mean an embedded third-party map cannot load.
+  - **GREEN:** a map service inside the product, using the source `CHATMAP-001` chooses, that returns map pictures for a place, zoom and size, with the pin and the accuracy circle drawn on, in light and dark styles, with the data source's attribution shown on every map; requests are authorized (a map of a shared location is served only to someone who can read that message, by a reference to the share and not by coordinates in the address), cached, and rate limited; the page security policy is unchanged apart from images from the product's own origin; if a commercial source is used the product relays it, strips anything identifying the reader, records a usage line per call and respects a monthly budget; the embed in a message: a map at a fixed aspect ratio with its space reserved before it loads, the label, the readable address, the accuracy ("within 20 m"), how old it is ("shared 4 minutes ago"), who shared it, and the actions Open larger (pan and zoom, keyboard operable), Copy address, Directions (opens the device's maps application: an outbound hand-off the reader chooses, and the label says so) and, for the sharer, Stop sharing; a text alternative carries everything the picture does, and the map is never the only way to get the address; the message's own meaning survives when the map cannot be drawn (the address and position as text with "Map unavailable"); PERFORMANCE: an embed's picture under 60 KB and shown within 300 ms at the 95th percentile on a phone connection, a channel with fifty embeds scrolls without loading maps that are off screen; SECURITY: no request leaves the reader's browser for any other origin, proved by a browser test that fails on one.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui` (page security policy), `internal/connectivity/egress/egress.go`, `internal/humanwork/chatui`, `internal/transport`.
+
+- [ ] `CHATMAP-004` **[PHASE_3][SOL_HIGH] Share a location from the message box in three taps: where I am, an address, or a job site.**
+  - **Depends:** `CHATMAP-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.WORKFORCE,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("gps or address based ... for field workers to show their locations"); WHY=the person doing this is outdoors, on a phone, with gloves, poor signal and one free hand`.
+  - **TEST:** `TestTodo_CHATMAP_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_004`; `SECURITY=TestTodo_CHATMAP_004_Security`; `INTEGRATION=TestTodo_CHATMAP_004_Integration`; `ACCESSIBILITY=TestTodo_CHATMAP_004_Accessibility`; `BROWSER=TestTodo_CHATMAP_004_Browser`.
+  - **RED:** the composer has no location action.
+  - **GREEN:** a "Location" action in the composer opening one sheet with three choices: "Where I am" (the product explains in one sentence what will be shared and with whom before the browser asks for permission; then shows the position on a map with its accuracy circle, lets the person nudge the pin, and offers Exact or Approximate), "An address" (type to search with suggestions from the lookup service, or drop a pin), and "A job site" (the sites of the person's projects and assignments, nearest first when the device position is available); a preview of exactly what readers will see, an optional note, how long it stays ("1 hour", "Until end of day", "Keep with the message"), and Send; refusal of permission, no position fix, poor accuracy (the radius is shown and "Try again" offered, and a position worse than a stated radius is labelled as rough, never silently sent as exact), and no connection (the share is queued with its capture time and sent once when the connection returns, or discarded if it has expired by then, and the person is told which) each have a plain message and a way forward; typing "/location" does the same; large touch targets, usable one-handed at phone width and by keyboard on a desktop; the sharer sees their own shares with time remaining and can stop any of them from the message or from a "Sharing now" list; SECURITY: the position is read only when the person presses the control, never in the background, and is sent only when they press Send.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/styles_composer.go`, `tools/uxqual/cmd/journeywasm`, `CHATMAP-002`, `internal/domains/project`.
+
+- [ ] `CHATMAP-005` **[PHASE_3][SOL_HIGH] Share a live location for a bounded time, and give a crew channel a map of who is sharing now.**
+  - **Depends:** `CHATMAP-004`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.WORKFORCE,BI.PRIVACY; DIRECT=owner request 2026-10-01; WHY=a dispatcher or a crew lead needs "where is the truck now", and a single point is out of date the moment it is sent`.
+  - **TEST:** `TestTodo_CHATMAP_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_005`; `PROPERTY=TestTodo_CHATMAP_005_Property`; `SECURITY=TestTodo_CHATMAP_005_Security`; `INTEGRATION=TestTodo_CHATMAP_005_Integration`; `FAULT=TestTodo_CHATMAP_005_Fault`; `BROWSER=TestTodo_CHATMAP_005_Browser`.
+  - **RED:** as `CHATMAP-002`.
+  - **GREEN:** "Share live" in the location sheet for 15 minutes, 1 hour or until a time the person picks, never open-ended and never longer than the administrator's maximum; while it runs the sharer's device sends its position at a stated interval only while the product is open (and the sheet says so: closing it pauses the share and readers see "Paused"), the message's map moves, and a persistent indicator on the sharer's screen says who can see them with one press to stop; it ends by itself at its time, when the person stops it, when they leave the conversation or sign out, and the message then shows where and when sharing ended or, by the sharer's choice, nothing; only the latest position is kept while live and no trail is stored or drawn; a "Map" view on a channel showing everyone sharing live to it now and the channel's job sites, each pin opening its message; nobody appears on any map without a live share they started to that conversation; an administrator's settings per workspace and per channel: location sharing on or off, live sharing on or off, maximum duration, and whether exact positions are allowed; PROPERTY: for any sequence of start, update, stop, expiry and disconnect, no position is readable after the share ends and no reader outside the conversation ever receives one; FAULT: a crash or a lost connection never extends a share past its end time (expiry is enforced by the server's clock, not the device).
+  - **REFACTOR:** none.
+  - **Refs:** `CHATMAP-002`, `internal/data/chatstore/event_stream.go`, `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/chatui`.
+
+- [ ] `CHATMAP-006` **[GATE_C][SOL_HIGH] Govern location sharing: the worker's choice, short retention, and no route from Chat into tracking.**
+  - **Depends:** `CHATMAP-005`, `FTIME-010`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.REGULATORY,BI.WORKFORCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=the same feature that helps a crew find each other becomes surveillance with one reporting page; the product must make that impossible by construction, not by promise`.
+  - **TEST:** `TestTodo_CHATMAP_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATMAP_006`; `SECURITY=TestTodo_CHATMAP_006_Security`; `INTEGRATION=TestTodo_CHATMAP_006_Integration`; `GOLDEN=TestTodo_CHATMAP_006_Golden`.
+  - **RED:** none of this exists.
+  - **GREEN:** locations are classified as sensitive personal data in the data classification the outbound verifier, exports and agents use; there is no report, export, query or administrator page that lists a person's shared locations over time, and a test asserts that no service interface returns locations by person across conversations; default retention is short (a shared point expires with its chosen duration and at most with the message; a live share leaves at most its end point) and an administrator can shorten it and cannot lengthen it past the workspace's stated maximum; a legal hold preserves a location only as part of the message it belongs to and says so; a person can see every location they are sharing or have shared that still exists, and end or delete each; the first use explains what is shared, with whom, for how long, and that it is never used for time or pay; Chat locations are not readable by the time-capture path and time-capture evidence is not shown in Chat, proved by a dependency test in both directions; a workspace setting records, per country or legal entity, whether location sharing is enabled and the basis for it, so it can be off where an agreement with employee representatives is required and not yet made; agents: a location skill is a stated grant, an agent never asks for or infers a person's position, and an agent-supplied location (a customer's address on a ticket) is marked as supplied by the agent; address lookups and map loads are recorded in the usage ledger without the address or position (a digest and the operation only).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/trust/dlp`, `internal/domains/clock`, `internal/workflow/timeclock`, `internal/agentegress`, `CHATMAP-002`.
+
+## 103. Polls and to-do lists as messages: /poll and /todo with a tidy preview
+
+This section holds the owner request of 2026-10-01: typing `/poll 1="" 2="" ...` adds a new poll, with a language model tidying the wording and layout and a preview before it posts; the same for to-do lists; and these are not pinned to the channel, they flow with the channel's history like any message. What exists today (read 2026-10-01): a channel has exactly one poll and exactly one to-do list (the tables are keyed by tenant and conversation), opened from "Channel poll" and "To-do list" in the channel header; they stay with the channel and do not appear in the timeline. The composer knows two commands, `/giphy` and `/location`, each wired by hand. The channel-level poll and list stay as they are for standing lists; this section adds the message kind and the commands.
+
+- [ ] `CHATCMD-001` **[PHASE_3][SOL_HIGH] Make composer commands a registry with help, arguments and a preview step.**
+  - **Depends:** `AGENTUX-062`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("/poll 1=\"\" 2=\"\" ... adds a new poll"); WHY=two commands are each wired by hand; a third and fourth should not be`.
+  - **TEST:** `TestTodo_CHATCMD_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCMD_001`; `PROPERTY=TestTodo_CHATCMD_001_Property`; `SECURITY=TestTodo_CHATCMD_001_Security`; `ACCESSIBILITY=TestTodo_CHATCMD_001_Accessibility`; `BROWSER=TestTodo_CHATCMD_001_Browser`.
+  - **RED:** `/giphy` and `/location` are recognised by separate string comparisons; typing "/" shows no list of what is available, and an unknown command is sent as a message.
+  - **GREEN:** a command registry on the client and the server: each command declares its name, a one-line description, its argument grammar (positional text, numbered options `1="..." 2="..."`, named options, mentions, dates), an example, who may use it and where (channel kinds, channel status), and whether it previews before posting; typing "/" opens a menu of the commands available here with their descriptions, filtered as the person types, chosen with the keyboard; once a command is chosen the composer shows its usage as a hint and marks arguments it cannot parse; a quoted argument may contain spaces, quotes and equals signs (escaped by doubling the quote), and the same grammar parses on the server; an unknown command is not sent: the composer says so and offers the closest match or "send as text"; a line that starts with "//" sends a literal slash; `/giphy` and `/location` move onto the registry unchanged for the person; a versioned registration interface so an agent skill or an integration can add a command with its own preview; PROPERTY: for any input the client and server parsers agree, and parsing then rendering then parsing a command returns the same arguments; SECURITY: a command runs with the sender's authority only, its arguments are untrusted text, and a command that is not allowed in this channel is absent from the menu and refused by the server.
+  - **REFACTOR:** the two hand-wired commands are deleted in favour of registry entries.
+  - **Refs:** `internal/humanwork/chatui/giphy_command.go`, `internal/humanwork/chatui/chatmap_location.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/collaboration/chat/service.go`.
+
+- [ ] `CHATCMD-002` **[PHASE_3][SOL_HIGH] Polls and to-do lists as messages that flow with the conversation.**
+  - **Depends:** `CHATCMD-001`, `CHATSEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("these shouldnt be channel sticky and flow with channel history"); WHY=a channel can hold one poll and one list today, and neither is part of what people read`.
+  - **TEST:** `TestTodo_CHATCMD_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCMD_002`; `PROPERTY=TestTodo_CHATCMD_002_Property`; `SECURITY=TestTodo_CHATCMD_002_Security`; `INTEGRATION=TestTodo_CHATCMD_002_Integration`; `FAULT=TestTodo_CHATCMD_002_Fault`; `ACCESSIBILITY=TestTodo_CHATCMD_002_Accessibility`; `BROWSER=TestTodo_CHATCMD_002_Browser`.
+  - **RED:** `chat_channel_poll` and `chat_channel_todo` have the primary key (tenant, conversation): one of each per channel, shown only in a header tray.
+  - **GREEN:** two message attachments, each belonging to one message and appearing in the timeline where it was posted, in threads, in search, in pins and in saved items like any message: a poll (question, two to twelve options, one choice or several, votes shown by name or anonymous, an optional closing time, who may add options) and a to-do list (a title, one to thirty items, each with an optional assignee and due date, who may tick items: anyone in the conversation, the assignee, or the author); any number per conversation; votes and ticks update live for everyone reading, with counts and a bar per option, the voter's own choice marked, and results visible according to the poll's setting (always, after voting, after closing); the author can edit wording until the first vote or tick and can close or reopen; a closed poll says so and when; removal, deletion, retention, holds and export treat the attachment and its votes as part of the message; anonymous votes are stored so that nobody, including an administrator's export, can tie a vote to a person, and that choice cannot be changed after the first vote; the channel header's "Channel poll" and "To-do list" remain for the standing, channel-level ones and additionally list this conversation's open message polls and lists, each a link to its message; an optional "Pin to channel" uses the existing pin; in direct and group conversations both work the same way; PROPERTY: for any interleaving of votes, changes of vote, closes and reconnects, every reader converges on the same counts and nobody is counted twice; SECURITY: only members who can read the message can vote or tick, the server enforces one-choice polls, closing times and who-may-tick, and a person removed from the conversation keeps their past vote but cannot change it; FAULT: a crash between a vote and its event leaves the vote counted once and delivered once on resume.
+  - **Decision (2026-10-01, owner request):** polls and to-do lists created by command are messages in the history, not pinned to the channel.
+  - **REFACTOR:** the channel-level poll and list share the option, vote and item code with the message kind.
+  - **Refs:** `internal/data/chatstore/channel_poll.go`, `internal/data/chatstore/channel_todo.go`, `internal/data/chatstore/migrations`, `internal/application/chat_channel_poll.go`, `internal/application/chat_channel_todo.go`, `internal/humanwork/chatui/channel_poll.go`, `internal/collaboration/chat/chat_references.go`.
+
+- [ ] `CHATCMD-003` **[PHASE_3][SOL_HIGH] /poll: write it loosely, see it tidied, post it when it looks right.**
+  - **Depends:** `CHATCMD-002`, `CHATTONE-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("/poll 1=\"\" 2=\"\" ... adds a new poll using ai to for properly format, and preview before posting"); WHY=people type polls fast and badly; the poll everyone votes on should read well`.
+  - **TEST:** `TestTodo_CHATCMD_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCMD_003`; `PROPERTY=TestTodo_CHATCMD_003_Property`; `SECURITY=TestTodo_CHATCMD_003_Security`; `GOLDEN=TestTodo_CHATCMD_003_Golden`; `ACCESSIBILITY=TestTodo_CHATCMD_003_Accessibility`; `BROWSER=TestTodo_CHATCMD_003_Browser`.
+  - **RED:** there is no `/poll`.
+  - **GREEN:** `/poll` accepts the explicit form (`/poll "Where for the offsite?" 1="Lisbon" 2="Porto" 3="Remote"`, with the question optional before the first numbered option) and a loose form (`/poll where should we go lisbon, porto or stay remote?`); the explicit form is parsed deterministically and works with no model at all; pressing Enter opens a preview, never posts: the poll drawn exactly as it will appear, with the question and options tidied (capitalisation, spelling, a question mark, duplicates merged, numbering normalised) and, for the loose form, the question and options separated out; the tidying is one call through the governed model route with the command text as untrusted data, returning a typed structure (question, options, suggested settings) that is validated: the same number of options as written unless a duplicate was merged, no option invented, no meaning changed, each option within its length limit; every change is shown ("Tidied: 3 changes") with "Use what I typed" to drop them; the preview has the settings (one choice or several, show names or anonymous, closes: never, in an hour, end of day, a date), Edit to change any wording in place, Post and Cancel, with Post as the default action and the draft kept if the person cancels; when the model is unavailable, slow beyond two seconds or over the person's daily limit, the preview shows the deterministic parse with a quiet note and still posts; the first use says the text is sent to the model for tidying, and an administrator can turn tidying off, leaving the command; every call writes its usage line; GOLDEN: twenty typed commands with their expected parsed and tidied polls, including quotes inside options, more than twelve options, one option, mentions, emoji and right-to-left text; SECURITY: nothing is posted without the person pressing Post, the model's output can only fill the typed structure, and text in an option cannot change the instruction.
+  - **REFACTOR:** the tidy call is the rewrite service of `CHATTONE-004` with a structured output.
+  - **Refs:** `CHATCMD-001`, `CHATCMD-002`, `internal/collaboration/chatrewrite`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `CHATCMD-004` **[PHASE_3][SOL_HIGH] /todo: the same for a to-do list, with assignees and dates understood.**
+  - **Depends:** `CHATCMD-002`, `CHATCMD-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("do a similar option for todos"); WHY=a list of who does what by when is the most common thing people type into a channel as plain text and then lose`.
+  - **TEST:** `TestTodo_CHATCMD_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATCMD_004`; `PROPERTY=TestTodo_CHATCMD_004_Property`; `SECURITY=TestTodo_CHATCMD_004_Security`; `GOLDEN=TestTodo_CHATCMD_004_Golden`; `BROWSER=TestTodo_CHATCMD_004_Browser`.
+  - **RED:** there is no `/todo`; the channel's single to-do list is edited only from its tray.
+  - **GREEN:** `/todo` accepts the explicit form (`/todo "Launch checklist" 1="Book the room" 2="Send invites @Dana by Friday"`) and a loose form (`/todo book the room, dana sends invites by friday, I'll draft the agenda`); the preview shows the list as it will post, with each item's assignee and due date pulled out where the text states them: an assignee only from a mention or a name that matches exactly one member of the conversation (an ambiguous name is left in the text and flagged, never guessed), "I" as the author, a date in the author's time zone with ambiguous dates asked about in the preview; the same tidy, compare, "Use what I typed", Edit, Post and Cancel as `/poll`, the same deterministic path with no model, and the same limits; after posting, ticking an item shows who ticked it and when, an assignee is notified once of their item, a due item appears in the assignee's reminders when the reminder path of `AGENTUX-068` exists, and "Add to my tasks" on an item copies it to the person's own list where `AGENTUX-067` provides one; "Move to the channel's to-do list" is offered to those who may edit that list; the list and its items are found by search; GOLDEN: twenty typed commands with expected items, assignees and dates, including two members with the same first name, a date that has passed, and no dates at all; SECURITY: an assignee must be able to read the conversation, an assignment never grants access, and names in the text cannot assign someone outside the conversation.
+  - **REFACTOR:** date understanding is the one the reminder agent uses, not a second implementation.
+  - **Refs:** `CHATCMD-002`, `CHATCMD-003`, `internal/application/chat_channel_todo.go`, `internal/data/chatstore/channel_todo.go`, sections 93 and 99 (`AGENTUX-067`, `AGENTUX-068`, `CHATSAVE-001`).
+
+## 104. Keeping files for the long term, and surviving the loss of the site or of the person who runs it (research)
+
+This section holds the owner request of 2026-10-01: research the best way to store and archive files for the long term, and to make the product proof against the raptor and the bus: off-site storage and database backups that still work when the building, the machine, or the one person who knows how it all fits together is gone. Recovery work already planned covers creating backup sets and restoring them (`RECOVERY-002`, `RECOVERY-003`, `RECOVERY-005`, `DB-022`, `DATA-023`, `IAC-010`); what is not yet decided is where copies live, for how long, in what form, at what cost, and how someone who has never done it restores from them. Each todo here produces a checked-in record with primary sources and measurements; none changes the product by itself.
+
+- [ ] `FILEARCH-001` **[DESIGN][SOL_HIGH] Inventory every kind of file the product keeps, how long it must be kept, and how fast it must come back.**
+  - **Depends:** `DATA-023`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.REGULATORY,BI.PRIVACY; DIRECT=owner request 2026-10-01 ("research best way to store and archive files long term"); WHY=an archive is designed from what must be kept and for how long, and nobody has listed it`.
+  - **TEST:** `TestTodo_FILEARCH_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FILEARCH_001`; `GOLDEN=TestTodo_FILEARCH_001_Golden`.
+  - **RED:** files live in an object store behind `internal/store/object` (one cloud adapter) and, on a developer cell, in a local directory; nothing states per kind of file how long it is kept or how quickly it must be retrievable.
+  - **GREEN:** a checked-in inventory with one row per kind of file: documents and their versions, chat attachments and images, voice recordings and transcripts, generated exports and reports, signed evidence artifacts and audit bundles, payroll and tax outputs, imported files, agent run records, map and index data, logs; for each: who owns it, typical and maximum size, how many per year at 50, 500 and 5,000 people, the retention the law or the customer requires (with the jurisdiction), whether it can be regenerated from other data, how often it is read after a month, a year and seven years, how quickly it must come back when asked for, whether it is under holds or erasure duties, and whether it must be provably unaltered; the result is a total size and growth curve per tier of access, and the list of kinds that have no stated retention today.
+  - **Decision (2026-10-01, owner request):** long-term storage and archiving of files is to be researched and decided.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/store/object`, `internal/store/object/lifecycle.go`, `internal/application/chat_media.go`, `internal/data/documenthubstore`, `definitions/storage`.
+
+- [ ] `FILEARCH-002` **[DESIGN][SOL_HIGH] Research how to keep files readable, intact and affordable for ten years and more.**
+  - **Depends:** `FILEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.REGULATORY,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=the three ways an archive fails are that the bytes rot, the format becomes unreadable, or the key is lost`.
+  - **TEST:** `TestTodo_FILEARCH_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_FILEARCH_002`; `GOLDEN=TestTodo_FILEARCH_002_Golden`; `SECURITY=TestTodo_FILEARCH_002_Security`; `PERFORMANCE=TestTodo_FILEARCH_002_Performance`.
+  - **RED:** the object port has integrity and lifecycle code and one adapter; no decision exists on storage tiers, formats, periodic verification, or what an archived file needs beside it to be understood without the database.
+  - **GREEN:** a checked-in research record with primary sources, comparing for the tiers of `FILEARCH-001`: storage classes at the large providers (standard, infrequent access, archive and deep archive: price per gigabyte-month, retrieval price and time, minimum storage duration, early deletion charges) against storage run by the operator (an object store on its own disks, and tape) with the labour and hardware counted; write-once protection (object lock and retention modes, what an administrator can and cannot undo) and how it meets erasure duties (encrypt per subject or per tenant and destroy the key); fixity: a checksum recorded at ingest, verified on a schedule and on every copy, with the detection time for silent corruption stated and a repair path from another copy; formats: which files are kept as received, which also get a long-lived rendition (for documents, an archival form of PDF; for images, audio and text, open formats), and that the original is never discarded; self-description: each archived object carries or sits beside a manifest (what it is, whose, which version, its checksums, its retention and hold state, the key reference) so that the archive can be read with the database gone; encryption and keys over decades: rotation without rewriting the archive, escrow, and the stated consequence of losing a key; a recommended design per tier with its yearly cost at the three sizes and its retrieval time; PERFORMANCE: a measured trial of ingest, scheduled verification and retrieval on a sample of at least 100,000 objects; SECURITY: tenant separation in the archive, and who can shorten a retention or release a lock.
+  - **REFACTOR:** none.
+  - **Refs:** `FILEARCH-001` inventory, `internal/store/object/integrity.go`, `internal/store/object/sealed.go`, `internal/store/object/aws`, `MODEL-028`, `PRIV-004`.
+
+- [ ] `OFFSITE-001` **[DESIGN][SOL_HIGH] Research off-site backups for every database and file store, with the loss they allow and the time they take stated.**
+  - **Depends:** `DB-022`, `RECOVERY-002`, `FILEARCH-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("off site storage and database backups"); WHY=a backup in the same building, account or region as the thing it backs up is lost with it`.
+  - **TEST:** `TestTodo_OFFSITE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_OFFSITE_001`; `GOLDEN=TestTodo_OFFSITE_001_Golden`; `SECURITY=TestTodo_OFFSITE_001_Security`; `FAULT=TestTodo_OFFSITE_001_Fault`; `PERFORMANCE=TestTodo_OFFSITE_001_Performance`.
+  - **RED:** the product runs four separate databases (core, chat, agents, documents) and an object store; planned work creates and restores backup sets; where the copies live, how far apart, under whose control, and how much may be lost is not decided. On the developer cell there is one PostgreSQL data directory and no copy of it anywhere.
+  - **GREEN:** a checked-in research record with primary sources covering: the targets, per database and file tier: how much recent work may be lost and how long recovery may take, chosen with their cost; the copy rule to adopt (at least three copies, on two kinds of storage, one off-site, one that cannot be altered or deleted for its retention even with the operator's credentials, and none unverified); for PostgreSQL: continuous archiving of the write-ahead log with periodic base backups for point-in-time recovery against scheduled logical dumps, the candidate tools for it compared on restore time, verification, encryption and operating burden, and how the four databases and the object store are restored to one consistent moment (the fenced set of `RECOVERY-005`); off-site: a second region, a second provider, or an account the first cannot administer, with the consequences for data residency and for each tenant's contract; encryption in transit and at rest with keys that are not stored beside the backups; what else must be backed up to start from nothing (configuration, secrets and keys, infrastructure definitions, the migration history, signing keys and their public halves, the model and embedding files, the seed and reference data); monitoring: an alert when the newest restorable point is older than its target, not when a backup job failed; tenant-scoped restore and the re-application of deletions after a restore (`PRIV-004`); cost per month at the three sizes; FAULT: a list of loss scenarios (one disk, the database host, the whole site, the cloud account, an operator's credentials stolen and used to delete, ransomware that has been inside for thirty days, silent corruption found after ninety) with which copy saves each; PERFORMANCE: a measured restore of each database from the off-site copy alone.
+  - **Decision (2026-10-01, owner request):** off-site storage and database backups are to be researched and decided.
+  - **REFACTOR:** none.
+  - **Refs:** `RECOVERY-002`, `RECOVERY-003`, `RECOVERY-005`, `IAC-010`, `internal/data/pgtest`, `cmd/migrate`, section 98 (`DURABLE-004`).
+
+- [ ] `OFFSITE-002` **[DESIGN][SOL_HIGH] Bus-proof the recovery: someone who has never done it restores the product from the off-site copy with only the runbook.**
+  - **Depends:** `OFFSITE-001`.
+  - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01 ("rapter bus proofing"); WHY=backups that only one person can restore are lost with that person`.
+  - **TEST:** `TestTodo_OFFSITE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_OFFSITE_002`; `GOLDEN=TestTodo_OFFSITE_002_Golden`; `SECURITY=TestTodo_OFFSITE_002_Security`.
+  - **RED:** how the review cell is built, migrated, prepared and started lives in scripts under a working directory and in one person's head; several steps today were discovered by reading code.
+  - **GREEN:** a checked-in record covering: an inventory of everything the product depends on that a single person or account controls (domain and name service, cloud and provider accounts, model provider accounts and their billing, code hosting, signing and encryption keys, licences, the payment method) with a second holder for each; where the runbook, the infrastructure definitions and the source live so that they survive the loss of the primary site and account (mirrored, off-site, readable without the product running); how break-glass credentials and key shares are held (split between people so that no one person can restore or destroy alone, with how many are needed) and how that is rehearsed; a runbook written to be followed cold: start from an empty account and the off-site copy, bring up each database to the chosen moment, the object store, the server, verify with stated checks, hand over; a drill, on a calendar, in which a person who has not done it before performs the restore from the off-site copy alone, timed, with every place they had to ask someone recorded as a defect; what is automated so that the drill is a check and not the only proof: a scheduled restore of the newest off-site backup into an isolated environment with integrity checks and a report; succession: who is told, and how, when the usual operator cannot be reached; SECURITY: the break-glass path is itself audited and cannot be used silently.
+  - **REFACTOR:** none.
+  - **Refs:** `OFFSITE-001` record, `REV-017-02`, `RECOVERY-003`, `scripts`, `AGENTS.md`.
+
+## 105. Chat bug register: visual and interactive scan of 2026-10-01
+
+This section tracks every defect found by scanning Chat on the combined build of 2026-10-01 16:52: 46 scripted interactions at 1440 by 900 with a screenshot and layout checks after each (`.artifacts/lanes/agent-ui/chat-inspect.mjs`, captures under `shots/i3-desktop`), the same walk at 390 px, and the earlier walk of the 15:50 build (`shots/i2-desktop`). Each bug is one todo so it can be closed on its own evidence: the RED line is what was seen and in which capture, the GREEN line is what a person should see, and the owner line names the lane working on it. A bug is closed only when the same step of the scripted scan shows the GREEN state after a real page reload, at 1440 and 390 px, light and dark. Defects that were found and verified fixed during the day are listed at the end of this note and have no todo: the "Agent" badge drawn over the agent's name in the sidebar; the save button hanging below the hover bar; stray bookmark icons under every thread reply and the thread composer filling the pane; the composer growing to 350 px on any draft; menu entries drawn as underlined links; "POLICY_DOCUMENT" shown in channel details; the answer footer link running into its button; the raw "Could not save or load channel widgets" line; the address of a channel being ignored on load; the agent directory request failing.
+
+- [x] `CHATBUG-001` **[PHASE_3][SOL_HIGH] The channel status shows as the raw key ⟦chat.status.open⟧ in the header and the sidebar.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_001`, `TestTodo_CHATBUG_001_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=a status nobody can read is worse than no status, and at phone width it pushes the channel name out of the header`.
+  - **TEST:** `TestTodo_CHATBUG_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_001`; `BROWSER=TestTodo_CHATBUG_001_Browser`.
+  - **RED:** (i3-desktop 01, i3-mobile 01) the channel header and the selected sidebar row print ⟦chat.status.open⟧; at 390 px the label takes the header and the channel name is cut to "r…".
+  - **GREEN:** an Open channel shows no status label at all; Announcements only, Locked and Archived show their word and icon from the copy tables in en-US, de-DE and ar; no copy key is ever rendered; at 390 px the channel name always has priority over the status.
+  - **Owner (2026-10-01):** integrate-2.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatstate_status.go`, `internal/humanwork/chatui/copy.go`.
+
+- [x] `CHATBUG-002` **[PHASE_3][SOL_HIGH] The reaction picker opens in the corner of the page instead of at the button, and its layout is broken.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_002`, `TestTodo_CHATBUG_002_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=adding a reaction is the most common action in Chat after sending`.
+  - **TEST:** `TestTodo_CHATBUG_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_002`; `BROWSER=TestTodo_CHATBUG_002_Browser`.
+  - **RED:** (i2-desktop 04) the picker opened in the top-left corner over the logo; (i3-desktop 04) it opens in the top-right corner over the page header, the word Recent is broken one letter per line, and the search label and box share one cramped row.
+  - **GREEN:** the picker opens beside the button that opened it, inside the viewport, with its search box on its own row, category labels on one line, a full grid, Escape to close and focus returned to the button.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat5_layers.go`, `internal/humanwork/chatui/emoji_picker_js.go`, `internal/humanwork/chatui/agentux_chat4_emoji.go`.
+
+- [x] `CHATBUG-003` **[PHASE_3][SOL_HIGH] The composer toolbar has lost its tools: only one formatting button and the emoji button remain.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_003`, `TestTodo_CHATBUG_003_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=italic, code, link, lists and quote were one click away this morning; voice and location were added today and cannot be reached`.
+  - **TEST:** `TestTodo_CHATBUG_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_003`; `BROWSER=TestTodo_CHATBUG_003_Browser`.
+  - **RED:** (i3-desktop 01, 24) at 1440 px the toolbar shows a greyed B and the emoji button; the Markdown label, italic, code, link, bulleted list and quote buttons, the voice control and the location control are absent; the scripted steps for Bold, Location and Voice time out.
+  - **GREEN:** at desktop and tablet widths every formatting tool is its own button as before; voice and location are icon buttons in the same row when their service is available and absent when not; tools collapse into one menu only below 480 px.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_format.go`, `internal/humanwork/chatui/agentux_chat5_composer.go`, `internal/humanwork/chatui/styles_composer.go`.
+
+- [x] `CHATBUG-004` **[PHASE_3][SOL_HIGH] Search in Chat does not work, and its failure breaks the page layout.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_004`, `TestTodo_CHATBUG_004_Browser` exist and passed in `internal/application`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=search worked before today's changes; now it returns nothing and leaves debris on the page`.
+  - **TEST:** `TestTodo_CHATBUG_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_004`; `BROWSER=TestTodo_CHATBUG_004_Browser`.
+  - **RED:** (i3-desktop 21 to 24) POST /api/chat/search answers 503; the page prints "This feature is not available here yet." as plain text above the channel header and pushes the header down; a clipped search box is drawn behind the header; the notice stays after the search is cleared; (i2-desktop 22) a second search dialog opened in the top-left corner beside the sidebar's own box.
+  - **GREEN:** typing a query in the one search box returns messages, channels and people the person can read, grouped, with the match highlighted and each result opening at its place; if the service is down, one quiet line appears in the results area and nothing else on the page moves.
+  - **Owner (2026-10-01):** integrate-2 (service), chat-polish (layout).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chatsearch`, `internal/application/chatsearch_http.go`, `internal/humanwork/chatui/chatsearch_results.go`, `internal/humanwork/chatui/search_filters.go`.
+
+- [x] `CHATBUG-005` **[PHASE_3][SOL_HIGH] The Saved list cannot be opened, and its count is wrong.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_005`, `TestTodo_CHATBUG_005_Browser` exist and passed in `internal/application`, `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the owner confirmed saving works; reading the list back does not`.
+  - **TEST:** `TestTodo_CHATBUG_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_005`; `BROWSER=TestTodo_CHATBUG_005_Browser`.
+  - **RED:** (i3-desktop 08) the Saved row in the sidebar is greyed and does not respond; POST /api/chat/saved answers 503 while GET answers 200; the count stayed at 2 after the message was unsaved; (i2-desktop 08 to 11) the list did not appear on screen, Escape did not close it, and one row showed a raw identifier.
+  - **GREEN:** the Saved row opens a right-side panel with To do, Done and All; saving and unsaving from the hover bar or the menu updates the count at once; Escape closes the panel and returns focus; no identifier is shown.
+  - **Owner (2026-10-01):** integrate-2 (service), chat-polish (panel).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/chatsave_http.go`, `internal/humanwork/chatui/chatsave_view.go`, `tools/uxqual/cmd/journeywasm/chatsave_client.go`.
+
+- [ ] `CHATBUG-006` **[PHASE_3][SOL_HIGH] Sources under an agent's answer are not links and claim the owner cannot open the document.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the owner asked for document links twice today`.
+  - **TEST:** `TestTodo_CHATBUG_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_006`; `BROWSER=TestTodo_CHATBUG_006_Browser`.
+  - **RED:** (i3-desktop 16, 38) under Policy Helper's answer each source reads its title and "You cannot open this document", with no link, for Walt Brennan, who owns the agent and can open both documents.
+  - **GREEN:** each source is a link that opens the document at the cited section for a reader who may open it; the access note appears only for a reader who truly may not, decided on the server for that reader.
+  - **Owner (2026-10-01):** answer-quality.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/agentux_answer_source_access.go`, `internal/humanwork/chatui/agentux_dm_sources.go`.
+
+- [ ] `CHATBUG-007` **[PHASE_3][SOL_HIGH] The posted announcement shows raw data instead of a message.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the first announcement on the served product is unreadable to the people it was for`.
+  - **TEST:** `TestTodo_CHATBUG_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_007`; `BROWSER=TestTodo_CHATBUG_007_Browser`.
+  - **RED:** (i3-desktop 16, shots/ann13/4-channel.png) in #general the author reads "Hcmnext Local Persona Assistant" with the initials HA, the body is the literal text <hcm_agent_announcement> followed by its JSON, an empty "Linked document" card follows, and the text lists Labor Day (September 7) as upcoming on October 1.
+  - **GREEN:** the message shows the agent's icon, name and badge, the text with its lines, linked sources and who it was posted for; past dates are not listed as upcoming.
+  - **Owner (2026-10-01):** proactive-live-2.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_proactive_message.go`, `internal/application/agentux_proactive_delivery.go`.
+
+- [x] `CHATBUG-008` **[PHASE_3][TERRA] The message menu has three look-alike red entries and offers to report your own message.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_008`, `TestTodo_CHATBUG_008_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=a person cannot tell which entry unsaves, which deletes for everyone and which is the moderator's removal`.
+  - **TEST:** `TestTodo_CHATBUG_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_008`; `BROWSER=TestTodo_CHATBUG_008_Browser`.
+  - **RED:** (i3-desktop 06) the menu lists "Remove" (which removes the message from Saved), "Delete message", "Report message" and "Remove message", all in red, on the person's own message; the saved-state button in the hover bar is titled "Remove"; the menu's bottom edge touches the hover bar.
+  - **GREEN:** the saved entry reads "Remove from Saved" and is not red; Delete message appears on one's own messages; Report message appears on other people's; Remove message appears only for holders of that permission and is separated; the menu opens clear of the bar.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/message_menu.go`, `internal/humanwork/chatui/chatsave_view.go`, `internal/humanwork/chatui/chatremove_views.go`.
+
+- [x] `CHATBUG-009` **[PHASE_3][TERRA] A GIF attachment shows three different states across loads of the same message.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_009`, `TestTodo_CHATBUG_009_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the same message should look the same every time it is opened`.
+  - **TEST:** `TestTodo_CHATBUG_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_009`; `BROWSER=TestTodo_CHATBUG_009_Browser`.
+  - **RED:** (i3-desktop 01, 04, 06) the GIF under Danny Nguyen's message in #random shows a preview in one capture, an empty tile with a GIF badge in the next, and "Preview unavailable" with a Download button in the third, seconds apart.
+  - **GREEN:** the preview loads once and stays; while loading the tile keeps its size and shows a neutral placeholder; "Preview unavailable" appears only when the media really cannot be loaded, and does not flip back and forth.
+  - **Owner (2026-10-01):** unassigned.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/giphy_embed.go`, `internal/humanwork/chatui/image_loading_js.go`, `tools/uxqual/cmd/journeywasm/chat_media_wasm.go`.
+
+- [x] `CHATBUG-010` **[PHASE_3][TERRA] In the thread pane two hover actions sit on top of each other.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_010`, `TestTodo_CHATBUG_010_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=one of the two cannot be pressed`.
+  - **TEST:** `TestTodo_CHATBUG_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_010`; `BROWSER=TestTodo_CHATBUG_010_Browser`.
+  - **RED:** (i3-desktop 13, automated overlap finding) in the thread reply's action bar the "more" button and "Save for later" occupy the same position.
+  - **GREEN:** each action in a thread reply's bar has its own place, the same order as in the main timeline.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/persona_thread.go`, `internal/humanwork/chatui/chatsave_view.go`.
+
+- [x] `CHATBUG-011` **[PHASE_3][TERRA] A conversation shows its identifier as its name while Chat loads.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_011`, `TestTodo_CHATBUG_011_Browser` exist and passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=a 36-character identifier in the sidebar reads as breakage`.
+  - **TEST:** `TestTodo_CHATBUG_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_011`; `BROWSER=TestTodo_CHATBUG_011_Browser`.
+  - **RED:** (i3-desktop 01, automated raw-identifier finding; browser pane 15:45) a direct conversation with an agent is listed as 673214ec-4402-5f09-… with a "6" avatar until the agent directory answers, and stays that way when it fails.
+  - **GREEN:** a conversation whose name is not known yet shows a neutral placeholder row; an agent conversation shows the agent's name from the conversation's own record without waiting for the directory.
+  - **Owner (2026-10-01):** integrate-2.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/agentux_dm_projection.go`, `internal/humanwork/chatui/render.go`.
+
+- [x] `CHATBUG-012` **[PHASE_3][TERRA] Two Chat services answer with an error on every page load.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_012`, `TestTodo_CHATBUG_012_Browser` exist and passed in `internal/application`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=an error on every load hides real errors and costs a request each time`.
+  - **TEST:** `TestTodo_CHATBUG_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_012`; `BROWSER=TestTodo_CHATBUG_012_Browser`.
+  - **RED:** (i3-desktop report) GET /api/chat-writing-style/suggestion answers 503 on every Chat load; GET /api/chat/renderings/v1/settings answered 404 on every load through the 16:30 build.
+  - **GREEN:** a feature that is not available answers with a typed "not available" body and a success status its client understands, the client asks once per session, and the console is clean on load.
+  - **Owner (2026-10-01):** integrate-2.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/chattone_http.go`, `internal/application/chatrender_surface.go`, `tools/uxqual/cmd/journeywasm/chattone_wasm.go`.
+
+- [x] `CHATBUG-013` **[PHASE_3][TERRA] An agent's icon differs between its messages and everywhere else.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_013`, `TestTodo_CHATBUG_013_Browser` exist and passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the owner asked that every agent have its own icon; a message from Policy Helper still shows the shared fallback`.
+  - **TEST:** `TestTodo_CHATBUG_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_013`; `BROWSER=TestTodo_CHATBUG_013_Browser`.
+  - **RED:** (i3-desktop 16) Policy Helper's messages and private answers show a blue diamond; channel details and the mention menu show its stored icon, a book on a green shape; the Assistant likewise.
+  - **GREEN:** the agent's stored icon is drawn beside every message and answer it wrote, in the sidebar, the header, the mention menu and details, at the size of a person's avatar in that place.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/mention.go`, `internal/humanwork/agenticon`.
+
+- [ ] `CHATBUG-014` **[PHASE_3][SOL_HIGH] Chat takes ten to twelve seconds to become usable on a fresh load, and the client is over its size limit.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the client grew by more than a megabyte today and is past the ceiling the build enforces`.
+  - **TEST:** `TestTodo_CHATBUG_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_014`; `BROWSER=TestTodo_CHATBUG_014_Browser`.
+  - **RED:** (i3-desktop 01) 10.3 s from navigation to a usable composer in the headless run (11.9 and 12.5 s on the earlier builds); journey.wasm is 61.55 MB against a 60 MB ceiling and 12.46 MB compressed against 12 MB, so a normal build refuses to produce it.
+  - **GREEN:** the client is under both ceilings without raising them; the composer is usable within 3 seconds on the same machine; features load their heavier code and data only when opened.
+  - **Owner (2026-10-01):** integrate-2.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/performance_budget.go`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `CHATBUG-015` **[PHASE_3][SOL_HIGH] The Assistant says it has no holiday documents in the channel where the holiday guide is placed.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=this is the general-purpose agent's headline question`.
+  - **TEST:** `TestTodo_CHATBUG_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_015`; `BROWSER=TestTodo_CHATBUG_015_Browser`.
+  - **RED:** (i3-desktop 16) in #general, "which company holidays are coming up in the rest of 2026" is answered "I don't have any company holiday documents provided in this conversation"; the 2026 holiday guide is placed in #general and the same agent's announcement read it.
+  - **GREEN:** the Assistant searches the conversation's documents before answering and answers from the guide with a linked source.
+  - **Owner (2026-10-01):** assistant-search second pass (queued).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/agentux_search_runtime.go`, `internal/application/persona_runtime_tools.go`.
+
+- [ ] `CHATBUG-016` **[PHASE_3][TERRA] At phone width, channel details opens underneath the composer.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the lower part of the panel, where the agents are listed, cannot be read or pressed`.
+  - **TEST:** `TestTodo_CHATBUG_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_016`; `BROWSER=TestTodo_CHATBUG_016_Browser`.
+  - **RED:** (i3-mobile 16) with Conversation details open at 390 px the message box and Send button stay on top of the panel and cover "Agents here".
+  - **GREEN:** at phone width an open panel covers the conversation including the composer, with its own close button, and the composer returns when it closes.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/styles_surfaces.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `CHATBUG-017` **[PHASE_3][TERRA] At phone width a stray "more" button floats at the edge of the message list.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=it belongs to no visible message and overlaps text`.
+  - **TEST:** `TestTodo_CHATBUG_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_017`; `BROWSER=TestTodo_CHATBUG_017_Browser`.
+  - **RED:** (i3-mobile 01) a "…" button is drawn at the right edge between two messages with nothing hovered or focused.
+  - **GREEN:** message actions appear only for the message being touched or focused, inside its row.
+  - **Owner (2026-10-01):** chat-polish.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat4_styles.go`, `internal/humanwork/chatui/agentux_chat4_touch_js.go`.
+
+- [ ] `CHATBUG-018` **[PHASE_3][SOL_HIGH] An agent retried an old question by itself when Chat loaded, and answered with only a document title.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=nothing should spend a model call without a person asking, and a title is not an answer`.
+  - **TEST:** `TestTodo_CHATBUG_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_018`; `BROWSER=TestTodo_CHATBUG_018_Browser`.
+  - **RED:** (browser pane, 14:09 build) the page called the retry endpoint for an earlier question during load with no click; a new Policy Helper answer appeared reading only "Paid time off policy"; the same title-only answer exists from 11:16.
+  - **GREEN:** retry happens only when a person presses Retry; an answer that contains no statement beyond a document title is rejected by the answer check and regenerated or refused.
+  - **Owner (2026-10-01):** integrate-2 (retry), answer-quality (content).
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/application/persona_run_output_validator.go`.
+
+### 105.2 Second scan: browser pane and scripted walk, build of 17:35
+
+Found by walking every Chat surface by hand in the Claude browser pane at 800 px (channel, history, details panel, to-do list, poll, search, composer, mention and command menus, emoji picker, message menu, thread, Saved, Add channels, New section, Quiet hours, Reading languages, new conversation, both agent conversations, a person conversation, a group, a private channel, announcements) and by the scripted walk at 1440 and 390 px (`shots/i5-desktop`, `shots/i6-desktop`, `shots/i6-mobile`, `shots/s1-*`). The same closing rule applies: a bug closes only when the served build shows the GREEN state after a real reload.
+
+- [x] `CHATBUG-019` **[PHASE_3][SOL_HIGH] Every message is replaced by a placeholder sentence instead of its text.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_019`, `TestTodo_CHATBUG_019_Browser` exist and passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=for several seconds on every conversation, and for the whole session on the 17:15 build, nobody could read any message`.
+  - **TEST:** `TestTodo_CHATBUG_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_019`; `BROWSER=TestTodo_CHATBUG_019_Browser`.
+  - **RED:** (i5-desktop 01 to 46, build 17:15) every message body read "This view is unavailable. Try again later." because the reading request was sent to `/api/chat/renderings/v1/reader%3Fconversation=...` and answered 404; (browser pane, build 17:35) on opening #incident-review, #random and a thread every body read "Preparing this view. The original will appear shortly if allowed." for about ten seconds before the text appeared.
+  - **GREEN:** a message shows the text the server delivered at once; a different rendering replaces it only when one was selected for this reader; a failed or slow reading request never hides text that is already on the page; a placeholder is shown only for a message whose original the server itself withheld.
+  - **Owner (2026-10-01):** orchestrator (address fix, 17:33), Sonnet reader agent (placeholder).
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`, `internal/humanwork/chatui/integrate2_reader.go`.
+
+- [x] `CHATBUG-020` **[PHASE_3][SOL_HIGH] Sources on the answer card in a channel are still not links, and one source is refused to its own author.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_020`, `TestTodo_CHATBUG_020_Browser` exist and passed in `internal/application`, `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the owner asked a third time why document titles are not links`.
+  - **TEST:** `TestTodo_CHATBUG_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_020`; `BROWSER=TestTodo_CHATBUG_020_Browser`.
+  - **RED:** (browser pane and shots/s1-channelgeneral, build 17:35) under Policy Helper's 11:18 answer in #general both sources read "You cannot open this document" for Walt Brennan; in the Policy Helper conversation the same answer links "Paid time off policy" but refuses "2026 holiday guide", which Walt Brennan wrote.
+  - **GREEN:** every source the reader may open is a link to the document at the cited section, on the channel card and in the agent conversation alike; the document title inside the answer text is a link too; the access note appears only for a reader who truly may not open it.
+  - **Owner (2026-10-01):** Sonnet sources agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/agentux_answer_source_access.go`, `internal/application/agentux_answer_source_binding.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/collaboration/chat`.
+
+- [ ] `CHATBUG-021` **[PHASE_3][SOL_HIGH] Agent answers and search results show internal text: context tokens, share addresses and raw announcement data.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=internal markers are unreadable, look broken and expose identifiers`.
+  - **TEST:** `TestTodo_CHATBUG_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_021`; `BROWSER=TestTodo_CHATBUG_021_Browser`.
+  - **RED:** (shots/s1-dmpolicyhelper, browser pane) the answer in the Policy Helper conversation shows a link reading `chat-agent-question-context:eyJ...` and the model's own "Sources" list above the Sources row; (browser pane, search for holiday) results print `[chat-agent-question-context:eyJ...]`, `(/chat/share/...#hcm-question=...)` and `<hcm_agent_announcement> {"AgentName":...}`.
+  - **GREEN:** an answer shows its statement once and its sources once, in the Sources row; no context token, share address, markup tag or data field is ever printed in a message, a result, a notification or a saved item.
+  - **Owner (2026-10-01):** Sonnet sources agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/chatsearch_results.go`, `internal/application/persona_reply_delivery.go`, `internal/collaboration/chatsearch`.
+
+- [ ] `CHATBUG-022` **[PHASE_3][SOL_HIGH] Search fails four times and answers about fifteen seconds late, with nothing on screen while it does.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=a person who presses Enter and sees nothing assumes search is broken`.
+  - **TEST:** `TestTodo_CHATBUG_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_022`; `BROWSER=TestTodo_CHATBUG_022_Browser`.
+  - **RED:** (browser pane, build 17:35) searching for holiday sent POST /api/chat/search four times, each answered 503; no progress, error or result was shown; results appeared about fifteen seconds later, ending with "Some content sources are unavailable. Try again later."
+  - **GREEN:** one request per search; results or one plain line within two seconds for the seeded data; a visible progress state while waiting; a source that cannot answer is named in one quiet line and never delays the others.
+  - **Owner (2026-10-01):** Sonnet search agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/chatsearch_http.go`, `internal/collaboration/chatsearch`, `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`.
+
+- [x] `CHATBUG-023` **[PHASE_3][SOL_HIGH] Search opens in the wrong place and cannot be left.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_023`, `TestTodo_CHATBUG_023_Browser` exist and passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=search covers the sidebar, duplicates its own box, and strands the person in the results`.
+  - **TEST:** `TestTodo_CHATBUG_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_023`; `BROWSER=TestTodo_CHATBUG_023_Browser`.
+  - **RED:** (browser pane) the search icon in the channel header opens a popover over the sidebar and the navigation rail, far from the icon, covering Saved and the Channels heading, with a second search box under the sidebar's own; typing goes nowhere until that box is clicked; closing the popover leaves the results in place of the conversation; (i5-desktop 23) clearing the query leaves the results; the heading says only "results"; every result is labelled "Open result"; opening a result leaves the address on the previous conversation; the "Return to results" bar does nothing and stays under every conversation after the search is cleared.
+  - **GREEN:** one search box; the header icon focuses it; results state their count and where each match is (conversation, author, time) and each opens at its place; clearing the query or pressing Escape returns to the conversation that was open; "Return to results" returns to the results and disappears when the search is cleared; the address always names the conversation on screen.
+  - **Owner (2026-10-01):** Sonnet search agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatsearch_results.go`, `internal/humanwork/chatui/search_filters.go`, `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`.
+
+- [x] `CHATBUG-024` **[PHASE_3][SOL_HIGH] The channel details panel prints raw copy keys for message filters, and its link leads to an error.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_024`, `TestTodo_CHATBUG_024_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=a copy key and a dead link in the first panel an admin opens`.
+  - **TEST:** `TestTodo_CHATBUG_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_024`; `BROWSER=TestTodo_CHATBUG_024_Browser`.
+  - **RED:** (browser pane) the foot of Conversation details reads ⟦chat.filters.title⟧, ⟦chat.filters.direct⟧ and a button ⟦chat.filters.manage⟧; the button goes to `/workspace/app/chat/filters?channel=...`, which shows the Home page with the text "context canceled".
+  - **GREEN:** the section reads in plain words in en-US, de-DE and ar and appears only for a person who may manage filters; its control opens the filter settings for this channel; no route ever shows "context canceled" or any other internal error text.
+  - **Owner (2026-10-01):** Sonnet details agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatfilter_view.go`, `internal/humanwork/chatui/copy.go`, `internal/humanwork/workspace`.
+
+- [ ] `CHATBUG-025` **[PHASE_3][SOL_HIGH] The channel status block and the agent rows in the details panel are unfinished.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the panel mixes three visual styles and lists empty fields`.
+  - **TEST:** `TestTodo_CHATBUG_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_025`; `BROWSER=TestTodo_CHATBUG_025_Browser`.
+  - **RED:** (browser pane) Status is a white unstyled box listing "Changed by Not set", "Changed at Not set", "Reason" and "Ends at Not set" for a channel whose status never changed; "Role labels ·" ends in a stray dot; agents in the member list are plain rows reading "Assistant · Agent" with no icon; Notifications is a native select beside custom disclosures; Integrations offers "Copy API curl" to every member.
+  - **GREEN:** Status shows the current state in one line and its history only when there is one; no label ends in a separator; agent rows carry the agent's own icon and the Agent badge like everywhere else; one control style in the panel; developer tools appear only for a person who may create an app token and are named in plain words.
+  - **Owner (2026-10-01):** Sonnet details agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatstate_status.go`, `internal/humanwork/chatui/details_panel.go`.
+
+- [x] `CHATBUG-026` **[PHASE_3][SOL_HIGH] Quiet hours opens as an empty strip that will not close, and Reading languages covers the page and closes itself.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_026`, `TestTodo_CHATBUG_026_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=two sidebar controls that do nothing useful and leave debris`.
+  - **TEST:** `TestTodo_CHATBUG_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_026`; `BROWSER=TestTodo_CHATBUG_026_Browser`.
+  - **RED:** (browser pane) Quiet hours opens an empty white strip over the Reading languages row; Escape does not close it and it stays above the New conversation dialog; Reading languages opens over the navigation rail, the whole sidebar and part of the composer, reads "Loading language settings..." with every control disabled, closes by itself after about eight seconds, and leaves its row greyed out.
+  - **GREEN:** each control opens its panel above its own row, inside the sidebar column, with its content; only one is open at a time; Escape and a click elsewhere close it and return focus; loading shows inside the open panel and never closes it.
+  - **Owner (2026-10-01):** Sonnet popover agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/quiet_hours.go`, `internal/humanwork/chatui/chatrender_settings.go`, `internal/humanwork/chatui/agentux_chat5_layers.go`.
+
+- [x] `CHATBUG-027` **[PHASE_3][SOL_HIGH] Several disclosures do nothing, pickers ignore Escape, and header buttons stay pressed.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_027`, `TestTodo_CHATBUG_027_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=controls that highlight and do nothing read as broken`.
+  - **TEST:** `TestTodo_CHATBUG_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_027`; `BROWSER=TestTodo_CHATBUG_027_Browser`.
+  - **RED:** (browser pane) "More options" in the to-do list and "New section" in the sidebar highlight on click and open nothing; the poll popover has a horizontal and a vertical scrollbar and its Create poll button is clipped; the to-do popover shows a scrollbar for three rows; the reaction picker stays open after Escape and after the thread is closed; To-do list and Channel poll stay drawn as pressed after their popovers close; the first click on the composer after closing a dialog is lost.
+  - **GREEN:** every disclosure opens its content on click and on Enter or Space; popovers size to their content with no scrollbar unless the content exceeds the viewport; Escape closes the topmost layer and returns focus to its opener; a header button is drawn pressed only while its popover is open; a click after a dialog closes lands where it was aimed.
+  - **Owner (2026-10-01):** Sonnet popover agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat5_layers.go`, `internal/humanwork/chatui/todo_view.go`, `internal/humanwork/chatui/poll_view.go`, `internal/humanwork/chatui/sidebar_sections.go`.
+
+- [ ] `CHATBUG-028` **[PHASE_3][SOL_HIGH] The composer's menus are missing or failing: agents in mentions, commands, and writing styles.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=mentioning an agent is how every agent feature starts`.
+  - **TEST:** `TestTodo_CHATBUG_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_028`; `BROWSER=TestTodo_CHATBUG_028_Browser`.
+  - **RED:** (browser pane, #random) typing @ shows "The agent list could not be loaded." with Try again; typing / shows no menu at all; a long draft shows no writing-style controls in any conversation; an unsent "/" typed in one conversation appeared as the draft of #general and #announcements in another session.
+  - **GREEN:** @ lists the agents available in this conversation (or says plainly that none are installed here) without an error; / opens the command list; the three writing-style controls appear when a draft is long enough and the service is available, and are absent otherwise; a draft belongs to the conversation it was typed in and never appears in another.
+  - **Owner (2026-10-01):** Sonnet composer agent.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/composer_mentions.go`, `internal/humanwork/chatui/chattone_view.go`, `tools/uxqual/cmd/journeywasm/chat_state.go`.
+
+- [ ] `CHATBUG-029` **[PHASE_3][SOL_LOW] The emoji picker offers eight emoji in the wrong groups.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=a picker with eight choices is not a picker`.
+  - **TEST:** `TestTodo_CHATBUG_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_029`; `BROWSER=TestTodo_CHATBUG_029_Browser`.
+  - **RED:** (browser pane) the picker lists a "Recent" heading with nothing under it, "Faces" containing folded hands and eyes, and "Symbols" containing thumbs up, party and fire; eight emoji in total; the composer's picker opens at the right edge of the page, away from its button.
+  - **GREEN:** the picker offers the standard set by category with search, shows Recent only when there are recent emoji, and opens beside the button that opened it.
+  - **Owner (2026-10-01):** superseded by `CHATEMOJI-001` and `CHATEMOJI-002` (section 106), which replace the picker; this entry closes with them.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat4_emoji.go`, `internal/humanwork/chatui/emoji_picker_js.go`.
+
+- [x] `CHATBUG-030` **[PHASE_3][SOL_HIGH] The message menu offers both Delete message and Remove message, and action bars are left floating.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_030`, `TestTodo_CHATBUG_030_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=two destructive commands with no visible difference invite the wrong one`.
+  - **TEST:** `TestTodo_CHATBUG_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_030`; `BROWSER=TestTodo_CHATBUG_030_Browser`.
+  - **RED:** (i5-desktop 06, browser pane) the menu on the person's own message ends with "Delete message" and "Remove message", both red with the same icon; (browser pane) a card holding one bookmark button floats over the top right of the thread pane; the hover bar of a message stays on screen after the pointer leaves and after the thread closes; (i5-desktop 08) the message menu stayed open while the Saved list was opened.
+  - **GREEN:** a person sees one command to delete their own message; an admin removing someone else's message sees one command, named for what it does, with its confirmation; action bars appear only for the message under the pointer or focus and menus close when another surface opens.
+  - **Owner (2026-10-01):** Sonnet messages agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatremove_views.go`, `internal/humanwork/chatui/message_menu.go`, `internal/humanwork/chatui/agentux_chat4_styles.go`.
+
+- [x] `CHATBUG-031` **[PHASE_3][SOL_LOW] Attachments render as an empty grey box or as "Preview unavailable" with overlapping labels.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_031`, `TestTodo_CHATBUG_031_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=pictures are a large part of a chat history`.
+  - **TEST:** `TestTodo_CHATBUG_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_031`; `BROWSER=TestTodo_CHATBUG_031_Browser`.
+  - **RED:** (browser pane) the GIF in #random and #incident-review shows "Preview unavailable" with the GIF badge drawn over the Download link; an image in #announcements is an empty grey box (an image element with no source); the same GIF renders in the scripted walk.
+  - **GREEN:** an attachment shows its preview, or a neutral placeholder with one clearly separated action when a preview cannot be made; no label overlaps another; a slow preview shows progress and then the picture.
+  - **Owner (2026-10-01):** Sonnet messages agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/attachments.go`, `internal/humanwork/chatui/gif_preview.go`, `tools/uxqual/cmd/journeywasm/chat_media_wasm.go`.
+
+- [x] `CHATBUG-032` **[PHASE_3][SOL_LOW] Labels run together on the linked-document card and in the phone header.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_032`, `TestTodo_CHATBUG_032_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=missing separators make three facts read as one word`.
+  - **TEST:** `TestTodo_CHATBUG_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_032`; `BROWSER=TestTodo_CHATBUG_032_Browser`.
+  - **RED:** (browser pane, i6-mobile 38) the card reads "Linked document2026 holiday guideWalt Brennan · Oct 1"; (i6-mobile 01, 38) the phone header reads "Public17 members" and "Public18 members 2 agents".
+  - **GREEN:** the card shows its label, the title and the author and date as three separated parts; the header separates type, member count and agent count the same way at every width.
+  - **Owner (2026-10-01):** Sonnet messages agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/document_card.go`, `internal/humanwork/chatui/header.go`.
+
+- [x] `CHATBUG-033` **[PHASE_3][SOL_HIGH] Agents show a shared placeholder icon in the sidebar and conversation before or instead of their own.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_033`, `TestTodo_CHATBUG_033_Browser` exist and passed in `internal/application`, `internal/humanwork/agenticon`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the owner asked that every agent have its own icon, not a shared one`.
+  - **TEST:** `TestTodo_CHATBUG_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_033`; `BROWSER=TestTodo_CHATBUG_033_Browser`.
+  - **RED:** (browser pane) after a reload both Policy Helper and Assistant show the same blue diamond in the sidebar, the conversation header and their messages, while the answer card and the details panel show their own icons; the icons swap in seconds later or after another navigation; (shots/s1-dmpolicyhelper) Assistant showed a letter avatar and no Agent badge; the Assistant conversation header reads "Answers from policy documents", which is Policy Helper's line.
+  - **GREEN:** an agent's own generated icon is shown everywhere it appears from the first paint (sidebar, header, messages, mention menu, details, member list); a neutral shape is used only for an agent that has no stored icon, never the same glyph for two agents; the header line is the agent's own description.
+  - **Owner (2026-10-01):** Sonnet icons agent.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/agentux_icon_view.go`, `internal/humanwork/agenticon`.
+
+- [x] `CHATBUG-034` **[PHASE_3][SOL_HIGH] Saving from the hover bar still fails, and the Saved panel is unfinished.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_034`, `TestTodo_CHATBUG_034_Browser` exist and passed in `internal/application`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the list now opens, but saving reports an error and the panel covers the page header`.
+  - **TEST:** `TestTodo_CHATBUG_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_034`; `BROWSER=TestTodo_CHATBUG_034_Browser`.
+  - **RED:** (i6-desktop 07) pressing the bookmark on the hover bar sent POST /api/chat/saved, answered 503, and the panel showed "We could not load your list. Try again." above a loaded list; (browser pane) a saved message prints `doc:doc-47892b80-...`; the panel covers the application header from the very top; its search is an unlabelled box with a full-width button; it closes with a text button while every other panel uses the close icon.
+  - **GREEN:** saving and unsaving succeed and report failure only for the action that failed; a saved message renders its document link as the document's title; the panel sits beside the conversation below the application header and uses the same header, search field and close control as the other Chat panels.
+  - **Owner (2026-10-01):** Sonnet icons agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/chatsave_http.go`, `internal/humanwork/chatui/chatsave_view.go`, `tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go`.
+
+- [x] `CHATBUG-035` **[PHASE_3][SOL_LOW] Small presentation defects in the message list.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_035`, `TestTodo_CHATBUG_035_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=each is minor; together they make the page feel unfinished`.
+  - **TEST:** `TestTodo_CHATBUG_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_035`; `BROWSER=TestTodo_CHATBUG_035_Browser`.
+  - **RED:** (browser pane) "Jump to newest" appears in the Assistant conversation, which has nothing to scroll; the failed-answer card's sentence is set heavier and larger than body text; a failed answer from 8:08 still offers Try again nine hours later; the agent's name is announced twice on an answer card ("Policy Helper Agent Policy Helper:").
+  - **GREEN:** "Jump to newest" appears only when newer messages are out of view; a failure reads at body weight with one icon; a retry offer expires with the question it belongs to; the agent's name is announced once.
+  - **Owner (2026-10-01):** Sonnet messages agent.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/message_list.go`, `internal/humanwork/chatui/agentux_answer_card.go`.
+
+- [ ] `CHATBUG-036` **[PHASE_3][SOL_LOW] The scripted Chat walk no longer finds a third of its controls.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the walk is the evidence for closing every bug in this section`.
+  - **TEST:** `TestTodo_CHATBUG_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_036`; `BROWSER=TestTodo_CHATBUG_036_Browser`.
+  - **RED:** (i6-desktop, i6-mobile) eleven steps at 1440 px and twenty-two at 390 px ended in a locator timeout (Saved Done tab, thread from the hover bar, sidebar search, location, voice, New section, Reading languages, Quiet hours, and most phone steps) after the day's markup changes.
+  - **GREEN:** every step of `.artifacts/lanes/agent-ui/chat-inspect.mjs` finds its control by role and name at 1440 and 390 px, or reports the control as absent as a finding rather than a timeout.
+  - **Owner (2026-10-01):** orchestrator.
+  - **REFACTOR:** none.
+  - **Refs:** `.artifacts/lanes/agent-ui/chat-inspect.mjs`.
+
+## 106. Emoji: the full international set, searchable, in a picker that is quick to use
+
+Owner request, 2026-10-01: "use the international list of all emojis and make sure they are searchable" and "refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand". The picker today offers eight emoji under headings that do not match them (`CHATBUG-029`), which these todos replace.
+
+The international list is the Unicode Consortium's: every fully-qualified emoji in `emoji-test.txt` (Unicode Emoji 17.0, about 3,900 entries with skin-tone and gender sequences, about 1,900 without), in Unicode's own group order (Smileys and Emotion, People and Body, Animals and Nature, Food and Drink, Travel and Places, Activities, Objects, Symbols, Flags). Names and search keywords in each language come from Unicode CLDR annotations (`annotations` and `annotationsDerived`), which exist for English, German and Arabic, the three languages the product ships. Both are published under the Unicode License v3, which allows redistribution with its notice. The files are not on this machine: fetching them is a download the owner has to allow, and the generator below reads them from a local folder so nothing is fetched at build or run time.
+
+Decisions taken for the owner (standard practice, change if wanted):
+- The data is a static asset on the product's own origin, loaded the first time the picker opens and cached, not compiled into the client program (the client has 1.3 MB of headroom under its size ceiling and this data is about 0.6 MB for three languages before compression).
+- Skin-tone variants are folded under their base emoji and chosen with one remembered preference, not listed 5 times each.
+- The picker shows a person's own frequently used emoji first; before they have any, a fixed starter row.
+- Search matches in the reader's language and always in English as well, so ":fire" works for everyone.
+
+- [ ] `CHATEMOJI-001` **[PHASE_3][SOL_HIGH] Ship the full Unicode emoji set with names and keywords in every product language, and make it searchable.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("use the international list of all emojis and make sure they are searchable"); WHY=eight emoji is not a set; people look for an emoji by typing what it means, in their own language`.
+  - **TEST:** `TestTodo_CHATEMOJI_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATEMOJI_001`; `PROPERTY=TestTodo_CHATEMOJI_001_Property`; `PERFORMANCE=TestTodo_CHATEMOJI_001_Performance`; `BROWSER=TestTodo_CHATEMOJI_001_Browser`.
+  - **RED:** the picker's emoji are eight literals in the client; there is no name, keyword or language data; searching "party" or "Feuer" finds nothing useful.
+  - **GREEN:** a generator (`tools/emojidata`) reads `emoji-test.txt` and the CLDR annotation files for en, de and ar from a local folder and writes one compact data file per language plus a shared order file, checked in with the Unicode licence notice and the data versions; the build never fetches anything. Every fully-qualified emoji is present, grouped and ordered as Unicode orders them, with skin-tone variants attached to their base. The server serves the files as immutable, compressed assets from its own origin under the existing content security policy; the client loads the reader's language (and English) on first open and keeps them for the session. Search: case- and accent-insensitive; Arabic forms normalised; matches the name and every keyword in the reader's language and in English; ranks exact name, then word starts, then substrings, then the person's own frequently used; a shortcode form (`:thumbs_up:`) derived from the English name also matches; an empty query shows the full set; no result shows one plain line naming the query. A query answers within 30 ms for the full set on the review machine.
+  - **REFACTOR:** the literal emoji lists in the picker and the quick-reaction bar are deleted in favour of the data set.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat4_emoji.go`, `internal/humanwork/chatui/emoji_picker_js.go`, `internal/humanwork/workspace/csp.go`, `tools/uxqual/cmd/journeywasm/performance_budget.go`.
+
+- [x] `CHATEMOJI-002` **[PHASE_3][SOL_HIGH] Rebuild the emoji picker so it is fast, obvious and in the right place.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATEMOJI_002`, `TestTodo_CHATEMOJI_002_Accessibility`, `TestTodo_CHATEMOJI_002_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATEMOJI-001`, `CHATBUG-027`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=reacting and adding an emoji are the most frequent actions in Chat after sending; each should take one or two actions`.
+  - **TEST:** `TestTodo_CHATEMOJI_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATEMOJI_002`; `ACCESSIBILITY=TestTodo_CHATEMOJI_002_Accessibility`; `BROWSER=TestTodo_CHATEMOJI_002_Browser`.
+  - **RED:** (browser pane, 2026-10-01 17:35) the composer's picker opens at the right edge of the page, away from its button; it shows a "Recent" heading with nothing under it and two headings whose emoji do not belong to them; it has a scrollbar for eight emoji; Escape does not close it; nothing says what an emoji is called.
+  - **GREEN:** **Placement.** From the composer the picker opens directly above the emoji button, aligned to it, inside the conversation column; from a message it opens beside that message's action bar; it never covers the button that opened it, never leaves the viewport, and at phone width it is a sheet across the bottom of the screen. **Layout, top to bottom.** A search field that has the cursor the moment the picker opens ("Search emoji"); one row of category tabs, each an emoji-style icon with its name as tooltip and accessible name, the current one marked; the grid, eight across at desktop width with 36 px cells (44 px on touch), starting with "Frequently used" (the person's own most used, or the starter row 👍 ❤️ 😂 🎉 🙏 👀 ✅ 🔥 before they have any, and no heading is ever shown empty), then every category under its own sticky heading; a footer that shows the emoji under the pointer or focus large, with its name and shortcode, and holds the skin-tone control. **Flow.** Typing at any time goes to the search field and filters the grid in place, best match first and already highlighted, so type-then-Enter inserts it; arrow keys move through the grid, Enter chooses, Escape clears a query first and closes second, and focus returns to the opener; clicking a category tab scrolls the grid to it and scrolling updates the marked tab. For a reaction, choosing an emoji adds the reaction and closes. In the composer, choosing inserts at the caret and closes; Shift with click or Enter inserts and keeps the picker open for more. A skin tone is chosen once from the footer control, applies to every emoji that has tones, and is remembered for the person. **Speed.** The picker is on screen within 100 ms of the click with the frequently used row drawn; the full set fills in without blocking typing; only the rows near the viewport are in the page. **Clarity.** Every emoji button is named for the emoji; the picker is a labelled dialog with a grid; it reads right-to-left correctly in Arabic; no scrollbar appears unless the grid is taller than the picker; it works with no focus events and throttled timers (the review pane).
+  - **REFACTOR:** one picker component serves the composer, the thread composer and reactions; the two existing variants are removed.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat4_emoji.go`, `internal/humanwork/chatui/emoji_picker_js.go`, `internal/humanwork/chatui/agentux_chat5_layers.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
+
+- [ ] `CHATEMOJI-003` **[PHASE_3][SOL_HIGH] Reach an emoji without opening the picker: type a colon, and one-click reactions that are yours.**
+  - **Depends:** `CHATEMOJI-001`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("easier and faster to use"); WHY=the fastest picker is the one that never has to open`.
+  - **TEST:** `TestTodo_CHATEMOJI_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATEMOJI_003`; `ACCESSIBILITY=TestTodo_CHATEMOJI_003_Accessibility`; `BROWSER=TestTodo_CHATEMOJI_003_Browser`.
+  - **RED:** typing `:fire` in the composer does nothing; the three one-click reactions on a message's action bar are the same fixed three for everyone.
+  - **GREEN:** typing a colon and two or more letters in the composer or a thread reply opens a short list above the caret (five best matches, emoji, name and shortcode), in the same list style as mentions; arrows choose, Enter or Tab inserts the emoji in place of the typed text, Escape leaves the text as typed; a complete `:shortcode:` typed or pasted becomes the emoji when the message is sent, except inside code. The one-click reactions on the action bar are the person's three most used, with 👍 ✅ 👀 until they have their own; an existing reaction chip is added to or removed from with one click, as now.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_mentions.go`, `internal/humanwork/chatui/agentux_chat4_emoji.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
+
+## 107. Chat: flow and placement refinements from the scan loop
+
+Owner request, 2026-10-01: "refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand ... do a quick visual scan every minute ... spawn new todos to handle them and keep on doing quick refinements ... until no issues remain". Section 105 holds defects (something is broken). This section holds refinements: the thing works, but it is in the wrong place, takes too many steps, or does not explain itself. Each entry states what a person does most often on that surface and puts that first. Entries are added by the loop as it finds them; an entry closes when the served build shows the GREEN state in the browser at 1440, 800 and 390 px.
+
+Principles applied to every entry: the most frequent action on a surface is one click or one keystroke away and is the most prominent control; settings do not sit among navigation; one control style per job; every control says what it does in words a new employee understands; nothing appears that the person cannot use.
+
+- [x] `CHATUX-001` **[PHASE_3][SOL_HIGH] The channel header gives its best space to the rarest actions.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_001`, `TestTodo_CHATUX_001_Accessibility`, `TestTodo_CHATUX_001_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=search and details are used many times a day; creating a poll is used once a month`.
+  - **TEST:** `TestTodo_CHATUX_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_001`; `ACCESSIBILITY=TestTodo_CHATUX_001_Accessibility`; `BROWSER=TestTodo_CHATUX_001_Browser`.
+  - **RED:** (browser pane, 17:57) the header's only labelled buttons are "To-do list" and "Channel poll"; search and details are two small unlabelled icons beside them; pinned messages are reachable only from inside the details panel.
+  - **GREEN:** the header shows, in order: the channel name with its purpose on one muted line (click opens details), then Search, Pinned (with its count, opening the pinned list directly), Members (count, opening the member list) and Details, each an icon with a tooltip and an accessible name; "To-do list" stays in the header only when the channel has open tasks (showing the count) and otherwise moves, with "Channel poll", into the composer's add menu (`CHATUX-004`); at 390 px the header keeps the name, Search and Details.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/header.go`, `internal/humanwork/chatui/todo_view.go`, `internal/humanwork/chatui/poll_view.go`.
+
+- [x] `CHATUX-002` **[PHASE_3][SOL_HIGH] Three settings sit permanently at the foot of the conversation list.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_002`, `TestTodo_CHATUX_002_Accessibility`, `TestTodo_CHATUX_002_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=the foot of the list is where the eye lands when looking for a conversation; settings there are in the way every time and used almost never`.
+  - **TEST:** `TestTodo_CHATUX_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_002`; `ACCESSIBILITY=TestTodo_CHATUX_002_Accessibility`; `BROWSER=TestTodo_CHATUX_002_Browser`.
+  - **RED:** (browser pane) "New section", "Quiet hours" and "Reading languages" are three fixed rows under the direct messages, taking about 110 px of the list at every height.
+  - **GREEN:** one "Chat preferences" control (gear icon, tooltip and accessible name) in the Conversations heading beside the new-conversation control opens a single panel with Notifications and quiet hours, Reading languages, and Saved-message reminders, each in plain words with its current value shown; "New section" becomes an item in the Channels heading's menu beside "Add channels"; the foot of the list holds nothing but conversations; quiet hours being on is shown by one small moon beside the Conversations heading.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/sidebar.go`, `internal/humanwork/chatui/quiet_hours.go`, `internal/humanwork/chatui/chatrender_settings.go`, `internal/humanwork/chatui/sidebar_sections.go`.
+
+- [ ] `CHATUX-003` **[PHASE_3][SOL_HIGH] An agent's answer card spends five rows on chrome around one sentence.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=the answer is the point; the person should read it, check its source and act in one glance`.
+  - **TEST:** `TestTodo_CHATUX_003`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_003`; `ACCESSIBILITY=TestTodo_CHATUX_003_Accessibility`; `BROWSER=TestTodo_CHATUX_003_Browser`.
+  - **RED:** (browser pane) the card stacks: "Only visible to you" and the time; the agent's icon, name and badge; the answer; a Sources row whose items each carry a second line; a Helpful / Not right row; a "Saved in your conversation with Policy Helper" link and an "Ask a follow-up" button. On the 17:57 build the last two rows were missing altogether.
+  - **GREEN:** one header line (icon, name, Agent badge, time, and the visibility note at the end in muted text); the answer; sources as compact chips on one line, each a link when the reader may open it and a muted chip with a lock and a tooltip when not; one action row: Helpful, Not right, Ask a follow-up (focuses the composer with the agent mentioned) and Share to channel (for a private answer); the link to the saved copy becomes an item in the card's more menu; the card never loses its action row while the agent exists.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_answer_card.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/agentux_answer_feedback.go`.
+
+- [x] `CHATUX-004` **[PHASE_3][SOL_HIGH] The composer has no way to attach a file, start a mention or see commands without knowing the keys.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_004`, `TestTodo_CHATUX_004_Accessibility`, `TestTodo_CHATUX_004_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=a new employee looks for a paperclip and an @ button; neither exists`.
+  - **TEST:** `TestTodo_CHATUX_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_004`; `ACCESSIBILITY=TestTodo_CHATUX_004_Accessibility`; `BROWSER=TestTodo_CHATUX_004_Browser`.
+  - **RED:** (browser pane) the composer's toolbar is the word "Markdown", seven formatting buttons and an emoji button; there is no attach control, no mention button, no add menu, and no hint about Enter and Shift+Enter; the Send button is the only labelled control.
+  - **GREEN:** left to right under the text: an add button (+) opening a menu of Attach a file, Poll, To-do list, Location and Voice message, each with an icon and one line of explanation and each shown only when available here; a mention button (@) that inserts @ and opens the list; the emoji button; a formatting toggle (Aa) that shows or hides the formatting row, hidden by default below 800 px and remembered; the word "Markdown" is removed. At the right: a muted hint "Enter to send, Shift+Enter for a new line" that disappears once the person has sent three messages, and the Send button. Pasting or dropping a file attaches it.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_format.go`, `internal/humanwork/chatui/agentux_chat5_composer.go`, `internal/humanwork/chatui/styles_composer.go`.
+
+- [x] `CHATUX-005` **[PHASE_3][SOL_HIGH] The details panel leads with the rarest sections.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_005`, `TestTodo_CHATUX_005_Accessibility`, `TestTodo_CHATUX_005_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=people open details to see what the channel is for, who is in it and what is pinned`.
+  - **TEST:** `TestTodo_CHATUX_005`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_005`; `ACCESSIBILITY=TestTodo_CHATUX_005_Accessibility`; `BROWSER=TestTodo_CHATUX_005_Browser`.
+  - **RED:** (browser pane) the panel's order is Channel team (purpose, role labels), Channel project (title, milestones), Agents here, Status, Pinned, Notifications, Members, Integrations, Filters.
+  - **GREEN:** order: About (purpose, created by and when, status when not open), Pinned, Members (with agents listed first under their own subheading), Notifications for me, then a collapsed "Manage channel" group for people who may manage it holding Status, Role labels, Project and milestones, Filters and Integrations; each section heading states its count; the panel remembers which groups were open.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/details_panel.go`, `internal/humanwork/chatui/chatstate_status.go`.
+
+- [x] `CHATUX-006` **[PHASE_3][SOL_HIGH] The hint that an agent was not mentioned stays on old messages forever.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_006`, `TestTodo_CHATUX_006_Accessibility`, `TestTodo_CHATUX_006_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=a hint is useful once, at the moment of the mistake`.
+  - **TEST:** `TestTodo_CHATUX_006`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_006`; `ACCESSIBILITY=TestTodo_CHATUX_006_Accessibility`; `BROWSER=TestTodo_CHATUX_006_Browser`.
+  - **RED:** (browser pane, #general history) three old messages reading "@pol explain our PTO policy in detail" each still carry the line "Policy Helper was not mentioned." and an "Ask Policy Helper" button.
+  - **GREEN:** the hint appears only on the person's own message, only while it is the latest message in the conversation or younger than ten minutes, and never for other readers; while typing, text that begins like an agent's name without being a mention shows the hint in the composer before sending ("Press Tab to mention Policy Helper").
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_mention_hint.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `CHATUX-007` **[PHASE_3][SOL_HIGH] The Saved count looks like an alert, and unread conversations are hard to tell apart.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=red means something needs attention; a count of saved items does not`.
+  - **TEST:** `TestTodo_CHATUX_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_007`; `ACCESSIBILITY=TestTodo_CHATUX_007_Accessibility`; `BROWSER=TestTodo_CHATUX_007_Browser`.
+  - **RED:** (browser pane) the Saved row carries a solid red badge "2"; unread conversations are marked only by slightly bolder text and carry no count; a mention of the person is not distinguished from ordinary unread.
+  - **GREEN:** Saved shows its open count as plain muted text; an unread conversation is bold with a neutral count; a conversation where the person was mentioned shows the count in the accent colour; the selected row is the only filled row; a "Jump to unread" control appears at the top or bottom of the list when unread conversations are out of view.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/sidebar.go`, `internal/humanwork/chatui/chatsave_view.go`.
+
+- [x] `CHATUX-008` **[PHASE_3][SOL_HIGH] The thread pane does not say what its controls do.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_008`, `TestTodo_CHATUX_008_Accessibility`, `TestTodo_CHATUX_008_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY="Follow" and "Reply to everyone in #random" each need a guess`.
+  - **TEST:** `TestTodo_CHATUX_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_008`; `ACCESSIBILITY=TestTodo_CHATUX_008_Accessibility`; `BROWSER=TestTodo_CHATUX_008_Browser`.
+  - **RED:** (browser pane) the thread header has a button "Follow" with no explanation; the reply box reads "Reply to everyone in #random" although the reply goes to the thread; there is no option to also post the reply to the channel.
+  - **GREEN:** the header reads "Thread" with the channel as a link under it and a bell toggle named "Notify me about replies" (pressed when on); the reply box reads "Reply in thread"; under it one checkbox "Also send to #random"; the parent message is visually separated from the replies with the reply count as the divider.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/thread_pane.go`.
+
+- [ ] `CHATUX-009` **[PHASE_3][SOL_HIGH] Opening Chat shows nothing for ten seconds or more.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=a blank page reads as a broken page`.
+  - **TEST:** `TestTodo_CHATUX_009`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_009`; `ACCESSIBILITY=TestTodo_CHATUX_009_Accessibility`; `BROWSER=TestTodo_CHATUX_009_Browser`.
+  - **RED:** (scripted walk, 17:35) first load of Chat took 17 seconds to show the composer at 1440 px; nothing is drawn in the conversation area meanwhile.
+  - **GREEN:** the page shell, the conversation list (from the server-rendered page model) and a skeleton of the message list are drawn at once; the last-read conversation's messages replace the skeleton as they arrive; a load longer than five seconds shows one line saying it is still loading; time to first message on the review machine is under four seconds, measured by a browser test.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/workspace`, `tools/uxqual/cmd/journeywasm/performance_budget.go`.
+
+- [x] `CHATUX-010` **[PHASE_3][SOL_HIGH] Search has two names and no shortcut.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_010`, `TestTodo_CHATUX_010_Accessibility`, `TestTodo_CHATUX_010_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=one search, one name, reachable from the keyboard`.
+  - **TEST:** `TestTodo_CHATUX_010`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_010`; `ACCESSIBILITY=TestTodo_CHATUX_010_Accessibility`; `BROWSER=TestTodo_CHATUX_010_Browser`.
+  - **RED:** (browser pane) the sidebar box says "Search messages", the popover says "Search channels, people, and messages", and the page header has a third box "Search workspace"; no shortcut is shown.
+  - **GREEN:** the Chat search box reads "Search Chat" with the shortcut shown inside it (Ctrl+K, or the platform's equivalent), which focuses it from anywhere in Chat; the suggestions under it are grouped Conversations, People, Messages; the workspace search in the page header is visibly separate and named for the workspace.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/search_filters.go`, `internal/humanwork/chatui/chatsearch_results.go`.
+
+- [ ] `CHATUX-011` **[PHASE_3][SOL_HIGH] At phone width the empty composer takes a third of the screen.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=on a phone the conversation is the scarce thing`.
+  - **TEST:** `TestTodo_CHATUX_011`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_011`; `BROWSER=TestTodo_CHATUX_011_Browser`.
+  - **RED:** (browser pane at 375 px, 17:57 build) the composer is three lines tall before anything is typed and, with the two-row page header and the channel header, leaves about half the screen for messages.
+  - **GREEN:** at phone width the composer is one line tall until it has focus or text, then grows with the text up to six lines; its tool row appears with focus; the channel header is one row.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/agentux_chat5_composer.go`.
+
+- [x] `CHATUX-012` **[PHASE_3][SOL_HIGH] A page loaded while the server is restarting stays broken until the person reloads.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATUX_012`, `TestTodo_CHATUX_012_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=a failed first read should heal itself`.
+  - **TEST:** `TestTodo_CHATUX_012`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_012`; `BROWSER=TestTodo_CHATUX_012_Browser`.
+  - **RED:** (browser pane, 18:38 build) a reload during a server restart left every message reading "This view is unavailable", the header reading "Status unavailable", the text "Loading channel widgets..." above the messages and the composer replaced by "Channel status could not be loaded. Retry to continue."; nothing recovered without another reload. The message text and the composer were restored in code on 2026-10-01; the reads still do not retry.
+  - **GREEN:** every read the page makes on load (status, widgets, agents, reading settings, saved list) retries with backoff until it succeeds or the person leaves, shows nothing or a quiet line meanwhile, and never prints a loading sentence as page text; a successful retry updates the page without a reload.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/chatstate_status.go`.
+
+- [ ] `CHATEMOJI-004` **[PHASE_3][SOL_HIGH] Remember each person's emoji choices on the server.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("use the international list of all emojis and make sure they are searchable"); WHY=a skin tone chosen once should not be asked for again on another device or after a reload`.
+  - **TEST:** `TestTodo_CHATEMOJI_004`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATEMOJI_004`; `BROWSER=TestTodo_CHATEMOJI_004_Browser`.
+  - **RED:** the picker keeps the chosen skin tone and the most-used emoji only for the life of the page, because the product client may not use browser storage outside its approved adapters (`WEB-031`).
+  - **GREEN:** skin tone and the most-used list are a per-person preference stored by the server with the other Chat preferences, loaded with the page model, updated at most once every few seconds, and shared by every device the person uses; the same store holds the voice playback speed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatemoji_js.go`, `tools/uxqual/cmd/journeywasm/chatvoice_playback_wasm.go`, `internal/collaboration/chat`.
+
+- [ ] `CHATBUG-037` **[PHASE_3][SOL_HIGH] A shared message link prints its long address in the middle of the sentence.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=an opaque address is unreadable and pushes the words apart`.
+  - **TEST:** `TestTodo_CHATBUG_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_037`; `BROWSER=TestTodo_CHATBUG_037_Browser`.
+  - **RED:** (browser pane, 19:10) the message "did y'all see this" is followed by the full address `http://localhost:8290/workspace/app/chat#share=aXJvbn...` on three lines, then the Linked message card; the card ends with the bare label "Attachments: 1".
+  - **GREEN:** a share link that resolves for the reader reads "a message in #design" as a short link, with the card below; an address that does not resolve stays a link, shortened with the full address as its title; the card shows an attachment icon and a count with a proper name.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `CHATBUG-038` **[PHASE_3][SOL_HIGH] The composer keeps the preview of a link after the message is sent.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=the leftover card fills half the empty composer and looks like an unsent draft`.
+  - **TEST:** `TestTodo_CHATBUG_038`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_038`; `BROWSER=TestTodo_CHATBUG_038_Browser`.
+  - **RED:** (browser pane, 19:10) after sending a message containing a share link, the composer is empty but still shows the Linked message preview card of that link.
+  - **GREEN:** a preview under the draft is removed when the draft is sent or cleared and when its link is deleted from the draft.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `internal/humanwork/chatui/render.go`.
+
+- [x] `CHATBUG-039` **[PHASE_3][SOL_HIGH] Text helpers print raw copy keys on the served page while their tests pass.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_039`, `TestTodo_CHATBUG_039_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=four features reached the review server today showing keys in brackets`.
+  - **TEST:** `TestTodo_CHATBUG_039`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_039`; `BROWSER=TestTodo_CHATBUG_039_Browser`.
+  - **RED:** (browser pane, 18:48 to 19:10) the emoji picker headings, the composer add menu and command list, the sidebar search placeholder and (earlier) the filters section printed keys such as ⟦chat.composer.add_poll⟧; the native test catalog does not bracket a missing key, so every test passed.
+  - **GREEN:** one shared helper in chatui resolves Chat text from the feature tables first and never returns a bracketed key; a single test renders every Chat surface with the real product catalog in en-US, de-DE and ar and fails on any ⟦ character; a new feature cannot add a text helper that bypasses it.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/copy.go`, `internal/humanwork/chatui/chatfilter_copy.go`.
+
+- [x] `CHATSAVE-002` **[PHASE_3][SOL_HIGH] Redesign the Saved panel so an item looks like its message and takes one action to finish.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATSAVE_002`, `TestTodo_CHATSAVE_002_Accessibility`, `TestTodo_CHATSAVE_002_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATSAVE-001`, `CHATBUG-034`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("the saved messages ui and ux look and feel like shit"); WHY=a list people return to many times a day must read like the conversation it came from and cost one click to act on`.
+  - **TEST:** `TestTodo_CHATSAVE_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSAVE_002`; `ACCESSIBILITY=TestTodo_CHATSAVE_002_Accessibility`; `BROWSER=TestTodo_CHATSAVE_002_Browser`.
+  - **RED:** (owner, 2026-10-01: "the saved messages ui and ux look and feel like shit"; shots/q4/11-saved.png) the panel has three large separate rectangles for To do, Done and All; each item is a bordered box holding the author, the conversation and the date on three stacked lines, with the message text outside the box beneath it; two text buttons "Done" and "Remove"; then two full-width disclosure rows "Note" and "Remind me" under every item; a shared message link is printed as a raw address; nothing shows that an item can be opened; the panel looks unlike the conversation beside it.
+  - **GREEN:** **What it is for.** Saved is a person's short private list of messages to come back to. The two things they do there are: open the message where it was said, and tick it off. Everything else is secondary. **Panel.** Docked beside the conversation under the page header, the same width, heading row and close control as the details and thread panels. Heading "Saved" with the count of items still to do. Under it one compact segmented control (28 px high, one rounded track, the chosen segment filled): "To do", "Done", "All", each with its count; not three separate buttons. A search field appears only when the list has more than eight items. **An item looks like the message it is.** No box inside a box: items are separated by a hairline, with 12 px of padding. First line: the author's avatar (24 px), the author's name in bold, then muted "in #general" (the conversation as a link) and the message's time. Then the message text rendered exactly as the conversation renders it (mentions as chips, document and message links by their titles, formatting, the attachment indicator), clamped to four lines with "Show more". The whole item is one large target: clicking it, or pressing Enter on it, opens the conversation at that message and keeps the panel open. **Actions.** Four icon buttons at the top right of the item, shown on hover or focus and always shown on touch, each with a tooltip and an accessible name: Mark done (a check, the first and most prominent), Remind me (a bell), Add a note (a pencil), Remove from Saved (the filled bookmark). No row of text buttons and no disclosure rows under the item. Mark done removes the item from "To do" at once with an "Undo" line that stays for six seconds; Remove does the same. "Done" items are shown in muted text with "Done" and its date and one action, Reopen. **Reminder.** The bell opens a small menu anchored to it: In 1 hour, This afternoon (when it is morning), Tomorrow at 9:00, Next Monday at 9:00, Pick a date and time. A set reminder shows as a chip on the item (a bell and "Tomorrow 9:00") with a clear control, and overdue reminders show in the accent colour and sort first. **Note.** The pencil turns a single line under the message into a text field (Enter saves, Escape cancels); a saved note shows as one muted line with the pencil, clamped to two lines. **Empty and loading.** "To do" empty: one sentence saying how to save ("Hover a message and press the bookmark to keep it here.") with the bookmark icon. "Done" empty: "Things you tick off appear here." Loading shows three skeleton rows; a failed load shows one line and Retry inside the panel. **Saving elsewhere.** Pressing the bookmark on a message fills it and does not open the panel; the sidebar's Saved count changes at once. **Keyboard.** Up and Down move between items, Enter opens, D marks done, R opens the reminder menu, N edits the note, Delete removes, Escape closes the panel and returns focus to the Saved row. **Phone.** The panel is a full-screen page with a back control; actions are always visible and 44 px. **Everywhere.** Copy in en-US, de-DE and ar from the feature's own table (never a bracketed key); correct in right-to-left; colours, radii and shadows only from the shell tokens; no identifier is ever shown.
+  - **REFACTOR:** the panel reuses the conversation's message-body renderer and the shared panel heading; the old item markup and its styles are deleted.
+  - **Refs:** `internal/humanwork/chatui/chatsave_view.go`, `internal/humanwork/chatui/chatsave_styles.go`, `internal/humanwork/chatui/chatbug034_saved.go`, `tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go`, `internal/application/chatsave_http.go`.
+
+- [ ] `CHATATTACH-001` **[PHASE_3][SOL_HIGH] Attach a file to a message from the composer.**
+  - **Depends:** `CHATUX-004`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use"); WHY=a new employee looks for a paperclip; messages in the history carry attachments but nobody can add one`.
+  - **TEST:** `TestTodo_CHATATTACH_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATATTACH_001`; `SECURITY=TestTodo_CHATATTACH_001_Security`; `ACCESSIBILITY=TestTodo_CHATATTACH_001_Accessibility`; `BROWSER=TestTodo_CHATATTACH_001_Browser`.
+  - **RED:** (composer agent report, 2026-10-01) the server accepts uploads at `POST /v1/chat/media/.../upload` but no scanner is configured on the served assembly, so every upload fails; the browser client has no way to choose, paste or drop a file and attach it to a post, and its send path accepts only mention references; the composer's add menu has no "Attach a file" item.
+  - **GREEN:** the add menu's first item is "Attach a file", and a file can be pasted or dropped onto the composer; a chosen file shows as a chip under the draft (name, size, a thumbnail for images, progress while uploading, a remove control) and a refused file shows one plain line saying why (too large, type not allowed); up to ten files per message; Send waits for uploads and a failed send keeps the attachments; a non-image attachment in the conversation is a file row with its type icon, name, size and Download; the media service is composed on the served assembly with a scanner that needs no external download (type sniffing against an allow-list, a size ceiling, refusal of executables and archives, a hook for an external scanner), tenant-scoped storage, per-person and per-conversation quotas, authorization that the uploader may post there, and retention that follows the message.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/collaboration/chatmedia`, `internal/humanwork/chatui/composer_tools.go`, `tools/uxqual/cmd/journeywasm/chat_media.go`, `internal/application/serve.go`.
+
+- [ ] `CHATBUG-040` **[PHASE_3][SOL_HIGH] Agent answer cards appear seconds after the messages they belong to.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=the conversation jumps under the reader and for several seconds a question looks unanswered`.
+  - **TEST:** `TestTodo_CHATBUG_040`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_040`; `BROWSER=TestTodo_CHATBUG_040_Browser`.
+  - **RED:** (browser pane, 20:56) after a reload of #general the three questions to Policy Helper are drawn as a tight group with nothing under them; about ten seconds later a card is inserted under each one and everything below moves down.
+  - **GREEN:** the first paint of a conversation already holds a card of the final height under every message that has an agent answer (the answer when it came with the page, otherwise a placeholder of the same height), so nothing moves when the answers arrive; the answers of the visible messages are requested with the page and not after it.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/persona_chat_service.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/render.go`.
+
+- [x] `CHATBUG-041` **[PHASE_3][SOL_HIGH] The Saved count in the sidebar is wrong until the list has loaded.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_041`, `TestTodo_CHATBUG_041_Browser` exist and passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=a number that changes by itself reads as a new item arriving`.
+  - **TEST:** `TestTodo_CHATBUG_041`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_041`; `BROWSER=TestTodo_CHATBUG_041_Browser`.
+  - **RED:** (browser pane, 20:55) the Saved row shows 3 after a reload and changes to 4 a few seconds later with nothing saved in between.
+  - **GREEN:** the Saved row shows no number until the count is known, then the count of items still to do; the count comes with the first sidebar read and is not recomputed from a partial list.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatsave_view.go`, `tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go`.
+
+- [x] `CHATBUG-042` **[PHASE_3][SOL_HIGH] In the dark colour mode a switch that is off cannot be seen.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_042`, `TestTodo_CHATBUG_042_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=a person cannot tell there is a control to turn on`.
+  - **TEST:** `TestTodo_CHATBUG_042`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_042`; `BROWSER=TestTodo_CHATBUG_042_Browser`.
+  - **RED:** (browser pane, 20:57, dark colour mode) the Quiet hours switch in Chat preferences is a dark rectangle on a dark panel; only the word Off shows.
+  - **GREEN:** every Chat switch has a visible track and thumb in both colour modes, meeting 3:1 against its surface in the off state, drawn from the shell tokens; one test checks the contrast of each Chat control in dark mode.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatpolish_styles.go`, `internal/humanwork/chatui/styles.go`.
+
+- [x] `CHATBUG-043` **[PHASE_3][SOL_HIGH] Flag emoji show as two letters on Windows.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_043`, `TestTodo_CHATBUG_043_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=the letters US in the frequently used row look like a broken picture`.
+  - **TEST:** `TestTodo_CHATBUG_043`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_043`; `BROWSER=TestTodo_CHATBUG_043_Browser`.
+  - **RED:** (browser pane, 20:57) the first item of Frequently used and the reaction on a message read "US" in a box, because Windows has no flag glyphs.
+  - **GREEN:** the client detects once whether the platform draws flag emoji; where it does not, flags are drawn from a bundled flag image set (served as a static asset, not compiled into the client) in the picker, reactions and message text, or, until that set exists, the Flags group is left out of the picker and an existing flag shows its country name as a labelled chip.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatemoji_nodes.go`, `internal/humanwork/emojiset`.
+
+- [x] `CHATBUG-044` **[PHASE_3][SOL_HIGH] The mention menu cuts its last row and its information buttons sit between rows.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_044`, `TestTodo_CHATBUG_044_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=the list looks broken and the button does not look as if it belongs to an agent`.
+  - **TEST:** `TestTodo_CHATBUG_044`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_044`; `BROWSER=TestTodo_CHATBUG_044_Browser`.
+  - **RED:** (browser pane, 20:50) in the mention menu the round information button of each agent sits to the right of the description, lower than the name; the hint line at the bottom covers half of the last visible person.
+  - **GREEN:** each agent row is one grid: icon, name and handle, the Agent badge, then the information button centred on the row; the description is under the name inside the same row; the list scrolls above a fixed hint line and the last row is never covered.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/mention_menu.go`, `internal/humanwork/chatui/chatpolish_styles.go`.
+
+- [x] `CHATBUG-045` **[PHASE_3][SOL_HIGH] Chat preferences holds only Quiet hours.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_045`, `TestTodo_CHATBUG_045_Browser` exist and passed (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=a person looking for their reading language or writing style has nowhere to look`.
+  - **TEST:** `TestTodo_CHATBUG_045`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_045`; `BROWSER=TestTodo_CHATBUG_045_Browser`.
+  - **RED:** (browser pane, 20:58) the gear beside Conversations opens a panel with one row, Quiet hours; the reading language, "Translate messages into my language" and the writing style are not there.
+  - **GREEN:** Chat preferences lists, in this order: Quiet hours, Reading language with "Translate messages into my language", Writing style, and Emoji skin tone; each is one row with its current value and changes at once with no Save button; rows whose feature the workspace has turned off are not shown.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux002_sidebar.go`, `internal/humanwork/chatui/chatlang002_settings.go`, `internal/humanwork/chatui/chattone_view.go`.
+
+- [x] `CHATBUG-046` **[PHASE_3][SOL_HIGH] A sidebar panel taller than the window cannot be scrolled, so Reading languages cannot be saved.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_046`, `TestTodo_CHATBUG_046_Browser` exist and passed in `internal/humanwork/chatui` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=a person cannot reach the Save button of their own language setting`.
+  - **TEST:** `TestTodo_CHATBUG_046`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_046`.
+  - **RED:** (browser pane, 21:28) Chat preferences, Reading languages, Change: the form is 1497 px tall in a 913 px panel; scrolling it moves 107 px and snaps back, and setting the scroll position by hand reverts within 10 ms. Cause: the page-wide scroll listener re-places every open panel on any scroll, and the placement wrote the general 360 px width, measured the sidebar (forcing layout at that width, where the form is shorter), then wrote the sidebar width; the shorter intermediate layout clamped the scroll position.
+  - **GREEN:** an anchored sidebar panel is given only its placement width, so re-placing it never changes its layout and its scroll position is kept; the form scrolls to its last control at 1280x660 and at 390 px.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat5_layers_js.go`, `internal/humanwork/chatui/chatlayer_state.go`.
+
+- [ ] `CHATBUG-047` **[PHASE_3][SOL_HIGH] Trying an agent question again hides the question and leaves the answer with nothing above it.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=the conversation with an agent shows answers hours apart with no question, and four copies of one question are stored`.
+  - **TEST:** `TestTodo_CHATBUG_047`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_047`; `BROWSER=TestTodo_CHATBUG_047_Browser`.
+  - **RED:** (browser pane and review database, 21:30) in the direct conversation with Policy Helper, "give me a list of the top 5 policies here" was asked at 8:05; each Try again (8:05, 8:26, 11:16, 14:07) stored the question again as a reply in the first question's thread, where the conversation does not show it, and posted the answer at the top level; the answers of 11:16 and 14:07 stand alone between unrelated messages.
+  - **GREEN:** trying again never posts another copy of the question: it runs the original question again and the new answer replaces the failed card under that question; an agent answer that does not directly follow its question (a later retry, or a copy from a channel) carries a one-line quote of the question with its time that jumps to it; the stored duplicate replies are not shown as thread replies of the question.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_chat_surface_progress.go`, `internal/application/agentrun_recovery_dispatch.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/chatux003_card.go`.
+
+- [ ] `CHATBUG-048` **[PHASE_3][SOL_HIGH] Manage channel is a stack of rows in three different sizes, and its Filters note talks about direct messages.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=the section a channel manager uses most reads as unfinished and one sentence is about the wrong kind of conversation`.
+  - **TEST:** `TestTodo_CHATBUG_048`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_048`; `BROWSER=TestTodo_CHATBUG_048_Browser`.
+  - **RED:** (browser pane, 21:20) Conversation details, Manage channel in #general: "Change status", "Role labels", "Manage filters", "Workspace filters" and "Manage translation" are 14 px rows, "Project and milestones" is a 12 px row, and each group has its own caption style; under Filters the note reads "Direct messages follow only the workspace's hard rules." in a channel; opening Manage translation repeats its two-sentence description twice, one above the other.
+  - **GREEN:** every row of Manage channel is the same disclosure row (12 px label, current value at the right, chevron) under one 11 px group caption; a note is shown only where it applies (the direct-message note only in a direct message); a description is shown once; workspace-wide settings are not in this section (see CHATLANG-007).
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatfilter_view.go`, `internal/humanwork/chatui/chatlang006_admin.go`.
+
+- [ ] `CHATBUG-049` **[PHASE_3][SOL_HIGH] Asked for a list, an agent answers with one document title and nothing else.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=the answer looks broken; the person cannot tell whether the agent found one policy or failed`.
+  - **TEST:** `TestTodo_CHATBUG_049`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_049`; `BROWSER=TestTodo_CHATBUG_049_Browser`.
+  - **RED:** (browser pane, 21:30) "give me a list of the top 5 policies here" is answered with the single line "Paid time off policy" and a source chip.
+  - **GREEN:** an answer is always at least one sentence: when the agent can read fewer items than were asked for it says how many it can read and names them ("I can read one policy here: Paid time off policy."); a reply that is only a title or only a citation fails the reply check and is regenerated once inside the same run, then delivered with that sentence composed by the server.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/agentic/agenteval`.
+
+- [ ] `CHATLANG-007` **[PHASE_3][SOL_HIGH] Workspace translation settings sit inside one channel's details and give no sign of being saved.**
+  - **Depends:** `CHATLANG-006`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=an administrator changing a workspace-wide setting from inside #general cannot tell what it applies to or whether it was saved`.
+  - **TEST:** `TestTodo_CHATLANG_007`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_007`; `BROWSER=TestTodo_CHATLANG_007_Browser`.
+  - **RED:** (browser pane, 21:21) Conversation details, Manage channel, Manage translation holds the whole-workspace switch, the languages offered, the monthly limit, the outside-service switch and the engine name, then "This channel", then the glossary form, in a 280 px column with two full-width Save buttons; pressing Save shows nothing, and after turning the workspace switch on the "This channel" block disappears until the panel is reopened; checkboxes and labels are larger than everything else in the panel.
+  - **GREEN:** workspace translation settings and the glossary are on the Chat administration page beside Moderation and Workspace filters, each setting saving at once with a "Saved" line beside it; a channel's details hold one row, "Translation: Follow the workspace / Off" with "Never use an outside service", shown only when the workspace has translation on, and otherwise one line saying so with a link to the administration page for people who may change it; controls use the panel's 12 px text and standard switch.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatlang006_admin.go`, `internal/humanwork/chatui/chatmod005_page.go`, `internal/application/chatlang006_http.go`.
+
+- [ ] `CHATBUG-051` **[PHASE_3][SOL_HIGH] Menus and panels open away from the button that opened them.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a menu that appears elsewhere on the page reads as a different thing opening by mistake`.
+  - **TEST:** `TestTodo_CHATBUG_051`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_051`; `BROWSER=TestTodo_CHATBUG_051_Browser`.
+  - **RED:** (browser pane) the Saved panel's Remind me menu opens at the top of the page over the application header; the Poll panel from the composer's add menu opens at the far left over the sidebar; a message's more menu opens upward and covers the conversation header and its icons; an agent answer card's more menu opens at a fixed place near the top right of the conversation, up to several hundred pixels from its button (headless check: button off screen, menu at 908,65).
+  - **GREEN:** one placement rule for every Chat menu and panel: it touches the control that opened it, opens toward the side with more room, stays inside the conversation column (never over the application header or the sidebar unless it was opened from there), and follows its control or closes when the control scrolls away; one test places every layer kind against a control near each edge.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatlayer_state.go`, `internal/humanwork/chatui/agentux_chat5_layers_js.go`, `tools/uxqual/cmd/journeywasm/chatsave002_browser_wasm.go`.
+
+- [ ] `CHATBUG-052` **[PHASE_3][SOL_HIGH] Moderation, search results and Saved have no address, and the tab keeps an old title.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=Back does not return to them, they cannot be linked or reloaded, and the tab names the wrong conversation`.
+  - **TEST:** `TestTodo_CHATBUG_052`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_052`; `BROWSER=TestTodo_CHATBUG_052_Browser`.
+  - **RED:** (browser pane) opening Moderation or running a search leaves the address at `#channel=design`; reloading returns to the channel; after leaving the conversation with Policy Helper for #random the tab still reads "Policy Helper - Chat".
+  - **GREEN:** Moderation, a search (with its query) and the Saved panel are part of the address, so reload, Back, Forward and a copied link restore them; the tab title always names what is shown ("#random - Chat", "Moderation - Chat", "Search: open enrollment - Chat").
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`, `internal/humanwork/chatui/chatmod005_page.go`.
+
+- [ ] `CHATBUG-053` **[PHASE_3][SOL_HIGH] A long address in a message is printed in full, is not a link and breaks in the middle.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=four lines of characters push the conversation apart and cannot be clicked`.
+  - **TEST:** `TestTodo_CHATBUG_053`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_053`; `BROWSER=TestTodo_CHATBUG_053_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10) "did y'all see this http://localhost:8290/workspace/app/chat#share=aXJvbn..." shows the whole address over three lines as plain text (a share link whose origin is not this server).
+  - **GREEN:** every address in a message is a link; one longer than 60 characters is shortened in the middle to its site and the end of its path, with the full address as its title and when copied; a share link from another origin is still labelled "a shared message" with its site.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/markdown.go`, `internal/humanwork/chatui/chatbug037_links.go`.
+
+- [ ] `CHATBUG-054` **[PHASE_3][SOL_HIGH] A failed agent answer is a dead end and is laid out unlike an answered one.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the person is told the answer was interrupted and given nothing to press`.
+  - **TEST:** `TestTodo_CHATBUG_054`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_054`; `BROWSER=TestTodo_CHATBUG_054_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10) three cards in #general read "Only visible to you" on a line of its own, then the agent, then "Policy Helper's answer was interrupted." with no control; an answered card puts the visibility note at the end of the header line and has an action row.
+  - **GREEN:** a failed card uses the same header line as an answered card and always ends with one primary action for the person who asked: "Ask again" (any age of question; it runs the same question again and replaces the card, see CHATBUG-047) and a "Dismiss" that removes the card for them; the reason is one plain sentence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/chatux003_card.go`, `internal/humanwork/chatui/agentux_chat4_reply.go`.
+
+- [ ] `CHATBUG-055` **[PHASE_3][SOL_HIGH] Search results show a raw document reference, repeat themselves and do not look like messages.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the results page is where a person decides which message to open; it must read like the conversation`.
+  - **TEST:** `TestTodo_CHATBUG_055`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_055`; `BROWSER=TestTodo_CHATBUG_055_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10, "open enrollment") a result ends with "doc:doc-47892b80-d600-4401-8244-e2fa2a31caa7"; "20 results" is printed twice; a chip "In #design" sits above results from every conversation; a direct-message result is titled "Loretta Haynes - Loretta Haynes"; the same message is listed under Messages and again under Saved items; every matched word is a solid red block with a gap between words; results are bordered boxes with a bold line of text and no avatar.
+  - **GREEN:** a result is drawn by the conversation's message renderer (avatar, name, time, document titles as links, mentions as chips) under a small "in #announcements" line; a match is a soft tint across the whole phrase; the count is shown once; "In #design" is shown as an offer ("Search only in #design") unless it is applied; a direct message is titled by the other person once; a saved message is one result with a bookmark mark, not two; no identifier is ever printed.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`, `internal/humanwork/chatui/chatsearch_view.go`, `internal/humanwork/chatui/chatsearch_styles.go`.
+
+- [ ] `CHATBUG-056` **[PHASE_3][SOL_HIGH] The command list offers one command and a hint that does nothing.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the commands a person was told about are not in the list they open`.
+  - **TEST:** `TestTodo_CHATBUG_056`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_056`; `BROWSER=TestTodo_CHATBUG_056_Browser`.
+  - **RED:** (browser pane and headless check, 2026-10-01 about 22:20) typing "/" lists only "/giphy" under a hint line "Tab details" that does nothing for commands. (Focus and Backspace after Escape were checked headless and are correct; the browser pane only repaints late.)
+  - **GREEN:** the list holds every command the conversation supports (/poll, /todo, /giphy and those of installed apps) with a one-line description each, filtered as the person types, and its hint line names only keys that do something there.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_commands.go`, `internal/humanwork/chatui/chatcmd003_preview.go`.
+
+- [ ] `CHATBUG-057` **[PHASE_3][SOL_HIGH] Poll in the add menu opens the old channel widget, and voting in it does nothing.**
+  - **Depends:** `CHATCMD-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the first thing a person tries from the add menu does not post anything and cannot be answered`.
+  - **TEST:** `TestTodo_CHATBUG_057`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_057`; `BROWSER=TestTodo_CHATBUG_057_Browser`.
+  - **RED:** (browser pane, 21:33) Add, Poll opens a floating "Channel poll" panel; Create poll keeps the poll inside that panel and posts nothing to the conversation; pressing "Vote Thursday" leaves "0 votes" in the page and sends no request (checked in the page and its network log about 22:30), and after a reload the poll is a chip under the header that covers the first line of the top message. The message-card work reports its storage and callbacks as not bound.
+  - **GREEN:** Poll and To-do list in the add menu open the same preview as /poll and /todo; posting puts a card in the conversation where every member can vote or tick, counts change at once for everyone, and the standing channel widget is reached from Conversation details only; the old floating panel is removed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_tools.go`, `internal/humanwork/chatui/chatcmd003_preview.go`, `internal/data/chatstore/channel_poll.go`.
+
+- [ ] `CHATLANG-008` **[PHASE_3][SOL_HIGH] Only a message with a recorded language is translated, and a person's own message is translated back to them.**
+  - **Depends:** `CHATLANG-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=with German chosen, one message in the whole workspace changed and it was the reader's own`.
+  - **TEST:** `TestTodo_CHATLANG_008`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATLANG_008`; `BROWSER=TestTodo_CHATLANG_008_Browser`.
+  - **RED:** (browser pane and review database, 2026-10-01 about 22:10) reading language German with translation on: in #general only "did y'all see this" (the reader's own message) shows "[de] ..." with "Translated from English"; every other message, and all of #benefits, stays in English with no mark; the preferences panel reports "English: 1, Not specified: 17" and `chatrender_job` holds one row. The banner "Messages in other languages are translated for you" wraps to two rows in German.
+  - **GREEN:** the language of a message is detected when it is sent and, for older messages, the first time a reader who needs it opens the conversation, so every message not in the reader's languages is translated; a person's own messages are never translated for them; while a translation is on its way the original shows with a small "Translating" mark; the banner is one line with one "Show originals" switch and is not shown again after it is dismissed; "Not specified" is never shown to a person.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/chatlang003_worker.go`, `internal/data/chatstore/chatrender_language.go`, `internal/humanwork/chatui/chatlang002_view.go`.
+
+- [ ] `CHATBUG-058` **[PHASE_3][SOL_HIGH] The reading-language row prints its label over its value, and its form is sixteen checkboxes long.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the one setting most people want (which language to read in) is buried under two lists few will use`.
+  - **TEST:** `TestTodo_CHATBUG_058`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_058`; `BROWSER=TestTodo_CHATBUG_058_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10) in Chat preferences the row reads "Reading languagesglish" with the label drawn over "English"; Change opens "Read messages in", a switch, then "Also read without translation" and "Never translate from" with eight checkboxes each, then "Apply to this conversation" and counts of languages in the conversation.
+  - **GREEN:** the row is "Reading language" with its value at the right and never overlaps at any width or language; opening it shows the language choice and the "Translate messages into my language" switch; the two lists are under one "More options" disclosure as compact multi-select chips; "Apply to this conversation" lives in Conversation details, not here.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug045_prefs.go`, `internal/humanwork/chatui/chatrender_components.go`, `internal/humanwork/chatui/chatlang002_view.go`.
+
+- [ ] `CHATBUG-059` **[PHASE_3][SOL_HIGH] In German, an English error line sits above a member list that loaded, and some words are not translated.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a German reader sees an alarm in another language about something that is working`.
+  - **TEST:** `TestTodo_CHATBUG_059`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_059`; `BROWSER=TestTodo_CHATBUG_059_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10, locale de-DE) above the conversation: "We couldn't load the member list. The service did not answer. Try again." while Conversation details lists all 18 members; the sidebar row "Moderation" is English; details reads "Erstellt von du".
+  - **GREEN:** no notice is shown for a read that later succeeded, and a notice that is shown is in the reader's language and names what to do; every Chat string exists in en-US, de-DE and ar ("Moderation", the created-by line with the correct case); the all-surfaces key test also fails on English text in a German or Arabic render.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `internal/humanwork/chatui/chatbug039_copy.go`, `internal/humanwork/chatui/chatux005_details.go`.
+
+- [ ] `CHATBUG-060` **[PHASE_3][SOL_HIGH] In Arabic the search placeholder runs under the shortcut badge and the Send arrow points the wrong way.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=right-to-left readers get a clipped field and a control that points backwards`.
+  - **TEST:** `TestTodo_CHATBUG_060`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_060`; `BROWSER=TestTodo_CHATBUG_060_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10, locale ar) the sidebar search placeholder is cut off by the "Ctrl+K" badge; the Send button's arrow points right; left-to-right message text is set against the far edge, away from its author's name and avatar.
+  - **GREEN:** the search field reserves the badge's width on the correct side in both directions; directional icons (send, back, reply, chevrons) mirror in right-to-left; a message body starts at the same edge as its author line and takes its own text direction inside that block.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux002_sidebar.go`, `internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/chatpolish_styles.go`.
+
+- [ ] `CHATUX-013` **[PHASE_3][SOL_HIGH] On a phone, two rows of application controls sit above every conversation and the search field shows a keyboard shortcut.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a fifth of a phone screen is spent before the first message`.
+  - **TEST:** `TestTodo_CHATUX_013`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_013`; `BROWSER=TestTodo_CHATUX_013_Browser`.
+  - **RED:** (browser pane, 375 px, 2026-10-01 about 22:10) above the conversation header are the logo row (logo, menu, notifications, profile) and a second row (search, quick actions); the conversation list's search field shows "Ctrl+K".
+  - **GREEN:** inside a conversation on a phone the application controls collapse to one row, or hide while scrolling down and return on scrolling up; keyboard shortcut hints are shown only where a keyboard is present.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatpolish_styles.go`, `internal/humanwork/workspace`.
+
+- [ ] `CHATUX-014` **[PHASE_3][SOL_HIGH] The thread composer has different tools from the conversation composer.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person learns the composer once and expects it everywhere`.
+  - **TEST:** `TestTodo_CHATUX_014`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_014`; `BROWSER=TestTodo_CHATUX_014_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10) the thread composer shows bold, italic, link and emoji always, with no add menu, no mention button and no formatting toggle; the conversation composer shows add, mention, emoji and a formatting toggle.
+  - **GREEN:** one composer component is used in the conversation, the thread and a direct message: the same tools in the same order, the same send key and hint, the same behaviour for mentions, commands, emoji and attachments, differing only in its placeholder.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_tools.go`, `internal/humanwork/chatui/render.go`.
+
+- [ ] `CHATUX-015` **[PHASE_3][SOL_HIGH] Small unclear things in the sidebar, Browse channels, Create conversation and Moderation.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=each one makes a new person stop and guess`.
+  - **TEST:** `TestTodo_CHATUX_015`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_015`; `BROWSER=TestTodo_CHATUX_015_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:10) a section header shows two arrows on hover with no name; Browse channels lists joined and unjoined channels together with no purpose line; Create conversation offers "Private channel" and "Private group" with descriptions that do not say when to choose which; the Chat search field keeps its old query after the search is closed; Moderation's Open and Resolved are two separate buttons where Saved uses one segmented control; while Moderation is open the sidebar still highlights the channel that was open before and not the Moderation row.
+  - **GREEN:** the section arrows have names and tooltips ("Move section up"); Browse channels shows each channel's purpose and lists channels the person has not joined first, with Join on the row; Create conversation explains each kind by its use ("Private channel: a lasting topic for invited people", "Group message: a quick conversation with a few people") ; closing a search clears the field; Open and Resolved use the same segmented control as Saved, with counts.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux002_sidebar.go`, `internal/humanwork/chatui/chatux001_create.go`, `internal/humanwork/chatui/chatmod005_page.go`.
+
+- [ ] `CHATUX-016` **[PHASE_3][SOL_HIGH] An agent conversation's header cuts its description and its privacy note mid-sentence.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the header is the one place that says who this agent is and who can see the conversation`.
+  - **TEST:** `TestTodo_CHATUX_016`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_016`; `BROWSER=TestTodo_CHATUX_016_Browser`.
+  - **RED:** (browser pane, 21:00) the header of the conversation with Assistant reads "Answers company questions and lists policies from readable conversation and workspace documents, with citations. - Only you can see this conve...".
+  - **GREEN:** the header shows the agent's name, its Agent badge and a short privacy mark ("Private to you") that never truncates; the description is one line that truncates with the full text in Conversation details and on the agent's profile.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_chat5_findings.go`.
+
+- [ ] `CHATBUG-061` **[PHASE_3][SOL_HIGH] An agent answer card has an empty band under its buttons.**
+  - **Depends:** `CHATBUG-040`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the card looks unfinished and pushes the next message down for nothing`.
+  - **TEST:** `TestTodo_CHATBUG_061`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_061`; `BROWSER=TestTodo_CHATBUG_061_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:25) every answered card in #general ends with about 35 px of empty space under the Helpful / Not right / Ask a follow-up / Share to channel row; the card was given a 208 px minimum height so that a placeholder of the same height would not move the page (CHATBUG-040).
+  - **GREEN:** the placeholder reserves the height of the answer it stands for (the stored height of that answer when known, otherwise the height of a two-line answer) and the answered card has no minimum height; nothing below a card moves when its answer arrives, and no card shows empty space.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug040_reserve.go`, `internal/humanwork/chatui/chatux003_card.go`.
+
+- [ ] `CHATUX-017` **[PHASE_3][SOL_HIGH] An agent's details in a conversation read like a system record.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person deciding whether to ask the agent learns nothing they can use and sees an identifier`.
+  - **TEST:** `TestTodo_CHATUX_017`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_017`; `BROWSER=TestTodo_CHATUX_017_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:30) Conversation details, Agents, Policy Helper expanded: "Owner: ir-001-walt-brennan"; "Version: 6"; Skills in 14 px text reading "Search deployed tenant policy documents the requesting user and this installation may read. Returns exact document-version citations. - Read only" and "Prepare a bounded plain-text persona reply for the current private chat. Delivery requires a fresh private-chat authorization and a sealed output admission."; "Use skills outside this published version"; the Ask button floats beside the middle of the expanded text; the agent's name and icon on an answer card cannot be clicked.
+  - **GREEN:** the expanded row says, in the panel's 12 px text and plain words: what the agent is for (one sentence), who looks after it (the person's name as a link), what it can read ("Policy documents you can open"), what it will never do (three short lines), and where its answers go; version and technical skill names are on the agent's page in Agent setup, linked as "Details"; Ask stays on the agent's header row when the row is open; the agent's name and icon on a card and in a message open this same summary as a small card.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat5_layers.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/application/persona_chat_surface.go`.
+
+- [x] `CHATBUG-062` **[PHASE_3][SOL_HIGH] Manage filters says filters are not available: the list address is not routed.**
+  - **Evidence (2026-10-02, test run):** `TestTodo_CHATBUG_062`, `TestTodo_CHATBUG_062_Browser` exist and passed in `internal/application` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence.
+  - **Depends:** `CHATMOD-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("start working on the language and filtering related todos aswell for the chat"); WHY=an administrator cannot turn a filter on from the page at all`.
+  - **TEST:** `TestTodo_CHATBUG_062`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_062`.
+  - **RED:** (browser pane, 2026-10-01 about 22:35) Conversation details, Manage channel, Manage filters shows "Filters are not available right now. Try again in a moment. Filters could not be loaded. Nothing was changed."; the page asked for `GET /api/chat/filters/v1?channel=...` and got 404, because the served assembly routed only addresses under that one.
+  - **GREEN:** the served assembly routes the list address and every address under it (fixed 2026-10-01 in `agentServedPath`, test passing; to be confirmed in the browser on the next build); the panel lists the built-in lists and the channel's filters, and a failed load says which of the two failed in one sentence, not two.
+  - **REFACTOR:** the routed addresses of each Chat surface come from one table that the client and the served assembly both read, so a new address cannot be added on one side only.
+  - **Refs:** `internal/application/agent_served_assembly.go`, `internal/application/chatfilter_http.go`, `tools/uxqual/cmd/journeywasm/chatfilter_client.go`.
+
+- [ ] `CHATBUG-063` **[PHASE_3][SOL_HIGH] An ordinary message gets an agent failure card from an agent called "Persona".**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person who asked no agent is told an agent failed, and is offered a button that would start a paid run`.
+  - **TEST:** `TestTodo_CHATBUG_063`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_063`; `BROWSER=TestTodo_CHATBUG_063_Browser`.
+  - **RED:** (browser pane and review database, 2026-10-01 22:34) in #announcements the message "what the damn" (no mention; sent after an earlier draft that held "@Policy Helper" had been cleared in another conversation) is followed by a card "Only visible to you - Persona (Agent) - Persona could not answer because the service had a problem. Try again." with an "Ask again" button; `persona_invocations` holds no row for it, so nothing ran; the name and the heart icon are the fallbacks for an unknown agent.
+  - **GREEN:** a card is drawn under a message only when the sent message itself names an agent that is in the conversation, taken from the message as stored and never from a cleared draft, an earlier conversation or the placeholder rule of CHATBUG-040; a card never shows a fallback name: with no known agent there is no card; clearing or sending a draft clears its mention references.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug040_reserve.go`, `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/agentux_reply_row.go`.
+
+- [ ] `CHATBUG-064` **[PHASE_3][SOL_HIGH] On a phone a message cannot be reacted to or replied to in a thread.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the two most common actions on a message are missing on the device most people use`.
+  - **TEST:** `TestTodo_CHATBUG_064`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_064`; `BROWSER=TestTodo_CHATBUG_064_Browser`.
+  - **RED:** (scripted walk at 390 px, 2026-10-01; steps 7, 8, 16 to 18, 27) the message bar on a phone offers only "More actions" and its menu has neither Add reaction nor Reply in thread; the header search icon opens the conversation list without putting the cursor in the search field; the conversation drawer sits 16 px off the left edge; confirmed in the browser pane at 375 px about 22:52: tapping a message shows one "More actions" button drawn over the end of the first line of its text, and its menu lists Copy link, Copy message contents, Share to channel, Pin message, Save for later, Report message and Remove for everyone only.
+  - **GREEN:** pressing a message on a phone (long press, or its more button) opens a sheet whose first row is the quick reactions and Add reaction, then Reply in thread, Save, Copy link and the rest; the header search icon opens the list with the search field focused and the keyboard up; the drawer is flush with the screen edge.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatpolish_styles.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/events_js.go`.
+
+- [ ] `CHATBUG-065` **[PHASE_3][SOL_HIGH] In a direct message the Add and Record voice buttons sit on top of each other.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=one of the two cannot be pressed and the composer looks different from a channel's`.
+  - **TEST:** `TestTodo_CHATBUG_065`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_065`; `BROWSER=TestTodo_CHATBUG_065_Browser`.
+  - **RED:** (scripted walk, 2026-10-01; steps 50 and 57) in the direct messages with Policy Helper and with Loretta Haynes "Add to your message" and "Record voice message" occupy the same rectangle (389,836 30x30); `GET /api/chat/renderings/v1/reader` answered 400 in those conversations during the same run.
+  - **GREEN:** every composer tool has its own place in every kind of conversation, checked by one test that fails when two controls of the composer overlap at 1440, 800 and 390 px; the reading view is asked for with the same address form in channels and direct messages and answers 200.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/composer_tools.go`, `internal/humanwork/chatui/chatvoice_view.go`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`.
+
+- [ ] `CHATUX-018` **[PHASE_3][SOL_HIGH] The filter panel is in larger type than the panel it sits in, and a blocked message does not show which word.**
+  - **Depends:** `CHATMOD-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the panel reads as a different product, and the author has to find the word themselves`.
+  - **TEST:** `TestTodo_CHATUX_018`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_018`; `BROWSER=TestTodo_CHATUX_018_Browser`.
+  - **RED:** (browser pane, 2026-10-01 22:33) Manage filters draws "Built-in word lists", list names and the "What happens" choice in 14 to 15 px while Conversation details is 12 px; a blocked draft shows one grey line under it ("This message was not sent: it contains a word this workspace does not allow: \"damn\".") and the word is not marked in the draft.
+  - **GREEN:** the filter panel uses the details panel's type scale and its standard row and switch; a blocked draft keeps the cursor in the composer, underlines the word in the draft, and the reason line uses the warning colour with the rule's name; choosing "Hide the word from readers" shows a one-line example of what readers will see.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatfilter_view.go`, `internal/humanwork/chatui/chatmod002_composer.go`.
+
+- [ ] `CHATUX-019` **[PHASE_3][SOL_HIGH] Small unclear things in Conversation details: notification choice, pinned items, reaction names.**
+  - **Depends:** `CHATUX-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=each one makes a person stop and guess what is selected or what a control will do`.
+  - **TEST:** `TestTodo_CHATUX_019`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_019`; `ACCESSIBILITY=TestTodo_CHATUX_019_Accessibility`; `BROWSER=TestTodo_CHATUX_019_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:42) "Notifications for me" opens three identical outlined buttons, All messages, Mentions only and Muted, with nothing marking the one in force; a pinned item shows its author and a cut line of text with "Jump to message" and "Copy link" but no time and no way to unpin; a reaction's accessible name is "1 reacted with" followed by the emoji character instead of its name.
+  - **GREEN:** the notification choice is one radio group with the current choice filled and a check mark, changing at once; a pinned item shows who pinned it and when, opens the message when pressed, and has Unpin for people who may; a reaction's accessible name and tooltip name the people and the emoji in words ("You and Sam reacted with eyes").
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/chatemoji_nodes.go`.
+
+- [ ] `CHATBUG-066` **[PHASE_3][SOL_HIGH] A rating on an agent answer is forgotten by the page after a reload.**
+  - **Depends:** `CHATUX-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the person cannot tell whether they already rated the answer and may rate it twice`.
+  - **TEST:** `TestTodo_CHATBUG_066`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_066`; `BROWSER=TestTodo_CHATBUG_066_Browser`.
+  - **RED:** (browser pane and page, 2026-10-01 about 22:55) Helpful was pressed on the 11:18 answer in #general at about 22:25 and showed as filled; after a reload both Helpful and Not right read `aria-pressed="false"` while `persona_answer_feedback` holds the rating.
+  - **GREEN:** the answer card is drawn with the reader's own stored rating (Helpful or Not right filled, with its accessible pressed state) from the first paint after any load, and pressing the filled one again removes the rating.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_chat_surface_progress.go`, `internal/humanwork/chatui/chatux003_card.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [ ] `CHATBUG-067` **[PHASE_3][SOL_HIGH] Share to channel is refused and the card says only to try again.**
+  - **Depends:** `AGENTUX-070`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the one action that makes a private answer useful to the team does not work and gives no reason`.
+  - **TEST:** `TestTodo_CHATBUG_067`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_067`; `BROWSER=TestTodo_CHATBUG_067_Browser`.
+  - **RED:** (browser pane, 2026-10-01 about 22:56) on the private 11:18 answer in #general, "Share to channel" shows "Could not share this answer. Try again."; the request `POST /api/chat/personas/invocations/{id}/share` answered 403 with the code "denied"; pressing again gives the same answer.
+  - **GREEN:** sharing a private answer whose sources every member may open posts it under the question and the card then reads "Shared to #general"; a refusal says in one sentence why (the agent answers privately; a named source is not open to everyone here; the answer is too old to share) and offers no "Try again" when trying again cannot help; the review cell has the share surface composed.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/agentux070_share.go`, `internal/transport/personachat/http.go`, `internal/humanwork/chatui/chatux003_card.go`, `tools/uxqual/cmd/journeywasm/agentux070_share_wasm.go`.
+
+- [ ] `CHATBUG-068` **[PHASE_3][SOL_HIGH] An open tab changed conversation by itself.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person typing in one conversation must never find themselves in another`.
+  - **TEST:** `TestTodo_CHATBUG_068`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_068`; `BROWSER=TestTodo_CHATBUG_068_Browser`.
+  - **RED:** (browser pane, 2026-10-01 23:07 to 23:13; seen once, cause not established) with the tab on #general and nothing pressed, the tab's address and page became the direct message with Policy Helper. Other headless sessions were signed in as the same person at the time, and the #general composer in this tab also held a draft "@Po" that this tab had not typed, so a second session's actions may be applied to every open session of that person. Seen a second time about 23:22: the tab was on #engineering, idle, and was on #announcements at the next look, while a headless session of the same person was working in #announcements. A headless check the same evening showed drafts themselves are sound: a typed draft survives a reload and a cleared draft stays cleared (`probe-draft.mjs`); reloading with an address in the URL opens that conversation.
+  - **GREEN:** the conversation shown in a tab changes only through that tab (a click, a key, its own address); another session of the same person never moves it; a draft changed in another session is offered ("Draft updated on another device") and never replaces what is in the composer; one test drives two sessions of one person and asserts neither moves the other.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/chat_drafts.go`, `internal/humanwork/chatui/fieldsync_js.go`.
+
+- [ ] `CHATBUG-069` **[PHASE_3][SOL_HIGH] The Announcements page cannot be loaded after an agent is installed again.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("what about the announcements agent?"); WHY=one old record takes the whole page away, so the owner can neither see nor make an announcement`.
+  - **TEST:** `TestTodo_CHATBUG_069`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_069`.
+  - **RED:** (browser pane and review database, 2026-10-02 00:04) Agent operations, Announcements shows "Announcements could not be loaded. Try again." with New announcement disabled; `GET /api/agent-controls/announcements` answers 503. All four announcements of 2026-10-01 were made with the Assistant's first installation in #general, which was retired at 18:30 when the Assistant was installed again at version 2; the list could not name a record whose installation is not active and gave up on the whole reply. The address `?tab=announcements` is also dropped on load, so the tab cannot be linked or reloaded.
+  - **GREEN:** an announcement made with a retired installation is named from the agent as it is installed in that conversation now (done 2026-10-02, test passing); a record that still cannot be named is left out of the list instead of failing it (done); to do: such a record is shown as "Agent no longer in this conversation" with Delete, a scheduled announcement is moved to the new installation or paused with a reason when its installation is retired, and the tab's address survives a load.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/agentux_proactive_names.go`, `internal/application/agentux_proactive_surface.go`, `internal/application/agentux_runtime_prepare.go`, `internal/humanwork/productui/agentux_proactive_announcements.go`.

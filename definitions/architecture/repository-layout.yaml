@@ -235,6 +235,11 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: Commit-time disclosure boundary for persona results, enforcing audience readability and channel policy.
+  - name: agentdocref
+    owner: governance-and-trust
+    layer: trust
+    phase: P1A
+    description: Shared authority-free document reference value used by sealed personas and invoking-user requests.
   - name: agentgate
     owner: governance-and-trust
     layer: trust

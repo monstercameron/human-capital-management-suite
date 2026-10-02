@@ -13,17 +13,17 @@ import (
 // server needs to attribute it (a punch token, or an offline badge/QR
 // verifier) and nothing else about the worker.
 type QueuedPunch struct {
-	Sequence           uint64                      `json:"seq"`
-	Event              timev1.PunchEventType       `json:"event"`
-	PunchToken         string                      `json:"token,omitempty"`
-	VerifierRef        string                      `json:"verifier,omitempty"`
-	Method             timev1.IdentificationMethod `json:"method"`
-	OccurredAt         time.Time                   `json:"at"`
-	ClockOffsetSeconds int64                       `json:"offset"`
+	Sequence           uint64                           `json:"seq"`
+	Event              timev1.PunchEventType            `json:"event"`
+	PunchToken         string                           `json:"token,omitempty"`
+	VerifierRef        string                           `json:"verifier,omitempty"`
+	Method             timev1.IdentificationMethod      `json:"method"`
+	OccurredAt         time.Time                        `json:"at"`
+	ClockOffsetSeconds int64                            `json:"offset"`
 	AttestationAnswers []*timev1.AttestationAnswerInput `json:"attestation_answers,omitempty"`
-	TipDeclaration string `json:"tip_declaration,omitempty"`
-	JobID string `json:"job_id,omitempty"`
-	CostCodeID string `json:"cost_code_id,omitempty"`
+	TipDeclaration     string                           `json:"tip_declaration,omitempty"`
+	JobID              string                           `json:"job_id,omitempty"`
+	CostCodeID         string                           `json:"cost_code_id,omitempty"`
 }
 
 // Queue is the device's unsent punches in device-sequence order.
@@ -87,10 +87,10 @@ func (q Queue) Proto() []*timev1.DevicePunch {
 			DeviceOccurredAt:         timestamppb.New(p.OccurredAt),
 			DeviceClockOffsetSeconds: p.ClockOffsetSeconds,
 			IdentificationMethod:     p.Method,
-			AttestationAnswers: p.AttestationAnswers,
-			TipDeclaration: p.TipDeclaration,
-			JobId: p.JobID,
-			CostCodeId: p.CostCodeID,
+			AttestationAnswers:       p.AttestationAnswers,
+			TipDeclaration:           p.TipDeclaration,
+			JobId:                    p.JobID,
+			CostCodeId:               p.CostCodeID,
 		}
 		if p.PunchToken != "" {
 			punch.Worker = &timev1.WorkerCredentialRef{Ref: &timev1.WorkerCredentialRef_PunchToken{PunchToken: p.PunchToken}}

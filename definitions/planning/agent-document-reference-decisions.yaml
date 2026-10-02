@@ -1,0 +1,57 @@
+schema_version: 1
+decision_id: AGENTDOC-001
+title: "Document references in agent instructions"
+status: DECIDED
+decision_date: "2026-09-30"
+owner: agent-product-governance
+refs:
+  - "planning/todos.md#AGENTDOC-001"
+  - "planning/todos.md#AGENTDOC-002"
+  - "planning/todos.md#AGENTDOC-003"
+  - "planning/todos.md#AGENTDOC-004"
+
+reference_sites:
+  - id: PERSONA_VERSION
+    author: persona_administrator
+    default_version_mode: PINNED
+    maximum_references: 8
+  - id: USER_REQUEST
+    author: invoking_user
+    default_version_mode: LATEST_PUBLISHED
+    maximum_references: 5
+
+reference_shape:
+  fields: [document_id, version_mode, pinned_version, section_anchor, label]
+  version_modes: [PINNED, LATEST_PUBLISHED]
+  pinned_version_rule: "required for PINNED and absent for LATEST_PUBLISHED"
+
+limits:
+  persona_references: 8
+  request_references: 5
+  content_characters_per_run: 48000
+  label_runes: 120
+  overflow_rule: "truncate by complete section and show the invoker a visible notice"
+
+persona_seal:
+  included_in_profile_digest: true
+  order_significant: true
+  change_creates_new_version: true
+  review_required: true
+  evaluation_required: true
+
+runtime_access:
+  principal: invoking_user
+  timing: RUN_TIME
+  authorization: "current documentation-hub read access"
+  unreadable_reference: OMIT
+  visible_document_notice: "report the omitted reference by label only when the invoker can see that the document exists"
+  hidden_document_notice: "report one generic omitted-reference count without document identity"
+
+authority:
+  classification: QUARANTINED_REFERENCE_DATA
+  planning_authority: NONE
+  governing_control: AGENT2-015
+  may_add_skills: false
+  may_add_recipients: false
+  may_raise_tiers: false
+  answer_citation: "cite the document and section"

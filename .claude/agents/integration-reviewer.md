@@ -1,6 +1,6 @@
 ---
 name: integration-reviewer
-description: The strong-model pass over Codex Luna lane output. Use after lanes land and before anything is ticked or committed. Reads the diff against the todo contract and AGENTS.md, fixes the real defects, integrates registry rows and policy edits, ticks the todos with evidence, and takes the commit through the gates. Returns what it changed, what it verified and what it left partial.
+description: The strong-model pass over Codex lane output (lanes run on gpt-6.1-sol). Use after lanes land and before anything is ticked or committed. Reads the diff against the todo contract and AGENTS.md, fixes the real defects, integrates registry rows and policy edits, ticks the todos with evidence, and takes the commit through the gates. Returns what it changed, what it verified and what it left partial.
 tools: Bash, Read, Edit, Write, Grep, Glob
 model: fable
 ---
