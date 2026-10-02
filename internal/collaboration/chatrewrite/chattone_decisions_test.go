@@ -11,10 +11,36 @@ import (
 // TestTodo_CHATTONE_001 pins, as executable checks, the decisions of the
 // CHATTONE-001 record that bind the writer-requested style controls: opt-in,
 // tone only, nothing sent for the writer, and the stated fallbacks when the
-// model is unavailable, over budget or the checks fail. Decisions about
-// reworded delivery to readers (5, 6, 7, 8, 9) belong to CHATTONE-002 and 003,
-// which this package does not implement.
+// model is unavailable, over budget or the checks fail, and the decisions that
+// bind rewording itself: abusive text is never reworded (3), the writer is never
+// blocked or lectured (4) and a failed rewrite is never shown, the message
+// being delivered as written instead (10). Delivery to readers (5, 6, 7, 8, 9)
+// is decided where renderings are selected and produced, in the application
+// package (CHATTONE-003 and the rendering producer).
 func TestTodo_CHATTONE_001(t *testing.T) {
+	t.Run("rewording is not a way to make threats acceptable", func(t *testing.T) {
+		r, model, _ := rewordFixture()
+		got, err := r.Reword(context.Background(), rewordRequest("I will find you and hurt you if this is late"))
+		if err != nil || got.Outcome != RewordHardFilter || got.Text != "" || model.calls != 0 {
+			t.Fatalf("an abusive message was offered for rewording: %+v %v calls %d", got, err, model.calls)
+		}
+	})
+	t.Run("the writer is never blocked: every failure is the message as written", func(t *testing.T) {
+		for name, arrange := range map[string]func(*Reworder, *fixtureModel){
+			"model down":   func(_ *Reworder, m *fixtureModel) { m.err = ErrUnavailable },
+			"budget spent": func(r *Reworder, _ *fixtureModel) { r.Service.Ledger = NewMemoryLedger(0) },
+			"checks failed": func(r *Reworder, _ *fixtureModel) {
+				r.Service.Meaning = &fixtureMeaning{answer: MeaningAnswer{false, 1}}
+			},
+		} {
+			r, model, _ := rewordFixture()
+			arrange(r, model)
+			got, err := r.Reword(context.Background(), rewordRequest(heatedMessage))
+			if err != nil || got.Outcome != RewordFallback || got.Text != "" {
+				t.Errorf("%s: %+v %v", name, got, err)
+			}
+		}
+	})
 	t.Run("opt in: a workspace is off until it is configured", func(t *testing.T) {
 		s, model, _, _, _ := fixtureService()
 		s.Registry.RequireConfiguration()
@@ -108,7 +134,7 @@ func TestTodo_CHATTONE_001_Golden(t *testing.T) {
 	}
 	// A model is evaluated for exactly this instruction text. Changing it is a new
 	// version that must be evaluated again; update this line only with that run.
-	if got := InstructionDigest(); got != "2c497a85bf25dcfcda4d6f5e314beb6b8d404b246564255e79d1915af6a5b461" {
+	if got := InstructionDigest(); got != "c15efa7c26d966424cdfa1ceaa805f80e2888216344c44fa78e5a65b512e3624" {
 		t.Fatalf("the instruction text changed: digest %s", got)
 	}
 }

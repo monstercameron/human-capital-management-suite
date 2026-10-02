@@ -180,6 +180,10 @@ func (s *Service) SaveForLater(ctx context.Context, r SavedRequest) (SavedItem, 
 	if projected.Post == nil {
 		return SavedItem{}, ErrPermissionDenied
 	}
+	// The "added people" line is a record of the room, not something to come back to.
+	if _, system := ParseMembershipAdded(projected.Post.Body); system {
+		return SavedItem{}, ErrInvalidArgument
+	}
 	return store.SaveItem(ctx, r.Principal, item)
 }
 

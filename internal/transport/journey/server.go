@@ -873,9 +873,10 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 				own = append(own, worker)
 			}
 		}
-		return &journeyv1.ListWorkersResponse{
-			Workers: s.authorizeWorkers(ctx, principal, workers, projectAuthorizedManagers(workers, own)),
-		}, nil
+		// The self-only caller is named and pictured like everyone else.
+		selfListed := s.authorizeWorkers(ctx, principal, workers, projectAuthorizedManagers(workers, own))
+		enrichDemoDirectory(principal.Tenant().String(), selfListed, false)
+		return &journeyv1.ListWorkersResponse{Workers: selfListed}, nil
 	}
 	// The complete listing stays available as the reporting-line source for
 	// per-subject field disclosure; visibleWorkforce only filters rows.
@@ -883,9 +884,11 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	if err != nil {
 		return nil, preferenceError(err, principal, inv.RequestID(), "load_organization_visibility")
 	}
+	listed := s.authorizeWorkers(ctx, principal, workers, visible)
+	enrichDemoDirectory(principal.Tenant().String(), listed, false)
 	return &journeyv1.ListWorkersResponse{
 		Options: toWorkforceOptions(options),
-		Workers: s.authorizeWorkers(ctx, principal, workers, visible),
+		Workers: listed,
 	}, nil
 }
 
@@ -909,7 +912,9 @@ func (s *server) ListChatDirectory(ctx context.Context, _ *journeyv1.ListChatDir
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "list_chat_directory")
 	}
-	return &journeyv1.ListChatDirectoryResponse{Workers: chatDirectoryWorkers(workers)}, nil
+	directory := chatDirectoryWorkers(workers)
+	enrichDemoDirectory(principal.Tenant().String(), directory, true)
+	return &journeyv1.ListChatDirectoryResponse{Workers: directory}, nil
 }
 
 // CreateWorker forwards to workspace.JourneyEngine.CreateWorker, which records

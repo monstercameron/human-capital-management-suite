@@ -104,7 +104,46 @@ func TestTodo_AGENT_013_Security(t *testing.T) {
 	}
 }
 
+// TestTodo_AGENT_013_Conformance holds the persona starters to the contract the
+// todo states: a starter is versioned data that creates a tenant-owned draft,
+// pinned by its content digest, and grants and publishes nothing by itself.
+// The persona starters are the one template mechanism the product ships (Agent
+// setup's "New agent" and the demo preparation both read them), so this is the
+// registry the conformance is asserted on; the generic registry below it keeps
+// its own test.
 func TestTodo_AGENT_013_Conformance(t *testing.T) {
+	for _, id := range []string{"hcmnext.persona_template.policy_helper", "hcmnext.persona_template.assistant"} {
+		starter, ok := PersonaStarterFor(id, 1)
+		if !ok {
+			t.Fatalf("persona starter %q is absent", id)
+		}
+		if starter.Status != "DRAFT" || starter.Published || starter.AutoInstall || !starter.OwnerRequired || len(starter.DefaultGrants) != 0 {
+			t.Fatalf("persona starter %q grants or publishes by itself: %+v", id, starter)
+		}
+		if starter.Provenance.CopyOnInstall != "TENANT_OWNED_DRAFT" || !starter.Provenance.ImmutableAfterPublish || starter.Provenance.SourceTodo == "" || starter.Provenance.EvaluationSuite != starter.EvaluationSuite {
+			t.Fatalf("persona starter %q lacks pinned template provenance: %+v", id, starter.Provenance)
+		}
+		pin := PersonaStarterPin(starter)
+		if pin.ID != id || pin.Version != 1 || pin != PersonaStarterPin(starter) {
+			t.Fatalf("persona starter %q pin is not stable: %+v", id, pin)
+		}
+		changed := starter
+		changed.Purpose += " (a later platform edit)"
+		if PersonaStarterPin(changed).Digest == pin.Digest {
+			t.Fatalf("persona starter %q: a later edit kept the same pin digest, so a published agent could change silently", id)
+		}
+	}
+	if len(PlatformPersonaStarters()) != len(PersonaStarters()) {
+		t.Fatal("the platform catalog and the starter list disagree")
+	}
+}
+
+// TestAgentTemplate_PlatformStartersRegistry is the former body of
+// TestTodo_AGENT_013_Conformance, unchanged: the generic template registry
+// still installs capability-neutral, provenance-pinned drafts. Nothing in the
+// served product calls it (AGENT-013 decision: persona starters are the
+// template mechanism), so it is kept as a library with its own test.
+func TestAgentTemplate_PlatformStartersRegistry(t *testing.T) {
 	registry, err := PlatformStarters()
 	if err != nil {
 		t.Fatal(err)

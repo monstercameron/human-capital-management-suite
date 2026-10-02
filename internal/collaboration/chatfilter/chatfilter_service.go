@@ -162,10 +162,17 @@ func (s *Service) CreateVersion(ctx context.Context, a Actor, d Definition) erro
 	}
 	// Workspace authority is required for workspace scope, hard rules and
 	// multi-channel scope. Channel managers cannot assert workspace authority.
-	if len(d.Channels) != 1 || d.Hard {
-		if err := s.authorized(ctx, a, ""); err != nil {
-			return err
-		}
+	workspace := s.authorized(ctx, a, "") == nil
+	if (len(d.Channels) != 1 || d.Hard) && !workspace {
+		return ErrDenied
+	}
+	// The version records the authority it is saved under, whatever was sent.
+	d.Authority = AuthorityChannel
+	if workspace {
+		d.Authority = AuthorityWorkspace
+	}
+	if err := s.checkTarget(ctx, a, d); err != nil {
+		return err
 	}
 	defs, err := s.Store.Definitions(ctx, a.Tenant)
 	if err != nil {
@@ -174,6 +181,15 @@ func (s *Service) CreateVersion(ctx context.Context, a Actor, d Definition) erro
 	for _, old := range defs {
 		if old.ID == d.ID && (compareVersion(d.Version, old.Version) <= 0 || old.Hard && !d.Hard || strings.Join(old.Channels, "\x00") != strings.Join(d.Channels, "\x00")) {
 			return ErrConflict
+		}
+	}
+	// A channel's manager cannot replace a filter the workspace wrote for the
+	// channel: every change they could make to it is a way to weaken it.
+	if !workspace {
+		for _, old := range latest(defs) {
+			if old.ID == d.ID && workspaceOwned(old) {
+				return ErrDenied
+			}
 		}
 	}
 	err = s.Store.CreateVersion(ctx, a.Tenant, d)
@@ -193,7 +209,10 @@ func (s *Service) Enable(ctx context.Context, a Actor, e Enablement, dryRun bool
 	for _, d := range defs {
 		if d.ID == e.RuleID {
 			found = true
-			if d.Hard {
+			// A hard rule, and a filter the workspace wrote for one channel, are
+			// switched under the workspace's authority only: off, and a dry run,
+			// are both ways for a channel's manager to stop it acting.
+			if d.Hard || !d.Product && workspaceOwned(d) {
 				if err := s.authorized(ctx, a, ""); err != nil {
 					return err
 				}
@@ -221,10 +240,49 @@ func (s *Service) Enable(ctx context.Context, a Actor, e Enablement, dryRun bool
 	if dryRun && e.Enabled {
 		e.DryRunUntil = s.now().Add(7 * 24 * time.Hour)
 	}
+	if e.Enabled {
+		if err := s.activeAfter(ctx, a.Tenant, defs, e); err != nil {
+			return err
+		}
+	}
 	err = s.Store.PutEnablement(ctx, a.Tenant, e)
 	s.invalidate(a.Tenant)
 	return err
 }
+
+// activeAfter refuses a switch that would leave a channel with a set of rules
+// the compiler refuses. The rules that are on in a channel are compiled as one
+// set, and a set that does not compile fails every message sent there: one more
+// rule than the compiler takes, or a built-in list switched to an action that
+// needs a target it does not have ("notify"), stopped the channel, or the
+// whole workspace, instead of being refused when it was switched on.
+func (s *Service) activeAfter(ctx context.Context, tenant string, defs []Definition, change Enablement) error {
+	enabled, err := s.Store.Enablements(ctx, tenant)
+	if err != nil {
+		return err
+	}
+	next := make([]Enablement, 0, len(enabled)+1)
+	channels := map[string]bool{change.Channel: true}
+	for _, e := range enabled {
+		if e.RuleID == change.RuleID && e.Channel == change.Channel {
+			continue
+		}
+		next = append(next, e)
+		if change.Channel == "" {
+			// A workspace switch reaches every channel, also those with a
+			// setting of their own.
+			channels[e.Channel] = true
+		}
+	}
+	next = append(next, change)
+	for channel := range channels {
+		if !s.Registry.compilable(resolveChannel(defs, next, channel).active) {
+			return ErrInvalid
+		}
+	}
+	return nil
+}
+
 func (s *Service) Try(ctx context.Context, a Actor, d Definition, in Input) (Result, error) {
 	if err := s.authorized(ctx, a, in.Channel); err != nil {
 		return Result{}, err

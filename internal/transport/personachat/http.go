@@ -32,7 +32,7 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.watch(w, r)
 			return
 		}
-		result, err := h.Surface.Progress(r.Context(), r.URL.Query().Get("conversation_id"))
+		result, err := h.opening(r)
 		writeResult(w, result, err)
 	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/retry") && r.Method == http.MethodPost:
 		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, Path+"/invocations/"), "/retry")
@@ -133,6 +133,25 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err := sharing.ShareAnswer(r.Context(), id, input.IdempotencyKey)
 		writeResult(w, result, err)
+	case r.URL.Path == Path+"/channel-privacy" && r.Method == http.MethodPost:
+		var input struct {
+			ConversationID string `json:"conversation_id"`
+			Private        *bool  `json:"private"`
+		}
+		if !decodeAction(w, r, &input) {
+			return
+		}
+		if strings.TrimSpace(input.ConversationID) == "" || input.Private == nil {
+			writeError(w, ErrInvalid)
+			return
+		}
+		surface, ok := h.Surface.(ChannelPrivacySurface)
+		if !ok {
+			writeError(w, ErrUnavailable)
+			return
+		}
+		result, err := surface.SetChannelPrivacy(r.Context(), input.ConversationID, *input.Private)
+		writeResult(w, result, err)
 	default:
 		http.NotFound(w, r)
 	}
@@ -157,8 +176,17 @@ func decodeAction(w http.ResponseWriter, r *http.Request, target any) bool {
 	return true
 }
 
+// opening is the first read of a conversation's activity: the surface's
+// opening read when it has one, the ordinary read otherwise.
+func (h Handler) opening(r *http.Request) (Progress, error) {
+	if opening, ok := h.Surface.(OpeningSurface); ok {
+		return opening.OpeningProgress(r.Context(), r.URL.Query().Get("conversation_id"))
+	}
+	return h.Surface.Progress(r.Context(), r.URL.Query().Get("conversation_id"))
+}
+
 func (h Handler) watch(w http.ResponseWriter, r *http.Request) {
-	initial, err := h.Surface.Progress(r.Context(), r.URL.Query().Get("conversation_id"))
+	initial, err := h.opening(r)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -170,14 +198,21 @@ func (h Handler) watch(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
+	first, err := json.Marshal(initial)
+	if err != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(w, "event: invocations\ndata: %s\n\n", first); err != nil {
+		return
+	}
+	flusher.Flush()
+	// The reads that follow carry no stored answers; they are compared with the
+	// first one without its answers, so an idle conversation sends nothing more.
+	initial.Answers = nil
 	previous, err := json.Marshal(initial)
 	if err != nil {
 		return
 	}
-	if _, err := fmt.Fprintf(w, "event: invocations\ndata: %s\n\n", previous); err != nil {
-		return
-	}
-	flusher.Flush()
 	interval := h.WatchInterval
 	if interval <= 0 {
 		interval = time.Second
@@ -239,12 +274,13 @@ func writeError(w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	response := struct {
-		Error string `json:"error"`
-		State string `json:"state,omitempty"`
+		Error  string `json:"error"`
+		State  string `json:"state,omitempty"`
+		Detail string `json:"detail,omitempty"`
 	}{Error: code}
 	var final *FinalStateConflict
 	if errors.As(err, &final) {
-		response.State = final.State
+		response.State, response.Detail = final.State, final.Detail
 	}
 	_ = json.NewEncoder(w).Encode(response)
 }

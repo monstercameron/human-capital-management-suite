@@ -1,0 +1,8 @@
+workspace default: sharing=true live=true exact=true maxLive=8h0m0s maxRetention=24h0m0s err=<nil>
+channel narrows: sharing=true live=false exact=false maxLive=1h0m0s maxRetention=2h0m0s err=<nil>
+channel cannot widen: sharing=true live=false exact=false maxLive=15m0s maxRetention=1h0m0s err=<nil>
+country switched off: sharing=false live=true exact=true maxLive=8h0m0s maxRetention=24h0m0s err=<nil>
+workspace-wide rule off: sharing=false live=true exact=true maxLive=8h0m0s maxRetention=24h0m0s err=<nil>
+end reasons: expired,left,policy,signed_out,stopped
+classification: SENSITIVE_PERSONAL_DATA -> SPECIAL_CATEGORY
+hard maximum: 24h0m0s

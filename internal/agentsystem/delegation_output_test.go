@@ -5,11 +5,20 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
+	"github.com/monstercameron/schemaflux"
 )
 
 func TestTodo_AGENT_050_ValidatedOutput(t *testing.T) {
 	f := newFixture(t, nil)
 	f.defaultOwner(t)
+	// A model answer's citations are kept as the result's sources, and a
+	// returned result may only name sources the parent and the child are both
+	// authorized for. The child therefore cites the worker record its authority
+	// covers; TestTodo_AGENT_050_OutputSourceRevocation proves any other source
+	// is refused.
+	f.provider.ReplyFunc(func(_ int, _ schemaflux.CompletionRequest) (string, error) {
+		return `{"text":"worker is active","citations":["worker:42"]}`, nil
+	})
 	ctx := context.Background()
 	parent := f.start(t, "parent-output", planStep("read", agentrun.StepRead, "skill.lookup", agentrun.TierRead), planStep("analyze", agentrun.StepAnalyze, "skill.summarize", agentrun.TierPrivateDraft))
 	request := specialistRequest(t, f, parent, "child-output")
@@ -27,6 +36,9 @@ func TestTodo_AGENT_050_ValidatedOutput(t *testing.T) {
 	output, err := f.runner.SpecialistResult(ctx, parent.ID, request.ParentCredential, child.ID)
 	if err != nil || output.TaskID != child.ID || output.ParentTaskID != parent.ID || output.TaskVersion != child.Version || output.AnswerText != child.Ledger.AnswerText || output.Digest == "" || len(output.Results) != 1 || len(output.Taint) != 1 || output.Taint[0] != taintDerived {
 		t.Fatalf("validated child output = %+v, %v", output, err)
+	}
+	if got := output.Results[0].SourceIDs; len(got) != 2 || got[0] != documentUsageMarker || got[1] != "worker:42" {
+		t.Fatalf("returned result sources = %v, want the usage marker and the cited worker record", got)
 	}
 	output.Results[0].Taint[0] = "FORGED"
 	again, err := f.runner.SpecialistResult(ctx, parent.ID, request.ParentCredential, child.ID)

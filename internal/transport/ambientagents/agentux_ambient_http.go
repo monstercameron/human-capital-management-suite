@@ -44,6 +44,10 @@ type Snapshot struct {
 	Grants []Grant                     `json:"grants"`
 	OptOut bool                        `json:"opt_out"`
 	Tasks  []Task                      `json:"tasks"`
+	// Manages is set when the viewer administers the conversation, so Chat
+	// offers the "Reads every message here" switch. The server still checks the
+	// administrator on every Grant.
+	Manages bool `json:"manages"`
 }
 
 // Surface obtains tenant and person from verified request context, never JSON.

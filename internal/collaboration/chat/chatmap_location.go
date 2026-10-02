@@ -50,6 +50,15 @@ type LocationShare struct {
 	Place                                                          LocationPlace
 	ExpiresAt                                                      *time.Time
 	Ended                                                          bool
+	// Live shares carry only their latest position; PositionAt is when it was
+	// stored, Paused is derived on read, and EndedAt/EndedReason say when and
+	// why a share ended (the position itself is deleted on ending).
+	Live         bool
+	LiveInterval time.Duration
+	PositionAt   *time.Time
+	EndedAt      *time.Time
+	EndedReason  string
+	Paused       bool
 }
 type LocationKey struct{ TenantID, ConversationID, PostID, ID string }
 type AttachLocationRequest struct {
@@ -58,6 +67,9 @@ type AttachLocationRequest struct {
 	PostRevision                     uint64
 	Place                            LocationPlace
 	ExpiresAt                        *time.Time
+	// Live asks for a bounded share whose position the device keeps updating.
+	Live         bool
+	LiveInterval time.Duration
 	// Machine callers need a verified skill grant, never a JSON request flag.
 }
 type LocationGrant interface {
@@ -189,6 +201,10 @@ type LocationService struct {
 	Lookup AddressLookup
 	Usage  LocationUsagePort
 	Now    Clock
+	// Admin and Country are optional; the repository supplies the admin check
+	// when it can, and no country means the workspace-wide rule applies.
+	Admin   LocationAdminPort
+	Country LocationCountryResolver
 }
 
 func (s *LocationService) SearchLocationSites(ctx context.Context, p Principal, tenant, conversation, query string) ([]LocationSite, error) {
@@ -286,8 +302,12 @@ func (s *LocationService) Attach(ctx context.Context, r AttachLocationRequest) (
 		at := r.ExpiresAt.UTC().Truncate(time.Microsecond)
 		r.ExpiresAt = &at
 	}
-	if r.ExpiresAt != nil && (!r.ExpiresAt.After(now) || r.ExpiresAt.Sub(now) > 24*time.Hour) {
+	if r.ExpiresAt != nil && (!r.ExpiresAt.After(now) || r.ExpiresAt.Sub(now) > LocationHardMaxDuration) {
 		return LocationShare{}, ErrInvalidArgument
+	}
+	clamped, err := s.enforcePolicy(ctx, &r, now)
+	if err != nil {
+		return LocationShare{}, err
 	}
 	rawPlace := r.Place
 	kind := "human"
@@ -325,6 +345,9 @@ func (s *LocationService) Attach(ctx context.Context, r AttachLocationRequest) (
 	}
 	share := LocationShare{Version: LocationVersion, ID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(r.TenantID+"\x00"+r.ConversationID+"\x00"+r.PostID)).String(), TenantID: r.TenantID, ConversationID: r.ConversationID, PostID: r.PostID, PostRevision: r.PostRevision, SharerID: r.Principal.SubjectID, SharerTenantID: r.Principal.TenantID, Place: place, ExpiresAt: r.ExpiresAt, SharedAt: now, Classification: LocationClassification}
 	share.SharerKind = kind
+	if r.Live {
+		share.Live, share.LiveInterval, share.PositionAt = true, r.LiveInterval, &now
+	}
 	for _, ref := range post.References {
 		if ref.Kind == LocationReference {
 			k.ID = ref.ID
@@ -342,7 +365,13 @@ func (s *LocationService) Attach(ctx context.Context, r AttachLocationRequest) (
 				canonical.Label = ""
 				canonical.Address = ""
 			}
-			if prior.Ended || !reflect.DeepEqual(canonical, place) || !sameExpiry {
+			// A shortened expiry or a moved live position is the same share
+			// retried: the limit or the device, not the request, changed it.
+			if clamped && prior.ExpiresAt != nil {
+				sameExpiry = true
+			}
+			samePlace := reflect.DeepEqual(canonical, place) || (r.Live && prior.Live)
+			if prior.Ended || !samePlace || !sameExpiry || prior.Live != r.Live {
 				return LocationShare{}, ErrConflict
 			}
 			return prior, nil
@@ -407,6 +436,7 @@ func (s *LocationService) Read(ctx context.Context, p Principal, k LocationKey) 
 			return LocationShare{}, e
 		}
 	}
+	markPaused(&v, s.now())
 	return v, nil
 }
 
@@ -462,6 +492,14 @@ func PrepareLocation(p LocationPlace, now time.Time) (LocationPlace, error) {
 	}
 	if p.Source == LocationJobSite && p.SiteID != "" && p.Position == nil {
 		if p.Precision != "exact" {
+			return LocationPlace{}, ErrInvalidArgument
+		}
+		return p, nil
+	}
+	if p.Source == LocationAddress && p.Position == nil {
+		// A typed address with no position: the words are what is shared, so
+		// there is nothing to coarsen and only the exact form is meaningful.
+		if p.Precision != "exact" || strings.TrimSpace(p.Address) == "" {
 			return LocationPlace{}, ErrInvalidArgument
 		}
 		return p, nil

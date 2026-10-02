@@ -88,3 +88,30 @@ func TestTodo_CHATMOD_002_BlockedEnvelope_ManyWords(t *testing.T) {
 		t.Fatalf("the cap is %d, got %d", MaxSpans, n)
 	}
 }
+
+// TestTodo_CHATUX_018_RuleName: the refusal names the rule that refused the text,
+// as its own violation after the spans, kept to one short line; the message and
+// the error string still carry neither the rule nor the text.
+func TestTodo_CHATUX_018_RuleName(t *testing.T) {
+	owned, _ := Envelope(&chatfilter.BlockedError{RuleName: "Built-in word list: Profanity", Span: chatfilter.Span{Start: 9, End: 13}}, "body")
+	got := owned.Violations()
+	if len(got) != 2 || got[0].RuleRef != SpanRuleRef || got[1].RuleRef != RuleNameRef || got[1].Description != "Built-in word list: Profanity" || got[1].FieldPath != "body" {
+		t.Fatalf("violations %+v", got)
+	}
+	if contains(owned.Error(), "Profanity") {
+		t.Fatalf("the error string carries the rule: %s", owned.Error())
+	}
+	long := ""
+	for i := 0; i < 200; i++ {
+		long += "a"
+	}
+	owned, _ = Envelope(&chatfilter.BlockedError{RuleName: long, Span: chatfilter.Span{Start: 0, End: 1}}, "body")
+	if got = owned.Violations(); len(got) != 2 || len(got[1].Description) != MaxRuleNameRunes {
+		t.Fatalf("the name is not bounded: %+v", got)
+	}
+	// A refusal with no rule name says none.
+	owned, _ = Envelope(&chatfilter.BlockedError{Span: chatfilter.Span{Start: 0, End: 1}}, "body")
+	if got = owned.Violations(); len(got) != 1 {
+		t.Fatalf("an empty name is carried: %+v", got)
+	}
+}

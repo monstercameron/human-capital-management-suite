@@ -15,6 +15,7 @@ type fakeStore struct {
 	post         Post
 	pins         []Pin
 	mutations    int
+	rewound      []ReadState
 	created      []Membership
 	// conversations is what a listing answers with; scope and window record what
 	// the service asked the store for, and put records the membership row it was
@@ -175,6 +176,11 @@ func (f *fakeStore) PutReadState(context.Context, ReadState, uint64) (ReadState,
 	f.mutations++
 	return ReadState{}, nil
 }
+func (f *fakeStore) RewindReadState(_ context.Context, x ReadState, _ uint64) (ReadState, error) {
+	f.mutations++
+	f.rewound = append(f.rewound, x)
+	return x, nil
+}
 func (f *fakeStore) GetPreferences(context.Context, string, string, string, string) (NotificationPreferences, error) {
 	return NotificationPreferences{}, nil
 }
@@ -262,7 +268,7 @@ func TestTodo_CHAT_013_CreateValidatesOwnerAndInitialMembers(t *testing.T) {
 	if f.mutations != 0 {
 		t.Fatalf("store mutations = %d, want 0", f.mutations)
 	}
-	got, err := s.CreateConversation(context.Background(), CreateConversationRequest{Principal: principal(), TenantID: "t1", Kind: PrivateChannel, IdempotencyKey: "k1", Members: []MemberRef{{TenantID: "t1", SubjectID: "u2"}}})
+	got, err := s.CreateConversation(context.Background(), CreateConversationRequest{Principal: principal(), TenantID: "t1", Kind: PrivateChannel, Name: "room", IdempotencyKey: "k1", Members: []MemberRef{{TenantID: "t1", SubjectID: "u2"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -420,7 +426,7 @@ func TestTodo_CHAT_017_ServiceCRUDAndCollaborationPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	updated := conversation()
-	updated.Name = "Operations"
+	updated.Name = "operations"
 	if _, err := s.UpdateConversation(ctx, UpdateConversationRequest{Principal: principal(), Conversation: updated, ExpectedRevision: 1}); err != nil {
 		t.Fatal(err)
 	}

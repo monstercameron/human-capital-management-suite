@@ -70,6 +70,7 @@ const (
 	reasonInvalidArgument         = "chat.invalid_argument"
 	ruleTrustedRequestBoundary    = "trusted_request_boundary.server_derived_field"
 	ruleBodyBound                 = "chat.post_body_bound"
+	ruleChannelName               = "chat.channel_name_rule"
 	ruleCursorConflict            = "chat.cursor_conflict"
 	// reasonStreamSend names a watch that ended because the caller's own
 	// connection could not be written to.
@@ -225,6 +226,12 @@ func callErr(err error) error {
 	if owned, ok := chatblocked.Envelope(err, "body"); ok {
 		return owned
 	}
+	// CHATBUG-072: a refused channel name is the author's to fix, reported
+	// against the name field so the form can say why under the box.
+	if errors.Is(err, chatcore.ErrChannelName) {
+		return envelope.New(envelope.CodeInvalidArgument, chatcore.ReasonChannelName, "the channel name does not follow the naming rule").
+			WithViolation("name", "use lowercase letters, numbers, dashes and underscores, up to "+strconv.Itoa(chatcore.MaxChannelNameRunes)+" characters", ruleChannelName)
+	}
 	code, reason := envelope.CodeUnspecified, "chat.internal_error"
 	switch {
 	case errors.Is(err, chatcore.ErrInvalidArgument):
@@ -251,6 +258,9 @@ func callErr(err error) error {
 		// The cause never reaches the caller, but it must not be thrown away
 		// either: the diagnostic is what a log record carries.
 		owned.WithDiagnostic(err)
+		// CHATBUG-081: a database refusal names its SQLSTATE and objects in
+		// the log, never a row value.
+		logDatabaseFailure(nil, err)
 	}
 	return owned
 }
@@ -424,7 +434,7 @@ func (s *server) ListPosts(c context.Context, r *chatv1.ListPostsRequest) (*chat
 	if e != nil {
 		return nil, e
 	}
-	v, e := s.deps.Service.ListPosts(c, chatcore.ListPostsRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), AfterSequence: r.GetAfterSequence(), Page: page(r.GetCursor(), r.GetPageSize()), Descending: r.GetDescending(), BeforeSequence: r.GetBeforeSequence()})
+	v, e := s.deps.Service.ListPosts(c, chatcore.ListPostsRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), AfterSequence: r.GetAfterSequence(), Page: page(r.GetCursor(), r.GetPageSize()), Descending: r.GetDescending(), BeforeSequence: r.GetBeforeSequence(), IncludeSystem: true})
 	if e != nil {
 		return nil, callErr(e)
 	}
@@ -491,7 +501,7 @@ func (s *server) UpdateReadState(c context.Context, r *chatv1.UpdateReadStateReq
 	if e != nil {
 		return nil, e
 	}
-	v, e := s.deps.Service.UpdateReadState(c, chatcore.UpdateReadStateRequest{Principal: p, ReadState: readStateIn(r.GetState()), ExpectedRevision: r.GetExpectedRevision()})
+	v, e := s.deps.Service.UpdateReadState(c, chatcore.UpdateReadStateRequest{Principal: p, ReadState: readStateIn(r.GetState()), ExpectedRevision: r.GetExpectedRevision(), Rewind: r.GetRewind()})
 	if e != nil {
 		return nil, callErr(e)
 	}
@@ -543,7 +553,7 @@ func (s *server) ListReactions(c context.Context, r *chatv1.ListReactionsRequest
 	if e != nil {
 		return nil, e
 	}
-	v, e := s.deps.Service.ListReactions(c, chatcore.ListReactionsRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), PostID: r.GetPostId(), Page: chatcore.Page{PageSize: r.GetPageSize(), Cursor: r.GetCursor()}})
+	v, e := s.deps.Service.ListReactions(c, chatcore.ListReactionsRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), PostID: r.GetPostId(), PostIDs: r.GetPostIds(), Page: chatcore.Page{PageSize: r.GetPageSize(), Cursor: r.GetCursor()}})
 	if e != nil {
 		return nil, callErr(e)
 	}

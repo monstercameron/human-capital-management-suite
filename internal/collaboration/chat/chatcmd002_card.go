@@ -41,19 +41,45 @@ type Chatcmd002Task struct {
 	DueAt                *time.Time `json:"due_at,omitempty"`
 }
 type Chatcmd002View struct {
-	Card           Chatcmd002Card      `json:"card"`
-	MyOptions      []string            `json:"my_options,omitempty"`
-	CanManage      bool                `json:"can_manage"`
-	CanTick        map[string]bool     `json:"can_tick,omitempty"`
-	ResultsVisible bool                `json:"results_visible"`
-	Voters         map[string][]string `json:"voters,omitempty"`
+	Card      Chatcmd002Card `json:"card"`
+	MyOptions []string       `json:"my_options,omitempty"`
+	// Voted says the reader has cast a ballot. An anonymous poll keeps no record
+	// of which option that was, so MyOptions stays empty for it.
+	Voted     bool `json:"voted,omitempty"`
+	CanManage bool `json:"can_manage"`
+	// CanAddOption says the reader may add an option to this poll: the poll lets
+	// members add them, or the reader wrote it, and it is open and has room.
+	CanAddOption   bool                         `json:"can_add_option,omitempty"`
+	CanTick        map[string]bool              `json:"can_tick,omitempty"`
+	ResultsVisible bool                         `json:"results_visible"`
+	Voters         map[string][]Chatcmd002Voter `json:"voters,omitempty"`
+	// Revision is the post revision this view was read at.
+	Revision uint64 `json:"revision,omitempty"`
+	// Notice is set by the client only: why the reader's last press on this
+	// card was not accepted ("conflict", "final", "denied", "failed").
+	Notice string `json:"-"`
 }
+
+// Chatcmd002Voter identifies who chose an option of a poll that shows names.
+type Chatcmd002Voter struct {
+	HomeTenantID string `json:"home_tenant_id"`
+	SubjectID    string `json:"subject_id"`
+}
+
+// Closed reports whether the card takes no more votes or ticks at now: its
+// author closed it, or the poll's closing time has passed.
+func (c Chatcmd002Card) Closed(now time.Time) bool {
+	return c.ClosedAt != nil || c.Poll != nil && c.Poll.ClosesAt != nil && !now.Before(*c.Poll.ClosesAt)
+}
+
 type Chatcmd002Mutation struct {
 	Operation string          `json:"operation"`
 	Options   []string        `json:"options,omitempty"`
 	ItemID    string          `json:"item_id,omitempty"`
 	Completed bool            `json:"completed"`
 	Card      *Chatcmd002Card `json:"card,omitempty"`
+	// Text is the new option of an ADD_OPTION.
+	Text string `json:"text,omitempty"`
 }
 
 func chatcmd002Text(text string, max int) bool {
@@ -156,7 +182,15 @@ type Chatcmd003Draft struct {
 	Issues   []string           `json:"issues,omitempty"`
 	Changes  []Chatcmd003Change `json:"changes,omitempty"`
 }
-type Chatcmd003Change struct{ Before, After string }
+
+// Chatcmd003Change is one thing the preview changed in what was typed. Kind is
+// empty for wording (Before became After; an empty After is a repeated option
+// merged away) and otherwise names what was read out of a task or a line
+// (Chatcmd004ChangeSplit, Chatcmd004ChangeAssignee, Chatcmd004ChangeDue).
+type Chatcmd003Change struct {
+	Before, After string
+	Kind          string `json:",omitempty"`
+}
 
 func Chatcmd003ParsePoll(raw string, now time.Time, resolveDate func(string, time.Time) (time.Time, error)) (Chatcmd003Draft, error) {
 	d := Chatcmd003Draft{Raw: raw, Card: Chatcmd002Card{Kind: "poll", Poll: &Chatcmd002Poll{Results: "always", AddOptions: "author"}}}
@@ -170,14 +204,16 @@ func Chatcmd003ParsePoll(raw string, now time.Time, resolveDate func(string, tim
 			d.Card.Poll.Options = append(d.Card.Poll.Options, ChannelPollOption{Text: text})
 		}
 	} else {
-		lines := chatcmd003LooseItems(raw)
-		if len(lines) > 1 {
-			d.Card.Title = lines[0]
-			for _, text := range lines[1:] {
-				d.Card.Poll.Options = append(d.Card.Poll.Options, ChannelPollOption{Text: text})
-			}
+		title, options, guessed := chatcmd003SplitLoosePoll(raw)
+		d.Card.Title = title
+		for _, text := range options {
+			d.Card.Poll.Options = append(d.Card.Poll.Options, ChannelPollOption{Text: text})
 		}
-		d.Issues = append(d.Issues, "separate-question")
+		// Only a split that had to guess where the question ends is put to the
+		// person before it may be posted.
+		if guessed {
+			d.Issues = append(d.Issues, "separate-question")
+		}
 	}
 	for key, value := range a.Named {
 		switch key {
@@ -219,4 +255,33 @@ func chatcmd003Clone(c Chatcmd002Card) Chatcmd002Card {
 	var out Chatcmd002Card
 	_ = json.Unmarshal(b, &out)
 	return out
+}
+
+// Chatcmd002MaxOptions is the most options a poll holds.
+const Chatcmd002MaxOptions = 12
+
+// AddOption is the poll with one more option at its end. It refuses a card
+// that is not a poll, a poll that already holds twelve, and text that is empty,
+// too long, or the same (ignoring case and spacing) as an option it has.
+func (c Chatcmd002Card) AddOption(id, text string) (Chatcmd002Card, error) {
+	if c.Poll == nil || len(c.Poll.Options) >= Chatcmd002MaxOptions || id == "" || !chatcmd002Text(text, 100) {
+		return c, ErrInvalidArgument
+	}
+	key := strings.ToLower(strings.TrimSpace(text))
+	for _, option := range c.Poll.Options {
+		if strings.ToLower(strings.TrimSpace(option.Text)) == key {
+			return c, ErrConflict
+		}
+	}
+	poll := *c.Poll
+	poll.Options = append(append([]ChannelPollOption(nil), poll.Options...), ChannelPollOption{ID: id, Text: strings.TrimSpace(text)})
+	c.Poll = &poll
+	return c, nil
+}
+
+// CanAddOption reports whether a reader may add an option to this poll at now:
+// it is open, has room, and either lets members add options or the reader
+// wrote it.
+func (c Chatcmd002Card) CanAddOption(now time.Time, author bool) bool {
+	return c.Poll != nil && !c.Closed(now) && len(c.Poll.Options) < Chatcmd002MaxOptions && (c.Poll.AddOptions == "members" || author)
 }

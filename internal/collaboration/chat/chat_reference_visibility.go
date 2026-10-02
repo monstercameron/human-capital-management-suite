@@ -15,9 +15,12 @@ const restrictedConversationReference = "Restricted conversation"
 func (s *Service) projectConversationReferences(ctx context.Context, p Principal, posts []Post) []Post {
 	projected := make([]Post, len(posts))
 	visible := make(map[string]bool)
+	// CHATBUG-014: a source cited by several answers on the page is resolved
+	// once for this read (chatperf_sources.go).
+	sources := newAgentSourceMemo(s.agentSourceAccess)
 	for i, post := range posts {
 		projected[i] = post
-		projected[i].Body = s.projectAgentSources(ctx, p, post.TenantID, post.ConversationID, post.Body)
+		projected[i].Body = projectAgentSourcesWith(ctx, sources, p, post.TenantID, post.ConversationID, post.Body)
 		projected[i].References = append([]Reference(nil), post.References...)
 		for j, ref := range projected[i].References {
 			if ref.Kind != ConversationMention {

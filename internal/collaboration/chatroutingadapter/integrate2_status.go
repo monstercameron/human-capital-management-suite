@@ -82,3 +82,17 @@ func (s *Service) SearchChannelStatuses(ctx context.Context, p chat.Principal, t
 	}
 	return source.SearchChannelStatuses(ctx, p, tenant, query, archived)
 }
+
+// CheckChannelStatusAction answers whether the channel's status allows one kind
+// of action by this person now. The channel's own poll and to-do list check it
+// before they change anything. A service that cannot answer refuses, so a
+// mutation is never allowed for want of a check.
+func (s *Service) CheckChannelStatusAction(ctx context.Context, p chat.Principal, c chat.Conversation, action chatpolicy.StatusAction) error {
+	checker, ok := s.status.(interface {
+		CheckChannelStatusAction(context.Context, chat.Principal, chat.Conversation, chatpolicy.StatusAction) error
+	})
+	if !ok {
+		return chat.ErrUnavailable
+	}
+	return checker.CheckChannelStatusAction(ctx, p, c, action)
+}

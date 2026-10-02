@@ -12,6 +12,12 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
+// documentUsageMarker is the first source id of every model step result since
+// citation capture began. It marks that the result's remaining source ids are
+// the documents the answer cited (none, when it is alone); it is not itself a
+// source.
+const documentUsageMarker = "agent-document-usage:v1"
+
 // SpecialistOutput is a typed return to the authenticated parent. Derived
 // text and results remain tainted data and cannot modify its confirmed plan.
 type SpecialistOutput struct {
@@ -81,6 +87,11 @@ func (r *Runner) SpecialistResult(ctx context.Context, parentTaskID, parentCrede
 		}
 		sources := append(slices.Clone(entry.SourceIDs), entry.SourceID)
 		for _, source := range sources {
+			// The usage marker says citations were captured for this result; it
+			// names no data, so no authority has to cover it.
+			if source == documentUsageMarker {
+				continue
+			}
 			if source != "" && (!outputSourceAllowed(parentAuthority, source) || !outputSourceAllowed(childAuthority, source)) {
 				return SpecialistOutput{}, ErrDenied
 			}

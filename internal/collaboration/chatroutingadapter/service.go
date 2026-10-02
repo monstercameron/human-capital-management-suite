@@ -211,6 +211,22 @@ func (s *Service) CommitPersonaReply(ctx context.Context, r chat.PersonaReplyCom
 	})
 }
 
+// CommitAgentQuestionReaction forwards an agent's reaction to the question it
+// was asked (AGENTUX-075) under the conversation's route lease and its status
+// fence, like any other write. Reached around this adapter, the reaction found
+// no lease on a routed conversation and was refused, in the person's own
+// conversation with the agent as in a channel.
+func (s *Service) CommitAgentQuestionReaction(ctx context.Context, r chat.AgentQuestionReaction) (chat.Reaction, error) {
+	committer, ok := s.ConversationService.(chat.AgentQuestionReactionCommitter)
+	if !ok {
+		return chat.Reaction{}, chat.ErrUnavailable
+	}
+	ctx = s.statusMutation(ctx, r.Asker, r.TenantID, r.ConversationID, chatpolicy.StatusReact, nil)
+	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Reaction, error) {
+		return committer.CommitAgentQuestionReaction(c, r)
+	})
+}
+
 func (s *Service) SendEphemeralPost(ctx context.Context, r chat.SendEphemeralPostRequest) (chat.EphemeralPost, error) {
 	ephemeral, ok := s.ConversationService.(chat.EphemeralService)
 	if !ok {

@@ -2,7 +2,6 @@ package chatrewrite
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -23,11 +22,18 @@ func protect(draft string) (protectedDraft, error) {
 	if strings.Contains(draft, "⟦HCM:") || strings.Contains(draft, "⟧") {
 		return protectedDraft{}, ErrInvalid
 	}
-	var nonce [12]byte
-	if _, err := rand.Read(nonce[:]); err != nil {
+	// The nonce is letters only. A hex nonce put long runs of digits in front of
+	// the outbound verifier, which now and then read one as a card number and
+	// refused a draft that held nothing sensitive (about one in three hundred).
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
 		return protectedDraft{}, ErrUnavailable
 	}
-	prefix := "⟦HCM:" + hex.EncodeToString(nonce[:]) + ":"
+	nonce := make([]byte, len(random))
+	for i, b := range random {
+		nonce[i] = 'a' + b%26
+	}
+	prefix := "⟦HCM:" + string(nonce) + ":"
 	p := protectedDraft{}
 	p.text = protectedPattern().ReplaceAllStringFunc(draft, func(value string) string {
 		token := fmt.Sprintf("%s%d⟧", prefix, len(p.values))

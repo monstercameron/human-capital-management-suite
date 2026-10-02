@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// PermissionMember is asked of the Authority when somebody who is neither the
+// answers' owner nor an administrator reads a field its question shows to
+// members: it is held by the people who are in the channel.
+const PermissionMember = "member"
+
 // Authority is resolved on every call, inside the storage transaction. Facts and
 // directory references come from the server, never from submitted profile data.
 type Authority interface {
@@ -429,7 +434,14 @@ func (s *Service) read(ctx context.Context, tx Transaction, r ReadRequest) (map[
 		}
 	}
 	admin := s.access(ctx, r.Actor, r.Scope, "admin") == nil
-	own := r.Actor.Person == r.Person && r.Consumer == ""
+	// A person reads every answer of their own. An export is a file that
+	// leaves the page: it carries what an administrator may see and nothing
+	// more, also in the row of the administrator who makes it.
+	own := r.Actor.Person == r.Person && r.Consumer == "" && !r.Export
+	// A field shown to members is shown to people who are in the channel. The
+	// permission to read answers is also held by an applicant, for their own;
+	// without this they could ask for somebody else's member-visible answers.
+	member := !own && !admin && r.Consumer == "" && s.access(ctx, r.Actor, r.Scope, PermissionMember) == nil
 	fields := map[string]Field{}
 	for _, f := range sub.Fields {
 		fields[f.ID] = f
@@ -469,7 +481,7 @@ func (s *Service) read(ctx context.Context, tx Transaction, r ReadRequest) (map[
 		if !ok {
 			return nil, ErrDenied
 		}
-		allowed := own || (admin && f.Visibility.Administrators) || (!admin && f.Visibility.Members)
+		allowed := own || (admin && f.Visibility.Administrators) || (member && f.Visibility.Members)
 		if r.Consumer != "" {
 			mapped := false
 			for _, mappedID := range install.Mapping {

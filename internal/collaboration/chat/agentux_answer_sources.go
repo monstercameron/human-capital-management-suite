@@ -23,6 +23,16 @@ type AgentSourceAccess interface {
 func (s *Service) SetAgentSourceAccess(access AgentSourceAccess) { s.agentSourceAccess = access }
 
 func (s *Service) projectAgentSources(ctx context.Context, reader Principal, tenant, conversation, body string) string {
+	return projectAgentSourcesWith(ctx, s.agentSourceAccess, reader, tenant, conversation, body)
+}
+
+// agentSourceLinkPattern finds the Markdown links of an answer.
+var agentSourceLinkPattern = regexp.MustCompile(`\[([^\]]+)\]\(([^)]*)\)`)
+
+// projectAgentSourcesWith projects one answer's sources through access. A read
+// of many posts passes one access for all of them (chatperf_sources.go), so a
+// source cited by several answers is resolved once.
+func projectAgentSourcesWith(ctx context.Context, access AgentSourceAccess, reader Principal, tenant, conversation, body string) string {
 	const prefix = "\n\nSources\n"
 	start := strings.LastIndex(body, prefix)
 	if start < 0 {
@@ -42,8 +52,8 @@ func (s *Service) projectAgentSources(ctx context.Context, reader Principal, ten
 		// A stored readable flag or URL is never permission. Re-resolve it on
 		// every history read, watch event and ephemeral read, failing closed.
 		source.Readable = false
-		if s.agentSourceAccess != nil {
-			resolved, err := s.agentSourceAccess.ResolveAgentDocumentSource(ctx, reader, tenant, conversation, source)
+		if access != nil {
+			resolved, err := access.ResolveAgentDocumentSource(ctx, reader, tenant, conversation, source)
 			if err == nil && resolved.Readable && validProjectedAgentSource(resolved.Href) {
 				source = resolved
 			}
@@ -60,9 +70,8 @@ func (s *Service) projectAgentSources(ctx context.Context, reader Principal, ten
 		}
 	}
 	answer := body[:start]
-	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\(([^)]*)\)`)
-	answer = linkPattern.ReplaceAllStringFunc(answer, func(markup string) string {
-		parts := linkPattern.FindStringSubmatch(markup)
+	answer = agentSourceLinkPattern.ReplaceAllStringFunc(answer, func(markup string) string {
+		parts := agentSourceLinkPattern.FindStringSubmatch(markup)
 		if source, ok := links[parts[2]]; ok {
 			if !source.Readable {
 				return parts[1]

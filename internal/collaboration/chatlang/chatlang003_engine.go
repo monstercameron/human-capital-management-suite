@@ -64,6 +64,19 @@ type Response struct {
 	CostMicros   int64
 	// Confidence is the engine's own statement, 0 to 1, or 0 when it makes none.
 	Confidence float64
+	// DetectedSource is the language the engine found the text to be written in
+	// (a language tag, "und" for text with no language of its own), or empty when
+	// the engine does not detect. An engine that detects translates and detects in
+	// one call (CHATLANG-008).
+	DetectedSource string
+	// MeaningChecked is true when the engine gave its own verdict on whether the
+	// translation keeps the meaning, and MeaningPreserved is that verdict. It is a
+	// second opinion beside the placeholder and glossary checks, never a
+	// replacement for them.
+	MeaningChecked, MeaningPreserved bool
+	// InstructionDigest identifies the instruction the engine used, when it is not
+	// the text instruction of InstructionDigest().
+	InstructionDigest string
 }
 
 // Engine is the translation port. A general language model through the

@@ -122,6 +122,7 @@ type PersonaProfile struct {
 	Instructions             string                                          `json:"instructions"`
 	InstructionsDigest       string                                          `json:"instructions_digest"`
 	Guidance                 string                                          `json:"guidance,omitempty"`
+	ExampleQuestions         []string                                        `json:"example_questions,omitempty"`
 	DocumentReferences       []agentdocref.Reference                         `json:"document_references,omitempty"`
 	Owner                    string                                          `json:"owner"`
 	Steward                  string                                          `json:"steward"`
@@ -627,6 +628,9 @@ func validateShape(p PersonaProfile) error {
 	if err := agentdocref.ValidateGuidance(p.Guidance, p.DocumentReferences); err != nil {
 		return fmt.Errorf("%w: guidance: %w", ErrInvalidProfile, err)
 	}
+	if err := ValidateExampleQuestions(p.ExampleQuestions); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidProfile, err)
+	}
 	if p.Template != nil && (strings.TrimSpace(p.Template.ID) == "" || p.Template.Version == 0 || len(p.Template.Digest) != len("sha256:")+64 || !strings.HasPrefix(p.Template.Digest, "sha256:")) {
 		return fmt.Errorf("%w: incomplete starter provenance", ErrInvalidProfile)
 	}
@@ -832,6 +836,7 @@ func cloneProfile(p PersonaProfile) PersonaProfile {
 	p.ConversationKinds = append([]ConversationKind(nil), p.ConversationKinds...)
 	p.ChannelClasses = append([]ChannelClass(nil), p.ChannelClasses...)
 	p.DocumentReferences = append([]agentdocref.Reference(nil), p.DocumentReferences...)
+	p.ExampleQuestions = append([]string(nil), p.ExampleQuestions...)
 	p.DataClassesRead = append([]string(nil), p.DataClassesRead...)
 	p.DataClassesWritten = append([]string(nil), p.DataClassesWritten...)
 	return p

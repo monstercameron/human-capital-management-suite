@@ -60,6 +60,9 @@ type Policy struct {
 	RequireMask     bool
 	RequireReworded bool
 	AllowedKinds    []Kind
+	// Own is true when the reader wrote this message. A person's own message is
+	// never translated back to them (CHATLANG-008).
+	Own bool
 }
 type Preference struct {
 	Tone             Tone            `json:"tone"`

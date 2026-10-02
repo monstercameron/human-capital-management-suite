@@ -15,12 +15,12 @@ func TestTodo_CHAT_014(t *testing.T) {
 	}
 	s := newTestService(f, func() time.Time { return joined.Add(time.Hour) })
 	updated, err := s.UpdateConversation(context.Background(), UpdateConversationRequest{
-		Principal: principal(), Conversation: Conversation{ID: "stable-channel", TenantID: "t1", Kind: PublicChannel, Name: "Operations", OwnerID: "departed-owner", Archived: true}, ExpectedRevision: 4,
+		Principal: principal(), Conversation: Conversation{ID: "stable-channel", TenantID: "t1", Kind: PublicChannel, Name: "operations", OwnerID: "departed-owner", Archived: true}, ExpectedRevision: 4,
 	})
 	if err != nil {
 		t.Fatalf("manager lifecycle update: %v", err)
 	}
-	if updated.ID != "stable-channel" || updated.Name != "Operations" || !updated.Archived || updated.OwnerID != "departed-owner" || f.mutations != 1 {
+	if updated.ID != "stable-channel" || updated.Name != "operations" || !updated.Archived || updated.OwnerID != "departed-owner" || f.mutations != 1 {
 		t.Fatalf("updated=%+v mutations=%d; stable identity and owner should be preserved", updated, f.mutations)
 	}
 }

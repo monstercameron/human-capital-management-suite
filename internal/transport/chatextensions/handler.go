@@ -486,6 +486,9 @@ func (s *server) GetCounts(ctx context.Context, r *chatv1.GetCountsRequest) (*ch
 	if r.GetSubjectId() != "" {
 		return nil, serverDerived("subject_id")
 	}
+	if len(r.GetConversationIds()) > 0 {
+		return s.sidebarCounts(ctx, p, r)
+	}
 	v, e := s.deps.Service.Counts(ctx, p, r.GetTenantId(), r.GetConversationId())
 	if e != nil {
 		return nil, mapped(e)

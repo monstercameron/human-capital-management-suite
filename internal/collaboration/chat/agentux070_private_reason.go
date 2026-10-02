@@ -11,6 +11,10 @@ import "strings"
 const (
 	// PrivateReasonAgent: the agent is set to answer privately.
 	PrivateReasonAgent = "agent"
+	// PrivateReasonChannel: the channel's administrator requires agent answers
+	// there to be private. It outranks the agent's own setting and the asker's
+	// word, so the line says the channel's rule, the one the asker cannot change.
+	PrivateReasonChannel = "channel"
 	// PrivateReasonAsked: the asker asked for privacy in the question.
 	PrivateReasonAsked = "asked"
 	// PrivateReasonAudience: not every member of the conversation may read every
@@ -24,7 +28,7 @@ const (
 // ValidPrivateReason reports whether reason is one of the codes above.
 func ValidPrivateReason(reason string) bool {
 	switch reason {
-	case PrivateReasonAgent, PrivateReasonAsked, PrivateReasonAudience:
+	case PrivateReasonChannel, PrivateReasonAgent, PrivateReasonAsked, PrivateReasonAudience:
 		return true
 	}
 	return false
@@ -43,6 +47,12 @@ func PrivateReasonMarker(reason string) string {
 // body and the reason it named. A body with no well-formed marker is returned
 // unchanged with an empty reason.
 func SplitPrivateReason(body string) (clean, reason string) {
+	// AGENTUX-076: where the card is not there to show the mark that an answer is
+	// not from the documents, the answer says so in a plain line of its own.
+	if cleaned, ungrounded := SplitUngrounded(body); ungrounded {
+		clean, reason = SplitPrivateReason(cleaned)
+		return clean + "\n\n" + UngroundedNote, reason
+	}
 	start := strings.LastIndex(body, privateReasonOpen)
 	if start < 0 {
 		return body, ""

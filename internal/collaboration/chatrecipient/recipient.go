@@ -27,7 +27,10 @@ type sidebarLayout struct {
 		ID        string `json:"id"`
 		Name      string `json:"name"`
 		Collapsed bool   `json:"collapsed"`
-		Chats     []struct {
+		// Manual is the person's own ordering flag (CHATSIDE-001); the server
+		// only keeps it when it rewrites a filtered layout.
+		Manual bool `json:"manual,omitempty"`
+		Chats  []struct {
 			HostTenantID   string `json:"hostTenantId"`
 			ConversationID string `json:"conversationId"`
 		} `json:"chats"`
@@ -257,6 +260,9 @@ func (s *Service) PutSidebar(ctx context.Context, p chat.Principal, x Sidebar, e
 	}
 	if len(layout.Sections) > 30 || len(layout.EmojiPrefs) > sidebarPrefsMax || len(layout.VoicePrefs) > sidebarPrefsMax {
 		return Sidebar{}, chat.ErrInvalidArgument
+	}
+	if err := s.validateSectionRules(ctx, p, layout); err != nil {
+		return Sidebar{}, err
 	}
 	return s.Repo.PutSidebar(ctx, p.TenantID, p.SubjectID, x, expected)
 }

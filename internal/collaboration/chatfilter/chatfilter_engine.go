@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -28,6 +29,11 @@ type Definition struct {
 	Channels, ExemptRoles, ExemptAgents       []string
 	Target                                    string
 	Hard, Product                             bool
+	// Authority says whose filter this is: AuthorityWorkspace when the person
+	// who saved the version held the permission for the whole workspace,
+	// AuthorityChannel when they held it for the one channel only. The service
+	// writes it; what a caller sends is ignored (chatmod003_authority.go).
+	Authority string `json:",omitempty"`
 }
 
 type Input struct {
@@ -75,6 +81,11 @@ type Action struct {
 type Registry struct {
 	kinds   map[string]Kind
 	actions map[string]Action
+	// EvaluationBudget is how long one message may take to judge, and Clock the
+	// clock it is measured on (chatmod003_authority.go). Zero is the default
+	// budget and the wall clock.
+	EvaluationBudget time.Duration
+	Clock            func() time.Time
 }
 
 func NewRegistry() *Registry {
@@ -82,7 +93,7 @@ func NewRegistry() *Registry {
 	for name, compile := range map[string]func(Definition) (Matcher, error){"words": compileWords, "pattern": compilePattern, "detector": compileDetector, "attachment": compileAttachment} {
 		_ = r.RegisterKind(name, Kind{Schema: "match: array of strings", Compile: compile})
 	}
-	for name, rank := range map[string]int{"notify": 1, "flag": 2, "mask": 3, "block": 4} {
+	for name, rank := range map[string]int{"notify": 1, "flag": 2, "reword": 2, "mask": 3, "block": 4} {
 		_ = r.RegisterAction(name, Action{Schema: "target: optional destination", Rank: rank, Block: name == "block", Mask: name == "mask", Deliver: name == "flag" || name == "notify", RequiresTarget: name == "notify"})
 	}
 	return r
@@ -114,7 +125,11 @@ type compiledRule struct {
 	rank       int
 	action     Action
 }
-type Evaluator struct{ rules []compiledRule }
+type Evaluator struct {
+	rules  []compiledRule
+	budget time.Duration
+	clock  func() time.Time
+}
 
 var semanticVersion = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
@@ -130,11 +145,30 @@ func ValidVersion(version string) bool {
 	return true
 }
 
+// maxActiveRules is how many rules one compiled set may hold.
+const maxActiveRules = 128
+
+// compilable reports whether a set of rules passes the checks Compile makes on
+// the set as a whole, without compiling a matcher: its size, and every rule's
+// action being one the registry knows with the target it needs. Each rule's
+// own terms were compiled when its version was saved.
+func (r *Registry) compilable(defs []Definition) bool {
+	if len(defs) > maxActiveRules {
+		return false
+	}
+	for _, d := range defs {
+		if a, ok := r.actions[d.Action]; !ok || a.RequiresTarget && d.Target == "" {
+			return false
+		}
+	}
+	return true
+}
+
 func (r *Registry) Compile(defs []Definition) (*Evaluator, error) {
-	if len(defs) > 128 {
+	if len(defs) > maxActiveRules {
 		return nil, ErrInvalid
 	}
-	e := &Evaluator{}
+	e := &Evaluator{budget: r.EvaluationBudget, clock: r.Clock}
 	seen := map[string]bool{}
 	for _, d := range defs {
 		k, ok := r.kinds[d.Kind]
@@ -205,7 +239,14 @@ func (e *Evaluator) evaluate(in Input, dry func(ruleID string) bool) (all, enfor
 	}
 	var every, acting outcome
 	var hits []Hit
+	deadline := e.deadline()
 	for _, rule := range e.rules {
+		// The budget is checked before each rule: a matcher cannot be stopped
+		// part-way, but none of them is unbounded, so the overrun is at most one
+		// rule's time.
+		if e.expired(deadline) {
+			return Result{}, Result{}, ErrDeadline
+		}
 		d := rule.definition
 		if in.Direct && !d.Hard || len(d.Channels) > 0 && !contains(d.Channels, in.Channel) || d.Language != "" && in.Language != "" && language(d.Language) != language(in.Language) {
 			continue

@@ -107,6 +107,10 @@ type Request struct {
 	Filters      Filters
 	Mode, Cursor string
 	Limit        int
+	// Transient marks a search asked while a person types in the workspace
+	// search box (CHATSEARCH-002). It is answered like any other and is not
+	// remembered among their recent Chat searches.
+	Transient bool
 	// At is supplied by the server, never by an HTTP client.
 	At             time.Time `json:"-"`
 	BeforeAt       time.Time `json:"-"`
@@ -126,6 +130,9 @@ type Response struct {
 	NextCursor  string
 	Unavailable []Kind
 	CountScope  string
+	// Kinds are the kinds a source is registered for, in order. A declared
+	// kind that is not among them cannot be found here.
+	Kinds []Kind
 	// Failures holds the cause behind each Unavailable kind. It never leaves the
 	// server: the handler may log it, and the JSON body never carries it.
 	Failures []SourceFailure `json:"-"`
@@ -346,6 +353,13 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 		kinds = append(kinds, k)
 	}
 	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
+	// The kinds that can be found in this deployment, so the page's kind filter
+	// offers none that nothing here can answer.
+	for _, kind := range kinds {
+		if sources[kind] != nil {
+			out.Kinds = append(out.Kinds, kind)
+		}
+	}
 	var rows []Row
 	seen := map[string]bool{}
 	failed := map[Kind]bool{}

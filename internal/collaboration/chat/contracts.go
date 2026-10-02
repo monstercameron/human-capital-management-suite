@@ -241,6 +241,11 @@ type ListPostsRequest struct {
 	// BeforeSequence is the exclusive upper edge of a backward page. Zero starts
 	// at the newest post. It is ignored on a forward page.
 	BeforeSequence uint64
+	// IncludeSystem keeps the system lines (a person was added) in the page. A
+	// person's own timeline wants them; an agent reading the conversation for
+	// context, a translation or a rewrite does not, so they are left out unless
+	// asked for (CHATUX-021).
+	IncludeSystem bool
 }
 
 // PostWindow is the store-level projection of one page's direction and far edge.
@@ -272,6 +277,9 @@ type UpdateReadStateRequest struct {
 	Principal        Principal
 	ReadState        ReadState
 	ExpectedRevision uint64
+	// Rewind moves the read position back to ReadState.LastReadSequence
+	// ("mark unread from here"). Without it the position only moves forward.
+	Rewind bool
 }
 type GetReadStateRequest struct {
 	Principal                Principal
@@ -298,6 +306,9 @@ type ListReactionsRequest struct {
 	Principal                        Principal
 	TenantID, ConversationID, PostID string
 	Page                             Page
+	// PostIDs names several posts of the conversation to read in one call
+	// (chatperf_reactions.go). PostID and Page.Cursor are then unused.
+	PostIDs []string
 }
 type ListReactionsResponse struct {
 	Reactions  []Reaction

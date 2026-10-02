@@ -41,6 +41,9 @@ type Event struct {
 	Ephemeral             bool
 	ExpiresAt             time.Time
 	Payload               []byte
+	// Signal marks a person-scoped notice (see PublishSignal) instead of a
+	// conversation event. It has no sequence and does not move the cursor.
+	Signal string
 }
 
 type Page struct {
@@ -412,6 +415,9 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 	// durable/replayed order visible when a slow-consumer close races delivery.
 	select {
 	case event := <-s.queue:
+		if event.Signal != "" {
+			return event, nil
+		}
 		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
 			s.close(ErrRevoked)
 			return Event{}, ErrRevoked
@@ -422,6 +428,9 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 	}
 	select {
 	case event := <-s.queue:
+		if event.Signal != "" {
+			return event, nil
+		}
 		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
 			s.close(ErrRevoked)
 			return Event{}, ErrRevoked

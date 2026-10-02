@@ -48,6 +48,18 @@ func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 	if chosen.ID == "" {
 		return "", ErrInvalid
 	}
+	return s.run(ctx, req, chosen.Instruction)
+}
+
+// run is the one rewrite: the writing-style controls and "Reword" differ only
+// in the instruction they pass. It protects the draft's opaque parts, checks the
+// workspace policy and the outbound classes, makes the model call (at most two),
+// and accepts a result only when the model's own meaning verdict, the length
+// bounds, the policy and the independent meaning check all hold.
+func (s *Service) run(ctx context.Context, req Request, instruction string) (string, error) {
+	if s == nil || s.Model == nil || s.Policy == nil || s.Meaning == nil || s.Outbound == nil || s.Ledger == nil {
+		return "", ErrUnavailable
+	}
 	accepted, err := s.Policy.Accept(ctx, req.Identity, req.Draft)
 	if err != nil {
 		return "", ErrUnavailable
@@ -60,7 +72,7 @@ func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 		return "", err
 	}
 	prompt := Prompt{Identity: req.Identity, TaskProfile: TaskProfileID,
-		Instruction: BaseInstruction + chosen.Instruction,
+		Instruction: BaseInstruction + instruction,
 		Data:        promptData(p.text, req.Context)}
 	if err := s.Outbound.Verify(ctx, prompt); err != nil {
 		// A draft carrying data that may not leave the deployment is a policy
@@ -77,7 +89,7 @@ func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 		if err := s.Ledger.Reserve(ctx, req.Identity, s.now()); err != nil {
 			return "", err
 		}
-		output, callErr := s.Model.Rewrite(ctx, prompt)
+		output, preserved, callErr := s.call(ctx, prompt)
 		if err := s.Ledger.Record(context.WithoutCancel(ctx), Usage{req.Identity, "rewrite", attempt, callErr == nil, s.now()}); err != nil {
 			return "", ErrUnavailable
 		}
@@ -88,6 +100,11 @@ func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 				return "", ErrLimit
 			}
 			return "", ErrUnavailable
+		}
+		if !preserved {
+			// The model itself says the rewrite changed the meaning: the draft
+			// stands, or one more attempt is made.
+			continue
 		}
 		restored, checkErr := p.restore(output)
 		n := utf8.RuneCountInString(restored)
@@ -135,4 +152,16 @@ func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 		}
 	}
 	return "", ErrPreservation
+}
+
+// call makes one model call. A model that returns a verdict with its text
+// (CheckedModel) has the verdict read; a plain model is taken to vouch for
+// nothing and relies on the independent meaning check alone.
+func (s *Service) call(ctx context.Context, prompt Prompt) (text string, preserved bool, err error) {
+	if checked, ok := s.Model.(CheckedModel); ok {
+		result, err := checked.RewriteChecked(ctx, prompt)
+		return result.Text, result.MeaningPreserved, err
+	}
+	text, err = s.Model.Rewrite(ctx, prompt)
+	return text, true, err
 }

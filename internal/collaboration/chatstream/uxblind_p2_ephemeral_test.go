@@ -3,7 +3,10 @@ package chatstream
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -185,5 +188,127 @@ func TestTodo_AGENTP_011_Race(t *testing.T) {
 	_ = s.Publish(context.Background(), Event{TenantID: "tenant", ConversationID: "conversation", Sequence: 1, MembershipEpoch: 1, RecipientSubjectID: "subject", RecipientHomeTenantID: "tenant", Ephemeral: true, ExpiresAt: now.Add(time.Hour), Payload: []byte("late")})
 	if _, err := sub.Next(context.Background()); !errors.Is(err, ErrRevoked) {
 		t.Fatalf("recipient leaving during delivery returned %v", err)
+	}
+
+	// The ordered case above cannot fail on timing. The rounds below put the
+	// three parties on their own goroutines behind one gate: private answers
+	// being published, the recipient reading them, and the recipient being
+	// removed from the conversation part way through. Whatever the
+	// interleaving, the recipient may read some of her own answers and then
+	// is told access is revoked; she never reads one published after the
+	// removal returned; and the other member of the room reads nothing.
+	const rounds, answers = 200, 16
+	for round := 0; round < rounds; round++ {
+		stream, err := New(Config{Key: []byte("secret"), Reader: testReader{}, Authorizer: ephemeralTestAuth{}, QueueSize: answers, ReplayLimit: 4, CursorTTL: time.Hour, Clock: func() time.Time { return now }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		recipient, err := stream.Watch(context.Background(), WatchRequest{TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "subject", ConversationID: "conversation", MembershipEpoch: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		other, err := stream.Watch(context.Background(), WatchRequest{TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "other", ConversationID: "conversation", MembershipEpoch: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var (
+			gate    = make(chan struct{})
+			parties sync.WaitGroup
+			revoked atomic.Bool
+			// firstAfter is the first sequence the publisher sent knowing the
+			// removal had already returned; zero when there was none.
+			firstAfter atomic.Uint64
+			read       []uint64
+			terminal   error
+			foreign    string
+			publishErr error
+		)
+		parties.Add(3)
+		go func() {
+			defer parties.Done()
+			<-gate
+			for sequence := uint64(1); sequence <= answers; sequence++ {
+				if revoked.Load() {
+					firstAfter.CompareAndSwap(0, sequence)
+				}
+				if err := stream.Publish(context.Background(), Event{TenantID: "tenant", ConversationID: "conversation", Sequence: sequence, MembershipEpoch: 1, RecipientSubjectID: "subject", RecipientHomeTenantID: "tenant", Ephemeral: true, ExpiresAt: now.Add(time.Hour), Payload: []byte("private")}); err != nil {
+					publishErr = err
+					return
+				}
+				// Yield at a different point each round so the removal lands
+				// before, between and after the answers across the rounds.
+				if int(sequence) == round%answers {
+					runtime.Gosched()
+				}
+			}
+		}()
+		go func() {
+			defer parties.Done()
+			<-gate
+			for spin := 0; spin < round%7; spin++ {
+				runtime.Gosched()
+			}
+			stream.Revoke("tenant", "tenant", "subject", "conversation", 2)
+			revoked.Store(true)
+		}()
+		go func() {
+			defer parties.Done()
+			<-gate
+			readCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			for {
+				event, err := recipient.Next(readCtx)
+				if err != nil {
+					terminal = err
+					return
+				}
+				if !event.Ephemeral || event.RecipientSubjectID != "subject" || event.RecipientHomeTenantID != "tenant" || string(event.Payload) != "private" {
+					foreign = fmt.Sprintf("%+v", event)
+					return
+				}
+				read = append(read, event.Sequence)
+			}
+		}()
+		close(gate)
+		parties.Wait()
+
+		if publishErr != nil {
+			t.Fatalf("round %d: publishing a private answer failed: %v", round, publishErr)
+		}
+		if foreign != "" {
+			t.Fatalf("round %d: the recipient read an event that is not her private answer: %s", round, foreign)
+		}
+		if !errors.Is(terminal, ErrRevoked) {
+			t.Fatalf("round %d: the removed recipient's stream ended with %v after %d answers, want access revoked", round, terminal, len(read))
+		}
+		for index, sequence := range read {
+			if index > 0 && sequence <= read[index-1] {
+				t.Fatalf("round %d: answers arrived out of order or twice: %v", round, read)
+			}
+			if after := firstAfter.Load(); after != 0 && sequence >= after {
+				t.Fatalf("round %d: the recipient read answer %d, published after her removal returned (first such answer %d): %v", round, sequence, after, read)
+			}
+		}
+		// Once revoked, always revoked: nothing queued earlier is handed out.
+		for again := 0; again < 3; again++ {
+			if event, err := recipient.Next(context.Background()); !errors.Is(err, ErrRevoked) {
+				t.Fatalf("round %d: after removal the stream returned event %+v, err %v", round, event, err)
+			}
+		}
+		// A context that is already over makes this a look at the queue with
+		// no waiting: the other member has nothing, and was not closed.
+		over, cancel := context.WithCancel(context.Background())
+		cancel()
+		if event, err := other.Next(over); !errors.Is(err, context.Canceled) {
+			t.Fatalf("round %d: the other member of the room read %+v, err %v", round, event, err)
+		}
+		select {
+		case <-other.Done():
+			t.Fatalf("round %d: removing the recipient closed the other member's stream", round)
+		default:
+		}
+		other.Close()
+		recipient.Close()
 	}
 }

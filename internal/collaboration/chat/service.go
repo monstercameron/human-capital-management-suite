@@ -42,6 +42,9 @@ type Store interface {
 	Search(context.Context, SearchRequest) (SearchResponse, error)
 	GetReadState(context.Context, string, string, string, string) (ReadState, error)
 	PutReadState(context.Context, ReadState, uint64) (ReadState, error)
+	// RewindReadState moves the read position back, never forward; PutReadState
+	// moves it forward, never back.
+	RewindReadState(context.Context, ReadState, uint64) (ReadState, error)
 	GetPreferences(context.Context, string, string, string, string) (NotificationPreferences, error)
 	PutPreferences(context.Context, NotificationPreferences, uint64) (NotificationPreferences, error)
 	PutReaction(context.Context, Reaction) (Reaction, error)
@@ -69,11 +72,18 @@ type Service struct {
 	channelGate            ChannelGatePort
 	agentSourceAccess      AgentSourceAccess
 	agentReactionAuthority AgentReactionAuthority
+	announceMembership     bool
 }
 
 // SetAuthority installs the current-authority resolver used by subsequent
 // reads and writes. It is intended for composition roots and tests.
 func (s *Service) SetAuthority(a Authority) { s.authority = a }
+
+// SetMembershipAnnouncements turns on the system line posted when somebody adds
+// a person to a conversation (CHATUX-021). The composition root turns it on;
+// everything that builds a service for its own purposes keeps the plain
+// membership path.
+func (s *Service) SetMembershipAnnouncements(on bool) { s.announceMembership = on }
 
 func NewService(store Store, clock Clock) *Service {
 	if clock == nil {
@@ -117,6 +127,11 @@ func (s *Service) ValidateCreate(ctx context.Context, r CreateConversationReques
 	}
 	if _, err := chatpolicy.Evaluate(chatpolicy.ActionDiscover, in); err != nil {
 		return ErrPermissionDenied
+	}
+	// CHATBUG-072: a channel's name follows the rule the create form prints.
+	// Direct and group conversations are named for their people, not by rule.
+	if (r.Kind == PublicChannel || r.Kind == PrivateChannel) && !ValidChannelName(strings.TrimSpace(r.Name)) {
+		return ErrChannelName
 	}
 	refs := r.Members
 	if len(refs) == 0 {
@@ -251,6 +266,12 @@ func (s *Service) UpdateConversation(ctx context.Context, r UpdateConversationRe
 	if name := strings.TrimSpace(r.Conversation.Name); name == "" || len(name) > 200 {
 		return Conversation{}, ErrInvalidArgument
 	}
+	// CHATBUG-072: a rename follows the same naming rule as a new channel. A
+	// channel whose stored name already breaks the rule keeps working, so only
+	// a name that is being changed is held to it.
+	if name := strings.TrimSpace(r.Conversation.Name); name != c.Name && !ValidChannelName(name) {
+		return Conversation{}, ErrChannelName
+	}
 	desired := r.Conversation
 	if desired.OwnerID == "" {
 		desired.OwnerID = c.OwnerID
@@ -295,6 +316,10 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	if !selfJoin && (c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID) {
 		return Membership{}, ErrPermissionDenied
 	}
+	// AGENTUX-038: nobody joins a direct conversation after it was created.
+	if err := s.refuseNewDirectMember(ctx, c, m); err != nil {
+		return Membership{}, err
+	}
 	action := chatpolicy.ActionRead
 	if selfJoin {
 		// ActionJoin is the rule that was declared and never consulted. A public
@@ -318,7 +343,19 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	if err := s.checkChannelGate(ctx, r.Principal, m); err != nil {
 		return Membership{}, err
 	}
-	return s.store.PutMembership(ctx, r.Principal, m)
+	announce := s.announceMembership && !selfJoin && c.Kind != Direct
+	var before *Membership
+	if announce {
+		if previous, err := s.store.GetMembership(ctx, m.TenantID, m.ConversationID, m.HomeTenantID, m.SubjectID); err == nil {
+			before = &previous
+		}
+	}
+	saved, err := s.store.PutMembership(ctx, r.Principal, m)
+	if err != nil || !announce {
+		return saved, err
+	}
+	s.announceMembershipAdded(ctx, r.Principal, c, before, saved)
+	return saved, nil
 }
 
 // isSelfJoin reports whether the request is a caller entering a public channel
@@ -377,8 +414,13 @@ func (s *Service) CommitPersonaReply(ctx context.Context, r PersonaReplyCommitRe
 }
 
 func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource bool) (Post, error) {
-	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || strings.TrimSpace(r.Body) == "" || strings.TrimSpace(r.IdempotencyKey) == "" {
+	// CHATATTACH-001: a post is text, or files, or both (chatattach001_body.go).
+	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || postSaysNothing(r.Body, r.References) || strings.TrimSpace(r.IdempotencyKey) == "" {
 		return Post{}, errOr(err, ErrInvalidArgument)
+	}
+	// Only the card service writes a card's body (CHATCMD-002).
+	if carriesCardMarker(r.Body) && !hasCardAuthority(ctx) {
+		return Post{}, ErrInvalidArgument
 	}
 	c, err := s.store.GetConversation(ctx, r.TenantID, r.ConversationID)
 	if err != nil {
@@ -450,6 +492,9 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 	if err != nil {
 		return ListPostsResponse{}, err
 	}
+	if !r.IncludeSystem {
+		posts.Posts = withoutSystemPosts(posts.Posts)
+	}
 	posts.Posts = s.projectConversationReferences(ctx, r.Principal, posts.Posts)
 	return posts, nil
 }
@@ -462,11 +507,15 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 // original post's effects.
 func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error) {
 	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, func() error {
-		if strings.TrimSpace(r.Body) == "" {
+		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) {
 			return ErrInvalidArgument
 		}
 		return nil
 	}, func(c Conversation, current Post) (Post, error) {
+		// A card changes through its own mutations; its text is not edited.
+		if _, isCard := Chatcmd002Decode(current.Body); isCard {
+			return Post{}, ErrInvalidArgument
+		}
 		refs, err := s.editReferences(ctx, r, current)
 		if err != nil {
 			return Post{}, err
@@ -612,6 +661,10 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 		}
 		messageScanned += len(page.Results)
 		for _, hit := range page.Results {
+			// A system line ("a person was added") is not something to find.
+			if _, system := ParseMembershipAdded(hit.Post.Body); system {
+				continue
+			}
 			ok, checkErr := check(hit.Post.ConversationID, chatpolicy.ActionRead)
 			if checkErr != nil {
 				return SearchResponse{}, checkErr
@@ -685,6 +738,9 @@ func (s *Service) UpdateReadState(ctx context.Context, r UpdateReadStateRequest)
 	}
 	x.SubjectID = r.Principal.SubjectID
 	x.HomeTenantID = r.Principal.TenantID
+	if r.Rewind {
+		return s.store.RewindReadState(ctx, x, r.ExpectedRevision)
+	}
 	return s.store.PutReadState(ctx, x, r.ExpectedRevision)
 }
 func (s *Service) GetPreferences(ctx context.Context, r GetPreferencesRequest) (NotificationPreferences, error) {
@@ -737,6 +793,9 @@ func (s *Service) RemoveReaction(ctx context.Context, r RemoveReactionRequest) e
 	return s.store.RemoveReaction(ctx, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.Principal.SubjectID, r.Emoji)
 }
 func (s *Service) ListReactions(ctx context.Context, r ListReactionsRequest) (ListReactionsResponse, error) {
+	if len(r.PostIDs) > 0 {
+		return s.listReactionsForPosts(ctx, r)
+	}
 	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || r.PostID == "" || len(r.Page.Cursor) > 1024 {
 		return ListReactionsResponse{}, errOr(err, ErrInvalidArgument)
 	}

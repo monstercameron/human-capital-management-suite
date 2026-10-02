@@ -302,7 +302,7 @@ func (s *Service) Describe(ctx context.Context, tenantID, conversationID, artifa
 	if s == nil || s.store == nil || tenantID == "" || conversationID == "" || artifactID == "" {
 		return Reference{}, ErrInvalid
 	}
-	a, err := s.store.Get(ctx, artifactID, tenantID)
+	a, err := s.store.Get(ctx, tenantID, artifactID)
 	if err != nil {
 		return Reference{}, err
 	}

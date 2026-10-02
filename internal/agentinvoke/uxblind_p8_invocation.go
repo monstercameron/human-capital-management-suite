@@ -56,6 +56,10 @@ type PostCommit struct {
 	Quoted         bool
 	Forwarded      bool
 	Mentions       []Mention
+	// Attempt numbers a retry of this post (CHATBUG-047): zero is the first
+	// admission, one the first retry. Each attempt is its own invocation, so a
+	// failed one is never mutated; set only through RetryMention.
+	Attempt int
 }
 
 type SkillScopes map[string][]string
@@ -420,6 +424,23 @@ func (s *Service) OnPostCommit(ctx context.Context, post PostCommit) ([]Invocati
 	return s.ResolveMention(ctx, post)
 }
 
+// RetryMention admits the question that already stands as post again, as attempt
+// number attempt (one for the first retry), without a new post (CHATBUG-047).
+// Admission is judged afresh under current authority, as a first question is. An
+// attempt is an invocation of its own, named by the post, the persona and the
+// attempt number, so a repeated request for the same attempt claims the same
+// invocation and starts nothing twice; the caller allows a new attempt only once
+// the one before it has ended without an answer.
+func (s *Service) RetryMention(ctx context.Context, post PostCommit, attempt int) ([]Invocation, error) {
+	if s == nil || attempt < 1 {
+		return nil, fmt.Errorf("%w: a retry is attempt one or later", ErrInvalidRequest)
+	}
+	// The question was committed as a new post once; asking it again is the one
+	// case in which an already committed post is admitted.
+	post.New, post.Attempt = true, attempt
+	return s.ResolveMention(ctx, post)
+}
+
 func (s *Service) resolveOne(ctx context.Context, post PostCommit, personaID string) (Invocation, error) {
 	admission, err := s.authority.Resolve(ctx, AdmissionRequest{TenantID: post.TenantID, ConversationID: post.ConversationID, InvokerID: post.AuthorID, PersonaID: personaID})
 	if err != nil {
@@ -571,7 +592,12 @@ func validatePost(post PostCommit) error {
 }
 
 func invocationID(post PostCommit, personaID string) string {
-	sum := sha256.Sum256([]byte("agentinvoke/persona/v1\x00" + post.TenantID + "\x00" + post.ConversationID + "\x00" + post.PostID + "\x00" + personaID))
+	material := "agentinvoke/persona/v1\x00" + post.TenantID + "\x00" + post.ConversationID + "\x00" + post.PostID + "\x00" + personaID
+	if post.Attempt > 0 {
+		// The first attempt keeps the identifier it always had.
+		material += "\x00attempt\x00" + fmt.Sprint(post.Attempt)
+	}
+	sum := sha256.Sum256([]byte(material))
 	return "pinv_" + hex.EncodeToString(sum[:])
 }
 
@@ -602,8 +628,10 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{items: make(map[string]Invocation)}
 }
 
-func invocationKey(tenantID, postID, personaID string) string {
-	return tenantID + "\x00" + postID + "\x00" + personaID
+func invocationKey(tenantID, postID, personaID, id string) string {
+	// The identifier separates the attempts at one post (CHATBUG-047); the
+	// first attempt's identifier is derived from the post alone.
+	return tenantID + "\x00" + postID + "\x00" + personaID + "\x00" + id
 }
 
 func (r *MemoryRepository) Claim(_ context.Context, candidate Invocation) (Invocation, bool, error) {
@@ -612,7 +640,7 @@ func (r *MemoryRepository) Claim(_ context.Context, candidate Invocation) (Invoc
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	key := invocationKey(candidate.TenantID, candidate.PostID, candidate.PersonaID)
+	key := invocationKey(candidate.TenantID, candidate.PostID, candidate.PersonaID, candidate.ID)
 	if prior, ok := r.items[key]; ok {
 		if prior.ID != candidate.ID || prior.TenantID != candidate.TenantID || prior.ConversationID != candidate.ConversationID || prior.ThreadID != candidate.ThreadID || prior.InvokerID != candidate.InvokerID || prior.PersonaVersion != candidate.PersonaVersion || prior.InstallationID != candidate.InstallationID || prior.Mode != candidate.Mode || !sameSkills(prior.Skills, candidate.Skills) || prior.Actor != candidate.Actor {
 			return Invocation{}, false, ErrConflict
@@ -667,11 +695,23 @@ func (r *MemoryRepository) MarkStarted(_ context.Context, tenantID, id string) (
 func (r *MemoryRepository) Get(tenantID, postID, personaID string) (Invocation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	item, ok := r.items[invocationKey(tenantID, postID, personaID)]
-	if !ok {
+	var found *Invocation
+	for _, item := range r.items {
+		if item.TenantID != tenantID || item.PostID != postID || item.PersonaID != personaID {
+			continue
+		}
+		// The first attempt at the post is the one asked for; a retry is another
+		// invocation of the same post.
+		if item.ID == invocationID(PostCommit{TenantID: tenantID, ConversationID: item.ConversationID, PostID: postID}, personaID) {
+			return cloneInvocation(item), nil
+		}
+		held := item
+		found = &held
+	}
+	if found == nil {
 		return Invocation{}, fmt.Errorf("%w: invocation not found", ErrInvalidRequest)
 	}
-	return cloneInvocation(item), nil
+	return cloneInvocation(*found), nil
 }
 
 func cloneGrant(g DelegationGrant) DelegationGrant { g.Skills = g.Skills.Clone(); return g }

@@ -40,6 +40,7 @@ func TestTodo_CHATCMD_003_Property(t *testing.T) {
 	}
 }
 func TestTodo_CHATCMD_003_Golden(t *testing.T) {
+	t.Run("loose text and tidy without a model", chatcmd003TidyGolden)
 	t.Run("serialized card", func(t *testing.T) {
 		d, _ := Chatcmd003ParsePoll(`"Q?" 1="A" 2="B"`, time.Now(), nil)
 		body, err := d.Card.Body()

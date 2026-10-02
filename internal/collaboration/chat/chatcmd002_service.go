@@ -21,6 +21,20 @@ type Chatcmd002Repository interface {
 type Chatcmd002Service struct {
 	Chat       *Service
 	Repository Chatcmd002Repository
+	// Sender posts the card's message. The served composition gives it the
+	// routed and audited conversation service, so a card travels the same path
+	// as any other message; nil posts through Chat.
+	Sender Chatcmd002Sender
+	// Commands is the command registry the service enforces: a card is posted
+	// by /poll or /todo, and a command that is not allowed in a conversation is
+	// refused here as well as left out of the menu. The zero value is the
+	// product's own registry.
+	Commands Chatcmd001Registry
+}
+
+// Chatcmd002Sender is the one conversation call a card needs to be posted.
+type Chatcmd002Sender interface {
+	SendPost(context.Context, SendPostRequest) (Post, error)
 }
 type Chatcmd002PostRequest struct {
 	SendPostRequest
@@ -43,6 +57,12 @@ func (s *Chatcmd002Service) authorize(ctx context.Context, r Chatcmd002Request, 
 	action := chatpolicy.ActionRead
 	if write {
 		action = chatpolicy.ActionPost
+		// A vote is a reaction to the card, not a post: members of an
+		// announcements-only channel may vote, while a locked or archived
+		// channel still refuses it, as it refuses a reaction.
+		if r.Mutation.Operation == "VOTE" {
+			ctx = WithChannelStatusAction(ctx, chatpolicy.StatusReact)
+		}
 	}
 	if err := s.Chat.authorize(ctx, r.Principal, c, action); err != nil {
 		return err
@@ -61,6 +81,17 @@ func (s *Chatcmd002Service) Post(ctx context.Context, r Chatcmd002PostRequest) (
 	}
 	if err := s.authorize(ctx, Chatcmd002Request{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}, true); err != nil {
 		return Post{}, err
+	}
+	conversation, err := s.Chat.store.GetConversation(ctx, r.TenantID, r.ConversationID)
+	if err != nil {
+		return Post{}, err
+	}
+	commands := s.Commands
+	if len(commands.commands) == 0 {
+		commands = Chatcmd001Defaults()
+	}
+	if command, ok := commands.Lookup(r.Card.Kind); !ok || !command.AllowedIn(Chatcmd001Place{Kind: conversation.Kind}) {
+		return Post{}, ErrPermissionDenied
 	}
 	card := chatcmd003Clone(r.Card)
 	if card.Poll != nil {
@@ -91,6 +122,10 @@ func (s *Chatcmd002Service) Post(ctx context.Context, r Chatcmd002PostRequest) (
 	request := r.SendPostRequest
 	request.Body = body
 	request.References = refs
+	ctx = withCardAuthority(ctx)
+	if s.Sender != nil {
+		return s.Sender.SendPost(ctx, request)
+	}
 	return s.Chat.SendPost(ctx, request)
 }
 func (s *Chatcmd002Service) Read(ctx context.Context, r Chatcmd002Request) (Chatcmd002View, error) {
@@ -106,15 +141,20 @@ func (s *Chatcmd002Service) Mutate(ctx context.Context, r Chatcmd002Request) (Po
 	if err := s.authorize(ctx, r, true); err != nil {
 		return Post{}, err
 	}
-	if r.Mutation.Card != nil {
-		if r.Mutation.Card.Validate() != nil {
-			return Post{}, ErrInvalidArgument
+	if r.Mutation.Card != nil || r.Mutation.Operation == "ADD_OPTION" {
+		// Words a person adds or rewrites pass the same filters as a message.
+		words := r.Mutation.Text
+		if r.Mutation.Card != nil {
+			if r.Mutation.Card.Validate() != nil {
+				return Post{}, ErrInvalidArgument
+			}
+			words = r.Mutation.Card.SearchText()
 		}
 		c, err := s.Chat.store.GetConversation(ctx, r.TenantID, r.ConversationID)
 		if err != nil {
 			return Post{}, err
 		}
-		if err := s.Chat.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: c, Body: r.Mutation.Card.SearchText(), Edit: true}); err != nil {
+		if err := s.Chat.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: c, Body: words, Edit: true}); err != nil {
 			return Post{}, err
 		}
 	}
