@@ -55,7 +55,16 @@ func chatsave002Body(m Model, msg Message) (ui.Node, Message) {
 	var text string
 	if msg.PersonaActor != nil && msg.PersonaActor.valid() {
 		envelope := parseAgentReplyEnvelope(msg.Body)
-		text = agentAnswerPresentBody(readerReplyBody(m, msg, envelope.Body), envelope.Sources)
+		reply := readerReplyBody(m, msg, envelope.Body)
+		if !strings.HasPrefix(msg.Body, AgentAnnouncementBodyPrefix) {
+			// A row that carries an announcement's sentence can get the stored
+			// envelope back here: the reader's selection for the same message
+			// holds the body as it is kept. It is drawn as its sentence
+			// (CHATBUG-089); a row that carries the whole envelope is drawn as
+			// the agent's message by the projection below.
+			reply = chatDisplayBody(reply)
+		}
+		text = agentAnswerPresentBody(reply, envelope.Sources)
 	} else {
 		// A poll or a to-do list is read as its words, never as its data, and an
 		// "added people" line as its sentence, never as its marker.

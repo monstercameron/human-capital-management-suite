@@ -140,15 +140,14 @@ scan:
 	return out.String()
 }
 
-// chatSearchRowBody is the text a search result draws as the message it is. A
-// whole announcement is left for the message renderer to draw as the agent's
-// message; one the service cut short, or whose line break it flattened, is its
-// sentence; and a stretch the service marked as cut ("…" at either end) loses
-// the half links the cut left.
+// chatSearchRowBody is the text a search result draws as the message it is. An
+// announcement is its sentence, whether the service sent the whole envelope,
+// cut it short or flattened its line break: a result row shortens long text
+// around the match, and a whole envelope cut that way can no longer be read as
+// an announcement by the message renderer, which then printed it raw. A stretch
+// the service marked as cut ("…" at either end) loses the half links the cut
+// left.
 func chatSearchRowBody(text string) string {
-	if _, whole := DecodeAnnouncementMessageBody(text); whole {
-		return text
-	}
 	if strings.HasPrefix(strings.TrimSpace(text), announcementTagPrefix) {
 		return chatDisplayBody(text)
 	}
