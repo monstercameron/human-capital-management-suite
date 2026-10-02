@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatgate"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -49,7 +50,20 @@ type ChatgateApplication struct {
 	Clock     func() time.Time
 	Service   chatgate.ChannelGateServiceV1
 	Directory ChatgateDirectory
+	// Summaries lists the gates a person may know of, for the Browse list and
+	// for the banner that tells a member the questions changed (CHATGATE-005).
+	// Unset, the list is unavailable and the page offers a plain Join.
+	Summaries ChatgateSummaries
 }
+
+// ChatgateSummaries is the read behind the list of gates. The chat store's gate
+// repository implements it and decides what one person may know of.
+type ChatgateSummaries interface {
+	GateSummaries(ctx context.Context, tenant, person string) ([]chatstore.GateSummary, error)
+}
+
+// chatgateBrowseAction asks for the list of gates instead of one gate.
+const chatgateBrowseAction = "browse"
 
 func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest) (ChatgateReply, error) {
 	if a == nil || a.Service == nil {
@@ -67,6 +81,16 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		return ChatgateReply{}, chatgate.ErrDenied
 	}
 	actor := chatgate.Actor{Tenant: p.Tenant().String(), Person: p.Subject()}
+	if r.Action == chatgateBrowseAction {
+		if a.Summaries == nil {
+			return ChatgateReply{}, chatgate.ErrUnavailable
+		}
+		summaries, err := a.Summaries.GateSummaries(ctx, actor.Tenant, actor.Person)
+		if err != nil {
+			return ChatgateReply{}, chatgate.ErrUnavailable
+		}
+		return ChatgateReply{Result: summaries}, nil
+	}
 	scope := chatgate.Scope{Tenant: actor.Tenant, Conversation: r.Conversation}
 	c := chatgate.Command{Actor: actor, Scope: scope, Key: r.Key, ExpectedRevision: r.ExpectedRevision}
 	var result any
@@ -104,7 +128,10 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		result, err = a.Service.TryAs(ctx, actor, scope, r.Person, r.Definition, r.Answers)
 	case "export":
 		if r.Person == "" {
-			result, err = a.Service.ExportAllCSV(ctx, actor, scope)
+			var raw string
+			if raw, err = a.Service.ExportAllCSV(ctx, actor, scope); err == nil {
+				result, err = a.readableExport(ctx, actor, scope, raw)
+			}
 		} else {
 			result, err = a.Service.ExportCSV(ctx, chatgate.ReadRequest{Actor: actor, Scope: scope, Person: r.Person, Purpose: "Gate answers CSV export", Export: true})
 		}
@@ -173,6 +200,11 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		if err != nil {
 			return ChatgateReply{}, err
 		}
+		answered := ""
+		if v.Submission != nil {
+			answered = v.Submission.Version
+		}
+		v.Gate = chatgateApplicantGate(v.Gate, answered)
 		if v.Submission != nil && v.Submission.Status != "withdrawn" {
 			v.Answers, err = a.Service.ReadAnswers(ctx, chatgate.ReadRequest{Actor: actor, Scope: scope, Person: actor.Person, Purpose: "My answers"})
 		} else {
@@ -193,6 +225,51 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 	return ChatgateReply{View: &v, Result: result}, nil
 }
 
+// readableExport names the people and the questions of the export of every
+// answer (CHATGATE-006). The file the service wrote is the authority for what
+// is in it; this only replaces identifiers by the names an administrator
+// already sees on the answers page. Without a directory the file is returned
+// as the service wrote it.
+func (a *ChatgateApplication) readableExport(ctx context.Context, actor chatgate.Actor, scope chatgate.Scope, raw string) (string, error) {
+	if a.Directory == nil {
+		return raw, nil
+	}
+	_, names, _, err := a.Directory.GateDirectory(ctx, actor, scope)
+	if err != nil {
+		return "", err
+	}
+	gate, err := a.Service.Get(ctx, actor, scope, true)
+	if err != nil {
+		return "", err
+	}
+	labels := map[string]string{}
+	// Later versions win: a question keeps its identifier when it is reworded.
+	for _, d := range gate.Versions {
+		for _, f := range d.Fields {
+			labels[f.ID] = f.Label
+		}
+	}
+	return chatgateReadableCSV(raw, names, labels)
+}
+
+// chatgateApplicantGate is the gate as a person who does not administer it
+// reads it: the questions of the version in force and of the version they
+// answered, and nothing of how answers are judged. The rules name the answers
+// that admit and refuse, each with the administrator's reason, and every
+// earlier version was in the reply too, so an applicant could read out of the
+// answer to "show me the form" what to say to be let in.
+func chatgateApplicantGate(g chatgate.Gate, answered string) chatgate.Gate {
+	kept := make([]chatgate.Definition, 0, 2)
+	for _, d := range g.Versions {
+		if version := d.Version.String(); version == g.Current || version == answered {
+			d.Rules = nil
+			kept = append(kept, d)
+		}
+	}
+	g.Versions = kept
+	return g
+}
+
 type ChatgateHTTP struct{ Surface ChatgateSurface }
 
 func (h ChatgateHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -207,6 +284,10 @@ func (h ChatgateHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		req.Conversation = r.URL.Query().Get("conversation")
 		req.Locale = r.URL.Query().Get("locale")
 		req.Action = "get"
+		if r.URL.Query().Get("list") == "1" {
+			// The list of gates the person may know of, for no one conversation.
+			req.Action, req.Conversation = chatgateBrowseAction, ""
+		}
 	} else if r.Method == http.MethodPost {
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 24<<10))
 		if e := decoder.Decode(&req); e != nil {
@@ -223,7 +304,12 @@ func (h ChatgateHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if len(req.Conversation) > 256 || strings.TrimSpace(req.Conversation) == "" {
+	if r.Method == http.MethodPost && req.Action == chatgateBrowseAction {
+		// The list is a read; it is asked for by GET alone.
+		chatgateHTTPError(w, chatgate.ErrInvalid)
+		return
+	}
+	if req.Action != chatgateBrowseAction && (len(req.Conversation) > 256 || strings.TrimSpace(req.Conversation) == "") {
 		chatgateHTTPError(w, chatgate.ErrInvalid)
 		return
 	}
@@ -288,11 +374,27 @@ func OverlayChatgates(next http.Handler, surface ChatgateSurface, admission tran
 
 // ChatgateJoinAdapter is installed on chat.Service by the composition root.
 // Direct adds check the target's answers under its own tenant and identity.
-type ChatgateJoinAdapter struct{ Service *chatgate.Service }
+type ChatgateJoinAdapter struct {
+	Service *chatgate.Service
+	// InForce answers whether the conversation has a gate that joining must
+	// satisfy. With it set, a conversation that has none (which is nearly all
+	// of them: every direct message, every ungated channel) is not asked
+	// anything more, by anyone. Without it every add is checked the long way.
+	InForce func(context.Context, chatgate.Scope) (bool, error)
+}
 
 func (a ChatgateJoinAdapter) CheckMembership(ctx context.Context, _ chat.Principal, m chat.Membership) error {
 	if a.Service == nil {
 		return chat.ErrUnavailable
+	}
+	if a.InForce != nil {
+		gated, err := a.InForce(ctx, chatgate.Scope{Tenant: m.TenantID, Conversation: m.ConversationID})
+		if err != nil {
+			return chat.ErrUnavailable
+		}
+		if !gated {
+			return nil
+		}
 	}
 	if m.HomeTenantID != m.TenantID {
 		return chat.ErrPermissionDenied

@@ -70,7 +70,7 @@ func newAgentUX070Room(t *testing.T, options agentUX070Options) *agentUX070Room 
 		t.Fatal(err)
 	}
 	room.ctx = trust.WithPrincipal(context.Background(), principal)
-	if _, err := service.CreateConversation(room.ctx, chat.CreateConversationRequest{Principal: room.asker, TenantID: "tenant-a", ConversationID: room.channel, Kind: options.kind, Name: "General"}); err != nil {
+	if _, err := service.CreateConversation(room.ctx, chat.CreateConversationRequest{Principal: room.asker, TenantID: "tenant-a", ConversationID: room.channel, Kind: options.kind, Name: "general"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.AddMembership(room.ctx, chat.AddMembershipRequest{Principal: room.asker, Membership: chat.Membership{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: room.channel, SubjectID: "employee", HistoryVisibility: chat.FullHistory}}); err != nil {
@@ -124,6 +124,13 @@ func (f agentUX070Floor) AuthorizePersonaOutput(ctx context.Context, output agen
 
 func agentUX070Profile(t *testing.T, alwaysPrivate bool) func(agentsecurity.FinalOutputIdentity) error {
 	t.Helper()
+	return agentUX070ProfileInChannel(t, alwaysPrivate, false)
+}
+
+// agentUX070ProfileInChannel is the agent's profile with its setting, installed
+// in a channel whose administrator does or does not require private answers.
+func agentUX070ProfileInChannel(t *testing.T, alwaysPrivate, channelRequires bool) func(agentsecurity.FinalOutputIdentity) error {
+	t.Helper()
 	profile := agentpersona.PersonaProfile{
 		Manifest:  agentpersona.AgentManifestRef{ID: "agent", Version: 1, Digest: "manifest", SchemaVersion: 1},
 		PersonaID: "policy-helper", Version: 1, Handle: "policy-helper", DisplayName: "Policy Helper", AvatarRef: "avatar", Purpose: "Answer policy questions", Instructions: "Answer from policy documents.", Owner: "owner", Steward: "steward", EvalSuiteRef: "eval",
@@ -142,7 +149,7 @@ func agentUX070Profile(t *testing.T, alwaysPrivate bool) func(agentsecurity.Fina
 	}
 	version := agentpersonastore.PersonaVersion{TenantID: values.TenantId("tenant-a"), PersonaID: "policy-helper", Version: 1, AgentVersion: "agent-v1", Profile: raw, ContentDigest: sealed.Digest}
 	return func(id agentsecurity.FinalOutputIdentity) error {
-		installation := agentpersonastore.ActiveInstallation{InstallationID: id.InstallationID, PersonaID: id.PersonaID, PersonaVersion: 1, ConversationID: id.ConversationID}
+		installation := agentpersonastore.ActiveInstallation{InstallationID: id.InstallationID, PersonaID: id.PersonaID, PersonaVersion: 1, ConversationID: id.ConversationID, ChannelPolicy: agentpersonastore.ChannelPolicy{AlwaysPrivate: channelRequires}}
 		_, err := personaRuntimePublicProfile(version, installation, id)
 		return err
 	}
@@ -174,7 +181,7 @@ func (r *agentUX070Room) deliver(options agentUX070Delivery) (PersonaReplyDelive
 	snapshot := chatrecipient.AudienceSnapshot{TenantID: "tenant-a", ConversationID: r.channel, Revision: revision, CurrentMembers: members, EligibilityPopulation: members, Complete: true, EligibilityComplete: true, GuestAndExternalComplete: true}
 	conversation := chat.Conversation{TenantID: "tenant-a", ID: r.channel, Kind: chat.PublicChannel, Revision: 1}
 	inner := proactiveOutputFloor{floor: &PersonaRuntimeAudienceFloor{Authority: proactiveAudience{snapshot: snapshot}, Documents: proactiveDocumentAuthority{denied: options.unreadableBy}}, conversation: conversation, body: "Employees carry over up to 40 hours of unused PTO."}
-	floor := agentUX070Floor{profile: agentUX070Profile(r.t, options.alwaysPrivate), inner: inner}
+	floor := agentUX070Floor{profile: agentUX070ProfileInChannel(r.t, options.alwaysPrivate, options.channelPrivate), inner: inner}
 	committer, err := newPersonaPublicReplyCommitter(r.store.Store, &personaPipelineCurrentReplyAuthority{runtimeReplyCurrentAuthorityFake: &runtimeReplyCurrentAuthorityFake{}, store: r.store}, privateChatGatewayVerifiedWorker(r.t, r.now), func() time.Time { return r.now })
 	if err != nil {
 		r.t.Fatal(err)
@@ -197,6 +204,7 @@ func (r *agentUX070Room) deliver(options agentUX070Delivery) (PersonaReplyDelive
 type agentUX070Delivery struct {
 	conversation       string
 	alwaysPrivate      bool
+	channelPrivate     bool
 	unreadableBy       map[string]bool
 	unreadableQuestion bool
 }
@@ -207,7 +215,20 @@ func (r *agentUX070Room) channelPosts(subject string) []chat.Post {
 	if err != nil {
 		r.t.Fatal(err)
 	}
-	return listed.Posts
+	return agentUX070Said(listed.Posts)
+}
+
+// agentUX070Said drops the line Chat records when a member is added
+// (CHATUX-021): it is not part of what was said, and these tests count the
+// question and its answers.
+func agentUX070Said(posts []chat.Post) []chat.Post {
+	said := make([]chat.Post, 0, len(posts))
+	for _, post := range posts {
+		if _, joined := chat.ParseMembershipAdded(post.Body); !joined {
+			said = append(said, post)
+		}
+	}
+	return said
 }
 
 func (r *agentUX070Room) directPosts() []chat.Post {
@@ -216,7 +237,7 @@ func (r *agentUX070Room) directPosts() []chat.Post {
 	if err != nil {
 		r.t.Fatal(err)
 	}
-	return listed.Posts
+	return agentUX070Said(listed.Posts)
 }
 
 func (r *agentUX070Room) cards() []chat.EphemeralPost {
@@ -361,6 +382,13 @@ func TestTodo_AGENTUX_070_ProfileGate(t *testing.T) {
 	if got := personaPrivateReasonOf(err); got != chat.PrivateReasonAgent {
 		t.Fatalf("a strict agent's reason = %q (%v)", got, err)
 	}
+	// The channel's requirement is its own reason and outranks the agent's setting.
+	for _, strict := range []bool{false, true} {
+		err = agentUX070ProfileInChannel(t, strict, true)(id)
+		if got := personaPrivateReasonOf(err); got != chat.PrivateReasonChannel {
+			t.Fatalf("a channel that requires private answers (agent strict=%v) gave reason %q (%v)", strict, got, err)
+		}
+	}
 	// Anything else that refuses a public answer is the audience check.
 	if got := personaPrivateReasonOf(chat.ErrPermissionDenied); got != chat.PrivateReasonAudience {
 		t.Fatalf("a plain refusal's reason = %q", got)
@@ -397,8 +425,9 @@ func TestAgentUXPublicAnswer_Default(t *testing.T) {
 // TestAgentUXPublicAnswer_Default_Property: for every combination of the agent's
 // setting, the asker's request and the audience check, where the answer goes is
 // the decision table and is never wider than the audience check allows. Public
-// needs all three to agree; otherwise the answer is the asker's alone and the
-// reason is the asker's request first, then the agent's setting, then the audience.
+// needs all of them to agree; otherwise the answer is the asker's alone and the
+// reason is the channel's requirement first, then the agent's setting, then the
+// asker's request, then the audience.
 func TestAgentUXPublicAnswer_Default_Property(t *testing.T) {
 	phrases := map[string]string{
 		"none": "@Policy Helper how many PTO hours carry over?",
@@ -406,28 +435,35 @@ func TestAgentUXPublicAnswer_Default_Property(t *testing.T) {
 		"de":   "@Policy Helper Wie viele Urlaubsstunden verfallen nicht? Nur für mich.",
 		"ar":   "@Policy Helper كم ساعة إجازة تُرحَّل؟ لي وحدي",
 	}
-	for _, strict := range []bool{false, true} {
-		for _, unreadable := range []bool{false, true} {
-			for _, language := range []string{"none", "en", "de", "ar"} {
-				name := fmt.Sprintf("strict=%v/unreadable=%v/phrase=%s", strict, unreadable, language)
-				t.Run(name, func(t *testing.T) {
-					room := newAgentUX070Room(t, agentUX070Options{question: phrases[language]})
-					options := agentUX070Delivery{alwaysPrivate: strict}
-					if unreadable {
-						options.unreadableBy = map[string]bool{"employee": true}
-					}
-					receipt, err := room.deliver(options)
-					switch {
-					case language != "none":
-						room.assertPrivate(receipt, err, chat.PrivateReasonAsked)
-					case strict:
-						room.assertPrivate(receipt, err, chat.PrivateReasonAgent)
-					case unreadable:
-						room.assertPrivate(receipt, err, chat.PrivateReasonAudience)
-					default:
-						room.assertPublic(receipt, err)
-					}
-				})
+	// The channel's requirement outranks the agent's setting, which outranks the
+	// asker's word, which outranks the audience check; the answer is public only
+	// when none of them holds (AGENTUX-070).
+	for _, channel := range []bool{false, true} {
+		for _, strict := range []bool{false, true} {
+			for _, unreadable := range []bool{false, true} {
+				for _, language := range []string{"none", "en", "de", "ar"} {
+					name := fmt.Sprintf("channel=%v/strict=%v/unreadable=%v/phrase=%s", channel, strict, unreadable, language)
+					t.Run(name, func(t *testing.T) {
+						room := newAgentUX070Room(t, agentUX070Options{question: phrases[language]})
+						options := agentUX070Delivery{alwaysPrivate: strict, channelPrivate: channel}
+						if unreadable {
+							options.unreadableBy = map[string]bool{"employee": true}
+						}
+						receipt, err := room.deliver(options)
+						switch {
+						case channel:
+							room.assertPrivate(receipt, err, chat.PrivateReasonChannel)
+						case strict:
+							room.assertPrivate(receipt, err, chat.PrivateReasonAgent)
+						case language != "none":
+							room.assertPrivate(receipt, err, chat.PrivateReasonAsked)
+						case unreadable:
+							room.assertPrivate(receipt, err, chat.PrivateReasonAudience)
+						default:
+							room.assertPublic(receipt, err)
+						}
+					})
+				}
 			}
 		}
 	}

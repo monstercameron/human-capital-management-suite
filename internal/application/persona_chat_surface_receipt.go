@@ -57,36 +57,9 @@ func (s *PersonaChatSurface) visiblePostActors(ctx context.Context, p *trust.Pri
 		}
 		seen[posts.NextCursor], page.Cursor = true, posts.NextCursor
 	}
-	ephemeralIDs := make(map[string]bool)
-	wantedEphemeralIDs := make(map[string]bool)
-	for _, receipt := range receipts {
-		if receipt.TenantID == room.TenantID && receipt.InvokerID == p.Subject() && receipt.ConversationID == room.ID && receipt.EphemeralPostID != "" {
-			wantedEphemeralIDs[receipt.EphemeralPostID] = true
-		}
-	}
-	if ephemeral, ok := s.Chat.(interface {
-		ListEphemeralPosts(context.Context, chat.ListEphemeralPostsRequest) ([]chat.EphemeralPost, uint64, error)
-	}); ok {
-		var after uint64
-		for len(wantedEphemeralIDs) > 0 {
-			posts, next, err := ephemeral.ListEphemeralPosts(ctx, chat.ListEphemeralPostsRequest{Principal: principal, TenantID: room.TenantID, ConversationID: room.ID, AfterSequence: after, PageSize: 100})
-			if err != nil {
-				return nil, surfaceChatError(err)
-			}
-			for _, post := range posts {
-				if post.TenantID == room.TenantID && post.ConversationID == room.ID && post.RecipientHomeTenantID == room.TenantID && post.RecipientSubjectID == p.Subject() {
-					ephemeralIDs[post.ID] = true
-					delete(wantedEphemeralIDs, post.ID)
-				}
-			}
-			if next < after || (next == after && len(posts) > 0) {
-				return nil, personachat.ErrUnavailable
-			}
-			if next == after {
-				break
-			}
-			after = next
-		}
+	ephemeralIDs, err := s.deliveredPrivateCards(ctx, p, room, receipts)
+	if err != nil {
+		return nil, err
 	}
 	for _, receipt := range receipts {
 		if receipt.TenantID != room.TenantID {
@@ -100,7 +73,7 @@ func (s *PersonaChatSurface) visiblePostActors(ctx context.Context, p *trust.Pri
 			if post, ok := visible[receipt.PrivatePostID]; ok && receipt.PrivateConversationID == room.ID {
 				ids = append(ids, post.ID)
 			}
-			if receipt.ConversationID == room.ID && ephemeralIDs[receipt.EphemeralPostID] {
+			if _, delivered := ephemeralIDs[receipt.EphemeralPostID]; delivered && receipt.ConversationID == room.ID {
 				ids = append(ids, receipt.EphemeralPostID)
 			}
 		}
@@ -110,6 +83,46 @@ func (s *PersonaChatSurface) visiblePostActors(ctx context.Context, p *trust.Pri
 	}
 	slices.SortFunc(out, func(a, b personachat.PostActor) int { return strings.Compare(a.PostID, b.PostID) })
 	return out, nil
+}
+
+// deliveredPrivateCards reads the private cards the receipts of the caller's own
+// runs in this room name, by card id. A card that has expired, or that was
+// delivered to somebody else, is not in the result. The card reader checks the
+// caller's membership itself and shows each source as this reader may see it.
+func (s *PersonaChatSurface) deliveredPrivateCards(ctx context.Context, p *trust.Principal, room chat.Conversation, receipts []agentinvocationstore.ReplyReceipt) (map[string]chat.EphemeralPost, error) {
+	delivered := make(map[string]chat.EphemeralPost)
+	wanted := make(map[string]bool)
+	for _, receipt := range receipts {
+		if receipt.TenantID == room.TenantID && receipt.InvokerID == p.Subject() && receipt.ConversationID == room.ID && receipt.EphemeralPostID != "" {
+			wanted[receipt.EphemeralPostID] = true
+		}
+	}
+	ephemeral, ok := s.privateCards()
+	if !ok {
+		return delivered, nil
+	}
+	principal := chat.Principal{TenantID: room.TenantID, SubjectID: p.Subject()}
+	var after uint64
+	for len(wanted) > 0 {
+		posts, next, err := ephemeral.ListEphemeralPosts(ctx, chat.ListEphemeralPostsRequest{Principal: principal, TenantID: room.TenantID, ConversationID: room.ID, AfterSequence: after, PageSize: 100})
+		if err != nil {
+			return nil, surfaceChatError(err)
+		}
+		for _, post := range posts {
+			if wanted[post.ID] && post.TenantID == room.TenantID && post.ConversationID == room.ID && post.RecipientHomeTenantID == room.TenantID && post.RecipientSubjectID == p.Subject() {
+				delivered[post.ID] = post
+				delete(wanted, post.ID)
+			}
+		}
+		if next < after || (next == after && len(posts) > 0) {
+			return nil, personachat.ErrUnavailable
+		}
+		if next == after {
+			break
+		}
+		after = next
+	}
+	return delivered, nil
 }
 
 type personaReplyActor struct{ AgentID, Display, InvokerHandle string }

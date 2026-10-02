@@ -125,9 +125,11 @@ func readyPersonaAdminStarterSource(t *testing.T, missingGrant bool) *PersonaAdm
 		text := personaStarterInstructions(starter)
 		manifests.manifests[id] = agentmanifest.Manifest{
 			SchemaVersion: agentmanifest.CurrentSchemaVersion, ID: id, Version: 1, OwnerID: "tenant-owner", Purpose: starter.Purpose,
-			InstructionsDigest: personaInstructionDigest(text), SourceCeiling: []agentmanifest.Reference{}, ToolCeiling: []agentmanifest.Reference{},
+			// A ready manifest carries the starter's pinned skills as its tool
+			// ceiling and the starter's own budget, as provisioning writes them.
+			InstructionsDigest: personaInstructionDigest(text), SourceCeiling: []agentmanifest.Reference{}, ToolCeiling: personaStarterToolCeiling(starter),
 			ModelPolicy: starterTestRef("model"), AutonomyCeiling: "ASSISTED",
-			Budget:       agentmanifest.Budget{MaxCostMicros: 100, MaxInputTokens: 4000, MaxOutputTokens: 1000, MaxConcurrentRuns: 1},
+			Budget:       agentUXGeneralStarterBudget(starter, agentmanifest.Budget{MaxCostMicros: 100, MaxInputTokens: 4000, MaxOutputTokens: 1000, MaxConcurrentRuns: 1}),
 			OutputSchema: starterTestRef("output"), ContextGrants: []agentmanifest.Reference{},
 			EvaluationRefs: []agentmanifest.Reference{starterTestRef(starter.EvaluationSuite)},
 		}

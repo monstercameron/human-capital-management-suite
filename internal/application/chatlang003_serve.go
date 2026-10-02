@@ -65,8 +65,14 @@ func composeServedChatlang(ctx context.Context, in chatlangServeInput) (*Chatlan
 		// External: the same governance applies as to a real engine, so a
 		// channel barred from external engines is barred here too.
 		engine, info.Name = &chatlang.FixtureEngine{}, "fixture (local development)"
+	case in.Env(EnvChatTranslationEngine) == ChatlangEngineOpenAI:
+		model, name, reason, err := chatlangGatewayEngine(ctx, in, local, now, true)
+		if err != nil || reason != "" {
+			return nil, reason, err
+		}
+		engine, info.Name = model, name
 	default:
-		model, name, reason, err := chatlangGatewayEngine(ctx, in, local, now)
+		model, name, reason, err := chatlangGatewayEngine(ctx, in, local, now, false)
 		if err != nil || reason != "" {
 			return nil, reason, err
 		}
@@ -82,7 +88,7 @@ func composeServedChatlang(ctx context.Context, in chatlangServeInput) (*Chatlan
 
 // chatlangGatewayEngine builds the governed model engine from a qualified
 // deployment, as composeServedChattone does for writing styles.
-func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local bool, now func() time.Time) (chatlang.Engine, string, string, error) {
+func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local bool, now func() time.Time, structured bool) (chatlang.Engine, string, string, error) {
 	cfg := in.Config
 	path := in.Env(EnvChatTranslationModelConfigFile)
 	if path == "" && local {
@@ -134,6 +140,20 @@ func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local boo
 	var resources AgentModelResourceAdmission
 	if in.Runtime.Resources != nil {
 		resources = personaRunModelResources{runtime: in.Runtime.Resources}
+	}
+	if structured {
+		// The "openai" engine: the same deployment document, key, leases, egress and
+		// budget, with the typed operation beneath. A deployment qualified for the
+		// text route is not eligible for it.
+		gateway, leases, err := chatlangOpenAIModel(deployment, apiKey, PersonaModelDeploymentDependencies{Budget: agentmodel.BudgetAdapter{Ledger: ledger}, Routes: evidence, Sources: evidence, Resources: resources, Now: now})
+		if err != nil {
+			return nil, "", "", err
+		}
+		binding, err := NewChatlangStructuredBinding(deployment, leases, ledger, now, ChatlangModelFromEnv(in.Env))
+		if err != nil {
+			return nil, "", err.Error(), nil
+		}
+		return ChatlangStructuredEngine{Gateway: gateway, Binding: binding}, "OpenAI " + binding.Profile.Identity.ModelID + " through SchemaFlux", "", nil
 	}
 	model, _, err := ComposePersonaRuntimeTypedModel(deployment, apiKey, cfg.PersonaOutputSigningSeed, cfg.PersonaWorkloadSigningSeed,
 		PersonaModelDeploymentDependencies{Budget: agentmodel.BudgetAdapter{Ledger: ledger}, Routes: evidence, Sources: evidence, Resources: resources, Now: now})

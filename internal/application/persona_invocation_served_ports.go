@@ -21,8 +21,12 @@ type personaInvocationLogger interface {
 type personaInvocationServedPorts struct {
 	chat          personaChatPostWriter
 	conversations personaClassifiedHumanConversationReader
-	references    personaReferenceResolver
-	failures      personaInvocationFailureSink
+	// directory reads conversations and members for the direct-conversation
+	// question. The post writer above is deliberately narrower, so it cannot
+	// answer those reads itself (AGENTUX-075).
+	directory  personaDirectConversationReader
+	references personaReferenceResolver
+	failures   personaInvocationFailureSink
 }
 
 // composePersonaInvocationServedPorts adapts the already-composed chat and
@@ -47,6 +51,7 @@ func composePersonaInvocationServedPorts(
 	return personaInvocationServedPorts{
 		chat:          servedPersonaPostWriter{service: served.ConversationService},
 		conversations: served.ConversationService,
+		directory:     served.ConversationService,
 		references:    references,
 		failures:      personaInvocationFailureLogger{logger: logger},
 	}, nil

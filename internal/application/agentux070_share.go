@@ -127,7 +127,12 @@ func (g *PersonaAnswerShareGate) Share(ctx context.Context, asker chat.Principal
 			return ErrPersonaShareRefused{Reason: chat.PrivateReasonAudience}
 		}
 		allowed, _, err := authorizeAnnouncementAudience(ctx, asker.TenantID, conversation.ID, g.Documents, snapshot, documents, ids)
-		if err != nil || !allowed || g.Audience.AllowDataClass(ctx, conversation, bodyClass) != nil {
+		if err != nil || !allowed {
+			// CHATBUG-067: the refusal names the source that is not open to
+			// everyone here, so the asker knows what keeps the answer private.
+			return ErrPersonaShareRefused{Reason: chat.PrivateReasonAudience, Source: g.closedSource(ctx, asker.TenantID, conversation.ID, snapshot, documents)}
+		}
+		if g.Audience.AllowDataClass(ctx, conversation, bodyClass) != nil {
 			return ErrPersonaShareRefused{Reason: chat.PrivateReasonAudience}
 		}
 		// The per-reader flag on a Sources line is rewritten at every read; the
@@ -145,6 +150,23 @@ func (g *PersonaAnswerShareGate) Share(ctx context.Context, asker chat.Principal
 	}
 	return posted, nil
 }
+
+// closedSource is the title of the first cited document that, taken alone, is
+// not open to every current member of the conversation; empty when no single
+// document explains the refusal.
+func (g *PersonaAnswerShareGate) closedSource(ctx context.Context, tenant, conversationID string, snapshot chatrecipient.AudienceSnapshot, documents []AgentAnnouncementResolvedDocument) string {
+	for _, document := range documents {
+		allowed, _, err := authorizeAnnouncementAudience(ctx, tenant, conversationID, g.Documents, snapshot, []AgentAnnouncementResolvedDocument{document}, []string{document.DocumentID})
+		if err != nil || !allowed {
+			return strings.TrimSpace(document.Title)
+		}
+	}
+	return ""
+}
+
+// personaShareExpired is the refusal for an answer whose private card is no
+// longer held: there is nothing left to post.
+const personaShareExpired = "expired"
 
 // NewPersonaAnswerShareGate composes the production check from the same floor
 // and documents hub that decide whether an agent's answer is posted publicly.
@@ -253,7 +275,7 @@ func (s *PersonaChatSurface) ShareAnswer(ctx context.Context, invocationID, idem
 		var refused ErrPersonaShareRefused
 		switch {
 		case errors.As(err, &refused):
-			return personachat.ShareResult{}, &personachat.FinalStateConflict{State: refused.Reason}
+			return personachat.ShareResult{}, &personachat.FinalStateConflict{State: refused.Reason, Detail: refused.Source}
 		case errors.Is(err, chat.ErrPermissionDenied), errors.Is(err, chat.ErrNotFound):
 			return personachat.ShareResult{}, personachat.ErrDenied
 		case errors.Is(err, chat.ErrInvalidArgument):
@@ -278,11 +300,14 @@ func (s *PersonaChatSurface) privateCardFor(ctx context.Context, principal chat.
 			break
 		}
 	}
-	lister, ok := s.Chat.(interface {
-		ListEphemeralPosts(context.Context, chat.ListEphemeralPostsRequest) ([]chat.EphemeralPost, uint64, error)
-	})
-	if cardID == "" || !ok {
-		return "", personachat.ErrDenied
+	lister, ok := s.privateCards()
+	if !ok {
+		// The composition gave the surface no way to read private cards. That is
+		// not the asker's doing and is not a refusal.
+		return "", personachat.ErrUnavailable
+	}
+	if cardID == "" {
+		return "", &personachat.FinalStateConflict{State: personaShareExpired}
 	}
 	var after uint64
 	for {
@@ -296,7 +321,8 @@ func (s *PersonaChatSurface) privateCardFor(ctx context.Context, principal chat.
 			}
 		}
 		if next <= after {
-			return "", personachat.ErrDenied
+			// The card is on record and no longer held: too old to share.
+			return "", &personachat.FinalStateConflict{State: personaShareExpired}
 		}
 		after = next
 	}

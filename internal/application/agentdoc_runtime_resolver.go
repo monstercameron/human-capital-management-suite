@@ -33,6 +33,10 @@ type agentDocumentReadSource interface {
 
 type agentDocumentResolver struct {
 	source agentDocumentReadSource
+	// workspace and agentFacts are set by EnablePersonaAgentFacts (AGENTUX-076).
+	workspace  WorkspaceDocumentMembers
+	agentFacts bool
+	reach      personaReachCache
 }
 
 // NewAgentDocumentResolver adapts the existing documentation-hub store to the

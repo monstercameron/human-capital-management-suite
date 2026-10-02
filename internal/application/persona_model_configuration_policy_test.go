@@ -21,7 +21,8 @@ func configuredPolicyDeploymentFixture(t *testing.T) (PersonaModelDeployment, uu
 	cfg := modelDeploymentFixture(t)
 	tenant := uuid.New()
 	private := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{4}, ed25519.SeedSize))
-	content := []byte(`{"id":"test-policy","version":1,"schema_version":1}`)
+	// A model policy is registered in its canonical form: keys in sorted order.
+	content := []byte(`{"id":"test-policy","schema_version":1,"version":1}`)
 	r := agentmodelpolicystore.Record{Kind: agentmodelpolicystore.ModelPolicy, Reference: agentmanifest.Reference{ID: "test-policy", Version: 1, SchemaVersion: 1, Digest: agentmodelpolicystore.ContentDigest(content)}, Content: content}
 	deploymentDigest := agentmodelpolicystore.ContentDigest([]byte("test-independent-deployment"))
 	doc := AgentPolicyAuthorityDocument{TenantID: "tenant-a", TenantUUID: tenant.String(), Kind: r.Kind, Reference: r.Reference, ContentDigest: agentmodelpolicystore.ContentDigest(content), DeploymentDigest: deploymentDigest, SourceID: "test-reviewed-source", SourceRevision: 1, KeyID: "test-policy-key", Basis: "reviewed-deployment", ReviewRef: "test-review", EffectiveFrom: time.Now().UTC(), EffectiveUntil: time.Now().UTC().Add(time.Hour)}

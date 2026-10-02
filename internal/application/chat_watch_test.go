@@ -8,6 +8,7 @@ import (
 	"time"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatadmission"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatstream"
 )
 
@@ -82,7 +83,10 @@ func TestTodo_CHAT_019_ApplicationRouteEpochInvalidatesResumeAndLiveWatch(t *tes
 	}
 	cursor := sub.Cursor()
 	sub.Close()
-	if err := lease.Release(); err != nil {
+	// The runtime releases the watch lease itself once the subscription is
+	// done, so by now the lease is either still ours to release or already
+	// released; any other answer is a fault.
+	if err := lease.Release(); err != nil && !errors.Is(err, chatadmission.ErrReleased) {
 		t.Fatal(err)
 	}
 	routeService.epoch.Store(2)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 )
 
 // EnvChatWritingStyleModelConfigFile names the approval document that
@@ -129,6 +130,9 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 	if err != nil {
 		return nil, "", err
 	}
+	if in.Chat.store != nil {
+		service.Reword = &ChattoneRewordPolicy{Store: in.Chat.store}
+	}
 	// The development tenant is the only workspace the composition root turns
 	// on. Every other workspace opts in through its administrator.
 	if local && slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
@@ -137,6 +141,20 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 		}
 	}
 	return service, "", nil
+}
+
+// chattoneUnprovisionedService is the service a deployment without a qualified
+// model gets: it offers no writing styles and says why, and still serves the
+// reword settings (an administrator may choose before the model is qualified).
+func chattoneUnprovisionedService(why string, store *chatstore.Store, facts ChatAuthorityFacts, now func() time.Time) *ChattoneService {
+	service := ChattoneNotProvisioned(why)
+	if !isNilPersonaOutputPort(facts) {
+		service.Administration = ChattoneRoleAdministration{Facts: facts, Now: personaServeClock(now)}
+	}
+	if store != nil {
+		service.Reword = &ChattoneRewordPolicy{Store: store}
+	}
+	return service
 }
 
 // logChattoneComposition states, once at start-up, whether the writing-style

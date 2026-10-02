@@ -25,6 +25,10 @@ import (
 // and the document states it. The result is checked against the same rules the
 // service applies at start-up.
 func NewChatlangDeployment(base PersonaModelDeployment, evaluation agentmodel.ModelEvaluation, maxLatency time.Duration, maxCostMicros int64) (PersonaModelDeployment, error) {
+	return newChatlangDeployment(base, evaluation, maxLatency, maxCostMicros, chatlangOutputSchemaDigest)
+}
+
+func newChatlangDeployment(base PersonaModelDeployment, evaluation agentmodel.ModelEvaluation, maxLatency time.Duration, maxCostMicros int64, outputDigest string) (PersonaModelDeployment, error) {
 	if len(base.Profiles) == 0 || len(base.Destinations) == 0 || len(base.Credential.Scopes) == 0 {
 		return PersonaModelDeployment{}, fmt.Errorf("%w: the base deployment has no profile, destination or credential scope", errChatlangBinding)
 	}
@@ -45,11 +49,16 @@ func NewChatlangDeployment(base PersonaModelDeployment, evaluation agentmodel.Mo
 	if baseTerms == nil {
 		return PersonaModelDeployment{}, fmt.Errorf("%w: the template profile has no provider terms", errChatlangBinding)
 	}
-	sum := sha256.Sum256([]byte(evaluation.AgentVersionDigest + "\x00" + evaluation.SuiteDigest + "\x00" + template.Identity.ModelID + "\x00" + template.Identity.Version))
+	identity := evaluation.AgentVersionDigest + "\x00" + evaluation.SuiteDigest + "\x00" + template.Identity.ModelID + "\x00" + template.Identity.Version
+	if outputDigest != chatlangOutputSchemaDigest {
+		// The structured route is a different answer shape, so a different profile.
+		identity += "\x00" + outputDigest
+	}
+	sum := sha256.Sum256([]byte(identity))
 	profile := agentmodel.ModelProfile{
 		ID: "chat-translation-" + hex.EncodeToString(sum[:])[:12], Identity: template.Identity, Regions: slices.Clone(template.Regions),
 		DataClasses: slices.Clone(task.DataClasses), TaskProfileIDs: []string{task.ID}, MaxLatency: maxLatency, MaxCostMicros: maxCostMicros, ExpectedCostMicros: maxCostMicros / 2,
-		SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: chatlangOutputSchemaDigest, ToolSchemaDigest: chatlangToolSchemaDigest, Evaluation: evaluation,
+		SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: chatlangToolSchemaDigest, Evaluation: evaluation,
 	}
 	profile.ProfileDigest = agentmodel.ModelProfileDigest(profile)
 	classes := []trustdlp.DataClass{trustdlp.ClassPublic, trustdlp.ClassInternal}
@@ -94,7 +103,7 @@ func NewChatlangDeployment(base PersonaModelDeployment, evaluation agentmodel.Mo
 	if _, _, err := out.validate(); err != nil {
 		return PersonaModelDeployment{}, err
 	}
-	if _, err := chatlangQualify(out); err != nil {
+	if _, err := chatlangQualifyFor(out, outputDigest); err != nil {
 		return PersonaModelDeployment{}, err
 	}
 	return out, nil

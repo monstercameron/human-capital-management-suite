@@ -105,6 +105,8 @@ type PersonaAdminLifecycleExecutor struct {
 	Runtime       PersonaAdminRuntimeProvisioner
 	Now           func() time.Time
 	NewEventID    func() string
+	// Reactions stores the owner's choice about an agent's reactions (AGENTUX-075).
+	Reactions personaReactionSettingWriter
 }
 
 // NewPersonaAdminLifecycleExecutor creates an executor. Dependencies are
@@ -125,6 +127,9 @@ func (e *PersonaAdminLifecycleExecutor) PersonaAdminCommandAvailable(ctx context
 	}
 	if action == PersonaAdminReview {
 		return e.Reviews != nil && e.Reviews.Authorize(ctx) == nil
+	}
+	if action == PersonaAdminSetReactions {
+		return e.Reactions != nil
 	}
 	if action == PersonaAdminRunEvaluation {
 		if e.Evaluations == nil {
@@ -185,6 +190,8 @@ func (e *PersonaAdminLifecycleExecutor) ExecutePersonaAdminCommand(ctx context.C
 		return e.reinstall(ctx, actor, command)
 	case PersonaAdminSuspend, PersonaAdminRetire:
 		return e.transition(ctx, actor, command)
+	case PersonaAdminSetReactions:
+		return e.setReactions(ctx, actor, command)
 	default:
 		return ErrPersonaAdminCommandUnavailable
 	}

@@ -190,8 +190,11 @@ func TestTodo_AGENT_038_Runtime_Race(t *testing.T) {
 			if got := r.SnapshotForTenant(identity.TenantID); got.Active > 2 {
 				errorsCh <- fmt.Errorf("tenant exceeded quota: %+v", got)
 			}
-			if lease.PoolWait <= 0 {
-				errorsCh <- errors.New("pool wait was not measured")
+			// An admission that found a free slot can measure zero on a coarse
+			// clock; TestTodo_AGENT_038_RuntimeObservation proves a real wait is
+			// measured. Here the wait only has to be a duration, never negative.
+			if lease.PoolWait < 0 {
+				errorsCh <- fmt.Errorf("pool wait was negative: %s", lease.PoolWait)
 			}
 			runtime.Gosched()
 			active.Add(-1)

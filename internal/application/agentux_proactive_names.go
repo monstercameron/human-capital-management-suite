@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 
@@ -112,7 +113,10 @@ func (s AgentAnnouncementCatalogNames) AgentAnnouncementNames(ctx context.Contex
 	if err != nil {
 		return "", "", "", err
 	}
-	if strings.TrimSpace(agentName) == "" || strings.TrimSpace(conversationName) == "" || strings.TrimSpace(names[record.OwnerID]) == "" {
+	if strings.TrimSpace(agentName) == "" || strings.TrimSpace(conversationName) == "" {
+		return "", "", names[record.OwnerID], errors.Join(ErrAgentAnnouncementUnavailable, ErrAgentAnnouncementAgentGone)
+	}
+	if strings.TrimSpace(names[record.OwnerID]) == "" {
 		return "", "", "", ErrAgentAnnouncementUnavailable
 	}
 	return agentName, conversationName, names[record.OwnerID], nil

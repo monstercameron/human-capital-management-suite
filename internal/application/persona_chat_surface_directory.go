@@ -46,6 +46,37 @@ type PersonaChatSurface struct {
 	// Share is the check made before a private answer is posted to its channel
 	// (AGENTUX-070). Unset, sharing is unavailable.
 	Share *PersonaAnswerShareGate
+	// Cards reads the private cards a person was delivered. The served chat
+	// service is a chain of decorators that does not pass that read through, so
+	// the composition hands the surface the service that holds it; without it
+	// "Share to channel" was refused for every answer (CHATBUG-067). Unset, the
+	// surface asks Chat itself.
+	Cards personaPrivateCardReader
+	// memory is what the surface remembers between reads (CHATBUG-075). The
+	// served composition supplies it; without it every read stands alone.
+	memory *personaSurfaceMemory
+	// Steps holds what each run in flight is doing now, for the working line under
+	// the question (AGENTUX-075). Unset, the line follows the run's checkpoints.
+	Steps *personaRunStepBoard
+	// ChannelPolicies is the channel's persona policy, where a channel's
+	// administrator requires private agent answers (AGENTUX-070). Unset, the
+	// setting is not offered.
+	ChannelPolicies personaChannelPolicies
+}
+
+// personaPrivateCardReader lists the private cards delivered to one person in
+// one conversation. It checks that person's membership itself.
+type personaPrivateCardReader interface {
+	ListEphemeralPosts(context.Context, chat.ListEphemeralPostsRequest) ([]chat.EphemeralPost, uint64, error)
+}
+
+// privateCards is the reader of private cards this surface was composed with.
+func (s *PersonaChatSurface) privateCards() (personaPrivateCardReader, bool) {
+	if s.Cards != nil {
+		return s.Cards, true
+	}
+	reader, ok := s.Chat.(personaPrivateCardReader)
+	return reader, ok
 }
 
 var _ personachat.Surface = (*PersonaChatSurface)(nil)
@@ -55,7 +86,26 @@ func personaSurfacePrincipal(ctx context.Context) (*trust.Principal, bool) {
 	return p, ok && p != nil && p.SubjectKind() == trust.SubjectKindHuman
 }
 
+// member resolves the caller as a current member of a conversation in which
+// something may still be done: asking again, sharing, rating, stopping. An
+// archived conversation is refused, because nothing can be started there.
 func (s *PersonaChatSurface) member(ctx context.Context, conversationID string) (*trust.Principal, chat.Conversation, error) {
+	p, room, err := s.reader(ctx, conversationID)
+	if err != nil {
+		return nil, chat.Conversation{}, err
+	}
+	if room.Archived {
+		return nil, chat.Conversation{}, personachat.ErrDenied
+	}
+	return p, room, nil
+}
+
+// reader resolves the caller as a current member of a conversation for a read.
+// An archived conversation is still read by its members: they see who answered
+// in it and what became of their own questions. The page asks for both on every
+// load of the conversation, and used to be answered 403 three times over for an
+// archived channel.
+func (s *PersonaChatSurface) reader(ctx context.Context, conversationID string) (*trust.Principal, chat.Conversation, error) {
 	p, ok := trust.FromContext(ctx)
 	if !ok || p == nil {
 		return nil, chat.Conversation{}, personachat.ErrUnauthenticated
@@ -81,7 +131,7 @@ func (s *PersonaChatSurface) member(ctx context.Context, conversationID string) 
 	if err != nil {
 		return nil, chat.Conversation{}, surfaceChatError(err)
 	}
-	if room.ID != conversationID || room.TenantID != principal.TenantID || room.Archived {
+	if room.ID != conversationID || room.TenantID != principal.TenantID {
 		return nil, chat.Conversation{}, personachat.ErrDenied
 	}
 	page := chat.Page{PageSize: 200}
@@ -117,12 +167,18 @@ func surfaceChatError(err error) error {
 // Directory joins current canonical references to their sealed profile. It
 // never returns hidden profiles, instructions, audience facts or grant data.
 func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID string) (personachat.Directory, error) {
-	p, room, err := s.member(ctx, conversationID)
+	p, room, err := s.reader(ctx, conversationID)
 	if err != nil {
 		return personachat.Directory{}, err
 	}
 	if s.References == nil || s.Personas == nil || s.Skills == nil {
 		return personachat.Directory{}, personachat.ErrUnavailable
+	}
+	if room.Archived {
+		// Nobody can be asked anything in an archived conversation, so it lists
+		// no agent to mention. The agents that answered there are still named, so
+		// its history reads as it did.
+		return s.directoryPostActors(ctx, p, room, personachat.Directory{Personas: make([]personachat.Profile, 0)})
 	}
 	profiles, err := s.Personas.ListAvailable(ctx, p)
 	if err != nil {
@@ -134,12 +190,31 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 	}
 	result := personachat.Directory{Personas: make([]personachat.Profile, 0)}
 	// Each omission is logged with its reason: an empty agent list is otherwise
-	// indistinguishable from a conversation with no agent.
+	// indistinguishable from a conversation with no agent. The directory is read
+	// again and again while a conversation is open, so each finding is logged
+	// once per conversation for the life of the process (CHATBUG-075): an
+	// omission at INFO, and "no agent here", which is the ordinary state of most
+	// conversations, at DEBUG.
 	omitted := func(item, reason string) {
-		slog.InfoContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "chat_directory", "item_type", "persona_reference", "item_id", item, "conversation_id", room.ID, "reason", reason)
+		if s.memory.firstTime("omitted\x00" + room.TenantID + "\x00" + room.ID + "\x00" + item + "\x00" + reason) {
+			slog.InfoContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "chat_directory", "item_type", "persona_reference", "item_id", item, "conversation_id", room.ID, "reason", reason)
+		}
 	}
-	if len(profiles) == 0 || len(candidates) == 0 {
-		slog.InfoContext(ctx, "hcmnext.persona_projection_empty", "projection", "chat_directory", "conversation_id", room.ID, "available_profiles", len(profiles), "reference_candidates", len(candidates))
+	// CHATBUG-014: the caller's skills are the same for every agent of the
+	// conversation, so they are read once for the directory, when the first
+	// agent needs them, and not once per agent.
+	var discovered []agentskills.SkillRecord
+	var discoverErr error
+	discoveredRead := false
+	discoverSkills := func() ([]agentskills.SkillRecord, error) {
+		if !discoveredRead {
+			discovered, discoverErr = s.Skills.Discover(ctx, p, personaChatReplyPurpose)
+			discoveredRead = true
+		}
+		return discovered, discoverErr
+	}
+	if (len(profiles) == 0 || len(candidates) == 0) && s.memory.firstTime("empty\x00"+room.TenantID+"\x00"+room.ID) {
+		slog.DebugContext(ctx, "hcmnext.persona_projection_empty", "projection", "chat_directory", "conversation_id", room.ID, "available_profiles", len(profiles), "reference_candidates", len(candidates))
 	}
 	for _, candidate := range candidates {
 		if candidate.Kind != chat.AgentMention {
@@ -165,7 +240,7 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 				continue
 			}
 			matched = true
-			discovered, err := s.Skills.Discover(ctx, p, personaChatReplyPurpose)
+			discovered, err := discoverSkills()
 			if err != nil {
 				return personachat.Directory{}, personachat.ErrUnavailable
 			}
@@ -205,6 +280,8 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 				Reference: personachat.Reference{Kind: string(candidate.Kind), TenantID: room.TenantID, ID: candidate.ID, Display: profile.DisplayName, ConversationID: room.ID},
 				Purpose:   profile.Purpose, Owner: profile.Owner, Version: strconv.FormatUint(uint64(profile.Version), 10), Skills: skills,
 				DataClasses: classes, CannotDo: cannotDo, ReplyPlacement: placement,
+				DocumentScope: personaChatDocumentScope(profile.SkillPins),
+				Examples:      append([]string(nil), profile.ExampleQuestions...),
 			})
 			break
 		}
@@ -212,6 +289,22 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 			omitted(candidate.ID, "no_available_profile_for_reference")
 		}
 	}
+	if len(result.Personas) > 0 {
+		// AGENTUX-070: the channel's requirement on agent answers, with the agents it applies to.
+		result.ChannelPrivacy = s.channelPrivacy(ctx, room.TenantID, p.Subject(), room)
+		if result.ChannelPrivacy != nil && result.ChannelPrivacy.Private {
+			// The requirement is the room's own: every agent here answers privately.
+			for index := range result.Personas {
+				result.Personas[index].ReplyPlacement = "private_always"
+			}
+		}
+	}
+	return s.directoryPostActors(ctx, p, room, result)
+}
+
+// directoryPostActors adds to the directory the agents that authored messages
+// the caller can see in the conversation.
+func (s *PersonaChatSurface) directoryPostActors(ctx context.Context, p *trust.Principal, room chat.Conversation, result personachat.Directory) (personachat.Directory, error) {
 	actors, err := s.visiblePostActors(ctx, p, room)
 	if err != nil {
 		return personachat.Directory{}, err

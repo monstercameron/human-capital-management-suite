@@ -74,6 +74,10 @@ func (s *DatabasePersonaAudienceSource) ListCurrentPersonaAudience(ctx context.C
 	page := chat.Page{PageSize: 200}
 	out := make([]PersonaAudienceConversation, 0)
 	seenRooms := make(map[string]struct{})
+	// What this read leaves out is counted and reported once at the end
+	// (AGENTUX-033), not written once per member of every conversation.
+	omitted := &personaAudienceOmissions{}
+	defer func() { omitted.report(ctx) }()
 	for {
 		rooms, err := s.Chat.ListConversations(ctx, chat.ListConversationsRequest{Principal: principal, TenantID: tenantID, Page: page})
 		if err != nil {
@@ -81,20 +85,21 @@ func (s *DatabasePersonaAudienceSource) ListCurrentPersonaAudience(ctx context.C
 		}
 		for _, room := range rooms.Conversations {
 			if room.TenantID != tenantID || strings.TrimSpace(room.ID) == "" || room.Archived {
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "invalid_conversation")
+				omitted.conversation("invalid_conversation")
 				continue
 			}
 			if _, exists := seenRooms[room.ID]; exists {
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "duplicate_conversation")
+				omitted.conversation("duplicate_conversation")
 				continue
 			}
 			seenRooms[room.ID] = struct{}{}
-			members, err := s.listMembers(ctx, tenantID, room.ID, principal)
+			members, err := s.listMembers(ctx, tenantID, room.ID, principal, omitted)
 			if err != nil {
 				if errors.Is(err, ErrPersonaAudienceDirectoryFactsMissing) {
 					return nil, err
 				}
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "members_unavailable", "error_type", fmt.Sprintf("%T", err), "cause", personaAudienceOmissionCause(err))
+				omitted.conversation("members_unavailable")
+				slog.DebugContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "members_unavailable", "error_type", fmt.Sprintf("%T", err), "cause", personaAudienceOmissionCause(err))
 				continue
 			}
 			out = append(out, PersonaAudienceConversation{TenantID: tenantID, ConversationID: room.ID, Members: members})
@@ -118,7 +123,7 @@ func personaAudienceOmissionCause(err error) string {
 	return err.Error()
 }
 
-func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantID, conversationID string, principal chat.Principal) ([]PersonaAudienceMember, error) {
+func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantID, conversationID string, principal chat.Principal, omitted *personaAudienceOmissions) ([]PersonaAudienceMember, error) {
 	page := chat.Page{PageSize: 200}
 	out := make([]PersonaAudienceMember, 0)
 	seen := make(map[string]struct{})
@@ -129,12 +134,12 @@ func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantI
 		}
 		for _, member := range members.Memberships {
 			if member.TenantID != tenantID || member.ConversationID != conversationID || strings.TrimSpace(member.SubjectID) == "" || strings.TrimSpace(member.HomeTenantID) == "" {
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "invalid_membership")
+				omitted.member("invalid_membership")
 				continue
 			}
 			key := member.HomeTenantID + "\x00" + member.SubjectID
 			if _, ok := seen[key]; ok {
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "duplicate_membership")
+				omitted.member("duplicate_membership")
 				continue
 			}
 			seen[key] = struct{}{}
@@ -150,14 +155,14 @@ func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantI
 				if member.HomeTenantID == principal.TenantID && member.SubjectID == principal.SubjectID {
 					return nil, fmt.Errorf("%w: resolve current principal %s: %v", ErrPersonaAudienceDirectoryFactsMissing, key, err)
 				}
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "directory_facts_missing")
+				omitted.member("directory_facts_missing")
 				continue
 			}
 			if facts.SubjectID != member.SubjectID || !nonemptyFacts(facts.Roles) || !nonemptyFacts(facts.Populations) || strings.TrimSpace(facts.OrganizationScope) == "" {
 				if member.HomeTenantID == principal.TenantID && member.SubjectID == principal.SubjectID {
 					return nil, fmt.Errorf("%w: current principal %s in tenant %s", ErrPersonaAudienceDirectoryFactsMissing, member.SubjectID, member.HomeTenantID)
 				}
-				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "directory_facts_incomplete")
+				omitted.member("directory_facts_incomplete")
 				continue
 			}
 			facts.Roles = append([]string(nil), facts.Roles...)

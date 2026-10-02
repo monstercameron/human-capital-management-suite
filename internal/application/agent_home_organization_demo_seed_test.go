@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 type demoHomeOrganizationFake struct {
@@ -129,5 +131,38 @@ func TestTodo_AGENT2_029_Integration(t *testing.T) {
 	got, err := reader.CurrentHomeOrganization(context.Background(), values.TenantId("harborcare-demo"), subject)
 	if err != nil || got != wantOrganization {
 		t.Fatalf("CurrentHomeOrganization = %q, %v; want %q", got, err, wantOrganization)
+	}
+
+	// The seeded member loads an empty, authorized agent catalog. The member's
+	// role may see two other organizations; discovery must still describe the
+	// member by the plan's home organization and must not fail or widen.
+	if _, err := NewLocalDemoPopulationProvisioner(db.Conn, tenantUUID, clock).Provision(context.Background(), "harborcare-demo"); err != nil {
+		t.Fatal(err)
+	}
+	db.Exec(t, `INSERT INTO access_role (tenant_id,role_id,version,name,updated_by) VALUES ($1,'manager',1,'Manager','test')`, tenantID)
+	db.Exec(t, `INSERT INTO worker_access_role_set (tenant_id,worker_ref,version,updated_by) VALUES ($1,$2,1,'test')`, tenantID, subject)
+	db.Exec(t, `INSERT INTO worker_access_role_assignment (tenant_id,worker_ref,role_id) VALUES ($1,$2,'manager')`, tenantID, subject)
+	for _, visible := range []string{"org:harborcare-demo:visible-a", "org:harborcare-demo:visible-b"} {
+		db.Exec(t, `INSERT INTO role_organization_visibility (tenant_id,organization_scope_id,role_id,version,mode,updated_by) VALUES ($1,$2,'manager',1,'ALL','test')`, tenantID, visible)
+	}
+	principal, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: "harborcare-demo", Subject: subject, SubjectKind: trust.SubjectKindHuman, AuthenticationMethod: trust.AuthenticationMethodBearerToken, Assurance: trust.AssuranceSubstantial, SessionRef: "session", IssuedAt: time.Now().Add(-time.Minute), ExpiresAt: time.Now().Add(time.Hour), CredentialDigest: "digest"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := trust.WithPrincipal(context.Background(), principal)
+	source := &DatabasePersonaAudienceSource{
+		Chat: audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "harborcare-demo"}}, members: map[string][]chat.Membership{"room": {
+			{ConversationID: "room", TenantID: "harborcare-demo", HomeTenantID: "harborcare-demo", SubjectID: subject},
+		}}},
+		Installations: audienceInstallStoreFake{store: audienceInstallFake{}},
+		Directory:     NewPersonaAudienceDirectoryDB(NewAgentDirectoryDB(appRoleConnForPopulation(t, db), tenantUUID)),
+	}
+	audience, err := source.ListCurrentPersonaAudience(ctx, "harborcare-demo", subject)
+	if err != nil || len(audience) != 1 || len(audience[0].Members) != 1 || audience[0].Members[0].OrganizationScope != wantOrganization {
+		t.Fatalf("seeded member audience = %+v, %v; want home organization %q", audience, err, wantOrganization)
+	}
+	catalog, err := (&CurrentPersonaAudience{Source: source}).ResolveAvailablePersonaInstallations(ctx, principal)
+	if err != nil || len(catalog) != 0 {
+		t.Fatalf("seeded member agent catalog = %+v, %v; want empty and authorized", catalog, err)
 	}
 }

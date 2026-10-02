@@ -82,7 +82,7 @@ func chatmodSetup(t *testing.T) *chatmodServed {
 	// a plain member and the reporter in it; the workspace administrator and an
 	// outsider are not members.
 	owner := chat.Principal{TenantID: f.tenant, SubjectID: "owner"}
-	if _, err = f.core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: owner, TenantID: f.tenant, ConversationID: "room", Kind: chat.PublicChannel, Name: "Room"}); err != nil {
+	if _, err = f.core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: owner, TenantID: f.tenant, ConversationID: "room", Kind: chat.PublicChannel, Name: "room"}); err != nil {
 		t.Fatal(err)
 	}
 	f.route("room")
@@ -322,6 +322,53 @@ func TestTodo_CHATMOD_004_Integration(t *testing.T) {
 	}
 }
 
+// TestTodo_CHATMOD_004_Integration_RestoreResolved presses Restore on a resolved
+// item, as the Resolved tab of the Moderation page does: one command naming
+// the item, through the served handler and the routing layer. It answered 404,
+// because the routing layer looked for the item among the open ones only.
+func TestTodo_CHATMOD_004_Integration_RestoreResolved(t *testing.T) {
+	f := chatmodSetup(t)
+	post := f.post
+	if response := f.removal("owner", "remove", "spam", "", post.ID); response.Code != http.StatusOK {
+		t.Fatalf("the removal: %d %s", response.Code, response.Body.String())
+	}
+	caseID := "removal:" + post.ID
+	// The resolved list offers Restore to the holder of the review permission.
+	response := f.call("admin", http.MethodGet, ChatModerationPath+"?query=state:closed", nil)
+	var history chatmodQueue
+	if response.Code != http.StatusOK || json.Unmarshal(response.Body.Bytes(), &history) != nil || len(history.Items) != 1 || history.Items[0].ID != caseID || !history.Items[0].CanRestore {
+		t.Fatalf("the resolved list: %d %s", response.Code, response.Body.String())
+	}
+	// The channel's manager removes but does not review; an outsider sees no item.
+	if code := f.resolve("owner", caseID, "restore", "", ""); code != http.StatusForbidden {
+		t.Fatalf("a manager restoring from the resolved list: %d", code)
+	}
+	if code := f.resolve("outsider", caseID, "restore", "", ""); code != http.StatusNotFound {
+		t.Fatalf("an outsider restoring: %d", code)
+	}
+	if code := f.resolve("admin", caseID, "dismiss", "", ""); code != http.StatusNotFound && code != http.StatusConflict {
+		t.Fatalf("a second decision on a resolved item: %d", code)
+	}
+	if f.listed("member").Deleted == false {
+		t.Fatal("a refused restore brought the message back")
+	}
+	if code := f.resolve("admin", caseID, "restore", "", ""); code != http.StatusOK {
+		t.Fatalf("Restore on a resolved item: %d", code)
+	}
+	if back := f.listed("member"); back.Deleted || back.Body != post.Body {
+		t.Fatalf("the message is not back as it was: %+v", back)
+	}
+	if told := f.notices("author"); len(told) != 2 || told[0].Outcome != "restore" {
+		t.Fatalf("the author is not told the message is back: %+v", told)
+	}
+	if got := f.rows(`SELECT actor_id||'|'||action FROM chat_moderation_action WHERE tenant_id=$1 AND case_id=$2 ORDER BY id`, f.tenant, caseID); len(got) < 2 || got[len(got)-1] != "admin|restore" {
+		t.Fatalf("the restore is not recorded with its actor: %v", got)
+	}
+	if code := f.resolve("admin", caseID, "restore", "", ""); code != http.StatusConflict {
+		t.Fatalf("a second Restore: %d", code)
+	}
+}
+
 // TestTodo_CHATMOD_004_Security_Served: the permission is the server's reading of
 // the person's current roles and channel, never a claim in the request.
 func TestTodo_CHATMOD_004_Security_Served(t *testing.T) {
@@ -465,7 +512,7 @@ func TestTodo_CHATMOD_004_Integration_Pages(t *testing.T) {
 	}
 	// The queue page of a moderator carries the search and the open count.
 	mod := f.call("admin", http.MethodGet, ChatModerationPagePath+"?locale=en-US", nil)
-	if mod.Code != http.StatusOK || !strings.Contains(mod.Body.String(), `class="side-heading chatmod005-heading"`) || !strings.Contains(mod.Body.String(), `data-chatremove-close="true"`) || !strings.Contains(mod.Body.String(), "Nothing to review.") || strings.Contains(mod.Body.String(), `data-chatremove="filter"`) {
+	if mod.Code != http.StatusOK || !strings.Contains(mod.Body.String(), `chatmod005-heading"`) || !strings.Contains(mod.Body.String(), `class="side-heading `) || !strings.Contains(mod.Body.String(), `data-chatremove-close="true"`) || !strings.Contains(mod.Body.String(), "Nothing to review.") || strings.Contains(mod.Body.String(), `data-chatremove="filter"`) {
 		t.Fatalf("the moderator's page: %d %s", mod.Code, mod.Body.String())
 	}
 }

@@ -35,6 +35,21 @@ func composeServedPersonaInvocation(served *streamingChatService, personas *pers
 		}
 	}
 	config.References = ports.references
+	config.Conversations = ports.directory
+	if config.Steps == nil {
+		config.Steps = personas.steps
+	}
+	if config.Reactions == nil {
+		config.Reactions = newServedPersonaQuestionReactor(servedAgentQuestionReactions(served), storedReactionSwitchFor(database, ports.references))
+	}
+	if config.Limits == nil {
+		// Every served mention is admitted against the durable ceilings kept in
+		// the agent database, on the same clock the run uses.
+		config.Limits, err = newServedPersonaMentionLimits(database.personas, config.Run.Now)
+		if err != nil {
+			return nil, fmt.Errorf("%w: compose served persona mention limits: %v", errPersonaInvocationProductionComposition, err)
+		}
+	}
 	config.Failures, err = newPersonaDurableInvocationFailureSink(database.store, ports.failures)
 	if err != nil {
 		return nil, fmt.Errorf("compose served persona failure status: %w", err)

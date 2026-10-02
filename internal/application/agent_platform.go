@@ -74,6 +74,9 @@ func agentBudgetPolicy() agentbudget.Policy {
 		TaskDefault:   agentbudget.Limits{Steps: 20, Tokens: 50_000, WallClock: 30 * time.Minute, SpendMicros: 1_000_000},
 		UserDaily:     agentbudget.Limits{Steps: 200, Tokens: 500_000, WallClock: 4 * time.Hour, SpendMicros: 10_000_000},
 		TenantMonthly: agentbudget.Limits{Steps: 20_000, Tokens: 50_000_000, WallClock: 400 * time.Hour, SpendMicros: 1_000_000_000},
+		// AGENT2-017: a person may add one more half of a task's own ceiling to a
+		// task paused at it. Without this the task view's "Add budget" never offers.
+		ExtensionPolicy: agentbudget.ExtensionPolicy{MaxAdditional: agentbudget.Limits{Steps: 10, Tokens: 25_000, WallClock: 15 * time.Minute, SpendMicros: 500_000}},
 	}
 }
 

@@ -57,6 +57,12 @@ func (h ChannelStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		chatstateHTTPError(w, "not_found", 404)
 		return
 	}
+	if r.URL.Path == ChannelStatusPath && r.Method == http.MethodGet && r.URL.Query().Has(channelStatusBatchParam) {
+		// CHATBUG-014: the statuses of several conversations in one request
+		// (chatperf2_chatstate_batch.go).
+		h.serveBatch(w, r, chat.Principal{TenantID: p.Tenant().String(), SubjectID: p.Subject()})
+		return
+	}
 	if r.URL.Path == ChannelStatusPath && r.Method == http.MethodGet {
 		search, ok := h.Service.(chat.ChannelStatusSearcher)
 		if !ok {
@@ -113,29 +119,36 @@ func (h ChannelStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err != nil {
-		code, status := "unavailable", 503
-		switch {
-		case errors.Is(err, chat.ErrInvalidArgument):
-			code, status = "invalid_argument", 400
-		case errors.Is(err, chat.ErrUnauthenticated):
-			code, status = "unauthenticated", 401
-		case errors.Is(err, chat.ErrPermissionDenied):
-			code, status = "permission_denied", 403
-		case errors.Is(err, chat.ErrNotFound):
-			code, status = "not_found", 404
-		case errors.Is(err, chat.ErrConflict):
-			code, status = "revision_conflict", 409
-		case errors.Is(err, chat.ErrChannelHeld):
-			code, status = "channel_held", 409
-		case errors.Is(err, chat.ErrLastReopener):
-			code, status = "last_reopener", 409
-		case errors.Is(err, chat.ErrChannelStatus):
-			code, status = "channel_status", 409
-		}
+		code, status := chatstateRefusal(err)
 		chatstateHTTPError(w, code, status)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+// chatstateRefusal is the code and HTTP status a service refusal is answered
+// with.
+func chatstateRefusal(err error) (code string, status int) {
+	code, status = "unavailable", 503
+	switch {
+	case errors.Is(err, chat.ErrInvalidArgument):
+		code, status = "invalid_argument", 400
+	case errors.Is(err, chat.ErrUnauthenticated):
+		code, status = "unauthenticated", 401
+	case errors.Is(err, chat.ErrPermissionDenied):
+		code, status = "permission_denied", 403
+	case errors.Is(err, chat.ErrNotFound):
+		code, status = "not_found", 404
+	case errors.Is(err, chat.ErrConflict):
+		code, status = "revision_conflict", 409
+	case errors.Is(err, chat.ErrChannelHeld):
+		code, status = "channel_held", 409
+	case errors.Is(err, chat.ErrLastReopener):
+		code, status = "last_reopener", 409
+	case errors.Is(err, chat.ErrChannelStatus):
+		code, status = "channel_status", 409
+	}
+	return code, status
 }

@@ -189,8 +189,11 @@ type composedChat struct {
 	// core is the Chat service the reader projections run on. The served
 	// composition binds the document hub's live access check onto it once the
 	// document runtime exists (bindAgentSourceAccess).
-	core  *chatcore.Service
-	close func()
+	core *chatcore.Service
+	// voiceFilter is the message content policy the voice transcript check and
+	// Listen's masking use (CHATVOICE-005, -006).
+	voiceFilter *chatcore.FilterContentPolicy
+	close       func()
 }
 
 // chatStreamPorts binds the live stream's read and authorization ports to the
@@ -243,6 +246,9 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		}
 	}
 	service := chatcore.NewService(moderated, now)
+	// A person adding someone to a conversation leaves a system line in it
+	// (CHATUX-021).
+	service.SetMembershipAnnouncements(true)
 	filterPolicy := newChatFilterPolicy(store, facts, now)
 	filterPolicy.AuthorIdentity = chatFilterIdentity{facts: facts, now: now, personas: input.PersonaReferences}
 	service.SetContentPolicy(filterPolicy)

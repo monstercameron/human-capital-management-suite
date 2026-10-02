@@ -356,7 +356,7 @@ func exerciseAgentUX005ServedSurfaces(t *testing.T, personas *agentpersonastore.
 	adminCtx := trust.WithPrincipal(ctx, principal)
 	chatPrincipal := chatcore.Principal{TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAdmin}
 	publicID := localDevPersonaDemoConversationID(localAgentDemoTenant, "general")
-	if _, err := runtime.service.CreateConversation(adminCtx, chatcore.CreateConversationRequest{Principal: chatPrincipal, TenantID: localAgentDemoTenant, ConversationID: publicID, Kind: chatcore.PublicChannel, Name: "General", IdempotencyKey: "agentux-005-general"}); err != nil {
+	if _, err := runtime.service.CreateConversation(adminCtx, chatcore.CreateConversationRequest{Principal: chatPrincipal, TenantID: localAgentDemoTenant, ConversationID: publicID, Kind: chatcore.PublicChannel, Name: "general", IdempotencyKey: "agentux-005-general"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ProvisionLocalDevPersonaChatPolicy(ctx, raw, ServeProfileLocalDev, localAgentDemoTenant, publicID, "general"); err != nil {

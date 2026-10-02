@@ -183,7 +183,7 @@ func proactiveLiveFixture(t *testing.T) (*AgentAnnouncementControlSurface, *Agen
 	service := chat.NewService(adapter, clock)
 	service.SetAuthority(servedPersonaChatAuthority{})
 	owner := chat.Principal{TenantID: "tenant-a", SubjectID: "owner"}
-	if _, err = service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: "tenant-a", ConversationID: "general", Name: "General", Kind: chat.PublicChannel}); err != nil {
+	if _, err = service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: "tenant-a", ConversationID: "general", Name: "general", Kind: chat.PublicChannel}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = chatRaw.PutPublicAudiencePolicy(ctx, "tenant-a", "general", 0, chatstore.PublicAudiencePolicy{Classification: "INTERNAL", Principals: []chatstore.PublicAudiencePrincipal{{HomeTenantID: "tenant-a", SubjectID: "owner"}, {HomeTenantID: "tenant-a", SubjectID: "employee"}}}); err != nil {

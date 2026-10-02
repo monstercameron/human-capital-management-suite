@@ -22,6 +22,10 @@ type integrate2RenderingPolicy struct {
 	Personas personaReferenceLookup
 	// Languages answers whether translation is on for a conversation (CHATLANG-006).
 	Languages *ChatlangGovernance
+	// Reword decides, from the administrator's settings, which readers get a
+	// reworded rendering of a heated message (CHATTONE-003); nil leaves messages
+	// as written.
+	Reword *ChattoneRewordPolicy
 }
 
 func (s integrate2RenderingPolicy) AuthorizeRendering(ctx context.Context, scope chatstore.RenderingScope, action string) error {
@@ -57,8 +61,11 @@ func (s integrate2RenderingPolicy) RenderingPolicy(ctx context.Context, scope ch
 	if err != nil {
 		return chatrender.Policy{}, err
 	}
+	if authored == post.Body {
+		detection = s.chatlangDetected(ctx, scope, id, post.Revision, post.Body, detection)
+	}
 	original := chatrender.Rendering{Tenant: scope.Tenant, Message: id, Revision: post.Revision, Tone: chatrender.AsWritten, Text: post.Body, Language: detection.Language, SourceLanguage: detection.Language}
-	policy := chatrender.Policy{Original: original, AllowOriginal: true, AllowedKinds: []chatrender.Kind{chatrender.Mask}}
+	policy := chatrender.Policy{Original: original, AllowOriginal: true, AllowedKinds: []chatrender.Kind{chatrender.Mask}, Own: chatlangOwn(scope.Principal, post)}
 	// Mask selection is synchronous and keeps authored bytes outside reader views.
 	if s.Filter != nil {
 		masked, err := s.Filter.MaskedBody(ctx, post, scope.Principal)
@@ -75,6 +82,11 @@ func (s integrate2RenderingPolicy) RenderingPolicy(ctx context.Context, scope ch
 	// filters mask.
 	if !policy.RequireMask && s.Languages.Allows(ctx, scope.Tenant, scope.Conversation) {
 		policy.AllowedKinds = append(policy.AllowedKinds, chatrender.Translate)
+	}
+	if s.Reword != nil {
+		if err := s.Reword.Apply(ctx, scope.Tenant, scope.Conversation, post.AuthorID, post.AuthorID == scope.Principal.SubjectID, post.Body, &policy); err != nil {
+			return chatrender.Policy{}, err
+		}
 	}
 	return policy, nil
 }
@@ -117,28 +129,22 @@ func integrate2ReadPost(ctx context.Context, reader chat.ConversationService, p 
 }
 
 func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, core *chat.Service, routed chat.ConversationService, filters *chatfilter.Service, facts ChatAuthorityFacts, input ChatComposition, now chat.Clock) (composedChat, error) {
-	filters.Authority = ChatFilterAuthority{Facts: facts, Conversations: routed, Membership: adapter, Now: now}
+	// Who administers a workspace or a channel by role alone. The filter service
+	// also reads the stored "Manage filters" rows (CHATMOD-005); translation
+	// settings are a different permission and keep the roles.
+	administrators := ChatFilterAuthority{Facts: facts, Conversations: routed, Membership: adapter, Now: now}
+	filterAuthority := administrators
+	filterAuthority.Permissions = chatstore.NewFilterStore(store)
+	filters.Authority = filterAuthority
 	policy := integrate2RenderingPolicy{Store: store, Chat: routed, Personas: input.PersonaReferences, Filter: &chat.FilterContentPolicy{Filters: filters, Conversations: adapter, AuthorIdentity: chatFilterIdentity{facts: facts, now: now, personas: input.PersonaReferences}}}
-	languages := &ChatlangGovernance{Store: store, Admins: filters.Authority, Now: now}
+	languages := &ChatlangGovernance{Store: store, Admins: administrators, Now: now}
 	policy.Languages = languages
-	surface := &ChatRenderingSurface{Store: store, Policy: policy, Languages: languages}
-	rowAuthority := func(ctx context.Context, a chatsearch.Actor, row chatsearch.Row) (bool, error) {
-		if row.ID == "" {
-			return true, nil
-		}
-		// Object grants are independent; absent artifact authorities never grant files.
-		if row.Kind == chatsearch.File || row.Kind == chatsearch.SourceTitle {
-			return false, nil
-		}
-		if row.Target.MessageID == "" {
-			return true, nil
-		}
-		_, err := integrate2ReadPost(ctx, routed, chat.Principal{TenantID: a.HomeTenantID, SubjectID: a.PersonID}, a.TenantID, row.Target.ConversationID, row.Target.MessageID)
-		if errors.Is(err, chat.ErrNotFound) || errors.Is(err, chat.ErrPermissionDenied) {
-			return false, nil
-		}
-		return err == nil, err
+	policy.Reword = &ChattoneRewordPolicy{Store: store}
+	if filters != nil {
+		policy.Reword.Filters = filters
 	}
+	surface := &ChatRenderingSurface{Store: store, Policy: policy, Languages: languages}
+	rowAuthority := integrate2SearchRowAuthority(routed)
 	rendering := func(ctx context.Context, a chatsearch.Actor, row chatsearch.Row) (string, error) {
 		if row.Kind != chatsearch.Message && row.Kind != chatsearch.Thread && row.Kind != chatsearch.Pin && row.Kind != chatsearch.AgentAnswer {
 			return row.Text, nil
@@ -157,18 +163,29 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 	if err := integrate2RegisterVoice(registry, adapter, routed, policy.Filter); err != nil {
 		return composedChat{}, err
 	}
-	result := composedChat{status: nil, renderings: surface, filters: filters, search: ChatSearchHTTP{Port: registry, History: chatsearch.NewRecent()}, store: store}
+	result := composedChat{status: nil, renderings: surface, filters: filters, search: ChatSearchHTTP{Port: registry, History: chatsearch.NewRecent()}, store: store, voiceFilter: policy.Filter}
 	result.status, _ = routed.(chat.ChannelStatusService)
-	result.locations, result.locationPictures = integrate2ComposeLocations(routed, store, input, now)
+	result.locations, result.locationPictures = integrate2ComposeLocations(routed, store, chatmapServedInput(input), now)
+	chatmapBindGovernance(result.locations, chatmapAdmins{Workspace: administrators, Channel: store}, chatmapCountries{Directory: chatmapDirectory(facts)})
 
 	core.SetChannelGate(nil)
-	if !isNilPersonaOutputPort(input.GateAuthority) {
-		gates := &chatgate.Service{Repository: &chatstore.GateRepository{Store: store, Membership: adapter.GateMembership}, Authority: input.GateAuthority, Registry: chatgate.NewRegistry(), Clock: now}
-		core.SetChannelGate(ChatgateJoinAdapter{Service: gates})
+	repository := &chatstore.GateRepository{Store: store, Membership: adapter.GateMembership}
+	gateAuthority, gateDirectory := input.GateAuthority, input.GateDirectory
+	if isNilPersonaOutputPort(gateAuthority) {
+		// CHATGATE-005: the product's own authority, where it has a people
+		// directory to read a gate's facts from (chatgate_authority.go). A
+		// composition that supplies one keeps it.
+		if own := newChatgateAuthority(facts, routed, adapter, repository, now); own != nil {
+			gateAuthority, gateDirectory = own, own
+		}
+	}
+	if !isNilPersonaOutputPort(gateAuthority) {
+		gates := &chatgate.Service{Repository: repository, Authority: gateAuthority, Registry: chatgate.NewRegistry(), Clock: now}
+		core.SetChannelGate(ChatgateJoinAdapter{Service: gates, InForce: repository.GateInForce})
 		routes, _ := routed.(interface {
 			ChatWriteContext(context.Context, string, string) (context.Context, error)
 		})
-		result.gates = integrate2GateSurface{ChatgateSurface: &ChatgateApplication{Clock: now, Service: gates, Directory: input.GateDirectory}, Routes: routes, Filter: policy.Filter}
+		result.gates = integrate2GateSurface{ChatgateSurface: &ChatgateApplication{Clock: now, Service: gates, Directory: gateDirectory, Summaries: repository}, Routes: routes, Filter: policy.Filter}
 	}
 	return result, nil
 }

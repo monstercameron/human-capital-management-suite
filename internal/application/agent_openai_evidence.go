@@ -145,7 +145,7 @@ func (e *PersonaOpenAIModelEvidence) VerifySourceClassification(ctx context.Cont
 	var allowed bool
 	switch source.SourceClass {
 	case "persona-profile":
-		if personaAuthoritativeDocumentField(authoritativeDocumentFields, source) {
+		if personaAuthoritativeDocumentField(authoritativeDocumentFields, source) || personaServerInstructionField(source, route.ProfileClass) {
 			return nil
 		}
 		return ErrAgentModelGatewayPin

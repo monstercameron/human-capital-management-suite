@@ -26,6 +26,17 @@ import (
 // rules the service applies at start-up, so a document this function returns
 // is one the service will accept.
 func NewChattoneDeployment(base PersonaModelDeployment, evaluation agentmodel.ModelEvaluation, maxLatency time.Duration, maxCostMicros int64) (PersonaModelDeployment, error) {
+	if len(base.Profiles) == 0 {
+		return PersonaModelDeployment{}, fmt.Errorf("%w: the base deployment has no profile, destination or credential scope", errChattoneBinding)
+	}
+	return NewChattoneDeploymentFor(base, base.Profiles[0].Identity, evaluation, maxLatency, maxCostMicros)
+}
+
+// NewChattoneDeploymentFor is NewChattoneDeployment for a named model identity:
+// the task is qualified on exactly that model, whichever model the base
+// deployment's first profile names. The base deployment's pricing must already
+// carry an approved price for the identity; nothing here invents one.
+func NewChattoneDeploymentFor(base PersonaModelDeployment, identity agentmodel.ModelIdentity, evaluation agentmodel.ModelEvaluation, maxLatency time.Duration, maxCostMicros int64) (PersonaModelDeployment, error) {
 	if len(base.Profiles) == 0 || len(base.Destinations) == 0 || len(base.Credential.Scopes) == 0 {
 		return PersonaModelDeployment{}, fmt.Errorf("%w: the base deployment has no profile, destination or credential scope", errChattoneBinding)
 	}
@@ -47,9 +58,9 @@ func NewChattoneDeployment(base PersonaModelDeployment, evaluation agentmodel.Mo
 	if baseTerms == nil {
 		return PersonaModelDeployment{}, fmt.Errorf("%w: the template profile has no provider terms", errChattoneBinding)
 	}
-	sum := sha256.Sum256([]byte(evaluation.AgentVersionDigest + "\x00" + evaluation.SuiteDigest + "\x00" + template.Identity.ModelID + "\x00" + template.Identity.Version))
+	sum := sha256.Sum256([]byte(evaluation.AgentVersionDigest + "\x00" + evaluation.SuiteDigest + "\x00" + identity.ModelID + "\x00" + identity.Version))
 	profile := agentmodel.ModelProfile{
-		ID: "chat-writing-style-" + hex.EncodeToString(sum[:])[:12], Identity: template.Identity, Regions: slices.Clone(template.Regions),
+		ID: "chat-writing-style-" + hex.EncodeToString(sum[:])[:12], Identity: identity, Regions: slices.Clone(template.Regions),
 		DataClasses: slices.Clone(task.DataClasses), TaskProfileIDs: []string{task.ID}, MaxLatency: maxLatency, MaxCostMicros: maxCostMicros, ExpectedCostMicros: maxCostMicros / 2,
 		SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: toolDigest, Evaluation: evaluation,
 	}
@@ -57,6 +68,7 @@ func NewChattoneDeployment(base PersonaModelDeployment, evaluation agentmodel.Mo
 	classes := []trustdlp.DataClass{trustdlp.ClassPublic, trustdlp.ClassInternal}
 	terms := *baseTerms
 	terms.ModelProfile = profile.ID
+	terms.ModelID, terms.ModelVersion = identity.ModelID, identity.Version
 	terms.AllowedClasses = slices.Clone(classes)
 	terms.AllowedRegions = slices.Clone(baseTerms.AllowedRegions)
 	terms.SourceRules = []agentegress.ProviderSourceRule{

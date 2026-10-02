@@ -29,8 +29,10 @@ func personaPrivateReasonOf(err error) string {
 }
 
 // ErrPersonaShareRefused is returned when an answer cannot be shared to its
-// channel; Reason is one of chat.PrivateReason*.
-type ErrPersonaShareRefused struct{ Reason string }
+// channel; Reason is one of chat.PrivateReason*. Source is the title of the
+// document that is not open to every member, when the refusal can name one; it
+// is a document the asker may open, so naming it to them tells them nothing new.
+type ErrPersonaShareRefused struct{ Reason, Source string }
 
 func (e ErrPersonaShareRefused) Error() string {
 	return "persona answer cannot be shared to the channel: " + e.Reason

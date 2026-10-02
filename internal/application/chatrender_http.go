@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"strings"
@@ -54,6 +56,25 @@ func chatrenderHTTPFailure(w http.ResponseWriter, err error) {
 	}
 	chatrenderJSON(w, status, chatrenderHTTPError{code, code})
 }
+
+// chatrenderLogFailure records why a rendering request was refused or failed.
+// The page can only say "could not save"; the cause (a refused database write, a
+// policy refusal, a missing port) is written here so an operator can find it
+// (CHATBUG-087). It never carries message text or a request body.
+func chatrenderLogFailure(r *http.Request, action string, err error) {
+	if err == nil {
+		return
+	}
+	slog.Warn("hcmnext.chat_rendering", "outcome", "failed", "method", r.Method, "action", action, "error_type", fmt.Sprintf("%T", err), "cause", err.Error())
+}
+
+// chatrenderLogWrite records a rendering write (a saved setting, a request, a
+// report, a corrected language) that succeeded.
+func chatrenderLogWrite(r *http.Request, action string) {
+	if r.Method != http.MethodGet {
+		slog.Info("hcmnext.chat_rendering", "outcome", "ok", "method", r.Method, "action", action)
+	}
+}
 func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p, ok := trust.FromContext(r.Context())
 	if !ok || p == nil {
@@ -70,6 +91,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 		}
+		chatrenderLogFailure(r, strings.TrimPrefix(r.URL.Path, ChatRenderingPath+"/"), errors.New("chat renderings are not composed on this server"))
 		chatrenderHTTPFailure(w, chatrender.ErrUnavailable)
 		return
 	}
@@ -100,6 +122,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := h.Port.AuthorizeRendering(r.Context(), scope, action); err != nil {
+		chatrenderLogFailure(r, action, err)
 		chatrenderHTTPFailure(w, err)
 		return
 	}
@@ -114,6 +137,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if method != http.MethodGet {
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil || contentType != "application/json" {
+			chatrenderLogFailure(r, action, errors.New("request is not application/json"))
 			chatrenderHTTPFailure(w, chatrender.ErrInvalid)
 			return
 		}
@@ -121,10 +145,12 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		decoder := json.NewDecoder(r.Body)
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&input); err != nil {
+			chatrenderLogFailure(r, action, fmt.Errorf("request body is not the expected shape: %w", err))
 			chatrenderHTTPFailure(w, chatrender.ErrInvalid)
 			return
 		}
 		if err := decoder.Decode(&struct{}{}); err != io.EOF {
+			chatrenderLogFailure(r, action, errors.New("request body has trailing data"))
 			chatrenderHTTPFailure(w, chatrender.ErrInvalid)
 			return
 		}
@@ -143,6 +169,15 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		for _, id := range ids {
 			var selected chatui.ReaderSelection
 			selected.Rendering, selected.Mark, err = h.Port.ReadRenderingSelection(r.Context(), scope, id)
+			if errors.Is(err, chatrender.ErrInvalid) {
+				// One message the rendering pipeline cannot judge (a text whose
+				// language it cannot place, say) is left out of the answer, so the
+				// page keeps that message as written. It must not fail the whole
+				// batch: the request itself was well formed, and a 400 here made a
+				// direct message lose the reading view of every message in it.
+				err = nil
+				continue
+			}
 			if err != nil {
 				break
 			}
@@ -203,6 +238,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		}{rendering, mark}
 	}
 	if err != nil {
+		chatrenderLogFailure(r, action, err)
 		chatrenderHTTPFailure(w, err)
 		return
 	}
@@ -211,6 +247,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			OK bool `json:"ok"`
 		}{true}
 	}
+	chatrenderLogWrite(r, action)
 	chatrenderJSON(w, http.StatusOK, out)
 }
 func OverlayChatRenderings(next http.Handler, port ChatRenderingPort, admission transport.Config) http.Handler {
@@ -225,6 +262,7 @@ func OverlayChatRenderings(next http.Handler, port ChatRenderingPort, admission 
 		}
 		ctx, _, denied := transport.Admit(r.Context(), admission, transport.AdmissionRequest{Metadata: transport.MapMetadata(r.Header), Method: r.URL.Path, Kind: transport.KindHTTPEdge})
 		if denied != nil {
+			chatrenderLogFailure(r, strings.TrimPrefix(r.URL.Path, ChatRenderingPath+"/"), fmt.Errorf("admission denied: %s (%d)", denied.Code(), denied.HTTPStatus()))
 			chatrenderJSON(w, denied.HTTPStatus(), chatrenderHTTPError{"denied", "request denied"})
 			return
 		}

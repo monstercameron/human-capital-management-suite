@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -26,7 +25,9 @@ func TestTodo_AGENTP_018_CoreDirectoryResolvesExactCurrentLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := directory.ResolvePersonaCatalogTarget(context.Background(), values.TenantId("tenant-a"), "worker-a")
-	if err != nil || got != (productui.PersonaAdminTarget{ID: "worker-a", Label: "Ada Lovelace"}) {
+	// The target carries a member list now (AGENTUX-034), so it is compared by
+	// its fields, not with ==.
+	if err != nil || got.ID != "worker-a" || got.Label != "Ada Lovelace" || got.Role != "" || got.Kind != "" || len(got.Members) != 0 {
 		t.Fatalf("target = %#v, err = %v", got, err)
 	}
 	if gotTenant != "tenant-a" || gotSubject != "worker-a" {

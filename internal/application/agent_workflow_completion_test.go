@@ -99,7 +99,7 @@ func testWorkflowAgentDurableCompletion(t *testing.T, restart bool) {
 		t.Fatal(err)
 	}
 	agentConn := agents.NewConn(t)
-	if _, err := agentConn.Exec(ctx, "SET ROLE hcm_agent_app"); err != nil {
+	if _, err := agentConn.Exec(ctx, "SET ROLE "+agentstore.AppRole); err != nil {
 		t.Fatal(err)
 	}
 	runner := workflowAgentTenantRunner{conn: agentConn}
@@ -229,5 +229,27 @@ func TestTodo_AGENT_033_CompletionFault(t *testing.T) {
 	signal.CorrelationValue = "foreign-run"
 	if err := verifier.Verify(signal); err == nil {
 		t.Fatal("forged correlation accepted")
+	}
+	// A retry is verified against the stored payload, which PostgreSQL returns
+	// with its own key order and spacing: the same value passes, a different
+	// value, a truncated one and trailing data do not.
+	derived := stepSignal.Signal{Source: workflowbridge.Source, EventType: workflowbridge.EventType, Payload: []byte(`{"outcome":"SUCCEEDED","run":{"id":"r1","cost":1.50}}`)}
+	stored := derived
+	stored.Payload = []byte(`{"run": {"cost": 1.50, "id": "r1"}, "outcome": "SUCCEEDED"}`)
+	if err := (agentWorkflowSignalVerifier{expected: derived}).Verify(stored); err != nil {
+		t.Fatalf("stored rendering of the derived payload refused: %v", err)
+	}
+	for name, payload := range map[string]string{
+		"changed value": `{"run": {"cost": 1.50, "id": "r1"}, "outcome": "FAILED"}`,
+		"changed scale": `{"run": {"cost": 1.5, "id": "r1"}, "outcome": "SUCCEEDED"}`,
+		"added field":   `{"run": {"cost": 1.50, "id": "r1"}, "outcome": "SUCCEEDED", "extra": true}`,
+		"truncated":     `{"run": {"cost": 1.50, "id": "r1"}, "outcome": "SUCCEEDED"`,
+		"trailing data": `{"run": {"cost": 1.50, "id": "r1"}, "outcome": "SUCCEEDED"} {}`,
+	} {
+		forged := derived
+		forged.Payload = []byte(payload)
+		if err := (agentWorkflowSignalVerifier{expected: derived}).Verify(forged); err == nil {
+			t.Fatalf("%s accepted as the derived completion", name)
+		}
 	}
 }

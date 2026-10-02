@@ -79,16 +79,29 @@ func authorizeAnnouncementAudience(ctx context.Context, tenant, conversationID s
 			unreadable++
 			continue
 		}
+		// AGENTUX-035: an official placement in this conversation speaks for its
+		// members of this workspace, whom the hub serves the placement to. A
+		// guest from another workspace is not among them and is still checked on
+		// their own, like every member is for a document that is not placed here.
+		toCheck := audience
 		if placed {
-			continue
+			toCheck = nil
+			for _, member := range audience {
+				if member.TenantID != tenant {
+					toCheck = append(toCheck, member)
+				}
+			}
+			if len(toCheck) == 0 {
+				continue
+			}
 		}
-		if len(snapshot.CurrentMembers) > 200 {
+		if len(toCheck) > 200 {
 			unreadable++
 			continue
 		}
 		documentReadable := true
 		checked := map[string]bool{}
-		for _, member := range audience {
+		for _, member := range toCheck {
 			key := member.TenantID + "\x00" + member.SubjectID
 			if checked[key] {
 				continue

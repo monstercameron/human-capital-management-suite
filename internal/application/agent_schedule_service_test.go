@@ -43,6 +43,9 @@ func TestTodo_AGENT_030_ServedIntegration(t *testing.T) {
 	tenant := uuid.New()
 	core.Exec(t, `INSERT INTO tenant(tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES($1,'common-tenant','cell-local','Common','ACTIVE',CURRENT_TIMESTAMP)`, tenant)
 	agentsDB.Exec(t, `INSERT INTO tenant(tenant_id) VALUES($1)`, tenant)
+	// The shared admission authority refuses every agent request for a tenant
+	// whose administrator has not turned agents on.
+	core.Exec(t, `INSERT INTO tenant_agent_setting(tenant_id,enabled,revision,updated_by) VALUES($1,true,1,'test-admin')`, tenant)
 	agents := commonAgentOpenIntegrationStore(t, agentsDB)
 	now := time.Date(2026, 9, 30, 15, 0, 0, 0, time.UTC)
 	clock := func() time.Time { return now }
@@ -195,5 +198,11 @@ func TestTodo_AGENT_030_ServedIntegration(t *testing.T) {
 	input.Destination = "unapproved"
 	if _, err := service.Preview(ownerCtx, input); !errors.Is(err, agentcontrols.ErrInvalid) {
 		t.Fatalf("unapproved destination=%v", err)
+	}
+	// Turning agents off for the tenant stops schedule management as well.
+	input.Destination = r.Audience.ID
+	core.Exec(t, `UPDATE tenant_agent_setting SET enabled=false,revision=revision+1,updated_by='test-admin' WHERE tenant_id=$1`, tenant)
+	if _, err := service.Preview(ownerCtx, input); !errors.Is(err, agentcontrols.ErrDenied) {
+		t.Fatalf("preview with agents turned off=%v", err)
 	}
 }

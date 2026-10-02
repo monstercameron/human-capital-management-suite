@@ -142,6 +142,8 @@ type PersonaAdminCatalogService struct {
 	Starters      productui.PersonaAdminStarterSource
 	Documents     PersonaAdminDocumentReader
 	Runtime       PersonaCatalogRuntimeStatusReader
+	// Reactions reads the owner's choice about each agent's reactions (AGENTUX-075).
+	Reactions personaReactionSettingReader
 }
 
 type PersonaAdminPlacementDocument struct {
@@ -263,6 +265,13 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			persona.WorkspaceIndexedAt = v.WorkspaceIndexedAt.UTC().Format(time.RFC3339)
 		}
 		applyAgentDocGuidanceProjection(&persona, profile)
+		// AGENTUX-075: the owner's choice about this agent's reactions. No stored choice
+		// (or a setting that cannot be read) leaves the agent reacting.
+		if s.Reactions != nil {
+			if react, reactErr := s.Reactions.PersonaReactionsEnabled(ctx, tenant.String(), profile.PersonaID); reactErr == nil && !react {
+				persona.ReactionsOff = true
+			}
+		}
 		persona.Icon, persona.IconRevision = v.Icon, v.IconRevision
 		persona.VersionHistory = history[persona.ID]
 		for i := range persona.VersionHistory {
@@ -384,18 +393,18 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 				conversation = target.PlacementLabel
 			}
 			installation := productui.PersonaAdminInstallation{InstallationID: in.ID, Version: fmt.Sprint(in.PersonaVersion), ConversationID: in.ConversationID, Conversation: conversation, Kind: target.Kind, Audience: in.Audience, ReplyPlacement: in.ReplyPlacement}
+			if in.State == string(agentpersonastore.InstallationSuspended) {
+				// A stopped placement is listed, with its reason, so the
+				// administrator sees why the agent left the conversation.
+				installation.Stopped, installation.StoppedReason, installation.StartAgain = true, personaCatalogStoppedReason(in.SuspensionReason), in.RestartAvailable
+			}
 			if documents, ok := s.Documents.(PersonaAdminPlacementDocumentReader); ok {
-				rows, readErr := documents.ListPersonaAdminPlacementDocuments(ctx, string(tenant), p.Subject(), in.ConversationID)
+				count, titles, readErr := agentux034MemberDocuments(ctx, documents, string(tenant), p.Subject(), target, in.ConversationID)
 				if readErr != nil {
 					out.DocumentsState.Unavailable = true
 				} else {
-					count := len(rows)
 					installation.OfficialDocumentCount = &count
-					for _, row := range rows {
-						if strings.TrimSpace(row.Title) != "" {
-							installation.OfficialDocumentTitles = append(installation.OfficialDocumentTitles, row.Title)
-						}
-					}
+					installation.OfficialDocumentTitles = titles
 				}
 			}
 			persona.Installations = append(persona.Installations, installation)
@@ -430,6 +439,24 @@ func personaCatalogChannelClasses(classes []agentpersona.ChannelClass) []string 
 		out = append(out, string(class))
 	}
 	return uniqueSorted(out)
+}
+
+// personaCatalogStoppedReason turns the store's suspension reason into the
+// closed set of codes the page has sentences for. A reason outside the set
+// (which may be free text) is sent as "needs attention", never as itself.
+func personaCatalogStoppedReason(reason string) string {
+	switch strings.TrimSpace(reason) {
+	case "AGENT_PRINCIPAL_MISSING_AFTER_RESTORE":
+		return productui.PersonaPlacementStoppedNoIdentity
+	case "AGENT_PRINCIPAL_RETIRED_AFTER_RESTORE":
+		return productui.PersonaPlacementStoppedIdentityInactive
+	case "PERSONA_PUBLICATION_MISSING_AFTER_RESTORE":
+		return productui.PersonaPlacementStoppedNotPublished
+	case agentpersonastore.MissingVersionAfterRestore:
+		return productui.PersonaPlacementStoppedVersionMissing
+	default:
+		return productui.PersonaPlacementStoppedOther
+	}
 }
 
 func personaCatalogSuspensionMessage(reason string) string {

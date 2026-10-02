@@ -28,7 +28,7 @@ func (s AgentIconChatDirectory) DirectoryAgentIcons(ctx context.Context, convers
 	if err != nil {
 		return transport.AgentIconDirectory{}, err
 	}
-	p, room, err := s.Base.member(ctx, conversation)
+	p, room, err := s.Base.reader(ctx, conversation)
 	if err != nil {
 		return transport.AgentIconDirectory{}, err
 	}

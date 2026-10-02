@@ -99,10 +99,13 @@ func TestTodo_CHATBUG_006(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s lists posts: %v", subject, err)
 		}
-		if len(listed.Posts) != 1 {
-			t.Fatalf("%s sees %d posts", subject, len(listed.Posts))
+		// The lines Chat records when members are added (CHATUX-021) are not the
+		// answer under test.
+		said := agentUX070Said(listed.Posts)
+		if len(said) != 1 {
+			t.Fatalf("%s sees %d posts", subject, len(said))
 		}
-		return listed.Posts[0].Body
+		return said[0].Body
 	}
 	wantLink := "/workspace/app/docs?document=" + documentID
 	sources := func(rendered string) string { return rendered[strings.LastIndex(rendered, "\n\nSources\n"):] }

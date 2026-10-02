@@ -25,6 +25,11 @@ func (s integrate2GateSurface) GateRequest(ctx context.Context, r ChatgateReques
 	if s.Routes == nil || s.ChatgateSurface == nil {
 		return ChatgateReply{}, chatgate.ErrUnavailable
 	}
+	if r.Action == chatgateBrowseAction {
+		// CHATGATE-005: the list of gates is a read across conversations; there
+		// is no one conversation to lease and nothing is written.
+		return s.ChatgateSurface.GateRequest(ctx, r)
+	}
 	if err := s.checkGateText(ctx, r); err != nil {
 		return ChatgateReply{}, err
 	}

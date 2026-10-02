@@ -28,6 +28,20 @@ type ChatRenderingSurface struct {
 	Locales         RenderingMemberLocaleSource
 	// Languages is what administrators control about translation (CHATLANG-006).
 	Languages *ChatlangGovernance
+	// Reword decides the tone a reader is given where rewording is allowed
+	// (ChattoneRewordPolicy); nil leaves the reader's own tone as stored.
+	Reword interface {
+		ReaderTone(ctx context.Context, tenant, person, channel string, def chatrender.Tone) (chatrender.Tone, error)
+	}
+}
+
+func chatrenderOffersKind(policy chatrender.Policy, kind chatrender.Kind) bool {
+	for _, k := range policy.AllowedKinds {
+		if k == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ChatRenderingSurface) ListRenderings(ctx context.Context, scope chatstore.RenderingScope, posts []string) ([]chatrender.Rendering, error) {
@@ -181,8 +195,18 @@ func (s *ChatRenderingSurface) ReadRenderingSelection(ctx context.Context, scope
 	// CHATLANG-006: where policy does not offer translation (workspace or
 	// channel off, no engine, text the filters mask) the reader simply reads the
 	// original; it is not a failed translation.
-	if !chatrenderOffersTranslation(policy) {
+	// CHATLANG-008: a person's own message is never translated back to them.
+	if !chatrenderOffersTranslation(policy) || policy.Own {
 		pref.Translate, pref.SourceOverrides = false, nil
+	}
+	// CHATTONE: the reader's own tone choice applies only where the policy allows
+	// rewording; anywhere else the message is read as written.
+	if chatrenderOffersKind(policy, chatrender.Reword) && s.Reword != nil {
+		if tone, err := s.Reword.ReaderTone(ctx, scope.Tenant, scope.Principal.SubjectID, scope.Conversation, pref.Tone); err == nil {
+			pref.Tone = tone
+		}
+	} else {
+		pref.Tone = chatrender.AsWritten
 	}
 	if policy.RequireMask {
 		source, ok := s.Policy.(interface {

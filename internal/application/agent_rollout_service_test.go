@@ -196,7 +196,14 @@ func TestTodo_AGENT_044_Security_Served(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT_044_Fault_Served(t *testing.T) {
+// TestTodo_AGENT_044_Fault injects a failed membership fence and a corrupted
+// progress row into the served rollout; neither may move a placement.
+func TestTodo_AGENT_044_Fault(t *testing.T) {
+	t.Run("membership fence unavailable", versionRolloutFenceFailure)
+	t.Run("corrupted progress cursor", versionRolloutCorruptedProgress)
+}
+
+func versionRolloutFenceFailure(t *testing.T) {
 	ctx, s, store, p := versionRolloutFixture(t)
 	r, e := s.Execute(ctx, versionRolloutPreview())
 	if e != nil {
@@ -328,7 +335,7 @@ func TestTodo_AGENT_044_Recovery_ExplicitRollback(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT_044_Fault_CorruptedProgress(t *testing.T) {
+func versionRolloutCorruptedProgress(t *testing.T) {
 	for _, cursor := range []int{-1, 3} {
 		ctx, s, store, _ := versionRolloutFixture(t)
 		r, err := s.Execute(ctx, versionRolloutPreview())

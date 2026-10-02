@@ -76,6 +76,51 @@ func TestTodo_CHATCMD_003_Property(t *testing.T) {
 		}
 	}
 }
+
+// chatcmd001ResolvedSource is a conversation that is locked or archived.
+type chatcmd001ResolvedSource struct{ err error }
+
+func (s chatcmd001ResolvedSource) WritingContext(context.Context, chatrewrite.Identity) (chatrewrite.ConversationFacts, []string, error) {
+	return chatrewrite.ConversationFacts{Status: "resolved"}, nil, s.err
+}
+
+// TestTodo_CHATCMD_001_Security: the command registry is enforced by the
+// server at the tidy step as well as at the post. A /poll or /todo draft for a
+// channel that takes no new polls is refused before the model is asked, with a
+// status the page can tell from "try again".
+func TestTodo_CHATCMD_001_Security(t *testing.T) {
+	s, ctx, _, _, _, ledger := chattoneFixture(t)
+	calls := 0
+	s.Rewrite.Model = chatcmd003FixtureModel(func(context.Context, chatrewrite.Prompt) (string, error) {
+		calls++
+		return `{"title":"Where?","items":[{"source":0,"text":"Here"},{"source":1,"text":"There"}]}`, nil
+	})
+	in := Chatcmd003TidyRequest{Conversation: "room", Draft: chatcmd003AppDraft(t)}
+	if _, err := s.Chatcmd003TidyDraft(ctx, in); err != nil || calls != 1 {
+		t.Fatalf("an open conversation: %v, %d model calls", err, calls)
+	}
+	s.Conversations = chatcmd001ResolvedSource{}
+	out, err := s.Chatcmd003TidyDraft(ctx, in)
+	if !errors.Is(err, chat.ErrPermissionDenied) || calls != 1 || len(ledger.Lines()) != 1 || !reflect.DeepEqual(out, in.Draft) {
+		t.Fatalf("a locked or archived channel: %v, %d model calls, %d usage lines", err, calls, len(ledger.Lines()))
+	}
+	// Over HTTP the refusal is 403, not the 503 of a model that did not answer.
+	admission, bearer := integrate1Admission(t, "tenant", "person", s.Now)
+	body, _ := json.Marshal(in)
+	request := httptest.NewRequest(http.MethodPost, Chatcmd003TidyPath, strings.NewReader(string(body)))
+	request.Header.Set("Authorization", bearer)
+	response := httptest.NewRecorder()
+	Chatcmd003OverlayTidy(http.NotFoundHandler(), s, admission).ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || calls != 1 {
+		t.Fatalf("the route answered %d and made %d model calls", response.Code, calls)
+	}
+	// A conversation whose state cannot be read is not tidied either.
+	s.Conversations = chatcmd001ResolvedSource{err: chatrewrite.ErrUnavailable}
+	if _, err := s.Chatcmd003TidyDraft(ctx, in); !errors.Is(err, chatrewrite.ErrUnavailable) || calls != 1 {
+		t.Fatalf("an unreadable conversation: %v, %d model calls", err, calls)
+	}
+}
+
 func TestTodo_CHATCMD_003_Security(t *testing.T) {
 	t.Run("currency is distinct meaning", func(t *testing.T) {
 		d, _ := chat.Chatcmd003ParsePoll(`"Q?" 1="Pay $10" 2="Pay 10" 3="Pay $20"`, time.Now(), nil)
@@ -149,6 +194,13 @@ func TestTodo_CHATCMD_004(t *testing.T) {
 	out, err := s.Chatcmd003TidyDraft(ctx, Chatcmd003TidyRequest{Conversation: "room", Draft: d})
 	if err != nil || out.Card.Todo.Items[0].AssigneeID != "dana" || !out.Card.Todo.Items[0].DueAt.Equal(*d.Card.Todo.Items[0].DueAt) {
 		t.Fatalf("metadata %+v %v", out, err)
+	}
+	// The assignee and the date read out of the task stay listed, against the
+	// task's new wording, beside the wording the model changed.
+	want := []chat.Chatcmd003Change{{Kind: chat.Chatcmd004ChangeAssignee, Before: "Send invites", After: "Dana"}, {Kind: chat.Chatcmd004ChangeDue, Before: "Send invites", After: "2026-10-02"},
+		{Before: "launch", After: "Launch"}, {Before: "send invites", After: "Send invites"}}
+	if !reflect.DeepEqual(out.Changes, want) {
+		t.Fatalf("changes after the model's tidy: %+v", out.Changes)
 	}
 }
 func TestTodo_CHATCMD_004_Security(t *testing.T) {

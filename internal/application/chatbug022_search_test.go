@@ -51,7 +51,7 @@ func TestTodo_CHATBUG_022(t *testing.T) {
 	service := chat.NewService(store, func() time.Time { return now })
 	service.SetAuthority(servedPersonaChatAuthority{})
 	alice := chat.Principal{TenantID: "tenant", SubjectID: "alice"}
-	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: alice, TenantID: "tenant", ConversationID: "general", Kind: chat.PublicChannel, Name: "General"}); err != nil {
+	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: alice, TenantID: "tenant", ConversationID: "general", Kind: chat.PublicChannel, Name: "general"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.SendPost(ctx, chat.SendPostRequest{Principal: alice, TenantID: "tenant", ConversationID: "general", Body: "The holiday schedule is posted", IdempotencyKey: "holiday"}); err != nil {

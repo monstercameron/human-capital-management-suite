@@ -32,7 +32,7 @@ func TestAgentUXProactive_MemberAddedAfterPublicReply_Security_Integration(t *te
 	service.SetAuthority(servedPersonaChatAuthority{})
 	service.SetEphemeralStore(store)
 	owner := chat.Principal{TenantID: "tenant-a", SubjectID: "owner"}
-	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: "tenant-a", ConversationID: "general", Kind: chat.PublicChannel, Name: "General"}); err != nil {
+	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: "tenant-a", ConversationID: "general", Kind: chat.PublicChannel, Name: "general"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.AddMembership(ctx, chat.AddMembershipRequest{Principal: owner, Membership: chat.Membership{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "general", SubjectID: "employee", HistoryVisibility: chat.FullHistory}}); err != nil {

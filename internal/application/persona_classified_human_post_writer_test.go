@@ -216,7 +216,7 @@ func TestTodo_AGENTP_012_ClassifiedHumanWriter_Integration(t *testing.T) {
 	for _, kind := range []chat.ConversationKind{chat.PublicChannel, chat.Direct} {
 		t.Run(string(kind), func(t *testing.T) {
 			room := "exact-" + string(kind)
-			if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: principal, TenantID: principal.TenantID, ConversationID: room, Kind: kind, Name: "source test"}); err != nil {
+			if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: principal, TenantID: principal.TenantID, ConversationID: room, Kind: kind, Name: "source-test"}); err != nil {
 				t.Fatal(err)
 			}
 			request := chat.SendPostRequest{Principal: principal, TenantID: principal.TenantID, ConversationID: room, Body: "How do I request vacation?", IdempotencyKey: room}

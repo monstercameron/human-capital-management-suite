@@ -268,6 +268,16 @@ func (s *auditedChatService) CommitPersonaReply(ctx context.Context, r chatcore.
 	return p, nil
 }
 
+// CommitAgentQuestionReaction carries an agent's reaction to the question it was
+// asked across the audit decorator (AGENTUX-075). A reaction is not audited.
+func (s *auditedChatService) CommitAgentQuestionReaction(ctx context.Context, r chatcore.AgentQuestionReaction) (chatcore.Reaction, error) {
+	committer, ok := s.ConversationService.(chatcore.AgentQuestionReactionCommitter)
+	if !ok {
+		return chatcore.Reaction{}, chatcore.ErrUnavailable
+	}
+	return committer.CommitAgentQuestionReaction(ctx, r)
+}
+
 func (s *auditedChatService) SendEphemeralPost(ctx context.Context, r chatcore.SendEphemeralPostRequest) (chatcore.EphemeralPost, error) {
 	ephemeral, ok := s.ConversationService.(chatcore.EphemeralService)
 	if !ok {

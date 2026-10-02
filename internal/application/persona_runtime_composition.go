@@ -154,7 +154,7 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		return nil, err
 	}
 	modelConfig := in.Model
-	threads := PersonaAtomicThreadReader{Snapshots: snapshots}
+	threads := voiceAwareThreads(PersonaAtomicThreadReader{Snapshots: snapshots}, in.ChatRuntime)
 	current := &personaRuntimeCurrentOwners{authority: admission, threads: threads}
 	toolSources := &personaRuntimeToolSourceOwner{}
 	chatClasses, ok := in.AudienceSnapshots.(PersonaPublicChatDisclosureClassificationSource)
@@ -170,6 +170,8 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		if err != nil {
 			return nil, err
 		}
+		// AGENTUX-076: runs carry the agent's facts and the documents it can read.
+		EnablePersonaAgentFacts(documentResolver, WorkspaceDocumentDirectory{DB: in.Pool, TenantUUID: tenantUUID})
 	}
 	if in.ModelFactory != nil {
 		modelConfig, err = in.ModelFactory(PersonaRuntimeModelOwnerDependencies{Documents: documentResolver, AgentStore: in.AgentDatabase.store, Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Threads: current, Authority: current, TenantUUID: tenantUUID, Now: now, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, ToolSources: toolSources, ChatClasses: current})

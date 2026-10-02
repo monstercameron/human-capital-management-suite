@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentinvocationstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 type personaInvocationPostFailureSink interface {
@@ -17,11 +18,38 @@ type personaInvocationPostFailureSink interface {
 }
 
 func (c *personaChatInvocation) recordPostFailure(ctx context.Context, post chat.Post, err error) {
+	// CHATBUG-063: every committed human post passes through here when its
+	// classification or reference resolution fails, including one that asked no
+	// agent. Such a post has no answer that could have failed: the cause is
+	// logged, and no outcome is stored for the page to draw a card from.
+	if !c.postAsksAgent(ctx, post) {
+		c.recordFailure(ctx, post.ID, err)
+		return
+	}
 	if sink, ok := c.failures.(personaInvocationPostFailureSink); ok {
 		sink.RecordPersonaInvocationPostFailure(ctx, post, err)
 		return
 	}
 	c.recordFailure(ctx, post.ID, err)
+}
+
+// postAsksAgent reports whether the committed post asked an agent: it carries
+// a typed agent mention, or it was sent in a direct conversation whose other
+// member resolves to an agent placed there.
+func (c *personaChatInvocation) postAsksAgent(ctx context.Context, post chat.Post) bool {
+	if hasTypedAgentReference(post.References) {
+		return true
+	}
+	principal, ok := trust.FromContext(ctx)
+	if !ok || principal == nil || c.refs == nil {
+		return false
+	}
+	reference, ok := c.directAgentReference(ctx, principal, post)
+	if !ok {
+		return false
+	}
+	mentions, err := c.refs.ResolvePersonaMentions(ctx, post.TenantID, post.ConversationID, []chat.Reference{reference})
+	return err == nil && len(mentions) > 0
 }
 
 type personaPostFailureStore interface {
@@ -86,6 +114,10 @@ func personaPostFailureClassification(err error) (string, bool) {
 		return code, retryable
 	}
 	switch {
+	case errors.Is(err, ErrPersonaRunDailyLimit):
+		return "DAILY_LIMIT_REACHED", false
+	case errors.Is(err, errPersonaModelNotConfigured):
+		return "SERVER_HAS_NO_MODEL", false
 	case errors.Is(err, ErrPersonaRunModelFailure):
 		return "MODEL_UNAVAILABLE", true
 	case errors.Is(err, ErrPersonaRunOutputRejected):

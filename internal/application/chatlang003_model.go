@@ -69,6 +69,14 @@ type chatlangQualified struct {
 }
 
 func chatlangQualify(dep PersonaModelDeployment) (chatlangQualified, error) {
+	return chatlangQualifyFor(dep, chatlangOutputSchemaDigest)
+}
+
+// chatlangQualifyFor qualifies a deployment for the translation task whose
+// answer has the given output schema digest: the text digest for the text
+// route, the SchemaFlux-derived digest of agentmodel.ChatlangTranslation for the
+// structured one.
+func chatlangQualifyFor(dep PersonaModelDeployment, outputDigest string) (chatlangQualified, error) {
 	task := ChatlangTaskProfile()
 	var profile *agentmodel.ModelProfile
 	for i := range dep.Profiles {
@@ -83,7 +91,7 @@ func chatlangQualify(dep PersonaModelDeployment) (chatlangQualified, error) {
 		return chatlangQualified{}, fmt.Errorf("%w: no model profile is qualified for %s", errChatlangBinding, task.ID)
 	}
 	if !profile.Evaluation.Passed || strings.TrimSpace(profile.Evaluation.AgentVersionDigest) == "" || strings.TrimSpace(profile.Evaluation.SuiteDigest) == "" ||
-		profile.SemanticsDigest != task.SemanticsDigest || profile.OutputSchemaDigest != chatlangOutputSchemaDigest || profile.ToolSchemaDigest != chatlangToolSchemaDigest {
+		profile.SemanticsDigest != task.SemanticsDigest || profile.OutputSchemaDigest != outputDigest || profile.ToolSchemaDigest != chatlangToolSchemaDigest {
 		return chatlangQualified{}, fmt.Errorf("%w: profile evidence or semantics differ from the translation task", errChatlangBinding)
 	}
 	if profile.MaxLatency <= 0 || profile.MaxLatency > time.Minute || profile.MaxCostMicros <= 0 || profile.MaxCostMicros > task.MaxCostMicros {
@@ -158,6 +166,10 @@ type ChatlangDeploymentBinding struct {
 	Region   string
 	Limits   agentmodel.ModelLimits
 	Now      func() time.Time
+	// Structured is true for the structured route: the answer is the typed
+	// agentmodel.ChatlangTranslation, so the pin carries its schema digest and the
+	// request its schema (chatlang003_openai.go).
+	Structured bool
 }
 
 // NewChatlangDeploymentBinding selects the one profile a deployment qualified
@@ -209,14 +221,24 @@ func (b *ChatlangDeploymentBinding) Bind(ctx context.Context, tenant string) (Ag
 	selection := agentmodel.ModelSelection{ProfileID: profile.ID, ProfileDigest: profile.ProfileDigest, Identity: profile.Identity}
 	classes := []trustdlp.DataClass{trustdlp.ClassPublic, trustdlp.ClassInternal}
 	deadline := now.Add(minDuration(profile.MaxLatency, chatlangRequestTimeout))
+	outputDigest, output := chatlangOutputSchemaDigest, agentmodel.OutputConstraint{Mode: agentmodel.OutputText}
+	if b.Structured {
+		var err error
+		if outputDigest, err = agentmodel.ChatlangTranslationSchemaDigest(); err != nil {
+			return AgentModelGatewayRequest{}, chatlang.ErrUnavailable
+		}
+		if output, err = agentmodel.ChatlangTranslationOutput(); err != nil {
+			return AgentModelGatewayRequest{}, chatlang.ErrUnavailable
+		}
+	}
 	route := agentmodel.RouteRequest{TraceID: trace,
-		Pin: agentmodel.ModelPin{AgentVersionDigest: version, TaskProfileID: task.ID, Primary: selection, SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: chatlangOutputSchemaDigest, ToolSchemaDigest: chatlangToolSchemaDigest},
+		Pin: agentmodel.ModelPin{AgentVersionDigest: version, TaskProfileID: task.ID, Primary: selection, SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: chatlangToolSchemaDigest},
 		Task: agentmodel.TaskProfile{ID: task.ID, AgentVersionDigest: version, Region: b.Region, DataClasses: slices.Clone(task.DataClasses), MaxLatency: profile.MaxLatency, MaxCostMicros: profile.MaxCostMicros,
-			SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: chatlangOutputSchemaDigest, ToolSchemaDigest: chatlangToolSchemaDigest},
+			SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: chatlangToolSchemaDigest},
 		BudgetRemainingMicros: profile.MaxCostMicros}
 	retention := fmt.Sprintf("%s:%d", terms.Retention.Mode, int64(terms.Retention.MaxAge))
 	model := agentmodel.ModelRequest{ContractVersion: agentmodel.ContractVersion, TaskProfile: task.ID, ModelProfile: profile.ID,
-		Output: agentmodel.OutputConstraint{Mode: agentmodel.OutputText}, Deadline: deadline, Limits: b.Limits, TraceID: trace,
+		Output: output, Deadline: deadline, Limits: b.Limits, TraceID: trace,
 		Processing: agentmodel.ProcessingPolicy{Residency: b.Region, Retention: retention, TrainingUse: terms.TrainingUse, Logging: terms.Logging}}
 	trusted, err := NewTrustedModelTask(tenant, taskID, version, b.Workload)
 	if err != nil {

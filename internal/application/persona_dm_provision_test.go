@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
@@ -92,7 +93,9 @@ func TestTodo_AGENTP_011_PersonaDMProvisionerCreatesAndVerifiesDeterministicPair
 	if err != nil || got != wantID {
 		t.Fatalf("got=%q err=%v", got, err)
 	}
-	if creator.request.ConversationID != wantID || creator.request.IdempotencyKey == "" || creator.request.Kind != chatcore.Direct || creator.request.Name != "Persona 1" || len(creator.request.Members) != 1 || creator.request.Members[0] != p.Persona {
+	// AGENTUX-030: with no published name the conversation has no name of its
+	// own; the agent's identifier is never made into one.
+	if creator.request.ConversationID != wantID || creator.request.IdempotencyKey == "" || creator.request.Kind != chatcore.Direct || creator.request.Name != "" || len(creator.request.Members) != 1 || creator.request.Members[0] != p.Persona {
 		t.Fatalf("unsafe create request=%+v", creator.request)
 	}
 }
@@ -134,20 +137,95 @@ func TestTodo_AGENTUX_025_PersonaDMProvisionerLeavesAdministratorPolicyAlone(t *
 	}
 }
 
+// TestTodo_AGENTUX_030_PersonaDMUsesAgentDisplayName: a new direct conversation
+// with an agent is named after the agent's published name, whatever its
+// identifier looks like; with no published name it has no name of its own. The
+// identifier is never turned into a name, which is how a conversation came to
+// be titled "673214ec-4402-5f09-bf93-0d42e691712f".
 func TestTodo_AGENTUX_030_PersonaDMUsesAgentDisplayName(t *testing.T) {
-	wantID, _ := chatcore.DirectPairConversationID("tenant-a", []chatcore.MemberRef{{TenantID: "tenant-a", SubjectID: "human-1"}, {TenantID: "tenant-a", SubjectID: "policy-helper"}})
-	resolver := &personaDMProvisionResolver{id: wantID, createMiss: true}
-	creator := &personaDMProvisionCreator{}
-	provisioner, err := NewPersonaDMProvisioner(creator, resolver, chatcore.MemberRef{TenantID: "tenant-a", SubjectID: "policy-helper"})
-	if err != nil {
-		t.Fatal(err)
+	const agentID = "673214ec-4402-5f09-bf93-0d42e691712f"
+	wantID, _ := chatcore.DirectPairConversationID("tenant-a", []chatcore.MemberRef{{TenantID: "tenant-a", SubjectID: "human-1"}, {TenantID: "tenant-a", SubjectID: agentID}})
+	for published, want := range map[string]string{"Policy Helper": "Policy Helper", "  Policy \t Helper \n": "Policy Helper", "": "", "   ": ""} {
+		resolver := &personaDMProvisionResolver{id: wantID, createMiss: true}
+		creator := &personaDMProvisionCreator{}
+		provisioner, err := NewPersonaDMProvisioner(creator, resolver, chatcore.MemberRef{TenantID: "tenant-a", SubjectID: agentID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		provisioner.DisplayName = published
+		if _, err = provisioner.EnsurePersonaDM(context.Background(), chatcore.Principal{TenantID: "tenant-a", SubjectID: "human-1"}, "tenant-a"); err != nil {
+			t.Fatal(err)
+		}
+		if creator.request.Name != want {
+			t.Fatalf("published name %q: conversation name=%q, want %q", published, creator.request.Name, want)
+		}
+		for _, part := range []string{"673214ec", "0d42e691712f", "Bf93"} {
+			if strings.Contains(creator.request.Name, part) {
+				t.Fatalf("the conversation is named after its agent's identifier: %q", creator.request.Name)
+			}
+		}
 	}
-	if _, err = provisioner.EnsurePersonaDM(context.Background(), chatcore.Principal{TenantID: "tenant-a", SubjectID: "human-1"}, "tenant-a"); err != nil {
-		t.Fatal(err)
+}
+
+// personaDMPolicyPairFake is a policy store that writes the two policies of a
+// direct conversation with an agent together.
+type personaDMPolicyPairFake struct {
+	personaDMPolicyFake
+	pairs int
+	err   error
+}
+
+func (f *personaDMPolicyPairFake) EnsurePersonaDirectPolicies(_ context.Context, tenant, conversation string, audience chatstore.AudiencePolicy, agent chatstore.PersonaChannelPolicy) (bool, bool, error) {
+	f.pairs++
+	if f.err != nil {
+		return false, false, f.err
 	}
-	if creator.request.Name != "Policy Helper" {
-		t.Fatalf("conversation name=%q, want Policy Helper", creator.request.Name)
+	if tenant != "tenant-a" || conversation == "" || audience.Classification != "INTERNAL" || audience.RoleMode != 1 || agent.PlacementClass != "ONE_TO_ONE_DM" || !agent.AlwaysPrivate || len(agent.AllowedChannelClasses) != 1 || agent.AllowedChannelClasses[0] != "ONE_TO_ONE" {
+		return false, false, errors.New("unexpected policies")
 	}
+	return true, true, nil
+}
+
+// TestTodo_AGENTUX_038: the path that creates a person's direct conversation
+// with an agent gives it its audience policy and its one-to-one agent policy
+// in one write, so a question asked there is not refused for want of either;
+// when that write fails the conversation is not handed out as ready.
+func TestTodo_AGENTUX_038(t *testing.T) {
+	wantID, _ := chatcore.DirectPairConversationID("tenant-a", []chatcore.MemberRef{{TenantID: "tenant-a", SubjectID: "human-1"}, {TenantID: "tenant-a", SubjectID: "persona-1"}})
+	human := chatcore.Principal{TenantID: "tenant-a", SubjectID: "human-1"}
+
+	policies := &personaDMPolicyPairFake{}
+	p := newPersonaDMProvisionerFixture(t, &personaDMProvisionResolver{id: wantID, createMiss: true}, &personaDMProvisionCreator{})
+	p.Policies = policies
+	got, err := p.EnsurePersonaDM(context.Background(), human, "tenant-a")
+	if err != nil || got != wantID {
+		t.Fatalf("got=%q err=%v", got, err)
+	}
+	// One write for both, and none of the separate writes it replaces.
+	if policies.pairs != 1 || policies.audienceWrites != 0 || policies.channelWrites != 0 {
+		t.Fatalf("pairs=%d audience=%d channel=%d", policies.pairs, policies.audienceWrites, policies.channelWrites)
+	}
+	// A conversation that already exists is repaired the same way.
+	existing := &personaDMPolicyPairFake{}
+	p = newPersonaDMProvisionerFixture(t, &personaDMProvisionResolver{id: wantID}, &personaDMProvisionCreator{})
+	p.Policies = existing
+	if _, err = p.EnsurePersonaDM(context.Background(), human, "tenant-a"); err != nil || existing.pairs != 1 {
+		t.Fatalf("an existing conversation: pairs=%d err=%v", existing.pairs, err)
+	}
+	// The write fails: no conversation is reported ready, and nothing is
+	// written piecemeal behind it.
+	failing := &personaDMPolicyPairFake{err: errors.New("store offline")}
+	p = newPersonaDMProvisionerFixture(t, &personaDMProvisionResolver{id: wantID, createMiss: true}, &personaDMProvisionCreator{})
+	p.Policies = failing
+	if got, err = p.EnsurePersonaDM(context.Background(), human, "tenant-a"); !errors.Is(err, errPersonaDMProvisionUnavailable) || got != "" {
+		t.Fatalf("a failed policy write: got=%q err=%v", got, err)
+	}
+	if failing.audienceWrites != 0 || failing.channelWrites != 0 {
+		t.Fatalf("policies were written one by one after the pair failed: %+v", failing)
+	}
+	// The served chat store is such a store.
+	var _ personaDMPolicyPair = (*chatstore.Store)(nil)
+	var _ personaDMPolicyPair = (*chatstore.Adapter)(nil)
 }
 
 func TestTodo_AGENTP_011_PersonaDMProvisionerFailsClosed(t *testing.T) {

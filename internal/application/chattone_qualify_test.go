@@ -124,7 +124,7 @@ func TestTodo_CHATTONE_004_QualifyLive(t *testing.T) {
 	if !strings.HasPrefix(base.BaseURL, "http://127.0.0.1") {
 		t.Fatalf("a qualification test must never reach a real provider: %q", base.BaseURL)
 	}
-	q, dep, err := QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, APIKey: "test-only-provider-key", MaxLatency: 20 * time.Second, MaxCostMicros: 20000, Now: time.Now})
+	q, dep, err := QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, Model: "test-model", APIKey: "test-only-provider-key", MaxLatency: 20 * time.Second, MaxCostMicros: 20000, Now: time.Now})
 	if err != nil || !q.Passed || len(q.Cases) != 30 {
 		t.Fatalf("live qualification: %v %+v", err, q.Evaluation())
 	}
@@ -157,9 +157,16 @@ func TestTodo_CHATTONE_004_QualifyLive(t *testing.T) {
 	failing := newChattoneProvider(t)
 	failing.rewrite = func(_, user string) string { return chattoneDraftOf(user) }
 	base.BaseURL = failing.server.URL
-	q, dep, err = QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, APIKey: "test-only-provider-key", MaxLatency: 20 * time.Second, MaxCostMicros: 20000, Now: time.Now})
+	q, dep, err = QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, Model: "test-model", APIKey: "test-only-provider-key", MaxLatency: 20 * time.Second, MaxCostMicros: 20000, Now: time.Now})
 	if !errors.Is(err, ErrChattoneNotQualified) || q.Passed || len(dep.Profiles) != 0 || q.CostMicros == 0 {
 		t.Fatalf("a failing model: %v passed=%v profiles=%d", err, q.Passed, len(dep.Profiles))
+	}
+	// With no model named the run is on gpt-6-luna, which this base deployment has
+	// no approved price for: an error that names the model, no call, and no
+	// quiet use of the base deployment's own model instead.
+	before := failing.calls()
+	if _, _, err := QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, APIKey: "test-only-provider-key", MaxLatency: 20 * time.Second, MaxCostMicros: 20000, Now: time.Now}); !errors.Is(err, errChattoneBinding) || !strings.Contains(err.Error(), "gpt-6-luna") || failing.calls() != before {
+		t.Fatalf("the default model without a price: %v (calls %d -> %d)", err, before, failing.calls())
 	}
 	if _, _, err := QualifyChattoneModel(context.Background(), ChattoneQualifyConfig{Base: base, MaxLatency: time.Second, MaxCostMicros: 1, Now: time.Now}); err == nil {
 		t.Fatal("a run without a provider key was accepted")

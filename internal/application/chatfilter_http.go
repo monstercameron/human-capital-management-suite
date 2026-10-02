@@ -36,6 +36,9 @@ func ChatFilterErrorBody(err error) (int, ChatFilterError) {
 		return http.StatusUnprocessableEntity, ChatFilterError{Code: "content_blocked", RuleName: blocked.RuleName, Span: &blocked.Span}
 	case errors.Is(err, chatfilter.ErrDenied):
 		return http.StatusForbidden, ChatFilterError{Code: "permission_denied"}
+	case errors.Is(err, chatfilter.ErrUnknownTarget):
+		// The filter is well formed; the channel it would tell does not exist.
+		return http.StatusBadRequest, ChatFilterError{Code: "unknown_target"}
 	case errors.Is(err, chatfilter.ErrInvalid):
 		return http.StatusBadRequest, ChatFilterError{Code: "invalid_filter"}
 	case errors.Is(err, chatfilter.ErrConflict):

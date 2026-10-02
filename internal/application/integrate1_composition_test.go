@@ -276,7 +276,7 @@ func TestIntegrate1ServedModerationRouteAndSaved(t *testing.T) {
 	core := chat.NewService(moderated, time.Now)
 	core.SetAuthority(servedPersonaChatAuthority{})
 	p := chat.Principal{TenantID: "tenant", SubjectID: "owner"}
-	if _, err = core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: p, TenantID: p.TenantID, ConversationID: "room", Kind: chat.PublicChannel, Name: "Room"}); err != nil {
+	if _, err = core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: p, TenantID: p.TenantID, ConversationID: "room", Kind: chat.PublicChannel, Name: "room"}); err != nil {
 		t.Fatal(err)
 	}
 	post, err := core.SendPost(t.Context(), chat.SendPostRequest{Principal: p, TenantID: p.TenantID, ConversationID: "room", Body: "Private original", IdempotencyKey: "original"})

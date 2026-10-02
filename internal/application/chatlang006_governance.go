@@ -34,8 +34,10 @@ type ChatlangGovernance struct {
 	Now    func() time.Time
 
 	engine atomic.Pointer[ChatlangEngineInfo]
-	mu     sync.Mutex
-	cache  map[string]chatlangCached
+	// gate holds the quality gate's decision per language pair.
+	gate  atomic.Pointer[map[chatlang.GatePair]chatlang.GateDecision]
+	mu    sync.Mutex
+	cache map[string]chatlangCached
 }
 
 type chatlangCached struct {
@@ -308,4 +310,31 @@ func chatrenderOffersTranslation(policy chatrender.Policy) bool {
 		}
 	}
 	return false
+}
+
+// SetGate records the quality gate's results (CHATLANG-006): a pair the gate
+// withholds is not translated, whatever the workspace has set. Pairs the gate has
+// not judged are offered as before.
+func (g *ChatlangGovernance) SetGate(results []chatlang.GateResult) {
+	if g == nil {
+		return
+	}
+	decisions := make(map[chatlang.GatePair]chatlang.GateDecision, len(results))
+	for _, r := range results {
+		decisions[r.Pair] = r.Decision
+	}
+	g.gate.Store(&decisions)
+}
+
+// PairDecision is what the gate allows for a source and target language.
+func (g *ChatlangGovernance) PairDecision(source, target string) chatlang.GateDecision {
+	if g == nil {
+		return chatlang.GateOffer
+	}
+	if decisions := g.gate.Load(); decisions != nil {
+		if d, ok := (*decisions)[chatlang.GatePair{Source: chatrender.Language(source), Target: chatrender.Language(target)}]; ok {
+			return d
+		}
+	}
+	return chatlang.GateOffer
 }

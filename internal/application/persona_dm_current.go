@@ -72,6 +72,8 @@ func (r *publishedPersonaDM) ResolvePersonaDM(ctx context.Context, principal cha
 	if err != nil {
 		return "", err
 	}
+	// AGENTUX-030: the conversation is named after the published agent.
+	provisioner.DisplayName = published.Profile.DisplayName
 	if policies, ok := r.store.(personaDMPolicyStore); ok {
 		provisioner.Policies = policies
 	}

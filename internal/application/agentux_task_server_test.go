@@ -66,9 +66,20 @@ func TestTodo_AGENTUX_009(t *testing.T) {
 }
 
 func TestTodo_AGENTUX_016(t *testing.T) {
+	// A request that declares no data need gets the answer step alone.
 	steps := agentTaskPlanSteps(AgentTaskPlanningOutput{})
+	if len(steps) != 1 || steps[0].Type != agentrun.StepAnalyze || steps[0].SkillID != agentSummarizeSkillID || steps[0].Tier != agentrun.TierPrivateDraft {
+		t.Fatalf("no-data plan = %+v", steps)
+	}
+	// A request that needs the user's own record reads it first, then answers.
+	steps = agentTaskPlanSteps(AgentTaskPlanningOutput{NeedsOwnRecord: true})
 	if len(steps) != 2 || steps[0].Type != agentrun.StepRead || steps[0].SkillID != agentReadSkillID || steps[1].Type != agentrun.StepAnalyze || steps[1].SkillID != agentSummarizeSkillID {
-		t.Fatalf("default plan = %+v", steps)
+		t.Fatalf("own-record plan = %+v", steps)
+	}
+	for _, shape := range [][]agentrun.PlanStep{agentTaskPlanSteps(AgentTaskPlanningOutput{}), steps} {
+		if _, err := agentrun.NewPlan(shape); err != nil {
+			t.Fatalf("plan %+v is not a valid plan: %v", shape, err)
+		}
 	}
 }
 
@@ -193,7 +204,7 @@ func TestTodo_AGENTUX_016_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const wantWithout = `[{"id":"read_worker_state","type":"READ","skill_id":"agent.read_own_worker_state","skill_version":1,"expected_output":"the signed-in user's own worker record","tier":0,"state":"","attempt":0,"started_at":"0001-01-01T00:00:00Z","finished_at":"0001-01-01T00:00:00Z"},{"id":"summarize_request","type":"ANALYZE","skill_id":"agent.summarize_request","skill_version":1,"expected_output":"a short private answer to the request","tier":1,"state":"","attempt":0,"started_at":"0001-01-01T00:00:00Z","finished_at":"0001-01-01T00:00:00Z"}]`
+	const wantWithout = `[{"id":"summarize_request","type":"ANALYZE","skill_id":"agent.summarize_request","skill_version":1,"expected_output":"a short private answer to the request","tier":1,"state":"","attempt":0,"started_at":"0001-01-01T00:00:00Z","finished_at":"0001-01-01T00:00:00Z"}]`
 	const wantWith = `[{"id":"read_worker_state","type":"READ","skill_id":"agent.read_own_worker_state","skill_version":1,"expected_output":"the signed-in user's own worker record","tier":0,"state":"","attempt":0,"started_at":"0001-01-01T00:00:00Z","finished_at":"0001-01-01T00:00:00Z"},{"id":"summarize_request","type":"ANALYZE","skill_id":"agent.summarize_request","skill_version":1,"expected_output":"a short private answer to the request","tier":1,"state":"","attempt":0,"started_at":"0001-01-01T00:00:00Z","finished_at":"0001-01-01T00:00:00Z"}]`
 	if string(withoutData) != wantWithout || string(withOwnRecord) != wantWith {
 		t.Fatalf("without=%s\nwith=%s", withoutData, withOwnRecord)
@@ -207,15 +218,18 @@ func TestTodo_AGENTUX_016_Security(t *testing.T) {
 	principal := agentTestPrincipal(t, f.tenant, agentTestWorker)
 	ctx := trust.WithPrincipal(context.Background(), principal)
 	noData, err := f.runtime.Starter.StartTask(ctx, principal, "In one sentence, what is a good way to welcome a new teammate? Use no company data.")
-	if err != nil || noData.State != string(agentrun.StateCompleted) || len(evidence.Records()) != 1 {
+	// The request needs no data, so the worker-state capability is never called.
+	if err != nil || noData.State != string(agentrun.StateCompleted) || len(evidence.Records()) != 0 {
 		t.Fatalf("no-data task = %+v, %v evidence=%+v", noData, err, evidence.Records())
 	}
 	withData, err := f.runtime.Starter.StartTask(ctx, principal, "What is my job title?")
 	if err != nil || withData.State != string(agentrun.StateCompleted) {
 		t.Fatalf("own-record task = %+v, %v", withData, err)
 	}
+	// The request that needs the record reads exactly that one record, as the
+	// signed-in user, in the user's tenant.
 	records := evidence.Records()
-	if len(records) != 2 || records[0].CapabilityID != agentReadCapabilityID || records[0].SubjectRef != agentTestWorker || records[0].Tenant != f.tenant || records[0].Decision != "INVOKED" || records[1].CapabilityID != agentReadCapabilityID || records[1].SubjectRef != agentTestWorker || records[1].Tenant != f.tenant || records[1].Decision != "INVOKED" {
+	if len(records) != 1 || records[0].CapabilityID != agentReadCapabilityID || records[0].SubjectRef != agentTestWorker || records[0].Tenant != f.tenant || records[0].Decision != "INVOKED" {
 		t.Fatalf("own-record evidence = %+v", records)
 	}
 }

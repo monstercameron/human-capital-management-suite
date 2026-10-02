@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -34,6 +35,10 @@ func voiceError(w http.ResponseWriter, err error) {
 		status, code = http.StatusBadRequest, "invalid_request"
 	case errors.Is(err, chat.ErrNotFound):
 		status, code = http.StatusNotFound, "not_found"
+	case errors.Is(err, ErrVoiceOutsideServiceBarred):
+		status, code = http.StatusConflict, "outside_barred"
+	case errors.Is(err, ErrVoiceTooLong):
+		status, code = http.StatusRequestEntityTooLarge, "too_long"
 	}
 	voiceJSON(w, status, voiceHTTPError{Code: code})
 }
@@ -139,6 +144,71 @@ func (h VoiceHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		voiceJSON(w, http.StatusOK, out)
+	case "policy":
+		var input struct{ TenantID, ConversationID string }
+		if !decode(&input) {
+			return
+		}
+		out, err := h.Service.Policy(r.Context(), principal, input.TenantID, input.ConversationID)
+		if err != nil {
+			voiceError(w, err)
+			return
+		}
+		voiceJSON(w, http.StatusOK, out)
+	case "settings":
+		var input struct{ TenantID string }
+		if !decode(&input) {
+			return
+		}
+		out, err := h.Service.Settings(r.Context(), principal, input.TenantID)
+		if err != nil {
+			voiceError(w, err)
+			return
+		}
+		voiceJSON(w, http.StatusOK, out)
+	case "switch":
+		var input VoiceSwitchRequest
+		if !decode(&input) {
+			return
+		}
+		if err := h.Service.SetSwitch(r.Context(), principal, input); err != nil {
+			voiceError(w, err)
+			return
+		}
+		voiceJSON(w, http.StatusOK, struct {
+			Saved bool `json:"saved"`
+		}{true})
+	case "speak":
+		var input VoiceSpeakRequest
+		if !decode(&input) {
+			return
+		}
+		if h.Service.Speaker == nil {
+			voiceError(w, chat.ErrVoiceUnavailable)
+			return
+		}
+		speech, err := h.Service.Speaker.Speak(r.Context(), principal, input)
+		if err != nil {
+			voiceError(w, err)
+			return
+		}
+		// The speech is returned once and kept nowhere: no cache, no store. The
+		// sentence timings ride beside it only when the engine reported them.
+		if len(speech.Timings) > 0 {
+			timings := make([]chatui.ListenTiming, 0, len(speech.Timings))
+			for _, t := range speech.Timings {
+				timings = append(timings, chatui.ListenTiming{Text: t.Text, StartMS: t.StartMS, EndMS: t.EndMS})
+			}
+			if header := chatui.EncodeListenTimings(timings); header != "" {
+				w.Header().Set(chatui.ListenTimingsHeader, header)
+				w.Header().Set("Access-Control-Expose-Headers", chatui.ListenTimingsHeader)
+			}
+		}
+		w.Header().Set("Content-Type", speech.ContentType)
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(speech.Audio)
 	default:
 		voiceJSON(w, http.StatusNotFound, voiceHTTPError{Code: "not_found"})
 	}

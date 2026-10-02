@@ -72,11 +72,25 @@ func (s *AgentAnnouncementControlSurface) ListAnnouncements(ctx context.Context)
 	}
 	snapshot := productui.AgentAnnouncementsSnapshot{Available: true, CanCreate: len(choices) > 0, Agents: choices}
 	for _, record := range records {
+		// A schedule follows its agent to the installation that is active now,
+		// or pauses with a reason when the agent has left the conversation.
+		if lookup, ok := s.Names.(AgentAnnouncementInstallationLookup); ok {
+			if current, found, lookupErr := lookup.AgentAnnouncementCurrentInstallation(ctx, actor, record); lookupErr == nil {
+				if followed, followErr := s.Service.FollowInstallation(ctx, actor, record, current, found); followErr == nil {
+					record = followed
+				}
+			}
+		}
 		agentName, conversationName, ownerName, nameErr := s.Names.AgentAnnouncementNames(ctx, actor, record)
+		if errors.Is(nameErr, ErrAgentAnnouncementAgentGone) {
+			// The agent is no longer in that conversation: the record stays on
+			// the page, labelled, so its owner can still delete it.
+			snapshot.Rows = append(snapshot.Rows, productui.AgentAnnouncementRow{ID: record.ID, Retired: true, Instruction: record.Instruction, State: record.State, Revision: record.Revision, ResultCode: record.LastResult, Reason: record.LastReason, LastOccurrence: record.LastOccurrence, OwnerName: ownerName})
+			continue
+		}
 		if nameErr != nil || strings.TrimSpace(agentName) == "" || strings.TrimSpace(conversationName) == "" {
-			// One announcement whose agent or conversation can no longer be
-			// named (the agent was removed from that conversation) must not
-			// take the whole list away from its owner: it is left out.
+			// One announcement that cannot be named for another reason must
+			// not take the whole list away from its owner: it is left out.
 			continue
 		}
 		row := productui.AgentAnnouncementRow{ID: record.ID, AgentName: agentName, ConversationName: conversationName, Instruction: record.Instruction, State: record.State, Revision: record.Revision, ResultCode: record.LastResult, Reason: record.LastReason, LastOccurrence: record.LastOccurrence, OwnerName: ownerName}

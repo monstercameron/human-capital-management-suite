@@ -29,10 +29,19 @@ type chatlangProvider struct {
 	requests []chatlangProviderRequest
 	status   int
 	damage   bool
+	// detected, when set, is the source language a structured answer reports; the
+	// default is the request's own source ("en" when it is "und"). unsure makes the
+	// structured answer say the meaning was not preserved.
+	detected string
+	unsure   bool
 }
 type chatlangProviderRequest struct {
 	Authorization, System, User string
 	Store                       bool
+	// Raw is the whole request body, field by field, for tests that assert what is
+	// and is not sent; Structured is true when the call asked for a JSON schema.
+	Raw        map[string]json.RawMessage
+	Structured bool
 }
 
 func newChatlangProvider(t *testing.T) *chatlangProvider {
@@ -47,9 +56,15 @@ func newChatlangProvider(t *testing.T) *chatlangProvider {
 		var body struct {
 			Store bool `json:"store"`
 			Input []struct{ Role, Content string }
+			Text  struct {
+				Format struct {
+					Type string `json:"type"`
+				} `json:"format"`
+			} `json:"text"`
 		}
 		_ = json.Unmarshal(raw, &body)
-		req := chatlangProviderRequest{Authorization: r.Header.Get("Authorization"), Store: body.Store}
+		req := chatlangProviderRequest{Authorization: r.Header.Get("Authorization"), Store: body.Store, Structured: body.Text.Format.Type == "json_schema"}
+		_ = json.Unmarshal(raw, &req.Raw)
 		for _, m := range body.Input {
 			if m.Role == "system" {
 				req.System = m.Content
@@ -59,19 +74,35 @@ func newChatlangProvider(t *testing.T) *chatlangProvider {
 		}
 		p.mu.Lock()
 		p.requests = append(p.requests, req)
-		status, damage := p.status, p.damage
+		status, damage, detected, unsure := p.status, p.damage, p.detected, p.unsure
 		p.mu.Unlock()
 		if status != 0 {
 			w.WriteHeader(status)
 			io.WriteString(w, `{"error":{"message":"unavailable"}}`)
 			return
 		}
-		var data struct{ Target, Text string }
+		var data struct{ Source, Target, Text string }
 		inner := strings.TrimSuffix(strings.TrimPrefix(req.User, "<untrusted_data>\n"), "\n</untrusted_data>")
 		_ = json.Unmarshal([]byte(inner), &data)
 		answer := "[" + data.Target + "] " + data.Text
 		if damage {
 			answer = strings.NewReplacer("⟦", "", "⟧", "").Replace(answer)
+		}
+		if req.Structured {
+			// The typed answer of the structured route: the language found, the text
+			// (unchanged when it is already in the target language) and a verdict.
+			source := data.Source
+			if source == "und" || source == "" {
+				source = "en"
+			}
+			if detected != "" {
+				source = detected
+			}
+			if source == data.Target {
+				answer = data.Text
+			}
+			typed, _ := json.Marshal(map[string]any{"source_language": source, "text": answer, "meaning_preserved": !unsure})
+			answer = string(typed)
 		}
 		out, _ := json.Marshal(answer)
 		io.WriteString(w, `{"id":"response-chatlang","model":"test-model","status":"completed","usage":{"input_tokens":20,"output_tokens":10,"total_tokens":30},"output":[{"type":"message","content":[{"type":"output_text","text":`+string(out)+`}]}]}`)

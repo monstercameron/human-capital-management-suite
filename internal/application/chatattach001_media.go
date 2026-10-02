@@ -155,9 +155,41 @@ func chatattach001PostAuthority(runtime composedChat) chatmedia.Authorizer {
 	}
 }
 
+// ChatAttachmentsAvailabilityPath answers whether this server takes uploads:
+// {"uploads":true} where the upload service is composed, {"uploads":false}
+// where it is not. Without a scanner every upload fails closed, and the page
+// offered "Attach a file" all the same; the page now asks first and leaves the
+// item out, and pasted or dropped files alone, where the answer is no. The
+// answer is a fact about the deployment, the same for everyone signed in.
+const ChatAttachmentsAvailabilityPath = workspace.PathChatMediaPrefix + "attachments/availability"
+
+// chatattach001Availability serves the availability answer behind the same
+// admission as the media routes and hands every other request on.
+func chatattach001Availability(next http.Handler, admission transport.Config, uploads bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != ChatAttachmentsAvailabilityPath {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if _, _, denied := transport.Admit(r.Context(), admission, transport.AdmissionRequest{Metadata: transport.MapMetadata(r.Header), Method: r.URL.Path, Kind: transport.KindHTTPEdge}); denied != nil {
+			http.Error(w, "request denied", denied.HTTPStatus())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]bool{"uploads": uploads})
+	})
+}
+
 func chatattach001Overlay(next http.Handler, cfg ChatMediaConfig, admission transport.Config, profile string, runtime composedChat) (http.Handler, error) {
 	if profile != ServeProfileLocalDev && cfg.Scanner == nil {
-		return OverlayChatMedia(next, cfg, admission), nil
+		// The upload route stays mounted and stays closed; the page is told.
+		return chatattach001Availability(OverlayChatMedia(next, cfg, admission), admission, false), nil
 	}
 	store, err := chatmedia.NewFilesystemStore(cfg.ArtifactRoot)
 	if err != nil {
@@ -180,7 +212,7 @@ func chatattach001Overlay(next http.Handler, cfg ChatMediaConfig, admission tran
 		h.ServeHTTP(w, r.WithContext(ctx))
 	}))
 	mux.Handle("/", next)
-	return mux, nil
+	return chatattach001Availability(mux, admission, true), nil
 }
 
 type chatattach001Directory struct{ media *chatmedia.Service }

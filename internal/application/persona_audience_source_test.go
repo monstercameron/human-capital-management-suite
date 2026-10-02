@@ -127,10 +127,12 @@ func TestTodo_AGENTUX_005_AudienceOmitsPersonaMemberWithoutHumanDirectoryFacts(t
 	}
 }
 
-// TestTodo_AGENTUX_034 proves that an installed persona chat identity is not
-// projected as a human. In particular, it must not cause a directory lookup
-// (and therefore cannot produce the repeated directory-facts-missing warning).
-func TestTodo_AGENTUX_034(t *testing.T) {
+// TestTodo_AGENTUX_033_AgentIdentityBypassesDirectory proves that an installed
+// persona chat identity is not projected as a human. In particular, it must not
+// cause a directory lookup (and therefore cannot produce the repeated
+// directory-facts-missing warning). It was filed under AGENTUX-034 by mistake;
+// the placed-documents tests of AGENTUX-034 are in productui.
+func TestTodo_AGENTUX_033_AgentIdentityBypassesDirectory(t *testing.T) {
 	ctx := audienceSourceContext(t)
 	directory := &audienceDirectoryFake{facts: map[string]PersonaAudienceMember{
 		"tenant/alice": {SubjectID: "alice", Roles: []string{"hcm_admin"}, Populations: []string{"employees"}, OrganizationScope: "org-a"},

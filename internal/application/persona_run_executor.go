@@ -61,7 +61,15 @@ func (f *PersonaRunFailure) Unwrap() error {
 
 // PersonaRunModelWork is built from pinned admission and execution state. It
 // contains no caller-selected model, route, budget, or credential.
-type PersonaRunModelWork struct{ Request AgentModelExecutorRequest }
+type PersonaRunModelWork struct {
+	Request AgentModelExecutorRequest
+	// Facts is the agent's own facts and readable documents this request carries,
+	// when it carries them (AGENTUX-076). General says the agent may answer from
+	// general knowledge where no document covers a question.
+	Facts    personaAgentFacts
+	HasFacts bool
+	General  bool
+}
 
 // PersonaRunModelWorkSource reconstructs one trusted model request from the
 // immutable admission and current run. Implementations recheck context and
@@ -233,6 +241,8 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	}
 	defer e.startLeaseRenewal(ctx, claimed)()
 	ctx = WithPersonaBackgroundAdmission(ctx, admission)
+	noteStep := personaRunStepNoter(ctx, admission)
+	noteStep(personaStepReadingQuestion, "")
 	done = agentUXSpeedStage(ctx, "build_model_work")
 	work, err := e.work.BuildPersonaRunModelWork(ctx, admission, claimed)
 	done()
@@ -263,6 +273,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	// Documents a search returned to this run; the ones the sealed answer
 	// cites are listed as its sources at delivery.
 	var searchedDocuments []personaQualitySearchedDocument
+	searchRan := false
 	modelResult, claimed, err := e.executeQualityModel(ctx, claimed, work.Request, admission)
 	done()
 	if err != nil {
@@ -312,10 +323,12 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		if err != nil {
 			return e.fail(ctx, beforeEffect, "TOOL_ADMISSION_FAILED", err)
 		}
+		noteStep(personaStepForTool(proposal.Name, proposal.Arguments))
 		done = agentUXSpeedStage(ctx, "tool_execute")
 		toolOutput, resultRef, resultDigest, toolErr := e.tools.Execute(ctx, admission, claimed, proposal)
 		searchedDocuments = personaQualitySearchedDocuments(toolOutput)
 		done()
+		noteStep(personaStepForDocuments(searchedDocuments))
 		if toolErr != nil {
 			claimed, err = e.qualityStateChange(ctx, claimed, func() (runstate.Run, error) {
 				return e.state.ResolveEffect(ctx, claimed.ID, e.workerID, effectID, claimed.Fence, claimed.Version, runstate.EffectNotApplied, "", "", e.now().UTC())
@@ -333,8 +346,17 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		if err != nil {
 			return fmt.Errorf("%w: persist tool outcome: %v", ErrPersonaRunExecutorUnavailable, err)
 		}
-		if proposal.Name == personaDocumentSearchTool || proposal.Name == personaWorkspaceSearchTool {
-			if code := personaQualitySearchFailure(toolOutput); code != "" {
+		// A search that finds nothing is a normal result (AGENTUX-076): the model
+		// is told so and writes its answer. Only a search that could not run ends
+		// the run.
+		noMatches := false
+		searchRan = proposal.Name == personaDocumentSearchTool || proposal.Name == personaWorkspaceSearchTool
+		if searchRan {
+			switch code := personaQualitySearchFailure(toolOutput); code {
+			case "":
+			case "NO_RESULTS":
+				noMatches = true
+			default:
 				return e.fail(ctx, claimed, code, nil)
 			}
 		}
@@ -356,7 +378,13 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		if err := appendPersonaRunToolContinuation(&continuation.Request, proposal, toolOutput); err != nil {
 			return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", err)
 		}
+		if noMatches {
+			if err := appendPersonaServerInstruction(&continuation.Request, personaNoResultsInstruction, "no-matches"); err != nil {
+				return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", err)
+			}
+		}
 		continuation.Request.Model.Tools = nil
+		noteStep(personaStepWriting, "")
 		done = agentUXSpeedStage(ctx, "model_execute")
 		modelResult, claimed, err = e.executeQualityModel(ctx, claimed, continuation.Request, admission)
 		done()
@@ -381,10 +409,15 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	} else if modelResult.Result.Finish != agentmodel.FinishComplete || strings.TrimSpace(modelResult.Result.Text) == "" || len(modelResult.Result.ToolProposals) != 0 {
 		return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("first turn finish", modelResult.Result))
 	}
+	// A general-purpose agent says when an answer is from no document; the marker
+	// becomes the typed flag and is not part of the answer.
+	var saidNotFromDocuments bool
+	modelResult.Result.Text, saidNotFromDocuments = personaStripNotFromDocuments(modelResult.Result.Text)
 	resultDigest, err := personaRunResultDigest(modelResult.Result)
 	if err != nil {
 		return e.fail(ctx, claimed, "MODEL_RESULT_INVALID", err)
 	}
+	noteStep(personaStepWriting, "")
 	done = agentUXSpeedStage(ctx, "checkpoint_model_result")
 	claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, modelAttempt, work.Request.StepID, resultDigest, e.now().UTC())
 	done()
@@ -394,9 +427,29 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	done = agentUXSpeedStage(ctx, "validate_output")
 	if !personaReplyHasStatement(modelResult.Result.Text, personaReplyStatementTitles(searchedDocuments)...) {
 		// CHATBUG-018: a reply that is only a document title (or a marker that
-		// renders as one) answers nothing; it is refused, not posted.
-		done()
-		return e.fail(ctx, claimed, "OUTPUT_REJECTED", fmt.Errorf("%w: the reply states nothing beyond a document title", ErrPersonaRunOutputRejected))
+		// renders as one) answers nothing; it is refused, not posted. CHATBUG-049:
+		// the run ends with a code of its own, so the card says the agent answered
+		// with only a document's name instead of calling the agent unavailable.
+		// When the run searched documents the server says what the agent can read
+		// in one sentence of its own and delivers that (CHATBUG-049).
+		// The model is asked once more, from the documents' content, before the
+		// server's sentence stands in (chatbug049_regenerate.go).
+		regenerated, next, again, regenErr := e.regenerateTitleOnly(ctx, admission, claimed, work, modelAttempt+1, searchedDocuments)
+		claimed = next
+		if regenErr != nil {
+			done()
+			return regenErr
+		}
+		if again {
+			modelResult.Result = regenerated
+		} else {
+			composed := personaComposedListReply(searchedDocuments)
+			if composed == "" {
+				done()
+				return e.fail(ctx, claimed, chatcore.AgentAnswerTitleOnlyCode, fmt.Errorf("%w: the reply states nothing beyond a document title", ErrPersonaRunOutputRejected))
+			}
+			modelResult.Result.Text = composed
+		}
 	}
 	persisted, err := e.output.ValidateAndPersistPersonaOutput(ctx, admission, claimed, modelResult.Result)
 	done()
@@ -414,7 +467,11 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		return fmt.Errorf("%w: checkpoint validated result: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	done = agentUXSpeedStage(ctx, "delivery")
-	receipt, err := e.deliver(ctx, admission, claimed, persisted, searchedDocuments...)
+	extra := personaDeliveryExtra{General: work.General, SaidSo: saidNotFromDocuments, Searched: searchRan}
+	if work.HasFacts {
+		extra.Named = personaFactsNamedDocuments(modelResult.Result.Text, work.Facts.Documents)
+	}
+	receipt, err := e.deliverWith(ctx, admission, claimed, persisted, extra, searchedDocuments...)
 	done()
 	if err != nil {
 		return e.fail(ctx, claimed, "DELIVERY_FAILED", err)
@@ -462,8 +519,24 @@ func (e *personaAdmittedRunExecutor) checkRequestedActions(ctx context.Context, 
 }
 
 func (e *personaAdmittedRunExecutor) deliver(ctx context.Context, admission agentrun.Record, run runstate.Run, persisted agentsecurity.FinalOutputPersistence, searched ...personaQualitySearchedDocument) (PersonaReplyDeliveryReceipt, error) {
+	return e.deliverWith(ctx, admission, run, persisted, personaDeliveryExtra{}, searched...)
+}
+
+func (e *personaAdmittedRunExecutor) deliverWith(ctx context.Context, admission agentrun.Record, run runstate.Run, persisted agentsecurity.FinalOutputPersistence, extra personaDeliveryExtra, searched ...personaQualitySearchedDocument) (PersonaReplyDeliveryReceipt, error) {
 	identity := persisted.Identity()
 	documents, citationDetails := personaQualityCitedDocuments(searched, persisted.Citations())
+	notFromDocuments := personaNotFromDocuments(extra.General, extra.SaidSo, extra.Searched, documents)
+	// Listed documents the answer names are linked under it, from the ids the
+	// server read. A document already cited is not listed twice.
+	cited := make(map[string]bool, len(documents))
+	for _, document := range documents {
+		cited[document.Reference.DocumentID] = true
+	}
+	for _, named := range extra.Named {
+		if !cited[named.Reference.DocumentID] {
+			documents = append(documents, named)
+		}
+	}
 	if principal, ok := personaRunChatPrincipal(ctx, identity.TenantID, identity.InvokerID); ok {
 		if admission.Request.Persona != nil {
 			// A reply that may not be posted to the whole audience goes to the
@@ -474,7 +547,7 @@ func (e *personaAdmittedRunExecutor) deliver(ctx context.Context, admission agen
 			invocation.Grant.ExpiresAt = admission.Request.Deadline
 			ctx = WithPersonaDMInvocation(ctx, invocation)
 		}
-		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID, Documents: documents, CitationDetails: citationDetails})
+		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID, Documents: documents, CitationDetails: citationDetails, NotFromDocuments: notFromDocuments})
 	}
 	if _, hasPrincipal := trust.FromContext(ctx); hasPrincipal || isNilPersonaOutputPort(e.backgroundReply) {
 		return PersonaReplyDeliveryReceipt{}, ErrPersonaRunOutputRejected
@@ -543,7 +616,7 @@ func personaRunFailureRefusal(code string, cause error) runstate.FailureRefusal 
 		gate = runstate.FailureGateToolScope
 	case "TOOL_ADMISSION_FAILED", "TOOL_EXECUTION_FAILED":
 		gate = runstate.FailureGateToolCall
-	case "OUTPUT_REJECTED", "OUTPUT_BINDING_INVALID":
+	case "OUTPUT_REJECTED", "OUTPUT_BINDING_INVALID", chatcore.AgentAnswerTitleOnlyCode:
 		gate = runstate.FailureGateOutputGrounding
 	case "DELIVERY_FAILED", "DELIVERY_RECEIPT_INVALID":
 		gate = runstate.FailureGateDeliveryWrite

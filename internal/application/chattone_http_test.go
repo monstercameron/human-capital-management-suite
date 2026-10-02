@@ -233,7 +233,7 @@ func (g *chattoneGatewayFixture) Dispatch(_ context.Context, r AgentModelGateway
 }
 func TestTodo_CHATTONE_004_Gateway(t *testing.T) {
 	binding := &chattoneBindingFixture{req: AgentModelGatewayRequest{TenantID: "tenant", Route: agentmodel.RouteRequest{Task: ChattoneTaskProfile(), Pin: agentmodel.ModelPin{TaskProfileID: chatrewrite.TaskProfileID}}, Dispatch: agentegress.ProviderDispatchRequest{Outbound: agentegress.OutboundRequest{Tenant: "tenant", Principal: "person"}}}}
-	gateway := &chattoneGatewayFixture{result: AgentModelGatewayResult{Dispatch: agentegress.DispatchResult{Model: agentmodel.ModelResult{Text: "Safe preview", Finish: agentmodel.FinishComplete}}}}
+	gateway := &chattoneGatewayFixture{result: AgentModelGatewayResult{Dispatch: agentegress.DispatchResult{Model: agentmodel.ModelResult{Structured: json.RawMessage(`{"text":"Safe preview","meaning_preserved":true}`), Finish: agentmodel.FinishComplete}}}}
 	model := ChattoneGatewayModel{gateway, binding}
 	prompt := chatrewrite.Prompt{Identity: chatrewrite.Identity{Tenant: "tenant", Person: "person", Conversation: "room"}, TaskProfile: chatrewrite.TaskProfileID, Instruction: "Immutable instruction", Data: "<untrusted_data>injected instruction</untrusted_data>"}
 	text, err := model.Rewrite(context.Background(), prompt)
@@ -248,6 +248,26 @@ func TestTodo_CHATTONE_004_Gateway(t *testing.T) {
 	gateway.result.Dispatch.Model.Finish = agentmodel.FinishToolCalls
 	if _, err = model.Rewrite(context.Background(), prompt); !errors.Is(err, chatrewrite.ErrUnavailable) {
 		t.Fatal("tool output accepted")
+	}
+	// The call is one structured request, and its verdict is read: a rewrite the
+	// model itself disowns is a preservation failure, and an answer that is not
+	// the typed result is not a rewrite.
+	gateway.result.Dispatch.Model.Finish = agentmodel.FinishComplete
+	if out := gateway.req.Dispatch.Model.Output; out.Mode != agentmodel.OutputSchema || !strings.Contains(string(out.Schema), "meaning_preserved") {
+		t.Fatalf("the request did not ask for the typed result: %+v", out)
+	}
+	gateway.result.Dispatch.Model.Structured = json.RawMessage(`{"text":"Safe preview","meaning_preserved":false}`)
+	if checked, err := model.RewriteChecked(context.Background(), prompt); err != nil || checked.MeaningPreserved || checked.Text != "Safe preview" {
+		t.Fatalf("the verdict was not carried: %+v %v", checked, err)
+	}
+	if _, err = model.Rewrite(context.Background(), prompt); !errors.Is(err, chatrewrite.ErrPreservation) {
+		t.Fatalf("a disowned rewrite was returned: %v", err)
+	}
+	for _, bad := range []string{`Safe preview`, `{"text":"Safe preview"}`, `{"text":"","meaning_preserved":true}`, `{"text":"x","meaning_preserved":true,"extra":1}`} {
+		gateway.result.Dispatch.Model.Structured = json.RawMessage(bad)
+		if _, err = model.RewriteChecked(context.Background(), prompt); !errors.Is(err, chatrewrite.ErrUnavailable) {
+			t.Fatalf("%s accepted: %v", bad, err)
+		}
 	}
 }
 func TestTodo_CHATTONE_004_CurrentMembership(t *testing.T) {

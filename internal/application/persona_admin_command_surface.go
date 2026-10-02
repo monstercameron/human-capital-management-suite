@@ -29,6 +29,8 @@ type PersonaAdminCommandSurfaceConfig struct {
 	Evaluations     PersonaAdminEvaluationRunner
 	Now             func() time.Time
 	NewEventID      func() string
+	// Reactions stores the owner's choice about an agent's reactions (AGENTUX-075).
+	Reactions personaReactionSettingWriter
 }
 
 // newAdminCommandFactory composes the admin surface from the already-bound
@@ -43,7 +45,7 @@ func (w *personaServeWiring) newAdminCommandFactory(catalog productui.PersonaAdm
 		Catalog: catalog, Roles: w.roles, Store: w.store,
 		Profiles: profiles, Manifests: manifests, Instructions: instructions,
 		ReviewAuthority: reviewAuthority, ReviewWriter: reviewWriter,
-		Evidence: w.adminEvidence, InstallAuth: w.adminInstall, Transitions: w.adminTransitions,
+		Evidence: w.adminEvidence, InstallAuth: w.adminInstall, Transitions: w.adminTransitions, Reactions: w.reactions,
 		Now: w.now, NewEventID: newEventID,
 	})
 }
@@ -102,6 +104,7 @@ func NewPersonaAdminCommandSurface(config PersonaAdminCommandSurfaceConfig) (*Pe
 		config.NewEventID,
 	)
 	executor.Evaluations = config.Evaluations
+	executor.Reactions = config.Reactions
 	return NewPersonaAdminCommandFactory(config.Catalog, authorizer, executor)
 }
 

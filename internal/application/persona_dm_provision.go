@@ -38,6 +38,12 @@ type PersonaDMProvisioner struct {
 	Resolver chatcore.PersonaDMResolver
 	Persona  chatcore.MemberRef
 	Policies personaDMPolicyStore
+	// DisplayName is the agent's published name, which a new conversation is
+	// named after (AGENTUX-030). Unset, the conversation is created without a
+	// name of its own, like a conversation between two people, and the page
+	// names it from the agent's directory entry. It is never derived from the
+	// agent's identifier.
+	DisplayName string
 }
 
 // NewPersonaDMProvisioner constructs a tenant-bound provisioner. Creator and
@@ -83,7 +89,7 @@ func (p PersonaDMProvisioner) EnsurePersonaDM(ctx context.Context, principal cha
 	}
 	created, createErr := p.Creator.CreateConversation(ctx, chatcore.CreateConversationRequest{
 		Principal: principal, TenantID: tenant, ConversationID: deterministicID,
-		Kind: chatcore.Direct, Name: personaDMDisplayName(p.Persona.SubjectID), Members: []chatcore.MemberRef{p.Persona},
+		Kind: chatcore.Direct, Name: personaDMDisplayName(p.DisplayName), Members: []chatcore.MemberRef{p.Persona},
 		IdempotencyKey: "persona-dm:" + deterministicID,
 	})
 	if createErr != nil && !errors.Is(createErr, chatcore.ErrAlreadyExists) && !errors.Is(createErr, chatcore.ErrConflict) {
@@ -106,8 +112,25 @@ func (p PersonaDMProvisioner) EnsurePersonaDM(ctx context.Context, principal cha
 	return resolved, nil
 }
 
+// personaDMPolicyPair is a policy store that writes the two policies of a
+// direct conversation with an agent together.
+type personaDMPolicyPair interface {
+	EnsurePersonaDirectPolicies(context.Context, string, string, chatstore.AudiencePolicy, chatstore.PersonaChannelPolicy) (bool, bool, error)
+}
+
 func (p PersonaDMProvisioner) ensurePolicies(ctx context.Context, tenant, conversationID string) error {
 	if p.Policies == nil {
+		return nil
+	}
+	// AGENTUX-038: the audience policy and the one-to-one agent policy are
+	// written in one transaction where the store can, so a conversation is never
+	// left with the first and not the second (a question there was then refused
+	// at admission until somebody repaired it by hand). Policies already there
+	// are left alone, as below.
+	if pair, ok := p.Policies.(personaDMPolicyPair); ok {
+		if _, _, err := pair.EnsurePersonaDirectPolicies(ctx, tenant, conversationID, personaDMaudiencePolicy(), personaDMChannelPolicy()); err != nil {
+			return fmt.Errorf("%w: direct conversation policies: %v", errPersonaDMProvisionUnavailable, err)
+		}
 		return nil
 	}
 	if _, err := p.Policies.PutAudiencePolicy(ctx, tenant, conversationID, 0, personaDMaudiencePolicy()); err != nil && !errors.Is(err, chatstore.ErrAudiencePolicyConflict) {
@@ -142,15 +165,11 @@ func personaDMChannelPolicy() chatstore.PersonaChannelPolicy {
 	}
 }
 
-func personaDMDisplayName(subjectID string) string {
-	words := strings.FieldsFunc(strings.TrimSpace(subjectID), func(r rune) bool {
-		return r == '-' || r == '_'
-	})
-	for i := range words {
-		if words[i] == "" {
-			continue
-		}
-		words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
-	}
-	return strings.Join(words, " ")
+// personaDMDisplayName is the name a new direct conversation with an agent is
+// given: the agent's published name, with the spaces around it and inside it
+// tidied. An identifier used to be turned into a name here ("policy-helper"
+// read well; "673214ec-4402-…" did not), which is how a conversation came to
+// be titled with its agent's identifier (AGENTUX-030).
+func personaDMDisplayName(published string) string {
+	return strings.Join(strings.Fields(published), " ")
 }

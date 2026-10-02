@@ -72,7 +72,25 @@ func (s *chatremoveRoutedStore) ResolveModeration(ctx context.Context, p chat.Pr
 		}
 		return s.ModerationStore.ResolveModeration(ctx, p, tenant, id, action, reason, at)
 	}
+	// Restore is also offered on resolved items, which the open queue above
+	// does not hold: the item is looked up by itself, for the lease alone.
+	if locator, ok := s.ModerationStore.(chatremoveCaseLocator); ok && action == "restore" {
+		conversation, err := locator.ModerationCaseConversation(ctx, p, tenant, id)
+		if err != nil {
+			return err
+		}
+		if ctx, err = s.lease(ctx, tenant, conversation); err != nil {
+			return err
+		}
+		return s.ModerationStore.ResolveModeration(ctx, p, tenant, id, action, reason, at)
+	}
 	return chat.ErrNotFound
+}
+
+// chatremoveCaseLocator is the store's answer to "which conversation is this
+// queue item in", for an item that is no longer open.
+type chatremoveCaseLocator interface {
+	ModerationCaseConversation(context.Context, chat.Principal, string, string) (string, error)
 }
 
 func (s *chatremoveRoutedStore) CanModerate(ctx context.Context, p chat.Principal, t, cid, permission string) error {

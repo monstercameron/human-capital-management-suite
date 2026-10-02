@@ -45,6 +45,15 @@ func chatremoveLocale(r *http.Request) string {
 	return "en-US"
 }
 
+// chatremoveZone is the reader's time zone from the offset in minutes the
+// client sends, or UTC when it sent none it could mean.
+func chatremoveZone(offset string) *time.Location {
+	if minutes, e := strconv.Atoi(offset); e == nil && minutes > -14*60 && minutes < 15*60 {
+		return time.FixedZone("", minutes*60)
+	}
+	return time.UTC
+}
+
 func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet {
@@ -113,7 +122,13 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 			}
 			target.AuthorName = names[post.AuthorID]
 		}
-		h.render(w, chatui.ModerationDialog(chatui.ModerationDialogModel{Model: chatui.Model{Locale: locale, SelectedID: cid}, Selection: chat.RemovalSelection{ConversationID: cid, PostIDs: []string{id}}, Target: target, Action: action, Report: action == "report", CaseID: query.Get("case")}), 200)
+		dialog := chatui.ModerationDialogModel{Model: chatui.Model{Locale: locale, SelectedID: cid}, Selection: chat.RemovalSelection{ConversationID: cid, PostIDs: []string{id}}, Target: target, Action: action, Report: action == "report", CaseID: query.Get("case")}
+		if action == "remove" && dialog.CaseID == "" {
+			// Removing from a message's menu may take its neighbours too.
+			dialog.Choices = h.chatmod004Choices(r.Context(), p, post)
+			dialog.TimeZone = chatremoveZone(query.Get("tz"))
+		}
+		h.render(w, chatui.ModerationDialog(dialog), 200)
 		return
 	}
 	// A person who holds no moderation permission sees their notices alone; the
@@ -124,9 +139,16 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if query.Get("tab") == "resolved" {
 		tab = "resolved"
 	}
-	zone := time.UTC
-	if minutes, e := strconv.Atoi(query.Get("tz")); e == nil && minutes > -14*60 && minutes < 15*60 {
-		zone = time.FixedZone("", minutes*60)
+	zone := chatremoveZone(query.Get("tz"))
+	// CHATMOD-005: a workspace administrator also has the Permissions tab, and
+	// keeps the tabs even after taking their own permissions away.
+	permissions, canAssign := h.chatmod005Permissions(r.Context(), p, query.Get("conversation"), query.Get("role"))
+	if canAssign {
+		noQueue = false
+		if query.Get("tab") == "permissions" {
+			h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "permissions", OpenCount: summary.Open, CanAssign: true, Permissions: &permissions, TimeZone: zone}), 200)
+			return
+		}
 	}
 	var items []chat.ModerationItem
 	var err error
@@ -139,6 +161,16 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
 			return
+		}
+	}
+	// The Resolved segment states its count whichever tab is read: the items just
+	// read when they are the resolved ones and unfiltered, otherwise one more read.
+	resolvedCount, resolvedKnown := 0, false
+	if !noQueue {
+		if tab == "resolved" && strings.TrimSpace(query.Get("query")) == "" {
+			resolvedCount, resolvedKnown = len(items), true
+		} else if closed, e := h.HTTP.Service.Queue(r.Context(), p, p.TenantID, "state:closed"); e == nil {
+			resolvedCount, resolvedKnown = len(closed), true
 		}
 	}
 	host := query.Get("tenant")
@@ -171,7 +203,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if len(notices) > 20 {
 		notices = notices[:20]
 	}
-	h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Items: items, Notices: notices, Names: names, Query: query.Get("query"), NoQueue: noQueue, Tab: tab, OpenCount: summary.Open, TimeZone: zone}), 200)
+	h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Items: items, Notices: notices, Names: names, Query: query.Get("query"), NoQueue: noQueue, Tab: tab, OpenCount: summary.Open, ResolvedCount: resolvedCount, ResolvedKnown: resolvedKnown, TimeZone: zone, CanAssign: canAssign}), 200)
 }
 
 func (ChatModerationPageHTTP) render(w http.ResponseWriter, node ui.Node, status int) {

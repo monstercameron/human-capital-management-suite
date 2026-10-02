@@ -63,6 +63,8 @@ type PersonaAdminCatalogComposition struct {
 	Authorizer PersonaCatalogAuthorizer
 	Starters   productui.PersonaAdminStarterSource
 	Documents  PersonaAdminDocumentReader
+	// Reactions reads the owner's choice about each agent's reactions (AGENTUX-075).
+	Reactions personaReactionSettingReader
 }
 
 // NewPersonaAdminCatalogClient composes the production catalog client over an
@@ -82,6 +84,7 @@ func NewPersonaAdminCatalogClient(deps PersonaAdminCatalogComposition) (productu
 		Authorizer:    deps.Authorizer,
 		Starters:      deps.Starters,
 		Documents:     deps.Documents,
+		Reactions:     deps.Reactions,
 	}
 	if adapter, ok := deps.Store.(personaAdminCatalogStoreAdapter); ok {
 		service.Versions = AgentIconCatalogVersions{Base: service.Versions, Store: adapter.store}

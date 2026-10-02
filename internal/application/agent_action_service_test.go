@@ -217,10 +217,16 @@ func TestTodo_AGENT_035_Integration(t *testing.T) {
 }
 
 func TestTodo_AGENT_036_Integration(t *testing.T) {
-	f, _, _ := newAgentActionPublishedFixture(t)
+	f, h, _ := newAgentActionPublishedFixture(t)
 	draft, err := f.service.Compile(f.ctx, f.req)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The same person signed in without the cell's execution role cannot start
+	// execution through the agent: the agent adds no authority to its user.
+	_, proposerCtx := h.engine("hiring-manager")
+	if _, err := f.service.Submit(proposerCtx, agentActionSubmission(draft)); !errors.Is(err, workspace.ErrDenied) || f.count(t, "workflow_instance") != 0 {
+		t.Fatalf("submission without the execution role: %v, workflows=%d", err, f.count(t, "workflow_instance"))
 	}
 	submitted, err := f.service.Submit(f.ctx, agentActionSubmission(draft))
 	if err != nil {

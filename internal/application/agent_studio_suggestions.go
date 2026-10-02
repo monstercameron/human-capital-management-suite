@@ -37,20 +37,24 @@ const (
 // AgentStudioSuggestionChange is inert model output. Reasons and uncertainty
 // are retained in the request/receipt so the reviewer can understand each
 // selected change; neither value grants authority.
+//
+// The JSON names are the wire contract of both the model output and the apply
+// request: the names the model is asked for, and the same snake_case every
+// other field of this surface uses.
 type AgentStudioSuggestionChange struct {
-	Field          AgentStudioSuggestionField
-	Value          string
-	ChannelClasses []agentpersona.ChannelClass
-	Reason         string
-	Uncertainty    float64
+	Field          AgentStudioSuggestionField  `json:"field"`
+	Value          string                      `json:"value,omitempty"`
+	ChannelClasses []agentpersona.ChannelClass `json:"channel_classes,omitempty"`
+	Reason         string                      `json:"reason"`
+	Uncertainty    float64                     `json:"uncertainty"`
 }
 
 // AgentStudioSuggestion is bound to the exact draft observed by the model.
 type AgentStudioSuggestion struct {
-	PersonaID string
-	Revision  uint64
-	Digest    string
-	Changes   []AgentStudioSuggestionChange
+	PersonaID string                        `json:"persona_id"`
+	Revision  uint64                        `json:"revision"`
+	Digest    string                        `json:"digest"`
+	Changes   []AgentStudioSuggestionChange `json:"changes"`
 }
 
 type AgentStudioDraftSnapshot struct {

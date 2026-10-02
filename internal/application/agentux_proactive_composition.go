@@ -41,7 +41,7 @@ func composeAgentAnnouncements(in personaRuntimeCompositionInput, cfg *PersonaIn
 	owner := AgentAnnouncementOwnerAuthority{Personas: in.AgentDatabase.personas, Authorizer: PersonaAdminCommandRoleAuthorizer{Roles: in.Cell.RoleAccess}, TenantUUID: work.tenantUUID, Now: work.now}
 	principals := AgentAnnouncementServicePrincipal{Agents: in.AgentDatabase.store, Personas: in.AgentDatabase.personas, Principals: GovernancePersonaPrincipalAuthority{DB: in.Pool, TenantUUID: work.tenantUUID}, TenantUUID: work.tenantUUID, Now: work.now}
 	docs := AgentAnnouncementReferenceResolver{Hub: in.Documents.store, Principals: principals}
-	authority := AgentAnnouncementHubAuthority{Store: in.Documents.store, Now: work.now}
+	authority := AgentAnnouncementHubAuthority{Store: in.Documents.store, Now: work.now, Classes: agentUX035Classes(in.ChatRuntime.store)}
 	floor := NewPersonaAudienceFloorAdapter(in.AudienceSnapshots, in.AudienceSnapshots.(PersonaAudienceFloorDisclosureAuthorizer), in.AudienceSnapshots.(PersonaAudienceFloorPolicy))
 	runtime := &AgentAnnouncementRuntime{Store: store, Agents: in.AgentDatabase.store, Work: work, Base: cfg.Run, Principals: principals, Documents: docs, Worker: output.worker, Persister: validator.persister, Chat: in.ChatRuntime.extensions.TodoStore, Audience: floor, Now: work.now, DocumentAuthority: authority}
 	preferences, err := agentstore.NewSupportInboxStore(in.AgentDatabase.store)

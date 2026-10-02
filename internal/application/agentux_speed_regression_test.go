@@ -282,10 +282,15 @@ func TestTodo_AGENTUX_SPEED_R10_PostCommitIsDetachedAndBounded(t *testing.T) {
 	}
 }
 
-type agentUXSpeedInstantModel struct{ calls int }
+type agentUXSpeedInstantModel struct {
+	calls int
+	// delay is how long each turn takes before it answers.
+	delay time.Duration
+}
 
 func (m *agentUXSpeedInstantModel) Execute(context.Context, AgentModelExecutorRequest) (AgentModelExecutorResult, error) {
 	m.calls++
+	time.Sleep(m.delay)
 	if m.calls == 1 {
 		return AgentModelExecutorResult{Result: agentmodel.ModelResult{ContractVersion: agentmodel.ContractVersion, Text: "I will search.", Finish: agentmodel.FinishToolCalls, ToolProposals: []agentmodel.ToolProposal{{ID: "search-1", Name: personaDocumentSearchTool, Arguments: []byte(`{"query":"leave"}`)}}}}, nil
 	}
@@ -330,6 +335,34 @@ func (agentUXSpeedReply) Deliver(context.Context, PersonaReplyDeliveryRequest) (
 }
 
 func TestTodo_AGENTUX_SPEED_Integration(t *testing.T) {
+	timedCtx, timing, run, elapsed, err, model, outputs := agentUXSpeedInstantRun(t)
+	agentUXSpeedEmit(timedCtx, err != nil)
+	if err != nil || run.State != runstate.StateCompleted || outputs != 1 || model.calls != 2 {
+		t.Fatalf("instant served-shape run = %s model=%d output=%d err=%v", run.State, model.calls, outputs, err)
+	}
+	if elapsed >= 10*time.Second {
+		t.Fatalf("instant model admission-to-delivery = %s, want <10s", elapsed)
+	}
+	timing.mu.Lock()
+	authorityCount := timing.events["authority.boundary_verify"].Count
+	stageCount := len(timing.stages)
+	timing.mu.Unlock()
+	t.Logf("hcmnext.persona_run_timing run_id=%s total_ms=%d authority_boundary_count=%d stages=%d", run.ID, elapsed.Milliseconds(), authorityCount, stageCount)
+}
+
+// agentUXSpeedInstantRun admits one mention on the real admission and run
+// stores and executes it with a model fixture that answers at once (one
+// document search, then the answer). It returns the timed context of the run,
+// what was measured, the run, how long it took, and how many model calls and
+// sealed outputs it made.
+func agentUXSpeedInstantRun(t *testing.T) (context.Context, *agentUXRunTiming, runstate.Run, time.Duration, error, *agentUXSpeedInstantModel, int) {
+	return agentUXSpeedRunWithModelDelay(t, 0)
+}
+
+// agentUXSpeedRunWithModelDelay is the same run with a model that takes delay
+// for each of its two turns (AGENTUX-028: the model's time is the test's to set).
+func agentUXSpeedRunWithModelDelay(t *testing.T, delay time.Duration) (context.Context, *agentUXRunTiming, runstate.Run, time.Duration, error, *agentUXSpeedInstantModel, int) {
+	t.Helper()
 	ctx := context.Background()
 	db := pgtest.NewEmpty(t)
 	if err := agentstore.Migrate(ctx, db.SQL); err != nil {
@@ -380,25 +413,13 @@ func TestTodo_AGENTUX_SPEED_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 	validator, _, _, persister, _ := personaRunOutputFixture(t)
-	model := &agentUXSpeedInstantModel{}
+	model := &agentUXSpeedInstantModel{delay: delay}
 	executor := &personaAdmittedRunExecutor{state: state, store: runStore, model: model, work: agentUXSpeedWork{t: t}, tools: agentUXSpeedTools{}, output: validator, reply: agentUXSpeedReply{}, workerID: "speed-worker", leaseTTL: time.Minute, now: func() time.Time { return now }}
 	principal := foregroundPrincipal(t, now.Add(-time.Minute), now.Add(time.Hour), request.Purpose, "alice", "tenant-a")
 	timedCtx, timing := withAgentUXRunTiming(trust.WithPrincipal(ctx, principal))
 	started := time.Now()
 	run, err := executor.Start(timedCtx, admission)
-	elapsed := time.Since(started)
-	agentUXSpeedEmit(timedCtx, err != nil)
-	if err != nil || run.State != runstate.StateCompleted || persister.calls != 1 || model.calls != 2 {
-		t.Fatalf("instant served-shape run = %s model=%d output=%d err=%v", run.State, model.calls, persister.calls, err)
-	}
-	if elapsed >= 10*time.Second {
-		t.Fatalf("instant model admission-to-delivery = %s, want <10s", elapsed)
-	}
-	timing.mu.Lock()
-	authorityCount := timing.events["authority.boundary_verify"].Count
-	stageCount := len(timing.stages)
-	timing.mu.Unlock()
-	t.Logf("hcmnext.persona_run_timing run_id=%s total_ms=%d authority_boundary_count=%d stages=%d", run.ID, elapsed.Milliseconds(), authorityCount, stageCount)
+	return timedCtx, timing, run, time.Since(started), err, model, persister.calls
 }
 
 var _ agentinvoke.RunStarter = (*agentUXSpeedBlockingRun)(nil)

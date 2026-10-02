@@ -122,8 +122,37 @@ func (v agentWorkflowSignalVerifier) Verify(signal stepSignal.Signal) error {
 	expected := v.expected
 	if signal.Tenant != expected.Tenant || signal.Source != expected.Source || signal.EventType != expected.EventType ||
 		signal.SchemaRef != expected.SchemaRef || signal.CorrelationKey != expected.CorrelationKey || signal.CorrelationValue != expected.CorrelationValue ||
-		signal.IdempotencyKey != expected.IdempotencyKey || !bytes.Equal(signal.Payload, expected.Payload) {
+		signal.IdempotencyKey != expected.IdempotencyKey || !agentWorkflowSamePayload(signal.Payload, expected.Payload) {
 		return errors.New("agent workflow: signal is not derived from durable completion")
 	}
 	return nil
+}
+
+// agentWorkflowSamePayload compares two completion payloads as JSON values.
+// A first delivery is verified against the bytes just derived. A retry is
+// verified against the stored signal, and the signal store keeps the payload
+// as jsonb: PostgreSQL returns the same value with its own key order and
+// spacing, so a byte comparison refused every retry. The store has already
+// refused a retry whose bytes differ from the first (by payload digest); what
+// this check owns is that the stored value is the one the durable completion
+// derives now.
+func agentWorkflowSamePayload(got, want []byte) bool {
+	if bytes.Equal(got, want) {
+		return true
+	}
+	canonical := func(raw []byte) ([]byte, bool) {
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.UseNumber()
+		var value any
+		if decoder.Decode(&value) != nil || decoder.More() {
+			return nil, false
+		}
+		// Marshal writes object keys in sorted order, which makes the encoding
+		// independent of the order either side used.
+		encoded, err := json.Marshal(value)
+		return encoded, err == nil
+	}
+	a, okA := canonical(got)
+	b, okB := canonical(want)
+	return okA && okB && bytes.Equal(a, b)
 }

@@ -116,6 +116,60 @@ func (s *ChattoneService) WritingStylesEnabled(ctx context.Context) bool {
 	return enabled
 }
 
+// Reasons the writing-style controls are not offered, as the features answer
+// states them. The page turns each into a plain sentence.
+const (
+	ChattoneNoteNotQualified = "not_qualified"
+	ChattoneNoteWorkspaceOff = "workspace_off"
+	ChattoneNoteUnavailable  = "unavailable"
+)
+
+// ChattoneNotProvisioned is the service a deployment gets when no model has
+// passed the writing-style qualification run. It offers nothing and answers the
+// features read with the reason, so the composer says why the controls are not
+// there instead of silently having none. Why is for logs and is never sent to
+// a member.
+func ChattoneNotProvisioned(why string) *ChattoneService {
+	return &ChattoneService{Unprovisioned: why}
+}
+
+// WritingStylesNote is the reason WritingStylesEnabled is false for the caller,
+// or "" when the controls are on.
+func (s *ChattoneService) WritingStylesNote(ctx context.Context) string {
+	if s == nil || s.Unprovisioned != "" || s.Rewrite == nil || s.Rewrite.Registry == nil {
+		return ChattoneNoteNotQualified
+	}
+	if s.WritingStylesEnabled(ctx) {
+		return ""
+	}
+	p, ok := trust.FromContext(ctx)
+	if !ok || p == nil || p.SubjectKind() != trust.SubjectKindHuman {
+		return ChattoneNoteUnavailable
+	}
+	if ready, ok := s.Rewrite.Model.(interface{ Ready() bool }); ok && !ready.Ready() {
+		return ChattoneNoteNotQualified
+	}
+	if _, enabled := s.Rewrite.Registry.Styles(p.Tenant().String()); !enabled {
+		return ChattoneNoteWorkspaceOff
+	}
+	return ChattoneNoteUnavailable
+}
+
+// chattoneFeatureNote is the features endpoint's reason the controls are off:
+// "" when they are on, and "" when no service exists at all (the composition
+// root puts ChattoneNotProvisioned there when it has a reason to give).
+func chattoneFeatureNote(ctx context.Context, surface ChattoneSurface) string {
+	if isNilPersonaOutputPort(surface) {
+		return ""
+	}
+	if noted, ok := surface.(interface {
+		WritingStylesNote(context.Context) string
+	}); ok {
+		return noted.WritingStylesNote(ctx)
+	}
+	return ""
+}
+
 // chattoneFeatureOn is the features endpoint's answer for the writing-style
 // controls. A surface that can answer per workspace (ChattoneService) does; any
 // other composed surface is simply on.

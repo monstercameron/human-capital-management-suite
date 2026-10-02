@@ -29,17 +29,41 @@ type ChattoneGatewayModel struct {
 func ChattoneTaskProfile() agentmodel.TaskProfile {
 	return agentmodel.TaskProfile{ID: chatrewrite.TaskProfileID, MaxLatency: 3 * time.Second, MaxCostMicros: 20000, DataClasses: []string{string(dlp.ClassPublic), string(dlp.ClassInternal)}, SemanticsDigest: "chat-writing-style-preservation-v1"}
 }
+
+// Rewrite returns only the text of a rewrite whose model verdict kept the
+// meaning; a rewrite the model itself disowns is a preservation failure.
 func (m ChattoneGatewayModel) Rewrite(ctx context.Context, prompt chatrewrite.Prompt) (string, error) {
-	if m.Gateway == nil || m.Binding == nil || !prompt.Identity.Valid() || prompt.TaskProfile != chatrewrite.TaskProfileID {
-		return "", chatrewrite.ErrUnavailable
-	}
-	req, err := m.Binding.BindWritingStyle(ctx, prompt.Identity, ChattoneTaskProfile())
+	checked, err := m.RewriteChecked(ctx, prompt)
 	if err != nil {
 		return "", err
 	}
-	if req.TenantID != prompt.Identity.Tenant || req.Dispatch.Outbound.Tenant != prompt.Identity.Tenant || req.Dispatch.Outbound.Principal != prompt.Identity.Person || req.Route.Task.ID != chatrewrite.TaskProfileID || req.Route.Pin.TaskProfileID != chatrewrite.TaskProfileID {
-		return "", chatrewrite.ErrUnavailable
+	if !checked.MeaningPreserved {
+		return "", chatrewrite.ErrPreservation
 	}
+	return checked.Text, nil
+}
+
+// RewriteChecked is the one structured tone-rewrite call: the model returns the
+// rewritten text and its verdict on whether the meaning survived, in the typed
+// result agentmodel.ChattoneRewrite. The service reads the verdict first.
+func (m ChattoneGatewayModel) RewriteChecked(ctx context.Context, prompt chatrewrite.Prompt) (chatrewrite.Checked, error) {
+	if m.Gateway == nil || m.Binding == nil || !prompt.Identity.Valid() || prompt.TaskProfile != chatrewrite.TaskProfileID {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
+	}
+	req, err := m.Binding.BindWritingStyle(ctx, prompt.Identity, ChattoneTaskProfile())
+	if err != nil {
+		return chatrewrite.Checked{}, err
+	}
+	if req.TenantID != prompt.Identity.Tenant || req.Dispatch.Outbound.Tenant != prompt.Identity.Tenant || req.Dispatch.Outbound.Principal != prompt.Identity.Person || req.Route.Task.ID != chatrewrite.TaskProfileID || req.Route.Pin.TaskProfileID != chatrewrite.TaskProfileID {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
+	}
+	// The typed result is the call's contract whatever the binding built.
+	output, err := agentmodel.ChattoneRewriteOutput()
+	if err != nil {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
+	}
+	req.Dispatch.Model.Output = output
+	req.Dispatch.Model.RequiredFeatures = []agentmodel.ModelFeature{agentmodel.FeatureStructuredJSON}
 	req.Dispatch.Model.TaskProfile = chatrewrite.TaskProfileID
 	req.Dispatch.Model.Messages = []agentmodel.ModelMessage{{Role: agentmodel.RoleSystem, Content: prompt.Instruction}, {Role: agentmodel.RoleUser, Content: prompt.Data}}
 	req.Dispatch.Model.Tools = nil
@@ -60,12 +84,15 @@ func (m ChattoneGatewayModel) Rewrite(ctx context.Context, prompt chatrewrite.Pr
 		// A spent per-person, per-tenant or per-platform budget is the writer's
 		// plain "limit", not an outage.
 		if errors.Is(err, agentbudget.ErrPaused) {
-			return "", chatrewrite.ErrLimit
+			return chatrewrite.Checked{}, chatrewrite.ErrLimit
 		}
-		return "", err
+		return chatrewrite.Checked{}, err
 	}
-	if result.Dispatch.Model.Refusal != nil || result.Dispatch.Model.Failure != nil || result.Dispatch.Model.Finish != agentmodel.FinishComplete || len(result.Dispatch.Model.ToolProposals) != 0 || len(result.Dispatch.Model.RequestedActions) != 0 {
-		return "", chatrewrite.ErrUnavailable
+	rewrite, err := agentmodel.DecodeChattoneRewrite(result.Dispatch.Model)
+	if err != nil {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
 	}
-	return result.Dispatch.Model.Text, nil
+	return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
 }
+
+var _ chatrewrite.CheckedModel = ChattoneGatewayModel{}

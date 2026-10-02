@@ -94,6 +94,13 @@ func formatAgentDemoSummary(summary application.LocalAgentDemoSummary) string {
 		}
 		receipt += fmt.Sprintf(" %s v%d: %s; private offers=%d public offers=%d.", name, agent.Version, agent.State, agent.PrivateOffers, agent.PublicOffers)
 	}
+	// A starter this run did not prepare is named with the reason, so the
+	// receipt never reads as if the demo workspace had all of them.
+	for _, starter := range summary.Starters {
+		if starter.State != "PREPARED" {
+			receipt += fmt.Sprintf(" %s: not prepared (%s).", starter.Name, starter.Reason)
+		}
+	}
 	index := summary.WorkspaceIndex
 	if index.Unavailable != "" {
 		return receipt + formatWorkspaceAccess(index) + " Warning: " + index.Unavailable

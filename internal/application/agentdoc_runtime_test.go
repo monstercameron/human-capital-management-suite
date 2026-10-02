@@ -111,6 +111,19 @@ func TestTodo_AGENTDOC_003(t *testing.T) {
 	if fake.lastInvoker != (agentdocref.Invoker{TenantID: "tenant-a", SubjectID: "alice"}) || fake.latestCalls != 1 || fake.pinnedCalls != 1 {
 		t.Fatalf("resolver used wrong principal or mode: %+v latest=%d pinned=%d", fake.lastInvoker, fake.latestCalls, fake.pinnedCalls)
 	}
+	// A document the invoker may read but which has no published version, and
+	// a pin to a version that was never published, are left out and named in
+	// the omission report; the readable reference beside them still resolves.
+	fake.readable["alice\x00"+agentDocumentIDSecret] = true
+	resolved, omitted, err = resolver.Resolve(context.Background(), agentdocref.Invoker{TenantID: "tenant-a", SubjectID: "alice"}, []agentdocref.Reference{
+		{DocumentID: agentDocumentIDSecret, VersionMode: agentdocref.ModeLatestPublished, Label: "Draft plan"},
+		{DocumentID: agentDocumentIDPolicy, VersionMode: agentdocref.ModePinned, PinnedVersion: 7, Label: "Future policy"},
+		{DocumentID: agentDocumentIDHandbook, VersionMode: agentdocref.ModeLatestPublished, Label: "Handbook"},
+	})
+	if err != nil || len(resolved) != 1 || resolved[0].Reference.Label != "Handbook" || len(omitted) != 2 ||
+		omitted[0] != (agentdocref.Omission{Label: "Draft plan", Reason: agentdocref.NotPublished}) || omitted[1] != (agentdocref.Omission{Label: "Future policy", Reason: agentdocref.NotPublished}) {
+		t.Fatalf("unpublished references: resolved=%+v omitted=%+v err=%v", resolved, omitted, err)
+	}
 }
 
 func TestTodo_AGENTDOC_003_Golden(t *testing.T) {
@@ -127,7 +140,9 @@ func TestTodo_AGENTDOC_003_Golden(t *testing.T) {
 		t.Fatalf("citation reference=%+v", refs)
 	}
 	rendered := renderPersonaReplyWithAgentDocuments("Employees receive leave.", "tenant-a", "room-a", PersonaReplyOutputPolicy{TenantOrigin: "https://tenant.example"}, documents, nil)
-	if !strings.Contains(rendered, "[Leave Policy (version 4, section leave)](https://tenant.example/workspace/app/docs?document=policy-1#leave)") {
+	// The answer's source line names the title, the section and the semantic
+	// version label, and links to that section in the hub.
+	if rendered != "Employees receive leave.\n\nSources\n- [Leave Policy · leave · v4.0.0](https://tenant.example/workspace/app/docs?document=policy-1#leave)" {
 		t.Fatalf("hub citation not rendered: %q", rendered)
 	}
 }

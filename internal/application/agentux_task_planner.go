@@ -9,8 +9,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
 )
 
-// AgentTaskPlanningOutput is retained for stable planner output while the
-// starter's fixed, reviewed plan is assembled below.
+// AgentTaskPlanningOutput is the planner's declaration of the data a request
+// needs. The plan below is assembled from it, so a request that needs no data
+// gets no read step.
 type AgentTaskPlanningOutput struct {
 	NeedsOwnRecord bool `json:"needs_own_record"`
 }
@@ -43,12 +44,19 @@ func (deterministicAgentTaskPlanner) PlanAgentTask(_ context.Context, prompt str
 	return AgentTaskPlanningOutput{}, nil
 }
 
+// agentTaskPlanSteps builds the reviewed plan from the declared data needs:
+// the answer step always, and the read of the user's own worker record only
+// when the request needs it. A general question therefore causes no personnel
+// record read and shows the user no "looked up your record" step.
 func agentTaskPlanSteps(output AgentTaskPlanningOutput) []agentrun.PlanStep {
-	_ = output
+	answer := agentrun.PlanStep{ID: agentSummaryStepID, Type: agentrun.StepAnalyze, SkillID: agentSummarizeSkillID, SkillVersion: agentSkillVersion,
+		ExpectedOutput: "a short private answer to the request", Tier: agentrun.TierPrivateDraft}
+	if !output.NeedsOwnRecord {
+		return []agentrun.PlanStep{answer}
+	}
 	return []agentrun.PlanStep{
 		{ID: agentReadStepID, Type: agentrun.StepRead, SkillID: agentReadSkillID, SkillVersion: agentSkillVersion,
 			ExpectedOutput: "the signed-in user's own worker record", Tier: agentrun.TierRead},
-		{ID: agentSummaryStepID, Type: agentrun.StepAnalyze, SkillID: agentSummarizeSkillID, SkillVersion: agentSkillVersion,
-			ExpectedOutput: "a short private answer to the request", Tier: agentrun.TierPrivateDraft},
+		answer,
 	}
 }

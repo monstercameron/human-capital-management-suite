@@ -29,6 +29,23 @@ type personaSurfaceChatFixture struct {
 	posts   []chat.Post
 	sends   []chat.SendPostRequest
 	err     error
+	// reattempts are the questions asked again (CHATBUG-047): no post is sent.
+	reattempts []personaSurfaceReattempt
+	// onReattempt, when set, stands for the admission that follows.
+	onReattempt func(post chat.Post, attempt int)
+}
+
+type personaSurfaceReattempt struct {
+	post    chat.Post
+	attempt int
+}
+
+func (s *personaSurfaceChatFixture) ReattemptPersonaQuestion(_ context.Context, post chat.Post, attempt int) error {
+	s.reattempts = append(s.reattempts, personaSurfaceReattempt{post: post, attempt: attempt})
+	if s.onReattempt != nil {
+		s.onReattempt(post, attempt)
+	}
+	return s.err
 }
 
 func (s *personaSurfaceChatFixture) GetConversation(context.Context, chat.GetConversationRequest) (chat.Conversation, error) {
@@ -203,8 +220,10 @@ func TestTodo_AGENTP_020_SurfaceProgressOwnershipFailureAndFreshRetry(t *testing
 		t.Fatalf("failure=%+v %v", progress, err)
 	}
 	result, err := s.Retry(ctx, "invocation-a", "unique-click")
-	if err != nil || result.PostID != "fresh-post" || len(room.sends) != 1 || room.sends[0].Principal.SubjectID != "user-a" || room.sends[0].ParentID != "post-a" || len(room.sends[0].References) != 1 || room.sends[0].References[0].Kind != chat.AgentMention {
-		t.Fatalf("retry=%+v %v sends=%+v", result, err, room.sends)
+	// CHATBUG-047: the question that stands is asked again as attempt one; no
+	// message is posted.
+	if err != nil || result.PostID != "post-a" || len(room.sends) != 0 || len(room.reattempts) != 1 || room.reattempts[0].post.ID != "post-a" || room.reattempts[0].attempt != 1 {
+		t.Fatalf("retry=%+v %v sends=%+v reattempts=%+v", result, err, room.sends, room.reattempts)
 	}
 	execution.run.State = runstate.StateCompleted
 	if _, err = s.Retry(ctx, "invocation-a", "unique-click"); !errors.Is(err, personachat.ErrConflict) {

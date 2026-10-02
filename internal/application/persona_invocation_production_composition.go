@@ -28,6 +28,17 @@ type PersonaInvocationProductionConfig struct {
 	Grants     agentinvoke.GrantIssuer
 	T0Skills   personaT0SkillPolicy
 	Failures   personaInvocationFailureSink
+	// Limits is the mention admission (rate, concurrency and daily spend).
+	// The served composition binds it to the agent database; a runtime
+	// without it is refused, so no served mention runs unmetered.
+	Limits *PersonaMentionLimits
+	// Conversations reads the conversation and its members so a question in a
+	// person's own conversation with an agent is recognized (AGENTUX-075).
+	Conversations personaDirectConversationReader
+	// Reactions puts the agent's reaction on the question it answers.
+	Reactions personaQuestionReactor
+	// Steps is the board the runs report their step on (AGENTUX-075).
+	Steps *personaRunStepBoard
 
 	Run                PersonaRunStarterConfig
 	Fence              PersonaRunSecurityFence
@@ -58,6 +69,9 @@ func NewDatabasePersonaInvocationProductionRuntime(cfg PersonaInvocationProducti
 		cfg.Run.Now == nil || strings.TrimSpace(cfg.Run.WorkerID) == "" || isNilPersonaOutputPort(cfg.Fence) || isNilPersonaOutputPort(cfg.Leases) {
 		return nil, errPersonaInvocationProductionComposition
 	}
+	if err := cfg.Limits.validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", errPersonaInvocationProductionComposition, err)
+	}
 	invocations, err := agentinvocationstore.NewWithTenantUUID(cfg.AgentStore, func(tenant string) uuid.UUID { return cfg.TenantUUID(values.TenantId(tenant)) })
 	if err != nil {
 		return nil, fmt.Errorf("%w: durable invocation repository: %v", errPersonaInvocationProductionComposition, err)
@@ -81,7 +95,8 @@ func NewDatabasePersonaInvocationProductionRuntime(cfg PersonaInvocationProducti
 	}
 	chat, err := newPersonaChatInvocation(personaChatInvocationConfig{
 		Chat: cfg.Chat, References: cfg.References, Authority: cfg.Authority, Grants: cfg.Grants,
-		Runs: worker, T0Skills: cfg.T0Skills, Repository: invocations, Failures: cfg.Failures,
+		Runs: worker, T0Skills: cfg.T0Skills, Repository: invocations, Failures: cfg.Failures, Limits: cfg.Limits,
+		Conversations: cfg.Conversations, Reactions: cfg.Reactions, Steps: cfg.Steps,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: post-commit invocation: %v", errPersonaInvocationProductionComposition, err)

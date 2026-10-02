@@ -13,7 +13,15 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-func TestTodo_AGENT2_027_Integration_CurrentPopulationUsesEffectiveRevisionAndRevocation(t *testing.T) {
+// TestTodo_AGENT2_027_Integration reads the population relation through the
+// runtime role on a real PostgreSQL schema: the effective revision wins, a
+// revocation takes effect on the next read, and the evidence cannot be rewritten.
+func TestTodo_AGENT2_027_Integration(t *testing.T) {
+	t.Run("effective revision and revocation", currentPopulationUsesEffectiveRevisionAndRevocation)
+	t.Run("revision evidence cannot be rewritten", currentPopulationRevisionEvidenceCannotBeRewritten)
+}
+
+func currentPopulationUsesEffectiveRevisionAndRevocation(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()
 	tenantKey := values.TenantId("population-tenant")
@@ -33,7 +41,9 @@ func TestTodo_AGENT2_027_Integration_CurrentPopulationUsesEffectiveRevisionAndRe
 	}
 }
 
-func TestTodo_AGENT2_027_Security_CurrentPopulationRLSAndSubjectScope(t *testing.T) {
+// TestTodo_AGENT2_027_Security proves tenant isolation and exact subject scope
+// for the population relation as the runtime role sees it.
+func TestTodo_AGENT2_027_Security(t *testing.T) {
 	db := pgtest.New(t)
 	tenantA, tenantB := uuid.New(), uuid.New()
 	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,'population-a','cell-local','a','ACTIVE',timestamptz '2026-01-01T00:00:00Z'),($2,'population-b','cell-local','b','ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantA, tenantB)
@@ -53,9 +63,29 @@ func TestTodo_AGENT2_027_Security_CurrentPopulationRLSAndSubjectScope(t *testing
 	if err != nil || got != "tenant-a-pop" {
 		t.Fatalf("repeated tenant A CurrentPopulation = %q, %v", got, err)
 	}
+	// The reader's own tenant filter would hide tenant B even without row-level
+	// security, so count the rows a tenant-A transaction can see with no filter.
+	tx, err := app.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tenancy.WithTenant(context.Background(), tx, tenantA); err != nil {
+		t.Fatal(err)
+	}
+	var visible int
+	scanErr := tx.QueryRow(context.Background(), `SELECT count(*) FROM agent_current_population`).Scan(&visible)
+	_ = tx.Rollback(context.Background())
+	if scanErr != nil || visible != 1 {
+		t.Fatalf("rows visible to tenant A = %d, %v; want only its own row", visible, scanErr)
+	}
+	// A reader with no tenant mapping must refuse instead of reading unscoped.
+	unmapped := NewAgentDirectoryDB(app, func(values.TenantId) uuid.UUID { return uuid.Nil })
+	if _, err := unmapped.CurrentPopulation(context.Background(), values.TenantId("population-a"), "human-1"); !errors.Is(err, ErrAgentDirectoryUnavailable) {
+		t.Fatalf("unmapped tenant error = %v, want ErrAgentDirectoryUnavailable", err)
+	}
 }
 
-func TestTodo_AGENT2_027_Integration_CurrentPopulationRevisionEvidenceCannotBeRewritten(t *testing.T) {
+func currentPopulationRevisionEvidenceCannotBeRewritten(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()
 	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,'guard-tenant','cell-local','guard','ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantID)
@@ -70,7 +100,9 @@ func TestTodo_AGENT2_027_Integration_CurrentPopulationRevisionEvidenceCannotBeRe
 	db.Exec(t, `UPDATE agent_current_population SET superseded_at=CURRENT_TIMESTAMP,superseded_by=$2 WHERE tenant_id=$1 AND membership_id=$3`, tenantID, uuid.New(), membershipID)
 }
 
-func TestTodo_AGENT2_027_Race_CurrentPopulationTenantTransactionsStayIsolated(t *testing.T) {
+// TestTodo_AGENT2_027_Race runs two tenants' readers at the same time on their
+// own connections; each must keep seeing only its own tenant's population.
+func TestTodo_AGENT2_027_Race(t *testing.T) {
 	db := pgtest.New(t)
 	tenantA, tenantB := uuid.New(), uuid.New()
 	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,'race-a','cell-local','a','ACTIVE',timestamptz '2026-01-01T00:00:00Z'),($2,'race-b','cell-local','b','ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantA, tenantB)

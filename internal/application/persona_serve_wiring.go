@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/agentinvocationstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentskillgrantstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
@@ -89,6 +90,11 @@ type personaServeWiring struct {
 	adminFactory      interface {
 		ClientForRequest(context.Context) productui.PersonaAdminClient
 	}
+	// reactions stores the owner's choice about an agent's reactions (AGENTUX-075).
+	reactions personaReactionSettingWriter
+	// steps is what each run in flight is doing now, shared by the run and the
+	// progress read (AGENTUX-075).
+	steps *personaRunStepBoard
 }
 
 // composePersonaServeWiring builds production persona sources. Incomplete
@@ -159,7 +165,7 @@ func composePersonaServeWiring(pool *pgxadapter.Pool, cell *app.Cell, personas *
 	if err != nil {
 		return nil, personaServeWiringError{stage: "effective_grant_gate", err: err}
 	}
-	adminTargets := &ChatDirectoryPersonaCatalogTargets{Directory: catalogDirectory, Roles: agentDirectory, RoleNames: cell.RoleAccess}
+	adminTargets := &ChatDirectoryPersonaCatalogTargets{Directory: catalogDirectory, Roles: agentDirectory, RoleNames: cell.RoleAccess, Agents: personaInstallationStore{store: personas}}
 	adminGrants := &CurrentPersonaCatalogGrants{Evaluator: gate, Context: current, Skills: skills, Purpose: "persona_admin_preview", Now: now}
 	available := &TenantAvailablePersonaReader{
 		Backend:  &AgentPersonaStoreBackend{Store: personas},
@@ -181,6 +187,7 @@ func composePersonaServeWiring(pool *pgxadapter.Pool, cell *app.Cell, personas *
 		roles:             cell.RoleAccess,
 		adminTargets:      adminTargets,
 		adminGrants:       adminGrants,
+		steps:             newPersonaRunStepBoard(now),
 	}, nil
 }
 
@@ -237,6 +244,11 @@ func (w *personaServeWiring) bindAdminCommands(agentDB *agentstore.Store, review
 		return errPersonaServeWiring
 	}
 	tenantUUID := tenantKeyMapper[values.TenantId](pgstore.TenantID)
+	var reactionReader personaReactionSettingReader
+	if settings, settingsErr := agentinvocationstore.NewWithTenantUUID(agentDB, pgstore.TenantID); settingsErr == nil {
+		store := personaReactionSettingStore{store: settings}
+		w.reactions, reactionReader = store, store
+	}
 	sources, err := NewDatabasePersonaAdminValidationSources(agentDB, agentDB, w.adminSkills, w.adminGrantStore, tenantUUID)
 	if err != nil {
 		return personaServeWiringError{stage: "admin_validation_sources", err: err}
@@ -248,7 +260,7 @@ func (w *personaServeWiring) bindAdminCommands(agentDB *agentstore.Store, review
 	client, err := NewPersonaAdminCatalogClient(PersonaAdminCatalogComposition{
 		Store: personaAdminCatalogStoreAdapter{store: w.store}, Skills: w.adminSkills,
 		Targets: w.adminTargets, Grants: w.adminGrants,
-		Authorizer: TrustedPersonaCatalogAuthorizer{Roles: w.roles}, Starters: starterSource,
+		Authorizer: TrustedPersonaCatalogAuthorizer{Roles: w.roles}, Starters: starterSource, Reactions: reactionReader,
 	})
 	if err != nil {
 		return personaServeWiringError{stage: "admin_catalog_starters", err: err}
@@ -297,6 +309,7 @@ func (w *personaServeWiring) bindAgents(tasks productui.AgentClient) productui.A
 	if err != nil {
 		return tasks
 	}
+	bound.Icons = AgentIconProjection{Store: w.store}
 	return bound
 }
 

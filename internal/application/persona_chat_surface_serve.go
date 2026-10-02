@@ -33,7 +33,7 @@ func (w *personaServeWiring) chatSurface(service chat.ConversationService, db *a
 	if err != nil {
 		return nil, err
 	}
-	return &PersonaChatSurface{Chat: service, References: w.refs, Personas: w.avail, Skills: w.skill, Invocations: invocations, Failures: invocations, Receipts: invocations, Authors: announcementAuthorsFor(w.store), Executions: func(_ context.Context, tenant string) (runstate.Store, error) { return executions.ForTenant(tenant) },
+	return &PersonaChatSurface{memory: &personaSurfaceMemory{}, Chat: service, References: w.refs, Personas: w.avail, Skills: w.skill, Invocations: invocations, Failures: invocations, Receipts: invocations, Authors: announcementAuthorsFor(w.store), Steps: w.steps, Executions: func(_ context.Context, tenant string) (runstate.Store, error) { return executions.ForTenant(tenant) },
 		ChannelAlwaysPrivate: func(ctx context.Context, tenant string, facts personaReferenceFacts) (bool, error) {
 			if w.store == nil {
 				return false, personachat.ErrUnavailable

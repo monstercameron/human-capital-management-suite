@@ -132,7 +132,7 @@ func (h ChatSearchHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	for _, failure := range response.Failures {
 		chatsearchLogCause("hcmnext.chat_search_source_unavailable", failure.Err, "source", string(failure.Kind))
 	}
-	if h.History != nil {
+	if h.History != nil && !request.Transient {
 		display := request.DisplayQuery
 		if display == "" {
 			display = request.Query

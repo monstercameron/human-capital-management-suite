@@ -9,7 +9,7 @@ import (
 
 func TestTodo_AGENTUX_005_Browser(t *testing.T) {
 	line := formatAgentDemoSummary(application.LocalAgentDemoSummary{DisplayName: "Policy Helper", Version: 4, State: "PUBLISHED", AssistantVersion: 1, AssistantState: "PUBLISHED"})
-	if line != "Policy Helper v4: PUBLISHED. Assistant v1: PUBLISHED. already prepared; no changes. Documents: Paid time off policy; 2026 holiday guide." {
+	if line != "Policy Helper v4: PUBLISHED. Assistant v1: PUBLISHED. already prepared; no changes. Documents: Paid time off policy; 2026 holiday guide. Agent icons set: 0." {
 		t.Fatalf("idempotent human summary=%q", line)
 	}
 	if strings.Contains(line, "hcmnext.local") || strings.Contains(line, "AGENTUX") {

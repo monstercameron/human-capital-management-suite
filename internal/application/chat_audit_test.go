@@ -40,11 +40,29 @@ func (a auditConversation) SendPost(_ context.Context, r chatcore.SendPostReques
 	}
 	return chatcore.Post{ID: "post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.Principal.SubjectID, Revision: 1}, nil
 }
-func (a auditConversation) CommitPersonaReply(_ context.Context, r chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
+func (a auditConversation) CommitPersonaReply(ctx context.Context, r chatcore.PersonaReplyCommitRequest) (chatcore.Post, error) {
 	if a.fail {
 		return chatcore.Post{}, chatcore.ErrPermissionDenied
 	}
+	// The store rechecks the channel's status inside its commit; the fake does
+	// the same so a decorator that drops the check from the context is caught.
+	if err := chatcore.RecheckChannelMutation(ctx); err != nil {
+		return chatcore.Post{}, err
+	}
 	return chatcore.Post{ID: "persona-post", TenantID: r.TenantID, ConversationID: r.ConversationID, AuthorID: r.AuthorID, Revision: 1}, nil
+}
+
+// personaReplyStatus is the channel status port the routed service needs before
+// it will commit a persona reply: without one the write fails closed.
+type personaReplyStatus struct {
+	chatcore.ChannelStatusService
+	calls int
+	err   error
+}
+
+func (s *personaReplyStatus) CheckPersonaReplyChannelStatus(context.Context, chatcore.PersonaReplyCommitRequest) error {
+	s.calls++
+	return s.err
 }
 func (a auditConversation) ReadAuthorizedReference(_ context.Context, p chatcore.Principal, tenant, conversation, postID string) (chatcore.Conversation, *chatcore.Post, error) {
 	room := chatcore.Conversation{ID: conversation, TenantID: tenant, OwnerID: p.SubjectID, Revision: 1}
@@ -77,7 +95,8 @@ func TestPersonaReplyTraversesAuditedRoutedDecoratorStack(t *testing.T) {
 		atomicCore:          true,
 	}
 	directory := chatrouting.NewMemoryDirectory()
-	routed, err := chatroutingadapter.New(audited, chatroutingadapter.Options{Directory: directory, DefaultShard: "s1"})
+	status := &personaReplyStatus{}
+	routed, err := chatroutingadapter.New(audited, chatroutingadapter.Options{ChannelStatus: status, Directory: directory, DefaultShard: "s1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,9 +107,24 @@ func TestPersonaReplyTraversesAuditedRoutedDecoratorStack(t *testing.T) {
 	if _, err = directory.Activate(context.Background(), "persona-room", "tenant", route.Epoch); err != nil {
 		t.Fatal(err)
 	}
-	post, err := routed.CommitPersonaReply(context.Background(), chatcore.PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "persona-room", AuthorID: "persona", AuthorHomeTenantID: "tenant", Body: "answer", IdempotencyKey: "reply-1", ExpectedAudienceRevision: 1})
-	if err != nil || post.ID != "persona-post" {
-		t.Fatalf("post=%+v err=%v", post, err)
+	reply := chatcore.PersonaReplyCommitRequest{TenantID: "tenant", ConversationID: "persona-room", AuthorID: "persona", AuthorHomeTenantID: "tenant", Body: "answer", IdempotencyKey: "reply-1", ExpectedAudienceRevision: 1}
+	post, err := routed.CommitPersonaReply(context.Background(), reply)
+	if err != nil || post.ID != "persona-post" || status.calls != 1 {
+		t.Fatalf("post=%+v err=%v status checks=%d", post, err, status.calls)
+	}
+	// A channel whose status refuses the reply stops the commit below the audit
+	// decorator, and the refusal reaches the caller unchanged.
+	status.err = chatcore.ErrChannelStatus
+	if post, err = routed.CommitPersonaReply(context.Background(), reply); !errors.Is(err, chatcore.ErrChannelStatus) || post.ID != "" || status.calls != 2 {
+		t.Fatalf("refused channel: post=%+v err=%v status checks=%d", post, err, status.calls)
+	}
+	// Without a status port the routed service refuses rather than commit unchecked.
+	unchecked, err := chatroutingadapter.New(audited, chatroutingadapter.Options{Directory: directory, DefaultShard: "s1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = unchecked.CommitPersonaReply(context.Background(), reply); !errors.Is(err, chatcore.ErrUnavailable) {
+		t.Fatalf("persona reply without a status port = %v, want unavailable", err)
 	}
 }
 

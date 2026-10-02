@@ -83,7 +83,12 @@ func (s *ChatExtensions) PutSidebar(ctx context.Context, p chat.Principal, x cha
 	if s == nil || s.Recipients == nil {
 		return chatrecipient.Sidebar{}, chat.ErrUnavailable
 	}
-	return s.Recipients.PutSidebar(ctx, p, x, expected)
+	saved, err := s.Recipients.PutSidebar(ctx, p, x, expected)
+	if err == nil {
+		// CHATSIDE-001: the person's other tabs read the layout again at once.
+		s.Admission.PublishSidebarChanged(ctx, p, saved.Revision)
+	}
+	return saved, err
 }
 func (s *ChatExtensions) QuietHours(ctx context.Context, p chat.Principal) (chatrecipient.QuietHours, error) {
 	if s == nil || s.Recipients == nil {

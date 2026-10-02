@@ -109,8 +109,11 @@ func TestTodo_AGENTP_023_LocalDevStarterManifestsAreDurableAndIdempotent(t *test
 	if err := ProvisionLocalDevPersonaStarterManifests(ctx, store, tenant, personaStarterProvisionSkillsFake{}, refs); err != nil {
 		t.Fatalf("first provision: %v", err)
 	}
-	if len(store.manifests) != 4 || len(store.contents) != 4 || store.saves != 4 {
-		t.Fatalf("provisioned manifests=%d instructions=%d saves=%d", len(store.manifests), len(store.contents), store.saves)
+	// One manifest and one instruction text per shipped starter: the four
+	// AGENTP-023 templates and any starter added to the catalog since.
+	want := len(agenttemplate.PersonaStarters())
+	if want < 4 || len(store.manifests) != want || len(store.contents) != want || store.saves != want {
+		t.Fatalf("provisioned manifests=%d instructions=%d saves=%d, want %d", len(store.manifests), len(store.contents), store.saves, want)
 	}
 	for _, starter := range agenttemplate.PersonaStarters() {
 		id := "agent.starter." + personaStarterProvisionSlug(starter.ID)
@@ -142,8 +145,8 @@ func TestTodo_AGENTP_023_LocalDevStarterManifestsAreDurableAndIdempotent(t *test
 	if err := ProvisionLocalDevPersonaStarterManifests(ctx, store, tenant, personaStarterProvisionSkillsFake{}, refs); err != nil {
 		t.Fatalf("repeat provision: %v", err)
 	}
-	if store.saves != 4 {
-		t.Fatalf("repeat provision appended %d manifest versions", store.saves-4)
+	if store.saves != want {
+		t.Fatalf("repeat provision appended %d manifest versions", store.saves-want)
 	}
 }
 

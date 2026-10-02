@@ -159,7 +159,7 @@ func TestAgentUXDemo_GeneralCleanup_Integration(t *testing.T) {
 	service.SetAuthority(servedPersonaChatAuthority{})
 	conversation := localDevPersonaDemoConversationID(localAgentDemoTenant, "general")
 	principal := chat.Principal{TenantID: localAgentDemoTenant, SubjectID: admin.Subject()}
-	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: principal, TenantID: localAgentDemoTenant, ConversationID: conversation, Name: "General", Kind: chat.PublicChannel}); err != nil {
+	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: principal, TenantID: localAgentDemoTenant, ConversationID: conversation, Name: "general", Kind: chat.PublicChannel}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := service.AddMembership(trust.WithPrincipal(ctx, admin), chat.AddMembershipRequest{Principal: principal, Membership: chat.Membership{TenantID: localAgentDemoTenant, HomeTenantID: localAgentDemoTenant, ConversationID: conversation, SubjectID: localAgentDemoPersonaID}}); err != nil {

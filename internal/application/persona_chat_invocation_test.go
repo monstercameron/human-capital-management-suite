@@ -370,7 +370,9 @@ func TestAgentUXR5Srv_DirectAgentInvocation_ThreeMemberConversationIsNotAdmitted
 	if _, err := service.SendPost(ctx, request); err != nil {
 		t.Fatal(err)
 	}
-	if refs.calls != 1 || grants.calls != 0 || len(runs.requests) != 0 {
+	// No agent is named and the conversation is not a person's own with one
+	// other member, so nothing is resolved at all.
+	if refs.calls != 0 || grants.calls != 0 || len(runs.requests) != 0 {
 		t.Fatalf("three-member direct admitted: refs=%d grants=%d runs=%d", refs.calls, grants.calls, len(runs.requests))
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/ownerops"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -31,6 +32,11 @@ type AgentOwnerRunProjection struct {
 	UpdatedAt       time.Time
 	Deadline        time.Time
 	LeaseUntil      time.Time
+	// QueueLag is how long the run waited between being admitted and starting,
+	// and CitationCount how many sources its answer cites; zero means the
+	// record has none.
+	QueueLag      time.Duration
+	CitationCount int
 }
 
 type AgentOwnerRunSource interface {
@@ -89,7 +95,7 @@ func (s *AgentOwnerOperations) DashboardProjection(ctx context.Context, principa
 	}
 	byID := make(map[string]AgentOwnerRunProjection, len(views))
 	for _, record := range records {
-		byID[record.Task.ID] = AgentOwnerRunProjection{OwnerID: record.OwnerID, RequestedBy: record.Task.UserID, StartedAt: record.Task.CreatedAt.UTC(), UpdatedAt: record.Task.UpdatedAt.UTC()}
+		byID[record.Task.ID] = AgentOwnerRunProjection{OwnerID: record.OwnerID, RequestedBy: record.Task.UserID, StartedAt: record.Task.CreatedAt.UTC(), UpdatedAt: record.Task.UpdatedAt.UTC(), CitationCount: agentTaskSourceCount(record.Task.Ledger.Entries)}
 	}
 	result := make([]AgentOwnerRunProjection, 0, len(views))
 	for _, view := range views {
@@ -165,7 +171,7 @@ func mergeAgentOwnerRunProjections(existing []AgentOwnerRunProjection, incoming 
 
 func projectAgentControlRun(projection AgentOwnerRunProjection, identity AgentControlIdentity) productui.AgentControlRun {
 	view := projection.View
-	duration := projection.UpdatedAt.Sub(projection.StartedAt)
+	duration := agentUX073RunWorkedFor(projection.StartedAt, projection.UpdatedAt, projection.Deadline, view.State)
 	state := view.State
 	failureGate := projection.FailureGate
 	if agentRunStoppedResponding(state, projection.Deadline, projection.LeaseUntil) {
@@ -174,17 +180,57 @@ func projectAgentControlRun(projection AgentOwnerRunProjection, identity AgentCo
 			failureGate = "deadline"
 		}
 	}
-	row := productui.AgentControlRun{ID: view.TaskID, AgentID: view.AgentID, ConversationID: projection.ConversationID, ViewerDirect: projection.ViewerDirect, Name: identity.Name, Revision: view.Revision, Version: view.Version, Installation: view.InstallationID, State: state, Since: projection.UpdatedAt.UTC().Format(time.RFC3339), Started: projection.StartedAt.UTC().Format(time.RFC3339), Duration: duration.Round(time.Second).String(), RequestedBy: agentControlSubjectLabel(projection.RequestedBy), Location: projection.Location, Failure: view.FailureCode, FailureGate: failureGate, FailureOwner: projection.FailureOwner, FailurePlace: projection.FailureLocation, Spend: fmt.Sprintf("%d", view.SpendMicros), Actions: []string{}, Denials: []string{}, Citations: []string{}, Evals: []string{}}
+	row := productui.AgentControlRun{ID: view.TaskID, AgentID: view.AgentID, ConversationID: projection.ConversationID, ViewerDirect: projection.ViewerDirect, Name: identity.Name, Revision: view.Revision, Version: view.Version, Installation: view.InstallationID, State: state, Since: projection.UpdatedAt.UTC().Format(time.RFC3339), Started: projection.StartedAt.UTC().Format(time.RFC3339), Duration: duration.Round(time.Second).String(), RequestedBy: agentControlSubjectLabel(projection.RequestedBy), Location: projection.Location, Failure: view.FailureCode, FailureGate: failureGate, FailureOwner: projection.FailureOwner, FailurePlace: projection.FailureLocation, Spend: agentControlSpendLabel(view.SpendMicros), Actions: []string{}, Denials: []string{}, Citations: agentControlCitationMarkers(projection.CitationCount), Evals: []string{}}
 	if view.CanPause && state != "STOPPED_RESPONDING" {
 		row.Actions = append(row.Actions, "pause")
 	}
+	if projection.QueueLag > 0 {
+		row.QueueLag = projection.QueueLag.Round(time.Millisecond).String()
+	}
 	for _, step := range view.Steps {
 		row.Denials = append(row.Denials, step.DenialCodes...)
-		if step.WakeLag > 0 {
+		if step.WakeLag > 0 && row.QueueLag == "" {
 			row.QueueLag = step.WakeLag.String()
 		}
 	}
 	return row
+}
+
+// agentControlSpendLabel is what a run cost, in dollars, as the page shows it:
+// two decimals from a cent up, four below that so a small run is not "$0.00".
+// A run with no recorded spend has no label, and the page shows a dash.
+func agentControlSpendLabel(micros int64) string {
+	switch {
+	case micros <= 0:
+		return ""
+	case micros >= 10_000:
+		return fmt.Sprintf("$%.2f", float64(micros)/1e6)
+	default:
+		return fmt.Sprintf("$%.4f", float64(micros)/1e6)
+	}
+}
+
+// agentControlCitationMarkers carries only how many sources a run cited: the
+// owner dashboard shows the count, never which documents they were.
+func agentControlCitationMarkers(count int) []string {
+	markers := make([]string, 0, max(count, 0))
+	for i := 0; i < count; i++ {
+		markers = append(markers, "source")
+	}
+	return markers
+}
+
+// agentTaskSourceCount counts the distinct sources a task's steps read.
+func agentTaskSourceCount(entries []agentrun.LedgerEntry) int {
+	seen := map[string]struct{}{}
+	for _, entry := range entries {
+		for _, id := range append([]string{entry.SourceID}, entry.SourceIDs...) {
+			if id = strings.TrimSpace(id); id != "" {
+				seen[id] = struct{}{}
+			}
+		}
+	}
+	return len(seen)
 }
 
 func agentRunStoppedResponding(state string, deadline, leaseUntil time.Time) bool {

@@ -108,7 +108,7 @@ func (p *ChatlangProducer) usage(ctx context.Context, in chatrender.Rendering, r
 		at = p.Now().UTC()
 	}
 	return p.Store.RecordChatlangUsage(ctx, chatstore.ChatlangUsage{Tenant: in.Tenant, Message: in.Message, Revision: in.Revision, Language: in.Language, Provider: provider, Model: model,
-		InstructionDigest: chatlang.InstructionDigest(), InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: response.CostMicros, Outcome: outcome, At: at})
+		InstructionDigest: chatlangInstructionDigest(response), InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: response.CostMicros, Outcome: outcome, At: at})
 }
 
 // Produce implements chatrender.Producer for the translated kind.
@@ -117,7 +117,13 @@ func (p *ChatlangProducer) Produce(ctx context.Context, in chatrender.Rendering)
 		return chatrender.Rendering{}, chatrender.ErrUnavailable
 	}
 	source, target := chatrender.Language(in.SourceLanguage), chatrender.Language(in.Language)
-	if source == "" || source == "und" || source == target || !chatrender.Supported(target) {
+	// An engine that detects (the structured one) can place a message whose
+	// language is not recorded; one that does not cannot translate it.
+	detecting := false
+	if d, ok := p.Engine.(interface{ Detects() bool }); ok {
+		detecting = d.Detects()
+	}
+	if source == "" || (source == "und" && !detecting) || source == target || !chatrender.Supported(target) {
 		p.perm.mark(in, "nothing to translate")
 		return chatrender.Rendering{}, chatrender.ErrInvalid
 	}
@@ -157,9 +163,23 @@ func (p *ChatlangProducer) Produce(ctx context.Context, in chatrender.Rendering)
 			}
 			return chatrender.Rendering{}, err
 		}
-		failures = protected.Verify(response.Text)
-		if len(failures) == 0 {
-			restored, failures, err = protected.Restore(response.Text)
+		// The engine found the text already in the reader's language, or in none:
+		// there is nothing to show. The call is still a usage line.
+		if language := chatrender.Language(response.DetectedSource); response.DetectedSource != "" && (language == target || language == "und") {
+			if lineErr := p.usage(ctx, in, response, "discarded"); lineErr != nil {
+				return chatrender.Rendering{}, lineErr
+			}
+			p.perm.mark(in, "nothing to translate")
+			return chatrender.Rendering{}, chatlang.ErrNothingToTranslate
+		}
+		if response.MeaningChecked && !response.MeaningPreserved {
+			// The model itself does not vouch for the meaning: not shown, and asked once more.
+			failures = []string{"the engine does not vouch for the meaning"}
+		} else {
+			failures = protected.Verify(response.Text)
+			if len(failures) == 0 {
+				restored, failures, err = protected.Restore(response.Text)
+			}
 		}
 		if len(failures) == 0 {
 			break
@@ -193,7 +213,7 @@ func (p *ChatlangProducer) Produce(ctx context.Context, in chatrender.Rendering)
 		confidence = 0.6
 	}
 	in.Text = restored
-	in.Producer = chatrender.ProducerIdentity{Provider: response.Provider, Model: response.Model, InstructionDigest: chatlang.InstructionDigest(), GlossaryVersion: "glossary-v" + strconv.FormatInt(glossary.Version, 10)}
+	in.Producer = chatrender.ProducerIdentity{Provider: response.Provider, Model: response.Model, InstructionDigest: chatlangInstructionDigest(response), GlossaryVersion: "glossary-v" + strconv.FormatInt(glossary.Version, 10)}
 	in.Checks = chatrender.Checks{Meaning: true, Placeholders: true}
 	in.Confidence = confidence
 	return in, nil
@@ -243,6 +263,11 @@ func (a ChatlangAuthority) AuthorizeRenderingJob(ctx context.Context, job chatre
 	if reason != chatlang.Allowed {
 		a.perm.mark(r, string(reason))
 		return fmt.Errorf("%w: %s", chatrender.ErrDenied, reason)
+	}
+	// CHATLANG-006: a pair the quality gate withholds is not translated.
+	if a.Governance.PairDecision(r.SourceLanguage, r.Language) == chatlang.GateWithhold {
+		a.perm.mark(r, "quality gate")
+		return fmt.Errorf("%w: quality gate", chatrender.ErrDenied)
 	}
 	clean, err := a.Screen.Clean(ctx, facts, chatui.AuthoredReaderText(facts.Body))
 	if err != nil {
@@ -299,20 +324,22 @@ type ChatlangRuntime struct {
 
 // NewChatlangRuntime puts the worker together over the chat store, the
 // governance, an engine and the filters.
-func NewChatlangRuntime(store *chatstore.Store, governance *ChatlangGovernance, engine chatlang.Engine, screen ChatlangScreen, now func() time.Time, tenants []string) (*ChatlangRuntime, error) {
+func NewChatlangRuntime(store *chatstore.Store, governance *ChatlangGovernance, engine chatlang.Engine, screen ChatlangScreen, now func() time.Time, tenants []string, extra ...chatrender.Registration) (*ChatlangRuntime, error) {
 	if store == nil || governance == nil || engine == nil || screen == nil {
 		return nil, chatrender.ErrUnavailable
 	}
 	perm := &chatlangPermanent{}
 	producer := &ChatlangProducer{Engine: engine, Store: store, Screen: screen, perm: perm, Now: now}
-	registry, err := chatrender.NewRegistry(chatrender.Registration{Kind: chatrender.Translate, Producer: producer})
+	// extra registers other kinds beside the translation producer (the reword
+	// producer of CHATTONE, which runs first when both are asked for).
+	registry, err := chatrender.NewRegistry(append([]chatrender.Registration{{Kind: chatrender.Translate, Producer: producer}}, extra...)...)
 	if err != nil {
 		return nil, err
 	}
 	return &ChatlangRuntime{
 		Worker: chatrender.Worker{Jobs: chatlangJobs{Store: store, perm: perm}, Registry: registry,
 			Authority: ChatlangAuthority{Governance: governance, Screen: screen, perm: perm}, Usage: ChatlangUsageLedger{Governance: governance, perm: perm}},
-		Tenants: tenants, Lease: time.Minute, Poll: 250 * time.Millisecond, Concurrency: 4,
+		Tenants: tenants, Lease: time.Minute, Poll: 100 * time.Millisecond, Concurrency: 8,
 	}, nil
 }
 
@@ -342,7 +369,7 @@ func (r *ChatlangRuntime) Run(ctx context.Context) error {
 	}
 	poll := r.Poll
 	if poll <= 0 {
-		poll = 250 * time.Millisecond
+		poll = 100 * time.Millisecond
 	}
 	var wg sync.WaitGroup
 	for _, tenant := range r.Tenants {
@@ -377,4 +404,13 @@ func (r *ChatlangRuntime) Run(ctx context.Context) error {
 	}
 	wg.Wait()
 	return ctx.Err()
+}
+
+// chatlangInstructionDigest is the digest of the instruction behind a response:
+// the engine's own when it says which, otherwise the text instruction.
+func chatlangInstructionDigest(response chatlang.Response) string {
+	if response.InstructionDigest != "" {
+		return response.InstructionDigest
+	}
+	return chatlang.InstructionDigest()
 }

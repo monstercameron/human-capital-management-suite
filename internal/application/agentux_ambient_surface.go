@@ -67,7 +67,7 @@ func (s AgentUXAmbientSurface) Snapshot(ctx context.Context, conversation string
 	if err != nil {
 		return result, err
 	}
-	result.OptOut = optout
+	result.OptOut, result.Manages = optout, manages
 	for _, g := range grants {
 		result.Grants = append(result.Grants, ambientagents.Grant{Agent: g.Agent, Enabled: g.Enabled, AutomaticPublic: g.AutomaticPublic, Paused: g.Paused})
 	}

@@ -29,6 +29,9 @@ type PersonaReplyDeliveryRequest struct {
 	// PrivacyUnknown is set when the question could not be read to find out; the
 	// answer then stays private, as anything that cannot be established does.
 	PrivacyUnknown bool
+	// NotFromDocuments is set when a general-purpose agent answered with no
+	// document behind the answer (AGENTUX-076). The card shows the mark.
+	NotFromDocuments bool
 }
 
 // PersonaReplyDeliveryReceipt reports the durable or recipient-only chat effect.
@@ -96,7 +99,7 @@ func (d *PersonaReplyDelivery) Deliver(ctx context.Context, request PersonaReply
 		return d.deliverPrivate(ctx, request, "")
 	}
 	if request.PrivacyRequested {
-		return d.deliverPrivate(ctx, request, chat.PrivateReasonAsked)
+		return d.deliverPrivate(ctx, request, d.askedPrivateReason(ctx, request))
 	}
 	if request.PrivacyUnknown {
 		return d.deliverPrivate(ctx, request, chat.PrivateReasonAudience)
@@ -122,6 +125,19 @@ func (d *PersonaReplyDelivery) Deliver(ctx context.Context, request PersonaReply
 	return d.deliverPublic(ctx, request)
 }
 
+// askedPrivateReason is the reason an answer the asker asked to keep private
+// carries. The channel's requirement and the agent's own setting outrank the
+// asker's word (AGENTUX-070): when the floor says either holds, the line names
+// that rule, because it is the one the asker cannot change.
+func (d *PersonaReplyDelivery) askedPrivateReason(ctx context.Context, request PersonaReplyDeliveryRequest) string {
+	_, err := d.floor.AuthorizePersonaOutput(ctx, request.Output)
+	var reasoned personaPrivateReasonError
+	if errors.As(err, &reasoned) && (reasoned.reason == chat.PrivateReasonChannel || reasoned.reason == chat.PrivateReasonAgent) {
+		return reasoned.reason
+	}
+	return chat.PrivateReasonAsked
+}
+
 func (d *PersonaReplyDelivery) deliverPublic(ctx context.Context, request PersonaReplyDeliveryRequest) (PersonaReplyDeliveryReceipt, error) {
 	identity := request.Output.Identity()
 	decision, err := d.floor.AuthorizePersonaOutput(ctx, request.Output)
@@ -130,6 +146,9 @@ func (d *PersonaReplyDelivery) deliverPublic(ctx context.Context, request Person
 		return d.privateFallback(ctx, request, personaPrivateReasonOf(err))
 	}
 	decision.Body = renderPersonaReplyWithAgentDocuments(decision.Body, identity.TenantID, identity.ConversationID, d.outputPolicy, announcementPublicSourceTitles(request.Output, request.Documents), nil, request.CitationDetails...)
+	if request.NotFromDocuments && decision.Body != "" {
+		decision.Body += "\n\n" + chat.UngroundedNote
+	}
 	if decision.Body == "" {
 		personaReplyFallbackNote(ctx, "rendered_body_empty", "")
 		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
@@ -196,6 +215,9 @@ func (d *PersonaReplyDelivery) deliverPrivate(ctx context.Context, request Perso
 	body = renderPersonaReplyWithAgentDocuments(body, identity.TenantID, identity.ConversationID, d.outputPolicy, request.Documents, request.Omissions, request.CitationDetails...)
 	if body == "" {
 		return PersonaReplyDeliveryReceipt{}, chat.ErrInvalidArgument
+	}
+	if request.NotFromDocuments {
+		body += "\n" + chat.UngroundedMark()
 	}
 	if marker := chat.PrivateReasonMarker(reason); marker != "" {
 		body += "\n" + marker

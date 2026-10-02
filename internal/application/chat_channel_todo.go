@@ -4,12 +4,38 @@ import (
 	"context"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatroutingadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
+// channelStatusChecker is the one question the channel's own poll and list ask
+// of the conversation service before a change: does the channel's status allow
+// this kind of action by this person now.
+type channelStatusChecker interface {
+	CheckChannelStatusAction(context.Context, chat.Principal, chat.Conversation, chatpolicy.StatusAction) error
+}
+
+// The routed conversation service is the one the served composition gives to
+// ChatExtensions; if it stopped answering the question, a locked channel would
+// take poll votes and ticks again without any test noticing.
+var _ channelStatusChecker = (*chatroutingadapter.Service)(nil)
+
 func (s *ChatExtensions) channelTodoActor(ctx context.Context, p chat.Principal, host, conversation string) error {
+	return s.channelActor(ctx, p, host, conversation, nil)
+}
+
+// channelWriteActor is channelTodoActor for a change: the channel's status must
+// also allow action (CHATCMD-002). A locked or archived channel refuses every
+// change to its poll and list, and an announcements-only channel refuses all
+// but a vote or a tick, which are reactions. Reading is never refused here.
+func (s *ChatExtensions) channelWriteActor(ctx context.Context, p chat.Principal, host, conversation string, action chatpolicy.StatusAction) error {
+	return s.channelActor(ctx, p, host, conversation, &action)
+}
+
+func (s *ChatExtensions) channelActor(ctx context.Context, p chat.Principal, host, conversation string, action *chatpolicy.StatusAction) error {
 	if s == nil || s.TodoStore == nil || s.Conversations == nil {
 		return chat.ErrUnavailable
 	}
@@ -30,6 +56,14 @@ func (s *ChatExtensions) channelTodoActor(ctx context.Context, p chat.Principal,
 	if c.Kind != chat.PublicChannel && c.Kind != chat.PrivateChannel {
 		return chat.ErrInvalidArgument
 	}
+	if action != nil {
+		// A service that cannot answer the question is a refusal, not a pass.
+		checker, ok := s.Conversations.(channelStatusChecker)
+		if !ok {
+			return chat.ErrUnavailable
+		}
+		return checker.CheckChannelStatusAction(ctx, p, c, *action)
+	}
 	return nil
 }
 
@@ -47,7 +81,7 @@ func (s *ChatExtensions) ChannelTodo(ctx context.Context, p chat.Principal, host
 }
 
 func (s *ChatExtensions) MutateChannelTodo(ctx context.Context, p chat.Principal, host, conversation string, expected uint64, mutation chat.ChannelTodoMutation) (chat.ChannelTodoList, error) {
-	if err := s.channelTodoActor(ctx, p, host, conversation); err != nil {
+	if err := s.channelWriteActor(ctx, p, host, conversation, channelTodoStatusAction(mutation.Operation)); err != nil {
 		return chat.ChannelTodoList{}, err
 	}
 	if err := s.checkTexts(ctx, p, host, conversation, mutation.Text); err != nil {
@@ -57,7 +91,7 @@ func (s *ChatExtensions) MutateChannelTodo(ctx context.Context, p chat.Principal
 		host = p.TenantID
 	}
 	v, err := s.TodoStore.MutateChannelTodo(ctx, host, p.TenantID, conversation, p.SubjectID, expected, channelTodoMutation(mutation), func(ctx context.Context) error {
-		return s.channelTodoActor(ctx, p, host, conversation)
+		return s.channelWriteActor(ctx, p, host, conversation, channelTodoStatusAction(mutation.Operation))
 	})
 	return channelTodoContract(v), err
 }
@@ -124,4 +158,14 @@ func channelWidgetsContract(v chatstore.ChannelWidgets) chat.ChannelWidgets {
 
 func channelWidgetMutation(v chat.ChannelWidgetMutation) chatstore.ChannelWidgetMutation {
 	return chatstore.ChannelWidgetMutation{Kind: v.Kind, Operation: v.Operation, Pinned: v.Pinned, Purpose: v.Purpose, MemberHomeTenantID: v.MemberHomeTenantID, MemberSubjectID: v.MemberSubjectID, RoleLabel: v.RoleLabel, Title: v.Title, Summary: v.Summary, MilestoneID: v.MilestoneID, Milestone: chatstore.ChannelProjectMilestone{ID: v.Milestone.ID, Text: v.Milestone.Text, Status: v.Milestone.Status, OwnerHomeTenantID: v.Milestone.OwnerHomeTenantID, OwnerSubjectID: v.Milestone.OwnerSubjectID, DueDate: v.Milestone.DueDate}}
+}
+
+// channelTodoStatusAction is the kind of action a change to the channel's list
+// is for the channel's status: ticking an item is a reaction, anything else
+// writes to the channel.
+func channelTodoStatusAction(operation string) chatpolicy.StatusAction {
+	if operation == "SET_COMPLETED" {
+		return chatpolicy.StatusReact
+	}
+	return chatpolicy.StatusPost
 }

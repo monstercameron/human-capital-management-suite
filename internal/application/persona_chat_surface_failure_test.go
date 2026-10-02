@@ -45,7 +45,7 @@ func TestTodo_AGENTP_020_PostFailurePersistsSanitizedOutcomeAfterCancellation(t 
 	invoker := &personaChatInvocation{failures: sink}
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
-	post := chat.Post{ID: "post", ConversationID: "channel-a", TenantID: "tenant-a", AuthorID: "user-a", Revision: 1}
+	post := chat.Post{ID: "post", ConversationID: "channel-a", TenantID: "tenant-a", AuthorID: "user-a", Revision: 1, References: []chat.Reference{{Kind: chat.AgentMention, TenantID: "tenant-a", ID: "agent:coach", ConversationID: "channel-a"}}}
 	invoker.recordPostFailure(canceled, post, fmt.Errorf("raw provider credential detail: %w", ErrPersonaRunModelFailure))
 	if store.writes != 1 || store.failures[0].Code != "MODEL_UNAVAILABLE" || !store.failures[0].Retryable || store.failures[0].ThreadID != "post" {
 		t.Fatalf("durable failure=%+v", store)
@@ -82,8 +82,9 @@ func TestTodo_AGENTP_020_DurableFailureClearsMissingAdmissionSpinnerAndRetries(t
 		t.Fatalf("pre-claim failure=%+v %v", progress, err)
 	}
 	result, err := s.Retry(ctx, "post-failure:post-a", "unique-key")
-	if err != nil || result.PostID != "fresh-post" || len(room.sends) != 1 {
-		t.Fatalf("retry=%+v %v sends=%v", result, err, room.sends)
+	// The question was never admitted, so asking again is its first admission.
+	if err != nil || result.PostID != "post-a" || len(room.sends) != 0 || len(room.reattempts) != 1 || room.reattempts[0].attempt != 0 {
+		t.Fatalf("retry=%+v %v sends=%v reattempts=%+v", result, err, room.sends, room.reattempts)
 	}
 	store.failures[0].InvokerID = "other"
 	if _, err = s.Progress(ctx, "channel-a"); !errors.Is(err, personachat.ErrUnavailable) {

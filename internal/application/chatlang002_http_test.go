@@ -93,6 +93,18 @@ func TestTodo_CHATLANG_002_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The store assigns the message id; every request below names the stored one.
+	if post.ID == "" {
+		t.Fatal("the stored message has no id")
+	}
+	message := "&message=" + url.QueryEscape(post.ID)
+	correction := func(language string) string {
+		body, err := json.Marshal(map[string]any{"message": post.ID, "revision": post.Revision, "language": language})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
 	original := chatrender.Rendering{Tenant: c.TenantID, Message: post.ID, Revision: post.Revision, Tone: chatrender.AsWritten, Language: "en", SourceLanguage: "en", Text: post.Body}
 	governance := &ChatlangGovernance{Store: store}
 	governance.BindEngine(ChatlangEngineInfo{Name: "fixture", Ready: true})
@@ -179,7 +191,7 @@ func TestTodo_CHATLANG_002_Integration(t *testing.T) {
 	// The reader endpoint: pending first, with what was asked for; then ready
 	// once the deterministic producer has made the translation.
 	var read map[string]chatui.ReaderSelection
-	if code := chatlangServe(t, handler, "bob", "GET", "reader"+room+"&message=post", "", "", &read); code != 200 || read["post"].Mark.State != "pending" || len(read["post"].Mark.Wanted) != 1 || read["post"].Mark.Wanted[0] != chatrender.Translate || !read["post"].Mark.CanShowOriginal {
+	if code := chatlangServe(t, handler, "bob", "GET", "reader"+room+message, "", "", &read); code != 200 || read[post.ID].Mark.State != "pending" || len(read[post.ID].Mark.Wanted) != 1 || read[post.ID].Mark.Wanted[0] != chatrender.Translate || !read[post.ID].Mark.CanShowOriginal {
 		t.Fatalf("first read: %d %+v", code, read)
 	}
 	job, err := store.ClaimRendering(ctx, "tenant-a", time.Minute)
@@ -194,24 +206,24 @@ func TestTodo_CHATLANG_002_Integration(t *testing.T) {
 		t.Fatal(err)
 	}
 	read = nil
-	if code := chatlangServe(t, handler, "bob", "GET", "reader"+room+"&message=post", "", "", &read); code != 200 || read["post"].Mark.State != "ready" || read["post"].Rendering.Language != "de" || read["post"].Mark.SourceLanguage != "en" || len(read["post"].Mark.Kinds) != 1 || read["post"].Mark.Kinds[0] != chatrender.Translate {
+	if code := chatlangServe(t, handler, "bob", "GET", "reader"+room+message, "", "", &read); code != 200 || read[post.ID].Mark.State != "ready" || read[post.ID].Rendering.Language != "de" || read[post.ID].Mark.SourceLanguage != "en" || len(read[post.ID].Mark.Kinds) != 1 || read[post.ID].Mark.Kinds[0] != chatrender.Translate {
 		t.Fatalf("second read: %d %+v", code, read)
 	}
 	// Alice reads her own message as written, with no mark.
 	var own1 map[string]chatui.ReaderSelection
-	if code := chatlangServe(t, handler, "alice", "GET", "reader"+room+"&message=post", "", "", &own1); code != 200 || own1["post"].Mark.State != "original" || len(own1["post"].Mark.Wanted) != 0 {
+	if code := chatlangServe(t, handler, "alice", "GET", "reader"+room+message, "", "", &own1); code != 200 || own1[post.ID].Mark.State != "original" || len(own1[post.ID].Mark.Wanted) != 0 {
 		t.Fatalf("the writer's read: %d %+v", code, own1)
 	}
 
 	// What the server answered is what the page renders: the translation, marked,
 	// in the reader's language, with the original one press away.
-	selection := read["post"]
+	selection := read[post.ID]
 	selection.Revision = post.Revision
 	model := chatui.Model{State: chatui.StateReady, Locale: "de-DE", SelectedID: "room", CurrentUser: "bob", CurrentTenantID: "tenant-a",
 		ChatFeatures:     &chatui.ChatFeatures{Renderings: true, Translating: true},
 		Conversations:    []chatui.Conversation{{ID: "room", Kind: chatui.PrivateChannel, Name: "room", Joined: true}},
-		Messages:         []chatui.Message{{ID: "post", Revision: post.Revision, AuthorID: "alice", Author: "Alice", Body: post.Body, Sequence: 1}},
-		ReaderSelections: map[string]chatui.ReaderSelection{"post": selection},
+		Messages:         []chatui.Message{{ID: post.ID, Revision: post.Revision, AuthorID: "alice", Author: "Alice", Body: post.Body, Sequence: 1}},
+		ReaderSelections: map[string]chatui.ReaderSelection{post.ID: selection},
 		Chatlang:         chatui.ChatlangModel{AudienceRoom: "room", Audience: chatui.ChatlangAudience{Language: "de", Offered: true, Readers: map[string]int{"en": 2}}}}
 	page, err := ui.RenderToString(chatui.Build(model))
 	if err != nil {
@@ -228,16 +240,16 @@ func TestTodo_CHATLANG_002_Integration(t *testing.T) {
 
 	// The writer corrects a wrong detection; nobody else may, and the correction
 	// drops the translation made from the wrong guess.
-	if code := chatlangServe(t, handler, "bob", "POST", "correct-language"+room, `{"message":"post","revision":1,"language":"fr"}`, "", nil); code != http.StatusForbidden {
+	if code := chatlangServe(t, handler, "bob", "POST", "correct-language"+room, correction("fr"), "", nil); code != http.StatusForbidden {
 		t.Fatalf("a reader changed the language of another person's message: %d", code)
 	}
-	if code := chatlangServe(t, handler, "alice", "POST", "correct-language"+room, `{"message":"post","revision":1,"language":"zz"}`, "", nil); code != http.StatusBadRequest {
+	if code := chatlangServe(t, handler, "alice", "POST", "correct-language"+room, correction("zz"), "", nil); code != http.StatusBadRequest {
 		t.Fatalf("an unknown language was accepted: %d", code)
 	}
-	if code := chatlangServe(t, handler, "alice", "POST", "correct-language"+room, `{"message":"post","revision":1,"language":"fr"}`, "", nil); code != 200 {
+	if code := chatlangServe(t, handler, "alice", "POST", "correct-language"+room, correction("fr"), "", nil); code != 200 {
 		t.Fatalf("the writer's correction: %d", code)
 	}
-	detection, err := store.RevisionLanguage(ctx, chatstore.RenderingScope{Principal: alice, Tenant: "tenant-a", Conversation: "room"}, "post", 1)
+	detection, err := store.RevisionLanguage(ctx, chatstore.RenderingScope{Principal: alice, Tenant: "tenant-a", Conversation: "room"}, post.ID, post.Revision)
 	if err != nil || detection.Language != "fr" || !detection.Corrected {
 		t.Fatalf("the correction was not recorded: %+v %v", detection, err)
 	}

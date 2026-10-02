@@ -53,6 +53,19 @@ type personaChatInvocationConfig struct {
 	T0Skills   personaT0SkillPolicy
 	Repository agentinvoke.InvocationRepository
 	Failures   personaInvocationFailureSink
+	// Limits, when set, refuses a mention that would pass a rate, concurrency
+	// or spend ceiling before the run starts. The served runtime always sets it.
+	Limits *PersonaMentionLimits
+	// Conversations reads the conversation and its members to recognize a
+	// person's own direct conversation with an agent. The post writer is often a
+	// narrower port than the chat service, so the reader is named on its own;
+	// without it the writer is asked (AGENTUX-075).
+	Conversations personaDirectConversationReader
+	// Reactions puts the agent's reaction on the question it was asked.
+	Reactions personaQuestionReactor
+	// Steps is the board the run reports its step on; it travels to the run in the
+	// context of the post's invocation (AGENTUX-075).
+	Steps *personaRunStepBoard
 	// DetachedAfterCommit is enabled by the served runtime so model work never
 	// holds the HTTP response that committed the invoking post.
 	DetachedAfterCommit bool
@@ -66,15 +79,37 @@ type personaChatInvocation struct {
 	resolver *agentinvoke.Service
 	failures personaInvocationFailureSink
 	detached bool
+	// limits is the mention admission applied before each run; nil only in
+	// compositions that do not serve (tests of the other ports).
+	limits *PersonaMentionLimits
+	// quiet remembers the direct conversations that hold no agent, so a
+	// conversation between two people is not looked up on every message.
+	quiet *personaDirectQuiet
+	// conversations is the reader named in the configuration, when there is one.
+	conversations personaDirectConversationReader
+	reactions     personaQuestionReactor
+	steps         *personaRunStepBoard
+	// unavailable is set when this server has no model to run agents: a question
+	// to an agent is then recorded as failed with this cause (AGENTUX-075).
+	unavailable error
 }
 
 func newPersonaChatInvocation(cfg personaChatInvocationConfig) (*personaChatInvocation, error) {
 	if cfg.Chat == nil || cfg.References == nil || cfg.Authority == nil || cfg.Grants == nil || cfg.Runs == nil || cfg.T0Skills == nil || cfg.Repository == nil {
 		return nil, fmt.Errorf("%w: chat, reference resolver, authority, grants, runner, T0 policy and repository are required", errPersonaChatInvocation)
 	}
-	var runs agentinvoke.RunStarter = personaT0RunStarter{next: cfg.Runs, policy: cfg.T0Skills}
+	// The order is: the read-only skill boundary, then the mention ceilings,
+	// then the worker. A mention over a ceiling never reaches the worker.
+	admitted := cfg.Runs
+	if cfg.Limits != nil {
+		if err := cfg.Limits.validate(); err != nil {
+			return nil, fmt.Errorf("%w: mention limits: %v", errPersonaChatInvocation, err)
+		}
+		admitted = personaMentionLimitedRunStarter{next: cfg.Runs, limits: cfg.Limits}
+	}
+	var runs agentinvoke.RunStarter = personaT0RunStarter{next: admitted, policy: cfg.T0Skills}
 	if _, ok := cfg.Runs.(agentinvoke.TargetAgentResolver); ok {
-		runs = personaTargetedT0RunStarter{personaT0RunStarter: personaT0RunStarter{next: cfg.Runs, policy: cfg.T0Skills}}
+		runs = personaTargetedT0RunStarter{personaT0RunStarter: personaT0RunStarter{next: admitted, policy: cfg.T0Skills}}
 	}
 	resolver, err := agentinvoke.NewService(agentinvoke.Config{
 		Authority: cfg.Authority, Grants: cfg.Grants,
@@ -85,7 +120,7 @@ func newPersonaChatInvocation(cfg personaChatInvocationConfig) (*personaChatInvo
 		return nil, fmt.Errorf("%w: create invocation resolver: %v", errPersonaChatInvocation, err)
 	}
 	_, servedWorker := cfg.Runs.(*PersonaRunModelWorker)
-	return &personaChatInvocation{chat: cfg.Chat, refs: cfg.References, resolver: resolver, failures: cfg.Failures, detached: cfg.DetachedAfterCommit || servedWorker}, nil
+	return &personaChatInvocation{chat: cfg.Chat, refs: cfg.References, resolver: resolver, failures: cfg.Failures, detached: cfg.DetachedAfterCommit || servedWorker, limits: cfg.Limits, quiet: &personaDirectQuiet{}, conversations: cfg.Conversations, reactions: cfg.Reactions, steps: cfg.Steps}, nil
 }
 
 // SendPost commits the human message first, then attempts persona admission.
@@ -97,6 +132,11 @@ func (c *personaChatInvocation) SendPost(ctx context.Context, request chatcore.S
 	}
 	var post chatcore.Post
 	var err error
+	// An ask command becomes the message a typed mention sends; a refused one
+	// writes nothing (agent_ask_command.go).
+	if request, err = c.askCommand(ctx, request); err != nil {
+		return chatcore.Post{}, err
+	}
 	if len(request.References) > 0 {
 		if referenceService, ok := c.chat.(chatcore.ReferenceService); ok {
 			post, err = referenceService.SendPostWithReferences(ctx, chatcore.SendPostWithReferencesRequest{
@@ -133,7 +173,7 @@ func (c *personaChatInvocation) SendPost(ctx context.Context, request chatcore.S
 const personaMentionAdmissionTimeout = 60 * time.Second
 
 func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcore.SendPostRequest, post chatcore.Post) {
-	if c == nil || c.resolver == nil || c.refs == nil {
+	if c == nil || c.refs == nil || (c.resolver == nil && c.unavailable == nil) {
 		return
 	}
 	principal, ok := trust.FromContext(ctx)
@@ -150,14 +190,48 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 	// request values but not request cancellation and is bounded independently.
 	admissionCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), personaMentionAdmissionTimeout)
 	defer cancel()
-	references := post.References
-	if !hasTypedAgentReference(references) {
-		if reference, ok := c.directAgentReference(admissionCtx, principal, post); ok {
-			references = append(append([]chatcore.Reference(nil), references...), reference)
+	if c.resolver == nil {
+		// No model runs agents on this server. The person who asked an agent is
+		// told so; a message that asked nobody is left alone.
+		if !c.quiet.known(post.TenantID, post.ConversationID, time.Now()) && c.postAsksAgent(admissionCtx, post) {
+			// The agent still reacts first, then the failure says why (AGENTUX-075).
+			asked := c.askedAgentReferences(admissionCtx, principal, post)
+			c.reactToQuestion(admissionCtx, principal, post, asked)
+			c.recordPostFailure(admissionCtx, post, c.unavailable)
+			c.reactToOutcome(admissionCtx, principal, post, asked, c.unavailable)
 		}
+		return
+	}
+	references := post.References
+	// direct is true when no agent is named in the message and the agent asked
+	// is the other member of the person's own two-member direct conversation.
+	direct := false
+	if !hasTypedAgentReference(references) {
+		if c.quiet.known(post.TenantID, post.ConversationID, time.Now()) {
+			return
+		}
+		reference, ok := c.directAgentReference(admissionCtx, principal, post)
+		if !ok {
+			// No agent is named and the conversation is not one person's own with
+			// one other member: nobody was asked, and there is nothing to resolve.
+			return
+		}
+		if !validPersonaReferenceID(reference.ID) {
+			// An identifier no agent can have: the other member is a person.
+			c.quiet.remember(post.TenantID, post.ConversationID, time.Now())
+			return
+		}
+		references, direct = append(append([]chatcore.Reference(nil), references...), reference), true
 	}
 	mentions, err := c.refs.ResolvePersonaMentions(admissionCtx, post.TenantID, post.ConversationID, references)
 	if err != nil {
+		if direct && errors.Is(err, errPersonaReferenceNotPersona) {
+			// The other member is a person. Two people talking asked no agent:
+			// this is not a failed invocation, and the conversation is not looked
+			// up again for a while.
+			c.quiet.remember(post.TenantID, post.ConversationID, time.Now())
+			return
+		}
 		c.recordPostFailure(admissionCtx, post, err)
 		return
 	}
@@ -176,19 +250,21 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 	if post.ParentID != "" {
 		threadID = post.ParentID
 	}
+	c.reactToQuestion(admissionCtx, principal, post, references)
 	// The post is committed. Admission of the mention is server work that must
 	// not be abandoned because the sender's request was cancelled or timed out,
 	// so it keeps the request's values (principal, trace) under its own bound.
 	started := time.Now()
 	ctx, _ = withAgentUXRunTiming(admissionCtx)
 	ctx = withPersonaChatAuthorityTuple(ctx, post.TenantID, principal.Subject(), post.ConversationID, threadID, post.ID)
+	ctx = withPersonaRunSteps(ctx, c.steps)
 	defer func() {
 		slog.InfoContext(ctx, "hcmnext.persona_mention_admission", "post_id", post.ID, "duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
 		agentUXSpeedEmit(ctx, err != nil)
 	}()
 	done := agentUXSpeedStage(ctx, "admission_to_delivery")
 	defer done()
-	_, err = c.resolver.OnPostCommit(ctx, agentinvoke.PostCommit{
+	err = c.admitPostCommit(ctx, agentinvoke.PostCommit{
 		TenantID: post.TenantID, ConversationID: post.ConversationID, ThreadID: threadID,
 		PostID: post.ID, AuthorID: principal.Subject(), AuthorKind: agentinvoke.HumanAuthor,
 		Body: post.Body, New: true, Mentions: canonical,
@@ -196,6 +272,8 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 	if err != nil {
 		c.recordPostFailure(ctx, post, err)
 	}
+	// AGENTUX-052: the reaction that fits how the run ended takes the first one's place.
+	c.reactToOutcome(ctx, principal, post, references, err)
 }
 
 func hasTypedAgentReference(references []chatcore.Reference) bool {
@@ -211,8 +289,15 @@ func hasTypedAgentReference(references []chatcore.Reference) bool {
 // direct conversation. The canonical resolver then proves that the other
 // member is the active agent identity installed in this exact conversation.
 func (c *personaChatInvocation) directAgentReference(ctx context.Context, principal *trust.Principal, post chatcore.Post) (chatcore.Reference, bool) {
-	reader, ok := c.chat.(personaDirectConversationReader)
-	if !ok || principal == nil {
+	reader := c.conversations
+	if isNilPersonaOutputPort(reader) {
+		var ok bool
+		reader, ok = c.chat.(personaDirectConversationReader)
+		if !ok {
+			return chatcore.Reference{}, false
+		}
+	}
+	if principal == nil {
 		return chatcore.Reference{}, false
 	}
 	chatPrincipal := chatcore.Principal{TenantID: principal.Tenant().String(), SubjectID: principal.Subject()}

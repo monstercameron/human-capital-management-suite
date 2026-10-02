@@ -84,6 +84,12 @@ type ChattoneService struct {
 	Authority      ChattoneAuthority
 	Administration ChattoneAdministration
 	Conversations  ChattoneConversationSource
+	// Unprovisioned, when set, marks a service that is not composed over a
+	// qualified model; it is the reason for the log, never shown to a member.
+	Unprovisioned string
+	// Reword keeps the administrator's and each person's reword choices; nil
+	// leaves the reword settings unavailable.
+	Reword *ChattoneRewordPolicy
 	// Settings, when set, is where a workspace's choice is kept. Each
 	// workspace's saved setting is read once per process, before its first use.
 	Settings       ChattoneSettingsStore
@@ -216,6 +222,10 @@ func (h ChattoneHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			reply, err = admin.ConfigureWritingStyles(r.Context(), config)
 		}
+	case strings.HasPrefix(r.URL.Path, ChattonePath+"/reword"):
+		reply, err := chattoneRewordServe(h.Surface, w, r)
+		chattoneRewordWrite(w, reply, err)
+		return
 	case r.URL.Path == ChattonePath+"/rewrite" && r.Method == http.MethodPost:
 		var draft ChattoneDraft
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 24<<10))

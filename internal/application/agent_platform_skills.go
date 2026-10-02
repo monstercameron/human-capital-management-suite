@@ -202,7 +202,10 @@ func newAgentCapabilities(reader ownWorkerReader, evidence capability.EvidenceSi
 // of the caller's own worker state and a T1 private-draft summary produced by
 // the model. Both name the same capability, so one delegated scope covers
 // both; the summary route receives only the reviewed public task goal, never
-// the worker-state result retained in the task ledger.
+// the worker-state result retained in the task ledger. The declared data
+// classes follow from that: the read skill reads a personnel record (PII),
+// and the summary skill, whose class is the one a model request carries,
+// declares PUBLIC, the only class a model provider is cleared for here.
 func newAgentSkills(caps agentskills.CapabilityCatalog) (*agentskills.Registry, error) {
 	registry := agentskills.NewRegistry(caps)
 	operation := agentskills.OperationRef{Kind: agentskills.OperationCapability, Capability: capability.Key{ID: agentReadCapabilityID, Version: 1}}
@@ -214,7 +217,7 @@ func newAgentSkills(caps agentskills.CapabilityCatalog) (*agentskills.Registry, 
 			Description: "Read the signed-in user's own worker record: name, number, status, job code, org unit and location.",
 			InputSchema: inputSchema, OutputSchema: outputSchema, Operations: []agentskills.OperationRef{operation},
 			SideEffectTier: agentskills.TierRead, RequiredPurposes: []string{agentPurpose},
-			DataClassesRead: []string{"PUBLIC"}, IdempotencyRule: "read-only", CostClass: "LOW",
+			DataClassesRead: []string{"PII"}, IdempotencyRule: "read-only", CostClass: "LOW",
 			EvalRefs: []string{"eval:TestTodo_UXBLIND_122"},
 		},
 		{
@@ -222,7 +225,7 @@ func newAgentSkills(caps agentskills.CapabilityCatalog) (*agentskills.Registry, 
 			Description: "Draft a short private answer to the user's request with the configured model; no worker records are changed.",
 			InputSchema: inputSchema, OutputSchema: outputSchema, Operations: []agentskills.OperationRef{operation},
 			SideEffectTier: agentskills.TierPrivateDraft, RequiredPurposes: []string{agentPurpose},
-			DataClassesRead: []string{"PII"}, IdempotencyRule: "read-only", CostClass: "LOW",
+			DataClassesRead: []string{"PUBLIC"}, IdempotencyRule: "read-only", CostClass: "LOW",
 			EvalRefs: []string{"eval:TestTodo_UXBLIND_122"},
 		},
 	} {

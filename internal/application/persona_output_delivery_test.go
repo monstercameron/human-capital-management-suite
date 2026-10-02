@@ -38,17 +38,22 @@ func (f personaOutputAudienceFake) Snapshot(context.Context, agentdeliver.Conver
 	return f.snapshot, nil
 }
 
+// personaOutputAuthorizerFake denies the channel's wider audience (deny) or
+// everyone including the invoker (denyInvoker). The gate asks about the
+// invoker before it asks about anyone else, so the two are separate cases.
 type personaOutputAuthorizerFake struct {
-	deny bool
-	mu   sync.Mutex
-	seen int
+	deny        bool
+	denyInvoker bool
+	mu          sync.Mutex
+	seen        int
 }
 
-func (f *personaOutputAuthorizerFake) Authorize(context.Context, agentdeliver.ReauthorizationRequest) error {
+func (f *personaOutputAuthorizerFake) Authorize(_ context.Context, request agentdeliver.ReauthorizationRequest) error {
 	f.mu.Lock()
 	f.seen++
 	f.mu.Unlock()
-	if f.deny {
+	invoker := request.Audience == personaOutputRequest().Invoker
+	if f.denyInvoker || f.deny && !invoker {
 		return errors.New("current grant denied")
 	}
 	return nil
@@ -107,7 +112,9 @@ func TestPersonaOutputDelivery_PublicWhenCurrentAudienceCanRead(t *testing.T) {
 	if err != nil || !receipt.PublicPosted || receipt.Mode != agentdeliver.DeliveryPublic {
 		t.Fatalf("receipt=%+v err=%v", receipt, err)
 	}
-	if len(public.posts) != 1 || len(private.posts) != 0 || authorizer.seen != 2 {
+	// One check that the invoker may read the output, then one for each reader
+	// of the public channel: the current member and the eligible guest.
+	if len(public.posts) != 1 || len(private.posts) != 0 || authorizer.seen != 3 {
 		t.Fatalf("public=%+v private=%+v auth=%d", public.posts, private.posts, authorizer.seen)
 	}
 	if len(source.seen) != 1 || source.seen[0].OutputID != "output-1" {
@@ -129,6 +136,23 @@ func TestPersonaOutputDelivery_DeniedAudienceGetsNeutralReceiptAndPrivateCopy(t 
 	}
 	if public.posts[0].Body == private.posts[0].Body {
 		t.Fatal("neutral receipt exposed the private answer")
+	}
+}
+
+// An invoker who can no longer read the material gets no copy at all, and the
+// channel gets no receipt: the output is refused before any effect.
+func TestPersonaOutputDelivery_InvokerWhoCannotReadGetsNothing(t *testing.T) {
+	delivery, _, public, private, authorizer, err := personaOutputFixture(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorizer.denyInvoker = true
+	receipt, err := delivery.Deliver(context.Background(), personaOutputRequest())
+	if !errors.Is(err, agentdeliver.ErrOutputDenied) || receipt != (agentdeliver.DeliveryReceipt{}) {
+		t.Fatalf("receipt=%+v err=%v, want output denied", receipt, err)
+	}
+	if len(public.posts) != 0 || len(private.posts) != 0 || authorizer.seen != 1 {
+		t.Fatalf("denied invoker caused an effect: public=%+v private=%+v auth=%d", public.posts, private.posts, authorizer.seen)
 	}
 }
 

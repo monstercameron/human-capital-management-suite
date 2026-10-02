@@ -200,10 +200,17 @@ func (s *DatabasePersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context
 		return PersonaRunModelWork{}, fmt.Errorf("%w: quarantine reference documents: %v", errPersonaRunModelWork, err)
 	}
 	classifyPersonaReferenceDocumentFields(&request, documentClass)
+	// AGENTUX-076: the agent's own facts and the documents it can read here.
+	facts, withFacts := personaAgentFactsFor(ctx, s.documents, admission, profile, true)
+	if withFacts {
+		if err := insertPersonaAgentFacts(&request, facts, route); err != nil {
+			return PersonaRunModelWork{}, fmt.Errorf("%w: agent facts: %v", errPersonaRunModelWork, err)
+		}
+	}
 	if err := validateExecutorRequest(request); err != nil {
 		return PersonaRunModelWork{}, fmt.Errorf("%w: generated executor binding: %v", errPersonaRunModelWork, err)
 	}
-	return PersonaRunModelWork{Request: request}, nil
+	return PersonaRunModelWork{Request: request, Facts: facts, HasFacts: withFacts, General: personaAnswersGenerally(profile)}, nil
 }
 
 func validatePersonaModelWorkBinding(admission agentrun.Record, run runstate.Run) error {

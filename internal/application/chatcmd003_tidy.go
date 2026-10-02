@@ -13,11 +13,15 @@ import (
 	"unicode"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrewrite"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 )
 
-const Chatcmd003TidyPath = "/api/chat-message-card/tidy"
+// The path is under /api/chat/ because the page's content security policy
+// admits only that prefix for Chat's own calls; the earlier path could not be
+// reached from the page at all.
+const Chatcmd003TidyPath = "/api/chat/message-card/v1/tidy"
 
 type Chatcmd003TidyRequest struct {
 	Conversation string               `json:"conversation_id"`
@@ -50,6 +54,21 @@ func (s *ChattoneService) Chatcmd003TidyDraft(ctx context.Context, in Chatcmd003
 	if len(original.Raw) > 12000 || strings.TrimSpace(original.Raw) == "" || (original.Card.Kind != "poll" && original.Card.Kind != "todo") {
 		return original, chatrewrite.ErrInvalid
 	}
+	// The command registry is enforced here as it is in the composer's list
+	// and at the post (CHATCMD-001): a /poll or /todo draft is not tidied for a
+	// conversation the command may not be used in, and the model is not asked.
+	facts, _, err := s.Conversations.WritingContext(ctx, id)
+	if err != nil {
+		return original, err
+	}
+	place := chat.Chatcmd001Place{}
+	if facts.Status == "resolved" {
+		// A locked or archived channel takes no new polls or lists.
+		place.Status = chatpolicy.StatusArchived
+	}
+	if err := chat.Chatcmd001Defaults().Check(place, chat.Chatcmd001Line{Command: true, Name: original.Card.Kind}); err != nil {
+		return original, chat.ErrPermissionDenied
+	}
 	if accepted, err := s.Rewrite.Policy.Accept(ctx, id, original.Raw); err != nil || !accepted {
 		return original, chatrewrite.ErrPolicy
 	}
@@ -58,7 +77,14 @@ func (s *ChattoneService) Chatcmd003TidyDraft(ctx context.Context, in Chatcmd003
 	if parseErr != nil {
 		return original, chatrewrite.ErrInvalid
 	}
-	loose := original.Card.Kind == "poll" && !arguments.Explicit && original.Card.Validate() != nil
+	// A loosely typed poll whose question and options could not be told apart
+	// for certain (the preview holds a guess, or nothing it can post) is given
+	// to the model to separate. Any other draft is only tidied.
+	guessed := false
+	for _, issue := range original.Issues {
+		guessed = guessed || issue == "separate-question"
+	}
+	loose := original.Card.Kind == "poll" && !arguments.Explicit && (guessed || original.Card.Validate() != nil)
 	data, _ := json.Marshal(struct {
 		Title string   `json:"title"`
 		Items []string `json:"items"`
@@ -154,7 +180,15 @@ func chatcmd003ApplyTidy(d chat.Chatcmd003Draft, out chatcmd003TidyOutput) (chat
 	items := chatcmd003CardItems(before)
 	seen := map[int]bool{}
 	meanings := map[string][]string{}
+	// What the reading of the text reported (a line split into tasks, an
+	// assignee or a date taken out of a task) is still true after the model
+	// tidied the wording, so it stays listed.
 	var changes []chat.Chatcmd003Change
+	for _, change := range d.Changes {
+		if change.Kind != "" {
+			changes = append(changes, change)
+		}
+	}
 	if before.Title != out.Title {
 		changes = append(changes, chat.Chatcmd003Change{Before: before.Title, After: out.Title})
 	}
@@ -173,6 +207,12 @@ func chatcmd003ApplyTidy(d chat.Chatcmd003Draft, out chatcmd003TidyOutput) (chat
 		key := chatcmd003Canonical(items[item.Source])
 		meanings[key] = append(meanings[key], items[item.Source])
 		if item.Text != items[item.Source] || position != item.Source {
+			for i := range changes {
+				// An assignee or a date is listed against the task's new wording.
+				if changes[i].Kind != "" && changes[i].Kind != chat.Chatcmd004ChangeSplit && changes[i].Before == items[item.Source] {
+					changes[i].Before = item.Text
+				}
+			}
 			changes = append(changes, chat.Chatcmd003Change{Before: items[item.Source], After: item.Text})
 		}
 		if card.Poll != nil {
@@ -252,6 +292,9 @@ func Chatcmd003OverlayTidy(next http.Handler, surface ChattoneSurface, admission
 			}
 			if errors.Is(err, chatrewrite.ErrInvalid) {
 				status = http.StatusBadRequest
+			}
+			if errors.Is(err, chat.ErrPermissionDenied) {
+				status = http.StatusForbidden
 			}
 			w.WriteHeader(status)
 			return

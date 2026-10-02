@@ -177,7 +177,7 @@ func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localA
 	if err := ensureLocalAgentDemoRoleVisibility(ctx, roleAccess, row.TenantID, profile.Audience); err != nil {
 		return out, "", err
 	}
-	directConversation, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdmin, profile.Handle)
+	directConversation, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdmin, profile.Handle, profile.DisplayName)
 	if err != nil {
 		return out, "", err
 	}

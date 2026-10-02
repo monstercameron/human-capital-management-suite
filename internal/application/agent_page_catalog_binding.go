@@ -20,6 +20,10 @@ var ErrAgentPageCatalogBindingUnavailable = errors.New("application: agents page
 type AgentPageCatalogBinding struct {
 	Tasks   productui.AgentClient
 	Catalog *AgentUserCatalog
+	// Icons reads each listed agent's stored icon, so the Agents page draws the
+	// icon Chat and Agent setup draw. It is optional: without it the page draws
+	// a fallback for every agent.
+	Icons AgentIconProjection
 }
 
 // NewAgentPageCatalogBinding constructs a fail-closed Agents page binding.
@@ -59,6 +63,7 @@ func (b *AgentPageCatalogBinding) Snapshot(ctx context.Context, req productui.Ag
 		return productui.AgentSnapshot{}, err
 	}
 	snapshot.Agents = cloneAgentSummariesForPage(agents)
+	agentUX074AttachStoredIcons(ctx, b.Icons, verified, snapshot.Agents)
 	return snapshot, nil
 }
 

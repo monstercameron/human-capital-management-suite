@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -180,7 +181,14 @@ func TestTodo_AGENT2_029_ProvisionRefusesSourceOwnershipChange(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT2_029_Race_CurrentReadsRemainTenantScoped(t *testing.T) {
+// TestTodo_AGENT2_029_Race covers concurrent readers and, on a real store, two
+// sources asserting the first fact for one member at the same time.
+func TestTodo_AGENT2_029_Race(t *testing.T) {
+	t.Run("concurrent reads stay deterministic", homeOrganizationConcurrentReads)
+	t.Run("concurrent provision admits one source", homeOrganizationConcurrentProvisionAndRead)
+}
+
+func homeOrganizationConcurrentReads(t *testing.T) {
 	const workers = 16
 	var wg sync.WaitGroup
 	errs := make(chan error, workers)
@@ -202,7 +210,87 @@ func TestTodo_AGENT2_029_Race_CurrentReadsRemainTenantScoped(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT2_029_Security_InvalidTenantFailsClosed(t *testing.T) {
+// TestTodo_AGENT2_029_Security proves the fact cannot be read without a valid
+// tenant, cannot cross tenants on a real store, and cannot be rewritten.
+func TestTodo_AGENT2_029_Security(t *testing.T) {
+	t.Run("invalid tenant fails closed", homeOrganizationInvalidTenantFailsClosed)
+	t.Run("real store isolates tenants and keeps evidence", homeOrganizationStoreIsolatesTenants)
+}
+
+func homeOrganizationStoreIsolatesTenants(t *testing.T) {
+	ctx := context.Background()
+	db := pgtest.New(t)
+	tenantA, tenantB := uuid.New(), uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,'home-org-a','cell-local','a','ACTIVE',timestamptz '2026-01-01T00:00:00Z'),($2,'home-org-b','cell-local','b','ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantA, tenantB)
+	tenants := map[values.TenantId]uuid.UUID{"home-org-a": tenantA, "home-org-b": tenantB}
+	app := appRoleConnForPopulation(t, db)
+	directory := NewAgentHomeOrganizationDirectoryDB(app, func(tenant values.TenantId) uuid.UUID { return tenants[tenant] })
+	when := time.Now().UTC().Add(-time.Minute)
+	// The same subject reference exists in both tenants with different homes.
+	if err := directory.ProvisionHomeOrganization(ctx, "home-org-a", "worker-1", "org-a", "workforce-plan:v1", 1, when); err != nil {
+		t.Fatal(err)
+	}
+	if err := directory.ProvisionHomeOrganization(ctx, "home-org-b", "worker-1", "org-b", "workforce-plan:v1", 1, when); err != nil {
+		t.Fatal(err)
+	}
+	for tenant, want := range map[values.TenantId]string{"home-org-a": "org-a", "home-org-b": "org-b"} {
+		if got, err := directory.CurrentHomeOrganization(ctx, tenant, "worker-1"); err != nil || got != want {
+			t.Fatalf("%s home organization = %q, %v; want %q", tenant, got, err, want)
+		}
+	}
+	if _, err := directory.CurrentHomeOrganization(ctx, "home-org-unknown", "worker-1"); !errors.Is(err, ErrAgentHomeOrganizationUnavailable) {
+		t.Fatalf("unmapped tenant error = %v, want unavailable", err)
+	}
+	// The reader filters by tenant itself, so count what a tenant-A transaction
+	// can see with no filter to prove row-level security holds on its own.
+	tx, err := app.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tenancy.WithTenant(ctx, tx, tenantA); err != nil {
+		t.Fatal(err)
+	}
+	var visible int
+	scanErr := tx.QueryRow(ctx, `SELECT count(*) FROM agent_current_home_organization`).Scan(&visible)
+	_ = tx.Rollback(ctx)
+	if scanErr != nil || visible != 1 {
+		t.Fatalf("rows visible to tenant A = %d, %v; want only its own fact", visible, scanErr)
+	}
+	if err := db.ExecErr(`UPDATE agent_current_home_organization SET organization_scope_id='org-b' WHERE tenant_id=$1`, tenantA); err == nil {
+		t.Fatal("home organization rewrite succeeded")
+	}
+	if err := db.ExecErr(`DELETE FROM agent_current_home_organization WHERE tenant_id=$1`, tenantA); err == nil {
+		t.Fatal("home organization deletion succeeded")
+	}
+	// A revocation closes tenant A's fact for the next read and leaves tenant B's.
+	if err := directory.RevokeHomeOrganization(ctx, "home-org-a", "worker-1", "admin", "left the unit", time.Now().UTC().Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := directory.CurrentHomeOrganization(ctx, "home-org-a", "worker-1"); !errors.Is(err, ErrAgentHomeOrganizationUnavailable) {
+		t.Fatalf("revoked home organization error = %v, want unavailable", err)
+	}
+	if got, err := directory.CurrentHomeOrganization(ctx, "home-org-b", "worker-1"); err != nil || got != "org-b" {
+		t.Fatalf("tenant B after tenant A revocation = %q, %v", got, err)
+	}
+	// A change is a new revision from the same source: it supersedes the fact
+	// and keeps the old row as evidence. A stale revision cannot bring the old
+	// organization back.
+	if err := directory.ProvisionHomeOrganization(ctx, "home-org-b", "worker-1", "org-b2", "workforce-plan:v1", 2, time.Now().UTC().Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := directory.CurrentHomeOrganization(ctx, "home-org-b", "worker-1"); err != nil || got != "org-b2" {
+		t.Fatalf("tenant B after a revision = %q, %v; want org-b2", got, err)
+	}
+	if err := directory.ProvisionHomeOrganization(ctx, "home-org-b", "worker-1", "org-b", "workforce-plan:v1", 1, when); !errors.Is(err, ErrAgentHomeOrganizationUnavailable) {
+		t.Fatalf("stale revision error = %v, want unavailable", err)
+	}
+	var kept int
+	if err := db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM agent_current_home_organization WHERE tenant_id=$1`, tenantB).Scan(&kept); err != nil || kept != 2 {
+		t.Fatalf("tenant B fact rows = %d, %v; want the superseded fact kept beside the current one", kept, err)
+	}
+}
+
+func homeOrganizationInvalidTenantFailsClosed(t *testing.T) {
 	d := homeOrganizationReader([]any{"org-a"})
 	_, err := d.CurrentHomeOrganization(context.Background(), values.TenantId(" "), "worker-1")
 	if !errors.Is(err, ErrAgentHomeOrganizationUnavailable) {
@@ -230,7 +318,7 @@ func TestTodo_AGENT2_029_Integration_QueryCarriesTenantAndSubject(t *testing.T) 
 	}
 }
 
-func TestTodo_AGENT2_029_Race_IntegrationConcurrentProvisionAndRead(t *testing.T) {
+func homeOrganizationConcurrentProvisionAndRead(t *testing.T) {
 	db := pgtest.New(t)
 	tenantID := uuid.New()
 	tenantKey := values.TenantId("home-org-race")

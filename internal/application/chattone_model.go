@@ -28,14 +28,13 @@ import (
 const (
 	// ChattonePurpose is the provider purpose the credential scope, destination
 	// policy and clearance of a qualified deployment must carry.
-	ChattonePurpose            = "chat.writing_style"
-	chattoneSourceInstruction  = "chat-writing-instruction"
-	chattoneSourceDraft        = "chat-writing-draft"
-	chattoneOutputSchemaDigest = "text:chat-writing-style-v1"
-	chattoneToolSchemaDigest   = "none"
-	chattoneRequestTimeout     = 25 * time.Second
-	chattoneMaxInputTokens     = int64(6000)
-	chattoneMaxOutputTokens    = int64(4000)
+	ChattonePurpose           = "chat.writing_style"
+	chattoneSourceInstruction = "chat-writing-instruction"
+	chattoneSourceDraft       = "chat-writing-draft"
+	chattoneToolSchemaDigest  = "none"
+	chattoneRequestTimeout    = 25 * time.Second
+	chattoneMaxInputTokens    = int64(6000)
+	chattoneMaxOutputTokens   = int64(4000)
 	// chattoneDailyModelCalls is the per-person, per-day ceiling of the budget
 	// task: one rewrite is one model call (the meaning guard is not a model).
 	chattoneDailyModelCalls = 30
@@ -46,7 +45,18 @@ const (
 // writing-style task. It exists so the requirement is stated in one place and
 // tested, not rediscovered from an eligibility refusal.
 func ChattoneModelEvidenceProfile() (task agentmodel.TaskProfile, outputDigest, toolDigest string) {
-	return ChattoneTaskProfile(), chattoneOutputSchemaDigest, chattoneToolSchemaDigest
+	return ChattoneTaskProfile(), chattoneOutputSchemaDigest(), chattoneToolSchemaDigest
+}
+
+// chattoneOutputSchemaDigest is the digest of the one structured result every
+// tone rewrite returns (text and a meaning verdict), derived by SchemaFlux from
+// agentmodel.ChattoneRewrite. A model is qualified for exactly this schema.
+func chattoneOutputSchemaDigest() string {
+	digest, err := agentmodel.ChattoneRewriteSchemaDigest()
+	if err != nil {
+		return ""
+	}
+	return digest
 }
 
 // ChattoneDeploymentBinding is the production ChattoneGatewayBinding. It
@@ -213,14 +223,19 @@ func (b *ChattoneDeploymentBinding) BindWritingStyle(ctx context.Context, id cha
 	selection := agentmodel.ModelSelection{ProfileID: profile.ID, ProfileDigest: profile.ProfileDigest, Identity: profile.Identity}
 	classes := []trustdlp.DataClass{trustdlp.ClassPublic, trustdlp.ClassInternal}
 	deadline := now.Add(minDuration(profile.MaxLatency, chattoneRequestTimeout))
+	output, err := agentmodel.ChattoneRewriteOutput()
+	if err != nil {
+		return AgentModelGatewayRequest{}, chatrewrite.ErrUnavailable
+	}
+	outputDigest := chattoneOutputSchemaDigest()
 	route := agentmodel.RouteRequest{TraceID: trace,
-		Pin: agentmodel.ModelPin{AgentVersionDigest: version, TaskProfileID: task.ID, Primary: selection, SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: chattoneOutputSchemaDigest, ToolSchemaDigest: chattoneToolSchemaDigest},
+		Pin: agentmodel.ModelPin{AgentVersionDigest: version, TaskProfileID: task.ID, Primary: selection, SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: chattoneToolSchemaDigest},
 		Task: agentmodel.TaskProfile{ID: task.ID, AgentVersionDigest: version, Region: b.Region, DataClasses: slices.Clone(task.DataClasses), MaxLatency: profile.MaxLatency, MaxCostMicros: profile.MaxCostMicros,
-			SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: chattoneOutputSchemaDigest, ToolSchemaDigest: chattoneToolSchemaDigest},
+			SemanticsDigest: task.SemanticsDigest, OutputSchemaDigest: outputDigest, ToolSchemaDigest: chattoneToolSchemaDigest},
 		BudgetRemainingMicros: profile.MaxCostMicros}
 	retention := fmt.Sprintf("%s:%d", terms.Retention.Mode, int64(terms.Retention.MaxAge))
 	model := agentmodel.ModelRequest{ContractVersion: agentmodel.ContractVersion, TaskProfile: task.ID, ModelProfile: profile.ID,
-		Output: agentmodel.OutputConstraint{Mode: agentmodel.OutputText}, Deadline: deadline, Limits: b.Limits, TraceID: trace,
+		Output: output, RequiredFeatures: []agentmodel.ModelFeature{agentmodel.FeatureStructuredJSON}, Deadline: deadline, Limits: b.Limits, TraceID: trace,
 		Processing: agentmodel.ProcessingPolicy{Residency: b.Region, Retention: retention, TrainingUse: terms.TrainingUse, Logging: terms.Logging}}
 	trusted, err := NewTrustedModelTask(id.Tenant, taskID, version, b.Workload)
 	if err != nil {

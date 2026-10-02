@@ -40,7 +40,7 @@ func TestTodo_CHATTONE_004_Integration(t *testing.T) {
 	service := chat.NewService(store, s.Now)
 	service.SetAuthority(servedPersonaChatAuthority{})
 	owner := chat.Principal{TenantID: "tenant", SubjectID: "owner"}
-	if _, err := service.CreateConversation(context.Background(), chat.CreateConversationRequest{Principal: owner, TenantID: "tenant", ConversationID: "room", Kind: chat.PublicChannel, Name: "Room"}); err != nil {
+	if _, err := service.CreateConversation(context.Background(), chat.CreateConversationRequest{Principal: owner, TenantID: "tenant", ConversationID: "room", Kind: chat.PublicChannel, Name: "room"}); err != nil {
 		t.Fatal(err)
 	}
 	member, err := service.AddMembership(context.Background(), chat.AddMembershipRequest{Principal: owner, Membership: chat.Membership{TenantID: "tenant", HomeTenantID: "tenant", ConversationID: "room", SubjectID: "person", HistoryVisibility: chat.FullHistory}})

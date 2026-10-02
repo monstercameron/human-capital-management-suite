@@ -63,6 +63,8 @@ type agentServedAssemblyInput struct {
 		SweepChannelStatuses(context.Context, string, time.Time) (int, error)
 	}
 	AnnouncementWorker *AgentAnnouncementWorker
+	// AgentAccess supplies the providers the access pages depend on (AGENT2-018, -019).
+	AgentAccess AgentAccessOptions
 }
 
 type agentServedAssembly struct {
@@ -87,6 +89,7 @@ type agentServedAssembly struct {
 		SweepChannelStatuses(context.Context, string, time.Time) (int, error)
 	}
 	Icons              transport.AgentIconSurface
+	Access             *agentAccessServices
 	AnnouncementWorker *AgentAnnouncementWorker
 	Owners             *AgentOwnerOperations
 	Memory             *AgentMemoryOperations
@@ -95,6 +98,7 @@ type agentServedAssembly struct {
 	Portable           *AgentPortableService
 	ProjectSkill       *AgentProjectSkill
 	Restore            AgentRestoreRuntime
+	agentUX            agentUXServed
 	browserLogin       bool
 	publicOrigin       string
 	now                func() time.Time
@@ -144,6 +148,9 @@ func composeAgentServedAssembly(in agentServedAssemblyInput) (*agentServedAssemb
 	}
 	assembly.Controls = &AgentControlsSurface{Operations: ownerControls}
 	assembly.Owners, assembly.Memory = owners, memory
+	if assembly.Access, err = composeAgentAccess(in, nil); err != nil {
+		return nil, fmt.Errorf("agent access services: %w", err)
+	}
 	assembly.Actions, err = NewAgentActionService(in.Cell)
 	if err != nil {
 		return nil, fmt.Errorf("agent action commands: %w", err)
@@ -319,7 +326,14 @@ func (s *agentServedAssembly) Overlay(next http.Handler, admission transport.Con
 	}
 	fallback := next
 	next = OverlayAgentControlsSurface(next, s.Controls, admission)
+	if s.Access != nil {
+		next = OverlayAgentAccess(next, s.Access.HTTP, admission)
+	}
 	next = OverlayAgentAnnouncements(next, s.Announcements, admission)
+	// The ambient agents and the demo agents' controls (AGENTUX-066, -053). A
+	// cell that did not compose them answers Chat's read with nothing in it
+	// instead of "not found".
+	next = s.agentUX.overlay(next, admission)
 	next = s.overlayChatFeatures(next, admission)
 	next = OverlayChatgates(next, s.Gates, admission)
 	next = OverlayChatRenderings(next, s.Renderings, admission)
@@ -381,8 +395,8 @@ func (s *agentServedAssembly) Overlay(next http.Handler, admission transport.Con
 }
 
 func agentServedPath(path string) bool {
-	return path == integrate2FeaturesPath || path == ChatgatePath || strings.HasPrefix(path, ChatRenderingPath+"/") || strings.HasPrefix(path, ChatlangPath+"/") || strings.HasPrefix(path, ChannelStatusPath) || path == ChatSearchPath || strings.HasPrefix(path, ChatSearchPath+"/") || path == ChatFiltersPath || strings.HasPrefix(path, ChatFiltersPath+"/") || strings.HasPrefix(path, ChatmapPath+"/") || path == ChattonePath || strings.HasPrefix(path, ChattonePath+"/") || strings.HasPrefix(path, transport.AgentIconPath+"/") || strings.HasPrefix(path, AgentActionsPath) || path == agentcontrols.Path || strings.HasPrefix(path, agentcontrols.Path+"/") ||
-		path == AgentPortableCatalogPath || path == AgentPortableExportPath || path == AgentPortableImportPath || path == AgentPortableDraftPath || path == AgentVersionRolloutPath
+	return path == integrate2FeaturesPath || path == ChatgatePath || path == Chatcmd003TidyPath || strings.HasPrefix(path, Chatcmd002CardPath+"/") || strings.HasPrefix(path, ChatRenderingPath+"/") || strings.HasPrefix(path, ChatlangPath+"/") || strings.HasPrefix(path, ChannelStatusPath) || path == ChatSearchPath || strings.HasPrefix(path, ChatSearchPath+"/") || path == ChatFiltersPath || strings.HasPrefix(path, ChatFiltersPath+"/") || strings.HasPrefix(path, ChatmapPath+"/") || path == ChattonePath || strings.HasPrefix(path, ChattonePath+"/") || strings.HasPrefix(path, transport.AgentIconPath+"/") || strings.HasPrefix(path, AgentActionsPath) || path == agentcontrols.Path || strings.HasPrefix(path, agentcontrols.Path+"/") ||
+		path == AgentPortableCatalogPath || path == AgentPortableExportPath || path == AgentPortableImportPath || path == AgentPortableDraftPath || path == AgentVersionRolloutPath || agentUXServedPath(path) || agentAccessPath(path)
 }
 
 func agentServedMutation(method string) bool {

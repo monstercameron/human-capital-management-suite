@@ -122,9 +122,19 @@ func TestDocumentChatRefsResolveAsReader(t *testing.T) {
 	if m := got.Messages[0]; !m.Readable || m.Body != "We ship Friday." || m.AuthorName != "Ana Lopez" || m.ChannelName != "People Ops" || m.PostID != "post-1" {
 		t.Fatalf("readable message = %+v", m)
 	}
-	for _, m := range got.Messages[1:] {
-		if m.Readable || m.Body != "" || m.AuthorName != "" || m.ChannelName != "" {
+	// Order follows the document: denied, deleted, cross-conversation.
+	for i, m := range got.Messages[1:] {
+		if m.Readable || m.Body != "" || m.AuthorID != "" || m.AuthorName != "" || m.PostID != "" || !m.CreatedAt.IsZero() {
 			t.Fatalf("unreadable message leaked %+v", m)
+		}
+		// A post the reader could open until it was deleted still names its
+		// channel (DOCS-08); a link the reader cannot resolve names nothing.
+		if deleted := i == 1; deleted {
+			if m.Token != "tok-gone" || m.ConversationID != "conv-1" || m.ChannelName != "People Ops" {
+				t.Fatalf("deleted message = %+v, want its channel and nothing else", m)
+			}
+		} else if m.ConversationID != "" || m.ChannelName != "" {
+			t.Fatalf("unreadable message leaked its channel %+v", m)
 		}
 	}
 }

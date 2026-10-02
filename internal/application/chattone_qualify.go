@@ -93,6 +93,14 @@ type ChattoneQualification struct {
 	Passed       bool                     `json:"passed"`
 	CostMicros   int64                    `json:"cost_micros"`
 	Cases        []ChattoneCaseResult     `json:"cases"`
+	// Reword is the scored run of the reword suite, present when one was asked
+	// for; the task's SuiteDigest and Passed then cover both suites.
+	Reword *ChattoneRewordRecord `json:"reword,omitempty"`
+}
+
+func chattoneCombinedDigest(parts ...string) string {
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // Evaluation is the evidence a deployment records for the model.
@@ -164,7 +172,7 @@ func chattoneCaseFailure(c ChattoneQualificationCase, output string) string {
 // under test, called without a deployment's routing because no deployment
 // qualifies it yet. It sends only the suite's synthetic drafts.
 type chattoneLiveModel struct {
-	adapter  agentmodel.ModelAdapter
+	op       *agentmodel.ChattoneRewriteOp
 	profile  agentmodel.ModelProfile
 	limits   agentmodel.ModelLimits
 	timeout  time.Duration
@@ -177,25 +185,40 @@ type chattoneLiveModel struct {
 }
 
 func (m *chattoneLiveModel) Rewrite(ctx context.Context, p chatrewrite.Prompt) (string, error) {
+	checked, err := m.RewriteChecked(ctx, p)
+	if err != nil {
+		return "", err
+	}
+	if !checked.MeaningPreserved {
+		return "", chatrewrite.ErrPreservation
+	}
+	return checked.Text, nil
+}
+
+// RewriteChecked makes the same one structured call the service makes: the
+// provider returns the rewrite and its meaning verdict in one typed result.
+func (m *chattoneLiveModel) RewriteChecked(ctx context.Context, p chatrewrite.Prompt) (chatrewrite.Checked, error) {
 	var nonce [8]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
-		return "", chatrewrite.ErrUnavailable
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
 	}
 	task, _, _ := ChattoneModelEvidenceProfile()
 	request := agentmodel.ModelRequest{ContractVersion: agentmodel.ContractVersion, TaskProfile: task.ID, ModelProfile: m.profile.ID,
 		Messages: []agentmodel.ModelMessage{{Role: agentmodel.RoleSystem, Content: p.Instruction}, {Role: agentmodel.RoleUser, Content: p.Data}},
-		Output:   agentmodel.OutputConstraint{Mode: agentmodel.OutputText}, Deadline: time.Now().Add(m.timeout), Limits: m.limits, TraceID: "chattone-qualify-" + hex.EncodeToString(nonce[:]),
+		Deadline: time.Now().Add(m.timeout), Limits: m.limits, TraceID: "chattone-qualify-" + hex.EncodeToString(nonce[:]),
 		Processing: agentmodel.ProcessingPolicy{Residency: m.region, Retention: m.retain, TrainingUse: m.training, Logging: m.logging}}
 	callCtx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
-	result, err := m.adapter.Invoke(callCtx, request)
+	// The qualification calls the provider through the same SchemaFlux operation
+	// the service's schema comes from, so what is measured is what is served.
+	rewrite, result, err := m.op.Run(callCtx, request)
 	m.mu.Lock()
 	m.cost += result.Usage.CostMicros
 	m.mu.Unlock()
-	if err != nil || result.Failure != nil || result.Refusal != nil || result.Finish != agentmodel.FinishComplete || len(result.ToolProposals) != 0 {
-		return "", chatrewrite.ErrUnavailable
+	if err != nil {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
 	}
-	return result.Text, nil
+	return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
 }
 
 // ChattoneQualifyConfig is what a live evaluation needs: an approved base
@@ -207,20 +230,39 @@ type ChattoneQualifyConfig struct {
 	MaxLatency    time.Duration
 	MaxCostMicros int64
 	Now           func() time.Time
+	// Model is the model to qualify; empty selects agentmodel.ChattoneDefaultModel
+	// (gpt-6-luna), not the base deployment's own first model. The base
+	// deployment must carry an approved price for it. There is no fallback to
+	// another model: a model without a price is an error.
+	Model string
+	// RewordSuite, when set, is run beside the writing-style suite and must also
+	// pass; Recorder, when set, records the model's answers to it for replay.
+	RewordSuite []ChattoneRewordCase
+	Recorder    *ChattoneRewordRecorder
 }
 
-// QualifyChattoneModel evaluates the base deployment's first model on the
-// suite, calling the provider directly with synthetic drafts only. It returns
-// the record of the run. When every case passes it also returns the approval
-// document for the task, built with the run's own evidence; otherwise it
-// returns ErrChattoneNotQualified and no document.
-func QualifyChattoneModel(ctx context.Context, cfg ChattoneQualifyConfig) (ChattoneQualification, PersonaModelDeployment, error) {
+// identity is the model identity a qualification runs on: the base
+// deployment's own profile when it names the model asked for, else the model
+// asked for, pinned by its name.
+func (c ChattoneQualifyConfig) identity(template agentmodel.ModelProfile) agentmodel.ModelIdentity {
+	want := agentmodel.ChattoneModelID(c.Model)
+	if template.Identity.ModelID == want {
+		return template.Identity
+	}
+	return agentmodel.ModelIdentity{ProviderID: template.Identity.ProviderID, ModelID: want, Version: want}
+}
+
+// chattoneLiveModelFor builds the model under test from a qualification
+// config: the provider adapter for the named model (gpt-6-luna unless another
+// is named) behind the SchemaFlux rewrite operation, priced by the base
+// deployment's own schedule. A model the schedule has no price for is an error.
+func chattoneLiveModelFor(ctx context.Context, cfg ChattoneQualifyConfig) (*chattoneLiveModel, agentmodel.ModelIdentity, error) {
 	if strings.TrimSpace(cfg.APIKey) == "" || cfg.Now == nil || len(cfg.Base.Profiles) == 0 {
-		return ChattoneQualification{}, PersonaModelDeployment{}, fmt.Errorf("%w: a provider key, a clock and a base deployment are required", errChattoneBinding)
+		return nil, agentmodel.ModelIdentity{}, fmt.Errorf("%w: a provider key, a clock and a base deployment are required", errChattoneBinding)
 	}
 	pricing, _, err := cfg.Base.validate()
 	if err != nil {
-		return ChattoneQualification{}, PersonaModelDeployment{}, err
+		return nil, agentmodel.ModelIdentity{}, err
 	}
 	template := cfg.Base.Profiles[0]
 	var terms *agentegress.ProviderTerms
@@ -230,37 +272,71 @@ func QualifyChattoneModel(ctx context.Context, cfg ChattoneQualifyConfig) (Chatt
 		}
 	}
 	if terms == nil || len(terms.AllowedRegions) == 0 {
-		return ChattoneQualification{}, PersonaModelDeployment{}, fmt.Errorf("%w: the template profile has no provider terms", errChattoneBinding)
+		return nil, agentmodel.ModelIdentity{}, fmt.Errorf("%w: the template profile has no provider terms", errChattoneBinding)
 	}
-	selection := agentmodel.ModelSelection{ProfileID: template.ID, ProfileDigest: template.ProfileDigest, Identity: template.Identity}
-	provider, err := modelopenai.New(modelopenai.Config{APIKey: cfg.APIKey, BaseURL: cfg.Base.BaseURL, ModelProfile: template.ID, Identity: template.Identity, PreflightInputTokens: false})
+	identity := cfg.identity(template)
+	selection := agentmodel.ModelSelection{ProfileID: template.ID, ProfileDigest: template.ProfileDigest, Identity: identity}
+	provider, err := modelopenai.New(modelopenai.Config{APIKey: cfg.APIKey, BaseURL: cfg.Base.BaseURL, ModelProfile: template.ID, Identity: identity, PreflightInputTokens: false})
 	if err != nil {
-		return ChattoneQualification{}, PersonaModelDeployment{}, err
+		return nil, agentmodel.ModelIdentity{}, err
 	}
-	priced, err := agentmodel.NewPricedAdapter(provider, selection, pricing)
+	op, err := agentmodel.NewChattoneRewriteOp(provider, selection, pricing)
 	if err != nil {
-		return ChattoneQualification{}, PersonaModelDeployment{}, err
+		return nil, agentmodel.ModelIdentity{}, fmt.Errorf("%w: the base deployment has no approved price for %s: %v", errChattoneBinding, identity.ModelID, err)
 	}
 	limits := agentmodel.ModelLimits{MaxInputTokens: chattoneMaxInputTokens, MaxOutputTokens: chattoneMaxOutputTokens, MaxCostMicros: cfg.MaxCostMicros}
 	for limits.MaxOutputTokens > 500 && pricing.Validate(ctx, selection, limits) != nil {
 		limits.MaxOutputTokens -= 250
 	}
-	live := &chattoneLiveModel{adapter: priced, profile: template, limits: limits, timeout: minDuration(cfg.MaxLatency, chattoneRequestTimeout), region: terms.AllowedRegions[0],
+	live := &chattoneLiveModel{op: op, profile: template, limits: limits, timeout: minDuration(cfg.MaxLatency, chattoneRequestTimeout), region: terms.AllowedRegions[0],
 		retain: fmt.Sprintf("%s:%d", terms.Retention.Mode, int64(terms.Retention.MaxAge)), training: terms.TrainingUse, logging: terms.Logging}
+	return live, identity, nil
+}
+
+// QualifyChattoneModel evaluates the base deployment's first model on the
+// suite, calling the provider directly with synthetic drafts only. It returns
+// the record of the run. When every case passes it also returns the approval
+// document for the task, built with the run's own evidence; otherwise it
+// returns ErrChattoneNotQualified and no document.
+func QualifyChattoneModel(ctx context.Context, cfg ChattoneQualifyConfig) (ChattoneQualification, PersonaModelDeployment, error) {
+	live, identity, err := chattoneLiveModelFor(ctx, cfg)
+	if err != nil {
+		return ChattoneQualification{}, PersonaModelDeployment{}, err
+	}
 	verifier, err := NewChattoneOutboundVerifier()
 	if err != nil {
 		return ChattoneQualification{}, PersonaModelDeployment{}, err
 	}
 	registry := chatrewrite.NewRegistry()
 	service := &chatrewrite.Service{Registry: registry, Model: live, Policy: chattoneAllowAllPolicy{}, Meaning: ChattoneMeaningGuard{}, Outbound: verifier, Ledger: chatrewrite.NewMemoryLedger(1000), Now: cfg.Now}
-	q := RunChattoneQualification(ctx, service, chatrewrite.Identity{Tenant: "qualification", Person: "qualification", Conversation: "qualification"}, template.Identity, cfg.Now)
+	q := RunChattoneQualification(ctx, service, chatrewrite.Identity{Tenant: "qualification", Person: "qualification", Conversation: "qualification"}, identity, cfg.Now)
+	// The same model, on the same typed call, is also scored on rewording; a
+	// model qualifies for the task only when it passes both suites.
+	if len(cfg.RewordSuite) > 0 {
+		var model chatrewrite.CheckedModel = live
+		if cfg.Recorder != nil {
+			cfg.Recorder.Model = live
+			model = cfg.Recorder
+		}
+		reworder, err := NewChattoneReworder(model, chattoneAllowAllPolicy{}, nil, cfg.Now)
+		if err != nil {
+			return q, PersonaModelDeployment{}, err
+		}
+		record := RunChattoneRewordQualification(ctx, reworder, cfg.RewordSuite, identity, cfg.Now)
+		q.Reword = &record
+		q.Passed = q.Passed && record.Passed
+		q.SuiteDigest = chattoneCombinedDigest(q.SuiteDigest, record.SuiteDigest)
+	}
 	live.mu.Lock()
 	q.CostMicros = live.cost
 	live.mu.Unlock()
+	if q.Reword != nil {
+		q.Reword.CostMicros = q.CostMicros
+	}
 	if !q.Passed {
 		return q, PersonaModelDeployment{}, ErrChattoneNotQualified
 	}
-	dep, err := NewChattoneDeployment(cfg.Base, q.Evaluation(), cfg.MaxLatency, cfg.MaxCostMicros)
+	dep, err := NewChattoneDeploymentFor(cfg.Base, identity, q.Evaluation(), cfg.MaxLatency, cfg.MaxCostMicros)
 	return q, dep, err
 }
 

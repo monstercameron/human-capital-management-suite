@@ -171,7 +171,11 @@ func personaRuntimePublicProfile(version agentpersonastore.PersonaVersion, insta
 	}
 	// An agent set to answer privately never posts to a conversation, whatever
 	// its sources are. This holds for document and chat sources alike.
-	if profile.AlwaysPrivate || installation.ChannelPolicy.AlwaysPrivate {
+	// The channel's requirement outranks the agent's own setting (AGENTUX-070).
+	if installation.ChannelPolicy.AlwaysPrivate {
+		return agentpersona.PersonaProfile{}, personaPrivateReasonError{reason: chat.PrivateReasonChannel}
+	}
+	if profile.AlwaysPrivate {
 		return agentpersona.PersonaProfile{}, personaPrivateReasonError{reason: chat.PrivateReasonAgent}
 	}
 	return profile, nil

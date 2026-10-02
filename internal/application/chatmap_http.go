@@ -37,6 +37,14 @@ type chatmapBody struct {
 	Size                                 chat.MapSize
 	Theme                                chat.MapTheme
 	Query                                string
+	// Live sharing and settings (CHATMAP-005, CHATMAP-006).
+	Live                bool
+	LiveIntervalSeconds int
+	Policy              chatmapPolicyWire
+	Country             string
+	Enabled             bool
+	Basis               string
+	Reason              string
 }
 
 func OverlayChatmap(next http.Handler, surface ChatmapSurface, pictures ChatmapPictures, admission transport.Config) http.Handler {
@@ -138,7 +146,9 @@ func (h ChatmapHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			result, err = lookup.LookupAddress(r.Context(), p, k.TenantID, k.ConversationID, body.Query)
 		}
 	case ChatmapPath + "/attach":
-		result, err = h.Surface.Attach(r.Context(), chat.AttachLocationRequest{Principal: p, TenantID: k.TenantID, ConversationID: k.ConversationID, PostID: k.PostID, PostRevision: body.PostRevision, Place: body.Place, ExpiresAt: body.ExpiresAt})
+		result, err = h.Surface.Attach(r.Context(), chat.AttachLocationRequest{Principal: p, TenantID: k.TenantID, ConversationID: k.ConversationID, PostID: k.PostID, PostRevision: body.PostRevision, Place: body.Place, ExpiresAt: body.ExpiresAt, Live: body.Live, LiveInterval: time.Duration(body.LiveIntervalSeconds) * time.Second})
+	case ChatmapPath + "/update", ChatmapPath + "/mine", ChatmapPath + "/endmine", ChatmapPath + "/map", ChatmapPath + "/policy", ChatmapPath + "/setpolicy", ChatmapPath + "/setjurisdiction", ChatmapPath + "/settings":
+		result, err = h.live(r.Context(), r.URL.Path, p, k, body)
 	case ChatmapPath + "/read":
 		result, err = h.Surface.Read(r.Context(), p, k)
 	case ChatmapPath + "/end":

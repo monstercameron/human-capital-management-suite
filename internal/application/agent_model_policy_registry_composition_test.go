@@ -117,8 +117,12 @@ func TestTodo_AGENT_021_ImmutablePolicyComposition(t *testing.T) {
 	if err := agent.SQL.QueryRow(`SELECT (SELECT count(*) FROM agent_immutable_contract),(SELECT count(*) FROM agent_contract_authority),(SELECT count(*) FROM persona_model_route_policy)`).Scan(&records, &authorities, &profiles); err != nil {
 		t.Fatal(err)
 	}
-	if records != 3 || authorities != 3 || profiles != 0 {
-		t.Fatalf("bootstrap manufactured routing or reissued authority: records=%d authorities=%d routes=%d", records, authorities, profiles)
+	// Two compositions leave exactly one stored contract and one authority per
+	// local policy record: the set has grown with each retained evaluation
+	// suite version, and a restart must not add to it.
+	published := len(LocalPersonaOpenAIPolicyRecords())
+	if published < 3 || records != published || authorities != published || profiles != 0 {
+		t.Fatalf("bootstrap manufactured routing or reissued authority: records=%d authorities=%d routes=%d, local policy records=%d", records, authorities, profiles, published)
 	}
 	if _, err := core.SQL.Exec(`DELETE FROM tenant WHERE tenant_id=$1`, tenant); err != nil {
 		t.Fatal(err)

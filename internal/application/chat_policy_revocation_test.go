@@ -21,7 +21,10 @@ import (
 type policyRevocationDB struct {
 	failPolicyWrite bool
 	writes          int
-	policy          *chatpolicy.Channel
+	// audienceAdvances counts the conversation audience revisions a policy write
+	// advanced: persona replies prepared under the old policy must not commit.
+	audienceAdvances []string
+	policy           *chatpolicy.Channel
 }
 
 func (d *policyRevocationDB) RunTx(ctx context.Context, fn func(dbport.Tx) error) error {
@@ -44,6 +47,9 @@ func (tx policyRevocationTx) Exec(_ context.Context, query string, args ...any) 
 			revision = tx.db.policy.Revision + 1
 		}
 		tx.db.policy = &chatpolicy.Channel{ID: args[1].(string), HostTenant: args[0].(string), RequiredRoles: append([]string(nil), args[2].([]string)...), RoleMode: chatpolicy.RoleMode(args[3].(int)), RequiredQualifications: append([]string(nil), args[4].([]string)...), AllowedPrincipals: append([]string(nil), args[5].([]string)...), AllowedTenants: append([]string(nil), args[6].([]string)...), Classification: args[7].(string), Residency: args[8].(string), Revision: revision}
+		return 1, nil
+	case strings.Contains(query, "UPDATE chat_conversation SET audience_revision=audience_revision+1"):
+		tx.db.audienceAdvances = append(tx.db.audienceAdvances, args[0].(string)+"/"+args[1].(string))
 		return 1, nil
 	case strings.Contains(query, "INSERT INTO chat_outbox"):
 		return 1, nil
@@ -139,6 +145,21 @@ func (s *policyReadStore) GetMembership(_ context.Context, tenant, id, home, sub
 	return chatcore.Membership{ConversationID: id, TenantID: tenant, HomeTenantID: home, SubjectID: subject, Role: chatcore.Member, JoinedAt: &joined, Revision: 1}, nil
 }
 
+// The chat service refuses to authorize a channel whose store cannot report
+// the channel's status, so the store reports an open channel; these tests
+// change the policy, never the status.
+func (s *policyReadStore) ReadChannelStatus(_ context.Context, tenant, id string) (chatcore.ChannelStatus, error) {
+	return chatcore.ChannelStatus{Status: chatpolicy.StatusOpen, Revision: 1}, nil
+}
+
+func (s *policyReadStore) CommitChannelStatus(context.Context, chatcore.ChangeChannelStatusRequest, time.Time, func(context.Context, chatcore.ChannelStatus) error) (chatcore.ChannelStatus, error) {
+	return chatcore.ChannelStatus{}, errors.New("unexpected channel status change")
+}
+
+func (s *policyReadStore) SweepChannelStatuses(context.Context, string, time.Time) (int, error) {
+	return 0, errors.New("unexpected channel status sweep")
+}
+
 func (s *policyReadStore) Search(context.Context, chatcore.SearchRequest) (chatcore.SearchResponse, error) {
 	s.searchCalls++
 	return chatcore.SearchResponse{}, nil
@@ -198,6 +219,9 @@ func TestTodo_CHAT_020_SetChannelPolicySynchronouslyInvalidatesStreamsAndCache(t
 	}
 	if db.writes != 1 {
 		t.Fatalf("policy writes=%d, want one", db.writes)
+	}
+	if len(db.audienceAdvances) != 1 || db.audienceAdvances[0] != "host/conversation" {
+		t.Fatalf("audience revision advances=%v, want one for the conversation whose policy changed", db.audienceAdvances)
 	}
 	if _, ok := cachedChatGet(cache, cache.policies, chatCacheKey("host", "conversation")); ok {
 		t.Fatal("policy cache remained readable after update returned")

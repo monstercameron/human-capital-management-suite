@@ -13,6 +13,9 @@ const (
 	personaAdminCodeUnavailable           = "unavailable"
 	personaAdminCodeEvaluationUnavailable = "evaluation_unavailable"
 	personaAdminCodeDocumentUnreadable    = "document_unreadable"
+	// A version that cannot be given what it needs to run is refused at
+	// publish with its own code, so the page can say so in words.
+	personaAdminCodeRuntimeUnavailable = "runtime_unavailable"
 )
 
 // PersonaAdminCommandError exposes a stable, non-sensitive code to the
@@ -60,6 +63,8 @@ func classifyPersonaAdminCommandError(err error) error {
 		return personaAdminCommandError(personaAdminCodeDocumentUnreadable, err)
 	case errors.Is(err, ErrPersonaAdminEvaluationUnavailable):
 		return personaAdminCommandError(personaAdminCodeEvaluationUnavailable, err)
+	case errors.Is(err, ErrPersonaAdminRuntimeUnavailable):
+		return personaAdminCommandError(personaAdminCodeRuntimeUnavailable, err)
 	case errors.Is(err, ErrPersonaDraftInvalid), errors.Is(err, ErrPersonaReviewInvalid), errors.Is(err, agentpersonastore.ErrInvalid):
 		return personaAdminCommandError(personaAdminCodeInvalid, err)
 	case errors.Is(err, ErrPersonaDraftDenied), errors.Is(err, ErrPersonaReviewDenied):

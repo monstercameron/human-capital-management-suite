@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatmedia"
 )
 
@@ -26,6 +27,16 @@ type VoiceService struct {
 	Media       VoiceMediaUploader
 	Messages    VoiceMessageWriter
 	Transcripts chat.VoiceStore
+	// Speaker serves Listen, Switches stores the voice switches and Admin decides
+	// who may change a workspace's or a channel's.
+	Speaker  *VoiceSpeaker
+	Switches VoiceSwitchStore
+	Admin    chatfilter.Authority
+	// Barred says where Listen is absent because the channel bars outside services.
+	Barred VoiceBarredSource
+	// SwitchValues and Engine feed the workspace settings page.
+	SwitchValues VoiceSwitchReader
+	Engine       VoiceEngineInfo
 }
 type VoiceSendRequest struct {
 	TenantID, ConversationID, IdempotencyKey, ContentType, Note, Locale string

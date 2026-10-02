@@ -81,6 +81,15 @@ func newChattoneProvider(t *testing.T) *chattoneProvider {
 			rewrite = chattoneFakeRewrite
 		}
 		out, _ := json.Marshal(rewrite(req.System, req.User))
+		// The rewrite is one structured result: the text and the model's verdict.
+		// A request that asks for the typed schema is answered with it.
+		if strings.Contains(string(raw), `"json_schema"`) {
+			typed, _ := json.Marshal(struct {
+				Text             string `json:"text"`
+				MeaningPreserved bool   `json:"meaning_preserved"`
+			}{rewrite(req.System, req.User), true})
+			out, _ = json.Marshal(string(typed))
+		}
 		io.WriteString(w, `{"id":"response-chattone","model":"test-model","status":"completed","usage":{"input_tokens":20,"output_tokens":10,"total_tokens":30},"output":[{"type":"message","content":[{"type":"output_text","text":`+string(out)+`}]}]}`)
 	}))
 	t.Cleanup(p.server.Close)

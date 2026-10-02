@@ -90,7 +90,10 @@ type LocalAgentDemoSummary struct {
 	AssistantVersion       int64
 	AssistantState         string
 	AmbientAgents          []AgentUXAmbientPreparationReceipt
-	WorkspaceIndex         WorkspaceIndexPreparation
+	// Starters is one line for every starter the demo workspace is meant to
+	// offer: prepared by this run, or not, with the reason.
+	Starters       []LocalAgentDemoStarterReceipt
+	WorkspaceIndex WorkspaceIndexPreparation
 	// WorkspaceDocumentsShared counts the demo documents that became readable
 	// by every workspace member in this run.
 	WorkspaceDocumentsShared int
@@ -278,10 +281,13 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	}
 	preparation := localAgentDemoPreparation{config: config, core: core, agents: agents, personas: personas, evaluations: evaluations, mapper: mapper, key: key, material: material, admin: principal, chat: chat, repairStore: repairStore, chatService: chatRuntime.service, roleAccess: roleAccess, publicConversation: publicConversation, now: now}
 	directConversation := ""
-	for _, seed := range []localAgentDemoSeed{
-		{personaID: localAgentDemoPersonaID, starterID: "hcmnext.persona_template.policy_helper"},
-		{personaID: localAgentDemoAssistantPersonaID, starterID: localAgentDemoAssistantStarterID},
-	} {
+	// The starters are one list (AGENTUX-049); one that has no seed yet is named
+	// in the receipt with the reason rather than skipped without a word.
+	for _, entry := range localAgentDemoStarterList() {
+		if entry.seed == nil {
+			continue
+		}
+		seed := *entry.seed
 		prepared, direct, prepareErr := preparation.prepare(adminCtx, seed, profile)
 		if prepareErr != nil {
 			return summary, prepareErr
@@ -289,7 +295,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		if seed.personaID == localAgentDemoPersonaID {
 			directConversation = direct
 			summary.Persona, summary.DisplayName, summary.Version, summary.State = row.PersonaID, row.DisplayName, prepared.version, string(prepared.state)
-		} else {
+		} else if seed.personaID == localAgentDemoAssistantPersonaID {
 			summary.AssistantVersion, summary.AssistantState = prepared.version, string(prepared.state)
 		}
 		summary.EvaluationRecorded = summary.EvaluationRecorded || prepared.evaluationRecorded
@@ -302,6 +308,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		summary.DuplicateInstallationsRetired += prepared.duplicateInstallationsGone
 		summary.SkillGrantsCreated += prepared.skillGrantsCreated
 	}
+	summary.Starters = localAgentDemoStarterReceipts(localAgentDemoStarterNames())
 	summary.IconsSet, err = scoped.BackfillIcons(ctx, localAgentDemoAdmin, now)
 	if err != nil {
 		return summary, err
@@ -493,7 +500,11 @@ func ensureLocalAgentDemoChatIdentity(ctx context.Context, scoped *agentpersonas
 	return scoped.RegisterPersonaChatIdentity(ctx, agentID, personaID, now)
 }
 
-func ensureLocalAgentDemoDirectConversation(ctx context.Context, store *chatstore.Store, service chatcore.ConversationService, tenant, admin, agentID string) (string, bool, error) {
+// ensureLocalAgentDemoDirectConversation prepares the administrator's direct
+// conversation with an agent. displayName, when given, is the agent's published
+// name, which a newly created conversation is named after (AGENTUX-030); the
+// agent's identifier is never used as a name.
+func ensureLocalAgentDemoDirectConversation(ctx context.Context, store *chatstore.Store, service chatcore.ConversationService, tenant, admin, agentID string, displayName ...string) (string, bool, error) {
 	participants := []chatcore.MemberRef{{TenantID: tenant, SubjectID: admin}, {TenantID: tenant, SubjectID: agentID}}
 	id, err := chatcore.DirectPairConversationID(tenant, participants)
 	if err != nil {
@@ -515,6 +526,9 @@ func ensureLocalAgentDemoDirectConversation(ctx context.Context, store *chatstor
 		return "", repaired, err
 	}
 	provisioner.Policies = store
+	if len(displayName) > 0 {
+		provisioner.DisplayName = displayName[0]
+	}
 	resolved, err := provisioner.EnsurePersonaDM(ctx, chatcore.Principal{TenantID: tenant, SubjectID: admin}, tenant)
 	if err != nil {
 		return "", repaired, err

@@ -102,7 +102,7 @@ func newChattoneServedStackWith(t *testing.T, userDailySteps int64, local bool, 
 	service := chat.NewService(adapter, now)
 	service.SetAuthority(servedPersonaChatAuthority{})
 	owner := chat.Principal{TenantID: chattoneTenant, SubjectID: "owner"}
-	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: chattoneTenant, ConversationID: chattoneRoom, Kind: chat.PublicChannel, Name: "Team Room"}); err != nil {
+	if _, err := service.CreateConversation(ctx, chat.CreateConversationRequest{Principal: owner, TenantID: chattoneTenant, ConversationID: chattoneRoom, Kind: chat.PublicChannel, Name: "team-room"}); err != nil {
 		t.Fatal(err)
 	}
 	var member chat.Membership

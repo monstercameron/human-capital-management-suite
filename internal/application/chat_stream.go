@@ -446,6 +446,18 @@ func (s *streamingChatService) CommitPersonaReply(ctx context.Context, req chatc
 	}
 	return committer.CommitPersonaReply(ctx, req)
 }
+
+// CommitAgentQuestionReaction forwards an agent's reaction to the question it was
+// asked (AGENTUX-075) to the routed service beneath, which holds the route lease
+// the write needs.
+func (s *streamingChatService) CommitAgentQuestionReaction(ctx context.Context, req chatcore.AgentQuestionReaction) (chatcore.Reaction, error) {
+	committer, ok := s.ConversationService.(chatcore.AgentQuestionReactionCommitter)
+	if !ok {
+		return chatcore.Reaction{}, chatcore.ErrUnavailable
+	}
+	return committer.CommitAgentQuestionReaction(ctx, req)
+}
+
 func (s *streamingChatService) SendEphemeralPost(ctx context.Context, req chatcore.SendEphemeralPostRequest) (chatcore.EphemeralPost, error) {
 	if s.personaDM == nil {
 		return chatcore.EphemeralPost{}, chatcore.ErrUnavailable
@@ -630,6 +642,16 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 					fail <- chatStreamError(nextErr)
 				}
 				return
+			}
+			if event.Signal == chatstream.SignalSidebarLayoutChanged {
+				// A person-scoped notice, not a conversation event: it skips the
+				// projection and the language masks and never moves the cursor.
+				select {
+				case out <- chatSidebarSignalEvent(event, sub.Cursor()):
+				case <-ctx.Done():
+					return
+				}
+				continue
 			}
 			projected, projectErr := projectChatStreamEvent(ctx, req, event, s.runtime.clock())
 			if projectErr != nil {

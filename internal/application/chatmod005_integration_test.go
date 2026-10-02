@@ -92,7 +92,7 @@ func TestTodo_CHATMOD_005_Integration(t *testing.T) {
 	// buttons; the reporter is named to a moderator and to nobody else.
 	queuePage := f.call("owner", http.MethodGet, ChatModerationPagePath+"?locale=en-US&tz=-240", nil)
 	body := queuePage.Body.String()
-	for _, want := range []string{"Open · 2", "Resolved", "Report", "Filter hit", "Rule that matched: Project Falcon 1.2.0", "Reported by Rae Reporter", "Alex Author", "the words to be removed", "#Room", `data-chatremove-act="dismiss"`, "action=remove", "action=message", `data-chatremove="filter"`} {
+	for _, want := range []string{`<span>Open</span><span class="chatsave-seg-count">2</span>`, `<span>Resolved</span><span class="chatsave-seg-count">0</span>`, "Report", "Filter hit", "Rule that matched: Project Falcon 1.2.0", "Reported by Rae Reporter", "Alex Author", "the words to be removed", "#room", `data-chatremove-act="dismiss"`, "action=remove", "action=message", `data-chatremove="filter"`} {
 		if queuePage.Code != http.StatusOK || !strings.Contains(body, want) {
 			t.Fatalf("the moderator's page misses %q: %d %s", want, queuePage.Code, body)
 		}
@@ -255,7 +255,7 @@ func TestTodo_CHATMOD_005_Security_Served(t *testing.T) {
 	// A private conversation: a workspace administrator who is not in it neither
 	// sees the report nor is counted for it nor can decide it.
 	owner := chat.Principal{TenantID: f.tenant, SubjectID: "owner"}
-	if _, err := f.core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: owner, TenantID: f.tenant, ConversationID: "secret", Kind: chat.PrivateChannel, Name: "Secret"}); err != nil {
+	if _, err := f.core.CreateConversation(t.Context(), chat.CreateConversationRequest{Principal: owner, TenantID: f.tenant, ConversationID: "secret", Kind: chat.PrivateChannel, Name: "secret"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.core.AddMembership(t.Context(), chat.AddMembershipRequest{Principal: owner, Membership: chat.Membership{TenantID: f.tenant, ConversationID: "secret", HomeTenantID: f.tenant, SubjectID: "author", Role: chat.Member, HistoryVisibility: chat.FullHistory}}); err != nil {

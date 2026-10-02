@@ -34,6 +34,9 @@ const (
 	PersonaAdminReinstall     PersonaAdminCommandAction = "REINSTALL"
 	PersonaAdminSuspend       PersonaAdminCommandAction = "SUSPEND"
 	PersonaAdminRetire        PersonaAdminCommandAction = "RETIRE"
+	// PersonaAdminSetReactions is the owner's choice about the agent reacting to
+	// the questions it is asked (AGENTUX-075).
+	PersonaAdminSetReactions PersonaAdminCommandAction = "SET_REACTIONS"
 )
 
 // PersonaAdminCommand carries only action data. Tenant and actor identity are
@@ -52,6 +55,8 @@ type PersonaAdminCommand struct {
 	EvaluationRunID    string
 	Decision           string
 	Reason             string
+	// ReactToQuestions is the choice SET_REACTIONS stores.
+	ReactToQuestions *bool
 }
 
 // PersonaAdminCommandActor is derived only from the authenticated request.
@@ -112,7 +117,7 @@ func personaAdminRoleAction(action PersonaAdminCommandAction) (string, bool) {
 		return roleaccess.ActionView, true
 	case PersonaAdminCreateDraft:
 		return roleaccess.ActionCreate, true
-	case PersonaAdminCreateVersion, PersonaAdminRequestReview, PersonaAdminRunEvaluation, PersonaAdminPublish, PersonaAdminRollback, PersonaAdminInstall, PersonaAdminUninstall, PersonaAdminReinstall, PersonaAdminSuspend:
+	case PersonaAdminCreateVersion, PersonaAdminRequestReview, PersonaAdminRunEvaluation, PersonaAdminPublish, PersonaAdminRollback, PersonaAdminInstall, PersonaAdminUninstall, PersonaAdminReinstall, PersonaAdminSuspend, PersonaAdminSetReactions:
 		return roleaccess.ActionUpdate, true
 	case PersonaAdminRetire:
 		return roleaccess.ActionDelete, true
@@ -283,6 +288,11 @@ func (f *PersonaAdminCommandFactory) ExecutePersonaAdminCommand(ctx context.Cont
 		if !personaAdminLifecycleRequestHasSupportedFields(request) || request.ConversationID != "" || (!isReview && request.Decision != "") || (command.Action != PersonaAdminPublish && (request.ReviewID != "" || request.EvaluationRunID != "")) || (isReview && request.Reason != "") || (command.Action == PersonaAdminRunEvaluation && request.Reason != "") {
 			return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
 		}
+	case PersonaAdminSetReactions:
+		if request.ReactToQuestions == nil || !personaAdminLifecycleRequestHasSupportedFields(personaAdminWithoutReaction(request)) || request.ConversationID != "" || request.ReviewID != "" || request.EvaluationRunID != "" || request.Decision != "" || request.Reason != "" {
+			return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
+		}
+		command.ReactToQuestions = request.ReactToQuestions
 	default:
 		return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
 	}
@@ -315,7 +325,7 @@ func personaAdminRequestHasSupportedFields(request productui.PersonaAdminCommand
 }
 
 func personaAdminLifecycleRequestHasSupportedFields(request productui.PersonaAdminCommandRequest) bool {
-	return request.StarterID == "" && request.StarterVersion == 0 && request.AvatarRef == "" && len(request.OrganizationScopes) == 0 && request.ManifestID == "" && request.BusinessOwnerID == "" && request.TechnicalStewardID == "" && request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && request.Instructions == nil && len(request.AllowedChannels) == 0
+	return request.StarterID == "" && request.StarterVersion == 0 && request.AvatarRef == "" && len(request.OrganizationScopes) == 0 && request.ManifestID == "" && request.BusinessOwnerID == "" && request.TechnicalStewardID == "" && request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && request.Instructions == nil && len(request.AllowedChannels) == 0 && request.ReactToQuestions == nil
 }
 
 func personaAdminGuidance(value *string) string {
@@ -362,7 +372,7 @@ func (c personaAdminCommandClient) Snapshot(_ context.Context, req productui.Per
 	snapshot.CommandPermissionsAvailable = true
 	snapshot.CommandsState = productui.PersonaAdminRegionState{}
 	snapshot.AllowedCommands = nil
-	for _, action := range []PersonaAdminCommandAction{PersonaAdminCreateDraft, PersonaAdminCreateVersion, PersonaAdminRequestReview, PersonaAdminReview, PersonaAdminRunEvaluation, PersonaAdminPublish, PersonaAdminRollback, PersonaAdminInstall, PersonaAdminUninstall, PersonaAdminReinstall, PersonaAdminSuspend, PersonaAdminRetire} {
+	for _, action := range []PersonaAdminCommandAction{PersonaAdminCreateDraft, PersonaAdminCreateVersion, PersonaAdminRequestReview, PersonaAdminReview, PersonaAdminRunEvaluation, PersonaAdminPublish, PersonaAdminRollback, PersonaAdminInstall, PersonaAdminUninstall, PersonaAdminReinstall, PersonaAdminSuspend, PersonaAdminRetire, PersonaAdminSetReactions} {
 		if availability, ok := c.executor.(interface {
 			PersonaAdminCommandAvailable(context.Context, PersonaAdminCommandAction) bool
 		}); ok && !availability.PersonaAdminCommandAvailable(c.ctx, action) {
@@ -446,6 +456,8 @@ func validPersonaAdminCommand(command PersonaAdminCommand) bool {
 		return command.Installation.PersonaID == command.PersonaID && command.Installation.TenantID == "" && command.Installation.InstallerID == "" && command.Installation.InstallationID == "" && command.Installation.PersonaVersion == 0 && command.Installation.ConversationID != "" && command.Installation.ConversationClass == "" && command.Installation.State == "" && command.Installation.Revision == 0 && command.Installation.RevocationEpoch == 0 && emptyPersonaChannelPolicy(command.Installation.ChannelPolicy)
 	case PersonaAdminSuspend, PersonaAdminRetire:
 		return command.Installation.InstallationID == "" && command.InstallationID == "" && command.Version.Digest == ""
+	case PersonaAdminSetReactions:
+		return command.ReactToQuestions != nil && command.Installation.InstallationID == "" && command.InstallationID == "" && command.Version.Digest == "" && command.Decision == "" && command.Reason == "" && command.ReviewID == "" && command.EvaluationRunID == ""
 	default:
 		return false
 	}

@@ -44,6 +44,10 @@ type ChatDirectoryPersonaCatalogTargets struct {
 	Directory PersonaCatalogDirectory
 	Roles     AgentRoleDirectory
 	RoleNames roleaccess.Store
+	// Agents recognises agent identities among the members, so an agent is
+	// never looked up as a person and never counted as an omission
+	// (AGENTUX-033). Nil keeps every member a person.
+	Agents PersonaAudienceInstallationStore
 }
 
 // ListPersonaCatalogTargets returns visible members and rooms for the trusted
@@ -88,6 +92,9 @@ func (s *ChatDirectoryPersonaCatalogTargets) ListPersonaCatalogTargetsWithState(
 				if target, resolved := resolvedUsers[key]; resolved {
 					humansByRoom[room.ID] = append(humansByRoom[room.ID], target)
 				}
+				continue
+			}
+			if agent, agentErr := personaChatIdentityActive(ctx, s.Agents, string(tenant), member.HomeTenantID, member.SubjectID); agentErr == nil && agent {
 				continue
 			}
 			target, err := s.Directory.ResolvePersonaCatalogTarget(ctx, values.TenantId(member.HomeTenantID), member.SubjectID)
@@ -200,6 +207,9 @@ func roomsToTargets(rooms []chat.Conversation, humansByRoom map[string][]product
 	out := make([]productui.PersonaAdminTarget, 0, len(rooms))
 	for _, room := range rooms {
 		target := productui.PersonaAdminTarget{ID: room.ID, Label: room.Name, Kind: string(room.Kind)}
+		for _, human := range humansByRoom[room.ID] {
+			target.Members = append(target.Members, productui.PersonaAdminTarget{ID: human.ID, Role: human.Role})
+		}
 		if room.Kind == chat.Direct {
 			humans := append([]productui.PersonaAdminTarget(nil), humansByRoom[room.ID]...)
 			slices.SortFunc(humans, func(a, b productui.PersonaAdminTarget) int { return strings.Compare(a.Label, b.Label) })

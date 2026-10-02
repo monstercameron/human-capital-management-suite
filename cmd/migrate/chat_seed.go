@@ -522,6 +522,8 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 	window := time.Duration(chatSeedDays) * 24 * time.Hour
 	slot := window / time.Duration(posts+1)
 	roots := make([]chatcore.Post, 0, posts)
+	office := chatSeedOfficeZone(in.opts.Tenant)
+	var lastRoot time.Time
 	for i := 0; i < posts; i++ {
 		jitter := time.Duration(in.rng.Int63n(int64(slot/2+time.Minute))) - slot/4
 		clock := in.start.Add(time.Duration(i+1)*slot + jitter)
@@ -531,6 +533,19 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 		if clock.After(in.opts.Now) {
 			clock = in.opts.Now.Add(-time.Duration(posts-i) * time.Minute)
 		}
+		// Office hours, never later than the run itself and never before the
+		// post that precedes it.
+		clock = chatSeedWorkday(clock, office)
+		for clock.After(in.opts.Now) {
+			clock = clock.Add(-24 * time.Hour)
+		}
+		if !clock.After(lastRoot) {
+			clock = lastRoot.Add(time.Minute)
+		}
+		if clock.After(in.opts.Now) {
+			clock = in.opts.Now
+		}
+		lastRoot = clock
 		author := in.people[in.room.Members[i%len(in.room.Members)]]
 		body, refs := seedBody(in, i, author)
 		mediaRefs, mediaErr := seedMediaFor(ctx, media, in, i, author, receipt)
@@ -560,7 +575,7 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 			replies := 2 + in.rng.Intn(7)
 			receipt.Threads++
 			for r := 0; r < replies; r++ {
-				clock = clock.Add(time.Duration(3+in.rng.Intn(40)) * time.Minute)
+				clock = chatSeedReplyTime(clock.Add(time.Duration(3+in.rng.Intn(40))*time.Minute), office)
 				if clock.After(in.opts.Now) {
 					clock = in.opts.Now
 				}

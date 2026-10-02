@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"strings"
@@ -55,6 +57,24 @@ func chatlangFailure(w http.ResponseWriter, err error) {
 	}
 }
 
+// chatlangLogFailure records why a translation-settings request failed. The page
+// says only that settings could not load or save; the cause (a refused database
+// read, a refusal of the caller, a missing surface) is written here
+// (CHATBUG-087). It never carries a request body.
+func chatlangLogFailure(r *http.Request, action string, err error) {
+	if err == nil {
+		return
+	}
+	slog.Warn("hcmnext.chat_translation_settings", "outcome", "failed", "method", r.Method, "action", action, "error_type", fmt.Sprintf("%T", err), "cause", err.Error())
+}
+
+// chatlangLogWrite records a translation setting that was saved.
+func chatlangLogWrite(r *http.Request, action string) {
+	if r.Method != http.MethodGet {
+		slog.Info("hcmnext.chat_translation_settings", "outcome", "ok", "method", r.Method, "action", action)
+	}
+}
+
 func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	action := strings.TrimPrefix(r.URL.Path, ChatlangPath+"/")
 	method := http.MethodPost
@@ -71,6 +91,7 @@ func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			chatFeatureUnavailableWrite(w, "translation_not_composed")
 			return
 		}
+		chatlangLogFailure(r, action, errors.New("chat translation is not composed on this server"))
 		chatlangFailure(w, chatlang.ErrUnavailable)
 		return
 	}
@@ -119,14 +140,17 @@ func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err = h.Surface.RemoveTerm(r.Context(), input.ID)
 	}
 	if err != nil {
+		chatlangLogFailure(r, action, err)
 		chatlangFailure(w, err)
 		return
 	}
 	view, err := h.Surface.View(r.Context(), conversation)
 	if err != nil {
+		chatlangLogFailure(r, action, err)
 		chatlangFailure(w, err)
 		return
 	}
+	chatlangLogWrite(r, action)
 	chatlangJSON(w, http.StatusOK, view)
 }
 
@@ -143,6 +167,7 @@ func OverlayChatTranslation(next http.Handler, surface ChatlangSurface, admissio
 		}
 		ctx, _, denied := transport.Admit(r.Context(), admission, transport.AdmissionRequest{Metadata: transport.MapMetadata(r.Header), Method: r.URL.Path, Kind: transport.KindHTTPEdge})
 		if denied != nil {
+			chatlangLogFailure(r, strings.TrimPrefix(r.URL.Path, ChatlangPath+"/"), fmt.Errorf("admission denied: %s (%d)", denied.Code(), denied.HTTPStatus()))
 			chatlangJSON(w, denied.HTTPStatus(), chatlangHTTPError{"denied"})
 			return
 		}

@@ -101,6 +101,8 @@ func (c *LocalDevPersonaPostClassifier) classify(ctx context.Context, post chat.
 	if err != nil {
 		return err
 	}
+	// A shared location is special-category data whatever the message says.
+	class = dlp.DataClass(chat.RaiseForLocation(post, string(class)))
 	sum := sha256.Sum256([]byte(post.Body))
 	digest := "sha256:" + hex.EncodeToString(sum[:])
 	return c.store.PutPublicChatPostClassification(ctx, post.TenantID, post.ConversationID, post.ID, digest, class)

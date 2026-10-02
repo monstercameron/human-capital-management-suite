@@ -326,7 +326,7 @@ func agentUXGeneralPublishRunnable(t *testing.T, upgrade, workspaceSearch bool) 
 	adminCtx := trust.WithPrincipal(ctx, principal)
 	publicID := localDevPersonaDemoConversationID(localAgentDemoTenant, "general")
 	chatPrincipal := chatcore.Principal{TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAdmin}
-	if _, err := chatRuntime.service.CreateConversation(adminCtx, chatcore.CreateConversationRequest{Principal: chatPrincipal, TenantID: localAgentDemoTenant, ConversationID: publicID, Kind: chatcore.PublicChannel, Name: "General", IdempotencyKey: "general-create"}); err != nil {
+	if _, err := chatRuntime.service.CreateConversation(adminCtx, chatcore.CreateConversationRequest{Principal: chatPrincipal, TenantID: localAgentDemoTenant, ConversationID: publicID, Kind: chatcore.PublicChannel, Name: "general", IdempotencyKey: "general-create"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := chatRuntime.service.AddMembership(adminCtx, chatcore.AddMembershipRequest{Principal: chatPrincipal, Membership: chatcore.Membership{ConversationID: publicID, TenantID: localAgentDemoTenant, HomeTenantID: localAgentDemoTenant, SubjectID: "ir-008-curtis-bell", Role: chatcore.Member, HistoryVisibility: chatcore.FullHistory}}); err != nil {

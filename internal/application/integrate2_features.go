@@ -30,6 +30,6 @@ func (s *agentServedAssembly) overlayChatFeatures(next http.Handler, admission t
 			return
 		}
 		// Filter management is mounted inside the conversation details panel.
-		_ = json.NewEncoder(w).Encode(chatui.ChatFeatures{Gates: !isNilPersonaOutputPort(s.Gates), Renderings: !isNilPersonaOutputPort(s.Renderings), Status: !isNilPersonaOutputPort(s.ChannelStatus), Search: s.ChatSearch.Port != nil, Filters: s.Filters != nil, Locations: !isNilPersonaOutputPort(s.Locations), WritingStyles: chattoneFeatureOn(admitted, s.WritingStyles), Translating: chatlangTranslationFeature(admitted, s.Renderings), Translation: s.translationReady()})
+		_ = json.NewEncoder(w).Encode(chatui.ChatFeatures{Gates: !isNilPersonaOutputPort(s.Gates), Renderings: !isNilPersonaOutputPort(s.Renderings), Status: !isNilPersonaOutputPort(s.ChannelStatus), Search: s.ChatSearch.Port != nil, Filters: s.Filters != nil, Locations: !isNilPersonaOutputPort(s.Locations), WritingStyles: chattoneFeatureOn(admitted, s.WritingStyles), WritingStylesNote: chattoneFeatureNote(admitted, s.WritingStyles), Translating: chatlangTranslationFeature(admitted, s.Renderings), Translation: s.translationReady()})
 	})
 }

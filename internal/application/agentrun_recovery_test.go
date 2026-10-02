@@ -379,8 +379,9 @@ func TestTodo_AGENTRUN_002(t *testing.T) {
 			if model.calls.Load() != 0 {
 				t.Fatalf("the failed run was run again: %d calls", model.calls.Load())
 			}
-			sent := len(h.room.sends)
-			if _, err := h.surface.Retry(h.surfaceCtx, inv.InvocationID, "person-pressed-try-again"); err != nil || len(h.room.sends) != sent+1 {
+			// CHATBUG-047: the question is admitted again; nothing is posted.
+			sent := len(h.room.reattempts)
+			if _, err := h.surface.Retry(h.surfaceCtx, inv.InvocationID, "person-pressed-try-again"); err != nil || len(h.room.reattempts) != sent+1 || len(h.room.sends) != 0 {
 				t.Fatalf("Try again is not accepted for an interrupted answer: %v", err)
 			}
 		})

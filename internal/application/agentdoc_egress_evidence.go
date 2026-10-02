@@ -44,8 +44,18 @@ func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocre
 		"model.message.0": {value: manifest.Purpose, class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleSystem},
 		"model.message.1": {value: personaDeveloperMessage(profile), class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleDeveloper},
 	}
-	if len(documents) == 0 {
+	// AGENTUX-076: the agent's facts block sits just before the invoking message,
+	// after the reference documents when there are any.
+	withFacts := func(first int) (map[string]personaAuthoritativeModelField, error) {
+		if facts, ok := personaAgentFactsFor(ctx, resolver, admission, profile, false); ok {
+			for name, field := range personaAgentFactsVerificationFields(facts, first, route.ProfileClass, route.ThreadClass) {
+				fields[name] = field
+			}
+		}
 		return fields, nil
+	}
+	if len(documents) == 0 {
+		return withFacts(2 + len(history))
 	}
 	documentClass, err := personaReferenceDocumentDataClass(ctx, resolver, admission, documents, route)
 	if err != nil {
@@ -61,7 +71,7 @@ func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocre
 	for i, ref := range documentRefs {
 		fields[fmt.Sprintf("model.context.%d", len(refs)+i)] = personaAuthoritativeModelField{value: fmt.Sprintf("%s\x00%s\x00%s", ref.ID, ref.Version, ref.Digest), class: documentClass, source: "persona-reference-document"}
 	}
-	return fields, nil
+	return withFacts(containmentIndex + 2)
 }
 
 func personaAuthoritativeDocumentField(fields map[string]personaAuthoritativeModelField, source agentegress.SourceClassificationRequest) bool {

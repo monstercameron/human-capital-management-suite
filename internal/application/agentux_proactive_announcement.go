@@ -313,7 +313,10 @@ func (s *AgentAnnouncementService) setState(ctx context.Context, actor AgentAnno
 	}
 	allowed, authErr := s.Authority.ManageAgentInstallation(ctx, actor, record.InstallationID, record.PersonaID, record.ConversationID)
 	if authErr != nil || !allowed {
-		return agentstore.Announcement{}, ErrAgentAnnouncementDenied
+		// The owner may still delete a record whose installation was retired.
+		if state != agentstore.AnnouncementDeleted || !announcementInstallationRetired(ctx, s.Authority, actor, record) {
+			return agentstore.Announcement{}, ErrAgentAnnouncementDenied
+		}
 	}
 	projected := record
 	projected.State, projected.Revision = state, expected+1

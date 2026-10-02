@@ -110,9 +110,16 @@ func TestTodo_CHAT_041_RuntimeCallbackUnavailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The invoker holds the command's capability (CHAT-028 checks that first), so
+	// the only thing missing is the served callback, and that alone refuses.
+	authorizer := &chat028CommandAuthorizer{}
+	s.AppCommandAuthorization = authorizer
 	_, err = s.Invoke(context.Background(), p, "conv", v.ID, chatapps.Callback{Command: "run", IdempotencyKey: "once"})
 	if !errors.Is(err, chatapps.ErrDenied) {
 		t.Fatalf("missing callback accepted: %v", err)
+	}
+	if authorizer.app != "app" || authorizer.cap != "invoke" || authorizer.conversation != "conv" {
+		t.Fatalf("command authority was not asked for the invoked command: %+v", authorizer)
 	}
 }
 func TestTodo_CHAT_036_MediaAuthorizationUsesTrustedHomeTenant(t *testing.T) {

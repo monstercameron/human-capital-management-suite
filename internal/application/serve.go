@@ -1021,7 +1021,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 				if modelFactory != nil {
 					floor := &PersonaRuntimeAudienceFloor{Chat: chatRuntime.service, Personas: agentDatabase.personas,
 						Authority: NewPersonaAudienceFloorAdapter(personaAudience, personaAudience, personaAudience), Classes: personaAudience, BodyClasses: bodyClassifier,
-						Documents: AgentAnnouncementHubAuthority{Store: documentRuntime.store, Now: time.Now}}
+						Documents: AgentAnnouncementHubAuthority{Store: documentRuntime.store, Now: time.Now, Classes: agentUX035Classes(chatRuntime.store)}}
 					personaShareFloor = floor
 					invocationConfig, modelErr = composePersonaRuntimeDependencies(ctx, personaRuntimeCompositionInput{
 						AgentDatabase: agentDatabase, Pool: in.Pool, Cell: cell, Personas: personaWiring,
@@ -1044,6 +1044,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			}
 			if personaRuntime == nil {
 				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_missing", "missing_ports", personaInvocationServeMissingPorts(), "enable_with", personaServedProviderUnavailableReason(cfg, os.Getenv))
+				// AGENTUX-075: a question to an agent is still answered, with the reason.
+				if bindErr := bindPersonaModelUnavailable(streaming, personaWiring, agentDatabase, logger); bindErr != nil {
+					logger.Error("hcmnext.persona_model_unavailable_notice_unbound", "error_type", fmt.Sprintf("%T", bindErr))
+				}
 			} else {
 				if platformAgentRuntime != nil && platformAgentRuntime.Starter != nil && invocationConfig != nil {
 					taskPersonas, taskPersonaErr := NewAgentTaskPersonaResolver(invocationConfig.Authority, personaWiring.aud, personaWiring.store)
@@ -1122,6 +1126,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		logChattoneComposition(logger, writingStyles, writingReason, writingErr)
 		if writingErr == nil && writingStyles != nil {
 			in.WritingStyles = writingStyles
+		} else if writingErr == nil {
+			// Not provisioned: the features answer says why, so the composer
+			// states it instead of silently having no controls.
+			in.WritingStyles = chattoneUnprovisionedService(writingReason, chatRuntime.store, chatFacts, options.Now)
 		}
 	}
 	// CHATLANG-003: translation of messages into each reader's language. It is
@@ -1130,6 +1138,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// administrator turns it on.
 	chatlangRuntime, chatlangReason, chatlangErr := composeServedChatlang(ctx, chatlangServeInput{Config: cfg, Runtime: platformAgentRuntime, Chat: chatRuntime, Now: options.Now, Tenants: cfg.ServedTenants()})
 	logChatlangComposition(logger, chatlangRuntime, chatlangReason, chatlangErr)
+	// CHATVOICE: voice messages, their transcripts and Listen, over OpenAI through
+	// the model gateway's key and the channel's outside-service switch. A missing
+	// key leaves transcripts "unavailable"; it never disables recording.
+	chatVoiceRuntime, chatVoiceReason, chatVoiceErr := composeServedChatVoice(chatVoiceServeInput{Config: cfg, Chat: chatRuntime, Media: options.ChatMedia, Now: options.Now, Tenants: cfg.ServedTenants()})
+	logChatVoiceComposition(logger, chatVoiceRuntime, chatVoiceReason, chatVoiceErr)
+	if chatVoiceErr == nil && chatVoiceRuntime != nil {
+		in.Voice = chatVoiceRuntime.Service
+	}
 	agentServiceInput := agentServedAssemblyInput{
 		Core: in.Pool, AgentDatabase: agentDatabase, Cell: cell, Personas: personaWiring,
 		Audience: personaAudience, Now: options.Now, WritingStyles: in.WritingStyles,
@@ -1150,6 +1166,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if err := agentServices.BindPlatform(platformAgentRuntime); err != nil {
 			return nil, fmt.Errorf("bind served agent task and memory owners: %w", err)
 		}
+	}
+	// AGENTCOST-006: every served persona run is held to its agent's spend limits.
+	if agentServices != nil && agentServices.Access != nil && servedPersonaInvocation != nil && servedPersonaInvocation.Worker != nil {
+		agentServices.Access.Gate.Logger = logger
+		servedPersonaInvocation.Worker.BindCostGate(agentServices.Access.Gate)
 	}
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
@@ -1331,6 +1352,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	edgeHandler = transportcell.OverlayChatExtensions(edgeHandler, cell.Config, integrate1ChatExtensions(chatRuntime))
 	edgeHandler = overlayIntegrate1Chat(edgeHandler, chatRuntime, in.Voice, cell.Config, chatremoveNameDirectory{Read: documentOwnerNames(in.Pool)})
+	edgeHandler = OverlayChatcmd002Cards(edgeHandler, chatcmd002CardPort(chatRuntime), cell.Config)
 	if cfg.ChatEnabled {
 		mediaCfg := options.ChatMedia.WithDefaults(cfg.ChatMediaRoot, cfg.ArtifactRoot)
 		if chatRuntime.extensions != nil {
@@ -1349,8 +1371,23 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			return nil, fmt.Errorf("compose persona chat surface: %w", surfaceErr)
 		}
 		personaChat.Share = NewPersonaAnswerShareGate(personaShareFloor, documentRuntime.store)
+		if chatRuntime.store != nil {
+			// AGENTUX-070: a channel's manager requires private agent answers in the
+			// channel's own persona policy.
+			personaChat.ChannelPolicies = chatRuntime.store
+		}
+		if chatRuntime.core != nil {
+			// CHATBUG-067: the private card to share is read from the Chat service
+			// itself; the served decorator chain does not pass that read through.
+			personaChat.Cards = chatRuntime.core
+		}
 		if in.WritingStyles != nil {
 			in.WritingStyles.Authority = ChattoneChatAuthority{Chat: personaChat}
+		}
+		// CHATSEARCH-003: agents, a person's own tasks and their own
+		// announcements are found from Chat search.
+		if searchErr := composeChatSearchAgents(chatRuntime.search, personaChat, platformAgentRuntime, announcementSurface); searchErr != nil {
+			return nil, fmt.Errorf("compose agent search: %w", searchErr)
 		}
 		edgeHandler = OverlayPersonaChatSurface(edgeHandler, personaChat, cell.Config,
 			PersonaChatBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled(), Icons: agentDatabase.personas})
@@ -1358,7 +1395,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if agentServices == nil {
 		agentServices = &agentServedAssembly{browserLogin: cell.BrowserLoginEnabled(), publicOrigin: cell.PublicOrigin(), Gates: chatRuntime.gates, Renderings: chatRuntime.renderings, ChannelStatus: chatRuntime.status, ChatSearch: chatRuntime.search, Filters: chatRuntime.filters, Locations: chatRuntime.locations, LocationPictures: chatRuntime.locationPictures, ChatMaintenance: chatRuntime.store}
 	}
+	if err := agentServices.BindAgentUX(chatRuntime.store, chatRuntime.extensions, agentDatabase.store, options.Now); err != nil {
+		return nil, fmt.Errorf("bind served ambient agents: %w", err)
+	}
 	edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
+	edgeHandler = OverlayChatVoiceFeatures(edgeHandler, in.Voice, cell.Config)
 	if localPersonaBootstrap != nil {
 		edgeHandler = OverlayLocalDevPersonaBootstrap(edgeHandler, localPersonaBootstrap, cell.Config,
 			LocalDevPersonaBootstrapBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled()})
@@ -1520,6 +1561,12 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	if translationWorkload := chatlangBackgroundWorkload(chatlangRuntime); translationWorkload != nil {
 		workloads = append(workloads, *translationWorkload)
+	}
+	if voiceWorkload := chatVoiceBackgroundWorkload(chatVoiceRuntime); voiceWorkload != nil {
+		workloads = append(workloads, *voiceWorkload)
+	}
+	if ephemeralWorkload := agentEphemeralPruneWorkload(chatRuntime.store, cfg.ServedTenants(), options.Now, logger); ephemeralWorkload != nil {
+		workloads = append(workloads, *ephemeralWorkload)
 	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is

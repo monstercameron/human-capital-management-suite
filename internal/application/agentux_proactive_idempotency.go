@@ -28,7 +28,10 @@ func (s *AgentAnnouncementControlSurface) applyCommand(ctx context.Context, acto
 			}
 			allowed, err := s.Service.Authority.ManageAgentInstallation(ctx, actor, current.InstallationID, current.PersonaID, current.ConversationID)
 			if err != nil || !allowed {
-				return ErrAgentAnnouncementDenied
+				// The owner may still delete a record whose installation was retired.
+				if action != "DELETE" || !announcementInstallationRetired(ctx, s.Service.Authority, actor, current) {
+					return ErrAgentAnnouncementDenied
+				}
 			}
 		}
 		seen, err := s.Service.Store.CheckCommand(ctx, actor.TenantUUID, actor.SubjectID, key, id, digest)

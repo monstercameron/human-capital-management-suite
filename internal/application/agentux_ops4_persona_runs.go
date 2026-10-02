@@ -51,7 +51,12 @@ func (s AgentPersonaRunSource) DashboardProjection(ctx context.Context, principa
 			re.created_at,re.updated_at,re.deadline,COALESCE(re.lease_until,'epoch'::timestamptz),pi.installation_id,pi.invoker_id,pi.conversation_id,pv.display_name,
 			COALESCE((SELECT po.principal_id FROM persona_owners po
 				WHERE po.tenant_id=pi.tenant_id AND po.persona_id=pi.persona_id AND po.owner_role='BUSINESS_OWNER'
-				ORDER BY po.assigned_at DESC LIMIT 1),'')
+				ORDER BY po.assigned_at DESC LIMIT 1),''),
+			COALESCE((EXTRACT(EPOCH FROM (pi.started_at - pi.created_at))*1000)::bigint,0),
+			COALESCE((SELECT sum(c.spend_micros)::bigint FROM agent_run_costs c WHERE c.tenant_id=re.tenant_id
+				AND (left(c.run_id,length(re.run_id)+1)=re.run_id||'/' OR left(c.run_id,length(ar.request_id)+1)=ar.request_id||'/')),0),
+			COALESCE((SELECT sum(jsonb_array_length(fo.citations))::bigint FROM persona_final_outputs fo
+				WHERE fo.tenant_id=pi.tenant_id AND fo.invocation_id=pi.invocation_id),0)
 			FROM agent_run_execution re
 			JOIN agent_run_request ar ON ar.tenant_id=re.tenant_id AND ar.request_id=re.admission_id
 			JOIN persona_invocations pi ON pi.tenant_id=ar.tenant_id AND pi.invocation_id=ar.cause_id
@@ -66,7 +71,7 @@ func (s AgentPersonaRunSource) DashboardProjection(ctx context.Context, principa
 			var row agentPersonaRunRow
 			if err := queryRows.Scan(&row.RunID, &row.Revision, &row.AgentID, &row.Version, &row.State, &row.FailureCode,
 				&row.FailureGate, &row.FailureOwner, &row.FailureLocation, &row.StartedAt, &row.UpdatedAt,
-				&row.Deadline, &row.LeaseUntil, &row.InstallationID, &row.InvokerID, &row.ConversationID, &row.AgentName, &row.BusinessOwner); err != nil {
+				&row.Deadline, &row.LeaseUntil, &row.InstallationID, &row.InvokerID, &row.ConversationID, &row.AgentName, &row.BusinessOwner, &row.QueueLagMillis, &row.SpendMicros, &row.CitationCount); err != nil {
 				return err
 			}
 			rows = append(rows, row)
@@ -82,7 +87,8 @@ func (s AgentPersonaRunSource) DashboardProjection(ctx context.Context, principa
 			continue
 		}
 		projection := AgentOwnerRunProjection{
-			View:    ownerops.TaskView{TaskID: row.RunID, AgentID: row.AgentID, Version: row.Version, InstallationID: row.InstallationID, State: row.State, FailureCode: row.FailureCode, Revision: uint64(row.Revision)},
+			View:     ownerops.TaskView{TaskID: row.RunID, AgentID: row.AgentID, Version: row.Version, InstallationID: row.InstallationID, State: row.State, FailureCode: row.FailureCode, Revision: uint64(row.Revision), SpendMicros: row.SpendMicros},
+			QueueLag: time.Duration(row.QueueLagMillis) * time.Millisecond, CitationCount: int(row.CitationCount),
 			OwnerID: row.BusinessOwner, RequestedBy: s.personLabel(ctx, principal.Tenant(), row.InvokerID),
 			Location:    s.conversationLabel(ctx, principal, row.ConversationID, row.AgentName),
 			FailureGate: row.FailureGate, FailureOwner: row.FailureOwner, FailureLocation: row.FailureLocation,
@@ -223,6 +229,9 @@ type agentPersonaRunRow struct {
 	AgentName, BusinessOwner                    string
 	Revision                                    int64
 	StartedAt, UpdatedAt, Deadline, LeaseUntil  time.Time
+	// What the run records say about how it went: the wait before it started,
+	// what the model calls cost, and how many sources the answer cites.
+	QueueLagMillis, SpendMicros, CitationCount int64
 }
 
 func agentPersonaRunAudienceAllows(row agentPersonaRunRow, principal *trust.Principal, audience ownerops.Audience) bool {

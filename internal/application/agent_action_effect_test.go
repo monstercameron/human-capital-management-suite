@@ -2,8 +2,10 @@ package application
 
 import (
 	"context"
+	"slices"
 	"testing"
 
+	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -24,7 +26,8 @@ func newAgentActionPublishedFixture(t *testing.T) (*agentActionFixture, *promoux
 	t.Helper()
 	h := promoux015ComposeWithPublishedWorkforce(t)
 	discovered, _ := h.discoverPromotion("hiring-manager")
-	owner, ctx := h.engine("hiring-manager")
+	owner, proposerCtx := h.engine("hiring-manager")
+	ctx := agentActionExecutingProposer(t, h, proposerCtx)
 	cell := h.composed.Cell()
 	material, err := cell.Service.PrepareAgentPromotionRequest(ctx, workspace.ProposalInput{WorkerRef: h.subject, TargetJobCode: discovered.GetTarget().GetJobCode(), TargetGrade: discovered.GetTarget().GetGrade(), TargetPositionID: discovered.GetTarget().GetPositionId(), ProposedBase: discovered.GetProposedBase(), EffectiveDate: h.effective, BusinessReason: discovered.GetBusinessReason()})
 	if err != nil {
@@ -45,6 +48,49 @@ func newAgentActionPublishedFixture(t *testing.T) (*agentActionFixture, *promoux
 		t.Fatal(err)
 	}
 	return &agentActionFixture{service: service, cell: cell, ctx: ctx, req: proposal, authority: authority, harness: h}, h, owner
+}
+
+// agentActionExecutingProposer is the proposer persona once an administrator
+// has assigned them the cell's execution role and they have signed in again.
+// An agent acts as its user and holds no privilege of its own, so the user
+// whose submission starts execution must hold that role; PROMOUX-015 separated
+// it from the proposer persona, whose submission
+// TestTodo_AGENT_036_Integration proves is refused.
+//
+// Both halves are needed. The execution gate reads the role from the signed-in
+// session, and every later workflow step re-reads the durable assignment, so a
+// role present only in the session fails the first step closed.
+func agentActionExecutingProposer(t *testing.T, h *promoux015Harness, proposerCtx context.Context) context.Context {
+	t.Helper()
+	role := h.cfg.ExecutionAuthorityRole
+	p, ok := trust.FromContext(proposerCtx)
+	if !ok || p.HasRole(role) {
+		t.Fatalf("the proposer persona is expected to be signed in without the execution role %q", role)
+	}
+	snapshot, err := h.composed.Cell().RoleAccess.Load(context.Background(), p.Tenant(), p.OrganizationScopeID())
+	if err != nil {
+		t.Fatalf("load role access: %v", err)
+	}
+	assignment := &journeyv1.WorkerRoleAssignment{WorkerRef: p.Subject(), RoleIds: p.Roles()}
+	for _, current := range snapshot.Assignments {
+		if current.WorkerRef == p.Subject() {
+			assignment.Version, assignment.RoleIds = current.Version, slices.Clone(current.RoleIDs)
+		}
+	}
+	if slices.Contains(assignment.RoleIds, role) {
+		t.Fatalf("the proposer persona already holds %q durably: %v", role, assignment.RoleIds)
+	}
+	assignment.RoleIds = append(assignment.RoleIds, role)
+	if _, err := h.client.SaveWorkerRoleAssignment(h.rpc("admin"), &journeyv1.SaveWorkerRoleAssignmentRequest{Assignment: assignment, Reason: "the proposer also operates promotions in this cell"}); err != nil {
+		t.Fatalf("assign the execution role to the proposer as the administrator: %v", err)
+	}
+	executing, err := trust.NewPrincipal(trust.PrincipalSpec{Tenant: p.Tenant(), Subject: p.Subject(), ClientID: p.ClientID(), SubjectKind: p.SubjectKind(), OrganizationScopeID: p.OrganizationScopeID(),
+		Roles: append(p.Roles(), h.cfg.ExecutionAuthorityRole), AuthorityRefs: p.AuthorityRefs(), Purposes: p.Purposes(), AuthenticationMethod: p.AuthenticationMethod(), Assurance: p.Assurance(),
+		SessionRef: p.SessionRef(), DelegationRefs: p.DelegationRefs(), Confirmation: p.Confirmation(), IssuedAt: p.IssuedAt(), ExpiresAt: p.ExpiresAt(), CredentialDigest: p.CredentialDigest()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return trust.WithPrincipal(context.Background(), executing)
 }
 
 func runAgentActionEffect(t *testing.T, revoke bool) {

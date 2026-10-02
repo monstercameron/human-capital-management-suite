@@ -57,6 +57,8 @@ type PersonaRunModelWorker struct {
 	tenants PersonaRunTenantRuntimeFactory
 	fence   PersonaRunSecurityFence
 	leases  PersonaRunSecurityLeaseResolver
+	// cost holds every run to its agent's spend limits once bound (AGENTCOST-006).
+	cost personaRunCostBinding
 }
 
 type personaRunStepGeneration struct {
@@ -128,6 +130,12 @@ func (w *PersonaRunModelWorker) Start(ctx context.Context, request agentinvoke.R
 	starterConfig.Model = fencedPersonaRunModelExecutor{inner: starterConfig.Model, fence: w.fence, steps: stepState}
 	starterConfig.Output = fencedPersonaRunOutputValidator{inner: starterConfig.Output, fence: w.fence, steps: stepState}
 	starterConfig.Reply = fencedPersonaRunReplyDeliverer{inner: starterConfig.Reply, fence: w.fence, steps: stepState}
+	if gate := w.cost.gate.Load(); gate != nil {
+		if err := gate.admit(request); err != nil {
+			return err
+		}
+		starterConfig.Model = gate.meter(starterConfig.Model, request)
+	}
 	starter, err := NewPersonaRunStarter(starterConfig)
 	if err != nil {
 		return fmt.Errorf("%w: compose tenant durable starter: %w", errPersonaRunModelWorker, err)
