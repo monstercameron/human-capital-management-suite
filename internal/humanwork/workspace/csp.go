@@ -16,7 +16,11 @@ import (
 // need, but every capability is deny-by-default and every inline source is
 // accepted only when its hash is a well-formed SHA-256 CSP source.
 type cspPolicy struct {
-	styleHashes           []string
+	styleHashes []string
+	// styleAsset names the one stylesheet the page links from the asset route
+	// (product-<sha256>.css). It is admitted at its exact address on
+	// connectHost; see cspStyleAssetSource.
+	styleAsset            string
 	scriptHash            string
 	formActionSelf        bool
 	connectHost           string
@@ -74,12 +78,20 @@ func (p cspPolicy) header() string {
 			scriptSources += " 'wasm-unsafe-eval'"
 		}
 	}
+	styleSources := cspStyleSources(p.styleHashes)
+	if linked := cspStyleAssetSource(p.connectHost, p.styleAsset); linked != "" {
+		if styleSources == "'none'" {
+			styleSources = linked
+		} else {
+			styleSources += " " + linked
+		}
+	}
 	directives = append(directives,
 		"script-src "+scriptSources,
 		"script-src-elem "+cspScriptElementSources(p.scriptHash, p.allowBlobScript),
 		"script-src-attr 'none'",
-		"style-src "+cspStyleSources(p.styleHashes),
-		"style-src-elem "+cspStyleSources(p.styleHashes),
+		"style-src "+styleSources,
+		"style-src-elem "+styleSources,
 		"style-src-attr 'none'",
 	)
 

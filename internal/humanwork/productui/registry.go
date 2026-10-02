@@ -560,6 +560,17 @@ func validNavigationText(value string, required bool) bool {
 		return false
 	}
 	for _, character := range value {
+		// CHATBUG-014: every view validates every navigation label several
+		// times, and almost all of their characters are ASCII, where the only
+		// control characters are below space and DEL and there are no format
+		// characters. Those are decided here; the Unicode tables are searched
+		// for the rest.
+		if character < utf8.RuneSelf {
+			if character < ' ' || character == 0x7f {
+				return false
+			}
+			continue
+		}
 		if unicode.IsControl(character) || unicode.Is(unicode.Cf, character) {
 			return false
 		}

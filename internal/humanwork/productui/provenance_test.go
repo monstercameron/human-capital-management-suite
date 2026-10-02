@@ -26,7 +26,7 @@ func canonicalProvenanceFixture() ProvenanceProjection {
 			EvidenceRef: "evidence:protected-record-ref",
 			RecordedAt:  timestamppb.New(recorded),
 		},
-		lineage.StatusPartial,
+		ProvenanceLineage(lineage.StatusPartial),
 	)
 	projection.SourceVersion = values.Value("v17")
 	projection.EffectiveAt = values.Value(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
@@ -145,7 +145,7 @@ func TestTodo_WEB_022_Conformance(t *testing.T) {
 
 func TestProvenanceProjectionPreservesPartialRedactedOpaqueAndUnavailable(t *testing.T) {
 	projection := canonicalProvenanceFixture()
-	projection.AuthorityKind = values.Redacted[evidencev1.AuthorityKind]("policy_ref=secret;principal=secret")
+	projection.AuthorityKind = values.Redacted[ProvenanceAuthority]("policy_ref=secret;principal=secret")
 	projection.AuthoritySystem = values.Redacted[string]("authority-system-ref=secret")
 	projection.EvidenceSource = values.Unavailable[string]("evidence_ref=secret")
 	projection.SourceVersion = values.Redacted[string]("digest=secret")
@@ -172,7 +172,7 @@ func TestCanonicalProvenanceAdapterDropsRefsAndKeepsCanonicalTypes(t *testing.T)
 	if _, ok := projection.AuthorityKind.Get(); !ok {
 		t.Fatal("canonical AuthorityKind was not projected")
 	}
-	if got, ok := projection.LineageStatus.Get(); !ok || got != lineage.StatusPartial {
+	if got, ok := projection.LineageStatus.Get(); !ok || got != ProvenanceLineage(lineage.StatusPartial) {
 		t.Fatalf("canonical lineage status = %q, %v", got, ok)
 	}
 
@@ -196,8 +196,8 @@ func TestCanonicalProvenanceAdapterDropsRefsAndKeepsCanonicalTypes(t *testing.T)
 
 func TestProvenanceProjectionDoesNotInferPermissionOrAggregateTrust(t *testing.T) {
 	projection := canonicalProvenanceFixture()
-	projection.AuthorityKind = values.Value(evidencev1.AuthorityKind_AUTHORITY_KIND_DERIVED)
-	projection.LineageStatus = values.Value(lineage.StatusComplete)
+	projection.AuthorityKind = values.Value(ProvenanceAuthority(evidencev1.AuthorityKind_AUTHORITY_KIND_DERIVED))
+	projection.LineageStatus = values.Value(ProvenanceLineage(lineage.StatusComplete))
 	projection.HasOpaqueBoundary = true // preserve even a contradictory service projection; do not normalize it.
 	markup, err := provenanceFixture("en-US", projection)
 	if err != nil {
@@ -217,8 +217,8 @@ func TestProvenanceProjectionDoesNotInferPermissionOrAggregateTrust(t *testing.T
 
 func TestProvenanceProjectionRejectsUnknownCanonicalValues(t *testing.T) {
 	projection := canonicalProvenanceFixture()
-	projection.AuthorityKind = values.Value(evidencev1.AuthorityKind(999))
-	projection.LineageStatus = values.Value(lineage.Status("FORGED_STATUS"))
+	projection.AuthorityKind = values.Value(ProvenanceAuthority(999))
+	projection.LineageStatus = values.Value(ProvenanceLineage("FORGED_STATUS"))
 	projection.EvidenceSource = values.Value("   ")
 	projection.RecordedAt = values.Value(time.Time{})
 	markup, err := provenanceFixture("en-US", projection)

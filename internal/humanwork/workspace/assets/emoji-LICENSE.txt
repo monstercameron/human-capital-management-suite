@@ -15,13 +15,13 @@ Emoji in the list: 58 (9 groups)
 
 Source files (SHA-256)
 ----------------------
-29c4d6a3d674e812924ce141524e0089393c1d0919d25d580aeb04c147470264  annotations/ar.xml
-93eba71fae280273ff3c4c0e6b5a60a80a1137c12c73cd53cb0e393d88a8f7ad  annotations/de.xml
+5c10dc5d2142ef36b07bd7fd13384f0bab4b23a4497f72f84d0722a4360a2dd9  annotations/ar.xml
+0aeaaefa27a3ddc01ec7baa423b01e89914c8285343a88449bda00b7af4bd1c1  annotations/de.xml
 a4b12830ebc06271793656166bee377205fb657c8766098998ccf742699031e7  annotations/en.xml
-8b69bbffbce2609a52ec55ca4d24a8b2db37d3c02ee3beab82cce73e33b30bb0  annotationsDerived/ar.xml
-8a08abcbadf5569e7a1b3685519b640b6877c2da883ca854de5209347bd52bd9  annotationsDerived/de.xml
+27c09beec7cff0e0d867764e6abb5b7492c5e958c16a2565e5a355e65ab9b4aa  annotationsDerived/ar.xml
+3c7d1c530a34bd50349747722c782a2ad749272609fe33f0a2758fbf6e6886b8  annotationsDerived/de.xml
 da7f2d390cb6b75e1102b94a94e705a6b6079fd4f798931a89f8774e2225712a  annotationsDerived/en.xml
-90936cbbba3545abacb9c2b97676682ff31f053da06913021c302ffe7c1583c2  emoji-test.txt
+d7c49e9bbc15993db83b994ae3696b72bacceb5acc16a8f35c836052dde966b7  emoji-test.txt
 
 Copyright notices carried by the sources
 ----------------------------------------

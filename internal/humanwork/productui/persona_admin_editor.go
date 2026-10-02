@@ -164,6 +164,7 @@ func personaAdminEditorText(locale LocaleContext, key string) string {
 		"command_conflict":            {"The agent changed before this command completed. Refresh the page and review its current state.", "Der Agent wurde vor Abschluss des Befehls geändert. Aktualisieren Sie die Seite und prüfen Sie den aktuellen Status.", "تغير الوكيل قبل اكتمال الأمر. حدّث الصفحة وراجع حالته الحالية."},
 		"command_document_unreadable": {"You cannot read one of the selected documents. Remove it or choose a document you can read.", "Sie können eines der ausgewählten Dokumente nicht lesen. Entfernen Sie es oder wählen Sie ein lesbares Dokument.", "لا يمكنك قراءة أحد المستندات المحددة. أزله أو اختر مستندًا يمكنك قراءته."},
 		"command_unavailable":         {"The server could not complete this command. No change was confirmed. Try again later or contact an administrator.", "Der Server konnte den Befehl nicht ausführen. Es wurde keine Änderung bestätigt. Versuchen Sie es später erneut oder wenden Sie sich an die Administration.", "تعذر على الخادم تنفيذ الأمر. لم يتم تأكيد أي تغيير. حاول لاحقاً أو اتصل بالمسؤول."},
+		"command_runtime_unavailable": {"This version cannot be published yet: it is not set up to run in this workspace. Nothing was changed. Ask the person who manages this installation.", "Diese Version kann noch nicht veröffentlicht werden: Sie ist in diesem Arbeitsbereich nicht für die Ausführung eingerichtet. Es wurde nichts geändert. Wenden Sie sich an die Person, die diese Installation verwaltet.", "لا يمكن نشر هذا الإصدار بعد: لم يُعدّ للتشغيل في مساحة العمل هذه. لم يتغير شيء. اطلب المساعدة من الشخص الذي يدير هذا التثبيت."},
 	}
 	values, ok := translations[key]
 	if !ok {
@@ -185,6 +186,7 @@ func PersonaAdminCommandStatusText(locale LocaleContext, code string) string {
 	key := map[string]string{
 		"success": "command_success", "forbidden": "command_forbidden", "invalid": "command_invalid",
 		"conflict": "command_conflict", "unavailable": "command_unavailable", "document_unreadable": "command_document_unreadable",
+		"runtime_unavailable": "command_runtime_unavailable",
 	}[code]
 	if key == "" {
 		key = "command_unavailable"

@@ -11,10 +11,11 @@ import (
 
 // ActionPolicy is the fail-closed server projection of legal task actions.
 type ActionPolicy struct {
-	ConfirmPlan bool
-	Pause       bool
-	Resume      bool
-	Cancel      bool
+	ConfirmPlan  bool
+	Pause        bool
+	Resume       bool
+	Cancel       bool
+	ExtendBudget bool
 }
 
 // PolicyReader is implemented by the composed client for workspace
@@ -68,7 +69,7 @@ func (c *Client) policyForTask(ctx context.Context, runner TaskReader, task agen
 		return ActionPolicy{}
 	}
 	policy := reader.TaskPolicy(ctx, task, principal)
-	return ActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel}
+	return ActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel, ExtendBudget: policy.ExtendBudget}
 }
 
 // StartMode chooses the server-owned policy for a new task.

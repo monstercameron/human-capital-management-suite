@@ -49,7 +49,7 @@ func TestAgentUXSetup2_LifecycleEvaluationAndPublication(t *testing.T) {
 			p.EvaluationRef = "eval-4"
 			p.EvaluationStatus = "PASSED"
 			p.EvaluationPassed = 9
-		}, wants: []string{"Step 3 of 4: Evaluated", "<h4>Ready to publish</h4>", ">Publish version 4</button>"}},
+		}, wants: []string{"Step 4 of 4: Ready to publish", "<h4>Ready to publish</h4>", ">Publish version 4</button>"}},
 		{name: "published", mutate: func(p *PersonaAdminPersona) {
 			p.Lifecycle = PersonaPublished
 			p.ReviewApproved = true
@@ -114,7 +114,7 @@ func TestTodo_AGENTUX_034(t *testing.T) {
 		{ConversationID: "direct-walt", Conversation: "Walt Brennan", Kind: "DIRECT_MESSAGE", Version: "4", OfficialDocumentCount: &zero},
 	}
 	markup := personaAdminRender(t, personaAdminPlacements(ResolveProductLocale("en-US"), persona, agentUXSetup2Snapshot(persona)))
-	for _, want := range []string{"3 documents in this conversation", "Benefits guide", "Leave policy", "Paid time off policy", "No official documents are in this conversation. The agent will not find anything to cite.", "Place a document", `/workspace/app/chat#channel=general&amp;tab=docs`} {
+	for _, want := range []string{"3 documents in this conversation", "Benefits guide", "Leave policy", "Paid time off policy", "No official documents are in this conversation. The agent will not find anything to cite.", "Place a document", `href="/workspace/app/docs"`, `href="/workspace/app/chat#channel=general"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("AGENTUX-034 placement evidence missing %q: %s", want, markup)
 		}
@@ -128,8 +128,8 @@ func TestTodo_AGENTUX_034_Security(t *testing.T) {
 	if strings.Contains(markup, "Executive succession plan") {
 		t.Fatalf("document title rendered without an authorized count projection: %s", markup)
 	}
-	if !strings.Contains(markup, "Open this conversation&#39;s Documents") || !strings.Contains(markup, `channel=restricted&amp;tab=docs`) {
-		t.Fatalf("safe unavailable state did not preserve the conversation-scoped route: %s", markup)
+	if !strings.Contains(markup, "Open this conversation&#39;s Documents") || !strings.Contains(markup, `href="/workspace/app/chat#channel=restricted"`) || !strings.Contains(markup, `href="/workspace/app/docs"`) {
+		t.Fatalf("safe unavailable state did not keep the conversation and Documents links: %s", markup)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestTodo_AGENTUX_034_Browser(t *testing.T) {
 	persona.Installations = []PersonaAdminInstallation{{ConversationID: "general", Conversation: "general", Kind: "CHANNEL", Version: "4", OfficialDocumentCount: &one, OfficialDocumentTitles: []string{"سياسة الإجازات"}}}
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		markup := personaAdminRender(t, personaAdminPlacements(ResolveProductLocale(locale), persona, agentUXSetup2Snapshot(persona)))
-		for _, want := range []string{`<bdi dir="ltr">#`, `tab=docs`, `data-persona-admin-command-form="UNINSTALL"`} {
+		for _, want := range []string{`<bdi dir="ltr">#`, `href="/workspace/app/docs"`, `data-persona-admin-command-form="UNINSTALL"`} {
 			if !strings.Contains(markup, want) {
 				t.Errorf("%s responsive placement contract missing %q: %s", locale, want, markup)
 			}
@@ -173,7 +173,7 @@ func TestAgentUXSetup2_CapabilitiesPeopleAudienceAndDirection(t *testing.T) {
 		}
 	}
 	english := personaAdminRender(t, personaAdminCard(ResolveProductLocale("en-US"), &personaAdminTestClient{}, persona, snapshot))
-	for _, want := range []string{"Posts a reply", "Replies to the person who asked. Answers drawn from documents are sent to them privately.", "Read-only", "People in these 6 roles who are members of a conversation where this agent is added", "No limits set · ", "To change usage limits, contact", `data-status-tone="published"`} {
+	for _, want := range []string{"Posts a reply", "Replies to the person who asked. Answers drawn from documents are sent to them privately.", "Read-only", "People in these 6 roles who are members of a conversation where this agent is added", `data-agent-spend-mount="`, `data-status-tone="published"`} {
 		if !strings.Contains(english, want) {
 			t.Errorf("capability contract missing %q: %s", want, english)
 		}

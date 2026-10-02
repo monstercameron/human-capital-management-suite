@@ -32,9 +32,6 @@ func ProductPageFrame(props ProductPageFrameProps) ui.Node {
 		class += " " + extra
 	}
 	children := make([]ui.Node, 0, len(props.Body)+3)
-	if strings.Contains(" "+props.Class+" ", " agent-page-frame ") {
-		children = append(children, html.Tag("style", html.Props{Raw: map[string]any{"data-agent-page-styles": "true"}}, ui.Text(agentUXR7Stylesheet())))
-	}
 	if props.Breadcrumbs != nil {
 		children = append(children, html.Nav(html.Props{Class: "product-page-frame-breadcrumbs"}, props.Breadcrumbs))
 	}

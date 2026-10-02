@@ -2,7 +2,6 @@ package productui
 
 import (
 	"context"
-	"errors"
 	"net/url"
 	"slices"
 	"strconv"
@@ -58,7 +57,24 @@ type PersonaAdminInstallation struct {
 	// conversation's current official-document visibility yet.
 	OfficialDocumentCount  *int
 	OfficialDocumentTitles []string
+	// Stopped is true for a placement the server suspended: the agent is not
+	// offered in that conversation until it is started again. StoppedReason is
+	// one of the PersonaPlacementStopped* codes, which the page turns into a
+	// sentence; StartAgain is true once the cause is cured.
+	Stopped       bool
+	StoppedReason string
+	StartAgain    bool
 }
+
+// The reasons a placement can be stopped, as the server names them to the page.
+// The page shows a sentence for each and never the code.
+const (
+	PersonaPlacementStoppedNoIdentity       = "NO_RUNTIME_IDENTITY"
+	PersonaPlacementStoppedIdentityInactive = "RUNTIME_IDENTITY_INACTIVE"
+	PersonaPlacementStoppedNotPublished     = "NOT_PUBLISHED"
+	PersonaPlacementStoppedVersionMissing   = "VERSION_UNAVAILABLE"
+	PersonaPlacementStoppedOther            = "NEEDS_ATTENTION"
+)
 
 type PersonaAdminLimits struct {
 	InvocationsPerHour string
@@ -127,6 +143,9 @@ type PersonaAdminPersona struct {
 	WorkspaceDocuments int
 	WorkspaceIndexedAt string
 	WorkspacePending   int
+	// ReactionsOff is true when the agent's owner turned off its reaction to the
+	// questions it is asked (AGENTUX-075). The zero value is the default: it reacts.
+	ReactionsOff bool
 }
 
 type PersonaAdminTarget struct {
@@ -136,6 +155,10 @@ type PersonaAdminTarget struct {
 	Role           string
 	Kind           string
 	ViewerDirect   bool
+	// Members are the people in this room, so a count that is meant for an
+	// ordinary member can be read as one of them (AGENTUX-034). Only ID and
+	// Role are filled.
+	Members []PersonaAdminTarget
 }
 
 // PersonaAdminStarter is a server-approved starter backed by a published
@@ -218,6 +241,9 @@ type PersonaAdminSnapshot struct {
 	StartersState                PersonaAdminRegionState
 	DocumentsState               PersonaAdminRegionState
 	EvaluationRuntimeUnavailable bool
+	// ViewerSubject is the signed-in person the page is drawn for. The page
+	// fills it from the view; it grants nothing and is not sent by the server.
+	ViewerSubject string `json:"-"`
 }
 
 type PersonaAdminSnapshotRequest struct {
@@ -250,6 +276,9 @@ type PersonaAdminPageProps struct {
 	UnavailableReason string
 	Snapshot          PersonaAdminSnapshot
 	Client            PersonaAdminClient
+	// ViewerSubject is the signed-in person, so the page does not name the
+	// reader as the person to ask.
+	ViewerSubject string
 }
 
 // PersonaAdminReviewClient records an explicit independently authorized decision.
@@ -287,16 +316,18 @@ func BuildPersonaAdminPage(view View, client PersonaAdminClient) ui.Node {
 	}
 	snapshot, err := client.Snapshot(context.Background(), PersonaAdminSnapshotRequest{TenantID: view.Tenant, Principal: view.Principal})
 	if err != nil {
-		var staged interface{ PersonaCatalogFailureStage() string }
-		if errors.As(err, &staged) && staged.PersonaCatalogFailureStage() == "authorization" {
+		switch agentUX022SnapshotFailure(err) {
+		case "denied":
 			return personaAdminUnavailable(view, locale, personaAdminText(locale, "permission_denied"))
+		case "store":
+			return personaAdminUnavailable(view, locale, personaAdminText(locale, "persona_store_unavailable"))
 		}
-		return personaAdminUnavailable(view, locale, personaAdminText(locale, "persona_store_unavailable"))
+		return agentUX022LoadFailed(view, locale)
 	}
 	if !snapshot.Available {
 		return personaAdminUnavailable(view, locale, personaAdminText(locale, "persona_store_unavailable"))
 	}
-	return PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: locale}, Navigation: AgentPageNavigation(view, AgentPageSetup), State: PersonaAdminReady, Snapshot: snapshot, Client: client})
+	return PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: locale}, Navigation: AgentPageNavigation(view, AgentPageSetup), State: PersonaAdminReady, Snapshot: agentUX074WithPeoplePhotos(view, snapshot), Client: client, ViewerSubject: docsViewer(view)})
 }
 
 func PersonaAdminPage(props PersonaAdminPageProps) ui.Node {
@@ -311,6 +342,9 @@ func PersonaAdminPage(props PersonaAdminPageProps) ui.Node {
 	}
 	if props.State == "" {
 		props.State = PersonaAdminUnavailable
+	}
+	if props.Snapshot.ViewerSubject == "" {
+		props.Snapshot.ViewerSubject = props.ViewerSubject
 	}
 	if props.State == PersonaAdminLoading {
 		return personaAdminStatus(statusView, locale, PersonaAdminLoading, "")
@@ -359,7 +393,7 @@ func PersonaAdminPage(props PersonaAdminPageProps) ui.Node {
 	if startersAvailable {
 		newAgentAction = html.Button(html.Props{Class: "button primary", Type: "button", Aria: map[string]string{"controls": newAgentTarget, "expanded": "false"}, Raw: map[string]any{"data-persona-new-agent": newAgentTarget}}, ui.Text(personaAdminText(locale, "new_agent")))
 	} else if !props.Snapshot.StartersState.Unavailable {
-		newAgentNote = personaAdminNoStarterNotice(locale, props.Snapshot.SubjectOptions)
+		newAgentNote = personaAdminNoStarterNotice(locale, props.Snapshot.SubjectOptions, props.ViewerSubject)
 	}
 	editor := ui.Node(nil)
 	if startersAvailable {
@@ -412,7 +446,7 @@ func personaAdminStatus(view View, locale LocaleContext, state PersonaAdminLoadS
 	view.Locale = locale
 	body := []ui.Node(nil)
 	if state == PersonaAdminLoading {
-		body = append(body, html.P(html.Props{Class: "muted"}, ui.Text(personaAdminText(locale, "loading"))))
+		body = append(body, AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingCards, Rows: 3, Status: personaAdminText(locale, "loading"), RetryRaw: map[string]any{"data-persona-admin-retry": "page"}}))
 	} else {
 		body = append(body, ui.CreateElement(EmptyState, EmptyStateProps{Title: personaAdminText(locale, "unavailable_title"), Description: detail, Role: "status", Class: "persona-admin-unavailable"}))
 	}
@@ -468,16 +502,21 @@ func personaAdminCard(locale LocaleContext, client PersonaAdminClient, persona P
 	}
 	purpose, purposeLanguage := agentUXR7Purpose(locale, persona.Purpose, purposeLanguage)
 	return html.Article(html.Props{Class: "surface persona-admin-card", Aria: map[string]string{"labelledby": id + "-title"}, Raw: map[string]any{"data-persona-id": persona.ID, "data-lifecycle": string(persona.Lifecycle), "data-agent-version": persona.Version}},
-		html.Div(html.Props{Class: "persona-admin-card-heading"}, html.Div(html.Props{Class: "persona-admin-card-identity"}, html.Div(html.Props{Class: "persona-admin-card-title"}, agenticon.NodeFor(persona.Icon, persona.ID, personaAdminIDs(snapshot)...), html.H3(html.Props{ID: id + "-title", Dir: "auto", Raw: map[string]any{"lang": purposeLanguage}}, ui.Text(persona.Name)), html.Small(html.Props{Class: "muted"}, html.Span(html.Props{Dir: "ltr"}, ui.Text(personaAdminHandle(persona.Handle))), ui.Text(" · "), html.A(html.Props{Href: Path(PageAgents) + "?agent=" + url.QueryEscape(persona.ID)}, ui.Text(agentUXR7Text(locale, "ask_link"))))), personaAdminLifecycleBadges(locale, persona, lifecycle)), personaAdminHeaderActions(locale, client, persona, snapshot)),
+		html.Div(html.Props{Class: "persona-admin-card-heading"}, html.Div(html.Props{Class: "persona-admin-card-identity"}, html.Div(html.Props{Class: "persona-admin-card-title"}, agentUX074Icon(persona.Icon, persona.ID, personaAdminIDs(snapshot)),
+			// The version badge follows the name on the name's own line; it used to
+			// be a sibling of the whole title and floated away from it.
+			html.Div(html.Props{Class: "persona-admin-card-name"}, html.H3(html.Props{ID: id + "-title", Dir: "auto", Raw: map[string]any{"lang": purposeLanguage}}, ui.Text(persona.Name)), personaAdminLifecycleBadges(locale, persona, lifecycle)),
+			html.Small(html.Props{Class: "muted"}, html.Span(html.Props{Dir: "ltr"}, ui.Text(personaAdminHandle(persona.Handle))), ui.Text(" · "), html.A(html.Props{Href: Path(PageAgents) + "?agent=" + url.QueryEscape(persona.ID)}, ui.Text(agentUXR7Text(locale, "ask_link")))))), personaAdminHeaderActions(locale, client, persona, snapshot)),
 		personaAdminVersionEditorPanel(locale, client, persona, snapshot),
 		personaAdminMoreActionsPanel(locale, client, persona, snapshot),
 		personaAdminFailureWarning(locale, persona),
 		personaAdminLifecycleSentence(locale, persona, lifecycle),
 		html.P(html.Props{Class: "persona-admin-purpose", Dir: "auto", Raw: map[string]any{"lang": purposeLanguage}}, html.Tag("bdi", html.Props{}, ui.Text(purpose))),
 		html.Tag("dl", html.Props{Class: "persona-admin-facts"},
-			personaAdminPersonDefinition(locale, "owner", persona.Owner, persona.OwnerName, persona.OwnerInitials, persona.OwnerAvatarURL), personaAdminPersonDefinition(locale, "steward", persona.Steward, persona.StewardName, persona.StewardInitials, persona.StewardAvatarURL), personaAdminAudienceDefinition(locale, persona), personaAdminReadDefinition(locale, persona), personaAdminLimitsDefinition(locale, persona)),
+			personaAdminPersonDefinition(locale, "owner", persona.Owner, persona.OwnerName, persona.OwnerInitials, persona.OwnerAvatarURL), personaAdminPersonDefinition(locale, "steward", persona.Steward, persona.StewardName, persona.StewardInitials, persona.StewardAvatarURL), personaAdminAudienceDefinition(locale, persona), personaAdminReadDefinition(locale, persona), personaAdminWorkspaceSearchDefinition(locale, persona), personaAdminLimitsDefinition(locale, persona)),
 		html.H4(html.Props{}, ui.Text(personaAdminText(locale, "skills"))), skills,
 		personaAdminPlacements(locale, persona, snapshot),
+		personaAdminReactionsControl(locale, persona, snapshot),
 		personaAdminLifecycleProgress(locale, persona, lifecycle),
 		html.P(html.Props{ID: id + "-command-status", Class: "persona-admin-command-status", Role: "status", Raw: map[string]any{"aria-live": "polite", "aria-atomic": "true", "data-persona-command-status": persona.ID}}, ui.Text(personaAdminCardCommandStatus(locale, snapshot.CommandStatus, snapshot.CommandAction, snapshot.CommandPersonaID, persona))),
 		personaAdminLifecycleBlock(locale, persona, snapshot),
@@ -1075,7 +1114,7 @@ func personaAdminText(locale LocaleContext, key string) string {
 		"no_limits": {"No limits set", "Keine Grenzen festgelegt", "لم يتم تحديد حدود"}, "set_limit": {"Set a limit", "Limit festlegen", "تعيين حد"}, "none_set": {"None set", "Keine festgelegt", "لم يتم التحديد"}, "unknown_person": {"Unknown person", "Unbekannte Person", "شخص غير معروف"},
 		"nothing_available": {"Nothing available", "Nichts verfügbar", "لا شيء متاح"}, "who_can_use": {"Who can use it", "Wer ihn verwenden kann", "من يمكنه استخدامه"}, "everyone_roles": {"People in these {count} roles who are members of a conversation where this agent is added", "Personen in diesen {count} Rollen, die Mitglieder einer Unterhaltung sind, der dieser Agent hinzugefügt wurde", "الأشخاص في هذه الأدوار الـ {count} الذين هم أعضاء في محادثة أضيف إليها هذا الوكيل"},
 		"what_can_read": {"What it can read", "Was er lesen kann", "ما يمكنه قراءته"}, "what_can_read_prefix": {"Official documents in each conversation it is added to, plus the documents listed under '", "Offizielle Dokumente in jeder Unterhaltung, der er hinzugefügt wurde, sowie die Dokumente unter ‚", "المستندات الرسمية في كل محادثة تمت إضافته إليها، بالإضافة إلى المستندات المدرجة ضمن «"}, "what_can_read_suffix": {"'.", "‘.", "»."}, "documents_picker_label": {"Documents this agent reads", "Dokumente, die dieser Agent liest", "المستندات التي يقرأها هذا الوكيل"}, "where_installed": {"Where it is added", "Wo er hinzugefügt wurde", "أين تمت إضافته"},
-		"no_installations": {"Not added to a conversation yet. Publish it first, then add it from Chat.", "Noch zu keiner Unterhaltung hinzugefügt. Veröffentlichen Sie ihn zuerst und fügen Sie ihn dann im Chat hinzu.", "لم تتم إضافته إلى محادثة بعد. انشره أولاً، ثم أضفه من المحادثة."},
+		"no_installations": {"Not added to a conversation yet. Publish it first, then add it to a conversation here.", "Noch zu keiner Unterhaltung hinzugefügt. Veröffentlichen Sie ihn zuerst und fügen Sie ihn dann hier einer Unterhaltung hinzu.", "لم تتم إضافته إلى محادثة بعد. انشره أولاً، ثم أضفه إلى محادثة من هنا."},
 		"add_conversation": {"Add to a conversation", "Zu einer Unterhaltung hinzufügen", "إضافة إلى محادثة"}, "add": {"Add", "Hinzufügen", "إضافة"}, "remove_placement": {"Remove", "Entfernen", "إزالة"}, "running_version": {"running version {version}", "führt Version {version} aus", "يشغّل الإصدار {version}"}, "direct_conversation": {"Direct conversation with {person}", "Direkte Unterhaltung mit {person}", "محادثة مباشرة مع {person}"},
 		"documents_in_conversation": {"{count} documents in this conversation", "{count} Dokumente in dieser Unterhaltung", "{count} مستندات في هذه المحادثة"}, "documents_count_unavailable": {"Open this conversation's Documents", "Dokumente dieser Unterhaltung öffnen", "فتح مستندات هذه المحادثة"}, "no_placed_documents": {"No official documents are in this conversation. The agent will not find anything to cite.", "In dieser Unterhaltung gibt es keine offiziellen Dokumente. Der Agent findet nichts zum Zitieren.", "لا توجد مستندات رسمية في هذه المحادثة. لن يجد الوكيل شيئاً للاستشهاد به."}, "place_document": {"Place a document", "Dokument platzieren", "وضع مستند"},
 		"documents_in_conversation_one": {"{count} document in this conversation", "{count} Dokument in dieser Unterhaltung", "مستند واحد في هذه المحادثة"}, "documents_in_conversation_two": {"{count} documents in this conversation", "{count} Dokumente in dieser Unterhaltung", "مستندان في هذه المحادثة"}, "documents_in_conversation_many": {"{count} documents in this conversation", "{count} Dokumente in dieser Unterhaltung", "{count} مستندات في هذه المحادثة"},

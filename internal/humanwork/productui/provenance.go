@@ -8,8 +8,6 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
-	evidencev1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/evidence/v1"
-	lineage "github.com/monstercameron/human-capital-management-suite/internal/data/provenance"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -24,10 +22,10 @@ import (
 // temporarily unavailable. An unbound projection renders nothing.
 type ProvenanceProjection struct {
 	Bound             bool
-	AuthorityKind     values.Presence[evidencev1.AuthorityKind]
+	AuthorityKind     values.Presence[ProvenanceAuthority]
 	AuthoritySystem   values.Presence[string]
 	EvidenceSource    values.Presence[string]
-	LineageStatus     values.Presence[lineage.Status]
+	LineageStatus     values.Presence[ProvenanceLineage]
 	SourceVersion     values.Presence[string]
 	EffectiveAt       values.Presence[time.Time]
 	RecordedAt        values.Presence[time.Time]
@@ -37,39 +35,10 @@ type ProvenanceProjection struct {
 // ProvenanceBinding is a readable alias for callers composing a page.
 type ProvenanceBinding = ProvenanceProjection
 
-// ProjectAuthorizedCanonicalProvenance copies only displayable fields from
-// canonical service messages that have already passed authorization. PolicyRef
-// and EvidenceRef are deliberately not copied, so this presentation type cannot
-// accidentally render them later.
-func ProjectAuthorizedCanonicalProvenance(authority *evidencev1.SourceAuthority, evidence *evidencev1.Provenance, status lineage.Status) ProvenanceProjection {
-	projection := ProvenanceProjection{
-		Bound:           true,
-		AuthorityKind:   values.Absent[evidencev1.AuthorityKind](),
-		AuthoritySystem: values.Absent[string](),
-		EvidenceSource:  values.Absent[string](),
-		LineageStatus:   values.Value(status),
-		SourceVersion:   values.Absent[string](),
-		EffectiveAt:     values.Absent[time.Time](),
-		RecordedAt:      values.Absent[time.Time](),
-	}
-	if authority != nil {
-		projection.AuthorityKind = values.Value(authority.GetKind())
-		projection.AuthoritySystem = values.Value(authority.GetSystem())
-	}
-	if evidence != nil {
-		projection.EvidenceSource = values.Value(evidence.GetSource())
-		if recorded := evidence.GetRecordedAt(); recorded != nil {
-			if recorded.CheckValid() == nil {
-				projection.RecordedAt = values.Value(recorded.AsTime())
-			} else {
-				// Preserve invalid canonical input as an invalid display value;
-				// presentation must not repair or invent a timestamp.
-				projection.RecordedAt = values.Value(time.Time{})
-			}
-		}
-	}
-	return projection
-}
+// ProjectAuthorizedCanonicalProvenance, which fills a projection from the
+// canonical service messages, is in chatperf2_provenance_canonical.go: it is
+// the one part of this page that needs those messages, and the browser client
+// does not carry them.
 
 type ProvenancePresentationProps struct {
 	I18nProps
@@ -147,7 +116,7 @@ func provenanceItemNodes(items []provenanceItem) []ui.Node {
 	return children
 }
 
-func provenanceAuthorityItem(locale LocaleContext, presence values.Presence[evidencev1.AuthorityKind]) provenanceItem {
+func provenanceAuthorityItem(locale LocaleContext, presence values.Presence[ProvenanceAuthority]) provenanceItem {
 	label := locale.Text("provenance.source_authority_label")
 	if value, ok := presence.Get(); ok {
 		key, glyph, tone, valid := authorityKindToken(value)
@@ -159,7 +128,7 @@ func provenanceAuthorityItem(locale LocaleContext, presence values.Presence[evid
 	return provenancePresenceItem(locale, "source-authority", label, presence.State())
 }
 
-func provenanceLineageItem(locale LocaleContext, presence values.Presence[lineage.Status]) provenanceItem {
+func provenanceLineageItem(locale LocaleContext, presence values.Presence[ProvenanceLineage]) provenanceItem {
 	label := locale.Text("provenance.completeness_label")
 	if value, ok := presence.Get(); ok {
 		key, glyph, tone, valid := lineageToken(value)
@@ -220,26 +189,26 @@ func provenancePresenceToken(state values.PresenceState) (key, glyph, tone strin
 	}
 }
 
-func authorityKindToken(value evidencev1.AuthorityKind) (key, glyph, tone string, valid bool) {
+func authorityKindToken(value ProvenanceAuthority) (key, glyph, tone string, valid bool) {
 	switch value {
-	case evidencev1.AuthorityKind_AUTHORITY_KIND_LOCAL_AUTHORITATIVE:
+	case ProvenanceAuthorityLocal:
 		return "local_authoritative", "◆", "info", true
-	case evidencev1.AuthorityKind_AUTHORITY_KIND_EXTERNAL_OBSERVATION:
+	case ProvenanceAuthorityExternal:
 		return "external_observation", "○", "neutral", true
-	case evidencev1.AuthorityKind_AUTHORITY_KIND_DERIVED:
+	case ProvenanceAuthorityDerived:
 		return "derived", "∴", "neutral", true
 	default:
 		return "", "", "", false
 	}
 }
 
-func lineageToken(value lineage.Status) (key, glyph, tone string, valid bool) {
+func lineageToken(value ProvenanceLineage) (key, glyph, tone string, valid bool) {
 	switch value {
-	case lineage.StatusComplete:
+	case ProvenanceLineageComplete:
 		return "complete", "≡", "neutral", true
-	case lineage.StatusPartial:
+	case ProvenanceLineagePartial:
 		return "partial", "◌", "caution", true
-	case lineage.StatusUnknown:
+	case ProvenanceLineageUnknown:
 		return "unknown", "?", "unknown", true
 	default:
 		return "", "", "", false

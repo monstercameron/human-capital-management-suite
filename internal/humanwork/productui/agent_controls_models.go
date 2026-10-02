@@ -14,6 +14,10 @@ type AgentControlsSnapshot struct {
 	Memory           []AgentControlMemory   `json:"memory"`
 	Agents           []PersonaAdminPersona  `json:"agents,omitempty"`
 	AllowedCommands  []string               `json:"allowed_commands,omitempty"`
+	// AgentsUnavailable says the list of agents could not be read for this
+	// page, as distinct from a workspace with no live agent. The client sets
+	// it; the server does not send it.
+	AgentsUnavailable bool `json:"-"`
 }
 
 type AgentControlSchedule struct {

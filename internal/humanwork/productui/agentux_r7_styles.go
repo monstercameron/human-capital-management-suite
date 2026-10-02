@@ -1,10 +1,19 @@
 package productui
 
 // Keep this CSS free of HTML text escapes so inline SSR and browser renders agree.
+//
+// No container on an agent page takes a percentage max-width. The first rule
+// used to give "max-width:100%" to every descendant of the page frame. On
+// Agent setup, whose cards nest grids and flex rows many levels deep, the
+// browser's layout never finished and the tab froze as soon as the cards were
+// drawn. Containers are kept inside their track by "min-width:0"; only leaf
+// elements that have a size of their own (images, tables, form controls) are
+// capped at the width of their container.
 func agentUXR7Stylesheet() string {
 	return `
-.agent-page-frame,.agent-page-frame *,.agent-operations-region-content,.agent-run-history{min-width:0;max-width:100%;box-sizing:border-box}
-.agent-operations-page :is(.card,.agent-operations-region,.agent-running-card,.persona-admin-editor-field){min-width:0;max-width:100%;box-sizing:border-box}.agent-operations-page :is(input,select,textarea){min-width:0;max-width:100%;box-sizing:border-box}
+.agent-page-frame,.agent-page-frame *,.agent-operations-region-content,.agent-run-history{min-width:0;box-sizing:border-box}
+.agent-page-frame :is(img,svg,table,pre,input,select,textarea,button){max-width:100%}
+.agent-operations-page :is(.card,.agent-operations-region,.agent-running-card,.persona-admin-editor-field){min-width:0;box-sizing:border-box}.agent-operations-page :is(input,select,textarea){min-width:0;max-width:100%;box-sizing:border-box}
 .agent-page-frame p,.agent-page-frame label{max-inline-size:none;overflow-wrap:anywhere}
 .agents-tasks .agents-task-list,.agents-tasks .agents-task-row,.agents-task-listing{width:100%;max-width:none;min-width:0;justify-self:stretch}
 .agents-task-source-meta{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem .75rem;min-width:0}
@@ -36,8 +45,8 @@ func agentUXR7Stylesheet() string {
 .persona-admin-page .persona-admin-confirm summary{list-style:none}.persona-admin-page .persona-admin-confirm summary::-webkit-details-marker{display:none}
 .persona-admin-page .persona-admin-secondary-actions:popover-open,.persona-admin-page .persona-admin-add-placement-form:popover-open{position:fixed;inset:auto;inset-block-start:anchor(bottom);inset-inline-end:anchor(end);margin:.25rem 0 0;position-try-fallbacks:flip-inline,flip-block;max-width:calc(100vw - 56px);width:min(26rem,calc(100vw - 56px));max-height:calc(100vh - 56px);overflow:auto}
 .persona-admin-page [popover]:not(:popover-open){display:none}
-.agent-version-table-wrap{overflow:auto;max-width:100%}.persona-admin-version-history{width:100%;border-collapse:collapse;table-layout:fixed}.persona-admin-version-history :is(th,td){padding:.5rem;text-align:start;vertical-align:top;border-block-end:1px solid var(--hcm-color-border);overflow-wrap:anywhere}.persona-admin-version-actions{display:grid;gap:.5rem}
-.agent-operations-tabs{min-width:0;max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.agent-operations-tabs a{flex:0 0 auto;white-space:nowrap}
+.agent-version-table-wrap{overflow:auto;min-width:0}.persona-admin-version-history{width:100%;border-collapse:collapse;table-layout:fixed}.persona-admin-version-history :is(th,td){padding:.5rem;text-align:start;vertical-align:top;border-block-end:1px solid var(--hcm-color-border);overflow-wrap:anywhere}.persona-admin-version-actions{display:grid;gap:.5rem}
+.agent-operations-tabs{min-width:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.agent-operations-tabs a{flex:0 0 auto;white-space:nowrap}
 .agent-run-warning{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;padding:.75rem;border:1px solid var(--hcm-color-danger);border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface)}.agent-run-warning p{flex:1 1 100%;margin:0}
 .agent-owner-pause-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;min-width:0}
 .agent-history-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;min-width:0}.agent-run-history{display:grid;gap:.75rem}
@@ -47,8 +56,7 @@ func agentUXR7Stylesheet() string {
 .agent-history-mobile{display:none}.agent-history-pagination{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
 @media(min-width:1024px){.agents-tasks[data-has-task-detail=true]{grid-template-columns:420px minmax(0,1fr)}}
 @media(max-width:1023px){.agents-detail-close-desktop{display:none}.agents-detail-back-mobile{display:inline}.agents-back-link{justify-self:start}}
-@media(max-width:800px){body:has(.agent-page-frame) .topbar .locale-menu{flex:0 0 44px;width:44px;min-width:44px}body:has(.agent-page-frame) .topbar .header-navigation-tools{flex:1;min-width:0}.persona-admin-page .persona-admin-facts .persona-admin-fact:last-child{grid-column:auto}}
-@media(min-width:761px) and (max-width:800px){body:has(.agent-page-frame) .topbar{grid-template-columns:minmax(0,120px) minmax(0,1fr) 44px auto auto}body:has(.agent-page-frame) .topbar .brand-cluster{grid-column:1;grid-row:1}body:has(.agent-page-frame) .topbar .header-navigation-tools{grid-column:2;grid-row:1;padding:0}body:has(.agent-page-frame) .topbar .locale-menu{grid-column:3;grid-row:1}body:has(.agent-page-frame) .header-navigation-tools .global-search{flex:1 1 0;width:auto;min-width:0}body:has(.agent-page-frame) .global-search .global-search-input{width:100%;padding-inline:42px 14px;color:var(--hcm-color-text);cursor:text}body:has(.agent-page-frame) .global-search .global-search-input::placeholder{color:var(--hcm-color-text-muted)}body:has(.agent-page-frame) .header-navigation-tools .global-search:focus-within{position:relative;inset:auto;width:auto}body:has(.agent-page-frame) .header-navigation-tools .history-navigation{display:none}}
+@media(max-width:800px){.persona-admin-page .persona-admin-facts .persona-admin-fact:last-child{grid-column:auto}}
 @media(max-width:599px){.agent-history-desktop{display:none}.agent-history-mobile{display:grid;gap:.75rem}.agent-history-filters{grid-template-columns:minmax(0,1fr)}.persona-admin-page .persona-admin-skill-list{grid-template-columns:minmax(0,1fr)}.persona-admin-version-history{min-width:32rem}.agent-operations-tabs{padding-inline-end:24px;mask-image:linear-gradient(to right,var(--hcm-color-text) calc(100% - 12px),transparent)}[dir=rtl] .agent-operations-tabs{mask-image:linear-gradient(to left,var(--hcm-color-text) calc(100% - 12px),transparent)}}
 @media(max-width:390px){.agents-task-row-heading{grid-template-columns:auto minmax(0,1fr) auto auto;gap:6px}.agents-task-time{font-size:.75rem}.agents-task-filter{padding-inline:12px;min-width:max-content}.agents-task-filters{display:flex;overflow-x:auto;gap:6px}.agents-task-filter{flex:1 0 auto}.persona-admin-page .persona-admin-step-label{font-size:.875rem}.agent-operations-tabs a{padding-inline:10px}}
 @media(max-width:359px){.persona-admin-page .persona-admin-card-controls{grid-template-columns:minmax(0,1fr)}.persona-admin-page .persona-admin-card-controls .button{width:100%;white-space:normal;height:auto;min-height:44px}.product-page-frame-title-row{flex-wrap:wrap}.agent-page-frame .product-page-frame-actions{width:100%}.agent-page-frame .agents-page-nav{width:100%;justify-content:space-between}}

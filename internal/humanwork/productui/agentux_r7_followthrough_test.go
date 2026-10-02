@@ -178,14 +178,12 @@ func TestAgentUXR7_OwnerRoleListAndLimitContact(t *testing.T) {
 		agentUXR7Contains(t, markup, `persona-admin-audience-details`, `<summary>`, `<ul>`, `<li>`)
 		persona.Steward, persona.StewardName = "loretta", "Loretta Young"
 		markup = agentUXR7Render(t, personaAdminLimitsDefinition(locale, persona))
-		agentUXR7Contains(t, markup, agentUXR7Text(locale, "limit_help"), "Loretta Young", `person=loretta`)
-		persona.Steward, persona.StewardName = "", ""
-		markup = agentUXR7Render(t, personaAdminLimitsDefinition(locale, persona))
-		agentUXR7Contains(t, markup, personaAdminText(locale, "steward"))
-		if strings.Contains(markup, `href=`) {
-			t.Fatal("missing contact produced an empty person link")
+		// AGENTCOST-006: the limits are a card the owner sets, not a contact to ask.
+		agentUXR7Contains(t, markup, `data-agent-spend-mount="`+persona.ID+`"`)
+		if strings.Contains(markup, "Loretta Young") || strings.Contains(markup, `person=loretta`) {
+			t.Fatal("limits still point at a contact instead of offering the card")
 		}
-		markup = agentUXR7Render(t, personaAdminNoStarterNotice(locale, nil))
+		markup = agentUXR7Render(t, personaAdminNoStarterNotice(locale, nil, ""))
 		if strings.Contains(strings.ToLower(markup), "platform") || strings.Contains(markup, "المنصة") {
 			t.Fatal("setup contains platform vocabulary")
 		}

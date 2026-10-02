@@ -26,9 +26,11 @@ type productCatalogRegistry struct {
 func newProductCatalogRegistry() *productCatalogRegistry {
 	registry := localize.NewRegistry()
 	builtin := make(map[string]func(), len(productMessages))
-	for locale, messages := range productMessages {
+	for locale := range productMessages {
 		builtin[locale] = sync.OnceFunc(func() {
-			if err := registry.Register(localize.Catalog{Locale: locale, Version: productCatalogVersion, Messages: productCatalogMessages(locale, messages)}); err != nil {
+			// Register copies the messages, so it is given the shared finished
+			// catalog (chatperf2_catalog_base.go).
+			if err := registry.Register(localize.Catalog{Locale: locale, Version: productCatalogVersion, Messages: productCatalogBase(locale)}); err != nil {
 				panic(err)
 			}
 		})

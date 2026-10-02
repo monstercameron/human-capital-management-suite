@@ -97,5 +97,18 @@ func chatShellStylesheet() string {
 		// out-of-flow) navigation drawer and gives the main region the
 		// leftover, which leaves a full-bleed page half a screen tall. The
 		// chat page is the only row, so it takes the whole height.
-		"@media(max-width:760px){.main.page-full-bleed{padding:0}.main-scroll.main-scroll-full-bleed{scrollbar-gutter:auto}.app-shell .shell-grid:has(>.main-scroll-full-bleed){grid-template-rows:minmax(0,1fr)!important}}"
+		"@media(max-width:760px){.main.page-full-bleed{padding:0}.main-scroll.main-scroll-full-bleed{scrollbar-gutter:auto}.app-shell .shell-grid:has(>.main-scroll-full-bleed){grid-template-rows:minmax(0,1fr)!important}}" +
+		chatPhoneShellStylesheet
 }
+
+// chatPhoneShellStylesheet is the page's claim on the whole phone viewport
+// (CHATUX-033). While a conversation is open the chat's own header is the one
+// bar, so the workspace bar goes and the shell grid keeps only its main row;
+// the conversation list (the chat's sidebar-open state, or no conversation
+// chosen) is the screen that shows the workspace bar. The shell has no other
+// hook for a page to ask for this: the page's markup sits inside the shell's
+// main region, and :has() lets the one rule read the chat's state from there.
+const chatPhoneShellStylesheet = "@media(max-width:760px){" +
+	`.app-shell:has(.chat-workspace[data-has-selection="true"]:not([data-sidebar-open="true"])){grid-template-rows:minmax(0,1fr)}` +
+	`.app-shell:has(.chat-workspace[data-has-selection="true"]:not([data-sidebar-open="true"])) .topbar{display:none}` +
+	"}"

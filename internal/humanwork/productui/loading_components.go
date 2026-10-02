@@ -27,6 +27,9 @@ type LoadingProxyProps struct {
 	// drawn over the same size-compatible body (REV-090-01). Nil keeps the
 	// announcement-only failure shape.
 	Failure *AsyncRegionFailureProps
+	// Locale is the viewer's language and direction. Only Chat's proxy has
+	// words of its own; the zero value draws it in the default language.
+	Locale LocaleContext
 }
 
 // LoadingRegionPage is the stable outlet used by route transitions. Keeping
@@ -75,7 +78,7 @@ func BuildLoading(view View) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page}))
+	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}))
 }
 
 // BuildContentLoading keeps already-resolved application chrome mounted while
@@ -88,7 +91,7 @@ func BuildContentLoading(view View) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page}))
+	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}))
 }
 
 // BuildRefreshing keeps the last authorized page tree visible while a newer
@@ -132,7 +135,7 @@ func BuildFailure(view View, message string) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, State: AsyncRegionFailure, Message: message}))
+	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, State: AsyncRegionFailure, Message: message, Locale: view.Locale}))
 }
 
 // LoadingProxy preserves the broad geometry of each page family, avoiding
@@ -156,7 +159,7 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	class := "loading-proxy loading-proxy-" + safeLoadingPageClass(props.Page)
 	body := html.Fragment(
 		html.Div(html.Props{Class: "loading-progress"}),
-		loadingProxyBody(props.Page),
+		loadingProxyBody(props.Page, props.Locale),
 	)
 	switch props.State {
 	case AsyncRegionLoading, AsyncRegionEmpty, AsyncRegionStale, AsyncRegionResolved:
@@ -181,13 +184,13 @@ func LoadingProxy(props LoadingProxyProps) ui.Node {
 	}
 }
 
-func loadingProxyBody(page PageID) ui.Node {
+func loadingProxyBody(page PageID, locale LocaleContext) ui.Node {
 	switch page {
 	// Chat is an application surface: its loading state is its own room
 	// (rail skeleton, timeline skeleton, composer) so the page never flashes
 	// a document-style placeholder while the client fetches.
 	case PageChat:
-		return chatui.Build(chatui.Model{State: chatui.StateLoading})
+		return chatui.Build(chatLoadingModel(locale))
 	// Organization is a search field over one list of teams, which is this
 	// shape; it used to borrow Insights' metric cards and chart, none of which
 	// it has.

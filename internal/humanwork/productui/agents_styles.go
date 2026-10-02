@@ -113,6 +113,14 @@ func declareAgentsStyles() {
 		gwccss.Raw("padding-block", "10px"), gwccss.Raw("padding-inline", "12px"),
 		gwccss.Rounded(gwccss.RawLength("var(--hcm-radius-control,var(--radius))")),
 	)
+	// The plan revision block and the list of what the revision changes read
+	// as one group with the same spacing as the other task sections.
+	declareGlobal(".agents-plan-diff,.agents-plan-changes,.agents-approval-digest",
+		gwccss.Display.Grid, gwccss.Gap(gwccss.Px(8)), gwccss.Margin(gwccss.Zero), gwccss.MinWidth(gwccss.Zero),
+	)
+	declareGlobal(".agents-plan-changes ul",
+		gwccss.Margin(gwccss.Zero), gwccss.Raw("padding-inline-start", "1.25rem"),
+	)
 	declareGlobal(".agents-composer textarea",
 		gwccss.Display.Block, gwccss.W(gwccss.Percent(100)), gwccss.MinWidth(gwccss.Zero),
 		gwccss.MinHeight(gwccss.Px(96)), gwccss.Raw("padding-block", "10px"), gwccss.Raw("padding-inline", "12px"),

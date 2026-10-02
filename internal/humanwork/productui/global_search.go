@@ -39,7 +39,16 @@ type GlobalSearchProps struct {
 	FallbackHref string
 	InitialQuery string
 	HiddenInputs map[string]string
+	// Remote asks a service for more results for the settled query
+	// (CHATSEARCH-002: Chat). It calls done once, with results the service has
+	// already authorized for this reader, or with none; they are listed after
+	// the local ones. Nil asks nobody.
+	Remote func(query string, done func([]GlobalSearchItem))
 }
+
+// globalSearchRemoteMinimum is the shortest query a service is asked for: one
+// letter matches nearly everything and is not worth a request.
+const globalSearchRemoteMinimum = 2
 
 func globalSearchProps(view View) GlobalSearchProps {
 	hidden := make(map[string]string)
@@ -56,10 +65,15 @@ func globalSearchProps(view View) GlobalSearchProps {
 	if PageVisible(PagePeople, view.Roles) {
 		fallback = pageHref(PagePeople)
 	}
-	return GlobalSearchProps{
+	props := GlobalSearchProps{
 		I18nProps: I18nProps{Locale: view.Locale}, Items: globalSearchItems(view),
 		Navigate: view.Navigate, FallbackHref: fallback, HiddenInputs: hidden,
 	}
+	// Chat is asked only for a reader whose workspace shows them Chat.
+	if PageVisible(PageChat, view.Roles) {
+		props.Remote = view.SearchChat
+	}
+	return props
 }
 
 func globalSearchItems(view View) []GlobalSearchItem {
@@ -463,6 +477,25 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 	if generation, current := controller.Request(); current == settled {
 		controller.Resolve(generation, settled, settledResults)
 	}
+	// CHATSEARCH-002: the settled query is put to Chat as well. Its answer
+	// arrives later and is fenced like the local one, so it can only add rows
+	// under the query it was asked for.
+	remoteVersion := ui.UseState(0)
+	ui.UseEffect(func() func() {
+		if props.Remote == nil || len([]rune(strings.TrimSpace(settled))) < globalSearchRemoteMinimum {
+			return nil
+		}
+		generation, current := controller.Request()
+		if current != settled {
+			return nil
+		}
+		props.Remote(settled, func(items []GlobalSearchItem) {
+			if version, accepted := controller.ResolveRemote(generation, settled, items); accepted {
+				remoteVersion.Set(version)
+			}
+		})
+		return nil
+	}, settled)
 	results, _, resultsCurrent := controller.Results()
 	// flush answers the exact current query at once, for a choice made before
 	// the debounce settled (Enter, submit), so it never picks a stale result.

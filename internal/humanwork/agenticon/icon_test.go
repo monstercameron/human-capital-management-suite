@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// The generator reads the keyword vocabulary, which the browser build leaves
+// out, so these tests run on the server build only.
+
 package agenticon
 
 import (

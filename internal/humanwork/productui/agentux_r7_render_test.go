@@ -75,7 +75,10 @@ func TestAgentUXR7_SetupOwnerActionsHistoryAndAccess(t *testing.T) {
 			persona.VersionHistory = []PersonaAdminVersionHistory{{Version: "4", Lifecycle: PersonaPublished, PublishedAt: "2026-10-01T13:00:00Z", PublishedBy: "Curtis Bell", Instructions: "New instruction", ConversationCount: 2}, {Version: "2", Lifecycle: PersonaPublished, PublishedAt: "2026-09-30T13:00:00Z", PublishedBy: "Curtis Bell", Instructions: "Old instruction", Guidance: "Old instruction", ConversationCount: 0}}
 			snapshot := agentUXSetup2Snapshot(persona)
 			markup := agentUXR7Render(t, personaAdminCard(locale, &personaAdminTestClient{}, persona, snapshot))
-			agentUXR7Contains(t, markup, `data-persona-command="SUSPEND"`, `data-persona-confirm=`, agentUXR7Text(locale, "pause"), agentUXR7Text(locale, "ask_link"), agentUXR7Text(locale, "history"), "Curtis Bell", `version=2`, "Old instruction", `anchor-name:`)
+			agentUXR7Contains(t, markup, `data-persona-command="SUSPEND"`, `data-persona-confirm=`, agentUXR7Text(locale, "pause"), agentUXR7Text(locale, "ask_link"), agentUXR7Text(locale, "history"), "Curtis Bell", `version=2`, "Old instruction", `popovertarget="persona-admin-more-`)
+			if strings.Contains(markup, ` style="`) {
+				t.Fatal("the card carries a style attribute, which the page's content security policy refuses")
+			}
 			if strings.Contains(markup, `data-persona-command="ROLLBACK"`) {
 				t.Fatal("unscoped rollback bypasses reviewed conversation preview")
 			}
@@ -180,7 +183,7 @@ func TestAgentUXR7_ResponsiveTokenStylesAndPopovers(t *testing.T) {
 	for _, width := range []int{1440, 800, 390, 320} {
 		t.Run(fmt.Sprint(width), func(t *testing.T) {
 
-			rules := map[int]string{1440: "@media(min-width:1024px){.agents-tasks[data-has-task-detail=true]{grid-template-columns:420px minmax(0,1fr)}", 800: "@media(min-width:761px) and (max-width:800px)", 390: "@media(max-width:390px){.agents-task-row-heading", 320: "@media(max-width:359px){.persona-admin-page .persona-admin-card-controls{grid-template-columns:minmax(0,1fr)}"}
+			rules := map[int]string{1440: "@media(min-width:1024px){.agents-tasks[data-has-task-detail=true]{grid-template-columns:420px minmax(0,1fr)}", 800: "@media(max-width:800px){.persona-admin-page .persona-admin-facts", 390: "@media(max-width:390px){.agents-task-row-heading", 320: "@media(max-width:359px){.persona-admin-page .persona-admin-card-controls{grid-template-columns:minmax(0,1fr)}"}
 			agentUXR7Contains(t, css, rules[width])
 			agentUXR7Contains(t, css, "min-width:0", "max-width:100%", "width:100%", "text-align:start", "[dir=rtl]", "grid-template-columns:420px minmax(0,1fr)", "@media(max-width:800px)", "@media(max-width:390px)", "@media(max-width:359px)", "overflow-x:auto", "position-try-fallbacks:flip-inline,flip-block", "inset-block-start:anchor(bottom)", "[popover]:not(:popover-open){display:none}", "field-sizing:content", "var(--hcm-color-danger)", "height:44px", "grid-template-columns:repeat(2,minmax(0,1fr))")
 		})

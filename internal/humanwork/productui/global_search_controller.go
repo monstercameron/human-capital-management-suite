@@ -30,6 +30,11 @@ type globalSearchController struct {
 	resultsQuery      string
 	resultsGeneration uint64
 	resolved          bool
+	// remote holds what Chat answered for remoteQuery (CHATSEARCH-002). It is
+	// listed after the local results of the same query and never without them.
+	remote        []GlobalSearchItem
+	remoteQuery   string
+	remoteVersion int
 }
 
 func newGlobalSearchController(seed string) *globalSearchController {
@@ -56,7 +61,24 @@ func (controller *globalSearchController) Clear() uint64 {
 	controller.buffer = ""
 	controller.generation++
 	controller.results, controller.resultsQuery, controller.resolved = nil, "", false
+	controller.remote, controller.remoteQuery = nil, ""
 	return controller.generation
+}
+
+// ResolveRemote offers Chat's results for one generation, under the same fence
+// as Resolve: an answer for a query the reader has since changed is dropped.
+// It returns a number that changes with every accepted answer, for the caller
+// to render again with, and whether this one was accepted.
+func (controller *globalSearchController) ResolveRemote(generation uint64, query string, results []GlobalSearchItem) (int, bool) {
+	controller.mu.Lock()
+	defer controller.mu.Unlock()
+	if generation != controller.generation || query != controller.buffer {
+		return controller.remoteVersion, false
+	}
+	controller.remote = append([]GlobalSearchItem(nil), results...)
+	controller.remoteQuery = query
+	controller.remoteVersion++
+	return controller.remoteVersion, true
 }
 
 // Query returns the edit buffer.
@@ -95,6 +117,12 @@ func (controller *globalSearchController) Resolve(generation uint64, query strin
 func (controller *globalSearchController) Results() (results []GlobalSearchItem, query string, current bool) {
 	controller.mu.Lock()
 	defer controller.mu.Unlock()
-	return append([]GlobalSearchItem(nil), controller.results...), controller.resultsQuery,
+	results = append([]GlobalSearchItem(nil), controller.results...)
+	// Chat's results follow the local results they were asked with. While the
+	// reader types on, both stay as they are until the new query is answered.
+	if controller.resolved && controller.remoteQuery == controller.resultsQuery {
+		results = append(results, controller.remote...)
+	}
+	return results, controller.resultsQuery,
 		controller.resolved && controller.resultsGeneration == controller.generation
 }

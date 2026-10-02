@@ -148,11 +148,11 @@ func TestAgentUXR5Setup_NoStarterHasARealNextStep(t *testing.T) {
 			t.Fatalf("%s left a dead new-agent action: %s", localeName, markup)
 		}
 	}
-	unnamed := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), nil))
-	if !strings.Contains(unnamed, "Ask the person who manages this workspace.") || strings.Contains(unnamed, "<a ") {
+	unnamed := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), nil, ""))
+	if !strings.Contains(unnamed, "this build ships with none") || !strings.Contains(unnamed, "choose Edit on its card") || strings.Contains(unnamed, "Ask the person") || strings.Contains(unnamed, "<a ") {
 		t.Fatalf("unnamed installer guidance is wrong: %s", unnamed)
 	}
-	named := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), []PersonaAdminTarget{{ID: "ir-admin", Label: "Alex Morgan", Role: "platform_administrator"}}))
+	named := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), []PersonaAdminTarget{{ID: "ir-admin", Label: "Alex Morgan", Role: "platform_administrator"}}, "someone-else"))
 	if !strings.Contains(named, "Alex Morgan") || !strings.Contains(named, "Message Alex Morgan") {
 		t.Fatalf("known installer is not actionable: %s", named)
 	}
@@ -179,8 +179,8 @@ func TestAgentUXR5Setup_LifecycleActorsAndOutcomes(t *testing.T) {
 	locale := ResolveProductLocale("en-US")
 	persona := agentUXSetup2Persona()
 	for action, want := range map[string]string{
-		"REQUEST_REVIEW": "Review requested for version 4.",
-		"REVIEW":         "You approved version 4.",
+		"REQUEST_REVIEW": "Review of version 4 requested from Curtis Bell.",
+		"REVIEW":         "Version 4 approved.",
 		"RUN_EVALUATION": "Evaluation passed: 8 of 8 cases.",
 		"PUBLISH":        "Version 4 published.",
 	} {
@@ -198,13 +198,28 @@ func TestAgentUXR5Setup_LifecycleActorsAndOutcomes(t *testing.T) {
 		}
 	}
 	persona.ReviewApproved = true
+	// The person named for the evaluation is someone who administers agents and
+	// so can open this page and run it; never the reader, and not a technical
+	// contact the directory does not list as an administrator.
 	evaluatorSnapshot := agentUXSetup2Snapshot(persona)
 	evaluatorSnapshot.AllowedCommands = []string{"PUBLISH"}
+	evaluatorSnapshot.SubjectOptions = append(evaluatorSnapshot.SubjectOptions, PersonaAdminTarget{ID: "ir-003-loretta-haynes", Label: "Loretta Haynes", Role: "agent_administrator"})
 	evaluator := personaAdminRender(t, personaAdminLifecycleBlock(locale, persona, evaluatorSnapshot))
-	for _, want := range []string{"Next: Loretta Haynes runs the evaluation.", "Message Loretta Haynes"} {
+	for _, want := range []string{"Next: Loretta Haynes runs the evaluation.", "Message Loretta Haynes", `person=ir-003-loretta-haynes`} {
 		if !strings.Contains(evaluator, want) {
 			t.Errorf("reviewer handoff missing %q: %s", want, evaluator)
 		}
+	}
+	evaluatorSnapshot.ViewerSubject = "ir-003-loretta-haynes"
+	asSelf := personaAdminRender(t, personaAdminLifecycleBlock(locale, persona, evaluatorSnapshot))
+	if strings.Contains(asSelf, "Loretta Haynes runs") || !strings.Contains(asSelf, "Next: Walt Brennan runs the evaluation.") {
+		t.Errorf("the reader was named to themselves, or no other administrator was offered: %s", asSelf)
+	}
+	evaluatorSnapshot.SubjectOptions = []PersonaAdminTarget{{ID: "ir-003-loretta-haynes", Label: "Loretta Haynes", Role: "employee"}}
+	evaluatorSnapshot.ViewerSubject = ""
+	nobody := personaAdminRender(t, personaAdminLifecycleBlock(locale, persona, evaluatorSnapshot))
+	if !strings.Contains(nobody, "Next: a person who administers agents runs the evaluation.") || strings.Contains(nobody, "Loretta Haynes runs") || strings.Contains(nobody, "Message ") {
+		t.Errorf("with no administrator listed the page named someone who cannot run the evaluation: %s", nobody)
 	}
 	persona.EvaluationRef, persona.EvaluationStatus = "evaluation-4", "PASSED"
 	persona.EvaluationPassedAt = "2026-10-01"

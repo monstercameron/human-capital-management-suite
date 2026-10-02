@@ -46,9 +46,17 @@ func personaAdminLifecycleBlock(locale LocaleContext, persona PersonaAdminPerson
 			children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(personaAdminText(locale, "approved_by")+" "), personaAdminPersonChip(persona.Reviewer, persona.ReviewerName, persona.ReviewerInitials, persona.ReviewerAvatarURL, personaAdminText(locale, "unknown_person"))))
 		}
 		if !personaAdminCommandAllowed(snapshot, "RUN_EVALUATION") {
-			person := PersonaWorkerLabel(persona.Steward, persona.StewardName)
-			next := strings.ReplaceAll(personaAdminR5SetupText(locale, "next_evaluator"), "{person}", person)
-			children = append(children, html.P(html.Props{}, ui.Text(next+" "), html.A(html.Props{Href: Path(PageChat) + "?person=" + url.QueryEscape(persona.Steward)}, ui.Text(strings.ReplaceAll(personaAdminR5SetupText(locale, "message_evaluator"), "{person}", person)))))
+			// The person named must be able to open this page and run the
+			// evaluation. The technical contact often can do neither, so the
+			// page names a colleague who administers agents, and says so in
+			// general terms when the directory lists none.
+			if runner := agentUX046EvaluationRunner(snapshot); runner.Label != "" {
+				person := PersonaWorkerLabel(runner.ID, runner.Label)
+				next := strings.ReplaceAll(personaAdminR5SetupText(locale, "next_evaluator"), "{person}", person)
+				children = append(children, html.P(html.Props{}, ui.Text(next+" "), html.A(html.Props{Href: Path(PageChat) + "?person=" + url.QueryEscape(runner.ID)}, ui.Text(strings.ReplaceAll(personaAdminR5SetupText(locale, "message_evaluator"), "{person}", person)))))
+			} else {
+				children = append(children, html.P(html.Props{}, ui.Text(personaAdminR5SetupText(locale, "next_evaluator_role"))))
+			}
 		}
 	case personaAdminPhaseReadyPublication:
 		children = append(children, personaAdminEvaluationEvidence(locale, persona))
@@ -174,14 +182,20 @@ func personaAdminFirstName(name string) string {
 	return name
 }
 
-func personaAdminNoStarterNotice(locale LocaleContext, options []PersonaAdminTarget) ui.Node {
+// personaAdminNoStarterNotice replaces the New agent action when no template
+// can be used. It says plainly that the build carries none and what the reader
+// can still do. A colleague is named only when the directory lists someone
+// else who looks after the installation: the person reading Agent setup
+// administers the workspace, so they are never told to go and ask the person
+// who does.
+func personaAdminNoStarterNotice(locale LocaleContext, options []PersonaAdminTarget, viewer string) ui.Node {
 	manager := personaAdminRoleContact(options, "platform_administrator")
-	if manager.Label == "" {
+	if manager.Label == "" || agentUX074ViewerIs(viewer, manager) {
 		manager = personaAdminRoleContact(options, "agent_administrator")
 	}
 	children := []ui.Node{ui.Text(personaAdminR5SetupText(locale, "no_template"))}
-	if manager.Label == "" {
-		children = append(children, ui.Text(personaAdminSpace+personaAdminR5SetupText(locale, "ask_installation_manager")))
+	if manager.Label == "" || agentUX074ViewerIs(viewer, manager) {
+		children = append(children, ui.Text(personaAdminSpace+personaAdminR5SetupText(locale, "no_template_next")))
 	} else {
 		children = append(children,
 			ui.Text(personaAdminSpace+strings.ReplaceAll(personaAdminR5SetupText(locale, "named_template_manager"), "{person}", manager.Label)+personaAdminSpace),
@@ -194,9 +208,9 @@ func personaAdminNoStarterNotice(locale LocaleContext, options []PersonaAdminTar
 func personaAdminR5SetupText(locale LocaleContext, key string) string {
 	copy := map[string][3]string{
 		"rejection_reason":           {"What should the owner change before requesting review again?", "Was soll die verantwortliche Person ändern, bevor sie erneut eine Prüfung anfordert?", "ما الذي يجب أن يغيّره المالك قبل طلب المراجعة مجددًا؟"},
-		"no_template":                {"New agents start from a reviewed template, and none is installed here yet.", "Neue Agenten beginnen mit einer geprüften Vorlage; hier ist noch keine installiert.", "يبدأ الوكلاء الجدد من قالب تمت مراجعته، ولم يتم تثبيت أي قالب هنا بعد."},
-		"ask_installation_manager":   {"Ask the person who manages this workspace.", "Fragen Sie die Person, die die Installation dieses Arbeitsbereichs verwaltet.", "اطلب من الشخص الذي يدير مساحة العمل هذه."},
-		"named_template_manager":     {"{person}, your workspace administrator, can add one.", "{person} aus der Workspace-Administration kann eine hinzufügen.", "يمكن لـ {person}، مسؤول مساحة العمل لديك، إضافة قالب."},
+		"no_template":                {"New agents start from a reviewed template, and this build ships with none.", "Neue Agenten beginnen mit einer geprüften Vorlage; dieser Build enthält keine.", "يبدأ الوكلاء الجدد من قالب تمت مراجعته، وهذا الإصدار لا يتضمن أي قالب."},
+		"no_template_next":           {"Templates arrive with a product update, not from this page. To change an agent you already have, choose Edit on its card.", "Vorlagen kommen mit einem Produktupdate, nicht über diese Seite. Um einen vorhandenen Agenten zu ändern, wählen Sie auf seiner Karte „Bearbeiten“.", "تصل القوالب مع تحديث المنتج وليس من هذه الصفحة. لتغيير وكيل موجود لديك، اختر «تحرير» في بطاقته."},
+		"named_template_manager":     {"{person} can add one with a product update.", "{person} kann mit einem Produktupdate eine hinzufügen.", "يمكن لـ {person} إضافة قالب مع تحديث المنتج."},
 		"message_person":             {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
 		"retire_agent":               {"Retire agent…", "Agent stilllegen…", "إيقاف الوكيل…"},
 		"retire_role_reason":         {"Only an agent administrator can retire an agent. Ask your agent administrator.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie sie.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل معه."},
@@ -221,6 +235,8 @@ func personaAdminR5SetupText(locale LocaleContext, key string) string {
 		"run_by":                     {"run by", "ausgeführt von", "أجراه"},
 		"view_results":               {"View results", "Ergebnisse ansehen", "عرض النتائج"},
 		"next_evaluator":             {"Next: {person} runs the evaluation.", "Als Nächstes führt {person} die Evaluierung aus.", "التالي: يجري {person} التقييم."},
+		"no_installations_live":      {"Not added to a conversation yet. Choose {action} so people can use it.", "Noch zu keiner Unterhaltung hinzugefügt. Wählen Sie „{action}“, damit Personen ihn verwenden können.", "لم تتم إضافته إلى محادثة بعد. اختر «{action}» ليتمكن الأشخاص من استخدامه."},
+		"next_evaluator_role":        {"Next: a person who administers agents runs the evaluation.", "Als Nächstes führt eine Person aus der Agentenadministration die Evaluierung aus.", "التالي: يجري التقييم شخص يدير الوكلاء."},
 		"message_evaluator":          {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
 		"ready_publish_heading":      {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
 		"publish_does_not_move":      {"Publishing does not change any conversation. Afterwards, move conversations to version {version} in", "Die Veröffentlichung ändert keine Unterhaltung. Verschieben Sie Unterhaltungen anschließend unter", "لا يغيّر النشر أي محادثة. بعد ذلك، انقل المحادثات إلى الإصدار {version} في"},

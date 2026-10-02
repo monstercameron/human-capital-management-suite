@@ -73,6 +73,10 @@ const (
 	RouteProfileProjects        RouteProfile = "projects"
 	RouteProfileProject         RouteProfile = "project"
 	RouteProfileAgents          RouteProfile = "agents"
+	// RouteProfileAgentOperations is Agent operations, whose tab (Activity,
+	// Rollout, Move, Announcements) lives in the address so a link, a reload and
+	// Back all return to it (CHATBUG-069).
+	RouteProfileAgentOperations RouteProfile = "agent_operations"
 )
 
 // DataProfile identifies a reusable authorized dataset contract. It carries
@@ -180,6 +184,8 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.QueryKeys = []string{"project", "task", "board_view", "cursor", "view", "lane", "filter", "q"}
 	case RouteProfileAgents:
 		result.QueryKeys = []string{"task"}
+	case RouteProfileAgentOperations:
+		result.QueryKeys = []string{"tab"}
 	case RouteProfileKnowledgeSearch:
 		result.QueryKeys = []string{"q"}
 	}
@@ -235,6 +241,9 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 		return false
 	}
 	if profile == RouteProfileWorkflow && !oneOf("workflow_references", "1") {
+		return false
+	}
+	if profile == RouteProfileAgentOperations && !oneOf("tab", "running", "rollout", "move", "announcements") {
 		return false
 	}
 	if profile == RouteProfileDocs && (!oneOf("docs_sort", "relevance", "updated", "updated_asc", "title", "title_desc", "owner", "owner_desc") || !oneOf("docs_size", "25", "50", "100") || !oneOf("docs_mode", "smart", "contains", "fuzzy", "meaning") || !oneOf("collection", "all", "private", "shared", "starred") || !oneOf("docs_edit", "1")) {
@@ -370,6 +379,9 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 	}
 	if profile == RouteProfileAgents {
 		setProfileValue(values, provided, "task", request.AgentTaskID)
+	}
+	if profile == RouteProfileAgentOperations {
+		setProfileValue(values, provided, "tab", request.AgentOperationsTab)
 	}
 	return values
 }
@@ -681,6 +693,8 @@ func routeProfileFor(route string) RouteProfile {
 		return RouteProfilePosition
 	case "/workspace/app/chat/agents":
 		return RouteProfileAgents
+	case "/workspace/app/admin/agents":
+		return RouteProfileAgentOperations
 	}
 	switch {
 	case strings.Contains(route, "/admin/"):
@@ -937,7 +951,7 @@ func validRouteProfile(profile RouteProfile) bool {
 		RouteProfileHome, RouteProfileInsights, RouteProfileMyself, RouteProfileJourneys, RouteProfileWork,
 		RouteProfileHistory, RouteProfilePeople, RouteProfilePerson, RouteProfileOrganization, RouteProfileOrgOutline,
 		RouteProfileRoles, RouteProfileStudio, RouteProfileWorkflow, RouteProfileDocs, RouteProfilePosition,
-		RouteProfileProjects, RouteProfileProject, RouteProfileAgents:
+		RouteProfileProjects, RouteProfileProject, RouteProfileAgents, RouteProfileAgentOperations:
 		return true
 	default:
 		return false

@@ -688,11 +688,15 @@ type View struct {
 	// Its closure binds tenant, roles and audience from verified principal
 	// claims; renderers pass only the untrusted query string.
 	SearchKnowledge func(string) ([]KnowledgeSearchResult, error)
-	RolePage        int
-	PeoplePage      int
-	PeoplePageSize  int
-	PeopleTeam      string
-	PeopleLocation  string
+	// SearchChat puts the workspace search box's query to Chat's search
+	// (CHATSEARCH-002). The browser composition binds the signed-in person; the
+	// service authorizes every result for them. done is called once.
+	SearchChat     func(query string, done func([]GlobalSearchItem))
+	RolePage       int
+	PeoplePage     int
+	PeoplePageSize int
+	PeopleTeam     string
+	PeopleLocation string
 	// PeopleStatus is the raw directory lifecycle opt-in
 	// ("terminated", "on-leave", "all"); empty resolves to the
 	// documented active-only default through

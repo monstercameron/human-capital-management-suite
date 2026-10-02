@@ -113,7 +113,7 @@ func BuildContentFailure(view View, retry func()) ui.Node {
 		message = view.Locale.Text("shell.live_unavailable")
 	}
 	return ui.CreateElement(LoadingProxy, LoadingProxyProps{
-		Page: view.Page, State: AsyncRegionFailure, Message: message,
+		Page: view.Page, State: AsyncRegionFailure, Message: message, Locale: view.Locale,
 		Failure: &AsyncRegionFailureProps{Locale: view.Locale, Retry: retry, RetryHref: statefulHref(view, view.Page), Navigate: view.Navigate},
 	})
 }

@@ -64,7 +64,12 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.Purpose = principal.DefaultPurpose()
 		h.applyCompanyBrand(&config)
 	}
-	access, loadErr := h.resolveProductAccess(admitted.Context(), principal)
+	// CHATBUG-014: what each step of this document cost is reported on the
+	// response (chatperf_page_reads.go).
+	timing := &pageTiming{}
+	var access productAccess
+	var loadErr error
+	timing.measure("access", func() { access, loadErr = h.resolveProductAccess(admitted.Context(), principal) })
 	if loadErr != nil {
 		h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""), definition.ID, config)
 		return
@@ -87,11 +92,29 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.FeaturePermissions = access.features
 	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
-	config.WorkflowStarts = h.resolveWorkflowStarts(admitted.Context(), principal, access)
-	config.Agents = h.resolveAgents(admitted.Context(), principal, access)
+	// The governed rollout ledger is read for the viewer's organization scope,
+	// falling back to the tenant.
+	revisionScope := ""
+	if principal != nil {
+		revisionScope = principal.OrganizationScopeID()
+		if revisionScope == "" {
+			revisionScope = string(principal.Tenant())
+		}
+	}
+	// CHATBUG-014: the workflow catalog, the agent snapshot, the rollout ledger
+	// and the viewer's preferences are read together, and the preferences once.
+	reads := h.readProductPage(admitted.Context(), principal, access, config.Tenant, definition.ID, revisionScope, timing)
+	config.WorkflowStarts = reads.starts
+	config.Agents = reads.agents
 	if config.Agents != nil && config.Agents.Enabled {
 		access = projectAgentOperationsAccess(access)
 		config.Roles, config.PagePermissions = access.roles, access.permissions
+		// AGENTUX-041: on a tenant with feature-level policy the client admits
+		// a page by its content feature, so the derived feature grant must
+		// reach it too, or the owner's navigation has no Agent operations link.
+		if access.featuresConfigured {
+			config.FeaturePermissions = access.features
+		}
 	}
 	config.Clock = h.resolveClock(access)
 	if !access.can(definition.ID, roleaccess.ActionView) && !assignedJourneyDetail(definition.ID, r.URL.Query(), access) {
@@ -112,14 +135,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	// rollout is never served; an ungoverned page falls back to the compiled
 	// registry definition. A governed page carries its rolled-out revision
 	// digest so the served definition is pinned to the ledger.
-	revisionScope := ""
-	if principal != nil {
-		revisionScope = principal.OrganizationScopeID()
-		if revisionScope == "" {
-			revisionScope = string(principal.Tenant())
-		}
-	}
-	revision, governed, servable, _, governanceErr := h.resolveGovernedRevision(admitted.Context(), config.Tenant, definition.ID, revisionScope, h.now().Unix())
+	revision, governed, servable, governanceErr := reads.revision, reads.governed, reads.servable, reads.governanceErr
 	if governanceErr != nil {
 		h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""), definition.ID, config)
 		return
@@ -146,7 +162,8 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	var favoritePages []productui.PageID
 	var navigationGroups map[productui.PageID]bool
 	if h.preferences != nil && principal != nil {
-		snapshot, loadErr := h.preferences.Load(admitted.Context(), principal.Tenant(), principal.OrganizationScopeID(), principal.Subject())
+		// The preferences were read with the page's other reads, once.
+		snapshot, loadErr := reads.preferences, reads.preferencesErr
 		if loadErr != nil {
 			h.writeProductProblem(w, r, http.StatusServiceUnavailable, productui.ResolveProductLocalePreference(query.Get("locale"), ""), definition.ID, config)
 			return
@@ -188,7 +205,11 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	locale = productui.ResolveProductLocalePreference(query.Get("locale"), savedLocale)
 	if h.catalogs != nil && config.Tenant != "" {
-		revision, catalogErr := h.catalogs.Active(admitted.Context(), i18n.Scope{Tenant: config.Tenant, Product: "workspace"}, locale.Resolved, h.now().UTC())
+		var revision i18n.CatalogRevision
+		var catalogErr error
+		timing.measure("catalog", func() {
+			revision, catalogErr = h.catalogs.Active(admitted.Context(), i18n.Scope{Tenant: config.Tenant, Product: "workspace"}, locale.Resolved, h.now().UTC())
+		})
 		if catalogErr != nil && !errors.Is(catalogErr, i18n.ErrNoActiveRevision) {
 			h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale, definition.ID, config)
 			return
@@ -216,17 +237,26 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	if productui.ValidateCustomerTheme(appearance) != nil {
 		appearance = productui.DefaultCustomerTheme()
 	}
-	stylesheet, err := productStylesheetForTheme(appearance)
+	// CHATBUG-014: the stylesheet is linked as an asset of its own and the
+	// document is compressed (chatperf2_stylesheet.go).
+	var sheet *servedStylesheet
+	var err error
+	timing.measure("style", func() { sheet, err = h.stylesheets.forTheme(appearance) })
 	if err != nil {
 		h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale, definition.ID, config)
 		return
 	}
-	doc, err := productShellDocumentForRouteStateWithPreferencesAndNavigation(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, stylesheet, favoritePages, navigationGroups)
+	styleElement, policy := productDocumentStyle(h.policyHost(r), sheet, h.giphyAPIKey != "")
+	var doc string
+	timing.measure("render", func() {
+		doc, err = productShellDocumentWithStyleElement(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, styleElement, favoritePages, navigationGroups, nil)
+	})
 	if err != nil {
 		h.writeProductProblem(w, r, http.StatusInternalServerError, locale, definition.ID, config)
 		return
 	}
-	writeHTMLDocument(w, http.StatusOK, doc, productContentSecurityPolicyForStylesheetAndGiphy(h.policyHost(r), stylesheet, h.giphyAPIKey != ""))
+	w.Header().Set("Server-Timing", timing.header())
+	writeProductDocument(w, r, http.StatusOK, doc, policy)
 }
 
 func productLegacyAgentsPath(path string) bool {
@@ -264,10 +294,18 @@ func (h *Handler) serveProductNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 	config.LauncherActions = resolveProductLauncherActions(access.configured, access.permissions)
 	config.WorkflowStarts = h.resolveWorkflowStarts(admitted.Context(), principal, access)
-	config.Agents = h.resolveAgents(admitted.Context(), principal, access)
+	// The not-found page draws the navigation only, which needs the agents
+	// setting and not the snapshot.
+	config.Agents, _ = h.resolveAgentsSetting(admitted.Context(), principal, access)
 	if config.Agents != nil && config.Agents.Enabled {
 		access = projectAgentOperationsAccess(access)
 		config.Roles, config.PagePermissions = access.roles, access.permissions
+		// AGENTUX-041: on a tenant with feature-level policy the client admits
+		// a page by its content feature, so the derived feature grant must
+		// reach it too, or the owner's navigation has no Agent operations link.
+		if access.featuresConfigured {
+			config.FeaturePermissions = access.features
+		}
 	}
 	config.Clock = h.resolveClock(access)
 	locale := productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), "")
@@ -654,6 +692,13 @@ func productShellView(config JourneyConfig, locale productui.LocaleContext, page
 }
 
 func productShellDocumentForRouteStateWithPreferencesNavigationAndOutlet(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, stylesheet string, favoritePages []productui.PageID, navigationGroups map[productui.PageID]bool, outlet ui.Node) (string, error) {
+	return productShellDocumentWithStyleElement(config, bundleBuilt, locale, page, menuQuery, nav, theme, accessibilityPreferences, "<style>"+stylesheet+"</style>", favoritePages, navigationGroups, outlet)
+}
+
+// productShellDocumentWithStyleElement renders the shell around the head
+// element that carries its stylesheet: the sheet itself in a style element, or
+// a link to the asset that serves it (chatperf2_stylesheet.go).
+func productShellDocumentWithStyleElement(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, styleElement string, favoritePages []productui.PageID, navigationGroups map[productui.PageID]bool, outlet ui.Node) (string, error) {
 	island, err := json.Marshal(config)
 	if err != nil {
 		return "", err
@@ -690,9 +735,9 @@ func productShellDocumentForRouteStateWithPreferencesNavigationAndOutlet(config 
 	if config.TenantName != "" {
 		tenantLabel = config.TenantName
 	}
-	b.WriteString("<title>" + html.EscapeString(productui.DocumentTitle(title, theme, tenantLabel)) + "</title><style>")
-	b.WriteString(stylesheet)
-	b.WriteString("</style></head><body>")
+	b.WriteString("<title>" + html.EscapeString(productui.DocumentTitle(title, theme, tenantLabel)) + "</title>")
+	b.WriteString(styleElement)
+	b.WriteString("</head><body>")
 	b.WriteString(`<div id="` + JourneyRootElementID + `">`)
 	if bundleBuilt || outlet != nil {
 		// UXAUDIT-007: config.Purpose is the admitted principal's authorized
@@ -826,17 +871,25 @@ func productContentSecurityPolicyForStylesheet(host, stylesheet string) string {
 	return productContentSecurityPolicyForHash(host, sha256Source(stylesheet))
 }
 
-func productContentSecurityPolicyForStylesheetAndGiphy(host, stylesheet string, allowGiphy bool) string {
-	return productContentSecurityPolicyForHashAndGiphy(host, sha256Source(stylesheet), allowGiphy)
-}
-
 func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 	return productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash, false)
 }
 
 func productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash string, allowGiphy bool) string {
+	return productContentSecurityPolicyFor(host, stylesheetHash, "", allowGiphy)
+}
+
+// productContentSecurityPolicyForStyleAsset is the policy of a document that
+// links its stylesheet: no inline style is admitted at all, only the sheet's
+// own address.
+func productContentSecurityPolicyForStyleAsset(host, styleAsset string, allowGiphy bool) string {
+	return productContentSecurityPolicyFor(host, "", styleAsset, allowGiphy)
+}
+
+func productContentSecurityPolicyFor(host, stylesheetHash, styleAsset string, allowGiphy bool) string {
 	return cspPolicy{
 		styleHashes:                  []string{stylesheetHash},
+		styleAsset:                   styleAsset,
 		scriptHash:                   journeyLoaderHash,
 		formActionSelf:               true,
 		connectHost:                  host,

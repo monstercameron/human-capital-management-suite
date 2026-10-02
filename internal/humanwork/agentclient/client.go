@@ -2,6 +2,8 @@
 // agent runtime (internal/agentsystem). It is the read adapter only: it maps
 // the signed-in user's own tasks onto the page contract and never exposes
 // ledger entries, tainted content, failure detail or another user's data.
+// What a pending approval rests on is sent as source kinds and trust labels
+// (agent2017_task_detail.go), never as the content or its identifiers.
 // agentsystem does not import productui; this package joins the two.
 package agentclient
 
@@ -179,7 +181,7 @@ func (c *Client) Snapshot(ctx context.Context, req productui.AgentSnapshotReques
 		projected := projectTask(ctx, task, runner)
 		if controlsEnabled {
 			policy := c.policyForTask(ctx, runner, task, principal)
-			projected.Actions = productui.AgentTaskActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel}
+			projected.Actions = productui.AgentTaskActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel, ExtendBudget: policy.ExtendBudget}
 		}
 		snapshot.Tasks = append(snapshot.Tasks, projected)
 	}
@@ -261,6 +263,7 @@ func projectTask(ctx context.Context, task agentrun.AgentTask, budget TaskReader
 		result.BudgetUsed = strconv.FormatInt(used.Steps, 10)
 		result.BudgetLimit = strconv.FormatInt(limit.Steps, 10)
 	}
+	projectTaskDetail(ctx, task, budget, &result)
 	return result
 }
 

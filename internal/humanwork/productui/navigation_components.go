@@ -493,20 +493,23 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		children = append(children, ui.CreateElement(MenuFilter, props.Filter))
 	}
 	menu := make([]ui.Node, 0, len(props.Favorites)+len(props.Items)+2)
-	if len(props.Favorites) > 0 {
-		menu = append(menu, html.Li(html.Props{Class: "nav-section-label"}, ui.Text(props.Text("nav.favorites"))))
+	// The icon-only rail has no section labels, so a favourite listed ahead of the
+	// full list would read as the same destination twice (CHATBUG-080): it is
+	// listed once, in the full list, and keeps its place there.
+	if len(props.Favorites) > 0 && !props.Collapsed {
+		menu = append(menu, html.WithKey(html.Li(html.Props{Class: "nav-section-label"}, ui.Text(props.Text("nav.favorites"))), "label:favorites"))
 		for _, item := range props.Favorites {
-			menu = append(menu, ui.CreateElement(NavigationItem, item))
+			menu = append(menu, html.WithKey(ui.CreateElement(NavigationItem, item), "favorite:"+string(item.Page)))
 		}
 		if len(props.Items) > 0 {
-			menu = append(menu, html.Li(html.Props{Class: "nav-section-label nav-section-all"}, ui.Text(props.Text("nav.all"))))
+			menu = append(menu, html.WithKey(html.Li(html.Props{Class: "nav-section-label nav-section-all"}, ui.Text(props.Text("nav.all"))), "label:all"))
 		}
 	}
 	for _, item := range props.Items {
 		if props.Collapsed && len(item.Children) > 0 {
 			item.Children = nil
 		}
-		menu = append(menu, ui.CreateElement(NavigationItem, item))
+		menu = append(menu, html.WithKey(ui.CreateElement(NavigationItem, item), "item:"+string(item.Page)+":"+item.Label))
 	}
 	// Matching support pages belong beside search results, not below an empty
 	// scroll region. Keep only the non-matches in the stable recovery area.

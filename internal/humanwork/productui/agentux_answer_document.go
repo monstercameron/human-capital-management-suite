@@ -121,7 +121,7 @@ func agentAnswerCitedDocument(props docsDetailProps) ui.Node {
 	if compare.Get() && view.CompareDocumentVersions != nil {
 		children = append(children, ui.CreateElement(docsCompareDialog, docsCompareDialogProps{Locale: view.Locale.Resolved, DocumentID: detail.Summary.ID, Base: DocumentVersionProjection{DocumentID: detail.Summary.ID, VersionID: detail.Summary.VersionID, Title: detail.Summary.Title, Markdown: detail.Markdown, Readable: true}, ListVersions: view.ListDocumentVersions, CompareDocumentVersions: view.CompareDocumentVersions, Close: func() { compare.Set(false) }}))
 	}
-	return html.Div(html.Props{Class: "docs-cited-version"}, append([]ui.Node{html.Tag("style", html.Props{Text: agentAnswerDocumentStyles()})}, children...)...)
+	return html.Div(html.Props{Class: "docs-cited-version"}, children...)
 }
 
 func agentAnswerVersionNotice(view View, label string, compare func()) ui.Node {

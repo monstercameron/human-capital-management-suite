@@ -23,10 +23,11 @@ func TestProductCatalogCoverageMemoDoesNotRebuild(t *testing.T) {
 
 		buildAllocs := testing.AllocsPerRun(5, func() { buildProductCatalogCoverage(locale) })
 		memoAllocs := testing.AllocsPerRun(20, func() { ProductCatalogCoverage(locale) })
-		// A rebuild allocates two catalog maps with an entry per key; the memo
-		// path allocates at most the caller's MissingKeys copy plus the locale
-		// resolution.
-		if memoAllocs*10 > buildAllocs {
+		// The memo path allocates at most the caller's MissingKeys copy plus the
+		// locale resolution. A build walks both finished catalogs, which are
+		// themselves shared since CHATBUG-014, so for a complete locale (English)
+		// it is as small as the memo path and only the fixed bound applies.
+		if memoAllocs > 8 && memoAllocs*10 > buildAllocs {
 			t.Fatalf("%s: second call allocated %.0f times against %.0f for a full build; the memo is not being used", locale, memoAllocs, buildAllocs)
 		}
 	}

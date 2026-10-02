@@ -6,6 +6,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -38,6 +39,10 @@ type AgentsConfig struct {
 	Service                string               `json:"service,omitempty"`
 	Agents                 []AgentSummaryConfig `json:"agents,omitempty"`
 	Tasks                  []AgentTaskConfig    `json:"tasks,omitempty"`
+	// Deferred says the agent service was not read for this document: the
+	// page is not an Agents page. The client reads PathAgentSnapshot when an
+	// Agents page opens (chatperf2_agents.go).
+	Deferred bool `json:"deferred,omitempty"`
 }
 
 // AgentSummaryConfig is one named agent choice that the viewer may invoke.
@@ -46,6 +51,10 @@ type AgentSummaryConfig struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Status      string `json:"status,omitempty"`
+	// Icon is the agent's stored icon, the one Chat and Agent setup draw. It is
+	// zero for an agent that has none, which the page draws with a fallback.
+	Icon         agenticon.Value `json:"icon,omitzero"`
+	IconRevision int64           `json:"icon_revision,omitempty"`
 }
 
 // AgentTaskConfig is one owner-scoped task row.
@@ -75,6 +84,7 @@ type AgentTaskConfig struct {
 	UsedDocuments             []AgentTaskDocumentReferenceConfig `json:"used_document_references,omitempty"`
 	DocumentUsageState        string                             `json:"document_usage_state,omitempty"`
 	DocumentOmissions         []AgentTaskDocumentOmissionConfig  `json:"document_omissions,omitempty"`
+	Detail                    *AgentTaskDetailConfig             `json:"detail,omitempty"`
 }
 
 type AgentTaskDocumentReferenceConfig struct {
@@ -91,10 +101,11 @@ type AgentTaskDocumentOmissionConfig struct {
 // AgentTaskActionPolicy is server-derived affordance state. It is advisory
 // projection only; every action is rechecked by the control RPC.
 type AgentTaskActionPolicy struct {
-	ConfirmPlan bool `json:"confirm_plan"`
-	Pause       bool `json:"pause"`
-	Resume      bool `json:"resume"`
-	Cancel      bool `json:"cancel"`
+	ConfirmPlan  bool `json:"confirm_plan"`
+	Pause        bool `json:"pause"`
+	Resume       bool `json:"resume"`
+	Cancel       bool `json:"cancel"`
+	ExtendBudget bool `json:"extend_budget"`
 }
 
 // AgentStepConfig is one plan step.
@@ -112,6 +123,10 @@ type AgentApprovalConfig struct {
 	ID      string `json:"id"`
 	Digest  string `json:"digest"`
 	Summary string `json:"summary"`
+	// Sources and Taint say what the step rests on, as source kinds and trust
+	// labels (agentclient.approvalEvidence), never as content.
+	Sources []string `json:"sources,omitempty"`
+	Taint   string   `json:"taint,omitempty"`
 }
 
 // agentsAdmin is the viewer's authority over the tenant agents setting: the
@@ -128,23 +143,8 @@ func agentsAdmin(access productAccess) bool {
 // administrator bit from the durable role policy, and the setting from the
 // tenant store. A failed setting read keeps agents off.
 func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal, access productAccess) *AgentsConfig {
-	if principal == nil {
-		return nil
-	}
-	config := &AgentsConfig{ViewerIsAdmin: agentsAdmin(access)}
-	if h.agentSettings != nil {
-		enabled, err := h.agentSettings.AgentsEnabled(ctx, principal.Tenant())
-		config.Enabled = err == nil && enabled
-	}
-	if !config.Enabled {
-		if config.ViewerIsAdmin {
-			config.Reason = productui.AgentsReasonTenantDisabled
-			config.SettingsHref = productui.AgentsSettingsHref()
-		}
-		return config
-	}
-	config.Service = agentServiceUnavailable
-	if h.agents == nil {
+	config, readable := h.resolveAgentsSetting(ctx, principal, access)
+	if !readable {
 		return config
 	}
 	snapshot, err := h.agents.Snapshot(ctx, productui.AgentSnapshotRequest{TenantID: string(principal.Tenant()), Principal: principal.Subject()})
@@ -155,14 +155,14 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 	config.StartAvailable, config.StartUnavailableReason = snapshot.StartAvailable, snapshot.StartUnavailableReason
 	config.Agents = make([]AgentSummaryConfig, 0, len(snapshot.Agents))
 	for _, agent := range snapshot.Agents {
-		config.Agents = append(config.Agents, AgentSummaryConfig{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status})
+		config.Agents = append(config.Agents, AgentSummaryConfig{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status, Icon: agent.Icon, IconRevision: agent.IconRevision})
 	}
 	config.Tasks = make([]AgentTaskConfig, 0, len(snapshot.Tasks))
 	for _, task := range snapshot.Tasks {
 		row := AgentTaskConfig{
 			ID: task.ID, Version: task.Version, Title: task.Title, Goal: task.Goal, AnswerText: task.AnswerText, State: string(task.State), LiveStep: task.LiveStep,
 			BudgetUsed: task.BudgetUsed, BudgetLimit: task.BudgetLimit, PlanRevision: task.PlanRevision,
-			Actions: AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel},
+			Actions: AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel, ExtendBudget: task.Actions.ExtendBudget},
 		}
 		if !task.CreatedAt.IsZero() {
 			row.CreatedAt = task.CreatedAt.UTC().Format(time.RFC3339Nano)
@@ -184,7 +184,7 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 		}
 		if policyClient, ok := h.agents.(agentclient.PolicyReader); ok {
 			policy := policyClient.TaskPolicy(ctx, string(principal.Tenant()), principal.Subject(), task.ID)
-			row.Actions = AgentTaskActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel}
+			row.Actions = AgentTaskActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel, ExtendBudget: policy.ExtendBudget}
 		}
 		for _, step := range task.Steps {
 			item := AgentStepConfig{Name: step.Name, State: step.State, Tier: step.Tier, FailureReason: step.FailureReason}
@@ -197,8 +197,9 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 			row.Steps = append(row.Steps, item)
 		}
 		for _, approval := range task.Approvals {
-			row.Approvals = append(row.Approvals, AgentApprovalConfig{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary})
+			row.Approvals = append(row.Approvals, AgentApprovalConfig{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary, Sources: append([]string(nil), approval.Sources...), Taint: approval.Taint})
 		}
+		row.Detail = agentTaskDetailConfig(task)
 		config.Tasks = append(config.Tasks, row)
 	}
 	return config
@@ -221,13 +222,13 @@ func ProductAgentsAvailability(config *AgentsConfig) productui.AgentsAvailabilit
 			projection.Snapshot.Availability = productui.AgentsAvailable
 		}
 		for _, agent := range config.Agents {
-			projection.Snapshot.Agents = append(projection.Snapshot.Agents, productui.AgentSummary{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status})
+			projection.Snapshot.Agents = append(projection.Snapshot.Agents, productui.AgentSummary{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status, Icon: agent.Icon, IconRevision: agent.IconRevision})
 		}
 		for _, task := range config.Tasks {
 			item := productui.AgentTask{
 				ID: task.ID, Version: task.Version, Title: task.Title, Goal: task.Goal, AnswerText: task.AnswerText, State: productui.AgentTaskState(task.State), LiveStep: task.LiveStep,
 				BudgetUsed: task.BudgetUsed, BudgetLimit: task.BudgetLimit, PlanRevision: task.PlanRevision,
-				Actions: productui.AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel},
+				Actions: productui.AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel, ExtendBudget: task.Actions.ExtendBudget},
 			}
 			item.CreatedAt, _ = time.Parse(time.RFC3339Nano, task.CreatedAt)
 			item.UpdatedAt, _ = time.Parse(time.RFC3339Nano, task.UpdatedAt)
@@ -250,8 +251,9 @@ func ProductAgentsAvailability(config *AgentsConfig) productui.AgentsAvailabilit
 				item.Steps = append(item.Steps, projected)
 			}
 			for _, approval := range task.Approvals {
-				item.Approvals = append(item.Approvals, productui.AgentApproval{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary})
+				item.Approvals = append(item.Approvals, productui.AgentApproval{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary, Sources: append([]string(nil), approval.Sources...), Taint: approval.Taint})
 			}
+			task.Detail.apply(&item)
 			projection.Snapshot.Tasks = append(projection.Snapshot.Tasks, item)
 		}
 	}

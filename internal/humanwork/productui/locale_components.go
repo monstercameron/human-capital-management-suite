@@ -74,7 +74,7 @@ func localePreferencesProps(view View) LocalePreferencesProps {
 		}
 		options = append(options, LocaleOptionProps{
 			Code: code, ShortCode: strings.ToUpper(strings.Split(code, "-")[0]),
-			Label: candidateLocale.Text(productLocaleLabelKey(code)),
+			Label: productLocaleOwnLabel(candidateLocale, code),
 			Description: view.Locale.Text("settings.locale_option_detail", map[string]string{
 				"code": code, "direction": view.Locale.Text(directionKey),
 			}),

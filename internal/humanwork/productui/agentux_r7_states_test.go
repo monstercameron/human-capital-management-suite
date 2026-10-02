@@ -78,7 +78,7 @@ func TestAgentUXR7_RolloutStagesAndPortableDraft(t *testing.T) {
 		for _, state := range []struct{ stage, action string }{{"PREVIEWED", "APPROVE"}, {"APPROVED", "ADVANCE"}, {"CANARY_COMPLETE", "PROMOTE"}, {"COMPLETE", ""}} {
 			snapshot.Progress = &AgentRolloutProgress{Stage: state.stage, Revision: 2}
 			markup := agentUXR7Render(t, agentRolloutPlan(locale, plan, snapshot))
-			agentUXR7Contains(t, markup, "#general", agentRolloutStage(locale, state.stage))
+			agentUXR7Contains(t, markup, "#general", agentRolloutStageFor(locale, state.stage, plan.Version))
 			count := strings.Count(markup, `data-rollout-action=`)
 			if state.action == "" && count != 0 || state.action != "" && count != 1 {
 				t.Fatalf("%s exposes conflicting rollout actions: %s", state.stage, markup)
@@ -122,10 +122,17 @@ func TestAgentUXR7_ViewerDatesDurationsAndCompactRowTime(t *testing.T) {
 		agentUXR7Contains(t, expiry, instant)
 		occurrence := agentUXR7Render(t, html.Div(html.Props{}, agentControlOccurrenceTimes(locale, []string{at.Format(time.RFC3339)})...))
 		agentUXR7Contains(t, occurrence, instant, `datetime="2026-10-01T13:00:00Z"`)
-		for _, duration := range []struct{ raw, key, count string }{{"0s", "under_second", ""}, {"12s", "duration_seconds", "12"}, {"2m", "duration_minutes", "2"}, {"1h", "duration_hours", "1"}} {
-			if got := agentRunDurationLabel(locale, duration.raw); got != agentUXR7Text(locale, duration.key, "{count}", locale.FormatNumber(duration.count, 0)) {
+		for _, duration := range []struct {
+			raw   string
+			unit  string
+			count int
+		}{{"12s", "second", 12}, {"2m", "minute", 2}, {"1h", "hour", 1}} {
+			if got := agentRunDurationLabel(locale, duration.raw); got != agentUX073Unit(locale, duration.unit, duration.count) {
 				t.Fatalf("duration %s: %s", duration.raw, got)
 			}
+		}
+		if got := agentRunDurationLabel(locale, "0s"); got != agentUXR7Text(locale, "under_second") {
+			t.Fatalf("duration under a second: %s", got)
 		}
 	}
 }
@@ -138,8 +145,9 @@ func TestAgentUXR7_FourOperationTabsAtEveryWidth(t *testing.T) {
 				view.AgentsProjection = &AgentsAvailabilityProjection{ViewerIsAdmin: true}
 				view.Query = "tab=announcements"
 				markup := agentUXR7Render(t, BuildAgentOperationsPage(view))
-				if strings.Count(markup, `role="tab"`) != 4 {
-					t.Fatal("operations omitted the announcements tab")
+				// AGENT2-019 and AGENTCOST-006 added the Connections and Cost tabs.
+				if strings.Count(markup, `role="tab"`) != 6 {
+					t.Fatal("operations omitted a tab")
 				}
 				agentUXR7Contains(t, markup, `id="agent-announcements"`, `dir="`+string(view.Locale.Direction)+`"`, agentOperationsText(view.Locale, "tab_running"))
 				agentUXR7Contains(t, agentUXR7Stylesheet(), ".agent-operations-tabs", "overflow-x:auto", "mask-image:linear-gradient", "min-width:0")
@@ -148,14 +156,16 @@ func TestAgentUXR7_FourOperationTabsAtEveryWidth(t *testing.T) {
 	}
 }
 
-func TestAgentUXR7_StylesOnlyLoadOnAgentPages(t *testing.T) {
+// The agent pages' rules ride in the one product stylesheet the page's content
+// security policy admits. A <style> element in the page body is refused by the
+// browser, so the frame must not emit one.
+func TestAgentUXR7_StylesShipInTheProductStylesheet(t *testing.T) {
 	agent := agentUXR7Render(t, ProductPageFrame(ProductPageFrameProps{Class: "agent-page-frame", Title: "Agents"}))
-	ordinary := agentUXR7Render(t, ProductPageFrame(ProductPageFrameProps{Title: "Home"}))
-	if !strings.Contains(agent, agentUXR7Stylesheet()) {
-		t.Fatal("inline CSS was escaped or truncated")
+	if strings.Contains(agent, "<style") {
+		t.Fatal("the agent page frame emits a style element the content security policy refuses")
 	}
-	if strings.Count(agent, `data-agent-page-styles="true"`) != 1 || strings.Contains(ordinary, "data-agent-page-styles") {
-		t.Fatal("agent CSS duplicated or loaded on another product page")
+	if !strings.Contains(Stylesheet(), agentUXR7Stylesheet()) {
+		t.Fatal("the agent page rules are missing from the product stylesheet")
 	}
 }
 

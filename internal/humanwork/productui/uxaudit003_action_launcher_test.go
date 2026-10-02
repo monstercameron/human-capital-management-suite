@@ -320,7 +320,7 @@ func TestTodo_UXAUDIT_003_Accessibility(t *testing.T) {
 			t.Fatal(err)
 		}
 		body := string(source)
-		if !strings.Contains(body, "drawerEscapeCloses(event.GetKey())") {
+		if !strings.Contains(body, "if !drawerEscapeCloses(key)") || !strings.Contains(body, "actionLauncherEscape(event.GetKey()") {
 			t.Fatal("ActionLauncher does not wire its keydown handler through the shared drawerEscapeCloses predicate (landmarks.go)")
 		}
 	})

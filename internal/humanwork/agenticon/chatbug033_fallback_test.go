@@ -48,7 +48,10 @@ func TestTodo_CHATBUG_033(t *testing.T) {
 		t.Fatalf("policy-helper=%+v assistant=%+v", first, second)
 	}
 	// A stored icon always wins; no id and no stored icon is the only empty case.
-	stored := Generate(Input{Name: "Policy Helper"})
+	stored := Value{Glyph: "book", Shape: "hexagon", Foreground: "--hcm-color-success", Background: "--hcm-color-success-surface"}
+	if !stored.Valid() {
+		t.Fatalf("the stored icon fixture is not one the product draws: %+v", stored)
+	}
 	if got := ValueFor(stored, "policy-helper", []string{"assistant"}); got != stored {
 		t.Fatalf("a stored icon was replaced: %+v", got)
 	}

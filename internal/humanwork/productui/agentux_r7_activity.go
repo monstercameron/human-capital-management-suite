@@ -191,7 +191,9 @@ func RenderAgentRunHistory(locale LocaleContext, runs []AgentControlRun, filter 
 			options = append(options, html.Option(html.Props{Value: v, Selected: field.value == v}, ui.Text(label)))
 		}
 		id := "agent-history-" + field.key
-		label := agentUXR7Text(locale, "agent_version")
+		// Each filter names the one thing it narrows; the first used to carry the
+		// table column's "Agent and version" beside a filter called "Version".
+		label := agentUX073Text(locale, "filter_agent")
 		if field.key == "version" {
 			label = agentUXR7Text(locale, "version")
 		}
@@ -208,7 +210,7 @@ func RenderAgentRunHistory(locale LocaleContext, runs []AgentControlRun, filter 
 	for _, run := range page.Runs {
 		name := agentControlNameVersion(locale, agentControlDisplayName(locale, "run", run.Name, run.ID), personaAdminLocalizedNumber(locale, run.Version))
 		at := agentOperationsFormatInstant(locale, run.Started)
-		rows = append(rows, html.Tr(html.Props{Raw: map[string]any{"data-control-run": run.ID}}, html.Td(html.Props{}, html.Time(html.Props{Title: run.Started, Raw: map[string]any{"datetime": run.Started}}, ui.Text(at))), html.Td(html.Props{}, html.Details(html.Props{Class: "agent-run-details"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(name)), agentOpsRecentRunDetails(locale, run))), html.Td(html.Props{}, html.Tag("bdi", html.Props{}, ui.Text(run.RequestedBy))), html.Td(html.Props{}, agentRunLocation(locale, run)), html.Td(html.Props{}, ui.Text(agentRunDurationLabel(locale, run.Duration))), html.Td(html.Props{}, agentRunOutcome(locale, run))))
+		rows = append(rows, html.Tr(html.Props{Raw: map[string]any{"data-control-run": run.ID}}, html.Td(html.Props{}, html.Time(html.Props{Title: run.Started, Raw: map[string]any{"datetime": run.Started}}, ui.Text(at))), html.Td(html.Props{}, html.Details(html.Props{Class: "agent-run-details"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(name)), agentOpsRecentRunDetails(locale, run))), html.Td(html.Props{}, html.Tag("bdi", html.Props{}, ui.Text(run.RequestedBy))), html.Td(html.Props{}, agentRunLocation(locale, run)), html.Td(html.Props{}, ui.Text(agentUX073RunDuration(locale, run))), html.Td(html.Props{}, agentRunOutcome(locale, run))))
 		cards = append(cards, agentUXR7RecentRunCard(locale, run))
 	}
 	nodes := []ui.Node{html.H3(html.Props{Class: "agent-operations-recent-title"}, ui.Text(agentUXR7Text(locale, "recent", "{count}", locale.FormatNumber(strconv.Itoa(page.Total), 0)))), html.Div(html.Props{Class: "agent-history-filters"}, fields...)}
@@ -226,7 +228,7 @@ func agentUXR7RecentRunCard(locale LocaleContext, run AgentControlRun) ui.Node {
 		html.Time(html.Props{Title: run.Started, Raw: map[string]any{"datetime": run.Started}}, ui.Text(agentOperationsFormatInstant(locale, run.Started))),
 		agentOpsRunFact(agentUXR7Text(locale, "asked_by"), run.RequestedBy),
 		html.P(html.Props{}, agentRunLocation(locale, run)),
-		agentOpsRunFact(agentControlsText(locale, "duration"), agentRunDurationLabel(locale, run.Duration)),
+		agentOpsRunFact(agentControlsText(locale, "duration"), agentUX073RunDuration(locale, run)),
 		agentRunOutcome(locale, run),
 	}
 	if run.State == "FAILED" {
@@ -247,15 +249,5 @@ func agentRunDurationLabel(locale LocaleContext, raw string) string {
 	if err != nil {
 		return raw
 	}
-	if duration < time.Second {
-		return agentUXR7Text(locale, "under_second")
-	}
-	count, key := int(duration.Round(time.Second)/time.Second), "duration_seconds"
-	if duration >= time.Minute {
-		count, key = int(duration/time.Minute), "duration_minutes"
-	}
-	if duration >= time.Hour {
-		count, key = int(duration/time.Hour), "duration_hours"
-	}
-	return agentUXR7Text(locale, key, "{count}", locale.FormatNumber(strconv.Itoa(count), 0))
+	return agentUX073Duration(locale, duration)
 }

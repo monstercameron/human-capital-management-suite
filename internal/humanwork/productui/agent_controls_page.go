@@ -17,7 +17,7 @@ func AgentControlsMountForTab(locale LocaleContext, active bool) ui.Node {
 	return html.Section(html.Props{ID: "agent-controls", Class: "persona-admin-editor agent-operations-region", Dir: string(locale.Direction), Hidden: !active, Raw: map[string]any{"role": "tabpanel", "data-locale": locale.Resolved, "data-agent-operations-panel": "running"}, Aria: map[string]string{"labelledby": "agent-operations-tab-running", "busy": "true"}},
 		html.H2(html.Props{ID: "agent-controls-title"}, ui.Text(agentControlsText(locale, "title"))),
 		html.P(html.Props{Class: "muted"}, ui.Text(agentControlsText(locale, "region_help"))),
-		html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, ui.Text(agentControlsText(locale, "loading"))))
+		AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Status: agentControlsText(locale, "loading"), RetryRaw: map[string]any{"data-owner-refresh": "true", "data-busy-label": agentControlsText(locale, "working_short")}}))
 }
 
 // RenderAgentControls renders text as text nodes, including source references.
@@ -69,15 +69,23 @@ func RenderAgentControls(locale LocaleContext, snapshot AgentControlsSnapshot, m
 			running = append(running, run)
 		}
 	}
-	children = append(children, html.H3(html.Props{}, ui.Text(agentUXR7Text(locale, "running_now", "{count}", locale.FormatNumber(fmt.Sprint(len(running)), 0)))))
 	for _, persona := range snapshot.Agents {
 		warning, ok := AgentFailureStreak(snapshot.Runs, persona.ID, persona.Name)
 		if ok {
 			version := personaAdminRollbackBefore(persona, warning.Version)
 			children = append(children, agentFailureWarning(locale, warning, version, personaAdminRollbackHref(persona.ID, version), agentSetupHref(locale)+"#persona-admin-"+safeAgentDOMToken(persona.ID)))
 		}
-		children = append(children, html.Article(html.Props{Class: "agent-owner-pause-row", Raw: map[string]any{"data-persona-id": persona.ID}}, html.Strong(html.Props{}, ui.Text(persona.Name)), personaAdminPauseButton(locale, persona, PersonaAdminSnapshot{CommandPermissionsAvailable: true, AllowedCommands: snapshot.AllowedCommands})))
 	}
+	rows := agentUX073AgentRows(locale, snapshot)
+	if rows != nil {
+		children = append(children, rows)
+	} else if snapshot.AgentsUnavailable {
+		// The agents could not be listed. Say so and give the other way to pause
+		// one, rather than pointing at rows that are not there.
+		children = append(children, html.P(html.Props{Class: "notice agent-activity-agents-unavailable", Role: "status"},
+			ui.Text(agentUX073Text(locale, "agents_unavailable")+" "+text("unavailable_fallback_before")), html.A(html.Props{Href: agentSetupHref(locale)}, ui.Text(text("unavailable_fallback_link"))), ui.Text(text("unavailable_fallback_after"))))
+	}
+	children = append(children, html.H3(html.Props{Class: "agent-activity-heading"}, ui.Text(agentUXR7Text(locale, "running_now", "{count}", locale.FormatNumber(fmt.Sprint(len(running)), 0)))))
 	if len(snapshot.Agents) == 0 {
 		seen := map[string]bool{}
 		for _, run := range snapshot.Runs {
@@ -98,7 +106,12 @@ func RenderAgentControls(locale LocaleContext, snapshot AgentControlsSnapshot, m
 		))
 	}
 	if len(running) == 0 {
-		children = append(children, html.Div(html.Props{Class: "agent-operations-empty"}, html.P(html.Props{}, ui.Text(text("empty"))), html.P(html.Props{Class: "muted"}, ui.Text(text("empty_help")))))
+		// The hint mentions pausing an agent above only when the rows above exist.
+		help := text("empty_help")
+		if rows == nil {
+			help = agentUX073Text(locale, "empty_help_runs")
+		}
+		children = append(children, html.Div(html.Props{Class: "agent-operations-empty"}, html.P(html.Props{}, ui.Text(text("empty"))), html.P(html.Props{Class: "muted"}, ui.Text(help))))
 	}
 	for _, run := range running {
 		name := agentControlDisplayName(locale, "run", run.Name, run.ID)

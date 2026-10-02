@@ -42,7 +42,10 @@ func personaAdminHeaderActions(locale LocaleContext, client PersonaAdminClient, 
 	children = append(children, personaAdminPauseButton(locale, persona, snapshot))
 	if client != nil && persona.Lifecycle != PersonaRetired {
 		panelID := "persona-admin-more-" + safeAgentDOMToken(persona.ID)
-		children = append(children, html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"popovertarget": panelID, "popovertargetaction": "toggle", "aria-haspopup": "menu", "style": "anchor-name:--agent-more-" + safeAgentDOMToken(persona.ID)}}, ui.Text(personaAdminText(locale, "more"))))
+		// The button that opens a popover is that popover's anchor without being
+		// named. A style attribute naming it would be refused by the page's
+		// content security policy, which admits no inline styles.
+		children = append(children, html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"popovertarget": panelID, "popovertargetaction": "toggle", "aria-haspopup": "menu"}}, ui.Text(personaAdminText(locale, "more"))))
 	}
 	return html.Div(html.Props{Class: "persona-admin-card-controls"}, children...)
 }
@@ -103,7 +106,7 @@ func personaAdminMoreActionsPanel(locale LocaleContext, client PersonaAdminClien
 			html.Small(html.Props{Class: "muted"}, ui.Text(reason)),
 		))
 	}
-	return html.Div(html.Props{ID: "persona-admin-more-" + safeAgentDOMToken(persona.ID), Class: "persona-admin-secondary-actions", Role: "menu", Raw: map[string]any{"popover": "auto", "style": "position-anchor:--agent-more-" + safeAgentDOMToken(persona.ID)}}, actions...)
+	return html.Div(html.Props{ID: "persona-admin-more-" + safeAgentDOMToken(persona.ID), Class: "persona-admin-secondary-actions", Role: "menu", Raw: map[string]any{"popover": "auto"}}, actions...)
 }
 
 func personaAdminVersionEditorPanel(locale LocaleContext, client PersonaAdminClient, persona PersonaAdminPersona, snapshot PersonaAdminSnapshot) ui.Node {
@@ -208,14 +211,14 @@ func personaAdminAudienceDefinition(locale LocaleContext, persona PersonaAdminPe
 
 func personaAdminLimitsDefinition(locale LocaleContext, persona PersonaAdminPersona) ui.Node {
 	value := personaAdminLimits(locale, persona.Limits)
-	children := []ui.Node{ui.Text(value)}
-	if value == personaAdminText(locale, "no_limits") {
-		contact := ui.Node(ui.Text(personaAdminText(locale, "steward")))
-		if strings.TrimSpace(persona.Steward) != "" && strings.TrimSpace(persona.StewardName) != "" {
-			contact = html.A(html.Props{Href: Path(PagePerson) + "?person=" + url.QueryEscape(persona.Steward)}, ui.Text(persona.StewardName))
-		}
-		children = append(children, ui.Text(personaAdminInlineSeparator), html.Span(html.Props{}, ui.Text(agentUXR7Text(locale, "limit_help")), ui.Text(personaAdminSpace), contact))
+	children := []ui.Node{}
+	// AGENTCOST-006: the daily spend limits are a card the owner can change here,
+	// not a sentence that points to somebody else. The limits the persona already
+	// carries (invocations an hour, concurrent tasks) stay as text above it.
+	if value != personaAdminText(locale, "no_limits") {
+		children = append(children, ui.Text(value))
 	}
+	children = append(children, AgentSpendLimitsMount(locale, persona.ID, persona.Name))
 	return html.Div(html.Props{Class: "persona-admin-fact"}, html.Tag("dt", html.Props{Class: "muted"}, ui.Text(personaAdminText(locale, "limits"))), html.Tag("dd", html.Props{}, children...))
 }
 
@@ -226,7 +229,13 @@ func personaAdminPlacements(locale LocaleContext, persona PersonaAdminPersona, s
 		installed[installation.ConversationID] = true
 		rows = append(rows, personaAdminPlacementRow(locale, persona, installation, snapshot))
 	}
-	content := ui.Node(html.P(html.Props{Class: "muted persona-admin-empty"}, ui.Text(personaAdminText(locale, "no_installations"))))
+	// The empty sentence says what is true now: an agent that is already live
+	// is not told to publish first.
+	empty := personaAdminText(locale, "no_installations")
+	if persona.Lifecycle == PersonaPublished || persona.Lifecycle == PersonaSuspended || personaAdminLiveVersionValue(persona) != "" {
+		empty = strings.ReplaceAll(personaAdminR5SetupText(locale, "no_installations_live"), "{action}", personaAdminText(locale, "add_conversation"))
+	}
+	content := ui.Node(html.P(html.Props{Class: "muted persona-admin-empty"}, ui.Text(empty)))
 	if len(rows) > 0 {
 		content = html.Ul(html.Props{Class: "persona-admin-installation-list"}, rows...)
 	}
@@ -244,14 +253,18 @@ func personaAdminPlacementRow(locale LocaleContext, persona PersonaAdminPersona,
 	conversationName := personaAdminPlacementName(locale, installation)
 	detail := personaAdminPlacementKind(locale, installation.Kind)
 	if installation.Version != "" {
-		detail += personaAdminCompactSeparator + strings.ReplaceAll(personaAdminText(locale, "running_version"), "{version}", personaAdminLocalizedNumber(locale, installation.Version))
+		// A stopped placement is not running anything; it names its version only.
+		version := personaAdminText(locale, "running_version")
+		if installation.Stopped {
+			version = agentUX047Text(locale, "stopped_version")
+		}
+		detail += personaAdminCompactSeparator + strings.ReplaceAll(version, "{version}", personaAdminLocalizedNumber(locale, installation.Version))
 	}
 	placementSummary := []ui.Node{
 		html.A(html.Props{Class: "persona-admin-conversation-link", Href: personaAdminConversationHref(installation.ConversationID), Dir: "auto", Raw: map[string]any{"lang": "und"}}, html.Tag("bdi", html.Props{Dir: "ltr"}, ui.Text(conversationName))),
 		html.Span(html.Props{Class: "persona-admin-placement-detail"}, ui.Text(personaAdminCompactSeparator+detail)),
 	}
-	docsHref := personaAdminConversationHref(installation.ConversationID) + "&tab=docs"
-	documentState := personaAdminPlacementDocuments(locale, installation, docsHref)
+	documentState := personaAdminPlacementDocuments(locale, installation, personaAdminPlacementDocumentsHref())
 	remove := ui.Node(nil)
 	if personaAdminCommandAllowed(snapshot, "UNINSTALL") {
 		remove = html.Form(html.Props{Class: "persona-admin-placement-remove", Raw: map[string]any{"data-persona-admin-command-form": "UNINSTALL"}},
@@ -268,6 +281,7 @@ func personaAdminPlacementRow(locale LocaleContext, persona PersonaAdminPersona,
 	}
 	return html.Li(html.Props{Class: "persona-admin-installation", Raw: map[string]any{"data-installation-id": installation.InstallationID, "data-conversation-id": installation.ConversationID, "data-persona-version": installation.Version}},
 		html.Div(html.Props{Class: "persona-admin-placement-main"}, placementSummary...),
+		personaAdminStoppedPlacement(locale, persona, installation, snapshot),
 		documentState,
 		remove,
 	)
@@ -347,8 +361,8 @@ func personaAdminAddPlacement(locale LocaleContext, persona PersonaAdminPersona,
 	id := "persona-admin-add-" + safeAgentDOMToken(persona.ID)
 	panelID := id + "-popover"
 	return html.Div(html.Props{Class: "persona-admin-add-placement"},
-		html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"popovertarget": panelID, "popovertargetaction": "toggle", "style": "anchor-name:--agent-add-" + safeAgentDOMToken(persona.ID)}}, ui.Text(personaAdminText(locale, "add_conversation"))),
-		html.Form(html.Props{ID: panelID, Class: "persona-admin-add-placement-form", Raw: map[string]any{"data-persona-admin-command-form": "INSTALL", "popover": "auto", "style": "position-anchor:--agent-add-" + safeAgentDOMToken(persona.ID)}},
+		html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"popovertarget": panelID, "popovertargetaction": "toggle"}}, ui.Text(personaAdminText(locale, "add_conversation"))),
+		html.Form(html.Props{ID: panelID, Class: "persona-admin-add-placement-form", Raw: map[string]any{"data-persona-admin-command-form": "INSTALL", "popover": "auto"}},
 			html.Input(html.Props{Name: "persona_id", Type: "hidden", Value: persona.ID}),
 			html.Label(html.Props{For: id}, ui.Text(personaAdminText(locale, "choose_conversation"))),
 			html.Select(html.Props{ID: id, Name: "conversation_id", Required: true}, options...),
@@ -362,6 +376,15 @@ func personaAdminAddPlacement(locale LocaleContext, persona PersonaAdminPersona,
 
 func personaAdminConversationHref(conversationID string) string {
 	return Path(PageChat) + "#channel=" + url.QueryEscape(conversationID)
+}
+
+// personaAdminPlacementDocumentsHref is where a placement row sends an
+// administrator to see or publish a conversation's documents: the Documents
+// page, which holds the review and publish controls. Chat has no documents
+// section, and it ignores a "#channel=" address with anything appended, so
+// the earlier "#channel=<id>&tab=docs" link opened nothing.
+func personaAdminPlacementDocumentsHref() string {
+	return Path(PageDocs)
 }
 
 func personaAdminReviewBlock(locale LocaleContext, persona PersonaAdminPersona, fallback string) ui.Node {

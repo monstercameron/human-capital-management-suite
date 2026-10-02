@@ -44,6 +44,7 @@ type PageRequest struct {
 	Mode               string
 	SelectedWork       string
 	AgentTaskID        string
+	AgentOperationsTab string
 	SelectedPerson     string
 	PositionReference  string
 	WorkFilter         string
@@ -116,6 +117,11 @@ func ApplyRequest(view View, request PageRequest) View {
 	stateProfile := RouteStateProfile{}
 	if hasProfile {
 		stateProfile = routeProfile.StateProfile()
+	}
+	if routeProfile == RouteProfileAgentOperations && strings.TrimSpace(request.AgentOperationsTab) != "" {
+		// Agent operations has no search box, so the address names its tab in the
+		// field the page already reads it from.
+		view.Query = "tab=" + strings.TrimSpace(request.AgentOperationsTab)
 	}
 	if routeProfile == RouteProfileAgents && view.AgentsProjection != nil {
 		// The server projection is already filtered to this owner. Clear any
@@ -297,6 +303,7 @@ func cloneAgentTask(task AgentTask) AgentTask {
 		clone.Approvals[index].Sources = append([]string(nil), approval.Sources...)
 	}
 	clone.SubmittedIntents = append([]AgentIntentStatus(nil), task.SubmittedIntents...)
+	clone.PlanChanges = append([]AgentPlanChange(nil), task.PlanChanges...)
 	return clone
 }
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
 func chatSettingsPage(view View) ui.Node {
@@ -20,5 +21,11 @@ func chatSettingsPage(view View) ui.Node {
 			Loading: view.ChatRetentionLoading, Editable: editable,
 			Error: view.ChatRetentionError, Notice: view.ChatRetentionNotice, OnSave: view.SaveChatRetentionPolicy,
 		}),
+		// The workspace's translation settings and glossary (CHATLANG-007).
+		Translation: chatui.TranslationAdminSettings(view.Locale.Resolved, func(key string) string { return view.Locale.Text(key) }),
+		// The workspace's location sharing settings (CHATMAP-006).
+		Location: chatui.ChatmapWorkspaceSettingsPanel(view.Locale.Resolved),
+		// The workspace's voice message switch and the engine behind it (CHATVOICE-005).
+		Voice: chatui.VoiceWorkspaceSettingsPanel(view.Locale.Resolved),
 	})
 }

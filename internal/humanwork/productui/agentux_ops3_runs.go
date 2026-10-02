@@ -90,14 +90,21 @@ func agentOpsRecentRun(locale LocaleContext, run AgentControlRun) ui.Node {
 }
 
 func agentOpsRecentRunDetails(locale LocaleContext, run AgentControlRun) ui.Node {
+	// The cost is shown when the server projects it; otherwise the page says
+	// it has none and where to ask.
+	cost := html.P(html.Props{}, html.Strong(html.Props{}, ui.Text(agentUXR7Text(locale, "cost")+": ")), ui.Text(agentUXR7Text(locale, "cost_unavailable")+" "), html.A(html.Props{Href: agentSetupHref(locale)}, ui.Text(agentUXR7Text(locale, "open_setup"))))
+	if spend := strings.TrimSpace(run.Spend); spend != "" {
+		cost = agentOpsRunFact(agentUXR7Text(locale, "cost"), spend)
+	}
 	items := []ui.Node{
-		html.P(html.Props{}, html.Strong(html.Props{}, ui.Text(agentUXR7Text(locale, "cost")+": ")), ui.Text(agentUXR7Text(locale, "cost_unavailable")+" "), html.A(html.Props{Href: agentSetupHref(locale)}, ui.Text(agentUXR7Text(locale, "open_setup")))),
+		cost,
 		agentOpsRunFact(agentUXR7Text(locale, "asked_by"), run.RequestedBy),
 		html.P(html.Props{}, html.Strong(html.Props{}, ui.Text(agentControlsText(locale, "where")+": ")), agentRunLocation(locale, run)),
 		agentOpsRunFact(agentControlsText(locale, "started"), agentOperationsFormatInstant(locale, run.Started)),
 		agentOpsRunFact(agentControlsText(locale, "duration"), agentRunDurationLabel(locale, run.Duration)),
 		agentRunOutcome(locale, run),
 	}
+	items = append(items, agentOpsRunHealthFacts(locale, run)...)
 	if run.State == "FAILED" {
 		_, next := agentOpsFailureCopy(locale, run.FailureGate)
 		if next == "" {

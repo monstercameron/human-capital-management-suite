@@ -34,6 +34,9 @@ type PersonaAdminCommandRequest struct {
 	// CREATE_VERSION sets a non-nil pointer so [] explicitly clears the prior
 	// version while omission remains available to older callers.
 	DocumentReferences *[]agentdocref.Reference `json:"document_references,omitempty"`
+	// ReactToQuestions is the owner's choice carried by SET_REACTIONS: whether the
+	// agent reacts to the questions it is asked with an emoji (AGENTUX-075).
+	ReactToQuestions *bool `json:"react_to_questions,omitempty"`
 }
 
 // PersonaAdminEvaluationResult is the safe command receipt shown after an

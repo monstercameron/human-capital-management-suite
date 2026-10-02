@@ -213,6 +213,9 @@ type Handler struct {
 	// derives both from each request.
 	publicScheme    string
 	publicAuthority string
+	// stylesheets holds the customer stylesheets this handler has built
+	// (chatperf2_stylesheet.go).
+	stylesheets productStylesheets
 }
 
 // DevPersona is one server-owned local-development sign-in identity. Token is
@@ -363,6 +366,7 @@ func NewHandler(opts Options) (*Handler, error) {
 	mux.HandleFunc("GET "+PathProductPrefix+"{page...}", h.serveProduct)
 	mux.HandleFunc("GET "+PathPersonaAdminData, h.servePersonaAdminData)
 	mux.HandleFunc("GET "+PathPersonaAdminData+"/{$}", h.servePersonaAdminData)
+	mux.HandleFunc("GET "+PathAgentSnapshot, h.serveAgentSnapshot)
 	mux.HandleFunc("POST "+PathPersonaAdminCommand, h.servePersonaAdminCommand)
 	mux.HandleFunc("POST "+PathSimulate, h.serveSimulate)
 	mux.HandleFunc("GET "+PathReceiptPrefix+"{digest}", h.serveReceipt)
@@ -590,12 +594,17 @@ func (h *Handler) serveReceipt(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.admit(w, r); !ok {
+	admitted, ok := h.admit(w, r)
+	if !ok {
 		return
 	}
 	name := r.PathValue("name")
 	if name == AssetIntegrityManifestName {
 		h.serveAssetIntegrityManifest(w, r)
+		return
+	}
+	if productStylesheetAssetName(name) {
+		h.serveProductStylesheet(w, admitted, name)
 		return
 	}
 	metadata, catalogued := h.assetIndex[PathAssetPrefix+name]

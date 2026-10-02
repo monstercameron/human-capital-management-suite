@@ -138,12 +138,14 @@ func AgentRolloutPortableMountForTab(locale LocaleContext, rollout AgentRolloutS
 			html.Section(html.Props{ID: "agent-rollout-panel", Class: "persona-admin-editor agent-operations-region", Hidden: selectedTab != "rollout", Raw: map[string]any{"role": "tabpanel", "data-agent-operations-panel": "rollout"}, Aria: map[string]string{"labelledby": "agent-operations-tab-rollout", "busy": "true"}},
 				html.H2(html.Props{ID: "agent-rollout-title"}, ui.Text(agentRPText(locale, "rollout"))),
 				html.P(html.Props{Class: "muted"}, ui.Text(agentRPText(locale, "rollout_help"))),
-				html.P(html.Props{ID: "agent-rollout-status", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, ui.Text(AgentRolloutPortableStatus(locale, "loading"))),
+				html.P(html.Props{ID: "agent-rollout-status", Class: "sr-only", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, ui.Text(AgentRolloutPortableStatus(locale, "loading"))),
+				AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3}),
 				html.Button(html.Props{Type: "button", Class: "button secondary", Aria: map[string]string{"description": agentRPText(locale, "refresh_help")}, Raw: map[string]any{"data-rollout-action": "REFRESH", "data-busy-label": agentRPText(locale, "working_short")}}, ui.Text(agentRPText(locale, "refresh_versions")))),
 			html.Section(html.Props{ID: "agent-portable-panel", Class: "persona-admin-editor agent-operations-region", Hidden: selectedTab != "move", Raw: map[string]any{"role": "tabpanel", "data-agent-operations-panel": "move"}, Aria: map[string]string{"labelledby": "agent-operations-tab-move", "busy": "true"}},
 				html.H2(html.Props{ID: "agent-portable-title"}, ui.Text(agentRPText(locale, "portable"))),
 				html.P(html.Props{Class: "muted"}, ui.Text(agentRPText(locale, "portable_help"))),
-				html.P(html.Props{ID: "agent-portable-status", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, ui.Text(AgentRolloutPortableStatus(locale, "loading")))),
+				html.P(html.Props{ID: "agent-portable-status", Class: "sr-only", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, ui.Text(AgentRolloutPortableStatus(locale, "loading"))),
+				AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3})),
 		)
 	}
 	return html.Div(html.Props{ID: "agent-rollout-portable", Dir: string(locale.Direction), Raw: map[string]any{"data-locale": locale.Resolved, "data-rollout-available": rollout.Available, "data-portable-available": portable.Available}},
@@ -508,7 +510,7 @@ func agentRolloutPlan(locale LocaleContext, plan AgentRolloutPlan, snapshot Agen
 	}
 	children = append(children, html.Div(html.Props{Class: "agent-rollout-actions"}, actions...))
 	if snapshot.Progress != nil {
-		children = append(children, html.P(html.Props{ID: "agent-rollout-progress", Role: "status", Aria: map[string]string{"live": "polite"}}, ui.Text(agentRolloutStage(locale, snapshot.Progress.Stage))))
+		children = append(children, html.P(html.Props{ID: "agent-rollout-progress", Role: "status", Aria: map[string]string{"live": "polite"}}, ui.Text(agentRolloutStageFor(locale, snapshot.Progress.Stage, plan.Version))))
 	}
 	return html.Section(html.Props{ID: "agent-rollout-plan", Class: "agent-rollout-plan"}, children...)
 }
@@ -534,6 +536,11 @@ func agentRolloutActionLabel(locale LocaleContext, action, object string, progre
 		key = "promote_after_check"
 	}
 	label := agentRPText(locale, key)
+	// AGENTUX-050: the three steps read as the sentence the person says to
+	// themselves, with no internal object appended.
+	if key == "approve" || key == "advance_first" || key == "promote_after_check" {
+		return label
+	}
 	if !strings.Contains(label, "{object}") && strings.TrimSpace(object) != "" {
 		return label + " " + object
 	}
@@ -779,11 +786,11 @@ func agentRPText(locale LocaleContext, key string) string {
 		"technical":                {"Technical details", "Technische Details", "التفاصيل التقنية"},
 		"rollout_object":           {"rollout", "Rollout", "الطرح"},
 		"rollout_for":              {"rollout for", "Rollout für", "طرح"},
-		"approve":                  {"Approve", "Genehmigen", "الموافقة على"},
+		"approve":                  {"Approve", "Genehmigen", "الموافقة"},
 		"promote":                  {"Promote", "Freigeben", "ترقية"},
 		"advance":                  {"Advance", "Fortsetzen", "متابعة"},
-		"advance_first":            {"Update the first conversations in {object}", "Erste Unterhaltungen in {object} aktualisieren", "تحديث المحادثات الأولى في {object}"},
-		"promote_after_check":      {"I checked the first conversations in {object}", "Ich habe die ersten Unterhaltungen in {object} geprüft", "تحققت من المحادثات الأولى في {object}"},
+		"advance_first":            {"Update the first conversation", "Erste Unterhaltung aktualisieren", "تحديث المحادثة الأولى"},
+		"promote_after_check":      {"Looks right, update the rest", "Sieht richtig aus, übrige aktualisieren", "تبدو سليمة، حدّث البقية"},
 		"advance_rest":             {"Continue updating {object}", "Aktualisierung von {object} fortsetzen", "متابعة تحديث {object}"},
 		"advance_finish":           {"Finish updating {object}", "Aktualisierung von {object} abschließen", "إنهاء تحديث {object}"},
 		"action_help":              {"The server checks your current owner permission before changing the rollout.", "Der Server prüft vor der Änderung Ihre aktuelle Eigentümerberechtigung.", "يتحقق الخادم من صلاحية المالك الحالية قبل تغيير الطرح."},

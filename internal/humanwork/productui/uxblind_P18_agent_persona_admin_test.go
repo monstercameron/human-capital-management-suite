@@ -194,7 +194,7 @@ func TestTodo_AGENTUX_003(t *testing.T) {
 	for _, want := range []string{
 		"Agent setup", "New agent", "@policy-helper", "In review", "Walt Brennan", "Loretta Haynes", "Compensation administrator", "Employees", "Executive leadership", "Documents marked official", "No limits set",
 		"Knowledge search with citations", "Finds answers in policy documents the person asking may read, and cites them.", "Read-only", "Chat reply", "Replies to the person who asked. Answers drawn from documents are sent to them privately.", "Posts a reply", "Not added to a conversation yet.",
-		"Step 2 of 4: Reviewed", "Run evaluation", "Checks this version against the approved scenarios.", "More", "Version history", "persona-policy-helper",
+		"Step 3 of 4: Ready to evaluate", "Run evaluation", "Checks this version against the approved scenarios.", "More", "Version history", "persona-policy-helper",
 		"Walt Brennan — HCM administrator", "#Leadership · Private channel", "Walt Brennan can use Policy Helper in #Leadership.", "It can do: reply to Walt.",
 	} {
 		if !strings.Contains(markup, want) {

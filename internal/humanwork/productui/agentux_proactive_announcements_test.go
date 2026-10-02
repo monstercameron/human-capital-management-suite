@@ -37,10 +37,20 @@ func TestAgentUXProactive_RenderedTab_390px(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Policy Helper · General", "Tell employees which company holidays are coming up.", "Monday, 9:00 AM", "Posted", "Pause", "Post now", "Edit", "Delete", "Delete this announcement?", "@media(max-width:800px)", "grid-template-columns:minmax(0,1fr)"} {
+	for _, want := range []string{"Policy Helper · General", "Tell employees which company holidays are coming up.", "Monday, 9:00 AM", "Posted", "Pause", "Post now", "Edit", "Delete", "Delete this announcement?"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("390px announcement surface missing %q: %s", want, markup)
 		}
+	}
+	// The narrow layout is in the product stylesheet, the one sheet the page's
+	// content security policy admits; the panel emits no style element.
+	for _, want := range []string{"@media(max-width:800px)", "grid-template-columns:minmax(0,1fr)"} {
+		if !strings.Contains(AgentAnnouncementsStyles, want) || !strings.Contains(Stylesheet(), AgentAnnouncementsStyles) {
+			t.Errorf("390px announcement rules missing %q from the product stylesheet", want)
+		}
+	}
+	if strings.Contains(markup, "<style") {
+		t.Fatal("the announcements panel emits a style element the content security policy refuses")
 	}
 	if strings.Contains(markup, "opaque</") || strings.Contains(markup, "AGENTUX") || strings.Contains(markup, "announcement:opaque") {
 		t.Fatalf("announcement row exposed an internal identifier: %s", markup)

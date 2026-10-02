@@ -95,6 +95,12 @@ type AgentAccessPageProps struct {
 	Snapshot          AgentAccessSnapshot
 	Client            AgentAccessClient
 	OnAuthorization   func(AgentAuthorizationStart)
+	// Embedded draws the page inside a page that already has a main landmark and
+	// a heading: a section instead of main, and a second-level heading.
+	Embedded bool
+	// Message names what the last action did: linked, unlinked, revoked, failed,
+	// state_rejected or unavailable.
+	Message string
 }
 
 // AgentAdminAccessClient is the mutation seam for the administrator console.
@@ -120,6 +126,16 @@ type AgentAdminSkillGrant struct {
 	RequiresSecondAdmin bool
 }
 
+// AgentGrantRow is one grant of a revision as an administrator edits it: the
+// roles, population and organization scopes that may use the skills it names.
+type AgentGrantRow struct {
+	ID                 string
+	Roles              []string
+	Population         string
+	OrganizationScopes []string
+	Skills             []string
+}
+
 type AgentConnectionRevision struct {
 	ID                  string
 	Provider            string
@@ -128,6 +144,7 @@ type AgentConnectionRevision struct {
 	CredentialMode      string
 	MCPSnapshotID       string
 	Grants              []AgentAdminSkillGrant
+	GrantRows           []AgentGrantRow
 	RequiresSecondAdmin bool
 	SecondAdminApproved bool
 }
@@ -152,4 +169,8 @@ type AgentAdminAccessPageProps struct {
 	UnavailableReason string
 	Snapshot          AgentAdminAccessSnapshot
 	Client            AgentAdminAccessClient
+	// Message names what the last action did (see agentAdminFormText "msg_*").
+	Message string
+	// Embedded: see AgentAccessPageProps.Embedded.
+	Embedded bool
 }

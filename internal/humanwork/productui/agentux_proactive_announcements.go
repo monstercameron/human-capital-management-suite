@@ -17,8 +17,11 @@ type AgentAnnouncementRow struct {
 	LastRun, LastRunAt, OwnerName                                                         string
 	Revision                                                                              uint64
 	ResultCode, Reason, NextRunAt                                                         string
-	Editor                                                                                AgentAnnouncementEditorValue
-	Attempts                                                                              []AgentAnnouncementAttempt
+	// Retired marks a record whose agent is no longer in its conversation; it
+	// is shown with a plain label and only Delete.
+	Retired  bool
+	Editor   AgentAnnouncementEditorValue
+	Attempts []AgentAnnouncementAttempt
 }
 
 type AgentAnnouncementAttempt struct {
@@ -58,18 +61,17 @@ func AgentAnnouncementsMount(locale LocaleContext) ui.Node {
 
 func AgentAnnouncementsMountForTab(locale LocaleContext, selected bool) ui.Node {
 	return html.Div(html.Props{ID: "agent-announcements", Class: "agent-announcements", Hidden: !selected, Aria: map[string]string{"labelledby": "agent-operations-tab-announcements"}, Raw: map[string]any{"role": "tabpanel", "data-agent-operations-panel": "announcements", "data-locale": locale.Resolved, "data-agent-announcements-mount": "true", "data-agent-announcements-endpoint": "/api/agent-controls/announcements"}},
-		html.Tag("style", html.Props{}, ui.Text(AgentAnnouncementsStyles)),
 		RenderAgentAnnouncements(locale, AgentAnnouncementsSnapshot{Loading: true}),
 	)
 }
 
 func RenderAgentAnnouncements(locale LocaleContext, snapshot AgentAnnouncementsSnapshot) ui.Node {
 	copy := func(key string) string { return agentAnnouncementText(locale, key) }
-	children := []ui.Node{html.Tag("style", html.Props{}, ui.Text(AgentAnnouncementsStyles)),
+	children := []ui.Node{
 		html.Header(html.Props{Class: "agent-announcements-header"}, html.Div(html.Props{}, html.H2(html.Props{}, ui.Text(copy("title"))), html.P(html.Props{Class: "muted"}, ui.Text(copy("help")))), html.Button(html.Props{Type: "button", Class: "button primary", Disabled: !snapshot.CanCreate, Raw: map[string]any{"data-announcement-new": "true"}}, ui.Text(copy("new")))),
 	}
 	if snapshot.Loading {
-		children = append(children, html.P(html.Props{Class: "muted", Role: "status", Raw: map[string]any{"aria-live": "polite"}}, ui.Text(copy("loading"))))
+		children = append(children, AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingCards, Rows: 2, Status: copy("loading"), RetryRaw: map[string]any{"data-announcement-retry": "true"}}))
 	} else if !snapshot.Available {
 		children = append(children, html.P(html.Props{Class: "empty-state", Role: "alert"}, ui.Text(copy("failed"))), html.Button(html.Props{Type: "button", Class: "button secondary", Raw: map[string]any{"data-announcement-retry": "true"}}, ui.Text(copy("retry"))))
 	} else if len(snapshot.Rows) == 0 {
@@ -103,6 +105,8 @@ func renderAgentAnnouncementRow(locale LocaleContext, row AgentAnnouncementRow) 
 	}
 	if next == "" {
 		next = agentAnnouncementText(locale, "no_future")
+	} else {
+		next = agentAnnouncementText(locale, "next") + ": " + next
 	}
 	if row.State == "PAUSED" {
 		next = agentAnnouncementText(locale, "paused")
@@ -121,21 +125,35 @@ func renderAgentAnnouncementRow(locale LocaleContext, row AgentAnnouncementRow) 
 	if row.Reason == "The preview expired or its documents or authority changed. Preview again before posting." {
 		postAction, postLabel = "preview-again", agentAnnouncementText(locale, "preview_again")
 	}
+	// The record reads as one card: who posts where, what it posts, then its
+	// schedule and last result as two labelled rows. Posting history stays
+	// behind its disclosure and Delete sits apart from the everyday actions.
+	schedule := []ui.Node{}
+	if cadence := agentUX073AnnouncementCadence(locale, row.Editor); cadence != "" {
+		schedule = append(schedule, html.Tag("bdi", html.Props{}, ui.Text(cadence)), ui.Text(" · "))
+	}
+	schedule = append(schedule, ui.Text(next))
+	last := []ui.Node{}
+	if lastRun != "" {
+		last = append(last, html.Time(html.Props{Raw: map[string]any{"datetime": row.LastRunAt}}, ui.Text(lastRun)), ui.Text(" · "))
+	}
+	last = append(last, result)
+	var owner ui.Node
+	if strings.TrimSpace(row.OwnerName) != "" {
+		owner = html.P(html.Props{Class: "muted agent-announcement-owner", Dir: "auto"}, ui.Text(strings.ReplaceAll(agentAnnouncementText(locale, "set_by"), "{owner}", row.OwnerName)))
+	}
 	return html.Article(html.Props{Class: "agent-announcement-row", Raw: map[string]any{"data-announcement-id": row.ID, "data-announcement-revision": row.Revision, "data-announcement-retry-occurrence": announcementRetryOccurrence(row)}},
 		html.Div(html.Props{Class: "agent-announcement-row-main"},
-			html.H3(html.Props{Dir: "auto"}, ui.Text(row.AgentName+" · "+row.ConversationName)),
-			html.P(html.Props{Class: "muted", Dir: "auto"}, ui.Text(strings.ReplaceAll(agentAnnouncementText(locale, "set_by"), "{owner}", row.OwnerName))),
-			html.P(html.Props{Class: "muted"}, ui.Text(lastRun)),
+			html.H3(html.Props{Dir: "auto"}, ui.Text(announcementRowHeading(locale, row))),
+			owner,
 			html.P(html.Props{Class: "agent-announcement-instruction", Dir: "auto"}, ui.Text(firstAnnouncementLine(row.Instruction))),
+			html.Tag("dl", html.Props{Class: "agent-announcement-facts"},
+				html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(agentAnnouncementText(locale, "schedule"))), html.Tag("dd", html.Props{}, schedule...)),
+				html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(agentAnnouncementText(locale, "last"))), html.Tag("dd", html.Props{}, last...)),
+			),
 			renderAnnouncementAttempts(locale, row.Attempts),
-			html.Tag("dl", html.Props{}, html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(agentAnnouncementText(locale, "next"))), html.Tag("dd", html.Props{}, ui.Text(next))), html.Div(html.Props{}, html.Tag("dt", html.Props{}, ui.Text(agentAnnouncementText(locale, "last"))), html.Tag("dd", html.Props{}, result))),
 		),
-		html.Div(html.Props{Class: "agent-announcement-row-actions"},
-			html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": stateAction}}, ui.Text(stateLabel)),
-			html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": postAction}}, ui.Text(postLabel)),
-			html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": "edit"}}, ui.Text(agentAnnouncementText(locale, "edit"))),
-			html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": "confirm-delete"}}, ui.Text(agentAnnouncementText(locale, "delete"))),
-		),
+		html.Div(html.Props{Class: "agent-announcement-row-actions"}, announcementRowActions(locale, row, stateAction, stateLabel, postAction, postLabel)...),
 		html.Div(html.Props{Class: "agent-announcement-delete", Hidden: true, Raw: map[string]any{"data-announcement-delete-confirmation": "true"}}, html.P(html.Props{}, ui.Text(agentAnnouncementText(locale, "delete_confirm"))), html.Button(html.Props{Type: "button", Class: "button secondary", Raw: map[string]any{"data-announcement-action": "cancel-delete"}}, ui.Text(agentAnnouncementText(locale, "cancel"))), html.Button(html.Props{Type: "button", Class: "button danger", Raw: map[string]any{"data-announcement-action": "delete"}}, ui.Text(agentAnnouncementText(locale, "delete_yes")))),
 	)
 }
@@ -195,6 +213,7 @@ func agentAnnouncementText(locale LocaleContext, key string) string {
 		"preview_again":       {"Preview again", "Neue Vorschau erstellen", "أنشئ معاينة جديدة"},
 		"save_before_preview": {"Save your changes, then preview the saved announcement before posting.", "Speichern Sie Ihre Änderungen und erstellen Sie vor dem Veröffentlichen eine Vorschau der gespeicherten Ankündigung.", "احفظ تغييراتك ثم عاين الإعلان المحفوظ قبل النشر."},
 		"request_failed":      {"The announcement could not be completed. Try again.", "Die Ankündigung konnte nicht abgeschlossen werden. Versuchen Sie es erneut.", "تعذر إكمال الإعلان. حاول مرة أخرى."},
+		"agent_gone":          {"Agent no longer in this conversation", "Agent nicht mehr in dieser Unterhaltung", "الوكيل لم يعد في هذه المحادثة"},
 		"set_by":              {"Set by {owner}", "Eingerichtet von {owner}", "أعدّه {owner}"},
 		"sources":             {"Sources", "Quellen", "المصادر"},
 		"error_agent":         {"Choose an agent.", "Wählen Sie einen Agenten.", "اختر وكيلاً."},
@@ -220,7 +239,7 @@ func agentAnnouncementText(locale LocaleContext, key string) string {
 		"loading": {"Loading announcements…", "Ankündigungen werden geladen…", "جارٍ تحميل الإعلانات…"}, "failed": {"Announcements could not be loaded. Try again.", "Ankündigungen konnten nicht geladen werden. Versuchen Sie es erneut.", "تعذر تحميل الإعلانات. حاول مرة أخرى."}, "empty": {"No announcements yet. Create one to let an agent share an update.", "Noch keine Ankündigungen. Erstellen Sie eine, damit ein Agent ein Update teilen kann.", "لا توجد إعلانات بعد. أنشئ إعلانًا ليشارك الوكيل تحديثًا."},
 		"agent": {"Agent", "Agent", "الوكيل"}, "conversation": {"Conversation", "Unterhaltung", "المحادثة"}, "choose_agent": {"Choose an agent", "Agent auswählen", "اختر وكيلاً"}, "choose_conversation": {"Choose a conversation", "Unterhaltung auswählen", "اختر محادثة"}, "instruction": {"What should it post?", "Was soll veröffentlicht werden?", "ماذا ينبغي أن ينشر؟"}, "example": {"Example: Tell employees which company holidays are coming up, using the 2026 holiday guide.", "Beispiel: Informieren Sie Mitarbeitende anhand des Feiertagsleitfadens 2026 über kommende Betriebsfeiertage.", "مثال: أخبر الموظفين بالعطلات القادمة للشركة باستخدام دليل عطلات 2026."},
 		"when": {"When", "Wann", "متى"}, "now": {"Now, once", "Jetzt, einmalig", "الآن، مرة واحدة"}, "daily": {"Every day", "Jeden Tag", "كل يوم"}, "weekly": {"Every week", "Jede Woche", "كل أسبوع"}, "monthly": {"Every month", "Jeden Monat", "كل شهر"}, "time": {"Time", "Uhrzeit", "الوقت"}, "zone": {"Time zone", "Zeitzone", "المنطقة الزمنية"},
-		"preview": {"Preview", "Vorschau", "معاينة"}, "post_now": {"Post now", "Jetzt veröffentlichen", "انشر الآن"}, "save": {"Save schedule", "Zeitplan speichern", "حفظ الجدول"}, "preview_title": {"Exact message preview", "Genaue Nachrichtenvorschau", "معاينة الرسالة الدقيقة"}, "pause": {"Pause", "Pausieren", "إيقاف مؤقت"}, "resume": {"Resume", "Fortsetzen", "استئناف"}, "edit": {"Edit", "Bearbeiten", "تعديل"}, "delete": {"Delete", "Löschen", "حذف"}, "cancel": {"Cancel", "Abbrechen", "إلغاء"}, "delete_yes": {"Delete announcement", "Ankündigung löschen", "حذف الإعلان"}, "delete_confirm": {"Delete this announcement? It will not post again.", "Diese Ankündigung löschen? Sie wird nicht erneut veröffentlicht.", "هل تريد حذف هذا الإعلان؟ لن يُنشر مرة أخرى."}, "next": {"Next run", "Nächste Ausführung", "التشغيل التالي"}, "last": {"Last result", "Letztes Ergebnis", "النتيجة الأخيرة"},
+		"preview": {"Preview", "Vorschau", "معاينة"}, "post_now": {"Post now", "Jetzt veröffentlichen", "انشر الآن"}, "save": {"Save schedule", "Zeitplan speichern", "حفظ الجدول"}, "preview_title": {"Exact message preview", "Genaue Nachrichtenvorschau", "معاينة الرسالة الدقيقة"}, "pause": {"Pause", "Pausieren", "إيقاف مؤقت"}, "resume": {"Resume", "Fortsetzen", "استئناف"}, "edit": {"Edit", "Bearbeiten", "تعديل"}, "delete": {"Delete", "Löschen", "حذف"}, "cancel": {"Cancel", "Abbrechen", "إلغاء"}, "delete_yes": {"Delete announcement", "Ankündigung löschen", "حذف الإعلان"}, "delete_confirm": {"Delete this announcement? It will not post again.", "Diese Ankündigung löschen? Sie wird nicht erneut veröffentlicht.", "هل تريد حذف هذا الإعلان؟ لن يُنشر مرة أخرى."}, "next": {"Next post", "Nächste Veröffentlichung", "النشر التالي"}, "last": {"Last result", "Letztes Ergebnis", "النتيجة الأخيرة"}, "schedule": {"Schedule", "Zeitplan", "الجدول"},
 	}
 	values, ok := copy[key]
 	if !ok {
@@ -262,11 +281,21 @@ func AgentAnnouncementResultText(locale LocaleContext, code, reason string) stri
 	return strings.ReplaceAll(agentAnnouncementText(locale, key), "{reason}", reason)
 }
 
-func announcementWeekdayChoices(locale LocaleContext) []ui.Node {
+// announcementWeekdayNames lists the weekdays from Sunday, the order the
+// schedule stores them in.
+func announcementWeekdayNames(locale LocaleContext) []string {
 	names := [][3]string{{"Sunday", "Sonntag", "الأحد"}, {"Monday", "Montag", "الاثنين"}, {"Tuesday", "Dienstag", "الثلاثاء"}, {"Wednesday", "Mittwoch", "الأربعاء"}, {"Thursday", "Donnerstag", "الخميس"}, {"Friday", "Freitag", "الجمعة"}, {"Saturday", "Samstag", "السبت"}}
+	out := make([]string, 0, len(names))
+	for _, name := range names {
+		out = append(out, name[agentRPLocaleIndex(locale)])
+	}
+	return out
+}
+
+func announcementWeekdayChoices(locale LocaleContext) []ui.Node {
 	var nodes []ui.Node
-	for day, name := range names {
-		nodes = append(nodes, html.Label(html.Props{}, html.Input(html.Props{Type: "checkbox", Name: "announcement-weekday", Value: strconv.Itoa(day)}), ui.Text(name[agentRPLocaleIndex(locale)])))
+	for day, name := range announcementWeekdayNames(locale) {
+		nodes = append(nodes, html.Label(html.Props{}, html.Input(html.Props{Type: "checkbox", Name: "announcement-weekday", Value: strconv.Itoa(day)}), ui.Text(name)))
 	}
 	return nodes
 }
@@ -318,4 +347,28 @@ func announcementRetryOccurrence(row AgentAnnouncementRow) string {
 		return row.LastOccurrence
 	}
 	return ""
+}
+
+// announcementRowHeading names who posts where; a record whose agent has left
+// its conversation says so instead.
+func announcementRowHeading(locale LocaleContext, row AgentAnnouncementRow) string {
+	if row.Retired {
+		return agentAnnouncementText(locale, "agent_gone")
+	}
+	return row.AgentName + " · " + row.ConversationName
+}
+
+// announcementRowActions lists the buttons of a record. Nothing can post or be
+// edited for an agent that is no longer in the conversation, so only Delete stays.
+func announcementRowActions(locale LocaleContext, row AgentAnnouncementRow, stateAction, stateLabel, postAction, postLabel string) []ui.Node {
+	deleteButton := html.Button(html.Props{Type: "button", Class: "button secondary compact agent-announcement-delete-action", Raw: map[string]any{"data-announcement-action": "confirm-delete"}}, ui.Text(agentAnnouncementText(locale, "delete")))
+	if row.Retired {
+		return []ui.Node{deleteButton}
+	}
+	return []ui.Node{
+		html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": stateAction}}, ui.Text(stateLabel)),
+		html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": postAction}}, ui.Text(postLabel)),
+		html.Button(html.Props{Type: "button", Class: "button secondary compact", Raw: map[string]any{"data-announcement-action": "edit"}}, ui.Text(agentAnnouncementText(locale, "edit"))),
+		deleteButton,
+	}
 }

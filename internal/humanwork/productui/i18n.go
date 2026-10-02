@@ -181,7 +181,8 @@ func RegisterActivatedCatalog(locale string, scope i18n.Scope, revisionID, revis
 		return "", err
 	}
 	if locale != DefaultProductLocale {
-		english := productCatalogMessages(DefaultProductLocale, productMessages[DefaultProductLocale])
+		// Register copies the messages it is given, so the shared catalog is safe.
+		english := productCatalogBase(DefaultProductLocale)
 		if err := productMessageRegistry.Register(localize.Catalog{Locale: DefaultProductLocale, Version: version, Messages: english}); err != nil {
 			return "", err
 		}
@@ -190,7 +191,12 @@ func RegisterActivatedCatalog(locale string, scope i18n.Scope, revisionID, revis
 }
 
 func mergeProductCatalog(locale string, overlay map[string]localize.Message) map[string]localize.Message {
-	base := productCatalogMessages(locale, productMessages[locale])
+	// The finished catalog is shared, so the overlay goes on a copy of it.
+	shared := productCatalogBase(locale)
+	base := make(map[string]localize.Message, len(shared)+len(overlay))
+	for key, message := range shared {
+		base[key] = message
+	}
 	for key, message := range overlay {
 		base[key] = message
 	}
@@ -233,7 +239,7 @@ type ProductCatalogCoverageReport struct {
 // ProductCatalogKeys returns all reviewed English semantic keys in stable
 // order. The returned slice is independent and may be safely modified.
 func ProductCatalogKeys() []string {
-	base := productCatalogMessages(DefaultProductLocale, productMessages[DefaultProductLocale])
+	base := productCatalogBase(DefaultProductLocale)
 	keys := make([]string, 0, len(base))
 	for key := range base {
 		keys = append(keys, key)
@@ -277,12 +283,16 @@ func ProductCatalogCoverage(locale string) ProductCatalogCoverageReport {
 
 func buildProductCatalogCoverage(resolved string) ProductCatalogCoverageReport {
 	context := ResolveProductLocale(resolved)
-	base := productCatalogMessages(DefaultProductLocale, productMessages[DefaultProductLocale])
-	localized := productCatalogMessages(context.Resolved, productMessages[context.Resolved])
+	// CHATBUG-014: both catalogs are the shared finished ones, and English is
+	// not compared with itself.
+	base := productCatalogBase(DefaultProductLocale)
 	missing := make([]string, 0)
-	for key := range base {
-		if _, ok := localized[key]; !ok {
-			missing = append(missing, key)
+	if context.Resolved != DefaultProductLocale {
+		localized := productCatalogBase(context.Resolved)
+		for key := range base {
+			if _, ok := localized[key]; !ok {
+				missing = append(missing, key)
+			}
 		}
 	}
 	sort.Strings(missing)
@@ -2762,6 +2772,9 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 		messages[key] = translated
 	}
 	for key, translated := range chatTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
+	for key, translated := range chatbug059Translations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}
 	for key, translated := range projectTranslations(locale) {

@@ -45,6 +45,8 @@ func BuildAgentOperationsPage(view View) ui.Node {
 			AgentControlsMountForTab(locale, selectedTab == "running"),
 			AgentRolloutPortableMountForTab(locale, AgentRolloutSnapshot{Loading: true}, AgentPortableSnapshot{}, selectedTab),
 			AgentAnnouncementsMountForTab(locale, selectedTab == "announcements"),
+			AgentAdminAccessMount(locale, selectedTab == "connections"),
+			AgentCostMount(locale, selectedTab == "cost"),
 		)},
 	})
 }
@@ -54,7 +56,7 @@ func agentOperationsSelectedTab(raw string) string {
 		raw = query.Get("tab")
 	}
 	switch raw {
-	case "rollout", "move", "announcements":
+	case "rollout", "move", "announcements", "connections", "cost":
 		return raw
 	default:
 		return "running"
@@ -90,6 +92,8 @@ func agentOperationsTabs(view View, locale LocaleContext) ui.Node {
 		{"rollout", agentOperationsText(locale, "tab_rollout"), agentOperationsText(locale, "tab_rollout"), "agent-rollout-panel"},
 		{"move", agentOperationsText(locale, "tab_portable"), agentOperationsText(locale, "tab_portable_short"), "agent-portable-panel"},
 		{"announcements", agentOperationsText(locale, "tab_announcements"), agentOperationsText(locale, "tab_announcements"), "agent-announcements"},
+		{"connections", agentOperationsText(locale, "tab_connections"), agentOperationsText(locale, "tab_connections"), "agent-admin-access"},
+		{"cost", agentOperationsText(locale, "tab_cost"), agentOperationsText(locale, "tab_cost"), "agent-cost"},
 	}
 	items := make([]ui.Node, 0, len(tabs))
 	selectedTab := agentOperationsSelectedTab(view.Query)
@@ -140,6 +144,8 @@ func agentOperationsText(locale LocaleContext, key string) string {
 		"tab_portable":       {"Move between workspaces", "Zwischen Arbeitsbereichen verschieben", "النقل بين مساحات العمل"},
 		"tab_portable_short": {"Move", "Verschieben", "نقل"},
 		"tab_announcements":  {"Announcements", "Ankündigungen", "الإعلانات"},
+		"tab_connections":    {"Connections", "Verbindungen", "الاتصالات"},
+		"tab_cost":           {"Cost", "Kosten", "التكلفة"},
 	}
 	values, ok := copy[key]
 	if !ok {

@@ -55,7 +55,10 @@ func personaAdminVersionEditor(locale LocaleContext, client PersonaAdminClient, 
 			html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-persona-editor-toggle": id}}, ui.Text(personaAdminVersionText(locale, "cancel"))),
 		),
 	)
-	return html.Form(html.Props{ID: id, Class: "persona-admin-version-editor", Hidden: true, Raw: map[string]any{"data-persona-admin-command-form": "CREATE_VERSION", "data-persona-version-panel": persona.ID, "aria-label": personaAdminVersionText(locale, "editor_label") + ": " + persona.Name}}, html.Fieldset(html.Props{Class: "persona-admin-version-fields", Disabled: client == nil}, children...))
+	// Cancel and Escape close the editor; when something was typed they first ask
+	// with this question, so a slip of the hand does not lose the edit.
+	discard := strings.ReplaceAll(personaAdminVersionText(locale, "discard_confirm"), "{agent}", persona.Name)
+	return html.Form(html.Props{ID: id, Class: "persona-admin-version-editor", Hidden: true, Raw: map[string]any{"data-persona-admin-command-form": "CREATE_VERSION", "data-persona-version-panel": persona.ID, "data-persona-editor-discard": discard, "aria-label": personaAdminVersionText(locale, "editor_label") + ": " + persona.Name}}, html.Fieldset(html.Props{Class: "persona-admin-version-fields", Disabled: client == nil}, children...))
 }
 
 func personaAdminVersionEditorAvailable(persona PersonaAdminPersona) bool {
@@ -152,6 +155,7 @@ func personaAdminVersionText(locale LocaleContext, key string) string {
 		"create_version":          {"Create version", "Version erstellen", "إنشاء إصدار"},
 		"save_version":            {"Save as version {version} (draft)", "Als Version {version} (Entwurf) speichern", "حفظ كإصدار {version} (مسودة)"},
 		"cancel":                  {"Cancel", "Abbrechen", "إلغاء"},
+		"discard_confirm":         {"Discard your changes to {agent}?", "Ihre Änderungen an {agent} verwerfen?", "هل تريد تجاهل تغييراتك على {agent}؟"},
 		"handle":                  {"Agent address", "Agentenadresse", "عنوان الوكيل"}, "name": {"Display name", "Anzeigename", "الاسم المعروض"}, "purpose": {"Purpose", "Zweck", "الغرض"},
 		"purpose_count": {"{count} of {limit} characters", "{count} von {limit} Zeichen", "{count} من {limit} حرفاً"},
 		"mentions":      {"Document mentions", "Dokumenterwähnungen", "إشارات المستندات"},

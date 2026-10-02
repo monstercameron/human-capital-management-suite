@@ -111,6 +111,7 @@ type AgentTask struct {
 	BudgetLimit               string
 	PlanRevision              string
 	PlanDiff                  string
+	PlanChanges               []AgentPlanChange
 	Steps                     []AgentTaskStep
 	Checkpoints               []AgentCheckpoint
 	Artifacts                 []AgentArtifact
@@ -150,10 +151,11 @@ type AgentTaskDocumentOmission struct {
 // AgentTaskActionPolicy is the server-derived affordance projection for one
 // task. The control RPC rechecks every action and version before mutation.
 type AgentTaskActionPolicy struct {
-	ConfirmPlan bool
-	Pause       bool
-	Resume      bool
-	Cancel      bool
+	ConfirmPlan  bool
+	Pause        bool
+	Resume       bool
+	Cancel       bool
+	ExtendBudget bool
 }
 
 type AgentTaskStep struct {
@@ -166,9 +168,14 @@ type AgentTaskStep struct {
 	FailureReason string
 }
 
+// AgentCheckpoint is one point where the task's progress was saved. The
+// server sends Kind (and Step for a finished step) with At as an RFC 3339
+// instant; Label is finished text for a caller that has no kind.
 type AgentCheckpoint struct {
 	Label string
 	At    string
+	Kind  string
+	Step  string
 }
 
 type AgentArtifact struct {
@@ -195,6 +202,10 @@ type agentsPageModuleRenderer struct{}
 // Render resolves the route through the viewer's agents availability
 // projection (UXBLIND-122), the same answer that decides the navigation entry.
 func (agentsPageModuleRenderer) Render(view View) ui.Node {
+	// AGENT2-018: the same route also serves the person's own access view.
+	if AgentAccessViewRequested(view.Query) {
+		return BuildAgentAccessPage(view)
+	}
 	return BuildAgentsSurface(view)
 }
 
@@ -244,6 +255,7 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 		actions = append(actions, AgentPageNavigation(view, AgentPageAsk))
 	}
 	children = append(children,
+		agentsViewTabs(view, locale, "ask"),
 		html.P(html.Props{Class: "agents-page-subtitle"}, ui.Text(locale.Text("agents.page_subtitle"))),
 	)
 	main := []ui.Node{tagAgentComposerForView(view, locale, snapshot)}
@@ -343,6 +355,7 @@ func tagAgentThreads(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 }
 
 func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.Node {
+	snapshot = agentUX020SettledTasks(snapshot)
 	groups := map[string][]AgentTask{"active": {}, "completed": {}, "failed": {}}
 	selectedListed := false
 	for _, task := range snapshot.Tasks {
@@ -368,7 +381,8 @@ func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.N
 	for _, category := range []string{"active", "completed", "failed"} {
 		for index, task := range groups[category] {
 			isSelected := snapshot.SelectedTask != nil && snapshot.SelectedTask.ID == task.ID
-			rows = append(rows, agentTaskRow(view, locale, task, isSelected, category, index, category != selected || index >= 20))
+			task.Icon = agentUX074TaskIcon(snapshot.Agents, task)
+			rows = append(rows, agentTaskRow(view, locale, task, isSelected, category, index, category != selected || index >= agentTaskFirstPage))
 		}
 	}
 	listing := []ui.Node{html.Div(html.Props{Class: "agents-tasks-heading"}, html.Div(html.Props{},
@@ -391,7 +405,7 @@ func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.N
 		listing = append(listing, html.Div(html.Props{Class: "agents-task-filters", Role: "tablist", Aria: map[string]string{"label": locale.Text("agents.task_filters")}}, filters...))
 	}
 	if snapshot.TasksLoading {
-		listing = append(listing, html.P(html.Props{Class: "agents-tasks-loading", Role: "status"}, ui.Text(locale.Text("agents.tasks_loading"))))
+		listing = append(listing, AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 4, Status: locale.Text("agents.tasks_loading"), RetryRaw: map[string]any{"data-agent-tasks-retry": "true"}}))
 	}
 	if snapshot.TasksLoadFailed {
 		listing = append(listing, html.Div(html.Props{Class: "agents-tasks-failed", Role: "alert"},
@@ -413,7 +427,7 @@ func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.N
 		listing = append(listing, html.P(html.Props{Class: "agents-tasks-empty", Hidden: category != selected || len(groups[category]) > 0, Role: "status", Raw: map[string]any{"data-agent-task-empty": category}}, ui.Text(locale.Text(key))))
 	}
 	if len(snapshot.Tasks) > 0 {
-		listing = append(listing, html.Button(html.Props{Type: "button", Class: "button secondary agents-task-more", Hidden: len(groups[selected]) <= 20, Raw: map[string]any{"data-agent-task-more": "true"}}, ui.Text(locale.Text("agents.show_more"))))
+		listing = append(listing, html.Button(html.Props{Type: "button", Class: "button secondary agents-task-more", Hidden: len(groups[selected]) <= agentTaskFirstPage, Raw: map[string]any{"data-agent-task-more": "true"}}, ui.Text(locale.Text("agents.show_older"))))
 	}
 	listing = append(listing, html.P(html.Props{ID: "agents-tasks-announcement", Class: "agents-tasks-announcement", Role: "status", Raw: map[string]any{
 		"aria-live":              "polite",
@@ -470,27 +484,34 @@ func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool
 			agentTaskRowTimes(locale, task, time.Now()),
 		),
 	}
+	// The second line of a row says who answered and what: the agent, with the
+	// icon it wears in the choices above, then the answer excerpt or the reason
+	// the task stopped. A task is two lines at page width, not a narrow stack.
+	agentText := agentTaskAgentName(locale, task)
+	if category == "completed" {
+		agentText = locale.Text("agents.answered_by", map[string]string{"agent": agentTaskAgentName(locale, task)})
+	} else if category == "active" {
+		agentText = locale.Text("agents.agent_active", map[string]string{
+			"agent":  agentTaskAgentName(locale, task),
+			"status": agentTaskStateLabel(locale, task.State),
+		})
+	}
+	agent := []ui.Node{}
+	if task.Icon.Valid() {
+		agent = append(agent, agenticon.Node(task.Icon))
+	}
+	summary := []ui.Node{html.Span(html.Props{Class: "agents-task-agent muted"}, append(agent, ui.Text(agentText))...)}
 	if preview != "" {
 		props := html.Props{Class: "agents-task-preview"}
 		if category != "failed" {
 			props.Raw = map[string]any{"dir": "auto"}
 		}
-		children = append(children, html.P(props, ui.Text(preview)))
+		summary = append(summary, html.Span(props, ui.Text(preview)))
 	}
 	if failureReason != "" {
-		children = append(children, html.P(html.Props{Class: "agents-task-failure-reason"}, ui.Text(failureReason)))
+		summary = append(summary, html.Span(html.Props{Class: "agents-task-failure-reason"}, ui.Text(failureReason)))
 	}
-	var agentLine ui.Node
-	if category == "failed" {
-		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(agentTaskAgentName(locale, task)))
-	} else if category == "completed" {
-		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(locale.Text("agents.answered_by", map[string]string{"agent": agentTaskAgentName(locale, task)})))
-	} else {
-		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(locale.Text("agents.agent_active", map[string]string{
-			"agent":  agentTaskAgentName(locale, task),
-			"status": agentTaskStateLabel(locale, task.State),
-		})))
-	}
+	children = append(children, html.P(html.Props{Class: "agents-task-summary"}, summary...))
 	detailID := "agents-task-detail-" + task.ID
 	rowClass := "agents-task-row"
 	if selected {
@@ -504,12 +525,18 @@ func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool
 	rowChildren := []ui.Node{html.A(html.Props{Class: "agents-task-link", Aria: map[string]string{
 		"label": locale.Text("agents.open_named_task", map[string]string{"request": request}), "expanded": fmt.Sprint(selected), "controls": detailID,
 	}, Raw: map[string]any{"data-agent-task-row-link": task.ID}, Href: statefulHref(view, PageAgents, "task", task.ID) + "#agents-task-title"}, children...)}
-	metaChildren := []ui.Node{html.Div(html.Props{Class: "agents-task-source-meta"}, agentLine, agentTaskDocumentLinks(view, locale, task, true))}
-	if category == "failed" {
-		actions := []ui.Node{askAgainButton(locale, task)}
-		metaChildren = append(metaChildren, html.Div(html.Props{Class: "agents-task-row-actions"}, actions...))
+	// Documents and the retry control are links and buttons of their own, so they
+	// sit beside the row link rather than inside it, and only when there are any.
+	metaChildren := []ui.Node{}
+	if documents := agentTaskDocumentLinks(view, locale, task, true); documents != nil {
+		metaChildren = append(metaChildren, html.Div(html.Props{Class: "agents-task-source-meta"}, documents))
 	}
-	rowChildren = append(rowChildren, html.Div(html.Props{Class: "agents-task-row-meta"}, metaChildren...))
+	if category == "failed" {
+		metaChildren = append(metaChildren, html.Div(html.Props{Class: "agents-task-row-actions"}, askAgainButton(locale, task)))
+	}
+	if len(metaChildren) > 0 {
+		rowChildren = append(rowChildren, html.Div(html.Props{Class: "agents-task-row-meta"}, metaChildren...))
+	}
 	return html.Li(html.Props{Class: rowClass, Hidden: hidden, Raw: map[string]any{"data-task-id": task.ID, "data-task-category": category, "data-task-index": index, "data-selected": fmt.Sprint(selected)}}, rowChildren...)
 }
 
@@ -557,6 +584,10 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 	if len(snapshot.Agents) > 0 {
 		choices := make([]ui.Node, 0, len(snapshot.Agents)+1)
 		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true))
+		// Each agent wears its stored icon; one without a stored icon takes its
+		// fallback among the agents listed here, as Chat does among the agents it
+		// knows, so the same agent has the same picture on both pages.
+		peers := agentUX074AgentIDs(snapshot.Agents)
 		for index, agent := range snapshot.Agents {
 			name := strings.TrimSpace(agent.Name)
 			if name == "" {
@@ -567,7 +598,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 				purpose = locale.Text("agents.agent_purpose_unavailable")
 			}
 			id := fmt.Sprintf("agents-choice-%d", index)
-			choices = append(choices, agentChoice(locale, id, agent.ID, name, purpose, false, agent.Icon))
+			choices = append(choices, agentChoice(locale, id, agent.ID, name, purpose, false, agentUX074IconValue(agent.Icon, agent.ID, peers)))
 		}
 		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, choices...)))
 	} else {
@@ -617,6 +648,10 @@ func tagAgentTaskView(view View, locale LocaleContext, task AgentTask) ui.Node {
 }
 
 func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, retryAvailable bool) ui.Node {
+	task.State = AgentTaskSettledState(task)
+	if task.State == AgentTaskCompleted && strings.TrimSpace(task.AnswerText) == "" {
+		task.AnswerText = task.ResultPreview
+	}
 	displaySteps := append([]AgentTaskStep(nil), task.Steps...)
 	for index := range displaySteps {
 		if strings.EqualFold(strings.TrimSpace(displaySteps[index].State), "failed") && strings.TrimSpace(displaySteps[index].Detail) == "" {
@@ -633,25 +668,19 @@ func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, 
 	steps := agentTaskStepItems(locale, displaySteps)
 	checkpoints := make([]ui.Node, 0, len(task.Checkpoints))
 	for _, checkpoint := range task.Checkpoints {
-		checkpoints = append(checkpoints, html.Li(html.Props{}, html.Strong(html.Props{}, ui.Text(checkpoint.Label)), html.Span(html.Props{Class: "muted"}, ui.Text(checkpoint.At))))
+		checkpoints = append(checkpoints, agentTaskCheckpointItem(locale, checkpoint, time.Now()))
 	}
 	artifacts := make([]ui.Node, 0, len(task.Artifacts))
 	for _, artifact := range task.Artifacts {
-		artifacts = append(artifacts, html.Li(html.Props{}, softwareLink(view.Navigate, html.Props{}, artifact.Href, ui.Text(artifact.Name)), html.Span(html.Props{Class: "muted"}, ui.Text(artifact.Kind))))
+		artifacts = append(artifacts, agentTaskArtifactItem(view, locale, artifact))
 	}
 	approvals := make([]ui.Node, 0, len(task.Approvals))
 	for _, approval := range task.Approvals {
-		sources := make([]ui.Node, 0, len(approval.Sources))
-		for _, source := range approval.Sources {
-			sources = append(sources, html.Li(html.Props{}, ui.Text(source)))
-		}
-		approvals = append(approvals, html.Article(html.Props{Class: "agents-approval-card", Raw: map[string]any{"data-approval-id": approval.ID}},
-			html.H3(html.Props{}, ui.Text(approval.Summary)), html.Code(html.Props{Class: "agents-digest"}, ui.Text(approval.Digest)),
-			html.Span(html.Props{Class: "status agents-taint"}, ui.Text(approval.Taint)), html.H4(html.Props{}, ui.Text(locale.Text("agents.sources"))), html.Ul(html.Props{}, sources...)))
+		approvals = append(approvals, agentTaskApprovalCard(locale, approval))
 	}
 	intents := make([]ui.Node, 0, len(task.SubmittedIntents))
 	for _, intent := range task.SubmittedIntents {
-		intents = append(intents, html.Li(html.Props{}, html.Strong(html.Props{}, ui.Text(intent.Name)), html.Span(html.Props{Class: "status"}, ui.Text(intent.Status))))
+		intents = append(intents, agentTaskIntentItem(locale, intent))
 	}
 	request := agentTaskRequest(task)
 	heading := []ui.Node{
@@ -677,8 +706,28 @@ func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, 
 		plan = html.Section(html.Props{Class: "agents-task-plan"}, html.H3(html.Props{}, ui.Text(locale.Text(planKey))), html.Ol(html.Props{}, steps...))
 	}
 	planFirst := task.State == AgentTaskAwaitingPlanConfirmation || task.State == AgentTaskDrafting
+	// What a new plan revision changes is read with the plan it changes: next
+	// to the plan while it waits for confirmation, after the detail otherwise.
+	var revision ui.Node
+	planChanges := agentTaskPlanChanges(locale, task.PlanChanges)
+	if strings.TrimSpace(task.PlanDiff) != "" || planChanges != nil {
+		parts := []ui.Node{html.H3(html.Props{}, ui.Text(locale.Text("agents.plan_revision", map[string]string{"revision": task.PlanRevision})))}
+		if planChanges != nil {
+			parts = append(parts, planChanges)
+		}
+		if strings.TrimSpace(task.PlanDiff) != "" {
+			parts = append(parts, html.Pre(html.Props{}, ui.Text(task.PlanDiff)))
+		}
+		revision = html.Section(html.Props{Class: "agents-plan-diff"}, parts...)
+	}
+	if goal := agentTaskFullGoal(locale, task); goal != nil {
+		children = append(children, goal)
+	}
 	if planFirst && plan != nil {
 		children = append(children, plan)
+	}
+	if planFirst && revision != nil {
+		children = append(children, revision)
 	}
 	if documents := agentTaskDocumentLinks(view, locale, task, false); documents != nil {
 		children = append(children, documents)
@@ -715,8 +764,8 @@ func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, 
 			children = append(children, detail)
 		}
 	}
-	if strings.TrimSpace(task.PlanDiff) != "" {
-		children = append(children, html.Section(html.Props{Class: "agents-plan-diff"}, html.H3(html.Props{}, ui.Text(locale.Text("agents.plan_revision", map[string]string{"revision": task.PlanRevision}))), html.Pre(html.Props{}, ui.Text(task.PlanDiff))))
+	if !planFirst && revision != nil {
+		children = append(children, revision)
 	}
 	return html.Section(html.Props{Class: "agents-task-view", Role: "region", Aria: map[string]string{"label": locale.Text("agents.task_view"), "labelledby": "agents-task-title"}, Raw: map[string]any{"data-task-view": task.ID, "data-task-request": request}}, children...)
 }
@@ -859,7 +908,9 @@ func taskActionButton(locale LocaleContext, taskID, action, key string, version 
 }
 
 func taskActions(view View, locale LocaleContext, task AgentTask) ui.Node {
-	if task.Version == 0 || !knownAgentTaskState(task.State) {
+	// A task whose state the page does not know is shown as ended: it offers no
+	// control that assumes it is still running.
+	if task.Version == 0 || !knownAgentTaskState(task.State) || task.State == AgentTaskUnknown {
 		return nil
 	}
 	buttons := make([]ui.Node, 0, 4)
@@ -874,6 +925,11 @@ func taskActions(view View, locale LocaleContext, task AgentTask) ui.Node {
 	}
 	if task.Actions.Resume && task.State == AgentTaskPaused {
 		buttons = append(buttons, taskActionButton(locale, task.ID, "resume", "agents.resume", task.Version))
+	}
+	// AGENT2-017: a task paused at its budget ceiling offers one click to add the
+	// policy's allowance; resuming stays a separate click.
+	if task.Actions.ExtendBudget && task.State == AgentTaskPaused {
+		buttons = append(buttons, taskActionButton(locale, task.ID, "extend-budget", "agents.extend_budget", task.Version))
 	}
 	if task.Actions.Cancel && task.State != AgentTaskCompleted && task.State != AgentTaskFailed && task.State != AgentTaskCancelled && task.State != AgentTaskExpired {
 		buttons = append(buttons, taskActionButton(locale, task.ID, "cancel", "agents.cancel", task.Version))

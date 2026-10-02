@@ -48,7 +48,7 @@ func TestTodo_AGENTUX_001(t *testing.T) {
 		"People Coach", "Who should answer?", ">Ask<", "Plan a longer task", "usually within a minute",
 		`class="agents-task-filter-label">Active</span>`, `aria-label="Task count" class="agents-task-filter-count">1</span>`, `class="agents-task-filter-label">Completed</span>`, `class="agents-task-filter-label">Failed</span>`, `data-task-category="active"`,
 		`aria-label="Open task: Review the open policy"`, "Reading the policy", "The handbook is current.",
-		"The agent stopped before it could answer. Nothing was changed.", "Show more",
+		"The agent stopped before it could answer. Nothing was changed.", "Show older",
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("Agents page missing %q: %s", want, markup)

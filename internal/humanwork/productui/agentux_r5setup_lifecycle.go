@@ -53,16 +53,21 @@ func personaAdminLifecycleState(locale LocaleContext, persona PersonaAdminPerson
 		phase = personaAdminPhaseWaitingReview
 	}
 
+	// The step label names the step in progress, not the last one finished: once
+	// a reviewer has approved, the version is at step three, ready to evaluate,
+	// and once the evaluation has passed it is at step four, ready to publish.
+	// The badge takes the same label, so the badge, the sentence and the stepper
+	// always say the same thing.
 	keys := map[personaAdminLifecyclePhase]struct {
 		step, complete                 int
 		label, next, heading, sentence string
 	}{
 		personaAdminPhaseDraft:             {1, 0, "phase_draft", "phase_waiting_review", "heading_review", "sentence_draft"},
 		personaAdminPhaseWaitingReview:     {2, 1, "phase_waiting_review", "phase_ready_evaluation", "heading_review", "sentence_waiting_review"},
-		personaAdminPhaseReadyEvaluation:   {2, 2, "phase_reviewed", "phase_evaluated", "heading_evaluation", "sentence_ready_evaluation"},
+		personaAdminPhaseReadyEvaluation:   {3, 2, "phase_ready_evaluation", "phase_ready_publication", "heading_evaluation", "sentence_ready_evaluation"},
 		personaAdminPhaseEvaluationRunning: {3, 2, "phase_evaluation_running", "phase_ready_publication", "heading_evaluation", "sentence_evaluation_running"},
 		personaAdminPhaseEvaluationFailed:  {3, 2, "phase_evaluation_failed", "phase_ready_evaluation", "heading_evaluation", "sentence_evaluation_failed"},
-		personaAdminPhaseReadyPublication:  {3, 3, "phase_evaluated", "phase_published", "heading_ready_publication", "sentence_ready_publication"},
+		personaAdminPhaseReadyPublication:  {4, 3, "phase_ready_publication", "phase_published", "heading_ready_publication", "sentence_ready_publication"},
 		personaAdminPhasePublished:         {4, 4, "phase_published", "", "heading_published", "sentence_published_no_placements"},
 	}[phase]
 
@@ -184,9 +189,7 @@ func personaAdminR5Text(locale LocaleContext, key string) string {
 	copy := map[string][3]string{
 		"phase_draft":                         {"Draft", "Entwurf", "مسودة"},
 		"phase_waiting_review":                {"Waiting for review", "Wartet auf Prüfung", "بانتظار المراجعة"},
-		"phase_reviewed":                      {"Reviewed", "Geprüft", "تمت المراجعة"},
 		"phase_ready_evaluation":              {"Ready to evaluate", "Bereit zur Evaluierung", "جاهز للتقييم"},
-		"phase_evaluated":                     {"Evaluated", "Evaluiert", "تم التقييم"},
 		"phase_evaluation_running":            {"Evaluation running", "Evaluierung läuft", "التقييم قيد التشغيل"},
 		"phase_evaluation_failed":             {"Evaluation needs changes", "Evaluierung erfordert Änderungen", "يحتاج التقييم إلى تعديلات"},
 		"phase_ready_publication":             {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
@@ -219,8 +222,8 @@ func personaAdminR5Text(locale LocaleContext, key string) string {
 		"mobile_progress":                     {"{current} · next: {next}", "{current} · als Nächstes: {next}", "{current} · التالي: {next}"},
 		"independent_reviewer":                {"an independent reviewer", "eine unabhängige prüfende Person", "مراجع مستقل"},
 		"command_completed":                   {"The change was saved.", "Die Änderung wurde gespeichert.", "تم حفظ التغيير."},
-		"command_review_requested":            {"Review requested for version {version}.", "Prüfung für Version {version} angefordert.", "طُلبت مراجعة الإصدار {version}."},
-		"command_version_approved":            {"You approved version {version}.", "Sie haben Version {version} genehmigt.", "وافقت على الإصدار {version}."},
+		"command_review_requested":            {"Review of version {version} requested from {reviewer}.", "Prüfung von Version {version} bei {reviewer} angefordert.", "طُلبت مراجعة الإصدار {version} من {reviewer}."},
+		"command_version_approved":            {"Version {version} approved.", "Version {version} genehmigt.", "تمت الموافقة على الإصدار {version}."},
 		"command_evaluation_passed":           {"Evaluation passed: {passed} of {total} cases.", "Evaluierung bestanden: {passed} von {total} Testfragen.", "نجح التقييم: {passed} من {total} حالات."},
 		"command_version_published":           {"Version {version} published.", "Version {version} veröffentlicht.", "تم نشر الإصدار {version}."},
 		"command_version_saved":               {"Version {version} saved as a draft.", "Version {version} als Entwurf gespeichert.", "تم حفظ الإصدار {version} كمسودة."},

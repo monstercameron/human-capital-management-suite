@@ -314,7 +314,14 @@ const journeyLoaderSource = `(function(){` +
 	// object. w's own rejection handler keeps a failed compile from being
 	// reported twice; the chain below still observes it and stops.
 	`p("manifest");var w=window.WebAssembly.compileStreaming(k("` + PathJourneyWasm + `"+v(a),a.integrity).then(function(r){p("wasm-response");return r}));w.catch(function(){});` +
-	`return k("` + PathWasmExec + `"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();return w.then(function(b){p("compiled");return window.WebAssembly.instantiate(b,g.importObject)}).then(function(n){p("instantiated");g.run(n)})})})` +
+	// CHATBUG-014: the client starts with Go's collector off (GOGC=off in
+	// its environment). Starting up allocates steadily while the heap is
+	// still small, so the collector ran four times before the first page
+	// was drawn, on the one thread that was drawing it: about a quarter of
+	// the client's start on the review machine. The client turns the
+	// collector back on as soon as its first page is on screen, or after a
+	// few seconds whatever happens (chatperf2_boot_gc.go in the client).
+	`return k("` + PathWasmExec + `"+v(s),s.integrity).then(function(r){if(!r.ok){throw new Error("wasm runtime unavailable")}return r.blob()}).then(function(b){var u=URL.createObjectURL(b);return import(u).then(function(){URL.revokeObjectURL(u)},function(e){URL.revokeObjectURL(u);throw e})}).then(function(){if(!window.Go){throw new Error("wasm runtime unavailable")}var g=new window.Go();g.env.GOGC="off";return w.then(function(b){p("compiled");return window.WebAssembly.instantiate(b,g.importObject)}).then(function(n){p("instantiated");g.run(n)})})})` +
 	`.catch(function(e){console.error("Workspace initialization failed",e&&e.message?e.message:"unavailable")});` +
 	`})();`
 

@@ -56,7 +56,7 @@ func TestTodo_AGENTUX_002_Browser(t *testing.T) {
 		Installations: []AgentRolloutInstallation{{ID: "install-opaque", PersonaID: "policy-helper", Name: "Benefits team chat", Visible: true, ConversationKind: "PRIVATE_CHANNEL", MemberCount: 4}},
 		Active:        &AgentRolloutPlan{ID: "rollout-opaque", Version: 4}, Progress: &AgentRolloutProgress{Revision: 2, Stage: "PREVIEWED"},
 	}, AgentPortableSnapshot{Available: true, CanExport: true, CanImport: true, Manifests: []AgentPortableManifest{{ID: "manifest-opaque", Version: "4", Name: "Policy Helper"}}}))
-	for _, want := range []string{"Rollout", "Move an agent between workspaces", "Benefits team chat", "Approve rollout for Policy Helper", "Policy Helper", "version 4", "1. Export", "Download agent file", "2. Import", "Choose an agent file", "Import as draft", "Import this agent as a draft?", "3. Review imported drafts", `data-rollout-id="rollout-opaque"`} {
+	for _, want := range []string{"Rollout", "Move an agent between workspaces", "Benefits team chat", ">Approve<", "Policy Helper", "version 4", "1. Export", "Download agent file", "2. Import", "Choose an agent file", "Import as draft", "Import this agent as a draft?", "3. Review imported drafts", `data-rollout-id="rollout-opaque"`} {
 		if !strings.Contains(portable, want) {
 			t.Errorf("rollout/portable region missing %q:\n%s", want, portable)
 		}
@@ -235,7 +235,7 @@ func TestAgentUXR6Ops_RolloutDefaultsLabelsAndStages(t *testing.T) {
 		Progress: &AgentRolloutProgress{Revision: 1, Stage: "PREVIEWED"},
 	}
 	markup := renderAgentOperationsTest(t, AgentRolloutPortableMountForTab(locale, snapshot, AgentPortableSnapshot{Available: true}, "rollout"))
-	for _, want := range []string{`selected value="4"`, "Your conversation with Policy Helper", "A person&#39;s private conversation with Policy Helper", "At least one conversation is updated first.", "Approve rollout for Policy Helper"} {
+	for _, want := range []string{`selected value="4"`, "Your conversation with Policy Helper", "A person&#39;s private conversation with Policy Helper", "At least one conversation is updated first.", ">Approve<"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("rollout render missing %q:\n%s", want, markup)
 		}
@@ -243,13 +243,13 @@ func TestAgentUXR6Ops_RolloutDefaultsLabelsAndStages(t *testing.T) {
 	snapshot.CanApprove, snapshot.CanAdvance, snapshot.CanPromote = false, true, false
 	snapshot.Progress = &AgentRolloutProgress{Revision: 2, Stage: "APPROVED", Cursor: 0}
 	first := renderAgentOperationsTest(t, AgentRolloutPortableMountForTab(locale, snapshot, AgentPortableSnapshot{Available: true}, "rollout"))
-	if !strings.Contains(first, "Update the first conversations in rollout for Policy Helper") {
+	if !strings.Contains(first, ">Update the first conversation<") {
 		t.Fatalf("approved stage action unclear:\n%s", first)
 	}
 	snapshot.CanAdvance, snapshot.CanPromote = false, true
 	snapshot.Progress = &AgentRolloutProgress{Revision: 3, Stage: "CANARY_COMPLETE", Cursor: 1}
 	check := renderAgentOperationsTest(t, AgentRolloutPortableMountForTab(locale, snapshot, AgentPortableSnapshot{Available: true}, "rollout"))
-	if !strings.Contains(check, "I checked the first conversations in rollout for Policy Helper") {
+	if !strings.Contains(check, ">Looks right, update the rest<") {
 		t.Fatalf("canary check action unclear:\n%s", check)
 	}
 }

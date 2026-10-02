@@ -12,7 +12,7 @@ func TestTodo_AGENTUX_004(t *testing.T) {
 	markup := renderPersonaMention(t, PersonaMentionMenu(props))
 	for _, want := range []string{
 		`role="listbox"`, `role="option"`, `aria-label="People Guide, @people-guide, Agent"`,
-		`class="avatar small"`, `>PG</`, `class="persona-mention-name">People Guide`,
+		`class="agent-icon"`, `class="persona-mention-name">People Guide`,
 		`class="persona-mention-handle" dir="ltr">@people-guide`, `class="persona-mention-purpose">Answer policy questions`,
 		`aria-label="Agent" class="agent-badge">Agent`,
 	} {

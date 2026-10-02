@@ -141,7 +141,7 @@ func decodePersonaAdminCommand(r *http.Request) (personaAdminCommandRequest, err
 
 func validPersonaAdminCommandAction(action string) bool {
 	switch action {
-	case "CREATE_DRAFT", "CREATE_VERSION", "REQUEST_REVIEW", "REVIEW", "RUN_EVALUATION", "PUBLISH", "ROLLBACK", "INSTALL", "UNINSTALL", "REINSTALL", "SUSPEND", "RETIRE":
+	case "CREATE_DRAFT", "CREATE_VERSION", "REQUEST_REVIEW", "REVIEW", "RUN_EVALUATION", "PUBLISH", "ROLLBACK", "INSTALL", "UNINSTALL", "REINSTALL", "SUSPEND", "RETIRE", "SET_REACTIONS":
 		return true
 	default:
 		return false
@@ -177,6 +177,8 @@ func (h *Handler) writePersonaAdminCommandFailure(w http.ResponseWriter, err err
 			code, status = "document_unreadable", http.StatusForbidden
 		case "evaluation_unavailable":
 			code, status = "evaluation_unavailable", http.StatusServiceUnavailable
+		case "runtime_unavailable":
+			code, status = "runtime_unavailable", http.StatusServiceUnavailable
 		}
 	}
 	// The response carries only the code. The cause goes to the server log so

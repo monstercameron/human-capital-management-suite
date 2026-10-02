@@ -132,7 +132,9 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 			t.Fatalf("product shell contains fixture content %q", forbidden)
 		}
 	}
-	if got := recorder.Header().Get("Content-Security-Policy"); got != ProductContentSecurityPolicy("cell.test") {
+	// CHATBUG-014: the served document links its stylesheet, so its policy names
+	// the sheet's address instead of the hash of an inline copy.
+	if got := recorder.Header().Get("Content-Security-Policy"); got != productContentSecurityPolicyForStyleAsset("cell.test", defaultServedStylesheet().name, false) {
 		t.Fatalf("product CSP = %q", got)
 	}
 }

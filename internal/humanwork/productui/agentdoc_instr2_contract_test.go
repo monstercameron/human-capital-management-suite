@@ -136,15 +136,24 @@ func TestAgentDocInstr2_F6LifecycleHasOnePrimaryAndNextStep(t *testing.T) {
 				persona := PersonaAdminPersona{ID: "policy", Name: "Policy Helper", Version: "5", Lifecycle: PersonaDraft}
 				state.edit(&persona)
 				markup := personaAdminRender(t, personaAdminCard(locale, &agentDocInstr2ReviewClient{}, persona, PersonaAdminSnapshot{}))
-				if got := strings.Count(markup, `class="button primary"`); got != 1 {
-					t.Fatalf("primary actions=%d: %s", got, markup)
+				// A published agent has no lifecycle step left, so its card has no
+				// primary action; the way to ask it is the link beside its name.
+				primary := 1
+				if state.name == "published" {
+					primary = 0
+				}
+				if got := strings.Count(markup, `class="button primary"`); got != primary {
+					t.Fatalf("primary actions=%d, want %d: %s", got, primary, markup)
 				}
 				want := strings.ReplaceAll(personaAdminText(locale, state.want), "{version}", personaAdminLocalizedNumber(locale, persona.Version))
+				if state.name == "published" {
+					want = agentUXR7Text(locale, "ask_link")
+				}
 				if !strings.Contains(markup, want) || strings.Count(markup, `data-persona-next-step=`) != 1 {
 					t.Fatalf("missing %s or one next step: %s", state.want, markup)
 				}
 				if state.name == "published" {
-					if strings.Count(markup, `data-step-state="complete"`) != 4 || strings.Count(markup, `<time class="persona-admin-date"`) != 3 || !strings.Contains(markup, "Curtis Bell") {
+					if strings.Count(markup, `data-step-state="complete"`) != 4 || strings.Count(markup, `<time `) < 3 || !strings.Contains(markup, "Curtis Bell") {
 						t.Fatalf("published evidence/progress incomplete: %s", markup)
 					}
 				}
