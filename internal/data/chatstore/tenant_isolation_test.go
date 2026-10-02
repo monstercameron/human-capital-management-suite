@@ -11,6 +11,7 @@ import (
 )
 
 var chatTenantTables = []string{
+	"chat_admin_removal",
 	"chat_app_event",
 	"chat_app_event_seen",
 	"chat_app_installation",
@@ -27,10 +28,24 @@ var chatTenantTables = []string{
 	"chat_conversation_idempotency",
 	"chat_cursor",
 	"chat_ephemeral_post",
+	"chat_filter_enablement",
+	"chat_filter_hit",
+	"chat_filter_hit_review",
+	"chat_filter_version",
+	"chat_gate_answer",
+	"chat_gate_membership_basis",
+	"chat_gate_read_audit",
+	"chat_gate_state",
+	"chat_gate_submission_revision",
+	"chat_gate_version",
 	"chat_idempotency",
+	"chat_location_share",
 	"chat_membership",
 	"chat_moderation_action",
+	"chat_moderation_notice",
+	"chat_moderation_permission",
 	"chat_moderation_report",
+	"chat_moderation_role",
 	"chat_outbox",
 	"chat_outbox_cursor",
 	"chat_outbox_receipt",
@@ -49,8 +64,10 @@ var chatTenantTables = []string{
 	"chat_record_hold",
 	"chat_record_inventory",
 	"chat_retention_policy",
+	"chat_saved_item",
 	"chat_share_grant",
 	"chat_thread_follow",
+	"chat_voice_transcript",
 }
 
 // TestTodo_CHAT_004 proves every chat-owned table has forced

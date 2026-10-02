@@ -1,0 +1,247 @@
+{
+  "lane": "chatscale",
+  "date": "2026-10-01",
+  "scope": "Storage measurements and targeted fixes; the lane narrows the planning volume to one tenant, 200 seeded conversations, 2000 distinct people, 50000 default posts or 2000000 with -chatscale.large. Sidebar budget checks add 100 empty conversations.",
+  "claims": [
+    {
+      "todo": "CHATSCALE-001",
+      "requirement": "Repeatable skewed fixture with threads, edits, removals, references, reactions, pins, saved items and canonical outbox envelopes",
+      "implementation": "chatscale_fixture_test.go: chatscaleSeed, chatscaleSeedOutbox, chatscaleSize",
+      "proof": "TestTodo_CHATSCALE_001; fresh default and large TestTodo_CHATSCALE_001_Performance; current revisions agree with post state"
+    },
+    {
+      "todo": "CHATSCALE-001",
+      "requirement": "Opening reads, plans, buffers, percentiles and rows read per row returned",
+      "implementation": "chatscale_measure_test.go: chatscaleReads, chatscaleMeasure; chatscale_search_measure_test.go: chatscaleSearchPlan",
+      "proof": "TestTodo_CHATSCALE_001_Performance, TestTodo_CHATSCALE_001_Golden, TestTodo_CHATSCALE_001_SearchPlans; chatscale_report.json and chatscale_report_large.json"
+    },
+    {
+      "todo": "CHATSCALE-001",
+      "requirement": "Stated mixed workload, outbox growth, retention cost and relation statistics",
+      "implementation": "chatscale_workload_test.go: chatscaleWorkload, chatscaleRelations; chatscale_retention_test.go: chatscaleRetentionPlan",
+      "proof": "TestTodo_CHATSCALE_001_Workload, TestTodo_CHATSCALE_002_Integration_Retention, both volume reports"
+    },
+    {
+      "todo": "CHATSCALE-001",
+      "requirement": "Per-index write cost, size and WAL; 1000-sender contention",
+      "implementation": "chatscale_index_cost_test.go: chatscaleWriteSamples; chatscale_contention_test.go: TestTodo_CHATSCALE_001_Performance_Contention",
+      "proof": "TestTodo_CHATSCALE_001_Performance_Indexes at 50000 posts; chatscale_index_cost_report.json; 1000 successful unique committed sequences, pool-inclusive latency and independent database round-trip plus lock-wait samples"
+    },
+    {
+      "todo": "CHATSCALE-001",
+      "requirement": "Vacuum behaviour and measurement limits",
+      "implementation": "chatscale_fixture_test.go: chatscaleVacuum; chatscaleRelations",
+      "proof": "Explicit VACUUM ANALYZE time recorded before both measurement phases; tuple/vacuum counts are statistics estimates, not a long-running autovacuum study or exact dead-tuple bytes"
+    },
+    {
+      "todo": "CHATSCALE-002",
+      "requirement": "Bounded sequence keysets, covering and partial indexes without changing visibility",
+      "implementation": "Existing listPostsForward/listPostsBackward; migrations 00034, 00037, 00038; contracts_adapter.go: ListPins",
+      "proof": "TestTodo_CHATSCALE_002, _Integration, _Property, _Security, _Fault; _Property_Pins and _Performance_Pins; original pin metadata/order and visibility retained"
+    },
+    {
+      "todo": "CHATSCALE-002",
+      "requirement": "Bounded event-source merge and less work inside the send fence",
+      "implementation": "chatscale_timeline.go: chatscaleTimelineSQL; event_stream.go: readConversationEventPage; chatscale_send.go: chatscaleInsertPostSQL; store.go: sendPostRaw",
+      "proof": "TestTodo_CHATSCALE_002_Property_Timeline includes hidden offsets and empty sources; _Integration_Send proves authorization, replay, atomic revision failure and retry"
+    },
+    {
+      "todo": "CHATSCALE-002",
+      "requirement": "Online, resumable, reversible migrations and tuning reasons",
+      "implementation": "00034/00037/00038 use concurrent index builds outside transactions, including invalid-index retry; 00035 uses constant defaults and bounded head backfill; 00036 records fillfactor/autovacuum settings with short lock deadlines",
+      "proof": "TestTodo_CHATSCALE_002_Fault; actual migrations executed in isolated PostgreSQL schemas; TestTodo_CHATSCALE_003_Integration proves bounded resumable backfill. Live review database migrations were not applied by this lane; a 500-million-post live migration was not tested."
+    },
+    {
+      "todo": "CHATSCALE-003",
+      "requirement": "Personal cached counts, exact display cap, lazy fan-out, head metadata and repair",
+      "implementation": "chatscale_counts.go: ChatscaleSidebarCounts, ChatscaleRebuildCounts, ChatscaleBackfillHeads; 00035_chatscale_read_state.sql: chatscale_history_changed; recipient_state.go: Counts; contracts_adapter.go: lastActivitySubquery, GetConversation, ListConversations",
+      "proof": "TestTodo_CHATSCALE_003, _Property, _Fault, _Integration, _Integration_RollingSchema; cold rows use bounded history, warm sidebar plans execute no chat_post scan; membership/read/generation fences repair mutations and a suspect cache"
+    },
+    {
+      "todo": "CHATSCALE-003",
+      "requirement": "Bounded delivery and receipt retention",
+      "implementation": "store.go: PendingOutboxAfter receipt range bound; 00037_chatscale_receipt_retention.sql foreign-key cascade lookup index; existing PruneOutbox keeps receipt/cursor guards",
+      "proof": "Volume outbox/retention plans, TestTodo_CHATSCALE_002_Integration_Retention and TestTodo_CHATSCALE_001_Workload"
+    },
+    {
+      "todo": "CHATSCALE-002/003",
+      "requirement": "Native p95 budgets",
+      "implementation": "chatscale_budgets_test.go: chatscaleHistoryBudget, chatscaleSidebarBudget, chatscaleAssertBudget",
+      "proof": "Fresh 2000000-post TestTodo_CHATSCALE_001_Performance runs all four budgets; dedicated _002_Performance and _003_Performance run the default 50000-post fixture"
+    }
+  ],
+  "partial": [
+    "Partitioning/archival, partition retention/hold policy and cold read routing need an archive destination/tablespace and retention horizon. No such decision was supplied; it was requested during this lane. The globally unique chat_post identity and its foreign keys also need a coordinated partition identity design.",
+    "Sequence allocation still holds the route/privacy fence through insertion. Releasing it or making allocation nontransactional changes the existing route, authorization and rollback contract; it needs a coordinated decision and changes outside the owned store scope. The measured native budgets pass; the contention report does not claim 1000 simultaneous sends meet 30ms.",
+    "The implemented cache uses a post-transaction generation fence and lazy exact rebuilds. Connected-reader outbox warming, partitioned drains, operations-view metrics and application/client batch wiring are outside the owned files and are not implemented here.",
+    "The narrowed 2-million-post target is exercised. The planning target of 500 million posts, percentile series at 1/10/100/500 million, exact dead-tuple byte measurements and long-running autovacuum/concurrent live partition migration are not claimed. Browser, CI and race verification belong to the orchestrator."
+  ],
+  "needs_from_orchestrator": [
+    "definitions/storage/chat-storage-disposition.yaml: add sources 00034 through 00038 and the chatscale_read_state row: CHAT_DATA/CONTROL, owner internal/data/chatstore, tenant_id, forced tenant_isolation, append_only false, OPERATIONAL retention and PLATFORM_MANAGED encryption, matching chat_cursor; connect personal erasure for tenant/home/member cache rows.",
+    "internal/collaboration/chatrecipient/recipient.go and internal/application/chat_extensions.go: expose an authorized batch count port backed by ChatscaleSidebarCounts, taking host/home/subject from the authenticated principal and at most 300 conversations. Add batch transport/generated contracts and replace the per-room GetCounts loop in tools/uxqual/cmd/journeywasm/chat_recipient_wasm.go:203; authorize before any cache write.",
+    "Application composition/outbox consumer: register bounded tenant-scoped ChatscaleBackfillHeads batches (max 500), connected-reader cache warming and on-demand ChatscaleRebuildCounts repair; publish measured slow-query/table-growth thresholds on the operations surface. Retention/hold work per partition depends on the archive decision.",
+    "Coordinate the route/privacy fence and sequence-allocation design with routing/authorization owners; decide whether gaps after aborted allocations are allowed before removing the row lock.",
+    "Integrate the focused store call-site changes with the other lanes\u0027 edits in the same files; apply migrations to the review database, update planning evidence/changelog/devlog and run the full commit/browser gates. No index or commit operations were run by this lane."
+  ],
+  "new_findings": [
+    "The client still makes one GetCounts request per room; the new batch store API is not wired into that loop.",
+    "The outbox receipt foreign key is on outbox_id alone; its tenant-leading primary key caused a full receipt scan for each retained parent deletion. Migration 00037 fixes this.",
+    "The pin query selected a parallel nested-loop plan at volume despite LIMIT 200. The equivalent correlated visibility lookup avoids that startup cost; both forms are measured in chatscale_pins_report_large.json.",
+    "Pool queuing dominates 1000 simultaneous send latencies even when individual send latency meets budget; the contention figures are evidence for the coordinated sequence/fence work."
+  ],
+  "verification": {
+    "commands": [
+      "go test -count=1 -timeout 60m \u0027-coverprofile=.artifacts/coverage/chatscale.out\u0027 -v ./internal/data/chatstore/ -skip \u0027TestTodo_CHATSCALE_(001_Performance|002_Performance|003_Performance)\u0027",
+      "go test -count=1 -timeout 60m -v ./internal/data/chatstore/ -run \u0027^TestTodo_CHATSCALE_001_Performance$\u0027 -args \u0027-chatscale.report=chatscale_report.json\u0027",
+      "go test -count=1 -timeout 90m -v ./internal/data/chatstore/ -run \u0027^TestTodo_CHATSCALE_001_Performance$\u0027 -args \u0027-chatscale.large\u0027 \u0027-chatscale.report=chatscale_report_large.json\u0027",
+      "go test -count=1 -timeout 60m -v ./internal/data/chatstore/ -run \u0027^TestTodo_CHATSCALE_001_Performance_Indexes$\u0027 -args \u0027-chatscale.report=chatscale_index_cost_report.json\u0027",
+      "go test -count=1 -timeout 30m -v ./internal/data/chatstore/ -run \u0027^TestTodo_CHATSCALE_(002_Performance|003_Performance)$|^TestTodo_CHATSCALE_001_Performance_Contention$\u0027",
+      "go test -count=1 -timeout 30m -v ./internal/data/chatstore/ -run \u0027^TestTodo_CHATSCALE_002_Performance_Pins$\u0027 -args \u0027-chatscale.large\u0027 \u0027-chatscale.report=chatscale_pins_report_large.json\u0027 \u0027-chatscale.resume-schema=t_45aa916186484d958e04f60a2d706e22\u0027",
+      "go vet ./internal/data/chatstore/",
+      "gofmt -l $laneGoPaths",
+      "go build ./internal/... ./tools/uxqual/cmd/journeywasm/ ./cmd/hcmnext/",
+      "npm run check:coverage:staged"
+    ],
+    "environment": {
+      "GOTMPDIR": "C:/Users/mreca/Desktop/hcm-next/.artifacts/tmp",
+      "HCMNEXT_TEST_PG_CACHE": "C:/Users/mreca/Desktop/hcm-next/.artifacts/pg",
+      "HCMNEXT_TEST_DATABASE_URL": "postgres://postgres@127.0.0.1:18540/postgres?sslmode=disable",
+      "GOCACHE": "C:/Users/mreca/Desktop/hcm-next/.artifacts/gocache",
+      "TEMP": "C:/Users/mreca/Desktop/hcm-next/.artifacts/tmp",
+      "TMP": "C:/Users/mreca/Desktop/hcm-next/.artifacts/tmp",
+      "GOPROXY": "off"
+    },
+    "pass_lines": [
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002 (0.64s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Integration (0.95s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Property (2.39s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Security (2.22s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Fault (0.66s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003 (1.35s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003_Property (2.20s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003_Fault (0.94s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003_Integration (0.74s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003_Integration_RollingSchema (0.78s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001 (1.96s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Golden (0.00s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Property_Pins (9.13s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Integration_Retention (10.26s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_SearchPlans (1.19s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Integration_Send (0.59s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Property_Timeline (0.68s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Workload (1.05s)",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "coverage: 75.8% of statements",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t448.022s\tcoverage: 75.8% of statements",
+        "log": "final-package-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Performance (29.14s)",
+        "log": "fresh-default-proof.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t29.373s",
+        "log": "fresh-default-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Performance (550.67s)",
+        "log": "fresh-large-proof.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t550.898s",
+        "log": "fresh-large-proof.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Performance_Indexes (38.75s)",
+        "log": "index-acceptance.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t39.045s",
+        "log": "index-acceptance.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Performance (66.36s)",
+        "log": "budget-contention-acceptance.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_003_Performance (11.29s)",
+        "log": "budget-contention-acceptance.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_001_Performance_Contention (8.69s)",
+        "log": "budget-contention-acceptance.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t86.666s",
+        "log": "budget-contention-acceptance.log"
+      },
+      {
+        "result": "--- PASS: TestTodo_CHATSCALE_002_Performance_Pins (23.82s)",
+        "log": "pins-query-proof.log"
+      },
+      {
+        "result": "ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/chatstore\t24.077s",
+        "log": "pins-query-proof.log"
+      }
+    ],
+    "coverage_gate": "PASS no Go packages to gate (shared index empty); actual package coverage 75.8%",
+    "cleanup": "Validated and dropped the exclusively owned orphan two-million-post schema on test port 18540. Fresh large fixture cleaned itself up normally. Automatic approval review rejected Remove-Item of the validated .artifacts/lanes/agent-ui/chatscale scratch directory with 'blocked by policy'; orchestrator cleanup remains."
+  }
+}

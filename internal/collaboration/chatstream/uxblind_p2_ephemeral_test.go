@@ -168,6 +168,9 @@ func (ephemeralTestAuth) Authorize(_ context.Context, access Access) error {
 }
 
 func TestTodo_AGENTP_011_Race(t *testing.T) {
+	// Runs beside the package's other parallel tests so the race detector
+	// sees this path against them.
+	t.Parallel()
 	now := time.Unix(100, 0).UTC()
 	s, err := New(Config{Key: []byte("secret"), Reader: testReader{}, Authorizer: ephemeralTestAuth{}, QueueSize: 8, ReplayLimit: 4, CursorTTL: time.Hour, Clock: func() time.Time { return now }})
 	if err != nil {

@@ -13,11 +13,13 @@ import (
 
 	"github.com/google/uuid"
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
 )
 
 type Service struct {
 	chat.ConversationService
+	status        chat.ChannelStatusService
 	directory     chatrouting.Directory
 	cache         *chatrouting.RouteCache
 	defaultShard  string
@@ -27,6 +29,7 @@ type Service struct {
 }
 
 type Options struct {
+	ChannelStatus          chat.ChannelStatusService
 	Directory              chatrouting.Directory
 	Cache                  *chatrouting.RouteCache
 	DefaultShard           string
@@ -45,7 +48,7 @@ func New(next chat.ConversationService, opts Options) (*Service, error) {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
-	return &Service{ConversationService: next, directory: opts.Directory, cache: opts.Cache, defaultShard: opts.DefaultShard, policy: opts.PlacementPolicy, policyVersion: opts.PlacementPolicyVersion, now: opts.Now}, nil
+	return &Service{ConversationService: next, status: opts.ChannelStatus, directory: opts.Directory, cache: opts.Cache, defaultShard: opts.DefaultShard, policy: opts.PlacementPolicy, policyVersion: opts.PlacementPolicyVersion, now: opts.Now}, nil
 }
 
 func stableConversationID(tenant, key string) string {
@@ -177,6 +180,11 @@ func leaseWrite[T any](ctx context.Context, s *Service, tenant, conversation str
 }
 
 func (s *Service) SendPost(ctx context.Context, r chat.SendPostRequest) (chat.Post, error) {
+	action := chatpolicy.StatusPost
+	if r.ParentID != "" {
+		action = chatpolicy.StatusReply
+	}
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, action, nil)
 	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Post, error) {
 		return s.ConversationService.SendPost(c, r)
 	})
@@ -187,6 +195,13 @@ func (s *Service) SendPost(ctx context.Context, r chat.SendPostRequest) (chat.Po
 // committer is an optional chat extension, but its write still obeys the same
 // tenant and placement fence as SendPost.
 func (s *Service) CommitPersonaReply(ctx context.Context, r chat.PersonaReplyCommitRequest) (chat.Post, error) {
+	checker, ok := s.status.(interface {
+		CheckPersonaReplyChannelStatus(context.Context, chat.PersonaReplyCommitRequest) error
+	})
+	if !ok {
+		return chat.Post{}, chat.ErrUnavailable
+	}
+	ctx = chat.WithChannelMutationCheck(ctx, func(c context.Context) error { return checker.CheckPersonaReplyChannelStatus(c, r) })
 	committer, ok := s.ConversationService.(chat.PersonaReplyCommitter)
 	if !ok {
 		return chat.Post{}, chat.ErrUnavailable
@@ -216,42 +231,53 @@ func (s *Service) SendEphemeralPost(ctx context.Context, r chat.SendEphemeralPos
 }
 
 func (s *Service) UpdateConversation(ctx context.Context, r chat.UpdateConversationRequest) (chat.Conversation, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.Conversation.TenantID, r.Conversation.ID, chatpolicy.StatusRename, nil)
 	return leaseWrite(ctx, s, r.Conversation.TenantID, r.Conversation.ID, func(c context.Context) (chat.Conversation, error) {
 		return s.ConversationService.UpdateConversation(c, r)
 	})
 }
 
 func (s *Service) AddMembership(ctx context.Context, r chat.AddMembershipRequest) (chat.Membership, error) {
+	if r.Membership.SubjectID == r.Principal.SubjectID && r.Membership.HomeTenantID == r.Principal.TenantID {
+		ctx = s.statusAdmission(ctx, r.Principal, r.Membership.TenantID, r.Membership.ConversationID)
+	} else {
+		ctx = s.statusMutation(ctx, r.Principal, r.Membership.TenantID, r.Membership.ConversationID, chatpolicy.StatusManageMembers, nil)
+	}
 	return leaseWrite(ctx, s, r.Membership.TenantID, r.Membership.ConversationID, func(c context.Context) (chat.Membership, error) {
 		return s.ConversationService.AddMembership(c, r)
 	})
 }
 
 func (s *Service) RemoveMembership(ctx context.Context, r chat.RemoveMembershipRequest) (chat.Membership, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, chatpolicy.StatusManageMembers, &chat.Principal{TenantID: r.HomeTenantID, SubjectID: r.SubjectID})
 	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Membership, error) {
 		return s.ConversationService.RemoveMembership(c, r)
 	})
 }
 
 func (s *Service) EditPost(ctx context.Context, r chat.EditPostRequest) (chat.Post, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, chatpolicy.StatusEdit, nil)
 	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Post, error) {
 		return s.ConversationService.EditPost(c, r)
 	})
 }
 
 func (s *Service) DeletePost(ctx context.Context, r chat.DeletePostRequest) (chat.Post, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, chatpolicy.StatusEdit, nil)
 	return leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (chat.Post, error) {
 		return s.ConversationService.DeletePost(c, r)
 	})
 }
 
 func (s *Service) AddReaction(ctx context.Context, r chat.AddReactionRequest) (chat.Reaction, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.Reaction.TenantID, r.Reaction.ConversationID, chatpolicy.StatusReact, nil)
 	return leaseWrite(ctx, s, r.Reaction.TenantID, r.Reaction.ConversationID, func(c context.Context) (chat.Reaction, error) {
 		return s.ConversationService.AddReaction(c, r)
 	})
 }
 
 func (s *Service) RemoveReaction(ctx context.Context, r chat.RemoveReactionRequest) error {
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, chatpolicy.StatusReact, nil)
 	_, err := leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (struct{}, error) {
 		return struct{}{}, s.ConversationService.RemoveReaction(c, r)
 	})
@@ -259,12 +285,14 @@ func (s *Service) RemoveReaction(ctx context.Context, r chat.RemoveReactionReque
 }
 
 func (s *Service) PinPost(ctx context.Context, r chat.PinPostRequest) (chat.Pin, error) {
+	ctx = s.statusMutation(ctx, r.Principal, r.Pin.TenantID, r.Pin.ConversationID, chatpolicy.StatusPin, nil)
 	return leaseWrite(ctx, s, r.Pin.TenantID, r.Pin.ConversationID, func(c context.Context) (chat.Pin, error) {
 		return s.ConversationService.PinPost(c, r)
 	})
 }
 
 func (s *Service) UnpinPost(ctx context.Context, r chat.UnpinPostRequest) error {
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, chatpolicy.StatusPin, nil)
 	_, err := leaseWrite(ctx, s, r.TenantID, r.ConversationID, func(c context.Context) (struct{}, error) {
 		return struct{}{}, s.ConversationService.UnpinPost(c, r)
 	})
@@ -305,6 +333,11 @@ func (s *Service) SuggestReferences(ctx context.Context, r chat.SuggestReference
 }
 
 func (s *Service) SendPostWithReferences(ctx context.Context, r chat.SendPostWithReferencesRequest) (chat.Post, error) {
+	action := chatpolicy.StatusPost
+	if r.ParentID != "" {
+		action = chatpolicy.StatusReply
+	}
+	ctx = s.statusMutation(ctx, r.Principal, r.TenantID, r.ConversationID, action, nil)
 	v, err := s.referenceService()
 	if err != nil {
 		return chat.Post{}, err
@@ -347,6 +380,7 @@ func (s *Service) ForwardPost(ctx context.Context, r chat.ForwardPostRequest) (c
 	if err != nil {
 		return chat.Post{}, err
 	}
+	ctx = s.statusMutation(ctx, r.Principal, tenant, r.DestinationConversationID, chatpolicy.StatusPost, nil)
 	return leaseWrite(ctx, s, tenant, r.DestinationConversationID, func(c context.Context) (chat.Post, error) {
 		return v.ForwardPost(c, r)
 	})

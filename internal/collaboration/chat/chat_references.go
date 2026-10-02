@@ -247,6 +247,9 @@ func (s *Service) validateReference(ctx context.Context, p Principal, tenant, co
 	if ref.Kind == MediaAttachment {
 		return s.validateMediaReference(ctx, tenant, conversation, ref)
 	}
+	if ref.Kind == LocationReference {
+		return s.validateLocationReference(ctx, p, tenant, conversation, ref)
+	}
 	if ref.Kind == AgentMention {
 		ad, ok := s.referenceDirectory.(AgentReferenceDirectory)
 		if !ok || !ad.AgentEligible(ctx, tenant, conversation, ref.ID) {

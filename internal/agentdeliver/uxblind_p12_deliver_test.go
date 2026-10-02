@@ -259,6 +259,9 @@ func TestTodo_AGENTP_013_Security_SharePreviewBindsDestinationAndPolicy(t *testi
 }
 
 func TestTodo_AGENTP_012_Race(t *testing.T) {
+	// Runs beside the package's other parallel tests so the race detector
+	// sees this path against them.
+	t.Parallel()
 	manager := AudienceMember{TenantID: "tenant-a", SubjectID: "manager"}
 	audience := &p12Audience{snapshots: []AudienceSnapshot{
 		{Revision: 3, CurrentMembers: []AudienceMember{manager}},
@@ -358,6 +361,9 @@ func TestTodo_AGENTP_013_Security(t *testing.T) {
 }
 
 func TestTodo_AGENTP_013_Race(t *testing.T) {
+	// Runs beside the package's other parallel tests so the race detector
+	// sees this path against them.
+	t.Parallel()
 	manager := AudienceMember{TenantID: "tenant-a", SubjectID: "manager"}
 	guest := AudienceMember{TenantID: "tenant-a", SubjectID: "new-guest", Guest: true}
 	conversation := p12Conversation(PublicChannel)

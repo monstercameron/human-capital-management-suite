@@ -172,7 +172,11 @@ func (s *Adapter) GetConversation(ctx context.Context, tenantID, id string) (cha
 	var c chat.Conversation
 	var kind, life string
 	var rev, members int64
-	e = tx.QueryRow(ctx, getConversationRow, tenantID, id).Scan(&c.ID, &c.TenantID, &kind, &c.Name, &c.OwnerID, &rev, &life, &members, &c.LastActivityAt)
+	query, e := chatscaleActivityQuery(ctx, tx, getConversationRow)
+	if e != nil {
+		return c, e
+	}
+	e = tx.QueryRow(ctx, query, tenantID, id).Scan(&c.ID, &c.TenantID, &kind, &c.Name, &c.OwnerID, &rev, &life, &members, &c.LastActivityAt)
 	if e != nil {
 		if errors.Is(e, dbport.ErrNoRows) {
 			return chat.Conversation{}, chat.ErrNotFound
@@ -181,7 +185,7 @@ func (s *Adapter) GetConversation(ctx context.Context, tenantID, id string) (cha
 	}
 	c.Kind = chat.ConversationKind(kind)
 	c.Revision = uint64(rev)
-	c.Archived = life != "ACTIVE"
+	c.Archived = life == "ARCHIVED"
 	c.MemberCount = uint32(members)
 	return c, tx.Commit(ctx)
 }
@@ -194,7 +198,7 @@ func (s *Adapter) GetConversation(ctx context.Context, tenantID, id string) (cha
 // surviving post yields NULL rather than a zero time.
 const memberCountSubquery = `(SELECT count(*) FROM chat_membership mc WHERE mc.tenant_id=c.tenant_id AND mc.conversation_id=c.id AND mc.state='active')`
 
-const lastActivitySubquery = `(SELECT max(lp.created_at) FROM chat_post lp WHERE lp.tenant_id=c.tenant_id AND lp.conversation_id=c.id AND lp.tombstoned=false)`
+const lastActivitySubquery = `(CASE WHEN c.chatscale_head_ready THEN c.chatscale_last_activity_at ELSE (SELECT lp.created_at FROM chat_post lp WHERE lp.tenant_id=c.tenant_id AND lp.conversation_id=c.id AND lp.tombstoned=false ORDER BY lp.created_at DESC,lp.id DESC LIMIT 1) END)`
 
 const getConversationRow = `SELECT c.id,c.tenant_id,c.kind,c.name,c.owner_id,c.settings_revision,c.lifecycle,` +
 	memberCountSubquery + ` AS member_count,` + lastActivitySubquery + ` AS last_activity_at ` +
@@ -211,7 +215,7 @@ const listConversationsJoined = `SELECT c.id,c.tenant_id,c.kind,c.name,c.owner_i
 
 const listConversationsDiscoverable = `SELECT c.id,c.tenant_id,c.kind,c.name,c.owner_id,c.settings_revision,c.lifecycle,(m.member_id IS NOT NULL) AS joined,` +
 	memberCountSubquery + ` AS member_count,` + lastActivitySubquery + ` AS last_activity_at ` +
-	`FROM chat_conversation c LEFT JOIN chat_membership m ON m.tenant_id=c.tenant_id AND m.conversation_id=c.id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE c.tenant_id=$1 AND c.id>$4 AND (m.member_id IS NOT NULL OR (c.kind='PUBLIC_CHANNEL' AND c.lifecycle='ACTIVE')) ORDER BY c.id LIMIT $5`
+	`FROM chat_conversation c LEFT JOIN chat_membership m ON m.tenant_id=c.tenant_id AND m.conversation_id=c.id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE c.tenant_id=$1 AND c.id>$4 AND (m.member_id IS NOT NULL OR (c.kind='PUBLIC_CHANNEL' AND c.lifecycle<>'ARCHIVED')) ORDER BY c.id LIMIT $5`
 
 func (s *Adapter) ListConversations(ctx context.Context, principal chat.Principal, tenantID string, p chat.Page, scope chat.ConversationScope) (chat.ListConversationsResponse, error) {
 	tx, e := s.pool.Begin(ctx)
@@ -234,6 +238,10 @@ func (s *Adapter) ListConversations(ctx context.Context, principal chat.Principa
 	if scope.IncludeDiscoverable {
 		query = listConversationsDiscoverable
 	}
+	query, e = chatscaleActivityQuery(ctx, tx, query)
+	if e != nil {
+		return chat.ListConversationsResponse{}, e
+	}
 	rows, e := tx.Query(ctx, query, tenantID, principal.SubjectID, principal.TenantID, cursor, n+1)
 	if e != nil {
 		return chat.ListConversationsResponse{}, e
@@ -249,7 +257,7 @@ func (s *Adapter) ListConversations(ctx context.Context, principal chat.Principa
 		}
 		c.Kind = chat.ConversationKind(k)
 		c.Revision = uint64(r)
-		c.Archived = l != "ACTIVE"
+		c.Archived = l == "ARCHIVED"
 		c.MemberCount = uint32(members)
 		out.Conversations = append(out.Conversations, c)
 	}
@@ -322,7 +330,7 @@ func (s *Adapter) UpdateConversation(ctx context.Context, actor chat.Principal, 
 		}
 	}
 	var rev int64
-	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,owner_id=$2,settings_revision=settings_revision+1,audience_revision=audience_revision+1,lifecycle=$3 WHERE tenant_id=$4 AND id=$5 AND settings_revision=$6 RETURNING settings_revision,owner_id`, c.Name, c.OwnerID, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &c.OwnerID)
+	err = tx.QueryRow(ctx, `UPDATE chat_conversation SET name=$1,owner_id=$2,settings_revision=settings_revision+1,audience_revision=audience_revision+1,lifecycle=CASE WHEN $3='ARCHIVED' THEN 'ARCHIVED' WHEN lifecycle='ARCHIVED' THEN 'ACTIVE' ELSE lifecycle END WHERE tenant_id=$4 AND id=$5 AND settings_revision=$6 RETURNING settings_revision,owner_id`, c.Name, c.OwnerID, map[bool]string{true: "ARCHIVED", false: "ACTIVE"}[c.Archived], c.TenantID, c.ID, expected).Scan(&rev, &c.OwnerID)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return c, chat.ErrConflict
 	}
@@ -350,6 +358,10 @@ func (s *Adapter) GetMembership(ctx context.Context, t, cid, home, mid string) (
 	var joined time.Time
 	e = tx.QueryRow(ctx, `SELECT conversation_id,tenant_id,home_tenant_id,member_id,role,joined_at,left_at,history_visibility,revision FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4`, t, cid, home, mid).Scan(&m.ConversationID, &m.TenantID, &m.HomeTenantID, &m.SubjectID, &role, &joined, &m.LeftAt, &hist, &rev)
 	if e != nil {
+		if errors.Is(e, dbport.ErrNoRows) {
+			// Name the absence for the service; the driver's cause stays matchable.
+			e = fmt.Errorf("%w: %w", chat.ErrNotFound, e)
+		}
 		return m, e
 	}
 	m.Role = chat.MembershipRole(role)
@@ -469,19 +481,11 @@ func (s *Adapter) PutMembership(ctx context.Context, actor chat.Principal, m cha
 	if err = fenceContextWrite(ctx, tx, m.TenantID, m.ConversationID); err != nil {
 		return m, err
 	}
-	var joined time.Time
-	var rev int64
-	err = tx.QueryRow(ctx, `INSERT INTO chat_membership(tenant_id,conversation_id,home_tenant_id,member_id,role,state,history_visibility,revision) VALUES($1,$2,$3,$4,$5,'active',$6,1) ON CONFLICT (tenant_id,conversation_id,home_tenant_id,member_id) DO UPDATE SET role=EXCLUDED.role,state='active',joined_at=CASE WHEN chat_membership.state='active' THEN chat_membership.joined_at ELSE now() END,left_at=NULL,history_visibility=EXCLUDED.history_visibility,revision=chat_membership.revision+1 RETURNING joined_at,revision`, m.TenantID, m.ConversationID, m.HomeTenantID, m.SubjectID, string(m.Role), string(m.HistoryVisibility)).Scan(&joined, &rev)
+	if err = checkGateMembershipTx(ctx, tx, m); err != nil {
+		return m, err
+	}
+	m, err = putMembershipTx(ctx, tx, actor, m)
 	if err != nil {
-		return m, err
-	}
-	m.JoinedAt = &joined
-	m.LeftAt = nil
-	m.Revision = uint64(rev)
-	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, m.TenantID, m.ConversationID); err != nil {
-		return m, err
-	}
-	if err = emitAdapterEvent(ctx, tx, m.TenantID, m.ConversationID, "membership.added", actor.TenantID, actor.SubjectID, m.HomeTenantID+":"+m.SubjectID, m.Revision, m); err != nil {
 		return m, err
 	}
 	return m, tx.Commit(ctx)
@@ -503,21 +507,8 @@ func (s *Adapter) RemoveMembership(ctx context.Context, actor chat.Principal, t,
 	if err = fenceContextWrite(ctx, tx, t, cid); err != nil {
 		return m, err
 	}
-	var left time.Time
-	var rev int64
-	err = tx.QueryRow(ctx, `UPDATE chat_membership SET state='removed',left_at=now(),revision=revision+1 WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND revision=$5 AND state='active' RETURNING left_at,revision`, t, cid, home, mid, expected).Scan(&left, &rev)
-	if errors.Is(err, dbport.ErrNoRows) {
-		return m, chat.ErrConflict
-	}
+	m, err = removeMembershipTx(ctx, tx, actor, t, cid, home, mid, expected)
 	if err != nil {
-		return m, err
-	}
-	m.LeftAt = &left
-	m.Revision = uint64(rev)
-	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, t, cid); err != nil {
-		return m, err
-	}
-	if err = emitAdapterEvent(ctx, tx, t, cid, "membership.removed", actor.TenantID, actor.SubjectID, home+":"+mid, m.Revision, m); err != nil {
 		return m, err
 	}
 	return m, tx.Commit(ctx)
@@ -790,6 +781,10 @@ func (s *Adapter) GetPost(ctx context.Context, tenantID, conversationID, postID 
 	var x Post
 	err = tx.QueryRow(ctx, `SELECT id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,revision,tombstoned,created_at,parent_id,references_json,source_attribution FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$3`, tenantID, conversationID, postID).Scan(&x.ID, &x.TenantID, &x.ConversationID, &x.AuthorID, &x.AuthorHomeTenantID, &x.Sequence, &x.Body, &x.Revision, &x.Tombstoned, &x.CreatedAt, &x.ParentID, &x.References, &x.SourceAttribution)
 	if err != nil {
+		if errors.Is(err, dbport.ErrNoRows) {
+			// Name the absence for the service; the driver's cause stays matchable.
+			err = fmt.Errorf("%w: %w", chat.ErrNotFound, err)
+		}
 		return chat.Post{}, err
 	}
 	p, err := chatPost(x)
@@ -891,6 +886,12 @@ func (s *Adapter) revise(ctx context.Context, t, cid, id, home, author, body str
 	if err != nil {
 		return p, err
 	}
+	if !deleted {
+		if err = RecordRenderingRevisionTx(ctx, tx, t, id, uint64(x.Revision), nil); err != nil {
+			return chat.Post{}, err
+		}
+	}
+
 	var policyRevision, eventSequence int64
 	if err = tx.QueryRow(ctx, `UPDATE chat_conversation SET event_sequence=event_sequence+1 WHERE tenant_id=$1 AND id=$2 RETURNING settings_revision,event_sequence`, t, cid).Scan(&policyRevision, &eventSequence); err != nil {
 		return p, err
@@ -945,7 +946,7 @@ func (s *Adapter) Search(ctx context.Context, r chat.SearchRequest) (chat.Search
 	if !r.SkipMessages {
 		// The predicate repeats the GIN index expression exactly. Active
 		// membership and history visibility filter before results or snippets.
-		rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,c.name,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND c.lifecycle='ACTIVE' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND (p.created_at,p.id)<($7,$8) ORDER BY p.created_at DESC,p.id DESC LIMIT $9`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, messageBefore, messageID, limit+1)
+		rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,c.name,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND c.lifecycle<>'ARCHIVED' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND (p.created_at,p.id)<($7,$8) ORDER BY p.created_at DESC,p.id DESC LIMIT $9`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, messageBefore, messageID, limit+1)
 		if err != nil {
 			return chat.SearchResponse{}, err
 		}
@@ -974,7 +975,7 @@ func (s *Adapter) Search(ctx context.Context, r chat.SearchRequest) (chat.Search
 		}
 	}
 	if !r.SkipChannels {
-		channelRows, err := tx.Query(ctx, `SELECT c.id,c.name,c.kind,(mine.member_id IS NOT NULL) FROM chat_conversation c LEFT JOIN chat_membership mine ON mine.tenant_id=c.tenant_id AND mine.conversation_id=c.id AND mine.member_id=$2 AND mine.home_tenant_id=$3 AND mine.state='active' WHERE c.tenant_id=$1 AND ($4='' OR c.id=$4) AND c.id>$5 AND c.lifecycle='ACTIVE' AND c.kind IN ('PUBLIC_CHANNEL','PRIVATE_CHANNEL') AND (mine.member_id IS NOT NULL OR c.kind='PUBLIC_CHANNEL') AND (to_tsvector('simple',c.name) @@ plainto_tsquery('simple',$6) OR lower(c.name) LIKE $7 ESCAPE E'\\') ORDER BY c.id LIMIT $8`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, channelCursor, r.Query, escapeLikePrefix(r.Query), limit+1)
+		channelRows, err := tx.Query(ctx, `SELECT c.id,c.name,c.kind,(mine.member_id IS NOT NULL) FROM chat_conversation c LEFT JOIN chat_membership mine ON mine.tenant_id=c.tenant_id AND mine.conversation_id=c.id AND mine.member_id=$2 AND mine.home_tenant_id=$3 AND mine.state='active' WHERE c.tenant_id=$1 AND ($4='' OR c.id=$4) AND c.id>$5 AND c.lifecycle<>'ARCHIVED' AND c.kind IN ('PUBLIC_CHANNEL','PRIVATE_CHANNEL') AND (mine.member_id IS NOT NULL OR c.kind='PUBLIC_CHANNEL') AND (to_tsvector('simple',c.name) @@ plainto_tsquery('simple',$6) OR lower(c.name) LIKE $7 ESCAPE E'\\') ORDER BY c.id LIMIT $8`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, channelCursor, r.Query, escapeLikePrefix(r.Query), limit+1)
 		if err != nil {
 			return out, err
 		}
@@ -1377,7 +1378,7 @@ func (s *Adapter) ListPins(ctx context.Context, t, cid string) ([]chat.Pin, erro
 	if err = tenant(ctx, tx, t); err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, `SELECT pin.conversation_id,pin.post_id,pin.tenant_id,pin.home_tenant_id,pin.member_id,pin.revision,pin.created_at FROM chat_pin pin JOIN chat_post post ON post.tenant_id=pin.tenant_id AND post.conversation_id=pin.conversation_id AND post.id=pin.post_id WHERE pin.tenant_id=$1 AND pin.conversation_id=$2 AND post.tombstoned=false ORDER BY pin.created_at DESC,pin.post_id DESC LIMIT 200`, t, cid)
+	rows, err := tx.Query(ctx, `SELECT pin.conversation_id,pin.post_id,pin.tenant_id,pin.home_tenant_id,pin.member_id,pin.revision,pin.created_at FROM chat_pin pin JOIN LATERAL (SELECT true FROM chat_post post WHERE post.tenant_id=$1 AND post.conversation_id=$2 AND post.id=pin.post_id AND NOT post.tombstoned LIMIT 1) visible ON true WHERE pin.tenant_id=$1 AND pin.conversation_id=$2 ORDER BY pin.created_at DESC,pin.post_id DESC LIMIT 200`, t, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -1691,4 +1692,47 @@ func nullableJSON(b []byte) any {
 		return nil
 	}
 	return string(b)
+}
+
+func putMembershipTx(ctx context.Context, tx dbport.Tx, actor chat.Principal, m chat.Membership) (chat.Membership, error) {
+	var err error
+	var joined time.Time
+	var rev int64
+	err = tx.QueryRow(ctx, `INSERT INTO chat_membership(tenant_id,conversation_id,home_tenant_id,member_id,role,state,history_visibility,revision) VALUES($1,$2,$3,$4,$5,'active',$6,1) ON CONFLICT (tenant_id,conversation_id,home_tenant_id,member_id) DO UPDATE SET role=EXCLUDED.role,state='active',joined_at=CASE WHEN chat_membership.state='active' THEN chat_membership.joined_at ELSE now() END,left_at=NULL,history_visibility=EXCLUDED.history_visibility,revision=chat_membership.revision+1 RETURNING joined_at,revision`, m.TenantID, m.ConversationID, m.HomeTenantID, m.SubjectID, string(m.Role), string(m.HistoryVisibility)).Scan(&joined, &rev)
+	if err != nil {
+		return m, err
+	}
+	m.JoinedAt = &joined
+	m.LeftAt = nil
+	m.Revision = uint64(rev)
+	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, m.TenantID, m.ConversationID); err != nil {
+		return m, err
+	}
+	if err = emitAdapterEvent(ctx, tx, m.TenantID, m.ConversationID, "membership.added", actor.TenantID, actor.SubjectID, m.HomeTenantID+":"+m.SubjectID, m.Revision, m); err != nil {
+		return m, err
+	}
+	return m, nil
+}
+
+func removeMembershipTx(ctx context.Context, tx dbport.Tx, actor chat.Principal, t, cid, home, mid string, expected uint64) (chat.Membership, error) {
+	m := chat.Membership{TenantID: t, HomeTenantID: home, ConversationID: cid, SubjectID: mid}
+	var err error
+	var left time.Time
+	var rev int64
+	err = tx.QueryRow(ctx, `UPDATE chat_membership SET state='removed',left_at=now(),revision=revision+1 WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND revision=$5 AND state='active' RETURNING left_at,revision`, t, cid, home, mid, expected).Scan(&left, &rev)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return m, chat.ErrConflict
+	}
+	if err != nil {
+		return m, err
+	}
+	m.LeftAt = &left
+	m.Revision = uint64(rev)
+	if _, err = tx.Exec(ctx, `UPDATE chat_conversation SET audience_revision=audience_revision+1 WHERE tenant_id=$1 AND id=$2`, t, cid); err != nil {
+		return m, err
+	}
+	if err = emitAdapterEvent(ctx, tx, t, cid, "membership.removed", actor.TenantID, actor.SubjectID, home+":"+mid, m.Revision, m); err != nil {
+		return m, err
+	}
+	return m, nil
 }

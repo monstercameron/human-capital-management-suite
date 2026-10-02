@@ -145,6 +145,9 @@ func TestTodo_AGENTP_013_Security(t *testing.T) {
 }
 
 func TestTodo_AGENTP_013_Race(t *testing.T) {
+	// Runs beside the package's other parallel tests so the race detector
+	// sees this path against them.
+	t.Parallel()
 	service, _, audience, committer := personaShareFixture(t)
 	preview, err := service.PreviewPersonaShare(context.Background(), PersonaSharePreviewRequest{Principal: personaSharePrincipal(), EphemeralResultID: "ephemeral-result"})
 	if err != nil {

@@ -85,10 +85,27 @@ func (f validatingFake) ValidateCreate(context.Context, chat.CreateConversationR
 	return f.validationErr
 }
 
+// openStatus reports every channel as open, so tests of routing are not
+// refused by the channel-status check that now runs before a write.
+type openStatus struct{}
+
+func (openStatus) GetChannelStatus(_ context.Context, r chat.GetConversationRequest) (chat.ChannelStatus, error) {
+	return chat.ChannelStatus{TenantID: r.TenantID, ConversationID: r.ConversationID, Revision: 1}, nil
+}
+func (openStatus) AllowedStatusTransitions(context.Context, chat.GetConversationRequest) ([]chat.StatusTransition, error) {
+	return nil, nil
+}
+func (openStatus) ChangeChannelStatus(context.Context, chat.ChangeChannelStatusRequest) (chat.ChannelStatus, error) {
+	return chat.ChannelStatus{}, chat.ErrUnavailable
+}
+func (openStatus) CheckPersonaReplyChannelStatus(context.Context, chat.PersonaReplyCommitRequest) error {
+	return nil
+}
+
 func newAdapter(t *testing.T, f chat.ConversationService) (*Service, *chatrouting.MemoryDirectory) {
 	t.Helper()
 	d := chatrouting.NewMemoryDirectory()
-	s, err := New(f, Options{Directory: d, DefaultShard: "s1"})
+	s, err := New(f, Options{Directory: d, DefaultShard: "s1", ChannelStatus: openStatus{}})
 	if err != nil {
 		t.Fatal(err)
 	}

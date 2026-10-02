@@ -86,6 +86,32 @@ func TestTodo_CHAT_030_Integration(t *testing.T) {
 	}
 }
 
+func TestTodo_AGENTUX_005_RepairUnroutedDirectConversation(t *testing.T) {
+	store := adapterDB(t)
+	ctx := context.Background()
+	conversation := chat.Conversation{ID: "policy-dm", TenantID: "tenant-a", Kind: chat.Direct, OwnerID: "admin"}
+	members := []chat.Membership{
+		{ConversationID: conversation.ID, TenantID: conversation.TenantID, HomeTenantID: conversation.TenantID, SubjectID: "admin", Role: chat.Manager, HistoryVisibility: chat.FullHistory},
+		{ConversationID: conversation.ID, TenantID: conversation.TenantID, HomeTenantID: conversation.TenantID, SubjectID: "policy-helper", Role: chat.Member, HistoryVisibility: chat.FullHistory},
+	}
+	if _, err := store.CreateConversation(ctx, conversation, members, "broken-policy-dm"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Store.PutPersonaChannelPolicy(ctx, conversation.TenantID, conversation.ID, 0, PersonaChannelPolicy{MaxTier: "T0", AllowedDataClasses: []string{"PUBLIC"}, AllowedChannelClasses: []string{"ONE_TO_ONE"}, PlacementClass: "ONE_TO_ONE_DM", AlwaysPrivate: true}); err != nil {
+		t.Fatal(err)
+	}
+	repaired, err := store.Store.RepairUnroutedDirectConversation(ctx, conversation.TenantID, conversation.ID, conversation.OwnerID, "policy-helper")
+	if err != nil || !repaired {
+		t.Fatalf("repair=%t err=%v", repaired, err)
+	}
+	if _, err := store.GetConversation(ctx, conversation.TenantID, conversation.ID); !errors.Is(err, chat.ErrNotFound) {
+		t.Fatalf("malformed conversation remains: %v", err)
+	}
+	if repaired, err := store.Store.RepairUnroutedDirectConversation(ctx, conversation.TenantID, conversation.ID, conversation.OwnerID, "policy-helper"); err != nil || repaired {
+		t.Fatalf("idempotent repair=%t err=%v", repaired, err)
+	}
+}
+
 func adapterDB(t *testing.T) *Adapter {
 	t.Helper()
 	db := pgtest.NewEmpty(t)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrender"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -55,16 +56,19 @@ type Store interface {
 // Service is the application implementation shared by RPC and HTTP
 // transports. It intentionally contains no process-wide mutable state.
 type Service struct {
-	store              Store
-	clock              Clock
-	authority          Authority
-	referenceDirectory ReferenceDirectory
-	disclosureChecker  DisclosureChecker
-	linkCodec          LinkCodec
-	mediaDirectory     MediaDirectory
-	contentPolicy      ContentPolicy
-	ephemeral          EphemeralStore
-	personaDM          PersonaDMResolver
+	store                  Store
+	clock                  Clock
+	authority              Authority
+	referenceDirectory     ReferenceDirectory
+	disclosureChecker      DisclosureChecker
+	linkCodec              LinkCodec
+	mediaDirectory         MediaDirectory
+	contentPolicy          ContentPolicy
+	ephemeral              EphemeralStore
+	personaDM              PersonaDMResolver
+	channelGate            ChannelGatePort
+	agentSourceAccess      AgentSourceAccess
+	agentReactionAuthority AgentReactionAuthority
 }
 
 // SetAuthority installs the current-authority resolver used by subsequent
@@ -311,6 +315,9 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	}
 	m.JoinedAt = timePtr(s.now())
 	m.LeftAt = nil
+	if err := s.checkChannelGate(ctx, r.Principal, m); err != nil {
+		return Membership{}, err
+	}
 	return s.store.PutMembership(ctx, r.Principal, m)
 }
 
@@ -407,7 +414,13 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 		return Post{}, err
 	}
 	p := Post{ID: uuid.NewString(), ConversationID: r.ConversationID, TenantID: r.TenantID, AuthorID: r.Principal.SubjectID, AuthorHomeTenantID: r.Principal.TenantID, Body: strings.TrimSpace(r.Body), ParentID: r.ParentID, Revision: 1, CreatedAt: s.now(), References: append([]Reference(nil), r.References...), SourceAttribution: cloneSourceAttribution(r.SourceAttribution)}
-	return s.store.SendPost(ctx, r, p)
+	ctx = chatrender.WithRevisionLanguage(ctx, p.Body)
+	sent, err := s.store.SendPost(ctx, r, p)
+	if err != nil {
+		return sent, err
+	}
+	// The author is told what readers see (CHATMOD-002); the stored body is the original.
+	return s.maskOwnPost(ctx, r.Principal, sent), nil
 }
 
 func cloneSourceAttribution(v *SourceAttribution) *SourceAttribution {
@@ -462,7 +475,12 @@ func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error)
 			return Post{}, err
 		}
 		r.Body, r.References = strings.TrimSpace(r.Body), refs
-		return s.store.EditPost(ctx, r)
+		ctx = chatrender.WithRevisionLanguage(ctx, r.Body)
+		edited, err := s.store.EditPost(ctx, r)
+		if err != nil {
+			return edited, err
+		}
+		return s.maskOwnPost(ctx, r.Principal, edited), nil
 	})
 }
 
@@ -695,6 +713,9 @@ func (s *Service) AddReaction(ctx context.Context, r AddReactionRequest) (Reacti
 	if err := validatePrincipal(r.Principal, x.TenantID); err != nil || x.ConversationID == "" || x.PostID == "" || x.Emoji == "" || len(x.Emoji) > 64 {
 		return Reaction{}, errOr(err, ErrInvalidArgument)
 	}
+	if err := s.authorizeAgentReaction(ctx, r.Principal, x.TenantID, x.ConversationID, x.PostID, x.Emoji, false); err != nil {
+		return Reaction{}, err
+	}
 	if err := s.requireVisiblePost(ctx, r.Principal, x.TenantID, x.ConversationID, x.PostID); err != nil {
 		return Reaction{}, err
 	}
@@ -706,6 +727,9 @@ func (s *Service) AddReaction(ctx context.Context, r AddReactionRequest) (Reacti
 func (s *Service) RemoveReaction(ctx context.Context, r RemoveReactionRequest) error {
 	if err := validatePrincipal(r.Principal, r.TenantID); err != nil || r.ConversationID == "" || r.PostID == "" || r.Emoji == "" {
 		return errOr(err, ErrInvalidArgument)
+	}
+	if err := s.authorizeAgentReaction(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.Emoji, true); err != nil {
+		return err
 	}
 	if err := s.requireVisiblePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID); err != nil {
 		return err
@@ -823,7 +847,7 @@ func (s *Service) WatchConversation(ctx context.Context, r WatchConversationRequ
 	if err != nil {
 		return nil, err
 	}
-	projected, _ := s.projectWatchEvents(ctx, r.Principal, events, nil)
+	projected, _ := s.projectWatchEvents(ctx, r.Principal, r.TenantID, r.ConversationID, events, nil)
 	return projected, nil
 }
 
@@ -854,14 +878,14 @@ func (s *Service) WatchConversationWithErrors(ctx context.Context, r WatchConver
 		if err != nil {
 			return nil, nil, err
 		}
-		projected, _ := s.projectWatchEvents(ctx, r.Principal, events, nil)
+		projected, _ := s.projectWatchEvents(ctx, r.Principal, r.TenantID, r.ConversationID, events, nil)
 		return projected, nil, nil
 	}
 	events, failures, err := reporting.WatchWithErrors(ctx, r)
 	if err != nil {
 		return nil, nil, err
 	}
-	projected, projectedFailures := s.projectWatchEvents(ctx, r.Principal, events, failures)
+	projected, projectedFailures := s.projectWatchEvents(ctx, r.Principal, r.TenantID, r.ConversationID, events, failures)
 	return projected, projectedFailures, nil
 }
 
@@ -878,6 +902,9 @@ func (s *Service) authorize(ctx context.Context, p Principal, c Conversation, ac
 				return ErrUnavailable
 			}
 			return conversationDenial(ctx, p)
+		}
+		if err = s.authorizeChannelStatus(ctx, p, c, action, &in); err != nil {
+			return err
 		}
 		if _, err = chatpolicy.Evaluate(action, in); err != nil {
 			return conversationDenial(ctx, p)

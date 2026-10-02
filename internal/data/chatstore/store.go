@@ -55,7 +55,10 @@ type Config struct {
 	DSN, CoreDSN       string
 	MaxConns, MinConns int32
 }
-type Store struct{ pool *pgxadapter.Pool }
+type Store struct {
+	pool         *pgxadapter.Pool
+	trustedGuard TrustedContentGuard
+}
 
 // Begin exposes the chat-owned transaction port to adjacent chat adapters;
 // callers still use dbport and cannot reach pgx types.
@@ -337,6 +340,11 @@ func (s *Store) RevisePostCAS(ctx context.Context, tenantID, conversationID, pos
 	if _, err = tx.Exec(ctx, `UPDATE chat_post SET body=$1,revision=$2,tombstoned=$3,updated_at=now() WHERE tenant_id=$4 AND conversation_id=$5 AND id=$6 AND revision=$7`, body, p.Revision, tombstone, tenantID, conversationID, postID, expected); err != nil {
 		return Revision{}, err
 	}
+	if !tombstone {
+		if err = RecordRenderingRevisionTx(ctx, tx, tenantID, postID, uint64(p.Revision), nil); err != nil {
+			return Revision{}, err
+		}
+	}
 	p.AuthorID, p.Body, p.Tombstoned, p.CreatedAt = authorID, body, tombstone, time.Now().UTC()
 	return p, tx.Commit(ctx)
 }
@@ -365,6 +373,9 @@ func (s *Store) AddMember(ctx context.Context, tenantID string, m Membership) er
 }
 func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	var out Post
+	if err := s.guardTrustedContent(ctx, r); err != nil {
+		return out, err
+	}
 	r.ClientKey = strings.TrimSpace(r.ClientKey)
 	if len(r.References) == 0 {
 		r.References = []byte("[]")
@@ -407,6 +418,9 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if err = routeFence(ctx, tx, r.TenantID, r.ConversationID, r.RouteEpoch, r.ShardID); err != nil {
 		return out, err
 	}
+	if err = chat.RecheckChannelMutation(ctx); err != nil {
+		return out, err
+	}
 	if r.ClientKey != "" {
 		var fp, postID string
 		var seq int64
@@ -443,12 +457,11 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	}
 	// One statement, two clocks: COALESCE keeps the column default for every
 	// live send and honours an explicit historical stamp for the seeder.
-	err = tx.QueryRow(ctx, `INSERT INTO chat_post(id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,parent_id,references_json,source_attribution,client_key,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$11,$6,$7,$8,$9,$10,COALESCE($12,now()),COALESCE($12,now())) RETURNING id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,revision,tombstoned,created_at,updated_at,parent_id,references_json,source_attribution`, uuid.NewString(), r.TenantID, r.ConversationID, r.AuthorID, r.HomeTenantID, r.Body, r.ParentID, r.References, r.SourceAttribution, r.ClientKey, postSequence, createdAtArg(r.CreatedAt)).Scan(&out.ID, &out.TenantID, &out.ConversationID, &out.AuthorID, &out.AuthorHomeTenantID, &out.Sequence, &out.Body, &out.Revision, &out.Tombstoned, &out.CreatedAt, &out.UpdatedAt, &out.ParentID, &out.References, &out.SourceAttribution)
+	err = tx.QueryRow(ctx, chatscaleInsertPostSQL, uuid.NewString(), r.TenantID, r.ConversationID, r.AuthorID, r.HomeTenantID, r.Body, r.ParentID, r.References, r.SourceAttribution, r.ClientKey, postSequence, createdAtArg(r.CreatedAt)).Scan(&out.ID, &out.TenantID, &out.ConversationID, &out.AuthorID, &out.AuthorHomeTenantID, &out.Sequence, &out.Body, &out.Revision, &out.Tombstoned, &out.CreatedAt, &out.UpdatedAt, &out.ParentID, &out.References, &out.SourceAttribution)
 	if err != nil {
 		return out, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO chat_post_revision(tenant_id,post_id,revision,author_id,body) VALUES($1,$2,$3,$4,$5)`, r.TenantID, out.ID, out.Revision, r.AuthorID, r.Body)
-	if err != nil {
+	if err = RecordRenderingRevisionTx(ctx, tx, r.TenantID, out.ID, uint64(out.Revision), nil); err != nil {
 		return out, err
 	}
 	value, err := chatPost(out)
@@ -527,7 +540,7 @@ func (s *Store) PendingOutboxAfter(ctx context.Context, tenantID string, afterID
 	if err = tenant(ctx, tx, tenantID); err != nil {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, `SELECT o.id,o.tenant_id,o.aggregate_id,o.event_type,o.payload,o.created_at FROM chat_outbox o LEFT JOIN chat_outbox_receipt r ON r.tenant_id=o.tenant_id AND r.outbox_id=o.id WHERE o.tenant_id=$1 AND o.id>$3 AND r.outbox_id IS NULL ORDER BY o.id LIMIT $2`, tenantID, limit, afterID)
+	rows, err := tx.Query(ctx, `SELECT o.id,o.tenant_id,o.aggregate_id,o.event_type,o.payload,o.created_at FROM chat_outbox o LEFT JOIN chat_outbox_receipt r ON r.tenant_id=o.tenant_id AND r.outbox_id=o.id AND r.outbox_id>$3 WHERE o.tenant_id=$1 AND o.id>$3 AND r.outbox_id IS NULL ORDER BY o.id LIMIT $2`, tenantID, limit, afterID)
 	if err != nil {
 		return nil, err
 	}
@@ -613,6 +626,97 @@ func (s *Store) execTenant(ctx context.Context, tid, sql string, args ...any) er
 		return e
 	}
 	return tx.Commit(ctx)
+}
+
+// RepairUnroutedDirectConversation removes only the exact malformed direct
+// conversation written by the former local persona preparation path. That path
+// bypassed routing and the conversation service, leaving settings_revision=0
+// and route_shard empty. A caller can then recreate the same deterministic pair
+// through the normal routed service. Any content or shape mismatch fails closed.
+func (s *Store) RepairUnroutedDirectConversation(ctx context.Context, tenantID, conversationID, ownerID, personaID string) (bool, error) {
+	if s == nil || strings.TrimSpace(tenantID) == "" || strings.TrimSpace(conversationID) == "" || strings.TrimSpace(ownerID) == "" || strings.TrimSpace(personaID) == "" || ownerID == personaID {
+		return false, chat.ErrInvalidArgument
+	}
+	repaired := false
+	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
+		var kind, name, owner, lifecycle, shard, routeState string
+		var revision, epoch int64
+		err := tx.QueryRow(ctx, `SELECT kind,name,owner_id,settings_revision,lifecycle,route_shard,route_epoch,route_state FROM chat_conversation WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenantID, conversationID).Scan(&kind, &name, &owner, &revision, &lifecycle, &shard, &epoch, &routeState)
+		if errors.Is(err, dbport.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// A normally routed conversation is not repair material. Leave it to the
+		// persona DM resolver to validate the exact pair and return it unchanged.
+		if revision != 0 || shard != "" {
+			return nil
+		}
+		// Once the old path's two identifying defects are present, every other
+		// field must match its exact output before removal is allowed.
+		if kind != string(chat.Direct) || name != "" || owner != ownerID || lifecycle != "ACTIVE" || epoch != 1 || routeState != "ACTIVE" {
+			return chat.ErrConflict
+		}
+		var posts int64
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID).Scan(&posts); err != nil {
+			return err
+		}
+		if posts != 0 {
+			return chat.ErrConflict
+		}
+		rows, err := tx.Query(ctx, `SELECT home_tenant_id,member_id,role,state,history_visibility,left_at IS NULL FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 ORDER BY home_tenant_id,member_id`, tenantID, conversationID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		members := make(map[string]chat.MembershipRole, 2)
+		for rows.Next() {
+			var home, member, role, state, history string
+			var current bool
+			if err := rows.Scan(&home, &member, &role, &state, &history, &current); err != nil {
+				return err
+			}
+			if home != tenantID || state != "active" || history != string(chat.FullHistory) || !current {
+				return chat.ErrConflict
+			}
+			members[member] = chat.MembershipRole(role)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(members) != 2 || members[ownerID] != chat.Manager || members[personaID] != chat.Member {
+			return chat.ErrConflict
+		}
+		// The failed preparation may already have installed the reviewed direct-
+		// message ceiling on the malformed row. Remove that dependent row first;
+		// the correctly routed replacement receives the same ceiling later in the
+		// preparation. No other authority population is valid for this exact
+		// two-member direct conversation.
+		var unexpectedAuthority int64
+		if err := tx.QueryRow(ctx, `SELECT
+			(SELECT count(*) FROM chat_public_audience_policy WHERE tenant_id=$1 AND conversation_id=$2) +
+			(SELECT count(*) FROM chat_channel_policy WHERE tenant_id=$1 AND conversation_id=$2) +
+			(SELECT count(*) FROM chat_share_grant WHERE tenant_id=$1 AND conversation_id=$2)`, tenantID, conversationID).Scan(&unexpectedAuthority); err != nil {
+			return err
+		}
+		if unexpectedAuthority != 0 {
+			return chat.ErrConflict
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM chat_persona_channel_policy WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID); err != nil {
+			return err
+		}
+		deleted, err := tx.Exec(ctx, `DELETE FROM chat_conversation WHERE tenant_id=$1 AND id=$2`, tenantID, conversationID)
+		if err != nil {
+			return err
+		}
+		if deleted != 1 {
+			return chat.ErrConflict
+		}
+		repaired = true
+		return nil
+	})
+	return repaired, err
 }
 
 // Outbox payload keys.
@@ -757,5 +861,8 @@ func routeFence(ctx context.Context, tx dbport.Tx, tenantID, conversationID stri
 // rather than from a SendRequest.
 func fenceContextWrite(ctx context.Context, tx dbport.Tx, tenantID, conversationID string) error {
 	epoch, shard := leaseFence(ctx)
-	return routeFence(ctx, tx, tenantID, conversationID, epoch, shard)
+	if err := routeFence(ctx, tx, tenantID, conversationID, epoch, shard); err != nil {
+		return err
+	}
+	return chat.RecheckChannelMutation(ctx)
 }

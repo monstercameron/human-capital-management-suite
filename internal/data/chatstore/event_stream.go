@@ -76,7 +76,7 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 		outboxRows = `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$3
 			AND payload->>'` + OutboxKeyConversationID + `'=$2`
 	}
-	query := `SELECT id,event_type,payload,created_at FROM (` + outboxRows + ` UNION ALL ` + ephemeralRows + `) AS timeline ORDER BY id LIMIT $4`
+	query := chatscaleTimelineSQL(outboxRows, ephemeralRows)
 	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
 		return EventPage{}, err

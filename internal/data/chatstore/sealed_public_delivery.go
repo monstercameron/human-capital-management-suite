@@ -63,3 +63,32 @@ func (s *SealedPublicPersonaDelivery) CommitSealedPersonaReply(ctx context.Conte
 	}
 	return chatPost(post)
 }
+
+// CommitSealedAnnouncement accepts only an independently verified announcement
+// admission. A mention's authority cannot turn its answer into a root post.
+func (s *SealedPublicPersonaDelivery) CommitSealedAnnouncement(ctx context.Context, output agentsecurity.FinalOutputPersistence, r chat.PersonaReplyCommitRequest) (chat.Post, error) {
+	if s == nil || ctx == nil || s.store == nil || s.now == nil {
+		return chat.Post{}, chat.ErrUnavailable
+	}
+	i := output.Identity()
+	owner, ok := s.owner.(interface {
+		AuthorizeSealedAnnouncement(context.Context, agentsecurity.FinalOutputPersistence) (workload.Identity, error)
+	})
+	if !ok || i.AdmissionID == "" || i.InvokerID == "" || i.PersonaID == "" || r.TenantID != i.TenantID || r.AuthorHomeTenantID != i.TenantID || r.ConversationID != i.ConversationID || r.AuthorID != i.PersonaID || r.ParentID != "" || r.IdempotencyKey != i.AdmissionID || r.OutputDigest != output.Digest() || r.ExpectedAudienceRevision == 0 || r.Proof == nil || !r.Proof.ValidFor(r.TenantID, r.ConversationID, r.AuthorID, r.ExpectedAudienceRevision, r.OutputDigest, r.Body, "") {
+		return chat.Post{}, chat.ErrPermissionDenied
+	}
+	if _, _, err := output.Payload(); err != nil {
+		return chat.Post{}, chat.ErrPermissionDenied
+	}
+	worker, err := owner.AuthorizeSealedAnnouncement(ctx, output)
+	if err != nil || worker.Role() != workload.RoleWorker || worker.Fingerprint() == "" || worker.Issuer() == "" || worker.Subject() == "" || worker.Cell() == "" || worker.KeyID() == "" || !worker.ValidAt(s.now().UTC()) {
+		return chat.Post{}, chat.ErrPermissionDenied
+	}
+	raw := SendRequest{TenantID: i.TenantID, ConversationID: i.ConversationID, HomeTenantID: i.TenantID, AuthorID: i.PersonaID, ClientKey: i.AdmissionID, Body: r.Body, TrustedAuthor: true, ExpectedAudienceRevision: r.ExpectedAudienceRevision}
+	raw.RouteEpoch, raw.ShardID = leaseFence(ctx)
+	post, err := s.store.sendPostRaw(ctx, raw)
+	if err != nil {
+		return chat.Post{}, err
+	}
+	return chatPost(post)
+}

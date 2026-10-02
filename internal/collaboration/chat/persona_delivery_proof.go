@@ -46,6 +46,26 @@ func IssuePersonaDeliveryProof(ctx context.Context, output agentsecurity.FinalOu
 	return personaDeliveryProof{tenantID: identity.TenantID, conversationID: identity.ConversationID, authorID: identity.PersonaID, outputDigest: output.Digest(), bodyDigest: digestBody(decision.Body, decision.ParentID), parentID: decision.ParentID, audienceRevision: decision.Revision}, nil
 }
 
+// IssueAnnouncementDeliveryProof binds a public root body to sealed output.
+// Only the separate announcement committer accepts this parentless proof.
+func IssueAnnouncementDeliveryProof(ctx context.Context, output agentsecurity.FinalOutputPersistence, floor PersonaAudienceFloor) (PersonaDeliveryProof, error) {
+	if ctx == nil || floor == nil || output.Digest() == "" {
+		return nil, ErrPersonaProofUnavailable
+	}
+	i := output.Identity()
+	if i.TenantID == "" || i.ConversationID == "" || i.PersonaID == "" || i.AdmissionID == "" || i.InvocationID == "" || i.InvokerID == "" {
+		return nil, ErrPersonaProofUnavailable
+	}
+	if _, _, err := output.Payload(); err != nil {
+		return nil, ErrPersonaProofUnavailable
+	}
+	d, err := floor.AuthorizePersonaOutput(ctx, output)
+	if err != nil || d.Revision == 0 || strings.TrimSpace(d.Body) == "" || d.ParentID != "" {
+		return nil, ErrPersonaProofUnavailable
+	}
+	return personaDeliveryProof{tenantID: i.TenantID, conversationID: i.ConversationID, authorID: i.PersonaID, outputDigest: output.Digest(), bodyDigest: digestBody(d.Body, ""), audienceRevision: d.Revision}, nil
+}
+
 func digestBody(body, parentID string) string {
 	sum := sha256.Sum256([]byte(body + "\x00" + parentID))
 	return "sha256:" + hex.EncodeToString(sum[:])

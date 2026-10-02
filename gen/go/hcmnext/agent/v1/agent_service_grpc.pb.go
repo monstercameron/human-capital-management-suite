@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AgentService_SetAgentsEnabled_FullMethodName = "/hcmnext.agent.v1.AgentService/SetAgentsEnabled"
 	AgentService_StartAgentTask_FullMethodName   = "/hcmnext.agent.v1.AgentService/StartAgentTask"
+	AgentService_GetAgentTask_FullMethodName     = "/hcmnext.agent.v1.AgentService/GetAgentTask"
+	AgentService_ListAgentTasks_FullMethodName   = "/hcmnext.agent.v1.AgentService/ListAgentTasks"
 	AgentService_ControlAgentTask_FullMethodName = "/hcmnext.agent.v1.AgentService/ControlAgentTask"
 )
 
@@ -38,6 +40,10 @@ type AgentServiceClient interface {
 	// StartAgentTask starts one confirmed, read-only agent task from the
 	// signed-in user's own prompt. It is refused when agents are off.
 	StartAgentTask(ctx context.Context, in *StartAgentTaskRequest, opts ...grpc.CallOption) (*StartAgentTaskResponse, error)
+	// GetAgentTask returns one task owned by the signed-in user.
+	GetAgentTask(ctx context.Context, in *GetAgentTaskRequest, opts ...grpc.CallOption) (*GetAgentTaskResponse, error)
+	// ListAgentTasks returns only tasks owned by the signed-in user.
+	ListAgentTasks(ctx context.Context, in *ListAgentTasksRequest, opts ...grpc.CallOption) (*ListAgentTasksResponse, error)
 	// ControlAgentTask applies one owner-scoped, version-checked task action.
 	ControlAgentTask(ctx context.Context, in *ControlAgentTaskRequest, opts ...grpc.CallOption) (*ControlAgentTaskResponse, error)
 }
@@ -70,6 +76,26 @@ func (c *agentServiceClient) StartAgentTask(ctx context.Context, in *StartAgentT
 	return out, nil
 }
 
+func (c *agentServiceClient) GetAgentTask(ctx context.Context, in *GetAgentTaskRequest, opts ...grpc.CallOption) (*GetAgentTaskResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAgentTaskResponse)
+	err := c.cc.Invoke(ctx, AgentService_GetAgentTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentServiceClient) ListAgentTasks(ctx context.Context, in *ListAgentTasksRequest, opts ...grpc.CallOption) (*ListAgentTasksResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentTasksResponse)
+	err := c.cc.Invoke(ctx, AgentService_ListAgentTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *agentServiceClient) ControlAgentTask(ctx context.Context, in *ControlAgentTaskRequest, opts ...grpc.CallOption) (*ControlAgentTaskResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ControlAgentTaskResponse)
@@ -94,6 +120,10 @@ type AgentServiceServer interface {
 	// StartAgentTask starts one confirmed, read-only agent task from the
 	// signed-in user's own prompt. It is refused when agents are off.
 	StartAgentTask(context.Context, *StartAgentTaskRequest) (*StartAgentTaskResponse, error)
+	// GetAgentTask returns one task owned by the signed-in user.
+	GetAgentTask(context.Context, *GetAgentTaskRequest) (*GetAgentTaskResponse, error)
+	// ListAgentTasks returns only tasks owned by the signed-in user.
+	ListAgentTasks(context.Context, *ListAgentTasksRequest) (*ListAgentTasksResponse, error)
 	// ControlAgentTask applies one owner-scoped, version-checked task action.
 	ControlAgentTask(context.Context, *ControlAgentTaskRequest) (*ControlAgentTaskResponse, error)
 	mustEmbedUnimplementedAgentServiceServer()
@@ -111,6 +141,12 @@ func (UnimplementedAgentServiceServer) SetAgentsEnabled(context.Context, *SetAge
 }
 func (UnimplementedAgentServiceServer) StartAgentTask(context.Context, *StartAgentTaskRequest) (*StartAgentTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartAgentTask not implemented")
+}
+func (UnimplementedAgentServiceServer) GetAgentTask(context.Context, *GetAgentTaskRequest) (*GetAgentTaskResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAgentTask not implemented")
+}
+func (UnimplementedAgentServiceServer) ListAgentTasks(context.Context, *ListAgentTasksRequest) (*ListAgentTasksResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentTasks not implemented")
 }
 func (UnimplementedAgentServiceServer) ControlAgentTask(context.Context, *ControlAgentTaskRequest) (*ControlAgentTaskResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ControlAgentTask not implemented")
@@ -172,6 +208,42 @@ func _AgentService_StartAgentTask_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_GetAgentTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAgentTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).GetAgentTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_GetAgentTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).GetAgentTask(ctx, req.(*GetAgentTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentService_ListAgentTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentTasksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentServiceServer).ListAgentTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentService_ListAgentTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentServiceServer).ListAgentTasks(ctx, req.(*ListAgentTasksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AgentService_ControlAgentTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ControlAgentTaskRequest)
 	if err := dec(in); err != nil {
@@ -204,6 +276,14 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartAgentTask",
 			Handler:    _AgentService_StartAgentTask_Handler,
+		},
+		{
+			MethodName: "GetAgentTask",
+			Handler:    _AgentService_GetAgentTask_Handler,
+		},
+		{
+			MethodName: "ListAgentTasks",
+			Handler:    _AgentService_ListAgentTasks_Handler,
 		},
 		{
 			MethodName: "ControlAgentTask",

@@ -3,7 +3,9 @@ package chat
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -39,9 +41,14 @@ type EphemeralPost struct {
 type SendEphemeralPostRequest struct {
 	Principal                                Principal
 	TenantID, ConversationID, ThreadID, Body string
+	QuestionPostID                           string
 	DurableCopyConversationID                string
-	IdempotencyKey                           string
-	ExpiresAt                                time.Time
+	// AuthorAsAgent asks the service to author the durable copy as the other
+	// active member of the canonical persona direct conversation. The caller
+	// never supplies or chooses that identity.
+	AuthorAsAgent  bool
+	IdempotencyKey string
+	ExpiresAt      time.Time
 }
 
 type ListEphemeralPostsRequest struct {
@@ -179,31 +186,147 @@ func (s *Service) SendEphemeralPost(ctx context.Context, r SendEphemeralPostRequ
 	if r.DurableCopyConversationID != "" && r.DurableCopyConversationID != durableConversationID {
 		return EphemeralPost{}, ErrPermissionDenied
 	}
+	var agentAuthor Principal
+	if r.AuthorAsAgent {
+		agentAuthor, err = s.resolvePersonaDirectAuthor(ctx, r, durableConversationID)
+		if err != nil {
+			return EphemeralPost{}, err
+		}
+	}
 	if r.ThreadID != r.ConversationID {
 		parent, parentErr := s.store.GetPost(ctx, r.TenantID, r.ConversationID, r.ThreadID)
 		if parentErr != nil || parent.ConversationID != r.ConversationID || parent.Deleted {
 			return EphemeralPost{}, ErrInvalidArgument
 		}
 	}
-	linkPostID := ""
-	if r.ThreadID != r.ConversationID {
-		linkPostID = r.ThreadID
+	question := Post{}
+	questionPostID := strings.TrimSpace(r.QuestionPostID)
+	if questionPostID == "" && r.ThreadID != r.ConversationID {
+		questionPostID = r.ThreadID
 	}
-	link, err := s.CreateConversationLink(ctx, r.Principal, r.TenantID, r.ConversationID, linkPostID)
-	if err != nil {
-		return EphemeralPost{}, err
+	if questionPostID != "" {
+		question, err = s.store.GetPost(ctx, r.TenantID, r.ConversationID, questionPostID)
+		if err != nil || question.ID != questionPostID || question.TenantID != r.TenantID || question.ConversationID != r.ConversationID || question.AuthorID != r.Principal.SubjectID || question.AuthorHomeTenantID != r.Principal.TenantID || question.Deleted || strings.TrimSpace(question.Body) == "" || question.CreatedAt.IsZero() {
+			return EphemeralPost{}, ErrPermissionDenied
+		}
 	}
-	threadLink := link.URL
+	threadLink := ""
+	if durableConversationID != r.ConversationID || !r.AuthorAsAgent {
+		linkPostID := questionPostID
+		link, linkErr := s.CreateConversationLink(ctx, r.Principal, r.TenantID, r.ConversationID, linkPostID)
+		if linkErr != nil {
+			return EphemeralPost{}, linkErr
+		}
+		threadLink = link.URL
+	}
 	// Keep the signed, current-authority Chat locator beside the durable copy.
 	// The private answer remains only in the invoker's persona DM; the link has
 	// identifiers and a locator token, never answer data.
-	durableBody := strings.TrimSpace(r.Body) + "\n\nOpen the source conversation: " + threadLink
-	durable, err := s.SendPost(ctx, SendPostRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: durableConversationID, Body: durableBody, IdempotencyKey: r.IdempotencyKey + ":dm"})
+	sourceLabel := strings.TrimSpace(conversation.Name)
+	if conversation.Kind == PublicChannel || conversation.Kind == PrivateChannel {
+		sourceLabel = "#" + strings.TrimPrefix(sourceLabel, "#")
+	}
+	projectedThreadLink := ephemeralQuestionThreadLink(threadLink, sourceLabel, question)
+	// The line saying why an answer is private belongs to the card, not to the
+	// copy saved in the asker's own conversation with the agent.
+	durableText, _ := SplitPrivateReason(r.Body)
+	durableBody := strings.TrimSpace(durableText)
+	if durableConversationID != r.ConversationID {
+		durableBody = durableEphemeralBodyFromQuestion(durableText, projectedThreadLink, sourceLabel, question)
+	} else if !r.AuthorAsAgent {
+		durableBody = durableEphemeralBody(durableText, threadLink)
+	}
+	if err = s.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: conversation, Body: durableBody}); err != nil {
+		return EphemeralPost{}, err
+	}
+	var durable Post
+	if !r.AuthorAsAgent {
+		durable, err = s.SendPost(ctx, SendPostRequest{Principal: r.Principal, TenantID: r.TenantID, ConversationID: durableConversationID, Body: durableBody, IdempotencyKey: r.IdempotencyKey + ":dm"})
+	} else {
+		durableRequest := SendPostRequest{Principal: agentAuthor, TenantID: r.TenantID, ConversationID: durableConversationID, Body: durableBody, IdempotencyKey: r.IdempotencyKey + ":dm"}
+		durable = Post{ID: uuid.NewString(), TenantID: r.TenantID, ConversationID: durableConversationID, AuthorID: agentAuthor.SubjectID, AuthorHomeTenantID: agentAuthor.TenantID, Body: durableBody, Revision: 1, CreatedAt: now}
+		durable, err = s.store.SendPost(ctx, durableRequest, durable)
+	}
 	if err != nil {
 		return EphemeralPost{}, err
 	}
-	p := EphemeralPost{ID: ephemeralID(r.TenantID, r.ConversationID, r.Principal, r.IdempotencyKey), TenantID: r.TenantID, ConversationID: r.ConversationID, ThreadID: r.ThreadID, RecipientHomeTenantID: r.Principal.TenantID, RecipientSubjectID: r.Principal.SubjectID, Body: strings.TrimSpace(r.Body), OnlyVisibleToYou: true, CreatedAt: now, ExpiresAt: expires, DurableCopyConversationID: durable.ConversationID, DurableCopyPostID: durable.ID, ThreadLink: threadLink}
+	// In the agent's own direct conversation the durable answer is the only
+	// answer. Returning its ID keeps the delivery receipt idempotent without
+	// creating a second recipient-only envelope in the same timeline.
+	if r.AuthorAsAgent && durableConversationID == r.ConversationID {
+		return EphemeralPost{ID: durable.ID, TenantID: r.TenantID, ConversationID: r.ConversationID, ThreadID: r.ThreadID, RecipientHomeTenantID: r.Principal.TenantID, RecipientSubjectID: r.Principal.SubjectID, Body: strings.TrimSpace(r.Body), DurableCopyConversationID: durable.ConversationID, DurableCopyPostID: durable.ID, CreatedAt: durable.CreatedAt}, nil
+	}
+	p := EphemeralPost{ID: ephemeralID(r.TenantID, r.ConversationID, r.Principal, r.IdempotencyKey), TenantID: r.TenantID, ConversationID: r.ConversationID, ThreadID: r.ThreadID, RecipientHomeTenantID: r.Principal.TenantID, RecipientSubjectID: r.Principal.SubjectID, Body: strings.TrimSpace(r.Body), OnlyVisibleToYou: true, CreatedAt: now, ExpiresAt: expires, DurableCopyConversationID: durable.ConversationID, DurableCopyPostID: durable.ID, ThreadLink: projectedThreadLink}
 	return s.ephemeral.PutEphemeral(ctx, p)
+}
+
+func (s *Service) resolvePersonaDirectAuthor(ctx context.Context, r SendEphemeralPostRequest, conversationID string) (Principal, error) {
+	conversation, err := s.store.GetConversation(ctx, r.TenantID, conversationID)
+	if err != nil || conversation.Kind != Direct || conversation.Archived {
+		return Principal{}, ErrPermissionDenied
+	}
+	members, err := s.store.ListMemberships(ctx, r.TenantID, conversationID, Page{PageSize: 3})
+	if err != nil || members.NextCursor != "" || len(members.Memberships) != 2 {
+		return Principal{}, ErrPermissionDenied
+	}
+	var foundInvoker bool
+	var author Principal
+	for _, member := range members.Memberships {
+		if member.HomeTenantID == r.Principal.TenantID && member.SubjectID == r.Principal.SubjectID {
+			foundInvoker = true
+			continue
+		}
+		if strings.TrimSpace(member.HomeTenantID) == "" || strings.TrimSpace(member.SubjectID) == "" || author.SubjectID != "" {
+			return Principal{}, ErrPermissionDenied
+		}
+		author = Principal{TenantID: member.HomeTenantID, SubjectID: member.SubjectID}
+	}
+	if !foundInvoker || author.SubjectID == "" || (author.TenantID == r.Principal.TenantID && author.SubjectID == r.Principal.SubjectID) {
+		return Principal{}, ErrPermissionDenied
+	}
+	return author, nil
+}
+
+func durableEphemeralBody(body, threadLink string) string {
+	return strings.TrimSpace(body) + "\n\n[Open the original message](" + strings.TrimSpace(threadLink) + ")"
+}
+
+func durableEphemeralBodyFrom(body, threadLink, sourceLabel string) string {
+	if strings.TrimSpace(sourceLabel) == "" {
+		return durableEphemeralBody(body, threadLink)
+	}
+	return strings.TrimSpace(body) + "\n\n[chat-agent-question:" + strings.ReplaceAll(strings.TrimSpace(sourceLabel), "]", "") + "](" + strings.TrimSpace(threadLink) + ")"
+}
+
+func durableEphemeralBodyFromQuestion(body, threadLink, sourceLabel string, question Post) string {
+	encoded := ephemeralQuestionContext(sourceLabel, question)
+	if encoded == "" {
+		return durableEphemeralBodyFrom(body, threadLink, sourceLabel)
+	}
+	return strings.TrimSpace(body) + "\n\n[chat-agent-question-context:" + encoded + "](" + strings.TrimSpace(threadLink) + ")"
+}
+
+func ephemeralQuestionThreadLink(threadLink, sourceLabel string, question Post) string {
+	encoded := ephemeralQuestionContext(sourceLabel, question)
+	if encoded == "" {
+		return strings.TrimSpace(threadLink)
+	}
+	return strings.TrimSpace(threadLink) + "#hcm-question=" + encoded
+}
+
+func ephemeralQuestionContext(sourceLabel string, question Post) string {
+	if question.ID == "" || strings.TrimSpace(question.Body) == "" || question.CreatedAt.IsZero() {
+		return ""
+	}
+	context, err := json.Marshal(struct {
+		Label string    `json:"label"`
+		Text  string    `json:"text"`
+		At    time.Time `json:"at"`
+	}{Label: strings.TrimSpace(sourceLabel), Text: strings.TrimSpace(question.Body), At: question.CreatedAt.UTC()})
+	if err != nil {
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(context)
 }
 
 func (s *Service) ListEphemeralPosts(ctx context.Context, r ListEphemeralPostsRequest) ([]EphemeralPost, uint64, error) {
@@ -219,7 +342,11 @@ func (s *Service) ListEphemeralPosts(ctx context.Context, r ListEphemeralPostsRe
 	if r.PageSize < 0 || r.PageSize > 100 {
 		return nil, 0, ErrInvalidArgument
 	}
-	return s.ephemeral.ListEphemeral(ctx, r.Principal, r.TenantID, r.ConversationID, r.AfterSequence, r.PageSize)
+	posts, next, err := s.ephemeral.ListEphemeral(ctx, r.Principal, r.TenantID, r.ConversationID, r.AfterSequence, r.PageSize)
+	for i := range posts {
+		posts[i].Body = s.projectAgentSources(ctx, r.Principal, r.TenantID, r.ConversationID, posts[i].Body)
+	}
+	return posts, next, err
 }
 
 func ephemeralID(tenant, conversation string, p Principal, key string) string {

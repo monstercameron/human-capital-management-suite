@@ -35,7 +35,16 @@ type sidebarLayout struct {
 	Starred []string          `json:"starred"`
 	Filters map[string]string `json:"filters"`
 	Drafts  map[string]string `json:"drafts"`
+	// EmojiPrefs and VoicePrefs are the reader's emoji choices and voice
+	// playback choices, each an opaque string the client encodes and checks
+	// itself. The server stores them with the rest of the layout and bounds
+	// their size (CHATEMOJI-004).
+	EmojiPrefs string `json:"emojiPrefs"`
+	VoicePrefs string `json:"voicePrefs"`
 }
+
+// sidebarPrefsMax bounds each personal-preference string in the sidebar layout.
+const sidebarPrefsMax = 16 << 10
 
 // draftHosts ties each local composer key to one unambiguous room in the
 // sidebar. An ID used by different host tenants cannot identify a safe draft.
@@ -246,7 +255,7 @@ func (s *Service) PutSidebar(ctx context.Context, p chat.Principal, x Sidebar, e
 			return Sidebar{}, chat.ErrInvalidArgument
 		}
 	}
-	if len(layout.Sections) > 30 {
+	if len(layout.Sections) > 30 || len(layout.EmojiPrefs) > sidebarPrefsMax || len(layout.VoicePrefs) > sidebarPrefsMax {
 		return Sidebar{}, chat.ErrInvalidArgument
 	}
 	return s.Repo.PutSidebar(ctx, p.TenantID, p.SubjectID, x, expected)

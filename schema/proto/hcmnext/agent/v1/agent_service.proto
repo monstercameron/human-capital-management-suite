@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package hcmnext.agent.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1;agentv1";
 
 // AgentService is the browser Agents page's write boundary (UXBLIND-122).
@@ -14,6 +16,10 @@ service AgentService {
   // StartAgentTask starts one confirmed, read-only agent task from the
   // signed-in user's own prompt. It is refused when agents are off.
   rpc StartAgentTask(StartAgentTaskRequest) returns (StartAgentTaskResponse);
+  // GetAgentTask returns one task owned by the signed-in user.
+  rpc GetAgentTask(GetAgentTaskRequest) returns (GetAgentTaskResponse);
+  // ListAgentTasks returns only tasks owned by the signed-in user.
+  rpc ListAgentTasks(ListAgentTasksRequest) returns (ListAgentTasksResponse);
   // ControlAgentTask applies one owner-scoped, version-checked task action.
   rpc ControlAgentTask(ControlAgentTaskRequest) returns (ControlAgentTaskResponse);
 }
@@ -32,6 +38,59 @@ enum AgentTaskAction {
   AGENT_TASK_ACTION_CANCEL = 4;
 }
 
+enum AgentDocumentVersionMode {
+  AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED = 0;
+  AGENT_DOCUMENT_VERSION_MODE_PINNED = 1;
+  AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED = 2;
+}
+
+enum AgentDocumentUsageState {
+  AGENT_DOCUMENT_USAGE_STATE_UNKNOWN = 0;
+  AGENT_DOCUMENT_USAGE_STATE_NONE = 1;
+  AGENT_DOCUMENT_USAGE_STATE_USED = 2;
+}
+
+message AgentDocumentReference {
+  string document_id = 1;
+  AgentDocumentVersionMode version_mode = 2;
+  uint64 pinned_version = 3;
+  string section_anchor = 4;
+  string label = 5;
+}
+
+message AgentDocumentOmission {
+  string label = 1;
+  string reason = 2;
+}
+
+message AgentTaskStepProjection {
+  string kind = 1;
+  string status = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp finished_at = 4;
+  string failure_summary = 5;
+}
+
+message AgentTaskProjection {
+  string task_id = 1;
+  string state = 2;
+  uint64 version = 3;
+  string prompt = 4;
+  repeated AgentDocumentReference document_references = 5;
+  repeated AgentDocumentOmission document_omissions = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  string result_preview = 9;
+  string failure_summary = 10;
+  bool retryable = 11;
+  repeated AgentTaskStepProjection steps = 12;
+  string answering_agent_id = 13;
+  string answering_agent_display_name = 14;
+  string answering_agent_version = 15;
+  repeated AgentDocumentReference used_document_references = 16;
+  AgentDocumentUsageState document_usage_state = 17;
+}
+
 message SetAgentsEnabledRequest {
   bool enabled = 1;
 }
@@ -43,12 +102,29 @@ message SetAgentsEnabledResponse {
 message StartAgentTaskRequest {
   string prompt = 1;
   AgentStartMode mode = 2;
+  repeated AgentDocumentReference document_references = 3;
+  string persona_id = 4;
 }
 
 message StartAgentTaskResponse {
   string task_id = 1;
   string state = 2;
   uint64 version = 3;
+  AgentTaskProjection task = 4;
+}
+
+message GetAgentTaskRequest {
+  string task_id = 1;
+}
+
+message GetAgentTaskResponse {
+  AgentTaskProjection task = 1;
+}
+
+message ListAgentTasksRequest {}
+
+message ListAgentTasksResponse {
+  repeated AgentTaskProjection tasks = 1;
 }
 
 message ControlAgentTaskRequest {

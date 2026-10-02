@@ -25,6 +25,13 @@ const allowedTryCatchFiles = new Set([
   // Planning design demo and its test harness; not application code.
   "planning/design/demo/workspace.js",
   "planning/design/demo/workspace.test.cjs",
+  // Playwright browser specs: test harness code whose try blocks release
+  // browser contexts or attach page state to a failed expectation.
+  "tools/uxqual/browser/uxblind057_popovers.spec.mjs",
+  "tools/uxqual/browser/uxblind089_cold_load.spec.mjs",
+  "tools/uxqual/browser/uxblind098_people_filter.spec.mjs",
+  "tools/uxqual/browser/uxblind122_agents_task_reload.spec.mjs",
+  "tools/uxqual/browser/uxblind125_header_responsive.spec.mjs",
   // Repository policy script; the catch is its own reporting boundary.
   "scripts/check-race-policy.mjs",
   "src/platform/client-device-state/device-state.ts",
@@ -35,6 +42,7 @@ const allowedTryCatchFiles = new Set([
 
 const allowedProcessEnvFiles = new Set([
   "tools/uxqual/browser/playwright.config.mjs",
+  "tools/uxqual/persona_admin_browser/playwright.config.mjs",
   "src/api/dependencies.ts",
   "src/api/main.ts",
   "src/platform/data-store/client/database-client.ts",

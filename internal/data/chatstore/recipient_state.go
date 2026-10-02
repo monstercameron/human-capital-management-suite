@@ -25,35 +25,8 @@ func NewRecipientStateStore(s *Store) *RecipientStateStore { return &RecipientSt
 const countScanLimit = 5000
 
 func (r *RecipientStateStore) Counts(ctx context.Context, id chatrecipient.Identity) (chatrecipient.Counts, error) {
-	var out chatrecipient.Counts
-	err := r.store.RunTenantTx(ctx, id.HostTenantID, func(tx dbport.Tx) error {
-		var unread, mentions int64
-		// The mention predicate uses jsonb containment so the chat_post_references
-		// GIN index can serve it; the earlier jsonb_array_elements lateral could
-		// not be indexed.
-		err := tx.QueryRow(ctx, `WITH candidate AS (
-            SELECT p.sequence, p.references_json, (p.sequence>COALESCE(c.last_sequence,0)) AS unseen
-            FROM chat_post p
-            JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id
-                AND m.home_tenant_id=$3 AND m.member_id=$4 AND m.state='active'
-            LEFT JOIN chat_cursor c ON c.tenant_id=p.tenant_id AND c.conversation_id=p.conversation_id
-                AND c.home_tenant_id=$3 AND c.member_id=$4
-            WHERE p.tenant_id=$1 AND p.conversation_id=$2
-                AND (p.sequence>COALESCE(c.last_sequence,0) OR (p.revision>1 AND p.updated_at>c.updated_at))
-                AND p.tombstoned=false AND NOT (p.author_home_tenant_id=$3 AND p.author_id=$4)
-                AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))
-            ORDER BY p.sequence DESC
-            LIMIT $5
-        ) SELECT count(*) FILTER (WHERE unseen), count(*) FILTER (
-            WHERE references_json @> jsonb_build_array(jsonb_build_object('Kind','PERSON_MENTION','TenantID',$3::text,'ID',$4::text))
-        ) FROM candidate`, id.HostTenantID, id.ConversationID, id.HomeTenantID, id.SubjectID, countScanLimit).Scan(&unread, &mentions)
-		if err != nil {
-			return err
-		}
-		out = chatrecipient.Counts{Unread: uint64(unread), Mentions: uint64(mentions)}
-		return nil
-	})
-	return out, err
+	counts, err := r.ChatscaleSidebarCounts(ctx, id.HostTenantID, id.HomeTenantID, id.SubjectID, []string{id.ConversationID})
+	return counts[id.ConversationID], err
 }
 
 func (r *RecipientStateStore) Follow(ctx context.Context, id chatrecipient.Identity, root string) (chatrecipient.Follow, error) {

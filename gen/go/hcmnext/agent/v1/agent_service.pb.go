@@ -9,6 +9,7 @@ package agentv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -125,6 +126,480 @@ func (AgentTaskAction) EnumDescriptor() ([]byte, []int) {
 	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{1}
 }
 
+type AgentDocumentVersionMode int32
+
+const (
+	AgentDocumentVersionMode_AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED      AgentDocumentVersionMode = 0
+	AgentDocumentVersionMode_AGENT_DOCUMENT_VERSION_MODE_PINNED           AgentDocumentVersionMode = 1
+	AgentDocumentVersionMode_AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED AgentDocumentVersionMode = 2
+)
+
+// Enum value maps for AgentDocumentVersionMode.
+var (
+	AgentDocumentVersionMode_name = map[int32]string{
+		0: "AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED",
+		1: "AGENT_DOCUMENT_VERSION_MODE_PINNED",
+		2: "AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED",
+	}
+	AgentDocumentVersionMode_value = map[string]int32{
+		"AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED":      0,
+		"AGENT_DOCUMENT_VERSION_MODE_PINNED":           1,
+		"AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED": 2,
+	}
+)
+
+func (x AgentDocumentVersionMode) Enum() *AgentDocumentVersionMode {
+	p := new(AgentDocumentVersionMode)
+	*p = x
+	return p
+}
+
+func (x AgentDocumentVersionMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentDocumentVersionMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_hcmnext_agent_v1_agent_service_proto_enumTypes[2].Descriptor()
+}
+
+func (AgentDocumentVersionMode) Type() protoreflect.EnumType {
+	return &file_hcmnext_agent_v1_agent_service_proto_enumTypes[2]
+}
+
+func (x AgentDocumentVersionMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentDocumentVersionMode.Descriptor instead.
+func (AgentDocumentVersionMode) EnumDescriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{2}
+}
+
+type AgentDocumentUsageState int32
+
+const (
+	AgentDocumentUsageState_AGENT_DOCUMENT_USAGE_STATE_UNKNOWN AgentDocumentUsageState = 0
+	AgentDocumentUsageState_AGENT_DOCUMENT_USAGE_STATE_NONE    AgentDocumentUsageState = 1
+	AgentDocumentUsageState_AGENT_DOCUMENT_USAGE_STATE_USED    AgentDocumentUsageState = 2
+)
+
+// Enum value maps for AgentDocumentUsageState.
+var (
+	AgentDocumentUsageState_name = map[int32]string{
+		0: "AGENT_DOCUMENT_USAGE_STATE_UNKNOWN",
+		1: "AGENT_DOCUMENT_USAGE_STATE_NONE",
+		2: "AGENT_DOCUMENT_USAGE_STATE_USED",
+	}
+	AgentDocumentUsageState_value = map[string]int32{
+		"AGENT_DOCUMENT_USAGE_STATE_UNKNOWN": 0,
+		"AGENT_DOCUMENT_USAGE_STATE_NONE":    1,
+		"AGENT_DOCUMENT_USAGE_STATE_USED":    2,
+	}
+)
+
+func (x AgentDocumentUsageState) Enum() *AgentDocumentUsageState {
+	p := new(AgentDocumentUsageState)
+	*p = x
+	return p
+}
+
+func (x AgentDocumentUsageState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AgentDocumentUsageState) Descriptor() protoreflect.EnumDescriptor {
+	return file_hcmnext_agent_v1_agent_service_proto_enumTypes[3].Descriptor()
+}
+
+func (AgentDocumentUsageState) Type() protoreflect.EnumType {
+	return &file_hcmnext_agent_v1_agent_service_proto_enumTypes[3]
+}
+
+func (x AgentDocumentUsageState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AgentDocumentUsageState.Descriptor instead.
+func (AgentDocumentUsageState) EnumDescriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{3}
+}
+
+type AgentDocumentReference struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	DocumentId    string                   `protobuf:"bytes,1,opt,name=document_id,json=documentId,proto3" json:"document_id,omitempty"`
+	VersionMode   AgentDocumentVersionMode `protobuf:"varint,2,opt,name=version_mode,json=versionMode,proto3,enum=hcmnext.agent.v1.AgentDocumentVersionMode" json:"version_mode,omitempty"`
+	PinnedVersion uint64                   `protobuf:"varint,3,opt,name=pinned_version,json=pinnedVersion,proto3" json:"pinned_version,omitempty"`
+	SectionAnchor string                   `protobuf:"bytes,4,opt,name=section_anchor,json=sectionAnchor,proto3" json:"section_anchor,omitempty"`
+	Label         string                   `protobuf:"bytes,5,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentDocumentReference) Reset() {
+	*x = AgentDocumentReference{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentDocumentReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentDocumentReference) ProtoMessage() {}
+
+func (x *AgentDocumentReference) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentDocumentReference.ProtoReflect.Descriptor instead.
+func (*AgentDocumentReference) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *AgentDocumentReference) GetDocumentId() string {
+	if x != nil {
+		return x.DocumentId
+	}
+	return ""
+}
+
+func (x *AgentDocumentReference) GetVersionMode() AgentDocumentVersionMode {
+	if x != nil {
+		return x.VersionMode
+	}
+	return AgentDocumentVersionMode_AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED
+}
+
+func (x *AgentDocumentReference) GetPinnedVersion() uint64 {
+	if x != nil {
+		return x.PinnedVersion
+	}
+	return 0
+}
+
+func (x *AgentDocumentReference) GetSectionAnchor() string {
+	if x != nil {
+		return x.SectionAnchor
+	}
+	return ""
+}
+
+func (x *AgentDocumentReference) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+type AgentDocumentOmission struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentDocumentOmission) Reset() {
+	*x = AgentDocumentOmission{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentDocumentOmission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentDocumentOmission) ProtoMessage() {}
+
+func (x *AgentDocumentOmission) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentDocumentOmission.ProtoReflect.Descriptor instead.
+func (*AgentDocumentOmission) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AgentDocumentOmission) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *AgentDocumentOmission) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type AgentTaskStepProjection struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Kind           string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Status         string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	StartedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	FailureSummary string                 `protobuf:"bytes,5,opt,name=failure_summary,json=failureSummary,proto3" json:"failure_summary,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AgentTaskStepProjection) Reset() {
+	*x = AgentTaskStepProjection{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentTaskStepProjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentTaskStepProjection) ProtoMessage() {}
+
+func (x *AgentTaskStepProjection) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentTaskStepProjection.ProtoReflect.Descriptor instead.
+func (*AgentTaskStepProjection) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AgentTaskStepProjection) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AgentTaskStepProjection) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentTaskStepProjection) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *AgentTaskStepProjection) GetFinishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return nil
+}
+
+func (x *AgentTaskStepProjection) GetFailureSummary() string {
+	if x != nil {
+		return x.FailureSummary
+	}
+	return ""
+}
+
+type AgentTaskProjection struct {
+	state                     protoimpl.MessageState     `protogen:"open.v1"`
+	TaskId                    string                     `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	State                     string                     `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Version                   uint64                     `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	Prompt                    string                     `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	DocumentReferences        []*AgentDocumentReference  `protobuf:"bytes,5,rep,name=document_references,json=documentReferences,proto3" json:"document_references,omitempty"`
+	DocumentOmissions         []*AgentDocumentOmission   `protobuf:"bytes,6,rep,name=document_omissions,json=documentOmissions,proto3" json:"document_omissions,omitempty"`
+	CreatedAt                 *timestamppb.Timestamp     `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt                 *timestamppb.Timestamp     `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ResultPreview             string                     `protobuf:"bytes,9,opt,name=result_preview,json=resultPreview,proto3" json:"result_preview,omitempty"`
+	FailureSummary            string                     `protobuf:"bytes,10,opt,name=failure_summary,json=failureSummary,proto3" json:"failure_summary,omitempty"`
+	Retryable                 bool                       `protobuf:"varint,11,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	Steps                     []*AgentTaskStepProjection `protobuf:"bytes,12,rep,name=steps,proto3" json:"steps,omitempty"`
+	AnsweringAgentId          string                     `protobuf:"bytes,13,opt,name=answering_agent_id,json=answeringAgentId,proto3" json:"answering_agent_id,omitempty"`
+	AnsweringAgentDisplayName string                     `protobuf:"bytes,14,opt,name=answering_agent_display_name,json=answeringAgentDisplayName,proto3" json:"answering_agent_display_name,omitempty"`
+	AnsweringAgentVersion     string                     `protobuf:"bytes,15,opt,name=answering_agent_version,json=answeringAgentVersion,proto3" json:"answering_agent_version,omitempty"`
+	UsedDocumentReferences    []*AgentDocumentReference  `protobuf:"bytes,16,rep,name=used_document_references,json=usedDocumentReferences,proto3" json:"used_document_references,omitempty"`
+	DocumentUsageState        AgentDocumentUsageState    `protobuf:"varint,17,opt,name=document_usage_state,json=documentUsageState,proto3,enum=hcmnext.agent.v1.AgentDocumentUsageState" json:"document_usage_state,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *AgentTaskProjection) Reset() {
+	*x = AgentTaskProjection{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentTaskProjection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentTaskProjection) ProtoMessage() {}
+
+func (x *AgentTaskProjection) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentTaskProjection.ProtoReflect.Descriptor instead.
+func (*AgentTaskProjection) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AgentTaskProjection) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *AgentTaskProjection) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetDocumentReferences() []*AgentDocumentReference {
+	if x != nil {
+		return x.DocumentReferences
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetDocumentOmissions() []*AgentDocumentOmission {
+	if x != nil {
+		return x.DocumentOmissions
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetResultPreview() string {
+	if x != nil {
+		return x.ResultPreview
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetFailureSummary() string {
+	if x != nil {
+		return x.FailureSummary
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *AgentTaskProjection) GetSteps() []*AgentTaskStepProjection {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetAnsweringAgentId() string {
+	if x != nil {
+		return x.AnsweringAgentId
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetAnsweringAgentDisplayName() string {
+	if x != nil {
+		return x.AnsweringAgentDisplayName
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetAnsweringAgentVersion() string {
+	if x != nil {
+		return x.AnsweringAgentVersion
+	}
+	return ""
+}
+
+func (x *AgentTaskProjection) GetUsedDocumentReferences() []*AgentDocumentReference {
+	if x != nil {
+		return x.UsedDocumentReferences
+	}
+	return nil
+}
+
+func (x *AgentTaskProjection) GetDocumentUsageState() AgentDocumentUsageState {
+	if x != nil {
+		return x.DocumentUsageState
+	}
+	return AgentDocumentUsageState_AGENT_DOCUMENT_USAGE_STATE_UNKNOWN
+}
+
 type SetAgentsEnabledRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -134,7 +609,7 @@ type SetAgentsEnabledRequest struct {
 
 func (x *SetAgentsEnabledRequest) Reset() {
 	*x = SetAgentsEnabledRequest{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[0]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +621,7 @@ func (x *SetAgentsEnabledRequest) String() string {
 func (*SetAgentsEnabledRequest) ProtoMessage() {}
 
 func (x *SetAgentsEnabledRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[0]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +634,7 @@ func (x *SetAgentsEnabledRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAgentsEnabledRequest.ProtoReflect.Descriptor instead.
 func (*SetAgentsEnabledRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{0}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SetAgentsEnabledRequest) GetEnabled() bool {
@@ -178,7 +653,7 @@ type SetAgentsEnabledResponse struct {
 
 func (x *SetAgentsEnabledResponse) Reset() {
 	*x = SetAgentsEnabledResponse{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[1]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -190,7 +665,7 @@ func (x *SetAgentsEnabledResponse) String() string {
 func (*SetAgentsEnabledResponse) ProtoMessage() {}
 
 func (x *SetAgentsEnabledResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[1]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -203,7 +678,7 @@ func (x *SetAgentsEnabledResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAgentsEnabledResponse.ProtoReflect.Descriptor instead.
 func (*SetAgentsEnabledResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{1}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SetAgentsEnabledResponse) GetEnabled() bool {
@@ -214,16 +689,18 @@ func (x *SetAgentsEnabledResponse) GetEnabled() bool {
 }
 
 type StartAgentTaskRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Prompt        string                 `protobuf:"bytes,1,opt,name=prompt,proto3" json:"prompt,omitempty"`
-	Mode          AgentStartMode         `protobuf:"varint,2,opt,name=mode,proto3,enum=hcmnext.agent.v1.AgentStartMode" json:"mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState    `protogen:"open.v1"`
+	Prompt             string                    `protobuf:"bytes,1,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	Mode               AgentStartMode            `protobuf:"varint,2,opt,name=mode,proto3,enum=hcmnext.agent.v1.AgentStartMode" json:"mode,omitempty"`
+	DocumentReferences []*AgentDocumentReference `protobuf:"bytes,3,rep,name=document_references,json=documentReferences,proto3" json:"document_references,omitempty"`
+	PersonaId          string                    `protobuf:"bytes,4,opt,name=persona_id,json=personaId,proto3" json:"persona_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StartAgentTaskRequest) Reset() {
 	*x = StartAgentTaskRequest{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[2]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +712,7 @@ func (x *StartAgentTaskRequest) String() string {
 func (*StartAgentTaskRequest) ProtoMessage() {}
 
 func (x *StartAgentTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[2]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +725,7 @@ func (x *StartAgentTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartAgentTaskRequest.ProtoReflect.Descriptor instead.
 func (*StartAgentTaskRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{2}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StartAgentTaskRequest) GetPrompt() string {
@@ -265,18 +742,33 @@ func (x *StartAgentTaskRequest) GetMode() AgentStartMode {
 	return AgentStartMode_AGENT_START_MODE_UNSPECIFIED
 }
 
+func (x *StartAgentTaskRequest) GetDocumentReferences() []*AgentDocumentReference {
+	if x != nil {
+		return x.DocumentReferences
+	}
+	return nil
+}
+
+func (x *StartAgentTaskRequest) GetPersonaId() string {
+	if x != nil {
+		return x.PersonaId
+	}
+	return ""
+}
+
 type StartAgentTaskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	Version       uint64                 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	Task          *AgentTaskProjection   `protobuf:"bytes,4,opt,name=task,proto3" json:"task,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StartAgentTaskResponse) Reset() {
 	*x = StartAgentTaskResponse{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[3]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +780,7 @@ func (x *StartAgentTaskResponse) String() string {
 func (*StartAgentTaskResponse) ProtoMessage() {}
 
 func (x *StartAgentTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[3]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +793,7 @@ func (x *StartAgentTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartAgentTaskResponse.ProtoReflect.Descriptor instead.
 func (*StartAgentTaskResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{3}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StartAgentTaskResponse) GetTaskId() string {
@@ -325,6 +817,181 @@ func (x *StartAgentTaskResponse) GetVersion() uint64 {
 	return 0
 }
 
+func (x *StartAgentTaskResponse) GetTask() *AgentTaskProjection {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+type GetAgentTaskRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentTaskRequest) Reset() {
+	*x = GetAgentTaskRequest{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentTaskRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentTaskRequest) ProtoMessage() {}
+
+func (x *GetAgentTaskRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentTaskRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentTaskRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetAgentTaskRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+type GetAgentTaskResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Task          *AgentTaskProjection   `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentTaskResponse) Reset() {
+	*x = GetAgentTaskResponse{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentTaskResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentTaskResponse) ProtoMessage() {}
+
+func (x *GetAgentTaskResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentTaskResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentTaskResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetAgentTaskResponse) GetTask() *AgentTaskProjection {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+type ListAgentTasksRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentTasksRequest) Reset() {
+	*x = ListAgentTasksRequest{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentTasksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentTasksRequest) ProtoMessage() {}
+
+func (x *ListAgentTasksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentTasksRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentTasksRequest) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{10}
+}
+
+type ListAgentTasksResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tasks         []*AgentTaskProjection `protobuf:"bytes,1,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentTasksResponse) Reset() {
+	*x = ListAgentTasksResponse{}
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentTasksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentTasksResponse) ProtoMessage() {}
+
+func (x *ListAgentTasksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentTasksResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentTasksResponse) Descriptor() ([]byte, []int) {
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListAgentTasksResponse) GetTasks() []*AgentTaskProjection {
+	if x != nil {
+		return x.Tasks
+	}
+	return nil
+}
+
 type ControlAgentTaskRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TaskId          string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
@@ -336,7 +1003,7 @@ type ControlAgentTaskRequest struct {
 
 func (x *ControlAgentTaskRequest) Reset() {
 	*x = ControlAgentTaskRequest{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[4]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -348,7 +1015,7 @@ func (x *ControlAgentTaskRequest) String() string {
 func (*ControlAgentTaskRequest) ProtoMessage() {}
 
 func (x *ControlAgentTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[4]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -361,7 +1028,7 @@ func (x *ControlAgentTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlAgentTaskRequest.ProtoReflect.Descriptor instead.
 func (*ControlAgentTaskRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{4}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ControlAgentTaskRequest) GetTaskId() string {
@@ -396,7 +1063,7 @@ type ControlAgentTaskResponse struct {
 
 func (x *ControlAgentTaskResponse) Reset() {
 	*x = ControlAgentTaskResponse{}
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[5]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -408,7 +1075,7 @@ func (x *ControlAgentTaskResponse) String() string {
 func (*ControlAgentTaskResponse) ProtoMessage() {}
 
 func (x *ControlAgentTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[5]
+	mi := &file_hcmnext_agent_v1_agent_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -421,7 +1088,7 @@ func (x *ControlAgentTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlAgentTaskResponse.ProtoReflect.Descriptor instead.
 func (*ControlAgentTaskResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{5}
+	return file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ControlAgentTaskResponse) GetTaskId() string {
@@ -449,18 +1116,68 @@ var File_hcmnext_agent_v1_agent_service_proto protoreflect.FileDescriptor
 
 const file_hcmnext_agent_v1_agent_service_proto_rawDesc = "" +
 	"\n" +
-	"$hcmnext/agent/v1/agent_service.proto\x12\x10hcmnext.agent.v1\"3\n" +
+	"$hcmnext/agent/v1/agent_service.proto\x12\x10hcmnext.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xec\x01\n" +
+	"\x16AgentDocumentReference\x12\x1f\n" +
+	"\vdocument_id\x18\x01 \x01(\tR\n" +
+	"documentId\x12M\n" +
+	"\fversion_mode\x18\x02 \x01(\x0e2*.hcmnext.agent.v1.AgentDocumentVersionModeR\vversionMode\x12%\n" +
+	"\x0epinned_version\x18\x03 \x01(\x04R\rpinnedVersion\x12%\n" +
+	"\x0esection_anchor\x18\x04 \x01(\tR\rsectionAnchor\x12\x14\n" +
+	"\x05label\x18\x05 \x01(\tR\x05label\"E\n" +
+	"\x15AgentDocumentOmission\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xe6\x01\n" +
+	"\x17AgentTaskStepProjection\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x129\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
+	"\vfinished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"finishedAt\x12'\n" +
+	"\x0ffailure_summary\x18\x05 \x01(\tR\x0efailureSummary\"\xb6\a\n" +
+	"\x13AgentTaskProjection\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\x12\x16\n" +
+	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12Y\n" +
+	"\x13document_references\x18\x05 \x03(\v2(.hcmnext.agent.v1.AgentDocumentReferenceR\x12documentReferences\x12V\n" +
+	"\x12document_omissions\x18\x06 \x03(\v2'.hcmnext.agent.v1.AgentDocumentOmissionR\x11documentOmissions\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0eresult_preview\x18\t \x01(\tR\rresultPreview\x12'\n" +
+	"\x0ffailure_summary\x18\n" +
+	" \x01(\tR\x0efailureSummary\x12\x1c\n" +
+	"\tretryable\x18\v \x01(\bR\tretryable\x12?\n" +
+	"\x05steps\x18\f \x03(\v2).hcmnext.agent.v1.AgentTaskStepProjectionR\x05steps\x12,\n" +
+	"\x12answering_agent_id\x18\r \x01(\tR\x10answeringAgentId\x12?\n" +
+	"\x1canswering_agent_display_name\x18\x0e \x01(\tR\x19answeringAgentDisplayName\x126\n" +
+	"\x17answering_agent_version\x18\x0f \x01(\tR\x15answeringAgentVersion\x12b\n" +
+	"\x18used_document_references\x18\x10 \x03(\v2(.hcmnext.agent.v1.AgentDocumentReferenceR\x16usedDocumentReferences\x12[\n" +
+	"\x14document_usage_state\x18\x11 \x01(\x0e2).hcmnext.agent.v1.AgentDocumentUsageStateR\x12documentUsageState\"3\n" +
 	"\x17SetAgentsEnabledRequest\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\"4\n" +
 	"\x18SetAgentsEnabledResponse\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\"e\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\"\xdf\x01\n" +
 	"\x15StartAgentTaskRequest\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x124\n" +
-	"\x04mode\x18\x02 \x01(\x0e2 .hcmnext.agent.v1.AgentStartModeR\x04mode\"a\n" +
+	"\x04mode\x18\x02 \x01(\x0e2 .hcmnext.agent.v1.AgentStartModeR\x04mode\x12Y\n" +
+	"\x13document_references\x18\x03 \x03(\v2(.hcmnext.agent.v1.AgentDocumentReferenceR\x12documentReferences\x12\x1d\n" +
+	"\n" +
+	"persona_id\x18\x04 \x01(\tR\tpersonaId\"\x9c\x01\n" +
 	"\x16StartAgentTaskResponse\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\x04R\aversion\"\x98\x01\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\x129\n" +
+	"\x04task\x18\x04 \x01(\v2%.hcmnext.agent.v1.AgentTaskProjectionR\x04task\".\n" +
+	"\x13GetAgentTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"Q\n" +
+	"\x14GetAgentTaskResponse\x129\n" +
+	"\x04task\x18\x01 \x01(\v2%.hcmnext.agent.v1.AgentTaskProjectionR\x04task\"\x17\n" +
+	"\x15ListAgentTasksRequest\"U\n" +
+	"\x16ListAgentTasksResponse\x12;\n" +
+	"\x05tasks\x18\x01 \x03(\v2%.hcmnext.agent.v1.AgentTaskProjectionR\x05tasks\"\x98\x01\n" +
 	"\x17ControlAgentTaskRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\x04R\x0fexpectedVersion\x129\n" +
@@ -478,10 +1195,20 @@ const file_hcmnext_agent_v1_agent_service_proto_rawDesc = "" +
 	"\x1eAGENT_TASK_ACTION_CONFIRM_PLAN\x10\x01\x12\x1b\n" +
 	"\x17AGENT_TASK_ACTION_PAUSE\x10\x02\x12\x1c\n" +
 	"\x18AGENT_TASK_ACTION_RESUME\x10\x03\x12\x1c\n" +
-	"\x18AGENT_TASK_ACTION_CANCEL\x10\x042\xc9\x02\n" +
+	"\x18AGENT_TASK_ACTION_CANCEL\x10\x04*\xa1\x01\n" +
+	"\x18AgentDocumentVersionMode\x12+\n" +
+	"'AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"AGENT_DOCUMENT_VERSION_MODE_PINNED\x10\x01\x120\n" +
+	",AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED\x10\x02*\x8b\x01\n" +
+	"\x17AgentDocumentUsageState\x12&\n" +
+	"\"AGENT_DOCUMENT_USAGE_STATE_UNKNOWN\x10\x00\x12#\n" +
+	"\x1fAGENT_DOCUMENT_USAGE_STATE_NONE\x10\x01\x12#\n" +
+	"\x1fAGENT_DOCUMENT_USAGE_STATE_USED\x10\x022\x8d\x04\n" +
 	"\fAgentService\x12i\n" +
 	"\x10SetAgentsEnabled\x12).hcmnext.agent.v1.SetAgentsEnabledRequest\x1a*.hcmnext.agent.v1.SetAgentsEnabledResponse\x12c\n" +
-	"\x0eStartAgentTask\x12'.hcmnext.agent.v1.StartAgentTaskRequest\x1a(.hcmnext.agent.v1.StartAgentTaskResponse\x12i\n" +
+	"\x0eStartAgentTask\x12'.hcmnext.agent.v1.StartAgentTaskRequest\x1a(.hcmnext.agent.v1.StartAgentTaskResponse\x12]\n" +
+	"\fGetAgentTask\x12%.hcmnext.agent.v1.GetAgentTaskRequest\x1a&.hcmnext.agent.v1.GetAgentTaskResponse\x12c\n" +
+	"\x0eListAgentTasks\x12'.hcmnext.agent.v1.ListAgentTasksRequest\x1a(.hcmnext.agent.v1.ListAgentTasksResponse\x12i\n" +
 	"\x10ControlAgentTask\x12).hcmnext.agent.v1.ControlAgentTaskRequest\x1a*.hcmnext.agent.v1.ControlAgentTaskResponseBZZXgithub.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1;agentv1b\x06proto3"
 
 var (
@@ -496,32 +1223,61 @@ func file_hcmnext_agent_v1_agent_service_proto_rawDescGZIP() []byte {
 	return file_hcmnext_agent_v1_agent_service_proto_rawDescData
 }
 
-var file_hcmnext_agent_v1_agent_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_hcmnext_agent_v1_agent_service_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_hcmnext_agent_v1_agent_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_hcmnext_agent_v1_agent_service_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_hcmnext_agent_v1_agent_service_proto_goTypes = []any{
 	(AgentStartMode)(0),              // 0: hcmnext.agent.v1.AgentStartMode
 	(AgentTaskAction)(0),             // 1: hcmnext.agent.v1.AgentTaskAction
-	(*SetAgentsEnabledRequest)(nil),  // 2: hcmnext.agent.v1.SetAgentsEnabledRequest
-	(*SetAgentsEnabledResponse)(nil), // 3: hcmnext.agent.v1.SetAgentsEnabledResponse
-	(*StartAgentTaskRequest)(nil),    // 4: hcmnext.agent.v1.StartAgentTaskRequest
-	(*StartAgentTaskResponse)(nil),   // 5: hcmnext.agent.v1.StartAgentTaskResponse
-	(*ControlAgentTaskRequest)(nil),  // 6: hcmnext.agent.v1.ControlAgentTaskRequest
-	(*ControlAgentTaskResponse)(nil), // 7: hcmnext.agent.v1.ControlAgentTaskResponse
+	(AgentDocumentVersionMode)(0),    // 2: hcmnext.agent.v1.AgentDocumentVersionMode
+	(AgentDocumentUsageState)(0),     // 3: hcmnext.agent.v1.AgentDocumentUsageState
+	(*AgentDocumentReference)(nil),   // 4: hcmnext.agent.v1.AgentDocumentReference
+	(*AgentDocumentOmission)(nil),    // 5: hcmnext.agent.v1.AgentDocumentOmission
+	(*AgentTaskStepProjection)(nil),  // 6: hcmnext.agent.v1.AgentTaskStepProjection
+	(*AgentTaskProjection)(nil),      // 7: hcmnext.agent.v1.AgentTaskProjection
+	(*SetAgentsEnabledRequest)(nil),  // 8: hcmnext.agent.v1.SetAgentsEnabledRequest
+	(*SetAgentsEnabledResponse)(nil), // 9: hcmnext.agent.v1.SetAgentsEnabledResponse
+	(*StartAgentTaskRequest)(nil),    // 10: hcmnext.agent.v1.StartAgentTaskRequest
+	(*StartAgentTaskResponse)(nil),   // 11: hcmnext.agent.v1.StartAgentTaskResponse
+	(*GetAgentTaskRequest)(nil),      // 12: hcmnext.agent.v1.GetAgentTaskRequest
+	(*GetAgentTaskResponse)(nil),     // 13: hcmnext.agent.v1.GetAgentTaskResponse
+	(*ListAgentTasksRequest)(nil),    // 14: hcmnext.agent.v1.ListAgentTasksRequest
+	(*ListAgentTasksResponse)(nil),   // 15: hcmnext.agent.v1.ListAgentTasksResponse
+	(*ControlAgentTaskRequest)(nil),  // 16: hcmnext.agent.v1.ControlAgentTaskRequest
+	(*ControlAgentTaskResponse)(nil), // 17: hcmnext.agent.v1.ControlAgentTaskResponse
+	(*timestamppb.Timestamp)(nil),    // 18: google.protobuf.Timestamp
 }
 var file_hcmnext_agent_v1_agent_service_proto_depIdxs = []int32{
-	0, // 0: hcmnext.agent.v1.StartAgentTaskRequest.mode:type_name -> hcmnext.agent.v1.AgentStartMode
-	1, // 1: hcmnext.agent.v1.ControlAgentTaskRequest.action:type_name -> hcmnext.agent.v1.AgentTaskAction
-	2, // 2: hcmnext.agent.v1.AgentService.SetAgentsEnabled:input_type -> hcmnext.agent.v1.SetAgentsEnabledRequest
-	4, // 3: hcmnext.agent.v1.AgentService.StartAgentTask:input_type -> hcmnext.agent.v1.StartAgentTaskRequest
-	6, // 4: hcmnext.agent.v1.AgentService.ControlAgentTask:input_type -> hcmnext.agent.v1.ControlAgentTaskRequest
-	3, // 5: hcmnext.agent.v1.AgentService.SetAgentsEnabled:output_type -> hcmnext.agent.v1.SetAgentsEnabledResponse
-	5, // 6: hcmnext.agent.v1.AgentService.StartAgentTask:output_type -> hcmnext.agent.v1.StartAgentTaskResponse
-	7, // 7: hcmnext.agent.v1.AgentService.ControlAgentTask:output_type -> hcmnext.agent.v1.ControlAgentTaskResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2,  // 0: hcmnext.agent.v1.AgentDocumentReference.version_mode:type_name -> hcmnext.agent.v1.AgentDocumentVersionMode
+	18, // 1: hcmnext.agent.v1.AgentTaskStepProjection.started_at:type_name -> google.protobuf.Timestamp
+	18, // 2: hcmnext.agent.v1.AgentTaskStepProjection.finished_at:type_name -> google.protobuf.Timestamp
+	4,  // 3: hcmnext.agent.v1.AgentTaskProjection.document_references:type_name -> hcmnext.agent.v1.AgentDocumentReference
+	5,  // 4: hcmnext.agent.v1.AgentTaskProjection.document_omissions:type_name -> hcmnext.agent.v1.AgentDocumentOmission
+	18, // 5: hcmnext.agent.v1.AgentTaskProjection.created_at:type_name -> google.protobuf.Timestamp
+	18, // 6: hcmnext.agent.v1.AgentTaskProjection.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 7: hcmnext.agent.v1.AgentTaskProjection.steps:type_name -> hcmnext.agent.v1.AgentTaskStepProjection
+	4,  // 8: hcmnext.agent.v1.AgentTaskProjection.used_document_references:type_name -> hcmnext.agent.v1.AgentDocumentReference
+	3,  // 9: hcmnext.agent.v1.AgentTaskProjection.document_usage_state:type_name -> hcmnext.agent.v1.AgentDocumentUsageState
+	0,  // 10: hcmnext.agent.v1.StartAgentTaskRequest.mode:type_name -> hcmnext.agent.v1.AgentStartMode
+	4,  // 11: hcmnext.agent.v1.StartAgentTaskRequest.document_references:type_name -> hcmnext.agent.v1.AgentDocumentReference
+	7,  // 12: hcmnext.agent.v1.StartAgentTaskResponse.task:type_name -> hcmnext.agent.v1.AgentTaskProjection
+	7,  // 13: hcmnext.agent.v1.GetAgentTaskResponse.task:type_name -> hcmnext.agent.v1.AgentTaskProjection
+	7,  // 14: hcmnext.agent.v1.ListAgentTasksResponse.tasks:type_name -> hcmnext.agent.v1.AgentTaskProjection
+	1,  // 15: hcmnext.agent.v1.ControlAgentTaskRequest.action:type_name -> hcmnext.agent.v1.AgentTaskAction
+	8,  // 16: hcmnext.agent.v1.AgentService.SetAgentsEnabled:input_type -> hcmnext.agent.v1.SetAgentsEnabledRequest
+	10, // 17: hcmnext.agent.v1.AgentService.StartAgentTask:input_type -> hcmnext.agent.v1.StartAgentTaskRequest
+	12, // 18: hcmnext.agent.v1.AgentService.GetAgentTask:input_type -> hcmnext.agent.v1.GetAgentTaskRequest
+	14, // 19: hcmnext.agent.v1.AgentService.ListAgentTasks:input_type -> hcmnext.agent.v1.ListAgentTasksRequest
+	16, // 20: hcmnext.agent.v1.AgentService.ControlAgentTask:input_type -> hcmnext.agent.v1.ControlAgentTaskRequest
+	9,  // 21: hcmnext.agent.v1.AgentService.SetAgentsEnabled:output_type -> hcmnext.agent.v1.SetAgentsEnabledResponse
+	11, // 22: hcmnext.agent.v1.AgentService.StartAgentTask:output_type -> hcmnext.agent.v1.StartAgentTaskResponse
+	13, // 23: hcmnext.agent.v1.AgentService.GetAgentTask:output_type -> hcmnext.agent.v1.GetAgentTaskResponse
+	15, // 24: hcmnext.agent.v1.AgentService.ListAgentTasks:output_type -> hcmnext.agent.v1.ListAgentTasksResponse
+	17, // 25: hcmnext.agent.v1.AgentService.ControlAgentTask:output_type -> hcmnext.agent.v1.ControlAgentTaskResponse
+	21, // [21:26] is the sub-list for method output_type
+	16, // [16:21] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_agent_v1_agent_service_proto_init() }
@@ -534,8 +1290,8 @@ func file_hcmnext_agent_v1_agent_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_agent_v1_agent_service_proto_rawDesc), len(file_hcmnext_agent_v1_agent_service_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   6,
+			NumEnums:      4,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

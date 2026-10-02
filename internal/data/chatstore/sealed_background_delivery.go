@@ -219,6 +219,9 @@ func insertSealedBackgroundDMPost(ctx context.Context, tx dbport.Tx, i agentsecu
 	if _, err := tx.Exec(ctx, `INSERT INTO chat_post_revision(tenant_id,post_id,revision,author_id,body) VALUES($1,$2,1,$3,$4)`, i.TenantID, p.ID, i.PersonaID, body); err != nil {
 		return chat.Post{}, err
 	}
+	if err := RecordRenderingRevisionTx(ctx, tx, i.TenantID, p.ID, 1, nil); err != nil {
+		return chat.Post{}, err
+	}
 	if err := writeOutbox(ctx, tx, outboxWrite{TenantID: i.TenantID, ConversationID: dm, AggregateID: p.ID, EventType: "post.created", ActorHomeTenantID: i.TenantID, ActorID: i.PersonaID, TargetID: p.ID, RecordID: "post:" + p.ID, RecordKind: "POST", SourceID: p.ID, Revision: 1, PolicyRevision: policy, EventSequence: event, CorrelationID: key, Value: p}); err != nil {
 		return chat.Post{}, err
 	}

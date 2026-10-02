@@ -17,6 +17,7 @@ func (s *Service) projectConversationReferences(ctx context.Context, p Principal
 	visible := make(map[string]bool)
 	for i, post := range posts {
 		projected[i] = post
+		projected[i].Body = s.projectAgentSources(ctx, p, post.TenantID, post.ConversationID, post.Body)
 		projected[i].References = append([]Reference(nil), post.References...)
 		for j, ref := range projected[i].References {
 			if ref.Kind != ConversationMention {
@@ -34,10 +35,37 @@ func (s *Service) projectConversationReferences(ctx context.Context, p Principal
 			}
 		}
 	}
+	// CHATMOD-002: what a reader sees of a filtered message is decided here, on
+	// the server, for every history read, search hit, pin and live event.
+	s.maskReaderBodies(ctx, p, projected)
 	return projected
 }
 
-func (s *Service) projectWatchEvents(ctx context.Context, p Principal, events <-chan WatchEvent, failures <-chan error) (<-chan WatchEvent, <-chan error) {
+// ProjectWatchEvent is the reader projection of one watch event: the agent
+// sources of a post or private answer are decided for this reader, and a
+// conversation reference the reader may not open is made inert. A watch that
+// does not run on this service (the served stream) calls it for every event so a
+// live answer is projected exactly as the same answer read from history.
+func (s *Service) ProjectWatchEvent(ctx context.Context, p Principal, tenant, conversation string, event WatchEvent) WatchEvent {
+	if event.Event.Post != nil {
+		post := s.projectConversationReferences(ctx, p, []Post{*event.Event.Post})[0]
+		event.Event.Post = &post
+	}
+	if event.EphemeralDelivery != nil {
+		delivery := *event.EphemeralDelivery
+		delivery.Body = s.projectAgentSources(ctx, p, tenant, conversation, delivery.Body)
+		event.EphemeralDelivery = &delivery
+	}
+	if event.Event.Pin != nil && event.Event.Pin.Post != nil {
+		post := s.projectConversationReferences(ctx, p, []Post{*event.Event.Pin.Post})[0]
+		pin := *event.Event.Pin
+		pin.Post = &post
+		event.Event.Pin = &pin
+	}
+	return event
+}
+
+func (s *Service) projectWatchEvents(ctx context.Context, p Principal, tenant, conversation string, events <-chan WatchEvent, failures <-chan error) (<-chan WatchEvent, <-chan error) {
 	projected := make(chan WatchEvent)
 	var projectedFailures chan error
 	if failures != nil {
@@ -57,16 +85,7 @@ func (s *Service) projectWatchEvents(ctx context.Context, p Principal, events <-
 					events = nil
 					continue
 				}
-				if event.Event.Post != nil {
-					post := s.projectConversationReferences(ctx, p, []Post{*event.Event.Post})[0]
-					event.Event.Post = &post
-				}
-				if event.Event.Pin != nil && event.Event.Pin.Post != nil {
-					post := s.projectConversationReferences(ctx, p, []Post{*event.Event.Pin.Post})[0]
-					pin := *event.Event.Pin
-					pin.Post = &post
-					event.Event.Pin = &pin
-				}
+				event = s.ProjectWatchEvent(ctx, p, tenant, conversation, event)
 				select {
 				case projected <- event:
 				case <-ctx.Done():
