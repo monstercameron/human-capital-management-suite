@@ -10,23 +10,25 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/util"
 )
 
 // markdownParser is built once: constructing goldmark's default parser per
 // message was 15% of a timeline render's allocations. Parse keeps its state in
 // a per-call context, so one parser serves every message.
-var markdownParser = goldmark.New().Parser()
+var markdownParser = goldmark.New(goldmark.WithExtensions(extension.Table, extension.Strikethrough)).Parser()
 
 // markdownMessageBody renders the supported Markdown profile as typed nodes.
 // Raw HTML and image syntax never become active HTML or remote requests.
 func markdownMessageBody(m Model, body string) []ui.Node {
+	// CHATBUG-089: whatever body reaches here, the system's comments are not text.
+	body = chatStripInternalMarkers(body)
 	if len(body) > 64*1024 {
 		return []ui.Node{ui.Text(body)}
 	}
-	source := []byte(body)
-	root := markdownParser.Parse(text.NewReader(source))
+	// The browser client parses each distinct body once (chatperf_markdown.go).
+	root, source := chatperfMarkdownTreeOf(body)
 	return markdownChildren(m, root, source)
 }
 
@@ -43,7 +45,7 @@ func markdownChildren(m Model, parent ast.Node, source []byte) []ui.Node {
 		if n, ok := child.(*ast.Text); ok {
 			value := string(n.Value(source))
 			if !n.IsRaw() {
-				value = stdhtml.UnescapeString(string(util.UnescapePunctuations([]byte(value))))
+				value = markdownUnescape(value)
 			}
 			plain.WriteString(value)
 			if n.HardLineBreak() || n.SoftLineBreak() {
@@ -59,19 +61,71 @@ func markdownChildren(m Model, parent ast.Node, source []byte) []ui.Node {
 	return nodes
 }
 
+// markdownUnescape resolves backslash escapes and character references in a
+// run of message text. A reference is "&name;", "&#38;" or "&#x26;", with its
+// semicolon, as CommonMark has it. The HTML rule that html.UnescapeString
+// follows also accepts the old names without one, which turned the address
+// "?a=1&copy=2" into "?a=1©=2".
+func markdownUnescape(value string) string {
+	value = string(util.UnescapePunctuations([]byte(value)))
+	if !strings.Contains(value, "&") {
+		return value
+	}
+	var out strings.Builder
+	for {
+		at := strings.IndexByte(value, '&')
+		if at < 0 {
+			break
+		}
+		out.WriteString(value[:at])
+		value = value[at:]
+		end := markdownReferenceEnd(value)
+		if end == 0 {
+			out.WriteByte('&')
+			value = value[1:]
+			continue
+		}
+		out.WriteString(stdhtml.UnescapeString(value[:end]))
+		value = value[end:]
+	}
+	out.WriteString(value)
+	return out.String()
+}
+
+// markdownReferenceEnd is the length of the character reference s begins
+// with, semicolon included, or 0 when s (which starts with "&") begins with
+// none.
+func markdownReferenceEnd(s string) int {
+	i := 1
+	if i < len(s) && s[i] == '#' {
+		i++
+		if i < len(s) && (s[i] == 'x' || s[i] == 'X') {
+			i++
+		}
+	}
+	start := i
+	for i < len(s) && i-start < 32 && (s[i] >= '0' && s[i] <= '9' || s[i] >= 'a' && s[i] <= 'z' || s[i] >= 'A' && s[i] <= 'Z') {
+		i++
+	}
+	if i == start || i >= len(s) || s[i] != ';' {
+		return 0
+	}
+	return i + 1
+}
+
 func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 	children := func() []ui.Node { return markdownChildren(m, node, source) }
 	switch n := node.(type) {
 	case *ast.Paragraph:
-		return []ui.Node{html.P(html.Props{}, children()...)}
+		return []ui.Node{html.P(markdownBlockProps(m), children()...)}
 	case *ast.TextBlock:
-		return children()
+		return markdownIsolate(m, children())
 	case *ast.Heading:
 		level := n.Level + 2
 		if level > 6 {
 			level = 6
 		}
-		return []ui.Node{html.Tag("h"+string(rune('0'+level)), html.Props{}, children()...)}
+		return []ui.Node{html.Tag("h"+string(rune('0'+level)), markdownBlockProps(m), children()...)}
 	case *ast.Emphasis:
 		if n.Level == 2 {
 			return []ui.Node{html.Strong(html.Props{}, children()...)}
@@ -99,14 +153,21 @@ func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 	case *ast.ThematicBreak:
 		return []ui.Node{html.Hr(html.Props{})}
 	case *ast.Link:
+		href, ok := safeMarkdownHref(string(n.Destination))
+		// An address inside the label of a link is the label, not a second link.
+		m.renderInLink = m.renderInLink || ok
 		label := children()
-		if href, ok := safeMarkdownHref(string(n.Destination)); ok {
-			return []ui.Node{html.A(html.Props{Href: href}, label...)}
+		if ok {
+			return []ui.Node{html.A(agentUX075LinkProps(html.Props{Href: href}, string(n.Title), markdownUnescape(string(n.Text(source)))), label...)}
 		}
 		return label
 	case *ast.AutoLink:
 		label := string(n.Label(source))
 		if href, ok := safeMarkdownHref(string(n.URL(source))); ok {
+			// CHATBUG-053: "<https://...>" is shortened like an address typed bare.
+			if href == label && !m.renderInLink && chatbug053Address.FindString(href) == href {
+				return []ui.Node{chatbug053Link(m, href)}
+			}
 			return []ui.Node{html.A(html.Props{Href: href}, ui.Text(label))}
 		}
 		return []ui.Node{ui.Text(label)}
@@ -117,6 +178,9 @@ func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 	case *ast.HTMLBlock:
 		return []ui.Node{html.P(html.Props{}, ui.Text(string(n.Text(source))))}
 	default:
+		if nodes, drawn := agentUX075MarkdownNode(m, node, source); drawn {
+			return nodes
+		}
 		return children()
 	}
 }
@@ -153,6 +217,11 @@ func safeMarkdownHref(raw string) (string, bool) {
 // platform cannot draw becomes a labelled chip (CHATBUG-043); everything else is
 // the text it always was.
 func markdownTextNodes(m Model, text string) []ui.Node {
+	if m.renderHighlight != "" {
+		words := m.renderHighlight
+		m.renderHighlight = ""
+		return chatsearchHighlightNodes(words, markdownTextNodes(m, text))
+	}
 	if emojiFlagsDrawn() {
 		return modAuthorInline(m, text)
 	}

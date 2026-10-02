@@ -233,7 +233,9 @@ func TestTodo_CHATBUG_017(t *testing.T) {
 	// The bar sits inside its row at phone width and on touch screens, not half
 	// across the boundary with the message above.
 	chat4Require(t, AgentUXChat4Styles, `@media(max-width:767px),(pointer:coarse){.chat-workspace .message-list .message .message-actions{top:4px;transform:none}}`)
-	if got := chatbugCascadeValue(Stylesheet, ".chat-workspace .message-list .message .message-actions", "transform"); got != "none" {
+	// The bar above the message (CHATBUG-076) starts at 768 px; below that the
+	// compact bar is the one that applies.
+	if got := chatbugCascadeValue(strings.Replace(Stylesheet, ChatBug076Styles, "", 1), ".chat-workspace .message-list .message .message-actions", "transform"); got != "none" {
 		t.Fatalf("compact bar transform = %q", got)
 	}
 }

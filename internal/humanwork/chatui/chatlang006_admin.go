@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatlang"
 )
@@ -44,10 +43,28 @@ type TranslationAdminModel struct {
 	// Loaded is false until the server has answered once.
 	Loaded                 bool
 	Loading, Failed, Saved bool
+	// SavedField is the name of the control whose change was saved last, so the
+	// page can say "Saved" beside that setting and not only above the form
+	// (CHATLANG-007).
+	SavedField string
 	// Denied is true when the server refused the caller's administration.
-	Denied                              bool
+	Denied bool
+	// SignedOut is true when the server no longer accepts the page's session
+	// (CHATBUG-087): the failure line then says so instead of "try again".
+	SignedOut                           bool
 	SaveWorkspace, SaveChannel, AddTerm ui.Handler
 	RemoveTerm                          ui.Handler
+	// Retry reads the settings again after a failure (CHATUX-027).
+	Retry ui.Handler
+}
+
+// failureKey is the copy key of the line that says why settings failed to load
+// or save.
+func (m TranslationAdminModel) failureKey() string {
+	if m.SignedOut {
+		return "error_signed_out"
+	}
+	return "error"
 }
 
 // translationAdminText returns the text of a key in the person's language. The
@@ -71,15 +88,12 @@ func translationAdminText(locale, key string, text func(string) string) string {
 // translationAdminCopy holds every visible string in en-US, de-DE and ar.
 var translationAdminCopy = map[string][3]string{
 	"title":                  {"Translation", "Übersetzung", "الترجمة"},
-	"intro":                  {"Readers can see messages in their own language. The message as written is always kept as the record.", "Leser sehen Nachrichten in ihrer eigenen Sprache. Die Nachricht im Wortlaut bleibt immer als Nachweis erhalten.", "يستطيع القراء رؤية الرسائل بلغتهم. تبقى الرسالة كما كُتبت محفوظة دائماً كسجل."},
-	"manage":                 {"Manage translation", "Übersetzung verwalten", "أدر الترجمة"},
 	"loading":                {"Loading translation settings. Please wait.", "Übersetzungseinstellungen werden geladen. Bitte warten.", "جار تحميل إعدادات الترجمة. يرجى الانتظار."},
 	"error":                  {"Translation settings could not load or save. Try again.", "Übersetzungseinstellungen konnten nicht geladen oder gespeichert werden. Versuchen Sie es erneut.", "تعذر تحميل إعدادات الترجمة أو حفظها. حاول مجدداً."},
+	"error_signed_out":       {"You were signed out, so translation settings could not load or save. Reload the page to sign in again.", "Sie wurden abgemeldet, daher konnten die Übersetzungseinstellungen nicht geladen oder gespeichert werden. Laden Sie die Seite neu und melden Sie sich erneut an.", "تم تسجيل خروجك لذا تعذر تحميل إعدادات الترجمة أو حفظها. أعد تحميل الصفحة لتسجيل الدخول مجددًا."},
 	"retry":                  {"Try again", "Erneut versuchen", "حاول مجدداً"},
 	"denied":                 {"Only a workspace administrator or this channel's manager can change translation.", "Nur Arbeitsbereichsadministratoren oder die Verwaltung dieses Kanals können die Übersetzung ändern.", "يمكن فقط لمسؤول مساحة العمل أو مدير هذه القناة تغيير الترجمة."},
 	"saved":                  {"Saved.", "Gespeichert.", "تم الحفظ."},
-	"save":                   {"Save", "Speichern", "احفظ"},
-	"workspace":              {"Whole workspace", "Gesamter Arbeitsbereich", "مساحة العمل كاملة"},
 	"enabled":                {"Translate messages into each reader's language", "Nachrichten in die Sprache jedes Lesers übersetzen", "ترجم الرسائل إلى لغة كل قارئ"},
 	"enabled_hint":           {"Off until you turn it on. People also choose, in their own settings, whether to read translations.", "Aus, bis Sie es einschalten. Jede Person entscheidet außerdem in ihren Einstellungen, ob sie Übersetzungen lesen möchte.", "متوقفة حتى تشغّلها. ويختار كل شخص في إعداداته ما إذا كان يريد قراءة الترجمات."},
 	"languages":              {"Languages offered", "Angebotene Sprachen", "اللغات المتاحة"},
@@ -91,7 +105,10 @@ var translationAdminCopy = map[string][3]string{
 	"external":               {"Allow sending text to an outside translation service", "Senden von Text an einen externen Übersetzungsdienst erlauben", "السماح بإرسال النص إلى خدمة ترجمة خارجية"},
 	"external_hint":          {"Turn off to keep every message inside this deployment; nothing is translated while no engine inside it exists.", "Ausschalten, damit jede Nachricht in dieser Installation bleibt; solange es dort keine Übersetzungsmaschine gibt, wird nichts übersetzt.", "أوقفه لإبقاء كل رسالة داخل هذا النشر؛ لا يُترجم شيء ما دام لا يوجد محرك بداخله."},
 	"engine":                 {"Translation engine: {name}", "Übersetzungsmaschine: {name}", "محرك الترجمة: {name}"},
-	"channel":                {"This channel", "Dieser Kanal", "هذه القناة"},
+	"workspace_off_line":     {"Translation is off for this workspace.", "Die Übersetzung ist für diesen Arbeitsbereich ausgeschaltet.", "الترجمة متوقفة لمساحة العمل هذه."},
+	"open_admin":             {"Turn it on in Chat settings", "In den Chat-Einstellungen einschalten", "شغّلها من إعدادات الدردشة"},
+	"never_outside":          {"Never use an outside service", "Nie einen externen Dienst verwenden", "عدم استخدام خدمة خارجية أبداً"},
+	"page_intro":             {"These settings apply to the whole workspace. Each one saves as soon as you change it.", "Diese Einstellungen gelten für den gesamten Arbeitsbereich. Jede wird gespeichert, sobald Sie sie ändern.", "تنطبق هذه الإعدادات على مساحة العمل كاملة. يُحفظ كل إعداد بمجرد تغييره."},
 	"channel_switch":         {"Translation in this channel", "Übersetzung in diesem Kanal", "الترجمة في هذه القناة"},
 	"follow":                 {"Follow the workspace", "Wie der Arbeitsbereich", "اتبع مساحة العمل"},
 	"on":                     {"On", "An", "مفعّلة"},
@@ -141,151 +158,6 @@ func translationAdminHas(list []string, language string) bool {
 	return false
 }
 
-// TranslationAdminForm draws the administration: a short form for the
-// workspace, one for the channel, and the glossary. Settings the caller may not
-// change are not drawn.
-func TranslationAdminForm(m TranslationAdminModel, text func(string) string) ui.Node {
-	t := func(key string) string { return translationAdminText(m.Locale, key, text) }
-	dir := direction(m.Locale)
-	if !m.Loaded && !m.Failed {
-		return html.Div(html.Props{Class: "chatlangadmin", Dir: dir, Role: "status", Aria: map[string]string{"busy": "true"}}, html.P(html.Props{Text: t("loading")}))
-	}
-	if m.Denied {
-		return html.Div(html.Props{Class: "chatlangadmin", Dir: dir, Role: "alert"}, html.P(html.Props{Text: t("denied")}))
-	}
-	if m.Failed && !m.Loaded {
-		return html.Div(html.Props{Class: "chatlangadmin", Dir: dir, Role: "alert"}, html.P(html.Props{Text: t("error")}))
-	}
-	d := m.Data
-	status := ""
-	switch {
-	case m.Loading:
-		status = t("loading")
-	case m.Failed:
-		status = t("error")
-	case m.Saved:
-		status = t("saved")
-	}
-	sections := []ui.Node{html.P(html.Props{Class: "field-hint", Text: t("intro")}), html.P(html.Props{ID: "chatlangadmin-status", Role: "status", Aria: map[string]string{"live": "polite"}, Text: status})}
-	if d.CanManageWorkspace {
-		fields := []ui.Node{html.H3(html.Props{ID: "chatlangadmin-workspace-title", Text: t("workspace")}),
-			html.Label(html.Props{Class: "chatlangadmin-check", For: "chatlangadmin-enabled"}, html.Input(html.Props{ID: "chatlangadmin-enabled", Name: "enabled", Type: "checkbox", Checked: d.Workspace.Enabled, Disabled: m.Loading, Aria: map[string]string{"describedby": "chatlangadmin-enabled-hint"}}), html.Span(html.Props{Text: t("enabled")})),
-			html.P(html.Props{ID: "chatlangadmin-enabled-hint", Class: "field-hint", Text: t("enabled_hint")}),
-		}
-		languages := []ui.Node{html.Legend(html.Props{Text: t("languages")})}
-		for _, language := range d.Supported {
-			id := "chatlangadmin-language-" + language
-			languages = append(languages, html.Label(html.Props{Class: "chatlangadmin-check", For: id}, html.Input(html.Props{ID: id, Name: "language", Type: "checkbox", Value: language, Checked: translationAdminHas(d.Workspace.Languages, language), Disabled: m.Loading}), html.Span(html.Props{Text: t(language)})))
-		}
-		languages = append(languages, html.P(html.Props{Class: "field-hint", Text: t("languages_hint")}))
-		fields = append(fields, html.Fieldset(html.Props{Class: "chatlangadmin-languages"}, languages...))
-		limit := TranslationAdminAmount(d.BudgetMicros)
-		fields = append(fields,
-			html.Label(html.Props{For: "chatlangadmin-limit", Text: t("limit")}),
-			html.Input(html.Props{ID: "chatlangadmin-limit", Name: "limit", Type: "number", Min: "0", Step: "0.01", Value: limit, Disabled: m.Loading, Aria: map[string]string{"describedby": "chatlangadmin-limit-hint"}}),
-			html.P(html.Props{ID: "chatlangadmin-limit-hint", Class: "field-hint", Text: t("limit_hint")}),
-			html.P(html.Props{Class: "chatlangadmin-used", Text: strings.NewReplacer("{used}", TranslationAdminAmount(d.SpentMicros), "{limit}", limit).Replace(t("used"))}),
-		)
-		if d.Paused {
-			fields = append(fields, html.P(html.Props{Class: "chatlangadmin-paused", Role: "status", Text: t("paused")}))
-		}
-		fields = append(fields,
-			html.Label(html.Props{Class: "chatlangadmin-check", For: "chatlangadmin-external"}, html.Input(html.Props{ID: "chatlangadmin-external", Name: "external", Type: "checkbox", Checked: d.Workspace.ExternalAllowed, Disabled: m.Loading, Aria: map[string]string{"describedby": "chatlangadmin-external-hint"}}), html.Span(html.Props{Text: t("external")})),
-			html.P(html.Props{ID: "chatlangadmin-external-hint", Class: "field-hint", Text: t("external_hint")}),
-		)
-		if d.Engine.Name != "" {
-			fields = append(fields, html.P(html.Props{Class: "field-hint", Text: strings.ReplaceAll(t("engine"), "{name}", d.Engine.Name)}))
-		}
-		fields = append(fields, html.Button(html.Props{Type: "submit", Class: "button", Text: t("save"), Disabled: m.Loading || m.SaveWorkspace.Value() == nil}))
-		sections = append(sections, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatlangadmin": "workspace"}, OnSubmit: m.SaveWorkspace, Aria: map[string]string{"labelledby": "chatlangadmin-workspace-title"}}, fields...))
-	}
-	if d.CanManageChannel && d.Channel != nil {
-		options := func(values [][2]string, current string) []ui.Node {
-			var out []ui.Node
-			for _, v := range values {
-				out = append(out, html.Option(html.Props{Value: v[0], Text: t(v[1]), Selected: v[0] == current}))
-			}
-			return out
-		}
-		current := string(d.Channel.Translation)
-		if current == "" {
-			current = "inherit"
-		}
-		fields := []ui.Node{html.H3(html.Props{ID: "chatlangadmin-channel-title", Text: t("channel")}),
-			html.P(html.Props{Class: "chatlangadmin-effective", Role: "status", Text: t("status_" + string(d.Effective))}),
-			html.Label(html.Props{For: "chatlangadmin-channel-switch", Text: t("channel_switch")}),
-			html.Select(html.Props{ID: "chatlangadmin-channel-switch", Name: "translation", Disabled: m.Loading}, options([][2]string{{"inherit", "follow"}, {"on", "on"}, {"off", "off"}}, current)...),
-			html.Label(html.Props{Class: "chatlangadmin-check", For: "chatlangadmin-channel-barred"}, html.Input(html.Props{ID: "chatlangadmin-channel-barred", Name: "barred", Type: "checkbox", Checked: d.Channel.External == chatlang.ExternalBarred, Disabled: m.Loading}), html.Span(html.Props{Text: t("barred")})),
-			html.Button(html.Props{Type: "submit", Class: "button", Text: t("save"), Disabled: m.Loading || m.SaveChannel.Value() == nil}),
-		}
-		sections = append(sections, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatlangadmin": "channel"}, OnSubmit: m.SaveChannel, Aria: map[string]string{"labelledby": "chatlangadmin-channel-title"}}, fields...))
-	}
-	if d.CanManageWorkspace {
-		list := []ui.Node{}
-		for _, term := range d.Glossary {
-			label := term.Source + " → "
-			if term.Language == "" {
-				label = term.Source + " (" + t("keeps") + ")"
-			} else {
-				label += term.Target + " (" + t(term.Language) + ")"
-			}
-			list = append(list, html.Li(html.Props{Class: "chatlangadmin-term"},
-				html.Span(html.Props{Class: "chatlangadmin-term-text", Dir: "auto", Text: label}),
-				html.Button(html.Props{Type: "button", Class: "button secondary", Text: t("remove"), Data: map[string]string{"term": term.ID}, OnClick: m.RemoveTerm, Disabled: m.Loading || m.RemoveTerm.Value() == nil, Aria: map[string]string{"label": t("remove") + ": " + term.Source}})))
-		}
-		glossary := []ui.Node{html.H3(html.Props{ID: "chatlangadmin-glossary-title", Text: t("glossary")}), html.P(html.Props{Class: "field-hint", Text: t("glossary_hint")})}
-		if len(list) == 0 {
-			glossary = append(glossary, html.P(html.Props{Text: t("glossary_empty")}))
-		} else {
-			glossary = append(glossary, html.Ul(html.Props{Class: "chatlangadmin-terms"}, list...))
-		}
-		languageOptions := []ui.Node{}
-		for _, language := range d.Supported {
-			languageOptions = append(languageOptions, html.Option(html.Props{Value: language, Text: t(language)}))
-		}
-		glossary = append(glossary, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatlangadmin": "term"}, OnSubmit: m.AddTerm, Aria: map[string]string{"labelledby": "chatlangadmin-glossary-title"}},
-			html.Label(html.Props{For: "chatlangadmin-term", Text: t("term")}),
-			html.Input(html.Props{ID: "chatlangadmin-term", Name: "term", Type: "text", MaxLength: 120, Disabled: m.Loading, Dir: "auto"}),
-			html.Label(html.Props{For: "chatlangadmin-mode", Text: t("mode")}),
-			html.Select(html.Props{ID: "chatlangadmin-mode", Name: "mode", Disabled: m.Loading}, html.Option(html.Props{Value: "keep", Text: t("keep")}), html.Option(html.Props{Value: "translate", Text: t("translate")})),
-			html.Label(html.Props{For: "chatlangadmin-term-language", Text: t("language")}),
-			html.Select(html.Props{ID: "chatlangadmin-term-language", Name: "language", Disabled: m.Loading}, languageOptions...),
-			html.Label(html.Props{For: "chatlangadmin-target", Text: t("target")}),
-			html.Input(html.Props{ID: "chatlangadmin-target", Name: "target", Type: "text", MaxLength: 120, Disabled: m.Loading, Dir: "auto"}),
-			html.Button(html.Props{Type: "submit", Class: "button", Text: t("add"), Disabled: m.Loading || m.AddTerm.Value() == nil}),
-		))
-		sections = append(sections, html.Section(html.Props{Class: "chatlangadmin-glossary"}, glossary...))
-	}
-	return html.Div(html.Props{Class: "chatlangadmin", Dir: dir}, sections...)
-}
-
 // ChatlangAdminStyles are the administration's layout, from the product's own
 // tokens only.
 const ChatlangAdminStyles = `.chatlangadmin{box-sizing:border-box;min-width:0;max-width:100%;display:grid;gap:16px;padding:12px;color:var(--hcm-color-text);background:var(--hcm-color-surface);border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);overflow-wrap:anywhere}.chatlangadmin *{box-sizing:border-box;min-width:0}.chatlangadmin-form,.chatlangadmin-glossary{display:grid;gap:8px}.chatlangadmin input[type=text],.chatlangadmin input[type=number],.chatlangadmin select{width:100%;min-height:44px;padding:8px;color:var(--hcm-color-text);background:var(--hcm-color-surface);border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control)}.chatlangadmin button{min-height:44px;max-width:100%;white-space:normal}.chatlangadmin-check{display:flex;align-items:center;gap:8px;min-height:44px}.chatlangadmin-check input{flex:none;width:24px;height:24px;accent-color:var(--hcm-color-brand-primary)}.chatlangadmin-languages{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:4px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control)}.chatlangadmin-languages legend,.chatlangadmin-languages p{grid-column:1/-1}.chatlangadmin-terms{list-style:none;margin:0;padding:0;display:grid;gap:8px}.chatlangadmin-term{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.chatlangadmin-term-text{flex:1 1 160px}.chatlangadmin-paused{color:var(--hcm-color-danger)}.chatlangadmin-used,.chatlangadmin-effective{color:var(--hcm-color-text-muted)}.chatlangadmin :focus-visible{outline:2px solid var(--hcm-color-brand-primary);outline-offset:2px}@media(max-width:390px){.chatlangadmin{padding:8px}}@media(prefers-reduced-motion:reduce){.chatlangadmin *{animation:none;transition:none}}`
-
-// translationSettingsEntry is the Translation section of Conversation details:
-// present only for a person who may administer the conversation, and only when
-// the server has an engine composed. The settings open inside the section.
-func translationSettingsEntry(m Model, c Conversation) ui.Node {
-	if m.ChatFeatures == nil || !m.ChatFeatures.Translation || !canAdministerConversation(m, c) {
-		return nil
-	}
-	// Keyed by conversation so opening another one starts closed and reloads.
-	return html.WithKey(ui.CreateElement(translationSettingsSection, translationSettingsProps{Model: m}), "chatlangadmin-"+c.ID)
-}
-
-type translationSettingsProps struct{ Model Model }
-
-func translationSettingsSection(props translationSettingsProps) ui.Node {
-	m := props.Model
-	open := ui.UseState(false)
-	toggle := ui.UseEvent(func() { open.Update(func(current bool) bool { return !current }) })
-	t := func(key string) string { return translationAdminText(m.Locale, key, m.Text) }
-	children := []ui.Node{html.H3(html.Props{Text: t("title")}), html.P(html.Props{Class: "field-hint", Text: t("intro")}),
-		html.Button(html.Props{Class: "chat-disclosure-button", Type: "button", OnClick: toggle, Aria: map[string]string{"expanded": boolString(open.Get())}},
-			html.Span(html.Props{Text: t("manage")}), icon("chevron-down"))}
-	if open.Get() {
-		children = append(children, html.Div(html.Props{Class: "chat-disclosure-body chatlangadmin-entry-body"}, ui.CreateElement(translationAdminPanel, translationAdminProps{Locale: m.Locale, Conversation: m.SelectedID, Text: m.Text})))
-	}
-	return html.Section(html.Props{Class: "details-section chatlangadmin-entry", Dir: direction(m.Locale)}, children...)
-}

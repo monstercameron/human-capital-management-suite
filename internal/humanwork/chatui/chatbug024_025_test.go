@@ -75,15 +75,25 @@ func TestTodo_CHATBUG_024(t *testing.T) {
 	// panel, closed at first; it never links to a page of its own.
 	admin.FilterSettings = func() ui.Node { return html.P(html.Props{Text: "filter settings body"}) }
 	markup := renderNode(t, filterSettingsEntry(admin, room))
-	for _, want := range []string{"Filters", "Direct messages follow only", "Manage filters", `aria-expanded="false"`} {
+	for _, want := range []string{"Manage filters", `aria-expanded="false"`, "manage-row-summary"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("filter section missing %q: %s", want, markup)
 		}
 	}
+	// CHATBUG-048: the note about direct messages is said only where it applies.
+	if strings.Contains(markup, "Direct messages follow only") {
+		t.Errorf("a channel's filter section talks about direct messages: %s", markup)
+	}
+	group := admin
+	group.Conversations = []Conversation{{ID: "huddle", Name: "huddle", Kind: GroupChat, OwnerID: "owner"}}
+	group.SelectedID = "huddle"
+	if got := renderNode(t, filterSettingsEntry(group, group.Conversations[0])); !strings.Contains(got, "Direct messages follow only") {
+		t.Errorf("a group conversation's filter section lacks the direct-message note: %s", got)
+	}
 	if strings.Contains(markup, "⟦") || strings.Contains(markup, "/workspace/app/chat/filters") || strings.Contains(markup, "filter settings body") {
 		t.Errorf("filter section shows a marker, a dead link or an unopened body: %s", markup)
 	}
-	// Without a settings view there is nothing to open: the summary stands alone.
+	// Without a settings view there is nothing to open: the row stands alone.
 	admin.FilterSettings = nil
 	markup = renderNode(t, filterSettingsEntry(admin, room))
 	if !strings.Contains(markup, "Filters") || strings.Contains(markup, "<button") || strings.Contains(markup, "<a ") {
@@ -132,7 +142,7 @@ func TestTodo_CHATBUG_025(t *testing.T) {
 	}
 	m.Locale = "en-US"
 	markup := status(m)
-	if !strings.Contains(markup, ">Open<") || !strings.Contains(markup, "Change status") {
+	if !strings.Contains(markup, ">Open<") || !strings.Contains(markup, "Change status") || !strings.Contains(markup, "manage-row-summary") {
 		t.Errorf("the state or the permitted change control is missing: %s", markup)
 	}
 	// The change control stays behind its permission.
@@ -147,7 +157,8 @@ func TestTodo_CHATBUG_025(t *testing.T) {
 	view.Status.Status, view.Status.ChangedBy, view.Status.ChangedAt, view.Status.Reason = chatpolicy.StatusLocked, "walt", &at, "Incident review"
 	changed := m
 	changed.ChannelStatuses = map[string]ChannelStatusView{"general": view}
-	markup = status(changed)
+	// The history is About's, one line for the state and the facts under it.
+	markup = renderNode(t, chatux005About(changed, handlers{}, m.Conversations[0], nil))
 	for _, want := range []string{"Changed by", "Walt Brennan", "Changed at", "2026-09-30 09:15", "Reason", "Incident review"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("a changed status misses %q: %s", want, markup)
@@ -187,7 +198,7 @@ func TestTodo_CHATBUG_025(t *testing.T) {
 	if strings.Contains(notify, "<select") || strings.Contains(notify, "<option") || !strings.Contains(notify, "Mentions only") {
 		t.Errorf("notifications control: %s", notify)
 	}
-	if strings.Count(notify, `data-action="rail-notify-`) != 3 || strings.Count(notify, `aria-pressed="true"`) != 1 || !strings.Contains(notify, `data-chat-disclosure-toggle="true"`) {
+	if strings.Count(notify, `data-action="rail-notify-`) != 3 || strings.Count(notify, " checked ") != 1 || !strings.Contains(notify, `role="radiogroup"`) || !strings.Contains(notify, `data-chat-disclosure-toggle="true"`) {
 		t.Errorf("notification choices: %s", notify)
 	}
 

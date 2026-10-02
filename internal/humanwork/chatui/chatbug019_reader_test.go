@@ -100,7 +100,7 @@ func TestTodo_CHATBUG_019_Browser(t *testing.T) {
 	}{
 		"channel list": {func(m Model) ui.Node { return message(m, handlers{}, msg, false) }, []string{msg.Body}},
 		"thread":       {func(m Model) ui.Node { return threadPane(m, handlers{}) }, []string{msg.Body, reply.Body}},
-		"pins":         {pinnedSection, []string{msg.Body}},
+		"pins":         {chatux019PinnedSection, []string{msg.Body}},
 	}
 	placeholders := []string{RenderingText("en-US", "pending"), RenderingText("en-US", "unavailable")}
 	// The same page with the lane's ReaderPolicyRequired set, and bodies that mention an agent or

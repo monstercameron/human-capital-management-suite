@@ -110,7 +110,38 @@ const chatremoveCopyTable = "\nmoderation\u0000Moderation\u0000Moderation\u0000�
 	"\nmessage_help\u0000Only {name} sees this. It is recorded with your decision.\u0000Nur {name} sieht das. Es wird mit Ihrer Entscheidung festgehalten.\u0000لا يراها إلا {name}. تُسجَّل مع قرارك.\u0000" +
 	"\nsend_message\u0000Send message\u0000Nachricht senden\u0000إرسال الرسالة\u0000" +
 	"\nremoved_badge\u0000Removed\u0000Entfernt\u0000مُزالة\u0000" +
-	"\nremove_short\u0000Remove\u0000Entfernen\u0000إزالة\u0000"
+	"\nremove_short\u0000Remove\u0000Entfernen\u0000إزالة\u0000" +
+	"\nchoose\u0000Choose which messages to remove\u0000Auswählen, welche Nachrichten entfernt werden\u0000اختيار الرسائل المراد إزالتها\u0000" +
+	"\nchoose_help\u0000Tick the messages to remove from this part of the conversation. You see the count before anything is removed.\u0000Markieren Sie die Nachrichten aus diesem Teil der Unterhaltung, die entfernt werden sollen. Die Anzahl sehen Sie, bevor etwas entfernt wird.\u0000حدّد الرسائل المراد إزالتها من هذا الجزء من المحادثة. ترى العدد قبل إزالة أي شيء.\u0000" +
+	"\nnone_selected\u0000Tick at least one message first.\u0000Markieren Sie zuerst mindestens eine Nachricht.\u0000حدّد رسالة واحدة على الأقل أولاً.\u0000" +
+	"\nrestored_notice\u0000An administrator restored this message.\u0000Ein Administrator hat diese Nachricht wiederhergestellt.\u0000استعاد مسؤول هذه الرسالة.\u0000" +
+	"\nfilter_notice\u0000A filter matched a message\u0000Ein Filter hat bei einer Nachricht angeschlagen\u0000طابق مرشحٌ رسالة\u0000" +
+	"\nfilter_notice_rule\u0000Filter: {name}\u0000Filter: {name}\u0000المرشح: {name}\u0000" +
+	"\nfilter_notice_open\u0000Open the conversation it matched in\u0000Unterhaltung mit dem Treffer öffnen\u0000فتح المحادثة التي حدثت فيها المطابقة\u0000" +
+	"\ntab_permissions\u0000Permissions\u0000Berechtigungen\u0000الصلاحيات\u0000" +
+	"\nperm_intro\u0000Who may do what in moderation. An answer for a role applies to everyone who has that role. Press a switch to change it.\u0000Wer in der Moderation was tun darf. Eine Angabe für eine Rolle gilt für alle mit dieser Rolle. Drücken Sie einen Schalter, um sie zu ändern.\u0000من يحق له فعل ماذا في الإشراف. ما يُحدَّد لدور يسري على كل من يحمل ذلك الدور. اضغط مفتاحاً لتغييره.\u0000" +
+	"\nperm_scope_ws\u0000In the whole workspace\u0000Im ganzen Arbeitsbereich\u0000في مساحة العمل بأكملها\u0000" +
+	"\nperm_scope_ch\u0000Only in #{name}\u0000Nur in #{name}\u0000في #{name} فقط\u0000" +
+	"\nperm_choose\u0000Set them for one channel instead\u0000Stattdessen für einen Kanal festlegen\u0000تحديدها لقناة واحدة بدلاً من ذلك\u0000" +
+	"\nperm_back_ws\u0000Back to the whole workspace\u0000Zurück zum ganzen Arbeitsbereich\u0000العودة إلى مساحة العمل بأكملها\u0000" +
+	"\nperm_role\u0000Role\u0000Rolle\u0000الدور\u0000" +
+	"\nperm_report\u0000Report messages\u0000Nachrichten melden\u0000الإبلاغ عن الرسائل\u0000" +
+	"\nperm_remove\u0000Remove messages\u0000Nachrichten entfernen\u0000إزالة الرسائل\u0000" +
+	"\nperm_review\u0000Read and restore removed messages\u0000Entfernte Nachrichten lesen und wiederherstellen\u0000قراءة الرسائل المُزالة واستعادتها\u0000" +
+	"\nperm_filters\u0000Manage filters\u0000Filter verwalten\u0000إدارة المرشحات\u0000" +
+	"\nrole_WORKSPACE_ADMIN\u0000Workspace administrators\u0000Arbeitsbereichsadministratoren\u0000مسؤولو مساحة العمل\u0000" +
+	"\nrole_MANAGER\u0000Channel managers, in their channel\u0000Kanalverwaltung, im eigenen Kanal\u0000مديرو القنوات، في قنواتهم\u0000" +
+	"\nrole_MEMBER\u0000Channel members, in their channel\u0000Kanalmitglieder, im eigenen Kanal\u0000أعضاء القنوات، في قنواتهم\u0000" +
+	"\nperm_yes\u0000Allowed\u0000Erlaubt\u0000مسموح\u0000" +
+	"\nperm_no\u0000Not allowed\u0000Nicht erlaubt\u0000غير مسموح\u0000" +
+	"\nperm_cell\u0000{permission}: {role}\u0000{permission}: {role}\u0000{permission}: {role}\u0000" +
+	"\nperm_src_default\u0000Default\u0000Standard\u0000الإعداد الافتراضي\u0000" +
+	"\nperm_src_workspace\u0000Set for the workspace\u0000Für den Arbeitsbereich festgelegt\u0000محدَّد لمساحة العمل\u0000" +
+	"\nperm_src_own\u0000Set for this channel\u0000Für diesen Kanal festgelegt\u0000محدَّد لهذه القناة\u0000" +
+	"\nperm_note\u0000A person holds a permission when any of their roles does. A channel's own answer replaces the workspace's for that channel. Removing or reading in a private channel still takes being a member of it.\u0000Eine Person hat eine Berechtigung, wenn eine ihrer Rollen sie hat. Die Angabe eines Kanals ersetzt dort die des Arbeitsbereichs. In einem privaten Kanal entfernen oder lesen kann weiterhin nur, wer dort Mitglied ist.\u0000يحمل الشخص الصلاحية إذا حملها أحد أدواره. ما يُحدَّد لقناة يحل محل إعداد مساحة العمل في تلك القناة. الإزالة أو القراءة في قناة خاصة تتطلب العضوية فيها.\u0000" +
+	"\nperm_other\u0000Another role\u0000Eine andere Rolle\u0000دور آخر\u0000" +
+	"\nperm_other_hint\u0000Type a role's name exactly as your workspace uses it. Its row appears; nothing is saved until you press a switch in it.\u0000Geben Sie den Namen einer Rolle genau so ein, wie Ihr Arbeitsbereich ihn verwendet. Die Zeile erscheint; gespeichert wird erst, wenn Sie darin einen Schalter drücken.\u0000اكتب اسم الدور تماماً كما تستخدمه مساحة عملك. يظهر صفّه، ولا يُحفظ شيء حتى تضغط مفتاحاً فيه.\u0000" +
+	"\nperm_other_add\u0000Show this role\u0000Diese Rolle anzeigen\u0000عرض هذا الدور\u0000"
 
 func chatremoveText(locale, key string) string {
 	return integrate1Copy(chatremoveCopyTable, locale, key)

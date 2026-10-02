@@ -205,9 +205,12 @@ func TestTodo_CHATEMOJI_003_Browser(t *testing.T) {
 					t.Fatalf("a row has %d parts, want emoji, name and shortcode", parts)
 				}
 			}
-			// A closed list, or one for another field, draws nothing.
-			if emojiCompletionMenu(m, emojiCompletion{Active: -1}, "chat-composer") != nil || emojiCompletionMenu(m, state, "thread-composer") != nil {
-				t.Fatal("a list is drawn that is not open for this field")
+			// A closed list, or one for another field, draws only its empty slot
+			// (CHATBUG-086 keeps the slot so the text area does not move).
+			for _, closed := range []string{renderNode(t, emojiCompletionMenu(m, emojiCompletion{Active: -1}, "chat-composer")), renderNode(t, emojiCompletionMenu(m, state, "thread-composer"))} {
+				if closed != `<div class="emoji-completion-slot"></div>` {
+					t.Fatalf("a list is drawn that is not open for this field: %s", closed)
+				}
 			}
 			// The list is the mention list's own style, and the page carries it once.
 			if !strings.Contains(menu, `class="mention-menu emoji-completion-menu"`) {

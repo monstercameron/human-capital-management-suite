@@ -16,18 +16,30 @@ const (
 	AgentShareSharing AgentShareStatus = "sharing"
 	// AgentShareShared: the answer is now a message in the channel.
 	AgentShareShared AgentShareStatus = "shared"
-	// AgentShareRefused: the server said the answer stays private; Reason is
-	// "agent" (the agent answers privately) or "audience" (not everyone in the
-	// channel may open the sources).
+	// AgentShareRefused: the server said the answer stays private, and pressing
+	// again cannot change that. Reason is "agent" (the agent answers privately),
+	// "audience" (not everyone in the channel may open the sources; Source names
+	// the one that is closed, when the server could), "expired" (the answer is too
+	// old to share) or "denied" (only the person who asked may share it).
 	AgentShareRefused AgentShareStatus = "refused"
 	// AgentShareFailed: the request did not complete; the person may try again.
 	AgentShareFailed AgentShareStatus = "failed"
+	// AgentShareRemoving: the shared copy is being taken back (CHATUX-026).
+	AgentShareRemoving AgentShareStatus = "removing"
 )
 
 // AgentShareState is one answer's share state.
 type AgentShareState struct {
 	Status AgentShareStatus
 	Reason string
+	// Source is the title of the document that keeps the answer private.
+	Source string
+	// PostID is the message the answer was shared as, once it is shared. "Remove
+	// shared answer" deletes that message.
+	PostID string
+	// RemoveFailed is true when taking the shared copy back did not complete;
+	// the copy is still in the channel.
+	RemoveFailed bool
 }
 
 // chatux003Reason splits the line that names why an answer is private off its body.
@@ -80,14 +92,15 @@ func chatux003ShareClick(model Model, local localUI, invocationID string) {
 	if invocationID == "" || model.Callbacks.ShareAgentAnswer == nil {
 		return
 	}
-	if state, ok := model.AgentShare[invocationID]; ok && (state.Status == AgentShareSharing || state.Status == AgentShareShared) {
+	if state, ok := model.AgentShare[invocationID]; ok && (state.Status == AgentShareSharing || state.Status == AgentShareShared || state.Status == AgentShareRemoving) {
 		return
 	}
 	model.Callbacks.ShareAgentAnswer(invocationID)
 }
 
 // chatux003HandleAction handles the answer card's own actions. It reports
-// whether the click was one of them.
+// whether the click was one of them. Sharing has a question of its own before
+// anything is sent and is handled by chatux026HandleAction.
 func chatux003HandleAction(e ui.Event, model Model, local localUI, mentions mentionStore) bool {
 	action, id, extra := eventAction(e)
 	switch action {
@@ -95,13 +108,13 @@ func chatux003HandleAction(e ui.Event, model Model, local localUI, mentions ment
 		e.PreventDefault()
 		chatux003AskFollowUp(model, mentions, id, extra)
 		return true
-	case "agent-share":
+	case "agent-question-jump":
 		e.PreventDefault()
-		chatux003ShareClick(model, local, id)
+		chatbug047JumpToQuestion(model, id)
 		return true
-	case "agent-ask-again":
+	case "agent-example":
 		e.PreventDefault()
-		chatux003AskAgain(model, id)
+		chatux024UseExample(model, extra)
 		return true
 	}
 	return false
@@ -174,28 +187,4 @@ func chatux003MessageBadge(model Model, message Message) ui.Node {
 		children = append(children, html.Span(html.Props{Class: "agent-attribution", Dir: "auto", Text: chatux003Format(model, "chatux003.asked_by", map[string]string{"name": name})}))
 	}
 	return html.Span(html.Props{Class: "agent-badge", Data: map[string]string{"persona-id": actor.PersonaID, "agent-id": actor.AgentID}}, children...)
-}
-
-// chatux003AskAgainButton is the one action on a card whose answer failed or
-// was interrupted with no run to retry: ask the same question again. It only
-// ever asks on the person's own click.
-func chatux003AskAgainButton(model Model, questionPostID string) ui.Node {
-	label := chatux003Text(model, "chatux003.ask_again")
-	return html.Button(html.Props{Class: "button secondary persona-progress-retry agent-ask-again", Type: "button", Disabled: model.Callbacks.SendMessageWithReferences == nil && model.Callbacks.SendMessage == nil, Aria: map[string]string{"label": label}, Data: map[string]string{"action": "agent-ask-again", "id": questionPostID}}, ui.Text(label))
-}
-
-// chatux003AskAgain sends the person's own question again, as a new message with
-// the same text and the same agent mention.
-func chatux003AskAgain(model Model, questionPostID string) {
-	for _, post := range model.Messages {
-		if post.ID != questionPostID || post.AuthorID != model.CurrentUser || model.CurrentUser == "" || strings.TrimSpace(post.Body) == "" {
-			continue
-		}
-		if len(post.PersonaReferences) > 0 && model.Callbacks.SendMessageWithReferences != nil {
-			model.Callbacks.SendMessageWithReferences(model.SelectedID, post.Body, post.PersonaReferences)
-		} else if model.Callbacks.SendMessage != nil {
-			model.Callbacks.SendMessage(model.SelectedID, post.Body)
-		}
-		return
-	}
 }

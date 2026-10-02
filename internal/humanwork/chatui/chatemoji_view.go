@@ -308,9 +308,9 @@ func chatEmojiFooter(m Model, st emojiPickerState, v emojiView, base string, act
 		}
 		preview = html.Div(html.Props{Class: "emoji-pop-preview"},
 			html.Span(html.Props{Class: "emoji-pop-big", Aria: map[string]string{"hidden": "true"}, Text: cell.Glyph}),
+			// CHATUX-034: the name only; the :shortcode: is for people who type it.
 			html.Span(html.Props{Class: "emoji-pop-names"},
-				html.Span(html.Props{Class: "emoji-pop-name", Dir: "auto", Text: name}),
-				html.Span(html.Props{Class: "emoji-pop-code", Dir: "ltr", Text: cell.Code})))
+				html.Span(html.Props{Class: "emoji-pop-name", Dir: "auto", Text: name})))
 	} else {
 		hint := chatEmojiText(m, emojiKeyHintInsert)
 		if st.Reaction {
@@ -318,5 +318,5 @@ func chatEmojiFooter(m Model, st emojiPickerState, v emojiView, base string, act
 		}
 		preview = html.Div(html.Props{Class: "emoji-pop-preview hint"}, html.Span(html.Props{Class: "emoji-pop-name", Text: hint}))
 	}
-	return html.Div(html.Props{Class: "emoji-pop-foot"}, preview, toneButton)
+	return html.Div(html.Props{Class: "emoji-pop-foot"}, preview, chatux034ToneControl(m, toneButton))
 }

@@ -173,3 +173,73 @@ func TestTodo_CHATUX_007_JumpToUnread(t *testing.T) {
 		t.Fatal("the jump action is not handled")
 	}
 }
+
+// TestTodo_CHATUX_007_Accessibility: unread and mentioned conversations are
+// told apart in words, not only by weight and colour; the counts carry their
+// number in the accessible name; Saved's count is read as text; the Jump to
+// unread controls are real, named buttons that stay out of the page until they
+// are needed.
+func TestTodo_CHATUX_007_Accessibility(t *testing.T) {
+	chatPolishMatrix(t, func(t *testing.T, base Model, width int, theme string) {
+		m := chatux007Model(base.Locale)
+		markup := chatPolishMarkup(t, rail(m, handlers{}), width, theme)
+
+		unread, mention := chatux007Badges(chatux007Row(t, markup, "unread")), chatux007Badges(chatux007Row(t, markup, "mention"))
+		if len(unread) != 1 || len(mention) != 1 {
+			t.Fatalf("badges: %d unread, %d mention", len(unread), len(mention))
+		}
+		unreadName, mentionName := chatPolishAttr(unread[0], "aria-label"), chatPolishAttr(mention[0], "aria-label")
+		for name, want := range map[string]struct{ label, number string }{"unread": {unreadName, m.n(3)}, "mention": {mentionName, m.n(2)}} {
+			if want.label == "" || strings.HasPrefix(want.label, "chat.") || !strings.Contains(want.label, want.number) || strings.TrimSpace(strings.ReplaceAll(want.label, want.number, "")) == "" {
+				t.Errorf("the %s count's name %q does not say what it counts", name, want.label)
+			}
+		}
+		// A mention is not just a different colour: its name differs in words.
+		if strings.ReplaceAll(unreadName, m.n(3), "") == strings.ReplaceAll(mentionName, m.n(2), "") {
+			t.Errorf("unread %q and mention %q are told apart by colour alone", unreadName, mentionName)
+		}
+		// The count sits inside the row's button, so the row's name includes it.
+		for _, id := range []string{"unread", "mention"} {
+			row := chatux007Row(t, markup, id)
+			if row.Data != "button" || chatPolishAttr(row, "type") != "button" {
+				t.Errorf("row %s is not a button", id)
+			}
+		}
+		// The selected row says so to assistive technology as well as by fill.
+		if chatPolishAttr(chatux007Row(t, markup, "general"), "aria-current") != "true" || chatPolishAttr(chatux007Row(t, markup, "read"), "aria-current") == "true" {
+			t.Error("the selected row is not marked current")
+		}
+
+		// Saved's count is plain, readable text: not hidden from readers, hidden
+		// from everyone when it is zero.
+		counts := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-saved-count") == "true" })
+		if len(counts) != 1 || chatPolishAttr(counts[0], "aria-hidden") == "true" || hasChatPolishAttribute(counts[0], "hidden") || chatux002NodeText(counts[0]) != m.n(2) {
+			t.Errorf("the Saved count is not read as text: %d nodes", len(counts))
+		}
+		savedRow := chatux002Descend(counts[0].Parent, func(n *xhtml.Node) bool { return n == counts[0].Parent })
+		if len(savedRow) != 1 || savedRow[0].Data != "button" || chatPolishAttr(savedRow[0], "title") == "" {
+			t.Errorf("the Saved row is not a named button")
+		}
+
+		// The jump controls: native buttons, named by their visible words, drawn
+		// hidden until a conversation is out of view, one on each edge.
+		jumps := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-action") == "jump-unread" })
+		if len(jumps) != 2 {
+			t.Fatalf("%d jump controls, want one on each edge", len(jumps))
+		}
+		seen := map[string]bool{}
+		for _, jump := range jumps {
+			label := chatPolishAttr(jump, "aria-label")
+			if jump.Data != "button" || chatPolishAttr(jump, "type") != "button" || !hasChatPolishAttribute(jump, "hidden") || chatPolishAttr(jump, "tabindex") == "-1" {
+				t.Errorf("the jump control is not a hidden native button: %v", jump.Attr)
+			}
+			if label == "" || strings.HasPrefix(label, "chat.") || !strings.Contains(chatux002NodeText(jump), label) {
+				t.Errorf("the jump control's name %q is not its visible words %q", label, chatux002NodeText(jump))
+			}
+			seen[chatPolishAttr(jump, "data-jump")] = true
+		}
+		if !seen[chatux007Up] || !seen[chatux007Down] {
+			t.Errorf("jump directions: %v", seen)
+		}
+	})
+}

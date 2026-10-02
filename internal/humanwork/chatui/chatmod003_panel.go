@@ -68,6 +68,9 @@ type ModAdminProps struct {
 	Save   func(def chatfilter.Definition, dryRun bool, done func(ok bool))
 	Try    func(def chatfilter.Definition, sample string)
 	Retry  func()
+	// Hits is the "What the filters caught" section (chatmod003_hits.go); nil
+	// where the page has no way to read the matches.
+	Hits *ModHitsProps
 }
 
 // ModAdminPanel is the administrator's filter panel.
@@ -168,7 +171,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 		setField("action", state.Action)
 		setField("scope", state.Scope)
 		filterSetChecked("modadmin-hard", v.Hard)
-		filterSetChecked("modadmin-dry", false)
+		filterSetChecked("modadmin-dry", v.DryRun)
 		for i, c := range choices {
 			filterSetChecked("modadmin-ch-"+strconv.Itoa(i), modContains(v.Channels, c.ID))
 		}
@@ -183,6 +186,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 			return
 		}
 		v := ModFormValuesOf(def)
+		v.DryRun = ModResolve(def, props.Enablements, channel, now).DryRun
 		detector := v.Detector
 		if detector == "" {
 			detector = "card"
@@ -323,7 +327,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 	nodes = append(nodes, html.P(html.Props{ID: "modadmin-status", Class: "chatmod-status", Role: statusRole, Data: map[string]string{"tone": tone}, Text: topStatus}))
 	delivered := len(props.Definitions) > 0 || len(props.Enablements) > 0
 	if props.Loading && !delivered {
-		nodes = append(nodes, html.P(html.Props{Role: "status", Text: t("loading")}))
+		nodes = append(nodes, ChatLoadingFrame(LoadingFrame{Locale: m.Locale, Shape: LoadingShapeSection, Rows: 3, Status: t("loading")}))
 	}
 	if props.LoadError != "" {
 		message := t("load_failed")
@@ -334,7 +338,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 			html.P(html.Props{Role: "alert", Class: "chatmod-error", Text: t(props.LoadError) + " " + message}),
 			html.Button(html.Props{Type: "button", Text: t("retry"), OnClick: retry, Disabled: props.Retry == nil || props.Loading})))
 	}
-	lists := ModGroup(props.Definitions, channel, props.Workspace, m.Locale)
+	lists := ModGroupFor(props.Definitions, channel, props.Workspace, m.Locale, m.IsTenantAdmin)
 	handlers := modHandlers{toggle: toggle, action: action, reset: reset, edit: edit}
 	var view []ui.Node
 	if delivered {
@@ -344,6 +348,11 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 			view = append(view, modAdminSection(m, props, lists, channel, now))
 		}
 		view = append(view, html.Div(html.Props{Class: "chatmod-actions"}, html.Button(html.Props{Type: "button", Class: "chatmod-primary", Text: t("create"), OnClick: create, Disabled: props.Busy})))
+		if props.Hits != nil {
+			hits := *props.Hits
+			hits.Model, hits.Workspace, hits.Now = m, props.Workspace, now
+			view = append(view, ModHitsPanel(hits))
+		}
 	}
 	nodes = append(nodes, html.Div(html.Props{Class: "chatmod-view", Hidden: state.Open}, view...))
 	nodes = append(nodes, modEditor(m, props, state, choices, formStatus, tone, statusRole, modEditorHandlers{save: save, try: try, close: closeEditor, kind: kindChange, action: actionChange, detector: detectorChange, scope: scopeChange}))
@@ -375,7 +384,7 @@ func modScopeText(m Model, d chatfilter.Definition) string {
 		}
 		return modadminText(m, "sc_one")
 	}
-	return modadminFormat(modadminText(m, "sc_n"), "n", strconv.Itoa(len(d.Channels)))
+	return modadminFormat(modadminText(m, "sc_n"), "n", chatCount(m.Locale, len(d.Channels)))
 }
 
 var modLanguageNames = map[string]string{"en": "English", "de": "Deutsch", "ar": "العربية"}
@@ -437,6 +446,10 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 				more = append(more, html.Div(html.Props{Class: "chatmod-field"},
 					html.Label(html.Props{For: selectID, Text: t("what")}),
 					html.Select(html.Props{ID: selectID, Key: "act-" + strconv.Itoa(props.Revision), Class: "chatmod-select", Disabled: props.Busy || props.Switch == nil, OnChange: h.action, Data: map[string]string{"action": "modadmin-action", "id": d.ID}}, options...)))
+				if state.Action == "mask" {
+					// One line of what readers will see (CHATUX-018).
+					more = append(more, html.P(html.Props{Class: "chatmod-hint chatmod-example", Dir: "auto"}, RenderFilterMaskedText(m, t("ex_mask"))))
+				}
 			}
 			if !props.Workspace && state.HasOverride && state.Differs {
 				more = append(more, html.Button(html.Props{Type: "button", Class: "chatmod-link", Text: t("reset"), OnClick: h.reset, Disabled: props.Busy || props.Switch == nil,

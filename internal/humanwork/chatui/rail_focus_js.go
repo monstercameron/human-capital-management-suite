@@ -43,7 +43,7 @@ func revealSelectedRailRow(id string) {
 		boxTop, boxBottom := box.Get("top").Float(), box.Get("bottom").Float()
 		// The same clearances as .rail-scroll's scroll-padding: the fade
 		// mask at the top, the footer shadow and one following row below.
-		const clearTop, clearBottom = 40.0, 56.0
+		const clearTop, clearBottom = 46.0, 56.0
 		if top >= boxTop+clearTop && bottom <= boxBottom-clearBottom {
 			return nil
 		}

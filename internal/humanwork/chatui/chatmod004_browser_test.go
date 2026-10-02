@@ -91,7 +91,7 @@ func TestTodo_CHATMOD_004_Browser_RealCatalog(t *testing.T) {
 			t.Errorf("%s: the moderator's view prints a copy key", locale)
 		}
 		side := regexp.MustCompile(`(?s)<div class="chatmod005-sidebar".*?</div>`).FindString(mod)
-		if side == "" || !strings.Contains(side, `data-chatremove-open="/api/chat/moderation/page?locale=`+locale+`"`) || !regexp.MustCompile(`data-moderation-count="true"[^>]*>[^<]*3|>[^<]*3[^<]*</span>`).MatchString(side) {
+		if side == "" || !strings.Contains(side, `data-chatremove-open="/api/chat/moderation/page?locale=`+locale+`"`) || !regexp.MustCompile(`data-moderation-count="true"[^>]*>[^<]*[3٣]|>[^<]*[3٣][^<]*</span>`).MatchString(side) {
 			t.Errorf("%s: the sidebar's moderation entry: %q", locale, side)
 		}
 		if strings.Count(mod, "action=restore") != 2 {
@@ -149,7 +149,7 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 			}
 		}
 		closeLabel := chatui.ModerationText(locale, "close_moderation")
-		if !strings.Contains(page, `aria-label="`+closeLabel+`"`) || !strings.Contains(page, `data-chatremove-close="true"`) || !strings.Contains(page, `class="side-heading chatmod005-heading"`) || !strings.Contains(page, `<h2 id="chatremove-title"`) {
+		if !strings.Contains(page, `aria-label="`+closeLabel+`"`) || !strings.Contains(page, `data-chatremove-close="true"`) || !strings.Contains(page, `class="side-heading chat-panel-head chatmod005-heading"`) || !strings.Contains(page, `<h2 id="chatremove-title"`) {
 			t.Errorf("%s %s: no heading row with the close control %q", locale, what, closeLabel)
 		}
 	}
@@ -164,7 +164,7 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 		if strings.Count(empty, text("nothing")) != 1 {
 			t.Errorf("%s: the empty state says it twice", locale)
 		}
-		if !strings.Contains(empty, text("tab_open")) || !strings.Contains(empty, text("tab_resolved")) || strings.Contains(empty, text("tab_open")+" · ") {
+		if !strings.Contains(empty, text("tab_open")) || !strings.Contains(empty, text("tab_resolved")) || !strings.Contains(empty, `class="chatsave-seg chatmod005-tabs"`) {
 			t.Errorf("%s: the tabs: %s", locale, empty)
 		}
 
@@ -172,7 +172,7 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 		open := render(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Items: chatmodQueue(), OpenCount: 3})
 		clean(locale, "open", open)
 		for _, want := range []string{
-			text("tab_open") + " · 3", text("kind_report"), text("filter"), text("appeal_item"), text("rule") + ": Project Falcon 1.2.0",
+			text("tab_open") + `</span><span class="chatsave-seg-count">` + map[bool]string{true: "٣", false: "3"}[locale == "ar"] + `</span>`, text("kind_report"), text("filter"), text("appeal_item"), text("rule") + ": Project Falcon 1.2.0",
 			strings.ReplaceAll(strings.ReplaceAll(text("reported_line"), "{name}", "Mia Member"), "{when}", ""),
 			strings.ReplaceAll(strings.ReplaceAll(text("appeal_line"), "{name}", "Jake Sullivan"), "{when}", ""),
 			"Jake Sullivan", "the reported words", "flagged words", "the removed words", "#general", text("show_context"), text("removed_badge"),
@@ -223,8 +223,8 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 		if strings.Contains(resolved, `data-chatremove-act="dismiss"`) || strings.Contains(resolved, text("message_author")) {
 			t.Errorf("%s: a resolved item offers a decision again", locale)
 		}
-		if !regexp.MustCompile(`aria-selected="true"[^>]*>` + regexp.QuoteMeta(text("tab_resolved"))).MatchString(resolved) {
-			t.Errorf("%s: Resolved is not the selected tab: %s", locale, regexp.MustCompile(`(?s)<div class="chatmod005-tabs".*?</div>`).FindString(resolved))
+		if !regexp.MustCompile(`aria-selected="true"[^>]*><span>` + regexp.QuoteMeta(text("tab_resolved"))).MatchString(resolved) {
+			t.Errorf("%s: Resolved is not the selected tab: %s", locale, regexp.MustCompile(`(?s)<div class="chatsave-seg chatmod005-tabs".*?</div>`).FindString(resolved))
 		}
 		emptyResolved := render(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "resolved"})
 		if !strings.Contains(emptyResolved, text("nothing_resolved")) || !strings.Contains(emptyResolved, text("nothing_resolved_hint")) {

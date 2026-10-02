@@ -72,21 +72,28 @@ func filterSettingsSection(props filterSettingsProps) ui.Node {
 			return "workspace"
 		})
 	})
-	children := []ui.Node{html.H3(html.Props{Text: chatfilterText(m, "title")}), html.P(html.Props{Class: "field-hint", Text: chatfilterText(m, "direct")})}
+	// The rows are the same ones as the rest of Manage channel (CHATBUG-048), and
+	// the note about direct messages is said only in a conversation it is about.
+	children := []ui.Node{}
+	if kind := m.selected().Kind; kind == DirectMessage || kind == GroupChat {
+		children = append(children, manageNote(chatfilterText(m, "direct")))
+	}
 	if m.FilterSettings != nil {
-		children = append(children, html.Button(html.Props{Class: "chat-disclosure-button", Type: "button", OnClick: toggleChannel, Aria: map[string]string{"expanded": boolString(open.Get() == "channel")}},
-			html.Span(html.Props{Text: chatfilterText(m, "manage")}), icon("chevron-down")))
+		children = append(children, manageSummary(html.Props{Type: "button", OnClick: toggleChannel, Aria: map[string]string{"expanded": boolString(open.Get() == "channel")}}, chatfilterText(m, "manage"), nil))
 		if open.Get() == "channel" {
 			children = append(children, html.Div(html.Props{Class: "chat-disclosure-body chatfilter-entry-body"}, m.FilterSettings()))
 		}
 	}
 	// A workspace administrator also reaches the workspace's own filters here.
 	if m.IsTenantAdmin && m.WorkspaceFilterSettings != nil {
-		children = append(children, html.Button(html.Props{Class: "chat-disclosure-button", Type: "button", OnClick: toggleWorkspace, Aria: map[string]string{"expanded": boolString(open.Get() == "workspace")}},
-			html.Span(html.Props{Text: modadminText(m, "ws_entry")}), icon("chevron-down")))
+		children = append(children, manageSummary(html.Props{Type: "button", OnClick: toggleWorkspace, Aria: map[string]string{"expanded": boolString(open.Get() == "workspace")}}, modadminText(m, "ws_entry"), nil))
 		if open.Get() == "workspace" {
 			children = append(children, html.Div(html.Props{Class: "chat-disclosure-body chatfilter-entry-body"}, m.WorkspaceFilterSettings()))
 		}
+	}
+	if m.FilterSettings == nil && !(m.IsTenantAdmin && m.WorkspaceFilterSettings != nil) {
+		// Nothing to open: the row stands alone, with no control to press.
+		children = append(children, manageStatic("", chatfilterText(m, "title"), nil))
 	}
 	return html.Section(html.Props{Class: "details-section chatfilter-entry", Dir: direction(m.Locale)}, children...)
 }

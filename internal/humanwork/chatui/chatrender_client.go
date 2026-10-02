@@ -21,6 +21,11 @@ type ReadingSettingsClient struct {
 	// Session, when set, remembers that the server answered "not available"
 	// so the page never asks again in the same session.
 	Session *ReadingSession
+	// Refresh, when set, gets a fresh credential after the server refused the
+	// one the page was opened with (a tab that outlived its session or the
+	// server's restart). The refused request is repeated once with it
+	// (CHATBUG-087).
+	Refresh func(context.Context) (string, error)
 }
 
 // ReadingSession is the per-page-session memory of a reading service that is
@@ -51,6 +56,34 @@ func (c ReadingSettingsClient) request(ctx context.Context, method, room string,
 func (c ReadingSettingsClient) requestEndpoint(ctx context.Context, method, endpoint, room string, payload io.Reader) (*http.Response, error) {
 	if method == http.MethodGet && c.Session.Off() {
 		return nil, chatrender.ErrUnavailable
+	}
+	var body []byte
+	if payload != nil {
+		var err error
+		if body, err = io.ReadAll(payload); err != nil {
+			return nil, err
+		}
+	}
+	response, err := c.send(ctx, method, endpoint, room, body, payload != nil)
+	// A 403 on a read is the person's role, not the credential; on a write it may
+	// be the browser token the server minted for an older page.
+	if err != nil || c.Refresh == nil || (response.StatusCode != http.StatusUnauthorized && !(response.StatusCode == http.StatusForbidden && method != http.MethodGet)) {
+		return response, err
+	}
+	// The credential the page holds was refused. Ask for a fresh one once and
+	// repeat the request; if none is to be had, the refusal stands.
+	bearer, refreshErr := c.Refresh(ctx)
+	if refreshErr != nil || bearer == "" || bearer == c.Bearer {
+		return response, nil
+	}
+	response.Body.Close()
+	c.Bearer = bearer
+	return c.send(ctx, method, endpoint, room, body, payload != nil)
+}
+func (c ReadingSettingsClient) send(ctx context.Context, method, endpoint, room string, body []byte, hasBody bool) (*http.Response, error) {
+	var payload io.Reader
+	if hasBody {
+		payload = bytes.NewReader(body)
 	}
 	origin, err := url.Parse(c.Origin)
 	if err != nil || origin.Host == "" || (origin.Scheme != "http" && origin.Scheme != "https") || origin.User != nil || c.Bearer == "" || c.HTTP == nil {
@@ -90,7 +123,7 @@ func (c ReadingSettingsClient) LoadLanguages(ctx context.Context, room string) (
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return nil, chatrender.ErrUnavailable
+		return nil, readingStatusError(response.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 16384))
 	if err != nil {
@@ -118,7 +151,7 @@ func (c ReadingSettingsClient) Load(ctx context.Context, room string) (chatrende
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return pref, chatrender.ErrUnavailable
+		return pref, readingStatusError(response.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 16384))
 	if err != nil {
@@ -148,7 +181,7 @@ func (c ReadingSettingsClient) Save(ctx context.Context, room string, pref chatr
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return chatrender.ErrUnavailable
+		return readingStatusError(response.StatusCode)
 	}
 	return nil
 }

@@ -44,6 +44,8 @@ func TestTodo_CHATGATE_005(t *testing.T) {
 }
 func TestTodo_CHATGATE_005_Browser(t *testing.T) {
 	v := chatgateViewFixture()
+	// The consequence is stated to a member who withdraws a required answer.
+	v.Submission = &chatgate.Submission{ID: "submission", Status: "admitted", Version: "1.0.0"}
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		v.Locale = locale
 		v.ConfirmWithdrawal = true

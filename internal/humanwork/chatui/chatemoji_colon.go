@@ -2,6 +2,7 @@ package chatui
 
 import (
 	"unicode"
+	"unicode/utf16"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/emojiset"
 )
@@ -34,6 +35,18 @@ func emojiSuggest(ix *emojiset.Index, query string, prefs emojiPrefs, limit int)
 		out = append(out, emojiChoice{name: name, glyph: entry.For(prefs.Tone), label: name, code: ix.Shortcode(i)})
 	}
 	return out
+}
+
+// emojiCompletionInsert is the text that takes the place of a typed ":query":
+// the emoji and a space to keep typing in, unless a space or line break already
+// follows the caret, so the sentence around it is never changed.
+func emojiCompletionInsert(value string, caret int, glyph string) string {
+	units := utf16.Encode([]rune(value))
+	after := utf16.Decode(units[min(max(caret, 0), len(units)):])
+	if len(after) > 0 && unicode.IsSpace(after[0]) {
+		return glyph
+	}
+	return glyph + " "
 }
 
 // emojiShortcodesIn replaces every complete ":shortcode:" in body that names an

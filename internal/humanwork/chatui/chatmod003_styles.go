@@ -41,4 +41,5 @@ const ChatMod003Styles = `.chatmod{display:grid;gap:16px;min-width:0}` +
 	`.chatmod-actions{display:flex;flex-wrap:wrap;gap:8px}` +
 	`.chatfilter-panel .chatmod-primary{background:var(--hcm-color-brand-primary);color:var(--hcm-color-on-brand);border-color:var(--hcm-color-brand-primary)}` +
 	`.chatmod button[disabled]{opacity:.6}` +
-	`@media(max-width:390px){.chatmod-row-main{display:grid;grid-template-columns:minmax(0,1fr)}.chatmod-actions{display:grid}}`
+	`@media(max-width:390px){.chatmod-row-main{display:grid;grid-template-columns:minmax(0,1fr)}.chatmod-actions{display:grid}}` +
+	chatmod003HitsStyles

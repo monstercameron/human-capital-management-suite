@@ -9,7 +9,21 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-const virtualTimelineThreshold = 160
+// virtualTimelineThreshold is the longest timeline drawn whole. It was 160,
+// above which only the rows near the viewport are drawn. A page of posts is
+// 200, so a conversation of 100 to 160 messages drew every row to show the
+// dozen on screen (CHATBUG-014: the largest part of drawing the first page of
+// the review channel, where a row costs 3 to 10 ms to build). 24 rows is about
+// two screens, close to what the window draws anyway (the rows in view and
+// eight either side); below that there is nothing to save.
+const virtualTimelineThreshold = 24
+
+// virtualWholeLimit is the longest timeline that is still drawn whole when
+// somebody needs a row that is not near the viewport: a search hit to put the
+// keyboard on, or a message a card or a quotation points at. Those look for the
+// row on the page, and up to this length they always found it, so a timeline of
+// this length goes back to being drawn whole for them (virtualDrawnWhole).
+const virtualWholeLimit = 160
 const virtualTimelineMaxRows = 96
 const virtualTimelineOverscan = 8
 const virtualNearBottom = 120
@@ -93,9 +107,24 @@ func virtualIndex(prefix []float64, top float64) int {
 	return lo
 }
 
+// virtualWholeRoom is the conversation whose timeline a caller asked to have
+// drawn whole (RevealTimelineMessage). It lasts until another conversation asks.
+var virtualWholeRoom string
+
+// virtualDrawnWhole reports whether a timeline of n rows is drawn whole instead
+// of windowed: it is short, or it is of the length that used to be drawn whole
+// and a row away from the viewport is wanted (a message to focus, or a request
+// to reveal one).
+func virtualDrawnWhole(m Model, n int) bool {
+	if n <= virtualTimelineThreshold {
+		return true
+	}
+	return n <= virtualWholeLimit && (m.FocusMessageID != "" || (virtualWholeRoom != "" && virtualWholeRoom == m.SelectedID))
+}
+
 func virtualWindow(m Model, messages []Message, cache *virtualCache, pos virtualPosition) virtualLayout {
 	n := len(messages)
-	if n <= virtualTimelineThreshold || m.State != StateReady || m.SelectedID == "" {
+	if virtualDrawnWhole(m, n) || m.State != StateReady || m.SelectedID == "" {
 		return virtualLayout{end: n}
 	}
 	heights := messageHeights(m, messages, cache.heights)
@@ -190,6 +219,10 @@ func virtualTimelineList(props virtualTimelineProps) ui.Node {
 	if cache.room != m.SelectedID {
 		cache = &virtualCache{room: m.SelectedID, heights: map[string]float64{}}
 		cacheRef.Set(cache)
+	}
+	if virtualWholeRoom != "" && virtualWholeRoom != m.SelectedID {
+		// The conversation that was drawn whole on request has been left.
+		virtualWholeRoom = ""
 	}
 	messages := chronological(m.Messages)
 	// Keep the exact scroll anchor without scheduling a full list render for
@@ -298,7 +331,7 @@ func virtualMessageRow(m Model, h handlers, msg Message, index int, messages []M
 	if unread {
 		children = append(children, html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})))
 	}
-	continued := !unread && index > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, messages[index-1]) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == messages[index-1].AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(messages[index-1].SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != messages[index-1].ID
+	continued := !unread && index > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, messages[index-1]) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == messages[index-1].AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(messages[index-1].SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != messages[index-1].ID && !chatux021IsLine(msg) && !chatux021IsLine(messages[index-1])
 	children = append(children, message(m, h, msg, continued))
 	if m.selected().Agent {
 		children = append(children, personaReplyRowsForPost(m, h.local, msg.ID, time.Now())...)

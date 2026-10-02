@@ -196,7 +196,7 @@ func TestTodo_CHATSAVE_002_Panel(t *testing.T) {
 	view := chatsave002View("todo", chatsave002Rows()[:2])
 	markup := renderNode(t, RenderSavedMessages(view))
 	// The heading is the thread and details panels' own, with the count still to do.
-	for _, want := range []string{`class="side-heading chatsave-header"`, `<h2>Saved</h2>`, "2 to do", `data-saved-action="close"`, "icon-close"} {
+	for _, want := range []string{`class="side-heading chat-panel-head chatsave-header"`, `<h2>Saved</h2>`, "2 to do", `data-saved-action="close"`, "icon-close"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("the heading lacks %s", want)
 		}
@@ -238,8 +238,8 @@ func TestTodo_CHATSAVE_002_Panel(t *testing.T) {
 		t.Errorf("the empty sentences are not the designed ones")
 	}
 	loading := renderNode(t, RenderSavedMessages(SavedMessagesView{Locale: "en-US", Loading: true}))
-	if strings.Count(loading, `chatsave-item chatsave-skeleton`) != 3 || !strings.Contains(loading, copy.Loading) {
-		t.Errorf("loading is three skeleton rows: %s", loading)
+	if strings.Count(loading, `chatux037-row chatux037-list`) != 4 || !strings.Contains(loading, copy.Loading) {
+		t.Errorf("loading is four shared placeholder rows: %s", loading)
 	}
 	failed := renderNode(t, RenderSavedMessages(SavedMessagesView{Locale: "en-US", Error: "unavailable"}))
 	if !strings.Contains(failed, copy.Failed) || strings.Count(failed, `data-saved-action="retry"`) != 1 || strings.Contains(failed, "<li") {
@@ -413,10 +413,10 @@ func TestTodo_CHATSAVE_002_Accessibility(t *testing.T) {
 		}
 	}
 	// Style contract: touch targets, focus, reduced motion, right-to-left, tokens only.
-	// The menu opens under its bell and flips above it; the bar is shown only for the
+	// The menu opens under its bell (the script then places it by Chat's one placement rule); the bar is shown only for the
 	// item the pointer is over; the header line never wraps; the bar's lower half
 	// lies in the item's top padding, so it covers no text.
-	for _, want := range []string{".chatsave-anchor{position:relative", ".chatsave-menu{position:absolute;top:calc(100% + 6px)", ".chatsave-menu.is-above{top:auto;bottom:calc(100% + 6px)}", "var(--chatsave-menu-shift,0px)", ".chatsave-item:not(:hover):not(.has-menu)>.chatsave-actions{opacity:0", ".chatsave-meta{display:flex;align-items:baseline;flex-wrap:nowrap", ".chatsave-author{flex:0 0 auto", ".chatsave-where{flex:0 1 auto", ".chatsave-time{flex:none", "padding:14px 16px", "top:-12px", "z-index:4"} {
+	for _, want := range []string{".chatsave-anchor{position:relative", ".chatsave-menu{position:absolute;top:calc(100% + 6px)", ".chatsave-item:not(:hover):not(.has-menu)>.chatsave-actions{opacity:0", ".chatsave-meta{display:flex;align-items:baseline;flex-wrap:nowrap", ".chatsave-author{flex:0 0 auto", ".chatsave-where{flex:0 1 auto", ".chatsave-time{flex:none", "padding:14px 16px", "top:-12px", "z-index:4"} {
 		if !strings.Contains(Chatsave002Styles, want) {
 			t.Errorf("style contract: %s", want)
 		}

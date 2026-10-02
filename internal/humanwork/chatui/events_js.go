@@ -9,35 +9,9 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-func positionRailMenu(event ui.Event) {
-	target := event.JSValue().Get("target")
-	if !target.Truthy() {
-		return
-	}
-	button := target.Call("closest", ".rail-row-more")
-	if !button.Truthy() {
-		return
-	}
-	root := button.Call("closest", ".chat-workspace")
-	if !root.Truthy() {
-		return
-	}
-	rect := button.Call("getBoundingClientRect")
-	viewport := js.Global().Get("window")
-	top := rect.Get("bottom").Float() + 4
-	if top+178 > viewport.Get("innerHeight").Float() {
-		top = rect.Get("top").Float() - 182
-	}
-	left := rect.Get("right").Float() - 200
-	if left < 8 {
-		left = 8
-	}
-	if left+200 > viewport.Get("innerWidth").Float() {
-		left = viewport.Get("innerWidth").Float() - 208
-	}
-	root.Get("style").Call("setProperty", "--chat-rail-menu-top", strconv.FormatFloat(top, 'f', 0, 64)+"px")
-	root.Get("style").Call("setProperty", "--chat-rail-menu-left", strconv.FormatFloat(left, 'f', 0, 64)+"px")
-}
+// The conversation's menu is an anchored layer like every other (AGENTUX-062):
+// syncChatAnchoredLayers places it against the row's button, so there is no
+// separate placement of its own here.
 
 func menuTriggerIsFocusVisible(event ui.Event) bool {
 	target := event.JSValue().Get("target")
@@ -100,8 +74,8 @@ func watchRailMenuDismiss(dismiss func()) {
 	listener = js.FuncOf(func(_ js.Value, args []js.Value) any {
 		event := args[0]
 		if event.Get("type").String() == "scroll" {
-			target := event.Get("target")
-			if target.Truthy() && target.Get("closest").Truthy() && target.Call("closest", ".rail-row-menu").Truthy() {
+			// CHATBUG-090: only a scroll of the sidebar or the page closes the menu.
+			if !chatbug090ScrollTargetDismisses(event.Get("target")) {
 				return nil
 			}
 		}
@@ -304,9 +278,9 @@ func focusMessageMenu(id string, focusFirst bool) {
 	callback = js.FuncOf(func(js.Value, []js.Value) any {
 		if menu := messageMenuPopup(id); menu.Truthy() {
 			positionMessageMenu(menu)
-			items := menu.Call("querySelectorAll", messageMenuItems)
-			if focusFirst && items.Get("length").Int() > 0 {
-				items.Index(0).Call("focus")
+			items := shownMenuItems(menu)
+			if focusFirst && len(items) > 0 {
+				items[0].Call("focus")
 			}
 			callback.Release()
 			return nil
@@ -380,21 +354,21 @@ func moveMessageMenuFocus(event ui.Event, id string) bool {
 			return false
 		}
 	}
-	items := menu.Call("querySelectorAll", messageMenuItems)
-	length := items.Get("length").Int()
+	items := shownMenuItems(menu)
+	length := len(items)
 	if length == 0 {
 		return false
 	}
 	index := -1
 	itemTarget := target.Call("closest", "[role=menuitem],[role=menuitemradio]")
 	for i := 0; i < length; i++ {
-		if items.Index(i).Equal(itemTarget) {
+		if items[i].Equal(itemTarget) {
 			index = i
 			break
 		}
 	}
 	index = messageMenuNextIndex(key, index, length)
-	items.Index(index).Call("focus")
+	items[index].Call("focus")
 	return true
 }
 

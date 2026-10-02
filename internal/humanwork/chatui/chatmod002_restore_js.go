@@ -25,4 +25,12 @@ func RestoreFieldValue(id, value string) {
 	el.Set("__chatTyped", false)
 	el.Set("__chatCleared", false)
 	setComposerSendReady(id, value)
+	// The refused text is what the author edits next: the caret is in the box,
+	// after the text, whatever the refusal did to focus (CHATUX-018).
+	if !doc.Get("activeElement").Equal(el) {
+		el.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+	}
+	if end := el.Get("value").Get("length"); end.Type() == js.TypeNumber && el.Get("setSelectionRange").Type() == js.TypeFunction {
+		el.Call("setSelectionRange", end, end)
+	}
 }

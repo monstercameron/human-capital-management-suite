@@ -118,7 +118,7 @@ func TestTodo_CHATEMOJI_001_Browser(t *testing.T) {
 		{"de-DE", "feuer", "🔥", "Feuer"},
 		{"de-DE", "fire", "🔥", "Feuer"},
 		{"de-DE", "Freudentranen", "😂", "Gesicht mit Freudentränen"},
-		{"de-DE", "party", "🎉", "party popper"},
+		{"de-DE", "party", "🎉", "Konfettibombe"},
 		{"ar", "نار", "🔥", "نار"},
 		{"ar", "fire", "🔥", "نار"},
 		{"ar", "منزل", "🏠", "منزل"},
@@ -405,17 +405,17 @@ func TestTodo_CHATEMOJI_002(t *testing.T) {
 		})
 	})
 
-	t.Run("the footer names the emoji under the pointer or the highlight, with its shortcode", func(t *testing.T) {
+	t.Run("the footer names the emoji under the pointer or the highlight, by name only", func(t *testing.T) {
 		m := emojiModel("en-US")
 		withEmojiHost(t, m, func(*localUI) {
 			st := emojiOpenState("chat-composer", false, false, false)
 			markup := emojiMarkup(t, m, st, "emoji")
-			if !strings.Contains(markup, ">thumbs up<") || !strings.Contains(markup, ">:thumbs_up:<") {
-				t.Fatalf("the footer does not name the highlighted emoji: %s", markup)
+			if !strings.Contains(markup, ">thumbs up<") || strings.Contains(markup, ">:thumbs_up:<") {
+				t.Fatalf("the footer does not name the highlighted emoji, or prints its shortcode: %s", markup)
 			}
 			st.Hover = 8 // the eighth starter emoji
 			markup = emojiMarkup(t, m, st, "emoji")
-			if !strings.Contains(markup, ">fire<") || !strings.Contains(markup, ">:fire:<") {
+			if !strings.Contains(markup, ">fire<") || strings.Contains(markup, ">:fire:<") {
 				t.Fatalf("the footer does not follow the pointer: %s", markup)
 			}
 		})

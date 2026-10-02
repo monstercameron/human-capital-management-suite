@@ -16,7 +16,6 @@ func focusSectionCreate()                                              {}
 func closeSectionCreate(bool)                                          {}
 func sectionCreateOpen() bool                                          { return false }
 func ensureSectionCreateVisible()                                      {}
-func positionRailMenu(ui.Event)                                        {}
 func menuTriggerIsFocusVisible(ui.Event) bool                          { return false }
 func focusRailMenu(func(), bool)                                       {}
 func restoreRailMenuFocus(string)                                      {}

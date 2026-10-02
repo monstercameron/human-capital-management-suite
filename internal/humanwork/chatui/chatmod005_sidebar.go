@@ -1,7 +1,6 @@
 package chatui
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -43,5 +42,5 @@ func ModerationCountLabel(locale string, count int, moderator bool) string {
 	if moderator {
 		key = "sidebar_open"
 	}
-	return strings.ReplaceAll(chatremoveText(locale, key), "{n}", strconv.Itoa(count))
+	return strings.ReplaceAll(chatremoveText(locale, key), "{n}", chatCount(locale, count))
 }

@@ -525,7 +525,9 @@ func chatEmojiPlaceLayer(picker js.Value, st emojiPickerState) {
 		if !ok {
 			return
 		}
-		anchor, bounds = rect, chatLayerRect{0, 0, vw, vh}
+		// The conversation list is not part of the room the picker may take.
+		rail := emojiDocument().Call("querySelector", ".chat-rail")
+		anchor, bounds = rect, chatEmojiColumn(emojiRect(rail), rail.Truthy(), vw, vh)
 	} else {
 		button := emojiDocument().Call("querySelector", "[data-action=emoji-toggle][data-id='"+st.Target+"']")
 		if !button.Truthy() {
@@ -538,6 +540,24 @@ func chatEmojiPlaceLayer(picker js.Value, st emojiPickerState) {
 		bounds = emojiRect(button.Call("closest", ".chat-composer,.thread-composer"))
 	}
 	placement := chatEmojiPlace(anchor, bounds, vw, vh, rtl, st.Reaction)
+	// AGENTUX-062: the picker stays under the conversation header; both openers
+	// live in the messages or the composer, which is what chatLayerArea asks.
+	if root.Truthy() {
+		if frame := root.Call("querySelector", ".timeline-frame"); frame.Truthy() {
+			area := chatLayerArea(root, frame)
+			placement = chatEmojiBelowHeader(placement, anchor, area, vh)
+			// From the composer the picker sits wholly above the composer (the one
+			// rule for composer layers), not above the button inside it.
+			if !st.Reaction {
+				if button := emojiDocument().Call("querySelector", "[data-action=emoji-toggle][data-id='"+st.Target+"']"); button.Truthy() {
+					if composer := emojiRect(button.Call("closest", ".chat-composer,.thread-composer")); chatLayerRectUsable(composer) {
+						g := chatComposerLayerPlace(anchor, composer, chatLayerBounds(anchor, area, vw, vh), emojiPickerWidth, emojiPickerHeight, rtl)
+						placement = emojiPlacement{g.left, g.top, g.width, g.height}
+					}
+				}
+			}
+		}
+	}
 	style := picker.Get("style")
 	emojiSetPx(style, "left", placement.Left)
 	emojiSetPx(style, "top", placement.Top)

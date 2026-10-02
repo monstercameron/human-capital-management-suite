@@ -17,7 +17,7 @@ import (
 // ChatBug037Styles is joined into the workspace stylesheet in styles.go.
 const ChatBug037Styles = `
 .chat-workspace a.chat-share-link{overflow-wrap:anywhere}
-.chat-workspace a.chat-share-link[data-share-link="unresolved"]{word-break:break-all}
+.chat-workspace a.chat-share-link[data-share-link="unresolved"]{display:inline-block;max-inline-size:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .chat-embed-attachments{display:inline-flex;align-items:center;gap:4px;font-size:.75rem;color:var(--muted)}
 .chat-embed-attachments .chat-icon{width:14px;height:14px;flex:none}
 `

@@ -25,6 +25,11 @@ type mentionState struct {
 	Details       bool
 	LoadedFresh   bool
 	ShowAllPeople bool
+	// ActiveKey names the highlighted option and SettledAt is where it stood
+	// when it was named, so rows arriving above it move the highlight with it
+	// (agentux029_menu.go).
+	ActiveKey string
+	SettledAt int
 }
 
 // mentionCandidate is one person the viewer can mention.
@@ -68,6 +73,7 @@ type ResolvedPersonaMention struct {
 	AvatarURL               string
 	Purpose, Owner, Version string
 	DocumentScope           string
+	Examples                []string
 	Skills                  []PersonaMentionSkill
 	DataClasses, CannotDo   []string
 	ReplyPlacement          PersonaReplyPlacement
@@ -317,15 +323,13 @@ func combineMentionOptions(query string, people []mentionCandidate, personas []R
 			options = append(options, mentionOption{persona: &persona})
 		}
 	}
+	// The groups keep one order whatever is typed: Agents, then people in the
+	// conversation, then people who are not. Typing filters the groups; it does
+	// not move them, so the list never reshuffles under the cursor and a short
+	// group is never pushed below a long one where it has to be scrolled to.
 	if strings.TrimSpace(query) != "" {
-		peopleScore, agentScore := mentionGroupScore(query, people, personas)
-		if agentScore < peopleScore {
-			appendAgents()
-			appendPeople(people)
-		} else {
-			appendPeople(people)
-			appendAgents()
-		}
+		appendAgents()
+		appendPeople(people)
 		return options, false
 	}
 
@@ -346,18 +350,6 @@ func combineMentionOptions(query string, people []mentionCandidate, personas []R
 	}
 	appendPeople(outsiders)
 	return options, hasMore
-}
-
-func mentionGroupScore(query string, people []mentionCandidate, personas []ResolvedPersonaMention) (int, int) {
-	const noMatch = int(^uint(0) >> 1)
-	peopleScore, agentScore := noMatch, noMatch
-	for _, person := range people {
-		peopleScore = min(peopleScore, mentionTextScore(query, person.Name))
-	}
-	for _, persona := range personas {
-		agentScore = min(agentScore, mentionTextScore(query, persona.Reference.Display, persona.Handle, persona.Reference.ID))
-	}
-	return peopleScore, agentScore
 }
 
 func mentionTextScore(query string, values ...string) int {
@@ -476,11 +468,24 @@ func mentionCandidates(m Model, query string) []mentionCandidate {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
+	// Having written here is not being here now: someone who posted and has
+	// since left or been removed is outside the conversation, and offering them
+	// as a member sent a mention the service refuses and showed no note
+	// (CHATBUG-071). The authors stand in for the member list only until it has
+	// loaded; the viewer is always in it, so a loaded list is never empty.
 	for _, id := range ids {
+		if len(m.Members) > 0 {
+			break
+		}
 		consider(id, authors[id], true)
 	}
-	for _, person := range m.SearchDirectory {
-		consider(person.ID, person.Name, false)
+	// Whether someone from the directory is in this conversation is not known
+	// until the members have been read; offering them before then put members
+	// under "Not in this conversation" (AGENTUX-029).
+	if !mentionPeopleLoading(m) {
+		for _, person := range m.SearchDirectory {
+			consider(person.ID, person.Name, false)
+		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].rank != out[j].rank {
@@ -545,22 +550,28 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 	agentsEnabled := m.personaMentionsEnabled(target) && !(lookupState == PersonaLookupReady && len(m.ResolvedPersonaMentions) == 0)
 	emptyQuery := strings.TrimSpace(state.Query) == ""
 	agentGroupVisible := agentsEnabled && (agentCount > 0 || lookupState != PersonaLookupIdle || emptyQuery)
-	if len(options) == 0 && !agentGroupVisible {
+	peopleLoading := mentionPeopleLoading(m)
+	if len(options) == 0 && !agentGroupVisible && !peopleLoading {
 		return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu empty", Role: "status", Aria: map[string]string{"live": "polite"}}, html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": state.Query})}))
 	}
 	rows := make([]ui.Node, 0, len(options)+8)
 	lastGroup := ""
-	agentHeadingShown := false
-	if agentsEnabled && agentCount == 0 && emptyQuery {
+	// AGENTUX-029: an agent list that is still on its way, or failed, is said in
+	// the Agents group, which is the first group, in every order of typing and
+	// loading (the members row follows the same rule in the people group). "No
+	// agent matches" is said only when nobody matches at all.
+	agentsUnsettled := lookupState == PersonaLookupLoading || lookupState == PersonaLookupFailed
+	if agentsEnabled && agentCount == 0 && (emptyQuery || peopleCount == 0 || agentsUnsettled) && agentGroupVisible {
 		rows = append(rows, mentionGroupHeading("agents", mentionMenuText(m, KeyMentionAgents)))
-		agentHeadingShown = true
 		switch lookupState {
 		case PersonaLookupIdle:
 			rows = append(rows, mentionLookupStatus("idle", mentionMenuText(m, KeyMentionAgentsIdle), "polite"))
 		case PersonaLookupLoading:
-			rows = append(rows, mentionLookupStatus("loading", mentionMenuText(m, KeyMentionAgentsLoading), "polite"))
+			rows = append(rows, chatux037MenuLoading(m, "loading", mentionMenuText(m, KeyMentionAgentsLoading), "persona-mention-retry"))
 		case PersonaLookupFailed:
 			rows = append(rows, mentionAgentFailureState(m))
+		case PersonaLookupReady:
+			rows = append(rows, mentionLookupStatus("empty", mentionMenuText(m, KeyMentionAgentsNoMatch), "polite"))
 		}
 	}
 	for i, option := range options {
@@ -574,7 +585,6 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 			switch group {
 			case "agents":
 				rows = append(rows, mentionGroupHeading("agents", mentionMenuText(m, KeyMentionAgents)))
-				agentHeadingShown = true
 			case "people":
 				rows = append(rows, mentionGroupHeading("people", mentionMenuText(m, KeyMentionTitle)))
 			case "outside":
@@ -625,21 +635,16 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 			html.Span(html.Props{Class: "mention-name", Text: label}),
 			html.Span(html.Props{Class: "mention-detail", Text: detail})), key))
 	}
+	// The group the members fill is named from the first open, with a quiet
+	// line while they load (AGENTUX-029).
+	if peopleLoading {
+		if lastGroup != "people" {
+			rows = append(rows, mentionGroupHeading("people", mentionMenuText(m, KeyMentionTitle)))
+		}
+		rows = append(rows, mentionPeopleLoadingRow(m))
+	}
 	if hasMorePeople {
 		rows = append(rows, html.Button(html.Props{Class: "mention-show-more", Type: "button", Data: map[string]string{"action": "mention-show-more", "id": target}, Text: mentionMenuText(m, KeyMentionShowMorePeople)}))
-	}
-	if agentsEnabled && agentCount == 0 && !emptyQuery && peopleCount == 0 {
-		if agentGroupVisible && !agentHeadingShown {
-			rows = append(rows, mentionGroupHeading("agents", mentionMenuText(m, KeyMentionAgents)))
-		}
-		switch lookupState {
-		case PersonaLookupLoading:
-			rows = append(rows, mentionLookupStatus("loading", mentionMenuText(m, KeyMentionAgentsLoading), "polite"))
-		case PersonaLookupFailed:
-			rows = append(rows, mentionAgentFailureState(m))
-		case PersonaLookupReady:
-			rows = append(rows, mentionLookupStatus("empty", mentionMenuText(m, KeyMentionAgentsNoMatch), "polite"))
-		}
 	}
 	direction := "ltr"
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(m.Locale)), "ar") {
@@ -662,9 +667,9 @@ func mentionHintText(locale string, details bool) string {
 	}
 	switch {
 	case strings.HasPrefix(strings.ToLower(locale), "de"):
-		return "↑↓ auswählen · Tab Details · Enter einfügen · Esc schließen"
+		return "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen"
 	case strings.HasPrefix(strings.ToLower(locale), "ar"):
-		return "↑↓ اختيار · Tab التفاصيل · Enter إدراج · Esc إغلاق"
+		return "↑↓ للتنقل · Enter للإدراج · Tab للتفاصيل · Esc للإغلاق"
 	default:
 		return englishCopy[KeyMentionHint]
 	}
@@ -760,8 +765,11 @@ func mentionModelFieldAria(model Model, state mentionState, target string, aria 
 // the new "@a" never opened it. Handlers read and write the box; the tick
 // only asks for a render.
 type mentionBox struct {
-	state          mentionState
-	personas       []personaDraftMention
+	state    mentionState
+	personas []personaDraftMention
+	// outsiders are the people a draft names who are not members of its
+	// conversation (chatbug071_outside.go). They are never sent as references.
+	outsiders      []personaDraftMention
 	conversationID string
 	seq            uint64
 }
@@ -816,12 +824,13 @@ func (s mentionStore) AddPersonaToken(target, conversationID string, reference C
 func (s mentionStore) ReconcilePersonas(target, value string) {
 	kept := s.box.personas[:0]
 	for _, item := range s.box.personas {
-		if item.Target == target && !item.Detached && !personaReferenceAt(value, item) {
+		if item.Target == target && !item.Detached && !draftMentionPresent(value, item) {
 			continue
 		}
 		kept = append(kept, item)
 	}
-	if len(kept) != len(s.box.personas) {
+	outsidersChanged := s.reconcileOutsiders(target, value)
+	if len(kept) != len(s.box.personas) || outsidersChanged {
 		s.box.personas = kept
 		s.box.seq++
 		s.tick.Set(s.box.seq)
@@ -831,7 +840,7 @@ func (s mentionStore) ReconcilePersonas(target, value string) {
 func (s mentionStore) PersonaReferences(target, conversationID, value string) []ChatReference {
 	var out []ChatReference
 	for _, item := range s.box.personas {
-		if item.Target == target && item.ConversationID == conversationID && (item.Detached || personaReferenceAt(value, item)) {
+		if item.Target == target && item.ConversationID == conversationID && (item.Detached || draftMentionPresent(value, item)) {
 			out = append(out, item.Reference)
 		}
 	}
@@ -846,21 +855,34 @@ func (s mentionStore) RemovePersonas(target, conversationID string) {
 		}
 		kept = append(kept, item)
 	}
-	if len(kept) != len(s.box.personas) {
+	outsidersChanged := s.removeOutsiders(target, conversationID)
+	if len(kept) != len(s.box.personas) || outsidersChanged {
 		s.box.personas = kept
 		s.box.seq++
 		s.tick.Set(s.box.seq)
 	}
 }
 
+// PersonaDisplay names the agent the draft asks. A mentioned person is kept in
+// the same list for its reference and is never an agent being asked.
 func (s mentionStore) PersonaDisplay(target, conversationID string) string {
 	for i := len(s.box.personas) - 1; i >= 0; i-- {
 		item := s.box.personas[i]
-		if item.Target == target && item.ConversationID == conversationID {
+		if item.Target == target && item.ConversationID == conversationID && item.Reference.Kind != "PERSON_MENTION" {
 			return strings.TrimSpace(item.Reference.Display)
 		}
 	}
 	return ""
+}
+
+// draftMentionPresent reports whether the draft still holds the mention. A
+// person is found by name wherever it now stands, since typing before it moves
+// it; an agent is held to the place it was picked at.
+func draftMentionPresent(value string, item personaDraftMention) bool {
+	if item.Reference.Kind == "PERSON_MENTION" {
+		return chatbug071NamedIn(value, item.Reference.Display)
+	}
+	return personaReferenceAt(value, item)
 }
 
 func personaReferenceAt(value string, item personaDraftMention) bool {

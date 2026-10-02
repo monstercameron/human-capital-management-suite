@@ -3,6 +3,7 @@
 package chatui
 
 import (
+	"strconv"
 	"syscall/js"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -10,6 +11,10 @@ import (
 
 var mobileRailTrigger js.Value
 var mobileRailOpen bool
+
+// mobileRailFocusSearch is set when the drawer is opened to reach its search
+// box, so the drawer puts focus there and not on the open conversation.
+var mobileRailFocusSearch bool
 var mobileRailGeneration uint64
 var mobileRailResize js.Func
 
@@ -39,6 +44,16 @@ func setMobileRailModal(open bool) js.Value {
 		return js.Null()
 	}
 	modal := open && mobileRailActive()
+	if modal {
+		// The workspace is a size container, so the fixed drawer is placed from
+		// the workspace's own edge, which sits inside the page's margin. The
+		// styles pull the drawer out by the same distance and it is flush with
+		// the screen (CHATBUG-064).
+		box := root.Call("getBoundingClientRect")
+		style := root.Get("style")
+		style.Call("setProperty", "--chat-edge-start", strconv.FormatFloat(box.Get("left").Float(), 'f', 2, 64)+"px")
+		style.Call("setProperty", "--chat-edge-end", strconv.FormatFloat(js.Global().Get("innerWidth").Float()-box.Get("right").Float(), 'f', 2, 64)+"px")
+	}
 	if modal {
 		rail.Call("setAttribute", "role", "dialog")
 		rail.Call("setAttribute", "aria-modal", "true")
@@ -105,11 +120,14 @@ func syncMobileRailFocus(open bool) {
 			} else if !rail.Call("contains", doc.Get("activeElement")).Bool() {
 				// Land on the open conversation, not the search box: focusing a
 				// text field on a phone raises the keyboard over the list the
-				// person opened the drawer to read.
+				// person opened the drawer to read. The search icon and the
+				// search shortcut are the exception: the person asked for the
+				// box (CHATBUG-064), so it takes focus and the keyboard comes up.
 				target := rail.Call("querySelector", ".chat-row.selected")
-				if !target.Truthy() {
+				if !target.Truthy() || mobileRailFocusSearch {
 					target = search
 				}
+				mobileRailFocusSearch = false
 				focusMobileRailTarget(target)
 				// Reconciliation can replace the focused precommit node. Verify on
 				// the next frame before declaring the drawer settled.

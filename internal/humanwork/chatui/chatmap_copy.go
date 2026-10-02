@@ -21,6 +21,17 @@ func ChatmapText(locale, key string) string {
 		"remaining": "Sharing for %s more minutes", "now": "Sharing now", "lat": "Pin latitude", "lon": "Pin longitude",
 		"accuracy": "Accuracy radius in metres", "north": "Move pin north", "south": "Move pin south", "east": "Move pin east", "west": "Move pin west",
 		"zoom_in": "Zoom in", "zoom_out": "Zoom out", "failed": "Could not share. Review the location and try again.",
+		"live15": "Live for 15 minutes", "live60": "Live for 1 hour", "live480": "Live for 8 hours",
+		"live_note": "Live sharing sends your position every 30 seconds while this page is open. Closing the page pauses the share and readers see Paused. It ends by itself at its time, and you can stop it at any time.",
+		"live":      "Live", "paused": "Paused: the sharer's page is closed", "ended_at": "Sharing ended at %s", "ended_where": "Last place shared is not kept.",
+		"live_banner": "You are sharing your location live with everyone in this conversation. %s minutes left.", "stop_all": "Stop sharing", "stop_live": "Stop sharing live",
+		"crew_map": "Crew map", "crew_empty": "Nobody is sharing live to this conversation right now.", "crew_open": "Open message", "crew_sites": "Job sites", "crew_alt": "Crew map with %s people sharing live and %s job sites. Names and distances are listed below.",
+		"sharing_off": "Location sharing is switched off here.", "live_off": "Live sharing is switched off here.", "exact_off": "Exact positions are not allowed here. Share an approximate position.",
+		"retention": "Kept for at most 24 hours unless an administrator shortens it.", "mine": "My shared locations", "mine_empty": "You are not sharing any location.",
+		"settings": "Location settings for this channel", "set_sharing": "Allow location sharing", "set_live": "Allow live sharing", "set_exact": "Allow exact positions", "set_max_live": "Longest live share", "set_retention": "Longest time a location is kept",
+		"set_note": "A channel can only be stricter than the workspace. Nothing is kept longer than 24 hours.", "save": "Save settings", "saved": "Settings saved.", "d15m": "15 minutes", "d1h": "1 hour", "d8h": "8 hours", "d24h": "24 hours",
+		"live_device": "Live sharing uses where you are. Choose Where I am.",
+		"header_map":  "Map", "header_map_label": "Map: %s sharing live now", "crew_failed": "The crew map could not load. Try again.",
 	}
 	de := map[string]string{
 		"schematic": "Schema · keine Kartendaten", "agent_supplied": "Von einem Agenten bereitgestellt", "integration_supplied": "Von einer Integration bereitgestellt", "you": "Sie", "loading": "Standorte werden geladen…", "empty": "Hier sind keine Standorte geteilt. Teilen Sie unten einen Punkt.", "find": "Adresse suchen", "load_sites": "Einsatzorte laden", "close": "Karte schließen", "location": "Standort", "where": "Wo ich bin", "address": "Eine Adresse", "site": "Ein Einsatzort",
@@ -36,6 +47,17 @@ func ChatmapText(locale, key string) string {
 		"discarded": "Der vorgemerkte Standort ist abgelaufen und wurde verworfen. Wählen Sie einen neuen Standort.", "sent": "Standort geteilt.", "retry": "Erneut versuchen", "expired": "Standort nicht mehr geteilt",
 		"open": "Größer öffnen", "copy": "Adresse kopieren", "directions": "Wegbeschreibung (verlässt das Produkt)", "stop": "Teilen beenden", "within": "Im Umkreis von %s m", "age": "Vor %s Minuten geteilt", "by": "Geteilt von %s", "remaining": "Noch %s Minuten geteilt", "now": "Jetzt geteilt",
 		"lat": "Breitengrad der Markierung", "lon": "Längengrad der Markierung", "accuracy": "Genauigkeitsradius in Metern", "north": "Markierung nach Norden bewegen", "south": "Markierung nach Süden bewegen", "east": "Markierung nach Osten bewegen", "west": "Markierung nach Westen bewegen", "zoom_in": "Vergrößern", "zoom_out": "Verkleinern", "failed": "Teilen fehlgeschlagen. Prüfen Sie den Standort und versuchen Sie es erneut.",
+		"live15": "Live für 15 Minuten", "live60": "Live für 1 Stunde", "live480": "Live für 8 Stunden",
+		"live_note": "Beim Live-Teilen wird Ihre Position alle 30 Sekunden gesendet, solange diese Seite geöffnet ist. Beim Schließen pausiert das Teilen und Leser sehen Pausiert. Es endet von selbst zur gewählten Zeit und Sie können es jederzeit beenden.",
+		"live":      "Live", "paused": "Pausiert: Die Seite des Teilenden ist geschlossen", "ended_at": "Teilen beendet um %s", "ended_where": "Der zuletzt geteilte Ort wird nicht aufbewahrt.",
+		"live_banner": "Sie teilen Ihren Standort live mit allen in dieser Unterhaltung. Noch %s Minuten.", "stop_all": "Teilen beenden", "stop_live": "Live-Teilen beenden",
+		"crew_map": "Teamkarte", "crew_empty": "Zurzeit teilt niemand live in dieser Unterhaltung.", "crew_open": "Nachricht öffnen", "crew_sites": "Einsatzorte", "crew_alt": "Teamkarte mit %s Personen, die live teilen, und %s Einsatzorten. Namen und Entfernungen stehen darunter.",
+		"sharing_off": "Das Teilen des Standorts ist hier ausgeschaltet.", "live_off": "Live-Teilen ist hier ausgeschaltet.", "exact_off": "Genaue Positionen sind hier nicht erlaubt. Teilen Sie eine ungefähre Position.",
+		"retention": "Höchstens 24 Stunden aufbewahrt, sofern ein Administrator es nicht verkürzt.", "mine": "Meine geteilten Standorte", "mine_empty": "Sie teilen keinen Standort.",
+		"settings": "Standorteinstellungen für diesen Kanal", "set_sharing": "Standortfreigabe erlauben", "set_live": "Live-Teilen erlauben", "set_exact": "Genaue Positionen erlauben", "set_max_live": "Längste Live-Freigabe", "set_retention": "Längste Aufbewahrung eines Standorts",
+		"set_note": "Ein Kanal kann nur strenger sein als der Arbeitsbereich. Nichts wird länger als 24 Stunden aufbewahrt.", "save": "Einstellungen speichern", "saved": "Einstellungen gespeichert.", "d15m": "15 Minuten", "d1h": "1 Stunde", "d8h": "8 Stunden", "d24h": "24 Stunden",
+		"live_device": "Live-Teilen nutzt Ihren Standort. Wählen Sie Wo ich bin.",
+		"header_map":  "Karte", "header_map_label": "Karte: %s teilen jetzt live", "crew_failed": "Die Teamkarte konnte nicht geladen werden. Versuchen Sie es erneut.",
 	}
 	ar := map[string]string{
 		"schematic": "رسم تخطيطي · لا توجد بيانات خريطة", "agent_supplied": "مقدم بواسطة وكيل", "integration_supplied": "مقدم بواسطة تكامل", "you": "أنت", "loading": "جارٍ تحميل المواقع…", "empty": "لا توجد مواقع مشاركة هنا. شارك نقطة أدناه.", "find": "البحث عن عنوان", "load_sites": "تحميل مواقع العمل", "close": "إغلاق الخريطة", "location": "الموقع", "where": "مكاني الحالي", "address": "عنوان", "site": "موقع عمل",
@@ -48,6 +70,17 @@ func ChatmapText(locale, key string) string {
 		"offline": "غير متصل. ستُرسل المشاركة عند الاتصال؛ تُحذف المشاركات المنتهية.", "discarded": "انتهت صلاحية الموقع المنتظر وتم حذفه. اختر موقعاً جديداً.", "sent": "تمت مشاركة الموقع.", "retry": "المحاولة مجدداً", "expired": "لم يعد الموقع مشاركاً",
 		"open": "فتح بحجم أكبر", "copy": "نسخ العنوان", "directions": "الاتجاهات (تغادر المنتج)", "stop": "إيقاف المشاركة", "within": "ضمن %s م", "age": "تمت المشاركة منذ %s دقيقة", "by": "شارك بواسطة %s", "remaining": "المشاركة مستمرة لمدة %s دقيقة", "now": "المشاركة الآن",
 		"lat": "خط عرض الدبوس", "lon": "خط طول الدبوس", "accuracy": "نصف قطر الدقة بالأمتار", "north": "تحريك الدبوس شمالاً", "south": "تحريك الدبوس جنوباً", "east": "تحريك الدبوس شرقاً", "west": "تحريك الدبوس غرباً", "zoom_in": "تكبير", "zoom_out": "تصغير", "failed": "تعذرت المشاركة. راجع الموقع وحاول مجدداً.",
+		"live15": "مباشر لمدة 15 دقيقة", "live60": "مباشر لمدة ساعة", "live480": "مباشر لمدة 8 ساعات",
+		"live_note": "تُرسل المشاركة المباشرة موقعك كل 30 ثانية ما دامت هذه الصفحة مفتوحة. يؤدي إغلاقها إلى إيقاف المشاركة مؤقتاً ويرى القراء كلمة متوقف مؤقتاً. تنتهي من تلقاء نفسها في وقتها ويمكنك إيقافها في أي وقت.",
+		"live":      "مباشر", "paused": "متوقف مؤقتاً: صفحة المشارك مغلقة", "ended_at": "انتهت المشاركة في %s", "ended_where": "لا يُحفظ آخر مكان تمت مشاركته.",
+		"live_banner": "أنت تشارك موقعك مباشرة مع الجميع في هذه المحادثة. متبقي %s دقيقة.", "stop_all": "إيقاف المشاركة", "stop_live": "إيقاف المشاركة المباشرة",
+		"crew_map": "خريطة الفريق", "crew_empty": "لا أحد يشارك موقعه مباشرة في هذه المحادثة الآن.", "crew_open": "فتح الرسالة", "crew_sites": "مواقع العمل", "crew_alt": "خريطة الفريق: %s أشخاص يشاركون مباشرة و%s مواقع عمل. الأسماء والمسافات مدرجة أدناه.",
+		"sharing_off": "مشاركة الموقع متوقفة هنا.", "live_off": "المشاركة المباشرة متوقفة هنا.", "exact_off": "المواقع الدقيقة غير مسموح بها هنا. شارك موقعاً تقريبياً.",
+		"retention": "تُحفظ 24 ساعة على الأكثر ما لم يقصّرها المسؤول.", "mine": "مواقعي المشاركة", "mine_empty": "أنت لا تشارك أي موقع.",
+		"settings": "إعدادات الموقع لهذه القناة", "set_sharing": "السماح بمشاركة الموقع", "set_live": "السماح بالمشاركة المباشرة", "set_exact": "السماح بالمواقع الدقيقة", "set_max_live": "أطول مشاركة مباشرة", "set_retention": "أطول مدة لحفظ الموقع",
+		"set_note": "يمكن للقناة أن تكون أكثر تشدداً من مساحة العمل فقط. لا يُحفظ شيء أكثر من 24 ساعة.", "save": "حفظ الإعدادات", "saved": "تم حفظ الإعدادات.", "d15m": "15 دقيقة", "d1h": "ساعة واحدة", "d8h": "8 ساعات", "d24h": "24 ساعة",
+		"live_device": "تستخدم المشاركة المباشرة موقعك الحالي. اختر مكاني الحالي.",
+		"header_map":  "الخريطة", "header_map_label": "الخريطة: %s يشاركون مباشرة الآن", "crew_failed": "تعذر تحميل خريطة الفريق. حاول مجدداً.",
 	}
 	if locale == "de-DE" {
 		return chatbug039Text(key, de[key], en[key])

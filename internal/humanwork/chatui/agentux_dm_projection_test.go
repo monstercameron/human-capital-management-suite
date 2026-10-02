@@ -17,7 +17,7 @@ func TestTodo_AGENTUX_030(t *testing.T) {
 		Callbacks:     Callbacks{SelectConversation: func(string) {}},
 	}
 	markup := render(t, model)
-	for _, want := range []string{"Policy Helper", "agent-badge", `placeholder="Ask Policy Helper a follow-up"`, "agent-dm-avatar", ">Agent<"} {
+	for _, want := range []string{"Policy Helper", "agent-badge", `placeholder="Ask Policy Helper"`, "agent-dm-avatar", ">Agent<"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("agent direct presentation missing %q: %s", want, markup)
 		}
@@ -60,10 +60,12 @@ func TestTodo_AGENTUX_032(t *testing.T) {
 		name, locale, body string
 		links              int
 	}{
-		{name: "one source", locale: "en-US", body: "Answer\n\nSources\n- [Paid time off policy (version 4)](https://tenant.example/workspace/app/docs?document=pto-v4)", links: 1},
-		{name: "two sources", locale: "en-US", body: "Answer\n\nSources\n- [Paid time off policy (version 4)](https://tenant.example/workspace/app/docs?document=pto-v4)\n- [Benefits guide (version 2)](https://tenant.example/workspace/app/docs?document=benefits-v2)", links: 2},
+		{name: "one source", locale: "en-US", body: "Answer\n\nSources\n- [Paid time off policy (version 4)](/workspace/app/docs?document=pto-v4)", links: 1},
+		{name: "two sources", locale: "en-US", body: "Answer\n\nSources\n- [Paid time off policy (version 4)](/workspace/app/docs?document=pto-v4)\n- [Benefits guide (version 2)](/workspace/app/docs?document=benefits-v2)", links: 2},
 		{name: "revoked reader", locale: "en-US", body: "Answer\n\nSources\n- Paid time off policy (version 4)", links: 0},
-		{name: "rtl", locale: "ar", body: "إجابة\n\nSources\n- [Paid time off policy (version 4)](https://tenant.example/workspace/app/docs?document=pto-v4)", links: 1},
+		{name: "rtl", locale: "ar", body: "إجابة\n\nSources\n- [Paid time off policy (version 4)](/workspace/app/docs?document=pto-v4)", links: 1},
+		// An address on another host is never a link, whatever its path says.
+		{name: "another host", locale: "en-US", body: "Answer\n\nSources\n- [Paid time off policy (version 4)](https://tenant.example/workspace/app/docs?document=pto-v4)", links: 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			model := Model{Locale: tc.locale}

@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -28,6 +29,10 @@ type ModerationDialogModel struct {
 	Report, Sent             bool
 	// CaseID is the queue item a dialog opened from the queue decides.
 	CaseID string
+	// Choices are the messages around the target that the moderator may tick to
+	// remove together (chatmod004_selected.go), with the reader's time zone.
+	Choices  []ModerationChoice
+	TimeZone *time.Location
 }
 
 var moderationReasonCodes = []string{"harassment", "sensitive_information", "spam", "policy_violation"}
@@ -54,11 +59,15 @@ func chatmodReasons(locale, prefix, legend, chosen string) ui.Node {
 	return html.Fieldset(html.Props{Class: "chatremove-reasons"}, nodes...)
 }
 
-func chatmodQuote(locale string, t ModerationTargetView) ui.Node {
-	name := chatmodName(locale, t.AuthorName)
+// chatmodQuote is the message the dialog is about, drawn as the conversation
+// draws it (CHATBUG-085): a list is a list and bold is bold, not the dashes and
+// asterisks that were typed. It is there to be read, so nothing in it can be
+// pressed or take the caret.
+func chatmodQuote(m Model, t ModerationTargetView) ui.Node {
+	name := chatmodName(m.Locale, t.AuthorName)
 	return html.Figure(html.Props{Class: "chatremove-quote"},
-		html.Figcaption(html.Props{ID: "chatremove-author", Dir: "auto", Text: chatmodFill(chatremoveText(locale, "message_from"), name)}),
-		html.Blockquote(html.Props{Dir: "auto", Text: t.Body}))
+		html.Figcaption(html.Props{ID: "chatremove-author", Dir: "auto", Text: chatmodFill(chatremoveText(m.Locale, "message_from"), name)}),
+		html.Blockquote(html.Props{}, html.Div(html.Props{Class: "message-body", Dir: "auto", Raw: map[string]any{"inert": ""}}, markdownMessageBody(m, t.Body)...)))
 }
 
 func chatmodError(locale, code string) []ui.Node {
@@ -104,20 +113,21 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 	if m.CaseID != "" {
 		kind = "resolve"
 	}
-	children := []ui.Node{html.H2(html.Props{ID: "chatremove-title", Dir: "auto", Text: chatmodFill(t(title), name)}), html.P(html.Props{ID: "chatremove-help", Dir: "auto", Text: chatmodFill(t(help), name)})}
+	children := []ui.Node{chatbug085Heading(locale, chatmodFill(t(title), name)), html.P(html.Props{ID: "chatremove-help", Dir: "auto", Text: chatmodFill(t(help), name)})}
 	if m.Sent {
 		children = append(children, html.P(html.Props{Role: "status", Text: t("sent")}), html.A(html.Props{Href: ModerationPageHref, Data: map[string]string{"chatremove-close": "true"}, Text: t("close")}))
 		return chatmodDialogShell(locale, children)
 	}
 	if m.Action != "restore" || m.Report {
-		children = append(children, chatmodQuote(locale, m.Target))
+		children = append(children, chatmodQuote(m.Model, m.Target))
 	}
 	describedby := "chatremove-help"
 	if m.ErrorCode != "" {
 		describedby += " chatremove-error"
 	}
 	fields := []ui.Node{}
-	if (m.Action != "restore" && m.Action != "message") || m.Report {
+	needsReason := (m.Action != "restore" && m.Action != "message") || m.Report
+	if needsReason {
 		legend := t("why_removed")
 		if m.Report {
 			legend = t("why_reported")
@@ -143,6 +153,12 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		button, decision = "send_message", "message_author"
 	}
 	submit := html.Props{Type: "submit", Class: "primary", Text: t(button)}
+	if needsReason {
+		// CHATBUG-085: nothing is sent or removed without a reason. The button is
+		// off until one is chosen; the client turns it on when a reason is.
+		submit.Disabled = m.ReasonCode == ""
+		submit.Data = map[string]string{chatbug085NeedsReason: "true"}
+	}
 	if m.CaseID != "" {
 		submit.Name, submit.Value = "action", decision
 	}
@@ -158,13 +174,16 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 	}
 	children = append(children, html.Form(html.Props{Data: data, Aria: map[string]string{"describedby": describedby}}, fields...))
 	if !m.Report && m.Action != "restore" && m.Action != "message" && m.CaseID == "" {
+		if picked := chatmodSelected(m); picked != nil {
+			children = append(children, picked)
+		}
 		children = append(children, chatmodSeveral(m, name))
 	}
 	return chatmodDialogShell(locale, children)
 }
 
 func chatmodDialogShell(locale string, children []ui.Node) ui.Node {
-	return html.Section(html.Props{Class: "chatremove", Role: "dialog", Lang: locale, Dir: direction(locale), Aria: map[string]string{"labelledby": "chatremove-title", "modal": "true"}}, children...)
+	return html.Section(html.Props{Class: "chatremove chat-dialog", Role: "dialog", Lang: locale, Dir: direction(locale), Aria: map[string]string{"labelledby": "chatremove-title", "modal": "true"}}, children...)
 }
 
 // chatmodSeveral is the bulk form: every message of this author in this channel

@@ -21,7 +21,7 @@ import (
 func chatbug024Details(t *testing.T, locale, viewer string) (panel string, icon string) {
 	t.Helper()
 	ctx := productui.ResolveProductLocale(locale)
-	value := agenticon.Generate(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
+	value := chatui.AgentIconFixture(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
 	icon, err := ui.RenderToString(agenticon.Node(value))
 	if err != nil || icon == "" {
 		t.Fatalf("icon fixture: %q %v", icon, err)
@@ -77,10 +77,13 @@ func TestTodo_CHATBUG_024_Browser(t *testing.T) {
 		if strings.Contains(panel, "⟦") {
 			t.Errorf("%s: the details panel prints a copy key: %s", locale, regexp.MustCompile(`.{30}⟦[^⟧]*⟧`).FindString(panel))
 		}
-		for _, text := range words {
-			if !strings.Contains(panel, text) {
-				t.Errorf("%s: the filter section misses %q", locale, text)
-			}
+		// CHATBUG-048: the row is "Manage filters"; the sentence about direct
+		// messages is for a direct conversation, not for a channel.
+		if !strings.Contains(panel, words[1]) {
+			t.Errorf("%s: the filter section misses %q", locale, words[1])
+		}
+		if strings.Contains(panel, words[2]) {
+			t.Errorf("%s: a channel's filter section talks about direct messages", locale)
 		}
 		if strings.Contains(panel, "/workspace/app/chat/filters") {
 			t.Errorf("%s: the panel links to a page that does not exist", locale)
@@ -90,13 +93,11 @@ func TestTodo_CHATBUG_024_Browser(t *testing.T) {
 		manager = html.UnescapeString(manager)
 		member, _ := chatbug024Details(t, locale, "member")
 		member = html.UnescapeString(member)
-		for _, text := range []string{words[1], words[2]} {
-			if !strings.Contains(manager, text) {
-				t.Errorf("%s: a channel manager misses the filter section", locale)
-			}
-			if strings.Contains(member, text) {
-				t.Errorf("%s: a plain member sees the filter section (%q)", locale, text)
-			}
+		if !strings.Contains(manager, words[1]) {
+			t.Errorf("%s: a channel manager misses the filter section", locale)
+		}
+		if strings.Contains(member, words[1]) {
+			t.Errorf("%s: a plain member sees the filter section (%q)", locale, words[1])
 		}
 		if strings.Contains(member, "⟦") {
 			t.Errorf("%s: the member's panel prints a copy key", locale)
@@ -117,11 +118,12 @@ func TestTodo_CHATBUG_025_Browser(t *testing.T) {
 		}
 
 		// Status: the state in one line, no empty history, change control kept.
-		status := regexp.MustCompile(`(?s)<section[^>]*chatstate-section.*?</section>`).FindString(panel)
+		// The state is the row's value, the change control is in its block.
+		status := regexp.MustCompile(`(?s)data-manage-section="status".*?</form>`).FindString(panel)
 		if status == "" || !strings.Contains(status, ">"+words.open+"<") || strings.Contains(status, words.none) || strings.Contains(status, "<dl") {
 			t.Errorf("%s: status block: %s", locale, status)
 		}
-		if !strings.Contains(status, "chat-disclosure-button") {
+		if !strings.Contains(panel, `data-manage-section="status"`) || !strings.Contains(status, "chatstate-choice") {
 			t.Errorf("%s: the permitted status change control is gone: %s", locale, status)
 		}
 
@@ -129,7 +131,7 @@ func TestTodo_CHATBUG_025_Browser(t *testing.T) {
 		if found := regexp.MustCompile(`.{40}·\s*<.{20}`).FindString(panel); found != "" {
 			t.Errorf("%s: a label ends in a separator: %s", locale, found)
 		}
-		if label := ctx.Text(chatui.KeyTeamRoles) + " · 2"; !strings.Contains(panel, label) {
+		if label := ctx.Text(chatui.KeyTeamRoles); !strings.Contains(panel, ">"+label+"<") {
 			t.Errorf("%s: missing %q", locale, label)
 		}
 

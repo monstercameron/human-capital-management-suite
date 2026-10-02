@@ -23,3 +23,7 @@ func translationAdminReadChannel(ui.Event, string) (any, error) {
 }
 func translationAdminReadTerm(ui.Event) (any, error) { return nil, errTranslationAdminUnavailable }
 func translationAdminReadTermID(ui.Event) string     { return "" }
+
+// translationAdminChangedField is the name of the control a change event came
+// from; with no browser there is no event.
+func translationAdminChangedField(ui.Event) string { return "" }

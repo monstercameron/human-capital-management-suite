@@ -28,6 +28,33 @@ func chatlangOpenSettings() {
 	}
 }
 
+const chatlangBarStorageKey = "hcm.chat.chatlang.bar.dismissed"
+
+// chatlangBarStoredDismissed reports whether the person dismissed the
+// conversation bar before. Storage can be missing or refuse (a private window,
+// blocked site data); then the bar simply shows.
+func chatlangBarStoredDismissed() (dismissed bool) {
+	defer func() {
+		if recover() != nil {
+			dismissed = false
+		}
+	}()
+	store := js.Global().Get("localStorage")
+	if !store.Truthy() {
+		return false
+	}
+	value := store.Call("getItem", chatlangBarStorageKey)
+	return value.Type() == js.TypeString && value.String() == "1"
+}
+
+// chatlangRememberBarDismissed remembers a dismissal in the browser, best effort.
+func chatlangRememberBarDismissed() {
+	defer func() { _ = recover() }()
+	if store := js.Global().Get("localStorage"); store.Truthy() {
+		store.Call("setItem", chatlangBarStorageKey, "1")
+	}
+}
+
 // chatlangCorrect sends the writer's correction and, when the server accepted
 // it, asks the page to read every message's selection again.
 func chatlangCorrect(room, post string, revision uint64, language string, done func(error)) {

@@ -98,7 +98,7 @@ func TestTodo_CHATCMD_001(t *testing.T) {
 
 	// The menu: names that start with the query, then names that contain it.
 	registry := defaultComposerCommands()
-	if names := composerCommandNames(registry.menu(m, "")); names != "giphy,location" {
+	if names := composerCommandNames(registry.menu(m, "")); names != "giphy,location,ask" {
 		t.Fatalf("menu = %s", names)
 	}
 	if names := composerCommandNames(registry.menu(m, "gi")); names != "giphy" {
@@ -203,8 +203,8 @@ func TestTodo_CHATCMD_001_Browser(t *testing.T) {
 			t.Fatalf("%s: no labelled command list", locale)
 		}
 		options := chatPolishNodesIn(menu[0], func(n *xhtml.Node) bool { return chatPolishAttr(n, "role") == "option" })
-		if len(options) != 2 {
-			t.Fatalf("%s: %d options, want /giphy and /location", locale, len(options))
+		if len(options) != 3 {
+			t.Fatalf("%s: %d options, want /giphy, /location and /ask", locale, len(options))
 		}
 		for i, option := range options {
 			wantSelected := "false"
@@ -225,10 +225,14 @@ func TestTodo_CHATCMD_001_Browser(t *testing.T) {
 		if len(chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "id") == "chat-composer-command-2" })) != 1 {
 			t.Fatalf("%s: aria-activedescendant names nothing", locale)
 		}
-		// Closed: no list and no references to it.
+		// Closed: the list is in the page, marked closed (which hides it), no row
+		// is selected and the field does not point at it.
 		closed := composerToolsMarkup(t, m, localUI{})
-		if strings.Contains(closed, "command-menu\"") || strings.Contains(closed, "aria-activedescendant") || strings.Contains(closed, "chat-composer-commands") {
+		if !strings.Contains(closed, `data-open="false:`) || strings.Contains(closed, `data-open="true:`) || strings.Contains(closed, "aria-activedescendant") || strings.Contains(closed, "aria-controls=\"chat-composer-commands\"") || strings.Contains(closed, `aria-selected="true"`) {
 			t.Fatalf("%s: a closed list leaves traces", locale)
+		}
+		if !strings.Contains(chatcmd003Styles, `.command-menu:not([data-open^="true"]){display:none}`) {
+			t.Fatal("a closed list is not hidden")
 		}
 	}
 	// Locations off: /location is not offered.

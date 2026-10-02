@@ -16,7 +16,7 @@ func TestIntegrate1ComposerSidebarAndAgentBadge_Browser(t *testing.T) {
 		for _, theme := range []string{"light", "dark"} {
 			t.Run(theme, func(t *testing.T) {
 				m := chat4Fixture(locale, "sent", true)
-				m.Conversations[0].Icon = agenticon.Generate(agenticon.Input{Name: "Policy Helper"})
+				m.Conversations[0].Icon = AgentIconFixture(agenticon.Input{Name: "Policy Helper"})
 				voice := RenderVoiceComposer(VoiceComposerProps{Locale: locale, ConversationID: m.SelectedID, TenantID: "tenant", Enabled: true})
 				markup := renderNode(t, html.Div(html.Props{Dir: direction(locale), Data: map[string]string{"theme": theme, "viewport": fmt.Sprint(width)}}, voice, chattoneToolbar(m, "chat-composer", false), chatsaveSidebar(m), railRow(m, m.Conversations[0])))
 				for _, want := range []string{`class="tool-button format-button"`, `title="` + VoiceCopy(locale, "record") + `"`, `aria-label="` + VoiceCopy(locale, "record") + `"`, `aria-haspopup="dialog"`, `data-chat-layer="voice"`, `data-chatvoice-action="toggle"`, `class="chat-row chatsave-sidebar-row"`, `data-saved-count="true"`, `class="chat-row-name"`, `class="agent-icon"`, `class="agent-badge agent-badge-label"`} {
@@ -74,7 +74,7 @@ func TestIntegrate1MenusAndWidgetNotice(t *testing.T) {
 
 func TestIntegrate1IconAvatars(t *testing.T) {
 	m := chat4Fixture("ar", "sent", true)
-	value := agenticon.Generate(agenticon.Input{Name: "Policy Helper"})
+	value := AgentIconFixture(agenticon.Input{Name: "Policy Helper"})
 	m.Conversations[0].Icon = value
 	expected := renderNode(t, agenticon.Node(value))
 	for _, node := range []ui.Node{kindGlyph(m, m.selected(), ""), conversationAvatar(m, m.selected()), conversationHeaderAvatar(m, m.selected()), personaMentionAvatar(ResolvedPersonaMention{Icon: value})} {
@@ -83,7 +83,7 @@ func TestIntegrate1IconAvatars(t *testing.T) {
 			t.Fatal("canonical icon omitted or violates CSP", markup)
 		}
 	}
-	other := agenticon.Generate(agenticon.Input{Name: "Birthday Helper"})
+	other := AgentIconFixture(agenticon.Input{Name: "Birthday Helper"})
 	m.ResolvedPersonaMentions[0].Icon = other
 	m.ResolvedPersonaMentions[0].Reference.Display = "Policy Helper"
 	actor := PersonaActor{Trusted: true, PersonaID: "policy-helper", AgentID: "policy-helper", Icon: value}

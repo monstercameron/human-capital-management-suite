@@ -27,8 +27,10 @@ func TestTodo_CHATBUG_004(t *testing.T) {
 		if !strings.Contains(markup, line) || strings.Contains(markup, chatPolishUnavailable(locale)) {
 			t.Fatalf("%s failure markup %q", locale, markup)
 		}
-		if strings.Contains(markup, `data-chatsearch-action`) || strings.Contains(markup, "<input") {
-			t.Fatalf("%s failure markup draws controls: %q", locale, markup)
+		// CHATBUG-022: the one control a failure carries is Try again; no
+		// filters, no second search box.
+		if strings.Count(markup, `data-chatsearch-action`) != 1 || !strings.Contains(markup, `data-chatsearch-action="retry"`) || strings.Contains(markup, "<input") {
+			t.Fatalf("%s failure markup draws more than the retry control: %q", locale, markup)
 		}
 		hits := renderNode(t, RenderChatSearch(locale, ChatSearchView{Query: "holiday", Response: chatsearch.Response{Groups: []chatsearch.Group{{Kind: chatsearch.Message, Count: 1, Rows: []chatsearch.Row{{Kind: chatsearch.Message, ID: "m1", Text: "The Holiday schedule"}}}}}}))
 		if !strings.Contains(hits, `<mark class="search-hit">Holiday</mark>`) {

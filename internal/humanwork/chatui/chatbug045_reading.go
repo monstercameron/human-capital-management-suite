@@ -40,6 +40,9 @@ func chatbug045ReadingForm(m RenderingSettingsModel) ui.Node {
 		status = "loading"
 	} else if m.Failed {
 		status = "error"
+		if m.FailKey != "" {
+			status = m.FailKey
+		}
 	} else if m.Saved {
 		status = "saved"
 	}
@@ -52,15 +55,18 @@ func chatbug045ReadingForm(m RenderingSettingsModel) ui.Node {
 	}
 	fields := []ui.Node{
 		html.H3(html.Props{ID: "chatrender-settings-title", Text: t("title")}),
-		html.P(html.Props{ID: "chatrender-settings-status", Role: "status", Text: t(status)}),
-		html.Label(html.Props{For: "chatrender-reading", Text: t("reading")}),
-		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
+		chatux031ReadingRow(m, options, m.Saved && !m.Loading && !m.Failed),
+		html.P(html.Props{ID: "chatrender-settings-status", Class: "chatux031-status", Role: "status", Data: map[string]string{"state": chatux031State(m)}, Text: t(status)}),
 		html.Label(html.Props{Class: "chatrender-check chatrender-switch", For: "chatrender-translate"},
 			html.Input(html.Props{ID: "chatrender-translate", Class: "switch", Role: "switch", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.TranslationUnavailable, Title: ChatFeatureUnavailable(m.Locale)}),
 			html.Span(html.Props{Text: t("translate")})),
 		html.Div(html.Props{Class: "chatrender-more", Data: map[string]string{"chat-disclosure": "true"}},
 			chatPolishDisclosureLabel(html.Props{Class: "chatrender-more-toggle", Text: chatbug045Text(Model{Locale: m.Locale}, keyChatbug045More)}),
 			html.Div(html.Props{Class: "chat-disclosure-body chatrender-more-body", Hidden: true, Data: map[string]string{"chat-disclosure-body": "true"}}, more...)),
+	}
+	if m.Failed && !m.Loading {
+		// The choice stays on the form; this repeats the save (CHATBUG-087).
+		fields = append(fields, html.Button(html.Props{Type: "submit", Class: "button secondary chatrender-retry", Text: t("retry")}))
 	}
 	return html.Form(html.Props{Class: "chatrender-settings", Dir: direction(m.Locale), OnSubmit: m.Submit, OnChange: m.Submit, Aria: map[string]string{"labelledby": "chatrender-settings-title"}}, fields...)
 }

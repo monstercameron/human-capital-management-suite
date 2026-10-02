@@ -14,17 +14,27 @@ type chatLayerGeometry struct{ left, top, width, height float64 }
 
 // Above-only layers use the space above the entire message or composer.
 func anchoredChatGeometry(anchor chatLayerRect, width, height, viewportWidth, viewportHeight float64, above, rtl bool) chatLayerGeometry {
-	width = min(width, max(0, viewportWidth-16))
-	height = min(height, max(0, viewportHeight-16))
+	return anchoredChatGeometryIn(anchor, chatLayerRect{0, 0, viewportWidth, viewportHeight}, width, height, above, rtl)
+}
+
+// anchoredChatGeometryIn is the one placement rule of Chat's menus and panels
+// (CHATBUG-051). The layer touches its opener, opens toward the side with more
+// room when the preferred side cannot hold it, and stays inside bounds: the
+// part of the page the opener belongs to. It is never wider or taller than
+// bounds allow.
+func anchoredChatGeometryIn(anchor, bounds chatLayerRect, width, height float64, above, rtl bool) chatLayerGeometry {
+	const edge = 8
+	width = min(width, max(0, bounds.right-bounds.left-2*edge))
+	height = min(height, max(0, bounds.bottom-bounds.top-2*edge))
 	left := anchor.right - width
 	if rtl {
 		left = anchor.left
 	}
-	left = max(8, min(left, viewportWidth-width-8))
+	left = max(bounds.left+edge, min(left, bounds.right-width-edge))
 	// A layer above its anchor keeps chatLayerAboveGap clear of it, so a menu
 	// never sits flush against the message bar that opened it.
 	const chatLayerAboveGap = 10
-	below, over := max(0, viewportHeight-anchor.bottom-12), max(0, anchor.top-8-chatLayerAboveGap)
+	below, over := max(0, bounds.bottom-anchor.bottom-12), max(0, anchor.top-bounds.top-edge-chatLayerAboveGap)
 	useAbove := above || height > below
 	if useAbove && over < height && below > over {
 		useAbove = false
@@ -36,7 +46,31 @@ func anchoredChatGeometry(anchor chatLayerRect, width, height, viewportWidth, vi
 	} else {
 		height = min(height, below)
 	}
-	return chatLayerGeometry{left, max(8, top), width, height}
+	return chatLayerGeometry{left, max(bounds.top+edge, top), width, height}
+}
+
+// chatLayerBounds is the rectangle a layer must stay inside. An opener that
+// sits in the conversation area keeps its layer there, clear of the
+// application header and the sidebar; an opener anywhere else (the sidebar
+// itself, a page-level control) has the whole viewport. area is the
+// conversation area as measured, or a zero rectangle when there is none.
+func chatLayerBounds(anchor, area chatLayerRect, viewportWidth, viewportHeight float64) chatLayerRect {
+	viewport := chatLayerRect{0, 0, viewportWidth, viewportHeight}
+	if !chatLayerRectUsable(area) || !chatLayerRectUsable(anchor) {
+		return viewport
+	}
+	x, y := (anchor.left+anchor.right)/2, (anchor.top+anchor.bottom)/2
+	if x < area.left || x > area.right || y < area.top || y > area.bottom {
+		return viewport
+	}
+	return chatLayerRect{max(area.left, 0), max(area.top, 0), min(area.right, viewportWidth), min(area.bottom, viewportHeight)}
+}
+
+// chatLayerAnchorGone reports that the opener has scrolled out of the area its
+// layer lives in. The layer is hidden then rather than left floating over a
+// place its opener no longer is; it shows again when the opener comes back.
+func chatLayerAnchorGone(anchor, bounds chatLayerRect) bool {
+	return anchor.bottom <= bounds.top || anchor.top >= bounds.bottom
 }
 
 // chatLayerRectUsable reports whether a measured rectangle belongs to an
@@ -60,7 +94,7 @@ func chatLayerAnchorRect(live, remembered chatLayerRect) (chatLayerRect, bool) {
 // chatLayerAbove lists the layers that open above their opener's bar or field.
 func chatLayerAbove(kind string) bool {
 	switch kind {
-	case "reaction", "emoji", "menu", "voice", "writing-style":
+	case "reaction", "emoji", "menu", "voice", "writing-style", "location", chatComposerAddKind, "gif":
 		return true
 	}
 	return false
@@ -87,6 +121,51 @@ func chatLayerPickOpener(inBar, usable []bool, wasInBar bool) int {
 		return first
 	}
 	return -1
+}
+
+// chatComposerGap is the clear space between a layer opened from the composer
+// and the composer's top edge.
+const chatComposerGap = 8
+
+// chatComposerLayerPlace is the one placement rule for a layer opened from the
+// composer (emoji picker and the rest): it sits wholly above the composer, its
+// bottom edge chatComposerGap above the composer's top edge, never over the
+// field being typed in. It stays inside area (the conversation column under its
+// header), its height is capped to the room between the header and the composer
+// (the layer scrolls inside), and it starts at the opener's inline start, kept
+// inside the column.
+func chatComposerLayerPlace(opener, composer, area chatLayerRect, width, height float64, rtl bool) chatLayerGeometry {
+	const edge = 8
+	width = min(width, max(0, area.right-area.left-2*edge))
+	bottom := composer.top - chatComposerGap
+	height = min(height, max(0, bottom-(area.top+edge)))
+	left := opener.left
+	if rtl {
+		left = opener.right - width
+	}
+	left = max(area.left+edge, min(left, area.right-width-edge))
+	return chatLayerGeometry{left, bottom - height, width, height}
+}
+
+// chatEmojiBelowHeader keeps an emoji picker inside the conversation area
+// (AGENTUX-062, CHATBUG-051): the picker's own placement knows the viewport and
+// the sidebar but not the conversation header, so on a short window a picker
+// opened from the composer or a message reached up over it. The picker is cut
+// to start under the header; when that leaves it too short to use it opens on
+// the roomier side below its opener instead.
+func chatEmojiBelowHeader(p emojiPlacement, anchor, area chatLayerRect, viewportHeight float64) emojiPlacement {
+	if !chatLayerRectUsable(area) || p.Top >= area.top+emojiPickerEdge {
+		return p
+	}
+	top := area.top + emojiPickerEdge
+	height := p.Top + p.Height - top
+	if height >= emojiPickerMinH {
+		return emojiPlacement{p.Left, top, p.Width, height}
+	}
+	if below := viewportHeight - anchor.bottom - emojiPickerGap - emojiPickerEdge; below > height {
+		return emojiPlacement{p.Left, anchor.bottom + emojiPickerGap, p.Width, min(p.Height, below)}
+	}
+	return emojiPlacement{p.Left, top, p.Width, max(0, height)}
 }
 
 // chatRowPointerActivates: hovering shows a row's actions only where there is
@@ -124,8 +203,12 @@ func chatLayerKind(action string) string {
 		return "todo"
 	case "open-poll", "tray-poll":
 		return "poll"
+	case "tray-more":
+		return chatcmd002TrayMore
 	case "emoji-toggle":
 		return "emoji"
+	case "giphy-toggle":
+		return "gif"
 	case "react-pick":
 		return "reaction"
 	case "menu":
@@ -136,6 +219,8 @@ func chatLayerKind(action string) string {
 		return "thread"
 	case "chat-search-open":
 		return "search"
+	case "rail-menu":
+		return "rail-menu"
 	}
 	return ""
 }
@@ -165,7 +250,36 @@ func chatComposerHint(m Model, h handlers) ui.Node {
 			hint = composerAgentReplyHint(h.mentionReplyHint)
 		}
 	}
-	return html.Div(html.Props{Class: "composer-hint-slot"}, hint)
+	class := "composer-hint-slot"
+	if chatComposerHintReserved(m, h) {
+		class += " composer-hint-reserved"
+	}
+	return html.Div(html.Props{Class: class}, hint)
+}
+
+// chatComposerHintReserved reports whether the composer keeps the room of its
+// hint line while the line is empty (AGENTUX-060). A hint appears while the
+// person types: the line that says who will see an agent's answer, once an
+// agent is named in the draft, and the offer to name an agent the draft spells
+// out. Where the empty slot is folded away (a phone), either one used to make
+// the composer 44 px taller at a keystroke. The room is kept wherever a hint
+// can appear: an agent is named in the draft, or the conversation has an agent
+// the person could name. A conversation with no agent never shows a hint and
+// keeps no room for one.
+func chatComposerHintReserved(m Model, h handlers) bool {
+	if h.composerAgentName != "" || strings.TrimSpace(h.mentionReplyHint) != "" {
+		return true
+	}
+	if m.selected().Agent {
+		// The person's own conversation with an agent needs no agent named.
+		return false
+	}
+	for _, persona := range m.ResolvedPersonaMentions {
+		if persona.Reference.ConversationID == m.SelectedID && m.SelectedID != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func chat5Clock(locale string, at time.Time) string {
@@ -192,7 +306,7 @@ func chatSearchLayer(m Model, h handlers) ui.Node {
 // The outer card owns elapsed copy; the runtime continues to own progress and Stop.
 func chat5ProgressFrame(m Model, projection PersonaProgressProjection) ui.Node {
 	row := RenderPersonaProgress(m, projection)
-	if projection.Progress == nil || projection.Progress.ElapsedSeconds < 5 || projection.Progress.pastDeadline(time.Now()) {
+	if projection.Progress == nil || projection.Progress.ElapsedSeconds < agentUX075ElapsedAfter || projection.Progress.pastDeadline(time.Now()) {
 		return row
 	}
 	for _, child := range row.Children {
@@ -248,6 +362,9 @@ func chatAgentReadScope(m Model, agent ResolvedPersonaMention) string {
 		return chat5Text(m, "chat.agents.reads_channel")
 	case "WORKSPACE_DOCUMENTS":
 		return chat5Text(m, "chat.agents.reads_workspace")
+	case "NO_DOCUMENTS":
+		// The server said this agent reads no documents here.
+		return ""
 	}
 	for _, class := range agent.DataClasses {
 		if class == "POLICY_DOCUMENT" {
@@ -269,46 +386,6 @@ func selectChatAgent(m Model, mentions mentionStore, id string) {
 	}
 }
 
-func chatMessageMenuItems(m Model, msg Message) []ui.Node {
-	pinAction, pinLabel := "pin", m.t(KeyPin)
-	if msg.Pinned {
-		pinAction, pinLabel = "unpin", m.t(KeyUnpin)
-	}
-	copyLabel := m.t(KeyCopyLink)
-	if m.PinReferenceUnavailable {
-		copyLabel = m.t(KeyPinCopyGuestUnavailable)
-	}
-	items := []ui.Node{html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.CopyLink == nil || m.PinReferenceUnavailable, Data: map[string]string{"action": "copy-link", "id": msg.ID}, Title: copyLabel}, icon("link"), html.Span(html.Props{Text: copyLabel})), copyContentsMenuItem(m, msg)}
-	shareDisabled := m.Callbacks.OpenShare == nil || strings.TrimSpace(msg.Body) == ""
-	shareTitle := m.t(KeyShareToChannel)
-	if strings.TrimSpace(msg.Body) == "" && len(msg.Attachments) > 0 {
-		shareTitle = m.t(KeyShareAttachments)
-	}
-	shareAria := m.t(KeyShareToChannel)
-	if shareTitle != m.t(KeyShareToChannel) {
-		shareAria += ". " + shareTitle
-	}
-	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: shareDisabled, Title: shareTitle, Aria: map[string]string{"label": shareAria}, Data: map[string]string{"action": "open-share", "id": msg.ID}}, icon("reply"), html.Span(html.Props{Text: m.t(KeyShareToChannel)})))
-	if msg.AuthorID == m.CurrentUser {
-		items = append(items,
-			html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.BeginEdit == nil, Title: m.t(KeyEdit), Data: map[string]string{"action": "edit", "id": msg.ID}}, icon("edit"), html.Span(html.Props{Text: m.t(KeyEdit)})),
-		)
-		items = append(items, chatlangMenuItems(m, msg)...)
-	}
-	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.Pin == nil, Data: map[string]string{"action": pinAction, "id": msg.ID}, Title: pinLabel}, icon("pin"), html.Span(html.Props{Text: pinLabel})))
-	items = append(items, chatsaveAction(m, msg, true))
-	items = append(items, html.Div(html.Props{Class: "menu-separator", Role: "separator"}))
-	// CHATBUG-030: a person's own message has exactly one destructive command,
-	// Delete message. Somebody else's message offers Report, plus the
-	// moderator's "Remove for everyone" (after its own separator) for a viewer
-	// who holds the removal permission. Never both Delete and Remove.
-	if msg.AuthorID == m.CurrentUser {
-		items = append(items, html.Button(html.Props{Class: "menu-item danger", Type: "button", Role: "menuitem", Disabled: m.Callbacks.DeleteMessage == nil, Title: m.t(KeyDelete), Data: map[string]string{"action": "delete", "id": msg.ID}}, icon("trash"), html.Span(html.Props{Text: m.t(KeyDelete)})))
-	} else {
-		items = append(items, moderationMenuLink(m.Locale, m.SelectedID, msg.ID, "report"))
-		if m.chatmod005CanRemove() {
-			items = append(items, html.Div(html.Props{Class: "menu-separator", Role: "separator"}), moderationMenuLink(m.Locale, m.SelectedID, msg.ID, "remove"))
-		}
-	}
-	return items
-}
+// chatMessageMenuItems is the content of a message's More actions menu; the
+// rows and their order are in message_menu.go (CHATUX-022).
+func chatMessageMenuItems(m Model, msg Message) []ui.Node { return chatbug064MenuItems(m, msg) }

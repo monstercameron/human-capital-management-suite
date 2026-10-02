@@ -35,7 +35,7 @@ func TestTodo_CHATUX_008(t *testing.T) {
 	off := chatux008Pane(t, m)
 
 	// The header reads "Thread" with the channel as a link under it.
-	heading := off[strings.Index(off, `class="side-heading thread-heading"`):strings.Index(off, `class="thread-scroll"`)]
+	heading := off[strings.Index(off, `class="side-heading chat-panel-head thread-heading"`):strings.Index(off, `class="thread-scroll"`)]
 	chatux005Before(t, heading, "<h2>Thread</h2>", `class="thread-channel-link"`, `data-action="follow"`, `data-action="close-thread"`)
 	if strings.Contains(off, "Thread · ") {
 		t.Errorf("the header still reads Thread · name: %s", heading)
@@ -53,7 +53,7 @@ func TestTodo_CHATUX_008(t *testing.T) {
 		t.Errorf("bell (off): %s", heading)
 	}
 	on := chatux008Pane(t, chatux008Model(true))
-	onHeading := on[strings.Index(on, `class="side-heading thread-heading"`):strings.Index(on, `class="thread-scroll"`)]
+	onHeading := on[strings.Index(on, `class="side-heading chat-panel-head thread-heading"`):strings.Index(on, `class="thread-scroll"`)]
 	if !strings.Contains(onHeading, `aria-label="Notify me about replies"`) || !strings.Contains(onHeading, `aria-pressed="true"`) || !strings.Contains(onHeading, `title="Following: you get a notification for each reply. Select to stop."`) {
 		t.Errorf("bell (on): %s", onHeading)
 	}

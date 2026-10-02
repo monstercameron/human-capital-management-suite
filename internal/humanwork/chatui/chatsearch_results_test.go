@@ -10,18 +10,18 @@ import (
 
 func TestTodo_CHATSEARCH_002_Browser(t *testing.T) {
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
-		v := ChatSearchView{Query: "budget has:file", Recent: []string{"budget"}, Response: chatsearch.Response{Groups: []chatsearch.Group{{Kind: chatsearch.Message, Count: 1, Rows: []chatsearch.Row{{Kind: chatsearch.Message, Text: "<script>Budget</script>", Private: true, Target: chatsearch.Target{ConversationID: "room", MessageID: "message", Sequence: 42}}}}}, NextCursor: "next"}}
+		v := ChatSearchView{Query: "budget has:file", Recent: []string{"budget"}, Response: chatsearch.Response{Groups: []chatsearch.Group{{Kind: chatsearch.Message, Count: 1, Rows: []chatsearch.Row{{Kind: chatsearch.Message, Text: "Budget <script>alert(1)</script>", Private: true, Target: chatsearch.Target{ConversationID: "room", MessageID: "message", Sequence: 42}}}}}, NextCursor: "next"}}
 		markup, err := ui.RenderToString(RenderChatSearch(locale, v))
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`data-chatsearch-action="open"`, `data-target=`, `<mark`, `&lt;script&gt;`, chatsearchText(locale, "only"), `data-chatsearch-action="remove"`, `data-chatsearch-action="more"`, `data-chatsearch-action="clear-recent"`} {
+		for _, want := range []string{`data-chatsearch-action="open"`, `data-target=`, `<mark`, chatsearchText(locale, "only"), `data-chatsearch-action="remove"`, `data-chatsearch-action="more"`} {
 			if !strings.Contains(markup, want) {
 				t.Fatalf("%s missing %s: %s", locale, want, markup)
 			}
 		}
-		if strings.Contains(markup, "<script>") {
-			t.Fatal("unsafe text rendering")
+		if strings.Contains(markup, "<script>") || strings.Contains(markup, `data-chatsearch-action="clear-recent"`) {
+			t.Fatal("unsafe text rendering, or recent searches under a query")
 		}
 		for _, state := range []ChatSearchView{{Query: "budget in:room"}, {Query: "budget", Loading: true}, {Query: "budget", Error: "meaning"}, {Query: "budget", Error: "invalid"}, {Query: "budget", Error: "unexpected"}} {
 			markup, err := ui.RenderToString(RenderChatSearch(locale, state))

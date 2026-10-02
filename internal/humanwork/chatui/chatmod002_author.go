@@ -28,6 +28,8 @@ type AuthorBlocked struct {
 	Words []string
 	// Text is the refused text.
 	Text string
+	// Rule is the name of the rule that refused the text, when the server said.
+	Rule string
 	// Stamp identifies this refusal, so one dismissed locally is not mistaken
 	// for the next one.
 	Stamp int64
@@ -80,8 +82,15 @@ func modAuthorLine(m Model, local localUI, key, id string) ui.Node {
 	if !ok {
 		return html.Div(html.Props{Class: "chatmod002-slot"})
 	}
+	reason := []ui.Node{ui.Text(modAuthorSentence(m, entry.Surface, entry.Words))}
+	// The rule's name comes after the sentence, in the same warning line, so
+	// the author knows which rule to ask about.
+	if rule := modAuthorRuleLine(m, entry.Rule); rule != "" {
+		reason = append(reason, html.Span(html.Props{Class: "chatmod002-rule", Dir: "auto", Text: " " + rule}))
+	}
 	return html.Div(html.Props{Class: "chatmod002-slot"},
-		html.P(html.Props{ID: id, Class: "composer-notice chatmod002-blocked", Role: "alert", Dir: "auto", Text: modAuthorSentence(m, entry.Surface, entry.Words)}))
+		html.P(html.Props{ID: id, Class: "composer-notice chatmod002-blocked", Role: "alert", Dir: "auto"}, reason...),
+		chatux018Draft(entry))
 }
 
 // modAuthorDescribe points the field at the line while the line is drawn.

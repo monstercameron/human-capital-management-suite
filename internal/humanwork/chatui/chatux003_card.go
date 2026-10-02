@@ -6,6 +6,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
@@ -20,8 +21,30 @@ func chatux003AnswerCard(model Model, local localUI, message EphemeralMessage, p
 		name = strings.TrimSpace(actor.Display)
 	}
 	name = agentReplyAuthor(model, message.ThreadID, name)
-	body, reason := chatux003Reason(message.Body)
-	marker := personaProgressText(model, "chat.agent.only_visible", "Only visible to you")
+	// AGENTUX-076: the mark for an answer no document backs is read before the rest.
+	markedBody, notFromDocuments := chat.SplitUngrounded(message.Body)
+	body, reason := chatux003Reason(markedBody)
+	feedbackInvocation := ""
+	if projection.InvocationID != "" && !strings.HasPrefix(projection.InvocationID, "pending:") {
+		feedbackInvocation = projection.InvocationID
+	}
+	// CHATUX-026: a shared answer says who it is shared with, not that it is
+	// private, and no longer gives a reason for being private.
+	marker, visibility := chatux026Visibility(model, feedbackInvocation)
+	if visibility == "shared" {
+		reason = ""
+	}
+	// An answer drawn before its run is known: nothing is said about who can see
+	// it, and nothing is offered that depends on that, until the read lands.
+	if projection.Settling && feedbackInvocation == "" {
+		marker, visibility, reason = "", "settling", ""
+	}
+	// AGENTUX-070: while the answer may be shared, the mark that says it is
+	// private is the button that asks whether to share it.
+	shareID := ""
+	if visibility == "private" && agentux070CanShare(model, local, reason, feedbackInvocation) {
+		shareID = feedbackInvocation
+	}
 	envelope := bindAgentQuestionThreadLink(parseAgentReplyEnvelope(body), message.ThreadLink)
 	envelope.Body = readerReplyBody(model, Message{ID: message.ID, Body: body}, envelope.Body)
 	identity := model.selected().Icon
@@ -32,34 +55,40 @@ func chatux003AnswerCard(model Model, local localUI, message EphemeralMessage, p
 		}
 	}
 	children := []ui.Node{
-		chatux003Header(model, name, identity, message.CreatedAt, marker),
+		chatux003Header(model, name, chatux003AgentID(model, actor, name), identity, message.CreatedAt, marker, visibility, shareID),
 		html.Span(html.Props{Class: "sr-only agent-reply-announcement", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}, Text: marker}),
 	}
 	if context := agentQuestionContextIsolated(model, envelope, ""); context != nil && model.selected().Agent {
 		children = append(children, context)
 	}
-	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, envelope.Body)...))
+	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, agentUX075CleanAnswer(envelope.Body, envelope.Sources))...))
+	if notFromDocuments {
+		children = append(children, agentux076NotFromDocuments(model))
+	}
 	if why := chatux003Why(model, reason, name); why != "" {
 		children = append(children, html.P(html.Props{Class: "agent-reply-why", Dir: "auto", Text: why}))
 	}
 	children = append(children, renderAgentReplySources(model, envelope)...)
-	feedbackInvocation := ""
-	if projection.InvocationID != "" && !strings.HasPrefix(projection.InvocationID, "pending:") {
-		feedbackInvocation = projection.InvocationID
-	}
 	menuID := "agent-card:" + message.ID
 	actions := chatux003Actions(model, local, message, projection, name, reason, feedbackInvocation, menuID, actor)
 	children = append(children, actions)
 	if model.MenuID == menuID {
-		if menu := chatux003Menu(model, projection, name, menuID); menu != nil {
+		if menu := chatux003Menu(model, projection, name, menuID, append(agentux070ShareMenuItem(model, local, reason, feedbackInvocation), chatux026SharedMenuItems(model, feedbackInvocation, message.ThreadID)...)...); menu != nil {
 			children = append(children, menu)
 		}
 	}
-	return html.Article(html.Props{Class: "chat-ephemeral agent-reply-row", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"ephemeral-id": message.ID, "ephemeral-thread": message.ThreadID, "agent-reply-state": "answered-private"}}, children...)
+	return html.Article(html.Props{Class: "chat-ephemeral agent-reply-row", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"ephemeral-id": message.ID, "ephemeral-thread": message.ThreadID, "agent-reply-state": "answered-private", "agent-answer-visibility": visibility}}, children...)
 }
 
-// chatux003Header is the card's one header line.
-func chatux003Header(model Model, name string, identity agenticon.Value, at time.Time, note string) ui.Node {
+// chatux003Header is the card's one header line. The agent's name opens the
+// agent's summary when the agent is known by id (CHATUX-017). note says who can
+// see the answer; visibility names that for the stylesheet, and is "private"
+// unless the caller says the answer was shared.
+func chatux003Header(model Model, name, agentID string, identity agenticon.Value, at time.Time, note string, visibility ...string) ui.Node {
+	seen := "private"
+	if len(visibility) > 0 && visibility[0] != "" {
+		seen = visibility[0]
+	}
 	if name = strings.TrimSpace(name); name == "" {
 		name = personaProgressText(model, "chat.agent.name", "Agent")
 	}
@@ -70,11 +99,18 @@ func chatux003Header(model Model, name string, identity agenticon.Value, at time
 		identity = model.selected().Icon
 	}
 	avatar := agentDMAvatar(name, "avatar small agent-reply-avatar", agentIconFor(model, nil, name, identity))
-	head := []ui.Node{avatar, html.Strong(html.Props{Class: "agent-reply-name", Text: name}), AgentBadgeLabel(model.Locale)}
+	head := append(chatux017Identity(model, agentID, name, avatar), AgentBadgeLabel(model.Locale))
 	if clock := agentReplyTime(model, at); clock != nil {
 		head = append(head, clock)
 	}
-	head = append(head, html.Span(html.Props{Class: "agent-reply-private", Data: map[string]string{"visibility": "private"}}, icon("eye"), html.Span(html.Props{Class: "agent-reply-private-label", Text: note})))
+	if note != "" {
+		// visibility[1], when given, is the run whose answer the mark offers to share.
+		shareID := ""
+		if len(visibility) > 1 {
+			shareID = visibility[1]
+		}
+		head = append(head, agentux070Mark(model, note, seen, shareID))
+	}
 	return html.Header(html.Props{Class: "agent-reply-identity agent-reply-head"}, head...)
 }
 
@@ -83,7 +119,7 @@ func chatux003Header(model Model, name string, identity agenticon.Value, at time
 // recorded, or in a direct conversation).
 func chatux003Why(model Model, reason, name string) string {
 	switch reason {
-	case "asked", "agent", "audience":
+	case "asked", "agent", "channel", "audience":
 		return chatux003Format(model, "chatux003.why."+reason, map[string]string{"name": name, "channel": chatux003ChannelName(model)})
 	}
 	return ""
@@ -108,8 +144,8 @@ func chatux003Actions(model Model, local localUI, message EphemeralMessage, proj
 	followUp := strings.ReplaceAll(agentReplyFallback(model.Locale, "chat.agent.follow_up", "Ask {name} a follow-up"), "{name}", name)
 	row = append(row, html.Button(html.Props{Class: "agent-feedback-button agent-reply-action agent-follow-up", Type: "button", Data: map[string]string{"action": "agent-follow-up", "id": agentID, "extra": href}, Aria: map[string]string{"label": followUp}, Title: followUp},
 		icon("reply"), html.Span(html.Props{Text: agentUXChat4Text(model, "chat.agent.ask_follow_up")})))
-	row = append(row, chatux003ShareControls(model, reason, name, invocationID)...)
-	if href != "" {
+	row = append(row, chatux026ShareControls(model, local, reason, name, invocationID, message.ThreadID)...)
+	if href != "" || len(chatux026SharedMenuItems(model, invocationID, message.ThreadID)) > 0 || agentux070CanShare(model, local, reason, invocationID) {
 		more := chatux003Text(model, "chatux003.more")
 		row = append(row, html.Button(html.Props{Class: "message-action agent-reply-action agent-reply-more", Type: "button", Hidden: model.Callbacks.OpenMenu == nil, Disabled: model.Callbacks.OpenMenu == nil, Data: map[string]string{"action": "menu", "id": menuID}, Aria: map[string]string{"label": more, "haspopup": "menu", "expanded": boolString(model.MenuID == menuID)}, Title: more}, icon("more")))
 	}
@@ -143,7 +179,7 @@ func chatux003AgentID(model Model, actor PersonaPostActor, name string) string {
 // came of it. An agent that answers privately never offers to share; a control
 // that cannot work here is not shown.
 func chatux003ShareControls(model Model, reason, name, invocationID string) []ui.Node {
-	if invocationID == "" || reason == "agent" || model.Callbacks.ShareAgentAnswer == nil || model.selected().Kind != PublicChannel {
+	if invocationID == "" || reason == "agent" || reason == "channel" || model.Callbacks.ShareAgentAnswer == nil || model.selected().Kind != PublicChannel {
 		return nil
 	}
 	channel := chatux003ChannelName(model)
@@ -155,35 +191,47 @@ func chatux003ShareControls(model Model, reason, name, invocationID string) []ui
 	case AgentShareShared:
 		return []ui.Node{note("chatux003.shared")}
 	case AgentShareRefused:
-		if state.Reason == "agent" {
+		// CHATBUG-067: one sentence that says why, and no button: pressing again
+		// would be refused again.
+		switch state.Reason {
+		case "agent":
 			return []ui.Node{note("chatux003.share.refused.agent")}
+		case "channel":
+			return []ui.Node{note("chatux003.share.refused.channel")}
+		case "expired":
+			return []ui.Node{note("chatux003.share.refused.expired")}
+		case "denied":
+			return []ui.Node{note("chatux003.share.refused.denied")}
+		}
+		if source := strings.TrimSpace(state.Source); source != "" {
+			return []ui.Node{html.Span(html.Props{Class: "agent-reply-share-note", Role: "status", Dir: "auto", Text: chatux003Format(model, "chatux003.share.refused.source", map[string]string{"source": "\u2068" + source + "\u2069", "channel": channel})})}
 		}
 		return []ui.Node{note("chatux003.share.refused.audience")}
 	}
-	label := chatux003Text(model, "chatux003.share")
-	sharing := state.Status == AgentShareSharing
-	if sharing {
-		label = chatux003Text(model, "chatux003.sharing")
+	// AGENTUX-070: the control itself is the card's "…" menu item and the mark in
+	// its header (agentux070_share_menu.go); the row says only what is happening.
+	switch state.Status {
+	case AgentShareSharing:
+		return []ui.Node{note("chatux003.sharing")}
+	case AgentShareFailed:
+		return []ui.Node{note("chatux003.share.failed")}
 	}
-	hint := chatux003Format(model, "chatux003.share.hint", map[string]string{"channel": channel})
-	button := html.Button(html.Props{Class: "agent-feedback-button agent-reply-action agent-reply-share", Type: "button", Disabled: sharing, Data: map[string]string{"action": "agent-share", "id": invocationID}, Aria: map[string]string{"label": label + ". " + hint, "busy": boolString(sharing)}, Title: hint},
-		icon("send"), html.Span(html.Props{Text: label}))
-	if state.Status == AgentShareFailed {
-		return []ui.Node{button, note("chatux003.share.failed")}
-	}
-	return []ui.Node{button}
+	return nil
 }
 
-// chatux003Menu is the card's more menu: the link to the copy saved in the
-// person's own conversation with the agent.
-func chatux003Menu(model Model, projection PersonaProgressProjection, name, menuID string) ui.Node {
+// chatux003Menu is the card's more menu: what a shared answer adds (the way to
+// the shared copy and to take it back, CHATUX-028) and the link to the copy
+// saved in the person's own conversation with the agent.
+func chatux003Menu(model Model, projection PersonaProgressProjection, name, menuID string, items ...ui.Node) ui.Node {
 	href := strings.TrimSpace(projection.PrivateReplyHref)
-	if href == "" {
+	if href != "" {
+		label := personaProgressText(model, "chat.agent.saved_conversation", "Saved in your conversation with") + " " + name
+		items = append(items, html.A(html.Props{Class: "menu-item agent-reply-open", Role: "menuitem", Href: href, Text: label}))
+	}
+	if len(items) == 0 {
 		return nil
 	}
-	label := personaProgressText(model, "chat.agent.saved_conversation", "Saved in your conversation with") + " " + name
-	return anchoredChatLayer(html.Props{Class: "message-menu agent-reply-menu", Role: "menu", Data: map[string]string{"message-menu": menuID}, Aria: map[string]string{"label": chatux003Text(model, "chatux003.more")}}, "menu",
-		html.A(html.Props{Class: "menu-item agent-reply-open", Role: "menuitem", Href: href, Text: label}))
+	return anchoredChatLayer(html.Props{Class: "message-menu agent-reply-menu", Role: "menu", Data: map[string]string{"message-menu": menuID}, Aria: map[string]string{"label": chatux003Text(model, "chatux003.more")}}, "menu", items...)
 }
 
 // ChatUX003Styles lays the card out as one header line, the answer, source chips
@@ -215,4 +263,6 @@ const ChatUX003Styles = `.agent-reply-head{display:flex;align-items:center;gap:8
 	`@media(max-width:480px){.agent-reply-head .agent-reply-private{margin-inline-start:0;flex-basis:100%}}` +
 	`.agent-progress-cancel{flex:none;white-space:nowrap}.agent-reply-state-line{flex-wrap:wrap;row-gap:2px}.agent-reply-state-copy{flex:0 1 auto;min-width:0;max-width:calc(100% - 24px)}` +
 	`@media(max-width:480px){.agent-reply-state-divider,.agent-progress-cancel{order:1}.agent-reply-counter{order:2;flex:1 0 100%;margin-inline-start:0}}` +
-	`@media(pointer:coarse){.agent-reply-action{min-height:44px}}`
+	`@media(pointer:coarse){.agent-reply-action{min-height:44px}}` +
+	`.agent-feedback-unsaved{color:var(--hcm-color-danger);font-size:.8125rem;line-height:1.4}` +
+	chatBug054Styles + chatBug047Styles + chatUX016Styles + chatUX017Styles + chatUX024Styles + chatUX026Styles + chatUX028Styles + chatUX070Styles + chatUX070MarkStyles

@@ -42,9 +42,12 @@ func ChatmapShareSheet(locale, id, tenant, conversation string, disabled bool) u
 		html.Div(html.Props{Class: "chatmap-preview-frame", TabIndex: 0, Role: "group", Aria: map[string]string{"label": t("preview")}, Data: map[string]string{"chatmap-preview-region": "true"}}, html.Div(html.Props{Class: "chatmap-preview"}, icon("pin"), html.Img(html.Props{Class: "chatmap-picture", Hidden: true, Alt: t("preview"), Width: "400", Height: "200", Data: map[string]string{"chatmap-preview": "true"}})), html.Div(html.Props{Class: "chatmap-nudges"}, nudges...)),
 		html.Label(html.Props{}, ui.Text(t("precision")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "precision"}}, option("approximate", "approximate"), option("exact", "exact"))),
 		html.Label(html.Props{}, ui.Text(t("note")), html.Textarea(html.Props{Rows: 2, Data: map[string]string{"chatmap-field": "note"}, Aria: map[string]string{"describedby": id + "-location-status"}})),
-		html.Label(html.Props{}, ui.Text(t("duration")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "duration"}}, option("hour", "hour"), option("day", "day"), option("keep", "keep"))),
+		html.Label(html.Props{}, ui.Text(t("duration")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "duration"}}, option("hour", "hour"), option("day", "day"), option("keep", "keep"), option("live15", "live15"), option("live60", "live60"), option("live480", "live480"))),
+		html.P(html.Props{Class: "field-hint", Text: t("retention")}),
+		html.P(html.Props{Class: "field-hint", Hidden: true, Data: map[string]string{"chatmap-live-note": "true"}, Text: t("live_note")}),
 		html.P(html.Props{ID: id + "-location-status", Role: "status", Aria: map[string]string{"live": "polite"}, Data: map[string]string{"chatmap-status": "true"}}),
-		html.Button(html.Props{Type: "button", Class: "chatmap-send", Text: t("send"), Disabled: true, Data: map[string]string{"chatmap-action": "send"}}))
+		html.Button(html.Props{Type: "button", Class: "chatmap-send", Text: t("send"), Disabled: true, Data: map[string]string{"chatmap-action": "send"}}),
+		ChatmapSharingSection(locale))
 	return html.Div(html.Props{Class: "chatmap-control"}, html.Button(html.Props{Type: "button", Class: "tool-button", TabIndex: -1, Title: t("location"), Disabled: disabled, Data: map[string]string{"chatmap-action": "toggle"}, Aria: map[string]string{"label": t("location"), "expanded": "false", "controls": id + "-location"}}, icon("pin")), panel)
 }
 
@@ -69,35 +72,59 @@ func ChatmapLocationEmbed(v ChatmapEmbed) ui.Node {
 	if s.ExpiresAt != nil {
 		props.Data["expires"] = strconv.FormatInt(s.ExpiresAt.UnixMilli(), 10)
 	}
-	if s.Ended || (s.ExpiresAt != nil && !v.Now.Before(*s.ExpiresAt)) {
-		return html.Article(props, html.P(html.Props{Text: t("expired")}))
+	if s.Live && !s.Ended {
+		props.Data["live"] = "true"
 	}
-	if s.Place.Position == nil {
+	if s.Ended || (s.ExpiresAt != nil && !v.Now.Before(*s.ExpiresAt)) {
+		gone := []ui.Node{html.P(html.Props{Text: t("expired")})}
+		// The card says when sharing ended; where it was is not kept.
+		endedAt := s.EndedAt
+		if endedAt == nil && s.ExpiresAt != nil && !v.Now.Before(*s.ExpiresAt) {
+			endedAt = s.ExpiresAt
+		}
+		if endedAt != nil {
+			gone = append(gone, html.P(html.Props{Data: map[string]string{"chatmap-ended-ms": strconv.FormatInt(endedAt.UnixMilli(), 10)}, Text: fmt.Sprintf(t("ended_at"), endedAt.UTC().Format("15:04 MST"))}))
+		}
+		return html.Article(props, gone...)
+	}
+	// A typed address shared without a position has no pin to draw; the
+	// address itself is the message and the map says it is unavailable.
+	if s.Place.Position == nil && strings.TrimSpace(s.Place.Address) == "" {
 		return html.Article(props, html.P(html.Props{Text: t("unavailable")}))
 	}
 	p := s.Place.Position
 	if !ChatmapOwnPictureURL(v.PictureURL, v.Origin) {
 		v.PictureURL = ""
 	}
-	accuracy := fmt.Sprintf(t("within"), strconv.FormatFloat(chat.LocationAccuracy(s.Place), 'f', 0, 64))
+	accuracy, coordinates := "", ""
+	if p != nil {
+		accuracy = fmt.Sprintf(t("within"), strconv.FormatFloat(chat.LocationAccuracy(s.Place), 'f', 0, 64))
+		coordinates = fmt.Sprintf("%.5f, %.5f", p.Latitude, p.Longitude)
+	}
 	sharedAt := s.SharedAt
 	if sharedAt.IsZero() {
 		sharedAt = s.Place.CapturedAt
 	}
 	age := fmt.Sprintf(t("age"), strconv.Itoa(max(0, int(v.Now.Sub(sharedAt).Minutes()))))
 	by := fmt.Sprintf(t("by"), v.Sharer)
-	alternative := fmt.Sprintf("%s · %s · %s · %s · %s · %.5f, %.5f", s.Place.Label, s.Place.Address, accuracy, age, by, p.Latitude, p.Longitude)
-	alternative += " · " + t("unavailable") + " · " + v.Attribution
+	facts := chatmapJoin(accuracy, age, by)
+	alternative := chatmapJoin(s.Place.Label, s.Place.Address, facts, coordinates, t("unavailable"), v.Attribution)
 	nodes := []ui.Node{
 		html.Img(html.Props{Class: "chatmap-picture", Src: v.PictureURL, Alt: alternative, Width: "400", Height: "200", Raw: map[string]any{"loading": "lazy"}}),
 		html.Strong(html.Props{Dir: "auto", Text: s.Place.Label}),
 		html.P(html.Props{Dir: "auto", Text: s.Place.Address, Data: map[string]string{"chatmap-address": "true"}}),
-		html.P(html.Props{Text: accuracy + " · " + age + " · " + by}),
+		html.P(html.Props{Text: facts}),
 		html.P(html.Props{Text: alternative}),
 		html.P(html.Props{Text: v.Attribution}),
 	}
 	if v.PictureURL == "" {
 		nodes = append(nodes, html.P(html.Props{Role: "status", Text: t("unavailable")}))
+	}
+	if s.Live {
+		nodes = append(nodes, html.P(html.Props{Class: "chatmap-live", Text: t("live")}))
+		if s.Paused {
+			nodes = append(nodes, html.P(html.Props{Role: "status", Text: t("paused")}))
+		}
 	}
 	if s.Place.Source == chat.LocationAgent || s.SharerKind == "agent" {
 		nodes = append(nodes, html.P(html.Props{Text: t("agent_supplied")}))
@@ -109,7 +136,11 @@ func ChatmapLocationEmbed(v ChatmapEmbed) ui.Node {
 	for _, k := range []string{"open", "copy"} {
 		actions = append(actions, html.Button(html.Props{Type: "button", Text: t(k), Disabled: k == "copy" && s.Place.Address == "", Data: map[string]string{"chatmap-action": k}}))
 	}
-	actions = append(actions, html.A(html.Props{Text: t("directions"), Href: fmt.Sprintf("geo:%.6f,%.6f?q=%s", p.Latitude, p.Longitude, url.QueryEscape(s.Place.Label))}))
+	directions := "geo:0,0?q=" + url.QueryEscape(s.Place.Address)
+	if p != nil {
+		directions = fmt.Sprintf("geo:%.6f,%.6f?q=%s", p.Latitude, p.Longitude, url.QueryEscape(s.Place.Label))
+	}
+	actions = append(actions, html.A(html.Props{Text: t("directions"), Href: directions}))
 	if s.SharerID == v.ViewerID && s.SharerTenantID == v.ViewerTenantID {
 		actions = append(actions, html.Button(html.Props{Type: "button", Text: t("stop"), Data: map[string]string{"chatmap-action": "stop"}}))
 		if s.ExpiresAt != nil {
@@ -139,6 +170,17 @@ func ChatmapOwnPictureURL(raw, origin string) bool {
 		return true
 	}
 	return (strings.HasPrefix(origin, "https://") || strings.HasPrefix(origin, "http://")) && strings.HasPrefix(raw, "blob:"+origin+"/")
+}
+
+// chatmapJoin joins the non-empty parts with the card's separator.
+func chatmapJoin(parts ...string) string {
+	kept := []string{}
+	for _, part := range parts {
+		if strings.TrimSpace(part) != "" {
+			kept = append(kept, part)
+		}
+	}
+	return strings.Join(kept, " · ")
 }
 
 func chatmapDirection(locale string) string {

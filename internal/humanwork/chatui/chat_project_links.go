@@ -58,8 +58,8 @@ func ProjectTaskPreviewKey(projectID, taskID string) string {
 	return projectID + "\x00" + taskID
 }
 
-var projectTaskTokenPattern = regexp.MustCompile(`task:[^\s<>"']+`)
-var projectTaskURLPattern = regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/project\?[^\s<>"']+`)
+var projectTaskTokenPattern = chatperf2Literals(regexp.MustCompile(`task:[^\s<>"']+`), "task:")
+var projectTaskURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/project\?[^\s<>"']+`), "http://", "https://", "/workspace/app/project?")
 var projectTaskIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$`)
 
 // ProjectBoardReferenceURL returns the canonical in-app URL for a project board.

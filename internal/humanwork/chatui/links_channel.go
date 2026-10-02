@@ -16,7 +16,7 @@ type ChannelReference struct {
 	Start, End int
 }
 
-var channelURLPattern = regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/chat#channel=[^\s<>"']+`)
+var channelURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/chat#channel=[^\s<>"']+`), "http://", "https://", "/workspace/app/chat#channel=")
 
 func validChannelReferenceID(id string) bool {
 	if id == "" || len(id) > 256 || !utf8.ValidString(id) || strings.TrimSpace(id) == "" {
@@ -88,11 +88,13 @@ func admittedChannelReference(m Model, id string) (Conversation, bool) {
 
 // channelReferenceBody turns copied "#label URL" pairs into a single link.
 // A room absent from the reader's admitted list gets a generic link; the
-// receiver must authorize it before showing a name or opening the room.
+// receiver must authorize it before showing a name or opening the room. It is
+// the last of the reference renderers, so the text it leaves is where any
+// other address becomes a plain link (CHATBUG-053).
 func channelReferenceBody(m Model, body string) []ui.Node {
 	refs := ChannelReferences(body, m.EmbedOrigin)
 	if len(refs) == 0 {
-		return []ui.Node{ui.Text(body)}
+		return chatbug053Text(m, body)
 	}
 	var nodes []ui.Node
 	last := 0
@@ -113,7 +115,7 @@ func channelReferenceBody(m Model, body string) []ui.Node {
 				}
 			}
 			if start > last {
-				nodes = append(nodes, ui.Text(body[last:start]))
+				nodes = append(nodes, chatbug053Text(m, body[last:start])...)
 			}
 			nodes = append(nodes, html.A(html.Props{Class: "chat-channel-reference", Href: ChannelReferenceURL(ref.ID), Aria: map[string]string{"label": m.t(KeyOpenConversations)}}, ui.Text("#channel")))
 			last = ref.End
@@ -126,16 +128,16 @@ func channelReferenceBody(m Model, body string) []ui.Node {
 			start -= len(label) + 1
 		}
 		if start > last {
-			nodes = append(nodes, ui.Text(body[last:start]))
+			nodes = append(nodes, chatbug053Text(m, body[last:start])...)
 		}
 		nodes = append(nodes, html.A(html.Props{Class: "chat-channel-reference", Href: ChannelReferenceURL(ref.ID), Data: map[string]string{"action": "open-channel-reference", "id": ref.ID}}, ui.Text(label)))
 		last = ref.End
 	}
 	if last < len(body) {
-		nodes = append(nodes, ui.Text(body[last:]))
+		nodes = append(nodes, chatbug053Text(m, body[last:])...)
 	}
 	if len(nodes) == 0 {
-		return []ui.Node{ui.Text(body)}
+		return chatbug053Text(m, body)
 	}
 	return nodes
 }

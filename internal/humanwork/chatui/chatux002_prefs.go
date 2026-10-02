@@ -91,7 +91,7 @@ func chatux002ChannelsMenu(m Model, sectionCreate ui.Node) ui.Node {
 			Data: map[string]string{"chat-disclosure-toggle": "true"},
 			Aria: map[string]string{"label": label, "expanded": "false", "haspopup": "dialog"}}, icon("plus")),
 		chatux002Layer(chatux002ChannelsKind, label,
-			item("open-create", "plus", chatux002Text(m, keyChatux002AddName), chatux002Text(m, keyChatux002AddNote), m.Callbacks.OpenCreate == nil),
+			item("open-create", "hash", chatux002Text(m, keyChatux002AddName), chatux002Text(m, keyChatux002AddNote), m.Callbacks.OpenCreate == nil),
 			item("open-browse", "browse", m.t(KeyBrowse), chatux002Text(m, keyChatux002BrowseNote), m.Callbacks.OpenBrowse == nil),
 			sectionCreate))
 }

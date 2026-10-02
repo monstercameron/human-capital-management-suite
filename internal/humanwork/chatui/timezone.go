@@ -23,3 +23,16 @@ var commonTimeZones = []string{
 	"Africa/Johannesburg", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore",
 	"Asia/Tokyo", "Australia/Sydney",
 }
+
+// quietZone is the zone quiet hours run in: the one the person saved, else the
+// device's own, else UTC when the device does not say. Quiet hours used to start
+// on UTC, a zone nobody in the conversation lives in (CHATUX-020).
+func quietZone(saved, device string) string {
+	if zone := strings.TrimSpace(saved); zone != "" {
+		return zone
+	}
+	if zone := strings.TrimSpace(device); zone != "" {
+		return zone
+	}
+	return "UTC"
+}

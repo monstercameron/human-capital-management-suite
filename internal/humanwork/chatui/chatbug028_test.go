@@ -14,9 +14,8 @@ func chatbug028Model(state PersonaLookupState) Model {
 }
 
 // TestTodo_CHATBUG_028 covers the composer's @ menu and the per-conversation
-// draft. The command menu and the writing-style controls are not part of this
-// package's change: the first has no code in the tree (CHATCMD-001 to 004) and
-// the second is gated by a served service (see the lane report).
+// draft. The "/" list is in TestTodo_CHATBUG_028_Commands; the writing-style
+// controls belong to another entry (CHATLANG).
 func TestTodo_CHATBUG_028(t *testing.T) {
 	open := mentionState{Target: "chat-composer", Open: true}
 

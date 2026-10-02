@@ -2,7 +2,6 @@ package chatui
 
 import (
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -45,6 +44,9 @@ type RenderingSettingsModel struct {
 	Preference             chatrender.Preference
 	Conversation           bool
 	Loading, Failed, Saved bool
+	// FailKey is the copy key that says why a save failed; empty is the general
+	// "could not be saved" line (CHATBUG-087).
+	FailKey                string
 	TranslationUnavailable bool
 	Submit                 ui.Handler
 	// AutoSave (CHATBUG-045) saves every change at once and draws no Save button.
@@ -110,6 +112,10 @@ func RenderingLanguageStatusIndicator(locale string, counts map[string]int, load
 		if failed {
 			key = "languages_error"
 		}
+		if !failed {
+			// CHATUX-037: the shared placeholder; the status is announced, not printed.
+			return html.Section(html.Props{Class: "chatrender-indicator", Dir: direction(locale)}, children[0], ChatLoadingFrame(LoadingFrame{Locale: locale, Shape: LoadingShapeSection, Rows: 1, Status: RenderingText(locale, key)}))
+		}
 		return html.Section(html.Props{Class: "chatrender-indicator", Dir: direction(locale)}, children[0], html.P(html.Props{Role: "status", Text: RenderingText(locale, key)}))
 	}
 	languages := []string{}
@@ -125,7 +131,7 @@ func RenderingLanguageStatusIndicator(locale string, counts map[string]int, load
 		children = append(children, html.P(html.Props{Text: RenderingText(locale, "empty")}))
 	}
 	for _, lang := range languages {
-		children = append(children, html.Span(html.Props{Class: "chatrender-language-count", Text: RenderingText(locale, lang) + ": " + strconv.Itoa(counts[lang])}))
+		children = append(children, html.Span(html.Props{Class: "chatrender-language-count", Text: RenderingText(locale, lang) + ": " + chatCount(locale, counts[lang])}))
 	}
 	return html.Section(html.Props{Class: "chatrender-indicator", Dir: direction(locale), Aria: map[string]string{"label": RenderingText(locale, "languages")}}, children...)
 }

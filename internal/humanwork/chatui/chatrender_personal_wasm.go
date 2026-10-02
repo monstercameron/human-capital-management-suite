@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
 	"syscall/js"
 	"time"
 
@@ -23,7 +24,7 @@ const renderingChecksAvailability = true
 var renderingSession = &ReadingSession{}
 
 func renderingSettingsClient() ReadingSettingsClient {
-	client := ReadingSettingsClient{Origin: js.Global().Get("location").Get("origin").String(), HTTP: &http.Client{Timeout: 5 * time.Second}, Session: renderingSession}
+	client := ReadingSettingsClient{Origin: js.Global().Get("location").Get("origin").String(), HTTP: &http.Client{Timeout: 5 * time.Second}, Session: renderingSession, Refresh: chatSessionRefresh}
 	client.Locale = js.Global().Get("document").Get("documentElement").Get("lang").String()
 	island := js.Global().Get("document").Call("getElementById", "journey-config")
 	if island.Truthy() {
@@ -98,8 +99,16 @@ func renderingReadSettings(event ui.Event, previous chatrender.Preference, room 
 	}
 	return pref, room, pref.Validate()
 }
+
+// renderingSaves keeps saves in the order they were pressed: a change made while
+// the previous one is still on its way waits for it instead of racing it
+// (CHATBUG-087).
+var renderingSaves sync.Mutex
+
 func renderingSaveSettings(room string, pref chatrender.Preference, done func(error)) {
 	go func() {
+		renderingSaves.Lock()
+		defer renderingSaves.Unlock()
 		err := renderingSettingsClient().Save(context.Background(), room, pref)
 		if err == nil {
 			ui.PostAsync(func() {

@@ -47,7 +47,8 @@ func TestTodo_CHATATTACH_001_Browser(t *testing.T) {
 				t.Fatalf("real catalog prints copy keys: %s", composer)
 			}
 			for _, want := range []string{chatui.Chatattach001Text(locale, "attach"), chatui.Chatattach001Text(locale, "note"), chatui.Chatattach001Text(locale, "remove"), chatui.Chatattach001Text(locale, "uploading") + " 42%", "photo.png", "2 KB", `src="blob:photo"`, `type="file"`, `multiple`, `accept=`} {
-				if !strings.Contains(composer, want) {
+				// Numbers are written in the locale's numerals.
+				if !strings.Contains(composer, want) && !strings.Contains(composer, strings.NewReplacer("0", "٠", "1", "١", "2", "٢", "3", "٣", "4", "٤", "5", "٥", "6", "٦", "7", "٧", "8", "٨", "9", "٩").Replace(want)) {
 					t.Fatalf("composer misses %q", want)
 				}
 			}
@@ -68,6 +69,26 @@ func TestTodo_CHATATTACH_001_Browser(t *testing.T) {
 			_, unavailable := chatattach001Markup(t, m)
 			if !strings.Contains(unavailable, chatui.Chatattach001Text(locale, "unavailable")) {
 				t.Fatal("unavailable file state missing")
+			}
+			// The limits are in the menu before a file is chosen: size, count, kinds.
+			if note := chatui.Chatattach001Text(locale, "note"); !strings.Contains(note, "20") || !strings.Contains(note, "PDF") || !strings.Contains(note, "Office") {
+				t.Fatalf("the menu does not say the limits up front: %q", note)
+			}
+			// An upload that did not get through keeps its chip, says so and
+			// offers Retry; the file's own Remove stays.
+			failed := chatattach001Model(locale)
+			failed.Chatattach001.Files[0].Uploading, failed.Chatattach001.Files[0].Progress, failed.Chatattach001.Files[0].Failed = false, 0, true
+			composer, _ = chatattach001Markup(t, failed)
+			for _, want := range []string{"photo.png", chatui.Chatattach001Text(locale, "not_sent"), `data-chatattach001-retry="draft"`, `aria-label="` + chatui.Chatattach001Text(locale, "retry") + `: photo.png"`, `role="alert"`, `data-chatattach001-remove="draft"`, `data-send-capable="false"`} {
+				if !strings.Contains(composer, want) {
+					t.Fatalf("a failed upload misses %q: %s", want, composer)
+				}
+			}
+			if strings.Contains(composer, chatui.Chatattach001Text(locale, "uploading")) || strings.Contains(composer, "⟦") {
+				t.Fatalf("a failed upload still reads as uploading, or prints a key: %s", composer)
+			}
+			if failed.Chatattach001.Ready() {
+				t.Fatal("Send is on with a file that is not uploaded")
 			}
 			for _, reason := range []string{"size", "empty", "type", "limit", "quota", "failed"} {
 				m.Chatattach001.Error = reason

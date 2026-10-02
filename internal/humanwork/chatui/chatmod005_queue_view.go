@@ -3,7 +3,6 @@ package chatui
 import (
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -64,22 +63,33 @@ func moderationKindOrder(kind string) int {
 // control the details and thread panels use.
 func moderationHeading(locale string) ui.Node {
 	label := chatremoveText(locale, "close_moderation")
-	return html.Header(html.Props{Class: "side-heading chatmod005-heading"},
-		html.H2(html.Props{ID: "chatremove-title", Text: chatremoveText(locale, "moderation")}),
-		html.Button(html.Props{Class: "icon-button", Type: "button", Title: label, Aria: map[string]string{"label": label}, Data: map[string]string{"chatremove-close": "true"}}, icon("close")))
+	// CHATUX-032: the shared panel header; initial focus lands on the title.
+	return chatux032Header(chatux032HeaderProps{Class: "chatmod005-heading", ID: "chatremove-title", Title: chatremoveText(locale, "moderation"), FocusHeading: true,
+		Close: chatux032CloseButton(label, false, map[string]string{"chatremove-close": "true"}, "")})
 }
 
 func moderationTabs(m ModerationPageModel) ui.Node {
 	t := func(key string) string { return chatremoveText(m.Locale, key) }
-	open := t("tab_open")
-	if m.OpenCount > 0 {
-		open += " · " + strconv.Itoa(m.OpenCount)
+	// Open and Resolved are one segmented control, the one Saved uses, each with
+	// the number of items behind it. A count that is not known is left off.
+	current := m.Tab
+	if current != "resolved" && current != "permissions" {
+		current = "open"
 	}
-	tab := func(name, label string) ui.Node {
-		selected := (m.Tab == "resolved") == (name == "resolved")
-		return html.Button(html.Props{Type: "button", Class: "chatmod005-tab", Role: "tab", Text: label, Aria: map[string]string{"selected": boolString(selected)}, Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + url.Values{"tab": {name}, "locale": {m.Locale}}.Encode()}})
+	tab := func(name, label string, count int, known bool) ui.Node {
+		selected := name == current
+		children := []ui.Node{html.Span(html.Props{Text: label})}
+		if known {
+			children = append(children, html.Span(html.Props{Class: "chatsave-seg-count", Text: chatsave002Num(m.Locale, count)}))
+		}
+		return html.Button(html.Props{Type: "button", Class: "chatsave-seg-button chatmod005-tab", Role: "tab", Aria: map[string]string{"selected": boolString(selected)}, Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + url.Values{"tab": {name}, "locale": {m.Locale}}.Encode()}}, children...)
 	}
-	return html.Div(html.Props{Class: "chatmod005-tabs", Role: "tablist", Aria: map[string]string{"label": t("moderation")}}, tab("open", open), tab("resolved", t("tab_resolved")))
+	tabs := []ui.Node{tab("open", t("tab_open"), m.OpenCount, true), tab("resolved", t("tab_resolved"), m.ResolvedCount, m.ResolvedKnown)}
+	if m.CanAssign {
+		// CHATMOD-005: who may do what, for a workspace administrator.
+		tabs = append(tabs, tab("permissions", t("tab_permissions"), 0, false))
+	}
+	return html.Div(html.Props{Class: "chatsave-seg chatmod005-tabs", Role: "tablist", Aria: map[string]string{"label": t("moderation")}}, tabs...)
 }
 
 func moderationSearch(locale, query string) ui.Node {
@@ -98,32 +108,42 @@ func moderationQueuePage(m ModerationPageModel) ui.Node {
 	t := func(key string) string { return chatremoveText(m.Locale, key) }
 	now := time.Now()
 	resolved := m.Tab == "resolved"
+	searched := strings.TrimSpace(m.Query) != ""
 	nodes := []ui.Node{moderationHeading(m.Locale)}
+	if m.Tab == "permissions" && m.Permissions != nil && m.State == StateReady && !m.NoQueue {
+		nodes = append(nodes, moderationTabs(m))
+		nodes = append(nodes, moderationPermissionsView(m.Locale, *m.Permissions)...)
+		return html.Main(html.Props{ID: "chatremove-moderation", Class: "chatremove chatmod005-page", Lang: m.Locale, Dir: direction(m.Locale)}, nodes...)
+	}
 	if m.NoQueue {
 		nodes = append(nodes, html.H3(html.Props{Class: "chatmod005-subheading", Text: t("notices_title")}))
 	} else {
-		nodes = append(nodes, moderationTabs(m))
-		if len(m.Items) > 0 && m.State == StateReady {
+		nodes = append(nodes, chatux037ModerationTabs(m))
+		// The box is there once there is something to search, and stays while a
+		// search is showing, also one that found nothing: it is the way back.
+		if (len(m.Items) > 0 || searched) && m.State == StateReady {
 			nodes = append(nodes, moderationSearch(m.Locale, m.Query))
 		}
 	}
 	switch {
 	case m.State == StateLoading:
-		nodes = append(nodes, html.P(html.Props{Role: "status", Aria: map[string]string{"busy": "true"}, Text: t("loading")}))
+		nodes = append(nodes, chatux037ModerationLoading(m))
 	case m.State == StateError:
 		key := "error"
 		if m.ErrorCode == "conflict" {
 			key = "conflict"
 		}
-		nodes = append(nodes, html.P(html.Props{Role: "alert", Text: t(key)}), html.Button(html.Props{Type: "button", Class: "chatremove-link", Text: t("retry"), Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + url.Values{"tab": {m.Tab}, "locale": {m.Locale}}.Encode()}}))
+		nodes = append(nodes, ChatLoadFailed(m.Locale, t(key), chatux037ModerationRetry(m), nil))
 	case m.NoQueue && len(m.Notices) == 0:
 		nodes = append(nodes, html.P(html.Props{Class: "chatmod005-empty", Text: t("notices_empty")}))
+	case !m.NoQueue && len(m.Items) == 0 && searched:
+		nodes = append(nodes, html.P(html.Props{Class: "chatmod005-empty", Role: "status", Text: t("no_match")}))
 	case !m.NoQueue && len(m.Items) == 0:
 		first, hint := "nothing", "nothing_hint"
 		if resolved {
 			first, hint = "nothing_resolved", "nothing_resolved_hint"
 		}
-		nodes = append(nodes, html.Div(html.Props{Class: "chatmod005-empty", Role: "status"}, html.P(html.Props{Text: t(first)}), html.P(html.Props{Class: "chatmod005-muted", Text: t(hint)})))
+		nodes = append(nodes, ChatEmptyState("check", t(first), t(hint)))
 	}
 	if m.State == StateReady && !m.NoQueue && len(m.Items) > 0 {
 		items := append([]chat.ModerationItem(nil), m.Items...)

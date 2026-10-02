@@ -88,8 +88,8 @@ func TestTodo_CHATBUG_034_Browser(t *testing.T) {
 	// The search field is drawn once the list is long enough to need it (CHATSAVE-002).
 	list := renderNode(t, RenderSavedMessages(SavedMessagesView{Locale: "en-US", Tab: "todo", AllCount: 9}))
 	for _, want := range []string{
-		`class="side-heading chatsave-header"`,                                                              // the same heading row as the thread and details panels
-		`class="icon-button"`, `aria-label="` + copy.Close + `"`, `data-saved-action="close"`, `icon-close`, // the close icon
+		`class="side-heading chat-panel-head chatsave-header"`,                                                               // the same heading row as the thread and details panels
+		`class="icon-button chat-panel-close"`, `aria-label="` + copy.Close + `"`, `data-saved-action="close"`, `icon-close`, // the close icon
 		`for="chatsave-search"`, `class="sr-only"`, `icon-search`, `type="search"`, `placeholder="` + copy.Search + `"`, // a labelled field with its icon
 	} {
 		if !strings.Contains(list, want) {

@@ -34,7 +34,7 @@ func rebindChatRootListeners(local localStore, model Model) {
 		return
 	}
 	releaseChatRootListeners()
-	for _, cleanup := range []func(){bindChatMessageLongPress(model), bindChatActiveRows(local), bindChatRowActionGuard(local), bindChatSearchShortcut(model)} {
+	for _, cleanup := range []func(){bindChatMessageLongPress(model), bindChatActiveRows(local), bindChatRowActionGuard(local), bindChatSearchShortcut(model), bindChatSearchRecent(model)} {
 		if cleanup != nil {
 			chatRootBindingCleanups = append(chatRootBindingCleanups, cleanup)
 		}

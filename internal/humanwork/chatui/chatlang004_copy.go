@@ -35,6 +35,7 @@ func chatlangText(locale, key string) string {
 		"bar":             {"Messages in other languages are translated for you.", "Nachrichten in anderen Sprachen werden für Sie übersetzt.", "تُترجم الرسائل المكتوبة بلغات أخرى من أجلك."},
 		"bar_originals":   {"Show originals", "Originale anzeigen", "عرض النصوص الأصلية"},
 		"bar_settings":    {"Language settings", "Spracheinstellungen", "إعدادات اللغة"},
+		"bar_dismiss":     {"Dismiss", "Schließen", "إغلاق"},
 		"bar_label":       {"Translation", "Übersetzung", "الترجمة"},
 		"fix_menu":        {"Message language…", "Sprache der Nachricht…", "لغة الرسالة…"},
 		"fix_prompt":      {"Language of this message", "Sprache dieser Nachricht", "لغة هذه الرسالة"},

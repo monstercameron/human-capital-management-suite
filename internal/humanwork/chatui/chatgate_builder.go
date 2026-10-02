@@ -68,28 +68,11 @@ func renderGateBuilder(v GateView) ui.Node {
 		items = append(items, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "question-up", "up", id, false), gateButton(v, "question-down", "down", id, false), gateButton(v, "question-remove", "remove", id, false)))
 		nodes = append(nodes, html.Fieldset(html.Props{Data: map[string]string{"gate-editor": id}}, items...))
 	}
-	nodes = append(nodes, gateButton(v, "question-add", "add", "", false), html.Fieldset(html.Props{}, html.Legend(html.Props{Text: t("rule")}), gateRuleFieldControl(v, d), html.Label(html.Props{For: "gate-rule-values", Text: t("ruleValue")}), html.Textarea(html.Props{ID: "gate-rule-values", Rows: 3}), gateEditorInput(v, "gate-rule-reason", "ruleReason", "text"), html.P(html.Props{ID: "gate-rule-preview", Text: GateRulePreview(v.Locale, d)})), gateEditorInput(v, "gate-answer-by", "date", "date"), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "define", "apply", "", true), gateButton(v, "try", "try", "", false)), gateEditorInput(v, "gate-version", "version", "text"), html.P(html.Props{Text: t("meaning")}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "publish", "publish", "", true), gateButton(v, "pause", "pause", "", false), gateButton(v, "retire", "retire", "", false)), chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: t("sample")}), renderGateApplicant(GateView{Locale: v.Locale, Gate: chatgate.Gate{Versions: []chatgate.Definition{d}, Current: d.Version.String()}, Directory: v.Directory})))
+	// The publish step names the version this draft needs and what publishing it
+	// means for the people already in the channel (chatgate_rule.go).
+	_, meaning := GatePublishMeaning(v)
+	nodes = append(nodes, gateButton(v, "question-add", "add", "", false), gateRuleEditor(v, d), gateEditorInput(v, "gate-answer-by", "date", "date"), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "define", "apply", "", true), gateButton(v, "try", "try", "", false)), gateEditorInput(v, "gate-version", "version", "text"), html.P(html.Props{ID: "gate-publish-meaning", Class: "chatgate-publish-meaning", Role: "status", Text: meaning}), html.P(html.Props{Class: "chatgate-hint", Text: t("meaning")}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "publish", "publish", "", true), gateButton(v, "pause", "pause", "", false), gateButton(v, "retire", "retire", "", false)), chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: t("sample")}), renderGateApplicant(GateView{Locale: v.Locale, Gate: chatgate.Gate{Versions: []chatgate.Definition{d}, Current: d.Version.String()}, Directory: v.Directory, Sample: true})))
 	return html.Section(html.Props{}, nodes...)
-}
-func gateRuleFieldControl(v GateView, d chatgate.Definition) ui.Node {
-	options := []ui.Node{html.Option(html.Props{Value: "", Text: GateText(v.Locale, "choose")})}
-	for _, f := range d.Fields {
-		options = append(options, html.Option(html.Props{Value: f.ID, Text: f.Label}))
-	}
-	return html.Label(html.Props{For: "gate-rule-field"}, html.Span(html.Props{Text: GateText(v.Locale, "ruleField")}), html.Select(html.Props{ID: "gate-rule-field"}, options...))
-}
-func GateRulePreview(locale string, d chatgate.Definition) string {
-	if len(d.Rules) == 0 {
-		return GateText(locale, "preview")
-	}
-	rule := d.Rules[0]
-	label := GateText(locale, "label")
-	for _, f := range d.Fields {
-		if f.ID == rule.When.Field {
-			label = f.Label
-		}
-	}
-	return fmt.Sprintf(GateText(locale, "rulePreview"), label, strings.Join(rule.When.Values, " / "))
 }
 
 // EditGateQuestion is shared by the native acceptance tests and wasm builder.

@@ -43,9 +43,15 @@ func messageIsAgent(model Model, message Message) bool {
 func personaThreadProgress(model Model) ui.Node {
 	children := []ui.Node{}
 	for _, invocation := range model.PersonaInvocations {
-		if invocation.PostID == model.ThreadParentID {
-			children = append(children, html.WithKey(RenderPersonaProgress(model, invocation.Projection), invocation.Projection.InvocationID))
+		// CHATBUG-063: only under a message that asked an agent that can be named.
+		if invocation.PostID != model.ThreadParentID || !chatbug063AskedAgent(model, invocation.PostID) {
+			continue
 		}
+		projection := agentReplyNamedProjection(model, invocation.Projection, invocation.PostID)
+		if projection.AgentName == "" {
+			continue
+		}
+		children = append(children, html.WithKey(RenderPersonaProgress(model, projection), projection.InvocationID))
 	}
 	return html.Div(html.Props{Class: "persona-thread-invocations"}, children...)
 }

@@ -21,7 +21,7 @@ func rememberChatDialogTrigger(event ui.Event, action string) {
 }
 
 func rememberChatDialogTriggerJS(event js.Value, action string) {
-	if action != "open-create" && action != "open-browse" && action != "agent-profile-open" {
+	if action != "open-create" && action != "open-browse" && action != "open-add-members" && action != "agent-profile-open" {
 		return
 	}
 	target := event.Get("target")
@@ -67,7 +67,7 @@ func guardChatDialogTab(event js.Value) {
 		return
 	}
 	doc := js.Global().Get("document")
-	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
+	dialog := doc.Call("querySelector", chatFocusDialogSelector)
 	if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 		if trapChatDialogFocusJS(event) {
 			event.Call("preventDefault")
@@ -85,7 +85,7 @@ func focusChatDialog() {
 	var frame js.Func
 	frame = js.FuncOf(func(js.Value, []js.Value) any {
 		attempts++
-		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
+		dialog := doc.Call("querySelector", chatFocusDialogSelector)
 		if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 			if !dialog.Call("contains", doc.Get("activeElement")).Bool() {
 				target := dialog.Call("querySelector", "[autofocus]")
@@ -124,7 +124,7 @@ func trapChatDialogFocusJS(event js.Value) bool {
 		return false
 	}
 	doc := js.Global().Get("document")
-	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
+	dialog := doc.Call("querySelector", chatFocusDialogSelector)
 	if !dialog.Truthy() || dialog.Call("getClientRects").Get("length").Int() == 0 {
 		return false
 	}
@@ -154,7 +154,7 @@ func restoreChatDialogFocus() {
 	var frame js.Func
 	frame = js.FuncOf(func(js.Value, []js.Value) any {
 		attempts++
-		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
+		dialog := doc.Call("querySelector", chatFocusDialogSelector)
 		if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 			if attempts < 60 && js.Global().Get("requestAnimationFrame").Truthy() {
 				js.Global().Call("requestAnimationFrame", frame)

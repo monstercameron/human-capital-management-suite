@@ -32,6 +32,13 @@ func chatux001Settle() {
 	if chatux001Pending == "pinned" {
 		selector = ".chat-details .pinned-list"
 	}
+	if chatux001Pending == "crewmap" {
+		selector = ".chat-details .chatmap-crew-section"
+	}
+	if chatux001Pending == "restore" {
+		chatux001SettleRestore()
+		return
+	}
 	list := js.Global().Get("document").Call("querySelector", selector)
 	if !list.Truthy() {
 		chatux001Budget--
@@ -49,5 +56,28 @@ func chatux001Settle() {
 	if heading := section.Call("querySelector", "h3"); heading.Truthy() {
 		heading.Call("setAttribute", "tabindex", "-1")
 		heading.Call("focus", map[string]any{"preventScroll": true})
+	}
+}
+
+// chatux001SettleRestore opens the Status row of Manage channel and puts the
+// keyboard in its choice. The group itself is opened by the click handler; the
+// row is a DOM-managed disclosure, so it is opened here once it is on the page.
+func chatux001SettleRestore() {
+	row := js.Global().Get("document").Call("querySelector", ".chat-details .manage-status")
+	if !row.Truthy() {
+		chatux001Budget--
+		if chatux001Budget <= 0 {
+			chatux001Pending = ""
+		}
+		return
+	}
+	chatux001Pending = ""
+	summary := row.Call("querySelector", "[data-chat-disclosure-toggle]")
+	if summary.Truthy() && summary.Call("getAttribute", "aria-expanded").String() != "true" {
+		summary.Call("click")
+	}
+	row.Call("scrollIntoView", map[string]any{"block": "center"})
+	if choice := js.Global().Get("document").Call("getElementById", "chatstate-choice"); choice.Truthy() {
+		choice.Call("focus", map[string]any{"preventScroll": true})
 	}
 }

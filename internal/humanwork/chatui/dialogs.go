@@ -39,9 +39,10 @@ func createDialog(m Model, h handlers) ui.Node {
 		if k.glyph != "#" {
 			glyph = html.Span(html.Props{Class: "kind-card-glyph", Aria: map[string]string{"hidden": "true"}}, icon(k.glyph))
 		}
+		title, note := chatux015Kind(m, k.kind, k.key, k.sub)
 		cards = append(cards, html.Button(html.Props{Class: "kind-card", Type: "button", Role: "radio", Data: map[string]string{"action": "create-kind", "id": string(k.kind)},
 			Aria: map[string]string{"checked": boolString(kind == k.kind)}},
-			glyph, html.Span(html.Props{Class: "kind-card-text"}, html.Strong(html.Props{Text: m.t(k.key)}), html.Span(html.Props{Text: m.t(k.sub)}))))
+			glyph, html.Span(html.Props{Class: "kind-card-text"}, html.Strong(html.Props{Text: title}), html.Span(html.Props{Text: note}))))
 	}
 	channel := kind == PublicChannel || kind == PrivateChannel
 	fields := []ui.Node{
@@ -58,11 +59,17 @@ func createDialog(m Model, h handlers) ui.Node {
 		if channel {
 			hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint", Text: m.t(KeyChannelNameHint)})
 			describedBy["describedby"] = "new-chat-name-hint"
+			// CHATBUG-072: a refused character or a refusal from the service
+			// says why in the hint's place, in the error colour.
+			if note := createNameNote(m, local, kind); note != "" {
+				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint field-error", Role: "alert", Text: note})
+				describedBy["invalid"] = "true"
+			}
 		}
 		fields = append(fields, html.Div(html.Props{Class: "prefs-field create-name"},
 			html.Label(html.Props{For: "new-chat-name", Text: m.t(KeyName)}),
 			html.Div(html.Props{Class: "name-input"}, prefix,
-				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": m.NewName}, Required: true, AutoComplete: "off", AutoFocus: true, Placeholder: m.t(KeyNamePlaceholder), Aria: describedBy})),
+				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": m.NewName}, Required: true, AutoComplete: "off", AutoFocus: true, Placeholder: m.t(KeyNamePlaceholder), OnInput: h.createName, Aria: describedBy})),
 			hint))
 	}
 	fields = append(fields, memberPicker(m, h, kind),
@@ -97,7 +104,7 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	}
 	full := kind == DirectMessage && len(local.picked) >= 1
 	if !full {
-		chips = append(chips, html.WithKey(html.Input(html.Props{ID: "new-chat-member-search", Class: "chip-input chat-input", Type: "text", AutoComplete: "off", Placeholder: m.t(KeyAddPeoplePlaceholder),
+		chips = append(chips, html.WithKey(html.Input(html.Props{ID: "new-chat-member-search", Class: "chip-input chat-input", Type: "text", AutoComplete: "off", AutoFocus: m.ShowAddMembers, Placeholder: m.t(KeyAddPeoplePlaceholder),
 			Data: map[string]string{"chat-value": local.pickQuery}, OnInput: h.pickInput, OnKeyDown: h.pickKey,
 			Aria: map[string]string{"controls": "new-chat-member-options", "autocomplete": "list"}}), "chip-input"))
 	}
@@ -212,7 +219,7 @@ func browseDialog(m Model, h handlers) ui.Node {
 		if c.Joined {
 			action = html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.Callbacks.SelectConversation == nil, Data: map[string]string{"action": "browse-open", "id": c.ID}, Text: m.t(KeyBrowseOpen)})
 		} else {
-			action = html.Button(html.Props{Class: "button small", Type: "button", Disabled: m.Callbacks.JoinConversation == nil, Data: map[string]string{"action": "join", "id": c.ID}, Text: m.t(KeyJoin)})
+			action = html.Button(html.Props{Class: "button small", Type: "button", Disabled: m.Callbacks.JoinConversation == nil, Data: map[string]string{"action": "join", "id": c.ID}, Text: chatgateJoinLabel(m, c)})
 		}
 		meta := []string{m.t(kindKey(c.Kind))}
 		var joinedLabel ui.Node
@@ -234,12 +241,22 @@ func browseDialog(m Model, h handlers) ui.Node {
 			metaParts = append(metaParts, html.Span(html.Props{Class: "meta-part", Text: part}))
 		}
 		text := []ui.Node{html.Strong(html.Props{Text: c.Name}), html.Span(html.Props{Class: "browse-meta"}, metaParts...)}
+		// CHATSTATE-002: a channel's status shows wherever the channel is listed.
+		if view, ok := m.ChannelStatuses[c.ID]; ok {
+			if chip := ChannelStatusChip(m, view); chip != nil {
+				text = append(text, chip)
+			}
+		}
 		if topic := strings.TrimSpace(c.Topic); topic != "" {
 			text = append(text, html.Span(html.Props{Class: "browse-topic", Text: topic}))
 		}
+		// CHATGATE-005: what joining a gated channel involves, before the press.
+		if note := chatgateBrowseNote(m, c); note != nil {
+			text = append(text, note)
+		}
 		rows = append(rows, html.WithKey(html.Li(html.Props{Class: "browse-row", Data: map[string]string{"conversation-id": c.ID, "action": rowAction, "id": c.ID}},
 			kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Div(html.Props{Class: "browse-text"}, text...),
-			html.Div(html.Props{Class: "browse-actions"}, joinedLabel, action)), "browse:"+c.ID))
+			html.Div(html.Props{Class: "browse-actions"}, joinedLabel, chatux025LeaveButton(m, h, c), action)), "browse:"+c.ID))
 	}
 	var body ui.Node = html.Ul(html.Props{Class: "browse-list"}, rows...)
 	if len(rows) == 0 {

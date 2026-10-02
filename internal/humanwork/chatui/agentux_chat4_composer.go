@@ -189,7 +189,7 @@ func agentProfileDialog(model Model, id string) ui.Node {
 	for _, agent := range model.ResolvedPersonaMentions {
 		if agent.Reference.ID == id {
 			return html.Div(html.Props{Class: "chat-dialog-backdrop"}, html.Dialog(html.Props{Class: "chat-dialog agent-profile-dialog", Open: true, Role: "dialog", Dir: agentReplyDirection(model.Locale), Aria: map[string]string{"modal": "true", "label": agent.Reference.Display}},
-				html.Div(html.Props{Class: "side-heading"}, html.H2(html.Props{Text: agent.Reference.Display}), actionButton("icon-button", "agent-profile-close", "", model.t(KeyClose), false, icon("close"))), personaProfileCard(model.Locale, agent)))
+				html.Div(html.Props{Class: "side-heading"}, html.H2(html.Props{Text: agent.Reference.Display}), actionButton("icon-button", "agent-profile-close", "", model.t(KeyClose), false, icon("close"))), chatux017AgentSummary(model, agent)))
 		}
 	}
 	return nil

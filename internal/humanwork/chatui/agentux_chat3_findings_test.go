@@ -28,8 +28,9 @@ func TestAgentUXChat3_WorkingStatusStagesAndCancel(t *testing.T) {
 		want    []string
 		absent  []string
 	}{
-		{seconds: 4, want: []string{"Finding an answer in your policy documents…", "agent-working-dots"}, absent: []string{"agent-reply-counter", "agent-progress-cancel"}},
-		{seconds: 5, want: []string{"Finding an answer in your policy documents…", ">0:05<", "agent-progress-cancel", ">Stop<"}},
+		// AGENTUX-075: the elapsed time and Stop appear after ten seconds, not five.
+		{seconds: 9, want: []string{"Finding an answer in your policy documents…", "agent-working-dots"}, absent: []string{"agent-reply-counter", "agent-progress-cancel"}},
+		{seconds: 10, want: []string{"Finding an answer in your policy documents…", ">0:10<", "agent-progress-cancel", ">Stop<"}},
 		{seconds: 20, want: []string{"Still working…", ">0:20<", "agent-progress-cancel", ">Stop<"}},
 	} {
 		t.Run(fmt.Sprint(tc.seconds), func(t *testing.T) {
@@ -57,7 +58,7 @@ func TestAgentUXChat3_WorkingStatusStagesAndCancel(t *testing.T) {
 		projection.Progress = &PersonaProgressProps{InvocationID: "run-1", InvokerID: "alice", AgentName: "Policy Helper", Visible: true, ElapsedSeconds: 20}
 		markup := renderAgentUXChat3Node(t, RenderPersonaProgress(Model{Locale: locale, Callbacks: Callbacks{CancelPersonaInvocation: func(string) {}}}, projection), 320)
 		rtl := strings.Contains(markup, `dir="rtl"`)
-		if strings.Contains(markup, "chat.agent.") || !strings.Contains(markup, ">0:20<") || rtl != strings.HasPrefix(locale, "ar") {
+		if strings.Contains(markup, "chat.agent.") || !strings.Contains(markup, ">"+chatNumeral(locale, "0:20")+"<") || rtl != strings.HasPrefix(locale, "ar") {
 			t.Fatalf("%s 320px status lost localization/direction: %s", locale, markup)
 		}
 	}
@@ -122,7 +123,7 @@ func TestAgentUXChat3_InlineMentionIsStableAndKeyboardOperable(t *testing.T) {
 	if mentionActionForKey("Tab") != mentionKeyDetails || mentionActionForKey("ArrowLeft") != mentionKeyNone || mentionActionForKey("ArrowRight") != mentionKeyNone {
 		t.Fatal("mention keyboard contract still steals text-navigation arrows")
 	}
-	if got := mentionHintText("de-DE", false); got != "↑↓ auswählen · Tab Details · Enter einfügen · Esc schließen" {
+	if got := mentionHintText("de-DE", false); got != "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen" {
 		t.Fatalf("German menu hint = %q", got)
 	}
 	if got := mentionHintText("ar", true); got != "Esc رجوع" {
@@ -182,10 +183,13 @@ func TestAgentUXChat3_FeedbackStateFailureAndLegacyReceipt(t *testing.T) {
 
 	failure := PersonaProgressProjection{ViewerID: "alice", InvokerID: "alice", AgentName: "Policy Helper", Failure: &PersonaProgressFailure{InvocationID: "run-1", InvokerID: "alice", Code: "MODEL_UNAVAILABLE", Retryable: true}}
 	markup = renderAgentUXChat3Node(t, RenderPersonaProgress(Model{Locale: "en-US"}, failure), 390)
-	for _, want := range []string{"Policy Helper could not answer because the service had a problem. Try again.", "icon-warning", "Only visible to you", ">Try again<", "persona-progress-failure"} {
+	for _, want := range []string{"Policy Helper could not answer because the service had a problem.", "icon-warning", "Only visible to you", ">Ask again<", ">Dismiss<", "persona-progress-failure"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("failure card missing %q: %s", want, markup)
 		}
+	}
+	if strings.Contains(markup, "Try again") {
+		t.Errorf("failure card repeats its action in the sentence: %s", markup)
 	}
 
 	for _, tc := range []struct{ locale, want string }{{"en-US", "The answer was sent privately."}, {"de-DE", "Die Antwort wurde privat gesendet."}, {"ar", "تم إرسال الإجابة بشكل خاص."}} {
@@ -204,7 +208,7 @@ func TestAgentUXChat3_OnePanePhoneAndStableComposer(t *testing.T) {
 	for _, width := range []int{390, 320} {
 		selected := Model{State: StateReady, Locale: "en-US", SelectedID: "policy", Conversations: []Conversation{{ID: "policy", Name: "Policy Helper", Kind: DirectMessage, Agent: true, AgentID: "policy"}}, Callbacks: Callbacks{SendMessage: func(string, string) {}, SelectConversation: func(string) {}, ToggleSidebar: func(bool) {}}}
 		markup := renderAgentUXChat3Node(t, Build(selected), width)
-		if !strings.Contains(markup, `data-has-selection="true"`) || !strings.Contains(markup, "Ask Policy Helper a follow-up") || !strings.Contains(markup, "Only you can see this conversation") || strings.Contains(markup, "Answers from policy documents") {
+		if !strings.Contains(markup, `data-has-selection="true"`) || !strings.Contains(markup, `placeholder="Ask Policy Helper"`) || !strings.Contains(markup, "Private to you") || !strings.Contains(markup, "Only you can see this conversation") || strings.Contains(markup, "Answers from policy documents") {
 			t.Fatalf("%dpx selected phone did not default to the conversation: %s", width, markup)
 		}
 		empty := selected
@@ -225,17 +229,21 @@ func TestAgentUXChat3_OnePanePhoneAndStableComposer(t *testing.T) {
 }
 
 func TestAgentUXChat3_DirectAgentHeaderAndRestoredDraft(t *testing.T) {
+	// CHATUX-016 and CHATUX-024: the description is a line of its own, the
+	// privacy mark sits beside the name, and the box says "Ask <name>" until
+	// the agent has answered.
 	for _, tc := range []struct {
 		locale, subtitle, placeholder string
 	}{
-		{"en-US", "Answers from policy documents · Only you can see this conversation", "Ask Policy Helper a follow-up"},
-		{"de-DE", "Antworten aus Richtliniendokumenten · Nur Sie können diese Unterhaltung sehen", "Policy Helper eine Folgefrage stellen"},
-		{"ar", "إجابات من مستندات السياسات · يمكنك وحدك رؤية هذه المحادثة", "اطرح سؤال متابعة على Policy Helper"},
+		{"en-US", "Answers from policy documents · Only you can see this conversation", "Ask Policy Helper"},
+		{"de-DE", "Antworten aus Richtliniendokumenten · Nur Sie können diese Unterhaltung sehen", "Policy Helper fragen"},
+		{"ar", "إجابات من مستندات السياسات · يمكنك وحدك رؤية هذه المحادثة", "اسأل Policy Helper"},
 	} {
 		for _, width := range []int{1440, 800, 390, 320} {
 			model := Model{State: StateReady, Locale: tc.locale, Direction: agentReplyDirection(tc.locale), CurrentUser: "alice", SelectedID: "policy", Draft: "@pol", ShowThread: true, ThreadParentID: "question", Conversations: []Conversation{{ID: "policy", Name: "Policy Helper", Kind: DirectMessage, Agent: true, AgentID: "policy", AgentPurpose: strings.SplitN(tc.subtitle, " · ", 2)[0]}}, Callbacks: Callbacks{SendMessageWithReferences: func(string, string, []ChatReference) {}}}
 			markup := renderAgentUXChat3Node(t, Build(model), width)
-			for _, want := range []string{"Policy Helper", tc.subtitle, tc.placeholder, `class="agent-badge agent-badge-label"`} {
+			parts := strings.SplitN(tc.subtitle, " · ", 2)
+			for _, want := range []string{"Policy Helper", `class="conversation-topic agent-header-purpose"`, parts[0], `class="agent-header-private"`, chatux016Text(tc.locale, "private"), parts[1], `placeholder="` + tc.placeholder + `"`, `class="agent-badge agent-badge-label"`} {
 				if !strings.Contains(markup, want) {
 					t.Errorf("%s at %dpx direct-agent header missing %q: %s", tc.locale, width, want, markup)
 				}
@@ -255,7 +263,7 @@ func TestAgentUXChat3_ThreadShowsAgentAnswerInsteadOfEmptyState(t *testing.T) {
 	model := Model{
 		State: StateReady, Locale: "en-US", CurrentUser: "alice", SelectedID: "general", ShowThread: true, ThreadParentID: "question",
 		Conversations:      []Conversation{{ID: "general", Name: "general", Kind: PublicChannel}},
-		Messages:           []Message{{ID: "question", AuthorID: "alice", Author: "Alice", Body: "What is the PTO policy?", TimeLabel: "5:24 AM"}},
+		Messages:           []Message{{ID: "question", AuthorID: "alice", Author: "Alice", Body: "@Policy Helper What is the PTO policy?", TimeLabel: "5:24 AM", PersonaReferences: []ChatReference{{Kind: "AGENT_MENTION", ID: "policy-helper", Display: "Policy Helper", ConversationID: "general"}}}},
 		PersonaInvocations: []PersonaThreadInvocation{{PostID: "question", Projection: PersonaProgressProjection{InvocationID: "run-1", ViewerID: "alice", InvokerID: "alice", AgentName: "Policy Helper", PrivateReplyHref: "/workspace/app/chat#policy"}}},
 		EphemeralMessages:  []EphemeralMessage{{ID: "answer", ThreadID: "question", Body: "Carry over up to five days.", OnlyVisibleToYou: true, CreatedAt: now, ExpiresAt: now.Add(time.Hour)}},
 		Callbacks:          Callbacks{CloseThread: func() {}, ReplyInThread: func(string, string) {}},

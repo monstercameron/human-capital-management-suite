@@ -29,8 +29,10 @@ type DocPreview struct {
 	State                                string // loading, ready, unavailable
 }
 
-var docTokenPattern = regexp.MustCompile(`doc:[A-Za-z0-9._~-]+`)
-var docURLPattern = regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/docs\?[^\s<>"']+`)
+// CHATBUG-014: each is searched for only in text that holds one of the fixed
+// texts its matches start with (chatperf2_patterns.go).
+var docTokenPattern = chatperf2Literals(regexp.MustCompile(`doc:[A-Za-z0-9._~-]+`), "doc:")
+var docURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/docs\?[^\s<>"']+`), "http://", "https://", "/workspace/app/docs?")
 
 func validDocReferenceID(id string) bool {
 	if id == "" || len(id) > 256 || strings.Contains(id, "..") {
@@ -149,6 +151,20 @@ func docLinkReferenceBody(m Model, body string) []ui.Node {
 // the cache has not resolved yet renders a loading card rather than nothing,
 // so the layout does not jump once the read lands.
 func docPreviewEmbeds(m Model, body string) []ui.Node {
+	return docPreviewEmbedsFor(m, body, true)
+}
+
+// docPreviewDraftEmbeds is docPreviewEmbeds for the composer, where the text is
+// still plain and no link above the card has printed the title.
+func docPreviewDraftEmbeds(m Model, body string) []ui.Node {
+	return docPreviewEmbedsFor(m, body, false)
+}
+
+// docPreviewEmbedsFor draws the cards. titleAbove says the message the cards
+// sit under already shows each document's title as its link (a message is drawn
+// that way once the preview is read), so the card does not print it again
+// (CHATUX-025).
+func docPreviewEmbedsFor(m Model, body string, titleAbove bool) []ui.Node {
 	refs := DocReferences(body, m.EmbedOrigin)
 	if len(refs) == 0 {
 		return nil
@@ -164,7 +180,7 @@ func docPreviewEmbeds(m Model, body string) []ui.Node {
 		if !ok {
 			preview = DocPreview{ID: ref.ID, State: "loading"}
 		}
-		out = append(out, docPreviewCard(m, preview))
+		out = append(out, docPreviewCardFor(m, preview, titleAbove))
 	}
 	return out
 }
@@ -203,7 +219,16 @@ func resolveDocTokensForSnippet(m Model, body string) string {
 }
 
 func docPreviewCard(m Model, preview DocPreview) ui.Node {
+	return docPreviewCardFor(m, preview, false)
+}
+
+// docPreviewCardFor is the card with its title left out when titleAbove says the
+// line above already links it. The card keeps the title for assistive
+// technology as its name.
+func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
 	content := []ui.Node{html.Span(html.Props{Class: "chat-embed-label", Text: m.t(KeyDocEmbedTitle)})}
+	// more opens the rest of a snippet the card shows cut (CHATBUG-089).
+	var more ui.Node
 	switch preview.State {
 	case "ready":
 		if !preview.Readable {
@@ -213,7 +238,9 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 		// CHATBUG-032: label, title and byline are three parts. The stylesheet
 		// stacks them; the whitespace between keeps them apart where it cannot
 		// (copied text, a reader that flattens the card).
-		content = append(content, ui.Text(" "), html.Strong(html.Props{Class: "chat-embed-source", Text: preview.Title}))
+		if !titleAbove || preview.Title == "" {
+			content = append(content, ui.Text(" "), html.Strong(html.Props{Class: "chat-embed-source", Text: preview.Title}))
+		}
 		byline := preview.Owner
 		if preview.UpdatedAt != "" {
 			byline = strings.TrimSpace(byline + " · " + preview.UpdatedAt)
@@ -222,7 +249,9 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 			content = append(content, ui.Text(" "), html.Span(html.Props{Class: "chat-embed-byline", Text: byline}))
 		}
 		if preview.Snippet != "" {
-			content = append(content, html.P(html.Props{Class: "chat-embed-body", Dir: "auto", Text: preview.Snippet}))
+			var inCard ui.Node
+			inCard, more = docSnippetNodes(m, preview.Snippet)
+			content = append(content, inCard)
 		}
 	case "unavailable":
 		// A document card never borrows the forwarded-message copy
@@ -242,7 +271,14 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 		return html.Div(html.Props{Class: "chat-embed chat-doc-embed is-loading", Data: map[string]string{"embed-state": preview.State}, Aria: map[string]string{"busy": "true"}}, content...)
 	}
 	if preview.State == "ready" && preview.Readable {
-		return html.A(html.Props{Class: "chat-embed chat-embed-link chat-doc-embed", Href: DocReferenceURL(preview.ID), Data: map[string]string{"action": "open-doc-reference", "id": preview.ID}}, content...)
+		props := html.Props{Class: "chat-embed chat-embed-link chat-doc-embed", Href: DocReferenceURL(preview.ID), Data: map[string]string{"action": "open-doc-reference", "id": preview.ID}}
+		if titleAbove && preview.Title != "" {
+			props.Aria = map[string]string{"label": m.tf(KeyOpenDocument, map[string]string{"title": preview.Title})}
+		}
+		if more != nil {
+			return html.Div(html.Props{Class: "chat-doc-embed-wrap"}, html.A(props, content...), more)
+		}
+		return html.A(props, content...)
 	}
 	return html.Div(html.Props{Class: "chat-embed chat-doc-embed", Data: map[string]string{"embed-state": preview.State}}, content...)
 }

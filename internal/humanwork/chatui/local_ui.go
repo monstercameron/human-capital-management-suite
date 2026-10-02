@@ -21,6 +21,13 @@ type localUI struct {
 	pickQuery            string
 	picked               []mentionCandidate
 	pickActive           int
+	nameRefused          bool
+	nameTyped            string
+	purposeEditing       bool
+	purposeDraft         string
+	railLeave            string
+	// side is the sidebar's own sections state (CHATSIDE-001).
+	side chatside001UI
 	// composerNotice explains a composer command that could not run, such as
 	// /giphy without a configured GIPHY key. The next keystroke clears it.
 	composerNotice string
@@ -34,6 +41,9 @@ type localUI struct {
 	// formatRow is the viewer's choice this session for the composer's
 	// formatting row: "shown", "hidden" or "" for the default.
 	formatRow string
+	// threadFormatRow is the same choice for the thread's reply field, which
+	// opens closed whatever the viewer chose for the channel composer.
+	threadFormatRow string
 	// sentCount is how many messages the viewer has sent from the composer this
 	// page session; the Enter hint goes after three (composerHintVisible).
 	sentCount       int
@@ -51,7 +61,18 @@ type localUI struct {
 	// chatlang is which originals the reader opened and the writer's language
 	// picker (chatlang004_view.go).
 	chatlang chatlangLocal
-	seq      uint64
+	// deleteAsk is the message menu that is asking whether to delete its
+	// message (chatbug081_delete.go).
+	deleteAsk string
+	// cardEdit is the poll or list message its author is rewording
+	// (chatcmd002_edit.go).
+	cardEdit string
+	// agentShareAsk is the agent run whose private answer card is asking whether
+	// to share it with the channel (chatux026_share.go).
+	agentShareAsk string
+	// privateAnswer is the composer's "Private answer" switch (agentux070_private_answer.go).
+	privateAnswer bool
+	seq           uint64
 }
 
 type localStore struct {
@@ -78,6 +99,10 @@ func (s localStore) forRoom(room string) {
 		s.box.searchOpen = false
 		s.box.pollReady = false
 		s.box.agentProfileID = ""
+		s.box.agentShareAsk = ""
+		s.box.privateAnswer = false
+		s.box.cardEdit = ""
+		s.box.purposeEditing, s.box.purposeDraft = false, ""
 		s.box.emojiCompletion = emojiCompletion{Active: -1}
 		s.box.commandMenu = composerCommandMenu{}
 	}
@@ -89,6 +114,7 @@ func (s localStore) resetCreate() {
 	s.box.pickQuery = ""
 	s.box.picked = nil
 	s.box.pickActive = 0
+	s.box.nameRefused, s.box.nameTyped = false, ""
 }
 
 // pickCandidates lists people the viewer can add to a new conversation: the

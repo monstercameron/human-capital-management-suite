@@ -14,7 +14,7 @@ func TestChannelTodoAndPinsRenderIndependentlyOfTimeline(t *testing.T) {
 		Callbacks:     Callbacks{JumpToPin: func(string, uint64) {}, CopyPinReference: func(string) {}, OpenChannelTodo: func() {}, AddChannelTodo: func(string, string) {}, SetChannelTodoCompleted: func(string, bool) {}, DeleteChannelTodo: func(string) {}},
 	}
 	markup := renderWithTray(t, m, "todo")
-	for _, want := range []string{`class="channel-todo-trigger"`, `data-action="open-todo"`, `data-action="pin-jump" data-id="old-pin"`, `data-action="pin-copy" data-id="old-pin"`, `data-action="todo-toggle" data-id="task-1"`, `id="chat-todo-pin"`, `Decision from last month`, `aria-label="Open to-do list, 1 open"`} {
+	for _, want := range []string{`data-action="tray-todo"`, `data-action="pin-jump" data-id="old-pin"`, `data-action="pin-copy" data-id="old-pin"`, `data-action="todo-toggle" data-id="task-1"`, `id="chat-todo-pin"`, `Decision from last month`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -23,7 +23,7 @@ func TestChannelTodoAndPinsRenderIndependentlyOfTimeline(t *testing.T) {
 		t.Fatal("task list occupied the conversation column")
 	}
 	m.ChannelTodo.Pinned = false
-	if markup = renderWithTray(t, m, "todo"); !strings.Contains(markup, `class="channel-todo-trigger"`) || strings.Contains(markup, "channel-todo-inline") {
+	if markup = renderWithTray(t, m, "todo"); !strings.Contains(markup, `data-action="tray-todo"`) || strings.Contains(markup, "channel-todo-trigger") || strings.Contains(markup, "channel-todo-inline") {
 		t.Fatal("compact task entry point missing or inline list returned")
 	}
 	m.Conversations[0].Kind = GroupChat
@@ -72,10 +72,10 @@ func TestChannelTodoActions(t *testing.T) {
 			}
 		},
 	}}
-	for _, action := range []struct{ action, id string }{{"pin-jump", "p"}, {"pin-copy", "p"}, {"todo-toggle", "a"}, {"todo-delete", "a"}, {"todo-pin", ""}} {
+	for _, action := range []struct{ action, id string }{{"pin-jump", "p"}, {"pin-copy", "p"}, {"todo-toggle", "a"}, {"todo-delete", "a"}} {
 		m.act(action.action, action.id)
 	}
-	if joined := strings.Join(got, ","); joined != "jump:p,copy:p,done:a,delete:a,pin" {
+	if joined := strings.Join(got, ","); joined != "jump:p,copy:p,done:a,delete:a" {
 		t.Fatalf("actions = %s", joined)
 	}
 }
@@ -142,16 +142,16 @@ func TestChannelTodoSourcePinRequiresCurrentAuthorizedPin(t *testing.T) {
 	}
 }
 
-func TestChannelTodoZeroOpenHasReadableCount(t *testing.T) {
-	m := Model{State: StateReady, SelectedID: "room", Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, ChannelTodo: ChannelTodoList{Revision: 1, Items: []ChannelTodoItem{{ID: "done", Text: "Done", Completed: true}}}, Number: func(n int) string {
+func TestChannelTodoZeroDoneHasReadableCount(t *testing.T) {
+	m := Model{State: StateReady, SelectedID: "room", Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, ChannelTodo: ChannelTodoList{Revision: 1, Items: []ChannelTodoItem{{ID: "open", Text: "Open"}}}, Number: func(n int) string {
 		if n == 0 {
 			return ""
 		}
 		return "1"
 	}}
-	// CHATUX-001: the header carries this button only while tasks are open, so the
-	// zero-count label is read off the button itself.
-	if markup := renderNode(t, channelTodoTrigger(m, handlers{})); !strings.Contains(markup, "No open tasks") || strings.Contains(markup, "> open<") {
+	// The chip under the header is the list's one summary; a count of zero is
+	// spelled out, never left blank ("of 1 done").
+	if markup := renderNode(t, channelTray(m, handlers{}, "")); !strings.Contains(markup, "0 of 1 done") {
 		t.Fatalf("zero count text missing: %s", markup)
 	}
 }

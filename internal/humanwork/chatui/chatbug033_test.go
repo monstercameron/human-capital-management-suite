@@ -9,8 +9,8 @@ import (
 )
 
 func chatbug033Model() Model {
-	policy := agenticon.Generate(agenticon.Input{Name: "Policy Helper"})
-	assistant := agenticon.Generate(agenticon.Input{Name: "Assistant"})
+	policy := AgentIconFixture(agenticon.Input{Name: "Policy Helper"})
+	assistant := AgentIconFixture(agenticon.Input{Name: "Assistant"})
 	return Model{
 		Locale: "en-US", State: StateReady, CurrentUser: "walt", CurrentTenantID: "tenant", SelectedID: "general",
 		Conversations: []Conversation{
@@ -107,7 +107,7 @@ func TestTodo_CHATBUG_033(t *testing.T) {
 		open := m
 		open.SelectedID = tc.id
 		header := render(t, open)
-		if !strings.Contains(header, tc.own+" · Only you can see this conversation") || strings.Contains(header, tc.other) {
+		if !strings.Contains(header, `class="conversation-topic agent-header-purpose"`) || !strings.Contains(header, tc.own) || !strings.Contains(header, "Only you can see this conversation") || strings.Contains(header, tc.other) {
 			t.Fatalf("%s: the header line is not the agent's own description: %s", tc.id, header)
 		}
 	}

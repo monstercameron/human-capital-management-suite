@@ -19,8 +19,17 @@ func personaReplyRowsForPost(model Model, local localUI, postID string, now time
 	private := VisibleEphemeralMessages(model.EphemeralMessages, now)
 	used := make(map[string]bool, len(private))
 	rows := make([]ui.Node, 0, len(model.PersonaInvocations))
-	for _, invocation := range model.PersonaInvocations {
+	// CHATBUG-063: the state of a run is drawn only under a message that itself
+	// asked an agent, as stored, and only for an agent that can be named.
+	asked := chatbug063AskedAgent(model, postID)
+	for index, invocation := range model.PersonaInvocations {
 		if invocation.PostID != postID || invocation.Projection.ViewerID != invocation.Projection.InvokerID || (model.CurrentUser != "" && invocation.Projection.ViewerID != model.CurrentUser) {
+			continue
+		}
+		// AGENTUX-075: the working message, the answer and the failure of a run share
+		// this one key, so each replaces the other in place.
+		slot := agentUX075SlotKey(postID, agentUX075Ordinal(model, index))
+		if !asked || agentReplyAuthor(model, postID, invocation.Projection.AgentName) == "" {
 			continue
 		}
 		answered := false
@@ -33,16 +42,45 @@ func personaReplyRowsForPost(model Model, local localUI, postID string, now time
 				continue
 			}
 			if !model.selected().Agent {
-				rows = append(rows, html.WithKey(renderPersonaPrivateAnswer(model, local, message, agentReplyNamedProjection(model, invocation.Projection, postID)), "agent-answer:"+message.ID))
+				// The answer under a question that failed first belongs to the later
+				// attempt that produced it (CHATBUG-047), and is rated as such.
+				answering := invocation.Projection
+				if answering.Failure != nil {
+					for _, attempt := range chatbug047Attempts(model, postID) {
+						if attempt.Projection.Failure == nil {
+							answering = attempt.Projection
+							break
+						}
+					}
+				}
+				rows = append(rows, html.WithKey(renderPersonaPrivateAnswer(model, local, message, agentReplyNamedProjection(model, answering, postID)), slot))
 			}
 			used[message.ID], answered = true, true
 			break
 		}
-		if answered {
+		if answered || agentUX075AnswerOnPage(model, invocation) {
+			// In the person's conversation with the agent the answer is the agent's
+			// own message and carries the slot (agentUX075MessageKey).
 			continue
 		}
-		row := agentProgressForPost(model, invocation.Projection, postID)
-		rows = append(rows, html.WithKey(row, "agent-state:"+invocation.Projection.InvocationID))
+		standing := invocation
+		if progress := invocation.Projection.Progress; invocation.Projection.Failure != nil || (progress != nil && progress.pastDeadline(now)) {
+			// CHATBUG-047 and CHATBUG-054: a question asked again shows its newest
+			// attempt in the failed card's place; a dismissed failure shows nothing.
+			var show bool
+			if standing, show = chatbug047Standing(model, postID, invocation, now); !show {
+				continue
+			}
+		}
+		if standing.Projection.AnswerStored {
+			// CHATBUG-079: the run is over; only its text is still on the way.
+			if !model.selected().Agent {
+				rows = append(rows, html.WithKey(chatbug079StoredAnswerRow(model, standing.Projection, postID, now), slot))
+			}
+			continue
+		}
+		row := agentProgressForPost(model, standing.Projection, postID)
+		rows = append(rows, html.WithKey(row, slot))
 	}
 	for _, message := range private {
 		claimedByInvocation := false
@@ -57,7 +95,9 @@ func personaReplyRowsForPost(model Model, local localUI, postID string, now time
 			}
 		}
 		if !model.selected().Agent && !used[message.ID] && !claimedByInvocation && message.ThreadID == postID {
-			rows = append(rows, html.WithKey(renderPersonaPrivateAnswer(model, local, message, PersonaProgressProjection{}), "agent-answer:"+message.ID))
+			// CHATUX-026: no run is known for it yet, so until the agent activity has
+			// been read the card shows neither who can see it nor its share controls.
+			rows = append(rows, html.WithKey(renderPersonaPrivateAnswer(model, local, message, PersonaProgressProjection{Settling: !model.PersonaActivityReady}), "agent-answer:"+message.ID))
 		}
 	}
 	if len(rows) == 0 {

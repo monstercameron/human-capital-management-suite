@@ -22,7 +22,7 @@ func renderAgentUXReplyRows(t *testing.T, model Model, postID string, width int)
 func agentUXReplyModel(locale string) Model {
 	return Model{
 		Locale: locale, CurrentUser: "alice",
-		Messages:                []Message{{ID: "question", AuthorID: "alice", Author: "Alice", Body: "@Policy Helper what is the policy?"}},
+		Messages:                []Message{{ID: "question", AuthorID: "alice", Author: "Alice", Body: "@Policy Helper what is the policy?", PersonaReferences: []ChatReference{{Kind: "AGENT_MENTION", ID: "agent:policy", Display: "Policy Helper"}}}},
 		ResolvedPersonaMentions: []ResolvedPersonaMention{{Reference: ChatReference{Kind: "AGENT_MENTION", ID: "agent:policy", Display: "Policy Helper"}, Initials: "PH"}},
 		PersonaInvocations: []PersonaThreadInvocation{{PostID: "question", Projection: PersonaProgressProjection{
 			InvocationID: "invocation", ViewerID: "alice", InvokerID: "alice", AgentName: "Policy Helper",
@@ -43,7 +43,7 @@ func TestTodo_AGENTUX_025_WorkingRowLocalesAndWidths(t *testing.T) {
 				model.Number = func(int) string { return "١٢" }
 			}
 			markup := renderAgentUXReplyRows(t, model, "question", width)
-			for _, want := range []string{"Policy Helper", tc.working, "0:12", `data-agent-reply-state="working"`, `aria-live="polite"`, "agent-badge", "agent-working-dots"} {
+			for _, want := range []string{"Policy Helper", tc.working, chatNumeral(tc.locale, "0:12"), `data-agent-reply-state="working"`, `aria-live="polite"`, "agent-badge", "agent-working-dots"} {
 				if !strings.Contains(markup, want) {
 					t.Fatalf("%s at %dpx missing %q: %s", tc.locale, width, want, markup)
 				}
@@ -84,7 +84,7 @@ func TestTodo_AGENTUX_026_PrivateAnswerReplacesWorkingRow(t *testing.T) {
 
 func TestTodo_AGENTUX_026_ThreadAnswerStaysUnderInvokingReply(t *testing.T) {
 	model := agentUXReplyModel("en-US")
-	model.Messages = []Message{{ID: "root"}, {ID: "question"}}
+	model.Messages = []Message{{ID: "root"}, {ID: "question", PersonaReferences: model.Messages[0].PersonaReferences}}
 	model.PersonaInvocations[0].ThreadID = "root"
 	model.EphemeralMessages = []EphemeralMessage{{ID: "answer", ThreadID: "root", Body: "Private answer", OnlyVisibleToYou: true, CreatedAt: time.Date(2026, 10, 1, 11, 59, 0, 0, time.UTC), ExpiresAt: time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)}}
 	if root := renderAgentUXReplyRows(t, model, "root", 1440); strings.Contains(root, "Private answer") {
@@ -97,7 +97,7 @@ func TestTodo_AGENTUX_026_ThreadAnswerStaysUnderInvokingReply(t *testing.T) {
 
 func TestTodo_AGENTUX_027_FailureReasonsAreSanitizedAndRetryable(t *testing.T) {
 	cases := []struct{ code, want string }{
-		{"MODEL_UNAVAILABLE", "Policy Helper could not answer because the service had a problem. Try again."},
+		{"MODEL_UNAVAILABLE", "Policy Helper could not answer because the service had a problem."},
 		{"ADMISSION_REFUSED", "cannot answer this request here"},
 		{"CONTEXT_UNAVAILABLE", "cannot answer this request here"},
 		{"TIMED_OUT", "took too long"},
@@ -112,14 +112,16 @@ func TestTodo_AGENTUX_027_FailureReasonsAreSanitizedAndRetryable(t *testing.T) {
 		if !strings.Contains(markup, tc.want) || strings.Contains(markup, tc.code) || strings.Contains(markup, "secret provider trace") {
 			t.Fatalf("%s failure was not sanitized: %s", tc.code, markup)
 		}
-		if (tc.code == "MODEL_UNAVAILABLE") != strings.Contains(markup, ">Try again<") {
-			t.Fatalf("%s retry policy mismatch: %s", tc.code, markup)
+		// CHATBUG-054: the person who asked may ask again after any failure, and
+		// the sentence never repeats the button.
+		if !strings.Contains(markup, ">Ask again<") || !strings.Contains(markup, ">Dismiss<") || strings.Contains(markup, "Try again.") && tc.code == "MODEL_UNAVAILABLE" {
+			t.Fatalf("%s failure actions: %s", tc.code, markup)
 		}
 	}
 	localizedFailures := map[string]string{
-		"en-US": "Policy Helper could not answer because the service had a problem. Try again.",
-		"de-DE": "Policy Helper konnte wegen eines Dienstproblems nicht antworten. Versuchen Sie es erneut.",
-		"ar":    "تعذر على Policy Helper الإجابة بسبب مشكلة في الخدمة. حاول مرة أخرى.",
+		"en-US": "Policy Helper could not answer because the service had a problem.",
+		"de-DE": "Policy Helper konnte wegen eines Dienstproblems nicht antworten.",
+		"ar":    "تعذر على Policy Helper الإجابة بسبب مشكلة في الخدمة.",
 	}
 	for locale, want := range localizedFailures {
 		for _, width := range []int{320, 1440} {

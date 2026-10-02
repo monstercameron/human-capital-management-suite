@@ -15,7 +15,10 @@ func TestAgentUXQuality_FailureTree(t *testing.T) {
 				projection := PersonaProgressProjection{ViewerID: "reader", InvokerID: "reader", AgentName: "Policy Helper", Failure: &PersonaProgressFailure{InvokerID: "reader", InvocationID: "invoke", Code: code, Retryable: true, Message: "technical secret"}}
 				markup := renderPersonaProgressTest(t, Model{Locale: locale}, projection)
 				copy := chat.AgentAnswerFailureFor(locale, "Policy Helper", code)
-				if !strings.Contains(markup, "Policy Helper") || !strings.Contains(markup, copy.NextStep) || strings.Contains(markup, code) || strings.Contains(markup, "technical secret") || strings.Contains(markup, `data-agent-action="retry"`) != copy.Retryable {
+				// CHATBUG-054: the reason is one sentence; what else would help is said
+				// only when asking again cannot; and the person who asked may always
+				// ask again or dismiss the card.
+				if !strings.Contains(markup, "Policy Helper") || !strings.Contains(markup, strings.ReplaceAll(copy.Sentence, "'", "&#39;")) || strings.Contains(markup, copy.NextStep) == copy.Retryable || strings.Contains(markup, code) || strings.Contains(markup, "technical secret") || !strings.Contains(markup, `data-agent-action="retry"`) || !strings.Contains(markup, `data-agent-action="dismiss"`) {
 					t.Fatalf("failure copy/retry contract: %s", markup)
 				}
 			})
@@ -24,15 +27,15 @@ func TestAgentUXQuality_FailureTree(t *testing.T) {
 }
 
 func TestAgentUXQuality_WorkingDeadline_Fault(t *testing.T) {
-	projection := PersonaProgressProjection{ViewerID: "reader", InvokerID: "reader", Progress: &PersonaProgressProps{InvokerID: "reader", ViewerID: "reader", AgentName: "Policy Helper", Visible: true, Deadline: time.Now().Add(-time.Second)}}
+	projection := PersonaProgressProjection{ViewerID: "reader", InvokerID: "reader", Progress: &PersonaProgressProps{InvocationID: "invoke", InvokerID: "reader", ViewerID: "reader", AgentName: "Policy Helper", Visible: true, Deadline: time.Now().Add(-time.Second)}}
 	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, projection)
 	if strings.Contains(markup, `data-agent-reply-state="working"`) || !strings.Contains(markup, "answer was interrupted") || !strings.Contains(markup, `data-agent-action="retry"`) {
 		t.Fatalf("expired status left working: %s", markup)
 	}
 	projection.Progress.Deadline = time.Now().Add(time.Minute)
-	projection.Progress.ElapsedSeconds = 5
+	projection.Progress.ElapsedSeconds = 10
 	markup = renderPersonaProgressTest(t, Model{Locale: "en-US"}, projection)
-	if !strings.Contains(markup, ">Stop</button>") || !strings.Contains(markup, "0:05") {
-		t.Fatalf("working status lacks stop at five seconds: %s", markup)
+	if !strings.Contains(markup, ">Stop</button>") || !strings.Contains(markup, "0:10") {
+		t.Fatalf("working status lacks stop at ten seconds: %s", markup)
 	}
 }

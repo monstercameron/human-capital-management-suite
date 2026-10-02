@@ -9,8 +9,12 @@ const ChatDetailsStyles = `
 .details-section.chatstate-section .chatstate-badge{margin-block-start:4px;color:var(--ink);font-size:.875rem}
 .details-section.chatstate-section .chatstate-history{margin:8px 0 0;gap:4px 8px;font-size:.8125rem}
 .details-section.chatstate-section .chatstate-history dt{color:var(--muted)}
+.details-about .chatstate-history{display:block;margin:4px 0 0;font-size:.8125rem}
+.details-about .chatstate-history-row{display:flex;align-items:baseline;gap:8px;margin-block-start:4px}
+.details-about .chatstate-history dt{flex:none;color:var(--muted)}
+.details-about .chatstate-history dd{flex:1;min-inline-size:0;margin:0;overflow-wrap:anywhere}
 .details-section.chatstate-section .chat-disclosure-button{min-block-size:34px;padding:6px 8px;border:0;background:transparent}
-.details-section.chatstate-section .chat-disclosure-button:hover,.details-section.chatstate-section .chat-disclosure-button[aria-expanded=true]{background:var(--soft)}
+.details-section.chatstate-section .chat-disclosure-button:hover{background:var(--soft)}
 .details-notify-options{display:grid;gap:4px;padding-block-end:8px}
 .details-notify-option{justify-content:flex-start;inline-size:100%;text-align:start}
 .details-notify-option[aria-pressed=true]{border-color:var(--accent);color:var(--accent);font-weight:600}

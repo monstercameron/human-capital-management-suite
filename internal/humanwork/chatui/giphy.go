@@ -15,7 +15,7 @@ const (
 )
 
 var giphyIDPattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
-var giphyLinkPattern = regexp.MustCompile(`https://(?:www\.)?giphy\.com/gifs/[^\s<>"']+`)
+var giphyLinkPattern = chatperf2Literals(regexp.MustCompile(`https://(?:www\.)?giphy\.com/gifs/[^\s<>"']+`), "giphy.com/gifs/")
 
 // GiphyResult is the small, transient projection needed by the GIF picker.
 // PreviewURL is a rendition URL returned by GIPHY and must never be persisted.

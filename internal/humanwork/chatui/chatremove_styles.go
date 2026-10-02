@@ -3,8 +3,7 @@ package chatui
 const ChatremoveStyles = `
 .chatremove-overlay{position:fixed;color:var(--hcm-color-text);background:var(--hcm-color-surface);overflow:auto}
 .chatremove-overlay-page{z-index:1200;inset-block-start:var(--chatmod-top,0);inset-block-end:var(--chatmod-bottom,0);left:var(--chatmod-left,0);right:var(--chatmod-right,0);border-inline-start:1px solid var(--hcm-color-border)}
-.chatremove-overlay-dialog{z-index:1600;inset:0;margin:auto;block-size:fit-content;inline-size:min(36rem,calc(100vw - 2rem));max-block-size:calc(100dvh - 2rem);padding:1rem;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-surface);box-shadow:var(--hcm-shadow-raised)}
-@media(max-width:400px){.chatremove-overlay-dialog{inline-size:calc(100vw - 1rem);padding:.5rem;max-block-size:calc(100dvh - 1rem)}}.chatremove {color:var(--hcm-color-text);background:var(--hcm-color-surface);max-inline-size:100%;min-inline-size:0;padding:1rem;overflow-wrap:anywhere}
+.chatremove {color:var(--hcm-color-text);background:var(--hcm-color-surface);max-inline-size:100%;min-inline-size:0;padding:1rem;overflow-wrap:anywhere}
 .chatremove * {box-sizing:border-box;min-inline-size:0}
 .chatremove form,.chatremove .chatmod005-item,.chatremove fieldset {display:grid;gap:.75rem;margin-block:1rem;padding:1rem;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control)}
 .chatremove input,.chatremove select,.chatremove textarea {inline-size:100%;max-inline-size:100%;min-block-size:44px;color:var(--hcm-color-text);background:var(--hcm-color-surface);border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);padding:.5rem}
@@ -46,5 +45,4 @@ const ChatremoveStyles = `
 .chatmod005-error{color:var(--hcm-color-danger);margin:0}.chatmod005-nomatch{padding-block:16px}
 .chatremove .chatmod005-message button{min-block-size:0;min-inline-size:0;padding:0;border:0;background:transparent;color:inherit;text-align:start;justify-content:flex-start;white-space:normal}.chatremove .chatmod005-message .person-avatar-button{flex:none}.chatremove .chatmod005-message .message-author{font-weight:650;white-space:nowrap}.chatmod005-message .message-meta{flex-wrap:wrap}
 .chatremove .chatremove-reasons{border:0;padding:0;margin:0;gap:0}.chatremove-reason{min-block-size:40px}.chatremove-reason label{padding-block:.25rem}
-.chatremove-overlay-dialog .chatremove{padding:0}.chatremove-overlay-dialog .chatremove form{border:0;padding:0;margin-block:.5rem;gap:.5rem}.chatremove-overlay-dialog .chatremove-quote{margin-block:.25rem}.chatremove-overlay-dialog h2{margin-block:0 .5rem;font-size:1.125rem}
-`
+` + chatmodSelectedStyles + chatmod004RestoredStyles + chatmod005PermissionsStyles

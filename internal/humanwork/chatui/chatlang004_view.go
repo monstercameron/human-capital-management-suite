@@ -41,6 +41,10 @@ type chatlangLocal struct {
 	fixing   string
 	busy     bool
 	failed   bool
+	// barDismissed hides the conversation bar for this page session; the choice
+	// is also remembered in the browser (chatlangBarStoredDismissed) so the bar is
+	// not shown again after it was dismissed (CHATLANG-008).
+	barDismissed bool
 }
 
 func (l chatlangLocal) originalShown(room, id string) bool { return l.all[room] || l.original[id] }
@@ -258,7 +262,7 @@ func chatlangMenuItems(m Model, msg Message) []ui.Node {
 		return nil
 	}
 	return []ui.Node{html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Title: chatlangText(m.Locale, "fix_menu"),
-		Data: map[string]string{"action": "chatlang-fix", "id": msg.ID}}, icon("info"), html.Span(html.Props{Text: chatlangText(m.Locale, "fix_menu")}))}
+		Data: map[string]string{"action": "chatlang-fix", "id": msg.ID}}, icon("language"), html.Span(html.Props{Text: chatlangText(m.Locale, "fix_menu")}))}
 }
 
 // chatlangBarShown: the conversation has a message that is translated, being
@@ -279,16 +283,22 @@ func chatlangBarShown(m Model) bool {
 // chatlangBar is the conversation-level switch "Show originals" and the way to
 // the personal language settings.
 func chatlangBar(m Model, h handlers) ui.Node {
-	if !chatlangBarShown(m) {
+	if !chatlangBarShown(m) || h.local.chatlang.barDismissed || chatlangBarStoredDismissed() {
 		return nil
 	}
 	shown := h.local.chatlang.all[m.SelectedID]
+	// CHATLANG-008: one line in every language: the sentence gives way (it is
+	// cut with an ellipsis) before the controls do, the switch is the only
+	// labelled button, and the settings and the dismiss are icons with names.
+	settings, dismiss := chatlangText(m.Locale, "bar_settings"), chatlangText(m.Locale, "bar_dismiss")
 	return html.Div(html.Props{Class: "chatlang-bar", Role: "group", Aria: map[string]string{"label": chatlangText(m.Locale, "bar_label")}},
-		html.Span(html.Props{Class: "chatlang-bar-text", Text: chatlangText(m.Locale, "bar")}),
+		html.Span(html.Props{Class: "chatlang-bar-text", Title: chatlangText(m.Locale, "bar"), Text: chatlangText(m.Locale, "bar")}),
 		html.Button(html.Props{Class: "chatlang-bar-button", Type: "button", Data: map[string]string{"action": "chatlang-originals", "id": m.SelectedID},
 			Aria: map[string]string{"pressed": boolString(shown)}, Text: chatlangText(m.Locale, "bar_originals")}),
-		html.Button(html.Props{Class: "chatlang-bar-button", Type: "button", Data: map[string]string{"action": "chatlang-settings"},
-			Aria: map[string]string{"haspopup": "dialog"}, Text: chatlangText(m.Locale, "bar_settings")}))
+		html.Button(html.Props{Class: "chatlang-bar-button chatlang-bar-icon", Type: "button", Title: settings, Data: map[string]string{"action": "chatlang-settings"},
+			Aria: map[string]string{"haspopup": "dialog", "label": settings}}, icon("settings")),
+		html.Button(html.Props{Class: "chatlang-bar-button chatlang-bar-icon", Type: "button", Title: dismiss, Data: map[string]string{"action": "chatlang-bar-dismiss"},
+			Aria: map[string]string{"label": dismiss}}, icon("close")))
 }
 
 // chatlangComposerLine is the one muted line under the message box saying who

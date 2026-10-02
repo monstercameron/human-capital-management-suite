@@ -47,6 +47,11 @@ var modAuthorCopy = map[string][3]string{
 		"Das wurde nicht gespeichert: Es enthält ein Wort, das dieser Arbeitsbereich nicht erlaubt.",
 		"لم يُحفظ هذا: فهو يحتوي على كلمة لا تسمح بها مساحة العمل هذه.",
 	},
+	"modauthor_rule": {
+		"Rule: {rule}",
+		"Regel: {rule}",
+		"القاعدة: {rule}",
+	},
 	"modauthor_masked": {
 		"Readers see this message with a word hidden.",
 		"Leser sehen diese Nachricht mit einem verborgenen Wort.",
@@ -131,4 +136,24 @@ func modAuthorSentence(m Model, surface string, words []string) string {
 // see with a word hidden.
 func ModAuthorMaskedNote(locale string) string {
 	return modAuthorText(Model{Locale: locale}, "modauthor_masked")
+}
+
+// modAuthorRuleLine names the rule that refused a text: "Rule: Profanity". The
+// name is the administrator's own, so it is isolated from the sentence around it
+// the way the quoted words are in Arabic.
+func modAuthorRuleLine(m Model, rule string) string {
+	rule = strings.TrimSpace(rule)
+	if rule == "" {
+		return ""
+	}
+	if strings.HasPrefix(m.Locale, "ar") {
+		rule = "⁨" + rule + "⁩"
+	}
+	return strings.ReplaceAll(modAuthorText(m, "modauthor_rule"), "{rule}", rule)
+}
+
+// ModAuthorRuleLine is the line naming the rule that refused a text, for the
+// places that print a refusal outside the page's own markup.
+func ModAuthorRuleLine(locale, rule string) string {
+	return modAuthorRuleLine(Model{Locale: locale}, rule)
 }

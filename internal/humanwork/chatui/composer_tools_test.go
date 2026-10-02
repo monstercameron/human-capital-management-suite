@@ -106,19 +106,19 @@ func TestTodo_CHATUX_004(t *testing.T) {
 		}
 	}
 
-	// The hint teaches Enter and Shift+Enter, then goes after three sends.
+	// The hint teaches Enter and Shift+Enter, then goes after three sends on this
+	// page. It does not depend on the open conversation (CHATUX-024): a
+	// conversation the person wrote much in shows it like any other.
 	if !strings.Contains(markup, `id="composer-help"`) || !strings.Contains(markup, "Enter to send, Shift+Enter for a new line") || !strings.Contains(markup, `aria-describedby="composer-help"`) {
 		t.Fatal("the Enter hint is missing")
 	}
 	many := m
 	many.Messages = []Message{{AuthorID: "alice"}, {AuthorID: "alice"}, {AuthorID: "bob"}, {AuthorID: "alice"}}
-	for name, gone := range map[string]string{
-		"three sent this session": composerToolsMarkup(t, m, localUI{sentCount: 3}),
-		"three own messages":      composerToolsMarkup(t, many, localUI{}),
-	} {
-		if strings.Contains(gone, "composer-help") {
-			t.Fatalf("%s: the hint is still drawn or still described", name)
-		}
+	if gone := composerToolsMarkup(t, m, localUI{sentCount: 3}); strings.Contains(gone, "composer-help") {
+		t.Fatal("three sent this session: the hint is still drawn or still described")
+	}
+	if kept := composerToolsMarkup(t, many, localUI{}); !strings.Contains(kept, `id="composer-help"`) {
+		t.Fatal("the hint depends on how much the person wrote in the open conversation")
 	}
 	if !composerHintVisible(m, localUI{sentCount: 2}) || composerHintVisible(m, localUI{sentCount: 3}) {
 		t.Fatal("hint threshold is not three")
@@ -240,7 +240,9 @@ func TestTodo_CHATUX_011_Browser(t *testing.T) {
 	if !strings.Contains(markup, `placeholder="`) || strings.Contains(markup, `placeholder=""`) {
 		t.Fatal("the field has no placeholder, so an empty composer cannot be told from a typed one")
 	}
-	if !strings.Contains(markup, `<div class="composer-hint-slot"></div>`) {
+	// The slot of a conversation with an agent also carries the class that keeps
+	// its room while the composer is in use (AGENTUX-060); it is empty either way.
+	if !strings.Contains(markup, `<div class="composer-hint-slot"></div>`) && !strings.Contains(markup, `<div class="composer-hint-slot composer-hint-reserved"></div>`) {
 		t.Fatal("the hint slot is not empty without a hint")
 	}
 	for _, class := range []string{"composer-tools", "composer-format-row", "composer-toolbar", "composer-draft"} {
@@ -285,7 +287,8 @@ func TestTodo_CHATUX_004_Styles(t *testing.T) {
 		`.chat-composer[data-format-row="shown"] .composer-format-row{display:flex}`,
 		`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}}`,
 		`.composer-format-row{display:none`,
-		`@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{display:block`,
+		`@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{display:flex;flex-wrap:wrap`,
+		`.composer-toolbar .composer-help::before{content:"";flex:none;inline-size:0;block-size:1.5em}`,
 		`.composer-toolbar .composer-help{display:none}`,
 		`.composer-add-menu{position:absolute`,
 		`pointer-events:none`,
@@ -293,6 +296,22 @@ func TestTodo_CHATUX_004_Styles(t *testing.T) {
 		if !strings.Contains(ChatComposerToolsStyles, want) {
 			t.Errorf("tool row styles miss %q", want)
 		}
+	}
+	// The hint is whole or absent, never cut with an ellipsis: at 800 px it read
+	// "Enter to send, Shift+Enter for a new…" beside Send.
+	start := strings.Index(ChatComposerToolsStyles, `@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{`)
+	if start < 0 {
+		t.Fatal("the hint's rule is gone")
+	}
+	rule := ChatComposerToolsStyles[start:]
+	rule = rule[:strings.Index(rule, "}")]
+	for _, want := range []string{"block-size:1.5em", "overflow:hidden", "white-space:nowrap", "align-content:flex-start"} {
+		if !strings.Contains(rule, want) {
+			t.Errorf("the hint's rule misses %q, so a sentence that does not fit is not clipped whole: %s", want, rule)
+		}
+	}
+	if strings.Contains(rule, "text-overflow:ellipsis") {
+		t.Errorf("the hint is cut with an ellipsis where it does not fit: %s", rule)
 	}
 	if composerFormatDefaultWidth != 800 || composerHintMinWidth != 600 {
 		t.Fatal("breakpoints moved")

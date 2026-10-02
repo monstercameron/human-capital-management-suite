@@ -16,17 +16,34 @@ type ChattoneToolbarProps struct {
 }
 
 func chattoneToolbar(m Model, target string, disabled bool) ui.Node {
-	if m.ChatFeatures != nil && !m.ChatFeatures.WritingStyles {
-		return nil
-	}
 	scope := ""
 	draft := m.Draft
 	if target == "thread-composer" {
 		draft = ""
 		scope = m.ThreadParentID
 	}
+	if m.ChatFeatures != nil && !m.ChatFeatures.WritingStyles {
+		return chattoneUnavailable(m.Locale, target, draft, m.ChatFeatures.WritingStylesNote)
+	}
 	return RenderChattoneToolbar(ChattoneToolbarProps{Locale: m.Locale, Target: target, Conversation: m.SelectedID, Scope: scope, Draft: draft, Styles: chatrewrite.DefaultStyles(), Enabled: true, Disabled: disabled, Pending: true})
 }
+
+// chattoneUnavailable says plainly why the writing-style controls are not
+// offered, once the draft is long enough for them to matter. The server's
+// features answer carries the reason as a code ("not_qualified": no model has
+// passed the quality check yet; "workspace_off": an administrator turned them
+// off); an answer with no code (not yet arrived, or an older server) shows
+// nothing rather than a guess.
+func chattoneUnavailable(locale, target, draft, note string) ui.Node {
+	switch note {
+	case "not_qualified", "workspace_off", "unavailable":
+	default:
+		return nil
+	}
+	return html.P(html.Props{ID: target + "-chattone-unavailable", Class: "chattone-unavailable", Role: "status", Dir: agentReplyDirection(locale), Hidden: len(strings.Fields(draft)) < 3,
+		Data: map[string]string{"chattone": "unavailable", "reason": note}, Text: ChattoneText(locale, "note_"+note)})
+}
+
 func RenderChattoneToolbar(p ChattoneToolbarProps) ui.Node {
 	if !p.Enabled {
 		return nil

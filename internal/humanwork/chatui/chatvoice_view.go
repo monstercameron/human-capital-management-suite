@@ -44,7 +44,7 @@ func RenderVoicePlayer(p VoicePlayerProps) ui.Node {
 		url = ""
 	}
 	children := []ui.Node{voiceButton(p.Locale, "play", "play-toggle", false), html.Tag("audio", html.Props{Raw: map[string]any{"controls": true, "preload": "none", "src": url}, Aria: map[string]string{"label": VoiceCopy(p.Locale, "player")}, Data: map[string]string{"chatvoice-audio": playbackID}}),
-		html.Div(html.Props{Class: "chatvoice-controls"}, html.Label(html.Props{For: "voice-speed-" + playbackID, Text: VoiceCopy(p.Locale, "speed")}), html.Select(html.Props{ID: "voice-speed-" + playbackID, Data: map[string]string{"chatvoice-speed": p.ID}}, html.Option(html.Props{Value: "1", Text: "1×"}), html.Option(html.Props{Value: "1.5", Text: "1.5×"}), html.Option(html.Props{Value: "2", Text: "2×"})), html.Span(html.Props{Dir: "ltr", Data: map[string]string{"chatvoice-time": p.ID}, Text: "0:00 / " + voiceTime(p.DurationMS)})),
+		html.Div(html.Props{Class: "chatvoice-controls"}, html.Label(html.Props{For: "voice-speed-" + playbackID, Text: VoiceCopy(p.Locale, "speed")}), html.Select(html.Props{ID: "voice-speed-" + playbackID, Data: map[string]string{"chatvoice-speed": p.ID}}, html.Option(html.Props{Value: "1", Text: "1×"}), html.Option(html.Props{Value: "1.5", Text: "1.5×"}), html.Option(html.Props{Value: "2", Text: "2×"})), html.Span(html.Props{Dir: "ltr", Data: map[string]string{"chatvoice-time": p.ID}, Text: VoiceClock(p.Locale, 0) + " / " + VoiceClock(p.Locale, p.DurationMS)})),
 	}
 	bars := []ui.Node{}
 	for _, v := range p.Waveform {
@@ -120,7 +120,7 @@ func RenderVoiceComposer(p VoiceComposerProps) ui.Node {
 			html.P(html.Props{Text: VoiceCopy(p.Locale, "explain")}), voiceButton(p.Locale, "start", "start", p.Disabled),
 			html.Div(html.Props{Class: "chatvoice-status", Role: "status", Aria: map[string]string{"live": "polite"}, Data: map[string]string{"chatvoice-status": ""}}),
 			html.Tag("meter", html.Props{Raw: map[string]any{"min": 0, "max": 1, "value": 0}, Aria: map[string]string{"label": VoiceCopy(p.Locale, "level")}, Data: map[string]string{"chatvoice-meter": ""}}),
-			html.Span(html.Props{Dir: "ltr", Text: "0:00 / 2:00", Data: map[string]string{"chatvoice-clock": ""}, Aria: map[string]string{"label": VoiceCopy(p.Locale, "remaining")}}),
+			html.Span(html.Props{Dir: "ltr", Text: VoiceClock(p.Locale, 0) + " / " + VoiceClock(p.Locale, voiceMaxClockMS), Data: map[string]string{"chatvoice-clock": ""}, Aria: map[string]string{"label": VoiceCopy(p.Locale, "remaining")}}),
 			html.Div(html.Props{Class: "chatvoice-controls"}, voiceButton(p.Locale, "pause", "pause", true), voiceButton(p.Locale, "stop", "stop", true), voiceButton(p.Locale, "discard", "discard", true), voiceButton(p.Locale, "again", "again", true)),
 			html.Tag("audio", html.Props{Raw: map[string]any{"controls": true, "preload": "none"}, Aria: map[string]string{"label": VoiceCopy(p.Locale, "listen")}, Data: map[string]string{"chatvoice-preview": ""}}),
 			html.Label(html.Props{For: "chatvoice-note-" + p.ConversationID, Text: VoiceCopy(p.Locale, "note")}), html.Input(html.Props{ID: "chatvoice-note-" + p.ConversationID, Type: "text", Class: "chatvoice-note", Data: map[string]string{"chatvoice-note": ""}}), voiceButton(p.Locale, "send", "send", true)))
@@ -128,9 +128,11 @@ func RenderVoiceComposer(p VoiceComposerProps) ui.Node {
 
 func chatvoiceComposer(m Model, disabled bool) ui.Node {
 	c := m.selected()
-	// Until settings are wired, only the decision record's direct-room default
-	// is offered. The server policy is still mandatory at Send.
-	return RenderVoiceComposer(VoiceComposerProps{Locale: m.Locale, ConversationID: c.ID, TenantID: c.HostTenantID, Enabled: c.Kind == DirectMessage || c.Kind == GroupChat, Disabled: disabled})
+	// The recorder is in the page where voice is on: a direct or group conversation
+	// until the server says otherwise, a channel once it says voice is enabled
+	// there. Where voice is off the Add menu says so and nothing is mounted.
+	// The server policy is still mandatory at Send.
+	return RenderVoiceComposer(VoiceComposerProps{Locale: m.Locale, ConversationID: c.ID, TenantID: c.HostTenantID, Enabled: composerVoiceOffered(m) && composerVoiceOffText(m) == "", Disabled: disabled})
 }
 
 func chatvoiceMediaType(contentType string) bool {

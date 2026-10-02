@@ -66,7 +66,7 @@ func TestTodo_CHATUX_008_Browser(t *testing.T) {
 				}
 			}
 			// The header order is the title, the channel link under it, then the two buttons.
-			heading := pane[strings.Index(pane, `class="side-heading thread-heading"`):]
+			heading := pane[strings.Index(pane, `class="side-heading chat-panel-head thread-heading"`):]
 			last := -1
 			for _, marker := range []string{"<h2>", "thread-channel-link", "thread-notify", "thread-back"} {
 				at := strings.Index(heading, marker)

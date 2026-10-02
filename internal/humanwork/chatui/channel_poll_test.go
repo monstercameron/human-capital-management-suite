@@ -8,10 +8,14 @@ import (
 func TestChannelPollResultsExposePercentagesAndOwnSelection(t *testing.T) {
 	m := Model{State: StateReady, SelectedID: "room", ShowDetails: true, Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, ChannelPoll: ChannelPoll{Revision: 4, Question: "Where for lunch?", TotalVotes: 4, MyOptionID: "sushi", Options: []ChannelPollOption{{ID: "pizza", Text: "Pizza", Count: 3}, {ID: "sushi", Text: "Sushi", Count: 1}}}, Callbacks: Callbacks{VoteChannelPoll: func(string) {}}}
 	markup := renderWithTray(t, m, "poll")
-	for _, want := range []string{"Where for lunch?", "Pizza", "75%", "Sushi", "25%", "Your selection", "<progress", `aria-label="Channel poll"`} {
+	for _, want := range []string{"Where for lunch?", "Pizza", "75%", "Sushi", "25%", "<progress", `aria-label="Channel poll"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+	// A poll from before polls were messages is a result: nothing in it is voted on.
+	if strings.Contains(markup, "poll-vote") || strings.Contains(markup, "<button class=\"button secondary small channel-poll-vote") {
+		t.Fatalf("the standing poll still offers votes: %s", markup)
 	}
 	m.Conversations[0].Kind = GroupChat
 	if got := renderWithTray(t, m, "poll"); strings.Contains(got, "channel-poll") {

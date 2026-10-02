@@ -81,6 +81,7 @@ func bindChatSearchShortcut(model Model) func() {
 // the page, not from the model the listener was bound with, which may be older.
 func focusChatSearchShortcut(model Model) {
 	if root := chatLayerRoot(); root.Truthy() && mobileRailActive() && model.Callbacks.ToggleSidebar != nil && root.Get("dataset").Get("sidebarOpen").String() != "true" {
+		mobileRailFocusSearch = true
 		model.Callbacks.ToggleSidebar(true)
 	}
 	focusNow := func() {

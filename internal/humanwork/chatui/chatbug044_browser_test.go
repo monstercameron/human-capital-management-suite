@@ -18,7 +18,7 @@ func TestTodo_CHATBUG_044_Browser(t *testing.T) {
 	badge := map[string]string{"en-US": "Agent", "de-DE": "Agent", "ar": "وكيل"}
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		ctx := productui.ResolveProductLocale(locale)
-		icon := agenticon.Generate(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
+		icon := chatui.AgentIconFixture(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
 		agent := func(id, name, purpose string) chatui.ResolvedPersonaMention {
 			return chatui.ResolvedPersonaMention{Icon: icon, Reference: chatui.ChatReference{Kind: "AGENT_MENTION", TenantID: "t", ID: id, Display: name, ConversationID: "general"}, Handle: id, Purpose: purpose}
 		}

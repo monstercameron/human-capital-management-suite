@@ -43,10 +43,11 @@ func TestTodo_CHATBUG_040(t *testing.T) {
 	if chatbug040ReservedRow(plain, "question") != nil {
 		t.Fatal("room was reserved under a message that names no agent")
 	}
-	// The placeholder and every answer card keep the same minimum height.
-	for _, want := range []string{".chatbug040-reserve,.chat-ephemeral.agent-reply-row{min-block-size:" + ChatBug040CardMinHeight} {
+	// The placeholder and the card it becomes are sized the same way and sit in
+	// the same frame, so the card lands in the box the placeholder held.
+	for _, want := range []string{".chatbug040-reserve,.chat-ephemeral.agent-reply-row{box-sizing:border-box}", "max-width:var(--chat-measure)", "padding:10px 12px", "border-inline-start:3px solid"} {
 		if !strings.Contains(ChatBug040Styles, want) {
-			t.Fatalf("styles do not give the placeholder and the card one height: %q", want)
+			t.Fatalf("styles do not give the placeholder the card's frame: %q", want)
 		}
 	}
 	if !strings.Contains(Stylesheet, ChatBug040Styles) {

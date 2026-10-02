@@ -289,8 +289,11 @@ func TestChatPolish_H_SearchFailurePreservesResults(t *testing.T) {
 	chatPolishMatrix(t, func(t *testing.T, m Model, width int, theme string) {
 		v := ChatSearchView{Query: "policy", Error: "unavailable"}
 		markup := chatPolishMarkup(t, RenderChatSearch(m.Locale, v), width, theme)
-		if strings.Contains(markup, chatsearchText(m.Locale, "filters")) || strings.Contains(markup, chatsearchText(m.Locale, "keyword")) || strings.Contains(markup, `data-chatsearch-action="retry"`) {
-			t.Fatal("empty headings/retry dead end")
+		// CHATBUG-022 (newer than this test): a failed search says so once and offers
+		// one retry, so the person is never left on a box that did nothing. What
+		// stays out is the empty filter and keyword headings.
+		if strings.Contains(markup, chatsearchText(m.Locale, "filters")) || strings.Contains(markup, chatsearchText(m.Locale, "keyword")) || strings.Count(markup, `data-chatsearch-action="retry"`) != 1 {
+			t.Fatal("empty headings, or not exactly one retry")
 		}
 		v.Response = chatsearch.Response{Groups: []chatsearch.Group{{Kind: chatsearch.Message, Count: 1, Rows: []chatsearch.Row{{Kind: chatsearch.Message, Text: "previous readable result"}}}}}
 		markup = chatPolishMarkup(t, RenderChatSearch(m.Locale, v), width, theme)
@@ -306,7 +309,7 @@ func TestChatPolish_I_ChannelDetailsIdentityAndPressedState(t *testing.T) {
 		if strings.Contains(markup, ">POLICY_DOCUMENT<") || strings.Contains(markup, ">UNKNOWN_INTERNAL_KEY<") {
 			t.Fatal("data key leaked")
 		}
-		chat4Require(t, markup, chatPolishPolicyScope(m.Locale), "agent-icon")
+		chat4Require(t, markup, chatux017Text(m.Locale, "reads_policy"), "agent-icon")
 		pressed := chatPolishNodes(t, markup, func(n *xhtml.Node) bool {
 			return chatPolishAttr(n, "aria-pressed") == "true" && chatPolishAncestor(n, "conversation-actions")
 		})
@@ -330,7 +333,7 @@ func TestChatPolish_J_TodoOptionsDisclosure(t *testing.T) {
 
 func TestChatPolish_K_StoredAgentIconEverywhere(t *testing.T) {
 	chatPolishMatrix(t, func(t *testing.T, m Model, width int, theme string) {
-		value := agenticon.Generate(agenticon.Input{Name: "Policy Helper"})
+		value := AgentIconFixture(agenticon.Input{Name: "Policy Helper"})
 		m.ResolvedPersonaMentions[0].Icon = value
 		m.Conversations[0].Kind = DirectMessage
 		m.Conversations[0].Agent = true
@@ -402,7 +405,7 @@ func TestChatPolish_N_TabOrderAndLiveSend(t *testing.T) {
 
 func TestChatPolish_O_SidebarAvatarAlignment(t *testing.T) {
 	chatPolishMatrix(t, func(t *testing.T, m Model, width int, theme string) {
-		c := Conversation{ID: "agent-dm", Name: "Policy Helper", Kind: DirectMessage, Agent: true, Icon: agenticon.Generate(agenticon.Input{Name: "Policy Helper"})}
+		c := Conversation{ID: "agent-dm", Name: "Policy Helper", Kind: DirectMessage, Agent: true, Icon: AgentIconFixture(agenticon.Input{Name: "Policy Helper"})}
 		markup := chatPolishMarkup(t, kindGlyph(m, c, "Agent"), width, theme)
 		chat4Require(t, markup, `class="avatar tiny agent-dm-avatar"`, `class="agent-icon"`)
 		chat4Require(t, ChatPolishStyles, ".chat-row .avatar.tiny{inline-size:24px;block-size:24px}", ".chat-row .agent-dm-avatar{align-self:center}")
@@ -435,8 +438,8 @@ func TestChatPolish_H_SearchFailureKeepsConversation(t *testing.T) {
 		m.Messages = []Message{{ID: "visible", Body: "Keep the visible conversation", Author: "Alex"}}
 		markup := chatPolishMarkup(t, RenderChatSearch(m.Locale, ChatSearchView{Error: "unavailable", Conversation: &m}), width, theme)
 		chat4Require(t, markup, "Keep the visible conversation", chatsearchText(m.Locale, "unavailable"))
-		if strings.Contains(markup, "<h3") || strings.Contains(markup, `data-chatsearch-action="retry"`) {
-			t.Fatal("fallback draws empty headings or retry controls")
+		if strings.Contains(markup, "<h3") || strings.Count(markup, `data-chatsearch-action="retry"`) != 1 {
+			t.Fatal("fallback draws empty headings, or not exactly one retry control")
 		}
 	})
 }

@@ -83,6 +83,9 @@ func chatlangClick(m Model, local localStore, action, id, extra string) bool {
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.toggleAll(id) })
 	case "chatlang-settings":
 		chatlangOpenSettings()
+	case "chatlang-bar-dismiss":
+		chatlangRememberBarDismissed()
+		local.update(func(u *localUI) { u.chatlang.barDismissed = true })
 	case "chatlang-fix":
 		if m.Callbacks.OpenMenu != nil {
 			m.Callbacks.OpenMenu("")

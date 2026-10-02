@@ -10,6 +10,7 @@ import "syscall/js"
 // opened first.
 func focusChatSearchBox(m Model) {
 	if mobileRailActive() && m.Callbacks.ToggleSidebar != nil && !m.SidebarOpen {
+		mobileRailFocusSearch = true
 		m.Callbacks.ToggleSidebar(true)
 	}
 	focusNow := func() {

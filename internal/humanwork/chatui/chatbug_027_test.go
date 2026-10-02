@@ -126,20 +126,11 @@ func TestTodo_CHATBUG_027_Browser(t *testing.T) {
 					return n.Data == "button" && chatPolishHasClass(n, "channel-"+which+"-trigger")
 				})
 				layers := chatPolishNodes(t, page, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-chat-layer") == which })
-				if which == "poll" {
-					// CHATUX-001: the poll button left the header; its popover is
-					// still drawn exactly while the poll tray is the open one.
-					if len(buttons) != 0 || (len(layers) == 1) != (tray == "poll") {
-						t.Fatalf("tray %q: %d poll buttons in the header, %d poll popovers", tray, len(buttons), len(layers))
-					}
-					continue
-				}
-				if len(buttons) != 1 {
-					t.Fatalf("tray %q: %d %s buttons", tray, len(buttons), which)
-				}
-				pressed := chatPolishAttr(buttons[0], "aria-pressed")
-				if pressed != map[bool]string{true: "true", false: "false"}[tray == which] || (pressed == "true") != (len(layers) == 1) {
-					t.Fatalf("tray %q: %s button pressed=%q with %d popovers on the page", tray, which, pressed, len(layers))
+				// CHATUX-001, CHATBUG-074: neither the poll nor the to-do list has a
+				// header button; its popover is still drawn exactly while its tray
+				// is the open one.
+				if len(buttons) != 0 || (len(layers) == 1) != (tray == which) {
+					t.Fatalf("tray %q: %d %s buttons in the header, %d popovers", tray, len(buttons), which, len(layers))
 				}
 			}
 		}

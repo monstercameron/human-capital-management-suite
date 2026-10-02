@@ -52,7 +52,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	// second, larger heading.
 	`.channel-tray-card .channel-poll>p.muted{margin:0 0 2px;color:var(--muted);font-size:.8125rem}` +
 	`.channel-tray-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}.channel-tray-head h2{margin:0;font-size:.9375rem}` +
-	`.channel-tray-card .details-section{border-top:0;padding:0}.channel-tray-card .details-section-head h3{display:none}.channel-tray-card .details-section-head{justify-content:flex-end;margin-top:-34px;margin-inline-end:38px;min-height:34px}` +
+	`.channel-tray-card .details-section{border-top:0;padding:0}` +
 	`.channel-tray-card .channel-todo-list{margin:4px 0 10px}.channel-tray-card .channel-todo-row{grid-template-columns:28px minmax(0,1fr) 32px;padding:7px 0}` +
 	`.channel-tray-card .channel-todo-check{font-size:1.125rem;line-height:1}.channel-tray-card .channel-todo-text{font-size:.875rem}` +
 	`.channel-tray-card .channel-poll-question{margin:0 0 2px;font-size:1rem}.channel-tray-card .channel-poll-list{display:grid;gap:6px;margin:10px 0 2px}` +

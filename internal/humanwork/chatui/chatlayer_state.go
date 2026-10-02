@@ -45,14 +45,25 @@ func chatLayersToClose(open []string, opening string) []int {
 // closes it. Sidebar settings panels are plain popovers with nothing else to
 // close them; menus, pickers and trays are closed by the state that owns them.
 func chatLayerOutsideDismisses(kind string) bool {
-	return chatLayerGroup(kind) == chatSidebarSettingsGroup
+	// The formatting tools hold nothing the person typed, so a press elsewhere
+	// closes them as it closes a sidebar panel (AGENTUX-062).
+	// The Add menu holds a list of things to add and nothing typed either.
+	return chatLayerGroup(kind) == chatSidebarSettingsGroup || kind == "formatting" || kind == chatComposerAddKind
 }
 
 // chatLayerWidth is the width a layer asks for before the viewport limits it.
 func chatLayerWidth(kind string, viewportWidth float64) float64 {
 	want := 360.0
-	if kind == "poll" {
+	switch kind {
+	case "poll":
 		want = 400
+	case chatComposerAddKind:
+		want = 340
+	case "gif":
+		want = 420
+	case "rail-menu":
+		// The conversation's menu is a narrow list of commands.
+		want = 200
 	}
 	return min(want, max(0, viewportWidth-16))
 }
@@ -99,6 +110,18 @@ func chatLayerPlace(g chatLayerGeometry, anchor chatLayerRect, viewportHeight fl
 		return p
 	}
 	p.top, p.maxHeight = g.top, max(0, viewportHeight-g.top-12)
+	return p
+}
+
+// chatLayerPlaceWithin keeps a placement inside bounds as its content grows:
+// a layer that opens upward stops at the top of bounds and one that opens
+// downward at the bottom, and it scrolls from there (CHATBUG-051).
+func chatLayerPlaceWithin(p chatLayerPlacement, bounds chatLayerRect, viewportHeight float64) chatLayerPlacement {
+	if p.up {
+		p.maxHeight = max(0, viewportHeight-p.bottom-bounds.top-8)
+		return p
+	}
+	p.maxHeight = max(0, bounds.bottom-p.top-12)
 	return p
 }
 

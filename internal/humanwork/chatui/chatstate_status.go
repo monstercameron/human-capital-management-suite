@@ -102,7 +102,16 @@ func ChannelStatusComposerNotice(m Model, view ChannelStatusView) ui.Node {
 	default:
 		key = "permission_composer"
 	}
-	return html.P(html.Props{Class: "chatstate-notice", Role: "status", Text: chatstateText(m, key)})
+	// The sentence names the channel it is about, as the header does.
+	name := displayName(m, m.selected())
+	if k := m.selected().Kind; k == PublicChannel || k == PrivateChannel {
+		name = "#" + name
+	}
+	notice := html.P(html.Props{Class: "chatstate-notice", Role: "status", Dir: "auto", Text: strings.ReplaceAll(chatstateText(m, key), "{name}", name)})
+	if restore := chatbug082RestoreButton(m, view); restore != nil {
+		return html.Div(html.Props{Class: "chatstate-notice-bar"}, notice, restore)
+	}
+	return notice
 }
 
 type ChannelStatusPanelProps struct {
@@ -111,11 +120,23 @@ type ChannelStatusPanelProps struct {
 	Change func(chat.ChangeChannelStatusRequest)
 	Retry  func()
 	Now    time.Time
+	// Section, when set, is the panel's row (CHATUX-027): the status draws its
+	// form and notes as the content of that row instead of a row of its own.
+	Section sectionWrap
 }
 
+// channelStatusPanel is the Status row of Manage channel: the current state at
+// the right of the row, and under it the form to change it. Nothing is chosen
+// when the form opens and Confirm waits until something is; the lock's end
+// time is asked for only once Locked is the choice, and what the choice will
+// change for members is written under it before anyone confirms. Failures and
+// the live "status changed" line stay outside the row, so a closed row still
+// announces them. The history of past changes is in About, not here.
 func channelStatusPanel(props ChannelStatusPanelProps) ui.Node {
 	m, v := props.Model, props.View
 	errorText := ui.UseState("")
+	choice := ui.UseState("")
+	pick := ui.UseEvent(func(e ui.ChangeEvent) { choice.Set(statusChoiceOf(e.GetValue())) })
 	submit := ui.UseEvent(func(e ui.FormEvent) {
 		e.PreventDefault()
 		change, ok := ChannelStatusFormRequest(v, domValue("chatstate-choice"), domValue("chatstate-reason"), domValue("chatstate-until"), props.Now)
@@ -124,6 +145,10 @@ func channelStatusPanel(props ChannelStatusPanelProps) ui.Node {
 			return
 		}
 		errorText.Set("")
+		choice.Set("")
+		setDOMValue("chatstate-choice", statusNoChoice)
+		setDOMValue("chatstate-reason", "")
+		setDOMValue("chatstate-until", "")
 		if props.Change != nil {
 			props.Change(change)
 		}
@@ -133,12 +158,23 @@ func channelStatusPanel(props ChannelStatusPanelProps) ui.Node {
 			props.Retry()
 		}
 	})
-	children := []ui.Node{html.H3(html.Props{Text: chatstateText(m, "title")}), ChannelStatusBadge(m, v)}
+	var row ui.Node
+	form := channelStatusForm(m, v, props, choice.Get(), errorText.Get(), pick, submit)
+	if props.Section != nil {
+		return chatux027StatusSection(m, v, props, form, retry)
+	}
+	if form != nil {
+		row = manageRow("manage-status", chatstateText(m, "title"), ChannelStatusBadge(m, v), form)
+	} else {
+		row = manageStatic("manage-status", chatstateText(m, "title"), ChannelStatusBadge(m, v))
+	}
+	children := []ui.Node{row}
 	if v.Loading {
-		children = append(children, html.P(html.Props{Role: "status", Text: chatstateText(m, "loading")}))
+		children = append(children, html.P(html.Props{Class: "manage-note", Role: "status", Text: chatstateText(m, "loading")}))
 	}
 	if v.Unavailable {
-		children = append(children, html.P(html.Props{Role: "alert", Text: chatstateText(m, "error")}), html.Button(html.Props{Type: "button", OnClick: retry, Disabled: props.Retry == nil, Text: chatstateText(m, "retry")}))
+		children = append(children, html.P(html.Props{Class: "manage-note", Role: "alert", Text: chatstateText(m, "error")}),
+			html.Button(html.Props{Class: "button secondary small", Type: "button", OnClick: retry, Disabled: props.Retry == nil, Text: chatstateText(m, "retry")}))
 	}
 	if v.Error != "" {
 		key := v.Error
@@ -147,36 +183,51 @@ func channelStatusPanel(props ChannelStatusPanelProps) ui.Node {
 		default:
 			key = "error"
 		}
-		children = append(children, html.P(html.Props{Role: "alert", Text: chatstateText(m, key)}))
-	}
-	if history := chatstateHistory(m, v); history != nil {
-		children = append(children, history)
+		children = append(children, html.P(html.Props{Class: "manage-note", Role: "alert", Text: chatstateText(m, key)}))
 	}
 	if v.Updated {
-		children = append(children, html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}, Text: chatstateText(m, "updated") + ": " + chatstateText(m, chatstateKey(v.Status.Status))}))
+		children = append(children, html.P(html.Props{Class: "manage-note", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}, Text: chatstateText(m, "updated") + ": " + chatstateText(m, chatstateKey(v.Status.Status))}))
 	}
-	if len(v.Transitions) > 0 && props.Change != nil && !v.Loading && !v.Unavailable {
-		options, effects := []ui.Node{}, []ui.Node{}
-		for _, transition := range v.Transitions {
-			key := chatstateKey(transition.Status)
-			if key == "unknown" {
-				continue
-			}
-			options = append(options, html.Option(html.Props{Value: string(transition.Status), Text: chatstateText(m, key)}))
-			effects = append(effects, html.Li(html.Props{}, html.Strong(html.Props{Text: chatstateText(m, key) + ": "}), ui.Text(chatstateText(m, key+"_effect"))))
-		}
-		label := chatstateText(m, "change")
-		if v.Status.Status == chatpolicy.StatusArchived {
-			label = chatstateText(m, "restore")
-		}
-		children = append(children, chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: label}), html.Form(html.Props{OnSubmit: submit},
-			html.Label(html.Props{For: "chatstate-choice", Text: chatstateText(m, "change")}), html.Select(html.Props{ID: "chatstate-choice", Name: "status", Aria: map[string]string{"describedby": "chatstate-effects"}}, options...),
-			html.Ul(html.Props{ID: "chatstate-effects", Class: "chatstate-effects"}, effects...),
-			html.Label(html.Props{For: "chatstate-reason", Text: chatstateText(m, "reason")}), html.Textarea(html.Props{ID: "chatstate-reason", Name: "reason", Rows: 3, Required: true, Aria: map[string]string{"describedby": "chatstate-form-error"}, Raw: map[string]any{"maxlength": 2000}}),
-			html.Label(html.Props{For: "chatstate-until", Text: chatstateText(m, "until")}), html.Input(html.Props{ID: "chatstate-until", Name: "until", Type: "datetime-local", Aria: map[string]string{"describedby": "chatstate-form-error"}}),
-			html.P(html.Props{ID: "chatstate-form-error", Role: "alert", Text: errorText.Get()}), html.Button(html.Props{Type: "submit", Text: chatstateText(m, "confirm")}))))
+	return html.Div(html.Props{Class: "chatstate-section manage-status-block", Dir: agentReplyDirection(m.Locale)}, children...)
+}
+
+// channelStatusForm is the change form, or nil when this person may not change
+// the status right now.
+func channelStatusForm(m Model, v ChannelStatusView, props ChannelStatusPanelProps, choice, formError string, pick, submit ui.Handler) ui.Node {
+	if len(v.Transitions) == 0 || props.Change == nil || v.Loading || v.Unavailable {
+		return nil
 	}
-	return html.Section(html.Props{Class: "details-section chatstate-section", Dir: agentReplyDirection(m.Locale)}, children...)
+	options := []ui.Node{html.Option(html.Props{Value: statusNoChoice, Text: laneText(m, chatux021Copy, keyChatux021StatusChoose)})}
+	effect := ""
+	for _, transition := range v.Transitions {
+		key := chatstateKey(transition.Status)
+		if key == "unknown" {
+			continue
+		}
+		options = append(options, html.Option(html.Props{Value: string(transition.Status), Text: chatstateText(m, key)}))
+		if choice == string(transition.Status) {
+			effect = chatstateText(m, key+"_effect")
+		}
+	}
+	label := chatstateText(m, "change")
+	if v.Status.Status == chatpolicy.StatusArchived {
+		label = chatstateText(m, "restore")
+	}
+	fields := []ui.Node{
+		html.Label(html.Props{For: "chatstate-choice", Text: label}),
+		html.Select(html.Props{ID: "chatstate-choice", Name: "status", OnChange: pick, Aria: map[string]string{"describedby": "chatstate-effect"}}, options...),
+		html.P(html.Props{ID: "chatstate-effect", Class: "chatstate-effect", Text: effect}),
+	}
+	if choice == string(chatpolicy.StatusLocked) {
+		fields = append(fields, html.Label(html.Props{For: "chatstate-until", Text: chatstateText(m, "until")}),
+			html.Input(html.Props{ID: "chatstate-until", Class: "chat-input", Name: "until", Type: "datetime-local", Aria: map[string]string{"describedby": "chatstate-form-error"}}))
+	}
+	fields = append(fields,
+		html.Label(html.Props{For: "chatstate-reason", Text: chatstateText(m, "reason")}),
+		html.Textarea(html.Props{ID: "chatstate-reason", Class: "chat-input", Name: "reason", Rows: 3, Required: true, Aria: map[string]string{"describedby": "chatstate-form-error"}, Raw: map[string]any{"maxlength": 2000}}),
+		html.P(html.Props{ID: "chatstate-form-error", Class: "chatstate-form-error", Role: "alert", Text: formError}),
+		chatux027StatusActions(m, props, choice))
+	return html.Form(html.Props{Class: "chatstate-form", OnSubmit: submit}, fields...)
 }
 
 func ChannelStatusPanel(props ChannelStatusPanelProps) ui.Node {
@@ -282,4 +333,17 @@ func channelStatusDirectory(props ChannelStatusDirectoryProps) ui.Node {
 
 func ChannelStatusDirectory(props ChannelStatusDirectoryProps) ui.Node {
 	return ui.CreateElement(channelStatusDirectory, props)
+}
+
+// statusNoChoice is the value of the form's first option, "Choose a status".
+// An option with an empty value takes its text as its value, so the empty
+// choice is spelled out.
+const statusNoChoice = "__none__"
+
+// statusChoiceOf is the status a select value names, or "" for nothing chosen.
+func statusChoiceOf(value string) string {
+	if value = strings.TrimSpace(value); value != statusNoChoice {
+		return value
+	}
+	return ""
 }

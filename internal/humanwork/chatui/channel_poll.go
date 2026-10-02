@@ -1,7 +1,6 @@
 package chatui
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -24,15 +23,24 @@ func channelPollSection(m Model, h handlers) ui.Node {
 	if c.Kind != PublicChannel && c.Kind != PrivateChannel {
 		return html.Span(html.Props{})
 	}
-	children := []ui.Node{html.Div(html.Props{Class: "details-section-head"}, html.H3(html.Props{Text: m.t(KeyPollTitle)}))}
+	children := []ui.Node{}
 	if m.ChannelPollLoading {
-		children = append(children, html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite"}, Text: m.t(KeyPollLoading)}))
+		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: m.Locale, Shape: LoadingShapeSection, Rows: 1, Status: m.t(KeyPollLoading), RetryData: map[string]string{"action": "poll-retry"}}))
 	}
 	if m.ChannelPollError != "" {
 		children = append(children, html.P(html.Props{Role: "alert", Text: modAuthorErrorOr(m, m.ChannelPollError, m.t(KeyPollError))}), actionButton("button secondary small", "poll-retry", "", m.t(KeyRetry), m.Callbacks.RetryChannelPoll == nil || m.ChannelPollPending, ui.Text(m.t(KeyRetry))))
 		return html.Section(html.Props{ID: "chat-poll-section", Class: "details-section channel-poll", TabIndex: -1, Data: map[string]string{"loading": boolString(m.ChannelPollLoading)}, Aria: map[string]string{"label": m.t(KeyPollTitle)}}, children...)
 	}
 	poll := m.ChannelPoll
+	if poll.Question == "" && chatcmd003Available(m) {
+		// CHATBUG-057: a poll is posted in the conversation, where every member
+		// votes on it. With no standing poll here there is nothing to show but
+		// the way to start one, which is the same preview /poll opens.
+		children = append(children, html.P(html.Props{Class: "muted", Text: chatcmd003Text(m, "standing-none")}),
+			html.Div(html.Props{Class: "channel-poll-actions"},
+				html.Button(html.Props{Class: "button small", Type: "button", Data: map[string]string{"action": "composer-add", "id": "chat-composer", "extra": "poll"}, Text: chatcmd003Text(m, "standing-start")})))
+		return html.Section(html.Props{ID: "chat-poll-section", Class: "details-section channel-poll", TabIndex: -1, Data: map[string]string{"loading": boolString(m.ChannelPollLoading)}, Aria: map[string]string{"label": m.t(KeyPollTitle)}}, children...)
+	}
 	if poll.Question == "" {
 		// Round 3 C-10: Create stays disabled until the form can succeed -- a
 		// question and at least two non-empty option lines (h.pollInput keeps
@@ -59,32 +67,34 @@ func channelPollSection(m Model, h handlers) ui.Node {
 	// singular/plural count that is otherwise never zero), which left an
 	// empty poll reading "votes" with no number; m.nz keeps the "0".
 	children = append(children, html.P(html.Props{Class: "channel-poll-question", Text: poll.Question}), html.P(html.Props{Class: "muted", Text: m.tf(voteCountKey, map[string]string{"n": m.nz(poll.TotalVotes)})}))
+	// CHATCMD-002: a poll is a message in the conversation now, where every
+	// member votes. This one from before is shown as its result, with no vote
+	// buttons; its starter moves it into the conversation as a card.
+	if chatcmd003Available(m) {
+		children = append(children, html.P(html.Props{Class: "muted", Dir: "auto", Text: chatcmd002EditText(m, "standing-read")}))
+	}
 	rows := make([]ui.Node, 0, len(poll.Options))
 	for _, option := range poll.Options {
 		percent := pollPercent(option.Count, poll.TotalVotes)
-		selected := option.ID == poll.MyOptionID
-		label := option.Text + " · " + strconv.Itoa(option.Count) + " (" + strconv.Itoa(percent) + "%)"
-		if selected {
-			label += " · " + m.t(KeyPollVoted)
-		}
-		voteLabel := m.t(KeyPollVote)
-		if poll.MyOptionID != "" {
-			voteLabel = m.t(KeyPollChangeVote)
-		}
-		if selected {
-			voteLabel = m.t(KeyPollVoted)
-		}
-		rowClass := "channel-poll-option"
-		if selected {
-			rowClass += " selected"
-		}
-		rows = append(rows, html.Li(html.Props{Class: rowClass},
-			actionButton("button secondary small channel-poll-vote", "poll-vote", option.ID, label, m.ChannelPollPending || m.ChannelPollLoading || m.Callbacks.VoteChannelPoll == nil, ui.Text(voteLabel)),
-			html.Span(html.Props{Class: "channel-poll-option-label", Text: option.Text}),
+		label := option.Text + " · " + chatCount(m.Locale, option.Count) + " (" + chatCount(m.Locale, percent) + "%)"
+		rows = append(rows, html.Li(html.Props{Class: "channel-poll-option readonly"},
+			html.Span(html.Props{Class: "channel-poll-option-label", Dir: "auto", Text: option.Text}),
 			html.Progress(html.Props{Class: "channel-poll-progress", Raw: map[string]any{"value": percent, "max": 100}, Aria: map[string]string{"label": label}}),
-			html.Span(html.Props{Class: "channel-poll-count", Text: strconv.Itoa(option.Count) + " · " + strconv.Itoa(percent) + "%"})))
+			html.Span(html.Props{Class: "channel-poll-count", Text: chatCount(m.Locale, option.Count) + " · " + chatCount(m.Locale, percent) + "%"})))
 	}
 	children = append(children, html.Ul(html.Props{Class: "channel-poll-list", Aria: map[string]string{"label": m.t(KeyPollResults)}}, rows...))
+	// CHATBUG-074: a channel's poll can be ended, which makes room for the next
+	// one. The channel's managers are offered it here; the server also accepts
+	// the person who started the poll. Beside it, the same people may move the
+	// poll into the conversation (CHATBUG-057).
+	if m.ChannelTeam.CanPin && m.Chatcmd002.CloseChannelPoll != nil {
+		actions := []ui.Node{}
+		if chatbug057CanMove(m) {
+			actions = append(actions, html.Button(html.Props{Class: "button small", Type: "button", Data: map[string]string{"action": "chatbug057-move"}, Text: chatcmd003Text(m, "standing-move")}))
+		}
+		actions = append(actions, html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.ChannelPollPending || m.ChannelPollLoading, Data: map[string]string{"action": "poll-close"}, Text: chatcmd003Text(m, "close-poll")}))
+		children = append(children, html.Div(html.Props{Class: "channel-poll-actions"}, actions...))
+	}
 	return html.Section(html.Props{ID: "chat-poll-section", Class: "details-section channel-poll", TabIndex: -1, Data: map[string]string{"loading": boolString(m.ChannelPollLoading)}, Aria: map[string]string{"label": m.t(KeyPollTitle)}}, children...)
 }
 

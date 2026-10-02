@@ -12,7 +12,7 @@ func TestThreadLoadingDoesNotClaimThereAreNoReplies(t *testing.T) {
 		Conversations: []Conversation{{ID: "room", Name: "General", Kind: PublicChannel}},
 		Messages:      []Message{{ID: "root", Author: "Ari", Body: "Question"}}}
 	markup := render(t, m)
-	for _, want := range []string{"Loading replies", `class="thread-loading"`, `aria-busy="true"`, `class="thread-loading-skeleton"`, `aria-hidden="true"`} {
+	for _, want := range []string{"Loading replies", `class="thread-loading"`, `aria-busy="true"`, `aria-hidden="true"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("thread loading state missing %q", want)
 		}
@@ -20,7 +20,7 @@ func TestThreadLoadingDoesNotClaimThereAreNoReplies(t *testing.T) {
 	if strings.Contains(markup, "No replies yet") {
 		t.Fatalf("thread displayed a false empty state while loading")
 	}
-	if got := strings.Count(markup, `class="thread-loading-row"`); got != 2 {
+	if got := strings.Count(markup, `chatux037-row chatux037-message`); got != 2 {
 		t.Fatalf("thread loading skeleton has %d reply rows, want 2", got)
 	}
 	m.ThreadLoading = false

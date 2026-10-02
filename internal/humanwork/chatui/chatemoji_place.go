@@ -17,6 +17,24 @@ const (
 // emojiPlacement is a rectangle in viewport pixels.
 type emojiPlacement struct{ Left, Top, Width, Height float64 }
 
+// chatEmojiColumn is the room a picker opened from a message may use: the
+// viewport without the conversation list. rail is that list's rectangle (the
+// sidebar), hasRail false when none is drawn, as at phone width. The list sits
+// at the start edge of the page, left or right by reading direction, so
+// whichever side of the viewport's middle it is on is the side that is cut off.
+func chatEmojiColumn(rail chatLayerRect, hasRail bool, vw, vh float64) chatLayerRect {
+	column := chatLayerRect{0, 0, vw, vh}
+	if !hasRail || rail.right <= rail.left {
+		return column
+	}
+	if (rail.left+rail.right)/2 < vw/2 {
+		column.left = max(0, min(rail.right, vw))
+	} else {
+		column.right = max(0, min(rail.left, vw))
+	}
+	return column
+}
+
 // chatEmojiPlace places a picker against anchor, the opener's rectangle, inside
 // bounds, the column the opener lives in. alignEnd puts the picker's end edge on
 // the anchor's end edge; otherwise the start edges line up. rtl mirrors both.

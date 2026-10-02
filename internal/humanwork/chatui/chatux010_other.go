@@ -6,3 +6,5 @@ package chatui
 func chatPlatform() string { return "" }
 
 func bindChatSearchShortcut(Model) func() { return nil }
+
+func bindChatSearchRecent(Model) func() { return nil }

@@ -2,7 +2,6 @@ package chatui
 
 import (
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -11,7 +10,7 @@ import (
 )
 
 func ModerationCountText(locale string, count int) string {
-	return strings.ReplaceAll(chatremoveText(locale, "count"), "{n}", strconv.Itoa(count))
+	return strings.ReplaceAll(chatremoveText(locale, "count"), "{n}", chatCount(locale, count))
 }
 
 // ModerationMenuEntries takes current server-projected permission, not a role

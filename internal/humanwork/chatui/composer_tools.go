@@ -37,11 +37,11 @@ type composerAddItem struct {
 	kind, iconName, nameKey, noteKey string
 }
 
-// composerVoiceAvailable is whether this conversation records voice messages:
-// direct and group conversations, as the voice control has always been.
+// composerVoiceAvailable is whether the Add menu lists the voice item for this
+// conversation: direct and group conversations, and a channel once the server
+// has said voice is on there or why it is off (see composerVoiceOffered).
 func composerVoiceAvailable(m Model) bool {
-	kind := m.selected().Kind
-	return kind == DirectMessage || kind == GroupChat
+	return composerVoiceOffered(m)
 }
 
 // composerLocationAvailable is whether this deployment shares locations.
@@ -66,11 +66,18 @@ func composerAddItems(m Model) []composerAddItem {
 	if m.Chatattach001 != nil && m.Chatattach001.Choose != nil {
 		items = append(items, composerAddItem{"attachment", "attach", "", ""})
 	}
-	if composerChannelWidget(m) && m.Callbacks.OpenChannelPoll != nil {
-		items = append(items, composerAddItem{"poll", "poll", keyComposerAddPoll, keyComposerAddPollNote})
+	// A poll or a to-do list is a message card, so any conversation that takes
+	// the /poll and /todo commands offers them here too, worded for it: in a
+	// direct message or a group there is no "channel" to ask or to track.
+	pollNote, todoNote := keyComposerAddPollNote, keyComposerAddTodoNote
+	if !composerChannelWidget(m) {
+		pollNote, todoNote = keyComposerAddPollHere, keyComposerAddTodoHere
 	}
-	if composerChannelWidget(m) && m.Callbacks.OpenChannelTodo != nil {
-		items = append(items, composerAddItem{"todo", "checklist", keyComposerAddTodo, keyComposerAddTodoNote})
+	if chatcmd003Available(m) || (composerChannelWidget(m) && m.Callbacks.OpenChannelPoll != nil) {
+		items = append(items, composerAddItem{"poll", "poll", keyComposerAddPoll, pollNote})
+	}
+	if chatcmd003Available(m) || (composerChannelWidget(m) && m.Callbacks.OpenChannelTodo != nil) {
+		items = append(items, composerAddItem{"todo", "checklist", keyComposerAddTodo, todoNote})
 	}
 	if composerLocationAvailable(m) {
 		items = append(items, composerAddItem{"location", "pin", keyComposerAddLocation, keyComposerAddLocNote})
@@ -98,13 +105,22 @@ func composerAddControl(m Model, target string, disabled bool) ui.Node {
 			glyph = icon(item.iconName)
 		}
 		name, note := composerText(m, item.nameKey), composerText(m, item.noteKey)
+		tip := note
 		if item.kind == "attachment" {
-			name, note = Chatattach001Text(m.Locale, "attach"), Chatattach001Text(m.Locale, "note")
+			// CHATUX-034: the row is one line; the limits are the tooltip's.
+			name, note, tip = Chatattach001Text(m.Locale, "attach"), composerText(m, keyComposerAddAttachNote), Chatattach001Text(m.Locale, "note")
 		}
 		noteID := menuID + "-" + item.kind + "-note"
-		rows = append(rows, html.Button(html.Props{ID: menuID + "-" + item.kind, Class: "menu-item composer-add-item", Type: "button", Role: "menuitem", Title: note,
+		class, aria := "menu-item composer-add-item", map[string]string{"label": name, "describedby": noteID}
+		if off := composerVoiceOffText(m); item.kind == "voice" && off != "" {
+			// Voice is turned off here: the item stays, reachable by keyboard, and its
+			// note says why. Pressing it does nothing.
+			note, class, aria["disabled"] = off, class+" composer-add-item-off", "true"
+			tip = note
+		}
+		rows = append(rows, html.Button(html.Props{ID: menuID + "-" + item.kind, Class: class, Type: "button", Role: "menuitem", Title: tip,
 			Data: map[string]string{"action": "composer-add", "id": target, "extra": item.kind},
-			Aria: map[string]string{"label": name, "describedby": noteID}},
+			Aria: aria},
 			html.Span(html.Props{Class: "composer-add-icon", Aria: map[string]string{"hidden": "true"}}, glyph),
 			html.Span(html.Props{Class: "composer-add-text"},
 				html.Span(html.Props{Class: "composer-add-name", Dir: "auto", Text: name}),
@@ -114,8 +130,8 @@ func composerAddControl(m Model, target string, disabled bool) ui.Node {
 		html.Button(html.Props{Class: "tool-button composer-add-trigger", Type: "button", Disabled: disabled, Title: label,
 			Data: map[string]string{"chat-disclosure-toggle": "true"},
 			Aria: map[string]string{"label": label, "expanded": "false", "haspopup": "menu", "controls": menuID}}, icon("plus")),
-		html.Div(html.Props{ID: menuID, Class: "composer-add-menu", Role: "menu", Hidden: true, Dir: agentReplyDirection(m.Locale),
-			Data: map[string]string{"chat-disclosure-body": "true"}, Aria: map[string]string{"label": label}}, rows...))
+		anchoredChatLayer(html.Props{ID: menuID, Class: "composer-add-menu", Role: "menu", Hidden: true, Dir: agentReplyDirection(m.Locale),
+			Data: map[string]string{"chat-disclosure-body": "true"}, Aria: map[string]string{"label": label}}, chatComposerAddKind, rows...))
 }
 
 // composerMentionButton is the @ button: it puts an @ at the caret and so opens
@@ -150,11 +166,20 @@ func composerFormatVisible(m Model, local localUI) bool {
 	return viewportAtLeast(composerFormatDefaultWidth)
 }
 
+// composerFormatOpenFor is whether the formatting row of the composer target
+// names is on screen: the thread's reply field keeps its own, closed by default.
+func composerFormatOpenFor(m Model, local localUI, target string) bool {
+	if target == threadComposerID {
+		return chatux032ThreadFormatState(local) == composerFormatShown
+	}
+	return composerFormatVisible(m, local)
+}
+
 // composerFormatToggle is the Aa button.
 func composerFormatToggle(m Model, target string, disabled bool, local localUI) ui.Node {
 	return html.Button(html.Props{Class: "tool-button composer-format-toggle", Type: "button", Disabled: disabled, Title: composerText(m, keyComposerFormatTip),
 		Data: map[string]string{"action": "composer-format-toggle", "id": target},
-		Aria: map[string]string{"label": composerText(m, keyComposerFormat), "pressed": boolString(composerFormatVisible(m, local)), "controls": target + "-format-row"}},
+		Aria: map[string]string{"label": composerText(m, keyComposerFormat), "pressed": boolString(composerFormatOpenFor(m, local, target)), "controls": target + "-format-row"}},
 		html.Span(html.Props{Class: "composer-glyph", Dir: "ltr", Aria: map[string]string{"hidden": "true"}, Text: "Aa"}))
 }
 
@@ -188,6 +213,10 @@ func composerToolsClick(e ui.MouseEvent, m Model, local localStore) bool {
 		insertComposerMention(id)
 		return true
 	case "composer-format-toggle":
+		if id == threadComposerID {
+			chatux032ThreadFormatChoose(local)
+			return true
+		}
 		composerFormatChoose(m, local)
 		return true
 	}
@@ -197,6 +226,9 @@ func composerToolsClick(e ui.MouseEvent, m Model, local localStore) bool {
 // composerAddChoose runs one Add menu item. The menu closes first, focus going
 // back to the + button, so the surface the item opens can take focus itself.
 func composerAddChoose(m Model, local localStore, kind string) {
+	if kind == "voice" && composerVoiceOffText(m) != "" {
+		return
+	}
 	closeComposerAddMenu(true)
 	switch kind {
 	case "poll", "todo":
@@ -271,17 +303,12 @@ func composerMentionInsert(value string, start, end int) (string, int) {
 const composerHintSends = 3
 
 // composerHintVisible is whether the Enter / Shift+Enter hint is drawn: until
-// the viewer has sent three messages, counted as the larger of what they sent
-// this session and what they have in the conversation on screen.
-func composerHintVisible(m Model, local localUI) bool {
-	sent := local.sentCount
-	own := 0
-	for _, message := range m.Messages {
-		if m.CurrentUser != "" && message.AuthorID == m.CurrentUser {
-			own++
-		}
-	}
-	return max(sent, own) < composerHintSends
+// the viewer has sent three messages on this page. The count is the page's
+// own, not the open conversation's, so the hint is shown or hidden the same way
+// in every composer (CHATUX-024): it used to show in a conversation the person
+// had written little in and not in the one beside it.
+func composerHintVisible(_ Model, local localUI) bool {
+	return local.sentCount < composerHintSends
 }
 
 // composerToolRow is the row under the text, left to right: Add (+), Mention

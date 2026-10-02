@@ -24,6 +24,11 @@ func emojiCompletionToken(value string, caret int) (string, int, bool) {
 	if caret < 0 || caret > len(units) {
 		return "", 0, false
 	}
+	// A caret inside a word (":fi|re") is not the end of a shortcode: choosing
+	// would cut the word in two.
+	if after := utf16.Decode(units[caret:]); len(after) > 0 && emojiQueryRune(after[0]) {
+		return "", 0, false
+	}
 	runes := utf16.Decode(units[:caret])
 	start := len(runes)
 	for start > 0 && emojiQueryRune(runes[start-1]) {
@@ -127,15 +132,21 @@ func emojiCompletionPick(local localStore, index int) {
 	if !ok || !found || query != state.Query || start != state.Start {
 		return
 	}
-	updated, next := insertEmojiAtUTF16(value, items[index].glyph+" ", start, caret)
+	updated, next := insertEmojiAtUTF16(value, emojiCompletionInsert(value, caret, items[index].glyph), start, caret)
 	replaceComposerText(state.Target, updated, next)
+	// The caret stays after the emoji through the renders that follow.
+	chatbug086HoldCaret(state.Target, next)
 	// Choosing here counts as a use, like choosing in the picker.
 	chatEmojiHost.record(items[index].glyph)
 }
 
 func emojiCompletionMenu(model Model, state emojiCompletion, target string) ui.Node {
 	if !state.Open || state.Target != target {
-		return nil
+		// CHATBUG-086: a closed list keeps its place among the composer's
+		// children, as the mention and document lists do. With nothing here, the
+		// list closing moved every later child up by one, the text area was made
+		// again, and the caret was left on the page instead of after the emoji.
+		return html.Div(html.Props{Class: "emoji-completion-slot"})
 	}
 	var rows []ui.Node
 	for i, item := range emojiCompletionItems(state.Query) {

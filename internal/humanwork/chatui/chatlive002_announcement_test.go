@@ -19,7 +19,7 @@ func TestTodo_CHATLIVE_002_Browser(t *testing.T) {
 	sent := time.Date(2026, 10, 1, 20, 30, 26, 0, time.UTC)
 	message := Message{ID: "announced", AuthorID: "hcmnext.local.persona.assistant", Author: "Hcmnext Local Persona Assistant", Body: body, SentAt: sent}
 	model := Model{Locale: "en-US", State: StateReady, SelectedID: "general", Conversations: []Conversation{{ID: "general", Name: "general"}}, Messages: []Message{message},
-		PersonaPostActors: map[string]PersonaPostActor{"announced": {Display: "Assistant", Actor: PersonaActor{PersonaID: "hcmnext.local.persona.assistant", AgentID: "assistant", PersonaVersion: "2", Trusted: true, Icon: agenticon.Generate(agenticon.Input{Name: "Assistant", Instructions: "Announce"}), IconRevision: 3}}}}
+		PersonaPostActors: map[string]PersonaPostActor{"announced": {Display: "Assistant", Actor: PersonaActor{PersonaID: "hcmnext.local.persona.assistant", AgentID: "assistant", PersonaVersion: "2", Trusted: true, Icon: AgentIconFixture(agenticon.Input{Name: "Assistant", Instructions: "Announce"}), IconRevision: 3}}}}
 	markup := render(t, model)
 	for _, want := range []string{"agent-badge", "Assistant", "Labor Day", "<li>", "Thanksgiving Day", "2026 holiday guide", `href="/workspace/app/docs?document=doc-10c773e5"`} {
 		if !strings.Contains(markup, want) {

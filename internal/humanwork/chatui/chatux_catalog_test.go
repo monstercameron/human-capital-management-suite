@@ -47,7 +47,7 @@ func TestTodo_CHATUX_002_Browser(t *testing.T) {
 	// the Channels menu, taken from the product's own catalog: never a copy key or
 	// a marker, and the words this todo adds are in the language.
 	want := map[string][]string{
-		"en-US": {"Chat preferences", "Add or find channels", "Create a channel", "Browse channels", "New section", "Quiet hours", "Reading languages", "Change", "Jump to unread"},
+		"en-US": {"Chat preferences", "Add or find channels", "Create a channel", "Browse channels", "New section", "Quiet hours", "Reading languages", "Jump to unread"},
 		"de-DE": {"Chat-Einstellungen", "Kanäle hinzufügen oder finden", "Kanal erstellen", "Zu Ungelesenem springen"},
 		"ar":    {"تفضيلات الدردشة", "إضافة قنوات أو العثور عليها", "إنشاء قناة", "الانتقال إلى غير المقروء"},
 	}
@@ -107,15 +107,15 @@ func TestTodo_CHATUX_007_Browser(t *testing.T) {
 				// Saved: plain muted text with its count; no badge anywhere on that row.
 				saved := rail[strings.Index(rail, `id="chatsave-sidebar"`):]
 				saved = saved[:strings.Index(saved, "</button>")]
-				if !strings.Contains(saved, `class="chat-count chatsave-count"`) || !strings.Contains(saved, ">2<") || strings.Contains(saved, "chat-badge") {
+				if !strings.Contains(saved, `class="chat-count chatsave-count"`) || !strings.Contains(saved, ">"+s31Digits(locale, "2")+"<") || strings.Contains(saved, "chat-badge") {
 					t.Errorf("the Saved count is not plain text: %s", saved)
 				}
 				// Unread is bold and counted; a mention is counted as a mention; the read
 				// room has neither; the selected room is the one marked selected.
 				for id, wants := range map[string][]string{
 					"read":    {`class="chat-row"`},
-					"unread":  {`class="chat-row unread"`, `class="chat-badge"`, ">3<"},
-					"mention": {`class="chat-row unread"`, `class="chat-badge mention"`, ">2<"},
+					"unread":  {`class="chat-row unread"`, `class="chat-badge"`, ">" + s31Digits(locale, "3") + "<"},
+					"mention": {`class="chat-row unread"`, `class="chat-badge mention"`, ">" + s31Digits(locale, "2") + "<"},
 					"general": {`class="chat-row selected unread"`},
 				} {
 					at := strings.Index(rail, `data-id="`+id+`"`)

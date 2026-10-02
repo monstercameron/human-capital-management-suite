@@ -79,13 +79,13 @@ func TestTodo_AGENTP_019(t *testing.T) {
 		Callbacks: Callbacks{SendMessageWithReferences: func(string, string, []ChatReference) {}},
 	}
 	options := mentionOptions(model, "policy", "chat-composer")
-	if len(options) != 2 || options[0].person == nil || options[1].persona == nil {
+	if len(options) != 2 || options[0].persona == nil || options[1].person == nil {
 		t.Fatalf("mixed suggestions = %+v", options)
 	}
-	if options[0].person.ID != "person-17" || options[1].persona.Reference.ID != "agent-9" {
+	if options[1].person.ID != "person-17" || options[0].persona.Reference.ID != "agent-9" {
 		t.Fatalf("same-label identities were merged: %+v", options)
 	}
-	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Query: "policy", Open: true, Active: 1, Details: true}, "chat-composer"))
+	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Query: "policy", Open: true, Active: 0, Details: true}, "chat-composer"))
 	for _, want := range []string{`class="mention-option active persona"`, "Policy Helper", "Agent", "Agents", "Answer policy questions", "Purpose", "People Operations", "Read only", "Policy data", "Change records", "Acts with your current access.", "in this thread", "mention-agent-preview"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("persona menu/profile missing %q: %s", want, markup)

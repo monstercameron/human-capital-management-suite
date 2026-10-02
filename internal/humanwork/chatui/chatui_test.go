@@ -58,9 +58,15 @@ func TestTodo_CHAT_032(t *testing.T) {
 	m := Model{State: StateReady, Conversations: []Conversation{room}, Sections: []SidebarSection{{ID: "channels", Name: "Channels"}, {ID: "direct", Name: "Direct messages"}, {ID: "custom-1", Name: "Projects", Collapsed: true, Chats: []Conversation{room}}}, RailMenuID: room.ID,
 		Callbacks: Callbacks{CreateSection: func(string) {}, RemoveSection: func(string) {}, MoveConversationSection: func(string, string) {}, ToggleSection: func(string) {}, OpenRailMenu: func(string) {}}}
 	markup := render(t, m)
-	for _, want := range []string{`class="section-create" data-chat-disclosure="true" id="chat-section-create"`, `id="chat-new-section"`, "New section", "Create", "Cancel", `data-action="section-remove" data-id="custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="custom-1"`, "Move to Projects"} {
+	for _, want := range []string{`class="section-create" data-chat-disclosure="true" id="chat-section-create"`, `id="chat-new-section"`, "New section", "Create", "Cancel", `data-action="rail-menu" data-id="section:custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="channels"`, "Move to Channels"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
+		}
+	}
+	// CHATUX-020: the row is in Projects, and a channel does not move to Direct messages.
+	for _, absent := range []string{"Move to Projects", "Move to Direct messages"} {
+		if strings.Contains(markup, absent) {
+			t.Errorf("the menu offers %q", absent)
 		}
 	}
 	if strings.Contains(markup, `id="chat-section-create" open`) {
@@ -72,6 +78,15 @@ func TestTodo_CHAT_032(t *testing.T) {
 	m.Sections[2].Collapsed = false
 	if !strings.Contains(render(t, m), `data-action="select" data-id="sales"`) {
 		t.Fatal("expanded group did not render its conversation")
+	}
+	// CHATSIDE-001: the heading has no hover arrows and no cross of its own; the
+	// delete the cross used to carry is in the three-dots menu.
+	if strings.Contains(markup, "section-order") || strings.Contains(markup, `data-action="section-remove"`) {
+		t.Error("the section heading still carries the old hover arrows or cross")
+	}
+	m.RailMenuID = "section:custom-1"
+	if menu := render(t, m); !strings.Contains(menu, `data-action="section-remove" data-id="custom-1"`) || !strings.Contains(menu, "Delete section") {
+		t.Errorf("the section menu does not hold Delete section: %s", menu)
 	}
 }
 
@@ -117,7 +132,7 @@ func TestIntegrationsSectionGatedToAdminOrOwner(t *testing.T) {
 	owner := base
 	owner.CurrentUser = "owner-1"
 	markup = render(t, owner)
-	for _, want := range []string{`class="details-section integrations-section"`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy sample request for apps"} {
+	for _, want := range []string{`integrations-section`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy sample request for apps"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("Integrations section (owner) missing %q", want)
 		}
@@ -153,10 +168,15 @@ func TestPersonDetailsOpensFromChatIdentitiesAndShowsDirectoryFields(t *testing.
 		Callbacks:     Callbacks{OpenPerson: func(string) {}, ClosePerson: func() {}, StartDirectMessage: func(string) {}},
 	}
 	markup := render(t, m)
-	for _, want := range []string{`data-action="open-person" data-id="ari"`, `aria-label="View Ari Chen&#39;s details"`, `class="chat-side person-pane"`, "Ari Chen", "Maya Lee", "Product", "Boston", "Not available", `data-action="start-direct-message" data-id="ari"`} {
+	for _, want := range []string{`data-action="open-person" data-id="ari"`, `aria-label="View Ari Chen&#39;s details"`, `class="chat-side person-pane"`, "Ari Chen", "Maya Lee", "Product", "Boston", `data-action="start-direct-message" data-id="ari"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
+	}
+	// Ari has no phone or email on file: those rows are left out, not printed
+	// as "Not available".
+	if strings.Contains(markup, "Not available") || strings.Contains(markup, ">Phone<") || strings.Contains(markup, ">Email<") {
+		t.Errorf("empty directory fields were printed: %s", markup)
 	}
 	if strings.Contains(markup, `class="chat-side thread-pane"`) || strings.Contains(markup, `class="chat-side chat-details"`) {
 		t.Fatal("person details did not own the side column")

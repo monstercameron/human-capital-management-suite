@@ -32,9 +32,9 @@ func personaProfileCard(locale string, persona ResolvedPersonaMention) ui.Node {
 	rows := []ui.Node{
 		html.P(html.Props{Class: "mention-profile-purpose"}, html.Strong(html.Props{Text: personaMentionText(locale, "purpose") + ": "}), ui.Text(personaProfileFact(persona.Purpose, locale))),
 		html.P(html.Props{Class: "mention-profile-owner"}, html.Strong(html.Props{Text: personaMentionText(locale, "owner") + ": "}), ui.Text(personaProfileFact(persona.Owner, locale))),
-		html.P(html.Props{Class: "mention-profile-version"}, html.Strong(html.Props{Text: personaMentionText(locale, "version") + ": "}), ui.Text(personaProfileFact(persona.Version, locale))),
-		html.P(html.Props{Class: "mention-profile-access", Text: personaMentionText(locale, "acts_with_access")}),
-		personaProfileList(locale, "skills", personaSkillRows(locale, persona.Skills)),
+		agentp019Version(locale, persona, true),
+		agentp019Access(locale),
+		agentp019Skills(locale, persona),
 		personaProfileList(locale, "data_reach", chatPolishDataClasses(locale, persona.DataClasses)),
 		personaProfileList(locale, "cannot_do", persona.CannotDo),
 		html.P(html.Props{Class: "mention-profile-replies"}, html.Strong(html.Props{Text: personaMentionText(locale, "replies") + ": "}), ui.Text(personaReplyLabel(locale, persona.ReplyPlacement))),
@@ -59,7 +59,12 @@ func personaProfileList(locale, key string, values []string) ui.Node {
 func personaSkillRows(locale string, skills []PersonaMentionSkill) []string {
 	rows := make([]string, 0, len(skills))
 	for _, skill := range skills {
+		// A skill is named by its first sentence: the rest of a definition's
+		// description is for the people who write skills (CHATUX-017).
 		name := strings.TrimSpace(skill.Name)
+		if end := strings.Index(name, ". "); end > 0 {
+			name = name[:end+1]
+		}
 		if name == "" {
 			continue
 		}
@@ -120,12 +125,13 @@ func personaMentionText(locale, key string) string {
 }
 
 func chatPolishDataClasses(locale string, classes []string) []string {
+	// Every class the server names is listed once, in plain words.
 	labels := []string{}
+	seen := map[string]bool{}
 	for _, class := range classes {
-		if class == "POLICY_DOCUMENT" {
-			labels = append(labels, chatPolishPolicyScope(locale))
-		} else if strings.Contains(class, " ") && !strings.Contains(class, "_") && !strings.Contains(class, "hcmnext.") {
-			labels = append(labels, class)
+		if label := personaDataClassLabel(locale, class); label != "" && !seen[label] {
+			seen[label] = true
+			labels = append(labels, label)
 		}
 	}
 	return labels

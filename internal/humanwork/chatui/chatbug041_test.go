@@ -20,7 +20,7 @@ func TestTodo_CHATBUG_041_Browser(t *testing.T) {
 		known := Model{Locale: locale, CurrentUser: "person", CurrentTenantID: "tenant", SavedOpenCount: 4}
 		first, second := renderNode(t, chatsaveSidebar(known)), renderNode(t, chatsaveSidebar(known))
 		shown := count.FindStringSubmatch(first)
-		if shown == nil || strings.Contains(shown[1], "hidden") || strings.TrimSpace(shown[2]) != "4" || first != second {
+		if shown == nil || strings.Contains(shown[1], "hidden") || strings.TrimSpace(shown[2]) != chatCount(locale, 4) || first != second {
 			t.Errorf("%s: the Saved row does not show the count of items to do, steadily: %s", locale, first)
 		}
 		if strings.Contains(first, "⟦") || strings.Contains(unknown, "⟦") {

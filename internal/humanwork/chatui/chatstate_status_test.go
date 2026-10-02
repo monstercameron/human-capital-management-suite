@@ -30,12 +30,24 @@ func TestTodo_CHATSTATE_002(t *testing.T) {
 		t.Fatalf("member attribution = %q", name)
 	}
 	markup := chatstateRender(t, ChannelStatusPanel(ChannelStatusPanelProps{Model: Model{Locale: "en-US"}, View: view, Change: func(chat.ChangeChannelStatusRequest) {}}))
-	for _, want := range []string{"Locked", "Walt Brennan", "Incident review", "Change status", "Confirm status change", "Members with posting permission", "chatstate-reason"} {
+	// The Status row names the state and holds the change form; who changed it,
+	// when and why is About's line (CHATBUG-025), so it reaches people who may
+	// not change the status too.
+	for _, want := range []string{"Locked", "Change status", "Choose a status", "Confirm status change", "chatstate-reason"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("missing %q: %s", want, markup)
 		}
 	}
-	if strings.Contains(markup, "worker-opaque") || strings.Contains(markup, ">ACTIVE<") {
+	if !strings.Contains(markup, "disabled") || strings.Contains(markup, "chatstate-until") || strings.Contains(markup, "Members with posting permission") {
+		t.Fatalf("with nothing chosen Confirm waits and no lock end or effect is shown: %s", markup)
+	}
+	about := chatstateRender(t, chatux005About(Model{Locale: "en-US", SelectedID: "room", ChannelStatuses: map[string]ChannelStatusView{"room": view}}, handlers{}, Conversation{ID: "room"}, nil))
+	for _, want := range []string{"Locked", "Walt Brennan", "Incident review"} {
+		if !strings.Contains(about, want) {
+			t.Fatalf("About misses %q: %s", want, about)
+		}
+	}
+	if strings.Contains(markup, "worker-opaque") || strings.Contains(markup, ">ACTIVE<") || strings.Contains(about, "worker-opaque") {
 		t.Fatal("internal identity rendered")
 	}
 	request, ok := ChannelStatusFormRequest(view, "ACTIVE", "  Resolved  ", "", time.Now())
@@ -64,7 +76,7 @@ func TestTodo_CHATSTATE_002_Accessibility(t *testing.T) {
 	view := chatstateView()
 	view.Updated = true
 	markup := chatstateRender(t, ChannelStatusPanel(ChannelStatusPanelProps{Model: Model{}, View: view, Change: func(chat.ChangeChannelStatusRequest) {}}))
-	for _, want := range []string{`aria-live="polite"`, `aria-hidden="true"`, `for="chatstate-reason"`, `aria-describedby="chatstate-form-error"`, `for="chatstate-choice"`, `chatstate-effects`, `Channel status changed: Locked`} {
+	for _, want := range []string{`aria-live="polite"`, `aria-hidden="true"`, `for="chatstate-reason"`, `aria-describedby="chatstate-form-error"`, `for="chatstate-choice"`, `chatstate-effect`, `Channel status changed: Locked`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("missing accessible %q", want)
 		}
@@ -114,5 +126,36 @@ func TestTodo_CHATSTATE_002_Browser(t *testing.T) {
 		if !strings.Contains(markup, chatstateText(m, "retry")) || !strings.Contains(markup, chatstateText(m, "error")) {
 			t.Fatal("error recovery missing")
 		}
+	}
+}
+
+// A channel's status shows wherever the channel appears: its header, its row in
+// the sidebar, the channel list (Browse channels) and the search results, in
+// words and an icon.
+func TestTodo_CHATSTATE_002_ShownWhereverTheChannelAppears(t *testing.T) {
+	room := Conversation{ID: "announce", Name: "announcements", Kind: PublicChannel, Joined: true, MemberCount: 40}
+	locked := ChannelStatusView{Status: chat.ChannelStatus{TenantID: "t", ConversationID: "announce", Status: chatpolicy.StatusLocked, Revision: 2}}
+	m := Model{Locale: "en-US", State: StateReady, SelectedID: "announce", Conversations: []Conversation{room}, Browse: nil,
+		SearchChannels:  []Conversation{room},
+		ChannelStatuses: map[string]ChannelStatusView{"announce": locked},
+		Callbacks:       Callbacks{SelectConversation: func(string) {}, JoinConversation: func(string) {}, CloseBrowse: func() {}, Search: func(string) {}},
+	}
+	surfaces := map[string]string{
+		"header":  renderNode(t, timeline(m, handlers{})),
+		"sidebar": renderNode(t, railRow(m, room)),
+		"browse":  renderNode(t, browseDialog(m, handlers{})),
+	}
+	m.Search = "announce"
+	surfaces["search results"] = renderNode(t, searchResultsPanel(m))
+	for name, markup := range surfaces {
+		if !strings.Contains(markup, "chatstate-badge") || !strings.Contains(markup, ">Locked<") || !strings.Contains(markup, `aria-hidden="true">🔒<`) {
+			t.Errorf("%s does not show the status in words and an icon: %s", name, markup)
+		}
+	}
+	// An Open channel is the ordinary case and shows nothing anywhere.
+	open := m
+	open.ChannelStatuses = map[string]ChannelStatusView{"announce": {Status: chat.ChannelStatus{TenantID: "t", ConversationID: "announce", Status: chatpolicy.StatusOpen, Revision: 1}}}
+	if strings.Contains(renderNode(t, railRow(open, room)), "chatstate-badge") || strings.Contains(renderNode(t, browseDialog(open, handlers{})), "chatstate-badge") {
+		t.Error("an Open channel shows a status badge")
 	}
 }

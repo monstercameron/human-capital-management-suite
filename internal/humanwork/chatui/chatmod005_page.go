@@ -21,12 +21,21 @@ type ModerationPageModel struct {
 	Query     string
 	ErrorCode string
 	NoQueue   bool
-	// Tab is "open" (the default) or "resolved"; OpenCount is how many open
-	// items the person can open, shown on the Open tab while Resolved is read.
-	Tab       string
-	OpenCount int
+	// Tab is "open" (the default) or "resolved". OpenCount is how many open
+	// items the person can open and ResolvedCount how many are resolved, each
+	// shown on its segment whichever tab is read; ResolvedKnown says the second
+	// was read, and a segment without a known count shows none.
+	Tab           string
+	OpenCount     int
+	ResolvedCount int
+	ResolvedKnown bool
 	// TimeZone is the reader's, so a time reads the way the conversation shows it.
 	TimeZone *time.Location
+	// CanAssign is true for a workspace administrator, who is offered the
+	// Permissions tab; Permissions is that tab's table when Tab is
+	// "permissions" (chatmod005_permissions.go).
+	CanAssign   bool
+	Permissions *ModerationPermissionsModel
 }
 
 func chatremoveName(m ModerationPageModel, id string) string {
@@ -50,11 +59,31 @@ func moderationKindLabel(locale, kind string) string {
 // en-US, de-DE and ar table, never from a catalog that could answer a key.
 func ModerationPage(m ModerationPageModel) ui.Node { return moderationQueuePage(m) }
 
+// moderationFilterNotice is the notice a "notify" filter sends to the managers
+// of the channel it names (CHATMOD-003): which filter matched and a way to the
+// conversation it matched in. The reason of such a notice is the filter's name;
+// the message's words are not in the notice and are not shown.
+func moderationFilterNotice(locale string, n chat.ModerationNotice) ui.Node {
+	t := func(key string) string { return chatremoveText(locale, key) }
+	children := []ui.Node{html.H3(html.Props{Text: t("filter_notice")})}
+	if !n.At.IsZero() {
+		children = append(children, html.P(html.Props{Class: "chatremove-date", Text: n.At.UTC().Format("2006-01-02")}))
+	}
+	children = append(children, html.P(html.Props{Dir: "auto", Text: strings.ReplaceAll(t("filter_notice_rule"), "{name}", n.Reason)}))
+	if n.ConversationID != "" {
+		children = append(children, html.A(html.Props{Class: "chatmod005-channel", Href: ChannelReferenceURL(n.ConversationID), Text: t("filter_notice_open")}))
+	}
+	return html.Aside(html.Props{Class: "chatremove-notice", Role: "status", Aria: map[string]string{"live": "polite"}}, children...)
+}
+
 // ModerationAuthorNotice is one notice sent to the person looking: their removed
 // message with the reason and how to ask for a review, a moderator's message, or
 // the outcome of a report they sent.
 func ModerationAuthorNotice(locale string, n chat.ModerationNotice) ui.Node {
 	t := func(key string) string { return chatremoveText(locale, key) }
+	if n.Outcome == chat.ModerationOutcomeFilterNotify {
+		return moderationFilterNotice(locale, n)
+	}
 	title := "outcome"
 	switch {
 	case strings.HasPrefix(n.ID, "outcome:"):
@@ -69,7 +98,11 @@ func ModerationAuthorNotice(locale string, n chat.ModerationNotice) ui.Node {
 	if !n.At.IsZero() {
 		children = append(children, html.P(html.Props{Class: "chatremove-date", Text: n.At.UTC().Format("2006-01-02")}))
 	}
-	children = append(children, html.P(html.Props{Dir: "auto", Text: chatremoveReason(locale, n.Reason)}))
+	// A reporter's outcome carries no words when the moderator's were for the
+	// author alone; the sentence under it says what was done.
+	if strings.TrimSpace(n.Reason) != "" {
+		children = append(children, html.P(html.Props{Dir: "auto", Text: chatremoveReason(locale, n.Reason)}))
+	}
 	if title == "outcome" {
 		children = append(children, html.P(html.Props{Text: t("outcome_" + n.Outcome)}))
 	}

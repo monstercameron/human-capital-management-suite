@@ -73,12 +73,13 @@ func chatux005Before(t *testing.T, markup string, markers ...string) {
 }
 
 func TestTodo_CHATUX_005(t *testing.T) {
-	// The order: About, Pinned, Members (agents first, then people), Notifications
-	// for me, then Manage channel holding the rare sections.
+	// The order: About, Pinned, Notifications for me, Members (agents first, then
+	// people), then Manage channel holding the rare sections (CHATUX-030 moved the
+	// reader's own settings above the member list).
 	manager := chatux005Panel(t, chatux005Model("manager"), localUI{})
 	chatux005Before(t, manager,
-		`id="chat-details-about"`, `id="chat-details-pinned"`, `id="chat-details-members"`, `id="chat-agents-here"`, `id="chat-details-people"`,
-		"Notifications for me", `id="chat-details-manage"`, "chatstate-section", "Role labels", "Project and milestones", "chatfilter-entry", "integrations-section")
+		`id="chat-details-about"`, `id="chat-details-pinned"`, "Notifications for me", `id="chat-details-members"`, `id="chat-agents-here"`, `id="chat-details-people"`,
+		`id="chat-details-manage"`, "manage-status", "Role labels", "Project and milestones", "chatfilter-entry", "integrations-section")
 	for _, gone := range []string{"Agents here", "chat-agent-here", "Channel team", "Channel project"} {
 		if strings.Contains(manager, gone) {
 			t.Errorf("the old %q section is still in the panel", gone)
@@ -98,7 +99,7 @@ func TestTodo_CHATUX_005(t *testing.T) {
 	}
 
 	// Every heading with a count states it.
-	for _, want := range []string{"Pinned · 2", "Members · 18", "Agents · 2", "People · 2", "Role labels · 2", "Project and milestones · 1"} {
+	for _, want := range []string{"Pinned · 2", "Members · 18", "Agents · 2", "People · 2", "Role labels", "Project and milestones"} {
 		if !strings.Contains(manager, want) {
 			t.Errorf("heading %q is missing", want)
 		}
@@ -128,8 +129,8 @@ func TestTodo_CHATUX_005(t *testing.T) {
 
 	// A plain member sees the first four sections and no Manage channel group.
 	member := chatux005Panel(t, chatux005Model("member"), localUI{})
-	chatux005Before(t, member, `id="chat-details-about"`, `id="chat-details-pinned"`, `id="chat-details-members"`, "Notifications for me")
-	for _, hidden := range []string{"chat-details-manage", "Manage channel", "chatstate-section", "chatfilter-entry", "integrations-section", "Project and milestones", "filter settings body"} {
+	chatux005Before(t, member, `id="chat-details-about"`, `id="chat-details-pinned"`, "Notifications for me", `id="chat-details-members"`)
+	for _, hidden := range []string{"chat-details-manage", "Manage channel", "manage-status", "chatfilter-entry", "integrations-section", "Project and milestones", "filter settings body"} {
 		if strings.Contains(member, hidden) {
 			t.Errorf("a plain member sees %q", hidden)
 		}
@@ -138,7 +139,7 @@ func TestTodo_CHATUX_005(t *testing.T) {
 	statusOnly := chatux005Model("member")
 	statusOnly.ChannelStatuses = chatux005Model("manager").ChannelStatuses
 	statusOnly.ChangeChannelStatus = func(chat.ChangeChannelStatusRequest) {}
-	if got := chatux005Panel(t, statusOnly, localUI{}); !strings.Contains(got, "chatstate-section") || !strings.Contains(got, "Manage channel") {
+	if got := chatux005Panel(t, statusOnly, localUI{}); !strings.Contains(got, "manage-status") || !strings.Contains(got, "Manage channel") {
 		t.Errorf("a person who may change the status cannot reach it: %s", got)
 	}
 
@@ -175,7 +176,7 @@ func TestTodo_CHATUX_005(t *testing.T) {
 	// The panel remembers the groups the person opened: closed at first, open
 	// after the click, and still open in a panel drawn afterwards.
 	closed := manager[strings.Index(manager, `data-details-group="manage"`):]
-	if !strings.Contains(closed, `aria-expanded="false"`) || !strings.Contains(closed[:strings.Index(closed, `data-chat-disclosure-body`)+80], "hidden") {
+	if !strings.Contains(closed, `aria-expanded="false"`) || !strings.Contains(closed[:strings.Index(closed, `manage-sec-body`)+80], "hidden") {
 		t.Errorf("Manage channel is not collapsed at first: %s", closed[:300])
 	}
 	var local localUI
@@ -183,7 +184,7 @@ func TestTodo_CHATUX_005(t *testing.T) {
 	local.setDetailGroup("project", true)
 	reopened := chatux005Panel(t, chatux005Model("manager"), local)
 	manage := reopened[strings.Index(reopened, `data-details-group="manage"`):]
-	if !strings.Contains(manage, `aria-expanded="true"`) || strings.Contains(manage[:strings.Index(manage, "chatstate-section")], `hidden=""`) {
+	if !strings.Contains(manage, `aria-expanded="true"`) || strings.Contains(manage[:strings.Index(manage, "manage-status")], `hidden=""`) {
 		t.Errorf("Manage channel was open and is not drawn open: %s", manage[:400])
 	}
 	local.setDetailGroup("manage", false)

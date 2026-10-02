@@ -67,7 +67,9 @@ func modNoLeaks(t *testing.T, label, markup string) {
 
 func modBuiltinsAndCustoms(channel string) ([]chatfilter.Definition, []chatfilter.Enablement) {
 	defs := append(chatfilter.Builtins(),
-		chatfilter.Definition{ID: "own-1", Name: "Project names", Version: "1.0.0", Kind: "words", Action: "mask", Match: []string{"phoenix", "acme"}, Channels: []string{channel}},
+		// The channel's own filter: saved under the manager's authority, so the
+		// manager who is looking may change it.
+		chatfilter.Definition{ID: "own-1", Name: "Project names", Version: "1.0.0", Kind: "words", Action: "mask", Match: []string{"phoenix", "acme"}, Channels: []string{channel}, Authority: chatfilter.AuthorityChannel},
 		chatfilter.Definition{ID: "wide-1", Name: "Card numbers", Version: "1.0.0", Kind: "detector", Action: "block", Match: []string{"card"}, Hard: true},
 	)
 	rows := []chatfilter.Enablement{
@@ -338,7 +340,9 @@ func TestTodo_CHATMOD_002_Lists_Browser_Details(t *testing.T) {
 		if got := len(modSwitches(admin)); got != 10 {
 			t.Errorf("%s: the details panel holds %d switches, want 10", locale, got)
 		}
-		button := "<span>" + chatui.ModAdminText(m, "ws_entry") + "</span>"
+		// The entry is a row of the Manage channel list; its label is what is
+		// looked for, whatever element the list draws it in.
+		button := ">" + chatui.ModAdminText(m, "ws_entry") + "<"
 		if !strings.Contains(admin, button) {
 			t.Errorf("%s: a workspace administrator finds no way to the workspace filters", locale)
 		}

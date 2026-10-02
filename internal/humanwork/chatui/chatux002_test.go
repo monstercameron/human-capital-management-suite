@@ -96,8 +96,13 @@ func TestTodo_CHATUX_002(t *testing.T) {
 			if !chatux002Inside(section, func(p *xhtml.Node) bool { return chatPolishAttr(p, "data-chat-layer") == chatux002PrefsKind }) {
 				t.Fatalf("section %s is outside the panel", chatPolishAttr(section, "data-prefs-section"))
 			}
-			heads := chatux002Descend(section, func(n *xhtml.Node) bool { return n.Data == "h3" && chatPolishHasClass(n, "chat-prefs-title") })
-			values := chatux002Descend(section, func(n *xhtml.Node) bool { return chatPolishHasClass(n, "chat-prefs-value") })
+			heads := chatux002Descend(section, func(n *xhtml.Node) bool {
+				return (n.Data == "h3" || n.Data == "label") && chatPolishHasClass(n, "chat-prefs-title")
+			})
+			values := chatux002Descend(section, func(n *xhtml.Node) bool {
+				// CHATUX-031: the Reading language row shows its value in its select.
+				return chatPolishHasClass(n, "chat-prefs-value") || (n.Data == "option" && chatux031Selected(n) && chatPolishAttr(section, "data-prefs-section") == "reading-languages")
+			})
 			if len(heads) != 1 || len(values) != 1 {
 				t.Fatalf("%s: %d headings and %d values, want one each", chatPolishAttr(section, "data-prefs-section"), len(heads), len(values))
 			}

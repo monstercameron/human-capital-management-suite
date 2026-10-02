@@ -17,7 +17,7 @@ func TestIntegrate2ReaderSurfaces_Browser(t *testing.T) {
 		"timeline":        func(m Model) ui.Node { return message(m, handlers{}, msg, false) },
 		"thread":          func(m Model) ui.Node { return threadPane(m, handlers{}) },
 		"search":          searchResultsPanel,
-		"pins":            pinnedSection,
+		"pins":            chatux019PinnedSection,
 		"todo pin picker": func(m Model) ui.Node { return channelTodoSection(m, handlers{}) },
 		"share":           func(m Model) ui.Node { return shareDialog(m, handlers{}) },
 		"private answer": func(m Model) ui.Node {

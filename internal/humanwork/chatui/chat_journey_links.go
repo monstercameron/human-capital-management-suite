@@ -36,7 +36,7 @@ type JourneyPreview struct {
 	Approver         string
 }
 
-var journeyURLPattern = regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/journeys\?[^\s<>"']+`)
+var journeyURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/journeys\?[^\s<>"']+`), "http://", "https://", "/workspace/app/journeys?")
 var journeyIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$`)
 
 // journeyReferenceKeys are the selectors a shared journey address may carry;

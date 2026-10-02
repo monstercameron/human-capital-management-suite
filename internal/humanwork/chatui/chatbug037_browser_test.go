@@ -23,7 +23,7 @@ func TestTodo_CHATBUG_037_Browser(t *testing.T) {
 	for locale, want := range map[string]struct{ link, one, many string }{
 		"en-US": {"a message in #design", "1 attachment", "3 attachments"},
 		"de-DE": {"eine Nachricht in #design", "1 Anhang", "3 Anhänge"},
-		"ar":    {"رسالة في #design", "مرفق واحد", "3 مرفقات"},
+		"ar":    {"رسالة في #design", "مرفق واحد", "٣ مرفقات"},
 	} {
 		ctx := productui.ResolveProductLocale(locale)
 		build := func(count int) string {

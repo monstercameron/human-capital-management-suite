@@ -22,6 +22,10 @@ type ModerationState struct {
 	// Notices holds the latest removal notice for each of the person's own
 	// removed messages, by post id.
 	Notices map[string]ModerationOwnNotice
+	// Restored holds the removed messages that were put back while this page
+	// was open (chatmod004_restored.go). It is the page's own knowledge, not
+	// the summary's, so a new summary keeps it.
+	Restored map[string]bool
 }
 
 // ModerationOwnNotice is a removal notice about the viewer's own message.

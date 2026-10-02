@@ -73,9 +73,11 @@ func TestTodo_CHATBUG_037(t *testing.T) {
 		}
 	}
 
-	// A foreign address and a short one are left as they are.
-	if got := chatbug037Body(t, chatbug037Model("ready"), "see https://example.com/a/b"); strings.Contains(got, "<a") {
-		t.Errorf("a foreign address became a link: %s", got)
+	// A foreign address and a short one are not share links. CHATBUG-053 changed
+	// this line: every address is a link now, so the address is a plain link
+	// that prints itself, where it used to be text.
+	if got := chatbug037Body(t, chatbug037Model("ready"), "see https://example.com/a/b"); strings.Contains(got, "chat-share-link") || !strings.Contains(got, `<a class="chat-link" href="https://example.com/a/b">https://example.com/a/b</a>`) {
+		t.Errorf("a foreign address was taken for a share link, or is not a plain link: %s", got)
 	}
 
 	// Several links, each named for its own state.
@@ -90,7 +92,7 @@ func TestTodo_CHATBUG_037(t *testing.T) {
 	for locale, want := range map[string]map[int]string{
 		"en-US": {1: "1 attachment", 2: "2 attachments", 5: "5 attachments"},
 		"de-DE": {1: "1 Anhang", 2: "2 Anhänge", 5: "5 Anhänge"},
-		"ar":    {1: "مرفق واحد", 2: "مرفقان", 5: "5 مرفقات", 12: "12 مرفقاً"},
+		"ar":    {1: "مرفق واحد", 2: "مرفقان", 5: "٥ مرفقات", 12: "١٢ مرفقاً"},
 	} {
 		for count, label := range want {
 			m := Model{Locale: locale}

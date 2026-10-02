@@ -49,13 +49,14 @@ func TestTodo_CHAT_032_ManualOrder(t *testing.T) {
 	if strings.Contains(button(markup, "rail-chat-up"), " disabled") || strings.Contains(button(markup, "rail-chat-down"), " disabled") {
 		t.Fatal("middle conversation should be movable in both directions")
 	}
+	// CHATUX-020: a move with nowhere to go is not offered at all.
 	m.RailMenuID = "first"
-	if !strings.Contains(button(render(t, m), "rail-chat-up"), " disabled") {
-		t.Fatal("first conversation must not move above its section")
+	if first := render(t, m); button(first, "rail-chat-up") != "" || button(first, "rail-chat-down") == "" {
+		t.Fatal("first conversation must not offer a move above its section, only below")
 	}
 	m.RailMenuID = "third"
-	if !strings.Contains(button(render(t, m), "rail-chat-down"), " disabled") {
-		t.Fatal("last conversation must not move below its section")
+	if last := render(t, m); button(last, "rail-chat-down") != "" || button(last, "rail-chat-up") == "" {
+		t.Fatal("last conversation must not offer a move below its section, only above")
 	}
 
 	m.actWith("rail-chat-up", "second", "")

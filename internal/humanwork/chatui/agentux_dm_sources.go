@@ -109,8 +109,11 @@ func parseAgentReplyEnvelope(body string) agentReplyEnvelope {
 		if strings.HasPrefix(line, "[") {
 			if split := strings.LastIndex(line, "]("); split > 1 && strings.HasSuffix(line, ")") {
 				title, href := line[1:split], line[split+2:len(line)-1]
+				// A refused address is dropped, not printed: the reader sees the
+				// title as text.
+				source.Title = title
 				if validAgentDocumentHref(href) {
-					source.Title, source.Href = title, href
+					source.Href = href
 				}
 			}
 		}
@@ -127,7 +130,7 @@ func parseAgentReplyEnvelope(body string) agentReplyEnvelope {
 	if len(envelope.Sources) > 0 {
 		envelope.Body = strings.TrimSpace(envelope.Body[:start])
 	}
-	envelope.Body = agentAnswerPresentBody(envelope.Body, envelope.Sources)
+	envelope.Body = agentux060WithoutTitlePrefix(agentAnswerPresentBody(envelope.Body, envelope.Sources), envelope.Sources)
 	return envelope
 }
 
@@ -162,9 +165,33 @@ func validAgentReplyBacklink(href string) bool {
 	return err == nil && !parsed.IsAbs() && parsed.Host == "" && strings.HasPrefix(parsed.Path, "/chat/share/")
 }
 
+// agentDocumentHrefPrefix is how every document address the server writes into
+// an answer begins: the Documents hub of this product, on this origin.
+const agentDocumentHrefPrefix = "/workspace/app/docs?"
+
+// validAgentDocumentHref reports whether a Sources line may become a link. Only
+// a relative address of the Documents hub on the page's own origin is one: the
+// text of a Sources line is stored with the answer, and an absolute address on
+// any host used to pass as long as its path matched, so a line could lead off
+// the site. The prefix is compared as written, before any parsing, so that an
+// address a browser would read differently from Go (a second slash, a
+// backslash, a control character, an encoded separator in the path) never
+// reaches the parser.
 func validAgentDocumentHref(href string) bool {
-	parsed, err := url.Parse(strings.TrimSpace(href))
-	return err == nil && parsed.User == nil && parsed.Path == "/workspace/app/docs" && parsed.Query().Get("document") != "" && (!parsed.IsAbs() || parsed.Scheme == "https" || parsed.Scheme == "http")
+	if !strings.HasPrefix(href, agentDocumentHrefPrefix) {
+		return false
+	}
+	for _, r := range href {
+		if r == '\\' || r <= ' ' || r == 0x7f {
+			return false
+		}
+	}
+	parsed, err := url.Parse(href)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.User != nil || parsed.Opaque != "" || parsed.Path != "/workspace/app/docs" {
+		return false
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	return err == nil && validDocReferenceID(query.Get("document"))
 }
 
 func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node {
@@ -172,7 +199,7 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 	if len(envelope.Sources) > 0 {
 		items := make([]ui.Node, 0, len(envelope.Sources))
 		for _, source := range envelope.Sources {
-			content := ui.Node(html.Tag("bdi", html.Props{Dir: "auto", Text: source.Title}))
+			content := ui.Node(html.Span(html.Props{Class: "agent-reply-source-text"}, agentux061SourceLabel(source.Title, false)...))
 			if source.Href != "" {
 				href := source.Href
 				open := ui.UseEvent(func(event ui.Event) {
@@ -181,7 +208,7 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 						model.Callbacks.Navigate(href)
 					}
 				})
-				content = html.A(html.Props{Href: href, Class: "agent-reply-source-link", Dir: "auto", OnClick: open}, html.Tag("bdi", html.Props{Text: source.Title}))
+				content = html.A(html.Props{Href: href, Class: "agent-reply-source-link", Dir: "auto", OnClick: open}, agentux061SourceLabel(source.Title, true)...)
 			}
 			// CHATUX-003: each source is a compact chip. One the reader may open is a
 			// link; one they may not is a muted chip with a lock and a tooltip.

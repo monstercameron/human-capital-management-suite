@@ -153,7 +153,7 @@ func TestQuietHoursPopoverShowsSwitchScheduleAndZones(t *testing.T) {
 	// (it used to disable the row that opened the panel), so this model can save.
 	m := Model{State: StateReady, Preferences: Preferences{QuietHours: true, QuietTimezone: "Europe/Berlin", QuietStartMinute: 22 * 60, QuietEndMinute: 7 * 60}, Callbacks: Callbacks{SavePreferences: func(Preferences) {}}}
 	markup := render(t, m)
-	for _, want := range []string{`class="switch" id="quiet-hours" role="switch"`, `checked`, "Paused 10:00 PM–7:00 AM · Europe/Berlin", `<option selected value="Europe/Berlin">`, `value="UTC"`, `value="Asia/Tokyo"`, `id="quiet-start"`} {
+	for _, want := range []string{`class="switch" id="quiet-hours" role="switch"`, `checked`, "Paused 10:00 PM–7:00 AM · " + s24ZoneLabel("en-US", "Europe/Berlin", time.Now()), `<option selected value="Europe/Berlin">`, `value="UTC"`, `value="Asia/Tokyo"`, `id="quiet-start"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("quiet hours missing %q", want)
 		}

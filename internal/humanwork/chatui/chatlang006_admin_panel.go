@@ -6,71 +6,96 @@ import (
 
 type translationAdminProps struct {
 	Locale, Conversation string
-	Text                 func(string) string
+	// Mode is translationModeWorkspace for the administration page and
+	// translationModeChannel for a channel's details row.
+	Mode string
+	Text func(string) string
+	// Section, when set, is the details panel's row (CHATUX-027): the channel
+	// setting is drawn as the content of that row, errors inside it.
+	Section sectionWrap
 }
 
 // translationAdminPanel loads the administration for the conversation and
 // binds the forms to the server. Every change answers the whole view, which
-// replaces what is shown: the page never guesses what the server kept.
+// replaces what is shown: the page never guesses what the server kept. A change
+// is saved when it is made, and the control that was changed is remembered so
+// "Saved" can stand beside it.
 func translationAdminPanel(props translationAdminProps) ui.Node {
 	state := ui.UseState(TranslationAdminModel{Locale: props.Locale, Conversation: props.Conversation})
-	apply := func(data TranslationAdminData, status int, err error, saved bool) {
+	apply := func(data TranslationAdminData, status int, err error, saved bool, field string) {
 		current := state.Get()
 		current.Loading = false
 		switch {
 		case err == nil:
 			current.Data, current.Loaded, current.Failed, current.Denied, current.Saved = data, true, false, false, saved
+			current.SignedOut = false
+			current.SavedField = field
 		case status == 403:
 			current.Denied, current.Loaded, current.Failed = true, true, false
 		default:
 			current.Failed, current.Saved = true, false
+			current.SignedOut = status == 401
 		}
 		state.Set(current)
 	}
 	ui.UseEffectOf(func() func() {
-		return translationAdminCall("settings", props.Conversation, nil, func(data TranslationAdminData, status int, err error) { apply(data, status, err, false) })
+		return translationAdminCall("settings", props.Conversation, nil, func(data TranslationAdminData, status int, err error) { apply(data, status, err, false, "") })
 	}, struct{ Room string }{props.Conversation})
-	send := func(action string, body any) {
+	send := func(action string, body any, field string) {
 		current := state.Get()
 		current.Loading, current.Failed, current.Saved = true, false, false
 		state.Set(current)
-		translationAdminCall(action, props.Conversation, body, func(data TranslationAdminData, status int, err error) { apply(data, status, err, true) })
+		translationAdminCall(action, props.Conversation, body, func(data TranslationAdminData, status int, err error) { apply(data, status, err, true, field) })
 	}
 	saveWorkspace := ui.UseEvent(func(event ui.Event) {
 		event.PreventDefault()
 		body, err := translationAdminReadWorkspace(event, state.Get().Data)
 		if err != nil {
-			apply(TranslationAdminData{}, 0, err, false)
+			apply(TranslationAdminData{}, 0, err, false, "")
 			return
 		}
-		send("workspace", body)
+		field := translationAdminChangedField(event)
+		if field == "" {
+			field = "enabled"
+		}
+		send("workspace", body, field)
 	})
 	saveChannel := ui.UseEvent(func(event ui.Event) {
 		event.PreventDefault()
 		body, err := translationAdminReadChannel(event, props.Conversation)
 		if err != nil {
-			apply(TranslationAdminData{}, 0, err, false)
+			apply(TranslationAdminData{}, 0, err, false, "")
 			return
 		}
-		send("channel", body)
+		send("channel", body, "channel")
 	})
 	addTerm := ui.UseEvent(func(event ui.Event) {
 		event.PreventDefault()
 		body, err := translationAdminReadTerm(event)
 		if err != nil {
-			apply(TranslationAdminData{}, 0, err, false)
+			apply(TranslationAdminData{}, 0, err, false, "")
 			return
 		}
-		send("glossary/add", body)
+		send("glossary/add", body, "glossary")
 	})
 	removeTerm := ui.UseEvent(func(event ui.Event) {
 		id := translationAdminReadTermID(event)
 		if id == "" {
 			return
 		}
-		send("glossary/remove", map[string]string{"id": id})
+		send("glossary/remove", map[string]string{"id": id}, "glossary")
+	})
+	// Try again reads the settings once more, keeping what is on show meanwhile.
+	retry := ui.UseEvent(func() {
+		current := state.Get()
+		current.Loading, current.Failed = true, false
+		state.Set(current)
+		translationAdminCall("settings", props.Conversation, nil, func(data TranslationAdminData, status int, err error) { apply(data, status, err, false, "") })
 	})
 	model := state.Get()
-	model.SaveWorkspace, model.SaveChannel, model.AddTerm, model.RemoveTerm = saveWorkspace, saveChannel, addTerm, removeTerm
-	return TranslationAdminForm(model, props.Text)
+	model.SaveWorkspace, model.SaveChannel, model.AddTerm, model.RemoveTerm, model.Retry = saveWorkspace, saveChannel, addTerm, removeTerm, retry
+	if props.Mode == translationModeChannel {
+		return translationChannelRow(model, props.Text, props.Section)
+	}
+	return TranslationWorkspaceForm(model, props.Text)
 }

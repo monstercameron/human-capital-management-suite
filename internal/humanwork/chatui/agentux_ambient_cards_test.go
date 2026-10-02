@@ -93,7 +93,7 @@ func TestAgentUXAmbient_Cards_Security(t *testing.T) {
 	if strings.Contains(markup, "javascript:") || strings.Contains(markup, "<script>") {
 		t.Fatal("source or body escaped rendering boundary")
 	}
-	icon := agenticon.Generate(agenticon.Input{Name: "Stored reminder", Instructions: "Remind the channel about deadlines"})
+	icon := chatui.AgentIconFixture(agenticon.Input{Name: "Stored reminder", Instructions: "Remind the channel about deadlines"})
 	m.Members = []chatui.Member{{ID: "reminder", Name: "Renamed agent", Agent: true, Icon: icon}}
 	c.AgentID = "reminder"
 	c.AgentName = "Reminder"

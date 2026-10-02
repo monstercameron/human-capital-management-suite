@@ -67,9 +67,9 @@ func chatux001Button(t *testing.T, header *xhtml.Node, action string) *xhtml.Nod
 func chatux001Join(parts []string) string { return strings.Join(parts, ",") }
 
 func TestTodo_CHATUX_001(t *testing.T) {
-	// Nothing open, nothing pinned: Search, Members, Details. No poll, no to-do list.
+	// Nothing open, nothing pinned: the favorites star (CHATSIDE-001), Search, Members, Details. No poll, no to-do list.
 	header, markup := chatux001Header(t, chatux001Fixture("en-US", 0, 0, 0), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "chat-search-open,header-members,details" {
+	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-members,details" {
 		t.Fatalf("quiet channel header = %s", got)
 	}
 	for _, gone := range []string{"channel-poll-trigger", "channel-todo-trigger", `data-action="open-poll"`, `data-action="open-todo"`} {
@@ -78,29 +78,21 @@ func TestTodo_CHATUX_001(t *testing.T) {
 		}
 	}
 
-	// Open tasks bring the to-do list back, first, with the count of open tasks only.
-	header, _ = chatux001Header(t, chatux001Fixture("en-US", 2, 3, 0), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "open-todo,chat-search-open,header-members,details" {
-		t.Fatalf("header with open tasks = %s", got)
-	}
-	todo := chatux001Button(t, header, "open-todo")
-	if count := chatPolishNodesIn(todo, func(n *xhtml.Node) bool { return chatPolishHasClass(n, "channel-todo-count") }); len(count) != 1 || chatbug030Text(count[0]) != "2" {
-		t.Fatalf("the to-do button does not state 2 open tasks: %q", chatbug030Text(todo))
-	}
-	// Finished tasks alone do not.
-	header, _ = chatux001Header(t, chatux001Fixture("en-US", 0, 3, 0), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); strings.Contains(got, "open-todo") {
-		t.Fatalf("a channel with no open tasks shows the to-do list: %s", got)
-	}
-	// An open to-do tray keeps its button, so it has somewhere to be pressed.
-	header, _ = chatux001Header(t, chatux001Fixture("en-US", 0, 3, 0), handlers{local: localUI{tray: "todo"}}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); !strings.Contains(got, "open-todo") {
-		t.Fatalf("the open to-do tray lost its button: %s", got)
+	// Open tasks, finished tasks and an open to-do tray add nothing to the header:
+	// the list has one way in, the chip under it (CHATBUG-074).
+	for _, c := range []struct {
+		tasks int
+		local localUI
+	}{{2, localUI{}}, {0, localUI{}}, {0, localUI{tray: "todo"}}} {
+		header, _ = chatux001Header(t, chatux001Fixture("en-US", c.tasks, 3, 0), handlers{local: c.local}, 1440, "light")
+		if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-members,details" {
+			t.Fatalf("header with %d open tasks and tray %q = %s", c.tasks, c.local.tray, got)
+		}
 	}
 
 	// Pins add Pinned between Search and Members and state their number.
 	header, _ = chatux001Header(t, chatux001Fixture("en-US", 0, 0, 3), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "chat-search-open,header-pinned,header-members,details" {
+	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-pinned,header-members,details" {
 		t.Fatalf("header with pins = %s", got)
 	}
 	pinned := chatux001Button(t, header, "header-pinned")
@@ -130,13 +122,15 @@ func TestTodo_CHATUX_001(t *testing.T) {
 	m.ChannelTeam.Purpose = "Hiring plans and interview scheduling"
 	header, _ = chatux001Header(t, m, handlers{}, 1440, "light")
 	topic = chatPolishNodesIn(header, func(n *xhtml.Node) bool { return n.Data == "p" && chatPolishHasClass(n, "conversation-topic") })
-	if len(topic) != 1 || chatbug030Text(topic[0]) != "Hiring plans and interview scheduling" {
-		t.Fatalf("with a purpose, the line is %q", chatbug030Text(topic[0]))
+	// CHATUX-021: the purpose follows the visibility and the member count.
+	line := chatbug030Text(topic[0])
+	if len(topic) != 1 || !strings.HasPrefix(line, "Public · 18 members") || !strings.HasSuffix(line, " · Hiring plans and interview scheduling") {
+		t.Fatalf("with a purpose, the line is %q", line)
 	}
 	m.ChannelTeam.Purpose = ""
 	m.Conversations[0].Topic = "Company news"
 	header, _ = chatux001Header(t, m, handlers{}, 1440, "light")
-	if topic = chatPolishNodesIn(header, func(n *xhtml.Node) bool { return n.Data == "p" && chatPolishHasClass(n, "conversation-topic") }); chatbug030Text(topic[0]) != "Company news" {
+	if topic = chatPolishNodesIn(header, func(n *xhtml.Node) bool { return n.Data == "p" && chatPolishHasClass(n, "conversation-topic") }); !strings.HasSuffix(chatbug030Text(topic[0]), " · Company news") {
 		t.Fatalf("the conversation's own topic is not the fallback purpose: %q", chatbug030Text(topic[0]))
 	}
 
@@ -219,7 +213,7 @@ func TestTodo_CHATUX_001_Accessibility(t *testing.T) {
 				}
 			}
 		}
-		for _, action := range []string{"chat-search-open", "header-pinned", "header-members", "details", "open-todo"} {
+		for _, action := range []string{"chat-search-open", "header-pinned", "header-members", "details"} {
 			if names[action] == "" {
 				t.Fatalf("%s: no %s button (%v)", locale, action, names)
 			}
@@ -285,7 +279,7 @@ func TestTodo_CHATUX_001_Browser(t *testing.T) {
 								t.Fatalf("%s/%d: %s missing (%v)", locale, width, action, actions)
 							}
 						}
-						if has("open-todo") != (tasks > 0) || has("header-pinned") != (pins > 0) {
+						if has("open-todo") || has("header-pinned") != (pins > 0) {
 							t.Fatalf("%s/%d tasks=%d pins=%d: header is %v", locale, width, tasks, pins, actions)
 						}
 						if strings.Contains(markup, "channel-poll-trigger") {

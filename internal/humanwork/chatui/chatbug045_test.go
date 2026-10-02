@@ -164,10 +164,10 @@ func TestTodo_CHATBUG_045_MoreOptions(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(out, chatui.RenderingText(locale, "und")) || strings.Contains(out, ": 17") {
+		if strings.Contains(out, chatui.RenderingText(locale, "und")) || strings.Contains(out, ": "+s31Digits(locale, "17")) {
 			t.Errorf("%s: the language list shows the unknown language: %s", locale, out)
 		}
-		if !strings.Contains(out, chatui.RenderingText(locale, "en")+": 1") {
+		if !strings.Contains(out, chatui.RenderingText(locale, "en")+": "+s31Digits(locale, "1")) {
 			t.Errorf("%s: the known language is missing: %s", locale, out)
 		}
 	}

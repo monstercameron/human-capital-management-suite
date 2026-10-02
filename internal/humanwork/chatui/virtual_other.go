@@ -11,6 +11,9 @@ func imageViewerPostID() string                         { return "" }
 func jumpPendingForRoom(string) bool                    { return false }
 func virtualAwayIntent(ui.Event) bool                   { return false }
 func virtualBottomDisarmed(string) bool                 { return false }
+
+// RevealTimelineMessage has no page to change outside the browser.
+func RevealTimelineMessage(string) bool { return false }
 func syncVirtualTimeline(Model, []Message, virtualLayout, *virtualCache, virtualPosition, virtualFocus, func(virtualPosition), func()) func() {
 	return nil
 }

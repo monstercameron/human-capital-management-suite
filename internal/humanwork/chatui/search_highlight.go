@@ -3,6 +3,7 @@ package chatui
 import (
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -11,6 +12,10 @@ import (
 // highlightText marks every case-insensitive occurrence of each query word in
 // text. Matching is rune by rune so a case fold that changes byte length (for
 // example Turkish dotted I) cannot shift a mark into the wrong characters.
+//
+// A mark covers whole words, and matches that touch or are separated only by
+// spaces are one mark, so a searched phrase is one tint and a word that holds
+// two of the query's words ("Carryover" for "carry over") is not cut in two.
 func highlightText(text, query string) []ui.Node {
 	words := []([]rune){}
 	for _, w := range strings.Fields(query) {
@@ -24,6 +29,22 @@ func highlightText(text, query string) []ui.Node {
 	}
 	var out []ui.Node
 	plain := 0
+	for _, span := range highlightSpans(runes, words) {
+		if plain < span[0] {
+			out = append(out, ui.Text(string(runes[plain:span[0]])))
+		}
+		out = append(out, html.Mark(html.Props{Class: "search-hit"}, ui.Text(string(runes[span[0]:span[1]]))))
+		plain = span[1]
+	}
+	if plain < len(runes) {
+		out = append(out, ui.Text(string(runes[plain:])))
+	}
+	return out
+}
+
+// highlightSpans is the [start, end) rune ranges to mark, in order.
+func highlightSpans(runes []rune, words [][]rune) [][2]int {
+	var spans [][2]int
 	for i := 0; i < len(runes); {
 		matched := 0
 		for _, w := range words {
@@ -35,17 +56,44 @@ func highlightText(text, query string) []ui.Node {
 			i++
 			continue
 		}
-		if plain < i {
-			out = append(out, ui.Text(string(runes[plain:i])))
+		start, end := i, i+matched
+		for start > 0 && highlightWordRune(runes[start-1]) && highlightWordRune(runes[start]) {
+			start--
 		}
-		out = append(out, html.Mark(html.Props{Class: "search-hit"}, ui.Text(string(runes[i:i+matched]))))
-		i += matched
-		plain = i
+		for end < len(runes) && highlightWordRune(runes[end]) && highlightWordRune(runes[end-1]) {
+			end++
+		}
+		if n := len(spans); n > 0 && highlightJoins(runes, spans[n-1][1], start) {
+			start = spans[n-1][0]
+			spans = spans[:n-1]
+		}
+		spans = append(spans, [2]int{start, end})
+		i = end
 	}
-	if plain < len(runes) {
-		out = append(out, ui.Text(string(runes[plain:])))
+	return spans
+}
+
+// highlightJoins is true when nothing but spaces lies between two matches.
+func highlightJoins(runes []rune, from, to int) bool {
+	if to < from {
+		return true
 	}
-	return out
+	for _, r := range runes[from:to] {
+		if r == '\n' || r == '\r' || !unicode.IsSpace(r) {
+			return false
+		}
+	}
+	return true
+}
+
+// highlightWordRune is a letter or digit of a script that separates its words
+// with spaces. Han, kana and Thai have no spaces, so a match there is marked as
+// matched and never grows to a whole line of text.
+func highlightWordRune(r rune) bool {
+	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+		return false
+	}
+	return !unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Thai)
 }
 
 // searchWhen says when a hit was sent the way the timeline's dividers do:
@@ -66,6 +114,7 @@ func searchWhen(m Model, msg Message) string {
 // past the opening words, starts the excerpt shortly before it, so a hit deep
 // in a long post still shows the matched words instead of the post's opening.
 func searchSnippet(body, query string, limit int) string {
+	body = chatExcerptText(body)
 	// List items read as bullets once the lines are joined.
 	for _, marker := range []string{"- ", "* "} {
 		body = strings.ReplaceAll(body, ":\n"+marker, ": ")

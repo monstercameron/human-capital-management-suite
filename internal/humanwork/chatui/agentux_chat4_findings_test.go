@@ -186,7 +186,7 @@ func TestAgentUXChat4_M5_StateJourney(t *testing.T) {
 				case "sent", "working2", "working15":
 					chat4Require(t, markup, `data-agent-reply-state="working"`, "agent-working-dots", `role="status"`)
 					if state == "working15" {
-						chat4Require(t, markup, ">0:15<")
+						chat4Require(t, markup, ">"+chatNumeral(locale, "0:15")+"<")
 					}
 				case "answered":
 					chat4Require(t, markup, "Carry over up to 40 hours.", "agent-feedback-button")
@@ -211,8 +211,10 @@ func TestAgentUXChat4_M6_AccessRequest(t *testing.T) {
 		model := chat4Fixture(locale, "permission", false)
 		markup := renderAgentUXChat3Node(t, html.Div(html.Props{}, personaReplyRowsForPost(model, localUI{}, "question", time.Now())...), width)
 		chat4Require(t, markup, `data-action="agent-request-access"`, agentUXChat4Text(model, "chat.agent.request_access"), "9:30")
-		if strings.Index(markup, "agent-reply-private") > strings.Index(markup, "agent-reply-identity") {
-			t.Fatal("privacy and time were placed below author")
+		// CHATBUG-054: a failed card has the answered card's header line, with who
+		// can see it at its end and nothing on a line of its own above the agent.
+		if strings.Index(markup, "agent-reply-private") < strings.Index(markup, "agent-reply-identity") {
+			t.Fatal("the privacy note is on a line of its own above the agent")
 		}
 		var selected, drafted, body string
 		model.Callbacks.SelectConversation = func(id string) { selected = id }
@@ -345,7 +347,7 @@ func TestAgentUXChat4_M14_M21_Header(t *testing.T) {
 	chat4Matrix(t, func(t *testing.T, locale string, width int) {
 		model := chat4Fixture(locale, "sent", true)
 		markup := renderAgentUXChat3Node(t, timeline(model, handlers{}), width)
-		chat4Require(t, markup, agentUXChat4Text(model, "chat.agent.private_short"), "conversation-topic-long", "conversation-topic-short", `data-action="details"`)
+		chat4Require(t, markup, chatux016Text(locale, "private"), "agent-header-private", "agent-header-purpose", `data-action="details"`)
 		model = chat4Fixture(locale, "sent", false)
 		model.ShowThread = true
 		chat4Require(t, renderAgentUXChat3Node(t, timeline(model, handlers{}), width), "topic-kind", "18")
@@ -417,7 +419,7 @@ func TestAgentUXChat4_J3_J4_G72_InlineDetails(t *testing.T) {
 		if strings.Contains(markup, "<details") || strings.Contains(markup, "<article") {
 			t.Fatal("block content split the paragraph")
 		}
-		chat4Require(t, renderNode(t, agentProfileDialog(model, "policy-helper")), `role="dialog"`, `aria-modal="true"`, `data-action="agent-profile-close"`, "People Operations", "mention-profile-card")
+		chat4Require(t, renderNode(t, agentProfileDialog(model, "policy-helper")), `role="dialog"`, `aria-modal="true"`, `data-action="agent-profile-close"`, "People Operations", `class="agent-summary"`)
 	})
 }
 
@@ -475,10 +477,11 @@ func TestAgentUXChat4_J10_CardPrivacyGeometry(t *testing.T) {
 			model := chat4Fixture(locale, state, false)
 			markup := renderAgentUXChat3Node(t, html.Div(html.Props{}, personaReplyRowsForPost(model, localUI{}, "question", time.Now())...), width)
 			chat4Require(t, markup, "agent-reply-private", "<time", "agent-reply-identity")
-			// CHATUX-003: an answer's header is one line with who can see it at its
-			// end; the working and failed cards keep the privacy line first.
+			// CHATUX-003 and CHATBUG-054: an answered and a failed card have one
+			// header line with who can see it at its end; the working card keeps
+			// the privacy line first.
 			privateFirst := strings.Index(markup, "agent-reply-private") < strings.Index(markup, "agent-reply-identity")
-			if privateFirst == (state == "answered") {
+			if privateFirst == (state == "answered" || state == "failed") {
 				t.Fatalf("%s card placed the privacy note first=%v", state, privateFirst)
 			}
 		}

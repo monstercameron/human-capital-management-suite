@@ -136,6 +136,10 @@ type ChannelPin struct {
 	PostID, Author, Body string
 	Revision             uint64
 	Sequence             uint64
+	// PinnedBy is the name of whoever pinned the message and PinnedAt when
+	// (CHATUX-019); either may be unknown.
+	PinnedBy string
+	PinnedAt time.Time
 }
 
 type ChannelTodoItem struct {
@@ -189,6 +193,9 @@ type ReactionChip struct {
 	Emoji string
 	Count int
 	Mine  bool
+	// PeopleIDs are the others who reacted with this emoji, so the
+	// chip can be spoken as "You and Sam reacted with eyes" (CHATUX-019).
+	PeopleIDs []string
 }
 
 // reactionPalette is the quick picker: the eight reactions people reach for.
@@ -219,6 +226,11 @@ type SidebarSection struct {
 	ID, Name  string
 	Collapsed bool
 	Chats     []Conversation
+	// Manual is set once the person has put this section's conversations in
+	// their own order; a conversation that comes back to it goes to the end. An
+	// untouched section keeps its conversations sorted and a returning one takes
+	// its sorted place (CHATSIDE-001).
+	Manual bool
 }
 
 type PaneSizes struct {
@@ -250,6 +262,9 @@ type Preferences struct {
 type Callbacks struct {
 	SelectConversation func(string)
 	Search             func(string)
+	// SearchFocus is called when the search box takes the cursor, so the client
+	// can read the person's recent searches into Model.SearchRecent.
+	SearchFocus        func()
 	SearchMore         func()
 	SearchMoreChannels func()
 	OpenSearchMessage  func(conversationID, postID string, sequence uint64)
@@ -278,12 +293,28 @@ type Callbacks struct {
 	RemoveSection           func(string)
 	MoveConversationSection func(string, string)
 	MoveConversationOrder   func(string, int)
-	SendMessage             func(string, string)
+	// RenameSection renames a section the person made; SetFavorite adds a
+	// conversation to Favorites or takes it out; CreateSectionFor makes a section
+	// and moves the conversation into it (CHATSIDE-001).
+	RenameSection    func(string, string)
+	SetFavorite      func(string, bool)
+	CreateSectionFor func(string, string)
+	// MarkConversationRead and MarkConversationUnread are the sidebar row menu's
+	// Mark as read and Mark as unread; LeaveConversation is its Leave, for
+	// channels. A nil one leaves its menu item disabled (CHATUX-020).
+	MarkConversationRead   func(string)
+	MarkConversationUnread func(string)
+	LeaveConversation      func(string)
+	SendMessage            func(string, string)
 	// SendMessageWithReferences submits the body and its canonical references
 	// together. Persona suggestions are unavailable when this callback is nil.
-	SendMessageWithReferences     func(string, string, []ChatReference)
-	RetryPersonaMentions          func()
+	SendMessageWithReferences func(string, string, []ChatReference)
+	RetryPersonaMentions      func()
+	// SetChannelAgentPrivacy requires, or stops requiring, private agent answers
+	// in the open channel (AGENTUX-070).
+	SetChannelAgentPrivacy        func(private bool)
 	DraftChanged                  func(string, string)
+	MentionPicked                 func() // the "@" menu's choice is in the draft: the page draws the note under the composer
 	OpenThread                    func(string)
 	CloseThread                   func()
 	LoadOlderThread               func()
@@ -335,6 +366,9 @@ type Callbacks struct {
 	ResizeDetails      func(int)
 	RestorePanes       func()
 	DismissNotice      func()
+	// MarkUnreadFrom moves the viewer's read position to just before a
+	// message. When nil the message menu does not offer it (CHATUX-022).
+	MarkUnreadFrom func(postID string)
 	// ReplyInThread posts a reply under the open thread's root message. When
 	// nil the thread pane has no composer of its own.
 	ReplyInThread func(parentID, body string)
@@ -388,6 +422,10 @@ type Callbacks struct {
 	// channel it was asked in (AGENTUX-070). The outcome comes back as
 	// Model.AgentShare. It is nil until the application boundary exposes it.
 	ShareAgentAnswer func(invocationID string)
+	// RemoveSharedAgentAnswer takes back the copy of the asker's answer that was
+	// shared to the channel (CHATUX-026): the copy is deleted and the card is
+	// private again. The outcome comes back as Model.AgentShare.
+	RemoveSharedAgentAnswer func(invocationID string)
 	// CancelPersonaInvocation requests cancellation of a still-running answer.
 	// It is nil until the application boundary exposes an authorized endpoint.
 	CancelPersonaInvocation func(invocationID string)
@@ -399,6 +437,9 @@ type Callbacks struct {
 	// picker calls it at most once every few seconds. nil keeps them for the
 	// life of the page only (CHATEMOJI-004).
 	SaveEmojiPrefs func(encoded string)
+
+	// SetAmbientOptOut turns the viewer's "Don't act on my messages" on or off.
+	SetAmbientOptOut func(bool)
 }
 
 type Model struct {
@@ -438,6 +479,12 @@ type Model struct {
 	ChannelStatuses                   map[string]ChannelStatusView
 	ChangeChannelStatus               func(chat.ChangeChannelStatusRequest)
 	RetryChannelStatus                func()
+
+	// VoiceAccess is where voice messages may be sent, per conversation, as the
+	// server last said (CHATVOICE-002): the Add menu offers the voice item, or
+	// shows it off with the reason, from this.
+	VoiceAccess map[string]VoiceAccessView
+
 	// FilterSettings builds the message-filter settings for the selected
 	// conversation. The client supplies it; without one the details panel
 	// shows only the read-only summary and no control.
@@ -467,7 +514,11 @@ type Model struct {
 	JoinPromptPending   bool
 	JoinPromptSeen      map[string]bool
 	Sections            []SidebarSection
-	SelectedID          string
+	// FavoritesCollapsed is whether the person has folded Favorites, which is
+	// drawn from the starred conversations and has no section of its own
+	// (CHATSIDE-001).
+	FavoritesCollapsed bool
+	SelectedID         string
 	// RevokedConversationID asks the workspace to discard only this room's
 	// unsent draft after a conversation-level authorization refusal.
 	RevokedConversationID string
@@ -499,6 +550,9 @@ type Model struct {
 	HasOlder                bool
 	HasNewer                bool
 	Members                 []Member
+	// MembersFailed is true when the read of this conversation's members failed
+	// and has not been retried; the "@" menu says so instead of waiting.
+	MembersFailed bool
 	// PersonaMentions contains only currently invocable personas authorized by
 	// the caller for this viewer and selected conversation. It is retained for
 	// source compatibility only; mention UI deliberately ignores it.
@@ -507,7 +561,17 @@ type Model struct {
 	// references eligible for this viewer. The caller must omit ineligible
 	// candidates and must populate profile facts from the same authorized read.
 	ResolvedPersonaMentions []ResolvedPersonaMention
-	PersonaLookup           PersonaLookupState
+	// ChannelAgentPrivacy is the channel's requirement on how agents answer in it
+	// (AGENTUX-070).
+	ChannelAgentPrivacy ChannelAgentPrivacyState
+	// AgentCounts is how many agents the last good agent read found in each
+	// conversation. The header subtitle ("Public · 18 members · 2 agents") draws
+	// from the roster above when it holds agents and from this count when it does
+	// not, so a roster that is not here yet, or that a failed or late read cleared,
+	// never drops the agent count once it was known. The page replaces the map
+	// whole, never edits it in place.
+	AgentCounts   map[string]int
+	PersonaLookup PersonaLookupState
 	// PersonaLookupConversationID prevents a late state from one room from
 	// rendering under the next room while its own lookup starts.
 	PersonaLookupConversationID string
@@ -519,6 +583,20 @@ type Model struct {
 	// being empty means "none" and not "not asked yet". Until then a message that
 	// asked an agent keeps room for the card that will answer it (CHATBUG-040).
 	PersonaActivityReady bool
+	// AgentCardHeights is the height, in pixels, each answer card had the last
+	// time this browser drew it, by the message it sits under. A placeholder
+	// keeps exactly that room until the answer is back (CHATBUG-061).
+	AgentCardHeights map[string]int
+	// AgentRetries is where each question the person asked again stands, by the
+	// question's message (CHATBUG-047).
+	AgentRetries map[string]AgentRetryState
+	// AgentDismissed holds the failed answers the person dismissed on this page,
+	// by the card's run or question (CHATBUG-054).
+	AgentDismissed map[string]bool
+	// AgentFeedbackSaved is the reader's own stored rating of each answer, by
+	// invocation, as the server sent it with the agent activity: it is what the
+	// rating controls show from the first paint after a load (CHATBUG-066).
+	AgentFeedbackSaved map[string]string
 	// AgentFeedbackRestored maps an invocation to the rating that stands after a
 	// rating change could not be saved: AgentFeedbackHelpful, AgentFeedbackNotRight
 	// or "" for none. It overrides the optimistic choice shown after a click and
@@ -531,7 +609,9 @@ type Model struct {
 	RenderPersonaTask         func(PersonaTaskCardProps) ui.Node
 	Draft                     string
 	Chatattach001             *Chatattach001Composer
+	GateJoins                 map[string]GateJoin
 	Search                    string
+	SearchRecent              []string // newest first; offered under the search box while it is empty
 	SearchLoading             bool
 	SearchLoadingMore         bool
 	SearchLoadingMoreChannels bool
@@ -580,6 +660,8 @@ type Model struct {
 	EditDrafts        map[string]string
 	NewKind           ConversationKind
 	NewName           string
+	NewNameRefused    string // the channel name the service refused; see chatbug072_name.go
+	PurposeSaved      bool   // a purpose save went through and "Saved" shows for two seconds
 	Pane              PaneSizes
 	Preferences       Preferences
 	Callbacks         Callbacks
@@ -595,6 +677,14 @@ type Model struct {
 	// (hcm_admin), set once per render from productui's already-authorized
 	// view -- never derived in chatui itself.
 	IsTenantAdmin bool
+	// AmbientReads are the agents the conversation's administrator let read
+	// every message here, and AmbientOptOut is this viewer's own "Don't act on my
+	// messages" (AGENTUX-066).
+	AmbientReads  []AmbientRead
+	AmbientOptOut bool
+	// Ambient is the rest of the ambient agents' read: the installed agents the
+	// administrator may switch, and the offers shown under their messages.
+	Ambient AmbientState
 	// PhotoURLs contains authorized worker profile images keyed by subject ID.
 	PhotoURLs map[string]string
 	// PeerIDs comes from authorized direct-message memberships, keyed by room ID.
@@ -645,6 +735,24 @@ type Model struct {
 	// Only canonical post references become chips; matching display text alone
 	// never gains identity or interaction semantics.
 	renderReferences []ChatReference
+	// renderHighlight holds the searched words while a search result is drawn:
+	// the text the message renderer prints is tinted where it matches.
+	renderHighlight string
+	// deleteAsk is the open message menu that is asking whether to delete its
+	// message; the workspace copies it from its local state (CHATBUG-081).
+	deleteAsk string
+	// cardEditing is the poll or list message whose author is rewording it; the
+	// workspace copies it from its local state (CHATCMD-002).
+	cardEditing string
+	// renderInLink is set while the label of a link is drawn, so that an
+	// address in the label is not made a second link inside it (CHATBUG-053).
+	renderInLink bool
+	// railDrafts is the conversations holding an unsent draft, for the sidebar's
+	// pencil; the workspace fills it from the draft store each render (CHATUX-020).
+	railDrafts map[string]bool
+	// side is the sidebar's section state the workspace copies from its local
+	// state each render (CHATSIDE-001).
+	side chatside001UI
 }
 
 // n formats a count for display.
@@ -652,7 +760,7 @@ func (m Model) n(v int) string {
 	if m.Number != nil {
 		return m.Number(v)
 	}
-	return itoa(v)
+	return chatNumeral(m.Locale, itoa(v))
 }
 
 func (m Model) selected() Conversation {
@@ -904,11 +1012,8 @@ func boolString(v bool) string {
 // stats is the thread line under a message. Reactions are chips now, not a
 // count in prose, so the only statistic left is the reply count.
 func stats(m Model, msg Message) string {
-	switch {
-	case msg.Replies == 1:
-		return m.t(KeyRepliesOne)
-	case msg.Replies > 1:
-		return m.tf(KeyReplies, map[string]string{"n": m.n(msg.Replies)})
+	if msg.Replies >= 1 {
+		return chatPlural(m.Locale, "replies", msg.Replies)
 	}
 	return ""
 }

@@ -1,7 +1,6 @@
 package chatui
 
 import (
-	"encoding/json"
 	"regexp"
 	"strings"
 )
@@ -32,7 +31,7 @@ var (
 func agentAnswerStripInternal(body string) string {
 	body = agentInternalLink.ReplaceAllString(body, "")
 	body = agentShareMarkdown.ReplaceAllString(body, "")
-	body = agentSourceFlag.ReplaceAllString(body, "")
+	body = chatStripInternalMarkers(agentSourceFlag.ReplaceAllString(body, ""))
 	return strings.TrimSpace(agentBlankRun.ReplaceAllString(body, "\n\n"))
 }
 
@@ -87,17 +86,10 @@ func agentAnswerLinkTitles(body string, sources []agentReplySource) string {
 // show it: an announcement shows its sentence, an answer shows its statement,
 // and no context token, share address, markup tag or data field is printed.
 func chatDisplayText(text string) string {
-	if strings.HasPrefix(text, AgentAnnouncementBodyPrefix) {
-		if announcement, ok := DecodeAnnouncementMessageBody(text); ok {
-			return chatDisplayText(announcement.Text)
-		}
-		if match := agentAnnouncementText.FindStringSubmatch(text); len(match) == 2 {
-			var sentence string
-			if json.Unmarshal([]byte(match[1]), &sentence) == nil {
-				return chatDisplayText(sentence)
-			}
-		}
-		return ""
+	// An announcement is its sentence, also when the service that gave the
+	// excerpt cut the envelope short or flattened its line break.
+	if sentence, announced := chatAnnouncementSentence(text); announced {
+		return chatDisplayText(sentence)
 	}
 	text = agentAnswerStripInternal(text)
 	text = agentInternalPartial.ReplaceAllString(text, "")

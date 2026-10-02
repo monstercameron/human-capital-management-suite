@@ -9,21 +9,9 @@ import (
 
 // CHATUX-001: the conversation header gives its space to what people do many
 // times a day. The name opens the details; Search, Pinned, Members and Details
-// are icon buttons that say what they do and how many there are. The to-do list
-// stays only while the channel has open tasks. Creating a poll or a to-do list
-// lives in the composer's add menu; the actions behind the old header buttons
-// ("open-todo", "open-poll") are unchanged.
-
-// chatux001OpenTasks counts the channel's tasks that are not done.
-func chatux001OpenTasks(m Model) int {
-	open := 0
-	for _, item := range m.ChannelTodo.Items {
-		if !item.Completed {
-			open++
-		}
-	}
-	return open
-}
+// are icon buttons that say what they do and how many there are. A poll or a
+// to-do list is created from the composer's add menu and found again in the
+// chips under the header; the header has no button for either.
 
 // chatux001IsChannel reports a public or private channel, the only rooms with a
 // to-do list and a poll.
@@ -46,9 +34,11 @@ func chatux001Purpose(m Model, c Conversation) string {
 	return strings.TrimSpace(c.Topic)
 }
 
-// chatux001PurposeLine is the muted line itself.
+// chatux001PurposeLine is what the channel is for, set after the type and the
+// counts by the same separator as they use, in its own span so it is the part
+// the line clips when it runs out of room.
 func chatux001PurposeLine(purpose string) []ui.Node {
-	return []ui.Node{html.Span(html.Props{Class: "topic-purpose", Text: purpose})}
+	return []ui.Node{html.Span(html.Props{Class: "topic-purpose-part"}, html.Span(html.Props{Class: "topic-sep", Text: " · "}), html.Span(html.Props{Class: "topic-purpose", Dir: "auto", Text: purpose}))}
 }
 
 // chatux001Heading is the conversation's name. Clicking it opens the details,
@@ -83,20 +73,21 @@ func chatux001CountButton(class, action, label string, disabled bool, glyph stri
 }
 
 // chatux001HeaderActions returns the header's action buttons in reading order:
-// the to-do list (only while it has open tasks, or its tray is open), then
 // Search, Pinned (only when something is pinned), Members (not in a one-to-one
-// message) and Details.
+// message) and Details. The to-do list and the poll have one way in, the chips
+// under the header, so the header carries no button for them (CHATBUG-074).
 func chatux001HeaderActions(m Model, h handlers, c Conversation, detailsBtn ui.Node) []ui.Node {
 	actions := []ui.Node{}
-	if chatux001IsChannel(c) && (chatux001OpenTasks(m) > 0 || h.local.tray == "todo") {
-		actions = append(actions, channelTodoTrigger(m, h))
-	}
 	actions = append(actions,
 		html.Button(html.Props{Class: "icon-button chatux001-search", Type: "button", Disabled: m.Callbacks.Search == nil, Data: map[string]string{"action": "chat-search-open"},
 			Aria: map[string]string{"label": chatux001Text(m, "chat.ux001.search"), "keyshortcuts": chatux010KeyShortcuts(chatPlatform())}, Title: chatux010Hint(m)}, icon("search")))
 	if n := chatux001PinnedCount(m); n > 0 {
 		label := chatux001Textf(m, "chat.ux001.pinned_count", map[string]string{"n": m.n(n)})
 		actions = append(actions, chatux001CountButton("chatux001-pinned", "header-pinned", label, m.Callbacks.ToggleDetails == nil, "pin", n, m))
+	}
+	// CHATMAP-005: while anyone is sharing live here, a small Map control with how many.
+	if mapButton := chatmapHeaderMap(m); mapButton != nil {
+		actions = append(actions, mapButton)
 	}
 	if c.Kind != DirectMessage {
 		label := chatux001Text(m, "chat.ux001.members")
@@ -120,6 +111,8 @@ func chatux001Click(m Model, action string) bool {
 		section = "pinned"
 	case "header-members":
 		section = "members"
+	case "header-map":
+		section = "crewmap"
 	default:
 		return false
 	}

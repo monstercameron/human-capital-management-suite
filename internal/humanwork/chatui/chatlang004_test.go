@@ -240,13 +240,15 @@ func TestTodo_CHATLANG_004_Accessibility(t *testing.T) {
 	}
 	// Names, links, mentions and code are laid out on their own inside either
 	// direction: the stylesheet isolates them and keeps code left to right.
-	for _, rule := range []string{`.message-body[dir=rtl],.message-body[dir=ltr]{unicode-bidi:isolate}`, `.message-body :is(code,pre){direction:ltr;unicode-bidi:isolate;text-align:left}`, `.message-body :is(a,time,.mention-chip,.mention-chip-details){unicode-bidi:isolate}`} {
+	for _, rule := range []string{`.message-body[dir=rtl],.message-body[dir=ltr]{unicode-bidi:isolate}`, `.message-body :is(code,pre){direction:ltr;unicode-bidi:isolate;text-align:start}`, `.message-body :is(.mention-chip,.mention-chip-details),.message-body :where(a,time){unicode-bidi:isolate}`} {
 		if !strings.Contains(Stylesheet, rule) {
 			t.Fatalf("the page stylesheet misses %q", rule)
 		}
 	}
 	// The mark is not clipped at 320 px and is not a live region.
-	if strings.Contains(ChatlangStyles, "white-space:nowrap") {
+	// (The conversation bar's sentence is the one thing that is cut to one line, with
+	// an ellipsis, CHATLANG-008.)
+	if strings.Contains(strings.Replace(ChatlangStyles, ".chatlang-bar-text{flex:1 1 auto;min-inline-size:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}", "", 1), "white-space:nowrap") {
 		t.Fatal("the mark cannot wrap at narrow widths")
 	}
 }

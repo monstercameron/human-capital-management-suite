@@ -70,9 +70,16 @@ func TestTodo_AGENTP_020_Fault(t *testing.T) {
 	if strings.Contains(markup, "MODEL_UNAVAILABLE") || strings.Contains(markup, "Provider failed") {
 		t.Fatalf("failure leaked an internal code or unsanitized message: %s", markup)
 	}
+	// CHATBUG-054: the person who asked may ask again whatever the server said
+	// about the run; nobody else is offered anything.
 	p.Failure.Retryable = false
-	if markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p); strings.Contains(markup, `data-agent-action="retry"`) {
-		t.Fatalf("permanent failure permits retry: %s", markup)
+	if markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p); !strings.Contains(markup, `data-agent-action="retry"`) || !strings.Contains(markup, ">Ask again<") {
+		t.Fatalf("a failed card lost its Ask again: %s", markup)
+	}
+	other := p
+	other.ViewerID = "member-2"
+	if markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, other); strings.Contains(markup, `data-agent-action`) {
+		t.Fatalf("somebody who did not ask is offered an action: %s", markup)
 	}
 }
 

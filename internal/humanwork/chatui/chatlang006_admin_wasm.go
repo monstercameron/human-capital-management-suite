@@ -35,7 +35,23 @@ func translationAdminCall(action, room string, body any, done func(TranslationAd
 	return cancel
 }
 
+// translationAdminRequest asks once and, when the server refuses the page's
+// credential (a tab that outlived its session or the server's restart), gets a
+// fresh one and asks once more (CHATBUG-087).
 func translationAdminRequest(ctx context.Context, action, room string, body any) (TranslationAdminData, int, error) {
+	data, status, err := translationAdminAttempt(ctx, action, room, body)
+	// A 403 on a read is the person's role, not the credential; on a write it may
+	// be the browser token the server minted for an older page.
+	if status != http.StatusUnauthorized && !(status == http.StatusForbidden && body != nil) {
+		return data, status, err
+	}
+	if _, refreshErr := chatSessionRefresh(ctx); refreshErr != nil {
+		return data, status, err
+	}
+	return translationAdminAttempt(ctx, action, room, body)
+}
+
+func translationAdminAttempt(ctx context.Context, action, room string, body any) (TranslationAdminData, int, error) {
 	var data TranslationAdminData
 	origin, err := url.Parse(js.Global().Get("location").Get("origin").String())
 	if err != nil || origin.Host == "" || (origin.Scheme != "http" && origin.Scheme != "https") || origin.User != nil {
@@ -154,4 +170,14 @@ func translationAdminReadTermID(event ui.Event) string {
 		return ""
 	}
 	return target.Get("dataset").Get("term").String()
+}
+
+// translationAdminChangedField is the name of the control a change event came
+// from, so the page can say "Saved" beside that setting.
+func translationAdminChangedField(event ui.Event) string {
+	target := event.JSValue().Get("target")
+	if !target.Truthy() || target.Get("name").Type() != js.TypeString {
+		return ""
+	}
+	return target.Get("name").String()
 }

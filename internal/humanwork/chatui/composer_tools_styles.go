@@ -36,13 +36,18 @@ const ChatComposerToolsStyles = `.chat-workspace .chat-composer .composer-toolba
 	`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}}` +
 	`.chat-workspace .composer-format-row .format-tools{display:flex;flex-wrap:wrap;gap:2px;margin:0;padding:0;border:0}` +
 	`.chat-workspace .composer-format-row .format-inline,.chat-workspace .thread-composer .format-inline{display:flex;align-items:center;gap:2px}` +
-	// The Enter hint: muted, at the right, from 600 px up.
+	// The Enter hint: muted, at the right, from 600 px up. It is shown whole or
+	// not at all, in any language: the hint is a wrapping row one line tall
+	// whose first item is an empty strut, so when the sentence does not fit
+	// beside the tools and Send it moves to a second line and that line is
+	// clipped. A cut sentence ("Shift+Enter for a new…") tells nobody anything.
 	`.chat-workspace .chat-composer .composer-toolbar .composer-help{display:none}` +
-	`@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{display:block;position:static;flex:1 1 0%;min-width:0;margin:0;padding-inline:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:end;color:var(--muted);font-size:.75rem;opacity:1}}` +
+	`@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:flex-end;position:static;flex:1 1 0%;min-width:0;block-size:1.5em;line-height:1.5;margin:0;padding-inline:8px;overflow:hidden;white-space:nowrap;text-overflow:clip;color:var(--muted);font-size:.75rem;opacity:1}` +
+	`.chat-workspace .chat-composer .composer-toolbar .composer-help::before{content:"";flex:none;inline-size:0;block-size:1.5em}}` +
 	// Send is at the right with or without the hint.
 	`.chat-workspace .chat-composer .composer-toolbar .send-button{margin-inline-start:auto}` +
 	// An opener pressed from the Add menu shows where focus is: a ring over the +.
-	`.chat-workspace .chat-composer .composer-tools>.chatvoice-tool>.tool-button:focus-visible,.chat-workspace .chat-composer .composer-tools>.chatmap-control>.tool-button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}` +
+	`.chat-workspace .chat-composer .composer-tools>.chatvoice-tool>.tool-button:focus-visible,.chat-workspace .chat-composer .composer-tools>.chatmap-control>.tool-button:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:-2px}` +
 	// CHATUX-011, phone width (under 600 px). The empty hint slot gives its 44 px
 	// back, and the field is one line tall, growing with its text to six lines
 	// and then scrolling. While the composer holds neither focus nor text it is

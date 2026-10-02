@@ -302,6 +302,14 @@ func modListRank(name string) int {
 // ModGroup divides the definitions the server delivered into the panel's
 // sections. locale puts the viewer's own language first.
 func ModGroup(defs []chatfilter.Definition, channel string, workspaceMode bool, locale string) ModLists {
+	return ModGroupFor(defs, channel, workspaceMode, locale, true)
+}
+
+// ModGroupFor is ModGroup for a viewer who is, or is not, a workspace
+// administrator. A filter an administrator wrote for this one channel is the
+// channel manager's to read and not to change (the server refuses the change),
+// so for a manager it is listed with the workspace's filters.
+func ModGroupFor(defs []chatfilter.Definition, channel string, workspaceMode bool, locale string, administrator bool) ModLists {
 	out := ModLists{Builtin: map[string][]chatfilter.Definition{}}
 	for _, d := range defs {
 		switch {
@@ -309,6 +317,8 @@ func ModGroup(defs []chatfilter.Definition, channel string, workspaceMode bool, 
 			out.Builtin[d.Language] = append(out.Builtin[d.Language], d)
 		case workspaceMode:
 			out.Own = append(out.Own, d)
+		case len(d.Channels) == 1 && d.Channels[0] == channel && !administrator && d.Authority != chatfilter.AuthorityChannel:
+			out.Admin = append(out.Admin, d)
 		case len(d.Channels) == 1 && d.Channels[0] == channel:
 			out.Own = append(out.Own, d)
 		case len(d.Channels) == 0 || modContains(d.Channels, channel):
@@ -532,6 +542,10 @@ type ModFormValues struct {
 	Name, Kind, Match, Detector, Domains, Action, Target, Roles, Agents string
 	Hard                                                                bool
 	Channels                                                            []string
+	// DryRun is whether the filter being edited is only recording. The editor
+	// opens with "Record only" as it stands, so saving a change to a filter on
+	// trial does not start enforcing it unasked.
+	DryRun bool
 }
 
 // ModFormValuesOf lays a stored definition out for editing.
@@ -562,6 +576,8 @@ func ModErrorKey(code string) string {
 		return "er_unavail"
 	case "version_conflict":
 		return "er_conflict"
+	case "unknown_target":
+		return "er_target"
 	case "invalid_filter", "invalid_request":
 		return "er_invalid"
 	}

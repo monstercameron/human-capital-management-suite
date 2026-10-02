@@ -40,7 +40,8 @@ func chatux003CatalogPage(t *testing.T, locale, state string) string {
 	switch state {
 	case "private", "private menu", "sharing", "shared", "refused", "failed share":
 		m.EphemeralMessages = []chatui.EphemeralMessage{{ID: "answer", ThreadID: "question", Body: body, OnlyVisibleToYou: true, CreatedAt: sent, ExpiresAt: sent.Add(time.Hour)}}
-		if state == "private menu" {
+		// CHATUX-028: what a shared answer adds is an item of the "…" menu.
+		if state == "private menu" || state == "shared" {
 			m.MenuID = "agent-card:answer"
 		}
 		if status, ok := map[string]chatui.AgentShareStatus{"sharing": chatui.AgentShareSharing, "shared": chatui.AgentShareShared, "refused": chatui.AgentShareRefused, "failed share": chatui.AgentShareFailed}[state]; ok {
@@ -119,7 +120,7 @@ func TestTodo_CHATUX_003_Catalog_Browser(t *testing.T) {
 				t.Errorf("%s / %s: the page prints copy keys: %q", locale, state, found)
 			}
 			// The state is on the page: the card, the message or the working row.
-			want := map[string]string{"private": "agent-reply-share", "private menu": "agent-reply-open", "sharing": "agent-reply-share", "shared": "agent-reply-share-note", "refused": "agent-reply-share-note", "failed share": "agent-reply-share-note",
+			want := map[string]string{"private": "agent-reply-private-button", "private menu": "agent-reply-open", "sharing": "agent-reply-share-note", "shared": "agent-share-view", "refused": "agent-reply-share-note", "failed share": "agent-reply-share-note",
 				"private strict agent": "agent-reply-why", "private asked": "agent-reply-why", "public": "agent-reply-sources", "pending": "agent-progress-cancel", "failed": "persona-progress-failure"}[state]
 			if !strings.Contains(page, want) {
 				t.Errorf("%s / %s: the page does not show %s", locale, state, want)

@@ -14,7 +14,7 @@ import (
 // fallback drawn for an agent with no stored icon.
 func chatbug013Icons(t *testing.T) (stored, fallback string, value agenticon.Value) {
 	t.Helper()
-	value = agenticon.Generate(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
+	value = AgentIconFixture(agenticon.Input{Name: "Policy Helper", Description: "Answer policy questions"})
 	stored = renderNode(t, agenticon.Node(value))
 	fallback = renderNode(t, agenticon.Node(agenticon.Value{}))
 	if !value.Valid() || stored == fallback {

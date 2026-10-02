@@ -63,15 +63,19 @@ func agentProgressForPost(model Model, projection PersonaProgressProjection, pos
 		progress.QuestionPostID = postID
 		projection.Progress = &progress
 	}
-	if projection.Failure != nil && projection.Failure.AskedAt.IsZero() {
-		// CHATBUG-035: a retry offer expires with the question it belongs to.
+	if projection.Failure != nil {
+		// The card names its run and its question, so "Ask again" and "Dismiss"
+		// act on this card and on nothing else.
 		failure := *projection.Failure
-		failure.AskedAt = agentQuestionSentAt(model, postID)
-		projection.Failure = &failure
-	}
-	if projection.Failure != nil && projection.Failure.AskAgainPostID == "" {
-		failure := *projection.Failure
-		failure.AskAgainPostID = postID
+		if failure.AskedAt.IsZero() {
+			failure.AskedAt = agentQuestionSentAt(model, postID)
+		}
+		if failure.AskAgainPostID == "" {
+			failure.AskAgainPostID = postID
+		}
+		if failure.InvocationID == "" {
+			failure.InvocationID = projection.InvocationID
+		}
 		projection.Failure = &failure
 	}
 	if !model.selected().Agent {
@@ -114,11 +118,11 @@ func agentProgressForPost(model Model, projection PersonaProgressProjection, pos
 	return html.Article(html.Props{Class: "message agent-direct-state", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"agent-reply-state": "failed"}}, agentDMAvatar(projection.AgentName, "avatar agent-dm-avatar", conversationAgentIcon(model, model.selected())), html.Div(html.Props{Class: "message-content"}, content...))
 }
 
+// agentChannelFailure is the failed card under a question in a channel
+// (CHATBUG-054): the answered card's header line, the reason, the actions.
 func agentChannelFailure(model Model, projection PersonaProgressProjection, postID string) ui.Node {
 	failure := *projection.Failure
-	// CHATBUG-035: the failure card carries one icon, the warning, so its privacy
-	// line is words and a time only.
-	children := []ui.Node{agentChannelPrivacyLineWith(model, postID, false), renderAgentReplyIdentity(model, projection.AgentName)}
+	children := []ui.Node{chatbug054Header(model, projection.AgentName, postID)}
 	children = append(children, agentFailureContents(model, failure, projection.AgentName)...)
 	return html.Article(html.Props{Class: "persona-progress-failure agent-reply-row", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"agent-failure": "typed", "agent-reply-state": "failed"}}, children...)
 }
@@ -161,15 +165,14 @@ func permissionFailure(code string) bool {
 // Keep the shared typed failure copy and retry semantics while arranging the
 // surrounding attribution and privacy for the selected conversation.
 func agentFailureContents(model Model, failure PersonaProgressFailure, name string) []ui.Node {
-	card := renderPersonaProgressFailure(model, failure, name)
-	var content []ui.Node
-	for _, child := range card.Children {
-		if node, ok := child.(*ui.Element); ok && (node.Type == "p" || node.Type == "span" || node.Type == "button") {
-			content = append(content, node)
-		}
-	}
+	content := chatbug054Reason(model, failure, name)
+	var further []ui.Node
 	if !failure.Retryable && permissionFailure(failure.Code) {
-		content = append(content, html.Button(html.Props{Class: "button secondary agent-access-request", Type: "button", Disabled: model.Callbacks.SelectConversation == nil && model.Callbacks.OpenBrowse == nil, Data: map[string]string{"action": "agent-request-access"}, Text: agentUXChat4Text(model, "chat.agent.request_access")}))
+		// A refusal over access adds the way to ask for it, in the same row.
+		further = append(further, html.Button(html.Props{Class: "agent-feedback-button agent-reply-action agent-access-request", Type: "button", Disabled: model.Callbacks.SelectConversation == nil && model.Callbacks.OpenBrowse == nil, Data: map[string]string{"action": "agent-request-access"}, Text: agentUXChat4Text(model, "chat.agent.request_access")}))
+	}
+	if actions := chatbug054Actions(model, failure, further...); actions != nil {
+		content = append(content, actions)
 	}
 	return content
 }

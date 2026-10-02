@@ -37,6 +37,13 @@ func unattestedAnnouncementIdentity(model Model, message Message) Message {
 		return message
 	}
 	message.PersonaActor = &PersonaActor{PersonaID: message.AuthorID, AgentID: message.AuthorID, Trusted: true}
-	message.Author = agentReplyFallback(model.Locale, "chat.agent.name", "Agent")
+	// CHATBUG-088: before the directory has said who wrote it the author line is
+	// a neutral mark, never a name; once it has, an author it did not list keeps
+	// the generic label.
+	if agentDirectoryArrived(model) {
+		message.Author = agentReplyFallback(model.Locale, "chat.agent.name", "Agent")
+	} else {
+		message.Author = ""
+	}
 	return message
 }

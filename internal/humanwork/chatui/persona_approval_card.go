@@ -86,5 +86,8 @@ func safePersonaApprovalTaskHref(generated, encoded string) (string, bool) {
 }
 
 func personaApprovalText(model Model, key, fallback string) string {
+	if row, ok := chatbug059ApprovalCopy[key]; ok {
+		return chatbug039Text(key, row[chatbug039LocaleIndex(model.Locale)], fallback)
+	}
 	return chatbug039Text(key, agentReplyFallback(model.Locale, key, fallback), fallback)
 }

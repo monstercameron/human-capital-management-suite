@@ -37,6 +37,25 @@ type GateView struct {
 	VisibleAnswers                                             map[string]map[string]json.RawMessage
 	Names                                                      map[string]string
 	Reads                                                      []chatgate.ReadAudit
+	// Sample marks the form the builder shows under "Sample form": it is there
+	// to be looked at and tried, so it has no Submit and no Save draft. With
+	// them, an administrator trying the form sent a real submission.
+	Sample bool
+}
+
+// gateAnswerText is an answer as a person reads it. Answers are stored as JSON
+// values, and printing the value itself showed text in quotation marks and a
+// list of choices in brackets.
+func gateAnswerText(value json.RawMessage) string {
+	var text string
+	if json.Unmarshal(value, &text) == nil {
+		return text
+	}
+	var list []string
+	if json.Unmarshal(value, &list) == nil {
+		return strings.Join(list, ", ")
+	}
+	return string(value)
 }
 
 func gateButton(v GateView, action, label, id string, primary bool) ui.Node {
@@ -54,7 +73,7 @@ func RenderGate(v GateView) ui.Node {
 	}
 	children := []ui.Node{html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "close", "close", "", false))}
 	if v.State == "loading" {
-		children = append(children, html.P(html.Props{Role: "status", Text: t("loading")}))
+		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: v.Locale, Shape: LoadingShapeSection, Rows: 3, Status: t("loading"), RetryData: map[string]string{"gate-action": "retry", "id": ""}}))
 	} else if v.Error != "" {
 		children = append(children, html.P(html.Props{Role: "alert", Text: t("error")}), gateButton(v, "retry", "retry", "", true))
 	} else {
@@ -120,19 +139,28 @@ func renderGateApplicant(v GateView) ui.Node {
 		}
 		for _, f := range old.Fields {
 			if value, ok := v.Answers[f.ID]; ok {
-				items = append(items, html.P(html.Props{Text: f.Label + ": " + string(value)}))
+				items = append(items, html.P(html.Props{Text: f.Label + ": " + gateAnswerText(value)}))
 			}
 		}
 		nodes = append(nodes, html.Section(html.Props{}, items...))
 	}
 	if v.ConfirmWithdrawal {
-		nodes = append(nodes, html.P(html.Props{Role: "alert", Text: t("consequence")}), gateButton(v, "confirm-withdraw", "confirm", "", true))
+		// The consequence is stated for the withdrawal that has one: a member who
+		// takes back a required answer leaves the channel. Anyone else only has
+		// their answers deleted.
+		consequence := "withdrawPlain"
+		if gateWithdrawalLeaves(v) {
+			consequence = "consequence"
+		}
+		nodes = append(nodes, html.P(html.Props{Role: "alert", Text: t(consequence)}), gateButton(v, "confirm-withdraw", "confirm", "", true))
 	}
 	fields := []ui.Node{}
 	for _, f := range d.Fields {
 		fields = append(fields, renderGateField(v, f))
 	}
-	fields = append(fields, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "submit", "submit", "", true), gateButton(v, "save", "save", "", false)))
+	if !v.Sample {
+		fields = append(fields, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "submit", "submit", "", true), gateButton(v, "save", "save", "", false)))
+	}
 	if len(d.Fields) > 0 && v.Gate.State != "paused" && v.Gate.State != "retired" {
 		nodes = append(nodes, html.Form(html.Props{ID: "gate-answer-form"}, fields...))
 	}
@@ -150,6 +178,26 @@ func renderGateApplicant(v GateView) ui.Node {
 	nodes = append(nodes, html.Section(html.Props{}, audit...))
 	return html.Div(html.Props{}, nodes...)
 }
+
+// gateWithdrawalLeaves reports whether withdrawing takes the person out of the
+// channel: they were admitted on answers that include a required one.
+func gateWithdrawalLeaves(v GateView) bool {
+	if v.Submission == nil || v.Submission.Status != "admitted" {
+		return false
+	}
+	for _, d := range v.Gate.Versions {
+		if d.Version.String() != v.Submission.Version {
+			continue
+		}
+		for _, f := range d.Fields {
+			if f.Required {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func renderGateField(v GateView, f chatgate.Field) ui.Node {
 	t := func(k string) string { return GateText(v.Locale, k) }
 	registry := chatgate.NewRegistry()
@@ -272,7 +320,7 @@ func renderGateQueue(v GateView) ui.Node {
 					label = f.Label
 				}
 			}
-			items = append(items, html.P(html.Props{Text: label + ": " + string(value)}))
+			items = append(items, html.P(html.Props{Text: label + ": " + gateAnswerText(value)}))
 		}
 		items = append(items, html.Label(html.Props{For: "gate-reason-" + sub.ID, Text: t("reason")}), html.Input(html.Props{ID: "gate-reason-" + sub.ID, Type: "text", Required: true}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "admit", "admit", sub.ID, true), gateButton(v, "decline", "decline", sub.ID, false)))
 		nodes = append(nodes, html.Fieldset(html.Props{}, items...))
@@ -286,7 +334,21 @@ func renderGateQueue(v GateView) ui.Node {
 func renderGateAnswers(v GateView) ui.Node {
 	t := func(k string) string { return GateText(v.Locale, k) }
 	rows := []ui.Node{}
-	for person, answers := range v.VisibleAnswers {
+	// People are listed by name, the same way on every read: the table was in
+	// the order of a map, which changes from one render to the next.
+	people := make([]string, 0, len(v.VisibleAnswers))
+	for person := range v.VisibleAnswers {
+		people = append(people, person)
+	}
+	sort.SliceStable(people, func(i, j int) bool {
+		a, b := strings.ToLower(v.Names[people[i]]), strings.ToLower(v.Names[people[j]])
+		if a != b {
+			return a < b
+		}
+		return people[i] < people[j]
+	})
+	for _, person := range people {
+		answers := v.VisibleAnswers[person]
 		name := v.Names[person]
 		if name == "" {
 			name = t("answers")
@@ -303,10 +365,12 @@ func renderGateAnswers(v GateView) ui.Node {
 					label = f.Label
 				}
 			}
-			rows = append(rows, html.Tr(html.Props{Data: map[string]string{"gate-answer-row": "true"}}, html.Td(html.Props{Text: name}), html.Td(html.Props{Text: label}), html.Td(html.Props{Text: string(answers[id])})))
+			rows = append(rows, html.Tr(html.Props{Data: map[string]string{"gate-answer-row": "true"}}, html.Td(html.Props{Text: name}), html.Td(html.Props{Text: label}), html.Td(html.Props{Text: gateAnswerText(answers[id])})))
 		}
 	}
-	nodes := []ui.Node{html.H2(html.Props{Text: t("answerView")}), html.Label(html.Props{For: "gate-filter", Text: t("filter")}), html.Input(html.Props{ID: "gate-filter", Type: "search"}), html.P(html.Props{ID: "gate-answer-count", Role: "status", Text: fmt.Sprintf(t("count"), len(rows))}), html.Div(html.Props{Class: "chatgate-table-wrap"}, html.Table(html.Props{}, html.Tbody(html.Props{}, rows...)))}
+	nodes := []ui.Node{html.H2(html.Props{Text: t("answerView")}), html.Label(html.Props{For: "gate-filter", Text: t("filter")}), html.Input(html.Props{ID: "gate-filter", Type: "search"}), html.P(html.Props{ID: "gate-answer-count", Role: "status", Text: fmt.Sprintf(t("count"), len(rows))}), html.Div(html.Props{Class: "chatgate-table-wrap"}, html.Table(html.Props{},
+		html.Thead(html.Props{}, html.Tr(html.Props{}, html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("person")}), html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("label")}), html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("answerCol")}))),
+		html.Tbody(html.Props{}, rows...)))}
 	if v.ExportAllowed {
 		nodes = append(nodes, gateButton(v, "export", "export", "", false))
 	}
@@ -362,8 +426,11 @@ func chatgateDetailsSection(m Model) ui.Node {
 	if c.Kind == DirectMessage {
 		return nil
 	}
+	// "Gate" for everyone who administers the channel, its managers and the
+	// workspace's administrators as well as its owner; the server decides what
+	// the link shows either way.
 	label := GateText(m.Locale, "answers")
-	if c.OwnerID == m.CurrentUser {
+	if canAdministerConversation(m, c) {
 		label = GateText(m.Locale, "gate")
 	}
 	return html.Section(html.Props{Class: "details-section"}, html.A(html.Props{Href: "#gate=" + url.QueryEscape(c.ID), Text: label, Data: map[string]string{"gate-open": c.ID}}))

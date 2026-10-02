@@ -87,6 +87,9 @@ func chatux010GroupName(locale string, kind chatsearch.Kind) string {
 	if group, ok := names[kind]; ok {
 		return chatbug039Text(string(kind), group[i], group[0])
 	}
+	if heading, ok := chatsearch003Name(locale, kind, true); ok {
+		return heading
+	}
 	return chatsearchKind(locale, kind)
 }
 

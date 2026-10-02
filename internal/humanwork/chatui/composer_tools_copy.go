@@ -8,10 +8,13 @@ const (
 	keyComposerAddPollNote    = "chat.composer.add_poll_note"
 	keyComposerAddTodo        = "chat.composer.add_todo"
 	keyComposerAddTodoNote    = "chat.composer.add_todo_note"
+	keyComposerAddPollHere    = "chat.composer.add_poll_here"
+	keyComposerAddTodoHere    = "chat.composer.add_todo_here"
 	keyComposerAddLocation    = "chat.composer.add_location"
 	keyComposerAddLocNote     = "chat.composer.add_location_note"
 	keyComposerAddVoice       = "chat.composer.add_voice"
 	keyComposerAddVoiceNote   = "chat.composer.add_voice_note"
+	keyComposerAddAttachNote  = "chat.composer.add_attach_note"
 	keyComposerMention        = "chat.composer.mention"
 	keyComposerFormat         = "chat.composer.format"
 	keyComposerFormatTip      = "chat.composer.format_tip"
@@ -28,10 +31,13 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerAddPollNote:    "Ask the channel a question with answer options",
 		keyComposerAddTodo:        "To-do list",
 		keyComposerAddTodoNote:    "Keep track of this channel's tasks",
+		keyComposerAddPollHere:    "Ask this conversation a question with answer options",
+		keyComposerAddTodoHere:    "Post a list of tasks people can tick off",
 		keyComposerAddLocation:    "Location",
 		keyComposerAddLocNote:     "Share where you are or a place",
 		keyComposerAddVoice:       "Voice message",
 		keyComposerAddVoiceNote:   "Record a short audio message",
+		keyComposerAddAttachNote:  "Upload images, PDFs or documents",
 		keyComposerMention:        "Mention someone",
 		keyComposerFormat:         "Formatting",
 		keyComposerFormatTip:      "Show or hide formatting",
@@ -46,10 +52,13 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerAddPollNote:    "Dem Kanal eine Frage mit Antwortoptionen stellen",
 		keyComposerAddTodo:        "Aufgabenliste",
 		keyComposerAddTodoNote:    "Die Aufgaben dieses Kanals im Blick behalten",
+		keyComposerAddPollHere:    "Dieser Unterhaltung eine Frage mit Antwortoptionen stellen",
+		keyComposerAddTodoHere:    "Eine Aufgabenliste posten, die andere abhaken können",
 		keyComposerAddLocation:    "Standort",
 		keyComposerAddLocNote:     "Den eigenen Standort oder einen Ort teilen",
 		keyComposerAddVoice:       "Sprachnachricht",
 		keyComposerAddVoiceNote:   "Eine kurze Audionachricht aufnehmen",
+		keyComposerAddAttachNote:  "Bilder, PDFs oder Dokumente hochladen",
 		keyComposerMention:        "Jemanden erwähnen",
 		keyComposerFormat:         "Formatierung",
 		keyComposerFormatTip:      "Formatierung ein- oder ausblenden",
@@ -64,10 +73,13 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerAddPollNote:    "اطرح على القناة سؤالًا مع خيارات للإجابة",
 		keyComposerAddTodo:        "قائمة المهام",
 		keyComposerAddTodoNote:    "تابع مهام هذه القناة",
+		keyComposerAddPollHere:    "اطرح على هذه المحادثة سؤالًا مع خيارات للإجابة",
+		keyComposerAddTodoHere:    "انشر قائمة مهام يمكن للآخرين وضع علامة عليها",
 		keyComposerAddLocation:    "الموقع",
 		keyComposerAddLocNote:     "شارك مكانك أو موقعًا",
 		keyComposerAddVoice:       "رسالة صوتية",
 		keyComposerAddVoiceNote:   "سجّل رسالة صوتية قصيرة",
+		keyComposerAddAttachNote:  "ارفع صورًا أو ملفات PDF أو مستندات",
 		keyComposerMention:        "الإشارة إلى شخص",
 		keyComposerFormat:         "التنسيق",
 		keyComposerFormatTip:      "إظهار التنسيق أو إخفاؤه",

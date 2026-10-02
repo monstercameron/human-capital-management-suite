@@ -9,6 +9,9 @@ type composerKeyState struct {
 	DocumentOpen, DocumentHighlighted   bool
 	CommandOpen, CommandHighlighted     bool
 	SuggestionVisible, Shift, Composing bool
+	// MentionLoading is set while the "@" menu waits for the conversation's
+	// members: it is open, has nothing to pick yet, and will have rows soon.
+	MentionLoading bool
 }
 
 type composerAction string
@@ -21,6 +24,9 @@ const (
 	composerPickCommand  composerAction = "command"
 	composerSend         composerAction = "send"
 	composerEmpty        composerAction = "empty"
+	// composerHold swallows Enter while the "@" menu is still loading: the
+	// draft is not sent and no newline is typed.
+	composerHold composerAction = "hold"
 )
 
 // The live menu state owns Enter only while it has a selectable item.
@@ -43,6 +49,9 @@ func composerKeyAction(state composerKeyState, key string) composerAction {
 	}
 	if key != "Enter" {
 		return composerNative
+	}
+	if state.MentionOpen && state.MentionLoading {
+		return composerHold
 	}
 	if !composerMessageReady(strings.TrimSpace(state.Draft)) {
 		return composerEmpty

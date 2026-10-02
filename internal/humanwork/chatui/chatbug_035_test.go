@@ -29,17 +29,6 @@ func TestTodo_CHATBUG_035(t *testing.T) {
 			t.Errorf("%s: chatJumpScrollable = %v, want %v", tc.name, got, tc.wantScrollableAtAll)
 		}
 	}
-	// A retry offer lives fifteen minutes from the question and is kept when the
-	// question's time is unknown.
-	now := time.Date(2026, 10, 1, 17, 8, 0, 0, time.UTC)
-	for _, tc := range []struct {
-		asked time.Time
-		want  bool
-	}{{now.Add(-time.Minute), false}, {now.Add(-agentRetryWindow), false}, {now.Add(-agentRetryWindow - time.Second), true}, {now.Add(-9 * time.Hour), true}, {time.Time{}, false}} {
-		if got := agentRetryExpired(tc.asked, now); got != tc.want {
-			t.Errorf("agentRetryExpired(%v) = %v, want %v", tc.asked, got, tc.want)
-		}
-	}
 	// The failure sentence is set at body weight and size.
 	if got := chatbugCascadeValue(ChatMsgListStyles, ".agent-failure-heading", "font-weight"); got != "400" {
 		t.Fatalf("failure sentence font-weight = %q, want 400", got)
@@ -71,14 +60,17 @@ func TestTodo_CHATBUG_035_Browser(t *testing.T) {
 			if !strings.Contains(sentence, "Policy Helper") {
 				t.Fatalf("%s: failure card lost its sentence: %q", locale, sentence)
 			}
-			// Nine hours later the offer is gone, and so is the instruction to press it.
+			// The sentence never tells the reader to press something: the button
+			// says it, once.
+			if locale == "en-US" && strings.Contains(sentence, "Try again") {
+				t.Fatalf("the failure sentence repeats its button: %q", sentence)
+			}
+			// CHATBUG-054: nine hours later the person who asked can still ask
+			// again, with the same single action and the same single icon.
 			m.Messages[0].SentAt = time.Now().Add(-9 * time.Hour)
 			late := chatbug035Failure(t, m)
-			if got := chatPolishNodesIn(late, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-agent-action") == "retry" }); len(got) != 0 {
-				t.Fatalf("%s direct=%v: Try again still offered nine hours after the question", locale, direct)
-			}
-			if locale == "en-US" && strings.Contains(chatbug030Text(late), "Try again") {
-				t.Fatalf("an expired failure still tells the reader to try again: %q", chatbug030Text(late))
+			if got := chatPolishNodesIn(late, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-agent-action") == "retry" }); len(got) != 1 {
+				t.Fatalf("%s direct=%v: %d Ask again offers nine hours after the question, want 1", locale, direct, len(got))
 			}
 			if len(chatPolishNodesIn(late, func(n *xhtml.Node) bool { return chatPolishHasClass(n, "chat-icon") })) != 1 {
 				t.Fatalf("%s direct=%v: expired failure card has more than one icon", locale, direct)

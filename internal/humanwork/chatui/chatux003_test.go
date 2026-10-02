@@ -102,7 +102,15 @@ func TestTodo_CHATUX_003(t *testing.T) {
 		if len(header) != 1 {
 			t.Fatalf("%d header lines", len(header))
 		}
+		// CHATUX-017: the icon and the name are one control that opens the agent's
+		// summary, so they count as the first two parts wherever they sit.
 		parts := chatux003Elements(header[0])
+		if len(parts) > 0 && chatPolishHasClass(parts[0], "agent-summary-open") {
+			if chatPolishAttr(parts[0], "data-action") != "agent-profile-open" || chatPolishAttr(parts[0], "data-id") == "" {
+				t.Fatalf("the agent's name does not open its summary")
+			}
+			parts = append(chatux003Elements(parts[0]), parts[1:]...)
+		}
 		if len(parts) != 5 || !chatPolishHasClass(parts[0], "avatar") || !chatPolishHasClass(parts[1], "agent-reply-name") || !chatPolishHasClass(parts[2], "agent-badge") || parts[3].Data != "time" || !chatPolishHasClass(parts[4], "agent-reply-private") {
 			t.Fatalf("header parts = %v", func() []string {
 				var names []string
@@ -154,12 +162,17 @@ func TestTodo_CHATUX_003(t *testing.T) {
 			}
 		}
 		walkButtons(actions[0])
-		for _, want := range []string{"agent-feedback|helpful", "agent-feedback|not-right", "agent-follow-up|/workspace/app/chat#channel=policy", "agent-share|", "menu|"} {
+		for _, want := range []string{"agent-feedback|helpful", "agent-feedback|not-right", "agent-follow-up|/workspace/app/chat#channel=policy", "menu|"} {
 			if !have[want] {
 				t.Fatalf("the action row lacks %q: %v", want, have)
 			}
 		}
-		if share := chatux003Find(card, "agent-reply-share"); len(share) != 1 || chatPolishAttr(share[0], "data-id") != "run" || chatbug030Text(share[0]) != chatux003Text(model, "chatux003.share") {
+		// AGENTUX-070: sharing is not a button of the row (three actions and the
+		// menu); the mark that says the answer is private is the button that asks.
+		if have["agent-share|"] || len(have) != 4 {
+			t.Fatalf("the action row holds %v, want Helpful, Not right, Ask a follow-up and the menu", have)
+		}
+		if share := chatux003Find(card, "agent-reply-private-button"); len(share) != 1 || chatPolishAttr(share[0], "data-id") != "run" || chatPolishAttr(share[0], "data-action") != "agent-share" || chatbug030Text(share[0]) != personaProgressText(model, "chat.agent.only_visible", "Only visible to you") {
 			t.Fatalf("share control = %+v", share)
 		}
 	})
@@ -225,7 +238,7 @@ func TestTodo_CHATUX_003_Accessibility(t *testing.T) {
 			t.Errorf("%s: the locked chip cannot be focused to read why", locale)
 		}
 		model := chat4Fixture(locale, "answered", false)
-		share := chatux003Find(card, "agent-reply-share")[0]
+		share := chatux003Find(card, "agent-reply-private-button")[0]
 		if label := chatPolishAttr(share, "aria-label"); !strings.Contains(label, chatux003Text(model, "chatux003.share")) || !strings.Contains(label, "#general") {
 			t.Errorf("%s: share control name = %q", locale, label)
 		}
@@ -234,9 +247,14 @@ func TestTodo_CHATUX_003_Accessibility(t *testing.T) {
 	_, card := chatux003Card(t, "en-US", 390, "asked", func(m *Model) {
 		m.AgentShare = map[string]AgentShareState{"run": {Status: AgentShareSharing}}
 	})
-	share := chatux003Find(card, "agent-reply-share")[0]
-	if chatPolishAttr(share, "aria-busy") != "true" || chatbug030Text(share) != "Sharing…" || !hasAttr(share, "disabled") {
-		t.Errorf("sharing control = %q busy=%q", chatbug030Text(share), chatPolishAttr(share, "aria-busy"))
+	// AGENTUX-070: the row says what is happening in a status line, and the mark is
+	// not a button while it goes through, so nothing can be pressed a second time.
+	if note := chatux003Find(card, "agent-reply-share-note"); len(note) != 1 || chatPolishAttr(note[0], "role") != "status" || len(chatux003Find(card, "agent-reply-private-button")) != 0 {
+		t.Errorf("sharing note = %v", note)
+	}
+	share := chatux003Find(card, "agent-reply-share-note")[0]
+	if chatbug030Text(share) != "Sharing…" {
+		t.Errorf("sharing note = %q", chatbug030Text(share))
 	}
 }
 
@@ -262,7 +280,8 @@ func TestTodo_CHATUX_003_ShareStates(t *testing.T) {
 	}{
 		{name: "offered", reason: "asked", callback: true, button: true},
 		{name: "private because of the audience, still offered", reason: "audience", callback: true, button: true},
-		{name: "shared", reason: "asked", state: AgentShareState{Status: AgentShareShared}, callback: true, note: "Shared to ⁨#general⁩"},
+		// CHATUX-026: a shared answer says so in its header; see TestTodo_CHATUX_026.
+		{name: "shared", reason: "asked", state: AgentShareState{Status: AgentShareShared}, callback: true},
 		{name: "refused by the audience check", reason: "asked", state: AgentShareState{Status: AgentShareRefused, Reason: "audience"}, callback: true, note: "Not everyone in ⁨#general⁩ can open the sources, so this stays private."},
 		{name: "refused because the agent is strict", reason: "asked", state: AgentShareState{Status: AgentShareRefused, Reason: "agent"}, callback: true, note: "Policy Helper always answers privately, so this stays private."},
 		{name: "failed, can be tried again", reason: "asked", state: AgentShareState{Status: AgentShareFailed}, callback: true, button: true, note: "Could not share this answer. Try again."},
@@ -278,7 +297,7 @@ func TestTodo_CHATUX_003_ShareStates(t *testing.T) {
 					m.AgentShare = map[string]AgentShareState{"run": tc.state}
 				}
 			})
-			share := chatux003Find(card, "agent-reply-share")
+			share := chatux003Find(card, "agent-reply-private-button")
 			if tc.button != (len(share) == 1) {
 				t.Fatalf("share control present = %v, want %v", len(share) == 1, tc.button)
 			}
@@ -378,10 +397,11 @@ func TestTodo_CHATUX_003_Browser(t *testing.T) {
 	}
 }
 
-// TestTodo_CHATUX_003_AskAgain: a card that ends because the answer was
-// interrupted, with no run behind it to retry, offers the one useful action, Ask
-// again, while the question is recent. It asks the same question again only on
-// the person's click, and never for a question that is not theirs.
+// TestTodo_CHATUX_003_AskAgain: a card that ends without an answer always
+// offers Ask again to the person who asked, whatever the age of the question
+// (CHATBUG-054). The button names the run to ask again, or the question itself
+// when no run stands behind the card; the page never sends a second copy of
+// the question as a message, and nobody else is offered the button.
 func TestTodo_CHATUX_003_AskAgain(t *testing.T) {
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		render := func(model Model) []*xhtml.Node {
@@ -389,38 +409,37 @@ func TestTodo_CHATUX_003_AskAgain(t *testing.T) {
 			markup := chatPolishMarkup(t, html.Div(html.Props{}, rows...), 390, "light")
 			return chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishHasClass(n, "agent-ask-again") })
 		}
-		interrupted := func(age time.Duration, provisional bool) Model {
+		sent := 0
+		interrupted := func(age time.Duration) Model {
 			model := chat4Fixture(locale, "working15", false)
+			model.Callbacks.SendMessageWithReferences = func(string, string, []ChatReference) { sent++ }
+			model.Callbacks.SendMessage = func(string, string) { sent++ }
 			model.Messages[0].SentAt = time.Now().Add(-age)
-			model.PersonaInvocations[0].Projection.Progress.Deadline = time.Now().Add(-time.Second)
-			model.PersonaInvocations[0].Projection.Progress.Provisional = provisional
+			progress := model.PersonaInvocations[0].Projection.Progress
+			progress.Deadline, progress.Provisional, progress.InvocationID = time.Now().Add(-time.Second), true, ""
+			model.PersonaInvocations[0].Projection.InvocationID = "pending:question"
 			return model
 		}
-		fresh := render(interrupted(time.Minute, true))
-		if len(fresh) != 1 || chatPolishAttr(fresh[0], "data-action") != "agent-ask-again" || chatPolishAttr(fresh[0], "data-id") != "question" || chatbug030Text(fresh[0]) != chatux003Text(chat4Fixture(locale, "sent", false), "chatux003.ask_again") {
-			t.Fatalf("%s: an interrupted card with no run offers %+v", locale, fresh)
+		for _, age := range []time.Duration{time.Minute, 9 * time.Hour} {
+			got := render(interrupted(age))
+			if len(got) != 1 || chatPolishAttr(got[0], "data-agent-action") != "retry" || chatPolishAttr(got[0], "data-agent-invocation-id") != "question:general:question" || chatPolishAttr(got[0], "data-agent-question") != "question" || chatbug030Text(got[0]) != chatux003Text(chat4Fixture(locale, "sent", false), "chatux003.ask_again") {
+				t.Fatalf("%s: an interrupted card with no run, %v after the question, offers %+v", locale, age, got)
+			}
 		}
-		if got := render(interrupted(9*time.Hour, true)); len(got) != 0 {
-			t.Fatalf("%s: Ask again offered nine hours after the question", locale)
-		}
-		// A failure the server reported that cannot be retried offers it too.
+		// A failure the server reported names its run.
 		failed := chat4Fixture(locale, "failed", false)
 		failed.PersonaInvocations[0].Projection.Failure = &PersonaProgressFailure{InvocationID: "run", InvokerID: "alice", Code: "ANSWER_INTERRUPTED"}
-		if got := render(failed); len(got) != 1 {
-			t.Fatalf("%s: an interrupted failure offers %d Ask again buttons", locale, len(got))
+		if got := render(failed); len(got) != 1 || chatPolishAttr(got[0], "data-agent-invocation-id") != "run" || chatPolishAttr(got[0], "data-agent-question") != "question" {
+			t.Fatalf("%s: an interrupted failure offers %+v", locale, got)
 		}
-	}
-	var sent []string
-	model := chat4Fixture("en-US", "sent", false)
-	model.Callbacks.SendMessageWithReferences = func(conversation, body string, refs []ChatReference) {
-		sent = append(sent, conversation+"|"+body+"|"+refs[0].ID)
-	}
-	chatux003AskAgain(model, "question")
-	chatux003AskAgain(model, "no-such-post")
-	other := model
-	other.CurrentUser = "bob"
-	chatux003AskAgain(other, "question")
-	if len(sent) != 1 || sent[0] != "general|@Policy Helper explain our PTO policy in detail: accrual|policy-helper" {
-		t.Fatalf("asked again = %v, want the same question once, from its own author only", sent)
+		// Somebody else's failed question offers nothing.
+		other := chat4Fixture(locale, "failed", false)
+		other.CurrentUser = "bob"
+		if got := render(other); len(got) != 0 {
+			t.Fatalf("%s: Ask again is offered on a question somebody else asked", locale)
+		}
+		if sent != 0 {
+			t.Fatalf("%s: drawing a failed card sent %d messages", locale, sent)
+		}
 	}
 }

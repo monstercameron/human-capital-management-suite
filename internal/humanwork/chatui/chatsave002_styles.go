@@ -82,8 +82,7 @@ const Chatsave002Styles = `
 .chatsave-act-remove{color:var(--muted)}
 .chatsave-filled path{fill:currentColor}
 .chatsave-anchor{position:relative;display:inline-flex}
-.chatsave-menu{position:absolute;top:calc(100% + 6px);bottom:auto;inset-inline-end:0;inset-inline-start:auto;z-index:6;display:flex;flex-direction:column;box-sizing:border-box;min-width:224px;max-width:calc(100vw - 32px);padding:4px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);box-shadow:var(--hcm-shadow-raised);transform:translateX(var(--chatsave-menu-shift,0px))}
-.chatsave-menu.is-above{top:auto;bottom:calc(100% + 6px)}
+.chatsave-menu{position:absolute;top:calc(100% + 6px);bottom:auto;inset-inline-end:0;inset-inline-start:auto;z-index:6;display:flex;flex-direction:column;box-sizing:border-box;min-width:224px;max-width:calc(100vw - 32px);padding:4px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);box-shadow:var(--hcm-shadow-raised)}
 .chatsave-menu-item{white-space:nowrap}
 .chatsave-pick{display:flex;align-items:center;gap:6px;padding:6px 8px 4px}
 .chatsave-pick .button{flex:none}
@@ -110,6 +109,6 @@ const Chatsave002Styles = `
 @media(max-width:760px){
 .chatsave-panel{inset:0;inline-size:100%;max-inline-size:none;block-size:100dvh;max-block-size:none;border-inline-start:0}
 .chatsave-back{display:inline-flex}
-.chatsave-header>.icon-button:not(.chatsave-back){display:none}
+.chatsave-header .chat-panel-close{display:none}
 }
 `

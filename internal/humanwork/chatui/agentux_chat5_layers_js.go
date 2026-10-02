@@ -150,7 +150,19 @@ func positionChatLayer(layer, opener js.Value, above bool) {
 		// What the layer needs to show all it holds, border included; it only
 		// chooses the side, the layer is not capped at it.
 		need := chatLayerContentHeight(layer.Get("scrollHeight").Float(), layer.Get("offsetHeight").Float(), layer.Get("clientHeight").Float())
-		placement = chatLayerPlace(anchoredChatGeometry(anchorRect, width, need, viewportWidth, viewportHeight, above, rtl), anchorRect, viewportHeight)
+		// CHATBUG-051: a layer opened from the conversation stays in it.
+		bounds := chatLayerBounds(anchorRect, chatLayerArea(root, opener), viewportWidth, viewportHeight)
+		if chatLayerAnchorGone(anchorRect, bounds) {
+			style.Call("setProperty", "visibility", "hidden")
+			return
+		}
+		style.Call("removeProperty", "visibility")
+		if composerPlacement, ok := chatComposerPlacementFor(opener, kind, bounds, width, need, viewportHeight, rtl); ok {
+			// AGENTUX-062: a layer opened from the composer sits wholly above it.
+			placement = composerPlacement
+		} else {
+			placement = chatLayerPlaceWithin(chatLayerPlace(anchoredChatGeometryIn(anchorRect, bounds, width, need, above, rtl), anchorRect, viewportHeight), bounds, viewportHeight)
+		}
 	}
 	pixels := func(value float64) string { return strconv.FormatFloat(value, 'f', 2, 64) + "px" }
 	style.Call("setProperty", "left", pixels(placement.left))
@@ -168,12 +180,45 @@ func positionChatLayer(layer, opener js.Value, above bool) {
 	style.Call("setProperty", "transform", "none")
 }
 
+// chatLayerArea measures the conversation area a layer must stay inside: the
+// conversation column and the thread or details pane beside it, which is the
+// page without the application header and the sidebar. For an opener in the
+// messages or the composer the area also starts below the header of the
+// conversation, so a menu never covers the buttons in it.
+func chatLayerArea(root, opener js.Value) chatLayerRect {
+	if !root.Truthy() {
+		return chatLayerRect{}
+	}
+	column := root.Call("querySelector", ".chat-main")
+	if !column.Truthy() {
+		return chatLayerRect{}
+	}
+	box := column.Call("getBoundingClientRect")
+	area := chatLayerRect{box.Get("left").Float(), box.Get("top").Float(), box.Get("right").Float(), box.Get("bottom").Float()}
+	sides := root.Call("querySelectorAll", ".chat-side")
+	for i := 0; i < sides.Length(); i++ {
+		side := sides.Index(i).Call("getBoundingClientRect")
+		if side.Get("width").Float() <= 0 || side.Get("height").Float() <= 0 {
+			continue
+		}
+		area.left, area.right = min(area.left, side.Get("left").Float()), max(area.right, side.Get("right").Float())
+	}
+	if opener.Truthy() && opener.Get("isConnected").Truthy() && opener.Call("closest", ".timeline-frame,.chat-composer").Truthy() {
+		if header := column.Call("querySelector", ".conversation-header"); header.Truthy() {
+			area.top = max(area.top, header.Call("getBoundingClientRect").Get("bottom").Float())
+		}
+	}
+	return area
+}
+
 func syncChatAnchoredLayers() {
 	root := chatLayerRoot()
 	if !root.Truthy() {
 		return
 	}
 	chatux007SyncJump()
+	closeStaleChatPopovers(root)
+	syncChatComposerRoom(root)
 	opener := root.Get("__chatLayerOpener")
 	layers := root.Call("querySelectorAll", "[data-chat-layer]:not([hidden])")
 	// A dialog and the panels over it do not mix: a top-layer panel is drawn above
@@ -205,6 +250,21 @@ func syncChatAnchoredLayers() {
 			selector := map[string]string{"search": "[data-action=chat-search-open]", "emoji": "[data-action=emoji-toggle]", "menu": "[data-action=menu]"}[kind]
 			if selector != "" {
 				anchor = root.Call("querySelector", selector)
+			}
+			if kind == "gif" {
+				// "/giphy" opens the picker without a press: its button is the one in
+				// the composer the picker belongs to.
+				target := strings.TrimSuffix(layer.Get("id").String(), "-giphy-picker")
+				anchor = root.Call("querySelector", "[data-action=giphy-toggle][data-id='"+target+"']")
+			}
+			// The channel list and poll have one home, the chip under the
+			// header; the card opens from it when nothing else is remembered.
+			if kind == "todo" || kind == "poll" || kind == chatcmd002TrayMore {
+				for _, candidate := range []string{"[data-action=tray-" + kind + "]", "[data-action=open-" + kind + "]", ".composer-add-trigger"} {
+					if anchor = root.Call("querySelector", candidate); anchor.Truthy() {
+						break
+					}
+				}
 			}
 			if kind != "reaction" && !anchor.Truthy() {
 				anchor = opener

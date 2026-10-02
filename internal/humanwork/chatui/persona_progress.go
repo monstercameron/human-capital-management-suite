@@ -7,7 +7,6 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
-	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
 // PersonaProgressProps is the invoker-only, ephemeral progress projection for
@@ -32,6 +31,10 @@ type PersonaProgressProps struct {
 	// QuestionPostID is the question this state answers, so a card that ends
 	// without a run behind it can offer to ask that question again (CHATUX-003).
 	QuestionPostID string
+	// StepKind and StepSubject are what the run reports it is doing now, as a typed
+	// kind and the thing it is doing it to (AGENTUX-075). The line is built from
+	// them; an unknown kind leaves the generic line.
+	StepKind, StepSubject string
 }
 
 // PersonaTaskCardProps is the server-owned task summary shown after a persona
@@ -47,8 +50,9 @@ type PersonaTaskCardProps struct {
 	AwaitingApproval bool
 }
 
-// PersonaProgressFailure is a typed provider failure. Retry is rendered only
-// when the caller explicitly marks the operation retryable.
+// PersonaProgressFailure is a typed provider failure. The person who asked may
+// always ask again (CHATBUG-054); Retryable is what the server said about the
+// run and no longer decides whether the action is offered.
 type PersonaProgressFailure struct {
 	Code         string
 	InvocationID string
@@ -58,26 +62,26 @@ type PersonaProgressFailure struct {
 	Message      string
 	RetryLabel   string
 	Retryable    bool
-	// AskedAt is when the question this failure answers was sent. The retry is
-	// offered only while that question is recent (agentRetryWindow); zero means
-	// unknown and keeps the offer.
+	// AskedAt is when the question this failure answers was sent, when known.
 	AskedAt time.Time
-	// AskAgainPostID is the question to ask again on a click, for a failure with no
-	// run to retry. Asking is only ever the person's deliberate click.
+	// AskAgainPostID is the question the failure answers. "Ask again" names it
+	// when no run stands behind the card, and the page uses it to draw the new
+	// attempt in the failed card's place. Asking is only ever the person's
+	// deliberate click.
 	AskAgainPostID string
-}
-
-// agentRetryWindow is how long after the question a failed answer still offers
-// Try again. The invocation record carries no expiry the client can read, so
-// the offer lapses with the question, after fifteen minutes.
-const agentRetryWindow = 15 * time.Minute
-
-func agentRetryExpired(askedAt, now time.Time) bool {
-	return !askedAt.IsZero() && now.Sub(askedAt) > agentRetryWindow
+	// MentionsAsked and RetryAt describe a mention refused by the hourly limit
+	// (code MENTION_LIMIT_REACHED): how many times the person asked this agent in
+	// the last hour, and when they can ask again.
+	MentionsAsked int
+	RetryAt       time.Time
 }
 
 // PersonaProgressProjection contains only already-authorized chat data.
 type PersonaProgressProjection struct {
+	// Settling is true for a private answer drawn before the agent activity that
+	// names its run has been read (CHATUX-026): the card does not yet know whether
+	// it was shared or can be rated, so it shows neither mark nor those controls.
+	Settling         bool
 	InvocationID     string
 	ViewerID         string
 	InvokerID        string
@@ -87,6 +91,13 @@ type PersonaProgressProjection struct {
 	Failure          *PersonaProgressFailure
 	PrivateReplyHref string
 	DurablePostID    string
+	// AnswerStored marks a finished run whose private answer is saved but whose
+	// text has not reached the page yet (CHATBUG-079). It is drawn as a quiet
+	// placeholder, never as a run at work: nothing is running.
+	AnswerStored bool
+	// AnswerDue is when the page stops waiting for that text and points at the
+	// saved copy instead. Zero waits.
+	AnswerDue time.Time
 }
 
 // RenderPersonaProgress renders invoker-only ephemeral progress and one
@@ -120,64 +131,55 @@ func RenderPersonaProgress(model Model, projection PersonaProgressProjection) ui
 func renderPersonaProgressStatus(model Model, progress PersonaProgressProps) ui.Node {
 	agent := personaAgentName(model, progress.AgentName)
 	if !progress.Deadline.IsZero() && !time.Now().Before(progress.Deadline) {
-		return renderPersonaProgressFailure(model, PersonaProgressFailure{InvocationID: progress.InvocationID, ViewerID: progress.ViewerID, InvokerID: progress.InvokerID, Code: "ANSWER_INTERRUPTED", Retryable: !progress.Provisional, AskAgainPostID: progress.QuestionPostID, AskedAt: agentQuestionSentAt(model, progress.QuestionPostID)}, agent)
+		return renderPersonaProgressFailure(model, PersonaProgressFailure{InvocationID: progress.InvocationID, ViewerID: progress.ViewerID, InvokerID: progress.InvokerID, Code: "ANSWER_INTERRUPTED", Retryable: !progress.Provisional, AskAgainPostID: progress.QuestionPostID}, agent)
 	}
 	elapsedSeconds := max(0, progress.ElapsedSeconds)
 	working := personaProgressText(model, "chat.agent.finding_answer", "Finding an answer in your policy documents…")
 	if elapsedSeconds >= 20 {
 		working = personaProgressText(model, "chat.agent.still_working", "Still working…")
 	}
+	// AGENTUX-075: the line names the step the run is at when the server said.
+	if step := agentUX075ProgressLine(model.Locale, progress); step != "" {
+		working = step
+	}
 	announcement := strings.TrimSpace(progress.Announcement)
 	if announcement == "" {
 		announcement = working
 	}
 	children := []ui.Node{
-		renderAgentReplyIdentity(model, agent),
+		agentUX026WorkingHead(model, agent),
 		html.Div(html.Props{Class: "agent-reply-state-line", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true", "label": announcement}},
 			html.Span(html.Props{Class: "agent-reply-state-copy", Text: working}),
 			html.Span(html.Props{Class: "agent-working-dots", Aria: map[string]string{"hidden": "true"}}, html.Span(html.Props{}), html.Span(html.Props{}), html.Span(html.Props{})),
-			progressCounter(elapsedSeconds)),
+			progressCounter(model.Locale, elapsedSeconds)),
 	}
-	if elapsedSeconds >= 5 {
+	if elapsedSeconds >= agentUX075ElapsedAfter {
 		children[1] = html.Div(html.Props{Class: "agent-reply-state-line", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true", "label": announcement}},
 			html.Span(html.Props{Class: "agent-reply-state-copy", Text: working}),
 			html.Span(html.Props{Class: "agent-working-dots", Aria: map[string]string{"hidden": "true"}}, html.Span(html.Props{}), html.Span(html.Props{}), html.Span(html.Props{})),
-			progressCounter(elapsedSeconds),
+			progressCounter(model.Locale, elapsedSeconds),
 			html.Span(html.Props{Class: "agent-reply-state-divider", Aria: map[string]string{"hidden": "true"}, Text: "·"}),
 			html.Button(html.Props{Class: "agent-progress-cancel", Type: "button", Disabled: model.Callbacks.CancelPersonaInvocation == nil, Data: map[string]string{"action": "agent-invocation-cancel", "id": progress.InvocationID}, Text: agentAnswerStopLabel(model.Locale)}))
 	}
 	return html.Article(html.Props{Class: "persona-progress-status agent-reply-row", Data: map[string]string{"agent-progress": "true", "agent-invocation-id": progress.InvocationID, "agent-reply-state": "working", "reduced-motion": "respect"}}, children...)
 }
 
-func progressCounter(elapsedSeconds int) ui.Node {
-	if elapsedSeconds < 5 {
+func progressCounter(locale string, elapsedSeconds int) ui.Node {
+	if elapsedSeconds < agentUX075ElapsedAfter {
 		return nil
 	}
-	return html.Time(html.Props{Class: "agent-reply-counter", Text: fmt.Sprintf("%d:%02d", elapsedSeconds/60, elapsedSeconds%60)})
+	return html.Time(html.Props{Class: "agent-reply-counter", Text: chatNumeral(locale, fmt.Sprintf("%d:%02d", elapsedSeconds/60, elapsedSeconds%60))})
 }
 
 func renderPersonaProgressFailure(model Model, failure PersonaProgressFailure, agentName string) ui.Node {
 	agentName = personaAgentName(model, agentName)
-	description := chat.AgentAnswerFailureFor(model.Locale, agentName, failure.Code)
-	// CHATBUG-035: once the retry has lapsed the sentence stops telling the
-	// reader to try again, since there is nothing left to press.
-	lapsed := description.Retryable && agentRetryExpired(failure.AskedAt, time.Now())
-	message := description.Sentence
-	if !lapsed {
-		message += " " + description.NextStep
-	}
-	// CHATBUG-035: one icon, the warning; the privacy line is words only, and the
-	// sentence is its own live region rather than a hidden copy read after it.
-	children := []ui.Node{renderAgentReplyIdentity(model, agentName), html.P(html.Props{Class: "agent-failure-heading", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, icon("warning"), html.Span(html.Props{Text: message})), html.Div(html.Props{Class: "agent-reply-private"}, html.Span(html.Props{Text: personaProgressText(model, "chat.agent.only_visible", "Only visible to you")}))}
-	if failure.Retryable && description.Retryable && !lapsed {
-		label := strings.TrimSpace(failure.RetryLabel)
-		if label == "" {
-			label = personaProgressText(model, "chat.agent.try_again", "Try again")
-		}
-		children = append(children, html.Button(html.Props{Class: "button secondary persona-progress-retry", Type: "button", Aria: map[string]string{"label": label}, Data: map[string]string{"agent-action": "retry", "agent-invocation-id": failure.InvocationID}}, ui.Text(label)))
-	}
-	if !(failure.Retryable && description.Retryable && !lapsed) && failure.AskAgainPostID != "" && description.Retryable && !lapsed {
-		children = append(children, chatux003AskAgainButton(model, failure.AskAgainPostID))
+	// CHATBUG-054: the failed card is laid out like an answered one. One header
+	// line with the visibility note at its end, the reason in one plain sentence,
+	// and one row of actions that always holds "Ask again" and "Dismiss".
+	children := []ui.Node{chatbug054Header(model, agentName, failure.AskAgainPostID)}
+	children = append(children, chatbug054Reason(model, failure, agentName)...)
+	if actions := chatbug054Actions(model, failure); actions != nil {
+		children = append(children, actions)
 	}
 	return html.Article(html.Props{Class: "persona-progress-failure agent-reply-row", Data: map[string]string{"agent-failure": "typed", "agent-reply-state": "failed"}}, children...)
 }
@@ -195,4 +197,4 @@ func personaProgressText(model Model, key, fallback string) string {
 
 // PersonaProgressStyles keeps live updates calm for people who request less
 // motion. The host may append it alongside the chat stylesheet.
-const PersonaProgressStyles = `.persona-progress-surface{min-width:0}.agent-reply-row,.persona-task-card{margin-block:8px;padding:10px 12px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-brand-soft);overflow-wrap:anywhere;min-width:0}.agent-reply-identity{display:flex;align-items:center;gap:8px;min-width:0}.agent-reply-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agent-reply-state-text,.agent-reply-answer{margin:6px 0;white-space:pre-wrap}.agent-reply-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;color:var(--hcm-color-text-muted);font-size:.8125rem}.agent-reply-open{color:var(--hcm-color-brand-primary)}.persona-task-state,.persona-task-approval{display:inline-block;margin-inline-start:8px;font-size:.8125rem;color:var(--hcm-color-text-muted)}.persona-task-goal{margin:6px 0}.persona-task-open{display:inline-block;margin-top:6px;color:var(--hcm-color-brand-primary)}.persona-progress-retry{margin-top:8px}@media(max-width:390px){.agent-reply-row{padding:8px 10px}.agent-reply-meta{align-items:flex-start;flex-direction:column}.agent-reply-open{max-width:100%}}@media(prefers-reduced-motion:reduce){.persona-progress-surface *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}`
+const PersonaProgressStyles = `.persona-progress-surface{min-width:0}.agent-reply-row,.persona-task-card{margin-block:8px;padding:10px 12px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-brand-soft);overflow-wrap:anywhere;min-width:0}.agent-reply-identity{display:flex;align-items:center;gap:8px;min-width:0}.agent-reply-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agent-reply-state-text,.agent-reply-answer{margin:6px 0;white-space:pre-wrap}.agent-reply-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;color:var(--hcm-color-text-muted);font-size:.8125rem}.agent-reply-open{color:var(--hcm-color-brand-primary)}.persona-task-state,.persona-task-approval{display:inline-block;margin-inline-start:8px;font-size:.8125rem;color:var(--hcm-color-text-muted)}.persona-task-goal{margin:6px 0}.persona-task-open{display:inline-block;margin-top:6px;color:var(--hcm-color-brand-primary)}.persona-progress-retry{margin-top:8px}@media(max-width:390px){.agent-reply-row{padding:8px 10px}.agent-reply-meta{align-items:flex-start;flex-direction:column}.agent-reply-open{max-width:100%}}@media(prefers-reduced-motion:reduce){.persona-progress-surface *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}` + agentUX026WorkingStyles

@@ -7,6 +7,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 )
 
 func widgetMemberName(m Model, home, subject string) string {
@@ -89,17 +90,43 @@ func widgetError(m Model) ui.Node {
 	return html.Div(html.Props{}, html.P(html.Props{Role: "alert", Text: modAuthorErrorOr(m, m.ChannelWidgetsError, m.t(KeyWidgetError))}), actionButton("button secondary small", "widget-retry", "", m.t(KeyRetry), m.Callbacks.RetryChannelWidgets == nil, ui.Text(m.t(KeyRetry))))
 }
 
+// ChannelWidgetsReadOnly reports whether the open channel takes no changes to
+// its purpose, project, to-do list or poll: it is archived, locked or set to
+// announcements. The server refuses those changes; the page does not offer them.
+func ChannelWidgetsReadOnly(m Model) bool {
+	view, ok := m.ChannelStatuses[m.SelectedID]
+	return ok && view.Status.Status != "" && view.Status.Status != chatpolicy.StatusOpen
+}
+
+// WithReadOnlyChannelWidgets returns the model without the callbacks that
+// change a channel's widgets when the open channel is read-only (CHATBUG-082).
+// Every control that needs one of them is drawn disabled, so an archived
+// channel shows its purpose, list and poll and offers nothing that would fail.
+func WithReadOnlyChannelWidgets(m Model) Model {
+	if !ChannelWidgetsReadOnly(m) {
+		return m
+	}
+	cb := &m.Callbacks
+	cb.AddChannelTodo, cb.SetChannelTodoCompleted, cb.DeleteChannelTodo, cb.SetChannelTodoPinned, cb.SetChannelTodoPolicy, cb.SetChannelTodoNewPolicy = nil, nil, nil, nil, nil, nil
+	cb.CreateChannelPoll, cb.VoteChannelPoll = nil, nil
+	cb.SetChannelWidgetPinned, cb.SetChannelTeamPurpose, cb.SetChannelTeamRoleLabel, cb.SetChannelProjectDetails = nil, nil, nil, nil
+	cb.AddChannelProjectMilestone, cb.UpdateChannelProjectMilestone, cb.DeleteChannelProjectMilestone = nil, nil, nil
+	m.Chatcmd002.CloseChannelPoll = nil
+	return m
+}
+
 func inlineChannelWidgets(m Model) ui.Node {
-	if m.ChannelTeam.Revision == 0 && m.ChannelProject.Revision == 0 && !m.ChannelWidgetsLoading && m.ChannelWidgetsError == "" {
+	if m.ChannelTeam.Revision == 0 && m.ChannelProject.Revision == 0 {
 		return html.Span(html.Props{})
 	}
 	// CHATUX-012: a loading sentence is never page text. While the widgets are
 	// being read the area stays empty, so a pinned widget appears without a line
 	// above the messages announcing that it is on its way.
+	//
+	// CHATBUG-082: a failed read is not said here either. It is said once, in
+	// Conversation details, where the purpose it could not read would be; said
+	// above the messages as well, the same sentence stood on the page twice.
 	cards := []ui.Node{}
-	if m.ChannelWidgetsError != "" {
-		cards = append(cards, widgetError(m))
-	}
 	if m.ChannelTeam.Pinned {
 		rows := []ui.Node{}
 		for _, member := range m.ChannelTeam.Members {
@@ -148,7 +175,7 @@ type channelWidgetParts struct {
 }
 
 func channelWidgetPartsFor(m Model, h handlers) channelWidgetParts {
-	disabled := m.ChannelWidgetsLoading || m.ChannelWidgetsPending || m.ChannelWidgetsError != "" || m.ChannelTeam.Revision == 0 || m.ChannelProject.Revision == 0
+	disabled := m.ChannelWidgetsLoading || m.ChannelWidgetsPending || m.ChannelWidgetsError != "" || m.ChannelTeam.Revision == 0 || m.ChannelProject.Revision == 0 || ChannelWidgetsReadOnly(m)
 	teamRows := []ui.Node{}
 	for i, member := range m.ChannelTeam.Members {
 		// Never show a name or role label for a member absent from the current

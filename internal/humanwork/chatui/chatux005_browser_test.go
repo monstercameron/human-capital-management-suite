@@ -69,7 +69,7 @@ func TestTodo_CHATUX_005_Browser(t *testing.T) {
 	words := map[string]struct{ about, manage, project, notifications, agents, people, copyLink string }{
 		"en-US": {"About", "Manage channel", "Project and milestones", "Notifications for me", "Agents · 2", "People · 2", "Copy link"},
 		"de-DE": {"Info", "Kanal verwalten", "Projekt und Meilensteine", "Benachrichtigungen für mich", "Agenten · 2", "Personen · 2", "Link kopieren"},
-		"ar":    {"نبذة", "إدارة القناة", "المشروع والمراحل الرئيسية", "الإشعارات الخاصة بي", "الوكلاء · 2", "الأشخاص · 2", "نسخ الرابط"},
+		"ar":    {"نبذة", "إدارة القناة", "المشروع والمراحل الرئيسية", "الإشعارات الخاصة بي", "الوكلاء · ٢", "الأشخاص · ٢", "نسخ الرابط"},
 	}
 	keyLeak := regexp.MustCompile(`\bchat\.[a-z0-9_]+\.[a-z0-9_.]+`)
 	for locale, w := range words {
@@ -78,9 +78,9 @@ func TestTodo_CHATUX_005_Browser(t *testing.T) {
 			if strings.Contains(panel, "⟦") || keyLeak.MatchString(panel) || strings.Contains(panel, ` style="`) {
 				t.Errorf("%s/%s: a copy key, marker or style attribute reaches the panel: %s", locale, viewer, keyLeak.FindString(panel))
 			}
-			order := []string{`id="chat-details-about"`, "<h3>" + w.about + "</h3>", `id="chat-details-pinned"`, ctx.Text(chatui.KeyPinned) + " · 1", ctx.Text(chatui.KeyMembers) + " · 18", `id="chat-details-members"`, `id="chat-agents-here"`, w.agents, w.people, w.notifications}
+			order := []string{`id="chat-details-about"`, "<h3>" + w.about + "</h3>", `id="chat-details-pinned"`, ctx.Text(chatui.KeyPinned) + s31Digits(locale, " · 1"), w.notifications, ctx.Text(chatui.KeyMembers) + s31Digits(locale, " · 18"), `id="chat-details-members"`, `id="chat-agents-here"`, w.agents, w.people}
 			if viewer == "manager" {
-				order = append(order, `id="chat-details-manage"`, w.manage, ctx.Text(chatui.KeyTeamRoles)+" · 2", `data-details-group="project"`, w.project, "chatfilter-entry", "integrations-section")
+				order = append(order, `id="chat-details-manage"`, w.manage, ctx.Text(chatui.KeyTeamRoles), `data-manage-section="project"`, w.project, "chatfilter-entry", "integrations-section")
 			}
 			last := -1
 			for _, marker := range order {
@@ -91,7 +91,7 @@ func TestTodo_CHATUX_005_Browser(t *testing.T) {
 				last = at
 			}
 			if viewer == "member" {
-				for _, gone := range []string{"chat-details-manage", w.manage, w.project, "chatfilter-entry", "integrations-section", "chatstate-section"} {
+				for _, gone := range []string{"chat-details-manage", w.manage, w.project, "chatfilter-entry", "integrations-section", "manage-status"} {
 					if strings.Contains(panel, gone) {
 						t.Errorf("%s: a plain member sees %q", locale, gone)
 					}

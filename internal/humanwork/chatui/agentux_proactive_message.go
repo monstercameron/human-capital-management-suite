@@ -24,7 +24,8 @@ type AgentAnnouncementMessage struct {
 
 // RenderAgentAnnouncementMessage uses the same identity and Sources
 // components as an agent reply, but deliberately has no private marker and no
-// line saying who it was posted for: the agent's name and badge say enough.
+// line saying who it was posted for: the agent's name and badge say enough. A
+// scheduled post adds one quiet line naming who set the schedule.
 func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessage) ui.Node {
 	name := personaAgentName(model, message.AgentName)
 	envelope := agentReplyEnvelope{Body: strings.TrimSpace(message.Text)}
@@ -46,5 +47,6 @@ func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessag
 	}
 	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, envelope.Body)...))
 	children = append(children, renderAgentReplySources(model, envelope)...)
+	children = append(children, agentux048ScheduleFooter(model, message)...)
 	return html.Article(html.Props{Class: class, Raw: map[string]any{"data-agent-announcement": "true"}}, children...)
 }

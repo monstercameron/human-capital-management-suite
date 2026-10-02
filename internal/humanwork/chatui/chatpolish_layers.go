@@ -20,7 +20,7 @@ func chatPolishTopLayer(layers []chatPolishLayer) int {
 
 func chatPolishManagedLayer(kind string) bool {
 	switch kind {
-	case "quiet-hours", "reading-languages", chatux002PrefsKind, chatux002ChannelsKind, "formatting", "writing-style", "location", "voice", "saved":
+	case "quiet-hours", "reading-languages", chatux002PrefsKind, chatux002ChannelsKind, "formatting", "writing-style", "location", "voice", "saved", chatComposerAddKind:
 		return true
 	}
 	return false

@@ -59,8 +59,15 @@ func TestMentionCandidatesRankMembersAndPrefixesFirst(t *testing.T) {
 		}
 	}
 	fromAuthors := mentionCandidates(Model{Members: []Member{{ID: "hc-9", Name: "hc-9"}}, Messages: []Message{{AuthorID: "hc-9", Author: "Zuri Mensah"}, {AuthorID: "hc-7", Author: "Zane Park"}}}, "z")
-	if len(fromAuthors) != 2 || fromAuthors[0].Name != "Zane Park" || fromAuthors[1].Name != "Zuri Mensah" {
+	// CHATBUG-071: the member list says who is in the room. An author it does
+	// not hold (hc-7 wrote here and left) is not offered as a member; before the
+	// list has loaded, the authors on screen stand in for it.
+	if len(fromAuthors) != 1 || fromAuthors[0].Name != "Zuri Mensah" || !fromAuthors[0].Member {
 		t.Fatalf("unresolved member names were not filled from message authors: %+v", fromAuthors)
+	}
+	beforeMembers := mentionCandidates(Model{Messages: []Message{{AuthorID: "hc-9", Author: "Zuri Mensah"}, {AuthorID: "hc-7", Author: "Zane Park"}}}, "z")
+	if len(beforeMembers) != 2 || beforeMembers[0].Name != "Zane Park" || beforeMembers[1].Name != "Zuri Mensah" || !beforeMembers[0].Member {
+		t.Fatalf("authors on screen do not stand in for a member list that has not loaded: %+v", beforeMembers)
 	}
 	many := Model{}
 	for i := 0; i < mentionLimit+5; i++ {
@@ -142,7 +149,7 @@ func TestFormatSelectionAppliesSupportedMarkdown(t *testing.T) {
 
 func TestHighlightTextMarksEveryQueryWordCaseInsensitively(t *testing.T) {
 	markup := renderNode(t, spanOf(highlightText("Launch the LAUNCH plan", "launch plan")))
-	if strings.Count(markup, `<mark class="search-hit">`) != 3 || !strings.Contains(markup, `<mark class="search-hit">LAUNCH</mark>`) {
+	if strings.Count(markup, `<mark class="search-hit">`) != 2 || !strings.Contains(markup, `<mark class="search-hit">LAUNCH plan</mark>`) {
 		t.Fatalf("highlight = %s", markup)
 	}
 	if plain := renderNode(t, spanOf(highlightText("nothing here", ""))); strings.Contains(plain, "<mark") {

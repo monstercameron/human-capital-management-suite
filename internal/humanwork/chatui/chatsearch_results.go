@@ -1,8 +1,6 @@
 package chatui
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -18,10 +16,10 @@ type ChatSearchView struct {
 	Recent       []string
 	Loading      bool
 	Error        string
-	// Locate names where a result sits: its conversation, author and time. It
-	// is set by ChatSearchMount from the conversation list and directory the
-	// page already holds; nil leaves each result labelled by its kind alone.
-	Locate func(chatsearch.Row) string
+	// Context is the page's own model. ChatSearchMount sets it so a result can
+	// be drawn like a message (people, conversations, documents and agents the
+	// page already knows); nil draws a result from its own fields alone.
+	Context *Model
 }
 
 // ChatSearchMount draws the search outcome from the model, so the progress
@@ -32,7 +30,7 @@ func ChatSearchMount(m Model) ui.Node {
 		return html.Div(html.Props{ID: "chatsearch-results", Data: map[string]string{"locale": m.Locale}})
 	}
 	view := *m.ChatSearch
-	view.Locate = func(row chatsearch.Row) string { return chatSearchWhere(m, row) }
+	view.Context = &m
 	return html.Div(html.Props{ID: "chatsearch-results", Data: map[string]string{"locale": m.Locale, "active": "true"}}, RenderChatSearch(m.Locale, view))
 }
 
@@ -53,52 +51,43 @@ func chatSearchCount(v *ChatSearchView) (int, bool) {
 		return 0, false
 	}
 	total := 0
-	for _, g := range v.Response.Groups {
+	groups, _ := chatsearchDedupe(v.Response.Groups)
+	for _, g := range groups {
 		total += len(g.Rows)
 	}
 	return total, true
 }
 
-// chatSearchWhere says where a result sits: "#general · Walt Brennan · Today
-// 9:41 AM". A part nobody can name yet (an author the directory has not
-// returned) is left out; an identifier is never shown in its place.
-func chatSearchWhere(m Model, row chatsearch.Row) string {
-	kind := chatsearchKind(m.Locale, row.Kind)
-	if row.Kind == chatsearch.Person || row.Kind == chatsearch.Conversation {
-		return kind
-	}
-	parts := []string{}
-	for _, c := range m.Conversations {
-		if c.ID != row.Target.ConversationID {
-			continue
-		}
-		if name := displayName(m, c); name != "" {
-			if c.Kind == PublicChannel || c.Kind == PrivateChannel {
-				name = "#" + name
-			}
-			parts = append(parts, name)
-		}
-		break
-	}
-	if row.AuthorID != "" {
-		for _, p := range mentionIndex(m) {
-			if p.id == row.AuthorID {
-				parts = append(parts, p.name)
-				break
-			}
-		}
-	}
-	if !row.At.IsZero() {
-		parts = append(parts, dayLabel(m, row.At)+" "+chat5Clock(m.Locale, row.At))
-	}
-	if len(parts) == 0 {
-		return kind
-	}
-	return strings.Join(parts, " · ")
-}
 func RenderChatSearchReturn(locale string) ui.Node {
 	return html.Div(html.Props{Class: "chatsearch-view"}, html.Button(html.Props{Type: "button", Text: chatsearchText(locale, "back"), Data: map[string]string{"chatsearch-action": "back"}}))
 }
+
+// chatsearchKindChoices are the kinds the "kind" filter offers, in the
+// registry's order: those the service says it can search. A kind that is
+// declared but has nothing behind it in this deployment (reminders, sources)
+// was offered too, and choosing it returned nothing with no word of why. An
+// answer that names no kinds (an older service, or none yet) offers them all.
+func chatsearchKindChoices(r chatsearch.Response) []chatsearch.Kind {
+	served := map[chatsearch.Kind]bool{}
+	for _, kind := range r.Kinds {
+		served[kind] = true
+	}
+	var out []chatsearch.Kind
+	for _, d := range chatsearch.Declarations() {
+		if len(served) == 0 || served[d.Kind] {
+			out = append(out, d.Kind)
+		}
+	}
+	// CHATSEARCH-003: the agent kinds are offered only where the service
+	// answers them; a deployment without agents never names them.
+	for _, d := range chatsearch.AgentDeclarations() {
+		if served[d.Kind] {
+			out = append(out, d.Kind)
+		}
+	}
+	return out
+}
+
 func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	t := func(key string) string { return chatsearchText(locale, key) }
 	button := func(action, label, extra string) ui.Node {
@@ -106,7 +95,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	}
 	if v.Error != "" && v.Error != "invalid" && v.Error != "meaning" {
 		if len(v.Response.Groups) == 0 {
-			notice := html.P(html.Props{Class: "search-status", Role: "status", Text: t("unavailable")})
+			// CHATBUG-022: the failure says so once and offers the retry, so a
+			// person is never left looking at a box that did nothing.
+			notice := html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{Text: t("unavailable")}), button("retry", t("retry"), ""))
 			if v.Conversation == nil {
 				return notice
 			}
@@ -118,7 +109,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		}
 		previous := v
 		previous.Error = ""
-		return html.Div(html.Props{}, html.P(html.Props{Class: "search-status", Role: "status", Text: t("unavailable")}), RenderChatSearch(locale, previous))
+		return html.Div(html.Props{}, html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{Text: t("unavailable")}), button("retry", t("retry"), "")), RenderChatSearch(locale, previous))
 	}
 	parsed, _ := chatsearch.Parse(v.Query)
 	children := []ui.Node{}
@@ -135,8 +126,8 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		controls = append(controls, html.Label(html.Props{Text: t(field), For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Aria: errorAssociation})))
 	}
 	options := []ui.Node{html.Option(html.Props{Value: "", Text: t("all")})}
-	for _, d := range chatsearch.Declarations() {
-		options = append(options, html.Option(html.Props{Value: string(d.Kind), Text: chatsearchKind(locale, d.Kind)}))
+	for _, kind := range chatsearchKindChoices(v.Response) {
+		options = append(options, html.Option(html.Props{Value: string(kind), Text: chatsearchKind(locale, kind)}))
 	}
 	controls = append(controls, html.Label(html.Props{Text: t("kind"), For: "chatsearch-kind"}, html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
@@ -175,7 +166,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	}
 	children = append(children, html.Div(html.Props{Class: "chatsearch-chips"}, chips...))
 	if v.Loading {
-		children = append(children, html.P(html.Props{Role: "status", Text: t("loading")}))
+		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: locale, Shape: LoadingShapeList, Status: t("loading"), RetryData: map[string]string{"chatsearch-action": "retry", "extra": ""}}))
 	} else if v.Error != "" {
 		key := v.Error
 		if key != "invalid" && key != "meaning" {
@@ -183,32 +174,25 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		}
 		children = append(children, html.P(html.Props{Role: "alert", ID: "chatsearch-error", Text: t(key)}), button("retry", t("retry"), ""))
 	} else {
-		if n, ok := chatSearchCount(&v); ok && n > 0 {
-			text := strings.ReplaceAll(t("count"), "{n}", strconv.Itoa(n))
-			if n == 1 {
-				text = t("countOne")
-			}
-			children = append(children, html.P(html.Props{Class: "chatsearch-count", Role: "status", Text: text}))
-		}
-		if len(v.Response.Groups) == 0 {
+		// The count is printed once, in the page header; the results start here.
+		groups, saved := chatsearchDedupe(v.Response.Groups)
+		if len(groups) == 0 {
 			wider := parsed.Text
 			if wider == "" {
 				wider = "*"
 			}
 			children = append(children, html.P(html.Props{Role: "status", Text: strings.ReplaceAll(t("empty"), "{query}", v.Query)}), button("widen", t("widen"), wider))
 		}
-		for _, g := range v.Response.Groups {
-			rows := []ui.Node{html.H3(html.Props{Text: chatux010GroupName(locale, g.Kind) + " · " + strconv.Itoa(g.Count) + " " + t("shown")})}
+		context := Model{}
+		if v.Context != nil {
+			context = *v.Context
+		}
+		context.Locale = locale
+		people := chatsearchPeopleOf(context)
+		for _, g := range groups {
+			rows := []ui.Node{html.H3(html.Props{Text: chatux010GroupName(locale, g.Kind)})}
 			for _, row := range g.Rows {
-				target, _ := json.Marshal(row.Target)
-				label := chatsearchKind(locale, row.Kind)
-				if v.Locate != nil {
-					label = v.Locate(row)
-				}
-				if row.Private {
-					label += " · " + t("only")
-				}
-				rows = append(rows, html.Button(html.Props{Type: "button", Class: "chatsearch-result", Data: map[string]string{"chatsearch-action": "open", "target": base64.RawURLEncoding.EncodeToString(target), "kind": string(row.Kind)}}, html.Strong(html.Props{Text: label}), html.Span(html.Props{}, highlightText(chatDisplayText(row.Text), parsed.Text)...)))
+				rows = append(rows, chatsearchResult(context, people, row, parsed.Text, saved[chatsearchMessageKey(row)]))
 			}
 			children = append(children, html.Section(html.Props{}, rows...))
 		}
@@ -223,7 +207,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			children = append(children, html.P(html.Props{Role: "status", Text: strings.ReplaceAll(t("missing"), "{kinds}", strings.Join(names, ", "))}))
 		}
 	}
-	if len(v.Recent) > 0 {
+	// Recent searches are offered for an empty box; once there are words in it the
+	// page is about those words.
+	if len(v.Recent) > 0 && strings.TrimSpace(v.Query) == "" {
 		recent := []ui.Node{html.H3(html.Props{Text: t("recent")})}
 		for _, query := range v.Recent {
 			recent = append(recent, button("recent", query, query))

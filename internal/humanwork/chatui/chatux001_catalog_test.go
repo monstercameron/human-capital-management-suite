@@ -23,7 +23,7 @@ func TestTodo_CHATUX_001_Browser_RealCatalog(t *testing.T) {
 	for locale, want := range map[string]words{
 		"en-US": {"Search Chat", "Pinned messages (2)", "Members (18)", "Conversations", "People", "Messages"},
 		"de-DE": {"Chat durchsuchen", "Angeheftete Nachrichten (2)", "Mitglieder (18)", "Unterhaltungen", "Personen", "Nachrichten"},
-		"ar":    {"البحث في الدردشة", "الرسائل المثبتة (2)", "الأعضاء (18)", "المحادثات", "الأشخاص", "الرسائل"},
+		"ar":    {"البحث في الدردشة", "الرسائل المثبتة (٢)", "الأعضاء (١٨)", "المحادثات", "الأشخاص", "الرسائل"},
 	} {
 		t.Run(locale, func(t *testing.T) {
 			ctx := productui.ResolveProductLocale(locale)
@@ -77,7 +77,7 @@ func TestTodo_CHATUX_001_Browser_RealCatalog(t *testing.T) {
 			results := page(m)
 			noKeys("the results", results)
 			for _, name := range []string{want.conversations, want.people, want.messages} {
-				if !strings.Contains(results, "<h3>"+name+" · ") {
+				if !strings.Contains(results, "<h3>"+name+"</h3>") {
 					t.Errorf("no result group named %q", name)
 				}
 			}

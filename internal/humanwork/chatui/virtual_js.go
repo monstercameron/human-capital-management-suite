@@ -70,6 +70,61 @@ func captureVirtualFocus() virtualFocus {
 
 func imageViewerPostID() string { return imageViewerPost }
 
+// virtualOnPage is the windowed timeline now on the page: its conversation,
+// the messages it holds, and how to draw it again.
+var virtualOnPage struct {
+	room       string
+	ids        map[string]bool
+	invalidate func()
+}
+
+// RevealTimelineMessage is for code that needs the row of a message which is
+// in the open timeline but not near the viewport, so a windowed timeline has
+// not drawn it. It asks for the timeline to be drawn whole and reports whether
+// it did: the row is on the page after the next render, and the caller looks
+// for it again then. It reports false when there is nothing to change: the row
+// is already drawn, the message is not in the timeline, or the timeline is too
+// long to draw whole.
+func RevealTimelineMessage(id string) bool {
+	if id == "" || virtualOnPage.room == "" || !virtualOnPage.ids[id] || len(virtualOnPage.ids) > virtualWholeLimit || virtualOnPage.invalidate == nil {
+		return false
+	}
+	virtualWholeRoom = virtualOnPage.room
+	invalidate := virtualOnPage.invalidate
+	virtualOnPage.room, virtualOnPage.ids, virtualOnPage.invalidate = "", nil, nil
+	invalidate()
+	return true
+}
+
+// revealTimelineRowFrames is how many frames a caller waits for a timeline it
+// asked to be drawn whole.
+const revealTimelineRowFrames = 30
+
+// revealTimelineRow runs act, which works on the row of message id and reports
+// whether the row was on the page. When it was not and the timeline can draw
+// it, act runs again on the following frames until it finds the row.
+func revealTimelineRow(id string, act func() bool) {
+	if act() || !RevealTimelineMessage(id) {
+		return
+	}
+	request := js.Global().Get("requestAnimationFrame")
+	if request.Type() != js.TypeFunction {
+		return
+	}
+	frames := 0
+	var frame js.Func
+	frame = js.FuncOf(func(js.Value, []js.Value) any {
+		frames++
+		if act() || frames >= revealTimelineRowFrames {
+			frame.Release()
+			return nil
+		}
+		request.Invoke(frame)
+		return nil
+	})
+	request.Invoke(frame)
+}
+
 func syncVirtualTimeline(m Model, messages []Message, layout virtualLayout, cache *virtualCache, pos virtualPosition, focus virtualFocus, setPosition func(virtualPosition), invalidate func()) func() {
 	doc := js.Global().Get("document")
 	if !doc.Truthy() {
@@ -118,8 +173,11 @@ func syncVirtualTimeline(m Model, messages []Message, layout virtualLayout, cach
 		}
 	}
 	if !layout.active {
+		virtualOnPage.room, virtualOnPage.ids, virtualOnPage.invalidate = "", nil, nil
 		return nil
 	}
+	// keep holds every message of this timeline: RevealTimelineMessage reads it.
+	virtualOnPage.room, virtualOnPage.ids, virtualOnPage.invalidate = m.SelectedID, keep, invalidate
 	observerType := js.Global().Get("ResizeObserver")
 	if !observerType.Truthy() {
 		return nil

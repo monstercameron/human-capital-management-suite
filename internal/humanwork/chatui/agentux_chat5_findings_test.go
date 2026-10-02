@@ -151,10 +151,10 @@ func TestAgentUXChat5_ComposerHintsAndAnswer(t *testing.T) {
 		m = chat4Fixture(locale, "answered", true)
 		chat4Require(t, renderAgentUXChat3Node(t, Build(m), width), "agent-question-context")
 		m = chat4Fixture(locale, "sent", false)
-		for _, sec := range []int{4, 5, 12} {
+		for _, sec := range []int{4, agentUX075ElapsedAfter - 1, agentUX075ElapsedAfter, 12} {
 			m.PersonaInvocations[0].Projection.Progress.ElapsedSeconds = sec
 			card := renderAgentUXChat3Node(t, agentProgressForPost(m, m.PersonaInvocations[0].Projection, "question"), width)
-			if (sec >= 5) != strings.Contains(card, "agent-elapsed-seconds") {
+			if (sec >= agentUX075ElapsedAfter) != strings.Contains(card, "agent-elapsed-seconds") {
 				t.Fatalf("elapsed seconds appeared at wrong threshold %d", sec)
 			}
 		}

@@ -22,7 +22,7 @@ func TestAgentUXProactiveLive_PostedMessage_Browser(t *testing.T) {
 		t.Fatalf("wire changed visible bytes %+v", decoded)
 	}
 	legacy, _ := json.Marshal(message)
-	icon := agenticon.Generate(agenticon.Input{Name: "Assistant", Instructions: "Announce upcoming holidays"})
+	icon := AgentIconFixture(agenticon.Input{Name: "Assistant", Instructions: "Announce upcoming holidays"})
 	for _, wire := range []string{encoded, AgentAnnouncementBodyPrefix + string(legacy)} {
 		for _, locale := range []string{"en-US", "de-DE", "ar"} {
 			markup := render(t, Model{Locale: locale, State: StateReady, SelectedID: "general", Conversations: []Conversation{{ID: "general", Name: "general"}}, Messages: []Message{{ID: "posted", AuthorID: "assistant", Author: "Hcmnext Local Persona Assistant", Body: wire}}, ResolvedPersonaMentions: []ResolvedPersonaMention{{Reference: ChatReference{Kind: "AGENT_MENTION", ID: "assistant", Display: "Assistant"}, Icon: icon, IconRevision: 4, Version: "2"}}})

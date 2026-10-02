@@ -23,9 +23,9 @@ func giphyPickerControl(m Model, targetID string, disabled bool) ui.Node {
 			Title: label}, html.Span(html.Props{Class: "giphy-trigger-label", Text: "GIF"})))
 	}
 	children = append(children,
-		html.Div(html.Props{ID: pickerID, Class: "giphy-picker", Role: "dialog", Hidden: true,
+		anchoredChatLayer(html.Props{ID: pickerID, Class: "giphy-picker", Role: "dialog", Hidden: true,
 			Data: map[string]string{"loading": m.t(KeyGiphyLoading), "load-error": m.t(KeyGiphyLoadError), "no-results": m.t(KeyGiphyNoResults), "close": m.t(KeyGiphyClose)},
-			Aria: map[string]string{"label": m.t(KeyGiphyPickerTitle)}},
+			Aria: map[string]string{"label": m.t(KeyGiphyPickerTitle)}}, "gif",
 			html.Label(html.Props{Class: "sr-only", For: pickerID + "-query"}, ui.Text(m.t(KeyGiphySearch))),
 			html.Input(html.Props{ID: pickerID + "-query", Class: "chat-input giphy-query", Type: "search", MaxLength: GiphyMaxQuery, Placeholder: m.t(KeyGiphySearch), AutoComplete: "off", Aria: map[string]string{"controls": pickerID + "-results"}}),
 			html.Div(html.Props{ID: pickerID + "-status", Class: "giphy-status", Role: "status", Aria: map[string]string{"live": "polite"}}),

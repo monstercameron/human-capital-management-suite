@@ -55,14 +55,15 @@ func chatux008Heading(m Model, roomName string) ui.Node {
 	if channel.ID != "" {
 		link = html.A(html.Props{Class: "thread-channel-link", Href: ChannelReferenceURL(channel.ID), Dir: "auto", Data: map[string]string{"action": "thread-channel", "id": channel.ID}, Text: roomName})
 	}
-	return html.Div(html.Props{Class: "side-heading thread-heading"},
+	return html.Div(html.Props{Class: "side-heading chat-panel-head thread-heading"},
 		html.Div(html.Props{Class: "thread-heading-text"},
 			html.H2(html.Props{Text: m.t(KeyThread)}),
 			link),
 		html.Div(html.Props{Class: "side-heading-actions"},
+			chatListenThreadAction(m),
 			html.Button(html.Props{Class: "icon-button thread-notify", Type: "button", Disabled: m.Callbacks.SetThreadFollow == nil, Title: tip,
 				Data: map[string]string{"action": "follow"}, Aria: map[string]string{"pressed": boolString(m.ThreadFollowed), "label": chatux008Text(m, "notify")}}, chatux008Bell()),
-			html.Button(html.Props{Class: "icon-button thread-back", Type: "button", Disabled: m.Callbacks.CloseThread == nil, Data: map[string]string{"action": "close-thread"}, Aria: map[string]string{"label": m.t(KeyCloseThread)}, Title: m.t(KeyCloseThread)}, icon("close"), html.Span(html.Props{Class: "thread-back-label", Text: m.t(KeyCloseThread)})),
+			html.Button(html.Props{Class: "icon-button chat-panel-close thread-back", Type: "button", Disabled: m.Callbacks.CloseThread == nil, Data: map[string]string{"action": "close-thread"}, Aria: map[string]string{"label": m.t(KeyCloseThread)}, Title: m.t(KeyCloseThread)}, icon("close"), html.Span(html.Props{Class: "thread-back-label", Text: m.t(KeyCloseThread)})),
 		))
 }
 

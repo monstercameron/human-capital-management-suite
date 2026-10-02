@@ -57,7 +57,15 @@ func chatsave002Body(m Model, msg Message) (ui.Node, Message) {
 		envelope := parseAgentReplyEnvelope(msg.Body)
 		text = agentAnswerPresentBody(readerReplyBody(m, msg, envelope.Body), envelope.Sources)
 	} else {
-		text = ReaderMessageBody(m, msg)
+		// A poll or a to-do list is read as its words, never as its data, and an
+		// "added people" line as its sentence, never as its marker.
+		if line, system := chatux021LineText(m, msg); system {
+			text = line
+		} else {
+			// A search or saved row draws a stored announcement as its sentence,
+			// never as the envelope it is kept in (CHATBUG-089).
+			text = chatDisplayBody(Chatcmd002PlainBody(ReaderMessageBody(m, msg)))
+		}
 	}
 	m.renderReferences = msg.PersonaReferences
 	body := ui.Node(html.Div(chatlangBodyProps(m, msg, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, text)...))
@@ -176,7 +184,7 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	main := []ui.Node{
 		html.Div(html.Props{Class: "chatsave-meta"}, meta...),
 		html.Div(html.Props{Class: textClass, Data: map[string]string{"saved-text": "true"}}, body),
-		html.Button(html.Props{ID: "chatsave-expand-" + row.PostID, Class: "chatsave-more", Type: "button", Hidden: !expanded && !chatsave002LongText(row.Body), Text: more, Data: map[string]string{"saved-action": "expand", "saved-post": row.PostID}, Aria: map[string]string{"expanded": boolString(expanded)}}),
+		html.Button(html.Props{ID: "chatsave-expand-" + row.PostID, Class: "chatsave-more", Type: "button", Hidden: !expanded && !chatsave002LongText(Chatcmd002PlainBody(row.Body)), Text: more, Data: map[string]string{"saved-action": "expand", "saved-post": row.PostID}, Aria: map[string]string{"expanded": boolString(expanded)}}),
 	}
 	if row.Attachments > 0 {
 		main = append(main, html.Div(html.Props{Class: "chatsave-attach"}, chatbug037AttachmentBadge(m, row.Attachments)))
@@ -299,13 +307,15 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 	todo, done, all := view.TodoCount, view.DoneCount, view.AllCount
 	if all == 0 && len(view.Rows) > 0 {
 		for _, row := range view.Rows {
-			if row.Done {
+			switch {
+			case row.Availability == "deleted":
+			case row.Done:
 				done++
-			} else {
+			default:
 				todo++
 			}
 		}
-		all = todo + done
+		all = len(view.Rows)
 	}
 	m := chatsave002Model(view)
 
@@ -325,12 +335,10 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 		// The panel's heading is the one the thread and details panels use: the
 		// title and the close icon, in a heading row of the same height. On a
 		// phone the panel is a page, and the same close control is its Back.
-		html.Header(html.Props{Class: "side-heading chatsave-header"},
-			html.Button(html.Props{Class: "icon-button chatsave-back", Type: "button", Title: chatsave002Text(loc, "back"), Data: map[string]string{"saved-action": "close"}, Aria: map[string]string{"label": chatsave002Text(loc, "back")}}, icon("arrow-left")),
-			html.Div(html.Props{Class: "chatsave-heading-text"},
-				html.H2(html.Props{Text: copy.Saved}),
-				html.P(html.Props{Class: "chatsave-sub", Text: SavedTodoCountText(loc, todo), Data: map[string]string{"saved-todo-count": "true"}})),
-			html.Button(html.Props{Class: "icon-button", Type: "button", Title: copy.Close, Data: map[string]string{"saved-action": "close"}, Aria: map[string]string{"label": copy.Close}}, icon("close"))),
+		// CHATUX-032: the shared panel header, the count on the title's line.
+		chatux032Header(chatux032HeaderProps{Class: "chatsave-header", Title: copy.Saved, Subtitle: SavedTodoCountText(loc, todo), SubtitleData: map[string]string{"saved-todo-count": "true"},
+			Leading: []ui.Node{html.Button(html.Props{Class: "icon-button chatsave-back", Type: "button", Title: chatsave002Text(loc, "back"), Data: map[string]string{"saved-action": "close"}, Aria: map[string]string{"label": chatsave002Text(loc, "back")}}, icon("arrow-left"))},
+			Close:   chatux032CloseButton(copy.Close, false, map[string]string{"saved-action": "close"}, "")}),
 		html.Div(html.Props{Class: "chatsave-seg", Role: "tablist", Aria: map[string]string{"label": chatsave002Text(loc, "segments")}}, segments...),
 	}
 	// The search appears once the list is long enough to need it; it never
@@ -368,7 +376,8 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 	var panel []ui.Node
 	switch {
 	case view.Loading:
-		panel = append(panel, chatsaveSkeleton())
+		// CHATUX-037: the shared placeholder; the status line above announces it.
+		panel = append(panel, ChatLoadingFrame(LoadingFrame{Locale: loc, Shape: LoadingShapeList, RetryData: map[string]string{"saved-action": "retry"}}))
 	case view.Error == "" && len(view.Rows) == 0:
 		empty, glyph := copy.EmptyTodo, "bookmark"
 		if tab == "done" {
@@ -377,10 +386,20 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 		if tab == "all" {
 			empty = copy.EmptyAll
 		}
-		if strings.TrimSpace(view.Query) != "" {
-			empty, glyph = chatsave002Text(loc, "no_match"), "search"
+		// CHATBUG-091: an empty tab says what is true of it and points to the
+		// tab that holds items; the first-use sentence is for an empty Saved.
+		var emptyLink ui.Node
+		if all > 0 {
+			empty, emptyLink = chatbug091Empty(loc, tab, todo, done, all)
 		}
-		panel = append(panel, html.Div(html.Props{Class: "chatsave-empty"}, chatsave002Icon(glyph, false), html.P(html.Props{Text: empty})))
+		if strings.TrimSpace(view.Query) != "" {
+			empty, glyph, emptyLink = chatsave002Text(loc, "no_match"), "search", nil
+		}
+		emptyText := []ui.Node{ui.Text(empty)}
+		if emptyLink != nil {
+			emptyText = append(emptyText, emptyLink)
+		}
+		panel = append(panel, html.Div(html.Props{Class: "chatsave-empty"}, chatsave002Icon(glyph, false), html.P(html.Props{}, emptyText...)))
 	default:
 		items := []ui.Node{}
 		for _, row := range chatsave002Order(view.Rows, now) {

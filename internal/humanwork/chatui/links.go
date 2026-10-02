@@ -17,7 +17,7 @@ type LinkEmbed struct {
 
 type ShareLocator struct{ Token, LegacyPost string }
 
-var shareURLPattern = regexp.MustCompile(`(?:https?://[^\s<>"']+|/(?:workspace/app/chat#share=|chat/share/)[A-Za-z0-9_-]+|#msg=[A-Za-z0-9_-]+)`)
+var shareURLPattern = chatperf2Literals(regexp.MustCompile(`(?:https?://[^\s<>"']+|/(?:workspace/app/chat#share=|chat/share/)[A-Za-z0-9_-]+|#msg=[A-Za-z0-9_-]+)`), "http://", "https://", "/workspace/app/chat#share=", "/chat/share/", "#msg=")
 var shareTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 func validShareToken(token string) bool {

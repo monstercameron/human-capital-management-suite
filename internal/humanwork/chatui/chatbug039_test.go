@@ -13,6 +13,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatlang"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrender"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrewrite"
@@ -257,7 +258,8 @@ func Chatbug039SurfacesForTest(t *testing.T, catalog Model) map[string]string {
 		direct.Conversations = []Conversation{{ID: m.SelectedID, Kind: DirectMessage, Name: "Bob", Joined: true}}
 		add("direct composer with voice menu", composer(direct, h))
 		add("search return bar", RenderChatSearchReturn(m.Locale))
-		add("translation administration", TranslationAdminForm(TranslationAdminModel{Locale: m.Locale, Loaded: true, Data: TranslationAdminData{CanManageWorkspace: true, Supported: []string{"en", "de", "ar"}}}, m.Text))
+		add("translation administration", TranslationWorkspaceForm(TranslationAdminModel{Locale: m.Locale, Loaded: true, Data: TranslationAdminData{CanManageWorkspace: true, Supported: []string{"en", "de", "ar"}}}, m.Text))
+		add("translation channel row", TranslationChannelRow(TranslationAdminModel{Locale: m.Locale, Loaded: true, Data: TranslationAdminData{Workspace: chatlang.Workspace{Enabled: true}, Channel: &chatlang.Channel{}, CanManageChannel: true}}, m.Text))
 		poll, err := chat.Chatcmd003ParsePoll("Where? 1=Here 2=There", time.Now(), nil)
 		if err != nil {
 			t.Fatal(err)

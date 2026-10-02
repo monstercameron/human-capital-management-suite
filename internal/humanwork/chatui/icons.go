@@ -54,6 +54,12 @@ var iconPaths = map[string]string{
 	"warning":       "M12 3l10 18H2L12 3zM12 9v5M12 17h.01",
 	"thumb-up":      "M7 21H3V10h4M7 10l4-7 2 1v5h6a2 2 0 0 1 2 2l-2 8a2 2 0 0 1-2 2H7V10z",
 	"thumb-down":    "M7 3H3v11h4M7 14l4 7 2-1v-5h6a2 2 0 0 0 2-2l-2-8a2 2 0 0 0-2-2H7v11z",
+	"star":          "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z",
+	"star-filled":   "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3z",
+	// CHATUX-034: icons that match their action in the menus.
+	"language":    "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2c2.8 2.8 4 6.2 4 10s-1.2 7.2-4 10c-2.8-2.8-4-6.2-4-10s1.2-7.2 4-10z",
+	"hash":        "M9 4L7 20M17 4l-2 16M4 9h16M3 15h16",
+	"section-new": "M3 7h7l2 2h9v10H3zM12 12v4M10 14h4",
 }
 
 // iconSVGAttrs and iconPathAttrs are built once and only read: the renderer
