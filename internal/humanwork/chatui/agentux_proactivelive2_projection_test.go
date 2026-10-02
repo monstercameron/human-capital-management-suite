@@ -26,14 +26,14 @@ func TestAgentUXProactiveLive_PostedMessage_Browser(t *testing.T) {
 	for _, wire := range []string{encoded, AgentAnnouncementBodyPrefix + string(legacy)} {
 		for _, locale := range []string{"en-US", "de-DE", "ar"} {
 			markup := render(t, Model{Locale: locale, State: StateReady, SelectedID: "general", Conversations: []Conversation{{ID: "general", Name: "general"}}, Messages: []Message{{ID: "posted", AuthorID: "assistant", Author: "Hcmnext Local Persona Assistant", Body: wire}}, ResolvedPersonaMentions: []ResolvedPersonaMention{{Reference: ChatReference{Kind: "AGENT_MENTION", ID: "assistant", Display: "Assistant"}, Icon: icon, IconRevision: 4, Version: "2"}}})
-			for _, want := range []string{"agent-icon", "agent-badge", "Assistant", "Thanksgiving", "<li>", "Walt Brennan", "2026 holiday guide"} {
+			for _, want := range []string{"agent-icon", "agent-badge", "Assistant", "Thanksgiving", "<li>", "2026 holiday guide"} {
 				if !strings.Contains(markup, want) {
 					t.Fatalf("%s lacks %s: %s", locale, want, markup)
 				}
 			}
-			attribution := strings.ReplaceAll(agentAnnouncementChatText(locale, "once"), "{owner}", "Walt Brennan")
-			if !strings.Contains(markup, attribution) {
-				t.Fatalf("missing localized attribution: %s", markup)
+			// An announcement no longer says who it was posted for.
+			if strings.Contains(markup, "Walt Brennan") || strings.Contains(markup, "agent-announcement-attribution") {
+				t.Fatalf("%s still carries a posted-for line: %s", locale, markup)
 			}
 			for _, bad := range []string{"Hcmnext Local Persona Assistant", "hcm_agent_announcement", "Linked document", "0001-01-01"} {
 				if strings.Contains(markup, bad) {

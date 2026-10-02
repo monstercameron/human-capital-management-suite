@@ -32,7 +32,7 @@ func TestAgentUXProactiveLive_PostedMessage_Browser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"agent-icon", "agent-badge", "Assistant", "Posted for Walt Brennan", "2026 holiday guide", "<li>"} {
+	for _, want := range []string{"agent-icon", "agent-badge", "Assistant", "2026 holiday guide", "<li>"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("normal client projection missing %s: %s", want, markup)
 		}

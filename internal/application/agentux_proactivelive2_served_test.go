@@ -268,7 +268,7 @@ func proactiveLive2Served(t *testing.T, mode string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"data-agent-announcement", "agent-badge", "agent-icon", announcement.AgentName, "Posted for Alex Example", "2026 holiday guide"} {
+	for _, want := range []string{"data-agent-announcement", "agent-badge", "agent-icon", announcement.AgentName, "2026 holiday guide"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("served projection missing %s: %s", want, markup)
 		}

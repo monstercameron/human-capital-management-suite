@@ -21,7 +21,7 @@ func TestTodo_CHATLIVE_002_Browser(t *testing.T) {
 	model := Model{Locale: "en-US", State: StateReady, SelectedID: "general", Conversations: []Conversation{{ID: "general", Name: "general"}}, Messages: []Message{message},
 		PersonaPostActors: map[string]PersonaPostActor{"announced": {Display: "Assistant", Actor: PersonaActor{PersonaID: "hcmnext.local.persona.assistant", AgentID: "assistant", PersonaVersion: "2", Trusted: true, Icon: agenticon.Generate(agenticon.Input{Name: "Assistant", Instructions: "Announce"}), IconRevision: 3}}}}
 	markup := render(t, model)
-	for _, want := range []string{"agent-badge", "Assistant", "Labor Day", "<li>", "Thanksgiving Day", "Posted for Walt Brennan", "2026 holiday guide", `href="/workspace/app/docs?document=doc-10c773e5"`} {
+	for _, want := range []string{"agent-badge", "Assistant", "Labor Day", "<li>", "Thanksgiving Day", "2026 holiday guide", `href="/workspace/app/docs?document=doc-10c773e5"`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("announcement lacks %q: %s", want, markup)
 		}
@@ -37,7 +37,7 @@ func TestTodo_CHATLIVE_002_Browser(t *testing.T) {
 	// under a neutral agent label, never as the tag and the data.
 	model.PersonaPostActors = nil
 	first := render(t, model)
-	for _, want := range []string{"Labor Day", "<li>", "Posted for Walt Brennan", "2026 holiday guide", "data-agent-announcement"} {
+	for _, want := range []string{"Labor Day", "<li>", "2026 holiday guide", "data-agent-announcement"} {
 		if !strings.Contains(first, want) {
 			t.Fatalf("first paint lacks %q: %s", want, first)
 		}
@@ -57,7 +57,7 @@ func TestTodo_CHATLIVE_002_Browser(t *testing.T) {
 		forged := model
 		forged.Members, forged.SearchDirectory, forged.CurrentUser = person.Members, person.SearchDirectory, person.CurrentUser
 		markup := render(t, forged)
-		if strings.Contains(markup, "Posted for Walt Brennan") || strings.Contains(markup, "data-agent-announcement") {
+		if strings.Contains(markup, "data-agent-announcement") {
 			t.Fatalf("%s: a person's post rendered as an announcement: %s", name, markup)
 		}
 	}

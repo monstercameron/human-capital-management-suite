@@ -23,15 +23,10 @@ type AgentAnnouncementMessage struct {
 }
 
 // RenderAgentAnnouncementMessage uses the same identity and Sources
-// components as an agent reply, but deliberately has no private marker.
+// components as an agent reply, but deliberately has no private marker and no
+// line saying who it was posted for: the agent's name and badge say enough.
 func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessage) ui.Node {
 	name := personaAgentName(model, message.AgentName)
-	owner := strings.TrimSpace(message.OwnerName)
-	line := agentAnnouncementChatText(model.Locale, "scheduled")
-	if !message.Scheduled {
-		line = agentAnnouncementChatText(model.Locale, "once")
-	}
-	line = strings.NewReplacer("{owner}", owner, "{agent}", name).Replace(line)
 	envelope := agentReplyEnvelope{Body: strings.TrimSpace(message.Text)}
 	for _, source := range message.Sources {
 		href := strings.TrimSpace(source.Href)
@@ -51,21 +46,5 @@ func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessag
 	}
 	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, envelope.Body)...))
 	children = append(children, renderAgentReplySources(model, envelope)...)
-	children = append(children, html.P(html.Props{Class: "muted agent-announcement-attribution", Dir: "auto"}, ui.Text(line)))
 	return html.Article(html.Props{Class: class, Raw: map[string]any{"data-agent-announcement": "true"}}, children...)
-}
-
-func agentAnnouncementChatText(locale, key string) string {
-	copy := map[string]map[string]string{
-		"en-US": {"scheduled": "Posted on a schedule set by {owner}", "once": "Posted for {owner}"},
-		"de-DE": {"scheduled": "Nach einem von {owner} festgelegten Zeitplan veröffentlicht", "once": "Für {owner} veröffentlicht"},
-		"ar":    {"scheduled": "نُشر وفق جدول أعدّه {owner}", "once": "نُشر نيابة عن {owner}"},
-	}
-	language := "en-US"
-	if strings.HasPrefix(strings.ToLower(locale), "de") {
-		language = "de-DE"
-	} else if strings.HasPrefix(strings.ToLower(locale), "ar") {
-		language = "ar"
-	}
-	return chatbug039Text(key, copy[language][key], copy["en-US"][key])
 }
