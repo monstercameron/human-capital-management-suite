@@ -315,6 +315,23 @@ type streamingChatService struct {
 	authority         *chatAuthorityCache
 	personaDM         chatcore.PersonaDMResolver
 	personaInvocation *PersonaInvocationServeWiring
+	// projector is Chat's reader projection, installed with the document hub's
+	// access check (bindAgentSourceAccess). Without it the stream is unprojected.
+	projector agentWatchProjector
+	// masker applies the workspace's language filters to a live event. It runs
+	// only when no projector is bound: the projector (the core service) masks
+	// as part of its own projection (CHATMOD-002).
+	masker chatWatchMasker
+}
+
+// chatWatchMasker is the reader's masked view of one live watch event.
+type chatWatchMasker interface {
+	MaskWatchEvent(context.Context, chatcore.Principal, string, string, chatcore.WatchEvent) chatcore.WatchEvent
+}
+
+// agentWatchProjector is the one method of the Chat service the live watch needs.
+type agentWatchProjector interface {
+	ProjectWatchEvent(context.Context, chatcore.Principal, string, string, chatcore.WatchEvent) chatcore.WatchEvent
 }
 
 // bindPersonaInvocation installs the post-commit mention handoff while leaving
@@ -624,6 +641,13 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 				}
 				fail <- chatStreamError(projectErr)
 				return
+			}
+			if s.projector != nil {
+				// The stream carries the stored body. The reader's own view of an
+				// agent answer's sources is decided here, the same as on a read.
+				projected = s.projector.ProjectWatchEvent(ctx, req.Principal, req.TenantID, req.ConversationID, projected)
+			} else if s.masker != nil {
+				projected = s.masker.MaskWatchEvent(ctx, req.Principal, req.TenantID, req.ConversationID, projected)
 			}
 			projected.ResumeCursor = sub.Cursor()
 			select {

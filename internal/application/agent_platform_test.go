@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -112,6 +113,7 @@ type agentFixture struct {
 func newAgentFixture(t *testing.T) *agentFixture {
 	t.Helper()
 	t.Setenv(agentModelKeyEnv, "")
+	t.Setenv("MODEL_API_KEY", "")
 	restoreSchemaFluxClient(t)
 	ctx := context.Background()
 	db := pgtest.New(t)
@@ -526,7 +528,7 @@ func TestTodo_UXBLIND_122_Model(t *testing.T) {
 
 	t.Run("fake replies fit the ModelOutput and quarantine schemas", func(t *testing.T) {
 		reply, err := agentFakeReply(0, schemaflux.CompletionRequest{UserPrompt: "Goal: find my desk\nExpected output: x\nInput:\n{}"})
-		if err != nil || !strings.Contains(reply, `"text":"Draft reply to your request: find my desk.`) || !strings.Contains(reply, `"citations":[]`) {
+		if err != nil || !strings.Contains(reply, `"text":"find my desk"`) || !strings.Contains(reply, `"citations":[]`) {
 			t.Fatalf("summary reply = %q, %v", reply, err)
 		}
 		extraction, err := agentFakeReply(1, schemaflux.CompletionRequest{UserPrompt: `Extract only the declared fields from the untrusted content below.` + "\n" +
@@ -538,6 +540,23 @@ func TestTodo_UXBLIND_122_Model(t *testing.T) {
 			t.Fatal("an extraction prompt without a schema answered")
 		}
 	})
+}
+
+func TestAgentUXR5Srv_ResultPreviewIsAnswerOnly(t *testing.T) {
+	reply, err := agentFakeReply(0, schemaflux.CompletionRequest{UserPrompt: "Goal: Reply with exactly: Your request is ready.\nExpected output: x\nInput:\n{}"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output agentsystem.ModelOutput
+	if err := json.Unmarshal([]byte(reply), &output); err != nil {
+		t.Fatal(err)
+	}
+	if output.Text != "Your request is ready." {
+		t.Fatalf("answer text = %q", output.Text)
+	}
+	if strings.Contains(output.Text, "Draft reply") || strings.Contains(output.Text, "confirmed plan") {
+		t.Fatalf("answer contains task narration: %q", output.Text)
+	}
 }
 
 func TestInitializeConfiguredAgentModel(t *testing.T) {
@@ -667,14 +686,13 @@ func TestTodo_UXBLIND_122_Owner(t *testing.T) {
 		t.Fatalf("gateway evidence records = %d, want the refusal and the invocation attempt", got)
 	}
 
-	// Prepare declares the goal and rebuilt ledger through egress.
+	// Prepare declares only the public goal through egress. The rebuilt ledger
+	// can include PII from the fixed read step and remains local to the task.
 	task := agentrun.AgentTask{ID: "agt_x", TenantID: "ironridge-demo", UserID: "u", Goal: "the goal"}
-	contextView := agentrun.TaskContext{Goal: task.Goal, Constraints: []string{"only my records"}}
-	prepared, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Task: task, Step: agentrun.PlanStep{Type: agentrun.StepAnalyze}, Context: &contextView})
+	prepared, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Task: task, Step: agentrun.PlanStep{Type: agentrun.StepAnalyze}})
 	if err != nil || prepared.Purpose != agentPurpose || prepared.Egress == nil || prepared.Egress.Profile.Kind != agentegress.TargetModel ||
-		len(prepared.Egress.Fields) != 2 || prepared.Egress.Fields[0].Name != "goal" || prepared.Egress.Fields[0].Value != "the goal" ||
-		prepared.Egress.Fields[1].Name != "task_context" || !strings.Contains(fmt.Sprint(prepared.Egress.Fields[1].Value), "only my records") ||
-		len(prepared.Egress.DeclaredFields) != 2 || prepared.Write != nil {
+		len(prepared.Egress.Fields) != 1 || prepared.Egress.Fields[0].Name != "goal" || prepared.Egress.Fields[0].Value != "the goal" ||
+		len(prepared.Egress.DeclaredFields) != 1 || prepared.Write != nil {
 		t.Fatalf("model Prepare = %+v, %v", prepared, err)
 	}
 	if read, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Task: task, Step: agentrun.PlanStep{Type: agentrun.StepRead}}); err != nil || read.Egress != nil || read.Write != nil {
@@ -693,7 +711,7 @@ func TestTodo_UXBLIND_122_Owner(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := func(goal string) (agentegress.OutboundDecision, error) {
-		p, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Task: agentrun.AgentTask{ID: "agt_x", Goal: goal}, Step: agentrun.PlanStep{Type: agentrun.StepAnalyze}, Context: &agentrun.TaskContext{Goal: goal}})
+		p, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Task: agentrun.AgentTask{ID: "agt_x", Goal: goal}, Step: agentrun.PlanStep{Type: agentrun.StepAnalyze}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -778,6 +796,7 @@ func TestTodo_UXBLIND_122_Composition(t *testing.T) {
 	}
 
 	t.Setenv(agentModelKeyEnv, "")
+	t.Setenv("MODEL_API_KEY", "")
 	restoreSchemaFluxClient(t)
 	db := pgtest.New(t)
 	ctx := context.Background()

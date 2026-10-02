@@ -116,7 +116,10 @@ func TestPersonaRunT0ToolExecutor_UsesDurableIdentityAndPersistsResult(t *testin
 	if search.request.Capability != (capability.Key{ID: personaDocumentSearchCapabilityID, Version: personaDocumentSearchCapabilityVersion}) || search.request.Authorization.Decision != capability.Allow || search.request.Authorization.Tenant != "tenant-a" || search.request.Authorization.SubjectRef != "alice" || len(search.request.Authorization.Scopes) != 1 || search.request.Authorization.Scopes[0] != "documents:search" {
 		t.Fatalf("gateway request was not bound to the current invocation grant: %+v", search.request)
 	}
-	want := []string{"tenant-a", "conversation-a", "persona-worker", "alice", "leave", "team-hr", ""}
+	// The team and channel filters a model supplies are guesses (it cannot
+	// know those identifiers), so they are accepted and ignored: the search
+	// scope is the run's own conversation.
+	want := []string{"tenant-a", "conversation-a", "persona-worker", "alice", "leave", "", ""}
 	for i := range want {
 		if search.args[i] != want[i] {
 			t.Fatalf("search arg[%d]=%q, want %q", i, search.args[i], want[i])

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
@@ -97,6 +98,68 @@ func ProvisionLocalDevPersonaChatPolicy(ctx context.Context, store LocalDevPerso
 func localDevPersonaDemoConversationID(tenant, roomKey string) string {
 	namespace := uuid.NewSHA1(uuid.NameSpaceURL, []byte("hcmnext.chat.demo-seed"))
 	return uuid.NewSHA1(namespace, []byte(tenant+"\x00"+roomKey)).String()
+}
+
+// ProvisionLocalDevPersonaDirectPolicy installs the reviewed one-to-one
+// ceiling for the deterministic administrator/persona conversation. It is
+// deliberately narrower than the room bootstrap: no arbitrary conversation
+// or non-local profile can reach the writer.
+func ProvisionLocalDevPersonaDirectPolicy(ctx context.Context, store LocalDevPersonaChatPolicyStore, profile, tenant, conversation, administrator string) (int, error) {
+	expected, err := chatcore.DirectPairConversationID(tenant, []chatcore.MemberRef{{TenantID: tenant, SubjectID: administrator}, {TenantID: tenant, SubjectID: localAgentDemoAgentID}})
+	if ctx == nil || store == nil || profile != ServeProfileLocalDev || tenant != localAgentDemoTenant || administrator != localAgentDemoAdmin || strings.TrimSpace(conversation) == "" || err != nil || conversation != expected {
+		return 0, ErrLocalDevPersonaChatBootstrap
+	}
+	ceiling := chatstore.PersonaChannelPolicy{
+		MaxTier:               "T3",
+		AllowedDataClasses:    []string{"PUBLIC", "INTERNAL", "POLICY_DOCUMENT", "WORKFORCE", "SCHEDULE"},
+		AllowedChannelClasses: []string{"ONE_TO_ONE"},
+		PlacementClass:        "ONE_TO_ONE_DM",
+		AlwaysPrivate:         true,
+		// The agent's one capability is searching the documents officially
+		// placed in the conversation it is asked in. Without this its own
+		// direct conversation, where private answers are delivered and
+		// follow-up questions are asked, could never answer one.
+		ConversationSearchAllowed: true,
+	}
+	created := 0
+	// A private conversation with no audience policy has no current authority:
+	// the chat scope authorizer refuses every mention in it. The conversation
+	// service does not create one for a direct conversation, so the local
+	// preparation states it explicitly, once.
+	if policies, ok := store.(interface {
+		PutAudiencePolicy(context.Context, string, string, int64, chatstore.AudiencePolicy) (int64, error)
+	}); ok {
+		_, policyErr := policies.PutAudiencePolicy(ctx, tenant, conversation, 0, chatstore.AudiencePolicy{RoleMode: 1, Classification: "INTERNAL"})
+		if policyErr == nil {
+			created++
+		} else if !errors.Is(policyErr, chatstore.ErrAudiencePolicyConflict) {
+			return 0, fmt.Errorf("%w: provision direct-message audience policy: %w", ErrLocalDevPersonaChatBootstrap, policyErr)
+		}
+	}
+	current, err := store.CapturePersonaChannelPolicy(ctx, tenant, conversation, "")
+	if err == nil {
+		if reflect.DeepEqual(current.Policy, ceiling) {
+			return created, nil
+		}
+		// The only reviewed change to this ceiling is the search permission
+		// above; anything else that differs was set by an administrator.
+		earlier := ceiling
+		earlier.ConversationSearchAllowed = false
+		if !reflect.DeepEqual(current.Policy, earlier) {
+			return created, fmt.Errorf("%w: existing direct-message ceiling differs", ErrLocalDevPersonaChatBootstrap)
+		}
+		if _, err := store.PutPersonaChannelPolicy(ctx, tenant, conversation, current.PolicyRevision, ceiling); err != nil {
+			return created, fmt.Errorf("%w: update direct-message ceiling: %w", ErrLocalDevPersonaChatBootstrap, err)
+		}
+		return created + 1, nil
+	}
+	if !errors.Is(err, dbport.ErrNoRows) && !errors.Is(err, chatstore.ErrAudienceEligibilityUnavailable) {
+		return 0, fmt.Errorf("%w: read direct-message ceiling: %w", ErrLocalDevPersonaChatBootstrap, err)
+	}
+	if _, err := store.PutPersonaChannelPolicy(ctx, tenant, conversation, 0, ceiling); err != nil {
+		return created, fmt.Errorf("%w: provision direct-message ceiling: %w", ErrLocalDevPersonaChatBootstrap, err)
+	}
+	return created + 1, nil
 }
 
 func localDevPersonaRoomCeiling(room string) (chatstore.PersonaChannelPolicy, bool, bool) {

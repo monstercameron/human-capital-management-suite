@@ -72,8 +72,8 @@ func TestPersonaFinalOutputSourceRecoversExactIdentityAndReturnsPlainText(t *tes
 	if got.PersonaLabel != "Persona" || len(got.Items) != 1 || got.Items[0].ID != "answer" || got.Items[0].Text != "I can help explain the policy." {
 		t.Fatalf("delivered projection = %#v", got)
 	}
-	if len(got.Items[0].Citations) != 0 || len(got.Items[0].Materials) != 0 || store.calls != 1 {
-		t.Fatalf("source exposed unverified citation/material data or skipped exact recovery: %#v calls=%d", got, store.calls)
+	if len(got.Items[0].Citations) != 1 || got.Items[0].Citations[0].SourceID != "chat:post-a" || len(got.Items[0].Materials) != 0 || store.calls != 1 {
+		t.Fatalf("source lost validated citations, exposed material data, or skipped exact recovery: %#v calls=%d", got, store.calls)
 	}
 }
 

@@ -72,5 +72,8 @@ func (r *publishedPersonaDM) ResolvePersonaDM(ctx context.Context, principal cha
 	if err != nil {
 		return "", err
 	}
+	if policies, ok := r.store.(personaDMPolicyStore); ok {
+		provisioner.Policies = policies
+	}
 	return provisioner.EnsurePersonaDM(ctx, principal, tenant)
 }

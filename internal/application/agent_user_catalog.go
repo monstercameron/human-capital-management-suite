@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentgate"
@@ -69,15 +70,18 @@ func (c *AgentUserCatalog) List(ctx context.Context, principal *trust.Principal)
 	for _, persona := range personas {
 		profile := persona.Profile
 		if persona.Verify() != nil || profile.PersonaID == "" || profile.Version == 0 {
-			return nil, errAgentUserCatalog
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "invalid_profile")
+			continue
 		}
 		if _, ok := seen[profile.PersonaID]; ok {
-			return nil, errAgentUserCatalog
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "duplicate_persona")
+			continue
 		}
 		seen[profile.PersonaID] = struct{}{}
-		discovered, err := c.Skills.Discover(ctx, principal, profile.Purpose)
+		discovered, err := c.Skills.Discover(ctx, principal, personaChatReplyPurpose)
 		if err != nil {
-			return nil, fmt.Errorf("discover skills for persona %s: %w", profile.PersonaID, err)
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "skill_discovery_unavailable")
+			continue
 		}
 		available := make(map[agentskills.SkillKey]agentskills.SkillRecord, len(discovered))
 		for _, record := range discovered {

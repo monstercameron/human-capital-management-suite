@@ -348,7 +348,7 @@ func (r *PersonaBackgroundRuntime) currentSkills(ctx context.Context, req agentr
 	for skill, scopes := range grant.SkillScopes {
 		// Native owners of these two skills apply current chat/document visibility.
 		// Field-bearing workforce skills require a delegated PDP and remain refused.
-		if skill != personaChatReplySkillID && skill != personaPolicyHelperSkillID {
+		if skill != personaChatReplySkillID && skill != personaPolicyHelperSkillID && skill != personaWorkspaceSearchSkillID {
 			return errPersonaRunCurrentAuthority
 		}
 		authority, ok := grant.SkillAuthorities[skill]

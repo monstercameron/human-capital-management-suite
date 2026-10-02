@@ -74,6 +74,17 @@ func (s *personaDurableInvocationFailureSink) RecordPersonaInvocationPostFailure
 }
 
 func personaPostFailureClassification(err error) (string, bool) {
+	// A run failure already says whether the person may try again (a daily limit
+	// does not, a timeout does); keep that instead of the class default.
+	var failure *PersonaRunFailure
+	if errors.As(err, &failure) && failure != nil {
+		code, retryable := personaPostFailureClassification(failure.Unwrap())
+		switch code {
+		case "MODEL_UNAVAILABLE", "EXECUTION_UNAVAILABLE", "ADMISSION_UNAVAILABLE":
+			retryable = failure.Retryable
+		}
+		return code, retryable
+	}
 	switch {
 	case errors.Is(err, ErrPersonaRunModelFailure):
 		return "MODEL_UNAVAILABLE", true

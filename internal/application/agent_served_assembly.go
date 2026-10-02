@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/application/projectservice"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentdelegationstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
@@ -47,26 +49,55 @@ type agentServedAssemblyInput struct {
 	Now                    func() time.Time
 	TenantUUID             func(values.TenantId) uuid.UUID
 	BackgroundRequired     bool
+	Announcements          agentcontrols.AnnouncementSurface
+	WritingStyles          ChattoneSurface
+	Gates                  ChatgateSurface
+	Renderings             ChatRenderingPort
+	ChannelStatus          chat.ChannelStatusService
+	ChatSearch             ChatSearchHTTP
+	Filters                *chatfilter.Service
+	Locations              ChatmapSurface
+	LocationPictures       ChatmapPictures
+	ChatMaintenance        interface {
+		SweepLocations(context.Context, string, time.Time) (int64, error)
+		SweepChannelStatuses(context.Context, string, time.Time) (int, error)
+	}
+	AnnouncementWorker *AgentAnnouncementWorker
 }
 
 type agentServedAssembly struct {
-	Common       *CommonAgentRuntime
-	Authority    *CommonAgentAuthority
-	Worker       *CommonAgentWorker
-	Schedules    *AgentScheduleService
-	Workflows    AgentWorkflowService
-	Completion   AgentWorkflowCompletionBridge
-	Controls     *AgentControlsSurface
-	Owners       *AgentOwnerOperations
-	Memory       *AgentMemoryOperations
-	Actions      *AgentActionService
-	Rollout      *AgentVersionRolloutService
-	Portable     *AgentPortableService
-	ProjectSkill *AgentProjectSkill
-	Restore      AgentRestoreRuntime
-	browserLogin bool
-	publicOrigin string
-	now          func() time.Time
+	Common           *CommonAgentRuntime
+	Authority        *CommonAgentAuthority
+	Worker           *CommonAgentWorker
+	Schedules        *AgentScheduleService
+	Workflows        AgentWorkflowService
+	Completion       AgentWorkflowCompletionBridge
+	Controls         *AgentControlsSurface
+	Announcements    agentcontrols.AnnouncementSurface
+	WritingStyles    ChattoneSurface
+	Gates            ChatgateSurface
+	Renderings       ChatRenderingPort
+	ChannelStatus    chat.ChannelStatusService
+	ChatSearch       ChatSearchHTTP
+	Filters          *chatfilter.Service
+	Locations        ChatmapSurface
+	LocationPictures ChatmapPictures
+	ChatMaintenance  interface {
+		SweepLocations(context.Context, string, time.Time) (int64, error)
+		SweepChannelStatuses(context.Context, string, time.Time) (int, error)
+	}
+	Icons              transport.AgentIconSurface
+	AnnouncementWorker *AgentAnnouncementWorker
+	Owners             *AgentOwnerOperations
+	Memory             *AgentMemoryOperations
+	Actions            *AgentActionService
+	Rollout            *AgentVersionRolloutService
+	Portable           *AgentPortableService
+	ProjectSkill       *AgentProjectSkill
+	Restore            AgentRestoreRuntime
+	browserLogin       bool
+	publicOrigin       string
+	now                func() time.Time
 }
 
 func composeAgentServedAssembly(in agentServedAssemblyInput) (*agentServedAssembly, error) {
@@ -83,7 +114,14 @@ func composeAgentServedAssembly(in agentServedAssemblyInput) (*agentServedAssemb
 		in.TenantUUID = tenantKeyMapper[values.TenantId](pgstore.TenantID)
 	}
 	in.Now = personaServeClock(in.Now)
-	assembly := &agentServedAssembly{browserLogin: in.Cell.BrowserLoginEnabled(), publicOrigin: in.Cell.PublicOrigin(), now: in.Now}
+	assembly := &agentServedAssembly{browserLogin: in.Cell.BrowserLoginEnabled(), publicOrigin: in.Cell.PublicOrigin(), now: in.Now, Announcements: in.Announcements}
+	assembly.AnnouncementWorker = in.AnnouncementWorker
+	assembly.WritingStyles = in.WritingStyles
+	assembly.Gates, assembly.Renderings, assembly.ChannelStatus = in.Gates, in.Renderings, in.ChannelStatus
+	assembly.ChatSearch, assembly.Filters = in.ChatSearch, in.Filters
+	assembly.Locations, assembly.LocationPictures = in.Locations, in.LocationPictures
+	assembly.ChatMaintenance = in.ChatMaintenance
+	assembly.Icons = &AgentIconSurface{Store: in.AgentDatabase.personas, Administrators: AgentIconRoleAdministrator{Roles: in.Cell.RoleAccess}, Now: in.Now}
 	owners, err := NewAgentOwnerOperations(in.Core, in.TenantUUID, in.Cell.RoleAccess, in.Now)
 	if err != nil {
 		return nil, fmt.Errorf("agent owner controls: %w", err)
@@ -92,7 +130,19 @@ func composeAgentServedAssembly(in agentServedAssemblyInput) (*agentServedAssemb
 	if err != nil {
 		return nil, fmt.Errorf("agent memory controls: %w", err)
 	}
-	assembly.Controls = &AgentControlsSurface{Operations: &AgentOwnerControls{Owners: owners, Memory: memory}}
+	ownerControls := &AgentOwnerControls{Owners: owners, Memory: memory}
+	if in.Personas != nil && in.Personas.adminTargets != nil && in.AgentDatabase.personas != nil {
+		// Name each run's agent and the person it ran for from the same
+		// persona store and directory the administration pages read. Without
+		// a resolver a cell with only finished runs reported the whole
+		// region as unavailable.
+		ownerControls.Identities = AgentPersonaControlIdentities{Personas: in.AgentDatabase.personas, Directory: in.Personas.adminTargets}
+	}
+	if in.Personas != nil && in.Personas.adminTargets != nil && in.AgentDatabase.store != nil && in.AgentDatabase.personas != nil {
+		personaRuns := AgentPersonaRunSource{DB: in.AgentDatabase.store, TenantUUID: in.TenantUUID, Directory: in.Personas.adminTargets, Conversations: in.Personas.adminTargets, Personas: in.AgentDatabase.personas}
+		ownerControls.Runs = AgentCombinedRunSource{Sources: []AgentOwnerRunSource{owners, personaRuns}}
+	}
+	assembly.Controls = &AgentControlsSurface{Operations: ownerControls}
 	assembly.Owners, assembly.Memory = owners, memory
 	assembly.Actions, err = NewAgentActionService(in.Cell)
 	if err != nil {
@@ -120,6 +170,9 @@ func composeAgentServedAssembly(in agentServedAssemblyInput) (*agentServedAssemb
 		if err != nil {
 			return nil, fmt.Errorf("agent version rollout: %w", err)
 		}
+		// Rollout names conversations the way Chat does, through the reader
+		// the agent administration pages already use.
+		assembly.Rollout.Conversations = in.Personas.adminTargets
 	}
 	if in.Projects != nil || in.ProjectStore != nil {
 		if in.Projects == nil || in.ProjectStore == nil || in.Personas == nil {
@@ -221,15 +274,24 @@ func (s agentServedSourceKeys) ResolveSourceKey(ctx context.Context, request age
 // TickTenant is driven by the root's tenant loop. It plans native occurrences
 // and retries durable completion signals without a process-local queue.
 func (s *agentServedAssembly) TickTenant(ctx context.Context, tenant string) error {
+	var announcementErr error
+	if s != nil && !isNilPersonaOutputPort(s.ChatMaintenance) {
+		_, locationErr := s.ChatMaintenance.SweepLocations(ctx, tenant, time.Now().UTC())
+		_, statusErr := s.ChatMaintenance.SweepChannelStatuses(ctx, tenant, time.Now().UTC())
+		announcementErr = errors.Join(locationErr, statusErr)
+	}
+	if s != nil && s.AnnouncementWorker != nil {
+		announcementErr = errors.Join(announcementErr, s.AnnouncementWorker.TickTenant(ctx, tenant))
+	}
 	if s == nil || s.Common == nil || s.Schedules == nil || s.Worker == nil {
-		return nil
+		return announcementErr
 	}
 	_, restoreErr := s.Restore.TickTenant(ctx, tenant, s.now().UTC())
 	planErr := s.Schedules.TickTenant(ctx, tenant)
 	_, scheduleErr := s.Worker.Sweep(ctx, tenant, agentrun.SourceSchedule, 100)
 	_, workflowErr := s.Worker.Sweep(ctx, tenant, agentrun.SourceWorkflow, 100)
 	_, completionErr := s.Completion.Sweep(ctx, s.Common, tenant, 100)
-	return errors.Join(restoreErr, planErr, scheduleErr, workflowErr, completionErr)
+	return errors.Join(announcementErr, restoreErr, planErr, scheduleErr, workflowErr, completionErr)
 }
 
 // BindPlatform connects task retention to the same governed memory owner that
@@ -238,6 +300,12 @@ func (s *agentServedAssembly) TickTenant(ctx context.Context, tenant string) err
 func (s *agentServedAssembly) BindPlatform(runtime *agentRuntime) error {
 	if s == nil || s.Memory == nil || s.Owners == nil {
 		return errAgentRuntimeInput
+	}
+	// A model call made outside a task step (an agent mentioned in chat) holds
+	// no worker lease, so the resource runtime must be able to reload the
+	// durable actor of the run it is asked to serve.
+	if runtime != nil && s.Common != nil {
+		runtime.Resources.BindIdentityResolver(CommonAgentResourceIdentityResolver(s.Common))
 	}
 	return BindAgentRuntimeMemory(runtime, s.Memory)
 }
@@ -251,6 +319,18 @@ func (s *agentServedAssembly) Overlay(next http.Handler, admission transport.Con
 	}
 	fallback := next
 	next = OverlayAgentControlsSurface(next, s.Controls, admission)
+	next = OverlayAgentAnnouncements(next, s.Announcements, admission)
+	next = s.overlayChatFeatures(next, admission)
+	next = OverlayChatgates(next, s.Gates, admission)
+	next = OverlayChatRenderings(next, s.Renderings, admission)
+	next = OverlayChatTranslation(next, s.translationSurface(), admission)
+	next = OverlayChannelStatus(next, s.ChannelStatus, admission)
+	next = OverlayChatSearch(next, s.ChatSearch, admission)
+	next = OverlayChatFilters(next, s.Filters, admission)
+	next = OverlayChatmap(next, s.Locations, s.LocationPictures, admission)
+	next = OverlayChattone(next, s.WritingStyles, admission)
+	next = Chatcmd003OverlayTidy(next, s.WritingStyles, admission)
+	next = overlayIntegrate1AgentIcons(next, s.Icons, admission)
 	next = OverlayAgentPortableHTTP(next, s.Portable, admission)
 	if s.Rollout != nil {
 		next = OverlayAgentVersionRolloutHTTP(next, s.Rollout, admission)
@@ -301,7 +381,7 @@ func (s *agentServedAssembly) Overlay(next http.Handler, admission transport.Con
 }
 
 func agentServedPath(path string) bool {
-	return strings.HasPrefix(path, AgentActionsPath) || path == agentcontrols.Path || strings.HasPrefix(path, agentcontrols.Path+"/") ||
+	return path == integrate2FeaturesPath || path == ChatgatePath || strings.HasPrefix(path, ChatRenderingPath+"/") || strings.HasPrefix(path, ChatlangPath+"/") || strings.HasPrefix(path, ChannelStatusPath) || path == ChatSearchPath || strings.HasPrefix(path, ChatSearchPath+"/") || path == ChatFiltersPath || strings.HasPrefix(path, ChatFiltersPath+"/") || strings.HasPrefix(path, ChatmapPath+"/") || path == ChattonePath || strings.HasPrefix(path, ChattonePath+"/") || strings.HasPrefix(path, transport.AgentIconPath+"/") || strings.HasPrefix(path, AgentActionsPath) || path == agentcontrols.Path || strings.HasPrefix(path, agentcontrols.Path+"/") ||
 		path == AgentPortableCatalogPath || path == AgentPortableExportPath || path == AgentPortableImportPath || path == AgentPortableDraftPath || path == AgentVersionRolloutPath
 }
 

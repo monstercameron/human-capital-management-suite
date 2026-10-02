@@ -13,6 +13,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentdelegation"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
@@ -32,10 +33,9 @@ const (
 )
 
 // agentStarter implements agentclient.Starter. It turns the signed-in user's
-// prompt into a deterministic read-only plan (T0 read of their own worker
-// record, T1 model summary), starts the task with the user's current
-// authority, confirms the plan as the user (they pressed start) and drives it
-// on a context detached from the request.
+// prompt into a deterministic minimum-data plan, starts the task with the
+// user's current authority, confirms the plan as the user (they pressed
+// start) and drives it on a context detached from the request.
 type agentStarter struct {
 	platform  *agentsystem.Platform
 	settings  workspace.AgentSettings
@@ -46,6 +46,9 @@ type agentStarter struct {
 	wait      time.Duration
 	driveFor  time.Duration
 	newID     func() (string, error)
+	documents agentdocref.Resolver
+	personas  AgentTaskPersonaResolver
+	planner   AgentTaskPlanner
 }
 
 var _ agentclient.Starter = (*agentStarter)(nil)
@@ -60,7 +63,7 @@ func randomAgentTaskID() (string, error) {
 
 // StartTask starts and drives one self-service task for the principal.
 func (s *agentStarter) StartTask(ctx context.Context, principal *trust.Principal, prompt string) (agentclient.StartedTask, error) {
-	return s.StartTaskMode(ctx, principal, prompt, agentclient.StartQuickAnswer)
+	return s.startTaskMode(ctx, principal, prompt, agentclient.StartQuickAnswer, nil, "")
 }
 
 // StartTaskMode applies the explicit quick-answer versus long-task policy.
@@ -68,11 +71,30 @@ func (s *agentStarter) StartTask(ctx context.Context, principal *trust.Principal
 // return awaiting confirmation and do not start a worker until the control
 // RPC confirms the plan.
 func (s *agentStarter) StartTaskMode(ctx context.Context, principal *trust.Principal, prompt string, mode agentclient.StartMode) (agentclient.StartedTask, error) {
+	return s.startTaskMode(ctx, principal, prompt, mode, nil, "")
+}
+
+// StartTaskWithDocuments admits typed document references before creating the
+// durable task. The resolver always receives the invoking human identity.
+func (s *agentStarter) StartTaskWithDocuments(ctx context.Context, principal *trust.Principal, prompt string, mode agentclient.StartMode, refs []agentdocref.Reference) (agentclient.StartedTask, error) {
+	return s.startTaskMode(ctx, principal, prompt, mode, refs, "")
+}
+
+// StartTaskWithSelection admits both typed document references and the
+// optional persona choice before creating any durable task state.
+func (s *agentStarter) StartTaskWithSelection(ctx context.Context, principal *trust.Principal, prompt string, mode agentclient.StartMode, refs []agentdocref.Reference, personaID string) (agentclient.StartedTask, error) {
+	return s.startTaskMode(ctx, principal, prompt, mode, refs, personaID)
+}
+
+func (s *agentStarter) startTaskMode(ctx context.Context, principal *trust.Principal, prompt string, mode agentclient.StartMode, refs []agentdocref.Reference, personaID string) (agentclient.StartedTask, error) {
 	if s == nil || s.platform == nil || principal == nil {
 		return agentclient.StartedTask{}, agentclient.ErrNotAuthorized
 	}
 	if mode != agentclient.StartQuickAnswer && mode != agentclient.StartLongTask {
 		return agentclient.StartedTask{}, agentclient.ErrInvalidPrompt
+	}
+	if err := agentdocref.Validate(refs, agentdocref.MaxRequestReferences); err != nil {
+		return agentclient.StartedTask{}, agentrun.ErrDocumentReferenceInvalid
 	}
 	goal, err := s.validatePrompt(prompt)
 	if err != nil {
@@ -96,6 +118,31 @@ func (s *agentStarter) StartTaskMode(ctx context.Context, principal *trust.Princ
 	if !s.model.Available() {
 		return agentclient.StartedTask{}, ErrAgentModelUnavailable
 	}
+	planOutput := AgentTaskPlanningOutput{}
+	if s.planner != nil {
+		planOutput, err = s.planner.PlanAgentTask(ctx, goal, mode)
+		if err != nil {
+			return agentclient.StartedTask{}, fmt.Errorf("plan agent task: %w", err)
+		}
+	}
+	answeringAgent := agentrun.TaskAgentIdentity{ID: "general-agent", DisplayName: "General agent", Version: agentVersion}
+	selectedPersona := strings.TrimSpace(personaID)
+	if selectedPersona != personaID {
+		return agentclient.StartedTask{}, agentrun.ErrTaskAgentDenied
+	}
+	if selectedPersona == answeringAgent.ID {
+		// The general agent named by its own id is the general agent.
+		selectedPersona, personaID = "", ""
+	}
+	if personaID = selectedPersona; personaID != "" {
+		if s.personas == nil {
+			return agentclient.StartedTask{}, agentrun.ErrTaskAgentUnavailable
+		}
+		answeringAgent, err = s.personas.ResolveAgentTaskPersona(ctx, principal, personaID)
+		if err != nil {
+			return agentclient.StartedTask{}, err
+		}
+	}
 	now := s.now().UTC()
 	// The authority is resolved from the durable role policy at this instant;
 	// the principal's claims and the prompt contribute nothing to it.
@@ -107,11 +154,37 @@ func (s *agentStarter) StartTaskMode(ctx context.Context, principal *trust.Princ
 		!slices.Contains(current.Authority.Capabilities, agentReadCapabilityID) || !slices.Contains(current.Authority.Purposes, agentPurpose) {
 		return agentclient.StartedTask{}, agentclient.ErrNotAuthorized
 	}
+	if len(refs) > 0 {
+		if s.documents == nil {
+			return agentclient.StartedTask{}, agentrun.ErrDocumentResolverUnavailable
+		}
+		resolved, omissions, resolveErr := s.documents.Resolve(ctx, agentdocref.Invoker{TenantID: tenant.String(), SubjectID: subject}, refs)
+		if resolveErr != nil || len(omissions) != 0 || len(resolved) != len(refs) {
+			return agentclient.StartedTask{}, agentrun.ErrDocumentReferenceUnreadable
+		}
+		for i := range refs {
+			if resolved[i].Reference != refs[i] {
+				return agentclient.StartedTask{}, agentrun.ErrDocumentReferenceUnreadable
+			}
+		}
+	}
 
 	// Everything after authorization outlives the request: the grant store
 	// binds its context at ForTenant, and the task keeps running after the
 	// page's request returns.
 	driveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.driveFor)
+	if len(refs) > 0 {
+		driveCtx, err = agentrun.WithDocumentReferences(driveCtx, refs)
+		if err != nil {
+			cancel()
+			return agentclient.StartedTask{}, err
+		}
+	}
+	driveCtx, err = agentrun.WithTaskAgentIdentity(driveCtx, answeringAgent)
+	if err != nil {
+		cancel()
+		return agentclient.StartedTask{}, err
+	}
 	runner, err := s.platform.ForTenant(driveCtx, tenant)
 	if err != nil {
 		cancel()
@@ -125,13 +198,8 @@ func (s *agentStarter) StartTaskMode(ctx context.Context, principal *trust.Princ
 	task, err := runner.StartTask(driveCtx, agentsystem.StartRequest{
 		TaskID: id, UserID: subject, AgentVersion: agentVersion, InstallationID: "install:" + tenant.String(),
 		Purpose: agentPurpose, OrganizationScopeID: agentOrgScope(tenant), Goal: goal,
-		Constraints: []string{"read-only: no worker records are changed; the request is processed by the configured model provider"},
-		Steps: []agentrun.PlanStep{
-			{ID: agentReadStepID, Type: agentrun.StepRead, SkillID: agentReadSkillID, SkillVersion: agentSkillVersion,
-				ExpectedOutput: "the signed-in user's own worker record", Tier: agentrun.TierRead},
-			{ID: agentSummaryStepID, Type: agentrun.StepAnalyze, SkillID: agentSummarizeSkillID, SkillVersion: agentSkillVersion,
-				ExpectedOutput: "a short private answer to the request", Tier: agentrun.TierPrivateDraft},
-		},
+		Constraints:   []string{"read-only: no worker records are changed; the request is processed by the configured model provider"},
+		Steps:         agentTaskPlanSteps(planOutput),
 		UserAuthority: current.Authority,
 		Limit:         agentbudget.Limits{},
 		Lifetime:      24 * time.Hour,

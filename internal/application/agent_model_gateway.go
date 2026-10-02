@@ -177,7 +177,14 @@ func (g *AgentModelGateway) Dispatch(ctx context.Context, req AgentModelGatewayR
 	if limits.MaxInputTokens < 0 || limits.MaxOutputTokens < 0 || limits.MaxInputTokens > math.MaxInt64-limits.MaxOutputTokens {
 		return AgentModelGatewayResult{}, fmt.Errorf("%w: token budget is not representable", agentmodel.ErrBudgetFailed)
 	}
-	reservation, err := g.budget.Reserve(ctx, agentbudget.Request{TaskID: req.Dispatch.Outbound.TaskID, StepID: req.Route.TraceID, Fingerprint: req.Route.TraceID, Estimate: agentbudget.Usage{Steps: 1, Tokens: limits.MaxInputTokens + limits.MaxOutputTokens, SpendMicros: limits.MaxCostMicros, WallClock: req.Route.Task.MaxLatency}})
+	// Reserve the wall-clock time this call can actually use: the call is
+	// cancelled at the deadline above, so it cannot consume the task's whole
+	// contractual latency when less time than that is left.
+	wallClock, err := agentModelReservationWallClock(deadline, req.Route.Task.MaxLatency, time.Now())
+	if err != nil {
+		return AgentModelGatewayResult{}, fmt.Errorf("%w: model deadline has passed", agentmodel.ErrBudgetFailed)
+	}
+	reservation, err := g.budget.Reserve(ctx, agentbudget.Request{TaskID: req.Dispatch.Outbound.TaskID, StepID: req.Route.TraceID, Fingerprint: req.Route.TraceID, Estimate: agentbudget.Usage{Steps: 1, Tokens: limits.MaxInputTokens + limits.MaxOutputTokens, SpendMicros: limits.MaxCostMicros, WallClock: wallClock}})
 	if err != nil {
 		return AgentModelGatewayResult{}, fmt.Errorf("%w: %w", agentmodel.ErrBudgetFailed, err)
 	}
@@ -206,6 +213,17 @@ func (g *AgentModelGateway) Dispatch(ctx context.Context, req AgentModelGatewayR
 		return AgentModelGatewayResult{}, dispatchErr
 	}
 	return AgentModelGatewayResult{Route: route, Dispatch: dispatched}, nil
+}
+
+func agentModelReservationWallClock(deadline time.Time, taskLatency time.Duration, now time.Time) (time.Duration, error) {
+	left := deadline.Sub(now)
+	if left <= 0 || taskLatency <= 0 {
+		return 0, agentmodel.ErrBudgetFailed
+	}
+	if left < taskLatency {
+		return left, nil
+	}
+	return taskLatency, nil
 }
 
 func validateGatewayLease(value lease.CredentialLease, tenant string, outbound agentegress.OutboundRequest) error {

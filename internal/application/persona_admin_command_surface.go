@@ -26,6 +26,7 @@ type PersonaAdminCommandSurfaceConfig struct {
 	Evidence        PersonaAdminPublicationEvidenceResolver
 	InstallAuth     PersonaAdminInstallationAuthorizer
 	Transitions     PersonaAdminLifecycleTransitions
+	Evaluations     PersonaAdminEvaluationRunner
 	Now             func() time.Time
 	NewEventID      func() string
 }
@@ -45,6 +46,25 @@ func (w *personaServeWiring) newAdminCommandFactory(catalog productui.PersonaAdm
 		Evidence: w.adminEvidence, InstallAuth: w.adminInstall, Transitions: w.adminTransitions,
 		Now: w.now, NewEventID: newEventID,
 	})
+}
+
+// bindAdminEvaluation attaches a trusted evaluator after the ordinary command
+// surface has been composed. Serve uses this only for an explicitly configured
+// runtime; an absent binding remains the typed evaluation_unavailable state.
+func (w *personaServeWiring) bindAdminEvaluation(runner PersonaAdminEvaluationRunner) error {
+	if w == nil || runner == nil {
+		return ErrPersonaAdminEvaluationUnavailable
+	}
+	factory, ok := w.adminFactory.(*PersonaAdminCommandFactory)
+	if !ok || factory == nil {
+		return ErrPersonaAdminEvaluationUnavailable
+	}
+	executor, ok := factory.executor.(*PersonaAdminLifecycleExecutor)
+	if !ok || executor == nil {
+		return ErrPersonaAdminEvaluationUnavailable
+	}
+	executor.Evaluations = runner
+	return nil
 }
 
 // NewPersonaAdminCommandSurface composes a role-authorized command factory
@@ -81,6 +101,7 @@ func NewPersonaAdminCommandSurface(config PersonaAdminCommandSurfaceConfig) (*Pe
 		config.Now,
 		config.NewEventID,
 	)
+	executor.Evaluations = config.Evaluations
 	return NewPersonaAdminCommandFactory(config.Catalog, authorizer, executor)
 }
 
@@ -104,7 +125,7 @@ func (a personaAdminDraftStoreAdapter) CreateDraft(ctx context.Context, version 
 	if err != nil || tenant == nil {
 		return ErrPersonaDraftDenied
 	}
-	return tenant.CreateDraft(ctx, version, owner, steward, actor, at)
+	return tenant.CreateDraftWithIcon(ctx, version, owner, steward, actor, at)
 }
 
 type personaAdminCreateRoleAuthorizer struct{ roles roleaccess.Store }

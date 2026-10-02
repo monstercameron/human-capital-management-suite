@@ -170,7 +170,7 @@ func (s fencedPersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context.Co
 	runID := agentsecurity.PersonaRunID(run.ID)
 	leaseID, err := s.leases.ResolvePersonaRunSecurityLease(ctx, admission, run)
 	if err != nil || leaseID == "" {
-		return PersonaRunModelWork{}, fmt.Errorf("%w: trusted run security lease unavailable", ErrPersonaRunExecutorUnavailable)
+		return PersonaRunModelWork{}, fmt.Errorf("%w: trusted run security lease unavailable: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	if err := s.fence.Bind(runID, admission.Request.Source.TenantID, leaseID); err != nil {
 		return PersonaRunModelWork{}, fmt.Errorf("%w: bind run security lease", ErrPersonaRunExecutorUnavailable)
@@ -178,13 +178,15 @@ func (s fencedPersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context.Co
 	s.steps.set(run)
 	var work PersonaRunModelWork
 	stepID := personaRunSecurityStepID(run.ID, "context", personaRunStepGenerationKey(run))
+	done := agentUXSpeedEvent(ctx, "fence.context")
 	_, err = s.fence.RunStep(ctx, runID, stepID, func(stepCtx context.Context) error {
 		var stepErr error
 		work, stepErr = s.inner.BuildPersonaRunModelWork(stepCtx, admission, run)
 		return stepErr
 	})
+	done()
 	if err != nil {
-		return PersonaRunModelWork{}, fmt.Errorf("%w: fenced model-work resolution failed", ErrPersonaRunExecutorUnavailable)
+		return PersonaRunModelWork{}, fmt.Errorf("%w: fenced model-work resolution failed: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	return work, nil
 }
@@ -207,13 +209,15 @@ func (e fencedPersonaRunModelExecutor) Execute(ctx context.Context, request Agen
 	}
 	var result AgentModelExecutorResult
 	stepID := personaRunSecurityStepID(request.Task.TaskID, "model", fmt.Sprintf("%s:%d:%d", request.StepID, generation.fence, generation.version))
+	done := agentUXSpeedEvent(ctx, "fence.model")
 	_, err := e.fence.RunStep(ctx, agentsecurity.PersonaRunID(request.Task.TaskID), stepID, func(stepCtx context.Context) error {
 		var stepErr error
 		result, stepErr = e.inner.Execute(stepCtx, request)
 		return stepErr
 	})
+	done()
 	if err != nil {
-		return AgentModelExecutorResult{}, fmt.Errorf("%w: fenced model execution failed", ErrPersonaRunModelFailure)
+		return AgentModelExecutorResult{}, fmt.Errorf("%w: fenced model execution failed: %v", ErrPersonaRunModelFailure, err)
 	}
 	return result, nil
 }
@@ -231,13 +235,15 @@ func (v fencedPersonaRunOutputValidator) ValidateAndPersistPersonaOutput(ctx con
 	v.steps.set(run)
 	var persisted agentsecurity.FinalOutputPersistence
 	stepID := personaRunSecurityStepID(run.ID, "output", personaRunStepGenerationKey(run))
+	done := agentUXSpeedEvent(ctx, "fence.output")
 	_, err := v.fence.RunStep(ctx, agentsecurity.PersonaRunID(run.ID), stepID, func(stepCtx context.Context) error {
 		var stepErr error
 		persisted, stepErr = v.inner.ValidateAndPersistPersonaOutput(stepCtx, admission, run, result)
 		return stepErr
 	})
+	done()
 	if err != nil {
-		return agentsecurity.FinalOutputPersistence{}, fmt.Errorf("%w: fenced output validation failed", ErrPersonaRunOutputRejected)
+		return agentsecurity.FinalOutputPersistence{}, fmt.Errorf("%w: fenced output validation failed: %v", ErrPersonaRunOutputRejected, err)
 	}
 	return persisted, nil
 }
@@ -258,13 +264,15 @@ func (d fencedPersonaRunReplyDeliverer) Deliver(ctx context.Context, request Per
 	}
 	var receipt PersonaReplyDeliveryReceipt
 	stepID := personaRunSecurityStepID(request.IdempotencyKey, "delivery", fmt.Sprintf("%s:%d:%d", request.IdempotencyKey, generation.fence, generation.version))
+	done := agentUXSpeedEvent(ctx, "fence.delivery")
 	_, err := d.fence.RunStep(ctx, agentsecurity.PersonaRunID(request.IdempotencyKey), stepID, func(stepCtx context.Context) error {
 		var stepErr error
 		receipt, stepErr = d.inner.Deliver(stepCtx, request)
 		return stepErr
 	})
+	done()
 	if err != nil {
-		return PersonaReplyDeliveryReceipt{}, fmt.Errorf("%w: fenced reply delivery failed", ErrPersonaRunDeliveryFailure)
+		return PersonaReplyDeliveryReceipt{}, fmt.Errorf("%w: fenced reply delivery failed: %v", ErrPersonaRunDeliveryFailure, err)
 	}
 	return receipt, nil
 }

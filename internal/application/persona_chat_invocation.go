@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
@@ -16,6 +18,11 @@ var errPersonaChatInvocation = errors.New("application: persona chat invocation 
 // personaChatPostWriter is the durable chat write seam used by the coordinator.
 type personaChatPostWriter interface {
 	SendPost(context.Context, chatcore.SendPostRequest) (chatcore.Post, error)
+}
+
+type personaDirectConversationReader interface {
+	GetConversation(context.Context, chatcore.GetConversationRequest) (chatcore.Conversation, error)
+	ListMemberships(context.Context, chatcore.ListMembershipsRequest) (chatcore.ListMembershipsResponse, error)
 }
 
 // personaReferenceResolver returns only canonical persona identities represented
@@ -46,6 +53,9 @@ type personaChatInvocationConfig struct {
 	T0Skills   personaT0SkillPolicy
 	Repository agentinvoke.InvocationRepository
 	Failures   personaInvocationFailureSink
+	// DetachedAfterCommit is enabled by the served runtime so model work never
+	// holds the HTTP response that committed the invoking post.
+	DetachedAfterCommit bool
 }
 
 // personaChatInvocation coordinates a committed human chat post with the
@@ -55,6 +65,7 @@ type personaChatInvocation struct {
 	refs     personaReferenceResolver
 	resolver *agentinvoke.Service
 	failures personaInvocationFailureSink
+	detached bool
 }
 
 func newPersonaChatInvocation(cfg personaChatInvocationConfig) (*personaChatInvocation, error) {
@@ -73,7 +84,8 @@ func newPersonaChatInvocation(cfg personaChatInvocationConfig) (*personaChatInvo
 	if err != nil {
 		return nil, fmt.Errorf("%w: create invocation resolver: %v", errPersonaChatInvocation, err)
 	}
-	return &personaChatInvocation{chat: cfg.Chat, refs: cfg.References, resolver: resolver, failures: cfg.Failures}, nil
+	_, servedWorker := cfg.Runs.(*PersonaRunModelWorker)
+	return &personaChatInvocation{chat: cfg.Chat, refs: cfg.References, resolver: resolver, failures: cfg.Failures, detached: cfg.DetachedAfterCommit || servedWorker}, nil
 }
 
 // SendPost commits the human message first, then attempts persona admission.
@@ -105,9 +117,20 @@ func (c *personaChatInvocation) SendPost(ctx context.Context, request chatcore.S
 		}
 		return post, err
 	}
-	c.afterCommit(ctx, request, post)
+	if c.detached {
+		// Detach before the request is released. The admission itself has a
+		// strict bound below, so this server-owned task cannot linger forever.
+		detached := context.WithoutCancel(ctx)
+		go c.afterCommit(detached, request, post)
+	} else {
+		c.afterCommit(ctx, request, post)
+	}
 	return post, nil
 }
+
+// personaMentionAdmissionTimeout bounds the admission work that follows a
+// committed post that mentions an agent.
+const personaMentionAdmissionTimeout = 60 * time.Second
 
 func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcore.SendPostRequest, post chatcore.Post) {
 	if c == nil || c.resolver == nil || c.refs == nil {
@@ -123,9 +146,19 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 		post.Revision != 1 || post.Deleted || post.SourceAttribution != nil {
 		return
 	}
-	mentions, err := c.refs.ResolvePersonaMentions(ctx, post.TenantID, post.ConversationID, post.References)
+	// Everything after commit, including canonical-reference resolution, keeps
+	// request values but not request cancellation and is bounded independently.
+	admissionCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), personaMentionAdmissionTimeout)
+	defer cancel()
+	references := post.References
+	if !hasTypedAgentReference(references) {
+		if reference, ok := c.directAgentReference(admissionCtx, principal, post); ok {
+			references = append(append([]chatcore.Reference(nil), references...), reference)
+		}
+	}
+	mentions, err := c.refs.ResolvePersonaMentions(admissionCtx, post.TenantID, post.ConversationID, references)
 	if err != nil {
-		c.recordPostFailure(ctx, post, err)
+		c.recordPostFailure(admissionCtx, post, err)
 		return
 	}
 	canonical := make([]agentinvoke.Mention, 0, len(mentions))
@@ -143,7 +176,18 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 	if post.ParentID != "" {
 		threadID = post.ParentID
 	}
+	// The post is committed. Admission of the mention is server work that must
+	// not be abandoned because the sender's request was cancelled or timed out,
+	// so it keeps the request's values (principal, trace) under its own bound.
+	started := time.Now()
+	ctx, _ = withAgentUXRunTiming(admissionCtx)
 	ctx = withPersonaChatAuthorityTuple(ctx, post.TenantID, principal.Subject(), post.ConversationID, threadID, post.ID)
+	defer func() {
+		slog.InfoContext(ctx, "hcmnext.persona_mention_admission", "post_id", post.ID, "duration_ms", time.Since(started).Milliseconds(), "failed", err != nil)
+		agentUXSpeedEmit(ctx, err != nil)
+	}()
+	done := agentUXSpeedStage(ctx, "admission_to_delivery")
+	defer done()
 	_, err = c.resolver.OnPostCommit(ctx, agentinvoke.PostCommit{
 		TenantID: post.TenantID, ConversationID: post.ConversationID, ThreadID: threadID,
 		PostID: post.ID, AuthorID: principal.Subject(), AuthorKind: agentinvoke.HumanAuthor,
@@ -152,6 +196,56 @@ func (c *personaChatInvocation) afterCommit(ctx context.Context, request chatcor
 	if err != nil {
 		c.recordPostFailure(ctx, post, err)
 	}
+}
+
+func hasTypedAgentReference(references []chatcore.Reference) bool {
+	for _, reference := range references {
+		if reference.Kind == chatcore.AgentMention {
+			return true
+		}
+	}
+	return false
+}
+
+// directAgentReference recognizes only a current, same-tenant, two-member
+// direct conversation. The canonical resolver then proves that the other
+// member is the active agent identity installed in this exact conversation.
+func (c *personaChatInvocation) directAgentReference(ctx context.Context, principal *trust.Principal, post chatcore.Post) (chatcore.Reference, bool) {
+	reader, ok := c.chat.(personaDirectConversationReader)
+	if !ok || principal == nil {
+		return chatcore.Reference{}, false
+	}
+	chatPrincipal := chatcore.Principal{TenantID: principal.Tenant().String(), SubjectID: principal.Subject()}
+	room, err := reader.GetConversation(ctx, chatcore.GetConversationRequest{Principal: chatPrincipal, TenantID: post.TenantID, ConversationID: post.ConversationID})
+	if err != nil || room.ID != post.ConversationID || room.TenantID != post.TenantID || room.Kind != chatcore.Direct || room.Archived {
+		return chatcore.Reference{}, false
+	}
+	members, err := reader.ListMemberships(ctx, chatcore.ListMembershipsRequest{Principal: chatPrincipal, TenantID: post.TenantID, ConversationID: post.ConversationID, Page: chatcore.Page{PageSize: 3}})
+	if err != nil || members.NextCursor != "" || len(members.Memberships) != 2 {
+		return chatcore.Reference{}, false
+	}
+	foundHuman := false
+	agentID := ""
+	for _, member := range members.Memberships {
+		if member.TenantID != post.TenantID || member.ConversationID != post.ConversationID || member.HomeTenantID != post.TenantID || member.JoinedAt == nil || member.LeftAt != nil {
+			return chatcore.Reference{}, false
+		}
+		if member.SubjectID == principal.Subject() {
+			if foundHuman {
+				return chatcore.Reference{}, false
+			}
+			foundHuman = true
+			continue
+		}
+		if agentID != "" || strings.TrimSpace(member.SubjectID) != member.SubjectID || member.SubjectID == "" {
+			return chatcore.Reference{}, false
+		}
+		agentID = member.SubjectID
+	}
+	if !foundHuman || agentID == "" {
+		return chatcore.Reference{}, false
+	}
+	return chatcore.Reference{Kind: chatcore.AgentMention, TenantID: post.TenantID, ID: agentID, ConversationID: post.ConversationID}, true
 }
 
 func (c *personaChatInvocation) recordFailure(ctx context.Context, postID string, err error) {

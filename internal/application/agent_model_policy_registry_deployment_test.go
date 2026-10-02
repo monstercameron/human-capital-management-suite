@@ -18,6 +18,14 @@ import (
 )
 
 func TestTodo_AGENT_021_ImmutablePolicyCurrentDeployment(t *testing.T) {
+	testPersonaModelRoutePublisherRuntimeRoundTrip(t)
+}
+
+func TestTodo_AGENTUX_005_ModelRoutePublisherRuntimeRoundTrip(t *testing.T) {
+	testPersonaModelRoutePublisherRuntimeRoundTrip(t)
+}
+
+func testPersonaModelRoutePublisherRuntimeRoundTrip(t *testing.T) {
 	now := time.Now().UTC()
 	tenantID := uuid.New()
 	profile := localOpenAIProfileFixture(t)
@@ -29,15 +37,13 @@ func TestTodo_AGENT_021_ImmutablePolicyCurrentDeployment(t *testing.T) {
 	}
 	selection := agentmodel.ModelSelection{ProfileID: profile.ID, ProfileDigest: profile.ProfileDigest, Identity: profile.Identity}
 	term := cfg.Terms[0]
-	route := struct {
-		PersonaRunModelRoute
-		ModelDigest string `json:"model_digest"`
-	}{PersonaRunModelRoute: PersonaRunModelRoute{
+	route := PersonaRunModelRoute{
 		Route:   agentmodel.RouteRequest{Pin: agentmodel.ModelPin{AgentVersionDigest: profile.Evaluation.AgentVersionDigest, TaskProfileID: profile.TaskProfileIDs[0], Primary: selection, SemanticsDigest: profile.SemanticsDigest, OutputSchemaDigest: profile.OutputSchemaDigest, ToolSchemaDigest: profile.ToolSchemaDigest}, Task: agentmodel.TaskProfile{ID: profile.TaskProfileIDs[0], AgentVersionDigest: profile.Evaluation.AgentVersionDigest, Region: LocalPersonaOpenAIRegion, DataClasses: profile.DataClasses, MaxLatency: profile.MaxLatency, MaxCostMicros: profile.MaxCostMicros, SemanticsDigest: profile.SemanticsDigest, OutputSchemaDigest: profile.OutputSchemaDigest, ToolSchemaDigest: profile.ToolSchemaDigest}},
 		Purpose: LocalPersonaOpenAIPurpose, Processing: agentmodel.ProcessingPolicy{Residency: LocalPersonaOpenAIRegion, Retention: fmt.Sprintf("%s:%d", term.Retention.Mode, int64(term.Retention.MaxAge)), TrainingUse: term.TrainingUse, Logging: term.Logging},
 		Egress: agentegress.Profile{ID: profile.ID, Kind: agentegress.TargetModel, AllowedRegions: term.AllowedRegions, AllowedClasses: term.AllowedClasses, Retention: term.Retention}, ProfileClass: trustdlp.ClassPublic, InvokerClass: trustdlp.ClassInternal, ThreadClass: trustdlp.ClassInternal,
-	}, ModelDigest: profile.ProfileDigest}
-	raw, _ := json.Marshal(route)
+	}
+	modelDigest := personaEvaluatedCandidateDigest(profile)
+	raw, _ := localAgentDemoRoutePayload(route, modelDigest)
 	record := LocalPersonaOpenAIPolicyRecords()[0]
 	ref := record.Reference
 	reader := &agentPolicyRouteFixture{value: agentstore.PersonaModelRoutePolicy{TenantID: tenantID, LegalEntityID: "entity", PolicyID: ref.ID, PolicyVersion: int64(ref.Version), PolicySchemaVersion: int64(ref.SchemaVersion), PolicyDigest: ref.Digest, PolicyPayload: record.Content, RoutePayload: raw}}
@@ -47,6 +53,15 @@ func TestTodo_AGENT_021_ImmutablePolicyCurrentDeployment(t *testing.T) {
 	if err := a.CheckAgentPolicyDeployment(context.Background(), request, current); err != nil {
 		t.Fatalf("qualified current deployment=%v", err)
 	}
+	otherProfile := profile
+	otherProfile.MaxCostMicros++
+	otherProfile.Evaluation = agentmodel.ModelEvaluation{}
+	otherProfile.ProfileDigest = agentmodel.ModelProfileDigest(otherProfile)
+	reader.value.RoutePayload, _ = localAgentDemoRoutePayload(route, "sha256:"+otherProfile.ProfileDigest)
+	if err := a.CheckAgentPolicyDeployment(context.Background(), request, current); err == nil {
+		t.Fatal("route published for a different evaluated profile was accepted")
+	}
+	reader.value.RoutePayload = raw
 	for _, tc := range []struct {
 		name   string
 		mutate func(*agentrun.Request)
@@ -74,7 +89,7 @@ func TestTodo_AGENT_021_ImmutablePolicyCurrentDeployment(t *testing.T) {
 	}
 	changed := route
 	changed.Processing.Logging = agentmodel.UseDenied
-	reader.value.RoutePayload, _ = json.Marshal(changed)
+	reader.value.RoutePayload, _ = localAgentDemoRoutePayload(changed, modelDigest)
 	if err := a.CheckAgentPolicyDeployment(context.Background(), request, current); err == nil {
 		t.Fatal("processing substitution accepted")
 	}

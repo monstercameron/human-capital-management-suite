@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 )
 
 var (
@@ -21,6 +24,12 @@ type personaDMConversationCreator interface {
 	CreateConversation(context.Context, chatcore.CreateConversationRequest) (chatcore.Conversation, error)
 }
 
+type personaDMPolicyStore interface {
+	PutAudiencePolicy(context.Context, string, string, int64, chatstore.AudiencePolicy) (int64, error)
+	CapturePersonaChannelPolicy(context.Context, string, string, string) (chatstore.PersonaChannelPolicySnapshot, error)
+	PutPersonaChannelPolicy(context.Context, string, string, int64, chatstore.PersonaChannelPolicy) (int64, error)
+}
+
 // PersonaDMProvisioner finds or creates the server-owned direct conversation
 // between an invoker and one configured persona. The persona is fixed at
 // construction; callers cannot choose a persona or conversation ID.
@@ -28,6 +37,7 @@ type PersonaDMProvisioner struct {
 	Creator  personaDMConversationCreator
 	Resolver chatcore.PersonaDMResolver
 	Persona  chatcore.MemberRef
+	Policies personaDMPolicyStore
 }
 
 // NewPersonaDMProvisioner constructs a tenant-bound provisioner. Creator and
@@ -56,6 +66,9 @@ func (p PersonaDMProvisioner) EnsurePersonaDM(ctx context.Context, principal cha
 		if strings.TrimSpace(conversationID) == "" {
 			return "", errPersonaDMProvisionUnavailable
 		}
+		if err := p.ensurePolicies(ctx, tenant, conversationID); err != nil {
+			return "", err
+		}
 		return conversationID, nil
 	}
 	if !errors.Is(err, chatcore.ErrPermissionDenied) {
@@ -70,7 +83,7 @@ func (p PersonaDMProvisioner) EnsurePersonaDM(ctx context.Context, principal cha
 	}
 	created, createErr := p.Creator.CreateConversation(ctx, chatcore.CreateConversationRequest{
 		Principal: principal, TenantID: tenant, ConversationID: deterministicID,
-		Kind: chatcore.Direct, Members: []chatcore.MemberRef{p.Persona},
+		Kind: chatcore.Direct, Name: personaDMDisplayName(p.Persona.SubjectID), Members: []chatcore.MemberRef{p.Persona},
 		IdempotencyKey: "persona-dm:" + deterministicID,
 	})
 	if createErr != nil && !errors.Is(createErr, chatcore.ErrAlreadyExists) && !errors.Is(createErr, chatcore.ErrConflict) {
@@ -87,5 +100,57 @@ func (p PersonaDMProvisioner) EnsurePersonaDM(ctx context.Context, principal cha
 	if resolved != deterministicID {
 		return "", errPersonaDMProvisionUnavailable
 	}
+	if err := p.ensurePolicies(ctx, tenant, resolved); err != nil {
+		return "", err
+	}
 	return resolved, nil
+}
+
+func (p PersonaDMProvisioner) ensurePolicies(ctx context.Context, tenant, conversationID string) error {
+	if p.Policies == nil {
+		return nil
+	}
+	if _, err := p.Policies.PutAudiencePolicy(ctx, tenant, conversationID, 0, personaDMaudiencePolicy()); err != nil && !errors.Is(err, chatstore.ErrAudiencePolicyConflict) {
+		return fmt.Errorf("%w: direct audience policy: %v", errPersonaDMProvisionUnavailable, err)
+	}
+	ceiling := personaDMChannelPolicy()
+	current, err := p.Policies.CapturePersonaChannelPolicy(ctx, tenant, conversationID, "")
+	if err == nil {
+		if !reflect.DeepEqual(current.Policy, ceiling) {
+			return nil
+		}
+		return nil
+	}
+	if !errors.Is(err, dbport.ErrNoRows) && !errors.Is(err, chatstore.ErrAudienceEligibilityUnavailable) {
+		return fmt.Errorf("%w: direct channel policy: %v", errPersonaDMProvisionUnavailable, err)
+	}
+	if _, err := p.Policies.PutPersonaChannelPolicy(ctx, tenant, conversationID, 0, ceiling); err != nil && !errors.Is(err, chatstore.ErrAudiencePolicyConflict) {
+		return fmt.Errorf("%w: direct channel policy: %v", errPersonaDMProvisionUnavailable, err)
+	}
+	return nil
+}
+
+func personaDMaudiencePolicy() chatstore.AudiencePolicy {
+	return chatstore.AudiencePolicy{RoleMode: 1, Classification: "INTERNAL"}
+}
+
+func personaDMChannelPolicy() chatstore.PersonaChannelPolicy {
+	return chatstore.PersonaChannelPolicy{
+		MaxTier: "T3", PlacementClass: "ONE_TO_ONE_DM", AlwaysPrivate: true, ConversationSearchAllowed: true,
+		AllowedDataClasses:    []string{"PUBLIC", "INTERNAL", "POLICY_DOCUMENT", "WORKFORCE", "SCHEDULE"},
+		AllowedChannelClasses: []string{"ONE_TO_ONE"},
+	}
+}
+
+func personaDMDisplayName(subjectID string) string {
+	words := strings.FieldsFunc(strings.TrimSpace(subjectID), func(r rune) bool {
+		return r == '-' || r == '_'
+	})
+	for i := range words {
+		if words[i] == "" {
+			continue
+		}
+		words[i] = strings.ToUpper(words[i][:1]) + words[i][1:]
+	}
+	return strings.Join(words, " ")
 }

@@ -107,14 +107,24 @@ func (e *PersonaRunT0ToolExecutor) ToolSchemas(ctx context.Context, admission ag
 	if _, err := e.resolvePin(ctx, admission, run, invocation); err != nil {
 		return nil, err
 	}
-	return []agentmodel.ToolSchema{{Name: personaDocumentSearchTool, Description: "Search deployed policy documents the requesting user and this installation may read. Returns document-version citations.", InputSchema: bytes.Clone(personaDocumentSearchSchema)}}, nil
+	schemas := []agentmodel.ToolSchema{{Name: personaDocumentSearchTool, Description: "Search deployed policy documents the requesting user and this installation may read. Returns document-version citations.", InputSchema: bytes.Clone(personaDocumentSearchSchema)}}
+	for _, binding := range e.t0.bindings {
+		if binding.Invocation == (PersonaT0Invocation{TenantID: invocation.TenantID, PersonaID: invocation.PersonaID, PersonaVersion: invocation.PersonaVersion, InstallationID: invocation.InstallationID, InvocationID: invocation.InvocationID}) && binding.Pin.ID == personaWorkspaceSearchSkillID {
+			if _, err := e.resolveSearchSkillPin(ctx, admission, run, invocation, personaWorkspaceSearchSkillID); err != nil {
+				return nil, err
+			}
+			schemas = append(schemas, workspaceDocumentToolSchema())
+			break
+		}
+	}
+	return schemas, nil
 }
 
 // Execute validates the one supported proposal, re-resolves the current pin
 // and grant, then invokes documentService.AgentSearchDocuments with identity
 // taken only from the accepted durable admission.
 func (e *PersonaRunT0ToolExecutor) Execute(ctx context.Context, admission agentrun.Record, run runstate.Run, proposal agentmodel.ToolProposal) ([]byte, string, string, error) {
-	if e == nil || e.policy == nil || e.t0 == nil || e.gateway == nil || e.journal == nil || ctx == nil || proposal.Name != personaDocumentSearchTool || strings.TrimSpace(proposal.ID) == "" {
+	if e == nil || e.policy == nil || e.t0 == nil || e.gateway == nil || e.journal == nil || ctx == nil || (proposal.Name != personaDocumentSearchTool && proposal.Name != personaWorkspaceSearchTool) || strings.TrimSpace(proposal.ID) == "" {
 		return nil, "", "", errPersonaRunT0Tool
 	}
 	invocation, err := personaRunT0ToolInvocation(admission, run)
@@ -124,23 +134,39 @@ func (e *PersonaRunT0ToolExecutor) Execute(ctx context.Context, admission agentr
 	if _, ok := personaRunChatPrincipal(ctx, invocation.TenantID, invocation.InvokerID); !ok {
 		return nil, "", "", errPersonaRunT0Tool
 	}
-	if _, err := e.resolvePin(ctx, admission, run, invocation); err != nil {
+	skill, capabilityID, scope := personaPolicyHelperSkillID, personaDocumentSearchCapabilityID, personaConversationSearchScope
+	if proposal.Name == personaWorkspaceSearchTool {
+		skill, capabilityID, scope = personaWorkspaceSearchSkillID, personaWorkspaceSearchCapabilityID, personaWorkspaceSearchScope
+	}
+	if _, err := e.resolveSearchSkillPin(ctx, admission, run, invocation, skill); err != nil {
 		return nil, "", "", err
+	}
+	if scope == personaWorkspaceSearchScope {
+		source, ok := e.policy.(PersonaDocumentSearchScopeSource)
+		if !ok {
+			return nil, "", "", errPersonaRunT0Tool
+		}
+		ctx = context.WithValue(ctx, personaDocumentSearchContextKey{}, personaDocumentSearchContext{identity: invocation, source: source})
 	}
 	arguments, err := decodePersonaDocumentSearchArguments(proposal.Arguments)
 	if err != nil {
 		return nil, "", "", err
 	}
 	invoked, err := e.gateway.Invoke(ctx, capability.InvokeRequest{
-		Capability:    capability.Key{ID: personaDocumentSearchCapabilityID, Version: personaDocumentSearchCapabilityVersion},
-		Payload:       personaDocumentSearchCall{TenantID: values.TenantId(invocation.TenantID), ConversationID: invocation.ConversationID, AgentID: invocation.AgentID, InvokerID: invocation.InvokerID, Query: arguments.Query, Filters: transportdocument.SearchFilters{TeamID: arguments.TeamID, ChannelID: arguments.ChannelID}},
+		Capability:    capability.Key{ID: capabilityID, Version: personaDocumentSearchCapabilityVersion},
+		Payload:       personaDocumentSearchCall{TenantID: values.TenantId(invocation.TenantID), ConversationID: invocation.ConversationID, AgentID: invocation.AgentID, InvokerID: invocation.InvokerID, Query: arguments.Query, Filters: transportdocument.SearchFilters{TeamID: arguments.TeamID, ChannelID: arguments.ChannelID}, Scope: scope},
 		Authorization: capability.Authorization{Decision: capability.Allow, Scopes: []string{"documents:search"}, SubjectRef: invocation.InvokerID, Tenant: invocation.TenantID},
 	})
 	if err != nil {
 		return nil, "", "", fmt.Errorf("%w: governed document search refused", errPersonaRunT0Tool)
 	}
-	result, ok := invoked.Response.(transportdocument.SearchResult)
-	if !ok {
+	var result any
+	switch value := invoked.Response.(type) {
+	case transportdocument.SearchResult:
+		result = value
+	case PersonaPolicyDocumentSearchResult:
+		result = value
+	default:
 		return nil, "", "", errPersonaRunT0Tool
 	}
 	encoded, err := json.Marshal(result)
@@ -158,14 +184,18 @@ func (e *PersonaRunT0ToolExecutor) Execute(ctx context.Context, admission agentr
 }
 
 func (e *PersonaRunT0ToolExecutor) resolvePin(ctx context.Context, admission agentrun.Record, run runstate.Run, invocation PersonaRunT0ToolInvocation) (PersonaT0SkillPin, error) {
-	binding, err := e.policy.ResolveAndAuthorize(ctx, admission, run, invocation, personaPolicyHelperSkillID)
-	if err != nil || binding.Invocation != (PersonaT0Invocation{TenantID: invocation.TenantID, PersonaID: invocation.PersonaID, PersonaVersion: invocation.PersonaVersion, InstallationID: invocation.InstallationID, InvocationID: invocation.InvocationID}) || binding.Pin.ID != personaPolicyHelperSkillID || binding.Pin.Version == 0 || strings.TrimSpace(binding.Pin.Digest) == "" || len(binding.Scopes) != 1 || binding.Scopes[0] != "documents:search" {
+	return e.resolveSearchSkillPin(ctx, admission, run, invocation, personaPolicyHelperSkillID)
+}
+
+func (e *PersonaRunT0ToolExecutor) resolveSearchSkillPin(ctx context.Context, admission agentrun.Record, run runstate.Run, invocation PersonaRunT0ToolInvocation, skill string) (PersonaT0SkillPin, error) {
+	binding, err := e.policy.ResolveAndAuthorize(ctx, admission, run, invocation, skill)
+	if err != nil || binding.Invocation != (PersonaT0Invocation{TenantID: invocation.TenantID, PersonaID: invocation.PersonaID, PersonaVersion: invocation.PersonaVersion, InstallationID: invocation.InstallationID, InvocationID: invocation.InvocationID}) || binding.Pin.ID != skill || binding.Pin.Version == 0 || strings.TrimSpace(binding.Pin.Digest) == "" || len(binding.Scopes) != 1 || binding.Scopes[0] != "documents:search" {
 		return PersonaT0SkillPin{}, errPersonaRunT0Tool
 	}
 	if ok, err := e.t0.IsBoundT0Skill(ctx, binding.Invocation, binding.Pin, binding.Scopes); err != nil || !ok {
 		return PersonaT0SkillPin{}, errPersonaRunT0Tool
 	}
-	if !personaRunT0PinHasDocumentSearchOperation(e.t0.catalog, binding.Pin) {
+	if !(skill == personaPolicyHelperSkillID && personaRunT0PinHasDocumentSearchOperation(e.t0.catalog, binding.Pin) || skill == personaWorkspaceSearchSkillID && personaWorkspacePinHasSearchOperation(e.t0.catalog, binding.Pin)) {
 		return PersonaT0SkillPin{}, errPersonaRunT0Tool
 	}
 	return binding, nil
@@ -199,6 +229,7 @@ type personaDocumentSearchCall struct {
 	InvokerID      string
 	Query          string
 	Filters        transportdocument.SearchFilters
+	Scope          string
 }
 
 func personaRunT0ToolInvocation(admission agentrun.Record, run runstate.Run) (PersonaRunT0ToolInvocation, error) {
@@ -232,9 +263,25 @@ func decodePersonaDocumentSearchArguments(raw []byte) (personaDocumentSearchArgu
 		return personaDocumentSearchArguments{}, errPersonaRunT0Tool
 	}
 	var trailing any
-	if decoder.Decode(&trailing) != io.EOF || strings.TrimSpace(args.Query) == "" || len(args.Query) > 500 || strings.TrimSpace(args.Query) != args.Query || len(args.TeamID) > 128 || len(args.ChannelID) > 128 || (args.TeamID != "" && args.ChannelID != "") {
+	if decoder.Decode(&trailing) != io.EOF {
 		return personaDocumentSearchArguments{}, errPersonaRunT0Tool
 	}
+	// A model pads a query with whitespace or fills both optional filters with
+	// guesses often enough that refusing those forms fails real requests. The
+	// query is trimmed, and a pair of filters, which cannot both apply, is
+	// dropped: the search scope always comes from the durable run identity,
+	// never from these arguments, so ignoring a filter can only widen the
+	// search to what the invoker may already read in this conversation.
+	//
+	// The same holds for one filter on its own: a model cannot know a team or
+	// channel identifier, so whatever it supplies is a guess ("tenant_default",
+	// "policy-channel"), and a guess that differs from the run's conversation
+	// refused the whole search. Both are accepted for the schema and ignored.
+	args.Query, args.TeamID, args.ChannelID = strings.TrimSpace(args.Query), strings.TrimSpace(args.TeamID), strings.TrimSpace(args.ChannelID)
+	if args.Query == "" || len(args.Query) > 500 || len(args.TeamID) > 128 || len(args.ChannelID) > 128 {
+		return personaDocumentSearchArguments{}, errPersonaRunT0Tool
+	}
+	args.TeamID, args.ChannelID = "", ""
 	return args, nil
 }
 

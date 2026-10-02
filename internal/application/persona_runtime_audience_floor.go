@@ -15,14 +15,15 @@ import (
 )
 
 // PersonaRuntimeAudienceFloor maps opaque, sealed chat source disclosures to
-// Chat's complete current/future audience check. Unknown business material or
-// non-chat sources cannot be posted publicly by this adapter.
+// Chat's complete audience check. Document sources additionally require the
+// Documents hub's current authority for every conversation member.
 type PersonaRuntimeAudienceFloor struct {
 	Chat        chat.ConversationService
 	Personas    *agentpersonastore.Store
 	Authority   chatrecipient.AudienceFloorAuthority
 	Classes     PersonaPublicChatDisclosureClassificationSource
 	BodyClasses PersonaPublicReplyTextClassificationSource
+	Documents   AgentAnnouncementDocumentAuthority
 }
 
 // PersonaPublicChatDisclosureClassificationSource resolves current source-owner
@@ -60,9 +61,24 @@ func (f *PersonaRuntimeAudienceFloor) AuthorizePersonaOutput(ctx context.Context
 	if err != nil || installation.InstallationID != id.InstallationID || !personaRunVersionMatches(version.Version, id.PersonaVersion) {
 		return chat.PersonaAudienceDecision{}, chat.ErrPermissionDenied
 	}
+	effectivePolicy := installation.ChannelPolicy
+	policySource := personaCurrentChannelPolicySource(nil)
+	if source, ok := f.Chat.(personaCurrentChannelPolicySource); ok {
+		policySource = source
+	} else {
+		policySource = personaPolicySourceFromAudienceFloor(f.Authority)
+	}
+	if current, supported, policyErr := currentPersonaChannelPolicy(ctx, policySource, id.TenantID, id.ConversationID, installation.ChannelPolicy); supported {
+		if policyErr != nil {
+			return chat.PersonaAudienceDecision{}, chat.ErrPermissionDenied
+		}
+		effectivePolicy = current
+	}
+	installation.ChannelPolicy = effectivePolicy
 	profile, err := personaRuntimePublicProfile(version, installation, id)
 	if err != nil {
-		return chat.PersonaAudienceDecision{}, chat.ErrPermissionDenied
+		// The error says whether the agent itself is set to answer privately.
+		return chat.PersonaAudienceDecision{}, err
 	}
 	draft, answer, err := output.Payload()
 	if err != nil {
@@ -82,14 +98,25 @@ func (f *PersonaRuntimeAudienceFloor) AuthorizePersonaOutput(ctx context.Context
 	if err != nil {
 		return chat.PersonaAudienceDecision{}, err
 	}
+	documentSources := false
 	for _, material := range output.Materials() {
-		if material.Kind != agentsecurity.OutputSource || !strings.HasPrefix(material.ID, "chat:") {
+		if material.Kind != agentsecurity.OutputSource || (!strings.HasPrefix(material.ID, "chat:") && !strings.HasPrefix(material.ID, "document:")) {
 			return chat.PersonaAudienceDecision{}, chat.ErrPermissionDenied
 		}
+		documentSources = documentSources || strings.HasPrefix(material.ID, "document:")
 	}
 	citations := output.Citations()
 	if len(citations) == 0 {
 		return chat.PersonaAudienceDecision{}, chat.ErrPermissionDenied
+	}
+	if documentSources {
+		// Workspace-public sections use the same per-member hub read decision
+		// as placed documents, including the bounded section's exact bytes.
+		floor := *f
+		if hub, ok := floor.Documents.(AgentAnnouncementHubAuthority); ok {
+			floor.Documents = WorkspaceSectionDocumentAuthority{AgentAnnouncementHubAuthority: hub}
+		}
+		return floor.authorizeDocumentOutput(ctx, output, conversation, body, bodyClass)
 	}
 	disclosures := make([]chatrecipient.Disclosure, 0, len(citations))
 	digests := make(map[string]string, len(citations))
@@ -139,8 +166,13 @@ func personaRuntimePublicProfile(version agentpersonastore.PersonaVersion, insta
 		return agentpersona.PersonaProfile{}, chat.ErrPermissionDenied
 	}
 	sealed, err := agentpersona.Seal(profile)
-	if err != nil || sealed.Digest != version.ContentDigest || profile.AlwaysPrivate || installation.ChannelPolicy.AlwaysPrivate {
+	if err != nil || sealed.Digest != version.ContentDigest {
 		return agentpersona.PersonaProfile{}, chat.ErrPermissionDenied
+	}
+	// An agent set to answer privately never posts to a conversation, whatever
+	// its sources are. This holds for document and chat sources alike.
+	if profile.AlwaysPrivate || installation.ChannelPolicy.AlwaysPrivate {
+		return agentpersona.PersonaProfile{}, personaPrivateReasonError{reason: chat.PrivateReasonAgent}
 	}
 	return profile, nil
 }

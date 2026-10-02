@@ -112,7 +112,11 @@ func personaChatReplyDeliveryResult(projection agentsecurity.FinalOutputPersiste
 	if !ok || validatePersonaChatReply(reply.Text) != nil || len(answer.Parts) != 1 || answer.Parts[0].Text != reply.Text {
 		return agentdeliver.Result{}, errPersonaFinalOutputSourceUnavailable
 	}
-	return agentdeliver.Result{PersonaLabel: "Persona", Items: []agentdeliver.ResultItem{{ID: "answer", Text: reply.Text}}}, nil
+	citations := make([]agentdeliver.Citation, 0, len(projection.Citations()))
+	for _, citation := range projection.Citations() {
+		citations = append(citations, agentdeliver.Citation{SourceID: citation.SourceID})
+	}
+	return agentdeliver.Result{PersonaLabel: "Persona", Items: []agentdeliver.ResultItem{{ID: "answer", Text: reply.Text, Citations: citations}}}, nil
 }
 
 var _ PersonaOutputSource = (*PersonaFinalOutputSource)(nil)

@@ -99,7 +99,7 @@ func TestTenantAvailablePersonaReaderFiltersByCurrentPinnedSkillIntersection(t *
 	audience := &availableAudienceFake{}
 	backend := &availableBackendFake{items: []agentpersonastore.PersonaVersion{availablePersonaCandidate(t, persona)}}
 	reader := &TenantAvailablePersonaReader{Backend: backend, Audience: audience, Skills: &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{
-		persona.Profile.Purpose: {{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version}, Digest: pin.Digest, Status: agentskills.StatusActive}},
+		personaChatReplyPurpose: {{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version}, Digest: pin.Digest, Status: agentskills.StatusActive}},
 	}}}
 	got, err := reader.ListAvailable(trust.WithPrincipal(context.Background(), principal), principal)
 	if err != nil || len(got) != 1 || got[0].Profile.PersonaID != persona.Profile.PersonaID {
@@ -120,7 +120,7 @@ func TestTenantAvailablePersonaReaderOmitsRevokedOrUndiscoverablePinnedSkill(t *
 			reader := &TenantAvailablePersonaReader{
 				Backend:  &availableBackendFake{items: []agentpersonastore.PersonaVersion{availablePersonaCandidate(t, persona)}},
 				Audience: &availableAudienceFake{},
-				Skills:   &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{persona.Profile.Purpose: discovered}},
+				Skills:   &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{personaChatReplyPurpose: discovered}},
 			}
 			got, err := reader.ListAvailable(trust.WithPrincipal(context.Background(), principal), principal)
 			if err != nil || len(got) != 0 {

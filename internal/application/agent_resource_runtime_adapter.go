@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem"
@@ -40,14 +41,14 @@ func CommonAgentResourceIdentityResolver(runtime *CommonAgentRuntime) func(conte
 		}
 		admission, err := runtime.GetAdmission(ctx, tenant, task)
 		if err != nil {
-			return AgentResourceIdentity{}, err
+			return AgentResourceIdentity{}, fmt.Errorf("read durable admission: %w", err)
 		}
 		run, err := runtime.GetRun(ctx, tenant, task)
 		if err != nil {
-			return AgentResourceIdentity{}, err
+			return AgentResourceIdentity{}, fmt.Errorf("read durable run: %w", err)
 		}
 		if admission.Decision != agentrun.DecisionAccepted || run.ActorID == "" || run.CancelRequested || run.ExpireRequested || run.State != runstate.StateRunning {
-			return AgentResourceIdentity{}, ErrAgentResourceIdentity
+			return AgentResourceIdentity{}, fmt.Errorf("%w: run is not an accepted running actor (decision %s, state %s, actor set %t)", ErrAgentResourceIdentity, admission.Decision, run.State, run.ActorID != "")
 		}
 		lane := resources.LaneAutonomous
 		switch admission.Request.Source.Kind {

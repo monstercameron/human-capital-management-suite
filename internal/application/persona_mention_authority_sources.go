@@ -152,6 +152,18 @@ func (s currentPersonaMentionMembership) ResolveCurrentMembership(ctx context.Co
 	if !ok || principal == nil || principal.SubjectKind() != trust.SubjectKindHuman || principal.Tenant().String() != tenantID || principal.Subject() != subjectID {
 		return false, errPersonaMentionAuthoritySources
 	}
+	if tuple, bound := ctx.Value(personaChatAuthorityTupleKey{}).(PersonaChatAuthorityRequest); bound && tuple.Tenant.String() == tenantID && tuple.InvokerID == subjectID && strings.TrimSpace(tuple.ConversationID) != "" {
+		if narrow, ok := s.audience.(personaAudienceMemberSource); ok {
+			// The check is bound to one conversation: membership of that
+			// conversation with complete directory facts is the stricter
+			// answer, and it does not read every other conversation.
+			member, err := narrow.CurrentPersonaAudienceMember(ctx, tenantID, tuple.ConversationID, subjectID)
+			if err != nil {
+				return false, fmt.Errorf("%w: read current audience membership: %v", errPersonaMentionAuthoritySources, err)
+			}
+			return member.SubjectID == subjectID && nonemptyFacts(member.Roles) && nonemptyFacts(member.Populations) && strings.TrimSpace(member.OrganizationScope) != "", nil
+		}
+	}
 	conversations, err := s.audience.ListCurrentPersonaAudience(ctx, tenantID, subjectID)
 	if err != nil {
 		return false, fmt.Errorf("%w: read current audience membership: %v", errPersonaMentionAuthoritySources, err)
@@ -200,15 +212,18 @@ func (s currentPersonaMentionSkills) ResolveInvokerSkills(ctx context.Context, p
 	}
 	if _, bound := ctx.Value(personaChatAuthorityTupleKey{}).(PersonaChatAuthorityRequest); bound && !isNilPersonaOutputPort(s.projection) && s.now != nil {
 		current, err := s.projection.ResolveInvokerAuthority(ctx, principal.Subject(), principal.Tenant(), purpose, s.now().UTC())
-		if err != nil || !current.Active || current.UserID != principal.Subject() || current.Authority.Tenant != principal.Tenant() {
-			return nil, errPersonaMentionAuthoritySources
+		if err != nil {
+			return nil, fmt.Errorf("%w: chat-bound invoker authority: %v", errPersonaMentionAuthoritySources, err)
+		}
+		if !current.Active || current.UserID != principal.Subject() || current.Authority.Tenant != principal.Tenant() {
+			return nil, fmt.Errorf("%w: chat-bound invoker authority is not active for this user", errPersonaMentionAuthoritySources)
 		}
 		result := agentinvoke.SkillScopes{}
 		for skill, authority := range current.SkillAuthorities {
 			result[skill] = slices.Clone(authority.Capabilities)
 		}
 		if len(result) == 0 {
-			return nil, errPersonaMentionAuthoritySources
+			return nil, fmt.Errorf("%w: no skill authority was projected for this conversation", errPersonaMentionAuthoritySources)
 		}
 		return result, nil
 	}

@@ -34,7 +34,7 @@ func personaInvocationBackgroundWorkload(runtime *PersonaInvocationProductionRun
 		return nil
 	}
 	return &bootstrap.Workload{Name: "persona-invocation-background", Run: func(ctx context.Context) error {
-		return runPersonaInvocationBackgroundWorkload(ctx, scoped, logger, runtime.Background.DispatchTenant)
+		return runPersonaInvocationBackgroundWorkload(ctx, scoped, logger, runtime.Background.DispatchTenantRecovering)
 	}}
 }
 

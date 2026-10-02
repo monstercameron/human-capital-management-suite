@@ -103,6 +103,9 @@ func LocalPersonaOpenAIProcessingTerms(profileID string) agentegress.ProviderTer
 		ContractRef: "https://developers.openai.com/api/docs/guides/your-data", EgressGrantRef: "local-dev:user-authorized-openai:synthetic-demo", Approved: true, Encryption: true,
 		AllowedRegions: []string{LocalPersonaOpenAIRegion}, AllowedClasses: slices.Clone(classes),
 		Retention: agentegress.RetentionPolicy{Mode: agentegress.RetentionBounded, MaxAge: LocalPersonaOpenAIRetention}, TrainingUse: agentmodel.UseDenied, Logging: agentmodel.UseAllowed,
-		SourceRules: []agentegress.ProviderSourceRule{{Class: "persona-profile", Classes: slices.Clone(classes)}, {Class: "persona-invoking-post", Classes: slices.Clone(classes)}, {Class: "persona-thread-context", Classes: slices.Clone(classes)}, {Class: "persona-untrusted-tool-result", Classes: slices.Clone(classes)}, {Class: "persona-model-tool-proposal", Classes: slices.Clone(classes)}},
+		SourceRules: []agentegress.ProviderSourceRule{{Class: "persona-profile", Classes: slices.Clone(classes)}, {Class: "persona-invoking-post", Classes: slices.Clone(classes)}, {Class: "persona-thread-context", Classes: slices.Clone(classes)}, {Class: "persona-untrusted-tool-result", Classes: slices.Clone(classes)}, {Class: "persona-model-tool-proposal", Classes: slices.Clone(classes)},
+			// Documents an agent's instructions reference go out under the same
+			// classes as a document found by the policy search tool.
+			{Class: "persona-untrusted-reference-document", Classes: slices.Clone(classes)}, {Class: "persona-reference-document", Classes: slices.Clone(classes)}},
 	}
 }

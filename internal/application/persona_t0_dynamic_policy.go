@@ -90,7 +90,9 @@ func (p *DatabasePersonaT0SkillPolicy) IsBoundT0Run(ctx context.Context, request
 		!current.HumanMember || !current.AudienceMember || !current.PersonaInstalled || current.Persona.ID != request.PersonaID ||
 		current.Persona.Version != request.PersonaVersion || current.Persona.InstallationID != request.InstallationID ||
 		current.Installation.ID != request.InstallationID || !sameSkillScopes(current.Discoverable, request.Skills) {
-		return false, fmt.Errorf("%w: current persona authority", errPersonaT0DynamicPolicy)
+		return false, fmt.Errorf("%w: current persona authority (error=%v persona_current=%t persona_suspended=%t installation_current=%t installation_suspended=%t human_member=%t audience_member=%t installed=%t version=%v/%v installation=%q/%q skills_match=%t discoverable=%d requested=%d)", errPersonaT0DynamicPolicy, err,
+			current.Persona.Current, current.Persona.Suspended, current.Installation.Current, current.Installation.Suspended, current.HumanMember, current.AudienceMember, current.PersonaInstalled,
+			current.Persona.Version, request.PersonaVersion, current.Installation.ID, request.InstallationID, sameSkillScopes(current.Discoverable, request.Skills), len(current.Discoverable), len(request.Skills))
 	}
 	facts, err := p.facts.ResolvePersonaRun(ctx, request)
 	if err != nil || facts.TenantID != request.TenantID || facts.TriggerID != request.InvocationID ||
@@ -98,8 +100,8 @@ func (p *DatabasePersonaT0SkillPolicy) IsBoundT0Run(ctx context.Context, request
 		return false, fmt.Errorf("%w: current agent and persona facts", errPersonaT0DynamicPolicy)
 	}
 	pins, personaDigest, agentVersion, err := p.currentPins(ctx, request)
-	if err != nil || facts.PersonaDigest != personaDigest || facts.Agent.Version != agentVersion || !pinnedT0ScopesMatch(p.catalog, pins, request.Skills) {
-		return false, fmt.Errorf("%w: current immutable T0 pins", errPersonaT0DynamicPolicy)
+	if err != nil || facts.PersonaDigest != personaDigest || !personaAgentVersionMatches(facts.Agent.Version, agentVersion) || !pinnedT0ScopesMatch(p.catalog, pins, request.Skills) {
+		return false, fmt.Errorf("%w: current immutable T0 pins (error=%v persona_digest_match=%t agent_version=%q/%q pins=%d scopes_match=%t)", errPersonaT0DynamicPolicy, err, facts.PersonaDigest == personaDigest, facts.Agent.Version, agentVersion, len(pins), pinnedT0ScopesMatch(p.catalog, pins, request.Skills))
 	}
 	userAuthority, err := p.invokerAuthority.ResolveInvokerAuthority(ctx, request.InvokerID,
 		values.TenantId(request.TenantID), "persona-mention", now)
@@ -116,6 +118,7 @@ func (p *DatabasePersonaT0SkillPolicy) IsBoundT0Run(ctx context.Context, request
 		!personaT0StoredAuthorityCurrent(userAuthority, grant, request) {
 		return false, fmt.Errorf("%w: current durable delegation grant", errPersonaT0DynamicPolicy)
 	}
+	agentUXSpeedCacheToolPins(ctx, request.InvocationID, pins)
 	return true, nil
 }
 
@@ -145,6 +148,30 @@ func (p *DatabasePersonaT0SkillPolicy) currentPins(ctx context.Context, request 
 		return nil, "", "", errPersonaT0DynamicPolicy
 	}
 	return slices.Clone(profile.SkillPins), sealed.Digest, version.AgentVersion, nil
+}
+
+// personaAgentVersionMatches compares the agent version of the run facts with
+// the one stored on the persona version. The persona row stores it qualified
+// by the manifest id ("agent.starter.policy_helper@2") while run facts carry
+// the bare manifest version ("2"); the sealed persona digest, checked beside
+// this, already binds the exact manifest, so the version components must
+// simply agree.
+func personaAgentVersionMatches(facts, stored string) bool {
+	facts, stored = strings.TrimSpace(facts), strings.TrimSpace(stored)
+	if facts == "" || stored == "" {
+		return false
+	}
+	if facts == stored {
+		return true
+	}
+	factsAt, storedAt := strings.LastIndex(facts, "@"), strings.LastIndex(stored, "@")
+	if factsAt >= 0 && storedAt >= 0 {
+		return false
+	}
+	if factsAt >= 0 {
+		return facts[factsAt+1:] == stored
+	}
+	return stored[storedAt+1:] == facts
 }
 
 func pinnedT0ScopesMatch(catalog PersonaT0SkillCatalog, pins []agentskills.SkillPin, requested agentinvoke.SkillScopes) bool {

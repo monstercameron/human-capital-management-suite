@@ -94,11 +94,13 @@ func agentFakeReply(_ int, req schemaflux.CompletionRequest) (string, error) {
 			break
 		}
 	}
-	text := "Draft reply to your request"
-	if goal != "" {
-		text += ": " + goal
+	text := goal
+	if exact, ok := strings.CutPrefix(text, "Reply with exactly:"); ok {
+		text = strings.TrimSpace(exact)
 	}
-	text += ". This answer was produced by the deterministic local-development model, not by an external provider. Nothing was sent or changed."
+	if text == "" {
+		text = "No answer was produced."
+	}
 	encoded, err := json.Marshal(agentsystem.ModelOutput{Text: text, Citations: []string{}})
 	if err != nil {
 		return "", err

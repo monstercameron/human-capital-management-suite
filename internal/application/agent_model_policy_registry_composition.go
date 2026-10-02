@@ -55,16 +55,9 @@ func composeLocalAgentModelPolicyRegistry(ctx context.Context, in agentModelPoli
 	}
 	key := ed25519.NewKeyFromSeed(seed)
 	mapper := tenantKeyMapper[values.TenantId](pgstore.TenantID)
-	state := AgentPolicySourceStateFunc(func(ctx context.Context, tenant values.TenantId, source string) (uint64, bool, error) {
-		if !localPersonaOpenAIDemoTenant(string(tenant)) || source != LocalPersonaOpenAIPolicySourceID {
-			return 0, true, ErrAgentModelPolicyUnavailable
-		}
-		present, err := registeredLocalPolicyTenant(ctx, in.Core, mapper(tenant))
-		if err != nil || !present {
-			return 0, true, ErrAgentModelPolicyUnavailable
-		}
-		return 1, false, nil
-	})
+	// The local policy source is append-only: the current revision is read
+	// from the store, so a cell upgraded with a new agent serves it.
+	state := localAgentDemoPolicySourceState(in.Core, in.Agents.store, mapper)
 	sources, err := NewLocalPersonaOpenAIPolicySources(key.Public().(ed25519.PublicKey), mapper, state)
 	if err != nil {
 		return composedAgentModelPolicyRegistry{}, err
@@ -101,7 +94,7 @@ func composeLocalAgentModelPolicyRegistry(ctx context.Context, in agentModelPoli
 		if _, revoked, err := state.CurrentAgentPolicySource(ctx, tenant, LocalPersonaOpenAIPolicySourceID); err != nil || revoked {
 			return composedAgentModelPolicyRegistry{}, fmt.Errorf("%w: selected demo tenant is not seeded", ErrAgentModelPolicyUnavailable)
 		}
-		if err := EnsureLocalPersonaOpenAIPolicyRecords(ctx, registry, publisher, tenant, key, 1, now.Add(-time.Minute), now.AddDate(1, 0, 0)); err != nil {
+		if err := ensureLocalAgentDemoPolicyUpgrade(ctx, in.Core, in.Agents.store, authorityPool, mapper, tenant, key, now); err != nil {
 			return composedAgentModelPolicyRegistry{}, fmt.Errorf("compose immutable local agent contracts: %w", err)
 		}
 		registered++

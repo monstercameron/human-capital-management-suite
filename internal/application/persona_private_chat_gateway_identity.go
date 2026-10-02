@@ -181,6 +181,7 @@ func privatePersonaReplyGrantMatches(grant agentdelegation.Grant, record agentru
 	const capabilityID = "persona.reply"
 	const chatScope = "chat.current"
 	scope := grant.SkillScopes[skillID]
+	bound := personaChatAuthorityResource(request.Source.TenantID, request.Audience.ID, request.Context.ID, request.Source.Ref)
 	authority, authorityOK := grant.SkillAuthorities[skillID]
 	embedded, embeddedOK := grant.Authority.SkillAuthorities[skillID]
 	return grant.GrantID == request.Principal.DelegatedCredentialRef && grant.UserID == request.Principal.InvokerID && grant.Tenant.String() == request.Source.TenantID &&
@@ -191,9 +192,16 @@ func privatePersonaReplyGrantMatches(grant agentdelegation.Grant, record agentru
 		grant.Authority.NotBefore.Equal(grant.NotBefore) && grant.Authority.ExpiresAt.Equal(grant.ExpiresAt) &&
 		grant.InstallationID == request.InstallationID && grant.TaskID == request.Source.Key && grant.Purpose == request.Purpose &&
 		!grant.NotBefore.After(now) && now.Before(grant.ExpiresAt) && !grant.Revoked && !grant.Authority.Revoked && grant.RevocationEpoch > 0 &&
-		slices.Contains(grant.Skills, skillID) && len(scope) == 1 && scope[0] == capabilityID && authorityOK && embeddedOK &&
-		privatePersonaReplySkillAuthorityMatches(authority, capabilityID, chatScope, request.Purpose) &&
-		privatePersonaReplySkillAuthorityMatches(embedded, capabilityID, chatScope, request.Purpose)
+		slices.Contains(grant.Skills, skillID) && len(scope) == 1 && authorityOK && embeddedOK &&
+		(scope[0] == capabilityID &&
+			privatePersonaReplySkillAuthorityMatches(authority, capabilityID, chatScope, request.Purpose) &&
+			privatePersonaReplySkillAuthorityMatches(embedded, capabilityID, chatScope, request.Purpose) ||
+			// A grant issued from the invoker's chat authority projection names
+			// the delegated scope as its capability and binds it to the exact
+			// tenant, conversation, thread and invoking post of this run.
+			scope[0] == chatScope &&
+				privatePersonaReplySkillAuthorityMatches(authority, chatScope, bound, request.Purpose) &&
+				privatePersonaReplySkillAuthorityMatches(embedded, chatScope, bound, request.Purpose))
 }
 
 func privatePersonaReplySkillAuthorityMatches(authority trust.SkillAuthority, capabilityID, resource, purpose string) bool {

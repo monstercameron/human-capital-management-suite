@@ -64,7 +64,7 @@ func (f *fakeAuthorizer) Authorize(ctx context.Context, actor *trust.Principal, 
 
 type fakeWorkers struct {
 	mu         sync.Mutex
-	exists     map[string]bool          // tenant|worker
+	exists     map[string]bool            // tenant|worker
 	supervises map[string]map[string]bool // tenant|supervisor -> worker set
 }
 
@@ -134,8 +134,8 @@ func (f *fakeIDs) NewID(tenant, actor, operation, idempotencyKey string) string 
 // -- TimecardStore fake ------------------------------------------------------
 
 type fakeTimecardRecord struct {
-	tc          timecard.Timecard
-	repliesBy   map[string]replayEntry // idempotencyKey -> (digest, result)
+	tc        timecard.Timecard
+	repliesBy map[string]replayEntry // idempotencyKey -> (digest, result)
 }
 
 type replayEntry struct {
@@ -229,7 +229,9 @@ type fakeShiftStore struct {
 	records map[string]*fakeShiftRecord
 }
 
-func newFakeShiftStore() *fakeShiftStore { return &fakeShiftStore{records: map[string]*fakeShiftRecord{}} }
+func newFakeShiftStore() *fakeShiftStore {
+	return &fakeShiftStore{records: map[string]*fakeShiftRecord{}}
+}
 
 func (f *fakeShiftStore) key(tenant, id string) string { return tenant + "|" + id }
 
@@ -333,9 +335,9 @@ func (f *fakeProfileStore) Pin(ctx context.Context, tenant, assignmentRef string
 // -- MissedPunchStore fake -----------------------------------------------
 
 type fakeMissedPunchStore struct {
-	mu       sync.Mutex
-	byID     map[string]timesession.MissedPunchRequest
-	seq      int
+	mu   sync.Mutex
+	byID map[string]timesession.MissedPunchRequest
+	seq  int
 }
 
 func newFakeMissedPunchStore() *fakeMissedPunchStore {
@@ -399,10 +401,10 @@ func (f *fakeAllocationStore) Save(ctx context.Context, tenant string, alloc tim
 // -- LedgerStore fake --------------------------------------------------
 
 type fakeLedgerStore struct {
-	mu           sync.Mutex
-	corrections  []timecard.AllocationCorrection
-	traces       []PremiumTrace
-	receipts     []DestinationReceipt
+	mu          sync.Mutex
+	corrections []timecard.AllocationCorrection
+	traces      []PremiumTrace
+	receipts    []DestinationReceipt
 }
 
 func (f *fakeLedgerStore) RecordAllocationCorrection(ctx context.Context, tenant string, c timecard.AllocationCorrection, idempotencyKey string) error {

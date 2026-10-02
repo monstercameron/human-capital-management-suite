@@ -34,9 +34,11 @@ func (f audienceChatFake) ListMemberships(_ context.Context, req chat.ListMember
 type audienceDirectoryFake struct {
 	facts map[string]PersonaAudienceMember
 	err   error
+	calls []string
 }
 
-func (f audienceDirectoryFake) ResolvePersonaAudienceMember(_ context.Context, tenant, subject string) (PersonaAudienceMember, error) {
+func (f *audienceDirectoryFake) ResolvePersonaAudienceMember(_ context.Context, tenant, subject string) (PersonaAudienceMember, error) {
+	f.calls = append(f.calls, tenant+"/"+subject)
 	if f.err != nil {
 		return PersonaAudienceMember{}, f.err
 	}
@@ -44,8 +46,9 @@ func (f audienceDirectoryFake) ResolvePersonaAudienceMember(_ context.Context, t
 }
 
 type audienceInstallFake struct {
-	active    []agentpersonastore.ActiveInstallation
-	published []agentpersonastore.PersonaVersion
+	active     []agentpersonastore.ActiveInstallation
+	published  []agentpersonastore.PersonaVersion
+	identities map[string]agentpersonastore.PersonaChatIdentity
 }
 
 func (f audienceInstallFake) ListActiveByConversation(context.Context, string) ([]agentpersonastore.ActiveInstallation, error) {
@@ -53,6 +56,13 @@ func (f audienceInstallFake) ListActiveByConversation(context.Context, string) (
 }
 func (f audienceInstallFake) ListPublished(context.Context) ([]agentpersonastore.PersonaVersion, error) {
 	return f.published, nil
+}
+func (f audienceInstallFake) LookupPersonaChatIdentity(_ context.Context, agentID string) (agentpersonastore.PersonaChatIdentity, error) {
+	identity, ok := f.identities[agentID]
+	if !ok {
+		return agentpersonastore.PersonaChatIdentity{}, agentpersonastore.ErrNotFound
+	}
+	return identity, nil
 }
 
 type audienceInstallStoreFake struct {
@@ -76,7 +86,7 @@ func TestPersonaAudienceSourceReadsChatAndTrustedDirectory(t *testing.T) {
 	ctx := audienceSourceContext(t)
 	s := &DatabasePersonaAudienceSource{
 		Chat:      audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "tenant"}}, members: map[string][]chat.Membership{"room": {{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "alice"}}}},
-		Directory: audienceDirectoryFake{facts: map[string]PersonaAudienceMember{"tenant/alice": {SubjectID: "alice", Roles: []string{"manager"}, Populations: []string{"staff"}, OrganizationScope: "org"}}},
+		Directory: &audienceDirectoryFake{facts: map[string]PersonaAudienceMember{"tenant/alice": {SubjectID: "alice", Roles: []string{"manager"}, Populations: []string{"staff"}, OrganizationScope: "org"}}},
 	}
 	got, err := s.ListCurrentPersonaAudience(ctx, "tenant", "alice")
 	if err != nil || len(got) != 1 || len(got[0].Members) != 1 || got[0].Members[0].Roles[0] != "manager" {
@@ -86,10 +96,61 @@ func TestPersonaAudienceSourceReadsChatAndTrustedDirectory(t *testing.T) {
 
 func TestPersonaAudienceSourceMissingDirectoryFactsIsPrecise(t *testing.T) {
 	ctx := audienceSourceContext(t)
-	s := &DatabasePersonaAudienceSource{Chat: audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "tenant"}}, members: map[string][]chat.Membership{"room": {{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "alice"}}}}, Directory: audienceDirectoryFake{}}
+	s := &DatabasePersonaAudienceSource{Chat: audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "tenant"}}, members: map[string][]chat.Membership{"room": {{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "alice"}}}}, Directory: &audienceDirectoryFake{}}
 	_, err := s.ListCurrentPersonaAudience(ctx, "tenant", "alice")
 	if !errors.Is(err, ErrPersonaAudienceDirectoryFactsMissing) {
 		t.Fatalf("err=%v, want directory blocker", err)
+	}
+}
+
+func TestTodo_AGENTUX_005_AudienceOmitsPersonaMemberWithoutHumanDirectoryFacts(t *testing.T) {
+	ctx := audienceSourceContext(t)
+	directory := &audienceDirectoryFake{facts: map[string]PersonaAudienceMember{
+		"tenant/alice": {SubjectID: "alice", Roles: []string{"hcm_admin"}, Populations: []string{"employees"}, OrganizationScope: "org-a"},
+	}}
+	s := &DatabasePersonaAudienceSource{
+		Chat: audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "tenant"}}, members: map[string][]chat.Membership{"room": {
+			{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "alice"},
+			{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "policy-helper"},
+		}}},
+		Installations: audienceInstallStoreFake{store: audienceInstallFake{identities: map[string]agentpersonastore.PersonaChatIdentity{
+			"policy-helper": {TenantID: values.TenantId("tenant"), AgentID: "policy-helper", PersonaID: "persona.policy", Active: true},
+		}}},
+		Directory: directory,
+	}
+	got, err := s.ListCurrentPersonaAudience(ctx, "tenant", "alice")
+	if err != nil || len(got) != 1 || len(got[0].Members) != 1 || got[0].Members[0].SubjectID != "alice" {
+		t.Fatalf("audience=%+v err=%v; want the human viewer and an omitted machine member", got, err)
+	}
+	if len(directory.calls) != 1 || directory.calls[0] != "tenant/alice" {
+		t.Fatalf("directory calls=%v; agent identity must not be looked up as a person", directory.calls)
+	}
+}
+
+// TestTodo_AGENTUX_034 proves that an installed persona chat identity is not
+// projected as a human. In particular, it must not cause a directory lookup
+// (and therefore cannot produce the repeated directory-facts-missing warning).
+func TestTodo_AGENTUX_034(t *testing.T) {
+	ctx := audienceSourceContext(t)
+	directory := &audienceDirectoryFake{facts: map[string]PersonaAudienceMember{
+		"tenant/alice": {SubjectID: "alice", Roles: []string{"hcm_admin"}, Populations: []string{"employees"}, OrganizationScope: "org-a"},
+	}}
+	source := &DatabasePersonaAudienceSource{
+		Chat: audienceChatFake{rooms: []chat.Conversation{{ID: "room", TenantID: "tenant"}}, members: map[string][]chat.Membership{"room": {
+			{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "alice"},
+			{ConversationID: "room", TenantID: "tenant", HomeTenantID: "tenant", SubjectID: "policy-helper"},
+		}}},
+		Installations: audienceInstallStoreFake{store: audienceInstallFake{identities: map[string]agentpersonastore.PersonaChatIdentity{
+			"policy-helper": {TenantID: values.TenantId("tenant"), AgentID: "policy-helper", PersonaID: "persona.policy", Active: true},
+		}}},
+		Directory: directory,
+	}
+	audience, err := source.ListCurrentPersonaAudience(ctx, "tenant", "alice")
+	if err != nil || len(audience) != 1 || len(audience[0].Members) != 1 || audience[0].Members[0].SubjectID != "alice" {
+		t.Fatalf("audience=%+v err=%v", audience, err)
+	}
+	if len(directory.calls) != 1 || directory.calls[0] != "tenant/alice" {
+		t.Fatalf("directory calls=%v; agent must bypass the human directory", directory.calls)
 	}
 }
 

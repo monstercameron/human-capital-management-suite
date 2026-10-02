@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentinvocationstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentrunstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
@@ -32,7 +33,7 @@ func (w *personaServeWiring) chatSurface(service chat.ConversationService, db *a
 	if err != nil {
 		return nil, err
 	}
-	return &PersonaChatSurface{Chat: service, References: w.refs, Personas: w.avail, Skills: w.skill, Invocations: invocations, Failures: invocations, Receipts: invocations, Executions: func(_ context.Context, tenant string) (runstate.Store, error) { return executions.ForTenant(tenant) },
+	return &PersonaChatSurface{Chat: service, References: w.refs, Personas: w.avail, Skills: w.skill, Invocations: invocations, Failures: invocations, Receipts: invocations, Authors: announcementAuthorsFor(w.store), Executions: func(_ context.Context, tenant string) (runstate.Store, error) { return executions.ForTenant(tenant) },
 		ChannelAlwaysPrivate: func(ctx context.Context, tenant string, facts personaReferenceFacts) (bool, error) {
 			if w.store == nil {
 				return false, personachat.ErrUnavailable
@@ -53,6 +54,7 @@ func (w *personaServeWiring) chatSurface(service chat.ConversationService, db *a
 type PersonaChatBrowserOptions struct {
 	PublicOrigin string
 	BrowserLogin bool
+	Icons        *agentpersonastore.Store
 }
 
 // OverlayPersonaChatSurface puts the persona HTTP routes through the same
@@ -67,7 +69,10 @@ func OverlayPersonaChatSurface(next http.Handler, surface personachat.Surface, a
 		policy.AllowedOrigins = []string{options.PublicOrigin}
 		policy.SecureCookies = origin.Scheme == "https"
 	}
-	handler := personachat.Handler{Surface: surface}
+	var handler http.Handler = personachat.Handler{Surface: surface}
+	if base, ok := surface.(*PersonaChatSurface); ok && options.Icons != nil {
+		handler = transport.AgentIconDirectoryHandler{Source: AgentIconChatDirectory{Base: base, Store: options.Icons}, Fallback: handler}
+	}
 	endpoint := edge.BrowserPolicy(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		metadata := workspace.AdmissionMetadata(r, options.BrowserLogin)
 		if len(r.Header.Values("Authorization")) == 0 && len(metadata.Get(transport.AuthorizationMetadataKey)) > 0 && agentServedMutation(r.Method) {

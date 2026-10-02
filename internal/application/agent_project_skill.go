@@ -85,11 +85,11 @@ func (s *AgentProjectMemoryProposalStore) Update(_ context.Context, p project.Ag
 }
 
 type AgentProjectSkill struct {
-	Projects  projectservice.Service
-	Grants    agentdelegation.GrantStore
+	Projects     projectservice.Service
+	Grants       agentdelegation.GrantStore
 	GrantFactory AgentProjectGrantStoreFactory
-	Proposals AgentProjectProposalStore
-	Now       func() time.Time
+	Proposals    AgentProjectProposalStore
+	Now          func() time.Time
 }
 
 type AgentProjectGrantStoreFactory interface {
@@ -97,8 +97,12 @@ type AgentProjectGrantStoreFactory interface {
 }
 
 func NewAgentProjectSkillForRequests(projects projectservice.Service, grants AgentProjectGrantStoreFactory, proposals AgentProjectProposalStore, now func() time.Time) (*AgentProjectSkill, error) {
-	if grants == nil || proposals == nil { return nil, ErrAgentProjectSkill }
-	if now == nil { now = time.Now }
+	if grants == nil || proposals == nil {
+		return nil, ErrAgentProjectSkill
+	}
+	if now == nil {
+		now = time.Now
+	}
 	return &AgentProjectSkill{Projects: projects, GrantFactory: grants, Proposals: proposals, Now: now}, nil
 }
 
@@ -289,7 +293,9 @@ func (s *AgentProjectSkill) validate(ctx context.Context, req AgentProjectTaskRe
 	grants := s.Grants
 	if s.GrantFactory != nil {
 		scoped, err := s.GrantFactory.ForTenant(ctx, req.Principal.Tenant())
-		if err != nil { return agentdelegation.Grant{}, err }
+		if err != nil {
+			return agentdelegation.Grant{}, err
+		}
 		grants = scoped
 	}
 	g, err := grants.Get(req.Claims.GrantID)

@@ -53,6 +53,7 @@ func (s *PersonaChatSurface) Progress(ctx context.Context, conversationID string
 	}
 	seenPosts := make(map[string]bool)
 	privateReplies := make(map[string]agentinvocationstore.ReplyReceipt)
+	publicReplies := make(map[string]string)
 	if s.Receipts != nil {
 		receipts, err := s.Receipts.ListReplyReceipts(ctx, room.TenantID, p.Subject(), room.ID)
 		if err != nil {
@@ -61,6 +62,9 @@ func (s *PersonaChatSurface) Progress(ctx context.Context, conversationID string
 		for _, receipt := range receipts {
 			if receipt.TenantID != room.TenantID {
 				return personachat.Progress{}, personachat.ErrUnavailable
+			}
+			if receipt.InvokerID == p.Subject() && receipt.ConversationID == room.ID && receipt.PublicPostID != "" {
+				publicReplies[receipt.InvocationID] = receipt.PublicPostID
 			}
 			if receipt.InvokerID != p.Subject() || receipt.ConversationID != room.ID || receipt.PrivatePostID == "" || receipt.PrivateConversationID == "" {
 				continue
@@ -98,6 +102,7 @@ func (s *PersonaChatSurface) Progress(ctx context.Context, conversationID string
 		if receipt, ok := privateReplies[invocation.ID]; ok {
 			projection.PrivateConversationID, projection.PrivatePostID = receipt.PrivateConversationID, receipt.PrivatePostID
 		}
+		projection.PublicPostID = publicReplies[invocation.ID]
 		if errors.Is(err, agentrunstate.ErrNotFound) {
 			if failure, ok := failures[invocation.PostID]; ok {
 				projectPersonaPostFailure(&projection, failure)
@@ -158,7 +163,7 @@ func projectPersonaSurfaceRun(out *personachat.Invocation, run runstate.Run) {
 		out.FailureMessage = "The persona could not finish this request."
 		// Retry starts a fresh invocation, with current authority, rather than
 		// mutating a terminal execution or replaying old access.
-		out.Retryable = run.State == runstate.StateFailed && run.TerminalCode == "MODEL_UNAVAILABLE"
+		out.Retryable = personaRunRetryable(run)
 	}
 }
 
@@ -215,7 +220,7 @@ func (s *PersonaChatSurface) Retry(ctx context.Context, invocationID, idempotenc
 			if err != nil || run.ID != id || run.TenantID != room.TenantID {
 				return personachat.RetryResult{}, personachat.ErrUnavailable
 			}
-			if run.State != runstate.StateFailed || run.TerminalCode != "MODEL_UNAVAILABLE" {
+			if !personaRunRetryable(run) {
 				return personachat.RetryResult{}, personachat.ErrConflict
 			}
 		}

@@ -89,7 +89,7 @@ func TestTodo_AGENT2_016_AvailablePersonaDiscovery(t *testing.T) {
 	pin := agentskills.SkillPin{ID: "skill.people.read", Version: 2, Digest: "digest-v2"}
 	persona := agentUserCatalogPersona(t, "people-coach", "People Coach", "agent.self_service", pin)
 	allowed := agentskills.SkillRecord{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version, Description: "Read my profile"}, Digest: pin.Digest, Status: agentskills.StatusActive}
-	discovery := &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{"agent.self_service": {allowed}}}
+	discovery := &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{personaChatReplyPurpose: {allowed}}}
 	catalog := &AgentUserCatalog{Personas: agentUserCatalogPersonas{persona}, Skills: discovery}
 	principal := agentUserCatalogPrincipal(t)
 	got, err := catalog.List(trust.WithPrincipal(context.Background(), principal), principal)
@@ -102,7 +102,7 @@ func TestTodo_AGENT2_016_AvailablePersonaDiscovery(t *testing.T) {
 	if len(got[0].Skills) != 1 || got[0].Skills[0] != "Read my profile" {
 		t.Fatalf("displayed skills = %v", got[0].Skills)
 	}
-	if len(discovery.called) != 1 || discovery.called[0] != persona.Profile.Purpose {
+	if len(discovery.called) != 1 || discovery.called[0] != personaChatReplyPurpose {
 		t.Fatalf("discovery purposes = %v", discovery.called)
 	}
 }
@@ -118,7 +118,7 @@ func TestTodo_AGENT2_016_RefusesUnavailableSkills(t *testing.T) {
 		"wrong digest":  {{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version, Description: "Changed profile"}, Digest: "new-digest", Status: agentskills.StatusActive}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			catalog := &AgentUserCatalog{Personas: agentUserCatalogPersonas{persona}, Skills: &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{"agent.self_service": discovered}}}
+			catalog := &AgentUserCatalog{Personas: agentUserCatalogPersonas{persona}, Skills: &agentUserCatalogDiscovery{byPurpose: map[string][]agentskills.SkillRecord{personaChatReplyPurpose: discovered}}}
 			principal := agentUserCatalogPrincipal(t)
 			got, err := catalog.List(trust.WithPrincipal(context.Background(), principal), principal)
 			if err != nil || len(got) != 0 {
@@ -128,16 +128,16 @@ func TestTodo_AGENT2_016_RefusesUnavailableSkills(t *testing.T) {
 	}
 }
 
-// TestTodo_AGENT2_016_FailsClosed ensures discovery failures are not rendered
-// as an empty successful catalog, which would hide a policy outage.
+// TestTodo_AGENT2_016_FailsClosed keeps invalid request authority fatal while a
+// failure isolated to one persona omits that item instead of taking down the page.
 func TestTodo_AGENT2_016_FailsClosed(t *testing.T) {
 	pin := agentskills.SkillPin{ID: "skill.people.read", Version: 1, Digest: "digest-v1"}
 	persona := agentUserCatalogPersona(t, "people-coach", "People Coach", "agent.self_service", pin)
 	catalog := &AgentUserCatalog{Personas: agentUserCatalogPersonas{persona}, Skills: &agentUserCatalogDiscovery{err: errors.New("policy store unavailable")}}
 	principal := agentUserCatalogPrincipal(t)
 	ctx := trust.WithPrincipal(context.Background(), principal)
-	if _, err := catalog.List(ctx, principal); err == nil {
-		t.Fatal("discovery error was hidden as an empty catalog")
+	if got, err := catalog.List(ctx, principal); err != nil || len(got) != 0 {
+		t.Fatalf("persona-scoped discovery failure = %v, %v; want omitted item", got, err)
 	}
 	if _, err := (*AgentUserCatalog)(nil).List(ctx, principal); err == nil {
 		t.Fatal("nil catalog was accepted")

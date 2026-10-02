@@ -112,6 +112,9 @@ func (s *PersonaAdminStarterSource) readyStarter(ctx context.Context, tenant val
 		ID: starter.ID, Version: starter.Version, Name: starter.DisplayName, Handle: starter.Handle,
 		Purpose: starter.Purpose, ManifestID: manifest.ID,
 		ChannelClasses: slices.Clone(starter.AllowedChannelClasses), SkillGrantIDs: grantIDs,
+		// The built-in text is shown read-only so an administrator can see
+		// what the agent is already told before adding their own.
+		Instructions: text,
 	}, true
 }
 
@@ -126,11 +129,11 @@ func personaAdminStarterManifestID(starterID string) string {
 func personaAdminStarterManifestMatches(manifest agentmanifest.Manifest, starter agenttemplate.PersonaStarter, id string) bool {
 	if id == "" || manifest.Validate() != nil || manifest.ID != id || manifest.Version != 1 || manifest.SchemaVersion != agentmanifest.CurrentSchemaVersion ||
 		manifest.Purpose != starter.Purpose || manifest.InstructionsDigest != personaInstructionDigest(personaStarterInstructions(starter)) ||
-		manifest.AutonomyCeiling != "ASSISTED" || len(manifest.SourceCeiling) != 0 || len(manifest.ToolCeiling) != 0 || len(manifest.ContextGrants) != 0 ||
+		manifest.AutonomyCeiling != "ASSISTED" || len(manifest.SourceCeiling) != 0 || !slices.Equal(manifest.ToolCeiling, personaStarterToolCeiling(starter)) || len(manifest.ContextGrants) != 0 ||
 		len(manifest.EvaluationRefs) != 1 || manifest.EvaluationRefs[0].ID != starter.EvaluationSuite || !validTrustedPersonaReference(manifest.ModelPolicy) || !validTrustedPersonaReference(manifest.OutputSchema) {
 		return false
 	}
-	return manifest.Budget == (agentmanifest.Budget{MaxCostMicros: 100, MaxInputTokens: 4000, MaxOutputTokens: 1000, MaxConcurrentRuns: 1})
+	return manifest.Budget == agentUXGeneralStarterBudget(starter, agentmanifest.Budget{MaxCostMicros: 100, MaxInputTokens: 4000, MaxOutputTokens: 1000, MaxConcurrentRuns: 1})
 }
 
 func personaStarterGrantRowsCoverAudience(grants []agentgate.SkillGrant, starter agenttemplate.PersonaStarter) bool {

@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmanifest"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
@@ -43,6 +44,8 @@ type PersonaStarterDraftRequest struct {
 	ManifestID         string
 	BusinessOwnerID    string
 	TechnicalStewardID string
+	Guidance           string
+	DocumentReferences []agentdocref.Reference
 }
 
 // PersonaStarterDraftBuilder turns a governed starter into a validated DRAFT.
@@ -114,7 +117,8 @@ func personaStarterProfile(starter agenttemplate.PersonaStarter, req PersonaStar
 		Audience:  agentpersona.Audience{Roles: append([]string(nil), starter.AudienceRoles...), Populations: append([]string(nil), starter.AudiencePopulations...), OrganizationScopes: append([]string(nil), req.OrganizationScopes...)},
 		SkillPins: append([]agentskills.SkillPin(nil), starter.SkillPins...), TierCeiling: tier,
 		ConversationKinds: kinds,
-		ChannelClasses:    classes, Instructions: instructions, Owner: req.BusinessOwnerID, Steward: req.TechnicalStewardID,
+		ChannelClasses:    classes, Instructions: instructions, Guidance: strings.Clone(req.Guidance), DocumentReferences: append([]agentdocref.Reference(nil), req.DocumentReferences...),
+		Owner: req.BusinessOwnerID, Steward: req.TechnicalStewardID,
 		AllowedPlacementClasses: append([]string(nil), starter.AllowedChannelClasses...), AlwaysPrivate: starter.AlwaysPrivate, ConversationTierCeilings: ceilings,
 		Template:     &agentpersona.TemplateProvenance{ID: pin.ID, Version: pin.Version, Digest: pin.Digest},
 		EvalSuiteRef: starter.EvaluationSuite, EvalLimits: agentpersona.EvaluationLimits{MaxCost: 20, MaxSteps: 10, MaxLatencyMS: 2000},

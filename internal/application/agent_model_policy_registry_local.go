@@ -65,18 +65,30 @@ func EnsureLocalPersonaOpenAIPolicyRecords(ctx context.Context, registry *AgentM
 // these bytes neither publishes them nor grants production provider access.
 func LocalPersonaOpenAIPolicyRecords() []agentmodelpolicystore.Record {
 	model, raw := LocalPersonaOpenAIModelPolicyReference()
-	suite := agenteval.PolicyHelperSuite(personaPolicyHelperSkillID)
-	suiteRaw, _ := json.Marshal(suite)
+	policySuite := agenteval.PolicyHelperSuite(personaPolicyHelperSkillID)
+	policySuiteRaw, _ := json.Marshal(policySuite)
+	assistantSuite := agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID)
+	assistantSuiteRaw, _ := json.Marshal(assistantSuite)
 	return []agentmodelpolicystore.Record{
 		{Kind: agentmodelpolicystore.ModelPolicy, Reference: model, Content: raw},
 		{Kind: agentmodelpolicystore.OutputSchema, Reference: agentmanifest.Reference{ID: PersonaChatReplySchema, Version: 1, SchemaVersion: 1, Digest: PersonaChatReplySchemaDigest}, Content: []byte(PersonaChatReplyJSONSchema)},
-		{Kind: agentmodelpolicystore.EvaluationSuite, Reference: agentmanifest.Reference{ID: suite.ID, Version: 1, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(suite)}, Content: suiteRaw},
+		{Kind: agentmodelpolicystore.EvaluationSuite, Reference: agentmanifest.Reference{ID: policySuite.ID, Version: 1, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(policySuite)}, Content: policySuiteRaw},
+		// Version 2: a cell prepared while the suite was still being written holds
+		// version 1 with other bytes, and a stored contract is never rewritten.
+		{Kind: agentmodelpolicystore.EvaluationSuite, Reference: agentmanifest.Reference{ID: assistantSuite.ID, Version: 2, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(assistantSuite)}, Content: assistantSuiteRaw},
+		// Version 3 added the workspace-search cases and is stored on the review
+		// cell; version 4 corrects them for a one-search run. Every earlier version
+		// stays published beside the newest: stored contracts never change.
+		AssistantWorkspaceEvaluationRecordV3(),
+		AssistantWorkspaceEvaluationRecord(),
 	}
 }
 
+// LocalPersonaOpenAIPolicySelection selects the newest Assistant suite (v4);
+// the retained v2 and v3 records are still resolvable by their exact references.
 func LocalPersonaOpenAIPolicySelection() AgentPolicyReferenceSelection {
 	records := LocalPersonaOpenAIPolicyRecords()
-	return AgentPolicyReferenceSelection{ModelPolicy: records[0].Reference, OutputSchema: records[1].Reference, EvaluationSuites: map[string]agentmanifest.Reference{records[2].Reference.ID: records[2].Reference}}
+	return AgentPolicyReferenceSelection{ModelPolicy: records[0].Reference, OutputSchema: records[1].Reference, EvaluationSuites: map[string]agentmanifest.Reference{records[2].Reference.ID: records[2].Reference, records[5].Reference.ID: records[5].Reference}}
 }
 
 // SignAgentPolicyAuthority signs a deployment-owned exact publication source.

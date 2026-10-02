@@ -113,12 +113,12 @@ func (a PersonaModelDeploymentPolicyAuthority) checkDeployment(ctx context.Conte
 	if contract.MaxLatencyNS <= 0 || route.Route.Task.MaxLatency <= 0 || int64(route.Route.Task.MaxLatency) > contract.MaxLatencyNS {
 		return ErrAgentModelPolicyUnavailable
 	}
-	if route.ModelDigest != selection.ProfileDigest || selection.Identity != contract.Identity || route.Route.Pin.AgentVersionDigest != request.Agent.Digest || route.Route.Task.AgentVersionDigest != request.Agent.Digest || route.Route.Task.Region != contract.ProcessingRegion || route.Purpose != contract.Purpose || route.Processing.Residency != contract.ProcessingRegion || route.Processing.TrainingUse != contract.TrainingUse || route.Processing.Logging != contract.Logging || route.Route.Pin.OutputSchemaDigest != contract.OutputSchemaDigest || route.Route.Task.OutputSchemaDigest != contract.OutputSchemaDigest || len(route.Route.Pin.Fallbacks) != 0 || request.Budget.MaxCostMicros > contract.Budget.MaxCostMicros || request.Budget.MaxInputTokens > contract.Budget.MaxInputTokens || request.Budget.MaxOutputTokens > contract.Budget.MaxOutputTokens {
+	if selection.Identity != contract.Identity || route.Route.Pin.AgentVersionDigest != request.Agent.Digest || route.Route.Task.AgentVersionDigest != request.Agent.Digest || route.Route.Task.Region != contract.ProcessingRegion || route.Purpose != contract.Purpose || route.Processing.Residency != contract.ProcessingRegion || route.Processing.TrainingUse != contract.TrainingUse || route.Processing.Logging != contract.Logging || route.Route.Pin.OutputSchemaDigest != contract.OutputSchemaDigest || route.Route.Task.OutputSchemaDigest != contract.OutputSchemaDigest || len(route.Route.Pin.Fallbacks) != 0 || request.Budget.MaxCostMicros > contract.Budget.MaxCostMicros || request.Budget.MaxInputTokens > contract.Budget.MaxInputTokens || request.Budget.MaxOutputTokens > contract.Budget.MaxOutputTokens {
 		return ErrAgentModelPolicyUnavailable
 	}
 	var eligible bool
 	for _, profile := range cfg.Profiles {
-		if profile.ID == selection.ProfileID && profile.ProfileDigest == selection.ProfileDigest && profile.Identity == selection.Identity && agentmodel.ModelProfileDigest(profile) == selection.ProfileDigest && profile.Evaluation.Passed && profile.Evaluation.AgentVersionDigest == request.Agent.Digest && profile.Evaluation.SuiteDigest != "" && slices.Contains(profile.Regions, route.Route.Task.Region) && slices.Contains(profile.TaskProfileIDs, route.Route.Task.ID) && profile.SemanticsDigest == route.Route.Pin.SemanticsDigest && profile.OutputSchemaDigest == route.Route.Pin.OutputSchemaDigest && profile.ToolSchemaDigest == route.Route.Pin.ToolSchemaDigest && route.Route.Task.MaxLatency <= profile.MaxLatency && route.Route.Task.MaxCostMicros <= profile.MaxCostMicros {
+		if profile.ID == selection.ProfileID && profile.ProfileDigest == selection.ProfileDigest && profile.Identity == selection.Identity && agentmodel.ModelProfileDigest(profile) == selection.ProfileDigest && route.ModelDigest == personaEvaluatedCandidateDigest(profile) && profile.Evaluation.Passed && profile.Evaluation.AgentVersionDigest == request.Agent.Digest && profile.Evaluation.SuiteDigest != "" && slices.Contains(profile.Regions, route.Route.Task.Region) && slices.Contains(profile.TaskProfileIDs, route.Route.Task.ID) && profile.SemanticsDigest == route.Route.Pin.SemanticsDigest && profile.OutputSchemaDigest == route.Route.Pin.OutputSchemaDigest && profile.ToolSchemaDigest == route.Route.Pin.ToolSchemaDigest && route.Route.Task.MaxLatency <= profile.MaxLatency && route.Route.Task.MaxCostMicros <= profile.MaxCostMicros {
 			eligible = true
 			if manifest.ID != "" {
 				suiteMatches := false
@@ -178,4 +178,14 @@ func (a PersonaModelDeploymentPolicyAuthority) checkDeployment(ctx context.Conte
 		return ErrAgentModelPolicyUnavailable
 	}
 	return nil
+}
+
+// personaEvaluatedCandidateDigest reconstructs the exact unevaluated profile
+// that the signed evaluation measured. Qualification changes only Evaluation
+// and ProfileDigest, so this still binds the route to every immutable field of
+// the selected qualified profile instead of accepting an unrelated candidate.
+func personaEvaluatedCandidateDigest(profile agentmodel.ModelProfile) string {
+	profile.Evaluation = agentmodel.ModelEvaluation{}
+	profile.ProfileDigest = ""
+	return "sha256:" + agentmodel.ModelProfileDigest(profile)
 }

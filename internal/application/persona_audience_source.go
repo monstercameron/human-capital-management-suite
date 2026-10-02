@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
@@ -37,6 +39,7 @@ type PersonaAudienceDirectory interface {
 type PersonaAudienceInstallationReader interface {
 	ListActiveByConversation(context.Context, string) ([]agentpersonastore.ActiveInstallation, error)
 	ListPublished(context.Context) ([]agentpersonastore.PersonaVersion, error)
+	LookupPersonaChatIdentity(context.Context, string) (agentpersonastore.PersonaChatIdentity, error)
 }
 
 // PersonaAudienceInstallationStore scopes installation reads to one tenant.
@@ -56,7 +59,9 @@ type DatabasePersonaAudienceSource struct {
 var _ PersonaAudienceSource = (*DatabasePersonaAudienceSource)(nil)
 
 // ListCurrentPersonaAudience lists every conversation the verified subject is
-// currently a member of, projecting all members through the trusted directory.
+// currently a member of, projecting human members through the trusted
+// directory. Installed persona chat identities are machine members, so they
+// are intentionally excluded before any human-directory lookup.
 func (s *DatabasePersonaAudienceSource) ListCurrentPersonaAudience(ctx context.Context, tenantID, subjectID string) ([]PersonaAudienceConversation, error) {
 	verified, err := s.verify(ctx, tenantID, subjectID)
 	if err != nil {
@@ -76,15 +81,21 @@ func (s *DatabasePersonaAudienceSource) ListCurrentPersonaAudience(ctx context.C
 		}
 		for _, room := range rooms.Conversations {
 			if room.TenantID != tenantID || strings.TrimSpace(room.ID) == "" || room.Archived {
-				return nil, fmt.Errorf("%w: invalid current conversation %q", errPersonaAudienceSourceUnavailable, room.ID)
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "invalid_conversation")
+				continue
 			}
 			if _, exists := seenRooms[room.ID]; exists {
-				return nil, fmt.Errorf("%w: duplicate current conversation %q", errPersonaAudienceSourceUnavailable, room.ID)
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "duplicate_conversation")
+				continue
 			}
 			seenRooms[room.ID] = struct{}{}
 			members, err := s.listMembers(ctx, tenantID, room.ID, principal)
 			if err != nil {
-				return nil, err
+				if errors.Is(err, ErrPersonaAudienceDirectoryFactsMissing) {
+					return nil, err
+				}
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "conversation", "item_id", room.ID, "reason", "members_unavailable", "error_type", fmt.Sprintf("%T", err), "cause", personaAudienceOmissionCause(err))
+				continue
 			}
 			out = append(out, PersonaAudienceConversation{TenantID: tenantID, ConversationID: room.ID, Members: members})
 		}
@@ -94,6 +105,17 @@ func (s *DatabasePersonaAudienceSource) ListCurrentPersonaAudience(ctx context.C
 		page.Cursor = rooms.NextCursor
 	}
 	return out, nil
+}
+
+// personaAudienceOmissionCause is the detail logged when a conversation is
+// left out of the audience. A conversation silently left out makes its agents
+// disappear for everyone in it, so the cause must be findable; the text can
+// name people, so it is written only in an opted-in local diagnostic session.
+func personaAudienceOmissionCause(err error) string {
+	if err == nil || os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") != "1" {
+		return "withheld"
+	}
+	return err.Error()
 }
 
 func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantID, conversationID string, principal chat.Principal) ([]PersonaAudienceMember, error) {
@@ -107,19 +129,36 @@ func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantI
 		}
 		for _, member := range members.Memberships {
 			if member.TenantID != tenantID || member.ConversationID != conversationID || strings.TrimSpace(member.SubjectID) == "" || strings.TrimSpace(member.HomeTenantID) == "" {
-				return nil, fmt.Errorf("%w: invalid current membership in %q", errPersonaAudienceSourceUnavailable, conversationID)
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "invalid_membership")
+				continue
 			}
 			key := member.HomeTenantID + "\x00" + member.SubjectID
 			if _, ok := seen[key]; ok {
-				return nil, fmt.Errorf("%w: duplicate membership in %q", errPersonaAudienceSourceUnavailable, conversationID)
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "duplicate_membership")
+				continue
 			}
 			seen[key] = struct{}{}
+			agent, err := s.isPersonaChatIdentity(ctx, tenantID, member.HomeTenantID, member.SubjectID)
+			if err != nil {
+				return nil, err
+			}
+			if agent {
+				continue
+			}
 			facts, err := s.Directory.ResolvePersonaAudienceMember(ctx, member.HomeTenantID, member.SubjectID)
 			if err != nil {
-				return nil, fmt.Errorf("%w: resolve %s: %v", ErrPersonaAudienceDirectoryFactsMissing, key, err)
+				if member.HomeTenantID == principal.TenantID && member.SubjectID == principal.SubjectID {
+					return nil, fmt.Errorf("%w: resolve current principal %s: %v", ErrPersonaAudienceDirectoryFactsMissing, key, err)
+				}
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "directory_facts_missing")
+				continue
 			}
 			if facts.SubjectID != member.SubjectID || !nonemptyFacts(facts.Roles) || !nonemptyFacts(facts.Populations) || strings.TrimSpace(facts.OrganizationScope) == "" {
-				return nil, fmt.Errorf("%w: subject %s in tenant %s", ErrPersonaAudienceDirectoryFactsMissing, member.SubjectID, member.HomeTenantID)
+				if member.HomeTenantID == principal.TenantID && member.SubjectID == principal.SubjectID {
+					return nil, fmt.Errorf("%w: current principal %s in tenant %s", ErrPersonaAudienceDirectoryFactsMissing, member.SubjectID, member.HomeTenantID)
+				}
+				slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "audience", "item_type", "member", "item_id", member.SubjectID, "reason", "directory_facts_incomplete")
+				continue
 			}
 			facts.Roles = append([]string(nil), facts.Roles...)
 			facts.Populations = append([]string(nil), facts.Populations...)
@@ -130,7 +169,31 @@ func (s *DatabasePersonaAudienceSource) listMembers(ctx context.Context, tenantI
 		}
 		page.Cursor = members.NextCursor
 	}
+	if _, ok := seen[principal.TenantID+"\x00"+principal.SubjectID]; !ok {
+		return nil, fmt.Errorf("%w: current principal membership missing", ErrPersonaAudienceDirectoryFactsMissing)
+	}
 	return out, nil
+}
+
+func (s *DatabasePersonaAudienceSource) isPersonaChatIdentity(ctx context.Context, tenantID, homeTenantID, subjectID string) (bool, error) {
+	if s.Installations == nil || tenantID != homeTenantID {
+		return false, nil
+	}
+	store, err := s.Installations.ForTenant(ctx, values.TenantId(tenantID))
+	if err != nil || store == nil {
+		return false, fmt.Errorf("%w: scope persona identities", errPersonaAudienceSourceUnavailable)
+	}
+	identity, err := store.LookupPersonaChatIdentity(ctx, subjectID)
+	if errors.Is(err, agentpersonastore.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("%w: resolve persona identity: %v", errPersonaAudienceSourceUnavailable, err)
+	}
+	if identity.TenantID.String() != tenantID || identity.AgentID != subjectID || strings.TrimSpace(identity.PersonaID) == "" {
+		return false, fmt.Errorf("%w: invalid persona identity", errPersonaAudienceSourceUnavailable)
+	}
+	return identity.Active, nil
 }
 
 func nonemptyFacts(items []string) bool {

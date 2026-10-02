@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -72,6 +73,16 @@ func NewAgentResourceRuntime(cfg AgentResourceRuntimeConfig) (*AgentResourceRunt
 		return nil, err
 	}
 	return &AgentResourceRuntime{cell: cfg.Policy.CellID, work: work, providers: providers, resolve: cfg.ResolveIdentity, observe: cfg.ObserveAdmission}, nil
+}
+
+// BindIdentityResolver supplies the durable identity resolver after the common
+// runtime that owns admissions and runs has been composed. It binds once: a
+// resolver given at construction, or bound earlier, is kept.
+func (r *AgentResourceRuntime) BindIdentityResolver(resolve func(context.Context, string, string) (AgentResourceIdentity, error)) {
+	if r == nil || resolve == nil || r.resolve != nil {
+		return
+	}
+	r.resolve = resolve
 }
 
 // AgentResourceLease releases both reservations exactly once. PoolWait is
@@ -201,16 +212,16 @@ func (r *AgentResourceRuntime) AcquireAgentModelResources(ctx context.Context, r
 		}
 	} else {
 		if r.resolve == nil {
-			return nil, ErrAgentResourceIdentity
+			return nil, fmt.Errorf("%w: no durable identity resolver", ErrAgentResourceIdentity)
 		}
 		var err error
 		identity, err = r.resolve(ctx, request.TenantID, request.TaskID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("resolve durable resource identity: %w", err)
 		}
 	}
 	if identity.TenantID != request.TenantID || identity.UserID != request.UserID || identity.TaskID != request.TaskID {
-		return nil, ErrAgentResourceIdentity
+		return nil, fmt.Errorf("%w: durable actor does not match the model request (tenant %t, user %t, task %t)", ErrAgentResourceIdentity, identity.TenantID == request.TenantID, identity.UserID == request.UserID, identity.TaskID == request.TaskID)
 	}
 	lease, err := r.Acquire(ctx, identity, request.ProviderID)
 	if err != nil {

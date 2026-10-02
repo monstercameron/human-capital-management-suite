@@ -12,11 +12,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmanifest"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentportable"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -60,6 +62,10 @@ type AgentPortableDraftReader interface {
 	GetPortableDraft(context.Context, string, string) (agentportable.Draft, error)
 }
 
+type AgentPortableDraftCatalogReader interface {
+	ReadPortableDraftProjection(context.Context, string, string) (productui.AgentPortableReviewDraft, error)
+}
+
 // AgentStorePortableDraftStore is the production adapter for the isolated
 // agent manifest store. Imported instruction bytes must match the definition's
 // digest, and the complete draft is recorded atomically without execution grants.
@@ -100,6 +106,24 @@ func (s AgentStorePortableDraftStore) GetPortableDraft(ctx context.Context, tena
 		return agentportable.Draft{}, err
 	}
 	return agentportable.Draft{TenantID: tenant, State: stored.State, Manifest: stored.Manifest, Instructions: stored.Instructions}, nil
+}
+
+func (s AgentStorePortableDraftStore) ReadPortableDraftProjection(ctx context.Context, tenant, id string) (productui.AgentPortableReviewDraft, error) {
+	if s.Store == nil || s.TenantUUID == nil {
+		return productui.AgentPortableReviewDraft{}, ErrAgentPortableUnavailable
+	}
+	_, verifiedTenant, err := portablePrincipal(ctx)
+	if err != nil || verifiedTenant != tenant {
+		return productui.AgentPortableReviewDraft{}, ErrAgentPortableDenied
+	}
+	stored, err := s.Store.GetPortableDefinitionDraft(ctx, s.TenantUUID(tenant), id)
+	if err != nil {
+		return productui.AgentPortableReviewDraft{}, err
+	}
+	if stored.State != "DRAFT" || stored.Manifest.ID != id || stored.Manifest.Validate() != nil || len(stored.Manifest.ContextGrants) != 0 || !portableInstructionDigestMatches(stored.Instructions, stored.Manifest.InstructionsDigest) || stored.CreatedAt.IsZero() {
+		return productui.AgentPortableReviewDraft{}, ErrAgentPortableInvalid
+	}
+	return productui.AgentPortableReviewDraft{ID: id, Name: stored.Manifest.Purpose, Purpose: stored.Manifest.Purpose, ImportedAt: stored.CreatedAt.UTC().Format(time.RFC3339), State: stored.State, Version: stored.Manifest.Version}, nil
 }
 
 func (s *AgentPortableService) ReadDraft(ctx context.Context, id string) (agentportable.Draft, error) {

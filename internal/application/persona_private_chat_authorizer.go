@@ -13,6 +13,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+	"path/filepath"
+	"runtime"
 )
 
 var errPersonaPrivateChatScope = errors.New("application: private chat scope unavailable")
@@ -54,11 +56,11 @@ func NewPersonaPrivateChatScopeAuthorizer(conversations personaPrivateChatConver
 // snapshots do not agree on the current audience revision.
 func (a *PersonaPrivateChatScopeAuthorizer) AuthorizePrivateChat(ctx context.Context, request agentgate.PrivateChatScopeRequest) (agentgate.PrivateChatScopeEvidence, error) {
 	if a == nil || a.conversations == nil || a.audience == nil || a.threads == nil {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	verified, ok := personaChatScopePrincipal(ctx, request)
 	if !ok {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	tenant, invoker := verified.Tenant().String(), verified.Subject()
 	principal := chat.Principal{TenantID: tenant, SubjectID: invoker, Roles: verified.Roles()}
@@ -66,27 +68,27 @@ func (a *PersonaPrivateChatScopeAuthorizer) AuthorizePrivateChat(ctx context.Con
 		Principal: principal, TenantID: tenant, ConversationID: request.ConversationID,
 	})
 	if err != nil || conversation.ID != request.ConversationID || conversation.TenantID != tenant || conversation.Archived || !privatePersonaConversation(conversation.Kind) {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	audience, err := a.audience.CaptureAudienceSnapshot(ctx, tenant, request.ConversationID)
 	if err != nil || !validPrivatePersonaAudience(audience, tenant, request.ConversationID, conversation.Kind) {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	thread, err := a.threads.CaptureThreadSnapshot(ctx, chat.ThreadSnapshotRequest{
 		Principal: principal, TenantID: tenant, ConversationID: request.ConversationID,
 		ThreadID: request.ThreadID, InvokingPostID: request.InvokingPostID, Limit: chat.MaxThreadSnapshotPosts,
 	})
 	if err != nil || !validPrivatePersonaThread(thread, tenant, request, principal) || thread.AuthorityRevision != uint64(audience.ConversationRevision) {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	memberRevision, memberOK := privatePersonaMembershipRevision(audience, tenant, invoker)
 	post, postOK := privatePersonaInvokingPost(thread, request, tenant, invoker)
 	if !memberOK || !postOK {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	digest, err := privatePersonaPostDigest(post)
 	if err != nil {
-		return agentgate.PrivateChatScopeEvidence{}, errPersonaPrivateChatScope
+		return agentgate.PrivateChatScopeEvidence{}, personaPrivateChatScopeDeniedHere()
 	}
 	return agentgate.PrivateChatScopeEvidence{
 		Allowed: true, Tenant: request.Tenant, InvokerID: invoker, ConversationID: request.ConversationID,
@@ -186,4 +188,14 @@ func validPersonaPrivateDigest(value string) bool {
 		}
 	}
 	return true
+}
+
+// personaPrivateChatScopeDeniedHere keeps the fail-closed sentinel and names
+// the refusing check, never request content.
+func personaPrivateChatScopeDeniedHere() error {
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		return errPersonaPrivateChatScope
+	}
+	return fmt.Errorf("%w (%s:%d)", errPersonaPrivateChatScope, filepath.Base(file), line)
 }

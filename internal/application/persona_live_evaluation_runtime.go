@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentbudget"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentegress"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenteval"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
@@ -45,6 +46,7 @@ type PersonaLiveEvaluationFixtureDeployment struct {
 	Skills      PersonaLiveCaseSkillSource
 	Placements  map[string]PersonaLiveCasePlacement
 	Threads     agentinvoke.ThreadReader
+	Documents   agentdocref.Resolver
 	Tools       interface {
 		PersonaRunT0ToolExecutionPort
 		PersonaRuntimeToolGroundingSource
@@ -196,12 +198,12 @@ func NewPersonaLiveEvaluationRuntime(ctx context.Context, c PersonaLiveEvaluatio
 	if err != nil {
 		return nil, err
 	}
-	work := &PersonaCandidateModelWorkSource{Definitions: f.Definitions, Threads: f.Threads, Leases: leases, Route: c.Route, Workload: workloadID, Now: c.Now, Ledger: ledger}
+	work := &personaCandidateDocumentModelWorkSource{base: &PersonaCandidateModelWorkSource{Definitions: f.Definitions, Threads: f.Threads, Leases: leases, Route: c.Route, Workload: workloadID, Now: c.Now, Ledger: ledger}, documents: f.Documents}
 	admissions, err := agentrunstore.NewAdmissionRepository(c.AgentStore, c.TenantUUID(values.TenantId(target.SyntheticTenantID)), values.TenantId(target.SyntheticTenantID))
 	if err != nil {
 		return nil, err
 	}
-	evidence := &PersonaCandidateSourceEvidence{Definitions: f.Definitions, Admissions: admissions, Authority: f.Authority, Threads: f.Threads, Route: c.Route, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: c.Personas}, ToolSources: f.Tools}
+	evidence := &PersonaCandidateSourceEvidence{Definitions: f.Definitions, Admissions: admissions, Authority: f.Authority, Threads: f.Threads, Documents: f.Documents, Route: c.Route, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: c.Personas}, ToolSources: f.Tools}
 	f.Scope.Sources = evidence
 	f.Definitions.Scope = f.Scope
 	terms := LocalPersonaOpenAIProcessingTerms(selection.ProfileID)

@@ -13,12 +13,17 @@ import (
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatadmission"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatapps"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatgate"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecipient"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrouting"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatsearch"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatappstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatauthority"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatrecordstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	intentapp "github.com/monstercameron/human-capital-management-suite/internal/intent/app"
@@ -124,6 +129,14 @@ type ChatAdmissionConfig = chatadmission.Config
 // the chat composition rather than in the general serve options so the chat
 // lanes and the policy freshness bound stay owned by chat.
 type ChatComposition struct {
+	GateAuthority chatgate.Authority
+	GateDirectory ChatgateDirectory
+
+	LocationGrant  chatcore.LocationGrant
+	LocationSites  chatcore.LocationSitePort
+	LocationLookup chatcore.AddressLookup
+	LocationUsage  chatcore.LocationUsagePort
+
 	// PersonaReferences resolves only current, installed persona identities for
 	// the viewer. A nil source leaves persona mentions unavailable.
 	PersonaReferences personaChatReferenceSource
@@ -155,9 +168,29 @@ const DefaultChatStreamRecheckInterval = 5 * time.Second
 // Its store has a separate pool and therefore a separate lifecycle from the
 // core database pool carried by ServeInput.
 type composedChat struct {
-	service    chatcore.ConversationService
-	extensions *ChatExtensions
-	close      func()
+	status           chatcore.ChannelStatusService
+	renderings       *ChatRenderingSurface
+	search           ChatSearchHTTP
+	gates            ChatgateSurface
+	filters          *chatfilter.Service
+	store            *chatstore.Store
+	locations        ChatmapSurface
+	locationPictures ChatmapPictures
+
+	moderation            *chatcore.ModerationService
+	moderationStore       *chatstore.ModeratedAdapter
+	moderationPermissions ChatModerationAdmission
+	service               chatcore.ConversationService
+	extensions            *ChatExtensions
+	// routes is the placement directory ordinary Chat writes are fenced by. A
+	// writer that goes to the store directly (an agent's public announcement)
+	// takes its write lease from it.
+	routes chatrouting.Directory
+	// core is the Chat service the reader projections run on. The served
+	// composition binds the document hub's live access check onto it once the
+	// document runtime exists (bindAgentSourceAccess).
+	core  *chatcore.Service
+	close func()
 }
 
 // chatStreamPorts binds the live stream's read and authorization ports to the
@@ -188,7 +221,35 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		return composedChat{}, fmt.Errorf("application: compose chat database: %w", err)
 	}
 	adapter := chatstore.NewAdapter(store)
-	service := chatcore.NewService(adapter, now)
+	moderated := chatstore.NewModeratedAdapter(adapter)
+	if facts != nil {
+		source := newChatAuthoritySource(facts)
+		moderated.CurrentRoles = func(ctx context.Context, p chatcore.Principal) ([]string, error) {
+			at := time.Now()
+			if now != nil {
+				at = now()
+			}
+			current, err := source.Resolve(ctx, p.TenantID, p.SubjectID, at)
+			if err != nil {
+				return nil, err
+			}
+			roles := append([]string(nil), current.Roles...)
+			for _, role := range current.Roles {
+				if role == chatpolicy.WorkspaceAdministratorRole {
+					roles = append(roles, "WORKSPACE_ADMIN")
+				}
+			}
+			return roles, nil
+		}
+	}
+	service := chatcore.NewService(moderated, now)
+	filterPolicy := newChatFilterPolicy(store, facts, now)
+	filterPolicy.AuthorIdentity = chatFilterIdentity{facts: facts, now: now, personas: input.PersonaReferences}
+	service.SetContentPolicy(filterPolicy)
+	// CHATMOD-001: an agent's public answer or scheduled announcement is written
+	// by the store with a trusted author and never reaches the service's own
+	// content policy; the guard gives it the same filters as a person's text.
+	store.SetTrustedContentGuard(chatmod002TrustedGuard(filterPolicy))
 	service.SetEphemeralStore(adapter)
 	apps := &chatapps.Service{Repo: chatappstore.NewChatStore(store), Secret: []byte(cfg.ChatCursorKey), Now: now}
 	if intentService != nil {
@@ -213,11 +274,23 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		service.SetAuthority(unavailableChatAuthority{})
 	}
 	records := &chatrecords.Service{Repo: chatrecordstore.New(store), Auth: ChatRecordAuthority{}, Clock: now}
-	routed, err := composeChatRouting(ctx, &auditedChatService{ConversationService: service, records: records, atomicCore: true}, corePool)
+	routed, err := composeChatRouting(ctx, &auditedChatService{ConversationService: chatFilterBoundary(service), records: records, atomicCore: true}, corePool, service)
 	if err != nil {
 		store.Close()
 		return composedChat{}, fmt.Errorf("application: compose chat routing: %w", err)
 	}
+	filterPolicy.AttachmentTypes = chatattach001AttachmentTypes(filterPolicy.AttachmentTypes)
+	directory, err := chatroutestore.New(corePool)
+	if err != nil {
+		store.Close()
+		return composedChat{}, err
+	}
+	clock := now
+	if clock == nil {
+		clock = time.Now
+	}
+	moderationPorts := &chatremoveRoutedStore{ModerationStore: moderated, Permissions: moderated, Directory: directory, Cache: chatrouting.NewRouteCache(5 * time.Second), Now: clock}
+	moderation := &chatcore.ModerationService{Store: moderationPorts, Filters: chatmod005FilterQueue{Filters: chatstore.NewFilterModeration(moderated), Routes: moderationPorts}, Clock: now}
 	if input.PersonaDMFactory != nil {
 		if input.PersonaDM != nil {
 			store.Close()
@@ -230,6 +303,11 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		}
 	}
 	service.SetPersonaDMResolver(input.PersonaDM)
+	wave, err := composeIntegrate2Chat(store, adapter, service, routed, filterPolicy.Filters, facts, input, now)
+	if err != nil {
+		store.Close()
+		return composedChat{}, err
+	}
 	grants := NewChatCompanyGrants(facts, policy)
 	extensions := &ChatExtensions{
 		Conversations: routed,
@@ -238,13 +316,20 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		Recipients:    &chatrecipient.Service{Conversations: routed, Repo: chatstore.NewRecipientStateStore(store)},
 		Grants:        grants,
 		TodoStore:     store,
+		// CHATMOD-002: to-do, poll and widget text passes the same filters as a message.
+		ContentFilter: filterPolicy,
+	}
+	registry := wave.search.Port.(*chatsearch.Registry)
+	if err := RegisterSavedMessagesSearch(registry, integrate2SavedPort(composedChat{extensions: extensions, renderings: wave.renderings})); err != nil {
+		store.Close()
+		return composedChat{}, err
 	}
 	apps.Authority = ChatAppAuthority{Conversations: routed}
 	poll := input.PollInterval
 	if poll <= 0 {
 		poll = 250 * time.Millisecond
 	}
-	reader, authorizer := chatStreamPorts(routed, adapter)
+	reader, authorizer := chatStreamPorts(routed, moderated)
 	recheck := input.StreamRecheckInterval
 	if recheck <= 0 || recheck > DefaultChatStreamRecheckInterval {
 		recheck = DefaultChatStreamRecheckInterval
@@ -261,7 +346,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	if err != nil {
 		if errors.Is(err, ErrChatStreamingDisabled) {
 			grants.withRevocation(authorityCache, nil)
-			return composedChat{service: &streamingChatService{ConversationService: routed, membership: adapter, authority: authorityCache, personaDM: input.PersonaDM}, extensions: extensions, close: store.Close}, nil
+			return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
 		}
 		store.Close()
 		return composedChat{}, fmt.Errorf("application: compose chat stream: %w", err)
@@ -270,5 +355,5 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	// cached authority and closes that tenant's live subscriptions.
 	grants.withRevocation(authorityCache, streamRuntime)
 	extensions.Admission = streamRuntime
-	return composedChat{service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: adapter, authority: authorityCache, personaDM: input.PersonaDM}, extensions: extensions, close: store.Close}, nil
+	return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
 }

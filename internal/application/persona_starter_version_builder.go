@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenttemplate"
@@ -24,6 +25,8 @@ type PersonaStarterVersionRequest struct {
 	DisplayName        string
 	Purpose            string
 	Instructions       string
+	Guidance           *string
+	DocumentReferences []agentdocref.Reference
 	ChannelClasses     []agentpersona.ChannelClass
 	BusinessOwnerID    string
 	TechnicalStewardID string
@@ -62,6 +65,12 @@ func (b *PersonaStarterDraftBuilder) BuildVersion(ctx context.Context, current a
 	}
 	if len(req.ChannelClasses) > 0 {
 		profile.ChannelClasses = append([]agentpersona.ChannelClass(nil), req.ChannelClasses...)
+	}
+	if req.DocumentReferences != nil {
+		profile.DocumentReferences = append([]agentdocref.Reference(nil), req.DocumentReferences...)
+	}
+	if req.Guidance != nil {
+		profile.Guidance = strings.Clone(*req.Guidance)
 	}
 	version, err := buildStarterVersionProfile(ctx, b.Drafts.Profiles, profile)
 	if err != nil {
@@ -269,6 +278,7 @@ func clonePersonaVersionProfile(profile agentpersona.PersonaProfile) agentperson
 	profile.Audience.OrganizationScopes = append(profile.Audience.OrganizationScopes[:0:0], profile.Audience.OrganizationScopes...)
 	profile.ConversationKinds = append(profile.ConversationKinds[:0:0], profile.ConversationKinds...)
 	profile.ChannelClasses = append(profile.ChannelClasses[:0:0], profile.ChannelClasses...)
+	profile.DocumentReferences = append(profile.DocumentReferences[:0:0], profile.DocumentReferences...)
 	profile.DataClassesRead = append(profile.DataClassesRead[:0:0], profile.DataClassesRead...)
 	profile.DataClassesWritten = append(profile.DataClassesWritten[:0:0], profile.DataClassesWritten...)
 	return profile

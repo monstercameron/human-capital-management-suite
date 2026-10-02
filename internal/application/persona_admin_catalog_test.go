@@ -9,6 +9,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenttemplate"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -53,7 +55,7 @@ func (catalogSkills) ResolvePin(pin agentskills.SkillPin) (agentskills.SkillReco
 	if pin.ID != "skill.read" || pin.Version != 1 || pin.Digest != "skill-digest" {
 		return agentskills.SkillRecord{}, errors.New("unknown pin")
 	}
-	return agentskills.SkillRecord{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version, SideEffectTier: agentskills.TierRead, DataClassesRead: []string{"WORKFORCE"}}, Digest: pin.Digest, Status: agentskills.StatusActive}, nil
+	return agentskills.SkillRecord{Definition: agentskills.SkillDefinition{ID: pin.ID, Version: pin.Version, Description: "Reads approved workforce records.", SideEffectTier: agentskills.TierRead, DataClassesRead: []string{"WORKFORCE"}}, Digest: pin.Digest, Status: agentskills.StatusActive}, nil
 }
 
 type catalogAuth struct {
@@ -90,7 +92,7 @@ func TestTodo_AGENTP_018(t *testing.T) {
 	grants := &catalogGrants{allowed: true}
 	auth := &catalogAuth{}
 	install := PersonaCatalogInstallation{ID: "install", PersonaID: "persona-a", PersonaVersion: 1, ConversationID: "conv-a", Conversation: "Team", Kind: "CHANNEL", Audience: "staff", ReplyPlacement: "thread", Active: true, ChannelClass: string(agentpersona.ChannelPrivate), ConversationKind: string(agentpersona.ConversationDirect), MaxTier: agentskills.TierRead, AllowedDataClasses: []string{"WORKFORCE"}}
-	svc := &PersonaAdminCatalogService{Versions: catalogVersions{{Profile: pv, Lifecycle: agentpersona.StatePublished, Owner: "owner", Steward: "steward"}}, Installations: catalogInstalls{install}, Targets: catalogTargets{users: []productui.PersonaAdminTarget{{ID: "user-a", Label: "User A"}}, conversations: []productui.PersonaAdminTarget{{ID: "conv-a", Label: "Team"}}}, Skills: catalogSkills{}, Grants: grants, Authorizer: auth}
+	svc := &PersonaAdminCatalogService{Versions: catalogVersions{{Profile: pv, Lifecycle: agentpersona.StatePublished, Owner: "owner", Steward: "steward"}}, Installations: catalogInstalls{install}, Targets: catalogTargets{users: []productui.PersonaAdminTarget{{ID: "user-a", Label: "User A"}, {ID: "owner", Label: "Olivia Owner"}, {ID: "steward", Label: "Sam Steward"}}, conversations: []productui.PersonaAdminTarget{{ID: "conv-a", Label: "Team"}}}, Skills: catalogSkills{}, Grants: grants, Authorizer: auth}
 	snapshot, err := svc.Snapshot(ctx, productui.PersonaAdminSnapshotRequest{TenantID: "tenant-a", Principal: "user-a"})
 	if err != nil {
 		t.Fatal(err)
@@ -101,6 +103,9 @@ func TestTodo_AGENTP_018(t *testing.T) {
 	persona := snapshot.Personas[0]
 	if persona.StarterID != starter.ID || persona.StarterVersion != starter.Version || len(persona.ChannelClasses) != 2 || persona.ChannelClasses[0] != string(agentpersona.ChannelPrivate) || persona.ChannelClasses[1] != string(agentpersona.ChannelPublic) {
 		t.Fatalf("starter/channel metadata projection = %+v", persona)
+	}
+	if persona.Instructions != "Answer only with approved records." || persona.OwnerName != "Olivia Owner" || persona.StewardName != "Sam Steward" || len(persona.AudienceRoles) != 1 || persona.AudienceRoles[0].ID != "member" || len(persona.Organizations) != 1 || persona.Organizations[0].ID != "org-a" || persona.Skills[0].Description != "Reads approved workforce records." {
+		t.Fatalf("readable persona projection = %+v", persona)
 	}
 	if len(snapshot.Preview.EffectiveSkills) != 1 || snapshot.Preview.DerivedData[0] != "WORKFORCE" {
 		t.Fatalf("preview did not derive authorized reach: %#v", snapshot.Preview)
@@ -176,6 +181,41 @@ func TestTodo_AGENTP_018(t *testing.T) {
 	}
 	if len(metadata.Personas[0].Skills) != 1 || metadata.Personas[0].DerivedData[0] != "WORKFORCE" || len(metadata.Preview.EffectiveSkills) != 0 {
 		t.Fatalf("catalog metadata and caller-specific preview were not separated: %#v", metadata)
+	}
+}
+
+func TestTodo_AGENTUX_003(t *testing.T) {
+	ctx, principal := catalogContext(t)
+	profile, err := agentpersona.Seal(agentpersona.PersonaProfile{
+		Manifest:  agentpersona.AgentManifestRef{ID: "agent", Version: 1, Digest: "manifest", SchemaVersion: 1},
+		PersonaID: "persona-readable", Version: 1, Handle: "readable", DisplayName: "Readable Persona", AvatarRef: "avatar",
+		Purpose: "Help safely", Instructions: "Answer only with approved records.", Owner: "owner", Steward: "steward",
+		Audience:          agentpersona.Audience{Roles: []string{"custom_people_partner"}, Populations: []string{"employees"}, OrganizationScopes: []string{"org-a"}},
+		SkillPins:         []agentskills.SkillPin{{ID: "skill.read", Version: 1, Digest: "skill-digest"}},
+		TierCeiling:       agentskills.TierRead,
+		ConversationKinds: []agentpersona.ConversationKind{agentpersona.ConversationDirect},
+		ChannelClasses:    []agentpersona.ChannelClass{agentpersona.ChannelPrivate},
+		EvalSuiteRef:      "evaluation-suite",
+		EvalLimits:        agentpersona.EvaluationLimits{MaxCost: 1, MaxSteps: 1, MaxLatencyMS: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	room := chat.Conversation{ID: "room-a", TenantID: "tenant-a", Name: "People operations", Kind: chat.PrivateChannel}
+	targets := &ChatDirectoryPersonaCatalogTargets{
+		Chat:      personaCatalogChatFake{rooms: []chat.Conversation{room}, members: []chat.Membership{{ConversationID: room.ID, TenantID: room.TenantID, HomeTenantID: room.TenantID, SubjectID: principal.Subject()}}},
+		Directory: personaCatalogDirectoryFake{},
+		Roles:     personaCatalogRoleDirectoryFake{roles: []string{"hcm_admin"}},
+		RoleNames: personaCatalogRoleStoreFake{snapshot: roleaccess.Snapshot{Roles: []roleaccess.Role{{ID: "custom_people_partner", Name: "Custom people partner", Active: true}}}},
+	}
+	svc := &PersonaAdminCatalogService{Versions: catalogVersions{{Profile: profile, Lifecycle: agentpersona.StatePublished, Owner: "owner", Steward: "steward"}}, Installations: catalogInstalls{}, Targets: targets, Skills: catalogSkills{}, Grants: &catalogGrants{allowed: true}, Authorizer: &catalogAuth{}}
+	snapshot, err := svc.Snapshot(ctx, productui.PersonaAdminSnapshotRequest{})
+	if err != nil || len(snapshot.Personas) != 1 || len(snapshot.SubjectOptions) != 1 || snapshot.SubjectOptions[0].Role != "hcm_admin" || len(snapshot.Conversations) != 1 || snapshot.Conversations[0].Kind != string(chat.PrivateChannel) {
+		t.Fatalf("readable snapshot=%+v err=%v", snapshot, err)
+	}
+	persona := snapshot.Personas[0]
+	if persona.Instructions != "Answer only with approved records." || persona.OwnerName != "Member owner" || persona.StewardName != "Member steward" || len(persona.AudienceRoles) != 1 || persona.AudienceRoles[0].Label != "Custom people partner" || len(persona.Organizations) != 1 || persona.Organizations[0].ID != "org-a" || len(persona.Skills) != 1 || persona.Skills[0].Description != "Reads approved workforce records." {
+		t.Fatalf("readable persona=%+v", persona)
 	}
 }
 

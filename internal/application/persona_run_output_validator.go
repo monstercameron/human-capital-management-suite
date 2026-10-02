@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -438,7 +440,11 @@ func (v *SealedPersonaRunOutputValidator) ObservePersonaRunOutput(ctx context.Co
 }
 
 func sealPersonaRunChatReply(ctx context.Context, admission agentrun.Record, run runstate.Run, authority PersonaRunChatReplyAuthority, replyText string) (agentsecurity.FinalOutputPersistence, error) {
-	answerDatum, err := authority.Gateway.Infer(replyText, authority.Grounding...)
+	grounding, err := personaQualitySelectedGrounding(authority, replyText)
+	if err != nil {
+		return agentsecurity.FinalOutputPersistence{}, err
+	}
+	answerDatum, err := authority.Gateway.Infer(replyText, grounding...)
 	if err != nil {
 		return agentsecurity.FinalOutputPersistence{}, fmt.Errorf("ground persona chat reply: %w", err)
 	}
@@ -600,13 +606,34 @@ func validPersonaOutputObservationDigest(value string) bool {
 
 func validatePersonaChatReply(text string) error {
 	trimmed := strings.TrimSpace(text)
-	if trimmed == "" || len(trimmed) > 16*1024 || personaReplyLinkPattern.MatchString(trimmed) {
+	if trimmed == "" || len(trimmed) > 16*1024 || personaReplyLinkPattern.MatchString(personaQualityCitationMarker.ReplaceAllString(trimmed, "")) {
+		personaChatReplyRefusalCause(trimmed, "empty, too long, or contains a link, square brackets or a source line")
 		return errPersonaChatReplyUnsafe
 	}
 	for _, char := range trimmed {
 		if unicode.IsControl(char) && char != '\n' && char != '\t' {
+			personaChatReplyRefusalCause(trimmed, "contains a control character")
 			return errPersonaChatReplyUnsafe
 		}
 	}
+	if !personaReplyHasStatement(trimmed) {
+		personaChatReplyRefusalCause(trimmed, "states nothing once citation markers are removed")
+		return errPersonaChatReplyUnsafe
+	}
 	return nil
+}
+
+// personaChatReplyRefusalCause is the developer cell's opt-in view of why a
+// model's reply was refused. The person is never shown the refused text, and
+// a served deployment does not set the switch.
+func personaChatReplyRefusalCause(text, rule string) {
+	if os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") != "1" {
+		return
+	}
+	excerpt := text
+	if len(excerpt) > 600 {
+		excerpt = excerpt[:600]
+	}
+	match := personaReplyLinkPattern.FindString(personaQualityCitationMarker.ReplaceAllString(text, ""))
+	slog.Warn("hcmnext.persona_reply_refused", "rule", rule, "length", len(text), "matched", match, "excerpt", excerpt)
 }

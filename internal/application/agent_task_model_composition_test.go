@@ -100,7 +100,7 @@ func TestTodo_AGENT_017_ServedTaskOpenAIComposition(t *testing.T) {
 	if runtime.Model.Available() {
 		t.Fatal("unbound task model was available")
 	}
-	if err := composeServedAgentTaskModel(context.Background(), cfg, runtime, func(string) string { return "test-only-provider-key" }, time.Now); err != nil {
+	if err := composeServedAgentTaskModel(context.Background(), cfg, runtime, nil, func(string) string { return "test-only-provider-key" }, time.Now); err != nil {
 		t.Fatal(err)
 	}
 	if !runtime.Model.Available() || calls.Load() != 0 {
@@ -124,7 +124,7 @@ func TestTodo_AGENT_017_ServedTaskOpenAIComposition(t *testing.T) {
 	if !strings.Contains(task.Ledger.AnswerText, "private task reached OpenAI") {
 		t.Fatalf("answer not persisted: %+v", task)
 	}
-	if err := composeServedAgentTaskModel(context.Background(), cfg, runtime, func(string) string { return "test-only-provider-key" }, time.Now); !errors.Is(err, ErrAgentModelGatewayNotConfigured) {
+	if err := composeServedAgentTaskModel(context.Background(), cfg, runtime, nil, func(string) string { return "test-only-provider-key" }, time.Now); !errors.Is(err, ErrAgentModelGatewayNotConfigured) {
 		t.Fatalf("rebound model: %v", err)
 	}
 }
@@ -140,16 +140,16 @@ func sameTaskModelTestSchema(left, right json.RawMessage) bool {
 }
 
 func TestTodo_AGENT_017_ServedTaskMissingQualification(t *testing.T) {
-	if err := composeServedAgentTaskModel(nil, ServeConfig{}, nil, nil, nil); err != nil {
+	if err := composeServedAgentTaskModel(nil, ServeConfig{}, nil, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(t.TempDir())
 	runtime := &agentRuntime{TypedModels: &AgentTypedModelDispatchBinding{}}
-	if err := composeServedAgentTaskModel(context.Background(), ServeConfig{Profile: ServeProfileLocalDev}, runtime, nil, nil); err != nil || runtime.TypedModels.Available() {
+	if err := composeServedAgentTaskModel(context.Background(), ServeConfig{Profile: ServeProfileLocalDev}, runtime, nil, nil, nil); err != nil || runtime.TypedModels.Available() {
 		t.Fatalf("missing qualification enabled task model: %v", err)
 	}
 	writeServedProviderTestDeployment(t, filepath.FromSlash(localAgentTaskModelDeploymentPath))
-	if err := composeServedAgentTaskModel(context.Background(), ServeConfig{Profile: ServeProfileLocalDev}, runtime, func(string) string { return "test-only-key" }, nil); err != nil || runtime.TypedModels.Available() {
+	if err := composeServedAgentTaskModel(context.Background(), ServeConfig{Profile: ServeProfileLocalDev}, runtime, nil, func(string) string { return "test-only-key" }, nil); err != nil || runtime.TypedModels.Available() {
 		t.Fatalf("persona qualification enabled task model: %v", err)
 	}
 }

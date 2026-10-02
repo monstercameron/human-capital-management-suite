@@ -6,17 +6,29 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsecurity"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"log/slog"
+	"os"
 )
 
 var ErrPersonaReplyDeliveryUnavailable = errors.New("application: persona reply delivery unavailable")
 
 // PersonaReplyDeliveryRequest binds a sealed output to its authenticated invoker.
 type PersonaReplyDeliveryRequest struct {
-	Principal      chat.Principal
-	Output         agentsecurity.FinalOutputPersistence
-	IdempotencyKey string
+	Principal       chat.Principal
+	Output          agentsecurity.FinalOutputPersistence
+	IdempotencyKey  string
+	Documents       []agentdocref.ResolvedDocument
+	Omissions       []agentdocref.Omission
+	CitationDetails []PersonaReplyCitationDetail
+	// PrivacyRequested is set by the owner of the run when the asker asked, in
+	// the question, for the answer to stay with them (AGENTUX-070).
+	PrivacyRequested bool
+	// PrivacyUnknown is set when the question could not be read to find out; the
+	// answer then stays private, as anything that cannot be established does.
+	PrivacyUnknown bool
 }
 
 // PersonaReplyDeliveryReceipt reports the durable or recipient-only chat effect.
@@ -79,20 +91,53 @@ func (d *PersonaReplyDelivery) Deliver(ctx context.Context, request PersonaReply
 	if conversation.TenantID != identity.TenantID || conversation.ID != identity.ConversationID || conversation.Archived {
 		return PersonaReplyDeliveryReceipt{}, chat.ErrPermissionDenied
 	}
-	if conversation.Kind != chat.PublicChannel {
-		return d.deliverPrivate(ctx, request, false)
+	if conversation.Kind == chat.Direct {
+		// A direct conversation with an agent is private by nature and is unchanged.
+		return d.deliverPrivate(ctx, request, "")
 	}
+	if request.PrivacyRequested {
+		return d.deliverPrivate(ctx, request, chat.PrivateReasonAsked)
+	}
+	if request.PrivacyUnknown {
+		return d.deliverPrivate(ctx, request, chat.PrivateReasonAudience)
+	}
+	if conversation.Kind != chat.PublicChannel {
+		// The audience check can establish a public channel's readers only.
+		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
+	}
+	if fence, ok := d.floor.(interface {
+		WithPersonaOutputFence(context.Context, agentsecurity.FinalOutputPersistence, func() error) error
+	}); ok {
+		var receipt PersonaReplyDeliveryReceipt
+		err := fence.WithPersonaOutputFence(ctx, request.Output, func() error {
+			var deliveryErr error
+			receipt, deliveryErr = d.deliverPublic(ctx, request)
+			return deliveryErr
+		})
+		if err != nil && !receipt.Public {
+			return d.privateFallback(ctx, request, personaPrivateReasonOf(err))
+		}
+		return receipt, err
+	}
+	return d.deliverPublic(ctx, request)
+}
+
+func (d *PersonaReplyDelivery) deliverPublic(ctx context.Context, request PersonaReplyDeliveryRequest) (PersonaReplyDeliveryReceipt, error) {
+	identity := request.Output.Identity()
 	decision, err := d.floor.AuthorizePersonaOutput(ctx, request.Output)
 	if err != nil || decision.Revision == 0 || strings.TrimSpace(decision.Body) == "" || decision.ParentID != identity.ThreadID {
-		return d.deliverPrivate(ctx, request, true)
+		personaReplyFallbackNote(ctx, "audience_decision", fmt.Sprintf("err=%v revision=%d body_empty=%t parent_match=%t", err, decision.Revision, strings.TrimSpace(decision.Body) == "", decision.ParentID == identity.ThreadID))
+		return d.privateFallback(ctx, request, personaPrivateReasonOf(err))
 	}
-	decision.Body = renderPersonaReplyText(decision.Body, identity.TenantID, identity.ConversationID, d.outputPolicy)
+	decision.Body = renderPersonaReplyWithAgentDocuments(decision.Body, identity.TenantID, identity.ConversationID, d.outputPolicy, announcementPublicSourceTitles(request.Output, request.Documents), nil, request.CitationDetails...)
 	if decision.Body == "" {
-		return d.deliverPrivate(ctx, request, true)
+		personaReplyFallbackNote(ctx, "rendered_body_empty", "")
+		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
 	}
 	proof, err := chat.IssuePersonaDeliveryProof(ctx, request.Output, personaFixedAudienceDecision{decision: decision})
 	if err != nil {
-		return d.deliverPrivate(ctx, request, true)
+		personaReplyFallbackNote(ctx, "delivery_proof", err.Error())
+		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
 	}
 	commitRequest := chat.PersonaReplyCommitRequest{
 		TenantID: identity.TenantID, ConversationID: identity.ConversationID,
@@ -109,7 +154,8 @@ func (d *PersonaReplyDelivery) Deliver(ctx context.Context, request PersonaReply
 		post, err = d.commit.CommitPersonaReply(ctx, commitRequest)
 	}
 	if errors.Is(err, chat.ErrAudienceChanged) {
-		return d.deliverPrivate(ctx, request, true)
+		personaReplyFallbackNote(ctx, "audience_changed", err.Error())
+		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
 	}
 	if err != nil {
 		return PersonaReplyDeliveryReceipt{}, fmt.Errorf("commit persona reply: %w", err)
@@ -123,7 +169,15 @@ func (f personaFixedAudienceDecision) AuthorizePersonaOutput(context.Context, ag
 	return f.decision, nil
 }
 
-func (d *PersonaReplyDelivery) deliverPrivate(ctx context.Context, request PersonaReplyDeliveryRequest, neutralReceipt bool) (PersonaReplyDeliveryReceipt, error) {
+// privateFallback delivers an answer that could not be posted to the
+// conversation to the asker alone, with one line saying why.
+func (d *PersonaReplyDelivery) privateFallback(ctx context.Context, request PersonaReplyDeliveryRequest, reason string) (PersonaReplyDeliveryReceipt, error) {
+	return d.deliverPrivate(ctx, request, reason)
+}
+
+// deliverPrivate sends the answer to the asker alone. A non-empty reason is
+// appended as the marker that lets the card say why it is private.
+func (d *PersonaReplyDelivery) deliverPrivate(ctx context.Context, request PersonaReplyDeliveryRequest, reason string) (PersonaReplyDeliveryReceipt, error) {
 	draft, answer, err := request.Output.Payload()
 	if err != nil {
 		return PersonaReplyDeliveryReceipt{}, chat.ErrInvalidArgument
@@ -139,31 +193,31 @@ func (d *PersonaReplyDelivery) deliverPrivate(ctx context.Context, request Perso
 		body = strings.TrimSpace(draft.Narrative)
 	}
 	identity := request.Output.Identity()
-	body = renderPersonaReplyText(body, identity.TenantID, identity.ConversationID, d.outputPolicy)
+	body = renderPersonaReplyWithAgentDocuments(body, identity.TenantID, identity.ConversationID, d.outputPolicy, request.Documents, request.Omissions, request.CitationDetails...)
 	if body == "" {
 		return PersonaReplyDeliveryReceipt{}, chat.ErrInvalidArgument
+	}
+	if marker := chat.PrivateReasonMarker(reason); marker != "" {
+		body += "\n" + marker
 	}
 	post, err := d.ephemeral.SendEphemeralPost(ctx, chat.SendEphemeralPostRequest{
 		Principal: request.Principal, TenantID: request.Principal.TenantID,
 		ConversationID: request.Output.Identity().ConversationID, ThreadID: request.Output.Identity().ThreadID,
-		Body: body, IdempotencyKey: request.IdempotencyKey,
+		QuestionPostID: request.Output.Identity().PostID,
+		Body:           body, AuthorAsAgent: true, IdempotencyKey: request.IdempotencyKey,
 	})
 	if err != nil {
 		return PersonaReplyDeliveryReceipt{}, fmt.Errorf("deliver private persona reply: %w", err)
 	}
-	receipt := PersonaReplyDeliveryReceipt{Private: true, EphemeralPostID: post.ID, DurableCopyPostID: post.DurableCopyPostID, DurableCopyConversationID: post.DurableCopyConversationID}
-	if neutralReceipt {
-		_, err = d.chat.SendPost(ctx, chat.SendPostRequest{
-			Principal: request.Principal, TenantID: request.Principal.TenantID,
-			ConversationID: request.Output.Identity().ConversationID,
-			ParentID:       request.Output.Identity().ThreadID, Body: "The persona reply was sent privately to you.",
-			IdempotencyKey: request.IdempotencyKey + ":private-receipt",
-		})
-		if err != nil {
-			return PersonaReplyDeliveryReceipt{}, fmt.Errorf("commit private delivery receipt: %w", err)
-		}
-	}
-	return receipt, nil
+	return PersonaReplyDeliveryReceipt{Private: true, EphemeralPostID: post.ID, DurableCopyPostID: post.DurableCopyPostID, DurableCopyConversationID: post.DurableCopyConversationID}, nil
 }
 
 var _ chat.PersonaAudienceFloor = personaFixedAudienceDecision{}
+
+// personaReplyFallbackNote records why a public reply was redirected to the
+// invoker privately. It carries no reply text.
+func personaReplyFallbackNote(ctx context.Context, reason, detail string) {
+	if os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
+		slog.InfoContext(ctx, "hcmnext.persona_reply_private_fallback", "reason", reason, "detail", detail)
+	}
+}

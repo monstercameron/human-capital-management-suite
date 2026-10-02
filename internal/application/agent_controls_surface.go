@@ -3,7 +3,11 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
@@ -34,6 +38,19 @@ func agentControlsAuthenticated(ctx context.Context) error {
 	return nil
 }
 
+// agentControlsLogFailure records which region made the owner's controls
+// unloadable. The page shows one generic sentence, so without this line a
+// failed region cannot be told from an unavailable service. The cause text
+// may name internal identifiers and is logged only in an explicitly opted-in
+// local diagnostic session.
+func agentControlsLogFailure(ctx context.Context, region string, err error) {
+	cause := "withheld"
+	if os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
+		cause = err.Error()
+	}
+	slog.WarnContext(ctx, "hcmnext.agent_controls_failed", "region", region, "error_type", fmt.Sprintf("%T", err), "cause", cause)
+}
+
 func (s *AgentControlsSurface) Snapshot(ctx context.Context) (agentcontrols.Reply, error) {
 	var reply agentcontrols.Reply
 	if err := agentControlsAuthenticated(ctx); err != nil {
@@ -45,6 +62,7 @@ func (s *AgentControlsSurface) Snapshot(ctx context.Context) (agentcontrols.Repl
 	if s.Schedules != nil {
 		part, err := s.Schedules.Snapshot(ctx)
 		if err != nil && !errors.Is(err, agentcontrols.ErrDenied) {
+			agentControlsLogFailure(ctx, "schedules", err)
 			return reply, err
 		}
 		if err == nil {
@@ -52,15 +70,30 @@ func (s *AgentControlsSurface) Snapshot(ctx context.Context) (agentcontrols.Repl
 		}
 	}
 	if s.Operations != nil {
-		part, err := s.Operations.Snapshot(ctx)
+		operations := s.Operations
+		// The served cell historically composed owner operations without the
+		// optional catalog identity reader. Do not turn an otherwise authorized
+		// completed or failed run into a region-wide load failure; use the safe,
+		// content-free fallback labels until the richer reader is wired.
+		if owner, ok := operations.(*AgentOwnerControls); ok && owner.Identities == nil {
+			copy := *owner
+			copy.Identities = AgentFallbackControlIdentities{}
+			operations = &copy
+		}
+		part, err := operations.Snapshot(ctx)
 		if err != nil && !errors.Is(err, agentcontrols.ErrDenied) {
+			agentControlsLogFailure(ctx, "operations", err)
 			return reply, err
 		}
 		if err == nil {
 			reply.Snapshot.Available = reply.Snapshot.Available || part.Snapshot.Available
+			reply.Snapshot.OwnerName = part.Snapshot.OwnerName
 			reply.Snapshot.Runs = part.Snapshot.Runs
 			reply.Snapshot.Memory = part.Snapshot.Memory
 			reply.Snapshot.CanExport = part.Snapshot.CanExport
+			if reply.Snapshot.UpdatedAt == "" {
+				reply.Snapshot.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			}
 		}
 	}
 	return reply, nil
@@ -152,6 +185,9 @@ func mergeAgentOccurrencePreview(reply *agentcontrols.Reply, preview agentcontro
 }
 
 func OverlayAgentControlsSurface(next http.Handler, surface agentcontrols.Surface, admission transport.Config) http.Handler {
+	if next == nil {
+		next = http.NotFoundHandler()
+	}
 	mux := http.NewServeMux()
 	handler := agentcontrols.Handler{Surface: surface}
 	endpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

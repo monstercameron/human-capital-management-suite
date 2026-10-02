@@ -78,26 +78,16 @@ func (o *agentToolOwner) Prepare(_ context.Context, req agentsystem.PrepareReque
 		if !o.model.Available() {
 			return agentsystem.Prepared{}, errAgentOwnerNoModel
 		}
-		if req.Context == nil {
-			return agentsystem.Prepared{}, fmt.Errorf("%w: model step requires rebuilt task context", errAgentOwnerSkill)
-		}
-		contextBytes, err := json.Marshal(req.Context)
-		if err != nil {
-			return agentsystem.Prepared{}, err
-		}
 		prepared.Egress = &agentsystem.EgressCall{
 			Profile: agentegress.Profile{
 				ID: agentModelDestination, Kind: agentegress.TargetModel,
 				AllowedRegions: []string{agentModelRegion}, AllowedClasses: []trustdlp.DataClass{trustdlp.ClassPublic},
 				Retention: agentegress.RetentionPolicy{Mode: agentegress.RetentionNone},
 			},
-			Region: agentModelRegion, DeclaredFields: []string{"goal", "task_context"},
+			Region: agentModelRegion, DeclaredFields: []string{"goal"},
 			Fields: []agentegress.Field{{
 				Name: "goal", Value: req.Task.Goal, Class: trustdlp.ClassPublic,
 				Taint: []string{string(agentsecurity.TaintHuman)}, Provenance: []string{"task:" + req.Task.ID + ":goal"},
-			}, {
-				Name: "task_context", Value: string(contextBytes), Class: trustdlp.ClassPublic,
-				Taint: []string{string(agentsecurity.TaintDerived)}, Provenance: []string{"task:" + req.Task.ID + ":ledger"},
 			}},
 			Task: agentegress.TaskPolicy{
 				AllowedRegions: []string{agentModelRegion}, AllowedResultClasses: []trustdlp.DataClass{trustdlp.ClassPublic},

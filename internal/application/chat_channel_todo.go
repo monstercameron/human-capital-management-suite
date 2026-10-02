@@ -50,6 +50,9 @@ func (s *ChatExtensions) MutateChannelTodo(ctx context.Context, p chat.Principal
 	if err := s.channelTodoActor(ctx, p, host, conversation); err != nil {
 		return chat.ChannelTodoList{}, err
 	}
+	if err := s.checkTexts(ctx, p, host, conversation, mutation.Text); err != nil {
+		return chat.ChannelTodoList{}, err
+	}
 	if host == "" {
 		host = p.TenantID
 	}
@@ -74,6 +77,9 @@ func (s *ChatExtensions) ChannelWidgets(ctx context.Context, p chat.Principal, h
 
 func (s *ChatExtensions) MutateChannelWidget(ctx context.Context, p chat.Principal, host, conversation string, expected uint64, mutation chat.ChannelWidgetMutation) (chat.ChannelWidgets, error) {
 	if err := s.channelTodoActor(ctx, p, host, conversation); err != nil {
+		return chat.ChannelWidgets{}, err
+	}
+	if err := s.checkTexts(ctx, p, host, conversation, mutation.Purpose, mutation.RoleLabel, mutation.Title, mutation.Summary, mutation.Milestone.Text); err != nil {
 		return chat.ChannelWidgets{}, err
 	}
 	if host == "" {

@@ -18,12 +18,20 @@ import (
 // evaluation, production publication or ordinary-chat routing permission.
 func NewLocalPersonaOpenAICandidate(manifest agentmanifest.Manifest) (agentmodel.ModelProfile, PersonaRunModelRoute, error) {
 	policy, _ := LocalPersonaOpenAIModelPolicyReference()
-	starter, ok := agenttemplate.PersonaStarterFor("hcmnext.persona_template.policy_helper", 1)
+	starterID := "hcmnext.persona_template." + strings.TrimPrefix(manifest.ID, "agent.starter.")
+	starter, ok := agenttemplate.PersonaStarterFor(starterID, 1)
+	if ok && starter.ID == localAgentDemoAssistantStarterID && !slices.Equal(manifest.ToolCeiling, personaStarterToolCeiling(starter)) {
+		// Assistant's second starter image pins the workspace search skill too.
+		starter = AssistantWorkspaceStarter()
+	}
 	digest, err := manifest.Digest()
 	if err != nil || !ok || manifest.ModelPolicy != policy || manifest.OutputSchema.ID != PersonaChatReplySchema || manifest.OutputSchema.Digest != PersonaChatReplySchemaDigest || !slices.Equal(manifest.ToolCeiling, personaStarterToolCeiling(starter)) || manifest.Budget.MaxCostMicros > uint64(LocalPersonaOpenAIMaxCostMicros) {
 		return agentmodel.ModelProfile{}, PersonaRunModelRoute{}, agenteval.ErrPersonaEvaluation
 	}
-	taskID := "local.persona.policy_helper.reply"
+	// Policy Helper's task profile was published as local.persona.policy_helper.reply;
+	// the handle is policy-helper, so the separator is normalized to keep that
+	// identifier (and the model profiles sealed against it) stable.
+	taskID := "local.persona." + strings.ReplaceAll(starter.Handle, "-", "_") + ".reply"
 	profile := agentmodel.ModelProfile{ID: "local-openai-policy-helper-" + strings.TrimPrefix(digest, "sha256:")[:12], Identity: agentmodel.ModelIdentity{ProviderID: "openai", ModelID: LocalPersonaOpenAIModelID, Version: LocalPersonaOpenAIModelVersion}, Regions: []string{LocalPersonaOpenAIRegion}, DataClasses: []string{"INTERNAL", "PUBLIC"}, TaskProfileIDs: []string{taskID}, MaxLatency: LocalPersonaOpenAIMaxLatency, MaxCostMicros: int64(manifest.Budget.MaxCostMicros), ExpectedCostMicros: int64(manifest.Budget.MaxCostMicros), SemanticsDigest: policy.Digest, OutputSchemaDigest: PersonaChatReplySchemaDigest, ToolSchemaDigest: LocalPersonaOpenAIToolSchemaDigest()}
 	profile.ProfileDigest = agentmodel.ModelProfileDigest(profile)
 	selection := agentmodel.ModelSelection{ProfileID: profile.ID, ProfileDigest: profile.ProfileDigest, Identity: profile.Identity}

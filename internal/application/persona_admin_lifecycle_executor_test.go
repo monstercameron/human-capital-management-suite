@@ -68,6 +68,12 @@ func (f *personaAdminLifecycleTenantFake) Publish(_ context.Context, event agent
 func (*personaAdminLifecycleTenantFake) Install(context.Context, agentpersonastore.PersonaInstallation) error {
 	return nil
 }
+func (*personaAdminLifecycleTenantFake) RetireActiveInstallation(context.Context, string, string, string, string) (agentpersonastore.PersonaInstallation, bool, error) {
+	return agentpersonastore.PersonaInstallation{}, false, nil
+}
+func (*personaAdminLifecycleTenantFake) ReplaceActiveInstallation(context.Context, agentpersonastore.PersonaInstallation) (agentpersonastore.PersonaInstallation, bool, error) {
+	return agentpersonastore.PersonaInstallation{}, false, nil
+}
 func (f *personaAdminLifecycleTenantFake) CreateVersionDraft(_ context.Context, version agentpersonastore.PersonaVersion, actor string, _ time.Time) error {
 	f.createdVersion, f.createdActor = version, actor
 	f.versions = append(f.versions, version)
@@ -175,6 +181,16 @@ type personaAdminPublicationEvidenceFake struct {
 	evidence agentpersonastore.PublicationEvidence
 }
 
+type personaAdminRuntimeProvisionerFake struct {
+	called bool
+	err    error
+}
+
+func (f *personaAdminRuntimeProvisionerFake) ProvisionPersonaRuntime(_ context.Context, _ PersonaAdminCommandActor, _ agentpersonastore.PersonaVersion, _ agentpersona.PersonaProfile, _ agentpersonastore.PublicationEvidence) error {
+	f.called = true
+	return f.err
+}
+
 func (f personaAdminPublicationEvidenceFake) ResolvePersonaPublicationEvidence(context.Context, values.TenantId, string, int64) (agentpersonastore.PublicationEvidence, error) {
 	return f.evidence, nil
 }
@@ -208,7 +224,8 @@ func TestTodo_AGENTP_006_LifecycleExecutorMovesDraftThroughReviewAndEvidencePubl
 	}
 	evidence := personaAdminPublicationEvidenceFake{evidence: agentpersonastore.PublicationEvidence{ReviewID: "review-1", EvaluationRunID: "eval-run-1"}}
 	authorizer := personaAdminLifecycleAuthorizerFake{}
-	executor := NewPersonaAdminLifecycleExecutor(personaAdminLifecycleStoreFake{tenant: tenant}, authorizer, &PersonaAdminDraftService{Profiles: &personaStarterProfileBuilderSpy{}}, nil, issuer, evidence, nil, nil, func() time.Time { return time.Unix(200, 0) }, func() string { return "event-1" })
+	runtime := &personaAdminRuntimeProvisionerFake{}
+	executor := NewPersonaAdminLifecycleExecutor(personaAdminLifecycleStoreFake{tenant: tenant}, authorizer, &PersonaAdminDraftService{Profiles: &personaStarterProfileBuilderSpy{}}, nil, issuer, evidence, nil, nil, func() time.Time { return time.Unix(200, 0) }, func() string { return "event-1" }, runtime)
 	actor := PersonaAdminCommandActor{Principal: principal, Tenant: principal.Tenant(), Subject: principal.Subject()}
 	if err := executor.ExecutePersonaAdminCommand(ctx, actor, PersonaAdminCommand{Action: PersonaAdminRequestReview, PersonaID: "persona-a", Decision: "APPROVE"}); err != nil {
 		t.Fatal(err)
@@ -221,6 +238,9 @@ func TestTodo_AGENTP_006_LifecycleExecutorMovesDraftThroughReviewAndEvidencePubl
 	}
 	if tenant.published.To != agentpersonastore.StatePublished || tenant.evidence != evidence.evidence || tenant.states[1] != agentpersonastore.StatePublished {
 		t.Fatalf("publication = %+v evidence=%+v state=%s", tenant.published, tenant.evidence, tenant.states[1])
+	}
+	if !runtime.called {
+		t.Fatal("publication did not provision its runtime")
 	}
 }
 

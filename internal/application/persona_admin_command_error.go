@@ -7,10 +7,12 @@ import (
 )
 
 const (
-	personaAdminCodeForbidden   = "forbidden"
-	personaAdminCodeInvalid     = "invalid"
-	personaAdminCodeConflict    = "conflict"
-	personaAdminCodeUnavailable = "unavailable"
+	personaAdminCodeForbidden             = "forbidden"
+	personaAdminCodeInvalid               = "invalid"
+	personaAdminCodeConflict              = "conflict"
+	personaAdminCodeUnavailable           = "unavailable"
+	personaAdminCodeEvaluationUnavailable = "evaluation_unavailable"
+	personaAdminCodeDocumentUnreadable    = "document_unreadable"
 )
 
 // PersonaAdminCommandError exposes a stable, non-sensitive code to the
@@ -54,6 +56,10 @@ func classifyPersonaAdminCommandError(err error) error {
 		return nil
 	case errors.Is(err, agentpersonastore.ErrConflict):
 		return personaAdminCommandError(personaAdminCodeConflict, err)
+	case errors.Is(err, ErrPersonaDocumentUnreadable):
+		return personaAdminCommandError(personaAdminCodeDocumentUnreadable, err)
+	case errors.Is(err, ErrPersonaAdminEvaluationUnavailable):
+		return personaAdminCommandError(personaAdminCodeEvaluationUnavailable, err)
 	case errors.Is(err, ErrPersonaDraftInvalid), errors.Is(err, ErrPersonaReviewInvalid), errors.Is(err, agentpersonastore.ErrInvalid):
 		return personaAdminCommandError(personaAdminCodeInvalid, err)
 	case errors.Is(err, ErrPersonaDraftDenied), errors.Is(err, ErrPersonaReviewDenied):

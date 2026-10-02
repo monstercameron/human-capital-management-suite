@@ -23,14 +23,14 @@ var (
 // executor adapter. The caller must resolve every field from durable run state;
 // this adapter never fills model, profile, budget, tenant, or agent defaults.
 type AgentModelExecutorRequest struct {
-	Task         TrustedModelTask
-	StepID       string
+	Task            TrustedModelTask
+	StepID          string
 	ToolResultClass trustdlp.DataClass
-	Route        agentmodel.RouteRequest
-	Model        agentmodel.ModelRequest
-	Outbound     agentegress.OutboundRequest
-	FieldSources map[string]string
-	Lease        lease.CredentialLease
+	Route           agentmodel.RouteRequest
+	Model           agentmodel.ModelRequest
+	Outbound        agentegress.OutboundRequest
+	FieldSources    map[string]string
+	Lease           lease.CredentialLease
 }
 
 // AgentModelExecutorResult preserves the route and normalized provider result
@@ -93,8 +93,10 @@ func validateExecutorRequest(req AgentModelExecutorRequest) error {
 		req.Route.Task.AgentVersionDigest != req.Task.AgentID || req.Route.Task.ID == "" || req.Route.Pin.TaskProfileID != req.Route.Task.ID {
 		return ErrAgentModelExecutorBinding
 	}
+	// A request may carry less than the route's contractual cost limit (a
+	// continuation is bounded by what the run has left), never more.
 	if req.Model.TaskProfile != req.Route.Task.ID || req.Model.ModelProfile == "" || req.Model.Limits.MaxCostMicros <= 0 ||
-		req.Route.Task.MaxCostMicros <= 0 || req.Model.Limits.MaxCostMicros != req.Route.Task.MaxCostMicros {
+		req.Route.Task.MaxCostMicros <= 0 || req.Model.Limits.MaxCostMicros > req.Route.Task.MaxCostMicros {
 		return ErrAgentModelExecutorBinding
 	}
 	if strings.TrimSpace(req.Outbound.Purpose) == "" || strings.TrimSpace(req.Outbound.Region) == "" || req.Outbound.Profile.Kind != agentegress.TargetModel {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
@@ -28,11 +29,14 @@ type PersonaBackgroundReplyDeliveryConfig struct {
 	Threads         chat.BackgroundThreadSnapshotSource
 	Committer       PersonaBackgroundReplyCommitter
 	OutputPolicy    PersonaReplyOutputPolicy
+	Documents       personaAgentDocumentGroundingSource
 	Now             func() time.Time
 }
 
 type PersonaBackgroundReplyDelivery struct {
-	cfg PersonaBackgroundReplyDeliveryConfig
+	cfg      PersonaBackgroundReplyDeliveryConfig
+	mu       sync.Mutex
+	rendered map[string]string
 }
 
 func NewPersonaBackgroundReplyDelivery(cfg PersonaBackgroundReplyDeliveryConfig) (*PersonaBackgroundReplyDelivery, error) {
@@ -40,7 +44,7 @@ func NewPersonaBackgroundReplyDelivery(cfg PersonaBackgroundReplyDeliveryConfig)
 		return nil, errPersonaBackgroundDelivery
 	}
 	cfg.OutputPolicy.AdminAllowedOrigins = append([]string(nil), cfg.OutputPolicy.AdminAllowedOrigins...)
-	return &PersonaBackgroundReplyDelivery{cfg: cfg}, nil
+	return &PersonaBackgroundReplyDelivery{cfg: cfg, rendered: make(map[string]string)}, nil
 }
 
 // NewDatabasePersonaBackgroundReplyDelivery binds the native transaction owner
@@ -49,7 +53,7 @@ func NewDatabasePersonaBackgroundReplyDelivery(cfg PersonaBackgroundReplyDeliver
 	if store == nil || !isNilPersonaOutputPort(cfg.Committer) {
 		return nil, errPersonaBackgroundDelivery
 	}
-	d := &PersonaBackgroundReplyDelivery{cfg: cfg}
+	d := &PersonaBackgroundReplyDelivery{cfg: cfg, rendered: make(map[string]string)}
 	native, err := chatstore.NewSealedBackgroundPersonaDelivery(store, d, d, cfg.Now)
 	if err != nil {
 		return nil, errPersonaBackgroundDelivery
@@ -78,6 +82,28 @@ func (d *PersonaBackgroundReplyDelivery) DeliverBackgroundPersonaReply(ctx conte
 	ctx = context.WithValue(ctx, personaBackgroundDeliveryKey{}, personaBackgroundDeliveryBinding{record: record, run: run})
 	if _, err := d.AuthorizeSealedBackgroundPersonaReply(ctx, output); err != nil {
 		return PersonaReplyDeliveryReceipt{}, err
+	}
+	if !isNilPersonaOutputPort(d.cfg.Documents) {
+		documents, omissions, err := d.cfg.Documents.ResolvePersonaAgentDocuments(ctx, record)
+		if err != nil {
+			return PersonaReplyDeliveryReceipt{}, err
+		}
+		result, err := personaChatReplyDeliveryResult(output)
+		if err != nil || len(result.Items) != 1 {
+			return PersonaReplyDeliveryReceipt{}, errPersonaBackgroundDelivery
+		}
+		body := renderPersonaReplyWithAgentDocuments(result.Items[0].Text, output.Identity().TenantID, output.Identity().ConversationID, d.cfg.OutputPolicy, personaCitedAgentDocuments(documents, output.Citations()), omissions)
+		if body == "" {
+			return PersonaReplyDeliveryReceipt{}, errPersonaBackgroundDelivery
+		}
+		d.mu.Lock()
+		d.rendered[output.Digest()] = body
+		d.mu.Unlock()
+		defer func() {
+			d.mu.Lock()
+			delete(d.rendered, output.Digest())
+			d.mu.Unlock()
+		}()
 	}
 	p, err := d.cfg.Committer.CommitSealedBackgroundPersonaReply(ctx, output)
 	i := output.Identity()
@@ -143,6 +169,12 @@ func validBackgroundPersonaDeliveryBinding(record agentrun.Record, run runstate.
 func (d *PersonaBackgroundReplyDelivery) RenderSealedBackgroundPersonaReply(output agentsecurity.FinalOutputPersistence) (string, error) {
 	if d == nil {
 		return "", errPersonaBackgroundDelivery
+	}
+	d.mu.Lock()
+	prepared := d.rendered[output.Digest()]
+	d.mu.Unlock()
+	if prepared != "" {
+		return prepared, nil
 	}
 	result, err := personaChatReplyDeliveryResult(output)
 	if err != nil || len(result.Items) != 1 {

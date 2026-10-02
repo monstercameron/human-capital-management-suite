@@ -7,6 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -169,7 +173,10 @@ func (e *personaAdmittedRunExecutor) Start(ctx context.Context, admission agentr
 	if e == nil || e.state == nil || e.store == nil || e.now == nil {
 		return runstate.Run{}, ErrPersonaRunExecutorUnavailable
 	}
+	agentUXSpeedSetRunID(ctx, admission.ID)
+	done := agentUXSpeedStage(ctx, "run_start")
 	run, err := e.state.Start(ctx, admission)
+	done()
 	if errors.Is(err, runstate.ErrInvalid) {
 		return runstate.Run{}, fmt.Errorf("%w: accepted admission rejected: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
@@ -205,7 +212,7 @@ func personaRunStoredFailure(run runstate.Run) error {
 	switch run.TerminalCode {
 	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID":
 		kind = ErrPersonaRunExecutorUnavailable
-	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID":
+	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
 	case "DELIVERY_FAILED":
 		kind = ErrPersonaRunDeliveryFailure
@@ -215,12 +222,20 @@ func personaRunStoredFailure(run runstate.Run) error {
 
 func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agentrun.Record, run runstate.Run) error {
 	now := e.now().UTC()
-	claimed, err := e.state.Claim(ctx, run.ID, e.workerID, now, e.leaseTTL)
+	done := agentUXSpeedStage(ctx, "claim")
+	claimed, err := e.qualityStateChange(ctx, run, func() (runstate.Run, error) {
+		now = e.now().UTC()
+		return e.state.Claim(ctx, run.ID, e.workerID, now, e.leaseTTL)
+	})
+	done()
 	if err != nil {
 		return fmt.Errorf("%w: claim: %v", ErrPersonaRunExecutorBusy, err)
 	}
+	defer e.startLeaseRenewal(ctx, claimed)()
 	ctx = WithPersonaBackgroundAdmission(ctx, admission)
+	done = agentUXSpeedStage(ctx, "build_model_work")
 	work, err := e.work.BuildPersonaRunModelWork(ctx, admission, claimed)
+	done()
 	if err != nil {
 		return e.fail(ctx, claimed, "CONTEXT_UNAVAILABLE", err)
 	}
@@ -231,7 +246,9 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", err)
 	}
 	if e.tools != nil {
+		done = agentUXSpeedStage(ctx, "tool_schemas")
 		schemas, schemaErr := e.tools.ToolSchemas(ctx, admission, claimed)
+		done()
 		if schemaErr != nil {
 			return e.fail(ctx, claimed, "TOOL_POLICY_UNAVAILABLE", schemaErr)
 		}
@@ -242,12 +259,20 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	} else if len(work.Request.Model.Tools) > 0 {
 		return e.fail(ctx, claimed, "TOOL_POLICY_UNAVAILABLE", ErrPersonaRunOutputRejected)
 	}
-	modelResult, err := e.model.Execute(ctx, work.Request)
+	done = agentUXSpeedStage(ctx, "model_execute")
+	// Documents a search returned to this run; the ones the sealed answer
+	// cites are listed as its sources at delivery.
+	var searchedDocuments []personaQualitySearchedDocument
+	modelResult, claimed, err := e.executeQualityModel(ctx, claimed, work.Request, admission)
+	done()
 	if err != nil {
-		return e.fail(ctx, claimed, "MODEL_UNAVAILABLE", err)
+		return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, err), err)
 	}
 	if modelResult.Result.Failure != nil || modelResult.Result.Refusal != nil {
-		return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", ErrPersonaRunModelFailure)
+		if modelResult.Result.Failure != nil {
+			return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, nil), personaRunModelShapeCause("first turn", modelResult.Result))
+		}
+		return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("first turn", modelResult.Result))
 	}
 	claimed, err = e.checkRequestedActions(ctx, admission, claimed, work, modelResult.Result, 1)
 	if err != nil {
@@ -255,14 +280,20 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	}
 	modelAttempt := uint32(1)
 	if modelResult.Result.Finish == agentmodel.FinishToolCalls {
-		if e.tools == nil || strings.TrimSpace(modelResult.Result.Text) != "" || len(modelResult.Result.ToolProposals) != 1 {
-			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", ErrPersonaRunModelFailure)
+		// Text that accompanies a proposal is an announcement of the search,
+		// not an answer. It is never delivered, so it is dropped here rather
+		// than failing the run on a model that narrates its tool use.
+		modelResult.Result.Text = ""
+		if e.tools == nil || len(modelResult.Result.ToolProposals) != 1 {
+			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("tool proposal turn", modelResult.Result))
 		}
 		modelDigest, digestErr := personaRunAnyResultDigest(modelResult.Result)
 		if digestErr != nil {
 			return e.fail(ctx, claimed, "MODEL_RESULT_INVALID", digestErr)
 		}
-		claimed, err = e.state.Checkpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, 1, work.Request.StepID, modelDigest, e.now().UTC())
+		done = agentUXSpeedStage(ctx, "checkpoint_model_proposal")
+		claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, 1, work.Request.StepID, modelDigest, e.now().UTC())
+		done()
 		if err != nil {
 			return fmt.Errorf("%w: record proposal result: %v", ErrPersonaRunExecutorUnavailable, err)
 		}
@@ -273,23 +304,43 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		argsDigest := personaRunBytesDigest(proposal.Arguments)
 		effectID, idemKey := personaRunToolEffectIdentity(claimed.ID, work.Request.StepID, proposal.ID)
 		beforeEffect := claimed
-		claimed, err = e.state.BeginEffect(ctx, claimed.ID, e.workerID, effectID, idemKey, argsDigest, claimed.Fence, claimed.Version, e.now().UTC())
+		done = agentUXSpeedStage(ctx, "begin_effect")
+		claimed, err = e.qualityStateChange(ctx, claimed, func() (runstate.Run, error) {
+			return e.state.BeginEffect(ctx, claimed.ID, e.workerID, effectID, idemKey, argsDigest, claimed.Fence, claimed.Version, e.now().UTC())
+		})
+		done()
 		if err != nil {
 			return e.fail(ctx, beforeEffect, "TOOL_ADMISSION_FAILED", err)
 		}
+		done = agentUXSpeedStage(ctx, "tool_execute")
 		toolOutput, resultRef, resultDigest, toolErr := e.tools.Execute(ctx, admission, claimed, proposal)
+		searchedDocuments = personaQualitySearchedDocuments(toolOutput)
+		done()
 		if toolErr != nil {
-			claimed, err = e.state.ResolveEffect(ctx, claimed.ID, e.workerID, effectID, claimed.Fence, claimed.Version, runstate.EffectNotApplied, "", "", e.now().UTC())
+			claimed, err = e.qualityStateChange(ctx, claimed, func() (runstate.Run, error) {
+				return e.state.ResolveEffect(ctx, claimed.ID, e.workerID, effectID, claimed.Fence, claimed.Version, runstate.EffectNotApplied, "", "", e.now().UTC())
+			})
 			if err != nil {
 				return fmt.Errorf("%w: persist refused tool outcome: %v", ErrPersonaRunExecutorUnavailable, err)
 			}
 			return e.fail(ctx, claimed, "TOOL_EXECUTION_FAILED", toolErr)
 		}
-		claimed, err = e.state.ResolveEffect(ctx, claimed.ID, e.workerID, effectID, claimed.Fence, claimed.Version, runstate.EffectApplied, resultRef, resultDigest, e.now().UTC())
+		done = agentUXSpeedStage(ctx, "resolve_effect")
+		claimed, err = e.qualityStateChange(ctx, claimed, func() (runstate.Run, error) {
+			return e.state.ResolveEffect(ctx, claimed.ID, e.workerID, effectID, claimed.Fence, claimed.Version, runstate.EffectApplied, resultRef, resultDigest, e.now().UTC())
+		})
+		done()
 		if err != nil {
 			return fmt.Errorf("%w: persist tool outcome: %v", ErrPersonaRunExecutorUnavailable, err)
 		}
+		if proposal.Name == personaDocumentSearchTool || proposal.Name == personaWorkspaceSearchTool {
+			if code := personaQualitySearchFailure(toolOutput); code != "" {
+				return e.fail(ctx, claimed, code, nil)
+			}
+		}
+		done = agentUXSpeedStage(ctx, "build_continuation")
 		continuation, workErr := e.work.BuildPersonaRunModelWork(ctx, admission, claimed)
+		done()
 		if workErr != nil {
 			return e.fail(ctx, claimed, "CONTEXT_UNAVAILABLE", workErr)
 		}
@@ -306,34 +357,49 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 			return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", err)
 		}
 		continuation.Request.Model.Tools = nil
-		modelResult, err = e.model.Execute(ctx, continuation.Request)
+		done = agentUXSpeedStage(ctx, "model_execute")
+		modelResult, claimed, err = e.executeQualityModel(ctx, claimed, continuation.Request, admission)
+		done()
 		if err != nil {
-			return e.fail(ctx, claimed, "MODEL_UNAVAILABLE", err)
+			return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, err), err)
 		}
 		if modelResult.Result.Failure != nil || modelResult.Result.Refusal != nil {
-			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", ErrPersonaRunModelFailure)
+			if modelResult.Result.Failure != nil {
+				return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, nil), personaRunModelShapeCause("continuation turn", modelResult.Result))
+			}
+			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("continuation turn", modelResult.Result))
 		}
 		claimed, err = e.checkRequestedActions(ctx, admission, claimed, continuation, modelResult.Result, 2)
 		if err != nil {
 			return err
 		}
 		if modelResult.Result.Finish != agentmodel.FinishComplete || strings.TrimSpace(modelResult.Result.Text) == "" || len(modelResult.Result.ToolProposals) != 0 {
-			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", ErrPersonaRunModelFailure)
+			return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("continuation finish", modelResult.Result))
 		}
 		work = continuation
 		modelAttempt = 2
 	} else if modelResult.Result.Finish != agentmodel.FinishComplete || strings.TrimSpace(modelResult.Result.Text) == "" || len(modelResult.Result.ToolProposals) != 0 {
-		return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", ErrPersonaRunModelFailure)
+		return e.fail(ctx, claimed, "MODEL_REFUSED_OR_INCOMPLETE", personaRunModelShapeCause("first turn finish", modelResult.Result))
 	}
 	resultDigest, err := personaRunResultDigest(modelResult.Result)
 	if err != nil {
 		return e.fail(ctx, claimed, "MODEL_RESULT_INVALID", err)
 	}
-	claimed, err = e.state.Checkpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, modelAttempt, work.Request.StepID, resultDigest, e.now().UTC())
+	done = agentUXSpeedStage(ctx, "checkpoint_model_result")
+	claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, modelAttempt, work.Request.StepID, resultDigest, e.now().UTC())
+	done()
 	if err != nil {
 		return fmt.Errorf("%w: record model result: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
+	done = agentUXSpeedStage(ctx, "validate_output")
+	if !personaReplyHasStatement(modelResult.Result.Text, personaReplyStatementTitles(searchedDocuments)...) {
+		// CHATBUG-018: a reply that is only a document title (or a marker that
+		// renders as one) answers nothing; it is refused, not posted.
+		done()
+		return e.fail(ctx, claimed, "OUTPUT_REJECTED", fmt.Errorf("%w: the reply states nothing beyond a document title", ErrPersonaRunOutputRejected))
+	}
 	persisted, err := e.output.ValidateAndPersistPersonaOutput(ctx, admission, claimed, modelResult.Result)
+	done()
 	if err != nil {
 		return e.fail(ctx, claimed, "OUTPUT_REJECTED", fmt.Errorf("%w: %v", ErrPersonaRunOutputRejected, err))
 	}
@@ -341,11 +407,15 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	if admission.Request.Persona == nil || identity.TenantID != admission.Request.Source.TenantID || identity.InvocationID != admission.Request.Source.Key || identity.PostID != admission.Request.Source.Ref || identity.InvokerID != admission.Request.Principal.InvokerID || identity.ConversationID != admission.Request.Audience.ID || identity.ThreadID != admission.Request.Context.ID || identity.PersonaID != admission.Request.Persona.ID || identity.PersonaVersion != admission.Request.Persona.Version || identity.InstallationID != admission.Request.InstallationID || identity.OutputID == "" || persisted.Digest() == "" {
 		return e.fail(ctx, claimed, "OUTPUT_BINDING_INVALID", ErrPersonaRunOutputRejected)
 	}
-	claimed, err = e.state.Checkpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseValidation, 1, identity.OutputID, persisted.SemanticDigest(), e.now().UTC())
+	done = agentUXSpeedStage(ctx, "checkpoint_validation")
+	claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseValidation, 1, identity.OutputID, persisted.SemanticDigest(), e.now().UTC())
+	done()
 	if err != nil {
 		return fmt.Errorf("%w: checkpoint validated result: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
-	receipt, err := e.deliver(ctx, admission, claimed, persisted)
+	done = agentUXSpeedStage(ctx, "delivery")
+	receipt, err := e.deliver(ctx, admission, claimed, persisted, searchedDocuments...)
+	done()
 	if err != nil {
 		return e.fail(ctx, claimed, "DELIVERY_FAILED", err)
 	}
@@ -356,7 +426,9 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	if err != nil {
 		return fmt.Errorf("%w: delivery receipt invalid", ErrPersonaRunExecutorUnavailable)
 	}
-	_, err = e.state.Checkpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseDelivery, 1, admission.ID, deliveryDigest, e.now().UTC())
+	done = agentUXSpeedStage(ctx, "checkpoint_delivery")
+	_, err = e.qualityCheckpoint(withPersonaRunReplyDelivered(ctx, claimed.AdmissionID), claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseDelivery, 1, admission.ID, deliveryDigest, e.now().UTC())
+	done()
 	if err != nil {
 		return fmt.Errorf("%w: checkpoint delivery: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
@@ -382,17 +454,27 @@ func (e *personaAdmittedRunExecutor) checkRequestedActions(ctx context.Context, 
 	if err != nil {
 		return run, e.fail(ctx, run, "MODEL_RESULT_INVALID", err)
 	}
-	run, err = e.state.Checkpoint(ctx, run.ID, e.workerID, run.Fence, run.Version, runstate.PhaseModelCall, attempt, work.Request.StepID, digest, e.now().UTC())
+	run, err = e.qualityCheckpoint(ctx, run.ID, e.workerID, run.Fence, run.Version, runstate.PhaseModelCall, attempt, work.Request.StepID, digest, e.now().UTC())
 	if err != nil {
 		return run, err
 	}
 	return run, e.fail(ctx, run, "OUT_OF_SCOPE", ErrPersonaRunOutputRejected)
 }
 
-func (e *personaAdmittedRunExecutor) deliver(ctx context.Context, admission agentrun.Record, run runstate.Run, persisted agentsecurity.FinalOutputPersistence) (PersonaReplyDeliveryReceipt, error) {
+func (e *personaAdmittedRunExecutor) deliver(ctx context.Context, admission agentrun.Record, run runstate.Run, persisted agentsecurity.FinalOutputPersistence, searched ...personaQualitySearchedDocument) (PersonaReplyDeliveryReceipt, error) {
 	identity := persisted.Identity()
+	documents, citationDetails := personaQualityCitedDocuments(searched, persisted.Citations())
 	if principal, ok := personaRunChatPrincipal(ctx, identity.TenantID, identity.InvokerID); ok {
-		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID})
+		if admission.Request.Persona != nil {
+			// A reply that may not be posted to the whole audience goes to the
+			// invoker's own conversation with the agent. That conversation is
+			// selected from this admitted invocation, never from the request,
+			// and only while the run it belongs to is still within its deadline.
+			invocation := personaRunInvocation(admission.Request)
+			invocation.Grant.ExpiresAt = admission.Request.Deadline
+			ctx = WithPersonaDMInvocation(ctx, invocation)
+		}
+		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID, Documents: documents, CitationDetails: citationDetails})
 	}
 	if _, hasPrincipal := trust.FromContext(ctx); hasPrincipal || isNilPersonaOutputPort(e.backgroundReply) {
 		return PersonaReplyDeliveryReceipt{}, ErrPersonaRunOutputRejected
@@ -411,9 +493,14 @@ func validPersonaRunReplyReceipt(receipt PersonaReplyDeliveryReceipt) bool {
 }
 
 func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run, code string, cause error) error {
-	// Terminal runstate failures cannot currently resume under the same durable
-	// invocation. Keep Retryable false so callers require a fresh invocation.
-	_, err := e.state.Fail(ctx, run.ID, e.workerID, code, false, run.Fence, run.Version, e.now().UTC())
+	refusal := personaRunFailureRefusal(code, cause)
+	if refusal.Gate == runstate.FailureGateDeliveryAudience {
+		code = "DELIVERY_AUDIENCE_DENIED"
+	}
+	retryable := chatcore.AgentAnswerFailureFor("en-US", "", code).Retryable
+	_, err := e.qualityStateChange(ctx, run, func() (runstate.Run, error) {
+		return e.state.FailWithRefusal(ctx, run.ID, e.workerID, code, retryable, refusal, run.Fence, run.Version, e.now().UTC())
+	})
 	if err != nil {
 		return fmt.Errorf("%w: terminal failure %s could not be persisted", ErrPersonaRunExecutorUnavailable, code)
 	}
@@ -421,13 +508,82 @@ func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run,
 	switch code {
 	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID":
 		kind = ErrPersonaRunExecutorUnavailable
-	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID":
+	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
 	case "DELIVERY_FAILED":
 		kind = ErrPersonaRunDeliveryFailure
 	}
-	_ = cause // Details may contain business data and are deliberately not exposed.
-	return &PersonaRunFailure{Code: code, Retryable: false, kind: kind}
+	slog.WarnContext(ctx, "hcmnext.persona_run_failed", "run_id", run.ID, "code", code, "gate", refusal.Gate, "owner", refusal.Owner, "location", refusal.Location)
+	// Details may contain business data and are deliberately not exposed unless
+	// a local diagnostic session explicitly opts in.
+	if cause != nil && os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
+		slog.WarnContext(ctx, "hcmnext.persona_run_failed", "run_id", run.ID, "code", code, "cause", cause.Error())
+	}
+	return &PersonaRunFailure{Code: code, Retryable: retryable, kind: kind}
+}
+
+func personaRunFailureRefusal(code string, cause error) runstate.FailureRefusal {
+	gate := runstate.FailureGateOutputSchema
+	switch code {
+	case "CONTEXT_UNAVAILABLE":
+		gate = runstate.FailureGateAuthority
+	case "MODEL_BINDING_INVALID":
+		gate = runstate.FailureGateModelRoute
+	case "MODEL_UNAVAILABLE":
+		gate = runstate.FailureGateModelCall
+	case "MODEL_TIMEOUT":
+		gate = runstate.FailureGateDeadline
+	case "MODEL_LIMIT":
+		gate = runstate.FailureGateBudget
+	case "ANSWER_INTERRUPTED":
+		gate = runstate.FailureGateModelCall
+	case "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID":
+		gate = runstate.FailureGateModelOutput
+	case "TOOL_POLICY_UNAVAILABLE":
+		gate = runstate.FailureGateToolScope
+	case "TOOL_ADMISSION_FAILED", "TOOL_EXECUTION_FAILED":
+		gate = runstate.FailureGateToolCall
+	case "OUTPUT_REJECTED", "OUTPUT_BINDING_INVALID":
+		gate = runstate.FailureGateOutputGrounding
+	case "DELIVERY_FAILED", "DELIVERY_RECEIPT_INVALID":
+		gate = runstate.FailureGateDeliveryWrite
+	}
+	if errors.Is(cause, errPersonaRuntimeTools) {
+		gate = runstate.FailureGateToolScope
+	}
+	if errors.Is(cause, ErrPersonaRunOutputValidatorUnavailable) {
+		gate = runstate.FailureGateOutputGrounding
+	}
+	if errors.Is(cause, errPersonaPrivateChatScope) {
+		gate = runstate.FailureGateDeliveryAudience
+	}
+	location := personaRunFailureLocation(cause)
+	if location == "" {
+		_, file, line, ok := runtime.Caller(1)
+		if ok {
+			location = fmt.Sprintf("%s:%d", filepath.Base(file), line)
+		} else {
+			location = "unknown:0"
+		}
+	}
+	return runstate.FailureRefusal{Gate: gate, Owner: "internal/application", Location: location}
+}
+
+func personaRunFailureLocation(cause error) string {
+	if cause == nil {
+		return ""
+	}
+	text := cause.Error()
+	close := strings.LastIndex(text, ")")
+	open := strings.LastIndex(text[:max(0, close)], "(")
+	if open < 0 || close < 0 || close <= open+1 {
+		return ""
+	}
+	location := text[open+1 : close]
+	if strings.ContainsAny(location, " \t\r\n") || !strings.Contains(location, ":") {
+		return ""
+	}
+	return location
 }
 
 func personaRunResultDigest(result agentmodel.ModelResult) (string, error) {
@@ -469,3 +625,16 @@ func personaRunChatPrincipal(ctx context.Context, tenant, subject string) (chatc
 }
 
 var _ agentinvoke.RunStarter = (*PersonaRunStarter)(nil)
+
+// personaRunModelShapeCause names which part of a model result made the run
+// stop, without carrying any model text.
+func personaRunModelShapeCause(stage string, result agentmodel.ModelResult) error {
+	failure, refusal := "", ""
+	if result.Failure != nil {
+		failure = fmt.Sprintf("%+v", *result.Failure)
+	}
+	if result.Refusal != nil {
+		refusal = fmt.Sprintf("%+v", *result.Refusal)
+	}
+	return fmt.Errorf("%w: %s: finish=%v text_bytes=%d tool_proposals=%d failure=%q refusal=%q", ErrPersonaRunModelFailure, stage, result.Finish, len(result.Text), len(result.ToolProposals), failure, refusal)
+}

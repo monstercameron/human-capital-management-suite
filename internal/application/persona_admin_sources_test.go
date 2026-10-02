@@ -3,12 +3,12 @@ package application
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -52,10 +52,9 @@ func TestTodo_AGENTP_018_SourcesClassifiesMembershipFailure(t *testing.T) {
 		Chat:      personaCatalogChatFake{rooms: []chat.Conversation{{ID: "room-1", TenantID: "tenant-a", Name: "Room"}}, failMembers: true},
 		Directory: personaCatalogDirectoryFake{},
 	}
-	_, _, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
-	var staged interface{ PersonaCatalogFailureStage() string }
-	if !errors.As(err, &staged) || staged.PersonaCatalogFailureStage() != "target_memberships" {
-		t.Fatalf("failure = %v, stage = %v; want target_memberships", err, staged)
+	users, rooms, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
+	if err != nil || len(users) != 0 || len(rooms) != 0 {
+		t.Fatalf("targets=%v rooms=%v err=%v; want the unreadable room omitted", users, rooms, err)
 	}
 }
 
@@ -65,14 +64,35 @@ func TestTodo_AGENTP_018_SourcesPreservesBoundedDirectoryFailureStage(t *testing
 	member := chat.Membership{ConversationID: room.ID, TenantID: room.TenantID, HomeTenantID: room.TenantID, SubjectID: "opaque-subject"}
 	directory := personaCatalogDirectoryFailure{stage: "member_facts_absent"}
 	source := ChatDirectoryPersonaCatalogTargets{Chat: personaCatalogChatFake{rooms: []chat.Conversation{room}, members: []chat.Membership{member}}, Directory: directory}
-	_, _, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
-	var staged interface{ PersonaCatalogFailureStage() string }
-	if !errors.As(err, &staged) || staged.PersonaCatalogFailureStage() != "member_facts_absent" {
-		t.Fatalf("failure = %v, stage = %v; want bounded member_facts_absent", err, staged)
+	users, rooms, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
+	if err != nil || len(users) != 0 || len(rooms) != 1 {
+		t.Fatalf("targets=%v rooms=%v err=%v; want only the unreadable member omitted", users, rooms, err)
 	}
-	if strings.Contains(err.Error(), "opaque-subject") {
-		t.Fatalf("failure exposed member identity: %v", err)
+}
+
+func TestAgentUXSetup3_F1DirectPlacementKeepsHumanName(t *testing.T) {
+	principal := personaCatalogSourcePrincipal(t)
+	public := chat.Conversation{ID: "general", TenantID: "tenant-a", Name: "General", Kind: chat.PublicChannel}
+	direct := chat.Conversation{ID: "policy-dm", TenantID: "tenant-a", Name: "Policy Helper", Kind: chat.Direct}
+	members := []chat.Membership{
+		{ConversationID: public.ID, TenantID: public.TenantID, HomeTenantID: public.TenantID, SubjectID: "admin"},
+		{ConversationID: direct.ID, TenantID: direct.TenantID, HomeTenantID: direct.TenantID, SubjectID: "admin"},
+		{ConversationID: direct.ID, TenantID: direct.TenantID, HomeTenantID: direct.TenantID, SubjectID: "policy-helper"},
 	}
+	source := ChatDirectoryPersonaCatalogTargets{Chat: personaCatalogChatFake{rooms: []chat.Conversation{direct, public}, members: members}, Directory: agentUXSetup3Directory{}, Roles: personaCatalogRoleDirectoryFake{roles: []string{"hcm_admin"}}}
+	users, rooms, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
+	if err != nil || len(rooms) != 2 || rooms[0].ID != direct.ID || rooms[0].Label != "Policy Helper" || rooms[0].PlacementLabel != "Walt Brennan" || !rooms[0].ViewerDirect || rooms[1].ID != public.ID || len(users) != 1 || users[0].ID != "admin" || users[0].Label != "Walt Brennan" {
+		t.Fatalf("users=%#v rooms=%#v err=%v", users, rooms, err)
+	}
+}
+
+type agentUXSetup3Directory struct{}
+
+func (agentUXSetup3Directory) ResolvePersonaCatalogTarget(_ context.Context, _ values.TenantId, id string) (productui.PersonaAdminTarget, error) {
+	if id == "policy-helper" {
+		return productui.PersonaAdminTarget{}, errors.New("agent identity is not a human directory entry")
+	}
+	return productui.PersonaAdminTarget{ID: id, Label: "Walt Brennan"}, nil
 }
 
 type personaCatalogDirectoryFake struct{ fail bool }
@@ -82,6 +102,21 @@ func (f personaCatalogDirectoryFake) ResolvePersonaCatalogTarget(_ context.Conte
 		return productui.PersonaAdminTarget{}, errors.New("directory unavailable")
 	}
 	return productui.PersonaAdminTarget{ID: id, Label: "Member " + id}, nil
+}
+
+type personaCatalogRoleDirectoryFake struct{ roles []string }
+
+func (f personaCatalogRoleDirectoryFake) CurrentRoles(context.Context, values.TenantId, string) ([]string, error) {
+	return append([]string(nil), f.roles...), nil
+}
+
+type personaCatalogRoleStoreFake struct {
+	roleaccess.Store
+	snapshot roleaccess.Snapshot
+}
+
+func (f personaCatalogRoleStoreFake) Load(context.Context, values.TenantId, string) (roleaccess.Snapshot, error) {
+	return f.snapshot, nil
 }
 
 type personaCatalogDirectoryFailureStage string
@@ -99,16 +134,25 @@ func TestTodo_AGENTP_018_Sources_TargetsUseAuthorizedChatMemberships(t *testing.
 	principal := personaCatalogSourcePrincipal(t)
 	room := chat.Conversation{ID: "room-1", TenantID: "tenant-a", Name: "Payroll", Kind: chat.PrivateChannel}
 	member := chat.Membership{ConversationID: room.ID, TenantID: room.TenantID, HomeTenantID: room.TenantID, SubjectID: "user-a"}
-	source := ChatDirectoryPersonaCatalogTargets{Chat: personaCatalogChatFake{rooms: []chat.Conversation{room}, members: []chat.Membership{member}}, Directory: personaCatalogDirectoryFake{}}
+	source := ChatDirectoryPersonaCatalogTargets{Chat: personaCatalogChatFake{rooms: []chat.Conversation{room}, members: []chat.Membership{member}}, Directory: personaCatalogDirectoryFake{}, Roles: personaCatalogRoleDirectoryFake{roles: []string{"worker_self", "hcm_admin"}}}
 	users, rooms, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-a")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(users) != 1 || users[0].ID != "user-a" || len(rooms) != 1 || rooms[0].ID != room.ID {
+	if len(users) != 1 || users[0].ID != "user-a" || users[0].Role != "hcm_admin" || len(rooms) != 1 || rooms[0].ID != room.ID || rooms[0].Kind != string(chat.PrivateChannel) {
 		t.Fatalf("targets = %#v, rooms = %#v", users, rooms)
 	}
 	if _, _, err := source.ListPersonaCatalogTargets(context.Background(), *principal, "tenant-b"); !errors.Is(err, errPersonaCatalogSource) {
 		t.Fatalf("cross-tenant error = %v", err)
+	}
+}
+
+func TestTodo_AGENTUX_003_SourcesProjectReadableRoleNames(t *testing.T) {
+	principal := personaCatalogSourcePrincipal(t)
+	source := ChatDirectoryPersonaCatalogTargets{RoleNames: personaCatalogRoleStoreFake{snapshot: roleaccess.Snapshot{Roles: []roleaccess.Role{{ID: "custom_people_partner", Name: "Custom people partner", Active: true}}}}}
+	targets := source.ResolvePersonaCatalogRoleTargets(context.Background(), *principal, "tenant-a", []string{"worker_self", "custom_people_partner"}, []string{"org-a"})
+	if len(targets) != 2 || targets[0].ID != "custom_people_partner" || targets[0].Label != "Custom people partner" || targets[1].ID != "worker_self" || targets[1].Label != "Employee self-service" {
+		t.Fatalf("role targets = %#v", targets)
 	}
 }
 

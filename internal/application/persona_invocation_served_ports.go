@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
@@ -79,8 +81,9 @@ func (w servedPersonaPostWriter) SendPost(ctx context.Context, request chatcore.
 
 // personaInvocationFailureLogger is the production best-effort sink for
 // failures discovered after a successful chat commit. It emits only the
-// authenticated tenant, committed post id, and failure type to the server
-// logger; the sink never changes the already-committed SendPost result.
+// authenticated tenant, committed post id, failure type and stable failure
+// code to the server logger; the sink never changes the already-committed
+// SendPost result or logs possibly sensitive admission text.
 type personaInvocationFailureLogger struct {
 	logger personaInvocationLogger
 }
@@ -89,13 +92,19 @@ func (s personaInvocationFailureLogger) RecordPersonaInvocationFailure(ctx conte
 	if s.logger == nil || err == nil || strings.TrimSpace(postID) == "" {
 		return
 	}
-	attributes := []any{"post_id", postID, "error_type", fmt.Sprintf("%T", err)}
+	attributes := []any{"post_id", postID, "error_type", fmt.Sprintf("%T", err), "error_code", "PERSONA_INVOCATION_POST_COMMIT_FAILED"}
 	if ctx != nil {
 		if principal, ok := trust.FromContext(ctx); ok {
 			attributes = append(attributes, "tenant_id", principal.Tenant().String())
 		}
 	}
 	s.logger.Error("hcmnext.persona_invocation_post_commit_failed", attributes...)
+	// The cause may quote admission detail, so it is written only in an
+	// explicitly opted-in local diagnostic session and never to the sink.
+	if os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
+		slog.WarnContext(ctx, "hcmnext.persona_invocation_post_commit_cause", "post_id", postID, "cause", err.Error())
+	}
+	slog.ErrorContext(ctx, "hcmnext.persona_invocation_post_commit_failed", "post_id", postID, "error_type", fmt.Sprintf("%T", err), "error_code", "PERSONA_INVOCATION_POST_COMMIT_FAILED")
 }
 
 var _ personaChatPostWriter = servedPersonaPostWriter{}

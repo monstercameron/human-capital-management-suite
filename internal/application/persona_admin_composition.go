@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
@@ -17,6 +19,16 @@ import (
 // client returned by the catalog composition. Lifecycle commands require the
 // AGENTP-006 review and command path; this composition never invents one.
 var ErrPersonaCatalogLifecycleUnavailable = errors.New("application: persona catalog lifecycle is unavailable")
+
+// personaAdminEvidenceCause is the text logged when stored publication
+// evidence cannot be verified. The detail may name internal identifiers, so
+// it is included only in an explicitly opted-in local diagnostic session.
+func personaAdminEvidenceCause(err error) string {
+	if err == nil || os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") != "1" {
+		return "withheld"
+	}
+	return err.Error()
+}
 
 // PersonaAdminCatalogTenant reads the isolated, tenant-bound persona store.
 // A tenant store is supplied by the composition root and cannot be selected by
@@ -50,6 +62,7 @@ type PersonaAdminCatalogComposition struct {
 	Grants     PersonaCatalogGrantReader
 	Authorizer PersonaCatalogAuthorizer
 	Starters   productui.PersonaAdminStarterSource
+	Documents  PersonaAdminDocumentReader
 }
 
 // NewPersonaAdminCatalogClient composes the production catalog client over an
@@ -57,7 +70,7 @@ type PersonaAdminCatalogComposition struct {
 // effective access; every lifecycle method fails closed because lifecycle
 // writes must go through the reviewed command service.
 func NewPersonaAdminCatalogClient(deps PersonaAdminCatalogComposition) (productui.PersonaAdminClient, error) {
-	if deps.Store == nil || deps.Skills == nil || deps.Targets == nil || deps.Grants == nil || deps.Authorizer == nil {
+	if deps.Store == nil || deps.Authorizer == nil {
 		return nil, fmt.Errorf("%w: catalog dependencies are required", ErrPersonaCatalogDenied)
 	}
 	service := &PersonaAdminCatalogService{
@@ -68,6 +81,10 @@ func NewPersonaAdminCatalogClient(deps PersonaAdminCatalogComposition) (productu
 		Grants:        deps.Grants,
 		Authorizer:    deps.Authorizer,
 		Starters:      deps.Starters,
+		Documents:     deps.Documents,
+	}
+	if adapter, ok := deps.Store.(personaAdminCatalogStoreAdapter); ok {
+		service.Versions = AgentIconCatalogVersions{Base: service.Versions, Store: adapter.store}
 	}
 	return readOnlyPersonaAdminCatalog{service: service}, nil
 }
@@ -78,7 +95,12 @@ func (c readOnlyPersonaAdminCatalog) Snapshot(ctx context.Context, req productui
 	if c.service == nil {
 		return productui.PersonaAdminSnapshot{}, ErrPersonaCatalogDenied
 	}
-	return c.service.Snapshot(ctx, req)
+	snapshot, err := c.service.Snapshot(ctx, req)
+	if err == nil {
+		snapshot.CommandPermissionsAvailable = true
+		snapshot.CommandsState.Unavailable = true
+	}
+	return snapshot, err
 }
 
 func (c readOnlyPersonaAdminCatalog) Preview(ctx context.Context, req productui.PersonaAdminPreviewRequest) (productui.PersonaAdminPreview, error) {
@@ -142,8 +164,24 @@ func (r personaAdminCatalogVersions) ListPersonaCatalogVersions(ctx context.Cont
 			}
 		}
 		if canReadEvidence && (entry.Lifecycle == agentpersonastore.StateInReview || entry.Lifecycle == agentpersonastore.StatePublished || entry.Lifecycle == agentpersonastore.StateSuspended) {
-			if evidence, readErr := evidenceSource.ResolvePublicationEvidence(ctx, entry.Version.PersonaID, entry.Version.Version); readErr == nil && evidence.ReviewID != "" && evidence.EvaluationRunID != "" {
+			evidence, readErr := evidenceSource.ResolvePublicationEvidence(ctx, entry.Version.PersonaID, entry.Version.Version)
+			if readErr == nil && evidence.ReviewID != "" && evidence.EvaluationRunID != "" {
 				version.ReviewApproved, version.EvaluationRef = true, evidence.EvaluationRunID
+			} else if readErr != nil && !errors.Is(readErr, agentpersonastore.ErrPublicationEvidenceRequired) {
+				// Evidence exists and could not be verified. The version stays
+				// unevaluated for the reader, and the cause is logged so a
+				// wiring fault does not look like "evaluation not run yet".
+				slog.Warn("hcmnext.persona_admin_evidence_unreadable", "persona_id", entry.Version.PersonaID, "version", entry.Version.Version, "error_type", fmt.Sprintf("%T", readErr), "error", personaAdminEvidenceCause(readErr))
+			}
+		}
+		if detailsSource, ok := scoped.(interface {
+			ReadPublicationEvidenceDetails(context.Context, string, int64) (agentpersonastore.PublicationEvidenceDetails, error)
+		}); ok && (entry.Lifecycle == agentpersonastore.StatePublished || entry.Lifecycle == agentpersonastore.StateSuspended) {
+			if details, readErr := detailsSource.ReadPublicationEvidenceDetails(ctx, entry.Version.PersonaID, entry.Version.Version); readErr == nil {
+				version.Reviewer = details.ReviewerID
+				version.ReviewApproved = true
+				version.ReviewApprovedAt = details.ReviewApprovedAt.Format("2006-01-02")
+				version.EvaluationPassedAt = details.EvaluationPassedAt.Format("2006-01-02")
 			}
 		}
 		if index, exists := indices[profile.Profile.PersonaID]; exists {
@@ -171,7 +209,7 @@ func (r personaAdminCatalogInstallations) ListPersonaCatalogInstallations(ctx co
 			channel, kind, ok := catalogPlacementKinds(installation.ConversationClass)
 			maxTier, validTier := catalogPlacementTier(installation.ChannelPolicy.MaxTier)
 			if !ok || !validTier || len(installation.ChannelPolicy.AllowedDataClasses) == 0 {
-				return nil, fmt.Errorf("%w: invalid placement policy for %q", ErrPersonaCatalogDenied, installation.ID)
+				continue
 			}
 			out = append(out, PersonaCatalogInstallation{ID: installation.ID, PersonaID: installation.PersonaID, PersonaVersion: uint32(installation.PersonaVersion), ConversationID: installation.ConversationID,
 				Active: installation.State == string(agentpersonastore.InstallationActive), ChannelClass: string(channel), ConversationKind: string(kind), MaxTier: maxTier, AllowedDataClasses: append([]string(nil), installation.ChannelPolicy.AllowedDataClasses...)})

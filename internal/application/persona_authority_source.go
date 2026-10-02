@@ -75,7 +75,7 @@ func (s *DatabasePersonaAuthoritySource) ResolvePersonaAuthority(ctx context.Con
 	}
 	version, installation, err := store.ReadCurrentPersonaAuthority(ctx, request.ConversationID, request.PersonaID)
 	if err != nil || version.TenantID != tenant || version.PersonaID != request.PersonaID || version.Version <= 0 || installation.PersonaID != request.PersonaID || installation.ConversationID != request.ConversationID || installation.PersonaVersion != version.Version || installation.InstallationID == "" || !installationAudienceCurrent(ctx, s.Audience, request, installation.InstallationID, version.Version) {
-		return agentinvoke.Admission{}, fmt.Errorf("%w: installation is not current or audience eligible", errPersonaAuthoritySourceUnavailable)
+		return agentinvoke.Admission{}, fmt.Errorf("%w: installation is not current or audience eligible (read error: %v; version %d; installation %q)", errPersonaAuthoritySourceUnavailable, err, version.Version, installation.InstallationID)
 	}
 	var profile agentpersona.PersonaProfile
 	if err := json.Unmarshal(version.Profile, &profile); err != nil || profile.PersonaID != version.PersonaID || int64(profile.Version) != version.Version {
@@ -85,7 +85,16 @@ func (s *DatabasePersonaAuthoritySource) ResolvePersonaAuthority(ctx context.Con
 	if err != nil || sealed.Digest != version.ContentDigest {
 		return agentinvoke.Admission{}, fmt.Errorf("%w: published persona digest mismatch", errPersonaAuthoritySourceUnavailable)
 	}
-	personaScopes, installationScopes, channelScopes, err := s.Scopes.ResolvePersonaScopes(ctx, tenant, profile, installation, installation.ChannelPolicy)
+	effectivePolicy := installation.ChannelPolicy
+	if source, ok := s.Audience.(personaCurrentChannelPolicySource); ok {
+		var supported bool
+		effectivePolicy, supported, err = currentPersonaChannelPolicy(ctx, source, request.TenantID, request.ConversationID, installation.ChannelPolicy)
+		if supported && err != nil {
+			return agentinvoke.Admission{}, fmt.Errorf("%w: current channel policy: %v", errPersonaAuthoritySourceUnavailable, err)
+		}
+	}
+	installation.ChannelPolicy = effectivePolicy
+	personaScopes, installationScopes, channelScopes, err := s.Scopes.ResolvePersonaScopes(ctx, tenant, profile, installation, effectivePolicy)
 	if err != nil {
 		return agentinvoke.Admission{}, fmt.Errorf("%w: resolve exact persona ceilings: %v", errPersonaAuthoritySourceUnavailable, err)
 	}
@@ -101,6 +110,18 @@ func (s *DatabasePersonaAuthoritySource) ResolvePersonaAuthority(ctx context.Con
 }
 
 func (s *DatabasePersonaAuthoritySource) currentMember(ctx context.Context, request agentinvoke.AdmissionRequest) (PersonaAudienceMember, error) {
+	if narrow, ok := s.Audience.(personaAudienceMemberSource); ok {
+		// One conversation, one member: the same facts the full listing
+		// yields for the invoker, without reading every other conversation.
+		member, err := narrow.CurrentPersonaAudienceMember(ctx, request.TenantID, request.ConversationID, request.InvokerID)
+		if err != nil {
+			return PersonaAudienceMember{}, fmt.Errorf("%w: current audience: %v", errPersonaAuthoritySourceUnavailable, err)
+		}
+		if member.SubjectID != request.InvokerID || member.SubjectID == "" || len(member.Roles) == 0 || len(member.Populations) == 0 || member.OrganizationScope == "" {
+			return PersonaAudienceMember{}, fmt.Errorf("%w: invoker is not a verified current member", errPersonaAuthoritySourceUnavailable)
+		}
+		return member, nil
+	}
 	conversations, err := s.Audience.ListCurrentPersonaAudience(ctx, request.TenantID, request.InvokerID)
 	if err != nil {
 		return PersonaAudienceMember{}, fmt.Errorf("%w: current audience: %v", errPersonaAuthoritySourceUnavailable, err)

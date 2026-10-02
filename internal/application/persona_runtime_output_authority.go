@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"reflect"
+	"runtime"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
@@ -31,37 +33,43 @@ type PersonaRuntimeToolGroundingSource interface {
 
 func (s *personaRuntimeOutputAuthority) ResolvePersonaRunChatReplyAuthority(ctx context.Context, record agentrun.Record, run runstate.Run) (PersonaRunChatReplyAuthority, error) {
 	if s == nil || ctx == nil || s.authority == nil || s.work == nil || s.grants == nil || s.worker == nil || validatePersonaModelWorkBinding(record, run) != nil {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
 	ctx = WithPersonaBackgroundAdmission(ctx, record)
 	current, err := s.authority.VerifyAdmission(ctx, record.Request)
 	if err != nil || !reflect.DeepEqual(current, record.Authority) {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
-	profile, manifest, err := s.work.resolveProfileAndManifest(ctx, record)
-	if err != nil {
-		return PersonaRunChatReplyAuthority{}, err
+	immutable, cached := agentUXSpeedImmutableModelWork(ctx, run.ID)
+	if !cached {
+		profile, manifest, err := s.work.resolveProfileAndManifest(ctx, record)
+		if err != nil {
+			return PersonaRunChatReplyAuthority{}, err
+		}
+		policy, err := s.work.budgets.Resolve(ctx, record.Request.Source.TenantID, record.Request.LegalEntity)
+		if err != nil {
+			return PersonaRunChatReplyAuthority{}, err
+		}
+		route, err := s.work.resolveRoute(ctx, record, run, manifest, profile, policy)
+		if err != nil {
+			return PersonaRunChatReplyAuthority{}, err
+		}
+		immutable = agentUXImmutableModelWork{profile: profile, manifest: manifest, route: route, policy: policy}
+		agentUXSpeedCacheImmutableModelWork(ctx, run.ID, immutable)
 	}
-	policy, err := s.work.budgets.Resolve(ctx, record.Request.Source.TenantID, record.Request.LegalEntity)
-	if err != nil {
-		return PersonaRunChatReplyAuthority{}, err
-	}
-	route, err := s.work.resolveRoute(ctx, record, run, manifest, profile, policy)
-	if err != nil {
-		return PersonaRunChatReplyAuthority{}, err
-	}
+	manifest, route := immutable.manifest, immutable.route
 	store, err := s.grants.ForTenant(ctx, values.TenantId(record.Request.Source.TenantID))
 	if err != nil || isNilPersonaOutputPort(store) {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
 	grant, err := store.Get(record.Request.Principal.DelegatedCredentialRef)
 	now := s.work.now().UTC()
 	if err != nil || !privatePersonaReplyGrantMatches(grant, record, now) || store.CurrentRevocationEpoch(grant.Tenant, grant.UserID) != grant.RevocationEpoch {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
 	worker, err := s.worker.ResolvePersonaChatWorker(ctx)
 	if err != nil || !privatePersonaReplyWorkerMatches(worker, now) {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
 	gateway, err := agentsecurity.NewToolGateway([]agentsecurity.ToolDescriptor{PersonaChatReplyToolDescriptor()})
 	if err != nil {
@@ -85,12 +93,12 @@ func (s *personaRuntimeOutputAuthority) ResolvePersonaRunChatReplyAuthority(ctx 
 	posts, err := s.work.threads.ReadThread(ctx, agentinvoke.ThreadReadRequest{TenantID: record.Request.Source.TenantID, ConversationID: record.Request.Audience.ID,
 		ThreadID: record.Request.Context.ID, InvokingPostID: record.Request.Source.Ref, InvokerID: record.Request.Principal.InvokerID, Limit: agentinvoke.MaxThreadPosts})
 	if err != nil || len(posts) == 0 {
-		return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+		return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 	}
 	grounding := make([]agentsecurity.Datum, 0, len(posts))
 	for _, post := range posts {
 		if post.TenantID != record.Request.Source.TenantID || post.ConversationID != record.Request.Audience.ID || post.ThreadID != record.Request.Context.ID || post.ID == "" {
-			return PersonaRunChatReplyAuthority{}, ErrPersonaRunOutputValidatorUnavailable
+			return PersonaRunChatReplyAuthority{}, personaOutputAuthorityUnavailableHere()
 		}
 		datum, err := gateway.Observe(agentsecurity.SourceChat, post.Body, agentsecurity.KindObservation, agentsecurity.Citation{SourceID: "chat:" + post.ID,
 			Location: fmt.Sprintf("conversation:%s/%s", post.ConversationID, post.ID), Digest: digestPersonaThreadPost(post)})
@@ -132,4 +140,15 @@ func BindPersonaRuntimeTools(cfg *PersonaInvocationProductionConfig, tools inter
 	authority.tools = tools
 	cfg.Run.Tools = tools
 	return nil
+}
+
+// personaOutputAuthorityUnavailableHere keeps the fail-closed sentinel and
+// names the check that refused, so an operator can tell which authority was
+// missing without any request content being reported.
+func personaOutputAuthorityUnavailableHere() error {
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		return ErrPersonaRunOutputValidatorUnavailable
+	}
+	return fmt.Errorf("%w (%s:%d)", ErrPersonaRunOutputValidatorUnavailable, filepath.Base(file), line)
 }

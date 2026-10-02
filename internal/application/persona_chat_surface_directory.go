@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -38,9 +39,13 @@ type PersonaChatSurface struct {
 	Failures             personaPostFailureStore
 	Receipts             personaReplyReceiptStore
 	Tasks                PersonaInvocationTaskReader
+	Authors              personaAnnouncementAuthors
 	ChannelAlwaysPrivate func(context.Context, string, personaReferenceFacts) (bool, error)
 	Executions           func(context.Context, string) (runstate.Store, error)
 	Now                  func() time.Time
+	// Share is the check made before a private answer is posted to its channel
+	// (AGENTUX-070). Unset, sharing is unavailable.
+	Share *PersonaAnswerShareGate
 }
 
 var _ personachat.Surface = (*PersonaChatSurface)(nil)
@@ -128,8 +133,20 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 		return personachat.Directory{}, personachat.ErrUnavailable
 	}
 	result := personachat.Directory{Personas: make([]personachat.Profile, 0)}
+	// Each omission is logged with its reason: an empty agent list is otherwise
+	// indistinguishable from a conversation with no agent.
+	omitted := func(item, reason string) {
+		slog.InfoContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "chat_directory", "item_type", "persona_reference", "item_id", item, "conversation_id", room.ID, "reason", reason)
+	}
+	if len(profiles) == 0 || len(candidates) == 0 {
+		slog.InfoContext(ctx, "hcmnext.persona_projection_empty", "projection", "chat_directory", "conversation_id", room.ID, "available_profiles", len(profiles), "reference_candidates", len(candidates))
+	}
 	for _, candidate := range candidates {
-		if !candidate.Eligible || candidate.Kind != chat.AgentMention || candidate.TenantID != room.TenantID || candidate.ConversationID != room.ID {
+		if candidate.Kind != chat.AgentMention {
+			continue
+		}
+		if !candidate.Eligible || candidate.TenantID != room.TenantID || candidate.ConversationID != room.ID {
+			omitted(candidate.ID, "candidate_not_eligible")
 			continue
 		}
 		facts, err := s.References.LookupPersonaReference(ctx, room.TenantID, room.ID, candidate.ID)
@@ -138,13 +155,16 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 			at = s.Now().UTC()
 		}
 		if err != nil || !currentPersonaReference(facts, room.TenantID, room.ID, candidate.ID, at) {
+			omitted(candidate.ID, "reference_not_current")
 			continue
 		}
+		matched := false
 		for _, version := range profiles {
 			profile := version.Profile
 			if version.Verify() != nil || profile.PersonaID != facts.PersonaID || uint64(profile.Version) != facts.PersonaVersion || candidate.Display != profile.DisplayName {
 				continue
 			}
+			matched = true
 			discovered, err := s.Skills.Discover(ctx, p, personaChatReplyPurpose)
 			if err != nil {
 				return personachat.Directory{}, personachat.ErrUnavailable
@@ -188,9 +208,16 @@ func (s *PersonaChatSurface) Directory(ctx context.Context, conversationID strin
 			})
 			break
 		}
+		if !matched {
+			omitted(candidate.ID, "no_available_profile_for_reference")
+		}
 	}
 	actors, err := s.visiblePostActors(ctx, p, room)
 	if err != nil {
+		return personachat.Directory{}, err
+	}
+	// CHATLIVE-002: stored announcements are attested by their registered agent author.
+	if actors, err = s.announcementPostActors(ctx, p, room, actors); err != nil {
 		return personachat.Directory{}, err
 	}
 	result.PostActors = actors

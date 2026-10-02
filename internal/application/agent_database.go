@@ -2,8 +2,11 @@ package application
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -61,7 +64,16 @@ func composeAgentDatabase(ctx context.Context, cfg ServeConfig) (composedAgentDa
 	mapTenant := func(tenant values.TenantId) uuid.UUID {
 		return pgstore.TenantID(tenant.String())
 	}
-	personas, err := composeAgentPersonaStore(store, mapTenant, cfg.PersonaEvaluationPublicKeys, time.Now)
+	// The local-dev demo cell evaluates with its own local key. Its verifier
+	// is part of the one persona store every reader shares: a catalog,
+	// rollout or publication path holding a store without it reports a
+	// passed evaluation as an invalid signature.
+	localVerifiers, err := localAgentDemoEvaluationVerifiers(cfg)
+	if err != nil {
+		store.Close()
+		return composedAgentDatabase{}, fmt.Errorf("compose local evaluation verifier: %w", err)
+	}
+	personas, err := composeAgentPersonaStore(store, mapTenant, cfg.PersonaEvaluationPublicKeys, time.Now, localVerifiers)
 	if err != nil {
 		store.Close()
 		return composedAgentDatabase{}, fmt.Errorf("compose agent persona store: %w", err)
@@ -93,23 +105,52 @@ func composeAgentDatabase(ctx context.Context, cfg ServeConfig) (composedAgentDa
 // composeAgentPersonaStore binds durable publication verification to the same
 // persona store used by the catalog and lifecycle commands. It loads public
 // verifier keys only; it never creates evaluation results or signing authority.
-func composeAgentPersonaStore(db agentpersonastore.DB, mapTenant func(values.TenantId) uuid.UUID, keyring string, now func() time.Time) (*agentpersonastore.Store, error) {
+func composeAgentPersonaStore(db agentpersonastore.DB, mapTenant func(values.TenantId) uuid.UUID, keyring string, now func() time.Time, additional ...map[string]ed25519.PublicKey) (*agentpersonastore.Store, error) {
 	reviews, err := agentpersonastore.NewDurableReviewAuthority(mapTenant)
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(keyring) == "" {
-		return agentpersonastore.NewWithReviewAuthority(db, mapTenant, reviews)
+	keys := map[string]ed25519.PublicKey{}
+	if strings.TrimSpace(keyring) != "" {
+		parsed, err := ParsePersonaEvaluationVerificationKeys(keyring)
+		if err != nil {
+			return nil, err
+		}
+		for id, key := range parsed {
+			keys[id] = key
+		}
 	}
-	keys, err := ParsePersonaEvaluationVerificationKeys(keyring)
-	if err != nil {
-		return nil, err
+	// A configured key is never replaced by an additional one with its id.
+	for _, set := range additional {
+		for id, key := range set {
+			if _, configured := keys[id]; !configured {
+				keys[id] = key
+			}
+		}
+	}
+	if len(keys) == 0 {
+		return agentpersonastore.NewWithReviewAuthority(db, mapTenant, reviews)
 	}
 	evaluations, err := agentpersonastore.NewEvaluationSealAuthority(keys, mapTenant, now)
 	if err != nil {
 		return nil, err
 	}
 	return agentpersonastore.NewWithPublicationAuthorities(db, mapTenant, reviews, evaluations)
+}
+
+// localAgentDemoEvaluationVerifiers returns the public half of the local
+// evaluation key for a local-dev process that serves the demo tenant, keyed
+// as the local evaluator seals its claims. Every other process gets none.
+func localAgentDemoEvaluationVerifiers(cfg ServeConfig) (map[string]ed25519.PublicKey, error) {
+	if cfg.Profile != ServeProfileLocalDev || !slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
+		return nil, nil
+	}
+	privateKey, err := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+	if err != nil {
+		return nil, err
+	}
+	// One key per demo agent's evaluation suite, for every demo tenant served.
+	return localAgentDemoEvaluationVerificationKeys(privateKey, cfg.ServedTenants()...)
 }
 
 // ensureLocalDevAgentDatabase creates the local development database on the

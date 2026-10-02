@@ -137,6 +137,9 @@ func personaInstructionDigest(content string) string {
 }
 
 func personaStarterInstructions(starter agenttemplate.PersonaStarter) string {
+	if instructions, ok := agentUXGeneralStarterInstructions(starter); ok {
+		return instructions
+	}
 	return strings.TrimSpace(starter.Purpose) + " Follow only the pinned skills and the tenant's current authorization. Cite the records used, refuse actions outside the starter's tier ceiling, and never expose private information to a broader audience."
 }
 
@@ -152,9 +155,9 @@ func localDevPersonaStarterManifest(starter agenttemplate.PersonaStarter, instru
 		ToolCeiling:        personaStarterToolCeiling(starter),
 		ModelPolicy:        refs.modelPolicy,
 		AutonomyCeiling:    "ASSISTED",
-		Budget: agentmanifest.Budget{
+		Budget: agentUXGeneralStarterBudget(starter, agentmanifest.Budget{
 			MaxCostMicros: 100, MaxInputTokens: 4000, MaxOutputTokens: 1000, MaxConcurrentRuns: 1,
-		},
+		}),
 		OutputSchema:   refs.outputSchema,
 		ContextGrants:  []agentmanifest.Reference{},
 		EvaluationRefs: []agentmanifest.Reference{refs.evaluation},

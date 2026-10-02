@@ -24,6 +24,9 @@ func (s *ChatExtensions) MutateChannelPoll(ctx context.Context, p chat.Principal
 	if err := s.channelTodoActor(ctx, p, host, conversation); err != nil {
 		return chat.ChannelPoll{}, err
 	}
+	if err := s.checkTexts(ctx, p, host, conversation, append([]string{mutation.Question}, mutation.Options...)...); err != nil {
+		return chat.ChannelPoll{}, err
+	}
 	if host == "" {
 		host = p.TenantID
 	}

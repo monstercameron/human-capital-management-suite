@@ -230,6 +230,24 @@ func TestTodo_AGENTP_018_CommandTransportRejectsCallerIdentityAndInvalidAction(t
 	}
 }
 
+func TestTodo_AGENTUX_025_CommandTransportMapsUninstallAndReinstall(t *testing.T) {
+	ctx, _ := personaAdminCommandContext(t)
+	authorizer := &personaAdminCommandAuthFake{}
+	executor := &personaAdminCommandExecutorFake{}
+	factory, err := NewPersonaAdminCommandFactory(personaAdminCommandCatalogFake{}, authorizer, executor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"UNINSTALL", "REINSTALL"} {
+		if err := factory.ExecutePersonaAdminCommand(ctx, productui.PersonaAdminCommandRequest{Action: action, PersonaID: "policy-helper", ConversationID: "direct"}); err != nil {
+			t.Fatalf("%s command error=%v", action, err)
+		}
+		if executor.command.Action != PersonaAdminCommandAction(action) || executor.command.Installation.PersonaID != "policy-helper" || executor.command.Installation.ConversationID != "direct" || authorizer.action != PersonaAdminCommandAction(action) {
+			t.Fatalf("%s mapped command=%+v authorizer=%+v", action, executor.command, authorizer)
+		}
+	}
+}
+
 func TestTodo_AGENTP_018_CommandRoleAuthorizerRequiresExplicitCurrentAction(t *testing.T) {
 	ctx, principal := personaCatalogRoleContext(t)
 	ctx = trust.WithPrincipal(ctx, principal)
@@ -242,6 +260,8 @@ func TestTodo_AGENTP_018_CommandRoleAuthorizerRequiresExplicitCurrentAction(t *t
 	}{
 		{name: "create explicit grant", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true, Create: true}, action: PersonaAdminCreateDraft},
 		{name: "update grant", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true, Update: true}, action: PersonaAdminPublish},
+		{name: "update grant permits uninstall", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true, Update: true}, action: PersonaAdminUninstall},
+		{name: "update grant permits reinstall", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true, Update: true}, action: PersonaAdminReinstall},
 		{name: "view does not grant publish", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true}, action: PersonaAdminPublish, wantErr: true},
 		{name: "reviewer view permits decision surface", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true}, action: PersonaAdminReview},
 		{name: "reviewer view cannot queue author draft", grant: roleaccess.PagePermission{RoleID: "hcm_admin", PageID: string(productui.PagePersonaAdmin), View: true}, action: PersonaAdminRequestReview, wantErr: true},

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"math/bits"
 	"reflect"
@@ -88,10 +89,23 @@ func personaRuntimeBudgetTask(record agentrun.Record) (agentbudget.TaskSpec, err
 func personaRuntimeBudgetTaskMatches(snapshot agentbudget.Snapshot, spec agentbudget.TaskSpec) bool {
 	for _, task := range snapshot.Tasks {
 		if task.ID == spec.ID {
-			return task.TenantID == spec.TenantID && task.UserID == spec.UserID && task.Limit == spec.Limit && task.ParentTaskID == "" && task.Depth == 0
+			return task.TenantID == spec.TenantID && task.UserID == spec.UserID && personaRuntimeBudgetLimitsMatch(task.Limit, spec.Limit) && task.ParentTaskID == "" && task.Depth == 0
 		}
 	}
 	return false
+}
+
+// personaRuntimeBudgetLimitsMatch compares the wall-clock limit at the
+// precision the run record keeps after it is stored. The limit is derived
+// from two timestamps, and a record read back from PostgreSQL carries
+// microseconds where the admitting process had nanoseconds.
+func personaRuntimeBudgetLimitsMatch(stored, derived agentbudget.Limits) bool {
+	delta := stored.WallClock - derived.WallClock
+	if delta < 0 {
+		delta = -delta
+	}
+	stored.WallClock, derived.WallClock = 0, 0
+	return stored == derived && delta < 2*time.Microsecond
 }
 
 var _ agentmodel.Budget = (*PersonaLedgerBudget)(nil)
@@ -116,12 +130,12 @@ func personaRuntimeRemainingBudget(snapshot agentbudget.Snapshot, record agentru
 		if !personaRuntimeBudgetTaskMatches(snapshot, spec) || task.Used.Tokens < 0 || task.Reserved.Tokens < 0 || task.Used.SpendMicros < 0 || task.Reserved.SpendMicros < 0 ||
 			task.Used.Steps < 0 || task.Reserved.Steps < 0 || task.Used.Steps > task.Limit.Steps || task.Reserved.Steps > task.Limit.Steps-task.Used.Steps ||
 			task.Used.Tokens > task.Limit.Tokens || task.Reserved.Tokens > task.Limit.Tokens-task.Used.Tokens || task.Used.SpendMicros > task.Limit.SpendMicros || task.Reserved.SpendMicros > task.Limit.SpendMicros-task.Used.SpendMicros || task.Paused != "" {
-			return agentrun.Budget{}, agentbudget.ErrPaused
+			return agentrun.Budget{}, fmt.Errorf("%w: reason=%q used=%+v reserved=%+v limit=%+v", agentbudget.ErrPaused, task.Paused, task.Used, task.Reserved, task.Limit)
 		}
 		left := uint64(task.Limit.Tokens - task.Used.Tokens - task.Reserved.Tokens)
 		cost := uint64(task.Limit.SpendMicros - task.Used.SpendMicros - task.Reserved.SpendMicros)
 		if left < 2 || cost == 0 || task.Used.Steps+task.Reserved.Steps >= task.Limit.Steps {
-			return agentrun.Budget{}, agentbudget.ErrPaused
+			return agentrun.Budget{}, fmt.Errorf("%w: nothing left for another step (tokens left %d, cost left %d, steps %d+%d of %d)", agentbudget.ErrPaused, left, cost, task.Used.Steps, task.Reserved.Steps, task.Limit.Steps)
 		}
 		// Retain the admitted input/output ratio while shrinking both ceilings.
 		// Wide multiplication avoids overflow at large valid token limits.

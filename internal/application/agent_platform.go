@@ -67,7 +67,7 @@ type agentRuntime struct {
 }
 
 // agentBudgetPolicy holds one task, one user-day and one tenant-month to
-// ceilings that comfortably admit the two-step self-service plan and refuse a
+// ceilings that comfortably admit the bounded self-service plans and refuse a
 // runaway.
 func agentBudgetPolicy() agentbudget.Policy {
 	return agentbudget.Policy{
@@ -235,7 +235,7 @@ func composeAgentRuntime(ctx context.Context, in agentRuntimeInput) (*agentRunti
 	}
 	starter := &agentStarter{
 		platform: platform, settings: settings, authority: authority, inspector: inspector, model: model,
-		now: now, wait: agentStartWait, driveFor: agentDriveTimeout, newID: randomAgentTaskID,
+		now: now, wait: agentStartWait, driveFor: agentDriveTimeout, newID: randomAgentTaskID, planner: deterministicAgentTaskPlanner{},
 	}
 	controller := &agentController{platform: platform, settings: settings, authority: authority, now: now}
 	return &agentRuntime{Platform: platform, Starter: starter, Controller: controller, Model: model, Owner: owner, Resources: resourceRuntime, Budget: ledger, Audit: audit, TypedModels: typedModels}, nil
@@ -261,9 +261,6 @@ func wireAgentRuntime(ctx context.Context, in ServeInput, cell *app.Cell, logger
 	}
 	if runtime == nil {
 		return nil
-	}
-	if err := composeServedAgentTaskModel(ctx, in.Config, runtime, os.Getenv, now); err != nil {
-		logger.Error("hcmnext.agent_task_model_unavailable", "error", err.Error())
 	}
 	cell.Agents = agentStartAvailabilityClient{AgentClient: agentclient.FromPlatformWithControls(runtime.Platform, cell.AgentSettings, runtime.Controller), starter: runtime.Starter}
 	cell.AgentStarter = runtime.Starter

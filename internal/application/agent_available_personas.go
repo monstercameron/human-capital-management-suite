@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
@@ -78,30 +79,57 @@ func (r *TenantAvailablePersonaReader) ListAvailable(ctx context.Context, princi
 	if err != nil {
 		return nil, fmt.Errorf("read available personas: %w", err)
 	}
+	if len(allowed) == 0 || len(candidates) == 0 {
+		slog.InfoContext(ctx, "hcmnext.persona_projection_empty", "projection", "available_personas", "allowed_installations", len(allowed), "candidates", len(candidates))
+	}
 	out := make([]agentpersona.PersonaVersion, 0, len(candidates))
 	seen := make(map[string]struct{}, len(candidates))
 	for _, candidate := range candidates {
 		profile, err := decodeAvailableProfile(candidate)
 		if err != nil {
-			return nil, err
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", candidate.PersonaID, "reason", "invalid_profile")
+			continue
 		}
 		if r.Skills == nil {
 			return nil, errAgentAvailablePersonas
 		}
-		discovered, err := r.Skills.Discover(ctx, verified, profile.Profile.Purpose)
+		discovered, err := r.Skills.Discover(ctx, verified, personaChatReplyPurpose)
 		if err != nil {
-			return nil, fmt.Errorf("discover skills for persona %s: %w", profile.Profile.PersonaID, err)
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "skill_discovery_unavailable", "error", err.Error())
+			continue
 		}
 		if !hasExactPinnedSkills(profile.Profile.SkillPins, discovered) {
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "pinned_skill_not_discoverable", "pinned", len(profile.Profile.SkillPins), "discovered", len(discovered), "missing", missingPinnedSkills(profile.Profile.SkillPins, discovered))
 			continue
 		}
 		if _, exists := seen[profile.Profile.PersonaID]; exists {
-			return nil, errAgentAvailablePersonas
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "duplicate_persona")
+			continue
 		}
 		seen[profile.Profile.PersonaID] = struct{}{}
 		out = append(out, profile)
 	}
 	return out, nil
+}
+
+// missingPinnedSkills names the pinned skills the current discovery did not
+// return with the pinned digest, for the omission log only.
+func missingPinnedSkills(pins []agentskills.SkillPin, discovered []agentskills.SkillRecord) []string {
+	available := make(map[agentskills.SkillKey]agentskills.SkillRecord, len(discovered))
+	for _, record := range discovered {
+		available[record.Definition.Key()] = record
+	}
+	var missing []string
+	for _, pin := range pins {
+		record, ok := available[pin.Key()]
+		switch {
+		case !ok:
+			missing = append(missing, pin.ID+":not_discovered")
+		case record.Digest != pin.Digest:
+			missing = append(missing, pin.ID+":digest_changed")
+		}
+	}
+	return missing
 }
 
 func hasExactPinnedSkills(pins []agentskills.SkillPin, discovered []agentskills.SkillRecord) bool {

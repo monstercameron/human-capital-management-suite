@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -86,7 +87,7 @@ func (s *GateInvokerAuthoritySource) ResolveInvokerAuthority(ctx context.Context
 		return denied, errPersonaCurrentAuthorityProjection
 	}
 	if !ok || (!chatBound && (len(subjects) == 0 || len(fields) == 0)) {
-		return denied, errPersonaCurrentAuthorityProjection
+		return denied, fmt.Errorf("%w: organization scope resolved=%t subjects=%d fields=%d", errPersonaCurrentAuthorityProjection, ok, len(subjects), len(fields))
 	}
 	recordSubjectsCurrent := subjectsInOrganization(subjects, principal.Tenant(), organization)
 	if !recordSubjectsCurrent && !chatBound {
@@ -99,7 +100,7 @@ func (s *GateInvokerAuthoritySource) ResolveInvokerAuthority(ctx context.Context
 			continue
 		}
 		key := record.Definition.Key()
-		if chatBound && (!isNilPersonaOutputPort(s.chat) || !isNilPersonaOutputPort(s.chatScope)) && (key.ID == "persona.chat_reply" || key.ID == personaPolicyHelperSkillID) {
+		if chatBound && (!isNilPersonaOutputPort(s.chat) || !isNilPersonaOutputPort(s.chatScope)) && (key.ID == "persona.chat_reply" || key.ID == personaPolicyHelperSkillID || key.ID == personaWorkspaceSearchSkillID) {
 			tuple.Pins = []agentskills.SkillPin{{ID: key.ID, Version: key.Version, Digest: record.Digest}}
 			tuple.At = at
 			chatSource := &PersonaPrivateChatInvokerAuthoritySource{Gate: s.gate, Users: personaPrivateChatDiscoveryUserResolver{current: s.current}, Chat: s.chat, Scope: s.chatScope}
@@ -107,6 +108,7 @@ func (s *GateInvokerAuthoritySource) ResolveInvokerAuthority(ctx context.Context
 			if projectErr != nil {
 				var denial *agentgate.DeniedError
 				if errors.As(projectErr, &denial) {
+					slog.InfoContext(ctx, "hcmnext.persona_skill_authority_denied", "skill", key.ID, "conversation_id", tuple.ConversationID, "reason", projectErr.Error())
 					continue
 				}
 				return denied, projectErr

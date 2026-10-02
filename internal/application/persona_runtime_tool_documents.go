@@ -18,11 +18,11 @@ type DatabasePersonaRuntimeDocumentVersions struct{ Store *documenthubstore.Stor
 
 func (s DatabasePersonaRuntimeDocumentVersions) PersonaRuntimeDocumentClass(ctx context.Context, identity PersonaRunT0ToolInvocation, documentID, versionID string) (trustdlp.DataClass, error) {
 	if s.Store == nil || ctx == nil || documentID == "" || versionID == "" {
-		return "", errPersonaRuntimeTools
+		return "", personaRuntimeToolDeniedHere()
 	}
 	version, err := s.Store.ReadVersion(ctx, identity.TenantID, documentID, versionID, "person", identity.InvokerID)
 	if err != nil || version.DocumentID != documentID || version.ID != versionID {
-		return "", errPersonaRuntimeTools
+		return "", personaRuntimeToolDeniedHere()
 	}
 	switch strings.ToUpper(strings.TrimSpace(version.Classification)) {
 	case "PUBLIC":
@@ -34,6 +34,6 @@ func (s DatabasePersonaRuntimeDocumentVersions) PersonaRuntimeDocumentClass(ctx 
 	case "RESTRICTED":
 		return trustdlp.ClassRestricted, nil
 	default:
-		return "", errPersonaRuntimeTools
+		return "", personaRuntimeToolDeniedHere()
 	}
 }

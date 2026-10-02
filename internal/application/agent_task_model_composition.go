@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 )
 
@@ -14,7 +15,7 @@ const localAgentTaskModelDeploymentPath = ".artifacts/lanes/agent-dev/task-model
 
 // composeServedAgentTaskModel connects the private task runtime to the qualified
 // SchemaFlux/OpenAI deployment. Persona-only profiles do not enable task starts.
-func composeServedAgentTaskModel(ctx context.Context, cfg ServeConfig, runtime *agentRuntime, env func(string) string, now func() time.Time) error {
+func composeServedAgentTaskModel(ctx context.Context, cfg ServeConfig, runtime *agentRuntime, documents agentdocref.Resolver, env func(string) string, now func() time.Time) error {
 	if runtime == nil || runtime.TypedModels == nil {
 		return nil
 	}
@@ -50,7 +51,7 @@ func composeServedAgentTaskModel(ctx context.Context, cfg ServeConfig, runtime *
 	}
 	now = personaServeClock(now)
 	source, err := NewAgentTaskModelRequestSource(AgentTaskModelRequestSourceConfig{Platform: runtime.Platform, Deployment: deployment,
-		Workload: deployment.Worker.Workload, LeaseTTL: time.Duration(deployment.Credential.LeaseTTLSeconds) * time.Second, Now: now, Audit: runtime.Audit})
+		Workload: deployment.Worker.Workload, LeaseTTL: time.Duration(deployment.Credential.LeaseTTLSeconds) * time.Second, Now: now, Audit: runtime.Audit, Documents: documents})
 	if err != nil {
 		return err
 	}

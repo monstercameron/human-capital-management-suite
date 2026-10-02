@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
@@ -107,5 +108,26 @@ func TestTodo_AGENTP_007_LocalDemoBootstrapSecurity(t *testing.T) {
 	private := &localPersonaChatPolicyFake{}
 	if n, err := ProvisionLocalDevPersonaChatPolicy(context.Background(), private, ServeProfileLocalDev, "ironridge-demo", localDevPersonaDemoConversationID("ironridge-demo", "leadership-private"), "leadership-private"); err != nil || n != 1 || private.public != nil || !private.ceiling.AlwaysPrivate || private.ceiling.MaxTier != "T1" {
 		t.Fatalf("private setup created=%d err=%v state=%+v", n, err, private)
+	}
+}
+
+func TestTodo_AGENTUX_005_DirectConversationPolicy(t *testing.T) {
+	conversation, err := chatcore.DirectPairConversationID(localAgentDemoTenant, []chatcore.MemberRef{{TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAdmin}, {TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAgentID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &localPersonaChatPolicyFake{}
+	created, err := ProvisionLocalDevPersonaDirectPolicy(context.Background(), fake, ServeProfileLocalDev, localAgentDemoTenant, conversation, localAgentDemoAdmin)
+	if err != nil || created != 1 || fake.writes != 1 || fake.ceiling.MaxTier != "T3" || !fake.ceiling.AlwaysPrivate || len(fake.ceiling.AllowedChannelClasses) != 1 || fake.ceiling.AllowedChannelClasses[0] != "ONE_TO_ONE" {
+		t.Fatalf("direct policy created=%d writes=%d policy=%+v err=%v", created, fake.writes, fake.ceiling, err)
+	}
+	if created, err = ProvisionLocalDevPersonaDirectPolicy(context.Background(), fake, ServeProfileLocalDev, localAgentDemoTenant, conversation, localAgentDemoAdmin); err != nil || created != 0 || fake.writes != 1 {
+		t.Fatalf("direct policy replay created=%d writes=%d err=%v", created, fake.writes, err)
+	}
+	for _, administrator := range []string{"different", ""} {
+		blocked := &localPersonaChatPolicyFake{}
+		if _, err := ProvisionLocalDevPersonaDirectPolicy(context.Background(), blocked, ServeProfileLocalDev, localAgentDemoTenant, conversation, administrator); !errors.Is(err, ErrLocalDevPersonaChatBootstrap) || blocked.writes != 0 {
+			t.Fatalf("unbound direct policy administrator=%q writes=%d err=%v", administrator, blocked.writes, err)
+		}
 	}
 }

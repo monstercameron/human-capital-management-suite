@@ -13,7 +13,7 @@ import (
 // composeChatRouting injects the current core credential pool into the route
 // directory. The chat store keeps its own pool; no chat query can reach this
 // database through a join.
-func composeChatRouting(ctx context.Context, service chatcore.ConversationService, corePool *pgxadapter.Pool) (chatcore.ConversationService, error) {
+func composeChatRouting(ctx context.Context, service chatcore.ConversationService, corePool *pgxadapter.Pool, status ...chatcore.ChannelStatusService) (chatcore.ConversationService, error) {
 	if corePool == nil {
 		return nil, chatrouting.ErrInvalid
 	}
@@ -24,7 +24,11 @@ func composeChatRouting(ctx context.Context, service chatcore.ConversationServic
 	if err = directory.Migrate(ctx); err != nil {
 		return nil, err
 	}
-	routed, err := chatroutingadapter.New(service, chatroutingadapter.Options{Directory: directory, DefaultShard: "chat-default", PlacementPolicy: "tenant-default", PlacementPolicyVersion: 1})
+	var statusPort chatcore.ChannelStatusService
+	if len(status) > 0 {
+		statusPort = status[0]
+	}
+	routed, err := chatroutingadapter.New(service, chatroutingadapter.Options{ChannelStatus: statusPort, Directory: directory, DefaultShard: "chat-default", PlacementPolicy: "tenant-default", PlacementPolicyVersion: 1})
 	if err != nil {
 		return nil, err
 	}

@@ -159,7 +159,7 @@ func composePersonaServeWiring(pool *pgxadapter.Pool, cell *app.Cell, personas *
 	if err != nil {
 		return nil, personaServeWiringError{stage: "effective_grant_gate", err: err}
 	}
-	adminTargets := &ChatDirectoryPersonaCatalogTargets{Directory: catalogDirectory}
+	adminTargets := &ChatDirectoryPersonaCatalogTargets{Directory: catalogDirectory, Roles: agentDirectory, RoleNames: cell.RoleAccess}
 	adminGrants := &CurrentPersonaCatalogGrants{Evaluator: gate, Context: current, Skills: skills, Purpose: "persona_admin_preview", Now: now}
 	available := &TenantAvailablePersonaReader{
 		Backend:  &AgentPersonaStoreBackend{Store: personas},

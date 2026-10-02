@@ -35,6 +35,7 @@ type PersonaBackgroundDispatcher struct {
 	outputs    PersonaBackgroundOutputRecovery
 	scanMu     sync.Mutex
 	cursors    map[string]personaBackgroundScanCursor
+	recovery   personaRecovery
 }
 
 type personaBackgroundScanCursor struct {
@@ -143,11 +144,20 @@ func (d *PersonaBackgroundDispatcher) Wake(ctx context.Context, tenant, admissio
 	if run.State == runstate.StateCompleted {
 		return nil
 	}
+	if run.State == runstate.StateRunning && run.Lease != nil && run.Lease.Until.After(cfg.Now().UTC()) {
+		return ErrPersonaRunExecutorBusy
+	}
+	if handled, guardErr := d.guardOrphanedRun(ctx, tenant, state, run, cfg.Now().UTC()); handled || guardErr != nil {
+		return guardErr
+	}
 	if run.State == runstate.StateRunning {
 		if run.Lease == nil || run.Lease.Until.After(cfg.Now().UTC()) {
 			return ErrPersonaRunExecutorBusy
 		}
 		run, err = state.Recover(ctx, run.ID, run.Version, cfg.Now().UTC())
+		if errors.Is(err, runstate.ErrConflict) || errors.Is(err, agentrunstate.ErrConflict) {
+			return ErrPersonaRunExecutorBusy // another process took the run over first
+		}
 		if err != nil {
 			return err
 		}

@@ -47,13 +47,31 @@ func (r *PersonaRunAdmissionRechecker) Recheck(ctx context.Context, tenant, admi
 	if r == nil || ctx == nil || tenant != r.tenant || strings.TrimSpace(admissionID) == "" {
 		return errPersonaRunTenantRuntime
 	}
+	// Every runstate boundary invalidates the helper-level snapshot first. The
+	// successful result below may then be reused by helpers inside this one
+	// boundary, but never by the next checkpoint or side effect.
+	agentUXSpeedInvalidateAuthority(ctx)
+	done := agentUXSpeedEvent(ctx, "store.admission.get")
 	record, err := r.reader.GetByID(ctx, admissionID)
+	done()
 	if err != nil || record.Request.Source.TenantID != tenant || record.ID != admissionID || record.Decision != agentrun.DecisionAccepted {
 		return errPersonaRunTenantRuntime
 	}
+	if personaRunReplyDelivered(ctx, admissionID) {
+		// The reply is already written. Its own write was fenced against the
+		// current audience, and it has changed the conversation and thread
+		// this admission pinned, so comparing them again can only refuse to
+		// record a delivery that happened. The record binding above still holds.
+		return nil
+	}
+	done = agentUXSpeedEvent(ctx, "authority.boundary_verify")
 	current, err := r.authority.VerifyAdmission(ctx, record.Request)
-	if err != nil || !reflect.DeepEqual(current, record.Authority) {
-		return errPersonaRunTenantRuntime
+	done()
+	if err != nil {
+		return fmt.Errorf("%w: current authority: %v", errPersonaRunTenantRuntime, err)
+	}
+	if !reflect.DeepEqual(current, record.Authority) {
+		return fmt.Errorf("%w: authority changed since admission: admitted=%+v current=%+v", errPersonaRunTenantRuntime, record.Authority, current)
 	}
 	return nil
 }
@@ -142,3 +160,16 @@ func (f *DatabasePersonaRunTenantRuntimeFactory) ForPersonaRunTenant(_ context.C
 
 var _ runstate.AdmissionRechecker = (*PersonaRunAdmissionRechecker)(nil)
 var _ PersonaRunTenantRuntimeValidator = (*DatabasePersonaRunTenantRuntimeFactory)(nil)
+
+type personaRunReplyDeliveredKey struct{}
+
+// withPersonaRunReplyDelivered marks the context of the one checkpoint that
+// records a delivery receipt for the named admission.
+func withPersonaRunReplyDelivered(ctx context.Context, admissionID string) context.Context {
+	return context.WithValue(ctx, personaRunReplyDeliveredKey{}, admissionID)
+}
+
+func personaRunReplyDelivered(ctx context.Context, admissionID string) bool {
+	delivered, ok := ctx.Value(personaRunReplyDeliveredKey{}).(string)
+	return ok && delivered != "" && delivered == admissionID
+}

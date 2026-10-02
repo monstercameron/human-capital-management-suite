@@ -2,10 +2,14 @@ package application
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
+	"github.com/monstercameron/human-capital-management-suite/internal/application/documentembed"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	transportdocument "github.com/monstercameron/human-capital-management-suite/internal/transport/document"
@@ -16,7 +20,10 @@ import (
 type PersonaRuntimeToolPinAuthority interface {
 	ResolvePersonaRuntimeToolPins(context.Context, agentrun.Record, runstate.Run) ([]agentskills.SkillPin, error)
 }
-type PersonaDocumentSearchScope struct{ ScopeID string }
+type PersonaDocumentSearchScope struct {
+	ScopeID                string
+	WorkspaceSearchAllowed bool
+}
 type PersonaDocumentSearchScopeSource interface {
 	ResolvePersonaDocumentSearchScope(context.Context, PersonaRunT0ToolInvocation) (PersonaDocumentSearchScope, error)
 }
@@ -28,35 +35,55 @@ type personaDocumentSearchContext struct {
 
 func (p *DatabasePersonaT0SkillPolicy) ResolvePersonaDocumentSearchScope(ctx context.Context, id PersonaRunT0ToolInvocation) (PersonaDocumentSearchScope, error) {
 	if p == nil || ctx == nil {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
 	request, ok := ctx.Value(personaBackgroundAdmissionKey{}).(agentrun.Request)
 	if !ok || request.Persona == nil || request.Source.TenantID != id.TenantID || request.Source.Key != id.InvocationID || request.Principal.InvokerID != id.InvokerID || request.Audience.ID != id.ConversationID || request.Context.ID != id.ThreadID || request.Persona.ID != id.PersonaID || request.Persona.Version != id.PersonaVersion || request.InstallationID != id.InstallationID || request.Agent.AgentID != id.AgentID {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
 	invocation := personaRunInvocation(request)
 	store, err := p.grantStores.ForTenant(ctx, values.TenantId(id.TenantID))
 	if err != nil || isNilPersonaOutputPort(store) {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
 	grant, err := store.Get(request.Principal.DelegatedCredentialRef)
 	if err != nil {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
 	bindForegroundGrant(&invocation, grant)
 	allowed, err := p.IsBoundT0Run(ctx, invocation)
 	if err != nil || !allowed {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
 	reader, err := p.personas.ForTenant(ctx, values.TenantId(id.TenantID))
 	if err != nil || isNilPersonaOutputPort(reader) {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
-	_, installation, err := reader.ReadCurrentPersonaAuthority(ctx, id.ConversationID, id.PersonaID)
-	if err != nil || installation.InstallationID != id.InstallationID || !installation.ChannelPolicy.ConversationSearchAllowed {
-		return PersonaDocumentSearchScope{}, errPersonaRuntimeTools
+	version, installation, err := reader.ReadCurrentPersonaAuthority(ctx, id.ConversationID, id.PersonaID)
+	if err != nil || installation.InstallationID != id.InstallationID {
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
 	}
-	return PersonaDocumentSearchScope{ScopeID: id.ConversationID}, nil
+	policy := installation.ChannelPolicy
+	if effective, supported, policyErr := currentPersonaChannelPolicy(ctx, personaPolicySourceFromAuthority(p.authority), id.TenantID, id.ConversationID, policy); supported {
+		if policyErr != nil {
+			return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
+		}
+		policy = effective
+	}
+	if !policy.ConversationSearchAllowed {
+		return PersonaDocumentSearchScope{}, personaRuntimeToolDeniedHere()
+	}
+	scope := PersonaDocumentSearchScope{ScopeID: id.ConversationID}
+	var profile agentpersona.PersonaProfile
+	if json.Unmarshal(version.Profile, &profile) == nil && sameScopes(invocation.Skills[personaWorkspaceSearchSkillID], []string{personaPolicySearchScope}) {
+		for _, pin := range profile.SkillPins {
+			if personaWorkspacePinHasSearchOperation(p.catalog, pin) {
+				scope.WorkspaceSearchAllowed = true
+				break
+			}
+		}
+	}
+	return scope, nil
 }
 
 type PersonaPolicyDocumentSearchHit struct {
@@ -66,43 +93,66 @@ type PersonaPolicyDocumentSearchHit struct {
 	Classification string `json:"Classification,omitempty"`
 	PlacementID    string `json:"PlacementID,omitempty"`
 	ScopeID        string `json:"ScopeID,omitempty"`
+	SectionAnchor  string `json:"SectionAnchor,omitempty"`
 }
 type PersonaPolicyDocumentSearchResult struct {
-	Hits  []PersonaPolicyDocumentSearchHit
-	Total int
+	Hits        []PersonaPolicyDocumentSearchHit
+	Total       int
+	Unavailable string `json:"Unavailable,omitempty"`
 }
 
 type PersonaPolicyDocumentSearcher struct {
 	fallback  PersonaRunT0DocumentSearcher
 	documents *documenthubstore.Store
+	embedder  documentembed.Embedder
+	members   WorkspaceDocumentMembers
 }
 
 // NewPersonaPolicyDocumentSearcher keeps native app calls on their existing
 // owner and routes locally authorized persona calls through real placements.
-func NewPersonaPolicyDocumentSearcher(fallback PersonaRunT0DocumentSearcher, documents *documenthubstore.Store) (*PersonaPolicyDocumentSearcher, error) {
+func NewPersonaPolicyDocumentSearcher(fallback PersonaRunT0DocumentSearcher, documents *documenthubstore.Store, workspace ...WorkspaceDocumentMembers) (*PersonaPolicyDocumentSearcher, error) {
 	if isNilPersonaOutputPort(fallback) || documents == nil {
-		return nil, errPersonaRuntimeTools
+		return nil, personaRuntimeToolDeniedHere()
 	}
-	return &PersonaPolicyDocumentSearcher{fallback: fallback, documents: documents}, nil
+	s := &PersonaPolicyDocumentSearcher{fallback: fallback, documents: documents}
+	if service, ok := fallback.(documentService); ok {
+		s.embedder = service.embedder
+	}
+	if len(workspace) == 1 {
+		s.members = workspace[0]
+	}
+	return s, nil
 }
 func (s *PersonaPolicyDocumentSearcher) AgentSearchDocuments(ctx context.Context, tenant, conversation, agent, invoker, query string, filters transportdocument.SearchFilters) (transportdocument.SearchResult, error) {
 	return s.fallback.AgentSearchDocuments(ctx, tenant, conversation, agent, invoker, query, filters)
 }
 func (s *PersonaPolicyDocumentSearcher) SearchPersonaPolicyDocuments(ctx context.Context, call personaDocumentSearchCall) (PersonaPolicyDocumentSearchResult, error) {
 	if s == nil || ctx == nil || s.documents == nil {
-		return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+		return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 	}
 	binding, ok := ctx.Value(personaDocumentSearchContextKey{}).(personaDocumentSearchContext)
 	if !ok || isNilPersonaOutputPort(binding.source) || binding.identity.TenantID != call.TenantID.String() || binding.identity.ConversationID != call.ConversationID || binding.identity.InvokerID != call.InvokerID || binding.identity.AgentID != call.AgentID {
-		return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+		return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 	}
 	scope, err := binding.source.ResolvePersonaDocumentSearchScope(ctx, binding.identity)
-	if err != nil || scope.ScopeID != call.ConversationID || call.Filters.TeamID != "" && call.Filters.TeamID != scope.ScopeID || call.Filters.ChannelID != "" && call.Filters.ChannelID != scope.ScopeID {
-		return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+	if err != nil {
+		return PersonaPolicyDocumentSearchResult{}, fmt.Errorf("%w: scope: %v", personaRuntimeToolDeniedHere(), err)
+	}
+	if scope.ScopeID != call.ConversationID || call.Filters.TeamID != "" && call.Filters.TeamID != scope.ScopeID || call.Filters.ChannelID != "" && call.Filters.ChannelID != scope.ScopeID {
+		return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
+	}
+	if call.Scope == personaWorkspaceSearchScope {
+		if !scope.WorkspaceSearchAllowed {
+			return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
+		}
+		return s.searchWorkspace(ctx, call)
+	}
+	if call.Scope != "" && call.Scope != personaConversationSearchScope {
+		return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 	}
 	hits, err := s.documents.SearchOfficialPlacementLexical(ctx, call.TenantID.String(), scope.ScopeID, call.Query, "person", call.InvokerID)
 	if err != nil {
-		return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+		return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 	}
 	result := PersonaPolicyDocumentSearchResult{Hits: []PersonaPolicyDocumentSearchHit{}}
 	if len(hits) > 5 {
@@ -111,11 +161,11 @@ func (s *PersonaPolicyDocumentSearcher) SearchPersonaPolicyDocuments(ctx context
 	for _, hit := range hits {
 		placement, err := s.documents.CurrentPlacement(ctx, call.TenantID.String(), hit.DocumentID, "placement", scope.ScopeID)
 		if err != nil || !placement.IsOfficialPlacement() || placement.VersionID != hit.VersionID {
-			return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+			return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 		}
 		version, err := s.documents.ReadVersion(ctx, call.TenantID.String(), hit.DocumentID, hit.VersionID, "person", call.InvokerID)
 		if err != nil || len(version.Markdown) == 0 || len(version.Markdown) > 10000 {
-			return PersonaPolicyDocumentSearchResult{}, errPersonaRuntimeTools
+			return PersonaPolicyDocumentSearchResult{}, personaRuntimeToolDeniedHere()
 		}
 		result.Hits = append(result.Hits, PersonaPolicyDocumentSearchHit{SearchHit: transportdocument.SearchHit{DocumentID: hit.DocumentID, VersionID: hit.VersionID, Title: hit.Title, Locale: version.Locale, OwnerID: hit.OwnerID, Status: "deployed", DeployedAt: placement.EffectiveAt, Score: hit.Score, MatchedTerms: hit.MatchedTerms}, Markdown: version.Markdown, ContentDigest: personaRunT0ToolOutputDigest([]byte(version.Markdown)), Classification: version.Classification, PlacementID: placement.ID, ScopeID: scope.ScopeID})
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsecurity"
@@ -51,6 +52,9 @@ type PersonaRuntimeModelOwnerDependencies struct {
 	ToolJournal PersonaRuntimeToolJournal
 	ToolSources PersonaRuntimeToolSourceValidator
 	ChatClasses PersonaPublicChatDisclosureClassificationSource
+	// Documents re-resolves an agent's referenced documents for the outbound
+	// verifier with the same resolver the run path uses.
+	Documents agentdocref.Resolver
 }
 
 type personaRuntimeCompositionInput struct {
@@ -158,8 +162,17 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		return nil, errPersonaInvocationProductionComposition
 	}
 	current.classes, current.classStore = chatClasses, in.ChatRuntime.extensions.TodoStore
+	// The run path and the outbound verifier must resolve an agent's referenced
+	// documents through one resolver, or the verifier refuses what the run sent.
+	var documentResolver agentdocref.Resolver
+	if in.Documents.store != nil {
+		documentResolver, err = NewAgentDocumentResolver(in.Documents.store)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if in.ModelFactory != nil {
-		modelConfig, err = in.ModelFactory(PersonaRuntimeModelOwnerDependencies{AgentStore: in.AgentDatabase.store, Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Threads: current, Authority: current, TenantUUID: tenantUUID, Now: now, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, ToolSources: toolSources, ChatClasses: current})
+		modelConfig, err = in.ModelFactory(PersonaRuntimeModelOwnerDependencies{Documents: documentResolver, AgentStore: in.AgentDatabase.store, Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Threads: current, Authority: current, TenantUUID: tenantUUID, Now: now, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, ToolSources: toolSources, ChatClasses: current})
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +196,7 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		return nil, errPersonaInvocationProductionComposition
 	}
 	model, err := NewPersonaRunModelPorts(modelConfig.Gateway, PersonaRunModelWorkSourceConfig{Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Budgets: budgets,
-		Threads: current, Leases: modelConfig.Leases, TenantUUID: tenantUUID, Workload: modelConfig.Workload, Now: now, Remaining: remaining})
+		Threads: current, Leases: modelConfig.Leases, TenantUUID: tenantUUID, Workload: modelConfig.Workload, Now: now, Remaining: remaining, Documents: documentResolver})
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +214,11 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 	if isNilPersonaOutputPort(floor) {
 		floor = personaPrivateOnlyAudienceFloor{}
 	}
-	reply, err := NewPersonaReplyDeliveryWithOutputPolicy(in.Chat.ConversationService, committer, floor, in.OutputPolicy)
+	// Delivery uses the streaming service, not the routed service inside it:
+	// a private reply is an ephemeral post whose durable copy goes to the
+	// invoker's agent conversation, and only the streaming service resolves
+	// that conversation and reserves both writes.
+	reply, err := NewPersonaReplyDeliveryWithOutputPolicy(personaRuntimeReplyService(in.Chat), committer, floor, in.OutputPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -218,22 +235,30 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 	if err != nil {
 		return nil, err
 	}
-	if err := BindPersonaRuntimeTools(config, tools); err != nil {
+	documentTools, err := NewAgentDocumentRuntimeTools(tools, model.Work)
+	if err != nil {
 		return nil, err
 	}
-	backgroundReply, err := NewDatabasePersonaBackgroundReplyDelivery(PersonaBackgroundReplyDeliveryConfig{Authority: current, Worker: modelConfig.WorkerIdentity, Threads: backgroundThreads, OutputAuthority: outputAuthority, OutputPolicy: in.OutputPolicy, Now: now}, in.ChatRuntime.extensions.TodoStore)
+	if err := BindPersonaRuntimeTools(config, documentTools); err != nil {
+		return nil, err
+	}
+	backgroundReply, err := NewDatabasePersonaBackgroundReplyDelivery(PersonaBackgroundReplyDeliveryConfig{Authority: current, Worker: modelConfig.WorkerIdentity, Threads: backgroundThreads, OutputAuthority: outputAuthority, OutputPolicy: in.OutputPolicy, Documents: model.Work, Now: now}, in.ChatRuntime.extensions.TodoStore)
 	if err != nil {
 		return nil, err
 	}
 	config.Run.BackgroundReply = backgroundReply
-	toolSources.source = tools
+	toolSources.source = documentTools
 	outputs, err := NewPersonaFinalOutputSource(in.AgentDatabase.personas, modelConfig.RecoveryVerifier, recovery)
 	if err != nil {
 		return nil, err
 	}
 	config.BackgroundRecovery = outputs
-	config.Run.Reply = &personaRuntimeCurrentReply{next: reply, authority: recovery}
+	config.Run.Reply = &personaRuntimeCurrentReply{next: reply, authority: recovery, records: recovery, documents: model.Work, questions: current}
 	return config, nil
+}
+
+func personaRuntimeReplyService(streaming *streamingChatService) chatcore.ConversationService {
+	return streaming
 }
 
 type personaRuntimeToolSourceOwner struct {
@@ -242,7 +267,7 @@ type personaRuntimeToolSourceOwner struct {
 
 func (s *personaRuntimeToolSourceOwner) RecheckPersonaRuntimeToolResult(ctx context.Context, record agentpersonastore.ToolResultRecord) error {
 	if s == nil || isNilPersonaOutputPort(s.source) {
-		return errPersonaRuntimeTools
+		return personaRuntimeToolDeniedHere()
 	}
 	return s.source.RecheckPersonaRuntimeToolResult(ctx, record)
 }

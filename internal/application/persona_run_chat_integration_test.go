@@ -57,6 +57,8 @@ func TestTodo_AGENTP_008_Integration_ToolContinuationDeliversOnlyInScopeReplies(
 				kind := chatcore.PrivateChannel
 				if tc.public && room == "room-a" {
 					kind = chatcore.PublicChannel
+				} else if room == "alice-persona-dm" {
+					kind = chatcore.Direct
 				}
 				if _, err := chat.CreateConversation(ctx, chatcore.CreateConversationRequest{Principal: alice, TenantID: alice.TenantID, ConversationID: room, Kind: kind, Name: room}); err != nil {
 					t.Fatal(err)
@@ -76,6 +78,9 @@ func TestTodo_AGENTP_008_Integration_ToolContinuationDeliversOnlyInScopeReplies(
 			}
 			ctx = trust.WithPrincipal(ctx, principal)
 			validator, original, _, persisted, outputAuthority := personaRunOutputFixture(t)
+			if _, err := chat.AddMembership(ctx, chatcore.AddMembershipRequest{Principal: alice, Membership: chatcore.Membership{TenantID: alice.TenantID, HomeTenantID: alice.TenantID, ConversationID: "alice-persona-dm", SubjectID: original.Request.Persona.ID, HistoryVisibility: chatcore.FullHistory}}); err != nil {
+				t.Fatal(err)
+			}
 			facts := personaRunRequestBuilderFacts()
 			facts.TenantID, facts.Agent, facts.PersonaDigest = "tenant-a", original.Request.Agent, original.Request.Persona.Digest
 			facts.Audience.ID, facts.Context.ID, facts.TriggerID, facts.Deadline = "room-a", root.ID, "invocation-a", now.Add(time.Minute)
@@ -186,16 +191,16 @@ func TestTodo_AGENTP_008_Integration_ToolContinuationDeliversOnlyInScopeReplies(
 					}
 				} else {
 					posts, _, err := chatStore.ListEphemeral(ctx, alice, "tenant-a", "room-a", 0, 10)
-					if err != nil || len(posts) != 1 || posts[0].Body != "The fictional policy allows annual leave." || posts[0].ThreadID != root.ID || posts[0].DurableCopyPostID == "" {
+					if err != nil || len(posts) != 1 || answerWithoutReason(posts) != "The fictional policy allows annual leave." || posts[0].ThreadID != root.ID || posts[0].DurableCopyPostID == "" {
 						t.Fatalf("actual private chat reply=%+v error=%v", posts, err)
 					}
 					dm, err := chatStore.ListPosts(ctx, alice, "tenant-a", "alice-persona-dm", 0, chatcore.Page{PageSize: 10}, chatcore.PostWindow{})
-					if err != nil || len(dm.Posts) != 1 || dm.Posts[0].ID != posts[0].DurableCopyPostID || !strings.Contains(dm.Posts[0].Body, posts[0].Body) || !strings.Contains(dm.Posts[0].Body, posts[0].ThreadLink) {
+					if err != nil || len(dm.Posts) != 1 || dm.Posts[0].ID != posts[0].DurableCopyPostID || !strings.Contains(dm.Posts[0].Body, answerWithoutReason(posts)) || !strings.Contains(dm.Posts[0].Body, posts[0].ThreadLink) {
 						t.Fatalf("private reply lost its durable copy or source backlink: %+v %v", dm, err)
 					}
 					if tc.audienceRace {
 						shared, err := chatStore.ListPosts(ctx, chatcore.Principal{TenantID: "tenant-a", SubjectID: "bob"}, "tenant-a", "room-a", 0, chatcore.Page{PageSize: 10}, chatcore.PostWindow{})
-						if err != nil || len(shared.Posts) != 2 || shared.Posts[1].Body != "The persona reply was sent privately to you." || shared.Posts[1].AuthorID != "alice" || len(receipts.receipts) != 1 || receipts.receipts[0].PublicPostID != "" {
+						if err != nil || len(shared.Posts) != 1 || len(receipts.receipts) != 1 || receipts.receipts[0].PublicPostID != "" {
 							t.Fatalf("audience race disclosed the answer or forged a public receipt: %+v %v", shared, err)
 						}
 					}
@@ -357,4 +362,15 @@ func (p *personaPipelineTools) Execute(ctx context.Context, record agentrun.Reco
 	}
 	p.authority.authority.Grounding = []agentsecurity.Datum{evidence}
 	return result, ref, digest, nil
+}
+
+// answerWithoutReason is the private card's text without the line that says why
+// it is private (AGENTUX-070): the saved copy in the asker's conversation with
+// the agent carries the answer only.
+func answerWithoutReason(posts []chatcore.EphemeralPost) string {
+	if len(posts) == 0 {
+		return ""
+	}
+	clean, _ := chatcore.SplitPrivateReason(posts[0].Body)
+	return clean
 }

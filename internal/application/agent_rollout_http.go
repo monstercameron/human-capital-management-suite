@@ -3,8 +3,11 @@ package application
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	agentrollout "github.com/monstercameron/human-capital-management-suite/internal/agentsystem/rollout"
@@ -65,6 +68,14 @@ func OverlayAgentVersionRolloutHTTP(next http.Handler, service *AgentVersionRoll
 			case errors.Is(err, agentpersonastore.ErrNotFound):
 				status = http.StatusNotFound
 			}
+			// The page shows one sentence for every refusal; the cause class
+			// is logged so an unavailable dependency can be told from a
+			// refused command. Detail only in an opted-in local session.
+			cause := "withheld"
+			if os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
+				cause = err.Error()
+			}
+			slog.WarnContext(ctx, "hcmnext.agent_rollout_refused", "action", string(request.Action), "status", status, "error_type", fmt.Sprintf("%T", err), "cause", cause)
 			http.Error(w, "rollout request refused", status)
 			return
 		}

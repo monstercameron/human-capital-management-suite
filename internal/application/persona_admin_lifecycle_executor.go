@@ -10,11 +10,15 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-var ErrPersonaAdminLifecycleUnavailable = errors.New("application: persona admin lifecycle dependency unavailable")
+var (
+	ErrPersonaAdminLifecycleUnavailable = errors.New("application: persona admin lifecycle dependency unavailable")
+	ErrPersonaAdminRuntimeUnavailable   = errors.New("This version cannot be published yet: it has no runtime identity. Ask the person who manages this installation.")
+)
 
 // PersonaAdminLifecycleTenant exposes the durable operations used by the
 // command executor. Implementations are tenant-scoped agentpersonastore
@@ -26,6 +30,8 @@ type PersonaAdminLifecycleTenant interface {
 	AppendLifecycle(context.Context, agentpersonastore.LifecycleEvent) error
 	Publish(context.Context, agentpersonastore.LifecycleEvent, agentpersonastore.PublicationEvidence) error
 	Install(context.Context, agentpersonastore.PersonaInstallation) error
+	RetireActiveInstallation(context.Context, string, string, string, string) (agentpersonastore.PersonaInstallation, bool, error)
+	ReplaceActiveInstallation(context.Context, agentpersonastore.PersonaInstallation) (agentpersonastore.PersonaInstallation, bool, error)
 }
 
 // PersonaAdminLifecycleStore creates tenant-scoped lifecycle stores.
@@ -71,6 +77,19 @@ type PersonaAdminLifecycleTransitions interface {
 	RetirePersona(context.Context, PersonaAdminCommandActor, string, string) error
 }
 
+// PersonaAdminEvaluationRunner executes and records one immutable version
+// through the same evaluator boundary used by the publication gate.
+type PersonaAdminEvaluationRunner interface {
+	RunPersonaEvaluation(context.Context, PersonaAdminCommandActor, string) (productui.PersonaAdminEvaluationResult, error)
+}
+
+// PersonaAdminRuntimeProvisioner creates the exact version-scoped service
+// identity and model route required to execute a version. Publication calls
+// this boundary after evidence validation and before any lifecycle mutation.
+type PersonaAdminRuntimeProvisioner interface {
+	ProvisionPersonaRuntime(context.Context, PersonaAdminCommandActor, agentpersonastore.PersonaVersion, agentpersona.PersonaProfile, agentpersonastore.PublicationEvidence) error
+}
+
 // PersonaAdminLifecycleExecutor runs authenticated commands through the
 // tenant-scoped persona store and the dedicated draft/review services.
 type PersonaAdminLifecycleExecutor struct {
@@ -82,6 +101,8 @@ type PersonaAdminLifecycleExecutor struct {
 	Evidence      PersonaAdminPublicationEvidenceResolver
 	InstallAuth   PersonaAdminInstallationAuthorizer
 	Transitions   PersonaAdminLifecycleTransitions
+	Evaluations   PersonaAdminEvaluationRunner
+	Runtime       PersonaAdminRuntimeProvisioner
 	Now           func() time.Time
 	NewEventID    func() string
 }
@@ -89,8 +110,12 @@ type PersonaAdminLifecycleExecutor struct {
 // NewPersonaAdminLifecycleExecutor creates an executor. Dependencies are
 // checked per command so read-only deployments can keep the catalog available
 // while every unavailable mutation remains fail-closed.
-func NewPersonaAdminLifecycleExecutor(store PersonaAdminLifecycleStore, authorizer PersonaAdminCommandAuthorizer, drafts *PersonaAdminDraftService, starterDrafts *PersonaStarterDraftBuilder, reviews *PersonaReviewIssuanceService, evidence PersonaAdminPublicationEvidenceResolver, installAuth PersonaAdminInstallationAuthorizer, transitions PersonaAdminLifecycleTransitions, now func() time.Time, newEventID func() string) *PersonaAdminLifecycleExecutor {
-	return &PersonaAdminLifecycleExecutor{Store: store, Authorizer: authorizer, Drafts: drafts, StarterDrafts: starterDrafts, Reviews: reviews, Evidence: evidence, InstallAuth: installAuth, Transitions: transitions, Now: now, NewEventID: newEventID}
+func NewPersonaAdminLifecycleExecutor(store PersonaAdminLifecycleStore, authorizer PersonaAdminCommandAuthorizer, drafts *PersonaAdminDraftService, starterDrafts *PersonaStarterDraftBuilder, reviews *PersonaReviewIssuanceService, evidence PersonaAdminPublicationEvidenceResolver, installAuth PersonaAdminInstallationAuthorizer, transitions PersonaAdminLifecycleTransitions, now func() time.Time, newEventID func() string, runtime ...PersonaAdminRuntimeProvisioner) *PersonaAdminLifecycleExecutor {
+	executor := &PersonaAdminLifecycleExecutor{Store: store, Authorizer: authorizer, Drafts: drafts, StarterDrafts: starterDrafts, Reviews: reviews, Evidence: evidence, InstallAuth: installAuth, Transitions: transitions, Now: now, NewEventID: newEventID}
+	if len(runtime) == 1 {
+		executor.Runtime = runtime[0]
+	}
+	return executor
 }
 
 // PersonaAdminCommandAvailable projects current reviewer authority for the UI.
@@ -100,6 +125,25 @@ func (e *PersonaAdminLifecycleExecutor) PersonaAdminCommandAvailable(ctx context
 	}
 	if action == PersonaAdminReview {
 		return e.Reviews != nil && e.Reviews.Authorize(ctx) == nil
+	}
+	if action == PersonaAdminRunEvaluation {
+		if e.Evaluations == nil {
+			return false
+		}
+		// A runner bound to one tenant reports itself unavailable to the
+		// others, so their administrators are not offered a dead action.
+		if scoped, ok := e.Evaluations.(interface {
+			PersonaEvaluationAvailable(context.Context) bool
+		}); ok {
+			return scoped.PersonaEvaluationAvailable(ctx)
+		}
+		return true
+	}
+	if action == PersonaAdminPublish {
+		if availability, ok := e.Runtime.(interface{ PersonaRuntimeAvailable(context.Context) bool }); ok {
+			return availability.PersonaRuntimeAvailable(ctx)
+		}
+		return e.Runtime != nil
 	}
 	return true
 }
@@ -123,6 +167,9 @@ func (e *PersonaAdminLifecycleExecutor) ExecutePersonaAdminCommand(ctx context.C
 		return e.requestReview(ctx, actor, command)
 	case PersonaAdminReview:
 		return e.recordReview(ctx, actor, command)
+	case PersonaAdminRunEvaluation:
+		_, err := e.runEvaluation(ctx, actor, command)
+		return err
 	case PersonaAdminPublish:
 		return e.publish(ctx, actor, command)
 	case PersonaAdminRollback:
@@ -132,11 +179,37 @@ func (e *PersonaAdminLifecycleExecutor) ExecutePersonaAdminCommand(ctx context.C
 		return e.Transitions.RollbackPersona(ctx, actor, command.PersonaID, command.Reason)
 	case PersonaAdminInstall:
 		return e.install(ctx, actor, command)
+	case PersonaAdminUninstall:
+		return e.uninstall(ctx, actor, command)
+	case PersonaAdminReinstall:
+		return e.reinstall(ctx, actor, command)
 	case PersonaAdminSuspend, PersonaAdminRetire:
 		return e.transition(ctx, actor, command)
 	default:
 		return ErrPersonaAdminCommandUnavailable
 	}
+}
+
+// ExecutePersonaAdminCommandWithResult preserves the ordinary authorization
+// path while returning only the bounded evaluation receipt needed by the UI.
+func (e *PersonaAdminLifecycleExecutor) ExecutePersonaAdminCommandWithResult(ctx context.Context, actor PersonaAdminCommandActor, command PersonaAdminCommand) (productui.PersonaAdminEvaluationResult, error) {
+	if command.Action != PersonaAdminRunEvaluation {
+		return productui.PersonaAdminEvaluationResult{}, e.ExecutePersonaAdminCommand(ctx, actor, command)
+	}
+	if e == nil || ctx == nil || !validPersonaAdminActor(actor.Principal) || !personaAdminActorBound(ctx, actor) || !validPersonaAdminCommand(command) {
+		return productui.PersonaAdminEvaluationResult{}, ErrPersonaAdminCommandUnavailable
+	}
+	if e.Authorizer == nil || e.Authorizer.AuthorizePersonaAdminCommand(ctx, actor, command.Action, command.PersonaID) != nil {
+		return productui.PersonaAdminEvaluationResult{}, ErrPersonaAdminCommandUnavailable
+	}
+	return e.runEvaluation(ctx, actor, command)
+}
+
+func (e *PersonaAdminLifecycleExecutor) runEvaluation(ctx context.Context, actor PersonaAdminCommandActor, command PersonaAdminCommand) (productui.PersonaAdminEvaluationResult, error) {
+	if e.Evaluations == nil {
+		return productui.PersonaAdminEvaluationResult{}, ErrPersonaAdminEvaluationUnavailable
+	}
+	return e.Evaluations.RunPersonaEvaluation(ctx, actor, command.PersonaID)
 }
 
 func personaAdminActorBound(ctx context.Context, actor PersonaAdminCommandActor) bool {
@@ -300,6 +373,12 @@ func (e *PersonaAdminLifecycleExecutor) publish(ctx context.Context, actor Perso
 			return ErrPersonaAdminLifecycleUnavailable
 		}
 	}
+	if e.Runtime == nil {
+		return ErrPersonaAdminRuntimeUnavailable
+	}
+	if err := e.Runtime.ProvisionPersonaRuntime(ctx, actor, version, validated.Profile, evidence); err != nil {
+		return ErrPersonaAdminRuntimeUnavailable
+	}
 	now, eventID, err := e.eventIdentity()
 	if err != nil {
 		return err
@@ -348,6 +427,51 @@ func (e *PersonaAdminLifecycleExecutor) install(ctx context.Context, actor Perso
 		return ErrPersonaAdminLifecycleUnavailable
 	}
 	return tenant.Install(ctx, installation)
+}
+
+func (e *PersonaAdminLifecycleExecutor) uninstall(ctx context.Context, actor PersonaAdminCommandActor, command PersonaAdminCommand) error {
+	if e.Store == nil || e.InstallAuth == nil {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	tenant, err := e.Store.ForTenant(ctx, actor.Tenant)
+	if err != nil || tenant == nil {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	request := command.Installation
+	request.TenantID, request.InstallerID = actor.Tenant, actor.Subject
+	if _, err := e.InstallAuth.AuthorizePersonaInstallation(ctx, actor, request); err != nil {
+		return err
+	}
+	_, _, err = tenant.RetireActiveInstallation(ctx, command.PersonaID, command.Installation.ConversationID, actor.Subject, "Persona installation removed by an authorized administrator")
+	return err
+}
+
+func (e *PersonaAdminLifecycleExecutor) reinstall(ctx context.Context, actor PersonaAdminCommandActor, command PersonaAdminCommand) error {
+	if e.Store == nil || e.InstallAuth == nil || e.Now == nil || e.NewEventID == nil {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	tenant, err := e.Store.ForTenant(ctx, actor.Tenant)
+	if err != nil || tenant == nil {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	version, state, err := latestPersonaVersion(ctx, tenant, command.PersonaID, agentpersonastore.StatePublished)
+	if err != nil || state != agentpersonastore.StatePublished {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	now, installationID := e.Now().UTC(), strings.TrimSpace(e.NewEventID())
+	if now.IsZero() || installationID == "" {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	request := command.Installation
+	request.TenantID, request.InstallerID, request.InstallationID = actor.Tenant, actor.Subject, installationID
+	request.PersonaVersion, request.State, request.Revision, request.RevocationEpoch = version.Version, agentpersonastore.InstallationActive, 1, 1
+	request.CreatedAt, request.UpdatedAt = now, now
+	installation, err := e.InstallAuth.AuthorizePersonaInstallation(ctx, actor, request)
+	if err != nil || installation.TenantID != actor.Tenant || installation.InstallerID != actor.Subject || installation.PersonaID != command.PersonaID || installation.PersonaVersion != version.Version || installation.InstallationID != installationID || installation.ConversationID != request.ConversationID {
+		return ErrPersonaAdminLifecycleUnavailable
+	}
+	_, _, err = tenant.ReplaceActiveInstallation(ctx, installation)
+	return err
 }
 
 func (e *PersonaAdminLifecycleExecutor) transition(ctx context.Context, actor PersonaAdminCommandActor, command PersonaAdminCommand) error {

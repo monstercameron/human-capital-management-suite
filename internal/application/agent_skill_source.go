@@ -57,6 +57,13 @@ func (s *AgentSkillSource) Discover(ctx context.Context, principal *trust.Princi
 	if user.Principal == nil || user.Principal.Subject() != principal.Subject() || user.Principal.Tenant() != principal.Tenant() {
 		return nil, errAgentSkillSource
 	}
+	if purpose == personaChatReplyPurpose {
+		// A mention's subject is the conversation it happens in, which is not
+		// known when the agent is only being offered. Offer the skills the
+		// user is granted; the chat-scoped projection authorizes each use
+		// with its exact conversation, post and documents.
+		return s.gate.DiscoverGranted(ctx, agentgate.DiscoveryRequest{User: user, Purpose: purpose})
+	}
 	return s.gate.Discover(ctx, agentgate.DiscoveryRequest{User: user, Purpose: purpose, Subjects: subjects, Fields: fields})
 }
 

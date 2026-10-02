@@ -107,6 +107,9 @@ func (s *PersonaAdminDraftService) CreateDraft(ctx context.Context, req PersonaD
 		req.BusinessOwnerID != profile.Owner || req.TechnicalStewardID != profile.Steward || req.BusinessOwnerID == req.TechnicalStewardID {
 		return PersonaDraft{}, ErrPersonaDraftInvalid
 	}
+	if err := validatePersonaInstructionDocumentTokens(profile); err != nil {
+		return PersonaDraft{}, err
+	}
 	validated, err := buildPersonaProfile(ctx, s.Profiles, principal.Tenant(), profile)
 	if err != nil || validated.Digest != req.Version.Digest {
 		return PersonaDraft{}, fmt.Errorf("%w: profile validation failed", ErrPersonaDraftInvalid)
@@ -127,7 +130,7 @@ func (s *PersonaAdminDraftService) CreateDraft(ctx context.Context, req PersonaD
 	}
 	owner := agentpersonastore.PersonaOwner{TenantID: tenant, PersonaID: profile.PersonaID, Role: agentpersonastore.BusinessOwner, PrincipalID: req.BusinessOwnerID}
 	steward := agentpersonastore.PersonaOwner{TenantID: tenant, PersonaID: profile.PersonaID, Role: agentpersonastore.TechnicalSteward, PrincipalID: req.TechnicalStewardID}
-	if err := s.Store.CreateDraft(ctx, version, owner, steward, principal.Subject(), now); err != nil {
+	if err := createPersonaDraftIcon(ctx, s.Store, version, owner, steward, principal.Subject(), now); err != nil {
 		return PersonaDraft{}, err
 	}
 	return PersonaDraft{PersonaID: profile.PersonaID, Version: profile.Version, Digest: validated.Digest, Lifecycle: string(agentpersonastore.StateDraft)}, nil

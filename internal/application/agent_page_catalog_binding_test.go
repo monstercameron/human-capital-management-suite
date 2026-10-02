@@ -58,7 +58,7 @@ func pageCatalogBindingPrincipal(t *testing.T) *trust.Principal {
 func pageCatalogBindingPersona(t *testing.T, pin agentskills.SkillPin) agentpersona.PersonaVersion {
 	t.Helper()
 	persona, err := agentpersona.Seal(agentpersona.PersonaProfile{
-		Manifest: agentpersona.AgentManifestRef{ID: "agent.people-coach", Version: 1, Digest: "manifest-people-coach", SchemaVersion: 1},
+		Manifest:  agentpersona.AgentManifestRef{ID: "agent.people-coach", Version: 1, Digest: "manifest-people-coach", SchemaVersion: 1},
 		PersonaID: "persona.people-coach", Version: 1, Handle: "people-coach", DisplayName: "People Coach", AvatarRef: "avatar:people-coach",
 		Purpose: "agent.self_service", Audience: agentpersona.Audience{Roles: []string{"employee"}, Populations: []string{"employees"}, OrganizationScopes: []string{"org-a"}},
 		SkillPins: []agentskills.SkillPin{pin}, TierCeiling: agentskills.TierRead,

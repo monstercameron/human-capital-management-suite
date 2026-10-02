@@ -61,6 +61,11 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	if a == nil || ctx == nil || a.builder == nil || a.persona == nil || a.grants == nil || a.policy == nil || a.now == nil || !validPersonaRunAdmissionRequest(request) {
 		return agentrun.AuthoritySnapshot{}, errPersonaForegroundRunAuthority
 	}
+	if cached, ok := agentUXSpeedCachedAuthority(ctx, request); ok {
+		return cached, nil
+	}
+	doneVerify := agentUXSpeedEvent(ctx, "authority.verify")
+	defer doneVerify()
 	now := a.now().UTC()
 	principal, ok := trust.FromContext(ctx)
 	if !ok || principal == nil || principal.SubjectKind() != trust.SubjectKindHuman ||
@@ -70,12 +75,16 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	}
 	invocation := personaRunInvocation(request)
 	ctx = withPersonaChatAuthorityTuple(ctx, request.Source.TenantID, request.Principal.InvokerID, request.Audience.ID, request.Context.ID, request.Source.Ref)
+	done := agentUXSpeedEvent(ctx, "store.grants.for_tenant")
 	store, err := a.grants.ForTenant(ctx, values.TenantId(invocation.TenantID))
+	done()
 	if err != nil || isNilPersonaOutputPort(store) {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current tenant grant store unavailable", agentrun.ErrAuthorityRefusal)
 	}
+	done = agentUXSpeedEvent(ctx, "store.grants.get")
 	grant, err := store.Get(request.Principal.DelegatedCredentialRef)
 	epoch := store.CurrentRevocationEpoch(values.TenantId(invocation.TenantID), invocation.InvokerID)
+	done()
 	if err != nil {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current durable delegation grant unavailable", agentrun.ErrAuthorityRefusal)
 	}
@@ -86,11 +95,15 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	if invocation.Actor.Validate() != nil || !validPersonaRunInvocation(invocation) {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: request does not bind a complete persona invocation", agentrun.ErrAuthorityRefusal)
 	}
+	done = agentUXSpeedEvent(ctx, "authority.build_admission")
 	currentRequest, err := a.builder.BuildPersonaChatAdmission(ctx, invocation)
+	done()
 	if err != nil || !personaForegroundRequestMatches(request, currentRequest, now) {
-		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current persona, manifest, post, audience, context, or policy facts changed", agentrun.ErrAuthorityRefusal)
+		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current persona, manifest, post, audience, context, or policy facts changed (%s)", agentrun.ErrAuthorityRefusal, personaForegroundRequestDifference(request, currentRequest, now, err))
 	}
+	done = agentUXSpeedEvent(ctx, "authority.persona_resolve")
 	current, err := a.persona.Resolve(ctx, agentinvoke.AdmissionRequest{TenantID: invocation.TenantID, ConversationID: invocation.ConversationID, InvokerID: invocation.InvokerID, PersonaID: invocation.PersonaID})
+	done()
 	if err != nil || !current.HumanMember || !current.AudienceMember || !current.PersonaInstalled || !current.Persona.Current || current.Persona.Suspended ||
 		!current.Installation.Current || current.Installation.Suspended || current.Persona.ID != invocation.PersonaID || current.Persona.Version != invocation.PersonaVersion ||
 		current.Persona.InstallationID != invocation.InstallationID || current.Installation.ID != invocation.InstallationID {
@@ -99,7 +112,9 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	if err != nil || !personaForegroundGrantCurrent(grant, request, current, now, epoch) {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current delegation is revoked, expired, mismatched, or broadened", agentrun.ErrAuthorityRefusal)
 	}
+	done = agentUXSpeedEvent(ctx, "authority.t0_policy")
 	bound, err := a.policy.IsBoundT0Run(ctx, invocation)
+	done()
 	if err != nil || !bound {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current dynamic T0 skill policy denied", agentrun.ErrAuthorityRefusal)
 	}
@@ -107,8 +122,10 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	if err != nil {
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current authority proof could not be pinned", errPersonaForegroundRunAuthority)
 	}
-	return agentrun.AuthoritySnapshot{Agent: request.Agent, InstallationID: request.InstallationID, Principal: request.Principal,
-		Audience: request.Audience, Context: request.Context, BudgetCeiling: currentRequest.Budget, GrantRef: grant.GrantID, PolicyDigest: digest}, nil
+	snapshot := agentrun.AuthoritySnapshot{Agent: request.Agent, InstallationID: request.InstallationID, Principal: request.Principal,
+		Audience: request.Audience, Context: request.Context, BudgetCeiling: currentRequest.Budget, GrantRef: grant.GrantID, PolicyDigest: digest}
+	agentUXSpeedCacheAuthority(ctx, request, snapshot)
+	return snapshot, nil
 }
 
 func personaForegroundGrantEnvelope(grant agentdelegation.Grant, request agentrun.Request, now time.Time, epoch uint64) bool {
@@ -183,4 +200,32 @@ func personaForegroundPolicyDigest(request agentrun.Request, grant agentdelegati
 	}
 	digest := sha256.Sum256(data)
 	return "sha256:" + hex.EncodeToString(digest[:]), nil
+}
+
+// personaForegroundRequestDifference names which admitted facts no longer
+// match, by field name only.
+func personaForegroundRequestDifference(request, current agentrun.Request, now time.Time, err error) string {
+	if err != nil {
+		return "rebuild failed: " + err.Error()
+	}
+	var changed []string
+	add := func(name string, same bool) {
+		if !same {
+			changed = append(changed, name)
+		}
+	}
+	add("source", request.Source == current.Source)
+	add("persona", request.Persona != nil && current.Persona != nil && *request.Persona == *current.Persona)
+	add("legal_entity", request.LegalEntity == current.LegalEntity)
+	add("agent", request.Agent == current.Agent)
+	add("installation", request.InstallationID == current.InstallationID)
+	add("principal", request.Principal == current.Principal)
+	add("purpose", request.Purpose == current.Purpose)
+	add("audience", request.Audience == current.Audience)
+	add("context", request.Context == current.Context)
+	add("cause", request.CauseID == current.CauseID)
+	add("deadline_open", request.Deadline.After(now))
+	add("deadline_not_shortened", !current.Deadline.Before(request.Deadline))
+	add("budget", personaRunBudgetWithin(request.Budget, current.Budget))
+	return "changed: " + strings.Join(changed, ",")
 }

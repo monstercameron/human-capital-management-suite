@@ -36,6 +36,9 @@ type ChatExtensions struct {
 	// runtime leaves these calls unmetered, which is the streaming-disabled
 	// composition.
 	Admission *ChatStreamRuntime
+	// ContentFilter is the workspace's language filter. The to-do, poll and
+	// widget surfaces run every text a person types through it (CHATMOD-002).
+	ContentFilter ChatTextFilter
 }
 
 // ChatAppCommandAuthorization checks a command capability against the current

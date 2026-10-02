@@ -73,8 +73,12 @@ type AgentVersionRolloutService struct {
 	Store      AgentVersionRolloutStore
 	Authorizer PersonaAdminCommandAuthorizer
 	Placement  PersonaAdminPlacementSource
-	Governed   GovernedPersonaAdminInstallation
-	NewID      func() string
+	// Conversations is the same authorized chat/directory reader used by the
+	// persona administration target picker. When it is absent or cannot reveal
+	// a room, the catalog deliberately projects an unnamed conversation.
+	Conversations *ChatDirectoryPersonaCatalogTargets
+	Governed      GovernedPersonaAdminInstallation
+	NewID         func() string
 }
 
 func NewAgentVersionRolloutService(store *agentpersonastore.Store, authorizer PersonaAdminCommandAuthorizer, governed GovernedPersonaAdminInstallation, placement PersonaAdminPlacementSource) (*AgentVersionRolloutService, error) {

@@ -102,6 +102,8 @@ func (f *DatabasePersonaRunSecurityFence) RunStep(ctx context.Context, runID age
 	if !ok || binding.tenant == uuid.Nil || binding.lease == "" {
 		return agentsecurity.Fallback{}, errPersonaDurableSecurityFence
 	}
+	done := agentUXSpeedEvent(ctx, "store.security_step")
+	defer done()
 	return f.leaseFence.RunStep(runID, func() error {
 		return f.steps.RunPersonaSecurityStep(ctx, binding.tenant, string(binding.lease), stepID, f.now().UTC(), work)
 	})

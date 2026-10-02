@@ -24,6 +24,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -238,7 +240,10 @@ func mapOperationStoreError(err error) error {
 // itself: the validated configuration, the database pool bootstrap opened,
 // the process logger and identity, and the explicit composition seams.
 type ServeInput struct {
-	Config ServeConfig
+	// WritingStyles and Voice supply governed provider and durable policy ports.
+	WritingStyles *ChattoneService
+	Voice         VoiceService
+	Config        ServeConfig
 	// Pool is the one pool this process opened. It is required for the
 	// PostgreSQL store, the workflow-control projection and
 	// the P1B execution driver; a composition that supplies its own store,
@@ -682,6 +687,23 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if personaWiringErr != nil {
 		logger.Error("hcmnext.persona_catalog_unavailable", "stage", personaServeWiringStage(personaWiringErr))
 	}
+	// The local-dev demo cell runs evaluations with the same local verifier
+	// and key the agent-demo preparation uses. It is prepared before anything
+	// binds the persona store, because preparation replaces that store with
+	// one that can verify the local seal: a catalog bound to the earlier
+	// store ran an evaluation and then could not read its result back. No
+	// other profile gets an evaluator here; the page then says evaluation is
+	// run by the platform team. The demo tenant may be one of several this
+	// process serves; the runner itself refuses every other tenant.
+	var localEvaluation PersonaAdminEvaluationRunner
+	if personaWiring != nil && agentDatabase.store != nil && cfg.Profile == ServeProfileLocalDev && slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
+		runner, evaluationErr := personaWiring.prepareLocalAdminEvaluation(agentDatabase.store, cfg.Profile, localAgentDemoTenant, personaServeClock(options.Now), cfg.ServedTenants()...)
+		if evaluationErr != nil {
+			logger.Error("hcmnext.persona_admin_evaluation_unavailable", "stage", "prepare", "error", evaluationErr.Error())
+		} else {
+			localEvaluation = runner
+		}
+	}
 	var serviceHandlers transportcell.ServiceHandlers
 	if in.Pool != nil {
 		tenantUUID := tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)
@@ -815,6 +837,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		return nil, fmt.Errorf("compose chat: %w", err)
 	}
 	chatCommitted := false
+	if chatRuntime.moderationStore != nil && agentDatabase.store != nil {
+		chatRuntime.moderationStore.RunTrace = chatremoveRunTrace{DB: agentDatabase.store,
+			TenantUUID: tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)}
+	}
 	defer func() {
 		if !chatCommitted && chatRuntime.close != nil {
 			chatRuntime.close()
@@ -840,6 +866,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			}
 			if bindErr := personaWiring.bindAdminCommands(agentDatabase.store, agentDatabase.review, placements...); bindErr != nil {
 				logger.Error("hcmnext.persona_admin_commands_unavailable", "stage", personaServeWiringStage(bindErr))
+			} else if localEvaluation != nil {
+				if evaluationErr := personaWiring.bindAdminEvaluation(localEvaluation); evaluationErr != nil {
+					logger.Error("hcmnext.persona_admin_evaluation_unavailable", "stage", "bind", "error", evaluationErr.Error())
+				}
 			}
 		}
 		cell.PersonaAdminClientFactory = personaWiring.adminClientFactory()
@@ -871,14 +901,36 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 		documentRuntime.service = withDocumentChat(documentRuntime.service, chatRuntime.service)
 		if personaWiring != nil {
-			policySearcher, searcherErr := NewPersonaPolicyDocumentSearcher(documentRuntime.service, documentRuntime.store)
+			previewReader, ok := documentRuntime.service.(PersonaAdminDocumentReader)
+			if !ok {
+				return nil, fmt.Errorf("compose persona admin document reader: document preview service unavailable")
+			}
+			if bindErr := personaWiring.bindAdminDocumentReader(previewReader); bindErr != nil {
+				return nil, fmt.Errorf("compose persona admin document reader: %w", bindErr)
+			}
+			policySearcher, searcherErr := NewPersonaPolicyDocumentSearcher(documentRuntime.service, documentRuntime.store, WorkspaceDocumentDirectory{DB: in.Pool, TenantUUID: tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)})
 			if searcherErr != nil {
 				return nil, fmt.Errorf("compose persona policy document source: %w", searcherErr)
 			}
 			if _, bindErr := bindPersonaPolicySearchSkill(personaWiring.capabilities, personaWiring.skills, policySearcher); bindErr != nil {
 				logger.Error("hcmnext.persona_policy_search_unavailable", "error", bindErr.Error())
 			}
+			// Assistant's second read-only skill rides the same searcher, and Agent
+			// setup shows how many workspace documents it can search.
+			if bindErr := personaWiring.bindWorkspaceSearch(policySearcher); bindErr != nil {
+				logger.Error("hcmnext.persona_workspace_search_unavailable", "error", bindErr.Error())
+			}
 		}
+		// CHATBUG-006: an agent answer's sources become links only when the
+		// reader's projection can ask the hub whether this reader may open them.
+		chatRuntime.bindAgentSourceAccess(documentRuntime.store)
+	}
+	agentTaskDocuments, err := bindAgentTaskDocumentRuntime(platformAgentRuntime, documentRuntime.store)
+	if err != nil {
+		return nil, fmt.Errorf("compose agent task document resolver: %w", err)
+	}
+	if err := composeServedAgentTaskModel(ctx, in.Config, platformAgentRuntime, agentTaskDocuments, os.Getenv, options.Now); err != nil {
+		logger.Error("hcmnext.agent_task_model_unavailable", "error", err.Error())
 	}
 	documentCommitted := false
 	defer func() {
@@ -922,9 +974,32 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if err != nil {
 			return nil, fmt.Errorf("compose local persona bootstrap: %w", err)
 		}
+		routeAuthorityDSN := os.Getenv("HCMNEXT_PERSONA_MODEL_ROUTE_AUTHORITY_DATABASE_URL")
+		if routeAuthorityDSN != "" {
+			privateKey, keyErr := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+			if keyErr != nil {
+				return nil, fmt.Errorf("compose local persona runtime evaluator: %w", keyErr)
+			}
+			mapper := tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)
+			evaluations, authorityErr := localAgentDemoEvaluationAuthority(privateKey, localAgentDemoTenant, mapper, personaServeClock(options.Now))
+			if authorityErr != nil {
+				return nil, fmt.Errorf("compose local persona runtime authority: %w", authorityErr)
+			}
+			provisioner := &LocalPersonaRuntimeProvisioner{
+				Tenants: cfg.ServedTenants(),
+				Config:  LocalAgentDemoConfig{Tenant: localAgentDemoTenant, DatabaseURL: cfg.DatabaseURL, AgentDatabaseURL: cfg.AgentDatabaseURL, ChatDatabaseURL: cfg.ChatDatabaseURL, DocumentDatabaseURL: cfg.DocumentDatabaseURL, RouteAuthorityDatabaseURL: routeAuthorityDSN, AgentOwnerDatabaseURL: os.Getenv("HCMNEXT_AGENT_OWNER_DATABASE_URL")},
+				Core:    in.Pool, Agents: agentDatabase.store, Personas: personaWiring.store, Evaluations: evaluations, Signing: material, DeploymentPath: deploymentPath, Now: personaServeClock(options.Now),
+			}
+			if bindErr := personaWiring.bindAdminRuntimeProvisioner(provisioner); bindErr != nil {
+				return nil, fmt.Errorf("compose local persona runtime publication: %w", bindErr)
+			}
+		}
 	}
 	cell.PersonaAdminClientFactory = withLocalDevPersonaBootstrapAvailability(cell.PersonaAdminClientFactory, localPersonaBootstrap != nil)
 	var servedPersonaInvocation *PersonaInvocationProductionRuntime
+	var personaShareFloor *PersonaRuntimeAudienceFloor
+	var announcementSurface *AgentAnnouncementControlSurface
+	var announcementWorker *AgentAnnouncementWorker
 	if personaWiring != nil {
 		if streaming, ok := chatRuntime.service.(*streamingChatService); ok && streaming.personaInvocation == nil {
 			var bodyClassifier *LocalDevPersonaPostClassifier
@@ -945,7 +1020,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 				}
 				if modelFactory != nil {
 					floor := &PersonaRuntimeAudienceFloor{Chat: chatRuntime.service, Personas: agentDatabase.personas,
-						Authority: NewPersonaAudienceFloorAdapter(personaAudience, personaAudience, personaAudience), Classes: personaAudience, BodyClasses: bodyClassifier}
+						Authority: NewPersonaAudienceFloorAdapter(personaAudience, personaAudience, personaAudience), Classes: personaAudience, BodyClasses: bodyClassifier,
+						Documents: AgentAnnouncementHubAuthority{Store: documentRuntime.store, Now: time.Now}}
+					personaShareFloor = floor
 					invocationConfig, modelErr = composePersonaRuntimeDependencies(ctx, personaRuntimeCompositionInput{
 						AgentDatabase: agentDatabase, Pool: in.Pool, Cell: cell, Personas: personaWiring,
 						Chat: streaming, ChatRuntime: chatRuntime, Documents: documentRuntime,
@@ -956,14 +1033,26 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 					}
 				}
 			}
+			announcementSurface, announcementWorker, err = composeAgentAnnouncements(personaRuntimeCompositionInput{AgentDatabase: agentDatabase, Pool: in.Pool, Cell: cell, Personas: personaWiring, Chat: streaming, ChatRuntime: chatRuntime, Documents: documentRuntime, AudienceSnapshots: personaAudience}, invocationConfig)
+			if err != nil {
+				return nil, fmt.Errorf("compose agent announcements: %w", err)
+			}
 			personaRuntime, invocationErr := composeServedPersonaInvocation(streaming, personaWiring, agentDatabase, invocationConfig, logger, classifiers...)
 			if invocationErr != nil {
 				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_invalid")
 				return nil, fmt.Errorf("compose configured persona invocation: %w", invocationErr)
 			}
 			if personaRuntime == nil {
-				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_missing", "missing_ports", personaInvocationServeMissingPorts())
+				logger.Error("hcmnext.persona_invocation_unavailable", "stage", "production_run_composition_missing", "missing_ports", personaInvocationServeMissingPorts(), "enable_with", personaServedProviderUnavailableReason(cfg, os.Getenv))
 			} else {
+				if platformAgentRuntime != nil && platformAgentRuntime.Starter != nil && invocationConfig != nil {
+					taskPersonas, taskPersonaErr := NewAgentTaskPersonaResolver(invocationConfig.Authority, personaWiring.aud, personaWiring.store)
+					if taskPersonaErr != nil {
+						logger.Error("hcmnext.agent_task_persona_unavailable", "error", taskPersonaErr.Error())
+					} else {
+						platformAgentRuntime.Starter.personas = taskPersonas
+					}
+				}
 				servedPersonaInvocation = personaRuntime
 				graph.add("persona-run-model-worker", KindEngine, personaRuntime.Worker, ComponentChatService, ComponentAgentDatabasePool)
 			}
@@ -1025,9 +1114,30 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		serviceHandlers.Project = &transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search}
 	}
 
+	if in.WritingStyles == nil {
+		// The chat writing-style controls: composed only over a qualified model
+		// (see composeServedChattone); otherwise the features endpoint reports
+		// them off and the client shows no controls.
+		writingStyles, writingReason, writingErr := composeServedChattone(ctx, chattoneServeInput{Config: cfg, Runtime: platformAgentRuntime, Chat: chatRuntime, Facts: chatFacts, Now: options.Now})
+		logChattoneComposition(logger, writingStyles, writingReason, writingErr)
+		if writingErr == nil && writingStyles != nil {
+			in.WritingStyles = writingStyles
+		}
+	}
+	// CHATLANG-003: translation of messages into each reader's language. It is
+	// composed over a qualified model (or, in the local development profile only,
+	// the deterministic test engine); every workspace stays off until its
+	// administrator turns it on.
+	chatlangRuntime, chatlangReason, chatlangErr := composeServedChatlang(ctx, chatlangServeInput{Config: cfg, Runtime: platformAgentRuntime, Chat: chatRuntime, Now: options.Now, Tenants: cfg.ServedTenants()})
+	logChatlangComposition(logger, chatlangRuntime, chatlangReason, chatlangErr)
 	agentServiceInput := agentServedAssemblyInput{
 		Core: in.Pool, AgentDatabase: agentDatabase, Cell: cell, Personas: personaWiring,
-		Audience: personaAudience, Now: options.Now,
+		Audience: personaAudience, Now: options.Now, WritingStyles: in.WritingStyles,
+		Gates: chatRuntime.gates, Renderings: chatRuntime.renderings, ChannelStatus: chatRuntime.status, ChatSearch: chatRuntime.search, Filters: chatRuntime.filters, Locations: chatRuntime.locations, LocationPictures: chatRuntime.locationPictures, ChatMaintenance: chatRuntime.store,
+	}
+	if announcementSurface != nil {
+		agentServiceInput.Announcements = announcementSurface
+		agentServiceInput.AnnouncementWorker = announcementWorker
 	}
 	if projects.store != nil {
 		agentServiceInput.Projects, agentServiceInput.ProjectStore = &projects.service, projects.store
@@ -1128,7 +1238,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	graph.add(ComponentNotificationFeed, KindAdapter, notificationFeed, ComponentDatabasePool, ComponentJourneyEngine)
 	transportadmin.RegisterLedgerEvidence(grpcServer, NewLedgerEvidenceExport(in.Pool))
-	transportcell.RegisterChatExtensions(grpcServer, chatRuntime.extensions)
+	transportcell.RegisterChatExtensions(grpcServer, integrate1ChatExtensions(chatRuntime))
 	transportcell.RegisterDocument(grpcServer, documentRuntime.service, pageCursorKey)
 	if projects.store != nil {
 		transportproject.Register(grpcServer, transportproject.Dependencies{Service: projects.service, Activity: projects.activity, Search: projects.search})
@@ -1181,7 +1291,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	tunnelServer, err := transportcell.NewTunnelGRPCServerWithWorkerClock(
 		cell, workflowControlReader, workQueueReader, pageCursorKey, previousPageCursorKey, workWritePorts, thresholds,
-		chatRuntime.service, chatRuntime.extensions, documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch, workOrderDeps, browserWorkerClock)
+		chatRuntime.service, integrate1ChatExtensions(chatRuntime), documentRuntime.service, positionDeps, browserProjectService, browserProjectActivity, browserProjectSearch, workOrderDeps, browserWorkerClock)
 	if err != nil {
 		return nil, err
 	}
@@ -1219,7 +1329,8 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	edgeHandler = transportcell.OverlayChatExtensions(edgeHandler, cell.Config, chatRuntime.extensions)
+	edgeHandler = transportcell.OverlayChatExtensions(edgeHandler, cell.Config, integrate1ChatExtensions(chatRuntime))
+	edgeHandler = overlayIntegrate1Chat(edgeHandler, chatRuntime, in.Voice, cell.Config, chatremoveNameDirectory{Read: documentOwnerNames(in.Pool)})
 	if cfg.ChatEnabled {
 		mediaCfg := options.ChatMedia.WithDefaults(cfg.ChatMediaRoot, cfg.ArtifactRoot)
 		if chatRuntime.extensions != nil {
@@ -1227,19 +1338,27 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		} else {
 			mediaCfg.Authorize = nil
 		}
-		edgeHandler = OverlayChatMedia(edgeHandler, mediaCfg, cell.Config)
+		edgeHandler, err = chatattach001Overlay(edgeHandler, mediaCfg, cell.Config, cfg.Profile, chatRuntime)
+		if err != nil {
+			return nil, fmt.Errorf("compose chat attachments: %w", err)
+		}
 	}
 	if personaWiring != nil && chatRuntime.service != nil && agentDatabase.store != nil {
 		personaChat, surfaceErr := personaWiring.chatSurface(chatRuntime.service, agentDatabase.store)
 		if surfaceErr != nil {
 			return nil, fmt.Errorf("compose persona chat surface: %w", surfaceErr)
 		}
+		personaChat.Share = NewPersonaAnswerShareGate(personaShareFloor, documentRuntime.store)
+		if in.WritingStyles != nil {
+			in.WritingStyles.Authority = ChattoneChatAuthority{Chat: personaChat}
+		}
 		edgeHandler = OverlayPersonaChatSurface(edgeHandler, personaChat, cell.Config,
-			PersonaChatBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled()})
+			PersonaChatBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled(), Icons: agentDatabase.personas})
 	}
-	if agentServices != nil {
-		edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
+	if agentServices == nil {
+		agentServices = &agentServedAssembly{browserLogin: cell.BrowserLoginEnabled(), publicOrigin: cell.PublicOrigin(), Gates: chatRuntime.gates, Renderings: chatRuntime.renderings, ChannelStatus: chatRuntime.status, ChatSearch: chatRuntime.search, Filters: chatRuntime.filters, Locations: chatRuntime.locations, LocationPictures: chatRuntime.locationPictures, ChatMaintenance: chatRuntime.store}
 	}
+	edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
 	if localPersonaBootstrap != nil {
 		edgeHandler = OverlayLocalDevPersonaBootstrap(edgeHandler, localPersonaBootstrap, cell.Config,
 			LocalDevPersonaBootstrapBrowserOptions{PublicOrigin: cell.PublicOrigin(), BrowserLogin: cell.BrowserLoginEnabled()})
@@ -1398,6 +1517,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	if personaWorkload := personaInvocationBackgroundWorkload(servedPersonaInvocation, cfg.ServedTenants(), logger); personaWorkload != nil {
 		workloads = append(workloads, *personaWorkload)
+	}
+	if translationWorkload := chatlangBackgroundWorkload(chatlangRuntime); translationWorkload != nil {
+		workloads = append(workloads, *translationWorkload)
 	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is
@@ -1735,6 +1857,22 @@ func composeDevPersonas(verifier trust.Verifier, cfg ServeConfig, now func() tim
 // Tran) is the employee. The finance-partner slot's finance_partner role is
 // backed by authz.PolicyTable under compensation_review, the purpose it
 // signs; do not give it a payroll label or purpose (UXAUDIT-014).
+// localPersonaPurposes derives every local sign-in purpose from the same P1A
+// rule table production sessions use. A persona mention is only declared when
+// the member's effective role bundle has its explicit invocation rule; the
+// later agent gate still narrows skills, audience and organization scope.
+func localPersonaPurposes(primary string, roleBundles ...[]string) []string {
+	roles := []string{string(authz.RoleWorkerSelf)}
+	if len(roleBundles) > 0 {
+		roles = roleBundles[0]
+	}
+	purposes := []string{primary}
+	if primary != authz.PurposePersonaMention && authz.RolesAuthorizePurpose(roles, authz.PurposePersonaMention) {
+		purposes = append(purposes, authz.PurposePersonaMention)
+	}
+	return purposes
+}
+
 func composeCompanyPersonas(issuer developmentTokenIssuer, cfg ServeConfig, pack *demoworkforce.Pack, now func() time.Time) []workspace.DevPersona {
 	workers, err := pack.Plan(pgstore.TenantID(pack.Key))
 	if err != nil {
@@ -1763,7 +1901,7 @@ func composeCompanyPersonas(issuer developmentTokenIssuer, cfg ServeConfig, pack
 		}
 		claims := trust.Claims{
 			Issuer: cfg.Issuer, Audience: cfg.Audience, Subject: worker.Row.WorkerKey, SubjectKind: "human", Tenant: pack.Key,
-			OrganizationScopeID: pack.OrgScope(), Roles: roles, Purposes: []string{spec.Purpose},
+			OrganizationScopeID: pack.OrgScope(), Roles: roles, Purposes: localPersonaPurposes(spec.Purpose, roles),
 			AuthenticationMethod: "bearer_token", Assurance: "substantial", SessionRef: "session-local-persona-" + id,
 		}
 		issueToken := func() (string, error) {

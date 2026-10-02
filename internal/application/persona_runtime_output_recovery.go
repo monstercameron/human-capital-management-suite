@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsecurity"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
@@ -124,6 +126,11 @@ var _ agentsecurity.FinalOutputRecoveryRehydrator = (*personaRuntimeOutputRecove
 type personaRuntimeCurrentReply struct {
 	next      PersonaRunReplyDeliverer
 	authority agentsecurity.FinalOutputRecoveryCurrentAuthority
+	records   *personaRuntimeOutputRecovery
+	documents personaAgentDocumentGroundingSource
+	// questions re-reads the question the answer is for, to learn whether the
+	// asker asked for privacy in it (AGENTUX-070). Unset, no request is read.
+	questions agentinvoke.ThreadReader
 }
 
 func (d *personaRuntimeCurrentReply) Deliver(ctx context.Context, req PersonaReplyDeliveryRequest) (PersonaReplyDeliveryReceipt, error) {
@@ -133,5 +140,48 @@ func (d *personaRuntimeCurrentReply) Deliver(ctx context.Context, req PersonaRep
 	if err := d.authority.AuthorizeRecoveredFinalOutput(ctx, req.Output); err != nil {
 		return PersonaReplyDeliveryReceipt{}, err
 	}
+	req = d.withPrivacyRequest(ctx, req)
+	if d.records != nil && !isNilPersonaOutputPort(d.documents) {
+		record, _, err := d.records.current(ctx, req.Output.Identity())
+		if err != nil {
+			return PersonaReplyDeliveryReceipt{}, err
+		}
+		documents, omissions, err := d.documents.ResolvePersonaAgentDocuments(ctx, record)
+		if err != nil {
+			return PersonaReplyDeliveryReceipt{}, err
+		}
+		// The request may already name documents a search returned and the
+		// sealed answer cites. The agent's own referenced documents are added
+		// to them; neither list replaces the other.
+		req.Documents = mergePersonaReplyDocuments(req.Documents, personaCitedAgentDocuments(documents, req.Output.Citations()))
+		req.Omissions = append([]agentdocref.Omission(nil), omissions...)
+	}
 	return d.next.Deliver(ctx, req)
+}
+
+// mergePersonaReplyDocuments lists each document once, searched documents
+// first, in the order they were cited.
+func mergePersonaReplyDocuments(searched, referenced []agentdocref.ResolvedDocument) []agentdocref.ResolvedDocument {
+	out := make([]agentdocref.ResolvedDocument, 0, len(searched)+len(referenced))
+	seen := make(map[string]struct{}, len(searched)+len(referenced))
+	add := func(document agentdocref.ResolvedDocument) {
+		key := document.Reference.DocumentID
+		if key == "" {
+			key = "title:" + document.Title
+		}
+		if _, duplicate := seen[key]; duplicate {
+			return
+		}
+		seen[key] = struct{}{}
+		out = append(out, document)
+	}
+	// A referenced document carries its version and section; prefer it when
+	// the same document was also found by search.
+	for _, document := range referenced {
+		add(document)
+	}
+	for _, document := range searched {
+		add(document)
+	}
+	return out
 }

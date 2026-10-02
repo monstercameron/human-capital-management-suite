@@ -87,6 +87,8 @@ func (s *PersonaPrivateChatInvokerAuthoritySource) ResolvePersonaChatInvokerAuth
 				projection, err = s.Gate.ProjectPrivateChatSkillAuthorization(ctx, req, s.Chat)
 			case personaPolicyHelperSkillID:
 				projection, err = s.Gate.ProjectPrivateChatDocumentSearchAuthorization(ctx, req, s.Chat)
+			case personaWorkspaceSearchSkillID:
+				projection, err = s.Gate.ProjectPrivateChatWorkspaceSearchAuthorization(ctx, req, s.Chat)
 			default:
 				return denied, errPersonaPrivateChatInvokerAuthority
 			}

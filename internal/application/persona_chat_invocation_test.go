@@ -13,9 +13,12 @@ import (
 )
 
 type personaChatWriterFake struct {
-	post  chatcore.Post
-	err   error
-	calls int
+	post        chatcore.Post
+	err         error
+	calls       int
+	room        chatcore.Conversation
+	members     []chatcore.Membership
+	nextMembers string
 }
 
 func (f *personaChatWriterFake) SendPost(_ context.Context, request chatcore.SendPostRequest) (chatcore.Post, error) {
@@ -31,6 +34,23 @@ func (f *personaChatWriterFake) SendPost(_ context.Context, request chatcore.Sen
 		}
 	}
 	return f.post, nil
+}
+
+func (f *personaChatWriterFake) GetConversation(_ context.Context, request chatcore.GetConversationRequest) (chatcore.Conversation, error) {
+	if f.err != nil {
+		return chatcore.Conversation{}, f.err
+	}
+	if f.room.ID == "" {
+		return chatcore.Conversation{}, chatcore.ErrNotFound
+	}
+	return f.room, nil
+}
+
+func (f *personaChatWriterFake) ListMemberships(context.Context, chatcore.ListMembershipsRequest) (chatcore.ListMembershipsResponse, error) {
+	if f.err != nil {
+		return chatcore.ListMembershipsResponse{}, f.err
+	}
+	return chatcore.ListMembershipsResponse{Memberships: append([]chatcore.Membership(nil), f.members...), NextCursor: f.nextMembers}, nil
 }
 
 type personaReferenceResolverFake struct {
@@ -297,5 +317,60 @@ func TestPersonaChatInvocation_ChatCommitFailureDoesNotStartRun(t *testing.T) {
 	}
 	if refs.calls != 0 || grants.calls != 0 || len(runs.requests) != 0 {
 		t.Fatalf("persona started without committed post: refs=%d grants=%d runs=%d", refs.calls, grants.calls, len(runs.requests))
+	}
+}
+
+func TestAgentUXR5Srv_DirectAgentInvocation(t *testing.T) {
+	service, chat, refs, runs, grants, _, ctx := personaInvocationFixture(t, trust.SubjectKindHuman, personaAdmission(), nil)
+	joined := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	chat.room = chatcore.Conversation{ID: "channel-a", TenantID: "tenant-a", Kind: chatcore.Direct}
+	chat.members = []chatcore.Membership{
+		{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "alice", JoinedAt: &joined},
+		{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "persona-comp", JoinedAt: &joined},
+	}
+	request := personaSendRequest()
+	request.Body, request.References = "Summarize the policy", nil
+	post, err := service.SendPost(ctx, request)
+	if err != nil || post.ID == "" || refs.calls != 1 || grants.calls != 1 || len(runs.requests) != 1 || runs.requests[0].PersonaID != "persona-comp" {
+		t.Fatalf("plain direct invocation post=%+v refs=%d grants=%d runs=%+v err=%v", post, refs.calls, grants.calls, runs.requests, err)
+	}
+}
+
+func TestAgentUXR5Srv_DirectAgentInvocation_TypedReferenceIsNotDoubled(t *testing.T) {
+	for _, otherMember := range []string{"persona-comp", "bound-different-agent"} {
+		t.Run(otherMember, func(t *testing.T) {
+			service, chat, refs, runs, grants, _, ctx := personaInvocationFixture(t, trust.SubjectKindHuman, personaAdmission(), nil)
+			joined := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+			chat.room = chatcore.Conversation{ID: "channel-a", TenantID: "tenant-a", Kind: chatcore.Direct}
+			chat.members = []chatcore.Membership{
+				{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "alice", JoinedAt: &joined},
+				{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: otherMember, JoinedAt: &joined},
+			}
+			if _, err := service.SendPost(ctx, personaSendRequest()); err != nil {
+				t.Fatal(err)
+			}
+			if refs.calls != 1 || grants.calls != 1 || len(runs.requests) != 1 {
+				t.Fatalf("typed reference duplicated: refs=%d grants=%d runs=%d", refs.calls, grants.calls, len(runs.requests))
+			}
+		})
+	}
+}
+
+func TestAgentUXR5Srv_DirectAgentInvocation_ThreeMemberConversationIsNotAdmitted(t *testing.T) {
+	service, chat, refs, runs, grants, _, ctx := personaInvocationFixture(t, trust.SubjectKindHuman, personaAdmission(), nil)
+	joined := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	chat.room = chatcore.Conversation{ID: "channel-a", TenantID: "tenant-a", Kind: chatcore.Direct}
+	chat.members = []chatcore.Membership{
+		{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "alice", JoinedAt: &joined},
+		{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "persona-comp", JoinedAt: &joined},
+		{TenantID: "tenant-a", HomeTenantID: "tenant-a", ConversationID: "channel-a", SubjectID: "bob", JoinedAt: &joined},
+	}
+	request := personaSendRequest()
+	request.Body, request.References = "Summarize the policy", nil
+	if _, err := service.SendPost(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	if refs.calls != 1 || grants.calls != 0 || len(runs.requests) != 0 {
+		t.Fatalf("three-member direct admitted: refs=%d grants=%d runs=%d", refs.calls, grants.calls, len(runs.requests))
 	}
 }

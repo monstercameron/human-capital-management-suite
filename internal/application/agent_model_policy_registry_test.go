@@ -72,7 +72,7 @@ func TestTodo_AGENT_021_ImmutablePolicySignedSource(t *testing.T) {
 		state.revision = 1
 	}
 	selection := LocalPersonaOpenAIPolicySelection()
-	if selection.ModelPolicy != LocalPersonaOpenAIPolicyRecords()[0].Reference || selection.OutputSchema.Digest != PersonaChatReplySchemaDigest || len(selection.EvaluationSuites) != 1 {
+	if selection.ModelPolicy != LocalPersonaOpenAIPolicyRecords()[0].Reference || selection.OutputSchema.Digest != PersonaChatReplySchemaDigest || len(selection.EvaluationSuites) != 2 {
 		t.Fatalf("reference selection differs=%+v", selection)
 	}
 	if _, err := NewAgentModelPolicyRegistry(AgentModelPolicyRegistryConfig{}); !errors.Is(err, ErrAgentModelPolicyUnavailable) {

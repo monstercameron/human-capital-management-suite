@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -19,31 +18,29 @@ import (
 // AgentOwnerControls is the authenticated owner and memory projection shared
 // by the product surface. Affordances come from current operation grants.
 type AgentOwnerControls struct {
-	Owners *AgentOwnerOperations
-	Memory *AgentMemoryOperations
+	Owners     *AgentOwnerOperations
+	Runs       AgentOwnerRunSource
+	Identities AgentControlIdentitySource
+	Memory     *AgentMemoryOperations
 }
 
-func (s *AgentOwnerControls) audience(ctx context.Context, p *trust.Principal) (ownerops.Audience, []ownerops.TaskView, error) {
-	if s == nil || s.Owners == nil {
+func (s *AgentOwnerControls) audience(ctx context.Context, p *trust.Principal) (ownerops.Audience, []AgentOwnerRunProjection, error) {
+	if s == nil || (s.Runs == nil && s.Owners == nil) {
 		return "", nil, agentcontrols.ErrUnavailable
 	}
 	var selected ownerops.Audience
-	views := []ownerops.TaskView{}
-	index := map[string]int{}
+	views := []AgentOwnerRunProjection{}
+	source := s.Runs
+	if source == nil {
+		source = s.Owners
+	}
 	for _, audience := range []ownerops.Audience{ownerops.AudienceOwner, ownerops.AudienceOperator, ownerops.AudienceMember} {
-		rows, err := s.Owners.Dashboard(ctx, p, audience)
+		rows, err := source.DashboardProjection(ctx, p, audience)
 		if err == nil {
 			if selected == "" {
 				selected = audience
 			}
-			for _, row := range rows {
-				if i, found := index[row.TaskID]; found {
-					views[i].CanPause = views[i].CanPause || row.CanPause
-					continue
-				}
-				index[row.TaskID] = len(views)
-				views = append(views, row)
-			}
+			views = mergeAgentOwnerRunProjections(views, rows)
 			continue
 		}
 		if !errors.Is(err, ownerops.ErrDenied) {
@@ -70,17 +67,28 @@ func (s *AgentOwnerControls) Snapshot(ctx context.Context) (agentcontrols.Reply,
 	}
 	snapshot := productui.AgentControlsSnapshot{Available: true, Schedules: []productui.AgentControlSchedule{}, Runs: []productui.AgentControlRun{}, Memory: []productui.AgentControlMemory{}}
 	for _, view := range views {
-		row := productui.AgentControlRun{ID: view.TaskID, Revision: view.Revision, Version: view.Version, Installation: view.InstallationID, State: view.State, Failure: view.FailureCode, Spend: fmt.Sprintf("%d", view.SpendMicros), Actions: []string{}, Denials: []string{}, Citations: []string{}, Evals: []string{}}
-		if view.CanPause {
-			row.Actions = append(row.Actions, "pause")
+		if s.Identities == nil {
+			return agentcontrols.Reply{}, agentcontrols.ErrUnavailable
 		}
-		for _, step := range view.Steps {
-			row.Denials = append(row.Denials, step.DenialCodes...)
-			if step.WakeLag > 0 {
-				row.QueueLag = step.WakeLag.String()
+		identity, identityErr := s.Identities.ResolveAgentControlIdentity(ctx, p.Tenant(), view.View.AgentID, view.View.Version)
+		if identityErr != nil {
+			// One run whose agent the catalog cannot name (a general agent,
+			// a retired or unpublished version) must not hide every other
+			// run from the owner. That run is listed under the content-free
+			// fallback label; the owner name is left for the others to set.
+			identity, identityErr = AgentFallbackControlIdentities{}.ResolveAgentControlIdentity(ctx, p.Tenant(), view.View.AgentID, view.View.Version)
+			if identityErr != nil {
+				return agentcontrols.Reply{}, agentControlsError(identityErr)
 			}
+			snapshot.Runs = append(snapshot.Runs, projectAgentControlRun(view, identity))
+			continue
 		}
-		snapshot.Runs = append(snapshot.Runs, row)
+		if snapshot.OwnerName == "" {
+			snapshot.OwnerName = identity.OwnerName
+		} else if snapshot.OwnerName != identity.OwnerName {
+			snapshot.OwnerName = ""
+		}
+		snapshot.Runs = append(snapshot.Runs, projectAgentControlRun(view, identity))
 	}
 	if s.Memory != nil {
 		items, e := s.Memory.Inventory(ctx, p)

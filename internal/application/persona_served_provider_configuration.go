@@ -10,6 +10,8 @@ import (
 const localPersonaModelDeploymentPath = ".artifacts/lanes/agent-dev/model-deployment.json"
 const localPersonaModelSigningPath = ".artifacts/lanes/agent-dev/model-signing.json"
 
+const localPersonaModelPreparationCommand = "go run ./cmd/migrate agent-demo -profile local-dev -tenant ironridge-demo"
+
 // newPersonaServedProviderConfiguration consumes only a qualified deployment.
 // The local profile gains persistent signing material after its qualification
 // artifact exists. An absent artifact leaves the provider unconfigured.
@@ -19,6 +21,27 @@ func newPersonaServedProviderConfiguration(ctx context.Context, cfg ServeConfig,
 		return nil, err
 	}
 	return newPersonaServedModelFactory(personaServedModelFactoryInput{Config: cfg, Deployment: deployment, APIKey: apiKey, Runtime: runtime})
+}
+
+// personaServedProviderUnavailableReason turns the deliberately quiet
+// unconfigured result into an operator-facing local-development instruction.
+// Production keeps its existing fail-closed behavior and never advertises a
+// local preparation command.
+func personaServedProviderUnavailableReason(cfg ServeConfig, env func(string) string) string {
+	if cfg.Profile != ServeProfileLocalDev {
+		return "configure the persona model deployment and dedicated signing seeds"
+	}
+	path := cfg.AgentModelConfigFile
+	if path == "" {
+		path = filepath.FromSlash(localPersonaModelDeploymentPath)
+	}
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return "prepared persona model deployment is missing; run " + localPersonaModelPreparationCommand
+	}
+	if env == nil || env("MODEL_API_KEY") == "" {
+		return "MODEL_API_KEY is not set for the prepared local persona deployment"
+	}
+	return "prepared persona runtime dependencies are incomplete; rerun " + localPersonaModelPreparationCommand
 }
 
 // Both chat personas and private tasks consume the same qualified deployment.
