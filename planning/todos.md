@@ -34668,9 +34668,10 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/chat_drafts.go`, `internal/humanwork/chatui/fieldsync_js.go`.
 
-- [ ] `CHATBUG-069` **[PHASE_3][SOL_HIGH] The Announcements page cannot be loaded after an agent is installed again.**
+- [x] `CHATBUG-069` **[PHASE_3][SOL_HIGH] The Announcements page cannot be loaded after an agent is installed again.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_069`, `TestTodo_CHATBUG_069_Reinstall`, `TestTodo_CHATBUG_069_PausedFollows`, `TestTodo_CHATBUG_069_RetiredRow`, `TestTodo_CHATBUG_069_TabAddress` and, in `tools/uxqual/productclient`, `TestTodo_CHATBUG_069_TabRoute` and `TestTodo_CHATBUG_069_TabRendered` pass (lanes S15 and S36 runs). On the review server (headless, build of 10:10) `/workspace/app/admin/agents?tab=announcements` and `?tab=rollout` keep their address and show the Announcements and Rollout tabs with their content; before the fix the address was rewritten and the page stayed on a loading line. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("what about the announcements agent?"); WHY=one old record takes the whole page away, so the owner can neither see nor make an announcement`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("what about the announcements agent?"); WHY=one old record takes the whole page away, so the owner can neither see nor make an announcement; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER`.
   - **TEST:** `TestTodo_CHATBUG_069`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_069`.
   - **RED:** (browser pane and review database, 2026-10-02 00:04) Agent operations, Announcements shows "Announcements could not be loaded. Try again." with New announcement disabled; `GET /api/agent-controls/announcements` answers 503. All four announcements of 2026-10-01 were made with the Assistant's first installation in #general, which was retired at 18:30 when the Assistant was installed again at version 2; the list could not name a record whose installation is not active and gave up on the whole reply. The address `?tab=announcements` is also dropped on load, so the tab cannot be linked or reloaded.
@@ -34957,7 +34958,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux003_share.go`, `internal/humanwork/chatui/chatux003_card.go`, `internal/application/agentux070_share.go`, `tools/uxqual/cmd/journeywasm/chatbug067_share.go`.
 
-- [ ] `CHATBUG-087` **[PHASE_3][SOL_HIGH] The reading language cannot be changed: every save answers "Settings could not be saved".**
+- [x] `CHATBUG-087` **[PHASE_3][SOL_HIGH] The reading language cannot be changed: every save answers "Settings could not be saved".**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_087`, `TestTodo_CHATBUG_087_Session`, `TestTodo_CHATBUG_087_Browser` (`internal/humanwork/chatui`), `TestTodo_CHATBUG_087_Integration` and `_Integration_Browser` (served assembly, runtime role, a second client saving in between, a stale credential) and `TestTodo_CHATBUG_087_Grant` (`internal/data/chatstore`) pass (lane S1 run). The save route and grants always worked; a long-open tab whose credential the server no longer accepted got 401 or 403 on every save and the client printed one general sentence with nothing logged. The client now fetches a fresh credential and repeats the save once, keeps the person's choice, and says what failed; the server logs the cause. On the review server (headless, build of 10:10) choosing German in Chat preferences answered PUT 200 with a saved tick and choosing English put it back. A tab left open across a real credential expiry was not reproduced. CI remains the run evidence.
   - **Depends:** `CHATLANG-007`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("this is broken, cant do lang change"); WHY=a person who reads another language cannot turn translation on for themselves`.
   - **TEST:** `TestTodo_CHATBUG_087`.
@@ -34967,7 +34969,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatrender_personal.go`, `internal/humanwork/chatui/chatrender_personal_wasm.go`, `internal/humanwork/chatui/chatrender_client.go`, `internal/humanwork/chatui/chatlang006_admin_wasm.go`, `internal/application`.
 
-- [ ] `CHATUX-027` **[PHASE_3][SOL_HIGH] Conversation details: the "Manage channel" sections are a stack of unrelated rows, and opening one makes it worse.**
+- [x] `CHATUX-027` **[PHASE_3][SOL_HIGH] Conversation details: the "Manage channel" sections are a stack of unrelated rows, and opening one makes it worse.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_027`, `TestTodo_CHATUX_027_Browser` (en-US, de-DE, ar) and `TestTodo_CHATUX_027_Integration` pass in `internal/humanwork/chatui` (lanes S4 and S21 runs; the lane looked at the served page over three rounds). On the review server (headless, build of 10:10; shots `.artifacts/lanes/agent-ui/shots/min/000-details-1.png` to `-12.png`) Manage channel is one list of 36 px rows with the value at the right and one chevron position, quiet group labels with space above, no tint on any row, one section open at a time with its form in an inset block, and the translation state shown inside its own row. CI remains the run evidence.
   - **Depends:** `CHATUX-021`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("this ui when you expand the sections is dogshit, eval and refine it"); WHY=a channel manager cannot tell what is a heading, what is a setting and what is open`.
   - **TEST:** `TestTodo_CHATUX_027`.
@@ -34977,7 +34980,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatdetails_styles.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatux021_line.go`, `internal/humanwork/chatui/chatux021_styles.go`.
 
-- [ ] `CHATSIDE-001` **[PHASE_3][SOL_HIGH] Sidebar sections of one's own: Favorites, custom sections, and moving conversations between them.**
+- [x] `CHATSIDE-001` **[PHASE_3][SOL_HIGH] Sidebar sections of one's own: Favorites, custom sections, and moving conversations between them.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATSIDE_001` (`internal/collaboration/chatrecipient`, `internal/humanwork/chatui`), `TestTodo_CHATSIDE_001_Integration` (`internal/data/chatstore`, real PostgreSQL), `TestTodo_CHATSIDE_001_Browser`, and the signal, second-tab, order-rule, placement and touch tests pass (lanes S5 and S20 runs). On the review server (headless, build of 10:10, commit 507840cd0) a channel was added to Favorites from its row menu and appeared in a Favorites section at the top; a section was created from the Channels add menu, a channel was moved into it with "Move to", the section menu offered Rename, Move section down and Delete section, and deleting it returned the channel; the header star toggles; a second session of the same person showed a new favorite 2.6 s after the first session made it. The layout is the existing per-person sidebar document, so no migration was needed. CI remains the run evidence.
   - **Depends:** `CHATUX-020`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("we need custom channel sections and a favorite section and a way to move channels between sections"); WHY=a person with thirty channels cannot keep the six they live in at the top or group the rest their own way`.
   - **TEST:** `TestTodo_CHATSIDE_001`.
@@ -35019,7 +35023,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatbug013_agent_icon.go`, `internal/humanwork/chatui/chatbug033_agent_avatar.go`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`.
 
-- [ ] `CHATUX-028` **[PHASE_3][SOL_HIGH] The agent answer card carries six controls; on a phone they take five rows.**
+- [x] `CHATUX-028` **[PHASE_3][SOL_HIGH] The agent answer card carries six controls; on a phone they take five rows.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_028` and `TestTodo_CHATUX_028_Browser` pass in `internal/humanwork/chatui` (lanes S13 and S29 runs). On the review server (headless, build of 10:10) the answer card in #general shows Helpful, Not right, Ask a follow-up and a menu button in English, German and Arabic, on one line; at 390 px the two rating buttons are icon buttons and the row stays on one line (shot `.artifacts/lanes/agent-ui/shots/min/004-phone-1.png`); View shared answer, Remove shared answer and Share to channel are in the menu. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"); WHY=the controls take more room than the answer and the two that manage sharing read as primary actions`.
   - **TEST:** `TestTodo_CHATUX_028`.
@@ -35029,7 +35034,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui`.
 
-- [ ] `CHATUX-029` **[PHASE_3][SOL_HIGH] Role labels is a five-line block per member with its own Save button.**
+- [x] `CHATUX-029` **[PHASE_3][SOL_HIGH] Role labels is a five-line block per member with its own Save button.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_029` and `TestTodo_CHATUX_029_Browser` pass in `internal/humanwork/chatui` (lane S21 run). On the review server (headless, build of 10:10) Role labels is one row per member with avatar, name and an "Add a label" field saved on Enter or on leaving the field, with a filter field above the list; a word-list switch states its value once; "Add milestone" is a text button that opens its fields in place; an open section has one solid primary action with Cancel beside it. CI remains the run evidence.
   - **Depends:** `CHATUX-027`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"); WHY=labelling eighteen people means scrolling through ninety lines and pressing eighteen buttons`.
   - **TEST:** `TestTodo_CHATUX_029`.
