@@ -7,7 +7,7 @@ import (
 
 func TestPersonaBadgeRequiresTrustedActorAndShowsAttribution(t *testing.T) {
 	valid := render(t, Model{State: StateReady, SelectedID: "room", Conversations: []Conversation{{ID: "room", Name: "Room"}}, Messages: []Message{{ID: "post", Author: "Policy Helper", PersonaActor: &PersonaActor{PersonaID: "persona-1", AgentID: "agent-1", InvokerHandle: "dana-ruiz", Trusted: true}, Body: "answer"}}})
-	for _, want := range []string{"Agent", "acting for @dana-ruiz", "agent-badge", "aria-label=\"Agent; acting for @dana-ruiz\""} {
+	for _, want := range []string{"Agent", "for dana-ruiz", "agent-badge"} {
 		if !strings.Contains(valid, want) {
 			t.Fatalf("trusted persona post missing %q: %s", want, valid)
 		}

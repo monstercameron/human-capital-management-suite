@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package journeycss
 
 import gwccss "github.com/monstercameron/GoWebComponents/v5/css"

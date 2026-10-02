@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
+<!--
+Copyright © 1991-2025 Unicode, Inc.
+CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
+For terms of use, see http://www.unicode.org/copyright.html
+-->
+<ldml>
+	<identity>
+		<version number="$Revision$"/>
+		<language type="de"/>
+	</identity>
+	<annotations>
+		<annotation cp="🏻">Hautfarbe | helle Hautfarbe</annotation>
+		<annotation cp="🏻" type="tts">helle Hautfarbe</annotation>
+		<annotation cp="🏼">Hautfarbe | mittelhelle Hautfarbe</annotation>
+		<annotation cp="🏼" type="tts">mittelhelle Hautfarbe</annotation>
+		<annotation cp="🏽">Hautfarbe | mittlere Hautfarbe</annotation>
+		<annotation cp="🏽" type="tts">mittlere Hautfarbe</annotation>
+		<annotation cp="🏾">Hautfarbe | mitteldunkle Hautfarbe</annotation>
+		<annotation cp="🏾" type="tts">mitteldunkle Hautfarbe</annotation>
+		<annotation cp="🏿">Hautfarbe | dunkle Hautfarbe</annotation>
+		<annotation cp="🏿" type="tts">dunkle Hautfarbe</annotation>
+		<annotation cp="😀">Gesicht | grinsen</annotation>
+		<annotation cp="😀" type="tts">grinsendes Gesicht</annotation>
+		<annotation cp="😂">Freude | Gesicht | lachen | Träne</annotation>
+		<annotation cp="😂" type="tts">Gesicht mit Freudentränen</annotation>
+		<annotation cp="😊" type="tts">lächelndes Gesicht mit lachenden Augen</annotation>
+		<annotation cp="😍" type="tts">lächelndes Gesicht mit herzförmigen Augen</annotation>
+		<annotation cp="🤔" type="tts">nachdenkliches Gesicht</annotation>
+		<annotation cp="😴" type="tts">schlafendes Gesicht</annotation>
+		<annotation cp="😎" type="tts">lächelndes Gesicht mit Sonnenbrille</annotation>
+		<annotation cp="😢" type="tts">weinendes Gesicht</annotation>
+		<annotation cp="💔" type="tts">gebrochenes Herz</annotation>
+		<annotation cp="❤️" type="tts">rotes Herz</annotation>
+		<annotation cp="💯" type="tts">100 Punkte</annotation>
+		<annotation cp="👋">Hand | winken</annotation>
+		<annotation cp="👋" type="tts">winkende Hand</annotation>
+		<annotation cp="👍">Daumen | hoch</annotation>
+		<annotation cp="👍" type="tts">Daumen hoch</annotation>
+		<annotation cp="👏" type="tts">klatschende Hände</annotation>
+		<annotation cp="🙏">beten | Hände</annotation>
+		<annotation cp="🙏" type="tts">zum Beten gefaltete Hände</annotation>
+		<annotation cp="💪" type="tts">angespannter Bizeps</annotation>
+		<annotation cp="👀" type="tts">Augen</annotation>
+		<annotation cp="🐶" type="tts">Hundegesicht</annotation>
+		<annotation cp="🐱" type="tts">Katzengesicht</annotation>
+		<annotation cp="🐻" type="tts">Bär</annotation>
+		<annotation cp="🌸" type="tts">Kirschblüte</annotation>
+		<annotation cp="🌹" type="tts">Rose</annotation>
+		<annotation cp="🌳" type="tts">Laubbaum</annotation>
+		<annotation cp="🍎" type="tts">roter Apfel</annotation>
+		<annotation cp="🍕" type="tts">Pizza</annotation>
+		<annotation cp="☕" type="tts">Heißgetränk</annotation>
+		<annotation cp="🍺" type="tts">Bierkrug</annotation>
+		<annotation cp="🌍" type="tts">Globus mit Europa und Afrika</annotation>
+		<annotation cp="🏠">Haus | Zuhause</annotation>
+		<annotation cp="🏠" type="tts">Haus</annotation>
+		<annotation cp="🚗">Auto | Wagen</annotation>
+		<annotation cp="🚗" type="tts">Auto</annotation>
+		<annotation cp="✈️" type="tts">Flugzeug</annotation>
+		<annotation cp="☀️" type="tts">Sonne</annotation>
+		<annotation cp="🔥">Feuer | Flamme</annotation>
+		<annotation cp="🔥" type="tts">Feuer</annotation>
+		<annotation cp="🏆" type="tts">Pokal</annotation>
+		<annotation cp="⚽" type="tts">Fußball</annotation>
+		<annotation cp="🎮" type="tts">Videospiel</annotation>
+		<annotation cp="📞" type="tts">Telefonhörer</annotation>
+		<annotation cp="💻" type="tts">Laptop</annotation>
+		<annotation cp="💡" type="tts">Glühbirne</annotation>
+		<annotation cp="📅" type="tts">Kalender</annotation>
+		<annotation cp="📌" type="tts">Reißzwecke</annotation>
+		<annotation cp="🔒" type="tts">geschlossenes Schloss</annotation>
+		<annotation cp="🔑" type="tts">Schlüssel</annotation>
+		<annotation cp="⚠️" type="tts">Warnung</annotation>
+		<annotation cp="❌" type="tts">Kreuzzeichen</annotation>
+		<annotation cp="#️⃣" type="tts">Tastenkappe: #</annotation>
+		<annotation cp="1️⃣" type="tts">Tastenkappe: 1</annotation>
+		<annotation cp="🏁" type="tts">Zielflagge</annotation>
+		<annotation cp="🏳️" type="tts">weiße Flagge</annotation>
+		<annotation cp="🇩🇪" type="tts">Flagge: Deutschland</annotation>
+		<annotation cp="🇫🇷" type="tts">Flagge: Frankreich</annotation>
+		<annotation cp="🇯🇵" type="tts">Flagge: Japan</annotation>
+		<annotation cp="🇺🇸" type="tts">Flagge: Vereinigte Staaten</annotation>
+	</annotations>
+</ldml>

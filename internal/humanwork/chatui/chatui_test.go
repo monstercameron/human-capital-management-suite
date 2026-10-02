@@ -22,7 +22,7 @@ func TestChatSearchGroupsAuthorizedResultsWithoutReplacingConversationState(t *t
 	m := Model{State: StateReady, SelectedID: "old-room", Search: "launch", Draft: "keep this draft", Messages: []Message{{ID: "existing", Body: "current timeline"}}, SearchChannels: []Conversation{{ID: "room-1", Name: "Launch", Kind: PublicChannel}}, SearchPeople: []SearchPerson{{ID: "worker-1", Name: "Alex Rivera"}}, SearchMessages: []SearchMessage{{ConversationID: "room-1", ConversationName: "Launch", Message: Message{ID: "post-1", Sequence: 42, Author: "Sam Lee", Body: "launch tomorrow"}}},
 		Callbacks: Callbacks{Search: func(string) {}, SelectConversation: func(string) {}, OpenPerson: func(string) {}, OpenSearchMessage: func(string, string, uint64) {}, SearchMore: func() {}}}
 	markup := render(t, m)
-	for _, want := range []string{"Results for “launch”", `aria-label="Results for “launch”"`, "Channels", "People", "Messages", `<mark class="search-hit">Launch</mark>`, "Alex Rivera", `<mark class="search-hit">launch</mark> tomorrow`, `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
+	for _, want := range []string{"Results for “launch”", `aria-label="Results for “launch”"`, "Conversations", "People", "Messages", `<mark class="search-hit">Launch</mark>`, "Alex Rivera", `<mark class="search-hit">launch</mark> tomorrow`, `data-action="open-search-message"`, `data-id="room-1"`, `data-extra="post-1"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("search result panel missing %q", want)
 		}
@@ -58,7 +58,7 @@ func TestTodo_CHAT_032(t *testing.T) {
 	m := Model{State: StateReady, Conversations: []Conversation{room}, Sections: []SidebarSection{{ID: "channels", Name: "Channels"}, {ID: "direct", Name: "Direct messages"}, {ID: "custom-1", Name: "Projects", Collapsed: true, Chats: []Conversation{room}}}, RailMenuID: room.ID,
 		Callbacks: Callbacks{CreateSection: func(string) {}, RemoveSection: func(string) {}, MoveConversationSection: func(string, string) {}, ToggleSection: func(string) {}, OpenRailMenu: func(string) {}}}
 	markup := render(t, m)
-	for _, want := range []string{`<details class="section-create" id="chat-section-create">`, `id="chat-new-section"`, "New section", "Create", "Cancel", `data-action="section-remove" data-id="custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="custom-1"`, "Move to Projects"} {
+	for _, want := range []string{`class="section-create" data-chat-disclosure="true" id="chat-section-create"`, `id="chat-new-section"`, "New section", "Create", "Cancel", `data-action="section-remove" data-id="custom-1"`, `aria-expanded="false"`, `data-action="rail-move-section"`, `data-extra="custom-1"`, "Move to Projects"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}
@@ -117,7 +117,7 @@ func TestIntegrationsSectionGatedToAdminOrOwner(t *testing.T) {
 	owner := base
 	owner.CurrentUser = "owner-1"
 	markup = render(t, owner)
-	for _, want := range []string{`class="details-section integrations-section"`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy API curl"} {
+	for _, want := range []string{`class="details-section integrations-section"`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy sample request for apps"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("Integrations section (owner) missing %q", want)
 		}
@@ -279,7 +279,7 @@ func TestTodo_CHAT_035_SendDoesNotSubmitBlankOrCrossConversationDraft(t *testing
 func TestTodo_CHAT_031_DetailsAndConversationVariants(t *testing.T) {
 	m := Model{State: StateReady, Locale: "ar", Direction: "rtl", ShowDetails: true, SelectedID: "g", Conversations: []Conversation{{ID: "g", Name: "Team", Kind: GroupChat}, {ID: "p", Name: "Private", Kind: PrivateChannel}, {ID: "d", Name: "Ari", Kind: DirectMessage}}, Members: []Member{{Name: "Ari Chen", Online: true}, {Name: "Sam Lee", Subtitle: "Payroll"}}, Messages: []Message{{ID: "x", Author: "Sam Lee", Body: "Pinned", Edited: true, Pinned: true, Reactions: 2, Replies: 1, Chips: []ReactionChip{{Emoji: "👍", Count: 2, Mine: true}}}}}
 	markup := render(t, m)
-	for _, want := range []string{`dir="rtl"`, "Members", "Ari Chen", "Online", "Payroll", "edited", "Pinned", "👍", "1 reply", "Channels", "Direct messages", "notify-mode"} {
+	for _, want := range []string{`dir="rtl"`, "Members", "Ari Chen", "Online", "Payroll", "edited", "Pinned", "👍", "1 reply", "Channels", "Direct messages", "details-notify"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("details render missing %q", want)
 		}
@@ -570,7 +570,7 @@ func TestChatImageViewerKeepsSmallImagesAtNaturalSizeAndOffersZoom(t *testing.T)
 func TestChatEmptyReactionPickerDoesNotCreateAChipRow(t *testing.T) {
 	m := Model{State: StateReady, SelectedID: "room", PickerID: "post", Conversations: []Conversation{{ID: "room", Name: "Room"}}, Messages: []Message{{ID: "post", Author: "Ari", Body: "Hello"}}, Callbacks: Callbacks{OpenPicker: func(string) {}, ReactWith: func(string, string) {}}}
 	markup := render(t, m)
-	if !strings.Contains(markup, `class="reaction-row picker-only"`) || !strings.Contains(markup, `class="reaction-picker"`) {
+	if !strings.Contains(markup, `class="reaction-row picker-only"`) || !strings.Contains(markup, `data-emoji-picker="reaction"`) {
 		t.Fatal("empty picker lacks its anchored popup")
 	}
 	if strings.Contains(markup, `class="reaction add"`) {

@@ -12,6 +12,10 @@ func TestMentionsRenderAsPersonChipsThatOpenTheirDetails(t *testing.T) {
 		Members:   []Member{{ID: "w-1", Name: "Camila Morales"}, {ID: "w-2", Name: "Ana Maria Lopez"}, {ID: "w-3", Name: "Ana Maria"}},
 		Messages:  []Message{{AuthorID: "w-4", Author: "Zuri Mensah"}},
 		Callbacks: Callbacks{OpenPerson: func(id string) { opened = id }}}
+	m.renderReferences = []ChatReference{
+		{Kind: "PERSON_MENTION", ID: "w-1", Display: "Camila Morales"}, {Kind: "PERSON_MENTION", ID: "w-2", Display: "Ana Maria Lopez"},
+		{Kind: "PERSON_MENTION", ID: "w-4", Display: "Zuri Mensah"}, {Kind: "PERSON_MENTION", ID: "me", Display: "Rafael Torres"},
+	}
 	markup := renderNode(t, spanOf(mentionReferenceBody(m, "@Camila Morales and @ana maria lopez, cc @Zuri Mensah, not me@example.com or @Nobody Here, and @Rafael Torres")))
 	for _, want := range []string{
 		`class="mention-chip" data-action="open-person" data-id="w-1"`, `>@Camila Morales<`,
@@ -55,8 +59,11 @@ func TestBrowseListsJoinedChannelsAlongsideDiscoverableOnes(t *testing.T) {
 			t.Errorf("browse dialog missing %q", want)
 		}
 	}
-	if strings.Count(markup, "Create a channel") != 1 {
-		t.Fatalf("create action appears %d times", strings.Count(markup, "Create a channel"))
+	// CHATUX-002 changed this assertion: the Channels menu in the list's heading
+	// now also names "Create a channel", so the dialog is counted on its own.
+	dialog := markup[strings.Index(markup, "chat-dialog-backdrop"):]
+	if strings.Count(dialog, "Create a channel") != 1 {
+		t.Fatalf("create action appears %d times in the dialog", strings.Count(dialog, "Create a channel"))
 	}
 	m.BrowseQuery = "month"
 	if got := browseEntries(m); len(got) != 2 || got[1].ID != "p" {
@@ -142,7 +149,9 @@ func TestChannelTrayShowsSummaryChipsAndTheOpenWidget(t *testing.T) {
 }
 
 func TestQuietHoursPopoverShowsSwitchScheduleAndZones(t *testing.T) {
-	m := Model{State: StateReady, Preferences: Preferences{QuietHours: true, QuietTimezone: "Europe/Berlin", QuietStartMinute: 22 * 60, QuietEndMinute: 7 * 60}}
+	// CHATUX-002: a page that cannot save preferences now shows the switch disabled
+	// (it used to disable the row that opened the panel), so this model can save.
+	m := Model{State: StateReady, Preferences: Preferences{QuietHours: true, QuietTimezone: "Europe/Berlin", QuietStartMinute: 22 * 60, QuietEndMinute: 7 * 60}, Callbacks: Callbacks{SavePreferences: func(Preferences) {}}}
 	markup := render(t, m)
 	for _, want := range []string{`class="switch" id="quiet-hours" role="switch"`, `checked`, "Paused 10:00 PM–7:00 AM · Europe/Berlin", `<option selected value="Europe/Berlin">`, `value="UTC"`, `value="Asia/Tokyo"`, `id="quiet-start"`} {
 		if !strings.Contains(markup, want) {

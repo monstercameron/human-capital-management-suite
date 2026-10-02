@@ -35,7 +35,7 @@ func markdownChildren(m Model, parent ast.Node, source []byte) []ui.Node {
 	var plain strings.Builder
 	flush := func() {
 		if plain.Len() > 0 {
-			nodes = append(nodes, mentionReferenceBody(m, plain.String())...)
+			nodes = append(nodes, markdownTextNodes(m, plain.String())...)
 			plain.Reset()
 		}
 	}
@@ -78,7 +78,7 @@ func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 		}
 		return []ui.Node{html.Em(html.Props{}, children()...)}
 	case *ast.String:
-		return mentionReferenceBody(m, string(n.Value))
+		return modAuthorInline(m, string(n.Value))
 	case *ast.CodeSpan:
 		return []ui.Node{html.Code(html.Props{}, ui.Text(string(n.Text(source))))}
 	case *ast.CodeBlock, *ast.FencedCodeBlock:
@@ -147,4 +147,26 @@ func safeMarkdownHref(raw string) (string, bool) {
 		return "", false
 	}
 	return raw, true
+}
+
+// markdownTextNodes is a run of plain message text. A flag in it that the
+// platform cannot draw becomes a labelled chip (CHATBUG-043); everything else is
+// the text it always was.
+func markdownTextNodes(m Model, text string) []ui.Node {
+	if emojiFlagsDrawn() {
+		return modAuthorInline(m, text)
+	}
+	segments := emojiSplitFlags(text)
+	if segments == nil {
+		return modAuthorInline(m, text)
+	}
+	var nodes []ui.Node
+	for _, segment := range segments {
+		if segment.Flag {
+			nodes = append(nodes, emojiFlagChip(m, segment.Text))
+		} else {
+			nodes = append(nodes, modAuthorInline(m, segment.Text)...)
+		}
+	}
+	return nodes
 }

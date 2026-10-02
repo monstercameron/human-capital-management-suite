@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
+<!--
+Copyright © 1991-2025 Unicode, Inc.
+CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
+For terms of use, see http://www.unicode.org/copyright.html
+-->
+<ldml>
+	<identity>
+		<version number="$Revision$"/>
+		<language type="de"/>
+	</identity>
+	<annotations>
+		<annotation cp="👋🏻" type="tts">winkende Hand: helle Hautfarbe</annotation>
+		<annotation cp="👋🏼" type="tts">winkende Hand: mittelhelle Hautfarbe</annotation>
+		<annotation cp="👋🏽" type="tts">winkende Hand: mittlere Hautfarbe</annotation>
+		<annotation cp="👋🏾" type="tts">winkende Hand: mitteldunkle Hautfarbe</annotation>
+		<annotation cp="👋🏿" type="tts">winkende Hand: dunkle Hautfarbe</annotation>
+		<annotation cp="👍🏻" type="tts">Daumen hoch: helle Hautfarbe</annotation>
+		<annotation cp="👍🏼" type="tts">Daumen hoch: mittelhelle Hautfarbe</annotation>
+		<annotation cp="👍🏽" type="tts">Daumen hoch: mittlere Hautfarbe</annotation>
+		<annotation cp="👍🏾" type="tts">Daumen hoch: mitteldunkle Hautfarbe</annotation>
+		<annotation cp="👍🏿" type="tts">Daumen hoch: dunkle Hautfarbe</annotation>
+		<annotation cp="👏🏻" type="tts">klatschende Hände: helle Hautfarbe</annotation>
+		<annotation cp="👏🏼" type="tts">klatschende Hände: mittelhelle Hautfarbe</annotation>
+		<annotation cp="👏🏽" type="tts">klatschende Hände: mittlere Hautfarbe</annotation>
+		<annotation cp="👏🏾" type="tts">klatschende Hände: mitteldunkle Hautfarbe</annotation>
+		<annotation cp="👏🏿" type="tts">klatschende Hände: dunkle Hautfarbe</annotation>
+		<annotation cp="🙏🏻" type="tts">zum Beten gefaltete Hände: helle Hautfarbe</annotation>
+		<annotation cp="🙏🏼" type="tts">zum Beten gefaltete Hände: mittelhelle Hautfarbe</annotation>
+		<annotation cp="🙏🏽" type="tts">zum Beten gefaltete Hände: mittlere Hautfarbe</annotation>
+		<annotation cp="🙏🏾" type="tts">zum Beten gefaltete Hände: mitteldunkle Hautfarbe</annotation>
+		<annotation cp="🙏🏿" type="tts">zum Beten gefaltete Hände: dunkle Hautfarbe</annotation>
+		<annotation cp="💪🏻" type="tts">angespannter Bizeps: helle Hautfarbe</annotation>
+		<annotation cp="💪🏼" type="tts">angespannter Bizeps: mittelhelle Hautfarbe</annotation>
+		<annotation cp="💪🏽" type="tts">angespannter Bizeps: mittlere Hautfarbe</annotation>
+		<annotation cp="💪🏾" type="tts">angespannter Bizeps: mitteldunkle Hautfarbe</annotation>
+		<annotation cp="💪🏿" type="tts">angespannter Bizeps: dunkle Hautfarbe</annotation>
+	</annotations>
+</ldml>

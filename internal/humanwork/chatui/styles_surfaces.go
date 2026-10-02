@@ -78,7 +78,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	`.rail-prefs-body{position:absolute;inset-inline:8px;bottom:calc(100% + 6px);z-index:40;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);box-shadow:var(--hcm-shadow-raised)}` +
 	`.switch-row{justify-content:space-between;align-items:flex-start;gap:12px}.switch-text{display:grid;gap:3px;min-width:0}.switch-text strong{font-size:.875rem}` +
 	`.switch{appearance:none;-webkit-appearance:none;flex:none;position:relative;width:38px;height:22px;margin:0;border-radius:999px;background:color-mix(in srgb,var(--ink) 22%,transparent);cursor:pointer;transition:background var(--hcm-motion-fast) var(--hcm-motion-easing)}` +
-	`.switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.3);transition:inset-inline-start var(--hcm-motion-fast) var(--hcm-motion-easing)}` +
+	`.switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:inset-inline-start var(--hcm-motion-fast) var(--hcm-motion-easing)}` +
 	`.switch:checked{background:var(--accent)}.switch:checked::after{inset-inline-start:19px}.switch:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.rail-prefs-body .chat-input:disabled{opacity:.5}` +
 	// Review fixes: the popover's controls fit inside it, the switch has a
@@ -139,7 +139,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	// into a top sheet that ended mid-screen over the timeline. Kept last so
 	// it outranks the unconditional flex-start backdrop above.
 	`@media(max-width:640px){.chat-dialog-backdrop{padding:0;align-items:flex-end;justify-content:center}.chat-dialog{width:100%;max-width:none;max-height:88dvh;border-bottom:0;border-radius:var(--hcm-radius-surface) var(--hcm-radius-surface) 0 0}}` +
-	`@keyframes chat-dialog-in{from{opacity:0;translate:0 .4rem}}@media(prefers-reduced-motion:no-preference){:root:not([data-hcm-motion-preference="reduce"]):not([data-hcm-motion-preference="limited"]) .chat-dialog{animation:chat-dialog-in var(--hcm-motion-fast,.14s) var(--hcm-motion-easing,ease)}}` +
+	`@keyframes chat-dialog-in{from{opacity:0;translate:0 .4rem}}@media(prefers-reduced-motion:no-preference){:root:not([data-hcm-motion-preference="reduce"]):not([data-hcm-motion-preference="limited"]) .chat-dialog{animation:chat-dialog-in var(--hcm-motion-fast,var(--hcm-motion-fast)) var(--hcm-motion-easing,ease)}}` +
 	`.browse-meta:has(.meta-part){display:flex;flex-wrap:wrap}.browse-meta .meta-part{white-space:nowrap}.browse-meta:has(.meta-part){column-gap:10px}` +
 	// Round 3 C-10: the poll card is sized to its form (it was an 840px card
 	// around a 520px form); labels are ink field labels and the options help
@@ -156,5 +156,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	// ("Public channel"; the leading # or lock glyph carries it) so the
 	// member count stays whole, and list rows and dialog buttons meet the
 	// 44px touch target at phone width as well as under a coarse pointer.
-	`@container chatmain (max-width:560px){.topic-kind,.topic-count>.topic-sep{display:none}}` +
+	// CHATBUG-032: the separators stay at every width, so type, member count
+	// and agent count never run together ("Public18 members").
+	`@container chatmain (max-width:560px){.topic-kind{display:none}}` +
 	`@media(max-width:560px),(pointer:coarse){.mention-option,.add-people-option{min-height:44px}.chat-dialog .dialog-actions .button{min-height:44px}}`

@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
 type LoadState string
@@ -27,6 +29,18 @@ const (
 	StateLoading LoadState = "loading"
 	StateEmpty   LoadState = "empty"
 	StateError   LoadState = "error"
+)
+
+// PersonaLookupState is the state of the selected conversation's authorized
+// persona directory read. It is separate from the conversation load so a
+// failed agent lookup never hides people or disables the composer.
+type PersonaLookupState string
+
+const (
+	PersonaLookupIdle    PersonaLookupState = "idle"
+	PersonaLookupLoading PersonaLookupState = "loading"
+	PersonaLookupReady   PersonaLookupState = "ready"
+	PersonaLookupFailed  PersonaLookupState = "failed"
 )
 
 type ConversationKind string
@@ -39,23 +53,31 @@ const (
 )
 
 type Conversation struct {
+	Icon                             agenticon.Value
+	IconRevision                     int64
 	ID, Name, Topic, Avatar, Preview string
 	OwnerID, HostTenantID            string
-	Kind                             ConversationKind
-	Unread, Mentions                 int
-	MemberCount                      int
+	AgentID                          string
+	// AgentPurpose is the agent's own description, read from the same record as
+	// its icon; it is the line under the name of a direct conversation with it.
+	AgentPurpose     string
+	Kind             ConversationKind
+	Unread, Mentions int
+	MemberCount      int
 	// LastActivity is when the newest message was sent, when the listing
 	// says; the browse row reads it so a reader can tell a live channel from
 	// a dead one before joining.
-	LastActivity   time.Time
-	Muted, Starred bool
+	LastActivity          time.Time
+	Muted, Starred, Agent bool
 	// Joined is false for a channel the viewer can browse but has not joined.
 	Joined bool
 }
 
 type Member struct {
+	Icon                                     agenticon.Value
+	IconRevision                             int64
 	ID, HomeTenantID, Name, Subtitle, Avatar string
-	Online                                   bool
+	Online, Agent                            bool
 }
 
 // SearchPerson is a person returned by the caller-authorized chat search.
@@ -112,6 +134,7 @@ type Message struct {
 // ChannelPin is an authorized pin projection, independent of the timeline page.
 type ChannelPin struct {
 	PostID, Author, Body string
+	Revision             uint64
 	Sequence             uint64
 }
 
@@ -259,6 +282,7 @@ type Callbacks struct {
 	// SendMessageWithReferences submits the body and its canonical references
 	// together. Persona suggestions are unavailable when this callback is nil.
 	SendMessageWithReferences     func(string, string, []ChatReference)
+	RetryPersonaMentions          func()
 	DraftChanged                  func(string, string)
 	OpenThread                    func(string)
 	CloseThread                   func()
@@ -303,12 +327,14 @@ type Callbacks struct {
 	BeginEdit                     func(string)
 	CancelEdit                    func()
 	SetEditDraft                  func(string, string)
-	EditMessage                   func(string, string, uint64)
-	DeleteMessage                 func(string, uint64)
-	ResizeRail                    func(int)
-	ResizeDetails                 func(int)
-	RestorePanes                  func()
-	DismissNotice                 func()
+	// ThreadDraftChanged reports the reply box's text under one root message.
+	ThreadDraftChanged func(parentID, value string)
+	EditMessage        func(string, string, uint64)
+	DeleteMessage      func(string, uint64)
+	ResizeRail         func(int)
+	ResizeDetails      func(int)
+	RestorePanes       func()
+	DismissNotice      func()
 	// ReplyInThread posts a reply under the open thread's root message. When
 	// nil the thread pane has no composer of its own.
 	ReplyInThread func(parentID, body string)
@@ -354,9 +380,79 @@ type Callbacks struct {
 	SuggestDocuments   func(query string, done func([]DocSuggestion))
 	ClosePerson        func()
 	StartDirectMessage func(string)
+	// SubmitAgentFeedback records feedback against the authenticated invocation.
+	// The application boundary owns persistence and owner notification.
+	SubmitAgentFeedback func(invocationID string, helpful bool)
+	UndoAgentFeedback   func(invocationID string)
+	// ShareAgentAnswer asks the server to post the asker's private answer to the
+	// channel it was asked in (AGENTUX-070). The outcome comes back as
+	// Model.AgentShare. It is nil until the application boundary exposes it.
+	ShareAgentAnswer func(invocationID string)
+	// CancelPersonaInvocation requests cancellation of a still-running answer.
+	// It is nil until the application boundary exposes an authorized endpoint.
+	CancelPersonaInvocation func(invocationID string)
+	// SetComposerFormatRow keeps the viewer's choice to show (true) or hide the
+	// composer's formatting row. nil keeps the choice for the session only.
+	SetComposerFormatRow func(shown bool)
+	// SaveEmojiPrefs stores the viewer's emoji choices (skin tone and most used,
+	// encoded by the picker) with their other personal Chat preferences. The
+	// picker calls it at most once every few seconds. nil keeps them for the
+	// life of the page only (CHATEMOJI-004).
+	SaveEmojiPrefs func(encoded string)
 }
 
 type Model struct {
+	Chatcmd002         Chatcmd002Callbacks
+	Chatcmd002Views    map[string]Chatcmd002View
+	Chatcmd002TimeZone string
+
+	ChatFeatures *ChatFeatures
+	// EmojiPrefs is the viewer's saved emoji choices as the server holds them
+	// (CHATEMOJI-004); "" before they have any or before the read has landed.
+	EmojiPrefs string
+	// ComposerFormatRow is the viewer's saved choice for the formatting row:
+	// "shown", "hidden", or "" for the default (shown from 800 px up).
+	ComposerFormatRow string
+
+	ReaderRenderings     map[string]ReaderRendering
+	ReaderSelections     map[string]ReaderSelection
+	MessageLocations     map[string][]ChatmapEmbed
+	ReaderPolicyRequired bool
+	// Chatlang is who reads this conversation in which language (CHATLANG-004).
+	Chatlang       ChatlangModel
+	ReaderPending  bool
+	SavedOpenCount int
+	// Moderation is what the server said about moderation for the viewer
+	// (CHATMOD-004, CHATMOD-005): the sidebar entry, the Remove offer, the notices.
+	Moderation ModerationState
+	// SavedBodies is the text of the saved messages the Saved panel lists, so the
+	// documents they refer to are read and shown by title like any message's.
+	SavedBodies []string
+	// AgentRailPending is true from the first read of the conversation list until
+	// the server has said which direct conversations are with agents and what
+	// each agent's stored icon is: a direct row that is not yet known to be a
+	// person's or an agent's draws no avatar and no letter, and an agent whose
+	// icon is not known yet draws an empty slot. AgentIconsReady is set by the
+	// client once that answer (or its failure) has been applied.
+	AgentRailPending, AgentIconsReady bool
+	ChannelStatuses                   map[string]ChannelStatusView
+	ChangeChannelStatus               func(chat.ChangeChannelStatusRequest)
+	RetryChannelStatus                func()
+	// FilterSettings builds the message-filter settings for the selected
+	// conversation. The client supplies it; without one the details panel
+	// shows only the read-only summary and no control.
+	FilterSettings     func() ui.Node
+	ShowFilterSettings bool
+	// WorkspaceFilterSettings builds the same settings for the whole workspace.
+	// It is offered to a workspace administrator only.
+	WorkspaceFilterSettings func() ui.Node
+	// AuthorBlocked holds the refusals (CHATMOD-002) a language filter gave this
+	// author, keyed by ModAuthorKey*; each shows one line under its field.
+	AuthorBlocked map[string]AuthorBlocked
+	// ThreadDrafts is the text of each open thread's reply box by root message, so
+	// a reply that failed keeps its text (CHATMOD-002).
+	ThreadDrafts map[string]string
+
 	State  LoadState
 	Error  string
 	Notice string
@@ -411,27 +507,51 @@ type Model struct {
 	// references eligible for this viewer. The caller must omit ineligible
 	// candidates and must populate profile facts from the same authorized read.
 	ResolvedPersonaMentions []ResolvedPersonaMention
+	PersonaLookup           PersonaLookupState
+	// PersonaLookupConversationID prevents a late state from one room from
+	// rendering under the next room while its own lookup starts.
+	PersonaLookupConversationID string
 	// PersonaInvocations is an authenticated, invoker-only projection. Entries
 	// are keyed by their invoking post, so updates stay in that thread.
-	PersonaInvocations        []PersonaThreadInvocation
+	PersonaInvocations []PersonaThreadInvocation
+	// PersonaActivityReady is true once the agent activity for the open
+	// conversation has answered (or has been refused), so PersonaInvocations
+	// being empty means "none" and not "not asked yet". Until then a message that
+	// asked an agent keeps room for the card that will answer it (CHATBUG-040).
+	PersonaActivityReady bool
+	// AgentFeedbackRestored maps an invocation to the rating that stands after a
+	// rating change could not be saved: AgentFeedbackHelpful, AgentFeedbackNotRight
+	// or "" for none. It overrides the optimistic choice shown after a click and
+	// is cleared by the client when the person rates again.
+	AgentFeedbackRestored map[string]string
+	// AgentShare is where each private answer stands after "Share to channel",
+	// by invocation (AGENTUX-070). The client sets it as the request runs.
+	AgentShare                map[string]AgentShareState
 	PersonaPostActors         map[string]PersonaPostActor
 	RenderPersonaTask         func(PersonaTaskCardProps) ui.Node
 	Draft                     string
+	Chatattach001             *Chatattach001Composer
 	Search                    string
 	SearchLoading             bool
 	SearchLoadingMore         bool
 	SearchLoadingMoreChannels bool
 	SearchError               string
-	SearchMoreError           string
-	SearchMoreChannelsError   string
-	SearchNextCursor          string
-	SearchChannelNextCursor   string
-	SearchHasMore             bool
-	SearchHasMoreChannels     bool
-	FocusMessageID            string
-	SearchChannels            []Conversation
-	SearchPeople              []SearchPerson
-	SearchMessages            []SearchMessage
+	// ChatSearch is the one search outcome (progress, results or the failure
+	// line) drawn in the results area. SearchOpened is true while a result's
+	// conversation is on screen: the query stays in the search box, the results
+	// give way to the conversation and a "Return to results" bar leads back.
+	ChatSearch              *ChatSearchView
+	SearchOpened            bool
+	SearchMoreError         string
+	SearchMoreChannelsError string
+	SearchNextCursor        string
+	SearchChannelNextCursor string
+	SearchHasMore           bool
+	SearchHasMoreChannels   bool
+	FocusMessageID          string
+	SearchChannels          []Conversation
+	SearchPeople            []SearchPerson
+	SearchMessages          []SearchMessage
 	// SearchDirectory is the session's already-authorized worker projection.
 	// It is retained separately from active chat memberships so search can
 	// find a visible coworker before the viewer has a direct message with them.
@@ -521,6 +641,10 @@ type Model struct {
 	// Workspace render instead of once per text fragment of every message.
 	mentions      []mentionTarget
 	mentionsReady bool
+	// renderReferences is scoped to the message currently being rendered.
+	// Only canonical post references become chips; matching display text alone
+	// never gains identity or interaction semantics.
+	renderReferences []ChatReference
 }
 
 // n formats a count for display.
@@ -650,15 +774,7 @@ func (m *Model) save() {
 // t resolves visible copy. Callers pass a key from Keys; the English default
 // is the reviewed source string every other locale translates.
 func (m Model) t(key string) string {
-	if m.Text != nil {
-		if v := strings.TrimSpace(m.Text(key)); v != "" && v != key {
-			return v
-		}
-	}
-	if v, ok := englishCopy[key]; ok {
-		return v
-	}
-	return key
+	return chatbug039CatalogText(m, key, englishCopy[key])
 }
 
 func (m Model) tf(key string, vars map[string]string) string {

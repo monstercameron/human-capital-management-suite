@@ -45,8 +45,8 @@ func TestTodo_CHAT_031(t *testing.T) {
 			t.Errorf("desktop workspace missing %q", want)
 		}
 	}
-	if sendButtonDisabled(t, desktop) {
-		t.Fatal("authorized caller's send action was disabled")
+	if !sendButtonDisabled(t, desktop) {
+		t.Fatal("empty authorized composer enabled its send action")
 	}
 	if strings.Contains(desktop, `data-sidebar-open="true"`) {
 		t.Fatal("desktop layout must not default to the narrow open-rail state")

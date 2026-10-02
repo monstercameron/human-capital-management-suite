@@ -12,12 +12,15 @@ import (
 // members. Like mentionBox it lives in a ref, so a handler always reads its own
 // latest write even when events outrun renders; the tick only asks for one.
 type localUI struct {
-	room       string
-	tray       string
-	createKind ConversationKind
-	pickQuery  string
-	picked     []mentionCandidate
-	pickActive int
+	chatcmd003           chatcmd003Preview
+	searchOpen           bool
+	pointerRow, focusRow string
+	room                 string
+	tray                 string
+	createKind           ConversationKind
+	pickQuery            string
+	picked               []mentionCandidate
+	pickActive           int
 	// composerNotice explains a composer command that could not run, such as
 	// /giphy without a configured GIPHY key. The next keystroke clears it.
 	composerNotice string
@@ -26,7 +29,29 @@ type localUI struct {
 	pollReady bool
 	// docSuggest is the composer's "[[" / "doc:" list (chat_doc_suggest.go).
 	docSuggest docSuggestState
-	seq        uint64
+	// commandMenu is the composer's "/" command list (composer_commands.go).
+	commandMenu composerCommandMenu
+	// formatRow is the viewer's choice this session for the composer's
+	// formatting row: "shown", "hidden" or "" for the default.
+	formatRow string
+	// sentCount is how many messages the viewer has sent from the composer this
+	// page session; the Enter hint goes after three (composerHintVisible).
+	sentCount       int
+	agentFeedback   map[string]string
+	agentProfileID  string
+	emojiCompletion emojiCompletion
+	// emoji is the open emoji picker's state (chatemoji_state.go).
+	emoji emojiPickerState
+	// detailGroups is which collapsed groups of Conversation details the viewer
+	// has opened this page session (chatux005_details.go).
+	detailGroups map[string]bool
+	// modAuthorHidden is the stamp of each CHATMOD-002 refusal line the author
+	// has typed past (chatmod002_author.go).
+	modAuthorHidden map[string]int64
+	// chatlang is which originals the reader opened and the writer's language
+	// picker (chatlang004_view.go).
+	chatlang chatlangLocal
+	seq      uint64
 }
 
 type localStore struct {
@@ -47,8 +72,14 @@ func (s localStore) update(change func(*localUI)) {
 func (s localStore) forRoom(room string) {
 	if s.box.room != room {
 		s.box.room = room
+		s.box.chatcmd003 = chatcmd003Preview{Generation: s.box.chatcmd003.Generation + 1}
 		s.box.tray = ""
+		s.box.pointerRow, s.box.focusRow = "", ""
+		s.box.searchOpen = false
 		s.box.pollReady = false
+		s.box.agentProfileID = ""
+		s.box.emojiCompletion = emojiCompletion{Active: -1}
+		s.box.commandMenu = composerCommandMenu{}
 	}
 }
 

@@ -4,6 +4,7 @@ package chatui
 
 func composerSelection(string) (string, int, bool) { return "", 0, false }
 func replaceComposerText(string, string, int)      {}
+func RefreshMentionMenu(string)                    {}
 
 // positionMentionMenu is a no-op on the native build; see mention_js.go
 // (C-19).

@@ -1,7 +1,6 @@
 package chatui
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -99,10 +98,8 @@ func projectBoardSummary(m Model, preview ProjectTaskPreview) ui.Node {
 		return html.Span(html.Props{Class: "chat-embed-byline", Text: m.t(KeyProjectBoardEmpty)})
 	}
 	done := min(max(preview.Done, 0), preview.Total)
-	percent := done * 100 / preview.Total
 	return html.Span(html.Props{Class: "chat-project-embed-progress"},
-		html.Span(html.Props{Class: "chat-project-embed-bar", Aria: map[string]string{"hidden": "true"}},
-			html.Span(html.Props{Class: "chat-project-embed-fill", Style: map[string]string{"inline-size": strconv.Itoa(percent) + "%"}})),
+		html.Tag("progress", html.Props{Class: "chat-project-embed-bar", Aria: map[string]string{"hidden": "true"}, Raw: map[string]any{"value": done, "max": preview.Total}}),
 		html.Span(html.Props{Class: "chat-project-embed-counts", Text: m.tf(KeyProjectBoardProgress, map[string]string{"done": m.n(done), "total": m.n(preview.Total), "open": m.n(preview.Total - done)})}))
 }
 

@@ -43,32 +43,16 @@ func RenderEphemeralMessage(model Model, message EphemeralMessage, now time.Time
 	if len(VisibleEphemeralMessages([]EphemeralMessage{message}, now)) == 0 {
 		return html.Div(html.Props{Class: "chat-ephemeral chat-ephemeral-expired", Aria: map[string]string{"hidden": "true"}})
 	}
-	marker := ephemeralText(model, "chat.ephemeral.only_visible_to_you", "Only visible to you")
-	children := []ui.Node{
-		html.Div(html.Props{Class: "chat-ephemeral-marker", Role: "note", Aria: map[string]string{"label": marker}}, html.Span(html.Props{Text: marker})),
-		html.P(html.Props{Class: "chat-ephemeral-body", Text: message.Body}),
+	for _, post := range model.Messages {
+		if post.ID == message.ThreadID {
+			return html.Div(html.Props{Class: "chat-ephemeral chat-ephemeral-thread-owned", Hidden: true})
+		}
 	}
-	if receipt, ok := model.PersonaPostActors[message.ID]; ok && receipt.Actor.valid() {
-		children = append(children, PersonaBadgeLocalized(model.Locale, &receipt.Actor), personaPostProfiles(model, personaTrustedMessage(model, Message{ID: message.ID})))
-	}
-	if link := strings.TrimSpace(message.ThreadLink); link != "" {
-		label := ephemeralText(model, "chat.ephemeral.open_thread", "Open source thread")
-		children = append(children, html.A(html.Props{Class: "chat-ephemeral-thread-link", Href: link, Aria: map[string]string{"label": label}}, ui.Text(label)))
-	}
-	return html.Article(html.Props{
-		Class: "chat-ephemeral",
-		Data:  map[string]string{"ephemeral-id": message.ID, "ephemeral-thread": message.ThreadID},
-		Aria:  map[string]string{"label": marker, "live": "polite"},
-	}, children...)
+	return renderPersonaPrivateAnswer(model, localUI{}, message, PersonaProgressProjection{})
 }
 
 func ephemeralText(model Model, key, fallback string) string {
-	if model.Text != nil {
-		if value := strings.TrimSpace(model.Text(key)); value != "" && value != key {
-			return value
-		}
-	}
-	return fallback
+	return chatbug039Text(key, agentReplyFallback(model.Locale, key, fallback), fallback)
 }
 
 // EphemeralStyles is appended by the chat shell when the renderer is wired

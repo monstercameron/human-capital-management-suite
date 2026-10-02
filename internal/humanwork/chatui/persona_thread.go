@@ -1,6 +1,8 @@
 package chatui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -8,6 +10,7 @@ import (
 // PersonaThreadInvocation binds private status to its original post.
 type PersonaThreadInvocation struct {
 	PostID     string
+	ThreadID   string
 	Projection PersonaProgressProjection
 }
 
@@ -22,8 +25,19 @@ func personaTrustedMessage(model Model, message Message) Message {
 		actor := receipt.Actor
 		message.PersonaActor = &actor
 		message.Author = receipt.Display
+		return message
+	}
+	conversation := model.selected()
+	if conversation.Agent && strings.TrimSpace(conversation.AgentID) != "" && message.AuthorID == conversation.AgentID {
+		message.PersonaActor = &PersonaActor{PersonaID: conversation.AgentID, AgentID: conversation.AgentID, Trusted: true}
+		message.Author = displayName(model, conversation)
 	}
 	return message
+}
+
+func messageIsAgent(model Model, message Message) bool {
+	message = personaTrustedMessage(model, message)
+	return message.PersonaActor != nil && message.PersonaActor.valid()
 }
 
 func personaThreadProgress(model Model) ui.Node {
@@ -49,11 +63,11 @@ func personaPostProfiles(model Model, message Message) ui.Node {
 			matched = matched || reference.Kind == "AGENT_MENTION" && reference.ID == persona.Reference.ID && reference.TenantID == persona.Reference.TenantID
 		}
 		if matched {
-			children = append(children, html.Details(html.Props{Class: "persona-profile-post"}, html.Summary(html.Props{Text: persona.Reference.Display + " · " + personaMentionText(model.Locale, "profile")}), personaProfileCard(model.Locale, persona)))
+			children = append(children, chatPolishDisclosure(html.Props{Class: "persona-profile-post"}, chatPolishDisclosureLabel(html.Props{Text: persona.Reference.Display + " · " + personaMentionText(model.Locale, "profile")}), personaProfileCard(model.Locale, persona)))
 		}
 	}
 	if len(children) == 0 && message.PersonaActor.valid() {
-		children = append(children, html.Details(html.Props{Class: "persona-profile-post"}, html.Summary(html.Props{Text: message.Author + " · " + personaMentionText(model.Locale, "profile")}), html.Article(html.Props{Class: "mention-profile-card"}, html.P(html.Props{Text: personaMentionText(model.Locale, "version") + ": " + personaProfileFact(message.PersonaActor.PersonaVersion, model.Locale)}), html.P(html.Props{Text: personaActivityLabel(model.Locale, "Published profile is not currently available with your access.")}))))
+		children = append(children, chatPolishDisclosure(html.Props{Class: "persona-profile-post"}, chatPolishDisclosureLabel(html.Props{Text: message.Author + " · " + personaMentionText(model.Locale, "profile")}), html.Article(html.Props{Class: "mention-profile-card"}, html.P(html.Props{Text: personaMentionText(model.Locale, "version") + ": " + personaProfileFact(message.PersonaActor.PersonaVersion, model.Locale)}), html.P(html.Props{Text: personaActivityLabel(model.Locale, "Published profile is not currently available with your access.")}))))
 	}
 	return html.Div(html.Props{Class: "persona-post-profiles"}, children...)
 }

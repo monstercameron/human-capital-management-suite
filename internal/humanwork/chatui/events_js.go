@@ -474,6 +474,24 @@ func domValue(id string) string {
 	return v.String()
 }
 
+// domDraftValue is domValue for a composer, but only while the box still holds
+// text of the conversation named by scope. A box that has not yet been given
+// the next conversation's draft holds the previous one's, and reading it would
+// file that text under the wrong conversation.
+func domDraftValue(id, scope string) string {
+	el := js.Global().Get("document").Call("getElementById", id)
+	if !el.Truthy() {
+		return ""
+	}
+	if owner := el.Call("getAttribute", draftScopeAttr); owner.Type() == js.TypeString && owner.String() != scope {
+		return ""
+	}
+	if owner := el.Get("__chatDraftScope"); owner.Type() == js.TypeString && owner.String() != scope {
+		return ""
+	}
+	return domValue(id)
+}
+
 // setDOMValue writes a form control's value directly; used to clear the
 // composer the instant a message is sent, so the next keystroke starts clean
 // even before the application's draft state has re-rendered.
@@ -485,13 +503,31 @@ func setDOMValue(id, value string) {
 	el.Set("value", value)
 	el.Set("__chatTyped", false)
 	el.Set("__chatCleared", value == "")
+	setComposerSendReady(id, value)
+}
+
+func setComposerSendReady(id, value string) {
+	field := js.Global().Get("document").Call("getElementById", id)
+	if !field.Truthy() || field.Get("closest").Type() != js.TypeFunction {
+		return
+	}
+	form := field.Call("closest", "form")
+	if !form.Truthy() {
+		return
+	}
+	button := form.Call("querySelector", ".send-button")
+	if button.Truthy() {
+		ready := chatPolishSendReady(form.Call("getAttribute", "data-send-capable").String() == "true", value)
+		button.Set("disabled", !ready)
+		button.Call("setAttribute", "aria-disabled", boolString(!ready))
+	}
 }
 
 func focusSectionCreate() {
 	var callback js.Func
 	callback = js.FuncOf(func(js.Value, []js.Value) any {
 		details := js.Global().Get("document").Call("getElementById", "chat-section-create")
-		if !details.Truthy() || !details.Get("open").Bool() {
+		if !details.Truthy() || !details.Get("open").Truthy() {
 			callback.Release()
 			return nil
 		}
@@ -511,7 +547,7 @@ func focusSectionCreate() {
 // never moves the document or the conversation timeline.
 func ensureSectionCreateVisible() {
 	details := js.Global().Get("document").Call("getElementById", "chat-section-create")
-	if !details.Truthy() || !details.Get("open").Bool() {
+	if !details.Truthy() || !details.Get("open").Truthy() {
 		return
 	}
 	scroll := details.Call("closest", ".rail-scroll")
@@ -544,8 +580,8 @@ func closeSectionCreate(clear bool) {
 	if clear {
 		setDOMValue("chat-new-section", "")
 	}
-	details.Set("open", false)
-	summary := details.Call("querySelector", "summary")
+	SetChatDisclosureOpen(details, false)
+	summary := details.Call("querySelector", "[data-chat-disclosure-toggle]")
 	if summary.Truthy() {
 		summary.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 	}
@@ -553,5 +589,5 @@ func closeSectionCreate(clear bool) {
 
 func sectionCreateOpen() bool {
 	details := js.Global().Get("document").Call("getElementById", "chat-section-create")
-	return details.Truthy() && details.Get("open").Bool()
+	return details.Truthy() && details.Get("open").Truthy()
 }

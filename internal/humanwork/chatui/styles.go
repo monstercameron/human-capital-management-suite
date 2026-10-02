@@ -7,7 +7,7 @@ import "strconv"
 // (--surface, --canvas, --ink, --muted, --line, --accent, --soft, plus the
 // --hcm-* status/shape tokens), which the shell re-declares for dark mode,
 // forced colors and customer palettes; chat owns no palette of its own.
-const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--chat-measure:720px;--chat-rail-menu-top:80px;--chat-rail-menu-left:8px;position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--ink);font-size:.9375rem;line-height:1.45}` +
+const Stylesheet = chatcmd002Styles + `.chat-workspace{--chat-rail:256px;--chat-details:320px;--chat-measure:720px;--chat-rail-menu-top:80px;--chat-rail-menu-left:8px;position:relative;display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);color:var(--ink);font-size:.9375rem;line-height:1.45}` +
 	// Round 3 C-13: the default rail matches RailDefault (288px) once the
 	// viewport has room for it; 256px below 1280px keeps the timeline wide on
 	// a laptop. A width the viewer dragged is set on the element and wins.
@@ -192,7 +192,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	`.load-older{align-self:center;margin:6px auto 4px}` +
 	`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px -8px 0;border-radius:var(--hcm-radius-control)}` +
 	`.message.continued{margin-top:0;padding-top:2px;padding-bottom:2px}` +
-	`.message:hover,.message:focus-within{background:color-mix(in srgb,var(--ink) 5%,transparent)}` +
+	`.message:hover,.message:has(:focus-visible){background:color-mix(in srgb,var(--ink) 5%,transparent)}` +
 	`.message.pinned{box-shadow:inset 3px 0 0 var(--hcm-color-warning)}` +
 	`.message.thread-active{background:var(--soft)}` +
 	`.avatar,.large-avatar{display:flex;align-items:center;justify-content:center;flex:none;border-radius:8px;background:var(--soft);color:var(--accent);font-weight:700}` +
@@ -203,7 +203,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	`.avatar.tiny{width:18px;height:18px;font-size:.5625rem;border-radius:5px}` +
 	`.large-avatar{width:64px;height:64px;border-radius:14px;font-size:1.5rem;margin:0 auto}` +
 	`.gutter-time{font-size:.6875rem;color:var(--muted);text-align:end;padding-top:4px;opacity:0;white-space:nowrap;overflow:hidden}` +
-	`.message:hover .gutter-time,.message:focus-within .gutter-time{opacity:1}` +
+	`.message:hover .gutter-time,.message:has(:focus-visible) .gutter-time{opacity:1}` +
 	`.message-content{min-width:0}` +
 	`.message-meta{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}` +
 	`.message-author{font-size:.9375rem;color:var(--ink)}` +
@@ -272,13 +272,12 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	// load error -- swapping classes rather than replacing markup keeps this
 	// safe under the reconciler.
 	`.attachment-fallback{display:none}.attachment-image.failed .attachment-fallback{display:flex}.attachment-image.failed .attachment-image-open,.attachment-image.failed>.attachment-download{display:none}` +
-	// Round 3 C-4 backstop, independent of the loader: an <img> that has
-	// still not been given a src 20s after it mounted gets the unavailable
-	// tile laid over it. The open button stays in layout underneath so the
-	// loader's intersection observers can still see it; the moment a src
-	// lands the :has() stops matching and the overlay goes away.
-	`.attachment-image:not(.failed):has(>.attachment-image-open img:not([src]))>.attachment-fallback{display:flex;position:absolute;inset:0;z-index:1;width:auto;height:auto;padding:6px;background:var(--canvas);font-size:.75rem;visibility:hidden;animation:chat-attachment-stall 0s linear 20s forwards}` +
-	`@keyframes chat-attachment-stall{to{visibility:visible}}` +
+	// CHATBUG-009: an <img> that has no src yet is a tile still loading, however
+	// long that takes -- a re-render hands the loader a fresh element and the
+	// fetch starts again. It keeps its size and shows a neutral placeholder.
+	// "Preview unavailable" is shown only by .failed, which the loader sets on a
+	// real load failure (error status, decode error, watchdog), never on a timer.
+	`.attachment-image:not(.failed):has(>.attachment-image-open img:not([src])){background:color-mix(in srgb,var(--ink) 8%,var(--canvas))}` +
 	`.attachment-badge{position:absolute;bottom:6px;inset-inline-start:6px;background:rgba(7,17,24,.7);color:#fff;font-size:.625rem;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:4px}` +
 	`.attachment-chip{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--canvas);color:var(--ink);text-decoration:none;font-size:.875rem}` +
 	`.attachment-chip:hover{border-color:var(--accent)}` +
@@ -289,7 +288,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	`.message-stats{background:none;border:1px solid transparent;color:var(--accent);font:inherit;font-size:.75rem;font-weight:600;padding:2px 6px;margin:4px 0 0 -6px;border-radius:var(--hcm-radius-control);cursor:pointer}` +
 	`.message-stats:hover{border-color:var(--line);background:var(--surface)}` +
 	`.message-actions{position:absolute;top:-12px;inset-inline-end:12px;display:flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:var(--hcm-radius-control);box-shadow:var(--hcm-shadow-raised);padding:2px;opacity:0;transition:opacity var(--hcm-motion-fast) var(--hcm-motion-easing);z-index:2}` +
-	`.message:hover .message-actions,.message:focus-within .message-actions{opacity:1}` +
+	`.message:hover .message-actions,.message:has(:focus-visible) .message-actions{opacity:1}` +
 	// C-18: hover has no meaning on a touch screen, so the pointer:coarse
 	// case is handled on its own rather than only at the 760px width
 	// breakpoint (a touch laptop or tablet above that width was otherwise
@@ -298,7 +297,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	// muted glyph with no background is what read as a faint, easy-to-miss
 	// "…" -- everything else opens through that menu instead of crowding
 	// the message with row after row of tap targets.
-	`@media(pointer:coarse){.message-actions{opacity:1;background:transparent;border:0;box-shadow:none}.message-actions .message-action:not([data-action="menu"]){display:none}.message-actions .message-action[data-action="menu"]{background:var(--surface);border:1px solid var(--line)}.message:focus-within .message-actions .message-action{display:inline-flex}}` +
+	`@media(pointer:coarse){.message-actions{opacity:1;background:transparent;border:0;box-shadow:none}.message-actions .message-action:not([data-action="menu"]){display:none}.message-actions .message-action[data-action="menu"]{background:var(--surface);border:1px solid var(--line)}.message:has(:focus-visible) .message-actions .message-action{display:inline-flex}}` +
 	`.message-action{width:32px;height:32px;background:none;border:0;border-radius:var(--hcm-radius-xs);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}` +
 	`.message-action .chat-icon{width:16px;height:16px}` +
 	// r5 C-1: the "More actions" trigger is the only way into the message
@@ -446,7 +445,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	`.skeleton-lines span,.rail-skeleton span{height:12px;border-radius:6px}` +
 	`.skeleton-lines span:nth-child(2){width:70%}.skeleton-lines span:nth-child(3){width:85%}.rail-skeleton span:nth-child(odd){width:75%}` +
 	`@keyframes chat-skeleton-shimmer{to{transform:translateX(100%)}}` +
-	`@media (prefers-reduced-motion:no-preference){:root:not([data-hcm-motion-preference="reduce"]):not([data-hcm-motion-preference="limited"]) .chat-workspace :is(.chat-skeleton,.skeleton-lines span,.rail-skeleton span)::after{animation:chat-skeleton-shimmer 1.6s ease-in-out infinite}}` +
+	`@media (prefers-reduced-motion:no-preference){:root:not([data-hcm-motion-preference="reduce"]):not([data-hcm-motion-preference="limited"]) .chat-workspace :is(.chat-skeleton,.skeleton-lines span,.rail-skeleton span)::after{animation:chat-skeleton-shimmer var(--hcm-motion-slow) ease-in-out infinite}}` +
 	`:root:not([data-hcm-motion-preference="reduce"]):not([data-hcm-motion-preference="limited"]) .chat-workspace[dir="rtl"] :is(.chat-skeleton,.skeleton-lines span,.rail-skeleton span)::after{animation-direction:reverse}` +
 	`.chat-notice{flex:none;display:flex;align-items:center;gap:8px;margin:4px 20px 0;padding:6px 6px 6px 12px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--canvas);color:var(--ink);font-size:.8125rem}` +
 	`.chat-notice>span{flex:1;min-width:0}` +
@@ -482,7 +481,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	// Conversations button brings it back as a drawer.
 	`@container chat (max-width:1350px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(200px,var(--chat-rail)) minmax(0,1fr) minmax(280px,340px)}}` +
 	`@container chat (max-width:1100px) and (min-width:761px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr) minmax(280px,360px)}.chat-workspace[data-details-open="true"] .chat-rail{display:none}.chat-workspace[data-details-open="true"] .rail-pill.mobile-chat-toggle{display:inline-flex}.chat-workspace[data-details-open="true"][data-sidebar-open="true"] .chat-rail{display:flex;position:fixed;inset:0 auto 0 0;width:min(85vw,320px);z-index:1200;box-shadow:var(--hcm-shadow-raised)}.chat-workspace[data-details-open="true"][data-sidebar-open="true"] .chat-scrim{display:block;position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 55%,transparent);border:0;z-index:1199;cursor:pointer}.chat-workspace[data-details-open="true"][data-sidebar-open="true"] .mobile-chat-close{display:inline-flex}}` +
-	`@container chat (max-width:760px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr)}.chat-workspace[data-details-open="true"] .chat-rail{display:none}.chat-workspace[data-details-open="true"] .rail-pill.mobile-chat-toggle{display:inline-flex}.chat-side{position:absolute;inset:0 0 0 auto;width:min(380px,100%);z-index:6;box-shadow:-12px 0 32px color-mix(in srgb,var(--ink) 22%,transparent)}}` +
+	`@container chat (max-width:760px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr)}.chat-workspace[data-details-open="true"] .chat-rail{display:none}.chat-workspace[data-details-open="true"] .rail-pill.mobile-chat-toggle{display:inline-flex}.chat-side{position:absolute;inset:0 0 0 auto;width:min(380px,100%);z-index:9;box-shadow:-12px 0 32px color-mix(in srgb,var(--ink) 22%,transparent)}}` +
 	`@media(max-width:1350px){.chat-side .pane-handle{display:none}}` +
 	`@media(max-width:760px){.pane-handle{display:none}}` +
 	`@media(max-width:760px){.chat-layout,.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr)}.chat-rail{display:none}.mobile-chat-toggle,.mobile-chat-close{display:inline-flex}.rail-pill.mobile-chat-toggle{display:inline-flex}` +
@@ -496,7 +495,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	// second option suggests ("show results inside the drawer").
 	`.chat-workspace[data-sidebar-open="true"] .chat-search-results{position:fixed;inset:0;z-index:1201;background:var(--surface);padding-top:calc(20px + env(safe-area-inset-top,0px))}` +
 	`.chat-row,.rail-link{height:40px}.icon-button{width:40px;height:40px}.channel-todo-trigger{height:40px}.conversation-header{padding:0 8px 0 8px}.conversation-header.empty{height:52px;border-bottom:1px solid var(--line);padding:0 8px}.message{padding:6px 12px;margin-inline:-12px}.message-list{padding-inline:12px}.chat-composer{margin:4px 12px 12px}` +
-	`.message-actions{position:absolute;top:2px;inset-inline-end:8px;display:flex;opacity:1;border:0;box-shadow:none;background:transparent;padding:0;justify-content:flex-end}.message-actions .message-action:not([data-action="menu"]){display:none}.message:focus-within .message-actions{background:var(--surface)}.message:focus-within .message-actions .message-action{display:inline-flex}.message-meta{padding-inline-end:44px}.message-action{width:40px;height:40px}.gutter-time{display:none}.message.continued{grid-template-columns:minmax(0,1fr);padding-inline-start:58px}.send-button{height:44px;padding:0 16px}.composer-toolbar{padding:4px 8px 8px}.tool-button{width:40px;height:40px}.message:hover{background:transparent}.message:focus-within{background:color-mix(in srgb,var(--ink) 5%,transparent)}.send-button{margin-inline-start:auto}` +
+	`.message-actions{position:absolute;top:2px;inset-inline-end:8px;display:flex;opacity:1;border:0;box-shadow:none;background:transparent;padding:0;justify-content:flex-end}.message-actions .message-action:not([data-action="menu"]){display:none}.message:has(:focus-visible) .message-actions{background:var(--surface)}.message:has(:focus-visible) .message-actions .message-action{display:inline-flex}.message-meta{padding-inline-end:44px}.message-action{width:40px;height:40px}.gutter-time{display:none}.message.continued{grid-template-columns:minmax(0,1fr);padding-inline-start:58px}.send-button{height:44px;padding:0 16px}.composer-toolbar{padding:4px 8px 8px}.tool-button{width:40px;height:40px}.message:hover{background:transparent}.message:has(:focus-visible){background:color-mix(in srgb,var(--ink) 5%,transparent)}.send-button{margin-inline-start:auto}` +
 	`.chat-side{width:100%}.chat-notice{margin-inline:12px}}` +
 	// Keep the active conversation title on its own row at phone widths. The
 	// shortcuts wrap below it so they remain visible without squeezing the title
@@ -517,7 +516,7 @@ const Stylesheet = `.chat-workspace{--chat-rail:256px;--chat-details:320px;--cha
 	`@media(prefers-reduced-motion:reduce){.chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim){transition:none;animation:none;transform:none}.chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker){animation:none}}` +
 	`:root[data-hcm-motion-preference="reduce"] .chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.message-actions,.jump-newest,.composer-help,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim),:root[data-hcm-motion-preference="limited"] .chat-workspace :is(.chat-row,.rail-link,.pinned-link,.search-result,.reaction,.message-action,.message-actions,.jump-newest,.composer-help,.tool-button,.send-button,.button,.icon-button,.menu-item,.emoji-choice,.picker-emoji,.chat-embed-link,.attachment-chip,.attachment-download,.person-avatar-button,.member-person-button,.chat-details,.chat-rail,.chat-scrim){transition:none;animation:none;transform:none}` +
 	`:root[data-hcm-motion-preference="reduce"] .chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker),:root[data-hcm-motion-preference="limited"] .chat-workspace :is(.rail-row-menu,.message-menu,.reaction-picker,.emoji-picker,.giphy-picker){animation:none}` +
-	composerPolishStyles + surfaceStyles + projectEmbedStyles + journeyEmbedStyles + EphemeralStyles + PersonaProgressStyles + PersonaBadgeStyles + PersonaProfileStyles
+	ChatFilterStyles + ChattoneStyles + composerPolishStyles + surfaceStyles + projectEmbedStyles + journeyEmbedStyles + EphemeralStyles + PersonaProgressStyles + PersonaBadgeStyles + PersonaProfileStyles + AgentDMSourcesStyles + AgentUXChat2Styles + AgentUXChat3Styles + AgentUXChat4Styles + AgentUXChat5Styles + ChatsaveStyles + ChatsaveSidebarStyles + ChatVoiceStyles + ChatremoveStyles + Integrate1Styles + RenderingStyles + ChatSearchStyles + ChannelStatusStyles + ChatgateStyles + ChatmapStyles + ChatPolishStyles + ChatDetailsStyles + ChatUX005Styles + ChatUX008Styles + ChatMsgListStyles + ChatEmojiStyles + ChatComposerToolsStyles + ChatUX009Styles + ChatUX001Styles + ChatUX010Styles + ChatUX002Styles + ChatUX007Styles + ChatBug037Styles + ChatBug040Styles + ChatUX003Styles + ChatMod002Styles + ChatlangStyles + ChatlangAdminStyles + Chatattach001Styles + Chatsave002Styles + ChatBug042Styles + ChatBug044Styles + ChatBug045Styles
 
 func paneStyle(p PaneSizes) map[string]string {
 	out := map[string]string{}

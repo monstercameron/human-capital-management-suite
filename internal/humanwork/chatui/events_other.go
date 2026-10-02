@@ -9,7 +9,9 @@ func eventAction(ui.Event) (string, string, string)                    { return 
 func eventOnBackdrop(ui.Event) bool                                    { return false }
 func eventPane(ui.Event) string                                        { return "" }
 func domValue(string) string                                           { return "" }
+func domDraftValue(string, string) string                              { return "" }
 func setDOMValue(string, string)                                       {}
+func setComposerSendReady(string, string)                              {}
 func focusSectionCreate()                                              {}
 func closeSectionCreate(bool)                                          {}
 func sectionCreateOpen() bool                                          { return false }

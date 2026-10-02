@@ -21,7 +21,7 @@ func rememberChatDialogTrigger(event ui.Event, action string) {
 }
 
 func rememberChatDialogTriggerJS(event js.Value, action string) {
-	if action != "open-create" && action != "open-browse" {
+	if action != "open-create" && action != "open-browse" && action != "agent-profile-open" {
 		return
 	}
 	target := event.Get("target")
@@ -67,7 +67,7 @@ func guardChatDialogTab(event js.Value) {
 		return
 	}
 	doc := js.Global().Get("document")
-	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog")
+	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
 	if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 		if trapChatDialogFocusJS(event) {
 			event.Call("preventDefault")
@@ -85,7 +85,7 @@ func focusChatDialog() {
 	var frame js.Func
 	frame = js.FuncOf(func(js.Value, []js.Value) any {
 		attempts++
-		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog")
+		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
 		if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 			if !dialog.Call("contains", doc.Get("activeElement")).Bool() {
 				target := dialog.Call("querySelector", "[autofocus]")
@@ -124,7 +124,7 @@ func trapChatDialogFocusJS(event js.Value) bool {
 		return false
 	}
 	doc := js.Global().Get("document")
-	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog")
+	dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
 	if !dialog.Truthy() || dialog.Call("getClientRects").Get("length").Int() == 0 {
 		return false
 	}
@@ -154,12 +154,21 @@ func restoreChatDialogFocus() {
 	var frame js.Func
 	frame = js.FuncOf(func(js.Value, []js.Value) any {
 		attempts++
-		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog")
+		dialog := doc.Call("querySelector", ".create-dialog, .browse-dialog, .agent-profile-dialog")
 		if dialog.Truthy() && dialog.Call("getClientRects").Get("length").Int() > 0 {
 			if attempts < 60 && js.Global().Get("requestAnimationFrame").Truthy() {
 				js.Global().Call("requestAnimationFrame", frame)
 				return nil
 			}
+			frame.Release()
+			return nil
+		}
+		// The frame arrives after Escape, and sometimes after a click: a person who
+		// has already clicked the composer keeps the composer. Taking focus back
+		// here is what made that first click do nothing.
+		if !chatFocusRestoreAllowed(chatFocusHeldNow()) {
+			chatDialogTrigger = js.Undefined()
+			chatDialogTriggerAction = ""
 			frame.Release()
 			return nil
 		}
@@ -211,7 +220,7 @@ func chatDialogFocusables(dialog js.Value) []js.Value {
 		if item.Call("getClientRects").Get("length").Int() == 0 {
 			continue
 		}
-		closedDetails := item.Call("closest", "details:not([open])")
+		closedDetails := item.Call("closest", "[data-chat-disclosure]:not([open])")
 		if closedDetails.Truthy() && item.Get("tagName").String() != "SUMMARY" {
 			continue
 		}

@@ -7,11 +7,12 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	`.mention-menu{position:absolute;inset-inline-start:0;width:min(340px,100%);inset-block-end:calc(100% + 6px);z-index:32;display:flex;flex-direction:column;max-height:min(320px,50vh);overflow-y:auto;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);box-shadow:var(--hcm-shadow-raised)}` +
 	`.mention-heading{margin:2px 8px 6px;color:var(--muted);font-size:.75rem;font-weight:600}` +
 	`.mention-option{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 8px;border:0;border-radius:var(--hcm-radius-control);background:none;color:var(--ink);font:inherit;font-size:.875rem;text-align:start;cursor:pointer}` +
+	`.mention-option.persona{flex-wrap:wrap}` +
 	`.mention-option:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}` +
 	`.mention-option.active{background:var(--accent);color:var(--on-brand,#fff)}.mention-option.active .mention-detail{color:inherit;opacity:.85}` +
 	`.mention-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}` +
 	`.mention-detail{color:var(--muted);font-size:.75rem;white-space:nowrap}` +
-	`.mention-hint{margin:6px 8px 2px;padding-top:6px;border-top:1px solid var(--line);color:var(--muted);font-size:.6875rem}` +
+	`.mention-hint{margin:6px 8px 2px;padding-top:6px;border-top:1px solid var(--line);color:var(--muted);font-size:.75rem}` +
 	`.mention-empty{margin:4px 8px;color:var(--muted);font-size:.8125rem}` +
 	`.format-tools{display:flex;align-items:center;gap:1px;padding-inline-end:6px;margin-inline-end:4px;border-inline-end:1px solid var(--line)}` +
 	`@media(hover:hover){.tool-button:hover:not(:disabled){background:color-mix(in srgb,var(--ink) 8%,transparent);color:var(--ink)}}` +
@@ -67,10 +68,11 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	// Round-5 critique.
 	`.chat-row.selected,.chat-row.selected:hover{box-shadow:inset 3px 0 0 var(--accent)}` +
 	`.mention-hint{font-size:.75rem;letter-spacing:.01em}` +
+	`.mention-heading.agents{margin-top:4px}.mention-group-note{margin:-2px 8px 5px;color:var(--muted);font-size:.75rem;line-height:1.35}.mention-show-more,.mention-action-row{display:flex;align-items:center;width:100%;min-height:34px;padding:5px 8px;border:0;border-radius:var(--hcm-radius-control);background:transparent;color:var(--accent);font:inherit;font-size:.8125rem;text-align:start;text-decoration:none;cursor:pointer}.mention-show-more:hover,.mention-action-row:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}.mention-state-actions{display:grid;gap:2px;margin-top:4px}.mention-agent-state.empty p{margin:0}.mention-handle{direction:ltr;unicode-bidi:isolate}.composer-agent-reply-hint{margin:0 2px 6px;color:var(--muted);font-size:.8125rem;line-height:1.35}.attachment-pending.image-loading-skeleton{position:relative;overflow:hidden;background:var(--soft)}.attachment-pending.image-loading-skeleton::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--surface) 65%,transparent),transparent);animation:image-loading-sweep var(--hcm-motion-slow) ease-in-out infinite}@keyframes image-loading-sweep{to{transform:translateX(100%)}}@media(prefers-reduced-motion:reduce){.attachment-pending.image-loading-skeleton::after{animation:none;opacity:.45}}` +
 	`.chat-workspace:has(.chat-search-results) .conversation-header{box-shadow:none}.chat-search-results .search-result{max-width:840px}.chat-search-results .search-result-snippet{max-width:none}` +
 	`@media(min-width:761px){.chat-composer .send-button{height:32px;min-height:32px}}` +
 	`@media(max-width:760px){.thread-more{opacity:1}}` +
-	`@container chatmain (max-width:380px){.chat-composer .composer-tools>.tool-button[disabled]:not(.giphy-trigger):not(.emoji-trigger){display:none}.chat-composer .composer-toolbar{gap:2px}.chat-composer .send-button{flex:none}}` +
+	`@container chatmain (max-width:380px){.chat-composer .composer-tools>.tool-button[disabled]:not(.giphy-trigger):not(.emoji-trigger){display:none}.chat-composer .composer-toolbar{gap:2px}.chat-composer .send-button{flex:none}.mention-menu{max-width:calc(100vw - 16px)}.mention-option{min-width:0}.mention-group-note{overflow-wrap:anywhere}}` +
 	`.thread-composer .composer-toolbar{justify-content:flex-start;flex-wrap:nowrap;min-width:0;padding:2px 6px 6px}.thread-composer .send-button{margin-inline-start:auto}.thread-composer .format-button[data-extra=code],.thread-composer .format-button[data-extra=bullets],.thread-composer .format-button[data-extra=quote]{display:none}` +
 	`.conversation-header{position:relative;z-index:3;box-shadow:0 6px 10px -8px color-mix(in srgb,var(--ink) 30%,transparent)}.conversation-title{gap:4px}` +
 	`.search-results-head>h2{position:absolute;clip:rect(0 0 0 0);clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}.search-result-meta strong{font-weight:700}` +
@@ -78,7 +80,7 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	// natural width here -- it is excluded from the icon-square squeeze below
 	// so its label (kept visible, see the max-width:560px rule further down)
 	// has room instead of being clipped into a 36px box.
-	`@container chatmain (max-width:560px){.conversation-header .icon-button,.conversation-header .channel-todo-trigger,.conversation-header .channel-poll-trigger,.conversation-header .rail-pill:not(.mobile-chat-toggle){border:0;background:transparent;width:36px;min-width:36px;height:36px;padding:0;justify-content:center;border-radius:var(--hcm-radius-control)}.format-tools{display:flex}.format-button[data-extra=code],.format-button[data-extra=bullets],.format-button[data-extra=quote]{display:none}}` +
+	`@container chatmain (max-width:560px){.conversation-header .icon-button,.conversation-header .channel-todo-trigger,.conversation-header .channel-poll-trigger,.conversation-header .rail-pill:not(.mobile-chat-toggle){border:0;background:transparent;width:36px;min-width:36px;height:36px;padding:0;justify-content:center;border-radius:var(--hcm-radius-control)}.format-tools{display:flex}}` +
 	`@container chatmain (max-width:360px){.conversation-topic{display:none}}` +
 	// Round-8 critique; kept last so these overrides win the cascade.
 	`.thread-root .thread-view-in-channel{opacity:0}.thread-root:hover .thread-view-in-channel,.thread-root .thread-view-in-channel:focus-visible{opacity:1}@media (hover:none),(max-width:760px){.thread-root .thread-view-in-channel{opacity:1;pointer-events:auto}}` +
@@ -134,4 +136,9 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	// phones. Keep author/time on one metadata row and give the root's channel
 	// link its own row; the absolute desktop placement otherwise overlaps a
 	// timestamp and flex-wrap can split a short time label across lines.
-	`@media(max-width:760px){.thread-root-body .message-meta,.thread-message-body .message-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 8px;padding-inline-end:44px}.thread-root-body .message-meta .thread-view-in-channel{position:static;grid-column:1 / -1;justify-self:start;margin-top:2px;white-space:nowrap}.thread-pane .message-time{white-space:nowrap}.thread-pane .message-author{min-width:0;overflow-wrap:anywhere}}`
+	`@media(max-width:760px){.thread-root-body .message-meta,.thread-message-body .message-meta{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:2px 8px;padding-inline-end:44px}.thread-root-body .message-meta .thread-view-in-channel{position:static;grid-column:1 / -1;justify-self:start;margin-top:2px;white-space:nowrap}.thread-pane .message-time{white-space:nowrap}.thread-pane .message-author{min-width:0;overflow-wrap:anywhere}}` +
+	// CHATBUG-003, CHATUX-004: every formatting tool is its own icon button in
+	// one row at every width. The narrow "Formatting" menu and the "Markdown"
+	// label are gone; the Aa button shows or hides the row (composer_tools.go).
+	`.format-inline{display:flex;align-items:center;gap:1px}` +
+	`@container chatmain (max-width:560px){.chat-composer .composer-tools{flex-wrap:wrap!important}}`

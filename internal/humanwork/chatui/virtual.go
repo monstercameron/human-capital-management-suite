@@ -64,6 +64,7 @@ func messageHeights(m Model, messages []Message, measured map[string]float64) []
 		if h := measured[msg.ID]; h > 0 {
 			result[i] = h
 		} else {
+			msg.Body = ReaderMessageBody(m, msg)
 			result[i] = estimatedMessageHeight(msg, day != "" && day != prevDay, msg.ID == m.UnreadFromID)
 		}
 		prevDay = day
@@ -297,8 +298,11 @@ func virtualMessageRow(m Model, h handlers, msg Message, index int, messages []M
 	if unread {
 		children = append(children, html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})))
 	}
-	continued := !unread && index > 0 && day == prevDay && msg.AuthorID != "" && msg.AuthorID == messages[index-1].AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(messages[index-1].SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != messages[index-1].ID
+	continued := !unread && index > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, messages[index-1]) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == messages[index-1].AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(messages[index-1].SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != messages[index-1].ID
 	children = append(children, message(m, h, msg, continued))
+	if m.selected().Agent {
+		children = append(children, personaReplyRowsForPost(m, h.local, msg.ID, time.Now())...)
+	}
 	class := "virtual-row"
 	if parked {
 		class += " virtual-parked"

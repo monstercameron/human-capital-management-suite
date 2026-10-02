@@ -217,7 +217,7 @@ func trapMobileRailFocus(event ui.Event) bool {
 }
 
 func mobileRailFocusable(item js.Value) bool {
-	closedDetails := item.Call("closest", "details:not([open])")
+	closedDetails := item.Call("closest", "[data-chat-disclosure]:not([open])")
 	insideClosedDetails := closedDetails.Truthy() && (item.Get("tagName").String() != "SUMMARY" || !item.Get("parentElement").Equal(closedDetails))
 	hiddenAncestor := item.Call("closest", "[hidden],[inert],[aria-hidden='true']")
 	return !insideClosedDetails && !hiddenAncestor.Truthy() && item.Call("getClientRects").Get("length").Int() > 0

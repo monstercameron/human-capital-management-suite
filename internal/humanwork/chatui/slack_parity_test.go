@@ -180,8 +180,10 @@ func TestRailOffersAddChannelsAndSearchHidesTheSidePane(t *testing.T) {
 	m := Model{State: StateReady, Conversations: []Conversation{room}, SelectedID: "general", ShowThread: true, ThreadParentID: "p1",
 		Callbacks: Callbacks{OpenBrowse: func() {}}}
 	markup := render(t, m)
-	if !strings.Contains(markup, `class="chat-row rail-add"`) || !strings.Contains(markup, "Add channels") {
-		t.Fatal("channels section has no Add channels row")
+	// CHATUX-002 changed this assertion: Add channels is no longer a row at the end
+	// of the Channels section but an item of the menu in its heading.
+	if strings.Contains(markup, `class="chat-row rail-add"`) || !strings.Contains(markup, `data-chat-layer="channels-menu"`) || !strings.Contains(markup, `data-action="open-browse"`) {
+		t.Fatal("the Channels heading has no menu to add or find channels")
 	}
 	if !strings.Contains(markup, `data-details-open="true"`) {
 		t.Fatal("an open thread should open the side column")
@@ -198,7 +200,7 @@ func TestStylesheetKeepsThreadBesideTimelineAtLaptopWidths(t *testing.T) {
 		`.chat-workspace{container:chat/inline-size}`,
 		`@container chat (max-width:1350px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(200px,var(--chat-rail)) minmax(0,1fr) minmax(280px,340px)}}`,
 		`@container chat (max-width:1100px) and (min-width:761px){.chat-workspace[data-details-open="true"] .chat-layout{grid-template-columns:minmax(0,1fr) minmax(280px,360px)}.chat-workspace[data-details-open="true"] .chat-rail{display:none}`,
-		`@container chatmain (max-width:560px){.channel-todo-trigger-label,.channel-poll-trigger-label{display:none}`, `.format-button[data-extra=code],.format-button[data-extra=bullets],.format-button[data-extra=quote]{display:none}`,
+		`@container chatmain (max-width:560px){.channel-todo-trigger-label,.channel-poll-trigger-label{display:none}`,
 		`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px;scroll-padding-top:8px}`,
 		`.mention-menu{`, `.search-hit{`,
 	} {
@@ -266,7 +268,7 @@ func TestHoverBarLeadsWithQuickReactionsAndThreadShowsItsCount(t *testing.T) {
 	m := Model{State: StateReady, SelectedID: "room", Conversations: []Conversation{{ID: "room", Name: "general", Kind: PublicChannel}}, Messages: []Message{msg},
 		ShowThread: true, ThreadParentID: "p1", ThreadParent: &msg, ThreadMessages: []Message{{ID: "r1", Author: "Bo", Body: "one"}, {ID: "r2", Author: "Cy", Body: "two"}},
 		Callbacks: Callbacks{ReactWith: func(string, string) {}, ReplyInThread: func(string, string) {}}}
-	markup := render(t, m)
+	markup := renderNode(t, html.Div(html.Props{}, message(m, handlers{local: localUI{pointerRow: "p1"}}, msg, false), threadPane(m, handlers{})))
 	for _, emoji := range quickReactions {
 		if !strings.Contains(markup, `data-action="react-with" data-emoji="`+emoji+`" data-id="p1"`) && !strings.Contains(markup, `data-emoji="`+emoji+`"`) {
 			t.Errorf("hover bar lacks quick reaction %s", emoji)

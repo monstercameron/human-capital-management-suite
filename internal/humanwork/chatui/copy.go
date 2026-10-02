@@ -352,6 +352,20 @@ const (
 	KeyMentionTitle                   = "chat.mention_title"
 	KeyMentionNone                    = "chat.mention_none"
 	KeyMentionNotMember               = "chat.mention_not_member"
+	KeyMentionMenu                    = "chat.mention_menu"
+	KeyMentionAgents                  = "chat.mention_agents"
+	KeyMentionAgentBadge              = "chat.mention_agent_badge"
+	KeyMentionAgentsLoading           = "chat.mention_agents_loading"
+	KeyMentionAgentsIdle              = "chat.mention_agents_idle"
+	KeyMentionAgentsEmpty             = "chat.mention_agents_empty"
+	KeyMentionAgentsNoMatch           = "chat.mention_agents_no_match"
+	KeyMentionAgentsFailed            = "chat.mention_agents_failed"
+	KeyMentionAgentsRetry             = "chat.mention_agents_retry"
+	KeyMentionAgentsPage              = "chat.mention_agents_page"
+	KeyMentionAddAgent                = "chat.mention_add_agent"
+	KeyMentionOutsideNote             = "chat.mention_outside_note"
+	KeyMentionShowMorePeople          = "chat.mention_show_more_people"
+	KeyMentionAgentReplyHint          = "chat.mention_agent_reply_hint"
 	KeySelfName                       = "chat.self_name"
 	KeyIntroSelf                      = "chat.intro_self"
 	KeyAddChannels                    = "chat.add_channels"
@@ -714,9 +728,23 @@ var englishCopy = map[string]string{
 	KeyMemberFilter:             "Filter members",
 	KeyThreadIn:                 "Thread · {name}",
 	KeyBrowseCount:              "{n} channels",
-	KeyMentionTitle:             "People",
+	KeyMentionTitle:             "People in this conversation",
 	KeyMentionNone:              "No one matches “{query}”",
 	KeyMentionNotMember:         "Not in this conversation",
+	KeyMentionMenu:              "Mention someone",
+	KeyMentionAgents:            "Agents",
+	KeyMentionAgentBadge:        "Agent",
+	KeyMentionAgentsLoading:     "Loading agents…",
+	KeyMentionAgentsIdle:        "Agents in this conversation appear here.",
+	KeyMentionAgentsEmpty:       "No agents are in this conversation yet. You can still ask on the Agents page.",
+	KeyMentionAgentsNoMatch:     "No agents match this search.",
+	KeyMentionAgentsFailed:      "The agent list could not be loaded.",
+	KeyMentionAgentsRetry:       "Try again",
+	KeyMentionAgentsPage:        "Agents page",
+	KeyMentionAddAgent:          "Add an agent to this conversation",
+	KeyMentionOutsideNote:       "They are not in this conversation and will not be notified unless you add them.",
+	KeyMentionShowMorePeople:    "Show more people",
+	KeyMentionAgentReplyHint:    "{name} will reply here. It only uses what you can already see.",
 	KeySelfName:                 "{name} (you)",
 	KeyIntroSelf:                "This is your space. Draft messages, keep notes and park links here. Nobody else can see it.",
 	KeyAddChannels:              "Add channels",
@@ -728,7 +756,7 @@ var englishCopy = map[string]string{
 	KeyFormatLink:               "Link",
 	KeyFormatBullets:            "Bulleted list",
 	KeyFormatQuote:              "Quote",
-	KeyMentionHint:              "↑↓ choose · Enter insert · Esc close",
+	KeyMentionHint:              "↑↓ choose · Tab details · Enter insert · Esc close",
 	KeyViewInChannel:            "View in channel",
 	KeyTodoMoreOptions:          "More options",
 	KeySearchInChannel:          "In {channel}",

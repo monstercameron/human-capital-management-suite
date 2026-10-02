@@ -4,7 +4,14 @@ package chatui
 
 import "github.com/monstercameron/GoWebComponents/v5/ui"
 
-func toggleEmojiPicker(string)                   {}
-func insertComposerEmoji(string, string)         {}
-func closeEmojiPickers(bool)                     {}
-func handleEmojiPickerKey(ui.KeyboardEvent) bool { return false }
+// Native builds have no DOM: the picker's state machine, view and search run
+// (and are tested) here, and the browser-only parts below do nothing.
+
+func insertComposerEmoji(string, string, bool)             {}
+func handleEmojiPickerKey(ui.KeyboardEvent) bool           { return false }
+func chatEmojiClick(ui.Event, string, string, string) bool { return false }
+func chatEmojiEnvironment() (touch, sheet bool)            { return false, false }
+func chatEmojiPlatformDrawsFlags() bool                    { return true }
+func chatEmojiStartLoad(string)                            {}
+func bindChatEmoji() func()                                { return func() {} }
+func chatEmojiAfterRender()                                {}

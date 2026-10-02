@@ -49,7 +49,7 @@ func ShareLocators(body, origin string) []ShareLocator {
 			if e != nil {
 				continue
 			}
-			if parsed.IsAbs() && (parsed.Scheme != base.Scheme || !strings.EqualFold(parsed.Host, base.Host)) {
+			if parsed.IsAbs() && (parsed.Scheme != base.Scheme || !chatbug037SameServer(parsed, base)) {
 				continue
 			}
 			token := ""

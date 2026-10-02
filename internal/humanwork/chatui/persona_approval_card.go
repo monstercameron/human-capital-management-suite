@@ -86,10 +86,5 @@ func safePersonaApprovalTaskHref(generated, encoded string) (string, bool) {
 }
 
 func personaApprovalText(model Model, key, fallback string) string {
-	if model.Text != nil {
-		if value := strings.TrimSpace(model.Text(key)); value != "" && value != key {
-			return value
-		}
-	}
-	return fallback
+	return chatbug039Text(key, agentReplyFallback(model.Locale, key, fallback), fallback)
 }

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
+<!--
+Copyright © 1991-2025 Unicode, Inc.
+CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
+For terms of use, see http://www.unicode.org/copyright.html
+-->
+<ldml>
+	<identity>
+		<version number="$Revision$"/>
+		<language type="en"/>
+	</identity>
+	<annotations>
+		<annotation cp="🏻">skin tone | light skin tone</annotation>
+		<annotation cp="🏻" type="tts">light skin tone</annotation>
+		<annotation cp="🏼">skin tone | medium-light skin tone</annotation>
+		<annotation cp="🏼" type="tts">medium-light skin tone</annotation>
+		<annotation cp="🏽">skin tone | medium skin tone</annotation>
+		<annotation cp="🏽" type="tts">medium skin tone</annotation>
+		<annotation cp="🏾">skin tone | medium-dark skin tone</annotation>
+		<annotation cp="🏾" type="tts">medium-dark skin tone</annotation>
+		<annotation cp="🏿">skin tone | dark skin tone</annotation>
+		<annotation cp="🏿" type="tts">dark skin tone</annotation>
+		<annotation cp="😀">face | grin | grinning face</annotation>
+		<annotation cp="😀" type="tts">grinning face</annotation>
+		<annotation cp="😂">face | face with tears of joy | joy | laugh | tear</annotation>
+		<annotation cp="😂" type="tts">face with tears of joy</annotation>
+		<annotation cp="😊">blush | eye | face | smile | smiling face with smiling eyes</annotation>
+		<annotation cp="😊" type="tts">smiling face with smiling eyes</annotation>
+		<annotation cp="😍">eye | face | love | smile | smiling face with heart-eyes</annotation>
+		<annotation cp="😍" type="tts">smiling face with heart-eyes</annotation>
+		<annotation cp="🤔">face | thinking</annotation>
+		<annotation cp="🤔" type="tts">thinking face</annotation>
+		<annotation cp="😴">face | good night | sleep | sleeping face | zzz</annotation>
+		<annotation cp="😴" type="tts">sleeping face</annotation>
+		<annotation cp="😎">bright | cool | face | smiling face with sunglasses | sun | sunglasses</annotation>
+		<annotation cp="😎" type="tts">smiling face with sunglasses</annotation>
+		<annotation cp="😢">cry | crying face | face | sad | tear</annotation>
+		<annotation cp="😢" type="tts">crying face</annotation>
+		<annotation cp="💔">break | broken | broken heart | heart</annotation>
+		<annotation cp="💔" type="tts">broken heart</annotation>
+		<annotation cp="❤️">heart | red heart</annotation>
+		<annotation cp="❤️" type="tts">red heart</annotation>
+		<annotation cp="💯">100 | full | hundred | hundred points | keep it 100 | score</annotation>
+		<annotation cp="💯" type="tts">hundred points</annotation>
+		<annotation cp="👋">hand | wave | waving | waving hand</annotation>
+		<annotation cp="👋" type="tts">waving hand</annotation>
+		<annotation cp="👍">+1 | hand | thumb | thumbs up | up</annotation>
+		<annotation cp="👍" type="tts">thumbs up</annotation>
+		<annotation cp="👏">clap | clapping hands | hand</annotation>
+		<annotation cp="👏" type="tts">clapping hands</annotation>
+		<annotation cp="🙏">ask | folded hands | hand | high 5 | high five | please | pray | thanks</annotation>
+		<annotation cp="🙏" type="tts">folded hands</annotation>
+		<annotation cp="💪">biceps | comic | flex | flexed biceps | muscle</annotation>
+		<annotation cp="💪" type="tts">flexed biceps</annotation>
+		<annotation cp="👀">eye | eyes | face</annotation>
+		<annotation cp="👀" type="tts">eyes</annotation>
+		<annotation cp="🐶">dog | dog face | face | pet</annotation>
+		<annotation cp="🐶" type="tts">dog face</annotation>
+		<annotation cp="🐱">cat | cat face | face | pet</annotation>
+		<annotation cp="🐱" type="tts">cat face</annotation>
+		<annotation cp="🐻">bear | face | wild</annotation>
+		<annotation cp="🐻" type="tts">bear</annotation>
+		<annotation cp="🌸">blossom | cherry | cherry blossom | flower</annotation>
+		<annotation cp="🌸" type="tts">cherry blossom</annotation>
+		<annotation cp="🌹">flower | rose</annotation>
+		<annotation cp="🌹" type="tts">rose</annotation>
+		<annotation cp="🌳">deciduous | deciduous tree | shedding | tree</annotation>
+		<annotation cp="🌳" type="tts">deciduous tree</annotation>
+		<annotation cp="🍎">apple | fruit | red | red apple</annotation>
+		<annotation cp="🍎" type="tts">red apple</annotation>
+		<annotation cp="🍕">cheese | pizza | slice</annotation>
+		<annotation cp="🍕" type="tts">pizza</annotation>
+		<annotation cp="☕">beverage | coffee | drink | hot | hot beverage | steaming | tea</annotation>
+		<annotation cp="☕" type="tts">hot beverage</annotation>
+		<annotation cp="🍺">bar | beer | beer mug | drink | mug</annotation>
+		<annotation cp="🍺" type="tts">beer mug</annotation>
+		<annotation cp="🌍">Africa | earth | Europe | globe | globe showing Europe-Africa | world</annotation>
+		<annotation cp="🌍" type="tts">globe showing Europe-Africa</annotation>
+		<annotation cp="🏠">home | house</annotation>
+		<annotation cp="🏠" type="tts">house</annotation>
+		<annotation cp="🚗">automobile | car</annotation>
+		<annotation cp="🚗" type="tts">automobile</annotation>
+		<annotation cp="✈️">aeroplane | airplane</annotation>
+		<annotation cp="✈️" type="tts">airplane</annotation>
+		<annotation cp="☀️">bright | rays | sun | sunny</annotation>
+		<annotation cp="☀️" type="tts">sun</annotation>
+		<annotation cp="⭐">star</annotation>
+		<annotation cp="⭐" type="tts">star</annotation>
+		<annotation cp="🔥">fire | flame | tool</annotation>
+		<annotation cp="🔥" type="tts">fire</annotation>
+		<annotation cp="🎉">celebration | party | party popper | popper | tada</annotation>
+		<annotation cp="🎉" type="tts">party popper</annotation>
+		<annotation cp="🏆">prize | trophy</annotation>
+		<annotation cp="🏆" type="tts">trophy</annotation>
+		<annotation cp="⚽">ball | football | soccer</annotation>
+		<annotation cp="⚽" type="tts">soccer ball</annotation>
+		<annotation cp="🎮">controller | game | video game</annotation>
+		<annotation cp="🎮" type="tts">video game</annotation>
+		<annotation cp="📞">phone | receiver | telephone | telephone receiver</annotation>
+		<annotation cp="📞" type="tts">telephone receiver</annotation>
+		<annotation cp="💻">computer | laptop | pc | personal</annotation>
+		<annotation cp="💻" type="tts">laptop</annotation>
+		<annotation cp="💡">bulb | comic | electric | idea | light | light bulb</annotation>
+		<annotation cp="💡" type="tts">light bulb</annotation>
+		<annotation cp="📅">calendar | date</annotation>
+		<annotation cp="📅" type="tts">calendar</annotation>
+		<annotation cp="📌">pin | pushpin</annotation>
+		<annotation cp="📌" type="tts">pushpin</annotation>
+		<annotation cp="🔒">closed | locked</annotation>
+		<annotation cp="🔒" type="tts">locked</annotation>
+		<annotation cp="🔑">key | lock | password</annotation>
+		<annotation cp="🔑" type="tts">key</annotation>
+		<annotation cp="⚠️">warning</annotation>
+		<annotation cp="⚠️" type="tts">warning</annotation>
+		<annotation cp="✅">button | check | mark</annotation>
+		<annotation cp="✅" type="tts">check mark button</annotation>
+		<annotation cp="❌">cancel | cross | cross mark | mark | multiplication | multiply | x</annotation>
+		<annotation cp="❌" type="tts">cross mark</annotation>
+		<annotation cp="#️⃣">keycap</annotation>
+		<annotation cp="#️⃣" type="tts">keycap: #</annotation>
+		<annotation cp="1️⃣">keycap</annotation>
+		<annotation cp="1️⃣" type="tts">keycap: 1</annotation>
+		<annotation cp="🏁">checkered | chequered | chequered flag | racing</annotation>
+		<annotation cp="🏁" type="tts">chequered flag</annotation>
+		<annotation cp="🏳️">flag | waving | white flag</annotation>
+		<annotation cp="🏳️" type="tts">white flag</annotation>
+		<annotation cp="🇩🇪">flag</annotation>
+		<annotation cp="🇩🇪" type="tts">flag: Germany</annotation>
+		<annotation cp="🇫🇷">flag</annotation>
+		<annotation cp="🇫🇷" type="tts">flag: France</annotation>
+		<annotation cp="🇯🇵">flag</annotation>
+		<annotation cp="🇯🇵" type="tts">flag: Japan</annotation>
+		<annotation cp="🇺🇸">flag</annotation>
+		<annotation cp="🇺🇸" type="tts">flag: United States</annotation>
+	</annotations>
+</ldml>

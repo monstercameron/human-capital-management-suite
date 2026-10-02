@@ -10,7 +10,32 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-type mentionTarget struct{ id, name string }
+type mentionTarget struct {
+	id, name string
+	agent    *ResolvedPersonaMention
+}
+
+func canonicalMentionIndex(m Model) []mentionTarget {
+	out := make([]mentionTarget, 0, len(m.renderReferences))
+	for _, ref := range m.renderReferences {
+		if strings.TrimSpace(ref.ID) == "" || strings.TrimSpace(ref.Display) == "" {
+			continue
+		}
+		target := mentionTarget{id: ref.ID, name: strings.TrimSpace(ref.Display)}
+		if ref.Kind == "AGENT_MENTION" {
+			for i := range m.ResolvedPersonaMentions {
+				persona := &m.ResolvedPersonaMentions[i]
+				if persona.Reference.ID == ref.ID && (ref.TenantID == "" || persona.Reference.TenantID == ref.TenantID) {
+					target.agent = persona
+					break
+				}
+			}
+		}
+		out = append(out, target)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return len(out[i].name) > len(out[j].name) })
+	return out
+}
 
 // mentionIndex maps the people this view can name to their subject IDs,
 // longest name first, so "@Ana Maria Lopez" beats "@Ana Maria".
@@ -46,12 +71,21 @@ func mentionIndex(m Model) []mentionTarget {
 // person's details, then hands the text between chips to the channel
 // reference renderer. A name nobody resolves stays plain text.
 func mentionReferenceBody(m Model, body string) []ui.Node {
+	body = directAgentQuestionBody(m, body)
+	// CHATBUG-037: a share address is a short link, never the raw token.
+	if nodes, ok := chatbug037ShareBody(m, body, mentionReferenceRuns); ok {
+		return nodes
+	}
+	return mentionReferenceRuns(m, body)
+}
+
+func mentionReferenceRuns(m Model, body string) []ui.Node {
 	if !strings.Contains(body, "@") {
 		return journeyReferenceBody(m, body)
 	}
-	index := m.mentions
-	if !m.mentionsReady {
-		index = mentionIndex(m)
+	index := canonicalMentionIndex(m)
+	if len(index) == 0 {
+		return journeyReferenceBody(m, body)
 	}
 	var nodes []ui.Node
 	last := 0
@@ -88,8 +122,40 @@ func mentionReferenceBody(m Model, body string) []ui.Node {
 	return nodes
 }
 
+// A direct conversation already names its agent in the header and composer.
+// Older posts may still carry the redundant textual mention; hide only the
+// canonical agent prefix and leave the person's question untouched.
+func directAgentQuestionBody(m Model, body string) string {
+	conversation := m.selected()
+	if !conversation.Agent {
+		return body
+	}
+	name := strings.TrimSpace(displayName(m, conversation))
+	if name == "" {
+		return body
+	}
+	prefix := "@" + name
+	trimmed := strings.TrimLeftFunc(body, unicode.IsSpace)
+	if len(trimmed) < len(prefix) || !strings.EqualFold(trimmed[:len(prefix)], prefix) {
+		return body
+	}
+	if len(trimmed) > len(prefix) {
+		next, _ := utf8.DecodeRuneInString(trimmed[len(prefix):])
+		if !unicode.IsSpace(next) {
+			return body
+		}
+	}
+	return strings.TrimSpace(trimmed[len(prefix):])
+}
+
 func mentionChip(m Model, target mentionTarget) ui.Node {
 	class := "mention-chip"
+	if target.agent != nil {
+		class += " mention-chip-agent"
+		label := agentReplyFallback(m.Locale, "chat.agent.badge", "Agent")
+		return html.Span(html.Props{Class: "mention-chip-details"},
+			html.Button(html.Props{Class: class, Type: "button", Data: map[string]string{"action": "agent-profile-open", "id": target.id}, Aria: map[string]string{"label": target.name + ", " + label, "haspopup": "dialog"}}, ui.Text("@"+target.name), html.Span(html.Props{Class: "sr-only mention-chip-agent-badge", Text: label})))
+	}
 	if target.id == m.CurrentUser {
 		class += " self"
 	}

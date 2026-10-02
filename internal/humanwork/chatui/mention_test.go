@@ -85,8 +85,8 @@ func TestTodo_AGENTP_019(t *testing.T) {
 	if options[0].person.ID != "person-17" || options[1].persona.Reference.ID != "agent-9" {
 		t.Fatalf("same-label identities were merged: %+v", options)
 	}
-	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Query: "policy", Open: true}, "chat-composer"))
-	for _, want := range []string{`class="mention-option persona"`, "Policy Helper", "Agent", "Agents", "Answer policy questions", "Purpose", "People Operations", "Read only", "Policy data", "Change records", "Acts with your current access.", "in this thread", "mention-profile-trigger"} {
+	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Query: "policy", Open: true, Active: 1, Details: true}, "chat-composer"))
+	for _, want := range []string{`class="mention-option active persona"`, "Policy Helper", "Agent", "Agents", "Answer policy questions", "Purpose", "People Operations", "Read only", "Policy data", "Change records", "Acts with your current access.", "in this thread", "mention-agent-preview"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("persona menu/profile missing %q: %s", want, markup)
 		}
@@ -149,8 +149,8 @@ func TestTodo_AGENTP_019_Accessibility(t *testing.T) {
 		ResolvedPersonaMentions: []ResolvedPersonaMention{{Reference: ChatReference{Kind: "AGENT_MENTION", TenantID: "t1", ID: "agent", Display: "Policy Helper", ConversationID: "room-1"}, Purpose: "Answer policy questions"}},
 		Callbacks:               Callbacks{SendMessageWithReferences: func(string, string, []ChatReference) {}},
 	}
-	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Active: 0}, "chat-composer"))
-	for _, want := range []string{`role="listbox"`, `role="option"`, `aria-selected="true"`, "<details", "<summary", `aria-label="Persona profile"`, `dir="ltr"`} {
+	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Active: 0, Details: true}, "chat-composer"))
+	for _, want := range []string{`role="listbox"`, `role="option"`, `aria-selected="true"`, `class="mention-agent-info"`, `aria-expanded="true"`, "mention-agent-preview", `dir="ltr"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("accessible menu/profile missing %q: %s", want, markup)
 		}
@@ -161,14 +161,14 @@ func TestTodo_AGENTP_019_I18n(t *testing.T) {
 	for _, tc := range []struct {
 		locale, group, profile, tier, direction string
 	}{
-		{locale: "en-US", group: "Agents", profile: "Persona profile", tier: "Read only", direction: `dir="ltr"`},
-		{locale: "de-DE", group: "Agenten", profile: "Persona-Profil", tier: "Nur lesen", direction: `dir="ltr"`},
-		{locale: "ar", group: "الوكلاء", profile: "ملف الشخصية", tier: "قراءة فقط", direction: `dir="rtl"`},
+		{locale: "en-US", group: "Agents", profile: "Agent details", tier: "Read only", direction: `dir="ltr"`},
+		{locale: "de-DE", group: "Agenten", profile: "Agentendetails", tier: "Nur lesen", direction: `dir="ltr"`},
+		{locale: "ar", group: "الوكلاء", profile: "تفاصيل الوكيل", tier: "قراءة فقط", direction: `dir="rtl"`},
 	} {
 		model := Model{Locale: tc.locale, SelectedID: "room", Conversations: []Conversation{{ID: "room", Kind: PublicChannel}},
 			ResolvedPersonaMentions: []ResolvedPersonaMention{{Reference: ChatReference{Kind: "AGENT_MENTION", TenantID: "t1", ID: "agent", Display: "Policy Helper", ConversationID: "room"}, Purpose: "Purpose text", Skills: []PersonaMentionSkill{{Name: "Search", Tier: "T0"}}}},
 			Callbacks:               Callbacks{SendMessageWithReferences: func(string, string, []ChatReference) {}}}
-		markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true}, "chat-composer"))
+		markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Details: true}, "chat-composer"))
 		for _, want := range []string{tc.group, tc.profile, tc.tier, tc.direction} {
 			if !strings.Contains(markup, want) {
 				t.Errorf("locale %q menu/profile missing %q: %s", tc.locale, want, markup)

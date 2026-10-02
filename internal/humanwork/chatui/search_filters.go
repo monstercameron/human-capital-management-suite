@@ -61,5 +61,6 @@ func searchFilterBar(m Model, query string) ui.Node {
 			Data: map[string]string{"action": "search-in-channel", "extra": name}}, icon("search"), html.Span(html.Props{Text: m.tf(KeySearchInChannel, map[string]string{"channel": "#" + name})})))
 	}
 	children = append(children, html.Span(html.Props{Class: "search-filter-hint", Text: m.t(KeySearchFilterHint)}))
+	children = append(children, ChatSearchMount(m))
 	return html.Div(html.Props{Class: "search-filter-bar"}, children...)
 }

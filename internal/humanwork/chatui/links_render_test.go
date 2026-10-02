@@ -12,7 +12,8 @@ func TestChatLinkEmbedsRenderDraftTimelineAndThread(t *testing.T) {
 	if strings.Count(markup, "Authorized preview") != 4 {
 		t.Fatalf("expected draft, timeline, thread root and reply previews; got %d", strings.Count(markup, "Authorized preview"))
 	}
-	if !strings.Contains(markup, "Attachments: 1") || !strings.Contains(markup, "Open source channel") {
+	// CHATBUG-037: the count is an icon named "1 attachment", not "Attachments: 1".
+	if !strings.Contains(markup, `aria-label="1 attachment"`) || !strings.Contains(markup, "Open source channel") {
 		t.Fatal("attachment count or accessible open label missing")
 	}
 	m.Embeds["token"] = LinkEmbed{State: "unavailable", Body: "secret"}

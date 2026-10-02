@@ -23,6 +23,9 @@ type browserDrafts struct {
 	ready      bool
 	discarded  bool
 	clearModel *Model
+	// incomingFor and incoming are the draft the last render's model carried
+	// for that conversation, before prepare replaced it (CHATBUG-038).
+	incomingFor, incoming string
 }
 
 func (d *browserDrafts) owner(model Model) string {
@@ -44,6 +47,7 @@ func (d *browserDrafts) prepare(model *Model) {
 	if model == nil {
 		return
 	}
+	d.incomingFor, d.incoming = model.SelectedID, model.Draft
 	owner := d.owner(*model)
 	if !d.hasOwner(*model) {
 		if d.ready {
@@ -103,6 +107,12 @@ func (d *browserDrafts) prepare(model *Model) {
 		return
 	}
 	if selectedChanged || d.discarded {
+		model.Draft = ""
+		return
+	}
+	// CHATBUG-038: a draft the reader just sent or cleared is not adopted back
+	// from a render made with the model's older copy of it.
+	if staleClearedDraft(model.SelectedID, model.Draft) {
 		model.Draft = ""
 		return
 	}
@@ -180,8 +190,14 @@ func (d *browserDrafts) set(conversationID, value string) {
 		d.values = make(map[string]string)
 	}
 	if value == "" {
+		incoming := ""
+		if d.incomingFor == conversationID {
+			incoming = d.incoming
+		}
+		rememberClearedDraft(conversationID, d.values[conversationID], incoming)
 		delete(d.values, conversationID)
 	} else {
+		ForgetClearedDraft(conversationID)
 		d.discarded = false
 		d.values[conversationID] = value
 	}
@@ -210,6 +226,7 @@ func (d *browserDrafts) clear() {
 		return
 	}
 	clear(d.values)
+	forgetAllClearedDrafts()
 	d.values = make(map[string]string)
 	d.selected = ""
 	d.discarded = true

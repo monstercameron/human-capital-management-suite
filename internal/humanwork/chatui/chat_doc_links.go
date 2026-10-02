@@ -210,13 +210,16 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 			content = append(content, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyDocRestricted)}))
 			break
 		}
-		content = append(content, html.Strong(html.Props{Class: "chat-embed-source", Text: preview.Title}))
+		// CHATBUG-032: label, title and byline are three parts. The stylesheet
+		// stacks them; the whitespace between keeps them apart where it cannot
+		// (copied text, a reader that flattens the card).
+		content = append(content, ui.Text(" "), html.Strong(html.Props{Class: "chat-embed-source", Text: preview.Title}))
 		byline := preview.Owner
 		if preview.UpdatedAt != "" {
 			byline = strings.TrimSpace(byline + " · " + preview.UpdatedAt)
 		}
 		if byline != "" {
-			content = append(content, html.Span(html.Props{Class: "chat-embed-byline", Text: byline}))
+			content = append(content, ui.Text(" "), html.Span(html.Props{Class: "chat-embed-byline", Text: byline}))
 		}
 		if preview.Snippet != "" {
 			content = append(content, html.P(html.Props{Class: "chat-embed-body", Dir: "auto", Text: preview.Snippet}))

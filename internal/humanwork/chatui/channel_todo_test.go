@@ -149,7 +149,9 @@ func TestChannelTodoZeroOpenHasReadableCount(t *testing.T) {
 		}
 		return "1"
 	}}
-	if markup := renderWithTray(t, m, "todo"); !strings.Contains(markup, "No open tasks") || strings.Contains(markup, "> open<") {
+	// CHATUX-001: the header carries this button only while tasks are open, so the
+	// zero-count label is read off the button itself.
+	if markup := renderNode(t, channelTodoTrigger(m, handlers{})); !strings.Contains(markup, "No open tasks") || strings.Contains(markup, "> open<") {
 		t.Fatalf("zero count text missing: %s", markup)
 	}
 }

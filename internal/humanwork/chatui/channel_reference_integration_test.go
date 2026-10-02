@@ -24,7 +24,9 @@ func TestChatChannelReferenceAppearsInTimelineThreadAndDraft(t *testing.T) {
 	if strings.Contains(markup, `data-action="open-channel-reference"`) {
 		t.Fatal("unadmitted room bypassed the authorized deep-link receiver")
 	}
-	if got := strings.Count(markup, `href="/workspace/app/chat#channel=room"`); got != 4 || !strings.Contains(markup, "#channel") {
+	// Four in the messages and the draft, and the one under "Thread" in the
+	// thread pane's header (CHATUX-008).
+	if got := strings.Count(markup, `href="/workspace/app/chat#channel=room"`); got != 5 || !strings.Contains(markup, "#channel") {
 		t.Fatalf("unadmitted room lost its generic canonical links: count=%d", got)
 	}
 }

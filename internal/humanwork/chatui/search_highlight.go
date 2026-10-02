@@ -119,7 +119,11 @@ func searchSnippet(body, query string, limit int) string {
 // searchGroupHeading names a result group and how many of its results are on
 // screen, so the page needs no separate total above the first group.
 func searchGroupHeading(m Model, key string, count int) ui.Node {
-	return html.H3(html.Props{Class: "search-group-heading"}, ui.Text(m.t(key)), html.Span(html.Props{Class: "search-group-count", Text: m.n(count)}))
+	name := m.t(key)
+	if own := chatux010LegacyGroupName(m, key); own != "" {
+		name = own
+	}
+	return html.H3(html.Props{Class: "search-group-heading"}, ui.Text(name), html.Span(html.Props{Class: "search-group-count", Text: m.n(count)}))
 }
 
 // searchContext renders "in {channel}" with the conversation's rail glyph

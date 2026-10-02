@@ -1,0 +1,212 @@
+# emoji-test.txt
+# Date: 2025-08-05, 21:01:01 GMT
+# © 2025 Unicode®, Inc.
+# Unicode and the Unicode Logo are registered trademarks of Unicode, Inc. in the U.S. and other countries.
+# For terms of use and license, see https://www.unicode.org/terms_of_use.html
+#
+# Emoji Keyboard/Display Test Data for UTS #51
+# Version: 17.0
+#
+# This is a small hand-made file in the format of Unicode's emoji-test.txt, used to test tools/emojidata
+# and to generate the interim emoji data until Unicode's own files are placed in .artifacts/unicode/.
+# It lists only emoji whose group, name and order are certain.
+
+# group: Smileys & Emotion
+
+# subgroup: face-smiling
+1F600                                                  ; fully-qualified   # 😀 E1.0 grinning face
+1F602                                                  ; fully-qualified   # 😂 E0.6 face with tears of joy
+1F60A                                                  ; fully-qualified   # 😊 E0.6 smiling face with smiling eyes
+
+# subgroup: face-affection
+1F60D                                                  ; fully-qualified   # 😍 E0.6 smiling face with heart-eyes
+
+# subgroup: face-hand
+1F914                                                  ; fully-qualified   # 🤔 E1.0 thinking face
+
+# subgroup: face-sleepy
+1F634                                                  ; fully-qualified   # 😴 E1.0 sleeping face
+
+# subgroup: face-glasses
+1F60E                                                  ; fully-qualified   # 😎 E1.0 smiling face with sunglasses
+
+# subgroup: face-concerned
+1F622                                                  ; fully-qualified   # 😢 E0.6 crying face
+
+# subgroup: emotion
+1F494                                                  ; fully-qualified   # 💔 E0.6 broken heart
+2764 FE0F                                              ; fully-qualified   # ❤️ E0.6 red heart
+2764                                                   ; unqualified       # ❤ E0.6 red heart
+1F4AF                                                  ; fully-qualified   # 💯 E0.6 hundred points
+
+# group: People & Body
+
+# subgroup: hand-fingers-open
+1F44B                                                  ; fully-qualified   # 👋 E0.6 waving hand
+1F44B 1F3FB                                            ; fully-qualified   # 👋🏻 E1.0 waving hand: light skin tone
+1F44B 1F3FC                                            ; fully-qualified   # 👋🏼 E1.0 waving hand: medium-light skin tone
+1F44B 1F3FD                                            ; fully-qualified   # 👋🏽 E1.0 waving hand: medium skin tone
+1F44B 1F3FE                                            ; fully-qualified   # 👋🏾 E1.0 waving hand: medium-dark skin tone
+1F44B 1F3FF                                            ; fully-qualified   # 👋🏿 E1.0 waving hand: dark skin tone
+
+# subgroup: hand-fingers-closed
+1F44D                                                  ; fully-qualified   # 👍 E0.6 thumbs up
+1F44D 1F3FB                                            ; fully-qualified   # 👍🏻 E1.0 thumbs up: light skin tone
+1F44D 1F3FC                                            ; fully-qualified   # 👍🏼 E1.0 thumbs up: medium-light skin tone
+1F44D 1F3FD                                            ; fully-qualified   # 👍🏽 E1.0 thumbs up: medium skin tone
+1F44D 1F3FE                                            ; fully-qualified   # 👍🏾 E1.0 thumbs up: medium-dark skin tone
+1F44D 1F3FF                                            ; fully-qualified   # 👍🏿 E1.0 thumbs up: dark skin tone
+
+# subgroup: hands
+1F44F                                                  ; fully-qualified   # 👏 E0.6 clapping hands
+1F44F 1F3FB                                            ; fully-qualified   # 👏🏻 E1.0 clapping hands: light skin tone
+1F44F 1F3FC                                            ; fully-qualified   # 👏🏼 E1.0 clapping hands: medium-light skin tone
+1F44F 1F3FD                                            ; fully-qualified   # 👏🏽 E1.0 clapping hands: medium skin tone
+1F44F 1F3FE                                            ; fully-qualified   # 👏🏾 E1.0 clapping hands: medium-dark skin tone
+1F44F 1F3FF                                            ; fully-qualified   # 👏🏿 E1.0 clapping hands: dark skin tone
+1F64F                                                  ; fully-qualified   # 🙏 E0.6 folded hands
+1F64F 1F3FB                                            ; fully-qualified   # 🙏🏻 E1.0 folded hands: light skin tone
+1F64F 1F3FC                                            ; fully-qualified   # 🙏🏼 E1.0 folded hands: medium-light skin tone
+1F64F 1F3FD                                            ; fully-qualified   # 🙏🏽 E1.0 folded hands: medium skin tone
+1F64F 1F3FE                                            ; fully-qualified   # 🙏🏾 E1.0 folded hands: medium-dark skin tone
+1F64F 1F3FF                                            ; fully-qualified   # 🙏🏿 E1.0 folded hands: dark skin tone
+
+# subgroup: body-parts
+1F4AA                                                  ; fully-qualified   # 💪 E0.6 flexed biceps
+1F4AA 1F3FB                                            ; fully-qualified   # 💪🏻 E1.0 flexed biceps: light skin tone
+1F4AA 1F3FC                                            ; fully-qualified   # 💪🏼 E1.0 flexed biceps: medium-light skin tone
+1F4AA 1F3FD                                            ; fully-qualified   # 💪🏽 E1.0 flexed biceps: medium skin tone
+1F4AA 1F3FE                                            ; fully-qualified   # 💪🏾 E1.0 flexed biceps: medium-dark skin tone
+1F4AA 1F3FF                                            ; fully-qualified   # 💪🏿 E1.0 flexed biceps: dark skin tone
+1F440                                                  ; fully-qualified   # 👀 E0.6 eyes
+
+# subgroup: person-role
+1F9D1 200D 1F4BB                                       ; fully-qualified   # 🧑‍💻 E12.1 technologist
+1F9D1 1F3FB 200D 1F4BB                                 ; fully-qualified   # 🧑🏻‍💻 E1.0 technologist: light skin tone
+1F9D1 1F3FC 200D 1F4BB                                 ; fully-qualified   # 🧑🏼‍💻 E1.0 technologist: medium-light skin tone
+1F9D1 1F3FD 200D 1F4BB                                 ; fully-qualified   # 🧑🏽‍💻 E1.0 technologist: medium skin tone
+1F9D1 1F3FE 200D 1F4BB                                 ; fully-qualified   # 🧑🏾‍💻 E1.0 technologist: medium-dark skin tone
+1F9D1 1F3FF 200D 1F4BB                                 ; fully-qualified   # 🧑🏿‍💻 E1.0 technologist: dark skin tone
+
+# subgroup: family
+1F468 200D 1F469 200D 1F467                            ; fully-qualified   # 👨‍👩‍👧 E2.0 family: man, woman, girl
+
+# group: Component
+
+# subgroup: skin-tone
+1F3FB                                                  ; component         # 🏻 E1.0 light skin tone
+1F3FC                                                  ; component         # 🏼 E1.0 medium-light skin tone
+1F3FD                                                  ; component         # 🏽 E1.0 medium skin tone
+1F3FE                                                  ; component         # 🏾 E1.0 medium-dark skin tone
+1F3FF                                                  ; component         # 🏿 E1.0 dark skin tone
+
+# group: Animals & Nature
+
+# subgroup: animal-mammal
+1F436                                                  ; fully-qualified   # 🐶 E0.6 dog face
+1F431                                                  ; fully-qualified   # 🐱 E0.6 cat face
+1F43B                                                  ; fully-qualified   # 🐻 E0.6 bear
+
+# subgroup: plant-flower
+1F338                                                  ; fully-qualified   # 🌸 E0.6 cherry blossom
+1F339                                                  ; fully-qualified   # 🌹 E0.6 rose
+
+# subgroup: plant-other
+1F333                                                  ; fully-qualified   # 🌳 E0.6 deciduous tree
+
+# group: Food & Drink
+
+# subgroup: food-fruit
+1F34E                                                  ; fully-qualified   # 🍎 E0.6 red apple
+
+# subgroup: food-prepared
+1F355                                                  ; fully-qualified   # 🍕 E0.6 pizza
+
+# subgroup: drink
+2615                                                   ; fully-qualified   # ☕ E0.6 hot beverage
+1F37A                                                  ; fully-qualified   # 🍺 E0.6 beer mug
+
+# group: Travel & Places
+
+# subgroup: place-map
+1F30D                                                  ; fully-qualified   # 🌍 E0.7 globe showing Europe-Africa
+
+# subgroup: place-building
+1F3E0                                                  ; fully-qualified   # 🏠 E0.6 house
+
+# subgroup: transport-ground
+1F697                                                  ; fully-qualified   # 🚗 E0.6 automobile
+
+# subgroup: transport-air
+2708 FE0F                                              ; fully-qualified   # ✈️ E0.6 airplane
+2708                                                   ; unqualified       # ✈ E0.6 airplane
+
+# subgroup: sky & weather
+2600 FE0F                                              ; fully-qualified   # ☀️ E0.6 sun
+2600                                                   ; unqualified       # ☀ E0.6 sun
+2B50                                                   ; fully-qualified   # ⭐ E0.6 star
+1F525                                                  ; fully-qualified   # 🔥 E0.6 fire
+
+# group: Activities
+
+# subgroup: event
+1F389                                                  ; fully-qualified   # 🎉 E0.6 party popper
+
+# subgroup: award-medal
+1F3C6                                                  ; fully-qualified   # 🏆 E0.6 trophy
+
+# subgroup: sport
+26BD                                                   ; fully-qualified   # ⚽ E0.6 soccer ball
+
+# subgroup: game
+1F3AE                                                  ; fully-qualified   # 🎮 E0.6 video game
+
+# group: Objects
+
+# subgroup: phone
+1F4DE                                                  ; fully-qualified   # 📞 E0.6 telephone receiver
+
+# subgroup: computer
+1F4BB                                                  ; fully-qualified   # 💻 E0.6 laptop
+
+# subgroup: light & video
+1F4A1                                                  ; fully-qualified   # 💡 E0.6 light bulb
+
+# subgroup: office
+1F4C5                                                  ; fully-qualified   # 📅 E0.6 calendar
+1F4CC                                                  ; fully-qualified   # 📌 E0.6 pushpin
+
+# subgroup: lock
+1F512                                                  ; fully-qualified   # 🔒 E0.6 locked
+1F511                                                  ; fully-qualified   # 🔑 E0.6 key
+
+# group: Symbols
+
+# subgroup: warning
+26A0 FE0F                                              ; fully-qualified   # ⚠️ E0.6 warning
+26A0                                                   ; unqualified       # ⚠ E0.6 warning
+
+# subgroup: other-symbol
+2705                                                   ; fully-qualified   # ✅ E0.6 check mark button
+274C                                                   ; fully-qualified   # ❌ E0.6 cross mark
+
+# subgroup: keycap
+0023 FE0F 20E3                                         ; fully-qualified   # #️⃣ E0.6 keycap: #
+0023 20E3                                              ; unqualified       # #⃣ E0.6 keycap: #
+0031 FE0F 20E3                                         ; fully-qualified   # 1️⃣ E0.6 keycap: 1
+0031 20E3                                              ; unqualified       # 1⃣ E0.6 keycap: 1
+
+# group: Flags
+
+# subgroup: flag
+1F3C1                                                  ; fully-qualified   # 🏁 E0.6 chequered flag
+1F3F3 FE0F                                             ; fully-qualified   # 🏳️ E0.7 white flag
+1F3F3                                                  ; unqualified       # 🏳 E0.7 white flag
+
+# subgroup: country-flag
+1F1E9 1F1EA                                            ; fully-qualified   # 🇩🇪 E0.6 flag: Germany
+1F1EB 1F1F7                                            ; fully-qualified   # 🇫🇷 E0.6 flag: France
+1F1EF 1F1F5                                            ; fully-qualified   # 🇯🇵 E0.6 flag: Japan
+1F1FA 1F1F8                                            ; fully-qualified   # 🇺🇸 E0.6 flag: United States
+
+#EOF

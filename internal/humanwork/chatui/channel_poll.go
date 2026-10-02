@@ -29,7 +29,7 @@ func channelPollSection(m Model, h handlers) ui.Node {
 		children = append(children, html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite"}, Text: m.t(KeyPollLoading)}))
 	}
 	if m.ChannelPollError != "" {
-		children = append(children, html.P(html.Props{Role: "alert", Text: m.t(KeyPollError)}), actionButton("button secondary small", "poll-retry", "", m.t(KeyRetry), m.Callbacks.RetryChannelPoll == nil || m.ChannelPollPending, ui.Text(m.t(KeyRetry))))
+		children = append(children, html.P(html.Props{Role: "alert", Text: modAuthorErrorOr(m, m.ChannelPollError, m.t(KeyPollError))}), actionButton("button secondary small", "poll-retry", "", m.t(KeyRetry), m.Callbacks.RetryChannelPoll == nil || m.ChannelPollPending, ui.Text(m.t(KeyRetry))))
 		return html.Section(html.Props{ID: "chat-poll-section", Class: "details-section channel-poll", TabIndex: -1, Data: map[string]string{"loading": boolString(m.ChannelPollLoading)}, Aria: map[string]string{"label": m.t(KeyPollTitle)}}, children...)
 	}
 	poll := m.ChannelPoll

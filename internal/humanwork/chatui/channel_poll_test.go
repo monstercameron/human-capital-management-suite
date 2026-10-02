@@ -43,14 +43,21 @@ func TestChannelPollHeaderShortcutOpensPollSectionAndShowsActiveState(t *testing
 		}},
 	}
 	got := renderWithTray(t, m, "poll")
-	for _, want := range []string{`class="channel-poll-trigger active"`, `data-action="open-poll"`, `aria-label="Channel poll: Where for lunch?"`, `class="chat-row selected"`, `data-id="room"`, `id="chat-poll-section"`, `data-loading="false"`, `tabIndex="-1"`} {
+	// CHATUX-001: the poll button left the header (the composer's add menu opens
+	// the poll now); the section it opens and the action behind it are unchanged.
+	for _, want := range []string{`class="chat-row selected"`, `data-id="room"`, `id="chat-poll-section"`, `data-loading="false"`, `tabIndex="-1"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("rendered poll shortcut/section missing %q", want)
 		}
 	}
-	triggerAt := strings.Index(got, `class="channel-poll-trigger active"`)
-	if triggerAt < 0 || !strings.Contains(got[triggerAt:triggerAt+min(400, len(got)-triggerAt)], `data-id="room"`) {
-		t.Fatal("poll header shortcut does not carry its rendered conversation ID")
+	if strings.Contains(got, "channel-poll-trigger") {
+		t.Fatal("the poll button is still in the header")
+	}
+	trigger := renderNode(t, channelPollTrigger(m, handlers{}))
+	for _, want := range []string{`class="channel-poll-trigger active"`, `data-action="open-poll"`, `aria-label="Channel poll: Where for lunch?"`, `data-id="room"`} {
+		if !strings.Contains(trigger, want) {
+			t.Errorf("the poll button lost %q", want)
+		}
 	}
 	m.actWith("open-poll", "room", "")
 	if calls != 1 {

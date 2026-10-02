@@ -81,12 +81,17 @@ func formatSelection(value, kind string, start, end int) (string, int, int) {
 
 // formatToolbar renders the composer's formatting buttons. They act on the
 // field through the delegated click hook, so they add no event hooks.
+//
+// Every tool is its own icon button in one row. The row carries no label word
+// and no menu: whether it is on screen at all is the composer's Aa toggle
+// (composer_tools.go).
 func formatToolbar(m Model, target string, disabled bool) ui.Node {
-	buttons := make([]ui.Node, 0, len(composerFormats))
+	buttons := []ui.Node{}
 	for _, f := range composerFormats {
 		label := m.t(f.key)
 		buttons = append(buttons, html.Button(html.Props{Class: "tool-button format-button", Type: "button", Disabled: disabled,
 			Data: map[string]string{"action": "format", "id": target, "extra": f.kind}, Aria: map[string]string{"label": label}, Title: label}, icon(f.icon)))
 	}
-	return html.Div(html.Props{Class: "format-tools", Role: "group", Aria: map[string]string{"label": m.t(KeyFormatToolbar)}}, buttons...)
+	return html.Div(html.Props{Class: "format-tools"},
+		html.Div(html.Props{Class: "format-inline", Role: "group", Aria: map[string]string{"label": m.t(KeyFormatToolbar)}}, buttons...))
 }

@@ -1,12 +1,18 @@
 package chatui
 
-import "strings"
+import (
+	"runtime"
+	"strings"
+)
 
 // ScopedStylesheet keeps chat's generic utility selectors (.button, .avatar,
 // .icon-button) from leaking into other product surfaces while retaining one
 // CSP-hashable stylesheet payload. Inside the @scope block the workspace root
 // is addressed as :scope, so state attributes on the root keep working.
 func ScopedStylesheet() string {
+	if runtime.GOOS == "js" {
+		return ""
+	}
 	return "@scope (.chat-workspace){" + strings.ReplaceAll(Stylesheet, ".chat-workspace", ":scope") + "}" +
 		`.chat-image-viewer{box-sizing:border-box;position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:56px 16px 16px;background:rgba(7,17,24,.96);overscroll-behavior:contain}` +
 		`.chat-image-viewer-media{position:relative;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}` +

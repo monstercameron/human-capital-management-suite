@@ -3,6 +3,7 @@
 package chatui
 
 import (
+	"strconv"
 	"sync"
 	"syscall/js"
 	"time"
@@ -23,6 +24,13 @@ import (
 // a late render, decides what it says. A form that clears itself on send still
 // clears, because sending resets the typed flag through the attribute change.
 const fieldValueAttr = "data-chat-value"
+
+// draftScopeAttr names the conversation a composer's text belongs to. When it
+// changes, the box is being given another conversation's draft, and that draft
+// replaces whatever is in the box even while the box has focus: a box left
+// holding the last conversation's text is how an unsent "/" from one room
+// became the draft of the next two (CHATBUG-028).
+const draftScopeAttr = "data-draft-scope"
 const selectValueAttr = "data-chat-select-value"
 const selectVersionAttr = "data-chat-select-version"
 
@@ -95,7 +103,7 @@ func installFieldSync() {
 			if len(args) == 0 {
 				return nil
 			}
-			if t := args[0].Get("target"); t.Truthy() && t.Get("getAttribute").Truthy() && t.Call("hasAttribute", listAnchorAttr).Truthy() {
+			if t := args[0].Get("target"); t.Truthy() && t.Get("getAttribute").Truthy() && (t.Call("hasAttribute", listAnchorAttr).Truthy() || t.Call("hasAttribute", "data-chat-thread-anchor").Truthy()) {
 				previous := t.Get("__chatScrollTop")
 				if t.Get("__chatManualScrollArmed").Truthy() && previous.Type() == js.TypeNumber && t.Get("scrollTop").Float() < previous.Float()-1 {
 					setChatScrollAway(t)
@@ -153,6 +161,26 @@ func installFieldSync() {
 			return nil
 		})
 		doc.Call("addEventListener", "load", loaded, true)
+		resize := js.Global().Get("ResizeObserver")
+		var sizeObserver js.Value
+		if resize.Truthy() {
+			resized := js.FuncOf(func(js.Value, []js.Value) any {
+				seedAllFields()
+				pinResizedChatLists(doc)
+				return nil
+			})
+			sizeObserver = resize.New(resized)
+		}
+		observeSizes := func() {
+			if !sizeObserver.Truthy() {
+				return
+			}
+			sizeObserver.Call("disconnect")
+			nodes := doc.Call("querySelectorAll", "["+listAnchorAttr+"],.message-list>.message,.virtual-row,.thread-scroll,.thread-replies,.chat-composer,.composer-agent-token")
+			for i := 0; i < nodes.Length(); i++ {
+				sizeObserver.Call("observe", nodes.Index(i))
+			}
+		}
 		obs := js.Global().Get("MutationObserver")
 		if !obs.Truthy() {
 			return
@@ -165,6 +193,7 @@ func installFieldSync() {
 			seedAllSelects()
 			keepAllListPlaces()
 			syncAllPaneProperties()
+			observeSizes()
 			return nil
 		})
 		cb := js.FuncOf(func(_ js.Value, args []js.Value) any {
@@ -213,12 +242,30 @@ func installFieldSync() {
 		observer := obs.New(cb)
 		observer.Call("observe", doc.Get("documentElement"), map[string]any{
 			"subtree": true, "childList": true, "attributes": true, "attributeOldValue": true,
-			"attributeFilter": []any{fieldValueAttr, selectValueAttr, selectVersionAttr, listAnchorAttr, paneRailAttr, paneDetailsAttr},
+			"attributeFilter": []any{fieldValueAttr, draftScopeAttr, selectValueAttr, selectVersionAttr, listAnchorAttr, paneRailAttr, paneDetailsAttr},
 		})
 		seedAllFields()
 		seedAllSelects()
 		keepAllListPlaces()
+		observeSizes()
 	})
+}
+
+func pinResizedChatLists(doc js.Value) {
+	lists := doc.Call("querySelectorAll", "["+listAnchorAttr+"],.thread-scroll")
+	for i := 0; i < lists.Length(); i++ {
+		list := lists.Index(i)
+		if list.Get("getAttribute").Type() == js.TypeFunction {
+			anchor := list.Call("getAttribute", "data-chat-thread-anchor")
+			if anchor.Type() == js.TypeString && anchor.String() != "" && (list.Get("__chatThreadAnchor").Type() != js.TypeString || list.Get("__chatThreadAnchor").String() != anchor.String()) {
+				list.Set("__chatThreadAnchor", anchor)
+				list.Set("__chatScrollAwayIntent", false)
+			}
+		}
+		if !list.Get("__chatScrollAwayIntent").Truthy() {
+			scrollToEnd(list)
+		}
+	}
 }
 
 // appendGrowingList deduplicates the lists touched by one mutation callback.
@@ -274,6 +321,7 @@ func keepListPlace(list js.Value) {
 			settled = oldAnchor
 			replaced = true
 			list.Set("__chatNearBottom", old.Get("__chatNearBottom"))
+			list.Set("__chatScrollAwayIntent", old.Get("__chatScrollAwayIntent"))
 			if !old.Get("__chatNearBottom").Truthy() {
 				position := old.Get("__chatScrollTop")
 				if position.IsUndefined() {
@@ -288,7 +336,7 @@ func keepListPlace(list js.Value) {
 	lastChatList = list
 	if settled.Type() == js.TypeString && settled.String() == now.String() {
 		list.Set("__chatAnchor", now.String())
-		if replaced && list.Get("__chatNearBottom").Truthy() {
+		if !list.Get("__chatScrollAwayIntent").Truthy() && (replaced || list.Get("__chatNearBottom").Truthy()) {
 			scrollToEnd(list)
 		}
 		return
@@ -342,7 +390,10 @@ func listOf(node js.Value) js.Value {
 	if !el.Truthy() || !el.Get("closest").Truthy() {
 		return js.Undefined()
 	}
-	return el.Call("closest", "["+listAnchorAttr+"]")
+	if list := el.Call("closest", "["+listAnchorAttr+"]"); list.Truthy() {
+		return list
+	}
+	return el.Call("closest", ".thread-scroll")
 }
 
 func nearBottom(el js.Value) bool {
@@ -355,6 +406,11 @@ func nearBottom(el js.Value) bool {
 }
 
 func setChatScrollAway(el js.Value) {
+	// CHATBUG-035: a wheel or key press on a list with nothing to scroll and no
+	// newer page is not an intent to leave the bottom.
+	if !chatJumpScrollable(el.Get("scrollHeight").Float(), el.Get("clientHeight").Float()) && !chatListHasNewer(el) {
+		return
+	}
 	el.Set("__chatScrollAwayIntent", true)
 	el.Set("__chatNearBottom", false)
 	markAway(el, true)
@@ -413,7 +469,15 @@ func markAway(list js.Value, away bool) {
 	if !parent.Truthy() {
 		return
 	}
+	// CHATBUG-035: the control appears only while newer messages are out of view.
+	away = away && chatNewestOutOfView(list.Get("scrollHeight").Float(), list.Get("scrollTop").Float(), list.Get("clientHeight").Float(), chatListHasNewer(list))
 	parent.Get("classList").Call("toggle", "away", away)
+}
+
+// chatListHasNewer reports whether the list says a newer page follows the one loaded.
+func chatListHasNewer(list js.Value) bool {
+	dataset := list.Get("dataset")
+	return dataset.Truthy() && dataset.Get("hasNewer").Type() == js.TypeString && dataset.Get("hasNewer").String() == "true"
 }
 
 // ScrollToNewest takes the reader to the newest message of the open room.
@@ -466,6 +530,20 @@ func indexByte(s string, b byte) int {
 }
 
 func seedAllFields() {
+	{
+		doc := js.Global().Get("document")
+		if doc.Truthy() && doc.Get("querySelector").Type() == js.TypeFunction && doc.Get("getElementById").Type() == js.TypeFunction {
+			field := doc.Call("getElementById", "chat-composer")
+			token := doc.Call("querySelector", ".composer-agent-token")
+			if field.Truthy() && token.Truthy() {
+				value := strconv.Itoa(token.Call("getBoundingClientRect").Get("width").Int() + 8)
+				if field.Call("getAttribute", "data-agent-indent").String() != value {
+					field.Call("setAttribute", "data-agent-indent", value)
+				}
+			}
+		}
+	}
+
 	doc := js.Global().Get("document")
 	if !doc.Truthy() {
 		return
@@ -473,6 +551,9 @@ func seedAllFields() {
 	found := doc.Call("querySelectorAll", "["+fieldValueAttr+"]")
 	for i := 0; i < found.Length(); i++ {
 		applyFieldValue(found.Index(i))
+		if id := found.Index(i).Get("id").String(); id == "chat-composer" || id == "thread-composer" {
+			setComposerSendReady(id, found.Index(i).Get("value").String())
+		}
 	}
 }
 
@@ -522,6 +603,18 @@ func applyFieldValue(el js.Value) {
 		return
 	}
 	v := want.String()
+	if scope := el.Call("getAttribute", draftScopeAttr); scope.Type() == js.TypeString {
+		previous := el.Get("__chatDraftScope")
+		el.Set("__chatDraftScope", scope.String())
+		if previous.Type() == js.TypeString && previous.String() != scope.String() {
+			el.Set("__chatTyped", false)
+			el.Set("__chatCleared", false)
+			if el.Get("value").String() != v {
+				el.Set("value", v)
+			}
+			return
+		}
+	}
 	if el.Get("value").String() == v {
 		el.Set("__chatTyped", false)
 		return

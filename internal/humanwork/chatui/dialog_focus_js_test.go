@@ -86,7 +86,7 @@ func TestChatDialogFocusEntersTrapsAndRestores(t *testing.T) {
 		"querySelector": autofocusQuery, "querySelectorAll": focusables,
 	})
 	docQuery := js.FuncOf(func(_ js.Value, args []js.Value) any {
-		if args[0].String() == ".create-dialog, .browse-dialog" {
+		if args[0].String() == ".create-dialog, .browse-dialog, .agent-profile-dialog" {
 			return dialog
 		}
 		if args[0].String() == "button[data-action='open-create']" {

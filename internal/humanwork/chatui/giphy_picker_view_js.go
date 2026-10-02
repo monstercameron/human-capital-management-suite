@@ -152,9 +152,9 @@ func (views *giphyPickerViews) handleKey(targetID, key string) bool {
 func giphyDatasetText(dataset js.Value, key, fallback string) string {
 	value := dataset.Get(key)
 	if value.Type() == js.TypeString && value.String() != "" {
-		return value.String()
+		return chatbug039Text(key, value.String(), fallback)
 	}
-	return fallback
+	return chatbug039Text(key, "", fallback)
 }
 
 func (views *giphyPickerViews) loadMore(targetID string) {

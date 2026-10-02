@@ -20,6 +20,23 @@ func composerSelection(id string) (string, int, bool) {
 	return value.String(), end.Int(), true
 }
 
+// RefreshMentionMenu asks the mounted composer to recompute its mention token
+// after an asynchronous directory lookup changes the available rows. The
+// synthetic input is emitted only while the caret is inside an @ token.
+func RefreshMentionMenu(id string) {
+	value, caret, ok := composerSelection(id)
+	if !ok {
+		return
+	}
+	if _, _, found := mentionTokenAt(value, caret); !found {
+		return
+	}
+	field := js.Global().Get("document").Call("getElementById", id)
+	if field.Truthy() {
+		field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	}
+}
+
 // positionMentionMenu anchors the mention popover under the caret instead of
 // the composer's left edge (C-19): the caret can be anywhere in a long
 // message, and the left-edge anchor put the list nowhere near what the

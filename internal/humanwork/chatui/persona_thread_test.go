@@ -26,7 +26,7 @@ func TestTodo_AGENTP_019_PostProfile(t *testing.T) {
 		t.Fatal("profile inferred from text")
 	}
 	canonical, _ := ui.RenderToString(personaPostProfiles(model, Message{PersonaReferences: []ChatReference{persona.Reference}}))
-	if !strings.Contains(canonical, "Answer policy questions") || !strings.Contains(canonical, "Persona-Profil") {
+	if !strings.Contains(canonical, "Answer policy questions") || !strings.Contains(canonical, "Agentendetails") {
 		t.Fatalf("canonical profile missing: %s", canonical)
 	}
 }

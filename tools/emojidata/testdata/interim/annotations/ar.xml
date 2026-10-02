@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
+<!--
+Copyright © 1991-2025 Unicode, Inc.
+CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
+For terms of use, see http://www.unicode.org/copyright.html
+-->
+<ldml>
+	<identity>
+		<version number="$Revision$"/>
+		<language type="ar"/>
+	</identity>
+	<annotations>
+		<annotation cp="❤️" type="tts">قلب أحمر</annotation>
+		<annotation cp="☕" type="tts">مشروب ساخن</annotation>
+		<annotation cp="🏠" type="tts">منزل</annotation>
+		<annotation cp="🚗" type="tts">سيارة</annotation>
+		<annotation cp="✈️" type="tts">طائرة</annotation>
+		<annotation cp="⭐" type="tts">نجمة</annotation>
+		<annotation cp="🔥" type="tts">نار</annotation>
+		<annotation cp="🔑" type="tts">مفتاح</annotation>
+		<annotation cp="🇩🇪" type="tts">علم: ألمانيا</annotation>
+	</annotations>
+</ldml>

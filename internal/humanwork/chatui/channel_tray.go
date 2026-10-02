@@ -59,7 +59,7 @@ func channelTray(m Model, h handlers, open string) ui.Node {
 		} else {
 			body = channelTodoSection(m, h)
 		}
-		children = append(children, html.Section(html.Props{Class: "channel-tray-card", Data: map[string]string{"tray": open}, Aria: map[string]string{"label": title}},
+		children = append(children, anchoredChatLayer(html.Props{Class: "channel-tray-card", Role: "dialog", Data: map[string]string{"tray": open}, Aria: map[string]string{"label": title}}, open,
 			html.Div(html.Props{Class: "channel-tray-head"}, html.H2(html.Props{Text: title}), actionButton("icon-button", "tray-close", "", m.t(KeyClose), false, icon("close"))),
 			body))
 	}
@@ -95,7 +95,7 @@ func todoRuleDisclosure(m Model, h handlers, item ChannelTodoItem) ui.Node {
 	if !item.CanManageCompletionPolicy {
 		return todoPolicyControls(m, h, item)
 	}
-	return html.Details(html.Props{Class: "channel-todo-rule"},
-		html.Summary(html.Props{Text: m.t(KeyTodoModeLabel) + ": " + m.t(todoModeKey(mode))}),
+	return chatPolishDisclosure(html.Props{Class: "channel-todo-rule"},
+		chatPolishDisclosureLabel(html.Props{Text: m.t(KeyTodoModeLabel) + ": " + m.t(todoModeKey(mode))}),
 		todoPolicyControls(m, h, item))
 }

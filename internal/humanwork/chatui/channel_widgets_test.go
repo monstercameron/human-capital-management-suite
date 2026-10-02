@@ -6,7 +6,9 @@ import (
 )
 
 func TestChannelWidgetsPinnedCardsAndAuthorizedRoster(t *testing.T) {
-	m := Model{State: StateReady, SelectedID: "room", ShowDetails: true, Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, Members: []Member{{ID: "ari", HomeTenantID: "home", Name: "Ari Chen"}}, ChannelTeam: ChannelTeamWidget{Revision: 2, Pinned: true, CanPin: true, Purpose: "Launch readiness", Members: []ChannelTeamMember{{HomeTenantID: "home", SubjectID: "ari", RoleLabel: "Coordinator"}, {HomeTenantID: "home", SubjectID: "revoked", RoleLabel: "Old label"}}}, ChannelProject: ChannelProjectWidget{Revision: 3, Pinned: true, CanPin: false, Title: "Launch", Milestones: []ChannelProjectMilestone{{ID: "ms-1", Text: "Review", Status: "BLOCKED", OwnerHomeTenantID: "home", OwnerSubjectID: "ari", DueDate: "2026-10-01"}}}}
+	// The project and its milestones sit in the Manage channel group (CHATUX-005),
+	// so the viewer here is a workspace administrator.
+	m := Model{State: StateReady, SelectedID: "room", ShowDetails: true, IsTenantAdmin: true, Conversations: []Conversation{{ID: "room", Kind: PublicChannel}}, Members: []Member{{ID: "ari", HomeTenantID: "home", Name: "Ari Chen"}}, ChannelTeam: ChannelTeamWidget{Revision: 2, Pinned: true, CanPin: true, Purpose: "Launch readiness", Members: []ChannelTeamMember{{HomeTenantID: "home", SubjectID: "ari", RoleLabel: "Coordinator"}, {HomeTenantID: "home", SubjectID: "revoked", RoleLabel: "Old label"}}}, ChannelProject: ChannelProjectWidget{Revision: 3, Pinned: true, CanPin: false, Title: "Launch", Milestones: []ChannelProjectMilestone{{ID: "ms-1", Text: "Review", Status: "BLOCKED", OwnerHomeTenantID: "home", OwnerSubjectID: "ari", DueDate: "2026-10-01"}}}}
 	markup := render(t, m)
 	for _, want := range []string{"Launch readiness", "Ari Chen", "Coordinator", "Review", "Blocked", "2026-10-01", `data-action="team-pin"`, `data-action="project-pin"`, `data-chat-select-value="BLOCKED"`, `data-chat-select-value="` + widgetOwnerToken("home", "ari") + `"`} {
 		if !strings.Contains(markup, want) {

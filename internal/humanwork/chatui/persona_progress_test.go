@@ -24,7 +24,7 @@ func renderPersonaProgressTest(t *testing.T, model Model, projection PersonaProg
 
 func personaProgressFixture() PersonaProgressProjection {
 	return PersonaProgressProjection{
-		ViewerID: "user-1", InvokerID: "user-1",
+		ViewerID: "user-1", InvokerID: "user-1", AgentName: "Comp Analyst",
 		Progress: &PersonaProgressProps{InvocationID: "inv-1", InvokerID: "user-1", AgentName: "Comp Analyst", Activity: "reading 3 sources", CurrentStep: 2, TotalSteps: 5, Visible: true},
 		Task:     &PersonaTaskCardProps{ID: "task-1", Title: "Prepare compensation scenario", Goal: "Draft a scenario for my review", State: "awaiting_approval", Revision: "rev-2", OpenTaskHref: "/chat/agents?task=task-1", AwaitingApproval: true},
 	}
@@ -32,7 +32,7 @@ func personaProgressFixture() PersonaProgressProjection {
 
 func TestTodo_AGENTP_020(t *testing.T) {
 	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, personaProgressFixture())
-	for _, want := range []string{"persona-progress-status", "reading 3 sources", `agent-task-card="task-1"`, `agent-task-revision="rev-2"`, `href="/chat/agents?task=task-1"`, "Awaiting approval"} {
+	for _, want := range []string{"persona-progress-status", "Finding an answer in your policy documents…", `agent-task-card="task-1"`, `agent-task-revision="rev-2"`, `href="/chat/agents?task=task-1"`, "Awaiting approval"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("persona progress missing %q: %s", want, markup)
 		}
@@ -59,13 +59,16 @@ func TestTodo_AGENTP_020_Fault(t *testing.T) {
 	p := personaProgressFixture()
 	p.Failure = &PersonaProgressFailure{InvocationID: "inv-1", InvokerID: "user-1", Code: "MODEL_UNAVAILABLE", Message: "Provider failed", Retryable: true}
 	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
-	for _, want := range []string{`role="alert"`, `aria-live="assertive"`, `data-agent-failure-code="MODEL_UNAVAILABLE"`, `data-agent-action="retry"`, "Provider failed"} {
+	for _, want := range []string{`role="status"`, `aria-live="polite"`, `data-agent-action="retry"`, "Comp Analyst could not answer because the service had a problem."} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("failure missing %q: %s", want, markup)
 		}
 	}
 	if strings.Contains(markup, "persona-progress-status") {
 		t.Fatalf("failure retained working status: %s", markup)
+	}
+	if strings.Contains(markup, "MODEL_UNAVAILABLE") || strings.Contains(markup, "Provider failed") {
+		t.Fatalf("failure leaked an internal code or unsanitized message: %s", markup)
 	}
 	p.Failure.Retryable = false
 	if markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p); strings.Contains(markup, `data-agent-action="retry"`) {
@@ -99,7 +102,7 @@ func TestTodo_AGENTP_020_OnlyReportsSuppliedStepCounts(t *testing.T) {
 	p := personaProgressFixture()
 	p.Progress.CurrentStep, p.Progress.TotalSteps = 0, 0
 	markup := renderPersonaProgressTest(t, Model{Locale: "en-US"}, p)
-	if strings.Contains(markup, "(1/1)") || !strings.Contains(markup, "reading 3 sources") {
+	if strings.Contains(markup, "(1/1)") || !strings.Contains(markup, "Finding an answer in your policy documents…") || strings.Contains(markup, "agent-reply-counter") {
 		t.Fatalf("missing steps were fabricated: %s", markup)
 	}
 }

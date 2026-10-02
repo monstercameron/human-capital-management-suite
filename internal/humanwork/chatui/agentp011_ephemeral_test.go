@@ -22,17 +22,9 @@ func TestTodo_AGENTP_011_RenderFiltersRecipientAndExpiry(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENTP_011_RenderAccessibleMarkerAndThreadLink(t *testing.T) {
+func TestTodo_AGENTP_011_RenderAccessiblePrivateAgentAnswer(t *testing.T) {
 	now := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
-	model := Model{Text: func(key string) string {
-		if key == "chat.ephemeral.only_visible_to_you" {
-			return "Nur für dich sichtbar"
-		}
-		if key == "chat.ephemeral.open_thread" {
-			return "Quellthread öffnen"
-		}
-		return key
-	}}
+	model := Model{Locale: "de-DE"}
 	markup, err := ui.RenderToString(RenderEphemeralMessage(model, EphemeralMessage{
 		ID: "e1", ThreadID: "root", Body: "private answer", OnlyVisibleToYou: true,
 		ExpiresAt: now.Add(24 * time.Hour), ThreadLink: "/chat/room/root",
@@ -40,10 +32,13 @@ func TestTodo_AGENTP_011_RenderAccessibleMarkerAndThreadLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"chat-ephemeral", "Nur für dich sichtbar", "private answer", "Quellthread öffnen", `href="/chat/room/root"`, `aria-live="polite"`} {
+	for _, want := range []string{"chat-ephemeral", "Nur für Sie sichtbar", "private answer", "agent-reply-name", `aria-live="polite"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("markup missing %q: %s", want, markup)
 		}
+	}
+	if strings.Contains(markup, "Quellthread") || strings.Contains(markup, `href="/chat/room/root"`) {
+		t.Fatalf("private answer kept the obsolete source-thread action: %s", markup)
 	}
 }
 

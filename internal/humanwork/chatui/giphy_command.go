@@ -1,22 +1,16 @@
 package chatui
 
-import (
-	"strings"
-	"unicode"
-)
+import "strings"
 
 // giphyCommand reads a Slack-style "/giphy <search>" draft. The command is
 // consumed by the composer, never posted: it opens the GIF picker searching
-// for the rest of the line. "/giphy" alone opens the trending GIFs.
+// for the rest of the line. "/giphy" alone opens the trending GIFs. The line is
+// read by the command registry's parser (composer_commands.go), so this is not
+// a second comparison of the command's name.
 func giphyCommand(body string) (string, bool) {
-	body = strings.TrimSpace(body)
-	const prefix = "/giphy"
-	if len(body) < len(prefix) || !strings.EqualFold(body[:len(prefix)], prefix) {
+	name, args, ok := parseComposerCommand(body)
+	if !ok || !strings.EqualFold(name, "giphy") {
 		return "", false
 	}
-	rest := body[len(prefix):]
-	if rest != "" && !unicode.IsSpace(rune(rest[0])) {
-		return "", false
-	}
-	return LimitGiphyQuery(strings.TrimSpace(rest)), true
+	return LimitGiphyQuery(args), true
 }

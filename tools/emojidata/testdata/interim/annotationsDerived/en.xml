@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ldml SYSTEM "../../common/dtd/ldml.dtd">
+<!--
+Copyright © 1991-2025 Unicode, Inc.
+CLDR data files are interpreted according to the LDML specification (http://unicode.org/reports/tr35/)
+For terms of use, see http://www.unicode.org/copyright.html
+-->
+<ldml>
+	<identity>
+		<version number="$Revision$"/>
+		<language type="en"/>
+	</identity>
+	<annotations>
+		<annotation cp="👋🏻" type="tts">waving hand: light skin tone</annotation>
+		<annotation cp="👋🏼" type="tts">waving hand: medium-light skin tone</annotation>
+		<annotation cp="👋🏽" type="tts">waving hand: medium skin tone</annotation>
+		<annotation cp="👋🏾" type="tts">waving hand: medium-dark skin tone</annotation>
+		<annotation cp="👋🏿" type="tts">waving hand: dark skin tone</annotation>
+		<annotation cp="👍🏻" type="tts">thumbs up: light skin tone</annotation>
+		<annotation cp="👍🏼" type="tts">thumbs up: medium-light skin tone</annotation>
+		<annotation cp="👍🏽" type="tts">thumbs up: medium skin tone</annotation>
+		<annotation cp="👍🏾" type="tts">thumbs up: medium-dark skin tone</annotation>
+		<annotation cp="👍🏿" type="tts">thumbs up: dark skin tone</annotation>
+		<annotation cp="👏🏻" type="tts">clapping hands: light skin tone</annotation>
+		<annotation cp="👏🏼" type="tts">clapping hands: medium-light skin tone</annotation>
+		<annotation cp="👏🏽" type="tts">clapping hands: medium skin tone</annotation>
+		<annotation cp="👏🏾" type="tts">clapping hands: medium-dark skin tone</annotation>
+		<annotation cp="👏🏿" type="tts">clapping hands: dark skin tone</annotation>
+		<annotation cp="🙏🏻" type="tts">folded hands: light skin tone</annotation>
+		<annotation cp="🙏🏼" type="tts">folded hands: medium-light skin tone</annotation>
+		<annotation cp="🙏🏽" type="tts">folded hands: medium skin tone</annotation>
+		<annotation cp="🙏🏾" type="tts">folded hands: medium-dark skin tone</annotation>
+		<annotation cp="🙏🏿" type="tts">folded hands: dark skin tone</annotation>
+		<annotation cp="💪🏻" type="tts">flexed biceps: light skin tone</annotation>
+		<annotation cp="💪🏼" type="tts">flexed biceps: medium-light skin tone</annotation>
+		<annotation cp="💪🏽" type="tts">flexed biceps: medium skin tone</annotation>
+		<annotation cp="💪🏾" type="tts">flexed biceps: medium-dark skin tone</annotation>
+		<annotation cp="💪🏿" type="tts">flexed biceps: dark skin tone</annotation>
+		<annotation cp="🧑‍💻">coder | computer | developer | inventor | software | technologist</annotation>
+		<annotation cp="🧑‍💻" type="tts">technologist</annotation>
+		<annotation cp="🧑🏻‍💻" type="tts">technologist: light skin tone</annotation>
+		<annotation cp="🧑🏼‍💻" type="tts">technologist: medium-light skin tone</annotation>
+		<annotation cp="🧑🏽‍💻" type="tts">technologist: medium skin tone</annotation>
+		<annotation cp="🧑🏾‍💻" type="tts">technologist: medium-dark skin tone</annotation>
+		<annotation cp="🧑🏿‍💻" type="tts">technologist: dark skin tone</annotation>
+		<annotation cp="👨‍👩‍👧">family | girl | man | woman</annotation>
+		<annotation cp="👨‍👩‍👧" type="tts">family: man, woman, girl</annotation>
+	</annotations>
+</ldml>
