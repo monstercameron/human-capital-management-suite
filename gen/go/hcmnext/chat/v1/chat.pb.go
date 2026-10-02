@@ -3020,12 +3020,17 @@ func (x *SearchResponse) GetChannelNextCursor() string {
 	return ""
 }
 
+// rewind moves the read position back to state.last_read_sequence ("mark
+// unread from here"). Without it the position only moves forward, so a late
+// or repeated advance can never un-read a conversation; with it the position
+// only moves back, so a rewind can never mark anything read.
 type UpdateReadStateRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
 	Principal        *Principal `protobuf:"bytes,1,opt,name=principal,proto3" json:"principal,omitempty"`
 	State            *ReadState `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	ExpectedRevision uint64     `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	Rewind           bool       `protobuf:"varint,4,opt,name=rewind,proto3" json:"rewind,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -3080,6 +3085,13 @@ func (x *UpdateReadStateRequest) GetExpectedRevision() uint64 {
 		return x.ExpectedRevision
 	}
 	return 0
+}
+
+func (x *UpdateReadStateRequest) GetRewind() bool {
+	if x != nil {
+		return x.Rewind
+	}
+	return false
 }
 
 type UpdateReadStateResponse struct {
@@ -3656,6 +3668,12 @@ func (*RemoveReactionResponse) Descriptor() ([]byte, []int) {
 	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{48}
 }
 
+// post_ids asks for the reactions of several posts of one conversation in one
+// call: the page of messages a reader has just opened. With it post_id and
+// cursor are not used, at most 100 posts are named, and the answer holds, for
+// each named post the caller may read, up to page_size reactions (200 when
+// unset) in the order a single-post read returns them; each reaction carries
+// its post_id and next_cursor is empty.
 type ListReactionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3665,6 +3683,7 @@ type ListReactionsRequest struct {
 	PostId         string     `protobuf:"bytes,4,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
 	PageSize       uint32     `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	Cursor         string     `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	PostIds        []string   `protobuf:"bytes,7,rep,name=post_ids,json=postIds,proto3" json:"post_ids,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -3740,6 +3759,13 @@ func (x *ListReactionsRequest) GetCursor() string {
 		return x.Cursor
 	}
 	return ""
+}
+
+func (x *ListReactionsRequest) GetPostIds() []string {
+	if x != nil {
+		return x.PostIds
+	}
+	return nil
 }
 
 type ListReactionsResponse struct {
@@ -5303,11 +5329,12 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
 	"nextCursor\x12@\n" +
 	"\bchannels\x18\x03 \x03(\v2$.hcmnext.chat.v1.ChannelSearchResultR\bchannels\x12.\n" +
-	"\x13channel_next_cursor\x18\x04 \x01(\tR\x11channelNextCursor\"\xb5\x01\n" +
+	"\x13channel_next_cursor\x18\x04 \x01(\tR\x11channelNextCursor\"\xcd\x01\n" +
 	"\x16UpdateReadStateRequest\x12<\n" +
 	"\tprincipal\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.PrincipalB\x02\x18\x01R\tprincipal\x120\n" +
 	"\x05state\x18\x02 \x01(\v2\x1a.hcmnext.chat.v1.ReadStateR\x05state\x12+\n" +
-	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\"K\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x10expectedRevision\x12\x16\n" +
+	"\x06rewind\x18\x04 \x01(\bR\x06rewind\"K\n" +
 	"\x17UpdateReadStateResponse\x120\n" +
 	"\x05state\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.ReadStateR\x05state\"\x99\x01\n" +
 	"\x13GetReadStateRequest\x12<\n" +
@@ -5339,14 +5366,15 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\apost_id\x18\x04 \x01(\tR\x06postId\x12\x14\n" +
 	"\x05emoji\x18\x05 \x01(\tR\x05emoji\"\x18\n" +
-	"\x16RemoveReactionResponse\"\xe8\x01\n" +
+	"\x16RemoveReactionResponse\"\x83\x02\n" +
 	"\x14ListReactionsRequest\x12<\n" +
 	"\tprincipal\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.PrincipalB\x02\x18\x01R\tprincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12'\n" +
 	"\x0fconversation_id\x18\x03 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\apost_id\x18\x04 \x01(\tR\x06postId\x12\x1b\n" +
 	"\tpage_size\x18\x05 \x01(\rR\bpageSize\x12\x16\n" +
-	"\x06cursor\x18\x06 \x01(\tR\x06cursor\"q\n" +
+	"\x06cursor\x18\x06 \x01(\tR\x06cursor\x12\x19\n" +
+	"\bpost_ids\x18\a \x03(\tR\apostIds\"q\n" +
 	"\x15ListReactionsResponse\x127\n" +
 	"\treactions\x18\x01 \x03(\v2\x19.hcmnext.chat.v1.ReactionR\treactions\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +

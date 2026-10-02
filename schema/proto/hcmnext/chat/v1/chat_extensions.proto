@@ -74,8 +74,13 @@ message ChatCounts { string tenant_id = 1; string conversation_id = 2; string su
 // GetCountsRequest addresses one conversation in one host tenant. The reader
 // is always the authenticated principal, so subject_id is deprecated and a
 // populated value is refused rather than ignored.
-message GetCountsRequest { string tenant_id = 1; string conversation_id = 2; string subject_id = 3 [deprecated = true]; }
-message GetCountsResponse { ChatCounts counts = 1; }
+//
+// conversation_ids asks for a whole sidebar in one call: up to 100
+// conversations of the same host tenant, with conversation_id left empty. The
+// answer is all_counts, one entry per conversation the caller may read, in the
+// order asked; a conversation the caller may not read is left out.
+message GetCountsRequest { string tenant_id = 1; string conversation_id = 2; string subject_id = 3 [deprecated = true]; repeated string conversation_ids = 4; }
+message GetCountsResponse { ChatCounts counts = 1; repeated ChatCounts all_counts = 2; }
 message ThreadFollow { string tenant_id = 1; string conversation_id = 2; string subject_id = 3; string home_tenant_id = 4; string root_post_id = 5; bool followed = 6; uint64 revision = 7; }
 // GetThreadFollowRequest reads the authenticated principal's own follow row;
 // subject_id is deprecated for the same reason as on GetCountsRequest.

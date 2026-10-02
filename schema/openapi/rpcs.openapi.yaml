@@ -7087,8 +7087,8 @@ paths:
     post:
       tags:
         - ProjectService
-      summary: 'Reverse link read: the live tasks that link one workflow run (journey) or work item, limited to projects the caller may...'
-      description: 'Reverse link read: the live tasks that link one workflow run (journey) or work item, limited to projects the caller may read. Tasks in other projects are omitted, not reported.'
+      summary: 'P1A disposition: OUT; reverse task-link lookup is a Phase 3 project operation.'
+      description: 'P1A disposition: OUT; reverse task-link lookup is a Phase 3 project operation. Reverse link read: the live tasks that link one workflow run (journey) or work item, limited to projects the caller may read. Tasks in other projects are omitted, not reported.'
       operationId: ProjectService_ListTaskLinksByTarget
       parameters:
         - $ref: '#/components/parameters/ConnectProtocolVersion'
@@ -10691,6 +10691,28 @@ components:
       properties:
         post:
           $ref: '#/components/schemas/hcmnext.chat.v1.Post'
+    hcmnext.chat.v1.EphemeralDelivery:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.EphemeralDelivery`.
+      properties:
+        id:
+          type: string
+        threadId:
+          type: string
+        body:
+          type: string
+        onlyVisibleToYou:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        expiresAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        threadLink:
+          type: string
     hcmnext.chat.v1.ForwardPostRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ForwardPostRequest`.
@@ -10802,12 +10824,20 @@ components:
           type: string
         subjectId:
           type: string
+        conversationIds:
+          type: array
+          items:
+            type: string
     hcmnext.chat.v1.GetCountsResponse:
       type: object
       description: Protobuf message `hcmnext.chat.v1.GetCountsResponse`.
       properties:
         counts:
           $ref: '#/components/schemas/hcmnext.chat.v1.ChatCounts'
+        allCounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.chat.v1.ChatCounts'
     hcmnext.chat.v1.GetPreferencesRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.GetPreferencesRequest`.
@@ -11097,6 +11127,10 @@ components:
           minimum: 0
         cursor:
           type: string
+        postIds:
+          type: array
+          items:
+            type: string
     hcmnext.chat.v1.ListReactionsResponse:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ListReactionsResponse`.
@@ -11965,6 +11999,8 @@ components:
         expectedRevision:
           type: string
           format: uint64
+        rewind:
+          type: boolean
     hcmnext.chat.v1.UpdateReadStateResponse:
       type: object
       description: Protobuf message `hcmnext.chat.v1.UpdateReadStateResponse`.
@@ -11994,6 +12030,8 @@ components:
           $ref: '#/components/schemas/hcmnext.chat.v1.ConversationEvent'
         resumeCursor:
           type: string
+        ephemeralDelivery:
+          $ref: '#/components/schemas/hcmnext.chat.v1.EphemeralDelivery'
     hcmnext.common.v1.Decimal:
       type: object
       description: Protobuf message `hcmnext.common.v1.Decimal`.
@@ -16833,6 +16871,8 @@ components:
           type: string
         links:
           type: string
+        colorMode:
+          type: string
     hcmnext.journey.v1.AcknowledgeJourneyRequest:
       type: object
       description: Protobuf message `hcmnext.journey.v1.AcknowledgeJourneyRequest`.
@@ -18360,6 +18400,12 @@ components:
         workerType:
           type: string
         subjectId:
+          type: string
+        orgUnitName:
+          type: string
+        workEmail:
+          type: string
+        workPhone:
           type: string
     hcmnext.journey.v1.WorkerIDPolicy:
       type: object
@@ -20039,23 +20085,26 @@ components:
           type: string
     hcmnext.project.v1.TaskLinkReference:
       type: object
-      description: 'Protobuf message `hcmnext.project.v1.TaskLinkReference`. Oneof `target`: at most one of `chatConversation`, `chatPost`, `deployedDocument`, `workItem`, `journey` may be set.'
+      description: 'Protobuf message `hcmnext.project.v1.TaskLinkReference`. Oneof `target`: at most one of `chatConversation`, `chatPost`, `deployedDocument`, `workItem`, `journey`, `workOrder` may be set.'
       properties:
         chatConversation:
           $ref: '#/components/schemas/hcmnext.project.v1.ChatConversationLink'
-          description: Member of oneof `target`. Mutually exclusive with `chatPost`, `deployedDocument`, `workItem`, `journey`.
+          description: Member of oneof `target`. Mutually exclusive with `chatPost`, `deployedDocument`, `workItem`, `journey`, `workOrder`.
         chatPost:
           $ref: '#/components/schemas/hcmnext.project.v1.ChatPostLink'
-          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `deployedDocument`, `workItem`, `journey`.
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `deployedDocument`, `workItem`, `journey`, `workOrder`.
         deployedDocument:
           $ref: '#/components/schemas/hcmnext.project.v1.DeployedDocumentLink'
-          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `workItem`, `journey`.
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `workItem`, `journey`, `workOrder`.
         workItem:
           $ref: '#/components/schemas/hcmnext.project.v1.WorkItemLink'
-          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `journey`.
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `journey`, `workOrder`.
         journey:
           $ref: '#/components/schemas/hcmnext.project.v1.JourneyLink'
-          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `workItem`.
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `workItem`, `workOrder`.
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.project.v1.WorkOrderLink'
+          description: Member of oneof `target`. Mutually exclusive with `chatConversation`, `chatPost`, `deployedDocument`, `workItem`, `journey`.
     hcmnext.project.v1.TaskLinkResolutionState:
       type: string
       description: Protobuf enum `hcmnext.project.v1.TaskLinkResolutionState`. The JSON mapping writes value names; parsers also accept the numeric value.
@@ -20142,6 +20191,12 @@ components:
       description: Protobuf message `hcmnext.project.v1.WorkItemLink`.
       properties:
         workItemId:
+          type: string
+    hcmnext.project.v1.WorkOrderLink:
+      type: object
+      description: Protobuf message `hcmnext.project.v1.WorkOrderLink`.
+      properties:
+        workOrderId:
           type: string
     hcmnext.project.v1.WorkflowConfiguration:
       type: object

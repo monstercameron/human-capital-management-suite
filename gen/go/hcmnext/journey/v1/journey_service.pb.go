@@ -4850,7 +4850,16 @@ type Worker struct {
 	// worker and the persona key for a seeded one. worker_ref is a display
 	// slug the journey accepts and is not an identity any other service
 	// shares, so chat joins its authors and members on this field.
-	SubjectId     string `protobuf:"bytes,32,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	SubjectId string `protobuf:"bytes,32,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	// org_unit_name is the organization unit's display name ("Project
+	// Management") beside the org_unit code. It is empty when the directory
+	// cannot name the unit; a client then falls back to presenting the code.
+	OrgUnitName string `protobuf:"bytes,33,opt,name=org_unit_name,json=orgUnitName,proto3" json:"org_unit_name,omitempty"`
+	// work_email and work_phone are the business directory contact details the
+	// chat directory discloses (ListChatDirectory only). Personal contact data
+	// never travels here; both are empty when the directory holds none.
+	WorkEmail     string `protobuf:"bytes,34,opt,name=work_email,json=workEmail,proto3" json:"work_email,omitempty"`
+	WorkPhone     string `protobuf:"bytes,35,opt,name=work_phone,json=workPhone,proto3" json:"work_phone,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5105,6 +5114,27 @@ func (x *Worker) GetWorkerType() string {
 func (x *Worker) GetSubjectId() string {
 	if x != nil {
 		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *Worker) GetOrgUnitName() string {
+	if x != nil {
+		return x.OrgUnitName
+	}
+	return ""
+}
+
+func (x *Worker) GetWorkEmail() string {
+	if x != nil {
+		return x.WorkEmail
+	}
+	return ""
+}
+
+func (x *Worker) GetWorkPhone() string {
+	if x != nil {
+		return x.WorkPhone
 	}
 	return ""
 }
@@ -9220,7 +9250,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12%\n" +
 	"\x0eafter_sequence\x18\x02 \x01(\x04R\rafterSequence\"I\n" +
 	"#WatchPromotionInvalidationsResponse\x12\"\n" +
-	"\finvalidation\x18\x01 \x01(\fR\finvalidation\"\xf1\b\n" +
+	"\finvalidation\x18\x01 \x01(\fR\finvalidation\"\xd3\t\n" +
 	"\x06Worker\x12\x1d\n" +
 	"\n" +
 	"worker_ref\x18\x01 \x01(\tR\tworkerRef\x12\x1b\n" +
@@ -9262,7 +9292,12 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\vworker_type\x18\x1f \x01(\tR\n" +
 	"workerType\x12\x1d\n" +
 	"\n" +
-	"subject_id\x18  \x01(\tR\tsubjectId\"\xb5\x03\n" +
+	"subject_id\x18  \x01(\tR\tsubjectId\x12\"\n" +
+	"\rorg_unit_name\x18! \x01(\tR\vorgUnitName\x12\x1d\n" +
+	"\n" +
+	"work_email\x18\" \x01(\tR\tworkEmail\x12\x1d\n" +
+	"\n" +
+	"work_phone\x18# \x01(\tR\tworkPhone\"\xb5\x03\n" +
 	"\x10WorkforceOptions\x12\x1b\n" +
 	"\tjob_codes\x18\x01 \x03(\tR\bjobCodes\x12\x16\n" +
 	"\x06grades\x18\x02 \x03(\tR\x06grades\x12\x1b\n" +

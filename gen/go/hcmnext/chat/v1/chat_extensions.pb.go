@@ -1658,14 +1658,20 @@ func (x *ChatCounts) GetMentionCount() uint64 {
 // GetCountsRequest addresses one conversation in one host tenant. The reader
 // is always the authenticated principal, so subject_id is deprecated and a
 // populated value is refused rather than ignored.
+//
+// conversation_ids asks for a whole sidebar in one call: up to 100
+// conversations of the same host tenant, with conversation_id left empty. The
+// answer is all_counts, one entry per conversation the caller may read, in the
+// order asked; a conversation the caller may not read is left out.
 type GetCountsRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	ConversationId string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat_extensions.proto.
-	SubjectId     string `protobuf:"bytes,3,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SubjectId       string   `protobuf:"bytes,3,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	ConversationIds []string `protobuf:"bytes,4,rep,name=conversation_ids,json=conversationIds,proto3" json:"conversation_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetCountsRequest) Reset() {
@@ -1720,9 +1726,17 @@ func (x *GetCountsRequest) GetSubjectId() string {
 	return ""
 }
 
+func (x *GetCountsRequest) GetConversationIds() []string {
+	if x != nil {
+		return x.ConversationIds
+	}
+	return nil
+}
+
 type GetCountsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Counts        *ChatCounts            `protobuf:"bytes,1,opt,name=counts,proto3" json:"counts,omitempty"`
+	AllCounts     []*ChatCounts          `protobuf:"bytes,2,rep,name=all_counts,json=allCounts,proto3" json:"all_counts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1760,6 +1774,13 @@ func (*GetCountsResponse) Descriptor() ([]byte, []int) {
 func (x *GetCountsResponse) GetCounts() *ChatCounts {
 	if x != nil {
 		return x.Counts
+	}
+	return nil
+}
+
+func (x *GetCountsResponse) GetAllCounts() []*ChatCounts {
+	if x != nil {
+		return x.AllCounts
 	}
 	return nil
 }
@@ -4679,14 +4700,17 @@ const file_hcmnext_chat_v1_chat_extensions_proto_rawDesc = "" +
 	"subject_id\x18\x03 \x01(\tR\tsubjectId\x12$\n" +
 	"\x0ehome_tenant_id\x18\x04 \x01(\tR\fhomeTenantId\x12!\n" +
 	"\funread_count\x18\x05 \x01(\x04R\vunreadCount\x12#\n" +
-	"\rmention_count\x18\x06 \x01(\x04R\fmentionCount\"{\n" +
+	"\rmention_count\x18\x06 \x01(\x04R\fmentionCount\"\xa6\x01\n" +
 	"\x10GetCountsRequest\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12!\n" +
 	"\n" +
-	"subject_id\x18\x03 \x01(\tB\x02\x18\x01R\tsubjectId\"H\n" +
+	"subject_id\x18\x03 \x01(\tB\x02\x18\x01R\tsubjectId\x12)\n" +
+	"\x10conversation_ids\x18\x04 \x03(\tR\x0fconversationIds\"\x84\x01\n" +
 	"\x11GetCountsResponse\x123\n" +
-	"\x06counts\x18\x01 \x01(\v2\x1b.hcmnext.chat.v1.ChatCountsR\x06counts\"\xf3\x01\n" +
+	"\x06counts\x18\x01 \x01(\v2\x1b.hcmnext.chat.v1.ChatCountsR\x06counts\x12:\n" +
+	"\n" +
+	"all_counts\x18\x02 \x03(\v2\x1b.hcmnext.chat.v1.ChatCountsR\tallCounts\"\xf3\x01\n" +
 	"\fThreadFollow\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x1d\n" +
@@ -5028,83 +5052,84 @@ var file_hcmnext_chat_v1_chat_extensions_proto_depIdxs = []int32{
 	14, // 13: hcmnext.chat.v1.MutateChannelTodoListRequest.selected_completers:type_name -> hcmnext.chat.v1.ChannelTodoSelectedMember
 	16, // 14: hcmnext.chat.v1.MutateChannelTodoListResponse.list:type_name -> hcmnext.chat.v1.ChannelTodoList
 	21, // 15: hcmnext.chat.v1.GetCountsResponse.counts:type_name -> hcmnext.chat.v1.ChatCounts
-	24, // 16: hcmnext.chat.v1.GetThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	24, // 17: hcmnext.chat.v1.PutThreadFollowRequest.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	24, // 18: hcmnext.chat.v1.PutThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
-	29, // 19: hcmnext.chat.v1.GetSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	29, // 20: hcmnext.chat.v1.PutSidebarRequest.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	29, // 21: hcmnext.chat.v1.PutSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
-	34, // 22: hcmnext.chat.v1.GetQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	34, // 23: hcmnext.chat.v1.PutQuietHoursRequest.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	34, // 24: hcmnext.chat.v1.PutQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
-	72, // 25: hcmnext.chat.v1.InvokeAppRequest.arguments:type_name -> hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
-	73, // 26: hcmnext.chat.v1.ProposeAgentIntentRequest.arguments:type_name -> hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
-	67, // 27: hcmnext.chat.v1.GetRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
-	67, // 28: hcmnext.chat.v1.PutRetentionPolicyRequest.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
-	67, // 29: hcmnext.chat.v1.PutRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
-	22, // 30: hcmnext.chat.v1.ChatExtensionsService.GetCounts:input_type -> hcmnext.chat.v1.GetCountsRequest
-	25, // 31: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:input_type -> hcmnext.chat.v1.GetThreadFollowRequest
-	27, // 32: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:input_type -> hcmnext.chat.v1.PutThreadFollowRequest
-	30, // 33: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:input_type -> hcmnext.chat.v1.GetSidebarRequest
-	32, // 34: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:input_type -> hcmnext.chat.v1.PutSidebarRequest
-	35, // 35: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:input_type -> hcmnext.chat.v1.GetQuietHoursRequest
-	37, // 36: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:input_type -> hcmnext.chat.v1.PutQuietHoursRequest
-	54, // 37: hcmnext.chat.v1.ChatExtensionsService.InstallApp:input_type -> hcmnext.chat.v1.InstallAppRequest
-	53, // 38: hcmnext.chat.v1.ChatExtensionsService.ListApps:input_type -> hcmnext.chat.v1.ListAppsRequest
-	55, // 39: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:input_type -> hcmnext.chat.v1.ChangeAppStatusRequest
-	56, // 40: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:input_type -> hcmnext.chat.v1.InvokeAppRequest
-	57, // 41: hcmnext.chat.v1.ChatExtensionsService.GetAgent:input_type -> hcmnext.chat.v1.GetAgentRequest
-	58, // 42: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:input_type -> hcmnext.chat.v1.ProposeAgentIntentRequest
-	59, // 43: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:input_type -> hcmnext.chat.v1.ReportAbuseRequest
-	60, // 44: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:input_type -> hcmnext.chat.v1.ModerateAbuseRequest
-	61, // 45: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:input_type -> hcmnext.chat.v1.IssueEventCursorRequest
-	62, // 46: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:input_type -> hcmnext.chat.v1.PullAppEventsRequest
-	63, // 47: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:input_type -> hcmnext.chat.v1.ProposeCompanyGrantRequest
-	64, // 48: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:input_type -> hcmnext.chat.v1.AcceptCompanyGrantRequest
-	65, // 49: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:input_type -> hcmnext.chat.v1.RevokeCompanyGrantRequest
-	66, // 50: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:input_type -> hcmnext.chat.v1.SetChannelPolicyRequest
-	68, // 51: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:input_type -> hcmnext.chat.v1.GetRetentionPolicyRequest
-	70, // 52: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:input_type -> hcmnext.chat.v1.PutRetentionPolicyRequest
-	17, // 53: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:input_type -> hcmnext.chat.v1.GetChannelTodoListRequest
-	19, // 54: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:input_type -> hcmnext.chat.v1.MutateChannelTodoListRequest
-	10, // 55: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:input_type -> hcmnext.chat.v1.GetChannelWidgetsRequest
-	12, // 56: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:input_type -> hcmnext.chat.v1.MutateChannelWidgetRequest
-	2,  // 57: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:input_type -> hcmnext.chat.v1.GetChannelPollRequest
-	4,  // 58: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:input_type -> hcmnext.chat.v1.MutateChannelPollRequest
-	23, // 59: hcmnext.chat.v1.ChatExtensionsService.GetCounts:output_type -> hcmnext.chat.v1.GetCountsResponse
-	26, // 60: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:output_type -> hcmnext.chat.v1.GetThreadFollowResponse
-	28, // 61: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:output_type -> hcmnext.chat.v1.PutThreadFollowResponse
-	31, // 62: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:output_type -> hcmnext.chat.v1.GetSidebarResponse
-	33, // 63: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:output_type -> hcmnext.chat.v1.PutSidebarResponse
-	36, // 64: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:output_type -> hcmnext.chat.v1.GetQuietHoursResponse
-	38, // 65: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:output_type -> hcmnext.chat.v1.PutQuietHoursResponse
-	39, // 66: hcmnext.chat.v1.ChatExtensionsService.InstallApp:output_type -> hcmnext.chat.v1.InstallAppResponse
-	40, // 67: hcmnext.chat.v1.ChatExtensionsService.ListApps:output_type -> hcmnext.chat.v1.ListAppsResponse
-	41, // 68: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:output_type -> hcmnext.chat.v1.ChangeAppStatusResponse
-	42, // 69: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:output_type -> hcmnext.chat.v1.InvokeAppResponse
-	43, // 70: hcmnext.chat.v1.ChatExtensionsService.GetAgent:output_type -> hcmnext.chat.v1.GetAgentResponse
-	44, // 71: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:output_type -> hcmnext.chat.v1.ProposeAgentIntentResponse
-	45, // 72: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:output_type -> hcmnext.chat.v1.ReportAbuseResponse
-	46, // 73: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:output_type -> hcmnext.chat.v1.ModerateAbuseResponse
-	47, // 74: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:output_type -> hcmnext.chat.v1.IssueEventCursorResponse
-	48, // 75: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:output_type -> hcmnext.chat.v1.PullAppEventsResponse
-	49, // 76: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:output_type -> hcmnext.chat.v1.ProposeCompanyGrantResponse
-	50, // 77: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:output_type -> hcmnext.chat.v1.AcceptCompanyGrantResponse
-	51, // 78: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:output_type -> hcmnext.chat.v1.RevokeCompanyGrantResponse
-	52, // 79: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:output_type -> hcmnext.chat.v1.SetChannelPolicyResponse
-	69, // 80: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:output_type -> hcmnext.chat.v1.GetRetentionPolicyResponse
-	71, // 81: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:output_type -> hcmnext.chat.v1.PutRetentionPolicyResponse
-	18, // 82: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:output_type -> hcmnext.chat.v1.GetChannelTodoListResponse
-	20, // 83: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:output_type -> hcmnext.chat.v1.MutateChannelTodoListResponse
-	11, // 84: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:output_type -> hcmnext.chat.v1.GetChannelWidgetsResponse
-	13, // 85: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:output_type -> hcmnext.chat.v1.MutateChannelWidgetResponse
-	3,  // 86: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:output_type -> hcmnext.chat.v1.GetChannelPollResponse
-	5,  // 87: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:output_type -> hcmnext.chat.v1.MutateChannelPollResponse
-	59, // [59:88] is the sub-list for method output_type
-	30, // [30:59] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	21, // 16: hcmnext.chat.v1.GetCountsResponse.all_counts:type_name -> hcmnext.chat.v1.ChatCounts
+	24, // 17: hcmnext.chat.v1.GetThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	24, // 18: hcmnext.chat.v1.PutThreadFollowRequest.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	24, // 19: hcmnext.chat.v1.PutThreadFollowResponse.follow:type_name -> hcmnext.chat.v1.ThreadFollow
+	29, // 20: hcmnext.chat.v1.GetSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	29, // 21: hcmnext.chat.v1.PutSidebarRequest.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	29, // 22: hcmnext.chat.v1.PutSidebarResponse.sidebar:type_name -> hcmnext.chat.v1.SidebarState
+	34, // 23: hcmnext.chat.v1.GetQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	34, // 24: hcmnext.chat.v1.PutQuietHoursRequest.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	34, // 25: hcmnext.chat.v1.PutQuietHoursResponse.quiet_hours:type_name -> hcmnext.chat.v1.QuietHours
+	72, // 26: hcmnext.chat.v1.InvokeAppRequest.arguments:type_name -> hcmnext.chat.v1.InvokeAppRequest.ArgumentsEntry
+	73, // 27: hcmnext.chat.v1.ProposeAgentIntentRequest.arguments:type_name -> hcmnext.chat.v1.ProposeAgentIntentRequest.ArgumentsEntry
+	67, // 28: hcmnext.chat.v1.GetRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	67, // 29: hcmnext.chat.v1.PutRetentionPolicyRequest.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	67, // 30: hcmnext.chat.v1.PutRetentionPolicyResponse.policy:type_name -> hcmnext.chat.v1.ChatRetentionPolicy
+	22, // 31: hcmnext.chat.v1.ChatExtensionsService.GetCounts:input_type -> hcmnext.chat.v1.GetCountsRequest
+	25, // 32: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:input_type -> hcmnext.chat.v1.GetThreadFollowRequest
+	27, // 33: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:input_type -> hcmnext.chat.v1.PutThreadFollowRequest
+	30, // 34: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:input_type -> hcmnext.chat.v1.GetSidebarRequest
+	32, // 35: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:input_type -> hcmnext.chat.v1.PutSidebarRequest
+	35, // 36: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:input_type -> hcmnext.chat.v1.GetQuietHoursRequest
+	37, // 37: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:input_type -> hcmnext.chat.v1.PutQuietHoursRequest
+	54, // 38: hcmnext.chat.v1.ChatExtensionsService.InstallApp:input_type -> hcmnext.chat.v1.InstallAppRequest
+	53, // 39: hcmnext.chat.v1.ChatExtensionsService.ListApps:input_type -> hcmnext.chat.v1.ListAppsRequest
+	55, // 40: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:input_type -> hcmnext.chat.v1.ChangeAppStatusRequest
+	56, // 41: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:input_type -> hcmnext.chat.v1.InvokeAppRequest
+	57, // 42: hcmnext.chat.v1.ChatExtensionsService.GetAgent:input_type -> hcmnext.chat.v1.GetAgentRequest
+	58, // 43: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:input_type -> hcmnext.chat.v1.ProposeAgentIntentRequest
+	59, // 44: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:input_type -> hcmnext.chat.v1.ReportAbuseRequest
+	60, // 45: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:input_type -> hcmnext.chat.v1.ModerateAbuseRequest
+	61, // 46: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:input_type -> hcmnext.chat.v1.IssueEventCursorRequest
+	62, // 47: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:input_type -> hcmnext.chat.v1.PullAppEventsRequest
+	63, // 48: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:input_type -> hcmnext.chat.v1.ProposeCompanyGrantRequest
+	64, // 49: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:input_type -> hcmnext.chat.v1.AcceptCompanyGrantRequest
+	65, // 50: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:input_type -> hcmnext.chat.v1.RevokeCompanyGrantRequest
+	66, // 51: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:input_type -> hcmnext.chat.v1.SetChannelPolicyRequest
+	68, // 52: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:input_type -> hcmnext.chat.v1.GetRetentionPolicyRequest
+	70, // 53: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:input_type -> hcmnext.chat.v1.PutRetentionPolicyRequest
+	17, // 54: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:input_type -> hcmnext.chat.v1.GetChannelTodoListRequest
+	19, // 55: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:input_type -> hcmnext.chat.v1.MutateChannelTodoListRequest
+	10, // 56: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:input_type -> hcmnext.chat.v1.GetChannelWidgetsRequest
+	12, // 57: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:input_type -> hcmnext.chat.v1.MutateChannelWidgetRequest
+	2,  // 58: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:input_type -> hcmnext.chat.v1.GetChannelPollRequest
+	4,  // 59: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:input_type -> hcmnext.chat.v1.MutateChannelPollRequest
+	23, // 60: hcmnext.chat.v1.ChatExtensionsService.GetCounts:output_type -> hcmnext.chat.v1.GetCountsResponse
+	26, // 61: hcmnext.chat.v1.ChatExtensionsService.GetThreadFollow:output_type -> hcmnext.chat.v1.GetThreadFollowResponse
+	28, // 62: hcmnext.chat.v1.ChatExtensionsService.PutThreadFollow:output_type -> hcmnext.chat.v1.PutThreadFollowResponse
+	31, // 63: hcmnext.chat.v1.ChatExtensionsService.GetSidebar:output_type -> hcmnext.chat.v1.GetSidebarResponse
+	33, // 64: hcmnext.chat.v1.ChatExtensionsService.PutSidebar:output_type -> hcmnext.chat.v1.PutSidebarResponse
+	36, // 65: hcmnext.chat.v1.ChatExtensionsService.GetQuietHours:output_type -> hcmnext.chat.v1.GetQuietHoursResponse
+	38, // 66: hcmnext.chat.v1.ChatExtensionsService.PutQuietHours:output_type -> hcmnext.chat.v1.PutQuietHoursResponse
+	39, // 67: hcmnext.chat.v1.ChatExtensionsService.InstallApp:output_type -> hcmnext.chat.v1.InstallAppResponse
+	40, // 68: hcmnext.chat.v1.ChatExtensionsService.ListApps:output_type -> hcmnext.chat.v1.ListAppsResponse
+	41, // 69: hcmnext.chat.v1.ChatExtensionsService.ChangeAppStatus:output_type -> hcmnext.chat.v1.ChangeAppStatusResponse
+	42, // 70: hcmnext.chat.v1.ChatExtensionsService.InvokeApp:output_type -> hcmnext.chat.v1.InvokeAppResponse
+	43, // 71: hcmnext.chat.v1.ChatExtensionsService.GetAgent:output_type -> hcmnext.chat.v1.GetAgentResponse
+	44, // 72: hcmnext.chat.v1.ChatExtensionsService.ProposeAgentIntent:output_type -> hcmnext.chat.v1.ProposeAgentIntentResponse
+	45, // 73: hcmnext.chat.v1.ChatExtensionsService.ReportAbuse:output_type -> hcmnext.chat.v1.ReportAbuseResponse
+	46, // 74: hcmnext.chat.v1.ChatExtensionsService.ModerateAbuse:output_type -> hcmnext.chat.v1.ModerateAbuseResponse
+	47, // 75: hcmnext.chat.v1.ChatExtensionsService.IssueEventCursor:output_type -> hcmnext.chat.v1.IssueEventCursorResponse
+	48, // 76: hcmnext.chat.v1.ChatExtensionsService.PullAppEvents:output_type -> hcmnext.chat.v1.PullAppEventsResponse
+	49, // 77: hcmnext.chat.v1.ChatExtensionsService.ProposeCompanyGrant:output_type -> hcmnext.chat.v1.ProposeCompanyGrantResponse
+	50, // 78: hcmnext.chat.v1.ChatExtensionsService.AcceptCompanyGrant:output_type -> hcmnext.chat.v1.AcceptCompanyGrantResponse
+	51, // 79: hcmnext.chat.v1.ChatExtensionsService.RevokeCompanyGrant:output_type -> hcmnext.chat.v1.RevokeCompanyGrantResponse
+	52, // 80: hcmnext.chat.v1.ChatExtensionsService.SetChannelPolicy:output_type -> hcmnext.chat.v1.SetChannelPolicyResponse
+	69, // 81: hcmnext.chat.v1.ChatExtensionsService.GetRetentionPolicy:output_type -> hcmnext.chat.v1.GetRetentionPolicyResponse
+	71, // 82: hcmnext.chat.v1.ChatExtensionsService.PutRetentionPolicy:output_type -> hcmnext.chat.v1.PutRetentionPolicyResponse
+	18, // 83: hcmnext.chat.v1.ChatExtensionsService.GetChannelTodoList:output_type -> hcmnext.chat.v1.GetChannelTodoListResponse
+	20, // 84: hcmnext.chat.v1.ChatExtensionsService.MutateChannelTodoList:output_type -> hcmnext.chat.v1.MutateChannelTodoListResponse
+	11, // 85: hcmnext.chat.v1.ChatExtensionsService.GetChannelWidgets:output_type -> hcmnext.chat.v1.GetChannelWidgetsResponse
+	13, // 86: hcmnext.chat.v1.ChatExtensionsService.MutateChannelWidget:output_type -> hcmnext.chat.v1.MutateChannelWidgetResponse
+	3,  // 87: hcmnext.chat.v1.ChatExtensionsService.GetChannelPoll:output_type -> hcmnext.chat.v1.GetChannelPollResponse
+	5,  // 88: hcmnext.chat.v1.ChatExtensionsService.MutateChannelPoll:output_type -> hcmnext.chat.v1.MutateChannelPollResponse
+	60, // [60:89] is the sub-list for method output_type
+	31, // [31:60] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_chat_v1_chat_extensions_proto_init() }

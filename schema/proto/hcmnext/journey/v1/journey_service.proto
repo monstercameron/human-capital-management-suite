@@ -1379,6 +1379,15 @@ message Worker {
   // slug the journey accepts and is not an identity any other service
   // shares, so chat joins its authors and members on this field.
   string subject_id = 32;
+  // org_unit_name is the organization unit's display name ("Project
+  // Management") beside the org_unit code. It is empty when the directory
+  // cannot name the unit; a client then falls back to presenting the code.
+  string org_unit_name = 33;
+  // work_email and work_phone are the business directory contact details the
+  // chat directory discloses (ListChatDirectory only). Personal contact data
+  // never travels here; both are empty when the directory holds none.
+  string work_email = 34;
+  string work_phone = 35;
 }
 
 // WorkforceOptions is the closed set of placements a created worker may be

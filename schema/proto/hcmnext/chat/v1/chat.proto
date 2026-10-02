@@ -219,7 +219,11 @@ message SearchResponse {
   repeated ChannelSearchResult channels = 3;
   string channel_next_cursor = 4;
 }
-message UpdateReadStateRequest { Principal principal = 1 [deprecated = true]; ReadState state = 2; uint64 expected_revision = 3; }
+// rewind moves the read position back to state.last_read_sequence ("mark
+// unread from here"). Without it the position only moves forward, so a late
+// or repeated advance can never un-read a conversation; with it the position
+// only moves back, so a rewind can never mark anything read.
+message UpdateReadStateRequest { Principal principal = 1 [deprecated = true]; ReadState state = 2; uint64 expected_revision = 3; bool rewind = 4; }
 message UpdateReadStateResponse { ReadState state = 1; }
 message GetReadStateRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; }
 message GetReadStateResponse { ReadState state = 1; }
@@ -231,7 +235,13 @@ message AddReactionRequest { Principal principal = 1 [deprecated = true]; Reacti
 message AddReactionResponse { Reaction reaction = 1; }
 message RemoveReactionRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; string emoji = 5; }
 message RemoveReactionResponse {}
-message ListReactionsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint32 page_size = 5; string cursor = 6; }
+// post_ids asks for the reactions of several posts of one conversation in one
+// call: the page of messages a reader has just opened. With it post_id and
+// cursor are not used, at most 100 posts are named, and the answer holds, for
+// each named post the caller may read, up to page_size reactions (200 when
+// unset) in the order a single-post read returns them; each reaction carries
+// its post_id and next_cursor is empty.
+message ListReactionsRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string post_id = 4; uint32 page_size = 5; string cursor = 6; repeated string post_ids = 7; }
 message ListReactionsResponse { repeated Reaction reactions = 1; string next_cursor = 2; }
 message PinPostRequest { Principal principal = 1 [deprecated = true]; Pin pin = 2; }
 message PinPostResponse { Pin pin = 1; }
