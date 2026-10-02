@@ -21,11 +21,15 @@ func registerAgents(server *grpc.Server, c *app.Cell) {
 		return
 	}
 	roles := c.RoleAccess
+	var tasks transportagents.TaskReader
+	if reader, ok := c.AgentStarter.(transportagents.TaskReader); ok {
+		tasks = reader
+	}
 	transportagents.Register(server, transportagents.Dependencies{
 		Settings: c.AgentSettings, Controller: c.AgentController,
 		Admin: func(ctx context.Context, principal *trust.Principal) (bool, error) {
 			return workspace.CanChangeAgentsSetting(ctx, roles, principal)
 		},
-		Starter: c.AgentStarter,
+		Starter: c.AgentStarter, Tasks: tasks,
 	})
 }

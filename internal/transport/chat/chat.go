@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatblocked"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"google.golang.org/grpc"
@@ -219,6 +220,10 @@ func callErr(err error) error {
 	}
 	if _, ok := envelope.As(err); ok {
 		return err
+	}
+	// CHATMOD-002: a refused text is the author's to fix, with the spans named.
+	if owned, ok := chatblocked.Envelope(err, "body"); ok {
+		return owned
 	}
 	code, reason := envelope.CodeUnspecified, "chat.internal_error"
 	switch {

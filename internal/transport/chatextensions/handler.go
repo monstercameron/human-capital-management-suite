@@ -15,6 +15,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecipient"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatblocked"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"google.golang.org/grpc"
@@ -164,6 +165,10 @@ func jsonResult[T any](wrap func([]byte) *T, v any) (*T, error) {
 func mapped(err error) error {
 	if err == nil {
 		return nil
+	}
+	// CHATMOD-002: to-do, poll and widget text the workspace's filters refuse.
+	if owned, ok := chatblocked.Envelope(err, "text"); ok {
+		return owned
 	}
 	code := envelope.CodeUnavailable
 	switch {

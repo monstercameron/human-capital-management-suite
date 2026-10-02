@@ -15,6 +15,7 @@ import (
 
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatadmission"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
@@ -185,6 +186,9 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusTooManyRequests, "chat.rate_limited")
 	case errors.Is(err, chatcore.ErrPermissionDenied), errors.Is(err, chatcore.ErrNotFound):
 		writeError(w, http.StatusNotFound, "chat.not_found")
+	case errors.Is(err, chatfilter.ErrBlocked):
+		// CHATMOD-002: the integration is told its text was refused, not that chat is down.
+		writeError(w, http.StatusUnprocessableEntity, "chat.content_blocked")
 	case errors.Is(err, chatcore.ErrInvalidArgument):
 		writeError(w, http.StatusBadRequest, "chat.invalid_request")
 	case errors.Is(err, chatcore.ErrConflict):

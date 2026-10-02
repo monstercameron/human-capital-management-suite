@@ -40,6 +40,7 @@ type Dependencies struct {
 	Admin      Admin
 	Starter    agentclient.Starter
 	Controller agentclient.Controller
+	Tasks      TaskReader
 }
 
 // Server implements hcmnext.agent.v1.AgentService.
@@ -120,8 +121,24 @@ func (s *Server) StartAgentTask(ctx context.Context, in *agentv1.StartAgentTaskR
 	} else if in.GetMode() != agentv1.AgentStartMode_AGENT_START_MODE_QUICK_ANSWER && in.GetMode() != agentv1.AgentStartMode_AGENT_START_MODE_UNSPECIFIED {
 		return nil, refuse(envelope.CodeInvalidArgument, "agents.mode_invalid", "the task start mode is invalid")
 	}
+	refs, err := documentReferences(in.GetDocumentReferences())
+	if err != nil {
+		return nil, refuse(envelope.CodeInvalidArgument, "agents.document_references_invalid", "the document references are invalid")
+	}
+	personaID := strings.TrimSpace(in.GetPersonaId())
+	if personaID != in.GetPersonaId() || len(personaID) > 512 || !utf8.ValidString(personaID) {
+		return nil, refuse(envelope.CodeInvalidArgument, "agents.persona_invalid", "the selected agent is invalid")
+	}
 	var started agentclient.StartedTask
-	if modeStarter, ok := s.deps.Starter.(agentclient.ModeStarter); ok {
+	if selectionStarter, ok := s.deps.Starter.(TaskSelectionStarter); ok {
+		started, err = selectionStarter.StartTaskWithSelection(ctx, principal, prompt, mode, refs, personaID)
+	} else if personaID != "" {
+		return nil, refuse(envelope.CodeUnavailable, "agents.persona_selection_unavailable", "agent selection is not available")
+	} else if documentStarter, ok := s.deps.Starter.(DocumentStarter); ok {
+		started, err = documentStarter.StartTaskWithDocuments(ctx, principal, prompt, mode, refs)
+	} else if len(refs) > 0 {
+		return nil, refuse(envelope.CodeUnavailable, "agents.document_references_unavailable", "document references are unavailable")
+	} else if modeStarter, ok := s.deps.Starter.(agentclient.ModeStarter); ok {
 		started, err = modeStarter.StartTaskMode(ctx, principal, prompt, mode)
 	} else if mode == agentclient.StartLongTask {
 		return nil, refuse(envelope.CodeUnavailable, "agents.mode_unavailable", "long task mode is unavailable")
@@ -131,7 +148,55 @@ func (s *Server) StartAgentTask(ctx context.Context, in *agentv1.StartAgentTaskR
 	if err != nil {
 		return nil, startError(err)
 	}
-	return &agentv1.StartAgentTaskResponse{TaskId: started.ID, State: started.State, Version: started.Version}, nil
+	projection := &agentv1.AgentTaskProjection{TaskId: started.ID, State: started.State, Version: started.Version, Prompt: strings.TrimSpace(prompt), DocumentReferences: projectDocumentReferences(refs)}
+	if s.deps.Tasks != nil {
+		if task, taskErr := s.deps.Tasks.GetAgentTask(ctx, principal, started.ID); taskErr == nil {
+			projection = projectAgentTask(task)
+		}
+	}
+	return &agentv1.StartAgentTaskResponse{TaskId: started.ID, State: started.State, Version: started.Version, Task: projection}, nil
+}
+
+// GetAgentTask returns one owner-scoped task projection.
+func (s *Server) GetAgentTask(ctx context.Context, in *agentv1.GetAgentTaskRequest) (*agentv1.GetAgentTaskResponse, error) {
+	if in == nil || strings.TrimSpace(in.GetTaskId()) == "" {
+		return nil, refuse(envelope.CodeInvalidArgument, "agents.task_required", "task is required")
+	}
+	principal, err := human(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil || s.deps.Tasks == nil {
+		return nil, refuse(envelope.CodeUnavailable, "agents.tasks_unavailable", "agent tasks are unavailable")
+	}
+	task, err := s.deps.Tasks.GetAgentTask(ctx, principal, in.GetTaskId())
+	if err != nil {
+		return nil, taskReadError(err)
+	}
+	return &agentv1.GetAgentTaskResponse{Task: projectAgentTask(task)}, nil
+}
+
+// ListAgentTasks returns owner-scoped task projections.
+func (s *Server) ListAgentTasks(ctx context.Context, in *agentv1.ListAgentTasksRequest) (*agentv1.ListAgentTasksResponse, error) {
+	if in == nil {
+		return nil, refuse(envelope.CodeInvalidArgument, "agents.request_required", "request is required")
+	}
+	principal, err := human(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s == nil || s.deps.Tasks == nil {
+		return nil, refuse(envelope.CodeUnavailable, "agents.tasks_unavailable", "agent tasks are unavailable")
+	}
+	tasks, err := s.deps.Tasks.ListAgentTasks(ctx, principal)
+	if err != nil {
+		return nil, taskReadError(err)
+	}
+	out := &agentv1.ListAgentTasksResponse{Tasks: make([]*agentv1.AgentTaskProjection, 0, len(tasks))}
+	for _, task := range tasks {
+		out.Tasks = append(out.Tasks, projectAgentTask(task))
+	}
+	return out, nil
 }
 
 // ControlAgentTask applies one owner-scoped CAS action to a durable task.
@@ -197,6 +262,16 @@ func startError(err error) error {
 		return refuse(envelope.CodeInvalidArgument, "agents.prompt_invalid", "the task prompt is empty or too long")
 	case errors.Is(err, agentclient.ErrNotAuthorized):
 		return refuse(envelope.CodePermissionDenied, "agents.start_not_authorized", "you may not start agent tasks")
+	case errors.Is(err, agentrun.ErrDocumentReferenceInvalid):
+		return refuse(envelope.CodeInvalidArgument, "agents.document_references_invalid", "the document references are invalid")
+	case errors.Is(err, agentrun.ErrDocumentReferenceUnreadable):
+		return refuse(envelope.CodePermissionDenied, "agents.document_reference_unreadable", "one or more document references cannot be read")
+	case errors.Is(err, agentrun.ErrDocumentResolverUnavailable):
+		return refuse(envelope.CodeFailedPrecondition, "agents.documents_unavailable", "Documents are not available in this workspace")
+	case errors.Is(err, agentrun.ErrTaskAgentDenied):
+		return refuse(envelope.CodePermissionDenied, "agents.persona_not_available", "This agent is not available to answer this request")
+	case errors.Is(err, agentrun.ErrTaskAgentUnavailable):
+		return refuse(envelope.CodeUnavailable, "agents.persona_selection_unavailable", "Agent selection is not available right now; try again")
 	case errors.Is(err, context.Canceled):
 		return refuse(envelope.CodeUnavailable, "agents.canceled", "the request was canceled")
 	case errors.Is(err, context.DeadlineExceeded):

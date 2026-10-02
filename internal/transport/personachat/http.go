@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -50,9 +51,110 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err := h.Surface.Retry(r.Context(), id, input.IdempotencyKey)
 		writeResult(w, result, err)
+	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/cancel") && r.Method == http.MethodPost:
+		id, ok := invocationActionID(r.URL.Path, "/cancel")
+		if !ok {
+			writeError(w, ErrInvalid)
+			return
+		}
+		var input struct {
+			IdempotencyKey string `json:"idempotency_key"`
+		}
+		if !decodeAction(w, r, &input) {
+			return
+		}
+		actions, ok := h.Surface.(ActionSurface)
+		if !ok {
+			writeError(w, ErrUnavailable)
+			return
+		}
+		result, err := actions.Cancel(r.Context(), id, input.IdempotencyKey)
+		writeResult(w, result, err)
+	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/feedback") && r.Method == http.MethodPost:
+		id, ok := invocationActionID(r.URL.Path, "/feedback")
+		if !ok {
+			writeError(w, ErrInvalid)
+			return
+		}
+		var input struct {
+			Helpful        *bool  `json:"helpful"`
+			Reason         string `json:"reason"`
+			IdempotencyKey string `json:"idempotency_key"`
+		}
+		if !decodeAction(w, r, &input) {
+			return
+		}
+		if input.Helpful == nil || len([]rune(input.Reason)) > 500 {
+			writeError(w, ErrInvalid)
+			return
+		}
+		actions, ok := h.Surface.(ActionSurface)
+		if !ok {
+			writeError(w, ErrUnavailable)
+			return
+		}
+		result, err := actions.SubmitFeedback(r.Context(), id, *input.Helpful, input.Reason, input.IdempotencyKey)
+		writeResult(w, result, err)
+	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/feedback/undo") && r.Method == http.MethodPost:
+		id, ok := invocationActionID(r.URL.Path, "/feedback/undo")
+		if !ok {
+			writeError(w, ErrInvalid)
+			return
+		}
+		var input struct {
+			IdempotencyKey string `json:"idempotency_key"`
+		}
+		if !decodeAction(w, r, &input) {
+			return
+		}
+		actions, ok := h.Surface.(ActionSurface)
+		if !ok {
+			writeError(w, ErrUnavailable)
+			return
+		}
+		result, err := actions.UndoFeedback(r.Context(), id, input.IdempotencyKey)
+		writeResult(w, result, err)
+	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/share") && r.Method == http.MethodPost:
+		id, ok := invocationActionID(r.URL.Path, "/share")
+		if !ok {
+			writeError(w, ErrInvalid)
+			return
+		}
+		var input struct {
+			IdempotencyKey string `json:"idempotency_key"`
+		}
+		if !decodeAction(w, r, &input) {
+			return
+		}
+		sharing, ok := h.Surface.(ShareSurface)
+		if !ok {
+			writeError(w, ErrUnavailable)
+			return
+		}
+		result, err := sharing.ShareAnswer(r.Context(), id, input.IdempotencyKey)
+		writeResult(w, result, err)
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func invocationActionID(path, suffix string) (string, bool) {
+	id := strings.TrimSuffix(strings.TrimPrefix(path, Path+"/invocations/"), suffix)
+	return id, id != "" && !strings.Contains(id, "/")
+}
+
+func decodeAction(w http.ResponseWriter, r *http.Request, target any) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		writeError(w, ErrInvalid)
+		return false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(w, ErrInvalid)
+		return false
+	}
+	return true
 }
 
 func (h Handler) watch(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +238,13 @@ func writeError(w http.ResponseWriter, err error) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(struct {
+	response := struct {
 		Error string `json:"error"`
-	}{code})
+		State string `json:"state,omitempty"`
+	}{Error: code}
+	var final *FinalStateConflict
+	if errors.As(err, &final) {
+		response.State = final.State
+	}
+	_ = json.NewEncoder(w).Encode(response)
 }

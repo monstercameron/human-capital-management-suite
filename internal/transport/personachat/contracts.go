@@ -74,6 +74,8 @@ type Invocation struct {
 	Retryable             bool   `json:"retryable"`
 	PrivateConversationID string `json:"private_conversation_id,omitempty"`
 	PrivatePostID         string `json:"private_post_id,omitempty"`
+	// PublicPostID is the answer posted to the conversation (AGENTUX-070).
+	PublicPostID string `json:"public_post_id,omitempty"`
 }
 
 type Progress struct {
@@ -85,6 +87,34 @@ type RetryResult struct {
 	ConversationID string `json:"conversation_id"`
 	ThreadID       string `json:"thread_id"`
 }
+
+type CancelResult struct {
+	InvocationID string `json:"invocation_id"`
+	State        string `json:"state"`
+}
+
+type FeedbackResult struct {
+	InvocationID string `json:"invocation_id"`
+	Helpful      bool   `json:"helpful,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Active       bool   `json:"active"`
+}
+
+// ActionSurface contains authenticated mutations on an invocation. It is
+// separate from Surface so read-only embeddings cannot accidentally expose
+// mutation routes merely by serving the directory.
+type ActionSurface interface {
+	Cancel(context.Context, string, string) (CancelResult, error)
+	SubmitFeedback(context.Context, string, bool, string, string) (FeedbackResult, error)
+	UndoFeedback(context.Context, string, string) (FeedbackResult, error)
+}
+
+// FinalStateConflict reports the terminal execution state without exposing
+// run internals. The HTTP boundary serializes it with the conflict response.
+type FinalStateConflict struct{ State string }
+
+func (e *FinalStateConflict) Error() string { return ErrConflict.Error() }
+func (e *FinalStateConflict) Unwrap() error { return ErrConflict }
 
 // Surface derives tenant and actor exclusively from the verified context.
 type Surface interface {
