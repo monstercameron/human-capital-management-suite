@@ -110,15 +110,37 @@ func runAgentOwnerRequest(mount js.Value, action string, input any, message stri
 	agentControlsBrowser.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	reply, err := agentControlsRequest(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), action, input)
-	ui.PostAsync(func() {
-		personas := cfg.PersonaAdminSnapshot
-		personaAdminBrowser.Lock()
-		if personaAdminBrowser.tenant == cfg.Tenant && personaAdminBrowser.subject == cfg.Subject && personaAdminBrowser.bearer == cfg.Bearer && personaAdminBrowser.snapshot != nil {
-			current := *personaAdminBrowser.snapshot
-			personas = &current
+	// The agent rows come from the Agent setup snapshot. A person who opened
+	// this page directly does not hold one, so it is read alongside the runs.
+	// This function always runs on its own goroutine, so waiting here is safe.
+	type personaRead struct {
+		snapshot *productui.PersonaAdminSnapshot
+		failed   bool
+	}
+	read := make(chan personaRead, 1)
+	go func() {
+		source, needsRead := agentControlsPersonaSource(agentControlsHeldPersonas(cfg), cfg.PersonaAdminSnapshot)
+		if !needsRead {
+			read <- personaRead{snapshot: source}
+			return
 		}
-		personaAdminBrowser.Unlock()
+		fetched, fetchErr := fetchPersonaAdminSnapshot(ctx, cfg, "", "", "")
+		if fetchErr != nil || !fetched.Available {
+			read <- personaRead{failed: true}
+			return
+		}
+		agentControlsRememberPersonas(cfg, fetched)
+		read <- personaRead{snapshot: &fetched}
+	}()
+	reply, err := agentControlsRequest(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), action, input)
+	agents := <-read
+	ui.PostAsync(func() {
+		// A command on this page may have refreshed the held snapshot since the
+		// read began; the newest one wins.
+		personas, failed := agents.snapshot, agents.failed
+		if held, needsRead := agentControlsPersonaSource(agentControlsHeldPersonas(cfg), cfg.PersonaAdminSnapshot); !needsRead {
+			personas, failed = held, false
+		}
 		agentControlsBrowser.Lock()
 		if !agentControlsBrowser.mount.Equal(mount) || agentControlsBrowser.config.Bearer != cfg.Bearer {
 			agentControlsBrowser.Unlock()
@@ -126,11 +148,7 @@ func runAgentOwnerRequest(mount js.Value, action string, input any, message stri
 		}
 		agentControlsBrowser.busy = false
 		if err == nil {
-			agentControlsBrowser.snapshot = reply.Snapshot
-			if personas != nil {
-				agentControlsBrowser.snapshot.Agents = personas.Personas
-				agentControlsBrowser.snapshot.AllowedCommands = personas.AllowedCommands
-			}
+			agentControlsBrowser.snapshot = agentControlsPageSnapshot(reply.Snapshot, personas, failed)
 		} else if errors.Is(err, errAgentControlsDenied) {
 			message = "access_denied"
 			agentControlsBrowser.snapshot = productui.AgentControlsSnapshot{}
@@ -172,6 +190,40 @@ func runAgentOwnerRequest(mount js.Value, action string, input any, message stri
 	})
 }
 
+// agentControlsHeldPersonas is the Agent setup snapshot this session holds for
+// the signed-in person, or nil.
+func agentControlsHeldPersonas(cfg journeyclient.Config) *productui.PersonaAdminSnapshot {
+	personaAdminBrowser.Lock()
+	defer personaAdminBrowser.Unlock()
+	if personaAdminBrowser.tenant != cfg.Tenant || personaAdminBrowser.subject != cfg.Subject || personaAdminBrowser.bearer != cfg.Bearer || personaAdminBrowser.snapshot == nil {
+		return nil
+	}
+	current := *personaAdminBrowser.snapshot
+	return &current
+}
+
+// agentControlsRememberPersonas keeps a snapshot read for Activity, so pausing
+// an agent here and opening Agent setup afterwards work from the same state as
+// when Agent setup was opened first. A snapshot already held is never replaced.
+func agentControlsRememberPersonas(cfg journeyclient.Config, snapshot productui.PersonaAdminSnapshot) {
+	personaAdminBrowser.Lock()
+	defer personaAdminBrowser.Unlock()
+	if personaAdminBrowser.tenant == cfg.Tenant && personaAdminBrowser.subject == cfg.Subject && personaAdminBrowser.bearer == cfg.Bearer && personaAdminBrowser.snapshot == nil {
+		personaAdminBrowser.snapshot = &snapshot
+	}
+}
+
+// refreshAgentControlsAfterAgentChange redraws Activity when it is on screen and
+// the agents changed. It starts its own goroutine and returns at once.
+func refreshAgentControlsAfterAgentChange() {
+	agentControlsBrowser.Lock()
+	mount := agentControlsBrowser.mount
+	agentControlsBrowser.Unlock()
+	if mount.Truthy() && mount.Get("isConnected").Bool() {
+		go runAgentOwnerRequest(mount, "", nil, "done")
+	}
+}
+
 func handleAgentOwnerClick(event js.Value) {
 	target := event.Get("target")
 	if !target.Truthy() || target.Get("closest").Type() != js.TypeFunction {
@@ -193,7 +245,8 @@ func handleAgentOwnerClick(event js.Value) {
 	}
 	event.Call("preventDefault")
 	dataset := button.Get("dataset")
-	if confirmation := dataset.Get("ownerConfirm"); confirmation.Type() == js.TypeString && confirmation.String() != "" && !js.Global().Call("confirm", confirmation.String()).Bool() {
+	// The button becomes the question and a second press goes ahead (AGENTUX-050).
+	if confirmation := dataset.Get("ownerConfirm"); confirmation.Type() == js.TypeString && confirmation.String() != "" && !inPageConfirmed(confirmation.String(), button, ownerActionDestructive(domDataset(button, "ownerAction"))) {
 		return
 	}
 	agentControlsBrowser.Lock()

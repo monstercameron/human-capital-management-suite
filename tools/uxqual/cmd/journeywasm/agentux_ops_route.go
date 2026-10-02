@@ -12,7 +12,7 @@ func agentOperationsSelectedTab(rawQuery string) string {
 	values, err := url.ParseQuery(rawQuery)
 	if err == nil {
 		switch values.Get("tab") {
-		case "running", "rollout", "move", "announcements":
+		case "running", "rollout", "move", "announcements", "connections", "cost":
 			return values.Get("tab")
 		}
 	}

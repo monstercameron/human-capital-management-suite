@@ -11,14 +11,127 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<language type="ar"/>
 	</identity>
 	<annotations>
+		<annotation cp="🏻">بشرة | بشرة فاتحة</annotation>
+		<annotation cp="🏻" type="tts">بشرة فاتحة</annotation>
+		<annotation cp="🏼">بشرة | بشرة فاتحة متوسطة</annotation>
+		<annotation cp="🏼" type="tts">بشرة فاتحة متوسطة</annotation>
+		<annotation cp="🏽">بشرة | بشرة متوسطة</annotation>
+		<annotation cp="🏽" type="tts">بشرة متوسطة</annotation>
+		<annotation cp="🏾">بشرة | بشرة داكنة متوسطة</annotation>
+		<annotation cp="🏾" type="tts">بشرة داكنة متوسطة</annotation>
+		<annotation cp="🏿">بشرة | بشرة داكنة</annotation>
+		<annotation cp="🏿" type="tts">بشرة داكنة</annotation>
+		<annotation cp="😀">ابتسامة | ضحكة | وجه</annotation>
+		<annotation cp="😀" type="tts">وجه مبتسم</annotation>
+		<annotation cp="😂">ضحك | دموع | فرح | وجه</annotation>
+		<annotation cp="😂" type="tts">وجه بدموع الفرح</annotation>
+		<annotation cp="😊">ابتسامة | خجل | عينان | وجه</annotation>
+		<annotation cp="😊" type="tts">وجه مبتسم بعينين مبتسمتين</annotation>
+		<annotation cp="😍">ابتسامة | حب | قلب | وجه</annotation>
+		<annotation cp="😍" type="tts">وجه مبتسم بعينين على شكل قلب</annotation>
+		<annotation cp="🤔">تفكير | فكرة | وجه</annotation>
+		<annotation cp="🤔" type="tts">وجه مفكر</annotation>
+		<annotation cp="😴">نعاس | نوم | وجه</annotation>
+		<annotation cp="😴" type="tts">وجه نائم</annotation>
+		<annotation cp="😎">رائع | شمس | نظارة شمسية | وجه</annotation>
+		<annotation cp="😎" type="tts">وجه مبتسم يرتدي نظارة شمسية</annotation>
+		<annotation cp="😢">بكاء | حزن | دمعة | وجه</annotation>
+		<annotation cp="😢" type="tts">وجه يبكي</annotation>
+		<annotation cp="💔">حزن | قلب | كسر</annotation>
+		<annotation cp="💔" type="tts">قلب مكسور</annotation>
+		<annotation cp="❤️">أحمر | حب | قلب</annotation>
 		<annotation cp="❤️" type="tts">قلب أحمر</annotation>
+		<annotation cp="💯">100 | كامل | مئة | نقاط</annotation>
+		<annotation cp="💯" type="tts">مئة نقطة</annotation>
+		<annotation cp="👋">تلويح | مرحبا | وداع | يد</annotation>
+		<annotation cp="👋" type="tts">يد تلوّح</annotation>
+		<annotation cp="👍">+1 | إبهام | إعجاب | موافق | يد</annotation>
+		<annotation cp="👍" type="tts">إبهام لأعلى</annotation>
+		<annotation cp="👏">تشجيع | تصفيق | يد</annotation>
+		<annotation cp="👏" type="tts">أيدي تصفق</annotation>
+		<annotation cp="🙏">دعاء | شكرا | صلاة | من فضلك | يد</annotation>
+		<annotation cp="🙏" type="tts">يدان مضمومتان</annotation>
+		<annotation cp="💪">ذراع | عضلة | قوة | قوي</annotation>
+		<annotation cp="💪" type="tts">عضلة ذراع مشدودة</annotation>
+		<annotation cp="👀">عين | مراقبة | نظر | وجه</annotation>
+		<annotation cp="👀" type="tts">عينان</annotation>
+		<annotation cp="🐶">حيوان أليف | كلب | وجه</annotation>
+		<annotation cp="🐶" type="tts">وجه كلب</annotation>
+		<annotation cp="🐱">حيوان أليف | قط | قطة | وجه</annotation>
+		<annotation cp="🐱" type="tts">وجه قطة</annotation>
+		<annotation cp="🐻">بري | حيوان | دب | وجه</annotation>
+		<annotation cp="🐻" type="tts">دب</annotation>
+		<annotation cp="🌸">ربيع | زهرة | كرز</annotation>
+		<annotation cp="🌸" type="tts">زهرة الكرز</annotation>
+		<annotation cp="🌹">حب | زهرة | وردة</annotation>
+		<annotation cp="🌹" type="tts">وردة</annotation>
+		<annotation cp="🌳">طبيعة | نبات | شجرة</annotation>
+		<annotation cp="🌳" type="tts">شجرة متساقطة الأوراق</annotation>
+		<annotation cp="🍎">أحمر | تفاح | فاكهة</annotation>
+		<annotation cp="🍎" type="tts">تفاحة حمراء</annotation>
+		<annotation cp="🍕">بيتزا | جبن | شريحة</annotation>
+		<annotation cp="🍕" type="tts">بيتزا</annotation>
+		<annotation cp="☕">بخار | ساخن | شاي | قهوة | مشروب</annotation>
 		<annotation cp="☕" type="tts">مشروب ساخن</annotation>
+		<annotation cp="🍺">بيرة | حانة | كوب | مشروب</annotation>
+		<annotation cp="🍺" type="tts">كوب بيرة</annotation>
+		<annotation cp="🌍">أرض | أوروبا | إفريقيا | عالم | كرة أرضية</annotation>
+		<annotation cp="🌍" type="tts">كرة أرضية تظهر أوروبا وإفريقيا</annotation>
+		<annotation cp="🏠">بيت | سكن | منزل</annotation>
 		<annotation cp="🏠" type="tts">منزل</annotation>
+		<annotation cp="🚗">آلية | سيارة | مركبة</annotation>
 		<annotation cp="🚗" type="tts">سيارة</annotation>
+		<annotation cp="✈️">رحلة | سفر | طيران | مطار</annotation>
 		<annotation cp="✈️" type="tts">طائرة</annotation>
+		<annotation cp="☀️">أشعة | شمس | طقس | مشمس</annotation>
+		<annotation cp="☀️" type="tts">شمس</annotation>
+		<annotation cp="⭐">سماء | نجم | نجمة</annotation>
 		<annotation cp="⭐" type="tts">نجمة</annotation>
+		<annotation cp="🔥">حريق | ساخن | لهب | نار</annotation>
 		<annotation cp="🔥" type="tts">نار</annotation>
+		<annotation cp="🎉">احتفال | تهنئة | حفلة | مناسبة</annotation>
+		<annotation cp="🎉" type="tts">مفرقعة احتفال</annotation>
+		<annotation cp="🏆">بطولة | جائزة | فوز | كأس</annotation>
+		<annotation cp="🏆" type="tts">كأس</annotation>
+		<annotation cp="⚽">قدم | كرة | رياضة</annotation>
+		<annotation cp="⚽" type="tts">كرة قدم</annotation>
+		<annotation cp="🎮">ألعاب | لعبة | وحدة تحكم</annotation>
+		<annotation cp="🎮" type="tts">لعبة فيديو</annotation>
+		<annotation cp="📞">اتصال | سماعة | هاتف</annotation>
+		<annotation cp="📞" type="tts">سماعة هاتف</annotation>
+		<annotation cp="💻">حاسوب | كمبيوتر | لابتوب | محمول</annotation>
+		<annotation cp="💻" type="tts">حاسوب محمول</annotation>
+		<annotation cp="💡">ضوء | فكرة | كهرباء | مصباح</annotation>
+		<annotation cp="💡" type="tts">مصباح كهربائي</annotation>
+		<annotation cp="📅">تاريخ | تقويم | موعد | يوم</annotation>
+		<annotation cp="📅" type="tts">تقويم</annotation>
+		<annotation cp="📌">تثبيت | دبوس | علامة | مكان</annotation>
+		<annotation cp="📌" type="tts">دبوس تثبيت</annotation>
+		<annotation cp="🔒">أمان | خصوصية | قفل | مغلق</annotation>
+		<annotation cp="🔒" type="tts">قفل مغلق</annotation>
+		<annotation cp="🔑">قفل | كلمة مرور | مفتاح</annotation>
 		<annotation cp="🔑" type="tts">مفتاح</annotation>
+		<annotation cp="⚠️">انتباه | تحذير | خطر</annotation>
+		<annotation cp="⚠️" type="tts">تحذير</annotation>
+		<annotation cp="✅">تم | زر | صح | علامة | موافق</annotation>
+		<annotation cp="✅" type="tts">زر علامة صح</annotation>
+		<annotation cp="❌">إلغاء | إكس | خطأ | علامة</annotation>
+		<annotation cp="❌" type="tts">علامة إكس</annotation>
+		<annotation cp="#️⃣">رقم | علامة | مفتاح | هاشتاغ</annotation>
+		<annotation cp="#️⃣" type="tts">مفتاح: #</annotation>
+		<annotation cp="1️⃣">رقم | مفتاح | واحد</annotation>
+		<annotation cp="1️⃣" type="tts">مفتاح: 1</annotation>
+		<annotation cp="🏁">سباق | علم | مربعات | نهاية</annotation>
+		<annotation cp="🏁" type="tts">علم منقوش</annotation>
+		<annotation cp="🏳️">أبيض | استسلام | علم</annotation>
+		<annotation cp="🏳️" type="tts">علم أبيض</annotation>
+		<annotation cp="🇩🇪">ألمانيا | ألماني | علم</annotation>
 		<annotation cp="🇩🇪" type="tts">علم: ألمانيا</annotation>
+		<annotation cp="🇫🇷">علم | فرنسا | فرنسي</annotation>
+		<annotation cp="🇫🇷" type="tts">علم: فرنسا</annotation>
+		<annotation cp="🇯🇵">علم | اليابان | ياباني</annotation>
+		<annotation cp="🇯🇵" type="tts">علم: اليابان</annotation>
+		<annotation cp="🇺🇸">أمريكا | أمريكي | الولايات المتحدة | علم</annotation>
+		<annotation cp="🇺🇸" type="tts">علم: الولايات المتحدة</annotation>
 	</annotations>
 </ldml>

@@ -88,24 +88,44 @@ func personaInstructionInsertDocument(text string, caret int, refs []agentdocref
 	return next, insertStart + len(mention) + 1, refs
 }
 
+// personaInstructionRemoveReference takes one document out of the list and its
+// mention out of the instructions. Everything else the administrator wrote is
+// left as it is: line breaks, blank lines and indentation carry meaning in
+// instructions. Documents that were attached without a mention stay attached.
 func personaInstructionRemoveReference(text, documentID string, refs []agentdocref.Reference) (string, []agentdocref.Reference) {
-	label := ""
+	nextRefs := make([]agentdocref.Reference, 0, len(refs))
 	for _, ref := range refs {
-		if ref.DocumentID == documentID {
-			label = ref.Label
-			break
-		}
-	}
-	if label != "" {
-		text = strings.ReplaceAll(text, "@["+label+"]", "")
-	}
-	nextRefs := refs[:0]
-	for _, ref := range refs {
-		if ref.DocumentID != documentID && strings.Contains(text, "@["+ref.Label+"]") {
+		if ref.DocumentID != documentID {
 			nextRefs = append(nextRefs, ref)
+			continue
+		}
+		if ref.Label != "" {
+			text = personaInstructionRemoveMention(text, "@["+ref.Label+"]")
 		}
 	}
-	return strings.Join(strings.Fields(text), " "), nextRefs
+	return text, nextRefs
+}
+
+// personaInstructionRemoveMention deletes every occurrence of one mention. The
+// space that separated the mention from its neighbour goes with it, so
+// "Follow @[Policy] first" becomes "Follow first", and a line the mention
+// ended keeps no trailing space.
+func personaInstructionRemoveMention(text, mention string) string {
+	for {
+		at := strings.Index(text, mention)
+		if at < 0 {
+			return text
+		}
+		head, tail := text[:at], text[at+len(mention):]
+		lineStart := head == "" || strings.HasSuffix(head, "\n")
+		if strings.HasPrefix(tail, " ") && (lineStart || strings.HasSuffix(head, " ")) {
+			tail = tail[1:]
+		}
+		if tail == "" || tail[0] == '\n' || tail[0] == '\r' {
+			head = strings.TrimRight(head, " \t")
+		}
+		text = head + tail
+	}
 }
 
 func personaInstructionReferencesForSubmit(text string, refs []agentdocref.Reference) []agentdocref.Reference {
@@ -123,7 +143,6 @@ func personaInstructionStoredForSubmit(text string, refs []agentdocref.Reference
 	for _, ref := range refs {
 		byLabel[ref.Label] = append(byLabel[ref.Label], ref)
 	}
-	used := make(map[string]bool, len(refs))
 	unknown := make([]string, 0)
 	var out strings.Builder
 	for offset := 0; offset < len(text); {
@@ -147,17 +166,16 @@ func personaInstructionStoredForSubmit(text string, refs []agentdocref.Reference
 			out.WriteString(text[start : end+1])
 		} else {
 			out.WriteString(agentdocref.Token(matches[0].DocumentID))
-			used[matches[0].DocumentID] = true
 		}
 		offset = end + 1
 	}
-	kept := make([]agentdocref.Reference, 0, len(refs))
-	for _, ref := range refs {
-		if used[ref.DocumentID] {
-			kept = append(kept, ref)
-		}
+	if len(unknown) > 0 {
+		return out.String(), nil, unknown
 	}
-	return out.String(), kept, unknown
+	// Every document still in the list is sent, mentioned or not: the server
+	// allows a reference the instructions never name, and the list is where
+	// the administrator removes one.
+	return out.String(), append([]agentdocref.Reference(nil), refs...), unknown
 }
 
 func personaInstructionHasReference(refs []agentdocref.Reference, documentID string) bool {
@@ -182,4 +200,20 @@ func personaInstructionSetReferenceMode(refs []agentdocref.Reference, documentID
 		break
 	}
 	return next
+}
+
+// personaInstructionDroppedMentions names the documents whose mention was in
+// the instructions before an edit and is not in them after it.
+func personaInstructionDroppedMentions(before, after string, refs []agentdocref.Reference) []string {
+	dropped := make([]string, 0)
+	for _, ref := range refs {
+		if ref.Label == "" {
+			continue
+		}
+		mention := "@[" + ref.Label + "]"
+		if strings.Contains(before, mention) && !strings.Contains(after, mention) {
+			dropped = append(dropped, ref.DocumentID)
+		}
+	}
+	return dropped
 }

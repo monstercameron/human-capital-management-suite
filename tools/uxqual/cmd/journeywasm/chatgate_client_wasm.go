@@ -35,7 +35,10 @@ func chatgateFetch(cfg journeyclient.Config, r chatgateClientRequest) (chatgateC
 	options.Set("signal", controller.Get("signal"))
 	timer := time.AfterFunc(20*time.Second, func() { controller.Call("abort") })
 	defer timer.Stop()
-	if r.Action == "get" {
+	if r.Action == chatgateListAction {
+		options.Set("method", "GET")
+		path += "?list=1"
+	} else if r.Action == "get" {
 		options.Set("method", "GET")
 		path += "?conversation=" + url.QueryEscape(r.Conversation) + "&locale=" + url.QueryEscape(r.Locale)
 	} else {
@@ -62,7 +65,12 @@ func chatgateFetch(cfg journeyclient.Config, r chatgateClientRequest) (chatgateC
 // openChatgateForJoin is called before the ordinary join command. Failed gate
 // reads never fall through to membership. An unmounted gate API remains ungated.
 func openChatgateForJoin(cfg journeyclient.Config, id string) bool {
-	if features := chatBrowser.snapshot().ChatFeatures; features != nil && !features.Gates {
+	model := chatBrowser.snapshot()
+	if features := model.ChatFeatures; features != nil && !features.Gates {
+		return false
+	}
+	if chatgateKnownUngated(model.GateJoins, id) {
+		// The list of gates was read and this channel is not in it.
 		return false
 	}
 	active := chatBrowser.config(cfg)
@@ -82,6 +90,32 @@ func openChatgateForJoin(cfg journeyclient.Config, id string) bool {
 	mountChatgate(active, *reply.View)
 	return true
 }
+
+// chatgateRefreshJoins reads the gates the person may know of and keeps them
+// on the model: the Browse list says what joining each one takes, and a member
+// who must answer again is told above the conversation (CHATGATE-005). A read
+// that fails keeps what the page had; with nothing read the page offers a
+// plain Join and asks about the gate when it is pressed.
+func chatgateRefreshJoins(cfg journeyclient.Config) {
+	active := chatBrowser.config(cfg)
+	if active.Bearer == "" {
+		return
+	}
+	reply, status := chatgateFetch(active, chatgateClientRequest{Action: chatgateListAction})
+	if status != 200 {
+		return
+	}
+	joins, ok := chatgateJoins(reply.Result)
+	if !ok {
+		return
+	}
+	current := chatBrowser.config(cfg)
+	if current.Tenant != active.Tenant || current.Subject != active.Subject {
+		return
+	}
+	chatBrowser.mutate(func(m *chatui.Model) { m.GateJoins = joins })
+	chatStreamRender.Schedule()
+}
 func init() {
 	doc := js.Global().Get("document")
 	if !doc.Truthy() {
@@ -93,6 +127,11 @@ func init() {
 		}
 		target := args[0].Get("target")
 		if !target.Truthy() || !target.Get("closest").Truthy() {
+			return nil
+		}
+		if target.Call("closest", `[data-action="open-browse"]`).Truthy() {
+			// Browse is opening: its rows say what each gate takes.
+			go chatgateRefreshJoins(journeyclient.Config{})
 			return nil
 		}
 		link := target.Call("closest", "[data-gate-open]")
@@ -220,6 +259,18 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 		if action == "retry" {
 			action = "get"
 		}
+		if action == "submit" && !view.Administrator {
+			// CHATGATE-005: what the form can check itself is checked before the
+			// answers are sent. Each wrong question says why under itself, and
+			// focus goes to the first of them.
+			if problems := chatgateSubmitProblems(view.Locale, d, answers); len(problems) > 0 {
+				view.FieldErrors = problems
+				view.Notice = chatui.GateText(view.Locale, "fixAnswers")
+				render()
+				return nil
+			}
+			view.FieldErrors = nil
+		}
 		req := chatgateClientRequest{Conversation: view.Conversation, Locale: view.Locale, Action: action, Key: js.Global().Get("crypto").Call("randomUUID").String(), ExpectedRevision: view.Gate.Revision, Version: view.Gate.Current, Definition: d, SubmissionID: id}
 		req.Answers, _ = chatgateValues(d, answers)
 		if action == "bulk-admit" || action == "bulk-decline" {
@@ -287,13 +338,13 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 					for field, code := range reply.Fields {
 						key := "invalid"
 						if code == "answers_required" {
-							key = "required"
+							key = "requiredError"
 						}
 						view.FieldErrors[field] = chatui.GateText(view.Locale, key)
 					}
 					for _, f := range d.Fields {
 						if f.Required && len(answers[f.ID]) == 0 {
-							view.FieldErrors[f.ID] = chatui.GateText(view.Locale, "required")
+							view.FieldErrors[f.ID] = chatui.GateText(view.Locale, "requiredError")
 						}
 					}
 				}
@@ -316,6 +367,11 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 					invalidateChatRecipientProjection()
 					pushChatHistoryForSelection(view.Conversation)
 					openChatConversation(cfg, view.Conversation)
+				}
+				if action != "get" && action != "save" {
+					// A gate that was published, paused or answered changes what
+					// Browse and the banner say.
+					go chatgateRefreshJoins(cfg)
 				}
 			}
 			render()
@@ -372,16 +428,40 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 			}
 		} else if view.Administrator {
 			values, checks := chatgateEditorDOM(overlay)
-			d, e := chatgateEditedDefinition(chatgateViewDefinition(view), values, checks)
-			if e == nil {
+			// The draft is read whether or not its rule is finished: the sentence
+			// under the rule follows every keystroke, and choosing the rule's
+			// subject or a question's kind redraws the builder for it.
+			d, ok := chatgateDraftDefinition(chatgateViewDefinition(view), values, checks)
+			if ok {
 				preview := overlay.Call("querySelector", "#gate-rule-preview")
 				if preview.Truthy() {
 					preview.Set("textContent", chatui.GateRulePreview(view.Locale, d))
 				}
-				if strings.HasSuffix(target.Get("id").String(), "-kind") {
+				if id := target.Get("id").String(); strings.HasSuffix(id, "-kind") || id == "gate-rule-field" || id == "gate-mode" {
 					view.Gate.Draft = &d
 					render()
+					if again := overlay.Call("querySelector", "[id=\""+id+"\"]"); again.Truthy() {
+						again.Call("focus")
+					}
 				}
+			}
+		} else if field := target.Call("getAttribute", "data-gate-field"); !field.IsNull() && len(view.FieldErrors) > 0 {
+			// A question that was marked wrong is checked again as it is answered,
+			// in place: the form is not redrawn under the person's hands.
+			id := field.String()
+			problems := chatgateSubmitProblems(view.Locale, chatgateViewDefinition(view), chatgateAnswerDOM(overlay))
+			text := problems[id]
+			if text == "" {
+				delete(view.FieldErrors, id)
+			} else {
+				view.FieldErrors[id] = text
+			}
+			if line := overlay.Call("querySelector", "[id=\"gate-field-"+id+"-error\"]"); line.Truthy() {
+				line.Set("textContent", text)
+			}
+			inputs := overlay.Call("querySelectorAll", "[data-gate-field=\""+id+"\"]")
+			for i := 0; i < inputs.Length(); i++ {
+				inputs.Index(i).Call("setAttribute", "aria-invalid", strconv.FormatBool(text != ""))
 			}
 		}
 		return nil
@@ -476,8 +556,11 @@ func chatgatePopulate(root js.Value, v chatui.GateView) {
 		}
 	}
 	if len(d.Rules) > 0 {
-		set("gate-rule-field", d.Rules[0].When.Field)
-		set("gate-rule-values", strings.Join(d.Rules[0].When.Values, "\n"))
-		set("gate-rule-reason", d.Rules[0].Reason)
+		// The subject, the ticked answers and the others typed are drawn with the
+		// builder (chatui.gateRuleEditor); the reason is a text box's value.
+		rule := chatui.GateRuleOf(d)
+		set("gate-rule-field", rule.Subject)
+		set("gate-rule-else", rule.Else)
+		set("gate-rule-reason", rule.Reason)
 	}
 }

@@ -8,7 +8,6 @@ import (
 	"html"
 	"net/url"
 	"strings"
-	"sync"
 	"syscall/js"
 	"time"
 
@@ -52,11 +51,6 @@ import (
 // Opening a room does not use it: that is one backward page (see loadChatPosts).
 const chatCatchupPages = 10
 
-// chatReactionFanout caps concurrent per-post reaction reads. There is no
-// bulk reaction-count RPC (see the gap report), so the count is a bounded
-// fan-out over the newest visible posts.
-const chatReactionFanout = 8
-
 // chatWorkers reads the worker directory chat resolves names from. It is the
 // same RPC the People page uses, called by chat for itself: a name must not
 // depend on which pages this session happened to visit.
@@ -67,6 +61,8 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	disposeIntegrate1Chat()
 	clearChatMediaCache()
 	resetChatPersonActions()
+	chatperfSoundSeen.reset()
+	conn = chatperfConn(conn)
 	client := chatv1.NewConversationServiceClient(conn)
 	chatWorkers = journeyv1.NewJourneyServiceClient(conn)
 	chatBrowser.reset(client, cfg, func() chatui.Callbacks { return chatCallbacks(cfg) })
@@ -79,6 +75,8 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	configurePersonaChatBrowser(cfg)
 	configureIntegrate1Icons(cfg)
 	chatattach001Configure(cfg)
+	// CHATGATE-005: which channels have a gate, off the load path.
+	go chatgateRefreshJoins(cfg)
 }
 
 // loadChatDirectory reads the worker directory once per session.
@@ -310,7 +308,16 @@ func chatNarrowViewport() bool {
 }
 
 func refreshChatRoute() {
+	chatperfTraceCaller("refresh")
 	if chatRerender != nil {
+		if chatperfSkeletonOnScreen() {
+			// CHATBUG-014: the page is showing its skeleton while the first
+			// messages are read. Changes that arrive now are gathered into few
+			// repaints, so the thread is free when the messages land; the
+			// repaint that carries the messages is never held.
+			chatperfSkeletonRender.Schedule()
+			return
+		}
 		chatRerender()
 		return
 	}
@@ -387,7 +394,7 @@ func noteChatActionRetry(text string, retry bool) {
 	if text == "" {
 		return
 	}
-	token := chatBrowser.setNotice(text, retry)
+	token := chatBrowser.setNotice(chatui.LocalizeChatNotice(chatBrowser.localeTag(), text), retry)
 	refreshChatRoute()
 	time.AfterFunc(chatNoticeTTL, func() {
 		if chatBrowser.clearNotice(token) {
@@ -399,9 +406,12 @@ func noteChatActionRetry(text string, retry bool) {
 // chatActionFailed is the single funnel for a failed action.
 func chatActionFailed(action string, err error) bool {
 	if err == nil {
+		// The same action working again takes its own failure line down.
+		chatActionRecovered(action)
 		return false
 	}
 	noteChatAction(actionFailureNotice(action, err))
+	rememberChatNoticeAction(action, chatBrowser.noticeTokenNow())
 	return true
 }
 
@@ -540,15 +550,31 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 		addressRooms = append(addressRooms, room)
 	}
 	fragmentID, _ := currentChatChannelFragment(addressRooms)
-	fragmentID = integrate2AddressSelection(addressRooms, fragmentID, model.SelectedID)
-	if fragmentID != "" && fragmentID != model.SelectedID {
-		// The URL can name a room absent from this reader's listing. Keep its
-		// pending or unavailable view through route revalidation; selecting
-		// the first listed room here would put that room under the wrong URL.
-		model.SelectedID = fragmentID
-		if previous == fragmentID && previousState == chatui.StateError {
+	// CHATBUG-068: a re-read of the list never moves the open conversation. The
+	// address is read for the first load only (a later change of it is handled
+	// when it happens), and a conversation that is no longer listed stays where
+	// it is with a notice instead of handing the tab to the first one.
+	wasListed := false
+	for _, room := range local.Conversations {
+		if room.ID == previous && previous != "" {
+			wasListed = true
+			break
+		}
+	}
+	selected, unreadable := chatListingSelection(previous, fragmentID, addressRooms, model.SelectedID != "" && model.PreviewConversation == nil, model.PreviewConversation != nil, wasListed, len(list.GetConversations()) < 100)
+	if selected != "" && selected != model.SelectedID {
+		// The room can be absent from this reader's listing: an address read on
+		// the first load, a room still opening, or one that stopped being
+		// readable. Keep its pending, failed or unavailable view through route
+		// revalidation; selecting the first listed room here would put that room
+		// under the wrong URL.
+		model.SelectedID = selected
+		switch {
+		case unreadable:
+			model.State, model.Error = chatui.StateError, chatui.ConversationUnreadableText(cfg.Locale)
+		case previous == selected:
 			model.State, model.Error = previousState, previousError
-		} else {
+		default:
 			model.State = chatui.StateLoading
 		}
 	}
@@ -619,11 +645,20 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 		promptChatChannelAccess(cfg, *previewAccess)
 	}
 	startChatRecipientProjection(cfg, chatMembershipRows(list.GetConversations()))
-	startPersonaChat(cfg, model.SelectedID)
+	// CHATBUG-014: a load that leaves the messages to the open that follows
+	// leaves the agent reads to it too. That open starts them for the
+	// conversation it opens, which the address may have changed; started here
+	// as well, they were made twice.
+	if !deferTimeline {
+		startPersonaChat(cfg, model.SelectedID)
+	}
 	startChatDMPeers(cfg, conversations)
 	if deferTimeline {
 		chatux009Defer(cfg, model.SelectedID)
 		bootMark("chat-adopted")
+		// CHATBUG-014: ask for the messages now. Started last, so their read is
+		// the first of this load's background reads to go out.
+		chatux009OpenAhead()
 		return chatBrowser.snapshot(), nil
 	}
 	if firstLoad {
@@ -760,6 +795,9 @@ func loadChatPosts(ctx context.Context, client chatv1.ConversationServiceClient,
 	// both sides of the hit so paging newer cannot immediately move it out of
 	// view or make it look like the newest message.
 	model.HasNewer = false
+	// CHATBUG-014: the pins are read beside the posts, not after them, so an
+	// open costs one round trip of waiting instead of two.
+	pins := chatperfReadPins(ctx, client, cfg, model.SelectedID)
 	var posts []*chatv1.Post
 	var olderCursor, newerCursor string
 	if len(anchors) > 0 && anchors[0].sequence > 0 {
@@ -830,24 +868,44 @@ func loadChatPosts(ctx context.Context, client chatv1.ConversationServiceClient,
 			cursor.Seen[post.GetId()] = post.GetSequence()
 		}
 	}
-	applyChatPins(ctx, client, cfg, model)
+	applyChatPins(model, <-pins)
 	if len(model.Messages) == 0 {
 		model.State = chatui.StateEmpty
 	}
-	go loadChatReactionsLater(cfg, model.SelectedID, chatPostWindow(model.Messages, chatReactionWindow))
-	markChatRead(cfg, model.SelectedID, posts)
+	// CHATBUG-014: on the page's first load the reactions, the read mark and the
+	// attachment grants wait for the messages to be on screen; on every later
+	// open they start at once, as before.
+	room := model.SelectedID
+	reactionPosts := chatPostWindow(model.Messages, chatReactionWindow)
+	// The conversation's stream waits for this read (chatperfTurn).
+	chatperfReactionRead.begin(room)
+	chatperfAfterFirstPaint(func() { loadChatReactionsLater(cfg, room, reactionPosts); chatperfReactionRead.end(room) })
+	chatperfAfterFirstPaint(func() { markChatRead(cfg, room, posts) })
 	// After the timeline, never before it: the attachments render as chips and
 	// their URLs swap in when the grants land.
-	go resolveChatMedia(cfg, model.SelectedID)
+	chatperfAfterFirstPaint(func() { resolveChatMedia(cfg, room) })
 	return cursor, nil
+}
+
+// chatperfReadPins starts the pin read for a conversation and returns where its
+// answer arrives. A failed read answers nil, which leaves the pins as they are.
+func chatperfReadPins(ctx context.Context, client chatv1.ConversationServiceClient, cfg journeyclient.Config, conversation string) <-chan *chatv1.ListPinsResponse {
+	answer := make(chan *chatv1.ListPinsResponse, 1)
+	go func() {
+		pins, err := client.ListPins(ctx, &chatv1.ListPinsRequest{TenantId: cfg.Tenant, ConversationId: conversation})
+		if err != nil {
+			pins = nil
+		}
+		answer <- pins
+	}()
+	return answer
 }
 
 // applyChatPins merges the pin projection and keeps each pin's revision:
 // UnpinPost refuses a zero expected_revision and ListPins is the only place
 // that revision comes from.
-func applyChatPins(ctx context.Context, client chatv1.ConversationServiceClient, cfg journeyclient.Config, model *chatui.Model) {
-	pins, err := client.ListPins(ctx, &chatv1.ListPinsRequest{TenantId: cfg.Tenant, ConversationId: model.SelectedID})
-	if err != nil {
+func applyChatPins(model *chatui.Model, pins *chatv1.ListPinsResponse) {
+	if pins == nil {
 		return
 	}
 	revisions := make(map[string]uint64, len(pins.GetPins()))
@@ -863,11 +921,7 @@ func applyChatPins(ctx context.Context, client chatv1.ConversationServiceClient,
 		if pin == nil || pin.GetPost() == nil || pin.GetPostId() == "" {
 			continue
 		}
-		post := pin.GetPost()
-		model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{
-			PostID: pin.GetPostId(), Author: chatDisplayName(directory, post.GetAuthorId()),
-			Body: post.GetBody(), Sequence: post.GetSequence(), Revision: post.GetRevision(),
-		})
+		model.ChannelPins = append(model.ChannelPins, chatPinProjection(pin, directory))
 	}
 	if model.ChannelTodoSourcePin != "" {
 		found := false
@@ -905,28 +959,18 @@ func loadChatReactionsLater(cfg journeyclient.Config, conversationID string, ids
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	ctx = chatRPCContext(ctx, cfg)
-	chips := make(map[string][]chatui.ReactionChip, len(ids))
-	members := make(map[string]map[chatReactionIdentity]struct{}, len(ids))
-	sem := make(chan struct{}, chatReactionFanout)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	for _, id := range ids {
-		id := id
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			result, err := client.ListReactions(ctx, &chatv1.ListReactionsRequest{TenantId: cfg.Tenant, ConversationId: conversationID, PostId: id, PageSize: 100})
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			chips[id], members[id] = chatReactionSnapshot(result.GetReactions(), cfg.Subject)
-			mu.Unlock()
-		}()
+	// CHATBUG-014: one call for the page of posts, not one per post.
+	byPost, err := chatperfReadReactions(ctx, client, cfg.Tenant, conversationID, ids)
+	if err != nil {
+		// The chips on screen stay as they are, and the next open asks again.
+		chatBrowser.releaseReactionRead()
+		return
 	}
-	wg.Wait()
+	chips := make(map[string][]chatui.ReactionChip, len(byPost))
+	members := make(map[string]map[chatReactionIdentity]struct{}, len(byPost))
+	for id, reactions := range byPost {
+		chips[id], members[id] = chatReactionSnapshot(reactions, cfg.Subject)
+	}
 	chatBrowser.setReactions(chips, members)
 	if chatBrowser.applyReactionChips(conversationID, chips) {
 		refreshChatRoute()
@@ -959,7 +1003,9 @@ func chatReactionSnapshot(reactions []*chatv1.Reaction, viewer string) ([]chatui
 			continue
 		}
 		members[identity] = struct{}{}
-		chips = adjustChips(chips, emoji, 1, viewer != "" && reaction.GetSubjectId() == viewer)
+		mine := viewer != "" && reaction.GetSubjectId() == viewer
+		chips = adjustChips(chips, emoji, 1, mine)
+		notePersonOnChip(chips, emoji, reaction.GetSubjectId(), mine)
 	}
 	return chips, members
 }
@@ -975,6 +1021,9 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			go undoPersonaChatFeedback(cfg, invocationID)
 		},
 		ShareAgentAnswer: func(invocationID string) { go sharePersonaChatAnswer(cfg, invocationID) },
+		RemoveSharedAgentAnswer: func(invocationID string) {
+			go removeSharedPersonaChatAnswer(cfg, invocationID)
+		},
 		CancelPersonaInvocation: func(invocationID string) {
 			go cancelPersonaChat(cfg, invocationID)
 		},
@@ -1003,6 +1052,8 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			refreshChatRoute()
 		},
 		SelectConversation: func(id string) {
+			// CHATUX-022: choosing the open conversation's own row reads it.
+			chatux022Reselect(cfg, id)
 			pushChatHistoryForSelection(id)
 			openChatConversation(cfg, id)
 		},
@@ -1075,6 +1126,11 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 						chatBrowser.restoreDraft(chatBrowser.selectedID(), strings.Join(waiting, "\n"))
 						flushChatDraftPersist(active)
 					}
+					if channelNameRefused(err) {
+						chatBrowser.mutate(func(model *chatui.Model) { model.NewNameRefused = strings.TrimSpace(name) })
+						refreshChatRoute()
+						return
+					}
 					chatmod002Failed("create this conversation", err, "", "", chatui.ModAuthorSurfaceSaved, strings.TrimSpace(name))
 					refreshChatRoute()
 					return
@@ -1086,7 +1142,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				// had just created went to whichever conversation happened to
 				// be first in the list.
 				chatBrowser.mutate(func(model *chatui.Model) {
-					model.ShowCreate = false
+					model.ShowCreate, model.NewNameRefused = false, ""
 					if conversation.GetId() != "" && !chatJoinedSet(model.Conversations)[conversation.GetId()] {
 						model.Conversations = append(model.Conversations, chatConversation(conversation))
 					}
@@ -1117,6 +1173,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			scheduleChatDraftEmbeds(cfg, conversationID, value)
 			scheduleChatDraftPersist(cfg)
 		},
+		MentionPicked: refreshChatRoute,
 		SendMessage: func(conversationID, body string) {
 			// The room on screen decides where this goes, and a room still
 			// opening holds the message until it is ready. chatui addresses a
@@ -1169,6 +1226,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				chatStreamRender.Schedule()
 			}()
 		},
+		SearchFocus: func() { chatsearchLoadRecent(cfg) },
 		Search: func(query string) {
 			query = strings.TrimSpace(query)
 			if chatsearchBegin(cfg, query) {
@@ -1394,14 +1452,24 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				chatBrowser.clearAuthorBlocked(chatui.ModAuthorKeyEdit(postID))
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
-				_, err := client.EditPost(chatRPCContext(ctx, active), &chatv1.EditPostRequest{
+				edited, err := client.EditPost(chatRPCContext(ctx, active), &chatv1.EditPostRequest{
 					Post: &chatv1.Post{TenantId: active.Tenant, ConversationId: chatBrowser.selectedID(), Id: postID}, Body: body, ExpectedRevision: revision,
 				})
 				if chatmod002Failed("save this edit", err, chatBrowser.selectedID(), chatui.ModAuthorKeyEdit(postID), chatui.ModAuthorSurfaceMessage, body) {
 					return
 				}
 				chatBrowser.clearEditDraft(postID)
-				chatBrowser.mutate(func(model *chatui.Model) { model.EditingID = "" })
+				// The answer carries the saved text and its new revision. Showing
+				// it now, rather than when the stream's event arrives, keeps the
+				// row from reading as unsaved and lets the next edit or delete use
+				// the right revision.
+				directory := chatDirectorySnapshot()
+				chatBrowser.mutate(func(model *chatui.Model) {
+					model.EditingID = ""
+					if post := edited.GetPost(); post != nil && post.GetId() == postID {
+						applyChatPostEdited(model, post, active.Locale, directory, time.Now())
+					}
+				})
 				chatActionSucceeded("")
 				invalidateChatRecipientProjection()
 				refreshChatRoute()
@@ -1423,9 +1491,16 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 					return
 				}
 				chatActionSucceeded("Message deleted")
+				// The service has answered: take the row out now. The stream's own
+				// delete event still arrives and settles the reply counts; waiting
+				// for it left the deleted message on screen while a stream reconnected.
+				chatBrowser.mutate(func(model *chatui.Model) { chatDropDeletedRow(model, postID) })
 				invalidateChatRecipientProjection()
 				refreshChatRoute()
 			}()
+		},
+		MarkUnreadFrom: func(postID string) {
+			go markChatUnreadFrom(cfg, postID)
 		},
 		React:     func(postID string) { go addChatReaction(cfg, postID, chatDefaultReaction) },
 		ReactWith: func(postID, emoji string) { go addChatReaction(cfg, postID, emoji) },
@@ -1515,7 +1590,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}()
 		},
 	}
-	return withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg)
+	return withPurposeSavedNote(withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatside001Callbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg))
 }
 
 func closeChatDetailsForPinJump(viewportWidth int) {
@@ -1625,6 +1700,8 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 		}
 		return
 	}
+	// CHATUX-022: coming back to a conversation that was marked unread reads it.
+	setChatReadHold(id, false)
 	// Count an actual navigation immediately, including search-driven opens.
 	// The page-selection observer covers route entry and history restoration;
 	// the visit state de-duplicates the same open when both paths fire.
@@ -1653,11 +1730,13 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 		defer func() {
 			// CHATUX-009: the worker directory is read once the messages are on
 			// screen, not while they are being read (a no-op when it already was).
-			go loadChatDirectory(cfg)
+			// CHATBUG-014: "on screen" is the first paint, which this open may
+			// now finish ahead of; after it the gate passes work straight through.
+			chatperfAfterFirstPaint(func() { loadChatDirectory(cfg) })
 			if held {
-				go loadChannelTodo(cfg, id)
-				go loadChannelWidgets(cfg, id)
-				go loadChannelPoll(cfg, id)
+				chatperfAfterFirstPaint(func() { loadChannelTodo(cfg, id) })
+				chatperfAfterFirstPaint(func() { loadChannelWidgets(cfg, id) })
+				chatperfAfterFirstPaint(func() { loadChannelPoll(cfg, id) })
 			}
 			for _, body := range chatBrowser.finishChatOpen(id, generation) {
 				sendChatMessage(chatBrowser.config(cfg), id, body)
@@ -1709,11 +1788,18 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 				return
 			}
 			current.State, current.Error = model.State, ""
+			// CHATUX-022: the messages and the "New" line are on screen, so the
+			// sidebar row stops reading as unread now, not at the next sidebar read.
+			chatux022OpenedRoomRead(current)
 			chatBrowser.cursor = cursor
 		})
 		if committed && err == nil {
-			subscribeChatConversation(id)
-			go loadChatMembers(cfg)
+			// CHATBUG-014: a new stream replays the conversation's recent events.
+			// That is work the first paint does not need, and it changes nothing
+			// on screen once the reactions have been read, so the stream starts
+			// after both. The posts just read are the starting point either way.
+			chatperfAfterFirstPaint(func() { chatperfSubscribeAfterReactions(id, generation) })
+			chatperfAfterFirstPaint(func() { loadChatMembers(cfg) })
 			if postID != "" {
 				ui.PostAsync(func() {
 					current := chatBrowser.snapshot()
@@ -1721,12 +1807,6 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 						chatui.FocusSearchMessage(postID)
 					}
 				})
-			}
-			for _, room := range chatBrowser.snapshot().Conversations {
-				if room.ID == id && room.Kind == chatui.DirectMessage {
-					go loadChatMembers(cfg)
-					break
-				}
 			}
 		}
 		refreshChatRoute()
@@ -1881,16 +1961,16 @@ func chatCopyableBody(model chatui.Model, postID string) (string, bool) {
 	}
 	for _, message := range model.Messages {
 		if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-			return chatui.ReaderMessageBody(model, message), true
+			return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, message)), true
 		}
 	}
 	if model.ShowThread {
 		if model.ThreadParent != nil && model.ThreadParentID == postID && model.ThreadParent.ID == postID && strings.TrimSpace(model.ThreadParent.Body) != "" {
-			return chatui.ReaderMessageBody(model, *model.ThreadParent), true
+			return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, *model.ThreadParent)), true
 		}
 		for _, message := range model.ThreadMessages {
 			if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-				return chatui.ReaderMessageBody(model, message), true
+				return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, message)), true
 			}
 		}
 	}
@@ -2084,7 +2164,7 @@ func setChatPinned(model *chatui.Model, postID string, pinned bool) {
 					}
 				}
 				if !found {
-					model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{PostID: postID, Author: model.Messages[i].Author, Body: model.Messages[i].Body, Sequence: model.Messages[i].Sequence, Revision: model.Messages[i].Revision})
+					model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{PostID: postID, Author: model.Messages[i].Author, Body: model.Messages[i].Body, Sequence: model.Messages[i].Sequence, Revision: model.Messages[i].Revision, PinnedBy: model.CurrentUserName, PinnedAt: time.Now()})
 				}
 			}
 			break
@@ -2127,9 +2207,23 @@ func loadChatMembers(cfg journeyclient.Config) {
 	if conversation == "" {
 		return
 	}
+	if chatBrowser.snapshot().MembersFailed {
+		// A retry: the menu goes back to its loading line while the read runs.
+		chatBrowser.mutate(func(model *chatui.Model) { model.MembersFailed = false })
+		refreshChatRoute()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	result, err := client.ListMemberships(chatRPCContext(ctx, active), &chatv1.ListMembershipsRequest{TenantId: channelTodoHost(conversation, active.Tenant), ConversationId: conversation, PageSize: 100})
+	if err != nil {
+		// The "@" menu waits on this read; it shows the failure with a retry
+		// instead of its loading line.
+		chatBrowser.mutate(func(model *chatui.Model) {
+			if model.SelectedID == conversation {
+				model.MembersFailed = true
+			}
+		})
+	}
 	if chatActionFailed("load the member list", err) {
 		return
 	}
@@ -2177,7 +2271,9 @@ func loadChatMembers(cfg journeyclient.Config) {
 	}
 	chatBrowser.mutate(func(model *chatui.Model) {
 		if model.SelectedID == conversation {
-			model.Members = members
+			// AGENTUX-033: the agents of the conversation are agents here too.
+			model.Members, _ = agentUX033MarkAgentMembers(members, model.ResolvedPersonaMentions)
+			model.MembersFailed = false
 			model.CanPinChannelTodo = canPinTodo
 		}
 		for i := range model.Conversations {

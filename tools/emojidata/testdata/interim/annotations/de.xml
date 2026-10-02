@@ -25,62 +25,113 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<annotation cp="😀" type="tts">grinsendes Gesicht</annotation>
 		<annotation cp="😂">Freude | Gesicht | lachen | Träne</annotation>
 		<annotation cp="😂" type="tts">Gesicht mit Freudentränen</annotation>
+		<annotation cp="😊">Auge | erröten | gerötet | Gesicht | lachen | lächeln</annotation>
 		<annotation cp="😊" type="tts">lächelndes Gesicht mit lachenden Augen</annotation>
+		<annotation cp="😍">verliebt | Gesicht | Herz | Liebe | lächeln</annotation>
 		<annotation cp="😍" type="tts">lächelndes Gesicht mit herzförmigen Augen</annotation>
+		<annotation cp="🤔">denken | Gesicht | nachdenken | überlegen</annotation>
 		<annotation cp="🤔" type="tts">nachdenkliches Gesicht</annotation>
+		<annotation cp="😴">Gesicht | müde | schlafen | Zzz</annotation>
 		<annotation cp="😴" type="tts">schlafendes Gesicht</annotation>
+		<annotation cp="😎">cool | Gesicht | lächeln | Sonnenbrille</annotation>
 		<annotation cp="😎" type="tts">lächelndes Gesicht mit Sonnenbrille</annotation>
+		<annotation cp="😢">Gesicht | traurig | Träne | weinen</annotation>
 		<annotation cp="😢" type="tts">weinendes Gesicht</annotation>
+		<annotation cp="💔">gebrochen | Herz | Liebeskummer | traurig</annotation>
 		<annotation cp="💔" type="tts">gebrochenes Herz</annotation>
+		<annotation cp="❤️">Herz | Liebe | rot</annotation>
 		<annotation cp="❤️" type="tts">rotes Herz</annotation>
+		<annotation cp="💯">100 | hundert | perfekt | Punkte</annotation>
 		<annotation cp="💯" type="tts">100 Punkte</annotation>
 		<annotation cp="👋">Hand | winken</annotation>
 		<annotation cp="👋" type="tts">winkende Hand</annotation>
 		<annotation cp="👍">Daumen | hoch</annotation>
 		<annotation cp="👍" type="tts">Daumen hoch</annotation>
+		<annotation cp="👏">Applaus | Beifall | Hände | klatschen</annotation>
 		<annotation cp="👏" type="tts">klatschende Hände</annotation>
 		<annotation cp="🙏">beten | Hände</annotation>
 		<annotation cp="🙏" type="tts">zum Beten gefaltete Hände</annotation>
+		<annotation cp="💪">Bizeps | Kraft | Muskel | stark</annotation>
 		<annotation cp="💪" type="tts">angespannter Bizeps</annotation>
+		<annotation cp="👀">anschauen | Augen | Blick | schauen</annotation>
 		<annotation cp="👀" type="tts">Augen</annotation>
+		<annotation cp="🐶">Gesicht | Haustier | Hund | Tier</annotation>
 		<annotation cp="🐶" type="tts">Hundegesicht</annotation>
+		<annotation cp="🐱">Gesicht | Haustier | Katze | Tier</annotation>
 		<annotation cp="🐱" type="tts">Katzengesicht</annotation>
+		<annotation cp="🐻">Bär | Gesicht | Tier</annotation>
 		<annotation cp="🐻" type="tts">Bär</annotation>
+		<annotation cp="🌸">Blume | Blüte | Frühling | Kirsche</annotation>
 		<annotation cp="🌸" type="tts">Kirschblüte</annotation>
+		<annotation cp="🌹">Blume | Liebe | Rose</annotation>
 		<annotation cp="🌹" type="tts">Rose</annotation>
+		<annotation cp="🌳">Baum | Laubbaum | Natur | Pflanze</annotation>
 		<annotation cp="🌳" type="tts">Laubbaum</annotation>
+		<annotation cp="🍎">Apfel | Obst | rot</annotation>
 		<annotation cp="🍎" type="tts">roter Apfel</annotation>
+		<annotation cp="🍕">Käse | Pizza | Stück</annotation>
 		<annotation cp="🍕" type="tts">Pizza</annotation>
+		<annotation cp="☕">Getränk | heiß | Heißgetränk | Kaffee | Tee</annotation>
 		<annotation cp="☕" type="tts">Heißgetränk</annotation>
+		<annotation cp="🍺">Bier | Bierkrug | Getränk | Krug</annotation>
 		<annotation cp="🍺" type="tts">Bierkrug</annotation>
+		<annotation cp="🌍">Afrika | Erde | Europa | Globus | Welt</annotation>
 		<annotation cp="🌍" type="tts">Globus mit Europa und Afrika</annotation>
 		<annotation cp="🏠">Haus | Zuhause</annotation>
 		<annotation cp="🏠" type="tts">Haus</annotation>
 		<annotation cp="🚗">Auto | Wagen</annotation>
 		<annotation cp="🚗" type="tts">Auto</annotation>
+		<annotation cp="✈️">fliegen | Flug | Flugzeug | Reise</annotation>
 		<annotation cp="✈️" type="tts">Flugzeug</annotation>
+		<annotation cp="☀️">sonnig | Sonne | Strahlen | Wetter</annotation>
 		<annotation cp="☀️" type="tts">Sonne</annotation>
+		<annotation cp="⭐">Favorit | Himmel | Stern</annotation>
+		<annotation cp="⭐" type="tts">Stern</annotation>
 		<annotation cp="🔥">Feuer | Flamme</annotation>
 		<annotation cp="🔥" type="tts">Feuer</annotation>
+		<annotation cp="🎉">Feier | Glückwunsch | Konfetti | Konfettibombe | Party</annotation>
+		<annotation cp="🎉" type="tts">Konfettibombe</annotation>
+		<annotation cp="🏆">Pokal | Preis | Sieg | Trophäe</annotation>
 		<annotation cp="🏆" type="tts">Pokal</annotation>
+		<annotation cp="⚽">Ball | Fußball | Sport</annotation>
 		<annotation cp="⚽" type="tts">Fußball</annotation>
+		<annotation cp="🎮">Controller | Gaming | Spiel | Videospiel</annotation>
 		<annotation cp="🎮" type="tts">Videospiel</annotation>
+		<annotation cp="📞">Anruf | Hörer | Telefon | Telefonhörer</annotation>
 		<annotation cp="📞" type="tts">Telefonhörer</annotation>
+		<annotation cp="💻">Computer | Laptop | Notebook | PC</annotation>
 		<annotation cp="💻" type="tts">Laptop</annotation>
+		<annotation cp="💡">Glühbirne | Idee | Lampe | Licht</annotation>
 		<annotation cp="💡" type="tts">Glühbirne</annotation>
+		<annotation cp="📅">Datum | Kalender | Tag | Termin</annotation>
 		<annotation cp="📅" type="tts">Kalender</annotation>
+		<annotation cp="📌">anheften | Reißzwecke | Stecknadel</annotation>
 		<annotation cp="📌" type="tts">Reißzwecke</annotation>
+		<annotation cp="🔒">geschlossen | Schloss | Sicherheit | sicher</annotation>
 		<annotation cp="🔒" type="tts">geschlossenes Schloss</annotation>
+		<annotation cp="🔑">Passwort | Schloss | Schlüssel</annotation>
 		<annotation cp="🔑" type="tts">Schlüssel</annotation>
+		<annotation cp="⚠️">Achtung | Vorsicht | Warnung</annotation>
 		<annotation cp="⚠️" type="tts">Warnung</annotation>
+		<annotation cp="✅">erledigt | Haken | Häkchen | OK | Schaltfläche</annotation>
+		<annotation cp="✅" type="tts">Schaltfläche mit Häkchen</annotation>
+		<annotation cp="❌">abbrechen | falsch | Kreuz | nein</annotation>
 		<annotation cp="❌" type="tts">Kreuzzeichen</annotation>
+		<annotation cp="#️⃣">Hashtag | Nummer | Raute | Tastenkappe</annotation>
 		<annotation cp="#️⃣" type="tts">Tastenkappe: #</annotation>
+		<annotation cp="1️⃣">eins | Tastenkappe | Zahl</annotation>
 		<annotation cp="1️⃣" type="tts">Tastenkappe: 1</annotation>
+		<annotation cp="🏁">kariert | Flagge | Rennen | Ziel | Zielflagge</annotation>
 		<annotation cp="🏁" type="tts">Zielflagge</annotation>
+		<annotation cp="🏳️">Flagge | Kapitulation | weiß</annotation>
 		<annotation cp="🏳️" type="tts">weiße Flagge</annotation>
+		<annotation cp="🇩🇪">Deutschland | deutsch | Flagge</annotation>
 		<annotation cp="🇩🇪" type="tts">Flagge: Deutschland</annotation>
+		<annotation cp="🇫🇷">Flagge | Frankreich | französisch</annotation>
 		<annotation cp="🇫🇷" type="tts">Flagge: Frankreich</annotation>
+		<annotation cp="🇯🇵">Flagge | Japan | japanisch</annotation>
 		<annotation cp="🇯🇵" type="tts">Flagge: Japan</annotation>
+		<annotation cp="🇺🇸">Amerika | Flagge | USA | Vereinigte Staaten</annotation>
 		<annotation cp="🇺🇸" type="tts">Flagge: Vereinigte Staaten</annotation>
 	</annotations>
 </ldml>

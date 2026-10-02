@@ -204,8 +204,8 @@
 1F3F3                                                  ; unqualified       # 🏳 E0.7 white flag
 
 # subgroup: country-flag
-1F1E9 1F1EA                                            ; fully-qualified   # 🇩🇪 E0.6 flag: Germany
 1F1EB 1F1F7                                            ; fully-qualified   # 🇫🇷 E0.6 flag: France
+1F1E9 1F1EA                                            ; fully-qualified   # 🇩🇪 E0.6 flag: Germany
 1F1EF 1F1F5                                            ; fully-qualified   # 🇯🇵 E0.6 flag: Japan
 1F1FA 1F1F8                                            ; fully-qualified   # 🇺🇸 E0.6 flag: United States
 

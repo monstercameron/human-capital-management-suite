@@ -279,6 +279,12 @@ func Build(src *Source) (*Output, error) {
 				return nil, fmt.Errorf("emoji-test.txt has no %q group; this is not Unicode's emoji list", want)
 			}
 		}
+		// Unicode's list holds about 3,900 fully-qualified entries with their
+		// skin-tone and gender variants; a file with a fraction of that is a hand-made
+		// or cut-down one, and shipping it as the full set would look complete.
+		if len(parsed.entries) < 3000 {
+			return nil, fmt.Errorf("emoji-test.txt lists only %d emoji; the file looks incomplete (use -allow-partial to accept that)", len(parsed.entries))
+		}
 	}
 
 	set := &emojiset.Set{Meta: emojiset.Meta{Format: emojiset.FormatVersion, Emoji: parsed.version, Generator: Generator}}

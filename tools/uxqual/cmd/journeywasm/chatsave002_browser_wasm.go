@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
 // CHATSAVE-002. The redesigned Saved panel's interactions. Every one is a click
@@ -26,7 +27,7 @@ func (b *chatsaveBrowser) panel() js.Value {
 
 // selectTab shows one of To do, Done and All.
 func (b *chatsaveBrowser) selectTab(tab string) {
-	b.tab = tab
+	b.tab, b.tabSettled = tab, true
 	b.errorCode, b.commandFailed = "", false
 	b.reminderMenu, b.editingNote, b.pickingDate = "", "", false
 	b.render()
@@ -156,18 +157,20 @@ func (b *chatsaveBrowser) measure(mount js.Value) {
 }
 
 // placeMenu keeps the open reminder menu where the person can use it. The menu
-// is the bell's child and opens under the bell; here it is measured against the
-// panel and the window, flipped above the bell when there is no room below, and
-// slid sideways until it is inside the panel.
+// is the bell's child; here it is placed by Chat's one placement rule, against
+// the bell and inside the panel below its header (and the window), on the side
+// with room, and taller than that room only by scrolling inside itself.
 func (b *chatsaveBrowser) placeMenu(mount js.Value) {
 	menu := mount.Call("querySelector", "[data-saved-menu]")
 	if !menu.Truthy() {
 		return
 	}
-	menu.Get("classList").Call("remove", "is-above")
-	menu.Get("style").Call("removeProperty", "--chatsave-menu-shift")
+	style := menu.Get("style")
+	for _, property := range []string{"left", "right", "top", "bottom", "transform", "max-height", "overflow-y"} {
+		style.Call("removeProperty", property)
+	}
 	rect := menu.Call("getBoundingClientRect")
-	anchor := menu.Get("parentElement").Call("getBoundingClientRect")
+	bell := menu.Get("parentElement").Call("getBoundingClientRect")
 	panel := mount.Call("getBoundingClientRect")
 	top, bottom := panel.Get("top").Float(), panel.Get("bottom").Float()
 	if header := mount.Call("querySelector", ".chatsave-top"); header.Truthy() {
@@ -175,33 +178,28 @@ func (b *chatsaveBrowser) placeMenu(mount js.Value) {
 			top = edge
 		}
 	}
+	left, right := panel.Get("left").Float(), panel.Get("right").Float()
+	if width := js.Global().Get("innerWidth").Float(); right > width {
+		right = width
+	}
 	if height := js.Global().Get("innerHeight").Float(); bottom > height {
 		bottom = height
 	}
-	top, bottom = top+8, bottom-8
-	height := rect.Get("height").Float()
-	below := bottom - rect.Get("top").Float()
-	above := anchor.Get("top").Float() - 6 - top
-	if rect.Get("bottom").Float() > bottom && (above >= height || above > below) {
-		menu.Get("classList").Call("add", "is-above")
-	}
-	left, right := panel.Get("left").Float()+8, panel.Get("right").Float()-8
-	if width := js.Global().Get("innerWidth").Float(); right > width-8 {
-		right = width - 8
-	}
-	shift := 0.0
-	if rect.Get("right").Float() > right {
-		shift = right - rect.Get("right").Float()
-	}
-	if rect.Get("left").Float()+shift < left {
-		shift = left - rect.Get("left").Float()
-	}
-	if shift != 0 {
-		menu.Get("style").Call("setProperty", "--chatsave-menu-shift", strconv.FormatFloat(shift, 'f', 1, 64)+"px")
-	}
-	if after := menu.Call("getBoundingClientRect"); after.Get("bottom").Float() > bottom || after.Get("top").Float() < top {
-		// Neither side has room: bring the menu into view by scrolling the panel.
-		menu.Call("scrollIntoView", map[string]any{"block": "nearest"})
+	rtl := js.Global().Get("document").Get("documentElement").Call("getAttribute", "dir").String() == "rtl" || mount.Call("closest", "[dir=rtl]").Truthy()
+	dx, dy, room := chatsaveMenuOffset(
+		chatui.LayerRect{Left: bell.Get("left").Float(), Top: bell.Get("top").Float(), Right: bell.Get("right").Float(), Bottom: bell.Get("bottom").Float()},
+		chatui.LayerRect{Left: left, Top: top, Right: right, Bottom: bottom},
+		rect.Get("width").Float(), rect.Get("height").Float(), rtl)
+	// The menu is positioned against its bell (the anchor is its offset parent),
+	// so the offsets are relative to the bell whatever the panel is drawn in.
+	style.Call("setProperty", "left", strconv.FormatFloat(dx, 'f', 1, 64)+"px")
+	style.Call("setProperty", "right", "auto")
+	style.Call("setProperty", "top", strconv.FormatFloat(dy, 'f', 1, 64)+"px")
+	style.Call("setProperty", "bottom", "auto")
+	style.Call("setProperty", "transform", "none")
+	if room < rect.Get("height").Float() {
+		style.Call("setProperty", "max-height", strconv.FormatFloat(room, 'f', 1, 64)+"px")
+		style.Call("setProperty", "overflow-y", "auto")
 	}
 }
 

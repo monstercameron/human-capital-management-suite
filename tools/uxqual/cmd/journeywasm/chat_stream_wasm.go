@@ -43,9 +43,9 @@ const (
 	// chatStreamRetryMax bounds the backoff so a page left open against a
 	// refusing cell retries at a human pace rather than never again.
 	chatStreamRetryMax = 30 * time.Second
-	// chatStreamRenderDebounce coalesces the re-renders a burst of events
-	// would otherwise cause.
-	chatStreamRenderDebounce = 120 * time.Millisecond
+	// chatStreamMembersDebounce is the window in which membership events share
+	// one read of the member list.
+	chatStreamMembersDebounce = 250 * time.Millisecond
 	// chatStreamGapBudget bounds how many times in a row a gap may resubscribe
 	// without waiting. A gap is normally one catch-up and then a healthy
 	// stream; a server that keeps reporting one must not be asked again as
@@ -53,9 +53,42 @@ const (
 	chatStreamGapBudget = 3
 )
 
-// chatStreamRender coalesces stream-driven re-renders.
-var chatStreamRender = newRefreshCoalescer(browserDebounceScheduler, chatStreamRenderDebounce, func() error {
-	refreshChatRoute()
+// chatStreamRender coalesces stream-driven re-renders. For a few seconds after
+// a conversation opens its changes are gathered as a burst (chatperf_render.go);
+// after that a change is drawn chatperfLiveRenderWait later, as before.
+var chatStreamRender = newChatperfRenderCoalescer(browserDebounceScheduler, time.Now, chatperfStreamPace, refreshChatRoute)
+
+// chatperfStreamOpened is when the stream of the conversation on screen was
+// last started.
+var chatperfStreamOpened struct {
+	sync.Mutex
+	at time.Time
+}
+
+// chatperfStreamPace paces a repaint by how recently the conversation on screen
+// was opened: its first timeline drawn, or its stream started, whichever is
+// later.
+func chatperfStreamPace(now time.Time) chatperfRenderPace {
+	opened := chatperfFirstPaint.shownAt()
+	chatperfStreamOpened.Lock()
+	if chatperfStreamOpened.at.After(opened) {
+		opened = chatperfStreamOpened.at
+	}
+	chatperfStreamOpened.Unlock()
+	if !chatperfFirstPaint.isOpen() {
+		// Nothing has been drawn yet: everything so far is the load's burst.
+		opened = time.Time{}
+	}
+	return chatperfPaceAt(opened, now)
+}
+
+// chatStreamMembers coalesces the member-list reads that membership events ask
+// for. A newly opened stream replays the conversation's recent events, and a
+// channel's history of joins arrived as one read of the same list per join
+// (CHATBUG-014: eighteen on the review data, each followed by a repaint). One
+// read after the burst gives the same list.
+var chatStreamMembers = newRefreshCoalescer(browserDebounceScheduler, chatStreamMembersDebounce, func() error {
+	loadChatMembers(chatBrowser.config(journeyclient.Config{}))
 	return nil
 })
 
@@ -65,6 +98,9 @@ func subscribeChatConversation(conversationID string) {
 	if conversationID == "" {
 		return
 	}
+	chatperfStreamOpened.Lock()
+	chatperfStreamOpened.at = time.Now()
+	chatperfStreamOpened.Unlock()
 	generation := chatBrowser.currentGeneration()
 	ctx, cancel := context.WithCancel(context.Background())
 	previous, started := chatBrowser.swapSubscription(generation, conversationID, cancel)
@@ -276,8 +312,12 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 	directory := chatDirectorySnapshot()
 	var soundModel chatui.Model
 	soundCandidate := false
+	drew := true
 	installChatSoundUnlock()
-	privateStream := &agentReplyEphemeralStream{next: stream, apply: func(delivery *chatv1.EphemeralDelivery, resume string) bool {
+	// CHATSIDE-001: a layout saved in another tab arrives as a notice on this
+	// stream and is read at once (chatside001_sync.go).
+	notified := &chatside001SignalStream{next: stream, onSignal: func(revision uint64) { chatside001SidebarAnnounced(cfg, revision) }}
+	privateStream := &agentReplyEphemeralStream{next: notified, apply: func(delivery *chatv1.EphemeralDelivery, resume string) bool {
 		applied := chatBrowser.applyEphemeralDelivery(generation, conversationID, delivery, time.Now(), resume)
 		if applied {
 			// Private delivery also created an agent-authored durable post in the
@@ -290,10 +330,20 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 	}}
 	delivered, reason, termination = drainChatStream(ctx, privateStream, chatStreamHooks{
 		Apply: func(event *chatv1.ConversationEvent, resume string) (chatEventOutcome, bool) {
-			soundModel = chatBrowser.snapshot()
-			soundCandidate = event.GetKind() == chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_POST_CREATED && chatPostNewerThanLoadedTimeline(soundModel, event.GetPost())
+			// CHATBUG-014: only a new post can sound, so only a new post pays
+			// for the copy of the model the sound is decided from. A replay is
+			// mostly reactions, deletions and joins.
+			soundCandidate = false
+			if event.GetKind() == chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_POST_CREATED {
+				soundModel = chatBrowser.snapshot()
+				soundCandidate = chatPostNewerThanLoadedTimeline(soundModel, event.GetPost())
+			}
 			outcome, active := chatBrowser.applyStreamEvent(generation, conversationID, event, cfg.Locale, directory, time.Now(), resume)
 			soundCandidate = soundCandidate && active && (outcome == chatEventApplied || outcome == chatEventUnordered)
+			// CHATBUG-014: an event that left the timeline as it was (most of a
+			// replay) asks for no repaint and no second look at its attachments.
+			drew = chatperfEventDrew.Load()
+			chatperfTraceEvent(int32(event.GetKind()), drew)
 			return outcome, active
 		},
 		Applied: func(event *chatv1.ConversationEvent) {
@@ -303,7 +353,12 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 				chatBrowser.invalidateChatEmbeds()
 				// Membership changed under the reader: the member list they may
 				// be looking at, and their own access, are both now stale.
-				go loadChatMembers(cfg)
+				chatStreamMembers.Schedule()
+			case chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_CONVERSATION_UPDATED:
+				// CHATBUG-075: a lock, an archive or a reopening by somebody else
+				// arrives as a conversation update; the status watch reads the
+				// reader's own permissions again at once.
+				chatstateChanged.Changed(conversationID)
 			case chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_POST_CREATED:
 				personaDirectoryRefresh.Schedule()
 				// The rail's unread and mention counts are the server's, not a
@@ -324,6 +379,9 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 					// moves its room to the top.
 					chatBrowser.noteChatActivity(conversationID, created.AsTime())
 				}
+			}
+			if !drew {
+				return
 			}
 			if len(event.GetPost().GetReferences()) > 0 {
 				go resolveChatMedia(cfg, conversationID)
@@ -493,28 +551,15 @@ func queuePagedChatReactions(cfg journeyclient.Config, conversation string, gene
 				return
 			}
 			ctx, cancel := context.WithTimeout(chatRPCContext(context.Background(), cfg), 20*time.Second)
+			// CHATBUG-014: one call for the page, not one per post. A failed
+			// read leaves chips empty, which changes nothing on screen.
 			chips := make(map[string][]chatui.ReactionChip, len(ids))
 			members := make(map[string]map[chatReactionIdentity]struct{}, len(ids))
-			sem := make(chan struct{}, chatReactionFanout)
-			var wg sync.WaitGroup
-			var mu sync.Mutex
-			for _, id := range ids {
-				id := id
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					sem <- struct{}{}
-					defer func() { <-sem }()
-					result, err := client.ListReactions(ctx, &chatv1.ListReactionsRequest{TenantId: cfg.Tenant, ConversationId: conversation, PostId: id, PageSize: 100})
-					if err != nil {
-						return
-					}
-					mu.Lock()
-					chips[id], members[id] = chatReactionSnapshot(result.GetReactions(), cfg.Subject)
-					mu.Unlock()
-				}()
+			if byPost, err := chatperfReadReactions(ctx, client, cfg.Tenant, conversation, ids); err == nil {
+				for id, reactions := range byPost {
+					chips[id], members[id] = chatReactionSnapshot(reactions, cfg.Subject)
+				}
 			}
-			wg.Wait()
 			cancel()
 			chatBrowser.completePagedReactionBatch(generation, ids)
 			if !chatBrowser.generationActive(generation) || cfg.Tenant != chatBrowser.config(cfg).Tenant || cfg.Subject != chatBrowser.config(cfg).Subject {

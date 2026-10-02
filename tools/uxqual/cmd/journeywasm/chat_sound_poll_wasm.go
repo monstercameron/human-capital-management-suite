@@ -58,6 +58,9 @@ func pollChatSoundConversations(ctx context.Context) {
 	setChatSoundPollCursor(nextCursor)
 	pollCtx, cancel := context.WithTimeout(ctx, chatSoundPollBudget)
 	defer cancel()
+	// CHATBUG-014: one read of the list says which conversations have a newer
+	// message than the one last read; the others are not read (chatperf_sound.go).
+	newest, listed := chatperfSoundListing(pollCtx, client, cfg)
 	jobs := make(chan chatui.Conversation, chatSoundPollFanout)
 	var wg sync.WaitGroup
 	for range chatSoundPollFanout {
@@ -69,12 +72,19 @@ func pollChatSoundConversations(ctx context.Context) {
 					return
 				}
 				roomCtx, roomCancel := context.WithTimeout(pollCtx, 15*time.Second)
-				pollChatSoundConversation(roomCtx, client, cfg, conversation, model.SelectedID)
+				read := pollChatSoundConversation(roomCtx, client, cfg, conversation, model.SelectedID)
 				roomCancel()
+				if at, known := newest[conversation.ID]; read && listed && known {
+					chatperfSoundSeen.settled(conversation.ID, at)
+				}
 			}
 		}()
 	}
 	for _, conversation := range batch {
+		at, known := newest[conversation.ID]
+		if chatperfSoundSkip(&chatperfSoundSeen, conversation.ID, model.SelectedID, at, listed && known, chatSoundHasBaseline(conversation.ID)) {
+			continue
+		}
 		select {
 		case jobs <- conversation:
 		case <-pollCtx.Done():
@@ -108,7 +118,10 @@ func setChatSoundPollCursor(cursor int) {
 	}
 }
 
-func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationServiceClient, cfg journeyclient.Config, conversation chatui.Conversation, selectedID string) {
+// pollChatSoundConversation reads one conversation for new messages. It reports
+// whether the read got its answer; a conversation whose read did not is read
+// again on the next tick whatever the list says.
+func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationServiceClient, cfg journeyclient.Config, conversation chatui.Conversation, selectedID string) bool {
 	host := conversation.HostTenantID
 	if host == "" {
 		host = cfg.Tenant
@@ -117,7 +130,7 @@ func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationSe
 	if _, ok := model.Preferences.Notifications[conversation.ID]; !ok {
 		preferences, err := client.GetPreferences(chatRPCContext(ctx, cfg), &chatv1.GetPreferencesRequest{TenantId: host, ConversationId: conversation.ID})
 		if err != nil || preferences.GetPreferences() == nil || !chatSoundPollConfigActive(cfg) {
-			return
+			return false
 		}
 		mode := chatui.NotifyAll
 		if preferences.GetPreferences().GetMuted() {
@@ -132,17 +145,17 @@ func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationSe
 		if !model.HasNewer {
 			chatSoundSetBaseline(conversation.ID, chatSoundLatestLoadedSequence(model))
 		}
-		return
+		return true
 	}
 	if !chatSoundHasBaseline(conversation.ID) {
 		result, err := client.ListPosts(chatRPCContext(ctx, cfg), &chatv1.ListPostsRequest{
 			TenantId: host, ConversationId: conversation.ID, PageSize: 1, Descending: true,
 		})
 		if err != nil || !chatSoundPollConfigActive(cfg) {
-			return
+			return false
 		}
 		chatSoundSetBaseline(conversation.ID, chatSoundLatestPostSequence(result.GetPosts()))
-		return
+		return true
 	}
 
 	after := chatSoundCurrentSequence(conversation.ID)
@@ -150,7 +163,7 @@ func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationSe
 		TenantId: host, ConversationId: conversation.ID, AfterSequence: after, PageSize: chatSoundPollPageSize,
 	})
 	if err != nil || !chatSoundPollConfigActive(cfg) {
-		return
+		return false
 	}
 	for _, post := range chatSoundEventsAfter(result.GetPosts(), after) {
 		if !claimChatSoundSequence(conversation.ID, post.GetSequence()) {
@@ -164,6 +177,34 @@ func pollChatSoundConversation(ctx context.Context, client chatv1.ConversationSe
 	if latest := chatSoundLatestPostSequence(result.GetPosts()); latest > after {
 		noteChatSoundSequence(conversation.ID, latest)
 	}
+	// A full page may not be the end of what is new: read again next tick.
+	return len(result.GetPosts()) < chatSoundPollPageSize
+}
+
+// chatperfSoundSeen is what the sound poll has read to the end.
+var chatperfSoundSeen chatperfSoundActivity
+
+// chatperfSoundListing reads when each of the reader's conversations last had a
+// message. listed is false when the list could not say for all of them (the
+// read failed, or there are more conversations than one page), in which case
+// every conversation is read as before.
+func chatperfSoundListing(ctx context.Context, client chatv1.ConversationServiceClient, cfg journeyclient.Config) (newest map[string]time.Time, listed bool) {
+	list, err := client.ListConversations(chatRPCContext(ctx, cfg), &chatv1.ListConversationsRequest{TenantId: cfg.Tenant, PageSize: 100})
+	if err != nil || list.GetNextCursor() != "" || !chatSoundPollConfigActive(cfg) {
+		return nil, false
+	}
+	newest = make(map[string]time.Time, len(list.GetConversations()))
+	for _, conversation := range list.GetConversations() {
+		if conversation == nil || conversation.GetId() == "" {
+			continue
+		}
+		var at time.Time
+		if stamp := conversation.GetLastActivityAt(); stamp != nil {
+			at = stamp.AsTime()
+		}
+		newest[conversation.GetId()] = at
+	}
+	return newest, true
 }
 
 func chatSoundPollConfigActive(cfg journeyclient.Config) bool {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -44,6 +45,8 @@ func TestChatSoundPolicyTargetsNewDirectMessagesAndMentions(t *testing.T) {
 	}{
 		{"incoming dm", "dm", post("dm-1", "sam", "Hello", now), true},
 		{"own post", "dm", post("dm-2", "ari", "Hello", now), false},
+		{"added people system line", "dm", post("dm-3", "sam", chat.MembershipAddedBody("ari"), now), false},
+		{"added people line in a channel that mentions nobody", "channel", post("ch-5", "sam", chat.MembershipAddedBody("ari"), now), false},
 		{"channel mention by display name", "channel", post("ch-1", "sam", "Hi @Ari Smith!", now), true},
 		{"mention id at end", "channel", post("ch-2", "sam", "FYI @ari", now), true},
 		{"not a full mention token", "channel", post("ch-3", "sam", "@ariana", now), false},

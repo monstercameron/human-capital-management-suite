@@ -23,11 +23,6 @@ import (
 // on a click, close on a click or Escape, and place themselves from what is on
 // screen when they open and when the window is resized.
 
-func chatmodIsDialog(href string) bool {
-	u, err := url.Parse(href)
-	return err == nil && u.Query().Get("action") != ""
-}
-
 // chatmodWithZone tells the server the reader's time zone, so the times in the
 // queue read as the conversation's do.
 func chatmodWithZone(href string) string {
@@ -102,6 +97,8 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 			overlay.Call("setAttribute", "role", "dialog")
 			overlay.Call("setAttribute", "aria-modal", "true")
 			overlay.Call("setAttribute", "aria-label", chatui.ModerationText(b.locale, "moderation"))
+			// CHATBUG-085: the layer is the backdrop every Chat dialog has.
+			overlay.Get("classList").Call("add", "chat-dialog-backdrop")
 			children := workspace.Get("children")
 			for i := 0; i < children.Length(); i++ {
 				child := children.Index(i)
@@ -117,22 +114,26 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 		workspace.Call("appendChild", overlay)
 	}
 	if kind == "page" {
+		announceChatPage("moderation")
 		b.pageHref = href
 		if opener.Truthy() {
 			b.pageOpener = opener
 		}
 		b.placePage()
+		chatPageSync()
 	} else if opener.Truthy() {
 		b.dialogOpener = opener
 	}
 	// Keep what is on screen while the next answer is on its way; the first open
 	// has nothing yet, so it says it is loading.
-	if !overlay.Call("querySelector", ".chatremove").Truthy() {
-		loading := document.Call("createElement", "p")
-		loading.Call("setAttribute", "role", "status")
-		loading.Set("textContent", chatui.ModerationText(b.locale, "loading"))
-		overlay.Set("textContent", "")
-		overlay.Call("appendChild", loading)
+	if !overlay.Call("querySelector", ".chatremove:not(.chatux037-page-failed)").Truthy() {
+		// CHATUX-037: the page's own frame at once, with placeholder rows; the
+		// status is read out and not printed.
+		if kind == "page" {
+			overlay.Set("innerHTML", chatui.ModerationLoadingMarkup(b.locale, chatmodTabOf(href)))
+		} else {
+			overlay.Set("innerHTML", chatui.ChatLoadingMarkup(chatui.LoadingFrame{Locale: b.locale, Shape: chatui.LoadingShapeSection, Status: chatui.ModerationText(b.locale, "loading")}))
+		}
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -140,6 +141,14 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 		markup, err := chatremovePageRequest(ctx, http.DefaultClient, b.config, href)
 		ui.PostAsync(func() {
 			if b.disposed || b.generation != generation || !overlay.Get("isConnected").Bool() {
+				return
+			}
+			if err != nil && kind == "page" {
+				// What failed, with Try again in the place the rows were.
+				overlay.Set("innerHTML", chatui.ModerationFailedMarkup(b.locale, chatmodTabOf(href), chatremoveErrorKey(err)))
+				if retry := overlay.Call("querySelector", ".chatux037-retry"); retry.Truthy() {
+					retry.Call("focus")
+				}
 				return
 			}
 			if err != nil {
@@ -169,13 +178,23 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 					inner.Call("removeAttribute", "role")
 					inner.Call("removeAttribute", "aria-modal")
 				}
-				if field := overlay.Call("querySelector", "input,textarea,select,button"); field.Truthy() {
+				if field := chatbug085FirstField(overlay); field.Truthy() {
 					field.Call("focus")
 				}
 				return
 			}
 			b.placePage()
-			if focus := overlay.Call("querySelector", ".chatmod005-tab[aria-selected=true],[data-chatremove-close]"); focus.Truthy() {
+			if searched := b.pageSearched; searched {
+				b.pageSearched = false
+				// A search keeps the person in the box they are typing in.
+				if box := overlay.Call("querySelector", "#chatremove-search"); box.Truthy() {
+					box.Call("focus")
+					end := box.Get("value").Get("length")
+					box.Call("setSelectionRange", end, end)
+					return
+				}
+			}
+			if focus := overlay.Call("querySelector", ".chatmod005-tab[aria-selected=true],#chatremove-title,[data-chatremove-close]"); focus.Truthy() {
 				focus.Call("focus")
 			}
 		})
@@ -192,7 +211,7 @@ func (b *chatremoveBrowser) closeKind(kind string) {
 	overlay.Call("remove")
 	opener := b.pageOpener
 	if kind == "dialog" {
-		opener = b.dialogOpener
+		opener = b.dialogReturn()
 		children := js.Global().Get("document").Call("querySelectorAll", "[data-chatremove-inert]")
 		for i := 0; i < children.Length(); i++ {
 			child := children.Index(i)
@@ -203,7 +222,14 @@ func (b *chatremoveBrowser) closeKind(kind string) {
 		b.pageHref = ""
 	}
 	if !b.disposed && opener.Truthy() && opener.Get("isConnected").Bool() {
-		opener.Call("focus")
+		if kind == "dialog" {
+			chatbug085FocusReturn(opener)
+		} else {
+			opener.Call("focus")
+		}
+	}
+	if kind == "page" && !b.disposed {
+		chatPageSync()
 	}
 }
 
@@ -246,8 +272,18 @@ func (b *chatremoveBrowser) filterItems(query string) {
 // act carries out Dismiss or Restore on one item at once; they ask for nothing.
 func (b *chatremoveBrowser) act(button js.Value) {
 	action := button.Call("getAttribute", "data-chatremove-act").String()
-	caseID := button.Call("getAttribute", "data-case-id").String()
-	if action == "" || caseID == "" {
+	caseID := domAttribute(button, "data-case-id")
+	request := "resolve"
+	input := chatremoveClientInput{CaseID: caseID, Action: action}
+	if action == "permission" {
+		// A switch of the Permissions tab: one assignment, then the table is read again.
+		var ok bool
+		input, ok = chatmod005PermissionInput(domAttribute(button, "data-role"), domAttribute(button, "data-permission"), domAttribute(button, "data-allowed"), domAttribute(button, "data-conversation"))
+		if !ok {
+			return
+		}
+		request = "permissions"
+	} else if action == "" || caseID == "" {
 		return
 	}
 	b.mu.Lock()
@@ -258,11 +294,10 @@ func (b *chatremoveBrowser) act(button js.Value) {
 	b.busy = true
 	b.mu.Unlock()
 	button.Set("disabled", true)
-	input := chatremoveClientInput{CaseID: caseID, Action: action}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, err := chatremoveRequest(ctx, http.DefaultClient, b.config, "resolve", "", input)
+		_, err := chatremoveRequest(ctx, http.DefaultClient, b.config, request, "", input)
 		ui.PostAsync(func() {
 			b.mu.Lock()
 			b.busy = false
@@ -272,6 +307,14 @@ func (b *chatremoveBrowser) act(button js.Value) {
 			}
 			if err != nil {
 				button.Set("disabled", false)
+				if request == "permissions" {
+					// The table has one line for a refusal, under it.
+					if alert := js.Global().Get("document").Call("querySelector", ".chatmod005-perm-error"); alert.Truthy() {
+						alert.Set("hidden", false)
+						alert.Set("textContent", chatui.ModerationText(b.locale, chatremoveErrorKey(err)))
+					}
+					return
+				}
 				if item := button.Call("closest", ".chatmod005-item"); item.Truthy() {
 					alert := item.Call("querySelector", "[role=alert]")
 					if !alert.Truthy() {
@@ -285,7 +328,8 @@ func (b *chatremoveBrowser) act(button js.Value) {
 				return
 			}
 			b.reloadPage()
-			go chatmod005Refresh(b.config, true)
+			// A permission changes what is offered, not what the chat holds.
+			go chatmod005Refresh(b.config, request != "permissions")
 		})
 	}()
 }

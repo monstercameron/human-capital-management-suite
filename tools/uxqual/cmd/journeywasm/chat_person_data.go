@@ -94,6 +94,13 @@ func chatWorkerSubject(worker *journeyv1.Worker) string {
 	return strings.TrimSpace(worker.GetSubjectId())
 }
 
+// chatDepartmentName is the department as a person reads it. The directory
+// names the unit ("Safety & Quality"); where it cannot, the unit code is
+// turned into words rather than printed as the identifier it is.
+func chatDepartmentName(worker *journeyv1.Worker) string {
+	return productui.UnitDisplayName(worker.GetOrgUnitName(), worker.GetOrgUnit())
+}
+
 // chatPersonDetailsFromWorkers uses only the already governed ListWorkers
 // projection. In particular, it never copies compensation, personal contact
 // data, or the raw manager reference into the chat profile.
@@ -132,7 +139,9 @@ func chatPersonDetailsFromWorkers(workers []*journeyv1.Worker, subjectID string)
 		OrgChartHref: chatPersonOrgChartHref(personRef),
 		Ready:        true,
 		JobTitle:     strings.TrimSpace(person.GetJobTitle()),
-		Department:   strings.TrimSpace(person.GetOrgUnit()),
+		Department:   chatDepartmentName(person),
+		Phone:        strings.TrimSpace(person.GetWorkPhone()),
+		Email:        strings.TrimSpace(person.GetWorkEmail()),
 		Location:     strings.TrimSpace(person.GetLocation()),
 		Company:      strings.TrimSpace(person.GetCompany()),
 		BusinessUnit: strings.TrimSpace(person.GetBusinessUnit()),

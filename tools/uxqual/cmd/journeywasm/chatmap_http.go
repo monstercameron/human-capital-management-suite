@@ -22,6 +22,18 @@ type ChatmapRequest struct {
 	Size                                 chat.MapSize
 	Theme                                chat.MapTheme
 	Query                                string
+	// Live sharing and settings; the server's chatmapBody names the same fields.
+	Live                bool
+	LiveIntervalSeconds int
+	Policy              ChatmapPolicyWire
+	Reason              string
+}
+
+// ChatmapPolicyWire is the settings answer and the settings form's request.
+type ChatmapPolicyWire struct {
+	SharingEnabled, LiveEnabled, ExactAllowed bool
+	MaxLiveSeconds, MaxRetentionSeconds       int
+	CanAdminister                             bool
 }
 
 func ChatmapRequestHTTP(ctx context.Context, client *http.Client, cfg journeyclient.Config, action string, body ChatmapRequest) ([]byte, error) {
@@ -32,7 +44,7 @@ func ChatmapRequestHTTP(ctx context.Context, client *http.Client, cfg journeycli
 		return nil, chat.ErrUnavailable
 	}
 	switch action {
-	case "attach", "read", "end", "picture", "sites", "lookup", "sharing", "message":
+	case "attach", "read", "end", "picture", "sites", "lookup", "sharing", "message", "update", "mine", "endmine", "map", "policy", "setpolicy":
 	default:
 		return nil, chat.ErrInvalidArgument
 	}

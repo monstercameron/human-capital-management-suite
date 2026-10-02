@@ -719,7 +719,8 @@ func handleRolloutClick(event js.Value) {
 	if action == "PREVIEW" {
 		return
 	}
-	if confirmation := button.Get("dataset").Get("confirm"); confirmation.Type() == js.TypeString && confirmation.String() != "" && !js.Global().Call("confirm", confirmation.String()).Bool() {
+	if confirmation := button.Get("dataset").Get("confirm"); confirmation.Type() == js.TypeString && !rolloutConfirmedInPage(confirmation.String(), button) {
+		event.Call("preventDefault")
 		return
 	}
 	event.Call("preventDefault")
@@ -769,10 +770,10 @@ func handlePortableSubmit(event js.Value) {
 		return
 	}
 	event.Call("preventDefault")
-	if confirmation := form.Get("dataset").Get("confirm"); confirmation.Type() == js.TypeString && confirmation.String() != "" && !js.Global().Call("confirm", confirmation.String()).Bool() {
+	submit := form.Call("querySelector", `button[type="submit"]`)
+	if confirmation := form.Get("dataset").Get("confirm"); confirmation.Type() == js.TypeString && !rolloutConfirmedInPage(confirmation.String(), submit) {
 		return
 	}
-	submit := form.Call("querySelector", `button[type="submit"]`)
 	submitLabel := ""
 	if submit.Truthy() {
 		submitLabel = submit.Get("textContent").String()

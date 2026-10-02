@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
@@ -16,6 +17,10 @@ const chatSoundFreshness = 90 * time.Second
 // applied post event. Sound is limited to DMs and explicit textual mentions.
 func shouldPlayChatSound(model chatui.Model, conversationID string, post *chatv1.Post, now time.Time, systemReduced, appReduced bool) bool {
 	if post == nil || post.GetId() == "" || post.GetSequence() == 0 || post.GetDeleted() || post.GetAuthorId() == "" || post.GetAuthorId() == model.CurrentUser {
+		return false
+	}
+	// The line posted when somebody adds a person is a record, not a message.
+	if _, system := chat.ParseMembershipAdded(post.GetBody()); system {
 		return false
 	}
 	created := post.GetCreatedAt()
@@ -46,7 +51,7 @@ func shouldPlayChatSound(model chatui.Model, conversationID string, post *chatv1
 	if mode == chatui.NotifyMute {
 		return false
 	}
-	mentioned := chatPostMentionsViewer(post.GetBody(), model.CurrentUser, model.CurrentUserName)
+	mentioned := chatPostMentionsViewer(post.GetBody(), model.CurrentUser, model.CurrentUserName) || chatPostReferencesViewer(post, model)
 	if mode == chatui.NotifyMention {
 		return mentioned
 	}

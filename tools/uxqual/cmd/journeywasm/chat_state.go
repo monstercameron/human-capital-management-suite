@@ -22,7 +22,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sort"
 	"strconv"
@@ -358,7 +357,13 @@ func (s *chatState) snapshot() chatui.Model {
 	if build != nil {
 		model.Callbacks = build()
 	}
-	model.Chatattach001 = attachments.projection(model.SelectedID)
+	// CHATATTACH-001: the composer's files and, while a thread is open, its
+	// reply box's.
+	thread := ""
+	if model.ShowThread {
+		thread = model.ThreadParentID
+	}
+	model.Chatattach001 = attachments.projectionFor(model.SelectedID, thread)
 	return model
 }
 
@@ -507,8 +512,13 @@ func chatFriendlyError(err error) string {
 		return "There were too many requests. Try again in a moment."
 	case codes.Unimplemented:
 		return "This server does not offer it yet."
-	case codes.DeadlineExceeded, codes.Unavailable, codes.Internal, codes.Unknown:
+	case codes.DeadlineExceeded, codes.Unavailable:
 		return "The service did not answer. Try again."
+	case codes.Internal, codes.Unknown:
+		// CHATBUG-081: the service answered, with a failure of its own (a
+		// refused database write, for one). Saying it did not answer sent
+		// people to check their connection.
+		return "The service reported an error. Try again."
 	}
 	return "Something went wrong. Try again."
 }
@@ -518,7 +528,13 @@ func chatLoadFailureMessage(subject string, err error) string {
 	if err == nil {
 		return ""
 	}
-	return "We couldn't load " + subject + ". " + chatFriendlyError(err)
+	// The line is in the reader's language (CHATBUG-059). A subject that is
+	// already an action ("add everyone you picked") is not "load"ed.
+	action := "load " + subject
+	if strings.HasPrefix(subject, "add ") {
+		action = subject
+	}
+	return chatui.ActionFailureNotice(chatBrowser.localeTag(), action, chatFriendlyError(err))
 }
 
 // chatCursorRejected reports whether the server refused a resume cursor, which
@@ -832,7 +848,9 @@ func chatReactionChipsFromMembers(members map[chatReactionIdentity]struct{}, vie
 	})
 	chips := make([]chatui.ReactionChip, 0, len(identities))
 	for _, identity := range identities {
-		chips = adjustChips(chips, identity.emoji, 1, viewer != "" && identity.subjectID == viewer)
+		mine := viewer != "" && identity.subjectID == viewer
+		chips = adjustChips(chips, identity.emoji, 1, mine)
+		notePersonOnChip(chips, identity.emoji, identity.subjectID, mine)
 	}
 	return chips
 }
@@ -1053,7 +1071,7 @@ func actionFailureNotice(action string, err error) string {
 	if line, ok := chatmod002Notice(err, chatui.ModAuthorSurfaceSaved, "", chatBrowser.localeTag()); ok {
 		return line
 	}
-	return fmt.Sprintf("We couldn't %s. %s", action, chatFriendlyError(err))
+	return chatui.ActionFailureNotice(chatBrowser.localeTag(), action, chatFriendlyError(err))
 }
 
 // setLoadError records the one failure allowed to replace the timeline.
@@ -1118,6 +1136,7 @@ func (s *chatState) setDraft(conversationID, value string) {
 // into the next message.
 func (s *chatState) loadDrafts(drafts map[string]string) {
 	s.mu.Lock()
+	composer := s.model.Draft
 	if s.drafts == nil {
 		s.drafts = make(map[string]string, len(drafts))
 	}
@@ -1134,8 +1153,30 @@ func (s *chatState) loadDrafts(drafts map[string]string) {
 		s.drafts[id] = body
 	}
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
-	s.model.Draft = s.drafts[s.model.SelectedID]
+	s.settleComposerLocked(composer)
 	s.mu.Unlock()
+}
+
+// settleComposerLocked puts the open conversation's draft in the composer after
+// drafts have been read from the server (CHATBUG-068). Text already in the
+// composer is never replaced by what another session wrote: the composer keeps
+// it and the person is told a different draft exists. An empty composer takes
+// the stored draft.
+func (s *chatState) settleComposerLocked(composer string) {
+	selected := s.model.SelectedID
+	server := s.drafts[selected]
+	if strings.TrimSpace(composer) == "" || composer == server {
+		s.model.Draft = server
+		return
+	}
+	s.drafts[selected] = composer
+	s.model.Draft = composer
+	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
+	if strings.TrimSpace(server) != "" {
+		s.noticeToken++
+		s.notice = chatui.DraftUpdatedElsewhereText(s.model.Locale)
+		s.model.Notice, s.model.NoticeRetry = s.notice, false
+	}
 }
 
 // rebaseDrafts takes a newer sidebar copy after a revision conflict. Rooms
@@ -1147,6 +1188,7 @@ func (s *chatState) rebaseDrafts(server map[string]string, cfg journeyclient.Con
 		s.mu.Unlock()
 		return nil, 0, false
 	}
+	composer := s.model.Draft
 	if s.drafts == nil {
 		s.drafts = make(map[string]string)
 	}
@@ -1161,7 +1203,7 @@ func (s *chatState) rebaseDrafts(server map[string]string, cfg journeyclient.Con
 		}
 	}
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
-	s.model.Draft = s.drafts[s.model.SelectedID]
+	s.settleComposerLocked(composer)
 	drafts, revision := copyChatDrafts(s.drafts), s.draftRev
 	s.mu.Unlock()
 	return drafts, revision, true
@@ -1258,6 +1300,7 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		model.EphemeralMessages = nil
 		model.PersonaLookup, model.PersonaLookupConversationID = chatui.PersonaLookupIdle, ""
 		model.Callbacks.RetryPersonaMentions = nil
+		clearAmbientReads(model)
 		model.ThreadLoading = false
 		model.ThreadHasOlder, model.ThreadHasNewer = false, false
 		s.threadBeforeSequence, s.threadAfterSequence = 0, 0
@@ -1265,6 +1308,7 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		model.Messages = nil
 		model.ChannelPins = nil
 		model.Members = nil
+		model.MembersFailed = false
 		model.ChannelTodo = chatui.ChannelTodoList{}
 		model.ChannelTeam, model.ChannelProject = chatui.ChannelTeamWidget{}, chatui.ChannelProjectWidget{}
 		model.ChannelPoll = chatui.ChannelPoll{}
@@ -1536,11 +1580,12 @@ func (s *chatState) applySentChatPost(conversationID string, post *chatv1.Post, 
 	}
 	if post.GetParentId() != "" {
 		applyCommittedAgentPending(&s.model, post)
-		if s.model.ThreadParent != nil && s.model.ThreadParent.ID == post.GetParentId() {
+		counted := chatbug047CountsAsReply(&s.model, post)
+		if counted && s.model.ThreadParent != nil && s.model.ThreadParent.ID == post.GetParentId() {
 			s.model.ThreadParent.Replies++
 		}
 		for i := range s.model.Messages {
-			if s.model.Messages[i].ID == post.GetParentId() {
+			if counted && s.model.Messages[i].ID == post.GetParentId() {
 				s.model.Messages[i].Replies++
 				break
 			}
@@ -1709,9 +1754,11 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 	// may have completed while the RPC was in flight, so the current cache
 	// owns this field regardless of which conversation the listing selected.
 	loaded.SearchDirectory = s.model.SearchDirectory
+	loaded.AgentCounts = s.model.AgentCounts
 	loaded.ChatFeatures = s.model.ChatFeatures
 	loaded.ShowFilterSettings = loaded.SelectedID == s.model.SelectedID && s.model.ShowFilterSettings
 	loaded.ChannelStatuses = s.model.ChannelStatuses
+	loaded.VoiceAccess = s.model.VoiceAccess
 	loaded.ChangeChannelStatus, loaded.RetryChannelStatus = s.model.ChangeChannelStatus, s.model.RetryChannelStatus
 	loaded.ReaderRenderings = s.model.ReaderRenderings
 	loaded.ReaderSelections = s.model.ReaderSelections
@@ -1721,6 +1768,8 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 	loaded.SavedOpenCount = s.model.SavedOpenCount
 	loaded.Moderation = s.model.Moderation
 	loaded.SavedBodies = s.model.SavedBodies
+	loaded.AgentCardHeights = s.model.AgentCardHeights
+	loaded.AgentRetries, loaded.AgentDismissed, loaded.AgentFeedbackSaved = s.model.AgentRetries, s.model.AgentDismissed, s.model.AgentFeedbackSaved
 	// What the server said about agents while this listing was in flight is
 	// newer than the snapshot it started from.
 	loaded.AgentIconsReady = loaded.AgentIconsReady || s.model.AgentIconsReady
@@ -1741,6 +1790,8 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		loaded.EphemeralMessages = cur.EphemeralMessages
 		loaded.PersonaLookup, loaded.PersonaLookupConversationID = cur.PersonaLookup, cur.PersonaLookupConversationID
 		loaded.Callbacks.RetryPersonaMentions = cur.Callbacks.RetryPersonaMentions
+		loaded.AmbientReads, loaded.AmbientOptOut, loaded.Callbacks.SetAmbientOptOut = cur.AmbientReads, cur.AmbientOptOut, cur.Callbacks.SetAmbientOptOut
+		loaded.Ambient = cur.Ambient
 		loaded.SidebarOpen, loaded.ShowDetails, loaded.ShowCreate, loaded.ShowBrowse = cur.SidebarOpen, cur.ShowDetails, cur.ShowCreate, cur.ShowBrowse
 		loaded.ShowPerson, loaded.PersonDetails = cur.ShowPerson, cur.PersonDetails
 		loaded.SharePostID, loaded.ShareSourceRoomID, loaded.ShareDestinationID, loaded.ShareQuery, loaded.ShareError = cur.SharePostID, cur.ShareSourceRoomID, cur.ShareDestinationID, cur.ShareQuery, cur.ShareError
@@ -2270,12 +2321,17 @@ func (s *chatState) applyStreamEvent(generation uint64, conversationID string, e
 	if len(s.model.Messages) > 0 {
 		oldest = s.model.Messages[0].Sequence
 	}
+	// CHATBUG-014: whether the event changes what is drawn decides whether it
+	// asks for a repaint (chatperf_render.go). A replayed event usually does not.
+	before, comparable := chatperfEventMark(&s.model, event)
 	outcome := applyChatEvent(&s.model, &s.cursor, event, locale, directory, now)
 	if outcome == chatEventApplied || outcome == chatEventUnordered {
 		if event.GetKind() == chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_REACTION_CHANGED {
 			s.applyReactionEventMembers(event, s.cfg.Tenant)
 		}
 	}
+	after, _ := chatperfEventMark(&s.model, event)
+	chatperfEventDrew.Store(chatperfEventChanged(before, after, comparable))
 	if s.model.ThreadHasOlder && len(s.model.ThreadMessages) > 0 && (s.threadBeforeSequence == 0 || s.model.ThreadMessages[0].Sequence > s.threadBeforeSequence) {
 		s.threadBeforeSequence = s.model.ThreadMessages[0].Sequence
 	}
@@ -2340,9 +2396,11 @@ func (s *chatState) applyCatchup(generation uint64, conversationID string, posts
 		case chatmod004Gone(post):
 			applyChatPostDeleted(&s.model, post)
 		case post.GetParentId() != "":
-			replies[post.GetParentId()]++
-			if s.model.ThreadParent != nil && s.model.ThreadParent.ID == post.GetParentId() {
-				s.model.ThreadParent.Replies++
+			if chatbug047CountsAsReply(&s.model, post) {
+				replies[post.GetParentId()]++
+				if s.model.ThreadParent != nil && s.model.ThreadParent.ID == post.GetParentId() {
+					s.model.ThreadParent.Replies++
+				}
 			}
 			if s.model.ShowThread && s.model.ThreadParentID == post.GetParentId() && liveChatThreadAccepts(&s.model, post.GetSequence()) && !chatHasMessage(s.model.ThreadMessages, post.GetId()) {
 				s.model.ThreadMessages = append(s.model.ThreadMessages, chatMessage(post, locale, directory, now))
@@ -2607,11 +2665,13 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 // timeline, and only roots are timeline entries.
 func chatMessages(posts []*chatv1.Post, locale string, directory map[string]string, reactions map[string][]chatui.ReactionChip, now time.Time) []chatui.Message {
 	replies := make(map[string]int, len(posts))
+	questions := chatbug047Questions(posts)
 	for _, post := range posts {
 		if post == nil || chatmod004Gone(post) || chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
 			continue
 		}
-		if parent := post.GetParentId(); parent != "" {
+		// CHATBUG-047: a recorded copy of a question asked again is not a reply.
+		if parent := post.GetParentId(); parent != "" && !chatbug047CopyPost(questions[parent], post) {
 			replies[parent]++
 		}
 	}
@@ -2721,21 +2781,15 @@ func chatNumberFormatter(locale string) func(int) string {
 // of a label already comes from the locale (Arabic-Indic digits under ar), and
 // a time in Latin digits beside it read as two systems in one string.
 func localizeDigits(clock string, locale productui.LocaleContext) string {
-	digits := [10]string{}
-	changed := false
-	for i := range digits {
-		digits[i] = locale.FormatNumber(string(rune('0'+i)), 0)
-		if digits[i] != string(rune('0'+i)) {
-			changed = true
-		}
-	}
-	if !changed {
+	// The locale's ten numerals are worked out once (chatperf_digits.go).
+	table := chatperfDigitsFor(locale)
+	if !table.changed {
 		return clock
 	}
 	var out strings.Builder
 	for _, r := range clock {
 		if r >= '0' && r <= '9' {
-			out.WriteString(digits[r-'0'])
+			out.WriteString(table.digits[r-'0'])
 			continue
 		}
 		out.WriteRune(r)
@@ -3064,11 +3118,12 @@ func applyChatPostCreated(model *chatui.Model, post *chatv1.Post, sequences map[
 		return
 	}
 	if parent := post.GetParentId(); parent != "" {
-		if model.ThreadParent != nil && model.ThreadParent.ID == parent {
+		counted := chatbug047CountsAsReply(model, post)
+		if counted && model.ThreadParent != nil && model.ThreadParent.ID == parent {
 			model.ThreadParent.Replies++
 		}
 		for i := range model.Messages {
-			if model.Messages[i].ID == parent {
+			if counted && model.Messages[i].ID == parent {
 				model.Messages[i].Replies++
 				break
 			}
@@ -3097,6 +3152,8 @@ func applyChatPostEdited(model *chatui.Model, post *chatv1.Post, locale string, 
 	if post == nil {
 		return
 	}
+	// CHATMOD-004: an edit that brings back a removed message is a restore.
+	chatmod004NoteRestore(model, post)
 	next := chatMessage(post, locale, directory, now)
 	for i := range model.Messages {
 		if model.Messages[i].ID == next.ID {
@@ -3142,6 +3199,17 @@ func carryChatLocalState(current, next chatui.Message) chatui.Message {
 		}
 	}
 	return next
+}
+
+// chatDropDeletedRow removes the person's own just-deleted message from the
+// lists on screen. It leaves reply counts and the open thread to the stream's
+// delete event, which applies them once.
+func chatDropDeletedRow(model *chatui.Model, id string) {
+	if id == "" {
+		return
+	}
+	model.Messages = chatWithoutMessage(model.Messages, id)
+	model.ThreadMessages = chatWithoutMessage(model.ThreadMessages, id)
 }
 
 func applyChatPostDeleted(model *chatui.Model, post *chatv1.Post) {

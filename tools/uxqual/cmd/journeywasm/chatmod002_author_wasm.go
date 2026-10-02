@@ -3,6 +3,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -32,10 +33,10 @@ func chatmod002Failed(action string, err error, conversationID, key, surface, te
 		return chatActionFailed(action, err)
 	}
 	if key == "" {
-		noteChatAction(chatui.ModAuthorSentence(chatBrowser.localeTag(), surface, words))
+		noteChatAction(strings.TrimSpace(chatui.ModAuthorSentence(chatBrowser.localeTag(), surface, words) + " " + chatui.ModAuthorRuleLine(chatBrowser.localeTag(), chatmod002BlockedRule(err))))
 		return true
 	}
-	if chatBrowser.setAuthorBlocked(conversationID, key, chatui.AuthorBlocked{Surface: surface, Words: words, Text: text, Stamp: time.Now().UnixNano()}) {
+	if chatBrowser.setAuthorBlocked(conversationID, key, chatui.AuthorBlocked{Surface: surface, Words: words, Text: text, Rule: chatmod002BlockedRule(err), Stamp: time.Now().UnixNano()}) {
 		refreshChatRoute()
 	}
 	return true

@@ -133,6 +133,7 @@ func hydratePersonaAdminView(view *productui.View, cfg journeyclient.Config) {
 func configurePersonaAdminBrowser(cfg journeyclient.Config, revalidate func()) {
 	installPersonaAdminCommandHandlers()
 	installPersonaDocumentPickerHandlers()
+	installPersonaEditorCloseHandlers()
 	personaAdminBrowser.Lock()
 	if personaAdminBrowser.tenant != cfg.Tenant || personaAdminBrowser.subject != cfg.Subject {
 		personaAdminBrowser.evaluationResults = make(map[string]productui.PersonaAdminEvaluationResult)

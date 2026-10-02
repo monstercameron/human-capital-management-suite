@@ -21,6 +21,9 @@ var personaDocumentPicker struct {
 	client documentv1.DocumentServiceClient
 	epoch  uint64
 	timer  *time.Timer
+	// instructions holds, per instructions field, the text last seen, so an
+	// edit can be compared with what was there before it.
+	instructions map[string]string
 }
 
 var personaDocumentPickerListeners sync.Once
@@ -224,7 +227,7 @@ func personaDocumentPickerSearch(epoch uint64, pickerID, query, mentionTarget st
 			}
 			if err != nil {
 				personaDocumentMentionRenderResults(textarea, nil)
-				personaDocumentMentionStatus(textarea, domDataset(picker, "agentdocFailed"))
+				personaDocumentMentionStatus(textarea, personaDocumentPickerFailureText(picker, err))
 				return
 			}
 			personaDocumentMentionRenderResults(textarea, items)
@@ -236,8 +239,14 @@ func personaDocumentPickerSearch(epoch uint64, pickerID, query, mentionTarget st
 			return
 		}
 		if err != nil {
+			// The field stays usable and the status says what went wrong. Trying
+			// again cannot help a person who may not list the hub's documents, so
+			// that cause offers no retry.
 			personaDocumentPickerRenderResults(picker, nil)
-			personaDocumentPickerSetState(picker, "failed", domDataset(picker, "agentdocFailed"))
+			personaDocumentPickerSetState(picker, "failed", personaDocumentPickerFailureText(picker, err))
+			if retry := picker.Call("querySelector", personaDocumentPickerRetrySelector); retry.Truthy() {
+				retry.Set("hidden", personaDocumentSearchFailure(err) == "denied")
+			}
 			return
 		}
 		personaDocumentPickerRenderResults(picker, items)
@@ -373,6 +382,15 @@ func personaDocumentMentionKey(textarea js.Value, key string) bool {
 	return false
 }
 
+// personaDocumentPickerFailureText is the sentence for one failed search, read
+// from the picker so the browser needs no catalog of its own.
+func personaDocumentPickerFailureText(picker js.Value, err error) string {
+	if text := domDataset(picker, personaDocumentSearchFailureAttribute(personaDocumentSearchFailure(err))); text != "" {
+		return text
+	}
+	return domDataset(picker, "agentdocFailed")
+}
+
 func personaDocumentPickerSetState(picker js.Value, state, message string) {
 	picker.Get("dataset").Set("agentdocState", state)
 	picker.Call("querySelector", "[data-agentdoc-status]").Set("textContent", message)
@@ -495,6 +513,7 @@ func personaDocumentPickerInsertInstructionToken(picker js.Value, documentID, ti
 	start := textarea.Get("selectionStart").Int()
 	text, caret, _ := personaInstructionInsertDocument(textarea.Get("value").String(), start, nil, personaInstructionDocumentChoice{DocumentID: documentID, Title: title, Location: location, VisibleLabel: label, VersionMode: agentdocref.VersionMode(domDataset(picker, "agentdocDefaultMode"))})
 	textarea.Set("value", text)
+	personaDocumentInstructionsRemember(textarea)
 	textarea.Call("setSelectionRange", caret, caret)
 	textarea.Call("focus")
 	personaDocumentMentionClose(textarea)
@@ -509,6 +528,7 @@ func personaDocumentPickerRemoveInstructionToken(picker js.Value, documentID str
 	}
 	text, _ := personaInstructionRemoveReference(textarea.Get("value").String(), documentID, personaDocumentReferencesFromForm(form))
 	textarea.Set("value", text)
+	personaDocumentInstructionsRemember(textarea)
 	personaAdminUpdateInstructionCounter(textarea)
 }
 
@@ -544,16 +564,45 @@ func personaDocumentPickerReconcileInstructions(textarea js.Value) {
 	if !picker.Truthy() {
 		return
 	}
+	// Only a mention the administrator just deleted takes its document with
+	// it. A document attached without a mention was never in the text, so
+	// typing must not remove it.
 	text := textarea.Get("value").String()
+	dropped := personaInstructionDroppedMentions(personaDocumentInstructionsBefore(textarea), text, personaDocumentReferencesFromForm(form))
+	personaDocumentInstructionsRemember(textarea)
 	rows := picker.Call("querySelectorAll", "[data-agentdoc-reference]")
 	for index := rows.Get("length").Int() - 1; index >= 0; index-- {
 		row := rows.Call("item", index)
-		label := domDataset(row, "documentLabel")
-		if label != "" && !strings.Contains(text, "@["+label+"]") {
-			row.Call("remove")
+		for _, documentID := range dropped {
+			if domDataset(row, "documentId") == documentID {
+				row.Call("remove")
+				break
+			}
 		}
 	}
 	personaDocumentPickerUpdateCount(picker)
+}
+
+// personaDocumentInstructionsBefore is the instruction text as it stood before
+// the edit being handled: the last text this adapter saw, or the text the
+// page was rendered with when nothing has been typed yet.
+func personaDocumentInstructionsBefore(textarea js.Value) string {
+	personaDocumentPicker.Lock()
+	before, seen := personaDocumentPicker.instructions[textarea.Get("id").String()]
+	personaDocumentPicker.Unlock()
+	if seen {
+		return before
+	}
+	return textarea.Get("defaultValue").String()
+}
+
+func personaDocumentInstructionsRemember(textarea js.Value) {
+	personaDocumentPicker.Lock()
+	if personaDocumentPicker.instructions == nil {
+		personaDocumentPicker.instructions = make(map[string]string)
+	}
+	personaDocumentPicker.instructions[textarea.Get("id").String()] = textarea.Get("value").String()
+	personaDocumentPicker.Unlock()
 }
 
 func personaDocumentPickerLimit(picker js.Value) int {

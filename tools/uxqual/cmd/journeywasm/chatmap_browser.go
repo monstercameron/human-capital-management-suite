@@ -205,6 +205,17 @@ func chatmapValue(sheet js.Value, key string) string {
 func chatmapNumber(sheet js.Value, key string) (float64, error) {
 	return strconv.ParseFloat(chatmapValue(sheet, key), 64)
 }
+
+// chatmapActionLabel sets the words on one of the sheet's buttons.
+func chatmapActionLabel(sheet js.Value, action, key string) {
+	if !sheet.Truthy() {
+		return
+	}
+	if button := sheet.Call("querySelector", "[data-chatmap-action="+action+"]"); button.Truthy() {
+		button.Set("textContent", chatui.ChatmapText(sheet.Get("dataset").Get("locale").String(), key))
+	}
+}
+
 func (b *chatmapBrowser) status(sheet js.Value, key string) {
 	if !sheet.Truthy() {
 		return
@@ -215,11 +226,20 @@ func (b *chatmapBrowser) status(sheet js.Value, key string) {
 }
 func (b *chatmapBrowser) readDraft(sheet js.Value) (ChatmapDraft, error) {
 	now := time.Now()
+	_, live := ChatmapLiveDuration(chatmapValue(sheet, "duration"))
+	if live && chat.LocationSource(chatmapValue(sheet, "source")) != chat.LocationDevice {
+		// A live share follows the device; it cannot follow an address or a site.
+		return ChatmapDraft{}, chat.ErrLocationUnavailable
+	}
 	if chat.LocationSource(chatmapValue(sheet, "source")) == chat.LocationJobSite {
 		if chatmapValue(sheet, "siteid") == "" {
 			return ChatmapDraft{}, chat.ErrLocationUnavailable
 		}
 		return ChatmapDraft{Place: chat.LocationPlace{Source: chat.LocationJobSite, SiteID: chatmapValue(sheet, "siteid"), CapturedAt: now, Precision: "exact"}, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now)}, nil
+	}
+	if text := strings.TrimSpace(chatmapValue(sheet, "readable")); chat.LocationSource(chatmapValue(sheet, "source")) == chat.LocationAddress && chatmapValue(sheet, "lat") == "" && text != "" {
+		// Typed text alone is a complete share: no position is invented for it.
+		return ChatmapDraft{Place: chat.LocationPlace{Source: chat.LocationAddress, Address: text, CapturedAt: now, Precision: "exact"}, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now), Captured: true}, nil
 	}
 	lat, e1 := chatmapNumber(sheet, "lat")
 	lon, e2 := chatmapNumber(sheet, "lon")
@@ -243,13 +263,20 @@ func (b *chatmapBrowser) readDraft(sheet js.Value) (ChatmapDraft, error) {
 	if err != nil {
 		return ChatmapDraft{}, err
 	}
-	return ChatmapDraft{Place: prepared, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now), Captured: true}, nil
+	return ChatmapDraft{Place: prepared, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now), Captured: true, Live: live}, nil
 }
 func (b *chatmapBrowser) preview(sheet js.Value) {
+	_, live := ChatmapLiveDuration(chatmapValue(sheet, "duration"))
+	if node := sheet.Call("querySelector", "[data-chatmap-live-note]"); node.Truthy() {
+		node.Set("hidden", !live)
+	}
 	draft, err := b.readDraft(sheet)
 	if err != nil {
 		if send := sheet.Call("querySelector", "[data-chatmap-action=send]"); send.Truthy() {
 			send.Set("disabled", true)
+		}
+		if live && err == chat.ErrLocationUnavailable {
+			b.status(sheet, "live_device")
 		}
 		return
 	}
@@ -261,6 +288,17 @@ func (b *chatmapBrowser) preview(sheet js.Value) {
 				draft.Place.Address = site.Address
 			}
 		}
+	}
+	if draft.Place.Position == nil && draft.Place.Source == chat.LocationAddress {
+		// No position to draw: readers get the typed address and "Map detail
+		// unavailable", and the person can send it as it stands.
+		if image := sheet.Call("querySelector", "[data-chatmap-preview]"); image.Truthy() {
+			image.Set("hidden", true)
+		}
+		if send := sheet.Call("querySelector", "[data-chatmap-action=send]"); send.Truthy() {
+			send.Set("disabled", false)
+		}
+		return
 	}
 	pic, err := (chat.SchematicMap{}).Render(draft.Place, chat.LocationMapZoom(draft.Place, chat.MapSize{Width: 400, Height: 200}), chat.MapSize{Width: 400, Height: 200}, chatmapTheme(sheet, sheet.Get("dataset").Get("locale").String()))
 	if err != nil {
@@ -306,6 +344,17 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 	action := button.Get("dataset").Get("chatmapAction").String()
 	if action == "toggle" {
 		chatui.ToggleLocationComposer(button)
+		if panel := button.Call("closest", ".chatmap-control").Call("querySelector", "[data-chatmap-sheet]"); panel.Truthy() {
+			go b.applyPolicy(panel, js.Undefined())
+		}
+		return
+	}
+	if action == "stop-all" {
+		go chatmapLiveStop(chat.LiveEndedStopped)
+		return
+	}
+	if action == "crew-open" {
+		chatmapOpenMessage(button.Get("dataset").Get("post").String())
 		return
 	}
 	sheet := button.Call("closest", "[data-chatmap-sheet]")
@@ -335,6 +384,12 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 	case "source":
 		source := button.Get("dataset").Get("source").String()
 		chatmapSetValue(sheet, "source", source)
+		if source == "typed_address" {
+			// Typed words start without the position read for "Where I am".
+			for _, key := range []string{"lat", "lon", "accuracy"} {
+				chatmapSetValue(sheet, key, "")
+			}
+		}
 		choices := sheet.Call("querySelectorAll", "[data-chatmap-choice]")
 		for i := 0; i < choices.Length(); i++ {
 			choices.Index(i).Set("hidden", choices.Index(i).Get("dataset").Get("chatmapChoice").String() != source)
@@ -362,6 +417,10 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 		b.status(sheet, "")
 	case "sites", "lookup", "sharing":
 		go b.load(sheet, action)
+	case "crewmap":
+		go b.crewMap(sheet)
+	case "save-policy":
+		go b.savePolicy(sheet)
 	case "device":
 		if b.busy {
 			return
@@ -374,8 +433,11 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 			err := b.draft.PressRead(ctx, chatmapDeviceRecorder{}, time.Now())
 			if err != nil {
 				b.status(sheet, b.draft.Status)
+				// A failed fix leaves one obvious way forward: the same button, now "Try again".
+				chatmapActionLabel(sheet, "device", "retry")
 				return
 			}
+			chatmapActionLabel(sheet, "device", "device")
 			p := b.draft.Place.Position
 			chatmapSetValue(sheet, "source", "device")
 			chatmapSetValue(sheet, "lat", strconv.FormatFloat(p.Latitude, 'f', 6, 64))
@@ -407,7 +469,9 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 		d, err := b.readDraft(sheet)
 		if err != nil {
 			key := "no_fix"
-			if err == chat.ErrLocationUnavailable {
+			if _, live := ChatmapLiveDuration(chatmapValue(sheet, "duration")); live && err == chat.ErrLocationUnavailable {
+				key = "live_device"
+			} else if err == chat.ErrLocationUnavailable {
 				key = "sites_unavailable"
 			}
 			b.status(sheet, key)
@@ -443,6 +507,12 @@ func (b *chatmapBrowser) deliver() {
 		b.pending.Draft.Status = "offline"
 	}
 	b.status(b.sheet, b.pending.Draft.Status)
+	// A share that did not go says so and the Send button reads "Try again".
+	if !b.pending.Sent && b.pending.Draft.Status == "failed" {
+		chatmapActionLabel(b.sheet, "send", "retry")
+	} else {
+		chatmapActionLabel(b.sheet, "send", "send")
+	}
 	if b.pending.Sent || b.pending.Draft.Status == "discarded" {
 		fields := b.sheet.Call("querySelectorAll", "[data-chatmap-field]")
 		for i := 0; i < fields.Get("length").Int(); i++ {
@@ -480,9 +550,24 @@ func (b *chatmapBrowser) SendLocation(ctx context.Context, p *ChatmapPending) er
 	if current.Tenant != p.Tenant || current.Subject != p.Subject {
 		return chat.ErrPermissionDenied
 	}
-	_, err := ChatmapRequestHTTP(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), "attach", ChatmapRequest{TenantID: p.Tenant, ConversationID: p.Conversation, PostID: p.PostID, PostRevision: p.Revision, Place: p.Draft.Place, ExpiresAt: p.Draft.ExpiresAt})
+	if p.Draft.Live && p.ShareID == "" {
+		// One live share runs at a time on a device: an earlier one ends first.
+		chatmapLiveStop(chat.LiveEndedStopped)
+	}
+	request := ChatmapRequest{TenantID: p.Tenant, ConversationID: p.Conversation, PostID: p.PostID, PostRevision: p.Revision, Place: p.Draft.Place, ExpiresAt: p.Draft.ExpiresAt}
+	if p.Draft.Live {
+		request.Live, request.LiveIntervalSeconds = true, int(chatmapLiveInterval/time.Second)
+	}
+	raw, err := ChatmapRequestHTTP(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), "attach", request)
 	if err != nil {
 		return err
+	}
+	var share chat.LocationShare
+	if json.Unmarshal(raw, &share) == nil {
+		p.ShareID = share.ID
+		if p.Draft.Live {
+			chatmapLiveStart(p, share)
+		}
 	}
 	chatStreamRender.Schedule()
 	return nil
@@ -507,7 +592,8 @@ func (b *chatmapBrowser) cardAction(card js.Value, action string) {
 	if action == "stop" {
 		_, err := ChatmapRequestHTTP(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), "end", req)
 		if err == nil {
-			card.Set("textContent", chatui.ChatmapText(cfg.Locale, "expired"))
+			chatmapLiveForget(req.ID)
+			card.Set("textContent", chatui.ChatmapText(cfg.Locale, "expired")+" · "+fmt.Sprintf(chatui.ChatmapText(cfg.Locale, "ended_at"), chatmapLocalTime(time.Now().UnixMilli(), cfg.Locale)))
 		}
 		return
 	}
@@ -590,7 +676,12 @@ func (b *chatmapBrowser) load(sheet js.Value, action string) {
 	req := ChatmapRequest{TenantID: sheet.Get("dataset").Get("tenant").String(), ConversationID: sheet.Get("dataset").Get("conversation").String(), Query: chatmapValue(sheet, "readable")}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	body, err := ChatmapRequestHTTP(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), action, req)
+	endpoint := action
+	if action == "sharing" {
+		// The Sharing now list is the person's own shares across conversations.
+		endpoint = "mine"
+	}
+	body, err := ChatmapRequestHTTP(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), endpoint, req)
 	active := chatBrowser.config(journeyclient.Config{})
 	if active.Tenant != cfg.Tenant || active.Subject != cfg.Subject {
 		return
@@ -659,7 +750,7 @@ func (b *chatmapBrowser) load(sheet js.Value, action string) {
 		region := sheet.Call("querySelector", "[data-chatmap-sharing]")
 		region.Set("textContent", "")
 		if len(shares) == 0 {
-			region.Set("textContent", chatui.ChatmapText(cfg.Locale, "empty"))
+			region.Set("textContent", chatui.ChatmapText(cfg.Locale, "mine_empty"))
 		}
 		for _, share := range shares {
 			markup, err := ui.RenderToString(chatui.ChatmapLocationEmbed(chatui.ChatmapEmbed{Share: share, Sharer: chatui.ChatmapText(cfg.Locale, "you"), ViewerID: cfg.Subject, ViewerTenantID: cfg.Tenant, Locale: cfg.Locale, Now: time.Now()}))
@@ -681,6 +772,24 @@ func (b *chatmapBrowser) observeCards() {
 		image := card.Call("querySelector", "img")
 		if image.Truthy() && b.images.Truthy() && image.Get("src").String() == "" {
 			b.images.Call("observe", image)
+		}
+		if ended := card.Call("querySelector", "[data-chatmap-ended-ms]"); ended.Truthy() {
+			if ms, err := strconv.ParseInt(ended.Get("dataset").Get("chatmapEndedMs").String(), 10, 64); err == nil {
+				locale := card.Get("dataset").Get("locale").String()
+				ended.Set("textContent", fmt.Sprintf(chatui.ChatmapText(locale, "ended_at"), chatmapLocalTime(ms, locale)))
+			}
+		}
+		if card.Get("dataset").Get("live").String() == "true" && image.Truthy() {
+			// A live card's picture follows the sharer while the page is open.
+			var refresh func()
+			refresh = func() {
+				if !card.Get("isConnected").Bool() || card.Get("dataset").Get("live").String() != "true" {
+					return
+				}
+				go b.loadPicture(image)
+				time.AfterFunc(chatmapLiveInterval, refresh)
+			}
+			time.AfterFunc(chatmapLiveInterval, refresh)
 		}
 		expires := card.Get("dataset").Get("expires").String()
 		if milliseconds, err := strconv.ParseInt(expires, 10, 64); err == nil {

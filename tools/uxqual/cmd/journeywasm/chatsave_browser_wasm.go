@@ -59,6 +59,20 @@ type chatsaveBrowser struct {
 	// loaded is true once a read of the list has landed, so a command in flight
 	// on an empty list is never drawn as the list loading.
 	loaded bool
+	// tabSettled is true once the panel has chosen its tab for this opening
+	// (CHATBUG-091): the first tab with items, or the one the person pressed.
+	tabSettled bool
+}
+
+// settleTab opens the panel on the first tab that holds items, once the list has
+// been read, and then leaves the tab alone until the panel is opened again.
+func (b *chatsaveBrowser) settleTab() {
+	if b.tabSettled || !b.loaded {
+		return
+	}
+	b.tabSettled = true
+	todo, done, all := chatsaveCounts(b.page)
+	b.tab = chatui.ChatBug091FirstTab(todo, done, all)
 }
 
 // chatsaveUndo is what the Undo line puts back: a ticked-off item is reopened,
@@ -137,6 +151,35 @@ func installSavedMessages(cfg journeyclient.Config) func() {
 	doc.Call("addEventListener", "keydown", key, true)
 	doc.Call("addEventListener", "input", input, true)
 	doc.Call("addEventListener", "chat-saved-changed", changed)
+	// Moderation and the search results take the place of the panel.
+	pageOpened := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 && !b.disposed && chatPageOpenedKind(args[0]) != "saved" {
+			if panel := b.panel(); panel.Truthy() && !panel.Get("hidden").Bool() {
+				b.hide(false)
+			}
+		}
+		return nil
+	})
+	doc.Call("addEventListener", chatPageOpenedEvent, pageOpened)
+	// The address names a page (CHATBUG-052): the panel shows when it is the
+	// Saved panel and gives way to any other.
+	pageRestore := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 || b.disposed {
+			return nil
+		}
+		panel := b.panel()
+		if !panel.Truthy() {
+			return nil
+		}
+		open := !panel.Get("hidden").Bool()
+		if chatPageOpenedKind(args[0]) == "saved" && !open {
+			b.open()
+		} else if chatPageOpenedKind(args[0]) != "saved" && open {
+			b.hide(false)
+		}
+		return nil
+	})
+	doc.Call("addEventListener", chatPageRestoreEvent, pageRestore)
 	observerCallback := js.FuncOf(func(js.Value, []js.Value) any {
 		if !b.disposed {
 			b.marks()
@@ -158,6 +201,10 @@ func installSavedMessages(cfg journeyclient.Config) func() {
 		input.Release()
 		resize.Release()
 		doc.Call("removeEventListener", "chat-saved-changed", changed)
+		doc.Call("removeEventListener", chatPageOpenedEvent, pageOpened)
+		pageOpened.Release()
+		doc.Call("removeEventListener", chatPageRestoreEvent, pageRestore)
+		pageRestore.Release()
 		click.Release()
 		submit.Release()
 		key.Release()
@@ -260,10 +307,11 @@ func (b *chatsaveBrowser) sync() {
 func (b *chatsaveBrowser) view() chatui.SavedMessagesView {
 	cfg := b.cfg
 	cfg.Locale = b.locale()
+	b.settleTab()
 	page := chat.SavedPage{Items: []chat.SavedItem{}}
 	query := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(b.query), "in: saved")))
 	for _, item := range b.page.Items {
-		if b.tab != "all" && string(item.State) != b.tab {
+		if !chatsaveInTab(item, b.tab) {
 			continue
 		}
 		text := item.Note
@@ -703,7 +751,11 @@ func (b *chatsaveBrowser) command(host string, command chatsaveCommand) {
 	}()
 }
 
-func (b *chatsaveBrowser) close() {
+func (b *chatsaveBrowser) close() { b.hide(true) }
+
+// hide takes the panel away. A person closing it returns to the row that opened
+// it; a page that opens in its place (Moderation, search results) keeps focus.
+func (b *chatsaveBrowser) hide(refocus bool) {
 	b.reminderMenu, b.editingNote, b.pickingDate, b.active = "", "", false, ""
 	doc := js.Global().Get("document")
 	if panel := doc.Call("getElementById", "chatsave-list"); panel.Truthy() {
@@ -714,8 +766,11 @@ func (b *chatsaveBrowser) close() {
 	}
 	if button := doc.Call("querySelector", "[data-saved-action=toggle]"); button.Truthy() {
 		button.Call("setAttribute", "aria-expanded", "false")
-		button.Call("focus")
+		if refocus {
+			button.Call("focus")
+		}
 	}
+	chatPageSync()
 }
 
 func (b *chatsaveBrowser) key(event js.Value) {
@@ -755,7 +810,11 @@ func (b *chatsaveBrowser) open() {
 	if !panel.Truthy() || b.listDown {
 		return
 	}
+	announceChatPage("saved")
 	panel.Set("hidden", false)
+	// CHATBUG-091: every opening starts on the first tab that has items.
+	b.tabSettled = false
+	b.settleTab()
 	chatui.PositionSavedMessagesPanel(panel)
 	if opener := doc.Call("querySelector", "[data-saved-action=toggle]"); opener.Truthy() {
 		chatui.OpenSavedMessagesLayer(panel, opener)
@@ -767,4 +826,5 @@ func (b *chatsaveBrowser) open() {
 	b.render()
 	b.measure(panel)
 	b.applyFocus(panel)
+	chatPageSync()
 }

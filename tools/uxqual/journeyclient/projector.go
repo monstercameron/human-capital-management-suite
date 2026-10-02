@@ -799,7 +799,7 @@ func promotionSubject(worker *journeyv1.Worker, options *journeyv1.WorkforceOpti
 		Title:    nonEmpty(worker.GetJobTitle(), JobTitle(worker.GetJobCode())),
 		JobCode:  worker.GetJobCode(),
 		Grade:    worker.GetGrade(),
-		OrgUnit:  productui.DisplayLabel(worker.GetOrgUnit()),
+		OrgUnit:  unitLabel(worker.GetOrgUnitName(), worker.GetOrgUnit()),
 		Location: worker.GetLocation(),
 		PayLine:  orDash(formatAmountWithPayUnitLocale(copy.Resolved, workerCurrency(worker, options), worker.GetBasePay(), worker.GetPayBasis())),
 	}
@@ -1412,7 +1412,7 @@ func workerCard(locale string, w *journeyv1.Worker, open map[string]int, selecte
 		Title:        JobTitle(w.GetJobCode()),
 		JobCode:      w.GetJobCode(),
 		Grade:        w.GetGrade(),
-		OrgUnit:      productui.DisplayLabel(w.GetOrgUnit()),
+		OrgUnit:      unitLabel(w.GetOrgUnitName(), w.GetOrgUnit()),
 		Location:     w.GetLocation(),
 		PayLine:      orDash(formatAmountWithPayUnitLocale(locale, workerCurrency(w, options), w.GetBasePay(), w.GetPayBasis())),
 		HireDate:     orDash(formatDateLocale(locale, w.GetHireDate())),
@@ -2141,7 +2141,7 @@ func comparisonLocale(locale string, j *journeyv1.Journey) []journey.ComparisonR
 		row(copy.Text("journey.compare_job"), cur.GetJobCode(), tgt.GetJobCode()),
 		row(copy.Text("journey.compare_grade"), cur.GetGrade(), tgt.GetGrade()),
 		row(copy.Text("journey.compare_position"), cur.GetPositionId(), tgt.GetPositionId()),
-		row(copy.Text("journey.compare_org"), productui.DisplayLabel(cur.GetOrgUnit()), productui.DisplayLabel(tgt.GetOrgUnit())),
+		row(copy.Text("journey.compare_org"), unitLabel("", cur.GetOrgUnit()), unitLabel("", tgt.GetOrgUnit())),
 	}
 
 	pay := journey.ComparisonRow{
@@ -3282,7 +3282,7 @@ func proposalPositionSummary(options *journeyv1.WorkforceOptions, reference stri
 func proposalOrganizationSummary(worker *journeyv1.Worker, options *journeyv1.WorkforceOptions, reference string) string {
 	current := ""
 	if worker != nil {
-		current = productui.DisplayLabel(worker.GetOrgUnit())
+		current = unitLabel(worker.GetOrgUnitName(), worker.GetOrgUnit())
 	}
 	target := ""
 	if options != nil {

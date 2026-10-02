@@ -1,5 +1,7 @@
 package journeyclient
 
+import "github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
+
 // Agents mirrors internal/humanwork/workspace.AgentsConfig: the server's
 // agents availability projection for the signed-in viewer (UXBLIND-122).
 // It is display state only; the settings write is authorized by the server.
@@ -13,14 +15,20 @@ type Agents struct {
 	Service                string         `json:"service,omitempty"`
 	Agents                 []AgentSummary `json:"agents,omitempty"`
 	Tasks                  []AgentTask    `json:"tasks,omitempty"`
+	// Deferred says the document did not read the agent service: the page it
+	// was served for is not an Agents page. The client reads the snapshot when
+	// an Agents page opens (CHATBUG-014).
+	Deferred bool `json:"deferred,omitempty"`
 }
 
 // AgentSummary mirrors workspace.AgentSummaryConfig.
 type AgentSummary struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Status      string `json:"status,omitempty"`
+	ID           string          `json:"id"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description,omitempty"`
+	Status       string          `json:"status,omitempty"`
+	Icon         agenticon.Value `json:"icon,omitzero"`
+	IconRevision int64           `json:"icon_revision,omitempty"`
 }
 
 // AgentTask mirrors workspace.AgentTaskConfig.
@@ -50,6 +58,45 @@ type AgentTask struct {
 	UsedDocumentReferences    []AgentTaskDocumentReference `json:"used_document_references,omitempty"`
 	DocumentUsageState        string                       `json:"document_usage_state,omitempty"`
 	DocumentOmissions         []AgentTaskDocumentOmission  `json:"document_omissions,omitempty"`
+	Detail                    *AgentTaskDetail             `json:"detail,omitempty"`
+}
+
+// AgentTaskDetail mirrors workspace.AgentTaskDetailConfig: the task view
+// sections the server derives from the task's own record, as kinds, codes and
+// labels.
+type AgentTaskDetail struct {
+	Checkpoints      []AgentCheckpoint `json:"checkpoints,omitempty"`
+	Artifacts        []AgentArtifact   `json:"artifacts,omitempty"`
+	SubmittedIntents []AgentIntent     `json:"submitted_intents,omitempty"`
+	PlanChanges      []AgentPlanChange `json:"plan_changes,omitempty"`
+}
+
+// AgentCheckpoint mirrors workspace.AgentCheckpointConfig.
+type AgentCheckpoint struct {
+	Kind  string `json:"kind,omitempty"`
+	Step  string `json:"step,omitempty"`
+	Label string `json:"label,omitempty"`
+	At    string `json:"at,omitempty"`
+}
+
+// AgentArtifact mirrors workspace.AgentArtifactConfig.
+type AgentArtifact struct {
+	Kind string `json:"kind,omitempty"`
+	Name string `json:"name,omitempty"`
+	Href string `json:"href,omitempty"`
+}
+
+// AgentIntent mirrors workspace.AgentIntentConfig.
+type AgentIntent struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+// AgentPlanChange mirrors workspace.AgentPlanChangeConfig.
+type AgentPlanChange struct {
+	Change string `json:"change"`
+	Step   string `json:"step"`
+	Tier   string `json:"tier,omitempty"`
 }
 
 type AgentTaskDocumentReference struct {
@@ -65,10 +112,11 @@ type AgentTaskDocumentOmission struct {
 
 // AgentTaskActionPolicy mirrors the server's fail-closed action projection.
 type AgentTaskActionPolicy struct {
-	ConfirmPlan bool `json:"confirm_plan"`
-	Pause       bool `json:"pause"`
-	Resume      bool `json:"resume"`
-	Cancel      bool `json:"cancel"`
+	ConfirmPlan  bool `json:"confirm_plan"`
+	Pause        bool `json:"pause"`
+	Resume       bool `json:"resume"`
+	Cancel       bool `json:"cancel"`
+	ExtendBudget bool `json:"extend_budget"`
 }
 
 // AgentStep mirrors workspace.AgentStepConfig.
@@ -83,7 +131,9 @@ type AgentStep struct {
 
 // AgentApproval mirrors workspace.AgentApprovalConfig.
 type AgentApproval struct {
-	ID      string `json:"id"`
-	Digest  string `json:"digest"`
-	Summary string `json:"summary"`
+	ID      string   `json:"id"`
+	Digest  string   `json:"digest"`
+	Summary string   `json:"summary"`
+	Sources []string `json:"sources,omitempty"`
+	Taint   string   `json:"taint,omitempty"`
 }

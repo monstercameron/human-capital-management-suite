@@ -227,3 +227,30 @@ func (s *chatState) dropStaleAuthorBlockedLocked(conversationID, value string) {
 		s.model.AuthorBlocked = chatui.WithAuthorBlocked(s.model.AuthorBlocked, key, nil)
 	}
 }
+
+// chatmod002RuleRef marks the violation that carries the name of the rule that
+// refused the text.
+const chatmod002RuleRef = "chatfilter.blocked_rule"
+
+// chatmod002BlockedRule is the name of the rule that refused a text, or "" when
+// the server did not name one. A description the server could not publish comes
+// back as "field rejected by <ruleRef>", which names nothing and is left out.
+func chatmod002BlockedRule(err error) string {
+	reported, ok := status.FromError(err)
+	if !ok || reported.Code() != codes.InvalidArgument {
+		return ""
+	}
+	for _, d := range reported.Details() {
+		detail, ok := d.(*commonv1.ErrorDetail)
+		if !ok || detail.GetReasonRef() != chatmod002Reason {
+			continue
+		}
+		for _, violation := range detail.GetFieldViolations() {
+			name := strings.TrimSpace(violation.GetDescription())
+			if violation.GetRuleRef() == chatmod002RuleRef && name != "" && !strings.HasPrefix(name, "field rejected by ") && utf8.RuneCountInString(name) <= chatmod002WordRuneCap {
+				return name
+			}
+		}
+	}
+	return ""
+}

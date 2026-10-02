@@ -42,6 +42,9 @@ const (
 
 func main() {
 	bootMark(bootPhaseGoMain)
+	// CHATBUG-014: the loader starts the client with the collector off; this
+	// bounds how long it stays off (chatperf2_boot_gc.go).
+	chatperf2Collector.Arm()
 	settleViewTransitions()
 	if err := start(); err != nil {
 		mountStartupFailure()

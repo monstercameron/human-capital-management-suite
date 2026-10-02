@@ -27,9 +27,10 @@ import (
 //     in the middle of that wait.
 //
 // The route loader therefore reads the Chat list beside the shell's reads and
-// returns without the open conversation's messages. The page, once it is
-// mounted, opens that conversation through the same path a click on it takes,
-// which already shows a skeleton and replaces it when the messages land.
+// returns without the open conversation's messages. That conversation is opened
+// through the same path a click on it takes, which shows a skeleton and replaces
+// it when the messages land. The open starts as soon as the list is adopted
+// (CHATBUG-014), so the messages are normally in the model by the first render.
 
 // chatux009RailWait is how long the first paint waits for the agent list: it is
 // read beside the conversation list, so it is normally there already, and a
@@ -38,48 +39,72 @@ const chatux009RailWait = 150 * time.Millisecond
 
 var chatux009Deferred struct {
 	sync.Mutex
-	cfg journeyclient.Config
-	id  string
-	set bool
+	cfg  journeyclient.Config
+	open chatperfFirstOpen
 }
 
 // chatux009Defer records that the first render shows conversation id without
-// its messages, which chatux009Mounted opens once the page is on screen.
+// its messages. The loader starts that conversation's open straight away
+// (chatux009OpenAhead); chatux009Mounted starts it if the loader did not.
 func chatux009Defer(cfg journeyclient.Config, id string) {
 	chatux009Deferred.Lock()
-	chatux009Deferred.cfg, chatux009Deferred.id, chatux009Deferred.set = cfg, id, true
+	chatux009Deferred.cfg = cfg
 	chatux009Deferred.Unlock()
+	chatux009Deferred.open.record(id)
+}
+
+// chatux009OpenAhead starts the open of the conversation the loader left
+// without messages, without waiting for the page to be on screen (CHATBUG-014;
+// see chatperf_first_open.go). The route is not held for it: the first render
+// draws whatever the model has by then, messages or skeleton.
+func chatux009OpenAhead() {
+	id, ok := chatux009Deferred.open.ahead()
+	if !ok {
+		return
+	}
+	chatux009Deferred.Lock()
+	cfg := chatux009Deferred.cfg
+	chatux009Deferred.Unlock()
+	bootMark("chat-open-ahead")
+	go chatux009Open(cfg, id)
 }
 
 // chatux009Mounted runs when the Chat page is on screen. It opens the
-// conversation the loader left without messages and starts the reads that were
-// held back until the first paint.
+// conversation the loader left without messages, unless that open was started
+// ahead of the paint.
 func chatux009Mounted() {
 	chatux009EndRender()
-	chatux009Deferred.Lock()
-	cfg, id, set := chatux009Deferred.cfg, chatux009Deferred.id, chatux009Deferred.set
-	chatux009Deferred.set = false
-	chatux009Deferred.Unlock()
-	if !set {
+	id, owed, start := chatux009Deferred.open.mounted()
+	if !owed {
 		return
 	}
-	go func() {
-		bootMark("chat-mounted")
-		// The address may name a channel, a person or a shared message: those
-		// open their own conversation, so they run first, as they did when the
-		// loader read the messages itself.
-		chatux009HoldFor(id)
-		defer chatux009HoldFor("")
-		openChatShareFragment(cfg)
-		openChatChannelFragment(cfg)
-		openChatPersonFragment(cfg)
-		if id != "" && chatBrowser.selectedID() == id {
-			openChatConversation(cfg, id)
-			return
-		}
-		// Nothing was opened, so nothing will read the directory afterwards.
-		go loadChatDirectory(cfg)
-	}()
+	bootMark("chat-mounted")
+	if !start {
+		return
+	}
+	chatux009Deferred.Lock()
+	cfg := chatux009Deferred.cfg
+	chatux009Deferred.Unlock()
+	go chatux009Open(cfg, id)
+}
+
+// chatux009Open opens the conversation the first load selected, through the
+// same path a click on it takes.
+func chatux009Open(cfg journeyclient.Config, id string) {
+	// The address may name a channel, a person or a shared message: those
+	// open their own conversation, so they run first, as they did when the
+	// loader read the messages itself.
+	chatux009HoldFor(id)
+	defer chatux009HoldFor("")
+	openChatShareFragment(cfg)
+	openChatChannelFragment(cfg)
+	openChatPersonFragment(cfg)
+	if id != "" && chatBrowser.selectedID() == id {
+		openChatConversation(cfg, id)
+		return
+	}
+	// Nothing was opened, so nothing will read the directory afterwards.
+	go loadChatDirectory(cfg)
 }
 
 // chatux009Read is the answer to one Chat list read started by the route loader.

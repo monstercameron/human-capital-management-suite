@@ -222,3 +222,40 @@ func TestTodo_CHATMOD_002_AuthorState(t *testing.T) {
 		t.Fatal("clearAuthorBlocked left the entry")
 	}
 }
+
+// TestTodo_CHATUX_018_RuleName: the refusal's rule name is read from its own
+// violation; a name the server could not publish, or none, names nothing.
+func TestTodo_CHATUX_018_RuleName(t *testing.T) {
+	refusal := func(rule string) error {
+		violations := []*commonv1.FieldViolation{{FieldPath: "body", RuleRef: chatmod002SpanRule, Description: "0-4"}}
+		if rule != "" {
+			violations = append(violations, &commonv1.FieldViolation{FieldPath: "body", RuleRef: chatmod002RuleRef, Description: rule})
+		}
+		withDetail, err := status.New(codes.InvalidArgument, "chat.content_blocked").WithDetails(&commonv1.ErrorDetail{ReasonRef: chatmod002Reason, FieldViolations: violations})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return withDetail.Err()
+	}
+	for rule, want := range map[string]string{
+		"Built-in word list: Profanity": "Built-in word list: Profanity",
+		"  Project Falcon 1.2.0  ":      "Project Falcon 1.2.0",
+		"":                              "",
+		"field rejected by chatfilter.blocked_rule":  "",
+		strings.Repeat("a", chatmod002WordRuneCap+1): "",
+	} {
+		if got := chatmod002BlockedRule(refusal(rule)); got != want {
+			t.Errorf("rule %q read as %q, want %q", rule, got, want)
+		}
+	}
+	if chatmod002BlockedRule(errors.New("other")) != "" || chatmod002BlockedRule(nil) != "" {
+		t.Error("a name was read from an error that is not a refusal")
+	}
+	// The words are still read from the same refusal.
+	if blocked, words := chatmod002BlockedWords(refusal("Profanity"), "damn you"); !blocked || !reflect.DeepEqual(words, []string{"damn"}) {
+		t.Errorf("the rule violation disturbed the words: %v %v", blocked, words)
+	}
+	if got := chatui.ModAuthorRuleLine("en-US", "Profanity"); got != "Rule: Profanity" {
+		t.Errorf("rule line %q", got)
+	}
+}

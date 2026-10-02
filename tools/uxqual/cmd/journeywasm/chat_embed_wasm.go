@@ -135,6 +135,10 @@ func focusChatOriginalPost(room, post string) {
 				return nil
 			}
 		}
+		// CHATBUG-014: a windowed timeline draws only the rows near the
+		// viewport. When it holds the post, it is asked to draw the row; the
+		// next frame finds it.
+		chatui.RevealTimelineMessage(post)
 		attempts++
 		if attempts >= 90 {
 			frame.Release()

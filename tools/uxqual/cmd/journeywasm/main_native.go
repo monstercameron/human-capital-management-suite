@@ -22,6 +22,7 @@ package main
 import (
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -161,7 +162,23 @@ func build(outDir string, stdout io.Writer) error {
 	// exists to serve /debug/requests pages from a server. A browser client
 	// cannot serve them, and the integration alone pulled html/template and
 	// text/template into the bundle (UXBLIND-089).
-	cmd := exec.Command(goBin, "build", "-tags="+wasmBuildTags, "-ldflags=-s -w", "-gcflags="+wasmGCFlags, "-o", wasmPath, wasmPackage)
+	args := []string{"build", "-tags=" + wasmBuildTags, "-ldflags=-s -w", "-gcflags=" + wasmGCFlags}
+	// CHATBUG-014: compile net/http so the page's only round trip is fetch,
+	// which leaves the TLS stack out of the module (chatperf_fetch_only.go).
+	overlayDir, err := os.MkdirTemp("", "journeywasm-fetch-only-")
+	if err != nil {
+		return fmt.Errorf("creating a directory for the fetch-only overlay: %w", err)
+	}
+	defer os.RemoveAll(overlayDir)
+	switch overlay, overlayErr := writeFetchOnlyOverlay(goBin, overlayDir); {
+	case overlayErr == nil:
+		args = append(args, "-overlay="+overlay)
+	case errors.Is(overlayErr, errFetchOnlyUnavailable):
+		fmt.Fprintf(stdout, "journeywasm: building without the fetch-only net/http, the module will carry the TLS stack: %v\n", overlayErr)
+	default:
+		return overlayErr
+	}
+	cmd := exec.Command(goBin, append(args, "-o", wasmPath, wasmPackage)...)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	// The build's own diagnostics are the useful part of a failure, so they
 	// are carried into the error rather than discarded.

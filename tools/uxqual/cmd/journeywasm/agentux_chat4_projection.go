@@ -25,7 +25,17 @@ func applyCommittedAgentPending(model *chatui.Model, post *chatv1.Post) {
 			continue
 		}
 		model.PersonaInvocations = append(model.PersonaInvocations, chatui.PersonaThreadInvocation{PostID: post.GetId(), ThreadID: post.GetParentId(), Projection: chatui.PersonaProgressProjection{InvocationID: "pending:" + post.GetId(), ViewerID: model.CurrentUser, InvokerID: model.CurrentUser, AgentName: ref.Display, Progress: agentPendingProgress(model.CurrentUser, ref.Display)}})
-		break
+		return
+	}
+	// AGENTUX-075: a post in the person's own conversation with an agent names no
+	// agent and asks it all the same, so the working message stands under it at
+	// once, in that agent's name, until the server reports on the run.
+	for _, room := range model.Conversations {
+		if room.ID != model.SelectedID || !room.Agent || room.AgentID == "" || strings.TrimSpace(room.Name) == "" {
+			continue
+		}
+		model.PersonaInvocations = append(model.PersonaInvocations, chatui.PersonaThreadInvocation{PostID: post.GetId(), ThreadID: post.GetParentId(), Projection: chatui.PersonaProgressProjection{InvocationID: "pending:" + post.GetId(), ViewerID: model.CurrentUser, InvokerID: model.CurrentUser, AgentName: room.Name, Progress: agentPendingProgress(model.CurrentUser, room.Name)}})
+		return
 	}
 }
 

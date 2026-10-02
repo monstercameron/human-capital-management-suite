@@ -154,10 +154,17 @@ func TestTodo_CHATEMOJI_001(t *testing.T) {
 	if ix.Name(fire) != "Feuer" || enIndex.Name(fire) != "fire" || arIndex.Name(fire) != "نار" || ix.Shortcode(fire) != ":fire:" {
 		t.Fatalf("names of fire: %q %q %q %q", ix.Name(fire), enIndex.Name(fire), arIndex.Name(fire), ix.Shortcode(fire))
 	}
-	// An emoji with no German name is named in English rather than left blank.
+	// Every emoji of the interim data is named in each language; a name the
+	// reader's language lacks would be given in English rather than left blank.
 	party, _ := find(set, "🎉")
-	if ix.Name(party) != "party popper" {
-		t.Fatalf("a missing German name did not fall back to English: %q", ix.Name(party))
+	if ix.Name(party) != "Konfettibombe" {
+		t.Fatalf("the German name of the party popper is %q", ix.Name(party))
+	}
+	german, _ := emojiset.ParseLang(out.Langs["de"], set)
+	german.Names[party] = ""
+	english, _ := emojiset.ParseLang(out.Langs["en"], set)
+	if got := emojiset.NewIndex(set, german, english).Name(party); got != "party popper" {
+		t.Fatalf("a missing German name did not fall back to English: %q", got)
 	}
 	if ix.ToneName(1) != "helle Hautfarbe" || enIndex.ToneName(5) != "dark skin tone" {
 		t.Fatalf("tone names %q %q", ix.ToneName(1), enIndex.ToneName(5))

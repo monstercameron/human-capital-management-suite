@@ -214,13 +214,13 @@ func startChatPersonDM(cfg journeyclient.Config, subjectID string) {
 			break
 		}
 		if next == cursor || seenCursors[next] {
-			chatActionSucceeded("Could not finish checking existing direct messages")
+			chatActionSucceeded(chatui.ChatDirectLookupNotice(chatBrowser.localeTag()))
 			return
 		}
 		seenCursors[next] = true
 		cursor = next
 		if page == 49 {
-			chatActionSucceeded("Could not finish checking existing direct messages")
+			chatActionSucceeded(chatui.ChatDirectLookupNotice(chatBrowser.localeTag()))
 			return
 		}
 	}

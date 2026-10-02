@@ -11,5 +11,9 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<language type="ar"/>
 	</identity>
 	<annotations>
+		<annotation cp="🧑‍💻">برمجة | برنامج | حاسوب | مبرمج | مطور</annotation>
+		<annotation cp="🧑‍💻" type="tts">مبرمج</annotation>
+		<annotation cp="👨‍👩‍👧">امرأة | رجل | طفل | عائلة | فتاة</annotation>
+		<annotation cp="👨‍👩‍👧" type="tts">عائلة: رجل وامرأة وفتاة</annotation>
 	</annotations>
 </ldml>

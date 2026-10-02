@@ -33,7 +33,7 @@ func reviewCards(locale string, detail *journeyv1.JourneyDetail) *journey.Review
 	// directory could not name is left out rather than printed as an id.
 	organization := strings.TrimSpace(review.GetTargetOrganizationName())
 	if organization == "" {
-		organization = productui.DisplayLabel(target.GetOrgUnit())
+		organization = unitLabel("", target.GetOrgUnit())
 	}
 	positionTitle := strings.TrimSpace(review.GetTargetPositionTitle())
 	props := productui.PromotionReviewPropsFrom(copy, promotion.TargetPlacement{

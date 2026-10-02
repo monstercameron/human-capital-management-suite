@@ -44,4 +44,28 @@ func chatmod004Apply(model *chatui.Model, post *chatv1.Post) {
 		parent := removed(*model.ThreadParent)
 		model.ThreadParent = &parent
 	}
+	// A message removed again is no longer "restored".
+	model.Moderation = model.Moderation.WithoutRestored(id)
+}
+
+// chatmod004NoteRestore marks a message as restored when an edit brings back
+// one the page holds as removed by an administrator: the server sends a restore
+// as an ordinary edit, and readers are owed a line saying what happened. It
+// runs before the edit is applied, while the removed copy is still held.
+func chatmod004NoteRestore(model *chatui.Model, post *chatv1.Post) {
+	if post == nil || post.GetDeleted() || post.GetBody() == chat.RemovedByAdministrator {
+		return
+	}
+	id := post.GetId()
+	held := func(m chatui.Message) bool { return m.ID == id && m.Body == chat.RemovedByAdministrator }
+	found := model.ThreadParent != nil && held(*model.ThreadParent)
+	for _, m := range model.Messages {
+		found = found || held(m)
+	}
+	for _, m := range model.ThreadMessages {
+		found = found || held(m)
+	}
+	if found {
+		model.Moderation = model.Moderation.WithRestored(id)
+	}
 }

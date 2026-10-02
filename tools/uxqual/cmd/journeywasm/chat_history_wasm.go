@@ -122,6 +122,7 @@ func (controller *chatHistoryController) pushState(state chatNavigationState) {
 		return
 	}
 	productHistory.RecordSameRoutePush()
+	chatClaimOwnAddress()
 }
 
 func encodeChatNavigationState(state chatNavigationState) js.Value {
@@ -164,7 +165,9 @@ func (controller *chatHistoryController) replace(model chatui.Model) {
 		return
 	}
 	clone.Set(chatHistoryStateField, encodeChatNavigationState(state))
-	browserHistoryReplaceState(history, clone, chatHistoryHref(state.ConversationID))
+	if browserHistoryReplaceState(history, clone, chatPageHref(state.ConversationID)) {
+		chatClaimOwnAddress()
+	}
 }
 
 func (controller *chatHistoryController) restore(event js.Value, cfg journeyclient.Config) {
@@ -190,6 +193,9 @@ func (controller *chatHistoryController) restore(event js.Value, cfg journeyclie
 	}
 	controller.restoring = true
 	defer func() { controller.restoring = false }()
+	// The entry reached by Back or Forward is read here; the hashchange that
+	// follows it must not read the same address a second time.
+	defer chatClaimOwnAddress()
 	current := chatBrowser.snapshot()
 	if state.ConversationID != "" && (current.SelectedID != state.ConversationID || current.FocusMessageID != state.FocusMessageID) {
 		openChatConversationAt(cfg, state.ConversationID, state.FocusSequence, state.FocusMessageID)

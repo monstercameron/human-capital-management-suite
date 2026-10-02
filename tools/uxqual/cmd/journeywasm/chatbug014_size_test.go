@@ -39,4 +39,23 @@ func TestTodo_CHATBUG_014(t *testing.T) {
 	if buildErr != nil {
 		t.Fatalf("the client does not fit its size ceilings: %v", buildErr)
 	}
+	// The module must not carry the TLS stack a page can never run. The build
+	// says so itself when the toolchain's net/http no longer takes the change;
+	// the function names are read from the module because a stripped Go module
+	// still holds them for its own tracebacks.
+	if strings.Contains(stdout.String(), "building without the fetch-only net/http") {
+		t.Fatalf("the build fell back to the full net/http: %s", stdout.String())
+	}
+	module, err := os.ReadFile(filepath.Join(out, wasmFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"crypto/tls.(*Conn).clientHandshake", "net/http.(*Transport).roundTrip", "crypto/x509.(*Certificate).Verify"} {
+		if bytes.Contains(module, []byte(name)) {
+			t.Fatalf("the client module contains %s: something reaches the dialling round trip again (an *http.Transport built by hand, or a net/http the fetch-only build no longer covers)", name)
+		}
+	}
+	if !bytes.Contains(module, []byte("net/http.fetchOnlyTransport.RoundTrip")) {
+		t.Fatal("the client module has no fetch-only round trip: its requests would have nowhere to go")
+	}
 }

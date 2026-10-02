@@ -183,13 +183,17 @@ func integrate2SyncStatus(parent context.Context, cfg journeyclient.Config) {
 	// on the next tick, and a first read that fails is retried with backoff until
 	// it lands; neither ends the watch for good.
 	poll := func(view chatui.ChannelStatusView) {
-		ticker := time.NewTicker(5 * time.Second)
+		// CHATBUG-075: once a minute, not every five seconds, and at once when
+		// the event stream reports a change to the conversation.
+		ticker := time.NewTicker(chatstateFallbackInterval)
 		defer ticker.Stop()
+		changed := chatstateChanged.Listen(room)
 		for {
 			select {
 			case <-parent.Done():
 				return
 			case <-ticker.C:
+			case <-changed:
 			}
 			if chatBrowser.selectedID() != room {
 				return
@@ -252,6 +256,7 @@ func integrate2SyncProjection() {
 	integrate2SyncStatusDirectory(ctx, cfg)
 	integrate2SyncLocations(ctx, cfg)
 	chatlang004SyncAudience(ctx, cfg)
+	chatvoiceSyncAccess(ctx, cfg)
 	m := chatBrowser.snapshot()
 	if m.ChatFeatures == nil || !m.ChatFeatures.Renderings || m.SelectedID == "" {
 		return
@@ -479,11 +484,33 @@ func integrate2SyncStatusDirectory(ctx context.Context, cfg journeyclient.Config
 			}
 		}
 		rooms = append(rooms, archivedRooms...)
+		// CHATBUG-014: one request for every channel still to read. A channel
+		// it did not answer for is read on its own below, as before.
+		var batchViews map[string]chatui.ChannelStatusView
+		var batchRefused map[string]error
+		if wanted := chatperf2StatusRooms(rooms, views, m.SelectedID); len(wanted) > 1 {
+			call, cancel := context.WithTimeout(ctx, 15*time.Second)
+			batchViews, batchRefused = client.LoadMany(call, wanted, m.ChannelStatuses)
+			cancel()
+			if ctx.Err() != nil {
+				return true
+			}
+		}
 		for _, room := range rooms {
 			if room.Kind != chatui.PublicChannel && room.Kind != chatui.PrivateChannel {
 				continue
 			}
 			if _, ok := views[room.ID]; ok || room.ID == m.SelectedID {
+				continue
+			}
+			if view, ok := batchViews[room.ID]; ok {
+				views[room.ID] = view
+				continue
+			}
+			if refusal, ok := batchRefused[room.ID]; ok {
+				if !chatux012StatusFinal(refusal) {
+					failed = true
+				}
 				continue
 			}
 			call, cancel := context.WithTimeout(ctx, 10*time.Second)

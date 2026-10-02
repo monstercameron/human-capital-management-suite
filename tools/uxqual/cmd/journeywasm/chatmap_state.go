@@ -31,6 +31,8 @@ type ChatmapDraft struct {
 	ExpiresAt *time.Time
 	Captured  bool
 	Status    string
+	// Live asks the server for a bounded share the device keeps updating.
+	Live bool
 }
 
 func (d *ChatmapDraft) PressRead(ctx context.Context, recorder ChatmapRecorder, now time.Time) error {
@@ -58,6 +60,10 @@ func ChatmapExpiry(duration string, now time.Time) *time.Time {
 	if duration == "keep" {
 		return nil
 	}
+	if live, ok := ChatmapLiveDuration(duration); ok {
+		at := now.Add(live)
+		return &at
+	}
 	at := now.Add(time.Hour)
 	if duration == "day" {
 		at = time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
@@ -70,6 +76,8 @@ type ChatmapPending struct {
 	Tenant, Subject, Conversation, Key, PostID string
 	Revision                                   uint64
 	Queued, Sent                               bool
+	// ShareID is the server's id for the share once it is attached.
+	ShareID string
 }
 type ChatmapSender interface {
 	SendLocation(context.Context, *ChatmapPending) error
@@ -99,6 +107,13 @@ func (p *ChatmapPending) Deliver(ctx context.Context, sender ChatmapSender, onli
 	}
 	if err := sender.SendLocation(ctx, p); err != nil {
 		p.Draft.Status = "failed"
+		if errors.Is(err, chat.ErrPermissionDenied) {
+			// The administrator has switched sharing (or live sharing) off here.
+			p.Draft.Status = "sharing_off"
+			if p.Draft.Live {
+				p.Draft.Status = "live_off"
+			}
+		}
 		p.Queued = errors.Is(err, chat.ErrUnavailable)
 		return err
 	}

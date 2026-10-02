@@ -241,8 +241,20 @@ func (b *agentServiceBinding) ListTasks(ctx context.Context) ([]productui.AgentT
 	return result, nil
 }
 
+// agentTaskIDNamesNothing reports an id that cannot name a task: empty, or the
+// word a missing browser value becomes when it is read as text in Go wasm
+// ("<null>", "<undefined>"). Sending one asks the server for a task that
+// cannot exist and leaves a NOT_FOUND in its log on every page load.
+func agentTaskIDNamesNothing(taskID string) bool {
+	switch strings.ToLower(strings.TrimSpace(taskID)) {
+	case "", "<null>", "null", "<undefined>", "undefined":
+		return true
+	}
+	return false
+}
+
 func (b *agentServiceBinding) GetTask(ctx context.Context, taskID string) (productui.AgentTask, error) {
-	if b == nil || b.client == nil || strings.TrimSpace(taskID) == "" {
+	if b == nil || b.client == nil || agentTaskIDNamesNothing(taskID) {
 		return productui.AgentTask{}, errAgentTask
 	}
 	response, err := b.client.GetAgentTask(b.rpcContext(ctx), &agentv1.GetAgentTaskRequest{TaskId: strings.TrimSpace(taskID)})
@@ -260,10 +272,10 @@ func (b *agentServiceBinding) GetTask(ctx context.Context, taskID string) (produ
 }
 
 func (b *agentServiceBinding) ControlTask(ctx context.Context, taskID string, version uint64, action agentv1.AgentTaskAction) (string, error) {
-	if b == nil || b.client == nil || strings.TrimSpace(taskID) == "" || version == 0 || action == agentv1.AgentTaskAction_AGENT_TASK_ACTION_UNSPECIFIED {
+	if b == nil || b.client == nil || agentTaskIDNamesNothing(taskID) || version == 0 || action == agentv1.AgentTaskAction_AGENT_TASK_ACTION_UNSPECIFIED {
 		return "", errAgentTask
 	}
-	response, err := b.client.ControlAgentTask(b.rpcContext(ctx), &agentv1.ControlAgentTaskRequest{TaskId: taskID, ExpectedVersion: version, Action: action})
+	response, err := b.client.ControlAgentTask(b.rpcContext(ctx), &agentv1.ControlAgentTaskRequest{TaskId: strings.TrimSpace(taskID), ExpectedVersion: version, Action: action})
 	if err != nil {
 		return "", err
 	}

@@ -88,8 +88,9 @@ func renderAgentTasks(loading, failed bool) {
 	}
 	agentBrowser.Lock()
 	tasks := append([]productui.AgentTask(nil), agentBrowser.tasks...)
+	agents := agentBrowser.cfg.Agents
 	agentBrowser.Unlock()
-	snapshot := productui.AgentSnapshot{Tasks: tasks, TasksLoading: loading, TasksLoadFailed: failed}
+	snapshot := agentTasksRegionSnapshot(agents, tasks, loading, failed)
 	if taskID := selectedAgentTaskID(js.Global().Get("location").Get("search").String()); taskID != "" {
 		for index := range tasks {
 			if tasks[index].ID == taskID {

@@ -271,3 +271,33 @@ func TestTodo_UXBLIND_122_AgentStartMessageKey(t *testing.T) {
 		}
 	}
 }
+
+// A missing attribute or query value read as text in Go wasm is the word
+// "<null>" or "<undefined>". The binding is the one place every task read and
+// control passes through, so it must not send such a word to the server as a
+// task id: each one cost a NOT_FOUND in the server log on every page load.
+func TestTodo_AGENTUX_020_ClientNeverAsksForAMissingTaskID(t *testing.T) {
+	client := &fakeAgentClient{
+		get:     &agentv1.GetAgentTaskResponse{Task: agentUXPage3Projection("task-1")},
+		control: &agentv1.ControlAgentTaskResponse{TaskId: "task-1"},
+	}
+	binding := &agentServiceBinding{cfg: journeyclient.Config{Bearer: "tok"}, client: client}
+	for _, id := range []string{"<null>", "<undefined>", "null", "undefined", " <NULL> ", "", "   "} {
+		if _, err := binding.GetTask(context.Background(), id); !errors.Is(err, errAgentTask) {
+			t.Errorf("GetTask(%q) = %v, want the local refusal", id, err)
+		}
+		if _, err := binding.ControlTask(context.Background(), id, 3, agentv1.AgentTaskAction_AGENT_TASK_ACTION_PAUSE); !errors.Is(err, errAgentTask) {
+			t.Errorf("ControlTask(%q) = %v, want the local refusal", id, err)
+		}
+		if client.gotGet != nil || client.gotControl != nil {
+			t.Fatalf("the id %q was sent to the server: get=%v control=%v", id, client.gotGet, client.gotControl)
+		}
+	}
+	// A real id still goes through, trimmed.
+	if task, err := binding.GetTask(context.Background(), " task-1 "); err != nil || task.ID != "task-1" || client.gotGet.GetTaskId() != "task-1" {
+		t.Fatalf("GetTask for a real id = %+v, %v (sent %q)", task, err, client.gotGet.GetTaskId())
+	}
+	if id, err := binding.ControlTask(context.Background(), "task-1", 3, agentv1.AgentTaskAction_AGENT_TASK_ACTION_PAUSE); err != nil || id != "task-1" || client.gotControl.GetTaskId() != "task-1" {
+		t.Fatalf("ControlTask for a real id = %q, %v", id, err)
+	}
+}

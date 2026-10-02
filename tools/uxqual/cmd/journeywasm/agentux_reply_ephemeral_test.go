@@ -98,7 +98,9 @@ func TestTodo_AGENTUX_029_CompletedPrivateInvocationWaitsForItsEnvelope(t *testi
 		InvocationID: "invocation", PostID: "question", ConversationID: "room", InvokerID: "alice", AgentName: "Policy Helper", Status: "COMPLETED",
 		PrivateConversationID: "agent-dm", PrivatePostID: "answer",
 	}}, cfg, "room")
-	if len(private) != 1 || private[0].Projection.Progress == nil || private[0].Projection.PrivateReplyHref == "" {
+	// CHATBUG-079: the row keeps its place for the envelope as a stored answer,
+	// not as a run at work.
+	if len(private) != 1 || private[0].Projection.Progress != nil || !private[0].Projection.AnswerStored || private[0].Projection.PrivateReplyHref == "" {
 		t.Fatalf("completed private invocation lost continuity before its envelope: %+v", private)
 	}
 	public := personaChatInvocations([]personaChatInvocation{{

@@ -59,6 +59,43 @@ func (c FilterAPIClient) Snapshot(ctx context.Context, channel string) (filterSn
 	return filterSnapshot{Definitions: definitions, Enablements: rows}, nil
 }
 
+// chatmod003HitsPage is how many matches the server answers at once: a full
+// page means there may be older ones.
+const chatmod003HitsPage = 200
+
+// chatmod003OlderCursor is the cursor of the page after the matches held: the
+// smallest id among them. Zero asks for the newest page.
+func chatmod003OlderCursor(held []chatfilter.Record) int64 {
+	cursor := int64(0)
+	for _, r := range held {
+		if r.ID > 0 && (cursor == 0 || r.ID < cursor) {
+			cursor = r.ID
+		}
+	}
+	return cursor
+}
+
+// chatmod003MergeHits is what the panel holds after a read: the newest page
+// replaces what was held, an older page is added to it, and a match is never
+// listed twice.
+func chatmod003MergeHits(held, read []chatfilter.Record, before int64) []chatfilter.Record {
+	if before == 0 {
+		return read
+	}
+	seen := make(map[int64]bool, len(held))
+	out := append([]chatfilter.Record(nil), held...)
+	for _, r := range held {
+		seen[r.ID] = true
+	}
+	for _, r := range read {
+		if !seen[r.ID] {
+			seen[r.ID] = true
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // Apply writes one switch of the panel: the row at the level the panel chose.
 func (c FilterAPIClient) Apply(ctx context.Context, request chatui.ModSwitch) error {
 	return c.EnableAction(ctx, request.RuleID, request.Channel, request.On, false, request.Action)

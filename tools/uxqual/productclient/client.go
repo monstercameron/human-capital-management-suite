@@ -22,6 +22,7 @@ import (
 	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	positionv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce/unitnames"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
@@ -255,13 +256,16 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if !routeProfile.ValidControlledValues(values) {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
-	agentTaskID := ""
+	agentTaskID, agentOperationsTab := "", ""
 	if routeProfile == productui.RouteProfileAgents {
 		agentTaskID = routeValue(values, "task")
 	}
+	if routeProfile == productui.RouteProfileAgentOperations {
+		agentOperationsTab = routeValue(values, "tab")
+	}
 	state := State{Page: page, Provided: provided, Request: productui.PageRequest{
 		Page: page, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
-		SelectedWork: routeValue(values, "selected"), AgentTaskID: agentTaskID, SelectedPerson: routeValue(values, "person"),
+		SelectedWork: routeValue(values, "selected"), AgentTaskID: agentTaskID, AgentOperationsTab: agentOperationsTab, SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		PeopleColumns:    routeValue(values, "columns"),
 		OrganizationView: routeValue(values, "org_view"), OrganizationAsOf: routeValue(values, "as_of"), OrganizationUnit: routeValue(values, "unit"),
@@ -1763,7 +1767,7 @@ func projectWorkers(workers []*journeyv1.Worker) ([]productui.Person, error) {
 		people = append(people, productui.Person{
 			ID: worker.GetWorkerRef(), WorkerID: worker.GetWorkerId(), SubjectID: worker.GetSubjectId(), Initials: uicomponents.Initials(name), PhotoURL: photoURL, Name: name,
 			LegalName: worker.GetLegalName(), PreferredName: worker.GetPreferredName(), Role: role,
-			Team: orgUnitLabel(worker.GetOrgUnit()), Manager: managerName, ManagerID: workerIDByRef[managerRef], ManagerRelationship: managerState, ManagerWorkerRef: managerRef, Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
+			Team: productui.UnitDisplayName(worker.GetOrgUnitName(), orgUnitLabel(worker.GetOrgUnit())), Manager: managerName, ManagerID: workerIDByRef[managerRef], ManagerRelationship: managerState, ManagerWorkerRef: managerRef, Location: worker.GetLocation(), WorkerNumber: worker.GetWorkerNumber(),
 			JobCode: worker.GetJobCode(), Grade: worker.GetGrade(), PositionID: worker.GetPositionId(),
 			PayZone: worker.GetPayZone(), BasePay: basePay,
 			EmploymentType: worker.GetEmploymentType(), TimeType: worker.GetTimeType(),
@@ -1926,23 +1930,11 @@ func displayLabel(value string) string {
 	return productui.DisplayLabel(value)
 }
 
+// orgUnitLabel names a unit by its code when the directory sent no name: the
+// seed's own name for the code (internal/data/demoworkforce/unitnames), else
+// the code as words.
 func orgUnitLabel(code string) string {
-	if label, ok := map[string]string{
-		"care-operations":      "Care Operations",
-		"data-analytics":       "Data & Analytics",
-		"eng-platform":         "Engineering Platform",
-		"engineering-platform": "Engineering Platform",
-		"growth-customer":      "Growth & Customer",
-		"legal-compliance":     "Legal & Compliance",
-		"people-ops":           "People Operations",
-		"people-operations":    "People Operations",
-		"product-technology":   "Product & Technology",
-		"quality-safety":       "Quality & Safety",
-		"security-it":          "Security & IT",
-	}[strings.ToLower(strings.TrimSpace(code))]; ok {
-		return label
-	}
-	return displayLabel(code)
+	return productui.UnitDisplayName(unitnames.Name(code), code)
 }
 
 // documentListRequest maps the docs route onto one list selection. "starred"

@@ -58,8 +58,15 @@ func renderChatPage(props chatPageProps) ui.Node {
 		chatux009Mounted()
 		configureIntegrate1Chat(chatBrowser.config(journeyclient.Config{}))
 		chatRerender = func() { tick.Update(func(n int) int { return n + 1 }) }
+		// CHATBUG-014: the open started before the page mounted may have
+		// committed its messages after the first render; draw them now.
+		chatperfCatchUp()
+		pageLeft := chatperfPageMounted()
 		installChatSoundUnlock()
-		stopChatSoundPolling := startChatSoundPolling()
+		// The sound poll reads every conversation in the list. It is not needed
+		// to draw the page, so it waits for the first timeline.
+		stopChatSoundPolling := chatperfStartAfterFirstPaint(startChatSoundPolling)
+		stopChatPageRoute := installChatPageRoute(chatBrowser.config(journeyclient.Config{}))
 		popstate := js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if len(args) == 0 {
 				return nil
@@ -68,12 +75,9 @@ func renderChatPage(props chatPageProps) ui.Node {
 			return nil
 		})
 		js.Global().Call("addEventListener", "popstate", popstate)
-		hashChanged := js.FuncOf(func(js.Value, []js.Value) any {
-			openChatChannelFragment(chatBrowser.config(journeyclient.Config{}))
-			openChatPersonFragment(chatBrowser.config(journeyclient.Config{}))
-			return nil
-		})
-		js.Global().Call("addEventListener", "hashchange", hashChanged)
+		// CHATBUG-068: an address typed into this tab is read by a listener
+		// that outlives the page's own mounts (chatbug068_address_wasm.go).
+		installChatAddressWatch()
 		unknownClick := js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if len(args) == 0 {
 				return nil
@@ -102,12 +106,12 @@ func renderChatPage(props chatPageProps) ui.Node {
 		js.Global().Get("document").Call("addEventListener", "click", unknownClick)
 		return func() {
 			stopChatSoundPolling()
+			pageLeft()
+			stopChatPageRoute()
 			js.Global().Call("removeEventListener", "popstate", popstate)
 			popstate.Release()
 			js.Global().Get("document").Call("removeEventListener", "click", unknownClick)
 			unknownClick.Release()
-			js.Global().Call("removeEventListener", "hashchange", hashChanged)
-			hashChanged.Release()
 			resetChatChannelFragment()
 			chatPersonFragments.claim("")
 			chatHistory.reset()
@@ -130,6 +134,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 		// Nothing has been adopted yet: the loader's model is the only one.
 		model = props.View.Chat
 	}
+	chatperfLastDrawn = chatperfDrawnOf(model)
 	// CHATUX-009: a load still going after five seconds says so.
 	chatux009TrackLoading(model.State == chatui.StateLoading)
 	active := chatBrowser.config(journeyclient.Config{})
@@ -139,6 +144,9 @@ func renderChatPage(props chatPageProps) ui.Node {
 	model.WorkspaceFilterSettings = func() ui.Node { return ChatWorkspaceFilterPage(active, model) }
 	model.ProjectTaskPreviews = chatProjectTaskPreviews.projection(active.Tenant+"\x00"+active.Subject, chatProjectTaskPreviewRefs(model), time.Now())
 	model.JourneyPreviews = chatJourneyProjection(active.Tenant+"\x00"+active.Subject, chatJourneyRefs(model))
+	// CHATCMD-002: polls and to-do lists posted as messages, and what the server
+	// said this reader may see and do on each.
+	model = chatcmd002Project(model, active)
 	// Live finding: the server-rendered #chat-search and #chat-composer keep
 	// taking keystrokes for the few seconds this client takes to mount, and
 	// the client's first render otherwise starts both from an empty model --
@@ -159,6 +167,9 @@ func renderChatPage(props chatPageProps) ui.Node {
 	// model carries its tenant and viewer. Retry on renders until that identity
 	// exists; empty identity would make the first chat entry unsafe to restore.
 	chatHistory.seed(model)
+	// CHATBUG-052: the tab names the conversation that is open (or the page that
+	// covers it), and follows it when it changes.
+	ui.UseEffectOf(func() func() { syncChatTabTitle(); return nil }, struct{ Title string }{chatui.ChatTabTitle(model, "", "")})
 	ui.UseEffectOf(func() func() {
 		if model.State == chatui.StateReady {
 			recordSelectedChatVisit(model.CurrentTenantID, model.CurrentUser, model.SelectedID)
@@ -173,7 +184,18 @@ func renderChatPage(props chatPageProps) ui.Node {
 	ui.UseEffectOf(func() func() { resolveVisibleChatProjectTasks(chatBrowser.config(journeyclient.Config{})); return nil }, chatProjectTaskPreviewFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatJourneys(chatBrowser.config(journeyclient.Config{})); return nil }, chatJourneyFingerprint(model))
 	ui.UseEffectOf(func() func() { integrate2SyncProjection(); return nil }, integrate2ProjectionKey(model))
+	ui.UseEffectOf(func() func() { chatcmd002Sync(); return nil }, chatcmd002Fingerprint(model))
+	// CHATBUG-014: the reads the first paint does not need start once a settled
+	// timeline (messages, an empty conversation or an error) has been drawn.
+	timelineSettled := model.State != "" && model.State != chatui.StateLoading
+	ui.UseEffectOf(func() func() {
+		if timelineSettled {
+			chatperfTimelineShown()
+		}
+		return nil
+	}, timelineSettled)
 	bootMark("chat-render-start")
+	chatperfTrace("chat-render")
 	page := productui.BuildChatPage(props.View, model)
 	bootMark("chat-render-built")
 	return page

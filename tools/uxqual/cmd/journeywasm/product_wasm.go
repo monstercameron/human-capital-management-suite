@@ -521,6 +521,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 							personaAdminBrowser.Unlock()
 						}
 					}
+					// CHATBUG-014: the Agents page reads the agent snapshot that the
+					// document of another page deferred.
+					chatperf2LoadAgentSnapshot(taskCtx, state.Page, cfg.Agents, session.Agents, chatperf2AgentSnapshotFetcher(cfg))
 					// The URL is a presentation bookmark, never an authorization or
 					// data snapshot. LoadWithBaseline still rereads every authoritative
 					// dataset consumed by this destination (and live preferences), while
@@ -645,6 +648,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				view.PeopleColumnDraft = peopleColumnDraft
 				view.Chat = chatModel
 				view.Navigate = navigateProduct
+				// CHATSEARCH-002: the workspace search box asks Chat too.
+				view.SearchChat = chatsearchWorkspace
 				view.NavigateReplace = replaceProduct
 				view.SaveFavorite = preferences.SaveFavorite
 				applyBrowserHistoryNavigation(&view)
@@ -1179,6 +1184,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					view = productclient.ContentLoadingView(*lastResolvedProductView, state)
 				}
 				view.Navigate = navigateProduct
+				view.SearchChat = chatsearchWorkspace
 				view.NavigateReplace = replaceProduct
 				view.SaveFavorite = preferences.SaveFavorite
 				applyBrowserHistoryNavigation(&view)
@@ -1214,13 +1220,13 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					view.ContentLoading = true
 					view.Refreshing = false
 					setActiveProductLayout(view, showHeading)
-					return productui.LoadingProxy(productui.LoadingProxyProps{Page: view.Page})
+					return productui.LoadingProxy(productui.LoadingProxyProps{Page: view.Page, Locale: view.Locale})
 				}
 				view.Loading = true
 				view.ContentLoading = false
 				view.Refreshing = false
 				setActiveProductLayout(view, showHeading)
-				return productui.LoadingProxy(productui.LoadingProxyProps{Page: view.Page})
+				return productui.LoadingProxy(productui.LoadingProxyProps{Page: view.Page, Locale: view.Locale})
 			},
 		})
 	}
@@ -1229,6 +1235,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		return err
 	}
 	bootMark(bootPhaseHydrated)
+	// CHATBUG-014: the page is hydrated; the collector resumes shortly, sooner
+	// when the page reports its first paint (chatperf2_boot_gc.go).
+	chatperf2Collector.Hydrated()
 	// The shell may fall back to a separate startup mount when hydration
 	// fails. Bind document-level review listeners only after the live product
 	// tree is committed, so that fallback cannot leave a stale store behind.
@@ -1343,6 +1352,10 @@ func hydrateProductRouter(productRouter *router.Router) error {
 	if initial == nil {
 		return fmt.Errorf("product router did not resolve the initial location")
 	}
+	// CHATBUG-014: the framework has initialised by now and turned the
+	// collector on at its own pacing; it stays off until the page is drawn
+	// (chatperf2_boot_gc.go).
+	chatperf2Collector.Hold()
 	// Hydration commits asynchronously. Wait for the framework's completion
 	// signal rather than guessing a frame delay before enabling router writes.
 	committed := make(chan struct{}, 1)
@@ -1541,7 +1554,7 @@ func productShellLayoutComponent(_ router.Attrs) *router.Element {
 	// context only exists during this factory call, not the later render.
 	outlet := router.GetOutlet()
 	if outlet == nil {
-		outlet = productui.LoadingProxy(productui.LoadingProxyProps{Page: activeProductLayoutView.Page})
+		outlet = productui.LoadingProxy(productui.LoadingProxyProps{Page: activeProductLayoutView.Page, Locale: activeProductLayoutView.Locale})
 	}
 	return ui.CreateElement(renderProductShellLayoutOnce, &productShellLayoutProps{Outlet: outlet, View: activeProductLayoutView, ShowHeading: activeProductLayoutShowHeading})
 }

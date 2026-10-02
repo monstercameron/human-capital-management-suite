@@ -38,15 +38,29 @@ func chatsaveIsChannel(conversationID string, model chatui.Model) bool {
 
 // chatsaveCounts are the whole list's counts for the segmented control and the
 // heading: still to do, done, and all.
+//
+// A saved message that was deleted can no longer be done, so it counts under
+// All alone (CHATBUG-078).
 func chatsaveCounts(page chat.SavedPage) (todo, done, all int) {
 	for _, item := range page.Items {
-		if item.State == chat.SavedDone {
+		switch {
+		case item.Availability == "deleted":
+		case item.State == chat.SavedDone:
 			done++
-		} else {
+		default:
 			todo++
 		}
 	}
-	return todo, done, todo + done
+	return todo, done, len(page.Items)
+}
+
+// chatsaveInTab says whether an item is listed under a tab: To do and Done list
+// what can still be acted on, All lists everything including what was deleted.
+func chatsaveInTab(item chat.SavedItem, tab string) bool {
+	if tab == "all" {
+		return true
+	}
+	return item.Availability != "deleted" && string(item.State) == tab
 }
 
 // chatsaveOpenCount is the number the sidebar's Saved row shows: the items
@@ -89,4 +103,13 @@ func chatsaveRestore(item chat.SavedItem) []chatsaveCommand {
 		commands = append(commands, chatsaveCommand{Action: "done", ConversationID: base.ConversationID, PostID: base.PostID})
 	}
 	return commands
+}
+
+// chatsaveMenuOffset is where the Remind me menu goes, as the distance from the
+// bell it opens under to the menu's top left corner. The place is Chat's one
+// placement rule: against the bell, inside the panel below its header, on the
+// side with room. panel is the part of the Saved panel the menu may use.
+func chatsaveMenuOffset(bell, panel chatui.LayerRect, width, height float64, rtl bool) (left, top, maxHeight float64) {
+	place := chatui.PlaceChatLayer(bell, panel, width, height, false, rtl)
+	return place.Left - bell.Left, place.Top - bell.Top, place.Height
 }

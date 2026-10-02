@@ -27,8 +27,11 @@ func currentChatChannelFragment(loaded ...[]chatui.Conversation) (id, hash strin
 	if !strings.HasPrefix(hash, "#channel=") {
 		return "", hash
 	}
-	refs := chatui.ChannelReferences("/workspace/app/chat"+hash, location.Get("origin").String())
-	if len(refs) != 1 || chatui.ChannelReferenceURL(refs[0].ID) != "/workspace/app/chat"+hash {
+	// "&tab=docs" and the like ask for a tab; the conversation is named by the
+	// part before them (chatChannelAddress).
+	named, _ := chatChannelAddress(hash)
+	refs := chatui.ChannelReferences("/workspace/app/chat"+named, location.Get("origin").String())
+	if len(refs) != 1 || chatui.ChannelReferenceURL(refs[0].ID) != "/workspace/app/chat"+named {
 		return "", hash
 	}
 	// NAV-01: the address bar names a channel by its readable name when it
@@ -65,7 +68,12 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
 			navigation.FocusMessageID = ""
 			chatHistory.replace(navigation)
-			openChatConversation(active, id)
+			// CHATSEARCH-002: an address written by the workspace search names
+			// the message to open at.
+			if !chatsearchOpenAddressed(active, id, hash) {
+				openChatConversation(active, id)
+			}
+			chatApplyAddressTab(id, hash)
 			return
 		}
 	}
@@ -151,7 +159,10 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 		navigation.FocusMessageID = ""
 		chatHistory.replace(navigation)
 		queued := chatBrowser.finishChatOpen(id, chatBrowser.currentGeneration())
-		openChatConversation(active, id)
+		if !chatsearchOpenAddressed(active, id, hash) {
+			openChatConversation(active, id)
+		}
+		chatApplyAddressTab(id, hash)
 		for _, body := range queued {
 			sendChatMessage(active, id, body)
 		}
@@ -195,4 +206,21 @@ func chatChannelMembership(ctx context.Context, client chatv1.ConversationServic
 		cursor = result.GetNextCursor()
 	}
 	return false, false
+}
+
+// withPurposeSavedNote makes saving a channel's purpose answer "Saved" for two
+// seconds once the save has gone through (CHATUX-021).
+func withPurposeSavedNote(callbacks chatui.Callbacks) chatui.Callbacks {
+	save := callbacks.SetChannelTeamPurpose
+	if save == nil {
+		return callbacks
+	}
+	callbacks.SetChannelTeamPurpose = func(purpose string) {
+		save(purpose)
+		go confirmPurposeSaved(purpose, chatBrowser.snapshot, func(saved bool) {
+			chatBrowser.mutate(func(model *chatui.Model) { model.PurposeSaved = saved })
+			refreshChatRoute()
+		}, time.Sleep)
+	}
+	return callbacks
 }

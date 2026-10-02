@@ -120,6 +120,25 @@ func TestPersonaChatWatchFailurePolicy(t *testing.T) {
 	}
 }
 
+// TestTodo_CHATBUG_071_MemberMention: a person picked from the member list has
+// no home tenant of their own, and the send must not be dropped for it.
+func TestTodo_CHATBUG_071_MemberMention(t *testing.T) {
+	refs := []chatui.ChatReference{{Kind: "PERSON_MENTION", ID: "loretta", Display: "Loretta Haynes", ConversationID: "room"}}
+	canonical, err := personaChatReferences(refs, "tenant", "room")
+	if err != nil || len(canonical) != 1 || canonical[0].GetKind() != chatv1.ReferenceKind_REFERENCE_KIND_PERSON_MENTION || canonical[0].GetTenantId() != "tenant" || canonical[0].GetId() != "loretta" {
+		t.Fatalf("member mention: %+v %v", canonical, err)
+	}
+	if refs[0].TenantID != "" {
+		t.Fatal("the caller's reference was changed")
+	}
+	if _, err := personaChatReferences([]chatui.ChatReference{{Kind: "AGENT_MENTION", ID: "agent", ConversationID: "room"}}, "tenant", "room"); !errors.Is(err, errPersonaChat) {
+		t.Fatal("an agent mention with no tenant was accepted")
+	}
+	if _, err := personaChatReferences([]chatui.ChatReference{{Kind: "PERSON_MENTION", TenantID: "other", ID: "x", ConversationID: "room"}}, "tenant", "room"); !errors.Is(err, errPersonaChat) {
+		t.Fatal("a person from another tenant was accepted")
+	}
+}
+
 func TestTodo_AGENTP_019_CanonicalSend(t *testing.T) {
 	refs := []chatui.ChatReference{{Kind: "AGENT_MENTION", TenantID: "tenant", ID: "agent", Display: "Policy Helper", ConversationID: "room"}, {Kind: "PERSON_MENTION", TenantID: "tenant", ID: "person", Display: "Pat Lee", ConversationID: "room"}}
 	canonical, err := personaChatReferences(refs, "tenant", "room")
@@ -170,8 +189,8 @@ func TestTodo_AGENTP_020_ClientProjection(t *testing.T) {
 	if len(directProjection) != 1 || directProjection[0].Projection.DurablePostID != "private-post" || directProjection[0].Projection.PrivateReplyHref != "" {
 		t.Fatalf("direct agent-conversation projection=%+v", directProjection)
 	}
-	if personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection.Progress == nil {
-		t.Fatal("private completion disappeared before its recipient-only answer arrived")
+	if !privateProjection.AnswerStored || privateProjection.Progress != nil {
+		t.Fatalf("private completion must keep its place as a stored answer, not as work in progress: %+v", privateProjection)
 	}
 	invocation.PrivateConversationID, invocation.PrivatePostID = "", ""
 	if personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection.Progress != nil {

@@ -34,11 +34,21 @@ type DetailInputs struct {
 
 // PriorityOptions are the task priorities in ascending order; labels are
 // English source text the page localizes.
+//
+// The ids are read from the generated name table, not from String(): String()
+// goes through protobuf reflection, and asking it while this package
+// initializes made every page of the browser client build the whole project
+// descriptor before it could start (CHATBUG-014: 146 ms of a Chat load on the
+// review machine). The names are the same.
 var PriorityOptions = []projectui.Status{
-	{ID: projectv1.TaskPriority_TASK_PRIORITY_LOW.String(), Label: "Low"},
-	{ID: projectv1.TaskPriority_TASK_PRIORITY_NORMAL.String(), Label: "Normal"},
-	{ID: projectv1.TaskPriority_TASK_PRIORITY_HIGH.String(), Label: "High"},
-	{ID: projectv1.TaskPriority_TASK_PRIORITY_URGENT.String(), Label: "Urgent"},
+	{ID: priorityID(projectv1.TaskPriority_TASK_PRIORITY_LOW), Label: "Low"},
+	{ID: priorityID(projectv1.TaskPriority_TASK_PRIORITY_NORMAL), Label: "Normal"},
+	{ID: priorityID(projectv1.TaskPriority_TASK_PRIORITY_HIGH), Label: "High"},
+	{ID: priorityID(projectv1.TaskPriority_TASK_PRIORITY_URGENT), Label: "Urgent"},
+}
+
+func priorityID(priority projectv1.TaskPriority) string {
+	return projectv1.TaskPriority_name[int32(priority)]
 }
 
 // EnrichDetail adds the editing identity, choices, comments and activity to

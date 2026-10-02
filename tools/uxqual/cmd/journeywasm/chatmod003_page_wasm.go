@@ -38,6 +38,13 @@ type modPageState struct {
 	Result      *chatfilter.Result
 	TrySample   string
 	TryError    string
+	// Hits is what the filters caught, read only when asked for. A read that
+	// fails keeps the matches already shown.
+	Hits        []chatfilter.Record
+	HitsLoaded  bool
+	HitsLoading bool
+	HitsOlder   bool
+	HitsError   string
 }
 
 func modAdminPage(props modPageProps) ui.Node {
@@ -108,8 +115,31 @@ func modAdminPage(props modPageProps) ui.Node {
 			}
 		}()
 	}
+	// loadHits reads the newest matches, or the page after the ones shown.
+	loadHits := func(older bool) {
+		before := int64(0)
+		if held := state.Get().Hits; older {
+			before = chatmod003OlderCursor(held)
+		}
+		state.Update(func(s modPageState) modPageState { s.HitsLoading, s.HitsError = true, ""; return s })
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			records, err := client.SearchHits(ctx, "", channel, before)
+			state.Update(func(s modPageState) modPageState {
+				s.HitsLoading = false
+				if err != nil {
+					s.HitsError = chatui.ModErrorKey(filterErrorCode(err))
+					return s
+				}
+				s.Hits, s.HitsOlder, s.HitsLoaded = chatmod003MergeHits(s.Hits, records, before), len(records) >= chatmod003HitsPage, true
+				return s
+			})
+		}()
+	}
 	snapshot := state.Get()
 	return chatui.ModAdminPanel(chatui.ModAdminProps{Model: props.Model, Workspace: props.Workspace, Channel: channel, Definitions: snapshot.Definitions, Enablements: snapshot.Enablements, Now: time.Now(),
+		Hits:    &chatui.ModHitsProps{Records: snapshot.Hits, Loaded: snapshot.HitsLoaded, Loading: snapshot.HitsLoading, Older: snapshot.HitsOlder, Error: snapshot.HitsError, Load: loadHits},
 		Loading: snapshot.Loading, Busy: snapshot.Busy, Trying: snapshot.Trying, LoadError: snapshot.LoadError, CanManage: true,
 		Status: snapshot.Status, StatusNote: snapshot.StatusNote, StatusError: snapshot.StatusError, Revision: snapshot.Revision,
 		Result: snapshot.Result, TrySample: snapshot.TrySample, TryError: snapshot.TryError,

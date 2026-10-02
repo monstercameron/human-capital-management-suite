@@ -36,11 +36,22 @@ func refreshChannelPoll(room string, generation uint64) {
 // loadChannelPollOnce makes one read of the channel poll and reports whether it
 // is settled (CHATUX-012: false means retry, and the page shows no error for it).
 func loadChannelPollOnce(cfg journeyclient.Config, room string, quiet bool) bool {
+	// A read that will not be made must not leave "loading" up: the header
+	// button raises it before calling this.
+	settle := func() {
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelPollLoading = false
+			}
+		})
+	}
 	if !channelPollAllowed(room) {
+		settle()
 		return true
 	}
 	client := channelTodoClient()
 	if client == nil {
+		settle()
 		return true
 	}
 	active := chatBrowser.config(cfg)
@@ -124,6 +135,16 @@ func mutateChannelPoll(cfg journeyclient.Config, operation, question string, opt
 	response, err := client.MutateChannelPoll(chatRPCContext(ctx, active), request)
 	current := chatBrowser.config(journeyclient.Config{})
 	if active.Tenant != current.Tenant || active.Subject != current.Subject || active.Bearer != current.Bearer || generation != chatBrowser.currentGeneration() {
+		// The answer belongs to an earlier view of the room and is not applied,
+		// but the flag this call raised must not outlive it: left up, it kept
+		// every vote button disabled and every later press was dropped.
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelPollPending = false
+			}
+		})
+		refreshChatRoute()
+		go loadChannelPoll(cfg, room)
 		return
 	}
 	applied := false
@@ -158,7 +179,13 @@ func withChannelPollCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Conf
 			go mutateChannelPoll(cfg, "CREATE", question, options, "")
 		}
 	}
+	// A press that cannot be sent says so instead of doing nothing: the poll is
+	// read again, which either makes the press possible or shows why it is not.
 	callbacks.VoteChannelPoll = func(optionID string) {
+		if snapshot := chatBrowser.snapshot(); snapshot.ChannelPoll.Revision == 0 || snapshot.ChannelPollError != "" {
+			go loadChannelPoll(cfg, snapshot.SelectedID)
+			return
+		}
 		model := chatBrowser.snapshot()
 		for _, option := range model.ChannelPoll.Options {
 			if option.ID == optionID {

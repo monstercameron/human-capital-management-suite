@@ -96,3 +96,19 @@ func TestTodo_CHATSAVE_002(t *testing.T) {
 		t.Fatalf("the optimistic item lost its mention or attachment: %+v", added.Post.References)
 	}
 }
+
+// TestTodo_CHATBUG_051_SavedMenuOffset: the Remind me menu is placed by Chat's
+// placement rule, as an offset from the bell it is positioned against.
+func TestTodo_CHATBUG_051_SavedMenuOffset(t *testing.T) {
+	panel := chatui.LayerRect{Left: 0, Top: 100, Right: 360, Bottom: 700}
+	bell := chatui.LayerRect{Left: 300, Top: 150, Right: 330, Bottom: 180}
+	left, top, room := chatsaveMenuOffset(bell, panel, 224, 200, false)
+	if left != 330-224-300 || top != 4+30 || room != 200 {
+		t.Fatalf("under the bell: left %v top %v room %v", left, top, room)
+	}
+	low := chatui.LayerRect{Left: 300, Top: 650, Right: 330, Bottom: 680}
+	_, top, room = chatsaveMenuOffset(low, panel, 224, 200, false)
+	if top >= 0 || top+room > 0 {
+		t.Fatalf("a bell at the foot: the menu is not above it (top %v room %v)", top, room)
+	}
+}

@@ -42,6 +42,7 @@ func configureAgentService(conn grpc.ClientConnInterface, cfg journeyclient.Conf
 	configureAgentControls(cfg)
 	configureAgentAnnouncements(cfg)
 	configureAgentRolloutPortable(cfg)
+	configureAgentAccess(cfg)
 	agentBrowser.Lock()
 	if agentBrowser.pollCancel != nil {
 		agentBrowser.pollCancel()
@@ -322,6 +323,7 @@ func handleAgentTaskListClick(event js.Value) {
 		if target, ok := agentTaskNavigationTarget(location.Get("pathname").String(), location.Get("search").String(), taskID); ok {
 			js.Global().Get("history").Call("pushState", js.Null(), "", target)
 			renderAgentTasks(false, false)
+			revealAgentTaskDetail()
 			go refreshAgentTaskByID(taskID)
 		}
 		return
@@ -346,7 +348,7 @@ func handleAgentTaskListClick(event js.Value) {
 				visible++
 			}
 		}
-		showAgentTaskRows(tasks, category, visible+20)
+		showAgentTaskRows(tasks, category, visible+productui.AgentTaskFirstPage*2)
 	}
 }
 
@@ -400,7 +402,7 @@ func selectAgentTaskFilter(tasks, selected js.Value, focus bool) {
 		button.Call("setAttribute", "aria-selected", map[bool]string{true: "true", false: "false"}[active])
 		button.Call("setAttribute", "tabindex", map[bool]string{true: "0", false: "-1"}[active])
 	}
-	showAgentTaskRows(tasks, category, 20)
+	showAgentTaskRows(tasks, category, productui.AgentTaskFirstPage)
 	empties := tasks.Call("querySelectorAll", "[data-agent-task-empty]")
 	for index := 0; index < empties.Get("length").Int(); index++ {
 		empty := empties.Call("item", index)
@@ -616,6 +618,11 @@ func handleAgentTaskClick(event js.Value) {
 	}
 	var action agentv1.AgentTaskAction
 	switch domDataset(button, "taskAction") {
+	case "extend-budget":
+		// AGENT2-017: the proto action enum has no extend value, so this one goes
+		// over the JSON route.
+		extendAgentTaskBudget(button, taskID)
+		return
 	case "confirm-plan":
 		action = agentv1.AgentTaskAction_AGENT_TASK_ACTION_CONFIRM_PLAN
 	case "pause":

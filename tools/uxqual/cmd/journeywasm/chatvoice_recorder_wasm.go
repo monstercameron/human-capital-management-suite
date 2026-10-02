@@ -37,6 +37,9 @@ type chatvoiceBrowser struct {
 	transcripts                                    map[string]chat.VoiceRecord
 	audioURLs                                      map[string]string
 	disposed                                       bool
+	// Listen keeps one reading at a time: its audio, object address and player row.
+	listenAudio, listenRow js.Value
+	listenURL              string
 }
 
 func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
@@ -58,6 +61,11 @@ func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
 			if open.Truthy() {
 				chatui.CloseVoiceComposer(open, false)
 			}
+		}
+		if listen := target.Call("closest", "[data-chatlisten]"); listen.Truthy() {
+			args[0].Call("preventDefault")
+			b.listenAction(listen, args[0])
+			return nil
 		}
 		button := target.Call("closest", "[data-chatvoice-action]")
 		if button.Truthy() {
@@ -91,6 +99,10 @@ func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
 	})
 	change := js.FuncOf(func(_ js.Value, args []js.Value) any {
 		target := args[0].Get("target")
+		if target.Call("hasAttribute", "data-chatlisten-speed").Bool() {
+			b.listenSpeed(target)
+			return nil
+		}
 		if target.Call("hasAttribute", "data-chatvoice-collapsed").Bool() {
 			b.playback.Collapsed = target.Get("checked").Bool()
 			b.savePreferences()
@@ -226,6 +238,9 @@ func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
 		if b.root.Truthy() && !b.root.Get("isConnected").Bool() {
 			b.state.Cancel()
 		}
+		if b.listenRow.Truthy() && !b.listenRow.Get("isConnected").Bool() {
+			b.stopListen()
+		}
 		return nil
 	})
 	observer := js.Global().Get("MutationObserver").New(observerCallback)
@@ -235,6 +250,7 @@ func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
 	return func() {
 		b.disposed = true
 		observer.Call("disconnect")
+		b.stopListen()
 		b.Cancel()
 		if b.activeAudio.Truthy() {
 			b.activeAudio.Call("pause")
@@ -255,7 +271,16 @@ func installChatVoice(cfg journeyclient.Config, onSent func(chat.Post)) func() {
 		}
 	}
 }
-func voiceBrowserTime(ms int64) string { return fmt.Sprintf("%d:%02d", ms/60000, ms/1000%60) }
+func voiceBrowserTime(ms int64) string { return chatui.VoiceClock(voicePageLocale(), ms) }
+
+// voicePageLocale is the locale the voice controls on the page were drawn for,
+// so the running clock is written in the same numerals as the clock it replaces.
+func voicePageLocale() string {
+	if node := js.Global().Get("document").Call("querySelector", "[data-chatvoice-locale]"); node.Truthy() {
+		return node.Call("getAttribute", "data-chatvoice-locale").String()
+	}
+	return ""
+}
 func (b *chatvoiceBrowser) copy(key string) string {
 	return chatui.VoiceCopy(b.root.Call("getAttribute", "data-chatvoice-locale").String(), key)
 }

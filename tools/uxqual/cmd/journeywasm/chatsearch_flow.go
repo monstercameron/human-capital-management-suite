@@ -126,6 +126,14 @@ func chatsearchModelOpened(m *chatui.Model, view chatui.ChatSearchView) {
 	m.Search, m.ChatSearch, m.SearchOpened = view.Query, &view, true
 }
 
+// chatsearchModelOpenFilter shows where a filter result is managed: the
+// Conversation details of its channel, with the filter settings open under
+// Manage channel. A filter result used to open nothing at all.
+func chatsearchModelOpenFilter(m *chatui.Model) {
+	m.ShowDetails, m.ShowFilterSettings = true, true
+	m.ShowPerson, m.ShowThread, m.ThreadParentID = false, false, ""
+}
+
 // chatsearchModelBack shows the results again in place of the conversation.
 func chatsearchModelBack(m *chatui.Model) {
 	m.SearchOpened = false

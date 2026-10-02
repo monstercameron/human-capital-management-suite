@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"strings"
+	"syscall/js"
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -165,6 +166,7 @@ func mutateChannelTodo(cfg journeyclient.Config, room, operation, itemID, text, 
 	if len(policy) > 0 {
 		applyChatTodoPolicy(request, policy[0])
 	}
+	added := false
 	response, err := client.MutateChannelTodoList(chatRPCContext(ctx, active), request)
 	currentConfig := chatBrowser.config(journeyclient.Config{})
 	if active.Tenant != currentConfig.Tenant || active.Subject != currentConfig.Subject || active.Bearer != currentConfig.Bearer || generation != chatBrowser.currentGeneration() {
@@ -184,12 +186,32 @@ func mutateChannelTodo(cfg journeyclient.Config, room, operation, itemID, text, 
 		}
 		current.ChannelTodo = channelTodoModel(response.GetList())
 		current.ChannelTodoError = ""
-		if operation == "ADD" && current.ChannelTodoDraft == text && current.ChannelTodoSourcePin == sourcePostID {
+		if operation == "ADD" && strings.TrimSpace(current.ChannelTodoDraft) == text && current.ChannelTodoSourcePin == sourcePostID {
 			current.ChannelTodoDraft, current.ChannelTodoSourcePin = "", ""
 			current.ChannelTodoNewMode, current.ChannelTodoNewSelected = "EVERYONE", nil
+			added = true
 		}
 	})
+	if added {
+		chatTodoFieldAdded(text)
+	}
 	refreshChannelTodoRoute(room, generation)
+}
+
+// chatTodoFieldAdded empties the task field once its task is saved and leaves
+// the caret in it, so the next task is typed straight away (CHATBUG-074). The
+// field is emptied here because the draft is not rendered on every keystroke:
+// a render that says "empty" to a field last rendered empty changes nothing.
+// Text typed while the task was saving is kept.
+func chatTodoFieldAdded(text string) {
+	field := js.Global().Get("document").Call("getElementById", "chat-todo-new")
+	if !field.Truthy() {
+		return
+	}
+	if strings.TrimSpace(field.Get("value").String()) == text {
+		field.Set("value", "")
+	}
+	field.Call("focus", map[string]any{"preventScroll": true})
 }
 
 func withChannelTodoCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Config) chatui.Callbacks {

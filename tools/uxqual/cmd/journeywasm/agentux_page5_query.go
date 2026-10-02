@@ -13,7 +13,14 @@ func selectedAgentTaskID(rawQuery string) string {
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(values.Get("task"))
+	id := strings.TrimSpace(values.Get("task"))
+	// A browser API that has no value for a key answers null, which a careless
+	// read turns into text. Those words never name a task.
+	switch strings.ToLower(id) {
+	case "<null>", "null", "undefined", "<undefined>":
+		return ""
+	}
+	return id
 }
 
 func preferredAgentTaskFilter(stored, selected string, counts map[string]int) string {

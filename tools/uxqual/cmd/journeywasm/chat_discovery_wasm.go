@@ -132,7 +132,7 @@ func withChatDiscoveryCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 	callbacks.VisibleMessageIDs = func(ids []string) { syncVisibleChatMedia(cfg, ids) }
 	callbacks.LoadOlderThread = func() { loadChatThreadPage(cfg, chatThreadOlder) }
 	callbacks.LoadNewerThread = func() { loadChatThreadPage(cfg, chatThreadNewer) }
-	return callbacks
+	return withChatSidebarRowCallbacks(callbacks, cfg)
 }
 
 // loadChatBrowse fills the browse list with the joinable public channels the
@@ -207,6 +207,15 @@ func loadChatBrowse(cfg journeyclient.Config, targetIDs ...string) {
 	// yet." itself, and a toast repeating the panel the reader is looking at
 	// is noise over the top of its own answer.
 	refreshChatRoute()
+	// Each row shows what its channel is for (CHATUX-015): the browsed channels
+	// and the ones the reader is already in, which the dialog lists after them.
+	purposeRooms := append([]chatui.Conversation(nil), browse...)
+	for _, room := range chatBrowser.snapshot().Conversations {
+		if room.Kind == chatui.PublicChannel || room.Kind == chatui.PrivateChannel {
+			purposeRooms = append(purposeRooms, room)
+		}
+	}
+	go fillChatBrowsePurposes(active, purposeRooms)
 }
 
 func requestChatJoinPrompt(model *chatui.Model, id string) {

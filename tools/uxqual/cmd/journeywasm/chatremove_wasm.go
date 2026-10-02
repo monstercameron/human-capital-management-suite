@@ -23,14 +23,26 @@ type chatremoveBrowser struct {
 	config                            journeyclient.Config
 	locale                            string
 	submit, input, key, click, resize js.Func
-	disposed                          bool
-	generation                        uint64
-	opener                            js.Value
+	// escape hears Escape before the workspace does (chatremove_escape.go).
+	escape js.Func
+	// pageOpened closes the page when the Saved panel or the search results
+	// open in its place (CHATBUG-078).
+	pageOpened, pageRestore js.Func
+	disposed                bool
+	generation              uint64
+	opener                  js.Value
 	// pageHref is the address of the Moderation page that is showing (with its
 	// tab), so a decision can read it again; the openers are what focus returns to.
 	pageHref                 string
 	pageOpener, dialogOpener js.Value
 	busy                     bool
+	// pageSearched is set when the page is being read again for a search, so
+	// the search box keeps the caret when the answer is drawn.
+	pageSearched bool
+	// dialogMessage is the message whose menu opened the dialog, and
+	// dialogInThread whether that was in the thread pane (CHATBUG-085).
+	dialogMessage  string
+	dialogInThread bool
 }
 
 // configureChatremove binds delegated forms without adding hooks to an existing
@@ -55,6 +67,9 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 			// The queue is filtered as the person types, from what is on the page.
 			b.filterItems(target.Get("value").String())
 			return nil
+		}
+		if target.Call("matches", "input[type=radio][name=reason]").Bool() {
+			chatbug085ReasonChanged(target)
 		}
 		form := target.Call("closest", "form[data-chatremove]")
 		if form.Truthy() && form.Call("getAttribute", "data-chatremove").String() == "apply" {
@@ -81,6 +96,11 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		event := args[0]
 		target := event.Get("target")
 		if !target.Truthy() || target.Get("closest").Type() != js.TypeFunction {
+			return nil
+		}
+		if target.Call("matches", "[data-chatremove-overlay=dialog]").Bool() {
+			// A press on the backdrop, outside the dialog, closes it (CHATBUG-085).
+			b.closeKind("dialog")
 			return nil
 		}
 		if closer := target.Call("closest", "[data-chatremove-close]"); closer.Truthy() {
@@ -122,6 +142,9 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 			return nil
 		}
 		event.Call("preventDefault")
+		if chatmodIsDialog(href) {
+			b.dialogFromMenu(anchor)
+		}
 		b.openOverlay(href, anchor)
 		return nil
 	})
@@ -160,11 +183,58 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		return nil
 	})
 	document.Call("addEventListener", "keydown", b.key)
+	// Escape on a control of the dialog (a reason, the details box) reaches the
+	// workspace's key handler before the document, and that handler stops it and
+	// closes whatever is behind the dialog. This listener is ahead of it.
+	b.escape = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 || b.disposed || args[0].Get("key").String() != "Escape" {
+			return nil
+		}
+		event := args[0]
+		page := b.overlay("page")
+		target := event.Get("target")
+		inPage := page.Truthy() && target.Truthy() && target.Get("nodeType").Type() == js.TypeNumber && page.Call("contains", target).Bool()
+		kind := chatremoveEscapeCloses(b.overlay("dialog").Truthy(), page.Truthy(), inPage, event.Get("isComposing").Truthy())
+		if kind == "" {
+			return nil
+		}
+		event.Call("preventDefault")
+		event.Call("stopImmediatePropagation")
+		b.closeKind(kind)
+		return nil
+	})
+	js.Global().Call("addEventListener", "keydown", b.escape, true)
 	b.resize = js.FuncOf(func(js.Value, []js.Value) any {
 		b.placePage()
 		return nil
 	})
 	js.Global().Call("addEventListener", "resize", b.resize)
+	b.pageOpened = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) > 0 && !b.disposed && chatPageOpenedKind(args[0]) != "moderation" {
+			// The page that opened has focus; the opener must not take it back.
+			b.pageOpener = js.Undefined()
+			b.closeKind("page")
+		}
+		return nil
+	})
+	document.Call("addEventListener", chatPageOpenedEvent, b.pageOpened)
+	// The address names a page (CHATBUG-052): the page shows when it is the
+	// Moderation page and gives way to any other.
+	b.pageRestore = js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if len(args) == 0 || b.disposed {
+			return nil
+		}
+		showing := b.overlay("page").Truthy()
+		switch {
+		case chatPageOpenedKind(args[0]) == "moderation" && !showing:
+			b.openOverlay(chatui.ModerationPageHref+"?locale="+b.locale, js.Undefined())
+		case chatPageOpenedKind(args[0]) != "moderation" && showing:
+			b.pageOpener = js.Undefined()
+			b.closeKind("page")
+		}
+		return nil
+	})
+	document.Call("addEventListener", chatPageRestoreEvent, b.pageRestore)
 	// CHATMOD-005: what the sidebar entry, the message menu and the removed
 	// messages need to know about moderation is one read at load.
 	go chatmod005Refresh(b.config, false)
@@ -177,7 +247,13 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		document.Call("removeEventListener", "submit", b.submit)
 		document.Call("removeEventListener", "input", b.input)
 		document.Call("removeEventListener", "keydown", b.key)
+		js.Global().Call("removeEventListener", "keydown", b.escape, true)
+		b.escape.Release()
 		js.Global().Call("removeEventListener", "resize", b.resize)
+		document.Call("removeEventListener", chatPageOpenedEvent, b.pageOpened)
+		b.pageOpened.Release()
+		document.Call("removeEventListener", chatPageRestoreEvent, b.pageRestore)
+		b.pageRestore.Release()
 		b.submit.Release()
 		b.input.Release()
 		b.key.Release()
@@ -195,7 +271,21 @@ func (b *chatremoveBrowser) handleSubmit(event js.Value) {
 	}
 	event.Call("preventDefault")
 	if form.Call("getAttribute", "data-chatremove").String() == "filter" {
-		// Enter in the search box filters nothing more than typing has.
+		// Typing hides the rows on the page that do not match. Enter asks the
+		// server, which searches the whole queue and its history, and the page
+		// is read again with the answer; the caret goes back to the box.
+		if field := form.Call("querySelector", "#chatremove-search"); field.Truthy() && b.pageHref != "" {
+			b.pageSearched = true
+			b.openOverlay(chatmod005SearchHref(b.pageHref, field.Get("value").String()), js.Undefined())
+		}
+		return
+	}
+	if form.Call("getAttribute", "data-chatremove").String() == "role" {
+		// CHATMOD-005: the Permissions tab is read again with a row for the role
+		// that was typed. Nothing is stored by this.
+		if field := form.Call("querySelector", "[name=role]"); field.Truthy() && b.pageHref != "" {
+			b.openOverlay(chatmod005RoleHref(b.pageHref, field.Get("value").String()), js.Undefined())
+		}
 		return
 	}
 	b.mu.Lock()

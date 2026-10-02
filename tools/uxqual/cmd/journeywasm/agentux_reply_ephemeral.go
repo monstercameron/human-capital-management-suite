@@ -50,6 +50,12 @@ func applyAgentReplyEphemeral(model *chatui.Model, delivery *chatv1.EphemeralDel
 	return true
 }
 
+// preservePersonaElapsed keeps the seconds a working row has counted when the
+// next reading of the same run arrives. The server says how long the run has
+// been going since its admission (AGENTUX-026), which is the time shown after
+// a reload or a switch of conversation; between two readings the page counts
+// on by itself, and the count never steps back when the two differ by a
+// second.
 func preservePersonaElapsed(previous, next []chatui.PersonaThreadInvocation) []chatui.PersonaThreadInvocation {
 	elapsed := make(map[string]int, len(previous))
 	for _, invocation := range previous {
@@ -58,8 +64,8 @@ func preservePersonaElapsed(previous, next []chatui.PersonaThreadInvocation) []c
 		}
 	}
 	for index := range next {
-		if next[index].Projection.Progress != nil {
-			next[index].Projection.Progress.ElapsedSeconds = elapsed[next[index].Projection.InvocationID]
+		if progress := next[index].Projection.Progress; progress != nil {
+			progress.ElapsedSeconds = max(progress.ElapsedSeconds, elapsed[next[index].Projection.InvocationID])
 		}
 	}
 	return next
@@ -76,6 +82,10 @@ func advancePersonaElapsed(model *chatui.Model) bool {
 			// Past its deadline the card is drawn as an interrupted answer and
 			// stops counting; one more render, within two ticks, draws it so.
 			changed = changed || time.Since(progress.Deadline) < 2*time.Second
+			continue
+		}
+		if model.PersonaInvocations[index].Projection.AnswerStored {
+			// A finished run does not count seconds (CHATBUG-079).
 			continue
 		}
 		if progress != nil && progress.Visible && !progress.ResultReady {

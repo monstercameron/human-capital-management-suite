@@ -47,12 +47,15 @@ type recipientSection struct {
 	ID, Name  string
 	Collapsed bool
 	Chats     []recipientChatRef `json:"chats"`
+	// Manual: the person ordered this section by hand (CHATSIDE-001).
+	Manual bool `json:"manual,omitempty"`
 }
 type recipientLayout struct {
 	Sections             []recipientSection          `json:"sections"`
 	Panes                chatui.PaneSizes            `json:"panes"`
 	PanesByDevice        map[string]chatui.PaneSizes `json:"panesByDevice,omitempty"`
 	Starred              []string                    `json:"starred,omitempty"`
+	FavoritesCollapsed   bool                        `json:"favoritesCollapsed,omitempty"`
 	Filters              map[string]string           `json:"filters,omitempty"`
 	DismissedJoinPrompts []string                    `json:"dismissedJoinPrompts,omitempty"`
 	// ComposerFormat is the reader's choice for the composer's formatting row:
@@ -177,38 +180,34 @@ func startChatRecipientProjection(cfg journeyclient.Config, conversations []*cha
 		}
 	}
 	chatRecipientBrowser.hosts = hosts
+	previousCounts := chatRecipientBrowser.counts
 	chatRecipientBrowser.Unlock()
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		defer cancel()
 		ctx = chatRPCContext(ctx, cfg)
-		side, sideErr := client.GetSidebar(ctx, &chatv1.GetSidebarRequest{})
-		quiet, quietErr := client.GetQuietHours(ctx, &chatv1.GetQuietHoursRequest{})
+		// CHATBUG-014: the three reads share nothing, so they go out together,
+		// and the counts are one call for the whole sidebar (chatperf_batch.go)
+		// instead of one per conversation.
+		var side *chatv1.GetSidebarResponse
+		var quiet *chatv1.GetQuietHoursResponse
+		var sideErr, quietErr error
+		var reads sync.WaitGroup
+		reads.Add(2)
+		go func() {
+			defer reads.Done()
+			side, sideErr = client.GetSidebar(ctx, &chatv1.GetSidebarRequest{})
+		}()
+		go func() {
+			defer reads.Done()
+			quiet, quietErr = client.GetQuietHours(ctx, &chatv1.GetQuietHoursRequest{})
+		}()
+		counts := chatperfReadCounts(ctx, client, hosts, previousCounts)
+		reads.Wait()
 		layout := recipientLayout{}
 		if sideErr == nil && side.GetSidebar() != nil {
 			_ = json.Unmarshal([]byte(side.GetSidebar().GetLayoutJson()), &layout)
 		}
-		counts := make(map[string]*chatv1.ChatCounts, len(hosts))
-		// Cap concurrent RPCs so a large rail cannot monopolize the browser.
-		sem := make(chan struct{}, 8)
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		for id, host := range hosts {
-			id, host := id, host
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				result, err := client.GetCounts(ctx, &chatv1.GetCountsRequest{TenantId: host, ConversationId: id})
-				if err == nil && result.GetCounts() != nil {
-					mu.Lock()
-					counts[id] = result.GetCounts()
-					mu.Unlock()
-				}
-			}()
-		}
-		wg.Wait()
 		chatRecipientBrowser.Lock()
 		if generation != chatRecipientBrowser.generation {
 			chatRecipientBrowser.Unlock()
@@ -312,6 +311,7 @@ func applyRecipientLayout(model *chatui.Model, layout recipientLayout, hosts map
 	for i := range model.Conversations {
 		model.Conversations[i].Starred = starred[model.Conversations[i].ID]
 	}
+	model.FavoritesCollapsed = layout.FavoritesCollapsed
 	byID := make(map[string]chatui.Conversation, len(model.Conversations))
 	for _, c := range model.Conversations {
 		byID[c.ID] = c
@@ -322,7 +322,7 @@ func applyRecipientLayout(model *chatui.Model, layout recipientLayout, hosts map
 		if s.ID == "" {
 			continue
 		}
-		section := chatui.SidebarSection{ID: s.ID, Name: s.Name, Collapsed: s.Collapsed}
+		section := chatui.SidebarSection{ID: s.ID, Name: s.Name, Collapsed: s.Collapsed, Manual: s.Manual}
 		if section.Name == "" {
 			section.Name = s.ID
 		}
@@ -503,6 +503,7 @@ func withChatRecipientCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 						return
 					}
 					model.Sections[i].Chats[j], model.Sections[i].Chats[target] = model.Sections[i].Chats[target], model.Sections[i].Chats[j]
+					model.Sections[i].Manual = true
 					moved = true
 					return
 				}
@@ -644,7 +645,8 @@ func markChatRead(cfg journeyclient.Config, conversation string, posts []*chatv1
 			}
 		}
 	}
-	if conversation == "" || last == 0 {
+	// CHATUX-022: a conversation marked unread while open stays unread.
+	if conversation == "" || last == 0 || chatReadHeld(conversation) {
 		return
 	}
 	key := host + "\x00" + conversation
@@ -802,7 +804,7 @@ func adoptOrphanedSectionConversations(model *chatui.Model) {
 				continue
 			}
 		} else if channelsIdx >= 0 {
-			model.Sections[channelsIdx].Chats = append(model.Sections[channelsIdx].Chats, c)
+			model.Sections[channelsIdx].Chats = insertChannelInOrder(model.Sections[channelsIdx].Chats, c)
 			continue
 		}
 		// Neither default section exists (a custom-only layout): append to
@@ -932,7 +934,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		}
 		inSection := make(map[string]bool, len(model.Sections))
 		for _, section := range model.Sections {
-			x := recipientSection{ID: section.ID, Name: section.Name, Collapsed: section.Collapsed}
+			x := recipientSection{ID: section.ID, Name: section.Name, Collapsed: section.Collapsed, Manual: section.Manual}
 			for _, c := range section.Chats {
 				host := hosts[c.ID]
 				if host == "" {
@@ -953,8 +955,15 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 				delete(layout.Drafts, id)
 			}
 		}
+		// CHATSIDE-001: a star is written only for a conversation a section holds,
+		// which is what the server accepts.
+		layout.Starred = chatside001KeepStarred(layout.Starred, inSection)
+		layout.FavoritesCollapsed = model.FavoritesCollapsed
 		reportWriteError := func(err error) {
 			if recipientGenerationActive(generation) {
+				if chatside001Failed() {
+					return
+				}
 				// CHAT-02: this is a background sidebar write, not the
 				// creation/join/DM action that triggered it -- that action
 				// already reported its own success. Wording it as "sidebar"
@@ -1037,6 +1046,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 			return
 		}
 		takePendingSidebarRetry()
+		chatside001Confirmed()
 		chatBrowser.markDraftsPersisted(draftRevision, cfg, draftEpoch)
 		chatRecipientBrowser.Lock()
 		if generation != chatRecipientBrowser.generation {
@@ -1104,9 +1114,15 @@ func persistChatQuietHours(cfg journeyclient.Config, prefs chatui.Preferences) {
 func clearOpenRoomUnread(model *chatui.Model) {
 	for i := range model.Conversations {
 		if model.Conversations[i].ID == model.SelectedID {
+			if chatReadHeld(model.SelectedID) {
+				keepHeldRoomUnread(&model.Conversations[i])
+				continue
+			}
 			model.Conversations[i].Unread, model.Conversations[i].Mentions = 0, 0
 		}
 	}
+	// A conversation the person marked unread stays unread until it is opened.
+	applyManualUnread(model)
 }
 
 func invalidateChatRecipientProjection() {

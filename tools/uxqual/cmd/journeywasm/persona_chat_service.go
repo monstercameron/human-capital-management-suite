@@ -30,6 +30,21 @@ func personaChatResponseOK(response *http.Response, err error) bool {
 	return response != nil && err == nil && response.StatusCode == http.StatusOK
 }
 
+// personaChatActionOutcome reads the server's answer to one action on an agent
+// answer: a rating, its removal, a stop. Anything but a 200 whose body reads is
+// a failure, whether the server refused (409), was not available (503) or never
+// answered (a timeout): the caller then puts the control back where it was and
+// says the change was not saved (AGENTUX-059).
+func personaChatActionOutcome(response *http.Response, err error, result any) error {
+	if !personaChatResponseOK(response, err) {
+		return errPersonaChat
+	}
+	if result != nil && json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(result) != nil {
+		return errPersonaChat
+	}
+	return nil
+}
+
 // personaWatchDenied is the refusal that means "no agent activity for you in
 // this conversation", as opposed to a signed-out session or a dead server.
 func personaWatchDenied(response *http.Response) bool {
@@ -104,6 +119,8 @@ type personaChatProfile struct {
 	DataClasses    []string `json:"data_classes"`
 	CannotDo       []string `json:"cannot_do"`
 	ReplyPlacement string   `json:"reply_placement"`
+	// Examples are the example questions of the agent's definition (CHATUX-024).
+	Examples []string `json:"examples"`
 }
 
 type personaChatPostActor struct {
@@ -120,6 +137,11 @@ type personaChatPostActor struct {
 type personaChatDirectory struct {
 	Personas   []personaChatProfile   `json:"personas"`
 	PostActors []personaChatPostActor `json:"post_actors"`
+	// ChannelPrivacy is the channel's requirement on agent answers (AGENTUX-070).
+	ChannelPrivacy *struct {
+		Private   bool `json:"private"`
+		CanChange bool `json:"can_change"`
+	} `json:"channel_privacy"`
 }
 
 func applyPersonaDirectoryResult(model *chatui.Model, payload personaChatDirectory, cfg journeyclient.Config, conversation string, err error, retry func()) {
@@ -137,13 +159,21 @@ func applyPersonaDirectoryResult(model *chatui.Model, payload personaChatDirecto
 		return
 	}
 	model.ResolvedPersonaMentions = personaChatProfiles(payload.Personas, cfg, conversation)
+	// CHATUX-001: the header subtitle keeps this count if a later read loses a race.
+	model.AgentCounts = chatux001WithAgentCount(model.AgentCounts, conversation, chatui.ConversationAgentCount(*model))
 	for _, persona := range model.ResolvedPersonaMentions {
 		if persona.Reference.ConversationID == conversation {
 			applyAgentDirectConversation(model, conversation, persona.Reference.ID, persona.Reference.Display, agentDirectIdentity{Icon: persona.Icon, Revision: persona.IconRevision, Purpose: persona.Purpose})
 			break
 		}
 	}
+	// AGENTUX-033: a member that is one of this conversation's agents is an agent
+	// in the member list too, whichever of the two reads arrived first.
+	if marked, changed := agentUX033MarkAgentMembers(model.Members, model.ResolvedPersonaMentions); changed {
+		model.Members = marked
+	}
 	model.PersonaPostActors = personaChatActorProjection(payload.PostActors)
+	model.ChannelAgentPrivacy = agentux070ChannelPrivacyState(payload, conversation, model.ChannelAgentPrivacy)
 	model.PersonaLookup = chatui.PersonaLookupReady
 	// The directory carries every stored icon for this room's agents: one without
 	// is drawn with its own fallback from here on, not held empty. While the
@@ -187,6 +217,16 @@ type personaChatInvocation struct {
 	// PublicPostID is the answer posted to the channel (AGENTUX-070); feedback on
 	// that message rates this invocation.
 	PublicPostID string `json:"public_post_id"`
+	// Feedback is the asker's own stored rating of the answer, "helpful" or
+	// "not-right", or empty (CHATBUG-066).
+	Feedback string `json:"feedback"`
+	// StepKind and StepSubject are what the run is doing now and the thing it is
+	// doing it to (AGENTUX-075): the working line is drawn from them.
+	StepKind    string `json:"step_kind"`
+	StepSubject string `json:"step_subject"`
+	// ElapsedSeconds is how long the run has been going since its admission, by
+	// the server's clock (AGENTUX-026).
+	ElapsedSeconds int `json:"elapsed_seconds"`
 }
 
 func personaChatURL(cfg journeyclient.Config, path, conversation string) (string, error) {
@@ -256,7 +296,7 @@ func personaChatProfiles(profiles []personaChatProfile, cfg journeyclient.Config
 		if placement == "private" {
 			placement = chatui.PersonaReplyPrivateAudience
 		}
-		candidate := chatui.ResolvedPersonaMention{Icon: profile.Icon, IconRevision: profile.IconRevision, Reference: chatui.ChatReference{Kind: ref.Kind, TenantID: ref.TenantID, ID: ref.ID, Display: ref.Display, ConversationID: ref.ConversationID}, Handle: profile.Handle, Initials: profile.Initials, AvatarURL: profile.AvatarURL, Purpose: profile.Purpose, DocumentScope: profile.DocumentScope, Owner: profile.Owner, Version: profile.Version, DataClasses: profile.DataClasses, CannotDo: profile.CannotDo, ReplyPlacement: placement}
+		candidate := chatui.ResolvedPersonaMention{Icon: profile.Icon, IconRevision: profile.IconRevision, Reference: chatui.ChatReference{Kind: ref.Kind, TenantID: ref.TenantID, ID: ref.ID, Display: ref.Display, ConversationID: ref.ConversationID}, Handle: profile.Handle, Initials: profile.Initials, AvatarURL: profile.AvatarURL, Purpose: profile.Purpose, DocumentScope: profile.DocumentScope, Examples: profile.Examples, Owner: profile.Owner, Version: profile.Version, DataClasses: profile.DataClasses, CannotDo: profile.CannotDo, ReplyPlacement: placement}
 		for _, skill := range profile.Skills {
 			candidate.Skills = append(candidate.Skills, chatui.PersonaMentionSkill{Name: skill.Name, Tier: skill.Tier})
 		}
@@ -268,6 +308,11 @@ func personaChatProfiles(profiles []personaChatProfile, cfg journeyclient.Config
 func personaChatReferences(refs []chatui.ChatReference, tenant, conversation string) ([]*chatv1.Reference, error) {
 	out := make([]*chatv1.Reference, 0, len(refs))
 	for _, ref := range refs {
+		// A person picked from the member list carries no home tenant of
+		// their own: they are a member of this tenant's conversation.
+		if ref.Kind == "PERSON_MENTION" && ref.TenantID == "" {
+			ref.TenantID = tenant
+		}
 		if (ref.Kind != "AGENT_MENTION" && ref.Kind != "PERSON_MENTION") || ref.TenantID != tenant || ref.ConversationID != conversation || ref.ID == "" {
 			return nil, errPersonaChat
 		}
@@ -319,13 +364,15 @@ func personaChatInvocations(invocations []personaChatInvocation, cfg journeyclie
 			projection.Failure = &chatui.PersonaProgressFailure{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, Code: code}
 		case "completed":
 			// Private delivery and the invocation projection arrive on separate
-			// recipient-scoped streams. Keep the admitted row in its working
-			// state until the private envelope supplies the answer itself.
-			if projection.PrivateReplyHref != "" {
-				projection.Progress = &chatui.PersonaProgressProps{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, AgentName: invocation.AgentName, Activity: invocation.Activity, Visible: true}
-			}
+			// recipient-scoped streams. The run is over, so the row is never drawn
+			// as working (CHATBUG-079): it keeps the answer's room until the
+			// private envelope supplies the answer itself.
+			projection.AnswerStored = projection.PrivateReplyHref != ""
 		default:
-			projection.Progress = &chatui.PersonaProgressProps{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, AgentName: invocation.AgentName, Activity: invocation.Activity, CurrentStep: invocation.CurrentStep, TotalSteps: invocation.TotalSteps, Visible: true}
+			// The working text is for a run that is in flight and for nothing else.
+			if personaRunInFlight(invocation.Status) {
+				projection.Progress = &chatui.PersonaProgressProps{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, AgentName: invocation.AgentName, Activity: invocation.Activity, StepKind: invocation.StepKind, StepSubject: invocation.StepSubject, CurrentStep: invocation.CurrentStep, TotalSteps: invocation.TotalSteps, ElapsedSeconds: max(0, invocation.ElapsedSeconds), Visible: true}
+			}
 		}
 		if invocation.TaskID != "" {
 			state := strings.ToLower(invocation.TaskState)

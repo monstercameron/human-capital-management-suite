@@ -37,7 +37,7 @@ func voiceRequest(ctx context.Context, client *http.Client, cfg journeyclient.Co
 		return chat.ErrInvalidArgument
 	}
 	switch action {
-	case "send", "read", "correct", "retry", "report":
+	case "send", "read", "correct", "retry", "report", "policy", "settings", "switch":
 	default:
 		return chat.ErrInvalidArgument
 	}

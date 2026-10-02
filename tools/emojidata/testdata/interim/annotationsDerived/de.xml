@@ -36,5 +36,14 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<annotation cp="💪🏽" type="tts">angespannter Bizeps: mittlere Hautfarbe</annotation>
 		<annotation cp="💪🏾" type="tts">angespannter Bizeps: mitteldunkle Hautfarbe</annotation>
 		<annotation cp="💪🏿" type="tts">angespannter Bizeps: dunkle Hautfarbe</annotation>
+		<annotation cp="🧑‍💻">Computer | Entwickler | Informatiker | Programmierer | Software</annotation>
+		<annotation cp="🧑‍💻" type="tts">Informatiker(in)</annotation>
+		<annotation cp="🧑🏻‍💻" type="tts">Informatiker(in): helle Hautfarbe</annotation>
+		<annotation cp="🧑🏼‍💻" type="tts">Informatiker(in): mittelhelle Hautfarbe</annotation>
+		<annotation cp="🧑🏽‍💻" type="tts">Informatiker(in): mittlere Hautfarbe</annotation>
+		<annotation cp="🧑🏾‍💻" type="tts">Informatiker(in): mitteldunkle Hautfarbe</annotation>
+		<annotation cp="🧑🏿‍💻" type="tts">Informatiker(in): dunkle Hautfarbe</annotation>
+		<annotation cp="👨‍👩‍👧">Familie | Frau | Kind | Mädchen | Mann</annotation>
+		<annotation cp="👨‍👩‍👧" type="tts">Familie: Mann, Frau und Mädchen</annotation>
 	</annotations>
 </ldml>

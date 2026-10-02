@@ -38,6 +38,7 @@ func chatsearchClear() {
 	}
 	chatsearchBrowser.Unlock()
 	chatBrowser.mutate(chatsearchModelClear)
+	chatPageSync()
 }
 
 // chatsearchBegin is the one additive search callback hook. The original
@@ -81,6 +82,7 @@ func chatsearchStart(cfg journeyclient.Config, query string, delayMillis int, re
 // onto the model at once, so the results area opens and says it is searching;
 // the same search already running or already answered is not asked again.
 func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
+	announceChatPage("search")
 	model := chatBrowser.snapshot()
 	resolved, resolveErr := chatui.ResolveChatSearchQuery(model, query)
 	key := resolved + "\x00" + cursor
@@ -91,6 +93,7 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 		view := chatsearchBrowser.view
 		chatsearchBrowser.Unlock()
 		chatBrowser.mutate(func(m *chatui.Model) { chatsearchModelBegin(m, view) })
+		chatPageSync()
 		refreshChatRoute()
 		return
 	}
@@ -108,6 +111,7 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 	chatsearchBrowser.cancel = cancel
 	chatsearchBrowser.Unlock()
 	chatBrowser.mutate(func(m *chatui.Model) { chatsearchModelBegin(m, view) })
+	chatPageSync()
 	refreshChatRoute()
 	go func() {
 		defer cancel()
@@ -129,10 +133,9 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 		if e == nil {
 			e = chatsearchRequest(ctx, http.DefaultClient, cfg, "/api/chat/search", http.MethodPost, chatsearch.Request{Query: resolved, DisplayQuery: query, Mode: "keyword", Cursor: cursor, Limit: 20}, &response)
 		}
-		recent := []string{}
-		if e == nil {
-			_ = chatsearchRequest(ctx, http.DefaultClient, cfg, "/api/chat/search/recent", http.MethodGet, nil, &recent)
-		}
+		// The recent searches are refreshed after the results are drawn
+		// (chatsearchRefreshRecent), not before them.
+		recent := previous.Recent
 		// Only a newer search or a cleared box overtakes this one. A request that
 		// timed out is this search's own failure and is shown as one.
 		chatsearchBrowser.Lock()
@@ -158,6 +161,9 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 			chatsearchBrowser.Unlock()
 			if shown {
 				refreshChatRoute()
+				if e == nil {
+					chatsearchRefreshRecent(cfg, generation)
+				}
 			}
 		})
 	}()
@@ -167,11 +173,19 @@ func chatsearchClick(event js.Value) {
 	if !button.Truthy() {
 		return
 	}
+	action := button.Call("getAttribute", "data-chatsearch-action").String()
+	if action == "visit" {
+		// CHATSEARCH-003: an agent result is a link to another page. A click on
+		// the link is the page's own navigation; a click beside it follows it.
+		if link := button.Call("querySelector", "a[href]"); link.Truthy() && !event.Get("target").Call("closest", "a[href]").Truthy() {
+			link.Call("click")
+		}
+		return
+	}
 	event.Call("preventDefault")
 	chatsearchBrowser.Lock()
 	view, cfg := chatsearchBrowser.view, chatsearchBrowser.config
 	chatsearchBrowser.Unlock()
-	action := button.Call("getAttribute", "data-chatsearch-action").String()
 	extra := button.Call("getAttribute", "data-extra").String()
 	switch action {
 	case "retry":
@@ -218,14 +232,20 @@ func chatsearchClick(event js.Value) {
 		// loads a bounded two-sided message window around the exact sequence.
 		model := chatBrowser.snapshot()
 		kind := chatsearch.Kind(button.Call("getAttribute", "data-kind").String())
-		leavesChat := kind == chatsearch.FilterDefinition && model.FilterSettings != nil
-		if kind != chatsearch.Person && !leavesChat {
+		filter := kind == chatsearch.FilterDefinition && model.FilterSettings != nil
+		if kind != chatsearch.Person {
 			// The address names the conversation the result is in, not the
 			// one the search began from.
 			chatHistory.pushState(chatsearchOpenNavigation(model, target))
 		}
-		if leavesChat {
-			model.FilterSettings()
+		if filter {
+			// A filter is managed in the details of its channel; a workspace
+			// filter, which names no channel, in those of the open one.
+			if target.ConversationID != "" && target.ConversationID != model.SelectedID {
+				openChatConversation(cfg, target.ConversationID)
+			}
+			chatBrowser.mutate(chatsearchModelOpenFilter)
+			refreshChatRoute()
 		} else if kind == chatsearch.Person && model.Callbacks.OpenPerson != nil {
 			model.Callbacks.OpenPerson(target.ItemID)
 		} else if target.ThreadID != "" && target.Sequence > 0 {
@@ -238,29 +258,37 @@ func chatsearchClick(event js.Value) {
 		} else if target.ConversationID != "" {
 			openChatConversation(cfg, target.ConversationID)
 		}
-		if !leavesChat {
-			// The conversation shows; the query stays in the box and the
-			// results wait behind the "Return to results" bar.
-			chatsearchBrowser.Lock()
-			opened := chatsearchBrowser.flow.open()
-			chatsearchBrowser.Unlock()
-			if opened {
-				chatBrowser.mutate(func(m *chatui.Model) { chatsearchModelOpened(m, view) })
-				refreshChatRoute()
-			}
+		// The conversation shows; the query stays in the box and the
+		// results wait behind the "Return to results" bar.
+		chatsearchBrowser.Lock()
+		opened := chatsearchBrowser.flow.open()
+		chatsearchBrowser.Unlock()
+		if opened {
+			chatBrowser.mutate(func(m *chatui.Model) { chatsearchModelOpened(m, view) })
+			chatPageSync()
+			refreshChatRoute()
 		}
 		if kind == chatsearch.Todo || kind == chatsearch.Poll {
 			go chatsearchOpenList(target, kind)
 		}
-	case "back":
-		// The results are still held: showing them again asks for nothing.
-		chatsearchBrowser.Lock()
-		returned := chatsearchBrowser.flow.back()
-		chatsearchBrowser.Unlock()
-		if returned {
-			chatBrowser.mutate(chatsearchModelBack)
-			refreshChatRoute()
+		if sentence, seek := chatsearchVoiceSentence(kind, target); seek {
+			go chatsearchSeekVoice(target, sentence)
 		}
+	case "back":
+		chatsearchReturn()
+	}
+}
+
+// chatsearchReturn shows the results again in place of the opened result's
+// conversation. The results are still held, so it asks for nothing.
+func chatsearchReturn() {
+	chatsearchBrowser.Lock()
+	returned := chatsearchBrowser.flow.back()
+	chatsearchBrowser.Unlock()
+	if returned {
+		chatBrowser.mutate(chatsearchModelBack)
+		chatPageSync()
+		refreshChatRoute()
 	}
 }
 
@@ -399,6 +427,55 @@ func chatsearchOpenList(target chatsearch.Target, kind chatsearch.Kind) {
 		time.Sleep(50 * time.Millisecond)
 	}
 }
+
+// chatsearchSeekVoice moves an opened voice result to the sentence that holds
+// the searched words (CHATSEARCH-002): the transcript is opened, the sentence
+// is put in view and focused, and the recording's position is set to where the
+// sentence starts. Nothing is played; the person presses Play. It waits for
+// the message and its transcript to be drawn, and gives up quietly when the
+// person has gone elsewhere or the transcript has fewer sentences.
+func chatsearchSeekVoice(target chatsearch.Target, sentence int) {
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		if chatBrowser.selectedID() != target.ConversationID {
+			return
+		}
+		done := make(chan bool, 1)
+		ui.PostAsync(func() {
+			defer func() {
+				if recover() != nil {
+					done <- false
+				}
+			}()
+			doc := js.Global().Get("document")
+			rows := doc.Call("querySelectorAll", "[data-message-id]")
+			for i := 0; i < rows.Length(); i++ {
+				row := rows.Index(i)
+				if row.Get("dataset").Get("messageId").String() != target.MessageID {
+					continue
+				}
+				segments := row.Call("querySelectorAll", "[data-chatvoice-seek]")
+				if segments.Length() < sentence {
+					break
+				}
+				segment := segments.Index(sentence - 1)
+				chatui.SetChatDisclosureOpen(segment.Call("closest", "[data-chatvoice-expand]"), true)
+				// The click is the transcript's own seek: it sets the position.
+				segment.Call("click")
+				segment.Call("focus", map[string]any{"preventScroll": true})
+				segment.Call("scrollIntoView", map[string]any{"block": "nearest", "behavior": "auto"})
+				done <- true
+				return
+			}
+			done <- false
+		})
+		if <-done {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func chatsearchSubmit(event js.Value) {
 	form := event.Get("target")
 	if !form.Call("hasAttribute", "data-chatsearch-form").Bool() {
@@ -427,4 +504,20 @@ func chatsearchSubmit(event js.Value) {
 		return
 	}
 	chatsearchBegin(cfg, query)
+}
+
+// chatsearchLoadRecent reads the person's recent searches when the search box
+// takes the cursor, so the list under it can offer them while it is empty. A
+// read that fails keeps the list it had: the box is not blanked by it.
+func chatsearchLoadRecent(cfg journeyclient.Config) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		recent := []string{}
+		if err := chatsearchRequest(ctx, http.DefaultClient, chatBrowser.config(cfg), "/api/chat/search/recent", http.MethodGet, nil, &recent); err != nil {
+			return
+		}
+		chatBrowser.mutate(func(m *chatui.Model) { m.SearchRecent = recent })
+		refreshChatRoute()
+	}()
 }

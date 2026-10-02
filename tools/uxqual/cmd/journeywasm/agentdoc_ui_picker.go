@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // searchPersonaAdminDocuments adapts the documentation hub's existing
@@ -35,13 +38,21 @@ func searchPersonaAdminDocuments(ctx context.Context, client documentv1.Document
 		if document.GetDocumentId() == "" || strings.TrimSpace(document.GetTitle()) == "" {
 			continue
 		}
-		versions, versionErr := client.ListDocumentVersions(ctx, &documentv1.ListDocumentVersionsRequest{DocumentId: document.GetDocumentId()})
+		// Each document's versions are read under their own short deadline, so
+		// one document that never answers costs a few seconds, not the search.
+		versionCtx, cancel := context.WithTimeout(ctx, personaDocumentVersionTimeout)
+		versions, versionErr := client.ListDocumentVersions(versionCtx, &documentv1.ListDocumentVersionsRequest{DocumentId: document.GetDocumentId()})
+		cancel()
 		if versionErr != nil {
 			// One listed document whose versions cannot be read (it was
-			// removed or is no longer readable between the two calls) is left
-			// out. It must not turn every other match into "search is
-			// unavailable". A cancelled or expired search still fails as a whole.
+			// removed, is no longer readable, or did not answer in time) is
+			// left out. It must not turn every other match into "search is
+			// unavailable". Only a search that itself was cancelled or ran out
+			// of time fails, and then only if it has found nothing to offer.
 			if ctx.Err() != nil {
+				if len(items) > 0 {
+					return items, nil
+				}
 				return nil, ctx.Err()
 			}
 			continue
@@ -74,6 +85,45 @@ func searchPersonaAdminDocuments(ctx context.Context, client documentv1.Document
 		items = append(items, productui.AgentDocumentSuggestion{DocumentID: document.GetDocumentId(), Title: document.GetTitle(), Location: location, Updated: updated, PublishedVersion: published})
 	}
 	return items, nil
+}
+
+// personaDocumentVersionTimeout bounds the read of one document's versions.
+const personaDocumentVersionTimeout = 3 * time.Second
+
+// personaDocumentSearchFailure names why a search failed, so the picker can
+// say what went wrong instead of one sentence for every cause: "timeout" when
+// the hub did not answer in time, "denied" when the person may not list its
+// documents, "unavailable" when the hub cannot be reached, and "" otherwise.
+func personaDocumentSearchFailure(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	switch status.Code(err) {
+	case codes.DeadlineExceeded:
+		return "timeout"
+	case codes.PermissionDenied, codes.Unauthenticated:
+		return "denied"
+	case codes.Unavailable:
+		return "unavailable"
+	}
+	return ""
+}
+
+// personaDocumentSearchFailureAttribute is the picker attribute that holds the
+// sentence for one failure kind.
+func personaDocumentSearchFailureAttribute(kind string) string {
+	switch kind {
+	case "timeout":
+		return "agentdocFailedTimeout"
+	case "denied":
+		return "agentdocFailedDenied"
+	case "unavailable":
+		return "agentdocFailedUnavailable"
+	}
+	return "agentdocFailed"
 }
 
 func personaDocumentSuggestionLabels(items []productui.AgentDocumentSuggestion) map[string]string {

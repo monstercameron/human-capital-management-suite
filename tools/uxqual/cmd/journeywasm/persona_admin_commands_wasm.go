@@ -95,7 +95,8 @@ func installPersonaAdminCommandHandlersOnce() {
 		case "RUN_EVALUATION":
 			// The authenticated command endpoint remains the only authority. The
 			// UI sends no client-supplied evaluation evidence.
-		case "INSTALL", "UNINSTALL":
+		case "INSTALL", "UNINSTALL", "REINSTALL":
+			// REINSTALL is "Start again" on a stopped placement.
 			request.ConversationID = personaAdminFormValue(form, "conversation_id")
 			if request.ConversationID == "" {
 				personaAdminSetCommandStatusForPersona("invalid", request.PersonaID)
@@ -150,11 +151,12 @@ func installPersonaAdminCommandHandlersOnce() {
 			event.Call("preventDefault")
 			form := js.Global().Get("document").Call("getElementById", domDataset(toggle, "personaEditorToggle"))
 			if form.Truthy() {
-				open := form.Get("hidden").Bool()
-				form.Set("hidden", !open)
-				toggle.Call("setAttribute", "aria-expanded", map[bool]string{true: "true", false: "false"}[open])
-				if open {
-					form.Call("querySelector", "input,select,textarea,button").Call("focus")
+				// Edit opens the editor with focus in its first field; Edit again
+				// or Cancel closes it, asking first when something was changed.
+				if form.Get("hidden").Bool() {
+					personaEditorOpen(form)
+				} else {
+					personaEditorRequestClose(form)
 				}
 			}
 			return nil
@@ -177,7 +179,8 @@ func installPersonaAdminCommandHandlersOnce() {
 			personaAdminSetCommandStatus("invalid")
 			return nil
 		}
-		if question := domDataset(button, "personaConfirm"); question != "" && !js.Global().Call("confirm", question).Bool() {
+		// The button becomes the question and a second press goes ahead (AGENTUX-050).
+		if question := domDataset(button, "personaConfirm"); question != "" && !inPageConfirmed(question, button, personaCommandDestructive(domDataset(button, "personaCommand"))) {
 			return nil
 		}
 		decision := ""
@@ -200,14 +203,12 @@ func installPersonaAdminCommandHandlersOnce() {
 		}
 		if decision == "REJECT" {
 			wrapper := button.Call("closest", "[data-review-decision-wrapper]")
-			answer := js.Global().Call("prompt", domDataset(wrapper, "reviewReasonPrompt"))
-			if answer.IsNull() || answer.IsUndefined() {
+			// The reason is typed into a field beside the button, not a browser prompt.
+			typed, ready := inPageReason(wrapper, button, domDataset(wrapper, "reviewReasonPrompt"))
+			if !ready {
 				return nil
 			}
-			reason = strings.TrimSpace(answer.String())
-			if reason == "" {
-				return nil
-			}
+			reason = typed
 		}
 		personaAdminSubmitCommand(productui.PersonaAdminCommandRequest{
 			Action:    domDataset(button, "personaCommand"),
@@ -233,6 +234,12 @@ func installPersonaAdminCommandHandlersOnce() {
 		}
 		if target.Truthy() && target.Get("id").String() == "persona-admin-starter" {
 			personaAdminApplyStarter(target)
+		}
+		// AGENTUX-075: the agent's "React to questions with an emoji" checkbox saves
+		// the owner's choice as soon as it is changed.
+		if target.Truthy() && target.Get("dataset").Get("personaReactions").Type() == js.TypeString {
+			react := target.Get("checked").Bool()
+			personaAdminSubmitCommand(productui.PersonaAdminCommandRequest{Action: "SET_REACTIONS", PersonaID: domDataset(target, "personaReactions"), ReactToQuestions: &react})
 		}
 		return nil
 	})
@@ -624,6 +631,9 @@ func personaAdminRefreshCatalog() {
 		if revalidate != nil {
 			revalidate()
 		}
+		// Activity draws its agent rows from this snapshot; when an agent was
+		// paused or resumed from that page, its row must say so.
+		refreshAgentControlsAfterAgentChange()
 		go refreshPersonaAdminRunHistory(cfg)
 	}()
 }

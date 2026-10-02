@@ -89,6 +89,16 @@ func chatsearchDecodeTarget(token string) (chatsearch.Target, error) {
 	return target, nil
 }
 
+// chatsearchVoiceSentence is the sentence an opened result seeks to: a voice
+// result that names one in a message. A correction is not timed and seeks
+// nowhere.
+func chatsearchVoiceSentence(kind chatsearch.Kind, target chatsearch.Target) (int, bool) {
+	if kind != chatsearch.Voice || target.Sentence <= 0 || target.ConversationID == "" || target.MessageID == "" {
+		return 0, false
+	}
+	return target.Sentence, true
+}
+
 func chatsearchControlQuery(query string, values map[string]string, checks map[string]bool) (string, error) {
 	_, e := chatsearch.Parse(query)
 	if e != nil {

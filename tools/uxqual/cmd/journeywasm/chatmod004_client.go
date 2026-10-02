@@ -14,6 +14,10 @@ import (
 // sends the moderator's note, so there is nothing to send without one.
 var errChatmod005NoteRequired = errors.New("chatmod: a note is required")
 
+// errChatmod004NothingSelected is raised before any request: the form that
+// removes the ticked messages was sent with none ticked.
+var errChatmod004NothingSelected = errors.New("chatmod: no message is selected")
+
 // chatmod004QuickWith removes (or restores) one message in one step for the
 // person: it asks the server for the count, which must be exactly one, and then
 // applies with the confirmation the server gave. Both calls are the ordinary

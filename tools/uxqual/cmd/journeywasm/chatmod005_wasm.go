@@ -40,6 +40,9 @@ func chatmod005Refresh(cfg journeyclient.Config, reloadChat bool) {
 		var previous chatui.ModerationState
 		chatBrowser.mutate(func(m *chatui.Model) {
 			previous = m.Moderation
+			// Which messages came back while the page was open is the page's own
+			// knowledge; the summary does not carry it.
+			next.Restored = previous.Restored
 			m.Moderation = next
 		})
 		if reflect.DeepEqual(previous, next) || !(chatmod005Meaningful(previous) || chatmod005Meaningful(next)) {

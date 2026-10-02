@@ -17,6 +17,11 @@ type chatgateClientRequest struct {
 	Definition                                                               chatgate.Definition
 	Answers                                                                  map[string]json.RawMessage
 }
+
+// chatgateListAction asks for the list of gates the person may know of. It is
+// the client's own name for the read; the server takes it as GET ?list=1.
+const chatgateListAction = "list"
+
 type chatgateClientReply struct {
 	View   *chatui.GateView  `json:"view"`
 	Result json.RawMessage   `json:"result"`
@@ -100,17 +105,107 @@ func chatgateEditedDefinition(d chatgate.Definition, values map[string]string, c
 		f.Options = chatgateLines(values[prefix+"options"])
 	}
 	if d.Mode == "rule" {
-		field := values["gate-rule-field"]
-		allowed := chatgateLines(values["gate-rule-values"])
-		reason := strings.TrimSpace(values["gate-rule-reason"])
-		if field == "" || len(allowed) == 0 || reason == "" {
-			return d, chatgate.ErrInvalid
-		}
-		d.Rules = []chatgate.Rule{{When: chatgate.Expression{Operator: "in", Field: field, Values: allowed}, Outcome: "admitted", Reason: reason}, {When: chatgate.Expression{Operator: "not", Children: []chatgate.Expression{{Operator: "in", Field: field, Values: allowed}}}, Outcome: "declined", Reason: reason}}
-	} else {
-		d.Rules = nil
+		// The rule is the one the editor shows (chatui.GateRuleEdit); a rule the
+		// service would refuse is refused here.
+		return chatui.GateRuleApply(d, chatgateRuleEdit(values, checks))
 	}
+	d.Rules = nil
 	return d, nil
+}
+
+// chatgateRuleEdit reads the rule editor's fields: the subject, the answers
+// ticked among the known ones and the others typed one per line, the reason,
+// and what happens to everyone else.
+func chatgateRuleEdit(values map[string]string, checks map[string]bool) chatui.GateRuleEdit {
+	edit := chatui.GateRuleEdit{Subject: values["gate-rule-field"], Reason: values["gate-rule-reason"], Else: values["gate-rule-else"]}
+	for i := 0; ; i++ {
+		id := "gate-rule-choice-" + strconv.Itoa(i)
+		value, ok := values[id]
+		if !ok {
+			break
+		}
+		if checks[id] {
+			edit.Values = append(edit.Values, value)
+		}
+	}
+	edit.Values = append(edit.Values, chatgateLines(values["gate-rule-values"])...)
+	return edit
+}
+
+// chatgateDraftDefinition is the builder's fields as a draft to draw from,
+// whether or not its rule is finished. ok is false when a field of a question
+// cannot be read at all.
+func chatgateDraftDefinition(d chatgate.Definition, values map[string]string, checks map[string]bool) (chatgate.Definition, bool) {
+	edited, err := chatgateEditedDefinition(d, values, checks)
+	if err == nil {
+		return edited, true
+	}
+	if values["gate-mode"] != "rule" {
+		return d, false
+	}
+	// Everything but the rule, then the rule as it stands.
+	withoutRule := map[string]string{}
+	for key, value := range values {
+		withoutRule[key] = value
+	}
+	withoutRule["gate-mode"] = "review"
+	edited, err = chatgateEditedDefinition(d, withoutRule, checks)
+	if err != nil {
+		return d, false
+	}
+	edited.Mode = "rule"
+	return chatui.GateRuleDraft(edited, chatgateRuleEdit(values, checks)), true
+}
+
+// chatgateJoins reads the server's list of gates into what the page keeps by
+// conversation. ok is false for a list that cannot be read; the page then keeps
+// what it had.
+func chatgateJoins(raw json.RawMessage) (map[string]chatui.GateJoin, bool) {
+	var rows []struct {
+		Conversation   string    `json:"conversation"`
+		Questions      int       `json:"questions"`
+		Purpose        string    `json:"purpose"`
+		ChannelPurpose string    `json:"channel_purpose"`
+		Mode           string    `json:"mode"`
+		AnswerAgain    bool      `json:"answer_again"`
+		AnswerBy       time.Time `json:"answer_by"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &rows) != nil {
+		return nil, false
+	}
+	out := make(map[string]chatui.GateJoin, len(rows))
+	for _, row := range rows {
+		if row.Conversation == "" || row.Questions <= 0 {
+			continue
+		}
+		out[row.Conversation] = chatui.GateJoin{Questions: row.Questions, Purpose: row.Purpose, ChannelPurpose: row.ChannelPurpose, Mode: row.Mode, AnswerAgain: row.AnswerAgain, AnswerBy: row.AnswerBy}
+	}
+	return out, true
+}
+
+// chatgateKnownUngated reports whether the page already knows a conversation
+// has no gate: the list of gates was read and does not hold it. Joining it
+// then needs no question to the gate service first.
+func chatgateKnownUngated(joins map[string]chatui.GateJoin, conversation string) bool {
+	if joins == nil {
+		return false
+	}
+	_, gated := joins[conversation]
+	return !gated
+}
+
+// chatgateSubmitProblems checks the answers of a form before they are sent and
+// returns, for each question that is wrong, the sentence that says so.
+func chatgateSubmitProblems(locale string, d chatgate.Definition, answers map[string][]string) map[string]string {
+	values, err := chatgateValues(d, answers)
+	if err != nil {
+		return nil
+	}
+	problems := map[string]string{}
+	for field, key := range chatui.GateAnswerProblems(d, values) {
+		problems[field] = chatui.GateText(locale, key)
+	}
+	return problems
 }
 func chatgateLines(s string) []string {
 	out := []string{}

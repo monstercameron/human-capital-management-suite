@@ -20,6 +20,11 @@ type chatremoveClientInput struct {
 	HostTenantID                                                    string
 	Removal                                                         chat.RemovalRequest
 	ConversationID, PostID, CaseID, Action, ReasonCode, Note, Query string
+	// Role, Permission and Allowed are one cell of the permissions table
+	// (chatmod005_permissions.go); they are left out of every other request.
+	Role       string `json:",omitempty"`
+	Permission string `json:",omitempty"`
+	Allowed    bool   `json:",omitempty"`
 }
 
 func chatremovePageRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, href string) (string, error) {
@@ -84,7 +89,7 @@ func chatremoveRequest(ctx context.Context, client *http.Client, cfg journeyclie
 	switch action {
 	case "", "notices", "summary":
 		method = http.MethodGet
-	case "preview", "apply", "report", "appeal", "resolve", "review":
+	case "preview", "apply", "report", "appeal", "resolve", "review", "permissions":
 	default:
 		return nil, chat.ErrInvalidArgument
 	}
@@ -141,6 +146,11 @@ func chatremoveFormInput(action string, values map[string]string, ids []string, 
 		return input, nil
 	}
 	selection := chat.RemovalSelection{ConversationID: input.ConversationID, PostIDs: ids}
+	if values["author"] == "" && len(ids) == 0 {
+		// The form of ticked messages with nothing ticked: say so here, rather
+		// than send a selection the server can only call invalid.
+		return input, errChatmod004NothingSelected
+	}
 	if values["author"] != "" {
 		selection.PostIDs = nil
 		selection.AuthorID, selection.AuthorHomeTenantID = values["author"], values["author_home"]
@@ -172,6 +182,8 @@ func chatremoveErrorKey(err error) string {
 		return "conflict"
 	case errors.Is(err, errChatmod005NoteRequired):
 		return "note_required"
+	case errors.Is(err, errChatmod004NothingSelected):
+		return "none_selected"
 	case errors.Is(err, chat.ErrPermissionDenied):
 		return "forbidden"
 	case errors.Is(err, chat.ErrInvalidArgument):

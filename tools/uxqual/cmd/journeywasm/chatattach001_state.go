@@ -27,6 +27,83 @@ type chatattach001State struct {
 	send    func(string, string, []chatui.ChatReference)
 	remove  func(string, string)
 	dispose func()
+	// chooseThread opens the reply box's picker.
+	chooseThread func()
+	// available is whether the server takes uploads at all. Until it has said
+	// so nothing is offered: "Attach a file" on a server that refuses every
+	// upload is a control that cannot work.
+	available bool
+}
+
+// A draft of files belongs to a scope: the conversation, for its composer, or
+// one thread of it, for that thread's reply box. The scope is the key of
+// everything this state holds; the conversation is cut out of it where the
+// server is asked (the upload, the references, the post).
+const chatattach001ThreadMark = "\x1fthread:"
+
+// chatattach001Scope is the scope of a conversation's composer (no parent) or
+// of the reply box under parent.
+func chatattach001Scope(room, parent string) string {
+	if room == "" || parent == "" {
+		return room
+	}
+	return room + chatattach001ThreadMark + parent
+}
+
+// chatattach001ScopeParts is the conversation of a scope and the message a
+// reply from it goes under ("" for the conversation's own composer).
+func chatattach001ScopeParts(scope string) (room, parent string) {
+	room, parent, _ = strings.Cut(scope, chatattach001ThreadMark)
+	return room, parent
+}
+
+// chatattach001AvailabilityRoute is where the server says whether it takes
+// uploads (application.ChatAttachmentsAvailabilityPath).
+const chatattach001AvailabilityRoute = "/v1/chat/media/attachments/availability"
+
+// chatattach001Available reads the server's answer. Anything but a plain yes
+// is a no: a server that does not know the question, an error, a refusal.
+func chatattach001Available(status int, body string) bool {
+	if status != 200 {
+		return false
+	}
+	var answer struct {
+		Uploads bool `json:"uploads"`
+	}
+	return json.Unmarshal([]byte(body), &answer) == nil && answer.Uploads
+}
+
+// What the files say about a composer's Send button.
+const (
+	chatattach001SendLeave = iota // no files: the text decides, as it always did
+	chatattach001SendOff          // a file is uploading or failed, or a send is going
+	chatattach001SendOn           // uploaded files and no text: they are a message
+)
+
+// chatattach001SendState decides a Send button from the files under a composer.
+// capable is whether the composer can send at all; text is what its box holds.
+func chatattach001SendState(capable bool, text string, files int, ready bool) int {
+	switch {
+	case !ready:
+		return chatattach001SendOff
+	case files == 0 || !capable || strings.TrimSpace(text) != "":
+		return chatattach001SendLeave
+	}
+	return chatattach001SendOn
+}
+
+// setAvailable records the server's answer about uploads.
+func (s *chatattach001State) setAvailable(available bool) {
+	s.mu.Lock()
+	s.available = available
+	s.mu.Unlock()
+}
+
+// takes reports whether files may be added here.
+func (s *chatattach001State) takes() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.available
 }
 
 func chatattach001Allowed(name, contentType string) bool {
@@ -63,24 +140,36 @@ func (s *chatattach001State) add(room, name, contentType, url string, size int64
 	if room == "" || r.sending {
 		return "", false
 	}
-	r.error = ""
+	// The reason a file was refused stays until the next choice (clearError):
+	// several files arrive as one drop, and an accepted one after a refused one
+	// used to wipe the line that said why the other is missing.
+	refused := ""
 	switch {
 	case len(r.files) >= 10:
-		r.error = "limit"
+		refused = "limit"
 	case size <= 0:
-		r.error = "empty"
+		refused = "empty"
 	case size > chatattach001MaxBytes:
-		r.error = "size"
+		refused = "size"
 	case !chatattach001Allowed(name, contentType):
-		r.error = "type"
+		refused = "type"
 	}
-	if r.error != "" {
+	if refused != "" {
+		r.error = refused
 		return "", false
 	}
 	s.next++
 	key := fmt.Sprintf("attachment-%d", s.next)
 	r.files = append(r.files, chatui.Chatattach001Draft{Key: key, Attachment: chatui.Attachment{Name: name, ContentType: contentType, URL: url, Bytes: size}, Uploading: true})
 	return key, true
+}
+
+// clearError forgets the last refusal when the person chooses, pastes or drops
+// files again.
+func (s *chatattach001State) clearError(room string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.room(room).error = ""
 }
 
 func (s *chatattach001State) progress(room, key string, percent int) {
@@ -93,7 +182,16 @@ func (s *chatattach001State) progress(room, key string, percent int) {
 	}
 }
 
-func (s *chatattach001State) complete(room, key, artifact, contentType string, size int64, status int) bool {
+// The three ways an upload ends. A refused file (too large, a type that is
+// not allowed, the storage limit) is taken off the draft with the reason; an
+// upload that only failed to get through stays, marked, so it can be retried.
+const (
+	chatattach001Uploaded = "uploaded"
+	chatattach001Kept     = "kept"
+	chatattach001Dropped  = "dropped"
+)
+
+func (s *chatattach001State) complete(room, key, artifact, contentType string, size int64, status int) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r := s.room(room)
@@ -102,15 +200,50 @@ func (s *chatattach001State) complete(room, key, artifact, contentType string, s
 			continue
 		}
 		if status < 200 || status >= 300 || artifact == "" || size != f.Bytes {
-			r.error = chatattach001Refusal(status)
-			r.files = append(r.files[:i], r.files[i+1:]...)
-			return false
+			if reason := chatattach001Refusal(status); reason != "failed" {
+				r.error = reason
+				r.files = append(r.files[:i], r.files[i+1:]...)
+				return chatattach001Dropped
+			}
+			r.files[i].Uploading, r.files[i].Progress, r.files[i].Failed = false, 0, true
+			return chatattach001Kept
 		}
 		r.files[i].ID, r.files[i].ContentType = artifact, contentType
-		r.files[i].Uploading, r.files[i].Progress = false, 100
-		return true
+		r.files[i].Uploading, r.files[i].Progress, r.files[i].Failed = false, 100, false
+		return chatattach001Uploaded
+	}
+	return chatattach001Dropped
+}
+
+// retry puts a failed upload back to uploading and reports whether there was
+// one to retry.
+func (s *chatattach001State) retry(room, key string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.room(room)
+	if r.sending {
+		return false
+	}
+	for i := range r.files {
+		if r.files[i].Key == key && r.files[i].Failed {
+			r.files[i].Uploading, r.files[i].Progress, r.files[i].Failed = true, 0, false
+			r.error = ""
+			return true
+		}
 	}
 	return false
+}
+
+// preview is the local picture address of a draft attachment, "" when it has none.
+func (s *chatattach001State) preview(room, key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, f := range s.room(room).files {
+		if f.Key == key {
+			return f.URL
+		}
+	}
+	return ""
 }
 
 func chatattach001Refusal(status int) string {
@@ -142,30 +275,52 @@ func (s *chatattach001State) drop(room, key string) string {
 }
 
 func (s *chatattach001State) projection(room string) *chatui.Chatattach001Composer {
+	return s.projectionFor(room, "")
+}
+
+// projectionFor is the conversation composer's projection and, when a thread
+// is open, its reply box's under Thread.
+func (s *chatattach001State) projectionFor(room, parent string) *chatui.Chatattach001Composer {
 	if s == nil {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	r := s.room(room)
-	return &chatui.Chatattach001Composer{Files: append([]chatui.Chatattach001Draft(nil), r.files...), Error: r.error, Sending: r.sending, Choose: s.choose,
+	view := s.view(room, s.choose)
+	if scope := chatattach001Scope(room, parent); scope != room {
+		view.Thread = s.view(scope, s.chooseThread)
+	}
+	return view
+}
+
+// view is one scope's projection. Choose is nil where the server takes no
+// uploads, which is what leaves "Attach a file" out of the page.
+func (s *chatattach001State) view(scope string, choose func()) *chatui.Chatattach001Composer {
+	r := s.room(scope)
+	if !s.available {
+		choose = nil
+	}
+	return &chatui.Chatattach001Composer{Files: append([]chatui.Chatattach001Draft(nil), r.files...), Error: r.error, Sending: r.sending, Choose: choose,
 		Remove: func(key string) {
 			if s.remove != nil {
-				s.remove(room, key)
+				s.remove(scope, key)
 			}
 		},
 		Send: func(body string, refs []chatui.ChatReference) {
 			if s.send != nil {
-				s.send(room, body, refs)
+				s.send(scope, body, refs)
 			}
 		}}
 }
 
-func (s *chatattach001State) begin(room, tenant, body string, mentions []chatui.ChatReference) ([]*chatv1.Reference, string, bool) {
+// begin starts sending a scope's files with the text that goes with them, which
+// may be none: files alone are a message.
+func (s *chatattach001State) begin(scope, tenant, body string, mentions []chatui.ChatReference) ([]*chatv1.Reference, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	r := s.room(room)
-	if r.sending || len(r.files) == 0 || len(r.files) > 10 || tenant == "" || strings.TrimSpace(body) == "" {
+	r := s.room(scope)
+	room, _ := chatattach001ScopeParts(scope)
+	if r.sending || len(r.files) == 0 || len(r.files) > 10 || tenant == "" || room == "" {
 		return nil, "", false
 	}
 	refs, err := personaChatReferences(mentions, tenant, room)

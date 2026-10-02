@@ -24,9 +24,9 @@ var validAgentTaskStates = map[productui.AgentTaskState]bool{
 }
 
 func normalizeAgentTaskState(value string) productui.AgentTaskState {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	normalized = strings.NewReplacer("-", "_", " ", "_").Replace(normalized)
-	state := productui.AgentTaskState(normalized)
+	// The page owns the one mapping from a stored state to the state it shows,
+	// so the island, the task RPCs and the server's first paint agree.
+	state := productui.AgentTaskStateFromStored(value)
 	if !validAgentTaskStates[state] {
 		return productui.AgentTaskUnknown
 	}
@@ -73,6 +73,41 @@ func agentFollowUpContext(request string) string {
 	return "> " + strings.ReplaceAll(request, "\n", "\n> ") + "\n\n"
 }
 
+// agentPageAgentSummaries is the list of agents the viewer may ask, as the
+// Agents page draws them. Both the page and the task list it re-renders from
+// the task RPCs take the agents from here: a task row finds the icon of the
+// agent that answered in this list, so a list drawn without it showed a
+// different picture from the choice card above it.
+func agentPageAgentSummaries(value *journeyclient.Agents) []productui.AgentSummary {
+	if value == nil || !value.Enabled {
+		return nil
+	}
+	summaries := make([]productui.AgentSummary, 0, len(value.Agents))
+	seen := make(map[string]bool, len(value.Agents))
+	for _, agent := range value.Agents {
+		id := strings.TrimSpace(agent.ID)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		// The stored icon rides with the agent; without it the page drew a made-up
+		// glyph for an agent that Chat draws with its own.
+		summary := productui.AgentSummary{ID: id, Name: strings.TrimSpace(agent.Name), Description: strings.TrimSpace(agent.Description), Status: strings.TrimSpace(agent.Status)}
+		if agent.Icon.Valid() {
+			summary.Icon, summary.IconRevision = agent.Icon, agent.IconRevision
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries
+}
+
+// agentTasksRegionSnapshot is what the task list is re-rendered from after the
+// task RPCs answer: the tasks, their loading state, and the agents the page
+// lists, so each row wears the icon of the agent that answered it.
+func agentTasksRegionSnapshot(agents *journeyclient.Agents, tasks []productui.AgentTask, loading, failed bool) productui.AgentSnapshot {
+	return productui.AgentSnapshot{Agents: agentPageAgentSummaries(agents), Tasks: tasks, TasksLoading: loading, TasksLoadFailed: failed}
+}
+
 // projectAgents converts the island's agents projection into the page
 // contract. A missing projection fails closed (agents hidden); tasks are kept
 // only when agents are on, and productui.NormalizeAgentsAvailability bounds
@@ -90,15 +125,7 @@ func projectAgents(value *journeyclient.Agents) *productui.AgentsAvailabilityPro
 		if value.Service == "available" {
 			projection.Snapshot.Availability = productui.AgentsAvailable
 		}
-		seenAgents := make(map[string]bool, len(value.Agents))
-		for _, agent := range value.Agents {
-			id := strings.TrimSpace(agent.ID)
-			if id == "" || seenAgents[id] {
-				continue
-			}
-			seenAgents[id] = true
-			projection.Snapshot.Agents = append(projection.Snapshot.Agents, productui.AgentSummary{ID: id, Name: strings.TrimSpace(agent.Name), Description: strings.TrimSpace(agent.Description), Status: strings.TrimSpace(agent.Status)})
-		}
+		projection.Snapshot.Agents = agentPageAgentSummaries(value)
 		seen := make(map[string]bool, len(value.Tasks))
 		for _, task := range value.Tasks {
 			id := strings.TrimSpace(task.ID)
@@ -110,7 +137,7 @@ func projectAgents(value *journeyclient.Agents) *productui.AgentsAvailabilityPro
 			item := productui.AgentTask{
 				ID: id, Version: task.Version, Title: task.Title, Goal: task.Goal, State: state, LiveStep: task.LiveStep,
 				BudgetUsed: task.BudgetUsed, BudgetLimit: task.BudgetLimit, PlanRevision: task.PlanRevision,
-				Actions: productui.AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel},
+				Actions: productui.AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel, ExtendBudget: task.Actions.ExtendBudget},
 			}
 			item.CreatedAt, _ = time.Parse(time.RFC3339Nano, task.CreatedAt)
 			item.UpdatedAt, _ = time.Parse(time.RFC3339Nano, task.UpdatedAt)
@@ -140,8 +167,9 @@ func projectAgents(value *journeyclient.Agents) *productui.AgentsAvailabilityPro
 				item.Steps = append(item.Steps, projected)
 			}
 			for _, approval := range task.Approvals {
-				item.Approvals = append(item.Approvals, productui.AgentApproval{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary})
+				item.Approvals = append(item.Approvals, productui.AgentApproval{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary, Sources: append([]string(nil), approval.Sources...), Taint: approval.Taint})
 			}
+			applyAgentTaskDetail(&item, task.Detail)
 			projection.Snapshot.Tasks = append(projection.Snapshot.Tasks, item)
 		}
 	}
@@ -150,4 +178,24 @@ func projectAgents(value *journeyclient.Agents) *productui.AgentsAvailabilityPro
 	initialAgentTasks.Unlock()
 	normalized := productui.NormalizeAgentsAvailability(projection)
 	return &normalized
+}
+
+// applyAgentTaskDetail puts the server's task detail sections on the page
+// contract, the same conversion the server makes for its own first render.
+func applyAgentTaskDetail(item *productui.AgentTask, detail *journeyclient.AgentTaskDetail) {
+	if detail == nil {
+		return
+	}
+	for _, checkpoint := range detail.Checkpoints {
+		item.Checkpoints = append(item.Checkpoints, productui.AgentCheckpoint{Kind: checkpoint.Kind, Step: checkpoint.Step, Label: checkpoint.Label, At: checkpoint.At})
+	}
+	for _, artifact := range detail.Artifacts {
+		item.Artifacts = append(item.Artifacts, productui.AgentArtifact{Kind: artifact.Kind, Name: artifact.Name, Href: artifact.Href})
+	}
+	for _, intent := range detail.SubmittedIntents {
+		item.SubmittedIntents = append(item.SubmittedIntents, productui.AgentIntentStatus{Name: intent.Name, Status: intent.Status})
+	}
+	for _, change := range detail.PlanChanges {
+		item.PlanChanges = append(item.PlanChanges, productui.AgentPlanChange{Change: change.Change, Step: productui.AgentTaskStep{Name: change.Step, Tier: change.Tier}})
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
@@ -70,7 +71,25 @@ func (c chatstateClient) Load(ctx context.Context, conversation string, previous
 		return fail(err)
 	}
 	var snapshot chat.ChannelStatusSnapshot
-	if json.Unmarshal(payload, &snapshot) != nil || snapshot.Status.TenantID != c.Tenant || snapshot.Status.ConversationID != conversation || snapshot.Status.Revision == 0 {
+	if json.Unmarshal(payload, &snapshot) != nil {
+		return fail(errChatstateEvent)
+	}
+	return c.view(conversation, snapshot, previous)
+}
+
+// view turns one authorized snapshot into the view the page draws, on top of
+// the view it had. A snapshot that is not this tenant's, or this
+// conversation's, is refused.
+func (c chatstateClient) view(conversation string, snapshot chat.ChannelStatusSnapshot, previous chatui.ChannelStatusView) (chatui.ChannelStatusView, error) {
+	view := previous
+	fail := func(err error) (chatui.ChannelStatusView, error) {
+		view.Unavailable = true
+		view.Loading = false
+		view.CanPost = false
+		view.Transitions = nil
+		return view, err
+	}
+	if snapshot.Status.TenantID != c.Tenant || snapshot.Status.ConversationID != conversation || snapshot.Status.Revision == 0 {
 		return fail(errChatstateEvent)
 	}
 	statusPayload, err := json.Marshal(snapshot.Status)
@@ -110,14 +129,72 @@ func (c chatstateClient) Change(ctx context.Context, request chat.ChangeChannelS
 	return c.Load(ctx, request.ConversationID, previous)
 }
 
-// Watch refreshes the authorized status without reloading the workspace. It
+// chatstateFallbackInterval is how often an open conversation's status is read
+// again when nothing else has said it changed (CHATBUG-075). The status is read
+// when the conversation opens and after the person's own change; this is the
+// fallback for a change somebody else made. It was five seconds, which is a
+// request every five seconds from every open tab for a value that changes a
+// few times in a channel's life.
+const chatstateFallbackInterval = time.Minute
+
+// chatstateSignal carries "the event stream says this conversation changed"
+// from the stream reader to the status watch of the open conversation
+// (CHATBUG-075). The stream delivers a status change as a conversation update;
+// what the reader may do afterwards (post, change the status back) is still
+// decided by the server, so the watch reads the status again rather than
+// trusting the event's own value.
+type chatstateSignal struct {
+	mu   sync.Mutex
+	room string
+	wake chan struct{}
+}
+
+// chatstateChanged is the signal of the one conversation the page has open.
+var chatstateChanged chatstateSignal
+
+// Listen returns the channel that receives one value per burst of changes to
+// the conversation. Only one conversation is open at a time: listening to
+// another one ends the delivery to the earlier listener.
+func (s *chatstateSignal) Listen(conversation string) <-chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.room != conversation || s.wake == nil {
+		s.room, s.wake = conversation, make(chan struct{}, 1)
+	}
+	return s.wake
+}
+
+// Changed wakes the listener of the conversation, if there is one. Several
+// changes before the listener reads are one wake: the read that follows
+// returns the latest status either way.
+func (s *chatstateSignal) Changed(conversation string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.wake == nil || s.room != conversation {
+		return
+	}
+	select {
+	case s.wake <- struct{}{}:
+	default:
+	}
+}
+
+// Watch reads the authorized status when it starts, again whenever the event
+// stream reports a change to the conversation, and once per fallback interval
+// for the case where the stream is down, without reloading the workspace. It
 // ends with the room context, including navigation, sign-out and disconnection.
 func (c chatstateClient) Watch(ctx context.Context, conversation string, previous chatui.ChannelStatusView, apply func(chatui.ChannelStatusView)) error {
+	ticker := time.NewTicker(chatstateFallbackInterval)
+	defer ticker.Stop()
+	return c.watch(ctx, conversation, previous, apply, ticker.C, chatstateChanged.Listen(conversation))
+}
+
+// watch is Watch with the clock and the change signal handed in: one read at
+// once, then one per tick and one per signalled change.
+func (c chatstateClient) watch(ctx context.Context, conversation string, previous chatui.ChannelStatusView, apply func(chatui.ChannelStatusView), tick <-chan time.Time, changed <-chan struct{}) error {
 	if apply == nil {
 		return chatstateRefusal{Code: "unavailable"}
 	}
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
 	for {
 		view, err := c.Load(ctx, conversation, previous)
 		apply(view)
@@ -128,7 +205,8 @@ func (c chatstateClient) Watch(ctx context.Context, conversation string, previou
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-tick:
+		case <-changed:
 		}
 	}
 }
