@@ -94,6 +94,11 @@ func RecordRenderingRevisionTx(ctx context.Context, tx dbport.Tx, tenantID, post
 			return err
 		}
 	}
+	// A system line ("a person was added") is not text anyone reads in another
+	// language, so nothing is requested for it (CHATUX-021).
+	if _, system := chat.ParseMembershipAdded(body); system {
+		return nil
+	}
 	original := chatrender.Rendering{Tenant: tenantID, Message: post, Revision: revision, Tone: chatrender.AsWritten, Language: source, SourceLanguage: source, Text: body}
 	if readers == nil {
 		// CHATLANG-003: translations are requested at once for the members who

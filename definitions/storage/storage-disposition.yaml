@@ -50,7 +50,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00718_agent_current_home_organization.sql
+source: migrations/00001_platform_control.sql .. migrations/00730_agent_schedule_source.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -4558,7 +4558,7 @@ tables:
     tenant_scoping_column: tenant_id
     isolation_package: internal/data/tenancy
     append_only: false
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     rebuild_source: null
     notes: >-
@@ -6776,7 +6776,7 @@ tables:
     isolation_package: internal/data/tenancy
     rls_policy: tenant_isolation
     rls_required: true
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     migration: migrations/00722_agent_memory.sql
     owner_package: internal/data/agentmemorystore
@@ -6788,7 +6788,7 @@ tables:
     isolation_package: internal/data/tenancy
     rls_policy: tenant_isolation
     rls_required: true
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     migration: migrations/00722_agent_memory.sql
     owner_package: internal/data/agentmemorystore
@@ -6800,7 +6800,7 @@ tables:
     isolation_package: internal/data/tenancy
     rls_policy: tenant_isolation
     rls_required: true
-    retention_class: PERMANENT
+    retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     migration: migrations/00722_agent_memory.sql
     owner_package: internal/data/agentmemorystore
@@ -6878,3 +6878,87 @@ tables:
     owner_package: internal/data/agenttriggerstore
     tenant_scoping_column: tenant_id
     append_only: true
+  - table: persona_versions
+    plane: DATA
+    data_role: REGISTRY
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00423_agent_persona_store.sql
+    owner_package: internal/data/agentpersonastore
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      AGENTP-004: immutable persona version images (profile and content digest); sealed by forbid_mutation, SELECT/INSERT only.
+  - table: persona_lifecycle_events
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00423_agent_persona_store.sql
+    owner_package: internal/data/agentpersonastore
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      AGENTP-004: append-only persona lifecycle evidence; sealed by forbid_mutation, SELECT/INSERT only.
+  - table: persona_owners
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00423_agent_persona_store.sql
+    owner_package: internal/data/agentpersonastore
+    tenant_scoping_column: tenant_id
+    append_only: false
+    notes: >-
+      AGENTP-004: current business owner and technical steward of a persona; reassigned in place.
+  - table: persona_installations
+    plane: DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00423_agent_persona_store.sql
+    owner_package: internal/data/agentpersonastore
+    tenant_scoping_column: tenant_id
+    append_only: false
+    notes: >-
+      AGENTP-004: persona installation state per conversation; suspended or retired in place so a restore can detect a missing version.
+  - table: workflow_page_version
+    plane: DATA
+    data_role: REGISTRY
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00710_workflow_page.sql
+    owner_package: internal/data/workflowpagestore
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      WFPAGE-011: immutable published workflow input page revisions; sealed by forbid_mutation so old runs stay explainable.
+  - table: workflow_page_draft
+    plane: DATA
+    data_role: REGISTRY
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00710_workflow_page.sql
+    owner_package: internal/data/workflowpagestore
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      WFPAGE-011: workflow input page draft revisions, one row per draft version; sealed by forbid_mutation, SELECT/INSERT only.

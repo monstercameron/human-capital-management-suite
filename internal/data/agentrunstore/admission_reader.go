@@ -44,13 +44,16 @@ func (r *AdmissionRepository) GetByID(ctx context.Context, id string) (agentrun.
 		if record.Request.Source.Kind != agentrun.SourcePersonaMention {
 			return nil
 		}
+		// A post asked again has one invocation for each attempt; the digest of
+		// the source key names the one this admission belongs to (CHATBUG-047).
 		if record.Request.Persona == nil {
 			return fmt.Errorf("%w: persona identity is required", agentrun.ErrInvalidRequest)
 		}
 		err = tx.QueryRow(ctx, `SELECT invocation_id FROM persona_invocations WHERE tenant_id=$1 AND post_id=$2 AND persona_id=$3
-			AND invoker_id=$4 AND conversation_id=$5 AND thread_id=$6 AND persona_version=$7 AND installation_id=$8 AND mode='ON_BEHALF_OF'`,
+			AND invoker_id=$4 AND conversation_id=$5 AND thread_id=$6 AND persona_version=$7 AND installation_id=$8 AND mode='ON_BEHALF_OF'
+			ORDER BY (encode(sha256(convert_to(invocation_id,'UTF8')),'hex')=$9) DESC, created_at DESC LIMIT 1`,
 			r.tenantID, sourceRef, record.Request.Persona.ID, record.Request.Principal.InvokerID,
-			record.Request.Audience.ID, record.Request.Context.ID, record.Request.Persona.Version, record.Request.InstallationID).Scan(&record.Request.Source.Key)
+			record.Request.Audience.ID, record.Request.Context.ID, record.Request.Persona.Version, record.Request.InstallationID, sourceKeyDigest).Scan(&record.Request.Source.Key)
 		if errors.Is(err, dbport.ErrNoRows) {
 			return ErrAdmissionNotFound
 		}

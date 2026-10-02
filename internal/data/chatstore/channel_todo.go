@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 )
 
@@ -66,21 +67,24 @@ type ChannelTodoMutation struct {
 }
 
 // ChannelTodo reads a shared list only after checking a current human channel
-// membership. The same check runs within every write transaction.
+// membership. The same check runs within every write transaction, which also
+// requires the channel to be active; a read does not, so an archived channel
+// still shows its list.
 func (s *Store) ChannelTodo(ctx context.Context, tenantID, homeTenantID, conversationID, subjectID string, authorize func(context.Context) error) (ChannelTodoList, error) {
 	out := ChannelTodoList{ConversationID: conversationID, Revision: 1, Items: []ChannelTodoItem{}}
 	if s == nil || tenantID == "" || homeTenantID == "" || conversationID == "" || subjectID == "" {
 		return out, chat.ErrInvalidArgument
 	}
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		if _, err := channelTodoMember(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true); err != nil {
+		_, active, err := channelTodoReader(ctx, tx, tenantID, homeTenantID, conversationID, subjectID)
+		if err != nil {
 			return err
 		}
 		if err := channelTodoPolicyFence(ctx, tx, tenantID, conversationID, authorize); err != nil {
 			return err
 		}
 		var payload []byte
-		err := tx.QueryRow(ctx, `SELECT revision,pinned,items_json FROM chat_channel_todo WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID).Scan(&out.Revision, &out.Pinned, &payload)
+		err = tx.QueryRow(ctx, `SELECT revision,pinned,items_json FROM chat_channel_todo WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID).Scan(&out.Revision, &out.Pinned, &payload)
 		if errors.Is(err, dbport.ErrNoRows) {
 			return nil
 		}
@@ -90,7 +94,16 @@ func (s *Store) ChannelTodo(ctx context.Context, tenantID, homeTenantID, convers
 		if err := json.Unmarshal(payload, &out.Items); err != nil {
 			return err
 		}
-		return projectChannelTodoLinks(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, &out)
+		if err := projectChannelTodoLinks(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, &out); err != nil {
+			return err
+		}
+		if !active {
+			// A channel that takes no changes shows its tasks and offers none.
+			for i := range out.Items {
+				out.Items[i].CanToggle, out.Items[i].CanManageCompletionPolicy = false, false
+			}
+		}
+		return nil
 	})
 	return out, err
 }
@@ -107,7 +120,7 @@ func (s *Store) MutateChannelTodo(ctx context.Context, tenantID, homeTenantID, c
 		return out, err
 	}
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		manager, err := channelTodoMember(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true)
+		manager, err := channelTodoMemberFor(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true, m.Operation == "SET_COMPLETED")
 		if err != nil {
 			return err
 		}
@@ -263,41 +276,71 @@ func projectChannelTodoLinks(ctx context.Context, tx dbport.Tx, tenantID, homeTe
 	return nil
 }
 
+// channelTodoMember checks that the caller may change a channel's list, poll
+// or widgets: a current member of an active channel. It reports whether the
+// caller manages the channel.
 func channelTodoMember(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, conversationID, subjectID string, lock bool) (bool, error) {
+	return channelTodoMemberFor(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, lock, false)
+}
+
+// channelTodoMemberFor is channelTodoMember for a change that may be a
+// reaction: a vote or a tick. An announcements-only channel takes those from
+// its members and refuses every other change; a locked or archived channel
+// takes neither.
+func channelTodoMemberFor(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, conversationID, subjectID string, lock, reaction bool) (bool, error) {
+	manager, lifecycle, err := channelTodoMembershipIn(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, lock)
+	if err == nil && lifecycle != "ACTIVE" && !(reaction && lifecycle == string(chatpolicy.StatusAnnouncements)) {
+		return false, chat.ErrNotFound
+	}
+	return manager, err
+}
+
+// channelTodoReader checks that the caller may read a channel's list, poll or
+// widgets: a current member, whatever the channel's status. An archived or
+// locked channel still shows what it held. active reports whether the channel
+// also takes changes; a reader of one that does not is offered none.
+func channelTodoReader(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, conversationID, subjectID string) (manager, active bool, err error) {
+	manager, lifecycle, err := channelTodoMembershipIn(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true)
+	return manager, lifecycle == "ACTIVE", err
+}
+
+// channelTodoMembershipIn is the caller's standing in a channel and the
+// channel's lifecycle, which carries its status.
+func channelTodoMembershipIn(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, conversationID, subjectID string, lock bool) (manager bool, lifecycle string, err error) {
 	lockSQL := ""
 	if lock {
 		lockSQL = " FOR UPDATE"
 	}
 	var kind, owner string
-	err := tx.QueryRow(ctx, `SELECT kind,owner_id FROM chat_conversation WHERE tenant_id=$1 AND id=$2 AND lifecycle='ACTIVE'`+lockSQL, tenantID, conversationID).Scan(&kind, &owner)
+	err = tx.QueryRow(ctx, `SELECT kind,owner_id,lifecycle FROM chat_conversation WHERE tenant_id=$1 AND id=$2`+lockSQL, tenantID, conversationID).Scan(&kind, &owner, &lifecycle)
 	if errors.Is(err, dbport.ErrNoRows) {
-		return false, chat.ErrNotFound
+		return false, "", chat.ErrNotFound
 	}
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if kind != string(chat.PublicChannel) && kind != string(chat.PrivateChannel) {
-		return false, chat.ErrInvalidArgument
+		return false, "", chat.ErrInvalidArgument
 	}
 	var role string
 	err = tx.QueryRow(ctx, `SELECT role FROM chat_membership WHERE tenant_id=$1 AND conversation_id=$2 AND home_tenant_id=$3 AND member_id=$4 AND state='active' AND left_at IS NULL FOR SHARE`, tenantID, conversationID, homeTenantID, subjectID).Scan(&role)
 	if errors.Is(err, dbport.ErrNoRows) {
-		return false, chat.ErrPermissionDenied
+		return false, "", chat.ErrPermissionDenied
 	}
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	if tenantID != homeTenantID {
 		var grantID string
 		err = tx.QueryRow(ctx, `SELECT id FROM chat_share_grant WHERE tenant_id=$1 AND conversation_id=$2 AND consumer_tenant=$3 AND accepted_at IS NOT NULL AND revoked_at IS NULL AND expires_at>now() FOR SHARE`, tenantID, conversationID, homeTenantID).Scan(&grantID)
 		if errors.Is(err, dbport.ErrNoRows) {
-			return false, chat.ErrPermissionDenied
+			return false, "", chat.ErrPermissionDenied
 		}
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
 	}
-	return homeTenantID == tenantID && subjectID == owner || role == "manager", nil
+	return homeTenantID == tenantID && subjectID == owner || role == "manager", lifecycle, nil
 }
 
 func channelTodoPinnedPost(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, conversationID, subjectID, postID string) error {

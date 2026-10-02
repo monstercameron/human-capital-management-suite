@@ -31,10 +31,21 @@ func (s *Adapter) RegisterVoiceSearch(registry *chatsearch.Registry, authorize C
 // Search checks current membership, history and the deployment's message/segment
 // authority before loading transcript text or applying search filters.
 func (s *ChatvoiceSearchSource) Search(ctx context.Context, q chatsearch.Request) ([]chatsearch.Row, error) {
+	rows, _, err := s.SearchSentences(ctx, q)
+	return rows, err
+}
+
+// SearchSentences is Search, with the timed sentences of each result's
+// transcript under the result's ID, in the order they are spoken. A result
+// whose text is its author's correction has none: a correction is not timed. A
+// result that matched searched words names the sentence that holds them
+// (CHATSEARCH-002), so opening it seeks there.
+func (s *ChatvoiceSearchSource) SearchSentences(ctx context.Context, q chatsearch.Request) ([]chatsearch.Row, map[string][]string, error) {
 	if s == nil || s.Adapter == nil || s.Authorize == nil || (s.Kind != chatsearch.Voice && s.Kind != chatsearch.VoiceCorrection) || q.Actor.TenantID == "" || q.Actor.HomeTenantID == "" || q.Actor.PersonID == "" {
-		return nil, chatsearch.ErrInvalid
+		return nil, nil, chatsearch.ErrInvalid
 	}
 	out := []chatsearch.Row{}
+	sentences := map[string][]string{}
 	err := s.Adapter.Store.RunTenantTx(ctx, q.Actor.TenantID, func(tx dbport.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT v.conversation_id,v.post_id,v.artifact_id,p.author_id,p.created_at,p.sequence,p.parent_id FROM chat_voice_transcript v JOIN chat_post p ON p.tenant_id=v.tenant_id AND p.conversation_id=v.conversation_id AND p.id=v.post_id AND NOT p.tombstoned JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$2 AND m.member_id=$3 AND m.state='active' AND m.left_at IS NULL WHERE v.tenant_id=$1 AND v.state='ready' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.id=$5) ORDER BY p.created_at DESC,p.id,v.artifact_id`, q.Actor.TenantID, q.Actor.HomeTenantID, q.Actor.PersonID, q.Filters.Conversation, q.OpenMessageID)
 		if err != nil {
@@ -94,13 +105,21 @@ func (s *ChatvoiceSearchSource) Search(ctx context.Context, q chatsearch.Request
 				}
 				c.row.Text = record.Transcript.Correction
 			}
+			var spoken []string
+			if record.Transcript.Correction == "" {
+				for _, segment := range record.Transcript.Segments {
+					spoken = append(spoken, segment.Text)
+				}
+			}
 			if chatsearch.Match(c.row, q) {
+				c.row.Target.Sentence = chatsearch.Sentence(spoken, q.Query)
 				out = append(out, c.row)
+				sentences[c.row.ID] = spoken
 			}
 		}
 		return nil
 	})
-	return out, err
+	return out, sentences, err
 }
 
 func (s *ChatvoiceSearchSource) CanOpen(ctx context.Context, actor chatsearch.Actor, row chatsearch.Row) (bool, error) {
@@ -112,7 +131,7 @@ func (s *ChatvoiceSearchSource) CanOpen(ctx context.Context, actor chatsearch.Ac
 		return false, err
 	}
 	for _, current := range rows {
-		if current.ID == row.ID && current.Text == row.Text && current.Target == row.Target {
+		if current.ID == row.ID && current.Text == row.Text && chatsearch.SameTarget(current.Target, row.Target) {
 			return true, nil
 		}
 	}

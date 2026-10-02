@@ -30,9 +30,14 @@ func (s *Adapter) voiceTx(ctx context.Context, p chat.Principal, r chat.Transcri
 		return err
 	}
 	// Lock membership and message before any voice side effect; removal and
-	// erasure cannot race a correction or a worker completion.
-	if err = lockVisibleReactionPost(ctx, tx, r.TenantID, r.ConversationID, r.PostID, p.TenantID, p.SubjectID); err != nil {
-		return err
+	// erasure cannot race a correction or a worker completion. The server's own
+	// worker identity is not a member of the rooms it transcribes: it is
+	// authorized by identity and tenant, and the message lock below still fences
+	// it against removal.
+	if !chatvoiceWorkerAuthorized(ctx, p, r.TenantID) {
+		if err = lockVisibleReactionPost(ctx, tx, r.TenantID, r.ConversationID, r.PostID, p.TenantID, p.SubjectID); err != nil {
+			return err
+		}
 	}
 	var post string
 	if err = tx.QueryRow(ctx, `SELECT id FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$3 FOR UPDATE`, r.TenantID, r.ConversationID, r.PostID).Scan(&post); err != nil {

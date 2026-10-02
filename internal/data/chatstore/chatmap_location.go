@@ -52,7 +52,11 @@ func (s *Store) AttachLocation(ctx context.Context, v chat.LocationShare) (chat.
 		if rev != v.PostRevision {
 			return chat.ErrConflict
 		}
-		inserted, err := tx.Exec(ctx, `INSERT INTO chat_location_share(tenant_id,conversation_id,post_id,id,post_revision,sharer_id,sharer_tenant_id,place,expires_at,shared_at,sharer_kind) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT DO NOTHING`, v.TenantID, v.ConversationID, v.PostID, v.ID, v.PostRevision, v.SharerID, v.SharerTenantID, payload, v.ExpiresAt, v.SharedAt, v.SharerKind)
+		var positionAt *time.Time
+		if v.Live {
+			positionAt = &v.SharedAt
+		}
+		inserted, err := tx.Exec(ctx, `INSERT INTO chat_location_share(tenant_id,conversation_id,post_id,id,post_revision,sharer_id,sharer_tenant_id,place,expires_at,shared_at,sharer_kind,live,live_interval_seconds,position_updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT DO NOTHING`, v.TenantID, v.ConversationID, v.PostID, v.ID, v.PostRevision, v.SharerID, v.SharerTenantID, payload, v.ExpiresAt, v.SharedAt, v.SharerKind, v.Live, int(v.LiveInterval/time.Second), positionAt)
 		if err != nil {
 			return err
 		}
@@ -95,11 +99,13 @@ func (s *Store) ReadLocation(ctx context.Context, k chat.LocationKey, now time.T
 	var v chat.LocationShare
 	err := s.RunTenantTx(ctx, k.TenantID, func(tx dbport.Tx) error {
 		// Deletion is committed with the read, including the first read after expiry.
-		if _, err := tx.Exec(ctx, `UPDATE chat_location_share SET place=NULL,ended=true,revision=revision+1 WHERE tenant_id=$1 AND conversation_id=$2 AND post_id=$3 AND id=$4 AND NOT ended AND expires_at<=$5`, k.TenantID, k.ConversationID, k.PostID, k.ID, now); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE chat_location_share SET place=NULL,ended=true,ended_at=expires_at,ended_reason='expired',revision=revision+1 WHERE tenant_id=$1 AND conversation_id=$2 AND post_id=$3 AND id=$4 AND NOT ended AND expires_at<=$5`, k.TenantID, k.ConversationID, k.PostID, k.ID, now); err != nil {
 			return err
 		}
 		var b []byte
-		err := tx.QueryRow(ctx, `SELECT id,tenant_id,conversation_id,post_id,post_revision,sharer_id,sharer_tenant_id,place,expires_at,ended,shared_at,sharer_kind FROM chat_location_share WHERE tenant_id=$1 AND conversation_id=$2 AND post_id=$3 AND id=$4`, k.TenantID, k.ConversationID, k.PostID, k.ID).Scan(&v.ID, &v.TenantID, &v.ConversationID, &v.PostID, &v.PostRevision, &v.SharerID, &v.SharerTenantID, &b, &v.ExpiresAt, &v.Ended, &v.SharedAt, &v.SharerKind)
+		var interval int
+		err := tx.QueryRow(ctx, `SELECT id,tenant_id,conversation_id,post_id,post_revision,sharer_id,sharer_tenant_id,place,expires_at,ended,shared_at,sharer_kind,live,live_interval_seconds,position_updated_at,ended_at,ended_reason FROM chat_location_share WHERE tenant_id=$1 AND conversation_id=$2 AND post_id=$3 AND id=$4`, k.TenantID, k.ConversationID, k.PostID, k.ID).Scan(&v.ID, &v.TenantID, &v.ConversationID, &v.PostID, &v.PostRevision, &v.SharerID, &v.SharerTenantID, &b, &v.ExpiresAt, &v.Ended, &v.SharedAt, &v.SharerKind, &v.Live, &interval, &v.PositionAt, &v.EndedAt, &v.EndedReason)
+		v.LiveInterval = time.Duration(interval) * time.Second
 		if err == dbport.ErrNoRows {
 			return chat.ErrNotFound
 		}
@@ -130,7 +136,7 @@ func (s *Store) EndLocation(ctx context.Context, k chat.LocationKey) error {
 func (s *Store) SweepLocations(ctx context.Context, tenantID string, now time.Time) (int64, error) {
 	var count int64
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		n, err := tx.Exec(ctx, `UPDATE chat_location_share l SET place=NULL,ended=true,revision=revision+1 WHERE tenant_id=$1 AND NOT ended AND (expires_at<=$2 OR (EXISTS(SELECT 1 FROM chat_post p WHERE p.tenant_id=l.tenant_id AND p.conversation_id=l.conversation_id AND p.id=l.post_id AND (p.tombstoned OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='LOCATION' AND r->>'ID'=l.id))) AND NOT EXISTS(SELECT 1 FROM chat_record_inventory i JOIN chat_record_hold h ON h.tenant_id=i.tenant_id AND h.hold_id IN (SELECT jsonb_array_elements_text(i.hold_ids)) WHERE i.tenant_id=l.tenant_id AND i.record_id='post:'||l.post_id AND h.released_at IS NULL)))`, tenantID, now)
+		n, err := tx.Exec(ctx, `UPDATE chat_location_share l SET place=NULL,ended=true,ended_at=CASE WHEN expires_at<=$2 THEN expires_at ELSE now() END,ended_reason=CASE WHEN expires_at<=$2 THEN 'expired' ELSE 'removed' END,revision=revision+1 WHERE tenant_id=$1 AND NOT ended AND (expires_at<=$2 OR (EXISTS(SELECT 1 FROM chat_post p WHERE p.tenant_id=l.tenant_id AND p.conversation_id=l.conversation_id AND p.id=l.post_id AND (p.tombstoned OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='LOCATION' AND r->>'ID'=l.id))) AND NOT EXISTS(SELECT 1 FROM chat_record_inventory i JOIN chat_record_hold h ON h.tenant_id=i.tenant_id AND h.hold_id IN (SELECT jsonb_array_elements_text(i.hold_ids)) WHERE i.tenant_id=l.tenant_id AND i.record_id='post:'||l.post_id AND h.released_at IS NULL)))`, tenantID, now)
 		if err == nil {
 			count = n
 		}

@@ -63,6 +63,10 @@ func validateChannelPollMutation(m ChannelPollMutation) error {
 		if m.OptionID == "" || m.Question != "" || len(m.Options) != 0 {
 			return chat.ErrInvalidArgument
 		}
+	case "CLOSE":
+		if m.OptionID != "" || m.Question != "" || len(m.Options) != 0 {
+			return chat.ErrInvalidArgument
+		}
 	default:
 		return chat.ErrInvalidArgument
 	}
@@ -90,7 +94,7 @@ func (s *Store) ChannelPoll(ctx context.Context, tenantID, homeTenantID, convers
 		return out, chat.ErrInvalidArgument
 	}
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		if _, err := channelTodoMember(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true); err != nil {
+		if _, _, err := channelTodoReader(ctx, tx, tenantID, homeTenantID, conversationID, subjectID); err != nil {
 			return err
 		}
 		if err := channelTodoPolicyFence(ctx, tx, tenantID, conversationID, authorize); err != nil {
@@ -148,8 +152,11 @@ func readChannelPoll(ctx context.Context, tx dbport.Tx, tenantID, homeTenantID, 
 	return nil
 }
 
-// MutateChannelPoll serializes create and vote operations on the conversation
-// row and records every accepted revision in the immutable widget audit log.
+// MutateChannelPoll serializes create, vote and close operations on the
+// conversation row and records every accepted revision in the immutable widget
+// audit log. Closing ends the channel's poll: its ballots are removed and the
+// channel can hold a new one. The person who started the poll and the channel's
+// managers may close it.
 func (s *Store) MutateChannelPoll(ctx context.Context, tenantID, homeTenantID, conversationID, subjectID string, expected uint64, m ChannelPollMutation, authorize func(context.Context) error) (ChannelPoll, error) {
 	out := emptyChannelPoll(conversationID)
 	if s == nil || tenantID == "" || homeTenantID == "" || conversationID == "" || subjectID == "" || expected == 0 {
@@ -159,7 +166,8 @@ func (s *Store) MutateChannelPoll(ctx context.Context, tenantID, homeTenantID, c
 		return out, err
 	}
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
-		if _, err := channelTodoMember(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true); err != nil {
+		manager, err := channelTodoMemberFor(ctx, tx, tenantID, homeTenantID, conversationID, subjectID, true, m.Operation == "VOTE")
+		if err != nil {
 			return err
 		}
 		if err := channelTodoPolicyFence(ctx, tx, tenantID, conversationID, authorize); err != nil {
@@ -168,7 +176,7 @@ func (s *Store) MutateChannelPoll(ctx context.Context, tenantID, homeTenantID, c
 		var revision uint64 = 1
 		var priorQuestion string
 		var priorOptions []byte
-		err := tx.QueryRow(ctx, `SELECT revision,question,options_json FROM chat_channel_poll WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID).Scan(&revision, &priorQuestion, &priorOptions)
+		err = tx.QueryRow(ctx, `SELECT revision,question,options_json FROM chat_channel_poll WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID).Scan(&revision, &priorQuestion, &priorOptions)
 		if err != nil && !errors.Is(err, dbport.ErrNoRows) {
 			return err
 		}
@@ -182,7 +190,25 @@ func (s *Store) MutateChannelPoll(ctx context.Context, tenantID, homeTenantID, c
 			}
 		}
 		voteDelta := channelPollVoteDelta{}
-		if m.Operation == "CREATE" {
+		if m.Operation == "CLOSE" {
+			if stored.Question == "" {
+				return chat.ErrNotFound
+			}
+			if !manager {
+				var authorHome, author string
+				err := tx.QueryRow(ctx, `SELECT actor_home_tenant_id,actor_id FROM chat_channel_poll_revision WHERE tenant_id=$1 AND conversation_id=$2 AND operation='CREATE' ORDER BY revision DESC LIMIT 1`, tenantID, conversationID).Scan(&authorHome, &author)
+				if err != nil && !errors.Is(err, dbport.ErrNoRows) {
+					return err
+				}
+				if authorHome != homeTenantID || author != subjectID {
+					return chat.ErrPermissionDenied
+				}
+			}
+			if _, err := tx.Exec(ctx, `DELETE FROM chat_channel_poll_vote WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID); err != nil {
+				return err
+			}
+			stored.Question, stored.Options = "", []ChannelPollOption{}
+		} else if m.Operation == "CREATE" {
 			if stored.Question != "" {
 				return chat.ErrConflict
 			}
@@ -234,7 +260,7 @@ type channelPollVoteDelta struct {
 }
 
 func nullableVoteIdentity(operation, value string) any {
-	if operation == "CREATE" {
+	if operation != "VOTE" {
 		return nil
 	}
 	return value

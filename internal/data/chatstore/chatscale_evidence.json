@@ -2,36 +2,47 @@
   "lane": "chatscale",
   "date": "2026-10-01",
   "scope": "Storage measurements and targeted fixes; the lane narrows the planning volume to one tenant, 200 seeded conversations, 2000 distinct people, 50000 default posts or 2000000 with -chatscale.large. Sidebar budget checks add 100 empty conversations.",
+  "reconciled": "2026-10-02 (lane S24), against planning/todos.md and the S7 measurements below. The claims and pass lines are what the 2026-10-01 chatscale lane recorded and are left as written; the status on each CHATSCALE-001 claim says how far it goes.",
+  "todo_status": {
+    "CHATSCALE-001": "OPEN in planning/todos.md. The todo asks for 200 tenants, 100,000 channels and 500 million posts, percentiles at 1, 10, 100 and 500 million posts, and budgets shown met at the full target. Nothing in this file ran above 2 million posts (earlier lane) or 1 million posts (S7), on one tenant. The 500-million-post target and the 1/10/100/500-million percentile series were not run.",
+    "CHATSCALE-002": "Not closed by this file; its migrations were run in isolated schemas only and were not applied to the review database.",
+    "CHATSCALE-003": "Not closed by this file; the batch count port, client wiring and operations-view figures it asks for are not built (see needs_from_orchestrator)."
+  },
   "claims": [
     {
       "todo": "CHATSCALE-001",
       "requirement": "Repeatable skewed fixture with threads, edits, removals, references, reactions, pins, saved items and canonical outbox envelopes",
       "implementation": "chatscale_fixture_test.go: chatscaleSeed, chatscaleSeedOutbox, chatscaleSize",
-      "proof": "TestTodo_CHATSCALE_001; fresh default and large TestTodo_CHATSCALE_001_Performance; current revisions agree with post state"
+      "proof": "TestTodo_CHATSCALE_001; fresh default and large TestTodo_CHATSCALE_001_Performance; current revisions agree with post state",
+      "status": "Partial. The generator exists and was run at 50,000 and 2,000,000 posts on one tenant with 200 conversations and 2,000 people. The todo's 200 tenants, 100,000 channels and 500 million posts were not generated."
     },
     {
       "todo": "CHATSCALE-001",
       "requirement": "Opening reads, plans, buffers, percentiles and rows read per row returned",
       "implementation": "chatscale_measure_test.go: chatscaleReads, chatscaleMeasure; chatscale_search_measure_test.go: chatscaleSearchPlan",
-      "proof": "TestTodo_CHATSCALE_001_Performance, TestTodo_CHATSCALE_001_Golden, TestTodo_CHATSCALE_001_SearchPlans; chatscale_report.json and chatscale_report_large.json"
+      "proof": "TestTodo_CHATSCALE_001_Performance, TestTodo_CHATSCALE_001_Golden, TestTodo_CHATSCALE_001_SearchPlans; chatscale_report.json and chatscale_report_large.json",
+      "status": "Partial. Measured at 50,000 and 2,000,000 posts only. The todo asks for 50th, 95th and 99th percentiles at 1, 10, 100 and 500 million posts; that series was not produced."
     },
     {
       "todo": "CHATSCALE-001",
       "requirement": "Stated mixed workload, outbox growth, retention cost and relation statistics",
       "implementation": "chatscale_workload_test.go: chatscaleWorkload, chatscaleRelations; chatscale_retention_test.go: chatscaleRetentionPlan",
-      "proof": "TestTodo_CHATSCALE_001_Workload, TestTodo_CHATSCALE_002_Integration_Retention, both volume reports"
+      "proof": "TestTodo_CHATSCALE_001_Workload, TestTodo_CHATSCALE_002_Integration_Retention, both volume reports",
+      "status": "Partial. Same two volumes (50,000 and 2,000,000 posts)."
     },
     {
       "todo": "CHATSCALE-001",
       "requirement": "Per-index write cost, size and WAL; 1000-sender contention",
       "implementation": "chatscale_index_cost_test.go: chatscaleWriteSamples; chatscale_contention_test.go: TestTodo_CHATSCALE_001_Performance_Contention",
-      "proof": "TestTodo_CHATSCALE_001_Performance_Indexes at 50000 posts; chatscale_index_cost_report.json; 1000 successful unique committed sequences, pool-inclusive latency and independent database round-trip plus lock-wait samples"
+      "proof": "TestTodo_CHATSCALE_001_Performance_Indexes at 50000 posts; chatscale_index_cost_report.json; 1000 successful unique committed sequences, pool-inclusive latency and independent database round-trip plus lock-wait samples",
+      "status": "Partial. Index cost was measured at 50,000 posts; contention was run once with 1,000 senders. The contention report does not claim 1,000 simultaneous sends meet 30 ms (see partial)."
     },
     {
       "todo": "CHATSCALE-001",
       "requirement": "Vacuum behaviour and measurement limits",
       "implementation": "chatscale_fixture_test.go: chatscaleVacuum; chatscaleRelations",
-      "proof": "Explicit VACUUM ANALYZE time recorded before both measurement phases; tuple/vacuum counts are statistics estimates, not a long-running autovacuum study or exact dead-tuple bytes"
+      "proof": "Explicit VACUUM ANALYZE time recorded before both measurement phases; tuple/vacuum counts are statistics estimates, not a long-running autovacuum study or exact dead-tuple bytes",
+      "status": "Partial, as the proof says: no dead-tuple sizes, no autovacuum study."
     },
     {
       "todo": "CHATSCALE-002",
@@ -70,6 +81,42 @@
       "proof": "Fresh 2000000-post TestTodo_CHATSCALE_001_Performance runs all four budgets; dedicated _002_Performance and _003_Performance run the default 50000-post fixture"
     }
   ],
+  "s7_measurements": {
+    "recorded": "2026-10-02 (lane S7), from .artifacts/tmp/S7/c001-base.json (06:36) and c001-cand.json (06:50-07:01). These are measurements, not a closure of CHATSCALE-001: candidates A and B are SQL run only inside the measurement schema (candidate_partition.sql, candidate_sidebar_delta.sql) and are not migrations.",
+    "setup": "One tenant, 300 channels, 2,000 members. Base run: 100,000 posts (loaded in 19 s) then 1,000,000 posts (174 s). Candidate run: 1,000,000 posts (328 s) measured three ways in one run: as is, with the sidebar-count delta, with chat_post hash-partitioned by tenant and conversation (16 partitions). One connection at a time, warm cache, no concurrent writers; times are server execution time from EXPLAIN (ANALYZE, BUFFERS), median of 5 runs unless the file says fewer samples. The test role is a superuser, so row-level security is not in these plans. The machine was shared with other lanes, so the two runs' absolute times differ; compare phases within one run.",
+    "not_measured": "The table, index and dead-row size blocks in both files are all zero (not captured). The 10, 100 and 500 million post volumes, 200 tenants, 100,000 channels, 1,000 concurrent senders and write throughput were not run by S7.",
+    "base_100k_to_1m_median_ms": {
+      "open hot channel": [0.141, 0.109],
+      "page back, middle of hot channel": [0.087, 0.094],
+      "thread read": [0.092, 0.088],
+      "unread, per-channel bounded scan, caught-up channel (rows scanned 14,947 then 149,437)": [11.186, 110.54],
+      "sidebar counts, every row cached": [1.844, 1.896],
+      "sidebar counts, ten busy channels sent to since": [14.543, 71.039],
+      "sidebar counts, nothing cached (first open; 2 samples at 1,000,000)": [109.5, 1349.17],
+      "search, rare term, one channel (rows scanned 102 then 50,933 for 51 returned)": [0.28, 526.74],
+      "pins in a channel": [0.682, 1.866]
+    },
+    "send_loop_100_sends_ms": {
+      "100,000 posts": {"p50": 3.664, "p95": 17.12, "max": 79.659},
+      "1,000,000 posts": {"p50": 2.134, "p95": 5.493, "max": 12.984}
+    },
+    "candidate_run_1m_median_ms_as_is_then_sidebar_delta_then_partition": {
+      "sidebar counts, ten busy channels took three sends each": [99.488, 32.679, 115.061],
+      "sidebar counts, nothing cached (first open)": [1200.257, 1233.38, 1329.777],
+      "sidebar counts, nothing cached, display cap 100 not 5000": [131.422, 143.411, 164.987],
+      "unread, rebuild one channel (served path), caught up": [6.005, 5.264, 7.19],
+      "unread, legacy per-channel scan (oracle), caught up": [124.971, 128.999, 199.648],
+      "search, rare term, one channel, as written": [731.234, 771.403, 852.885],
+      "search, rare term, one channel, rewritten so the channel test is not indexable": [3.605, 3.822, 4.132],
+      "search, common term, one channel, rewritten so the channel test is not indexable": [90.348, 102.772, 974.158]
+    },
+    "candidate_run_send_loop_100_sends_p50_p95_ms": {
+      "as is": [2.633, 6.615],
+      "sidebar delta": [3.153, 16.505],
+      "partition": [7.686, 32.795]
+    },
+    "reading": "At 1,000,000 posts, against 100,000: the history reads stay near 0.1 ms; the per-channel unread scan, the uncached sidebar counts and a one-channel search on a rare term grow with post count (110.54 ms, 1349.17 ms and 526.74 ms). In the candidate run the sidebar delta cut the ten-busy-channels count from 99.488 to 32.679 ms and left the first-open count at about 1.2 s; the partition candidate did not improve any of the sidebar or send figures above (send p95 32.795 ms against 6.615 ms as is, and the common-term one-channel rewrite scanned 805,351 rows). No budget of the todo was shown met at its full target."
+  },
   "partial": [
     "Partitioning/archival, partition retention/hold policy and cold read routing need an archive destination/tablespace and retention horizon. No such decision was supplied; it was requested during this lane. The globally unique chat_post identity and its foreign keys also need a coordinated partition identity design.",
     "Sequence allocation still holds the route/privacy fence through insertion. Releasing it or making allocation nontransactional changes the existing route, authorization and rollback contract; it needs a coordinated decision and changes outside the owned store scope. The measured native budgets pass; the contention report does not claim 1000 simultaneous sends meet 30ms.",

@@ -349,6 +349,76 @@ func TestTodo_CHATMOD_004_Integration_RestoreDeadline(t *testing.T) {
 	}
 }
 
+// TestTodo_CHATMOD_004_Integration_RestoreResolved: the Resolved tab of the
+// Moderation page offers Restore on a removal that is already decided. The
+// decision used to be refused because the item was no longer open, so the
+// button could never work.
+func TestTodo_CHATMOD_004_Integration_RestoreResolved(t *testing.T) {
+	s, p, post := chatremoveDB(t)
+	ctx := context.Background()
+	chatremoveApply(t, s, p, post, "remove")
+	if err := s.removalTx(ctx, p.TenantID, func(tx dbport.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO chat_moderation_role(tenant_id,subject_id,role) VALUES($1,$2,'WORKSPACE_ADMIN')`, p.TenantID, p.SubjectID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	caseID := "removal:" + post.ID
+	history, err := s.SearchModeration(ctx, p, p.TenantID, "state:closed")
+	if err != nil || len(history) != 1 || history[0].ID != caseID || history[0].State == "OPEN" || !history[0].CanRestore {
+		t.Fatalf("the removal is not a resolved item that offers Restore: %+v err=%v", history, err)
+	}
+	// The routing layer finds the item's conversation although it is closed;
+	// someone with no moderation permission there is told nothing.
+	if conversation, err := s.ModerationCaseConversation(ctx, p, p.TenantID, caseID); err != nil || conversation != "room" {
+		t.Fatalf("conversation=%q err=%v", conversation, err)
+	}
+	for name, who := range map[string]chat.Principal{"the author": {TenantID: p.TenantID, SubjectID: "author"}, "a stranger": {TenantID: p.TenantID, SubjectID: "stranger"}} {
+		if _, err := s.ModerationCaseConversation(ctx, who, p.TenantID, caseID); !errors.Is(err, chat.ErrNotFound) {
+			t.Fatalf("%s learned where a queue item is: %v", name, err)
+		}
+	}
+	if _, err := s.ModerationCaseConversation(ctx, p, p.TenantID, "removal:missing"); !errors.Is(err, chat.ErrNotFound) {
+		t.Fatalf("a missing item: %v", err)
+	}
+	// Only Restore runs on a decided item.
+	for _, action := range []string{"dismiss", "remove", "message_author"} {
+		if err := s.ResolveModeration(ctx, p, p.TenantID, caseID, action, "again", time.Now()); !errors.Is(err, chat.ErrConflict) {
+			t.Fatalf("%s ran on a resolved item: %v", action, err)
+		}
+	}
+	// The author may not restore their own message.
+	if err := s.ResolveModeration(ctx, chat.Principal{TenantID: p.TenantID, SubjectID: "author"}, p.TenantID, caseID, "restore", "restored", time.Now()); !errors.Is(err, chat.ErrPermissionDenied) {
+		t.Fatalf("the author restored their own removed message: %v", err)
+	}
+	if err := s.ResolveModeration(ctx, p, p.TenantID, caseID, "restore", "restored", time.Now()); err != nil {
+		t.Fatalf("Restore on a resolved removal: %v", err)
+	}
+	got, err := s.GetPost(ctx, p.TenantID, "room", post.ID)
+	if err != nil || got.Deleted || got.Body != post.Body {
+		t.Fatalf("the message is not back as it was: %+v err=%v", got, err)
+	}
+	notices, err := s.ModerationNotices(ctx, chat.Principal{TenantID: p.TenantID, SubjectID: "author"}, p.TenantID)
+	if err != nil || len(notices) < 2 || notices[0].Outcome != "restore" {
+		t.Fatalf("the author is not told the message is back: %+v err=%v", notices, err)
+	}
+	// It is restored once.
+	if err := s.ResolveModeration(ctx, p, p.TenantID, caseID, "restore", "restored", time.Now()); !errors.Is(err, chat.ErrConflict) {
+		t.Fatalf("a second Restore: %v", err)
+	}
+	// After thirty days the way back is closed.
+	chatremoveApply(t, s, p, post, "remove")
+	if err := s.removalTx(ctx, p.TenantID, func(tx dbport.Tx) error {
+		_, err := tx.Exec(ctx, `UPDATE chat_admin_removal SET removed_at=now()-interval '31 days' WHERE tenant_id=$1 AND post_id=$2`, p.TenantID, post.ID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ResolveModeration(ctx, p, p.TenantID, caseID, "restore", "restored", time.Now()); !errors.Is(err, chat.ErrConflict) {
+		t.Fatalf("Restore after thirty days: %v", err)
+	}
+}
+
 func TestTodo_CHATMOD_004_Integration_AuthorHomeTenant(t *testing.T) {
 	s, p, _ := chatremoveDB(t)
 	ctx := context.Background()
@@ -524,5 +594,35 @@ func TestTodo_CHATMOD_005(t *testing.T) {
 		if notice.CanAppeal {
 			t.Fatal("reporter offered author's appeal")
 		}
+		// What the moderator wrote was for the author ("Only {name} sees
+		// this"): the reporter reads what was done, and for a removal the
+		// reason from the list, never the note.
+		if strings.Contains(notice.Reason, "human review completed") {
+			t.Fatalf("the reporter was sent the moderator's note to the author: %+v", notice)
+		}
+		switch notice.Outcome {
+		case "message_author":
+			if notice.Reason != "" {
+				t.Fatalf("the reporter's notice of a message to the author carries words: %+v", notice)
+			}
+		case "remove":
+			if notice.Reason != "policy_violation" {
+				t.Fatalf("the reporter is not told the listed reason of the removal: %+v", notice)
+			}
+		default:
+			t.Fatalf("unexpected outcome for the reporter: %+v", notice)
+		}
+	}
+	// The author still reads the moderator's words.
+	authorNotices, err := s.ModerationNotices(ctx, author, p.TenantID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	written := false
+	for _, notice := range authorNotices {
+		written = written || (notice.Outcome == "message_author" && notice.Reason == "human review completed")
+	}
+	if !written {
+		t.Fatalf("the author did not receive the moderator's message: %+v", authorNotices)
 	}
 }

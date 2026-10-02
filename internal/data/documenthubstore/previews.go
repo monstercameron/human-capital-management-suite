@@ -82,11 +82,12 @@ func (s *Store) DocumentPreviews(ctx context.Context, tenantID, actorID string, 
 	return out, nil
 }
 
-// previewSnippet is the opening of a document's display text (snippetText:
-// block boundaries kept, no title heading, no metadata lead line), cut at a
-// word boundary.
+// previewSnippet is the opening of a document's body text, cut at a word
+// boundary: no headings (the card names the document itself), no table rows and
+// no metadata lead line, so it reads as sentences a person wrote and not as
+// "Common questions. Question Answer.".
 func previewSnippet(markdown, title string) string {
-	text := snippetText(title, markdown)
+	text := snippetText(title, previewBodyMarkdown(markdown))
 	if utf8.RuneCountInString(text) <= previewSnippetRunes {
 		return text
 	}
@@ -96,4 +97,23 @@ func previewSnippet(markdown, title string) string {
 		cut = cut[:i]
 	}
 	return strings.TrimRight(cut, " ,.;:") + "…"
+}
+
+// previewBodyMarkdown is markdown without its heading lines and table rows,
+// each left as a blank line so the paragraphs around it stay apart. Fenced code
+// is kept as it is.
+func previewBodyMarkdown(markdown string) string {
+	lines := strings.Split(markdown, "\n")
+	fenced := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			fenced = !fenced
+			continue
+		}
+		if !fenced && (mdHeading.MatchString(line) || strings.HasPrefix(trimmed, "|")) {
+			lines[i] = ""
+		}
+	}
+	return strings.Join(lines, "\n")
 }

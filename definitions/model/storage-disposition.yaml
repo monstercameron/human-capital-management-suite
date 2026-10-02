@@ -230,6 +230,15 @@ migrationfiles:
   - 00716_agent_task_event_evidence.sql
   - 00717_agent_delegation_target_identity.sql
   - 00718_agent_current_home_organization.sql
+  - 00719_agent_task_last_wake.sql
+  - 00721_agent_owner_operations.sql
+  - 00722_agent_memory.sql
+  - 00723_agent_specialist_lineage.sql
+  - 00724_agent_budget_lineage.sql
+  - 00725_agent_task_paused_execution.sql
+  - 00726_agent_specialist_admission_binding.sql
+  - 00727_worker_onboarding_snapshot.sql
+  - 00730_agent_schedule_source.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

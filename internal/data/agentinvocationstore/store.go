@@ -98,8 +98,10 @@ func (s *Store) ListPersonaInvocations(ctx context.Context, tenant, invoker, con
 	return out, err
 }
 
-// Claim durably claims one post/persona pair. A replay returns the original
-// row; a replay with changed authority or identity fails closed.
+// Claim durably claims one post/persona invocation. A replay returns the
+// original row; a replay with changed authority or identity fails closed. A
+// retry of the post is another invocation of the same pair, named by its own
+// identifier (CHATBUG-047).
 func (s *Store) Claim(ctx context.Context, candidate agentinvoke.Invocation) (agentinvoke.Invocation, bool, error) {
 	if err := validate(candidate); err != nil {
 		return agentinvoke.Invocation{}, false, err
@@ -120,7 +122,7 @@ func (s *Store) Claim(ctx context.Context, candidate agentinvoke.Invocation) (ag
 	created := false
 	err = s.db.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
 		var rawSkills, rawActor, rawGrant string
-		err := tx.QueryRow(ctx, `SELECT invocation_id,tenant_id::text,conversation_id,thread_id,post_id,invoker_id,persona_id,persona_version,installation_id,mode,skills::text,actor::text,state,COALESCE(grant_payload::text,'') FROM persona_invocations WHERE tenant_id=$1 AND post_id=$2 AND persona_id=$3`, tenantID, candidate.PostID, candidate.PersonaID).Scan(&out.ID, &out.TenantID, &out.ConversationID, &out.ThreadID, &out.PostID, &out.InvokerID, &out.PersonaID, &out.PersonaVersion, &out.InstallationID, &out.Mode, &rawSkills, &rawActor, &out.State, &rawGrant)
+		err := tx.QueryRow(ctx, `SELECT invocation_id,tenant_id::text,conversation_id,thread_id,post_id,invoker_id,persona_id,persona_version,installation_id,mode,skills::text,actor::text,state,COALESCE(grant_payload::text,'') FROM persona_invocations WHERE tenant_id=$1 AND post_id=$2 AND persona_id=$3 AND invocation_id=$4`, tenantID, candidate.PostID, candidate.PersonaID, candidate.ID).Scan(&out.ID, &out.TenantID, &out.ConversationID, &out.ThreadID, &out.PostID, &out.InvokerID, &out.PersonaID, &out.PersonaVersion, &out.InstallationID, &out.Mode, &rawSkills, &rawActor, &out.State, &rawGrant)
 		if errors.Is(err, dbport.ErrNoRows) {
 			_, err = tx.Exec(ctx, `INSERT INTO persona_invocations (tenant_id,invocation_id,conversation_id,thread_id,post_id,invoker_id,persona_id,persona_version,installation_id,mode,skills,actor,owner_id,state) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$6,'CLAIMED')`, tenantID, candidate.ID, candidate.ConversationID, candidate.ThreadID, candidate.PostID, candidate.InvokerID, candidate.PersonaID, candidate.PersonaVersion, candidate.InstallationID, candidate.Mode, string(skills), string(actor))
 			if err != nil {

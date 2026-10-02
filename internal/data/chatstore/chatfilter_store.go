@@ -147,8 +147,9 @@ func (s *FilterStore) SearchHitRecords(ctx context.Context, tenantID, query, cha
 	return out, err
 }
 
-// Flag and notification requests are already committed in chat_filter_hit.
-// This port acknowledges the durable record; a worker can deliver it later.
+// A flagged hit is delivered by being in chat_filter_hit: the moderation queue
+// reads it from there. A "notify" hit is told to the managers of the channel
+// the filter names (chatmod003_notify.go).
 func (s *FilterStore) DeliverFilterHit(ctx context.Context, r chatfilter.Record) error {
 	if s == nil || s.Store == nil {
 		return chatfilter.ErrUnavailable
@@ -159,7 +160,10 @@ func (s *FilterStore) DeliverFilterHit(ctx context.Context, r chatfilter.Record)
 	if r.Tenant == "" || r.Hit.RuleID == "" {
 		return chatfilter.ErrInvalid
 	}
-	return nil
+	if r.Hit.Action != "notify" {
+		return nil
+	}
+	return s.notifyFilterTarget(ctx, r)
 }
 
 var _ chatfilter.Store = (*FilterStore)(nil)

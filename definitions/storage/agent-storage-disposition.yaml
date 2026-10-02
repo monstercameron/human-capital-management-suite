@@ -42,6 +42,16 @@ sources:
   - internal/data/agentstore/migrations/00035_agent_immutable_contract.sql
   - internal/data/agentstore/migrations/00036_persona_model_route_deployment.sql
   - internal/data/agentstore/migrations/00037_persona_candidate_model_calls.sql
+  - internal/data/agentstore/migrations/00038_agent_run_failure_refusal.sql
+  - internal/data/agentstore/migrations/00039_persona_answer_feedback.sql
+  - internal/data/agentstore/migrations/00040_agent_announcements.sql
+  - internal/data/agentstore/migrations/00041_announcement_admission.sql
+  - internal/data/agentstore/migrations/00042_persona_invocation_recovery.sql
+  - internal/data/agentstore/migrations/00043_agentux_demo_support_inbox.sql
+  - internal/data/agentstore/migrations/00044_agentux_demo_effects.sql
+  - internal/data/agentstore/migrations/00045_agentux_demo_sources.sql
+  - internal/data/agentstore/migrations/00046_agentux_demo_project_grant.sql
+  - internal/data/agentstore/migrations/00049_agentux_reaction_setting.sql
 
 defaults:
   plane: AGENT_DATA
@@ -677,3 +687,135 @@ tables:
     owner_package: internal/data/agentstore
     tenant_scoping_column: tenant_id
     append_only: true
+  - table: persona_answer_feedback
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00039_persona_answer_feedback.sql
+    owner_package: internal/data/agentinvocationstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: persona_answer_feedback_request
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00039_persona_answer_feedback.sql
+    owner_package: internal/data/agentinvocationstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_announcement
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00040_agent_announcements.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_announcement_occurrence
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00040_agent_announcements.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_announcement_command
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00040_agent_announcements.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: support_inbox_message
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00043_agentux_demo_support_inbox.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_profile_birthday_preference
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00043_agentux_demo_support_inbox.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: support_effect_reservation
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00044_agentux_demo_effects.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: support_run_plan
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00044_agentux_demo_effects.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: support_project_grant
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00046_agentux_demo_project_grant.sql
+    owner_package: internal/data/agentstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: persona_reaction_setting
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00049_agentux_reaction_setting.sql
+    owner_package: internal/data/agentinvocationstore
+    tenant_scoping_column: tenant_id
+    append_only: false

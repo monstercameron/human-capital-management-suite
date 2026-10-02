@@ -27,6 +27,8 @@ func TestTodo_CHATSCALE_002_Integration_Send(t *testing.T) {
 		if err := tx.QueryRow(ctx, `SELECT body,source_language FROM chat_post_revision WHERE tenant_id=$1 AND post_id=$2 AND revision=1`, req.TenantID, post.ID).Scan(&body, &language); err != nil {
 			return err
 		}
+		// A plain append moves the head but not the history revision: only edits,
+		// removals and deletions invalidate cached badges (migration 00046).
 		var head, generation, events, keys int
 		if err := tx.QueryRow(ctx, `SELECT post_sequence,chatscale_history_revision,
  (SELECT count(*) FROM chat_outbox WHERE tenant_id=$1 AND aggregate_id=$2 AND event_type='post.created'),
@@ -34,7 +36,7 @@ func TestTodo_CHATSCALE_002_Integration_Send(t *testing.T) {
  FROM chat_conversation WHERE tenant_id=$1 AND id='c-1'`, req.TenantID, post.ID).Scan(&head, &generation, &events, &keys); err != nil {
 			return err
 		}
-		if body != req.Body || language == "" || head != 1 || generation != 1 || events != 1 || keys != 1 {
+		if body != req.Body || language == "" || head != 1 || generation != 0 || events != 1 || keys != 1 {
 			return fmt.Errorf("body=%q language=%q head=%d generation=%d events=%d keys=%d", body, language, head, generation, events, keys)
 		}
 		return nil

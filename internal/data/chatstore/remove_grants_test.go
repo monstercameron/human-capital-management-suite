@@ -13,7 +13,7 @@ import (
 // the action (seen for the saved list, then found for reactions and pins).
 func TestStoreDeletesAreGrantedToServingRoles(t *testing.T) {
 	granted := map[string]bool{}
-	for _, name := range []string{"00028_chatsave_remove_grant.sql", "00030_chat_runtime_remove_grants.sql"} {
+	for _, name := range []string{"00028_chatsave_remove_grant.sql", "00030_chat_runtime_remove_grants.sql", "00040_chatcmd002_card_votes.sql"} {
 		raw, err := os.ReadFile(filepath.Join("migrations", name))
 		if err != nil {
 			t.Fatal(err)

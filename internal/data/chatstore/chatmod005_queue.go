@@ -388,6 +388,52 @@ func (s *ModeratedAdapter) ModerationTarget(ctx context.Context, p chat.Principa
 	return post, err
 }
 
+// ModerationCaseConversation names the conversation a queue item is about,
+// open or resolved, for someone who holds a moderation permission there. To
+// anyone else the item does not exist. The routing layer uses it to take the
+// conversation's write lease before a resolved item's message is restored.
+func (s *ModeratedAdapter) ModerationCaseConversation(ctx context.Context, p chat.Principal, t, id string) (string, error) {
+	if p.TenantID != t || p.SubjectID == "" {
+		return "", chat.ErrPermissionDenied
+	}
+	var conversation string
+	err := s.removalTx(ctx, t, func(tx dbport.Tx) error {
+		var err error
+		switch {
+		case strings.HasPrefix(id, "report:"):
+			err = tx.QueryRow(ctx, `SELECT conversation_id FROM chat_moderation_report WHERE tenant_id=$1 AND report_id=$2`, t, strings.TrimPrefix(id, "report:")).Scan(&conversation)
+		case strings.HasPrefix(id, "removal:"):
+			err = tx.QueryRow(ctx, `SELECT conversation_id FROM chat_admin_removal WHERE tenant_id=$1 AND post_id=$2`, t, strings.TrimPrefix(id, "removal:")).Scan(&conversation)
+		default:
+			return chat.ErrNotFound
+		}
+		if errors.Is(err, dbport.ErrNoRows) {
+			return chat.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		reviewErr := moderationPermission(ctx, tx, p, t, conversation, chat.PermissionReviewRemovedMessages)
+		if reviewErr == nil {
+			return nil
+		}
+		if !errors.Is(reviewErr, chat.ErrPermissionDenied) {
+			return reviewErr
+		}
+		if removeErr := moderationPermission(ctx, tx, p, t, conversation, chat.PermissionRemoveMessages); removeErr != nil {
+			if errors.Is(removeErr, chat.ErrPermissionDenied) {
+				return chat.ErrNotFound
+			}
+			return removeErr
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return conversation, nil
+}
+
 // moderationQueryState reads the state a queue read asks for out of its query:
 // no query is the open items, "state:closed" is the resolved ones, and any other
 // text searches every item, open or resolved, for that text.
@@ -452,7 +498,11 @@ func (s *ModeratedAdapter) decideModeration(ctx context.Context, tx dbport.Tx, p
 	if reviewErr != nil && removeErr != nil {
 		return chat.ErrPermissionDenied
 	}
-	if c.State != "OPEN" {
+	// A decided item is decided once. Restore is the way back from a removal
+	// and is offered on resolved items for thirty days: it runs on a closed
+	// item whose message is still removed, and removalCandidates refuses it
+	// (a conflict) once the message is back or the thirty days are over.
+	if c.State != "OPEN" && action != "restore" {
 		return chat.ErrConflict
 	}
 	var message chat.Post
@@ -511,7 +561,13 @@ func (s *ModeratedAdapter) decideModeration(ctx context.Context, tx dbport.Tx, p
 		return err
 	}
 	if c.Reporter != "" {
-		if err := moderationNotice(ctx, tx, t, "outcome:"+c.ID, c.Conversation, c.Post, c.ReporterHome, c.Reporter, reason, action, at); err != nil {
+		// The author who asked for a review reads the decision's own words. Anyone
+		// else who raised the item reads the outcome without the note to the author.
+		told := reason
+		if c.Reporter != message.AuthorID || c.ReporterHome != message.AuthorHomeTenantID {
+			told = reporterOutcomeReason(action, reason)
+		}
+		if err := moderationNotice(ctx, tx, t, "outcome:"+c.ID, c.Conversation, c.Post, c.ReporterHome, c.Reporter, told, action, at); err != nil {
 			return err
 		}
 	}
@@ -526,6 +582,24 @@ func (s *ModeratedAdapter) decideModeration(ctx context.Context, tx dbport.Tx, p
 		return err
 	}
 	return emitAdapterEvent(ctx, tx, t, c.Conversation, "moderation.resolved", p.TenantID, p.SubjectID, c.Post, message.Revision, map[string]string{"CaseID": c.ID, "Action": action, "ActorID": p.SubjectID, "Reason": reason})
+}
+
+// reporterOutcomeReason is what a person who reported a message is told with
+// the outcome. What a moderator writes to the author is the author's: the
+// dialog says "Only {name} sees this", and the reporter's notice used to carry
+// it word for word. The reporter reads the action, the reason chosen from the
+// list when the message was removed, and the explanation of a dismissal.
+func reporterOutcomeReason(action, reason string) string {
+	switch action {
+	case "remove":
+		if code := strings.SplitN(reason, " — ", 2)[0]; chat.ValidRemovalReason(code) {
+			return code
+		}
+		return "policy_violation"
+	case "dismiss":
+		return reason
+	}
+	return ""
 }
 
 // closeOpenReports closes the other open items about a message once it has been
@@ -558,7 +632,7 @@ func closeOpenReports(ctx context.Context, tx dbport.Tx, p chat.Principal, t, ci
 		}
 		// A restore tells the author itself; the appeal needs no second notice.
 		if o.reporter != "" && action != "restore" {
-			if err = moderationNotice(ctx, tx, t, "outcome:report:"+o.id, cid, post, o.home, o.reporter, reason, action, at); err != nil {
+			if err = moderationNotice(ctx, tx, t, "outcome:report:"+o.id, cid, post, o.home, o.reporter, reporterOutcomeReason(action, reason), action, at); err != nil {
 				return err
 			}
 		}

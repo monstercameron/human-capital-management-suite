@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
@@ -88,11 +89,18 @@ func (s *Store) chatDisclosureClass(ctx context.Context, tenantID, homeTenantID,
 			return ErrAudienceEligibilityUnavailable
 		}
 		var body, digest string
-		if err := tx.QueryRow(ctx, `SELECT p.body,c.body_digest,c.data_class FROM chat_post p JOIN chat_persona_source_classification c ON c.tenant_id=p.tenant_id AND c.conversation_id=p.conversation_id AND c.post_id=p.id WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.id=$3 AND NOT p.tombstoned`, tenantID, conversationID, postID).Scan(&body, &digest, &class); err != nil {
+		var located bool
+		if err := tx.QueryRow(ctx, `SELECT p.body,c.body_digest,c.data_class,EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='LOCATION') FROM chat_post p JOIN chat_persona_source_classification c ON c.tenant_id=p.tenant_id AND c.conversation_id=p.conversation_id AND c.post_id=p.id WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.id=$3 AND NOT p.tombstoned`, tenantID, conversationID, postID).Scan(&body, &digest, &class, &located); err != nil {
 			return err
 		}
 		if !class.Valid() || digest != expectedDigest || publicChatBodyDigest(body) != digest {
 			return ErrAudienceChanged
+		}
+		// A shared location is special-category data whatever the words say, and
+		// it can be attached after the text was classified, so it is applied here
+		// where every disclosure reads the class.
+		if located {
+			class = dlp.DataClass(chat.LocationDLPClass)
 		}
 		if subjectID != "" {
 			var readable bool

@@ -44,7 +44,9 @@ func TestAgentUXIcon_Generated(t *testing.T) {
 	ctx := context.Background()
 	a := createIconDraft(t, s, "a")
 	b := createIconDraft(t, s, "b")
-	if a.Value.Glyph != "book" || a.Revision != 1 || a.Value == b.Value || a.Value.Shape == b.Value.Shape && a.Value.Foreground == b.Value.Foreground {
+	// Two agents with the same name and instructions are told apart by their
+	// picture: the second takes the next glyph nobody in the workspace uses.
+	if a.Value.Glyph != "book" || a.Revision != 1 || a.Value == b.Value || a.Value.Glyph == b.Value.Glyph || !b.Value.Valid() {
 		t.Fatal("generation/collision failed", a, b)
 	}
 	if err := s.PutVersion(ctx, version(s.tenant, "a", 2)); err != nil {
@@ -165,13 +167,23 @@ func TestAgentUXIcon_Generated_Security(t *testing.T) {
 func TestAgentUXIcon_Generated_Backfill(t *testing.T) {
 	f, s := iconFixture(t)
 	ctx := context.Background()
-	for _, id := range []string{"one", "two", "three"} {
-		if err := s.PutVersion(ctx, version(s.tenant, id, 1)); err != nil {
-			t.Fatal(err)
-		}
+	// Every store write now gives a new agent its icon, so the rows a backfill
+	// exists for are the ones written before the icon tables: seed them as the
+	// table owner, the way they were stored then.
+	seed := func(id string, n int64) {
+		t.Helper()
+		v := version(s.tenant, id, n)
+		f.db.Exec(t, `INSERT INTO persona_versions
+			(tenant_id,persona_id,version,agent_version,handle,display_name,profile,content_digest,created_at)
+			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)`,
+			f.ids[s.tenant], v.PersonaID, v.Version, v.AgentVersion, v.Handle, v.DisplayName, string(v.Profile), v.ContentDigest, v.CreatedAt)
 	}
-	if err := s.PutVersion(ctx, version(s.tenant, "one", 2)); err != nil {
-		t.Fatal(err)
+	for _, id := range []string{"one", "two", "three"} {
+		seed(id, 1)
+	}
+	seed("one", 2)
+	if _, err := s.GetIcon(ctx, "one"); !errors.Is(err, ErrNotFound) {
+		t.Fatal("seeded agent already has an icon", err)
 	}
 	if count, err := s.BackfillIcons(ctx, "preparation", f.when); err != nil || count != 3 {
 		t.Fatal("backfill", count, err)
@@ -218,7 +230,7 @@ func TestAgentUXIcon_Generated_Property(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, err := s.GetIcon(ctx, "second")
-	if err != nil || a.Value.Shape == b.Value.Shape && a.Value.Foreground == b.Value.Foreground {
+	if err != nil || a.Value.Glyph == b.Value.Glyph {
 		t.Fatal("concurrent collision", a, b, err)
 	}
 	// The draft writer's rollback must also remove the profile and owner rows.

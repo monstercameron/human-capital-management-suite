@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatgate"
@@ -203,6 +204,142 @@ func (r *GateRepository) Transact(ctx context.Context, scope chatgate.Scope, fn 
 		_, e = tx.Exec(ctx, `INSERT INTO chat_gate_state(tenant_id,conversation_id,revision,state_json) VALUES($1,$2,$3,$4) ON CONFLICT(tenant_id,conversation_id) DO UPDATE SET revision=excluded.revision,state_json=excluded.state_json`, scope.Tenant, scope.Conversation, t.state.Gate.Revision, b)
 		return e
 	})
+}
+
+// GateInForce reports whether a conversation has a gate that joining must
+// satisfy: one with a published version that is neither paused nor retired.
+// It is one read with no lock, for the membership path: every add to every
+// conversation asks it, and almost none of them has a gate.
+func (r *GateRepository) GateInForce(ctx context.Context, scope chatgate.Scope) (bool, error) {
+	if r == nil || r.Store == nil || scope.Tenant == "" || scope.Conversation == "" {
+		return false, chatgate.ErrInvalid
+	}
+	inForce := false
+	err := r.Store.RunTenantTx(ctx, scope.Tenant, func(tx dbport.Tx) error {
+		var payload []byte
+		if e := tx.QueryRow(ctx, `SELECT state_json FROM chat_gate_state WHERE tenant_id=$1 AND conversation_id=$2`, scope.Tenant, scope.Conversation).Scan(&payload); e != nil {
+			if errors.Is(e, dbport.ErrNoRows) {
+				return nil
+			}
+			return e
+		}
+		var state chatgate.State
+		if e := json.Unmarshal(payload, &state); e != nil {
+			return e
+		}
+		inForce = state.Gate.Current != "" && state.Gate.State != "paused" && state.Gate.State != "retired"
+		return nil
+	})
+	return inForce, err
+}
+
+// GateSummary is what a person is told about a gate before they open it: how
+// many questions joining takes and what the gate and the channel are for, and,
+// for a member, whether the questions changed since they answered.
+type GateSummary struct {
+	Conversation string `json:"conversation"`
+	Questions    int    `json:"questions"`
+	// Purpose is the gate's own stated purpose; ChannelPurpose the channel's.
+	Purpose        string `json:"purpose,omitempty"`
+	ChannelPurpose string `json:"channel_purpose,omitempty"`
+	// Mode is how answers admit: "automatic", "rule" or "review".
+	Mode string `json:"mode"`
+	// Member is true for a current member. AnswerAgain is true for a member
+	// whose accepted answers are for an earlier major version; AnswerBy is the
+	// date the current version gives them.
+	Member      bool      `json:"member,omitempty"`
+	AnswerAgain bool      `json:"answer_again,omitempty"`
+	AnswerBy    time.Time `json:"answer_by,omitempty"`
+}
+
+// GateSummaries lists the gates in force that one person may know of: those of
+// public channels, which anyone in the workspace finds in Browse, and those of
+// the channels the person is in. It reads the questions' count and the stated
+// purposes and nothing of anybody's answers.
+func (r *GateRepository) GateSummaries(ctx context.Context, tenant, person string) ([]GateSummary, error) {
+	if r == nil || r.Store == nil || tenant == "" || person == "" {
+		return nil, chatgate.ErrInvalid
+	}
+	out := []GateSummary{}
+	err := r.Store.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+		rows, e := tx.Query(ctx, `SELECT g.conversation_id,g.state_json,COALESCE(w.payload_json,'{}'::jsonb),m.member_id IS NOT NULL FROM chat_gate_state g JOIN chat_conversation c ON c.tenant_id=g.tenant_id AND c.id=g.conversation_id LEFT JOIN chat_channel_widget w ON w.tenant_id=g.tenant_id AND w.conversation_id=g.conversation_id AND w.kind='TEAM' LEFT JOIN chat_membership m ON m.tenant_id=g.tenant_id AND m.conversation_id=g.conversation_id AND m.home_tenant_id=g.tenant_id AND m.member_id=$2 AND m.state='active' WHERE g.tenant_id=$1 AND c.lifecycle<>'ARCHIVED' AND c.kind IN ('PUBLIC_CHANNEL','PRIVATE_CHANNEL') AND (c.kind='PUBLIC_CHANNEL' OR m.member_id IS NOT NULL) ORDER BY g.conversation_id LIMIT 500`, tenant, person)
+		if e != nil {
+			return e
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var summary GateSummary
+			var state, widget []byte
+			if e = rows.Scan(&summary.Conversation, &state, &widget, &summary.Member); e != nil {
+				return e
+			}
+			var gate chatgate.State
+			if json.Unmarshal(state, &gate) != nil {
+				continue
+			}
+			if gate.Gate.Current == "" || gate.Gate.State == "paused" || gate.Gate.State == "retired" {
+				continue
+			}
+			live, e := chatgate.ParseVersion(gate.Gate.Current)
+			if e != nil {
+				continue
+			}
+			for _, d := range gate.Gate.Versions {
+				if d.Version.String() == gate.Gate.Current {
+					summary.Questions, summary.Purpose, summary.Mode, summary.AnswerBy = len(d.Fields), d.Purpose, d.Mode, d.AnswerBy
+				}
+			}
+			var team teamPayload
+			if json.Unmarshal(widget, &team) == nil {
+				summary.ChannelPurpose = team.Purpose
+			}
+			if summary.Member {
+				// A member answers again when what admitted them, their answers or
+				// an administrator's override, is for an earlier major version.
+				current := false
+				for _, sub := range gate.Submissions {
+					accepted, e := chatgate.ParseVersion(sub.Version)
+					current = current || (sub.Person == person && sub.Status == "admitted" && e == nil && accepted.Major == live.Major)
+				}
+				for _, override := range gate.Overrides {
+					current = current || (override.Person == person && override.Version == gate.Gate.Current)
+				}
+				summary.AnswerAgain = !current && live.Major > 1
+			}
+			if !summary.AnswerAgain {
+				summary.AnswerBy = time.Time{}
+			}
+			out = append(out, summary)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// GatePurpose is the purpose a channel's managers wrote for it (the Team
+// widget's purpose), "" when they wrote none. The caller decides who may read
+// it; nothing else of the channel is read.
+func (r *GateRepository) GatePurpose(ctx context.Context, scope chatgate.Scope) (string, error) {
+	if r == nil || r.Store == nil || scope.Tenant == "" || scope.Conversation == "" {
+		return "", chatgate.ErrInvalid
+	}
+	purpose := ""
+	err := r.Store.RunTenantTx(ctx, scope.Tenant, func(tx dbport.Tx) error {
+		var payload []byte
+		if e := tx.QueryRow(ctx, `SELECT payload_json FROM chat_channel_widget WHERE tenant_id=$1 AND conversation_id=$2 AND kind='TEAM'`, scope.Tenant, scope.Conversation).Scan(&payload); e != nil {
+			if errors.Is(e, dbport.ErrNoRows) {
+				return nil
+			}
+			return e
+		}
+		var team teamPayload
+		if e := json.Unmarshal(payload, &team); e != nil {
+			return e
+		}
+		purpose = team.Purpose
+		return nil
+	})
+	return purpose, err
 }
 
 // GateMembership shares the existing membership event and audience transaction.

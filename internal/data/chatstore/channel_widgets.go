@@ -92,14 +92,15 @@ func (s *Store) ChannelWidgets(ctx context.Context, host, home, conversation, su
 		return out, chat.ErrInvalidArgument
 	}
 	err := s.RunTenantTx(ctx, host, func(tx dbport.Tx) error {
-		manager, err := channelTodoMember(ctx, tx, host, home, conversation, subject, true)
+		manager, active, err := channelTodoReader(ctx, tx, host, home, conversation, subject)
 		if err != nil {
 			return err
 		}
 		if err := channelTodoPolicyFence(ctx, tx, host, conversation, authorize); err != nil {
 			return err
 		}
-		return loadChannelWidgets(ctx, tx, host, conversation, manager, &out)
+		// Pinning is a change, so only an active channel's manager is offered it.
+		return loadChannelWidgets(ctx, tx, host, conversation, manager && active, &out)
 	})
 	return out, err
 }

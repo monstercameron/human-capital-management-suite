@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatlang"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrender"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
@@ -286,7 +287,7 @@ func (s *Store) ChatlangJobFacts(ctx context.Context, tenant, post string, revis
 func (s *Store) ChatlangPreviousBodies(ctx context.Context, tenant, post string, n int) ([]string, error) {
 	var out []string
 	err := s.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT q.body FROM (SELECT p.body,p.sequence FROM chat_post p JOIN chat_post me ON me.tenant_id=p.tenant_id AND me.conversation_id=p.conversation_id AND me.id=$2 WHERE p.tenant_id=$1 AND p.sequence<me.sequence AND NOT p.tombstoned ORDER BY p.sequence DESC LIMIT $3) q ORDER BY q.sequence`, tenant, post, n)
+		rows, err := tx.Query(ctx, `SELECT q.body FROM (SELECT p.body,p.sequence FROM chat_post p JOIN chat_post me ON me.tenant_id=p.tenant_id AND me.conversation_id=p.conversation_id AND me.id=$2 WHERE p.tenant_id=$1 AND p.sequence<me.sequence AND NOT p.tombstoned AND NOT starts_with(p.body,$4) ORDER BY p.sequence DESC LIMIT $3) q ORDER BY q.sequence`, tenant, post, n, chat.MembershipAddedMarker)
 		if err != nil {
 			return err
 		}
@@ -339,8 +340,8 @@ func chatlangEagerReadersTx(ctx context.Context, tx dbport.Tx, tenant, post, sou
 	if err := tx.QueryRow(ctx, `SELECT to_regclass('chatlang_setting') IS NOT NULL`).Scan(&present); err != nil || !present {
 		return nil, err
 	}
-	var conversation string
-	if err := tx.QueryRow(ctx, `SELECT conversation_id FROM chat_post WHERE tenant_id=$1 AND id=$2`, tenant, post).Scan(&conversation); err != nil {
+	var conversation, author, authorHome string
+	if err := tx.QueryRow(ctx, `SELECT conversation_id,author_id,author_home_tenant_id FROM chat_post WHERE tenant_id=$1 AND id=$2`, tenant, post).Scan(&conversation, &author, &authorHome); err != nil {
 		return nil, err
 	}
 	workspace, err := chatlangReadWorkspaceTx(ctx, tx, tenant)
@@ -359,7 +360,7 @@ func chatlangEagerReadersTx(ctx context.Context, tx dbport.Tx, tenant, post, sou
 	if err != nil || spent >= workspace.Budget() {
 		return nil, err
 	}
-	rows, err := tx.Query(ctx, `SELECT pref.value FROM chat_membership m JOIN LATERAL (SELECT p.value FROM chat_preference p WHERE p.tenant_id=m.tenant_id AND p.home_tenant_id=m.home_tenant_id AND p.member_id=m.member_id AND p.marker=$3 AND p.conversation_id IN ('',m.conversation_id) ORDER BY (p.conversation_id=m.conversation_id) DESC LIMIT 1) pref ON true WHERE m.tenant_id=$1 AND m.conversation_id=$2 AND m.state='active' AND m.home_tenant_id=m.tenant_id`, tenant, conversation, chatrenderLanguageMarker)
+	rows, err := tx.Query(ctx, `SELECT pref.value FROM chat_membership m JOIN LATERAL (SELECT p.value FROM chat_preference p WHERE p.tenant_id=m.tenant_id AND p.home_tenant_id=m.home_tenant_id AND p.member_id=m.member_id AND p.marker=$3 AND p.conversation_id IN ('',m.conversation_id) ORDER BY (p.conversation_id=m.conversation_id) DESC LIMIT 1) pref ON true WHERE m.tenant_id=$1 AND m.conversation_id=$2 AND m.state='active' AND m.home_tenant_id=m.tenant_id AND NOT (m.member_id=$4 AND m.home_tenant_id=COALESCE(NULLIF($5,''),m.tenant_id))`, tenant, conversation, chatrenderLanguageMarker, author, authorHome)
 	if err != nil {
 		return nil, err
 	}

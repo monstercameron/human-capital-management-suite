@@ -20,6 +20,32 @@ type mergedChatEvent struct {
 	created time.Time
 }
 
+// chatstateStatusChangedEvent is the outbox event type chatstateEvent writes
+// when a channel is locked, archived, reopened or made announcements only.
+const chatstateStatusChangedEvent = "conversation.status_changed"
+
+// statusChangedConversation reads the conversation a status change belongs to,
+// as it is now. The outbox row of a status change carries the status alone; a
+// watcher is sent the whole conversation so the update cannot blank its name
+// or kind on the page.
+func statusChangedConversation(ctx context.Context, tx dbport.Tx, tenantID, conversationID string) (chat.Conversation, error) {
+	query, err := chatscaleActivityQuery(ctx, tx, getConversationRow)
+	if err != nil {
+		return chat.Conversation{}, err
+	}
+	var c chat.Conversation
+	var kind, life string
+	var rev, members int64
+	if err = tx.QueryRow(ctx, query, tenantID, conversationID).Scan(&c.ID, &c.TenantID, &kind, &c.Name, &c.OwnerID, &rev, &life, &members, &c.LastActivityAt); err != nil {
+		return chat.Conversation{}, err
+	}
+	c.Kind = chat.ConversationKind(kind)
+	c.Revision = uint64(rev)
+	c.Archived = life == "ARCHIVED"
+	c.MemberCount = uint32(members)
+	return c, nil
+}
+
 func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.WatchConversationRequest, after uint64, limit int) (EventPage, error) {
 	if s == nil || s.pool == nil || request.TenantID == "" || request.ConversationID == "" || request.Principal.TenantID == "" || request.Principal.SubjectID == "" || after > uint64(^uint64(0)>>1) {
 		return EventPage{}, chat.ErrInvalidArgument
@@ -83,6 +109,9 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 	}
 	defer rows.Close()
 	page := EventPage{Events: make([]chat.WatchEvent, 0, limit), EphemeralPosts: make([]chat.EphemeralPost, 0, 1), NextOffset: after}
+	// statusChanges holds the positions in page.Events of status changes. Their
+	// conversation value is read once after the rows are closed.
+	var statusChanges []int
 	scanned := 0
 	for rows.Next() {
 		scanned++
@@ -121,6 +150,12 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 			event.Kind = chat.PostDeleted
 		case "conversation.created", "conversation.updated":
 			event.Kind = chat.ConversationUpdated
+		case chatstateStatusChangedEvent:
+			// CHATBUG-075: a status change (locked, archived, announcements only)
+			// used to be dropped here, so another person's open page learned of it
+			// only by polling. It is delivered as a conversation update; the page
+			// re-reads its own permissions when it sees one.
+			event.Kind = chat.ConversationUpdated
 		case "membership.added", "membership.removed":
 			event.Kind = chat.MembershipChanged
 			event.Removed = row.kind == "membership.removed"
@@ -154,6 +189,11 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 			event.Revision = envelope.Revision
 			switch event.Kind {
 			case chat.ConversationUpdated:
+				if row.kind == chatstateStatusChangedEvent {
+					// The envelope holds the status, not the conversation.
+					statusChanges = append(statusChanges, len(page.Events))
+					break
+				}
 				var value chat.Conversation
 				if err = json.Unmarshal(envelope.Value, &value); err != nil {
 					return EventPage{}, err
@@ -191,6 +231,17 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 		return EventPage{}, err
 	}
 	page.Complete = scanned < limit
+	if len(statusChanges) > 0 {
+		rows.Close()
+		current, readErr := statusChangedConversation(ctx, tx, request.TenantID, request.ConversationID)
+		if readErr != nil {
+			return EventPage{}, readErr
+		}
+		for _, at := range statusChanges {
+			value := current
+			page.Events[at].Event.Conversation = &value
+		}
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return EventPage{}, err
 	}

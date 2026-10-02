@@ -26,7 +26,7 @@ func validFailureCode(code string, retryable bool) bool {
 	switch code {
 	case "MODEL_UNAVAILABLE", "ADMISSION_UNAVAILABLE", "EXECUTION_UNAVAILABLE", "ANSWER_INTERRUPTED":
 		return true
-	case "OUTPUT_REJECTED", "DELIVERY_FAILED", "ADMISSION_REFUSED", "INVOCATION_FAILED":
+	case "OUTPUT_REJECTED", "DELIVERY_FAILED", "ADMISSION_REFUSED", "INVOCATION_FAILED", "DAILY_LIMIT_REACHED":
 		return !retryable
 	default:
 		return false

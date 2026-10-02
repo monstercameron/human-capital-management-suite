@@ -119,7 +119,7 @@ func moderationPermission(ctx context.Context, tx dbport.Tx, p chat.Principal, t
 		return err
 	}
 	for _, r := range roles {
-		allowed := r == "WORKSPACE_ADMIN" || (r == string(chat.Manager) && permission == chat.PermissionRemoveMessages) || (r == role && role != "" && permission == chat.PermissionReport)
+		allowed := chat.DefaultModerationPermission(r, r == role && role != "", permission)
 		var override bool
 		err = tx.QueryRow(ctx, `SELECT allowed FROM chat_moderation_permission WHERE tenant_id=$1 AND role=$2 AND permission=$3 AND conversation_id IN ('',$4) ORDER BY conversation_id DESC LIMIT 1 FOR SHARE`, t, r, permission, cid).Scan(&override)
 		if err == nil {

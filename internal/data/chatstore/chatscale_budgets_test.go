@@ -50,8 +50,10 @@ func TestTodo_CHATSCALE_002(t *testing.T) {
 		if err := tx.QueryRow(context.Background(), `SELECT count(*) FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND c.relname LIKE 'chatscale_%' AND i.indisvalid`).Scan(&valid); err != nil {
 			return err
 		}
-		if valid != 12 {
-			return fmt.Errorf("valid hot-read indexes=%d want 12 including read-state primary key", valid)
+		// Twelve from migrations 00034 to 00038, with the read-state primary key,
+		// and the two partial indexes of 00046 behind the first-open count.
+		if valid != 14 {
+			return fmt.Errorf("valid hot-read indexes=%d want 14 including read-state primary key", valid)
 		}
 		return nil
 	})

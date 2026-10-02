@@ -1061,6 +1061,12 @@ func (s *Adapter) GetReadState(ctx context.Context, t, cid, home, mid string) (c
 	return x, tx.Commit(ctx)
 }
 func (s *Adapter) PutReadState(ctx context.Context, x chat.ReadState, expected uint64) (chat.ReadState, error) {
+	return s.putReadState(ctx, x, expected, false)
+}
+
+// putReadState moves a member's read position: forward only (GREATEST), or,
+// for a rewind, back only (LEAST). See RewindReadState.
+func (s *Adapter) putReadState(ctx context.Context, x chat.ReadState, expected uint64, rewind bool) (chat.ReadState, error) {
 	if expected == 0 || x.LastReadSequence > math.MaxInt64 {
 		return x, chat.ErrInvalidArgument
 	}
@@ -1086,10 +1092,15 @@ func (s *Adapter) PutReadState(ctx context.Context, x chat.ReadState, expected u
 	if x.LastReadSequence > uint64(maxVisible) {
 		return x, chat.ErrInvalidArgument
 	}
+	update, first := chatReadAdvanceSQL, x.LastReadSequence
+	if rewind {
+		// A member with no cursor has read nothing, and a rewind leaves it so.
+		update, first = chatReadRewindSQL, 0
+	}
 	var seq, rev int64
-	err = tx.QueryRow(ctx, `UPDATE chat_cursor SET last_sequence=GREATEST(last_sequence,$1),revision=revision+1,updated_at=now() WHERE tenant_id=$2 AND conversation_id=$3 AND home_tenant_id=$4 AND member_id=$5 AND revision=$6 RETURNING last_sequence,revision`, x.LastReadSequence, x.TenantID, x.ConversationID, x.HomeTenantID, x.SubjectID, expected).Scan(&seq, &rev)
+	err = tx.QueryRow(ctx, update, x.LastReadSequence, x.TenantID, x.ConversationID, x.HomeTenantID, x.SubjectID, expected).Scan(&seq, &rev)
 	if errors.Is(err, dbport.ErrNoRows) && expected == 1 {
-		err = tx.QueryRow(ctx, `INSERT INTO chat_cursor(tenant_id,home_tenant_id,member_id,conversation_id,last_sequence,revision) VALUES($1,$2,$3,$4,$5,2) ON CONFLICT DO NOTHING RETURNING last_sequence,revision`, x.TenantID, x.HomeTenantID, x.SubjectID, x.ConversationID, x.LastReadSequence).Scan(&seq, &rev)
+		err = tx.QueryRow(ctx, `INSERT INTO chat_cursor(tenant_id,home_tenant_id,member_id,conversation_id,last_sequence,revision) VALUES($1,$2,$3,$4,$5,2) ON CONFLICT DO NOTHING RETURNING last_sequence,revision`, x.TenantID, x.HomeTenantID, x.SubjectID, x.ConversationID, first).Scan(&seq, &rev)
 	}
 	if errors.Is(err, dbport.ErrNoRows) {
 		return x, chat.ErrConflict
@@ -1175,6 +1186,19 @@ func (s *Adapter) PutPreferences(ctx context.Context, x chat.NotificationPrefere
 	return x, tx.Commit(ctx)
 }
 func (s *Adapter) PutReaction(ctx context.Context, x chat.Reaction) (chat.Reaction, error) {
+	return s.putReaction(ctx, x, false)
+}
+
+// PutAgentQuestionReaction stores an agent's reaction to the question that asked
+// it (AGENTUX-075). The agent answers in a channel without being one of its
+// members, so its own membership is not required; the service has proved the
+// question is the asker's and visible to the asker, and the post must exist
+// here and not be removed.
+func (s *Adapter) PutAgentQuestionReaction(ctx context.Context, x chat.Reaction) (chat.Reaction, error) {
+	return s.putReaction(ctx, x, true)
+}
+
+func (s *Adapter) putReaction(ctx context.Context, x chat.Reaction, agentQuestion bool) (chat.Reaction, error) {
 	if x.HomeTenantID == "" {
 		x.HomeTenantID = x.TenantID
 	}
@@ -1189,7 +1213,16 @@ func (s *Adapter) PutReaction(ctx context.Context, x chat.Reaction) (chat.Reacti
 	if err = fenceContextWrite(ctx, tx, x.TenantID, x.ConversationID); err != nil {
 		return x, err
 	}
-	if err = lockVisibleReactionPost(ctx, tx, x.TenantID, x.ConversationID, x.PostID, x.HomeTenantID, x.SubjectID); err != nil {
+	if agentQuestion {
+		var id string
+		err = tx.QueryRow(ctx, `SELECT id FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$3 AND tombstoned=false`, x.TenantID, x.ConversationID, x.PostID).Scan(&id)
+		if errors.Is(err, dbport.ErrNoRows) {
+			return x, chat.ErrPermissionDenied
+		}
+		if err != nil {
+			return x, err
+		}
+	} else if err = lockVisibleReactionPost(ctx, tx, x.TenantID, x.ConversationID, x.PostID, x.HomeTenantID, x.SubjectID); err != nil {
 		return x, err
 	}
 	err = tx.QueryRow(ctx, `INSERT INTO chat_reaction(tenant_id,home_tenant_id,post_id,member_id,emoji) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING created_at`, x.TenantID, x.HomeTenantID, x.PostID, x.SubjectID, x.Emoji).Scan(&x.CreatedAt)
@@ -1208,6 +1241,35 @@ func (s *Adapter) PutReaction(ctx context.Context, x chat.Reaction) (chat.Reacti
 	}
 	return x, tx.Commit(ctx)
 }
+
+// RemoveAgentQuestionReaction takes away an agent's own reaction to a question
+// it answered. Like PutAgentQuestionReaction it needs no membership of the
+// agent; it removes only the row the agent itself put.
+func (s *Adapter) RemoveAgentQuestionReaction(ctx context.Context, t, cid, p, home, member, e string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err = tenant(ctx, tx, t); err != nil {
+		return err
+	}
+	if err = fenceContextWrite(ctx, tx, t, cid); err != nil {
+		return err
+	}
+	n, err := tx.Exec(ctx, `DELETE FROM chat_reaction x USING chat_post p WHERE x.tenant_id=$1 AND x.post_id=$2 AND x.home_tenant_id=$3 AND x.member_id=$4 AND x.emoji=$5 AND p.tenant_id=x.tenant_id AND p.id=x.post_id AND p.conversation_id=$6`, t, p, home, member, e, cid)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		value := chat.Reaction{TenantID: t, ConversationID: cid, PostID: p, HomeTenantID: home, SubjectID: member, Emoji: e}
+		if err = emitAdapterEvent(ctx, tx, t, cid, "reaction.removed", home, member, p, 0, value); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Adapter) RemoveReaction(ctx context.Context, t, cid, p, home, member, e string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

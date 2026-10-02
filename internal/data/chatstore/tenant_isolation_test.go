@@ -54,6 +54,8 @@ var chatTenantTables = []string{
 	"chat_persona_source_classification",
 	"chat_pin",
 	"chat_post",
+	"chat_post_card_tally",
+	"chat_post_card_vote",
 	"chat_post_revision",
 	"chat_preference",
 	"chat_public_audience_policy",

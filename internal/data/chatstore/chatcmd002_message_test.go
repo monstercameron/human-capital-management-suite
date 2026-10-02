@@ -114,9 +114,17 @@ func TestTodo_CHATCMD_002_Security(t *testing.T) {
 	if _, err := s.Chatcmd002Mutate(ctx, denied, todoAllow); !errors.Is(err, chat.ErrPermissionDenied) {
 		t.Fatalf("edited after first tick %v", err)
 	}
-	r.ExpectedRevision = post.Revision
-	if _, err := s.Chatcmd002Mutate(ctx, r, todoAllow); !errors.Is(err, chat.ErrConflict) {
+	// Closing is a decision about the card as its author saw it; a tick is not
+	// (TestTodo_CHATBUG_057 covers votes and ticks against an older revision).
+	denied.ExpectedRevision = post.Revision
+	denied.Mutation = chat.Chatcmd002Mutation{Operation: "CLOSE"}
+	if _, err := s.Chatcmd002Mutate(ctx, denied, todoAllow); !errors.Is(err, chat.ErrConflict) {
 		t.Fatalf("stale revision accepted %v", err)
+	}
+	r.ExpectedRevision = post.Revision
+	r.Mutation.Completed = false
+	if unticked, err := s.Chatcmd002Mutate(ctx, r, todoAllow); err != nil || unticked.Revision != updated.Revision+1 {
+		t.Fatalf("tick against an older revision %+v %v", unticked, err)
 	}
 }
 func TestTodo_CHATCMD_002_Property(t *testing.T) {

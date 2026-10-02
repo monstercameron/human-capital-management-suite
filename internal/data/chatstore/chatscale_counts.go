@@ -18,6 +18,17 @@ func chatscaleSchemaReady(ctx context.Context, tx dbport.Tx) (bool, error) {
 	return ready, err
 }
 
+// chatscaleSchemaLevel tells which generation of the read-state schema this
+// connection sees: 0 none, 1 the revision-fenced table, 2 with the head stamp
+// of migration 00046. A rolling rebuild can precede the migration step.
+func chatscaleSchemaLevel(ctx context.Context, tx dbport.Tx) (int, error) {
+	var level int
+	err := tx.QueryRow(ctx, `SELECT CASE WHEN to_regclass('chatscale_read_state') IS NULL THEN 0
+ WHEN EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid=to_regclass('chatscale_read_state') AND attname='window_rows' AND NOT attisdropped) THEN 2
+ ELSE 1 END`).Scan(&level)
+	return level, err
+}
+
 func chatscaleActivityQuery(ctx context.Context, tx dbport.Tx, query string) (string, error) {
 	ready, err := chatscaleSchemaReady(ctx, tx)
 	if err != nil {
@@ -33,18 +44,23 @@ func chatscaleActivityQuery(ctx context.Context, tx dbport.Tx, query string) (st
 // Each branch takes at most the display limit, then the union takes that limit
 // again. A recent edit below the read cursor still contributes a mention, while
 // an edited unread post occurs only once. This remains the history oracle.
+//
+// The "added people" system line is not something to read: it never counts as
+// unread, so it cannot light a badge or ring the new-message sound.
+const chatscaleNotSystemLine = ` AND p.body NOT LIKE '` + chat.MembershipAddedMarker + `%'`
+
 const chatscaleCandidates = `
  SELECT sequence,references_json,unseen FROM (
  (SELECT p.sequence,p.references_json,true AS unseen FROM chat_post p
  WHERE p.tenant_id=$1 AND p.conversation_id=r.conversation_id
- AND p.sequence>r.last_sequence AND NOT p.tombstoned
+ AND p.sequence>r.last_sequence AND NOT p.tombstoned` + chatscaleNotSystemLine + `
  AND NOT (p.author_home_tenant_id=$2 AND p.author_id=$3)
  AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))
  ORDER BY p.sequence DESC LIMIT $5)
  UNION ALL
  (SELECT p.sequence,p.references_json,false AS unseen FROM chat_post p
  WHERE p.tenant_id=$1 AND p.conversation_id=r.conversation_id
- AND p.sequence<=r.last_sequence AND p.revision>1 AND p.updated_at>r.read_at AND NOT p.tombstoned
+ AND p.sequence<=r.last_sequence AND p.revision>1 AND p.updated_at>r.read_at AND NOT p.tombstoned` + chatscaleNotSystemLine + `
  AND NOT (p.author_home_tenant_id=$2 AND p.author_id=$3)
  AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))
  ORDER BY p.sequence DESC LIMIT $5)
@@ -54,7 +70,7 @@ const chatscaleReaders = `WITH reader AS MATERIALIZED (
  SELECT m.conversation_id,m.history_visibility,m.joined_at,m.revision AS member_revision,
  COALESCE(c.last_sequence,0) AS last_sequence,c.updated_at AS read_at,
  COALESCE(c.revision,1) AS read_revision,h.chatscale_history_revision AS history_revision,
- h.chatscale_last_activity_at AS last_activity_at
+ h.chatscale_last_activity_at AS last_activity_at,h.post_sequence AS head
  FROM chat_membership m JOIN chat_conversation h ON h.tenant_id=m.tenant_id AND h.id=m.conversation_id
  LEFT JOIN chat_cursor c ON c.tenant_id=m.tenant_id
  AND c.conversation_id=m.conversation_id AND c.home_tenant_id=m.home_tenant_id AND c.member_id=m.member_id
@@ -68,7 +84,10 @@ const chatscaleRebuildSQL = chatscaleReaders + ` SELECT r.conversation_id,
  FROM reader r LEFT JOIN LATERAL (` + chatscaleCandidates + `) p ON true
  GROUP BY r.conversation_id`
 
-const chatscaleCachedSQL = chatscaleReaders + `,
+// chatscaleCachedLegacySQL serves a database that has the read-state table but
+// not migration 00046: there every send bumps the history revision, so a cached
+// row is valid exactly while the revision matches.
+const chatscaleCachedLegacySQL = chatscaleReaders + `,
  cached AS MATERIALIZED (
  SELECT r.conversation_id,s.unread,s.mentions FROM reader r JOIN chatscale_read_state s
  ON s.tenant_id=$1 AND s.home_tenant_id=$2 AND s.member_id=$3 AND s.conversation_id=r.conversation_id
@@ -104,7 +123,7 @@ const chatscaleCachedSQL = chatscaleReaders + `,
 // generation commits with posts, while membership and cursor fields fence
 // revocation, mark-unread and history changes even before outbox replay.
 func (r *RecipientStateStore) ChatscaleSidebarCounts(ctx context.Context, host, home, subject string, conversations []string) (map[string]chatrecipient.Counts, error) {
-	return r.chatscaleReadCounts(ctx, host, home, subject, conversations, chatscaleCachedSQL)
+	return r.chatscaleReadCounts(ctx, host, home, subject, conversations, false)
 }
 
 // ChatscaleBackfillHeads initializes pre-migration heads without a table rewrite.
@@ -141,25 +160,37 @@ func (s *Store) ChatscaleBackfillHeads(ctx context.Context, host string, limit i
 // oracle. One transaction and one query serve up to 300 channels.
 // Unknown and revoked memberships are absent, just as Counts returns zero.
 func (r *RecipientStateStore) ChatscaleRebuildCounts(ctx context.Context, host, home, subject string, conversations []string) (map[string]chatrecipient.Counts, error) {
-	query := strings.Replace(chatscaleCachedSQL, "AND s.history_revision=r.history_revision", "AND false AND s.history_revision=r.history_revision", 1)
-	return r.chatscaleReadCounts(ctx, host, home, subject, conversations, query)
+	return r.chatscaleReadCounts(ctx, host, home, subject, conversations, true)
 }
 
-func (r *RecipientStateStore) chatscaleReadCounts(ctx context.Context, host, home, subject string, conversations []string, sql string) (map[string]chatrecipient.Counts, error) {
+func (r *RecipientStateStore) chatscaleReadCounts(ctx context.Context, host, home, subject string, conversations []string, recount bool) (map[string]chatrecipient.Counts, error) {
+	return r.chatscaleReadCountsLimit(ctx, host, home, subject, conversations, recount, countScanLimit)
+}
+
+// chatscaleReadCountsLimit is the read with the display limit as an argument, so
+// a test can reach the saturated window with a handful of posts.
+func (r *RecipientStateStore) chatscaleReadCountsLimit(ctx context.Context, host, home, subject string, conversations []string, recount bool, limit int) (map[string]chatrecipient.Counts, error) {
 	if len(conversations) > 300 || host == "" || home == "" || subject == "" {
 		return nil, chat.ErrInvalidArgument
 	}
 	out := make(map[string]chatrecipient.Counts, len(conversations))
 	err := r.store.RunTenantTx(ctx, host, func(tx dbport.Tx) error {
-		ready, err := chatscaleSchemaReady(ctx, tx)
+		level, err := chatscaleSchemaLevel(ctx, tx)
 		if err != nil {
 			return err
 		}
-		if !ready {
+		sql := chatscaleCachedSQL
+		if level == 1 {
+			sql = chatscaleCachedLegacySQL
+		}
+		if recount {
+			sql = chatscaleBypassCache(sql)
+		}
+		if level == 0 {
 			sql = strings.Replace(chatscaleRebuildSQL, "h.chatscale_history_revision AS history_revision", "0 AS history_revision", 1)
 			sql = strings.Replace(sql, "h.chatscale_last_activity_at AS last_activity_at", "NULL::timestamptz AS last_activity_at", 1)
 		}
-		rows, err := tx.Query(ctx, sql, host, home, subject, conversations, countScanLimit)
+		rows, err := tx.Query(ctx, sql, host, home, subject, conversations, limit)
 		if err != nil {
 			return err
 		}

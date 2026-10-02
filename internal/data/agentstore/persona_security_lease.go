@@ -87,7 +87,9 @@ func (s *Store) IssuePersonaSecurityLease(ctx context.Context, req PersonaSecuri
 				AND ple.persona_version=pv.version AND ple.to_state='PUBLISHED'
 				AND ple.event_sequence=(SELECT max(last.event_sequence) FROM persona_lifecycle_events last
 					WHERE last.tenant_id=ple.tenant_id AND last.persona_id=ple.persona_id
-					AND last.persona_version=ple.persona_version))`, req.TenantID, req.AdmissionID).
+					AND last.persona_version=ple.persona_version))
+				ORDER BY (ar.source_key_digest=encode(sha256(convert_to(pi.invocation_id,'UTF8')),'hex')) DESC, pi.created_at DESC
+				LIMIT 1`, req.TenantID, req.AdmissionID).
 			Scan(&invocationID, &runID, &authorityRef, &policyDigest, &issuerID,
 				&principalID, &personaID, &personaVersion, &installationID, &decision, &mode, &deadline)
 		if errors.Is(err, dbport.ErrNoRows) {

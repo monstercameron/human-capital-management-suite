@@ -96,6 +96,9 @@ func TestTodo_AGENTP_004_AgentStorageDispositionMatchesEmbeddedMigrations(t *tes
 			t.Fatal(err)
 		}
 		text := string(raw)
+		// CREATE TABLE is always written out; row security, the policy and the
+		// trigger may instead be applied to a list of tables in a loop.
+		applied := text + agentMigrationLoopStatements(text)
 		for _, match := range tablePattern.FindAllStringSubmatch(text, -1) {
 			table := match[1]
 			if prior := observed[table]; prior != "" {
@@ -110,13 +113,13 @@ func TestTodo_AGENTP_004_AgentStorageDispositionMatchesEmbeddedMigrations(t *tes
 			if row.migration != source {
 				t.Errorf("agent table %q migration=%q, want %q", table, row.migration, source)
 			}
-			if !strings.Contains(text, "ALTER TABLE "+table+" ENABLE ROW LEVEL SECURITY") ||
-				!strings.Contains(text, "ALTER TABLE "+table+" FORCE ROW LEVEL SECURITY") ||
-				!strings.Contains(text, "CREATE POLICY tenant_isolation ON "+table) {
+			if !strings.Contains(applied, "ALTER TABLE "+table+" ENABLE ROW LEVEL SECURITY") ||
+				!strings.Contains(applied, "ALTER TABLE "+table+" FORCE ROW LEVEL SECURITY") ||
+				!strings.Contains(applied, "CREATE POLICY tenant_isolation ON "+table) {
 				t.Errorf("agent table %q lacks forced tenant_isolation RLS in %s", table, source)
 			}
 			trigger := regexp.MustCompile(`(?im)CREATE\s+TRIGGER\s+\w+\s+BEFORE\s+UPDATE\s+OR\s+DELETE\s+ON\s+` + regexp.QuoteMeta(table) + `\s+FOR\s+EACH\s+ROW\s+EXECUTE\s+FUNCTION\s+forbid_mutation\s*\(`)
-			if got := trigger.MatchString(text); got != row.appendOnly {
+			if got := trigger.MatchString(applied); got != row.appendOnly {
 				t.Errorf("agent table %q append_only=%t but forbid_mutation trigger present=%t", table, row.appendOnly, got)
 			}
 		}
@@ -134,4 +137,58 @@ func TestTodo_AGENTP_004_AgentStorageDispositionMatchesEmbeddedMigrations(t *tes
 type agentDispositionTable struct {
 	migration  string
 	appendOnly bool
+}
+
+var (
+	agentMigrationLoop      = regexp.MustCompile(`(?is)FOREACH\s+\w+\s+IN\s+ARRAY\s+ARRAY\[(.*?)\]\s+LOOP(.*?)END\s+LOOP`)
+	agentMigrationLoopTable = regexp.MustCompile(`'([a-z_][a-z0-9_]*)'`)
+	agentMigrationLoopExec  = regexp.MustCompile(`(?is)EXECUTE\s+format\('((?:[^']|'')*)'\s*,\s*\w+\s*\)`)
+)
+
+// agentMigrationLoopStatements writes out the statements a migration applies
+// to a list of tables in a loop (FOREACH name IN ARRAY ARRAY['a','b'] LOOP
+// EXECUTE format('... %I ...', name); END LOOP), one copy per listed table,
+// so the checks above read them as they read statements written in full. A
+// table missing from the list gets no statement and still fails.
+func agentMigrationLoopStatements(text string) string {
+	var out strings.Builder
+	for _, loop := range agentMigrationLoop.FindAllStringSubmatch(text, -1) {
+		for _, table := range agentMigrationLoopTable.FindAllStringSubmatch(loop[1], -1) {
+			for _, statement := range agentMigrationLoopExec.FindAllStringSubmatch(loop[2], -1) {
+				out.WriteString("\n" + strings.ReplaceAll(strings.ReplaceAll(statement[1], "''", "'"), "%I", table[1]) + ";")
+			}
+		}
+	}
+	return out.String()
+}
+
+// TestTodo_AGENTP_004_AgentMigrationLoopStatements proves the loop reader
+// credits a statement only to the tables its loop lists.
+func TestTodo_AGENTP_004_AgentMigrationLoopStatements(t *testing.T) {
+	migration := `CREATE TABLE a (tenant_id uuid); CREATE TABLE b (tenant_id uuid); CREATE TABLE c (tenant_id uuid);
+DO $$ DECLARE name text; BEGIN
+ FOREACH name IN ARRAY ARRAY['a','b'] LOOP
+  EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', name);
+  EXECUTE format('CREATE POLICY tenant_isolation ON %I USING (tenant_id = NULLIF(current_setting(''app.tenant_id'', true), '''')::uuid)', name);
+ END LOOP;
+ FOREACH name IN ARRAY ARRAY['b'] LOOP
+  EXECUTE format('CREATE TRIGGER forbid_mutation BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION forbid_mutation()', name);
+ END LOOP;
+END $$;`
+	got := agentMigrationLoopStatements(migration)
+	for _, want := range []string{
+		"ALTER TABLE a FORCE ROW LEVEL SECURITY;",
+		"ALTER TABLE b FORCE ROW LEVEL SECURITY;",
+		"CREATE POLICY tenant_isolation ON b USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);",
+		"CREATE TRIGGER forbid_mutation BEFORE UPDATE OR DELETE ON b FOR EACH ROW EXECUTE FUNCTION forbid_mutation();",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("loop statements lack %q:\n%s", want, got)
+		}
+	}
+	for _, forbidden := range []string{"ALTER TABLE c ", "ON c ", "DELETE ON a "} {
+		if strings.Contains(got, forbidden) {
+			t.Errorf("loop statements credit a table its loop does not list (%q):\n%s", forbidden, got)
+		}
+	}
 }

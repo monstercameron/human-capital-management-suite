@@ -98,6 +98,42 @@ func (s *Store) setAnswerFeedback(ctx context.Context, tenantID, personID, invoc
 	return result, err
 }
 
+// ListAnswerFeedback returns the ratings a person currently holds on the
+// answers to their own questions in one conversation, by invocation
+// (CHATBUG-066). A rating that was undone is not returned. The conversation is
+// the one the question was asked in.
+func (s *Store) ListAnswerFeedback(ctx context.Context, tenantID, personID, conversationID string) (map[string]AnswerFeedback, error) {
+	tenant, err := s.resolveTenant(tenantID)
+	if ctx == nil || err != nil || !cleanFeedbackField(personID, 512) || !cleanFeedbackField(conversationID, 512) {
+		return nil, ErrInvalid
+	}
+	out := make(map[string]AnswerFeedback)
+	err = s.db.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT r.invocation_id,f.output_id,f.helpful,f.reason,f.revision,f.updated_at
+			FROM persona_answer_feedback f
+			JOIN persona_reply_receipt r ON r.tenant_id=f.tenant_id AND r.output_id=f.output_id
+			WHERE f.tenant_id=$1 AND f.person_id=$2 AND r.invoker_id=$2 AND f.active AND f.helpful IS NOT NULL
+			AND r.conversation_id=$3
+			ORDER BY f.updated_at DESC LIMIT 500`, tenant, personID, conversationID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			feedback := AnswerFeedback{PersonID: personID, Active: true}
+			if err := rows.Scan(&feedback.InvocationID, &feedback.OutputID, &feedback.Helpful, &feedback.Reason, &feedback.Revision, &feedback.UpdatedAt); err != nil {
+				return err
+			}
+			out[feedback.InvocationID] = feedback
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func cleanFeedbackField(value string, limit int) bool {
 	return value != "" && strings.TrimSpace(value) == value && len(value) <= limit && utf8.ValidString(value)
 }

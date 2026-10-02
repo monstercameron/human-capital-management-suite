@@ -70,3 +70,21 @@ func TestDocumentPreviewSnippet(t *testing.T) {
 		t.Fatalf("long = %q", got)
 	}
 }
+
+// TestTodo_CHATUX_025_PreviewSnippet: the excerpt of a linked document is its
+// body text. Headings and the table's header row, which read as "Common
+// questions. Question Answer.", are left out; a document of nothing but
+// headings has no excerpt.
+func TestTodo_CHATUX_025_PreviewSnippet(t *testing.T) {
+	doc := "# Holiday guide\n\n**Owner:** People Ops\n\n## Common questions\n\n| Question | Answer |\n| --- | --- |\n| Carry over? | Five days |\n\nCompany holidays follow the local calendar.\n\n```\n# not a heading\n```\n"
+	got := previewSnippet(doc, "Holiday guide")
+	if strings.Contains(got, "Common questions") || strings.Contains(got, "Question") || strings.Contains(got, "Answer") || strings.Contains(got, "Owner") {
+		t.Fatalf("headings or table rows in the excerpt: %q", got)
+	}
+	if !strings.HasPrefix(got, "Company holidays follow the local calendar.") || !strings.Contains(got, "not a heading") {
+		t.Fatalf("body text lost: %q", got)
+	}
+	if got := previewSnippet("# Only\n\n## Headings\n", "Only"); got != "" {
+		t.Fatalf("a document of headings has an excerpt %q", got)
+	}
+}

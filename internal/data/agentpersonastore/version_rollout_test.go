@@ -22,7 +22,19 @@ func rolloutPlan(tenant values.TenantId) agentrollout.VersionPlan {
 	return r
 }
 
-func TestTodo_AGENT_044_Integration_VersionRolloutSnapshotAndApproval(t *testing.T) {
+// TestTodo_AGENT_044_Integration runs the version rollout against the real
+// persona store: the previewed plan and its approval are revisioned, the
+// affected placements are read from stored rows, applying a step moves one
+// placement and advances its fences, and a canary must be promoted by the
+// approver before the remainder.
+func TestTodo_AGENT_044_Integration(t *testing.T) {
+	t.Run("previewed plan and approval are revisioned", versionRolloutSnapshotAndApproval)
+	t.Run("affected placements come from stored rows", listVersionRolloutInstallations)
+	t.Run("applying a step advances the placement fences", applyRolloutBumpsInstallationFences)
+	t.Run("a canary is promoted by its approver", canaryPromotionFence)
+}
+
+func versionRolloutSnapshotAndApproval(t *testing.T) {
 	f := newFixture(t, values.TenantId("rollout-integration"))
 	s := f.store(t, values.TenantId("rollout-integration"))
 	ctx := context.Background()
@@ -54,7 +66,7 @@ func TestTodo_AGENT_044_Security_VersionRolloutRejectsForgedPlan(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT_044_Integration_ListVersionRolloutInstallations(t *testing.T) {
+func listVersionRolloutInstallations(t *testing.T) {
 	f := newFixture(t, values.TenantId("rollout-catalog"))
 	s := f.store(t, values.TenantId("rollout-catalog"))
 	policy := marshalChannelPolicy(testChannelPolicy())
@@ -65,7 +77,7 @@ func TestTodo_AGENT_044_Integration_ListVersionRolloutInstallations(t *testing.T
 	}
 }
 
-func TestTodo_AGENT_044_Integration_ApplyRolloutBumpsInstallationFences(t *testing.T) {
+func applyRolloutBumpsInstallationFences(t *testing.T) {
 	tenant := values.TenantId("rollout-apply")
 	f := newFixture(t, tenant)
 	s := f.store(t, tenant)
@@ -142,7 +154,7 @@ func TestTodo_AGENT_044_Race_VersionRolloutApprovalCAS(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT_044_Integration_CanaryPromotionFence(t *testing.T) {
+func canaryPromotionFence(t *testing.T) {
 	tenant := values.TenantId("rollout-promote")
 	f := newFixture(t, tenant)
 	s := f.store(t, tenant)
@@ -164,7 +176,10 @@ func TestTodo_AGENT_044_Integration_CanaryPromotionFence(t *testing.T) {
 	}
 }
 
-func TestTodo_AGENT_044_Recovery_TwoCandidateCanaryResume(t *testing.T) {
+// TestTodo_AGENT_044_Recovery stops a two-placement rollout after its canary,
+// reopens the store as a restarted process would, and resumes from the stored
+// cursor to completion.
+func TestTodo_AGENT_044_Recovery(t *testing.T) {
 	tenant := values.TenantId("rollout-recovery")
 	f := newFixture(t, tenant)
 	s := f.store(t, tenant)
