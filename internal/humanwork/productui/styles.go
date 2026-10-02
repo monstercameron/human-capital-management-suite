@@ -76,6 +76,7 @@ func initPlatformStyles() {
 	platformStyles += workflowNotificationStylesheet()
 	platformStyles += clockPageStylesheet()
 	platformStyles += personaAdminStylesheet()
+	platformStyles += ShellFixStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
 }
 

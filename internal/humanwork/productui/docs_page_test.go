@@ -27,7 +27,7 @@ func TestTodo_HUB_032(t *testing.T) {
 	// HUB-032: the hub distinguishes private drafts from official guidance
 	// and shows owner, deployed version, official scope, review date and
 	// sharing state.
-	for _, text := range []string{"Private draft", "Team handbook", "People Ops", "Version v7", "Review due 2026-10-01", "Private", "Team guidance", "docs-kind-private", "docs-kind-team_official", `href="/workspace/app/docs?document=doc-private"`, `href="/workspace/app/docs?document=doc-team"`} {
+	for _, text := range []string{"Private draft", "Team handbook", "People Ops", "Version v7.0.0", "Review due 2026-10-01", "Private", "Team guidance", "docs-kind-private", "docs-kind-team_official", `href="/workspace/app/docs?document=doc-private"`, `href="/workspace/app/docs?document=doc-team"`} {
 		if !strings.Contains(doc, text) {
 			t.Fatalf("docs page omitted %q", text)
 		}

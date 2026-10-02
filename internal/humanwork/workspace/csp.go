@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/personachat"
 )
 
 // cspPolicy is the small, typed boundary between a rendered shell and the
@@ -144,7 +146,25 @@ func cspProductAgentSources(rawHost, existing string) string {
 			seen[source] = true
 		}
 	}
-	for _, path := range []string{PathPersonaAdminData + "/", "/api/chat/personas/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/"} {
+	// A DNS authority may legally approach 253 bytes. Repeating that value for
+	// every optional agent endpoint can push the response header past the 4 KiB
+	// line limit enforced by common proxies. Keep the core shell connections
+	// and fail the optional agent HTTP surfaces closed for such pathological
+	// authorities instead of emitting a header the proxy will reject.
+	if len(authority) > 192 {
+		return strings.Join(sources, " ")
+	}
+	// The chat client calls the persona directory at the exact path and its
+	// invocation watch and retry routes beneath it, so both forms are
+	// admitted: a source without a trailing slash matches only that path.
+	for _, path := range []string{PathPersonaAdminData + "/", personachat.Path, personachat.Path + "/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/"} {
+		sources = append(sources, authority+path)
+	}
+	// Chat's own HTTP surfaces (saved messages, search, filters, moderation,
+	// gates, channel status, renderings and the writing-style controls) live
+	// under these two prefixes. A trailing slash admits every path beneath it;
+	// the writing-style root is also called at its exact path.
+	for _, path := range []string{"/api/chat/", "/api/chat-writing-style", "/api/chat-writing-style/"} {
 		sources = append(sources, authority+path)
 	}
 	return strings.Join(sources, " ")

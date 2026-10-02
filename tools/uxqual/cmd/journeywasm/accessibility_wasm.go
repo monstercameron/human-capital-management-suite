@@ -94,7 +94,7 @@ func (c *browserAccessibilityController) Apply(value productui.AccessibilityPref
 	}
 	colorMode := attributes["data-hcm-personal-color-mode"]
 	if colorMode == "" {
-		colorMode = root.Call("getAttribute", "data-hcm-organization-color-mode").String()
+		colorMode = domAttribute(root, "data-hcm-organization-color-mode")
 	}
 	if colorMode == "" {
 		colorMode = "system"
@@ -132,7 +132,7 @@ func (c *browserAccessibilityController) setStatus(code, tone string) {
 }
 
 func accessibilityStatusMessage(code string) string {
-	locale := js.Global().Get("document").Get("documentElement").Call("getAttribute", "lang").String()
+	locale := domAttribute(js.Global().Get("document").Get("documentElement"), "lang")
 	messages := map[string]map[string]string{
 		"en-US": {"preview": "Previewing unsaved accessibility preferences", "saving": "Saving accessibility preferences…", "saved": "Accessibility preferences saved to your account", "save_failed": "Accessibility preferences could not be saved", "service_unavailable": "Preference service is unavailable"},
 		"de-DE": {"preview": "Nicht gespeicherte Einstellungen werden angezeigt", "saving": "Barrierefreiheitseinstellungen werden gespeichert…", "saved": "Barrierefreiheitseinstellungen wurden im Konto gespeichert", "save_failed": "Barrierefreiheitseinstellungen konnten nicht gespeichert werden", "service_unavailable": "Einstellungsdienst ist nicht verfügbar"},

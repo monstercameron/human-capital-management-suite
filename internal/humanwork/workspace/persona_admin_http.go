@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -44,7 +45,12 @@ func (h *Handler) servePersonaAdminData(w http.ResponseWriter, r *http.Request) 
 	})
 	if err != nil || !snapshot.Available {
 		h.logPersonaAdminSnapshotFailure(err)
-		http.Error(w, "persona administration unavailable", http.StatusServiceUnavailable)
+		status := http.StatusServiceUnavailable
+		var staged interface{ PersonaCatalogFailureStage() string }
+		if errors.As(err, &staged) && staged.PersonaCatalogFailureStage() == "authorization" {
+			status = http.StatusForbidden
+		}
+		http.Error(w, "persona administration unavailable", status)
 		return
 	}
 	q := r.URL.Query()
@@ -56,10 +62,15 @@ func (h *Handler) servePersonaAdminData(w http.ResponseWriter, r *http.Request) 
 		}
 		preview, previewErr := client.Preview(admitted.Context(), productui.PersonaAdminPreviewRequest{PersonaID: personaID, SubjectID: subjectID, ConversationID: conversationID})
 		if previewErr != nil {
-			http.Error(w, "persona preview unavailable", http.StatusForbidden)
-			return
+			snapshot.Preview = productui.PersonaAdminPreview{}
+			snapshot.PreviewState.Unavailable = true
+			snapshot.PreviewUnavailable = true
+		} else {
+			snapshot.Preview = preview
 		}
-		snapshot.Preview = preview
+		snapshot.PreviewPersonaID = personaID
+		snapshot.PreviewSubjectID = subjectID
+		snapshot.PreviewConversationID = conversationID
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")

@@ -242,12 +242,9 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 		// screen never gets a first attempt: the gate was false once, nothing
 		// here ever asks again, and the tile is stuck as a broken image
 		// forever. Wait briefly for the sync to catch up before giving up.
-		for wait := 0; wait < 80 && !signal.Get("aborted").Truthy(); wait++ {
-			time.Sleep(25 * time.Millisecond)
-			if chatMediaCache.Wanted(id) {
-				break
-			}
-		}
+		// CHATBUG-031: one wait that the sync itself ends, not eighty chained
+		// 25 ms sleeps, each of which a throttled or starved page stretches.
+		chatMediaCache.WaitUntil(func() bool { return chatMediaCache.Wanted(id) }, 2*time.Second, func() bool { return signal.Get("aborted").Truthy() })
 		if !chatMediaCache.Wanted(id) {
 			setChatMediaDiagnostic(id, "failed", "not-wanted", 0)
 			return ""
@@ -269,28 +266,21 @@ func fetchChatMediaImageVariant(cfg journeyclient.Config, id, variant string, si
 			epoch, claimed := chatMediaCache.ClaimEpoch(id, time.Now())
 			if !claimed {
 				// Another visible instance may be minting the shared artifact grant.
-				for wait := 0; wait < 80 && !signal.Get("aborted").Truthy(); wait++ {
-					time.Sleep(25 * time.Millisecond)
-					if grant, ok = chatMediaCache.Get(id, time.Now()); ok {
-						break
-					}
-				}
+				ok = chatMediaCache.WaitUntil(func() bool {
+					grant, ok = chatMediaCache.Get(id, time.Now())
+					return ok
+				}, 2*time.Second, func() bool { return signal.Get("aborted").Truthy() })
 				if !ok {
 					return ""
 				}
 			} else {
-				token, expires, minted := mintChatMediaGrant(active, conversationID, id, signal)
-				if !minted {
-					return ""
-				}
-				if signal.Get("aborted").Truthy() || conversationID != chatBrowser.selectedID() {
-					chatMediaCache.ReleaseIfEpoch(id, epoch)
-					return ""
-				}
-				if !chatMediaCache.PutIfEpoch(id, chatMediaGrant{Token: token, ExpiresAt: expires}, epoch) {
-					return ""
-				}
-				grant, ok = chatMediaCache.Get(id, time.Now())
+				grant, ok = chatMediaCache.MintUnderClaim(id, epoch, func() (string, time.Time, bool) {
+					token, expires, minted := mintChatMediaGrant(active, conversationID, id, signal)
+					if !minted || signal.Get("aborted").Truthy() || conversationID != chatBrowser.selectedID() {
+						return "", time.Time{}, false
+					}
+					return token, expires, true
+				})
 				if !ok {
 					return ""
 				}

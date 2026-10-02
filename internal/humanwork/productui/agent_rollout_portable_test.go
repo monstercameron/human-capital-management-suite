@@ -15,7 +15,7 @@ func TestTodo_AGENT_044_RendersExactSelectionsAndFencedActions(t *testing.T) {
 		Versions:      []AgentRolloutVersion{{Version: 3, Digest: "sha256:plan", ProfileDigest: "sha256:profile"}},
 		Installations: []AgentRolloutInstallation{{ID: "inst-a", ConversationID: "conv-a", CanaryEligible: true}, {ID: "inst-b", ConversationID: "conv-b"}},
 		Active:        &AgentRolloutPlan{ID: "rollout-1", Digest: "sha256:plan", Version: 3, Candidates: []AgentRolloutCandidate{{InstallationID: "inst-a", ConversationID: "conv-a", Version: 2, Revision: 9, RevocationEpoch: 4, AuthorityRevision: 12, PolicyDigest: "sha256:policy"}}},
-		Progress:      &AgentRolloutProgress{Revision: 3, Stage: "CANARY"},
+		Progress:      &AgentRolloutProgress{Revision: 3, Stage: "PREVIEWED"},
 	}, AgentPortableSnapshot{}))
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func TestTodo_AGENT_045_PortableImportStatesNoAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`id="agent-portable-import"`, `name="manifest"`, `name="destination_mapping[src-1]"`, "Der Import erstellt einen prüfbaren Entwurf"} {
+	for _, want := range []string{`id="agent-portable-import"`, `name="manifest"`, `name="destination_mapping[src-1]"`, agentRPText(view.Locale, "import_help")} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("markup missing %q", want)
 		}
@@ -46,7 +46,7 @@ func TestTodo_AGENT_044_LocalizesRTL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, `dir="rtl"`) || !strings.Contains(markup, "توزيع الإصدار") {
+	if !strings.Contains(markup, `dir="rtl"`) || !strings.Contains(markup, "الطرح") {
 		t.Fatalf("rtl Arabic surface missing: %s", markup)
 	}
 }
@@ -118,10 +118,13 @@ func TestTodo_AGENT_045_ReviewImportedDraft(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`id="agent-portable-review"`, `data-portable-action="read"`, `id="agent-portable-draft"`, `portable:actual-draft`, `Help payroll`, `Exact body &lt;safe&gt;`} {
+		for _, want := range []string{`id="agent-portable-review"`, `data-portable-action="read"`, `data-definition-id="portable:actual-draft"`, `id="agent-portable-draft"`, `Help payroll`, `Exact body &lt;safe&gt;`} {
 			if !strings.Contains(markup, want) {
 				t.Fatalf("%s missing %s: %s", loc, want, markup)
 			}
+		}
+		if strings.Contains(markup, `id="agent-portable-draft-id"`) || strings.Contains(markup, "Imported draft identifier") {
+			t.Fatalf("%s review still asks for an internal identifier: %s", loc, markup)
 		}
 	}
 }

@@ -6,11 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"syscall/js"
 	"time"
 
+	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 )
@@ -25,11 +28,16 @@ var personaAdminBrowser struct {
 	selected            string
 	previewSubject      string
 	previewConversation string
+	previewValidation   []string
 	previewUnavailable  bool
 	previewSeq          uint64
 	revalidate          func()
 	installed           bool
+	historyRequested    bool
 	commandStatus       string
+	commandPersona      string
+	commandAction       string
+	evaluationResults   map[string]productui.PersonaAdminEvaluationResult
 }
 
 // personaAdminBrowserClient is a hydrated, metadata-only browser projection.
@@ -80,6 +88,9 @@ var _ productui.PersonaAdminClient = personaAdminBrowserClient{}
 // resolved browser view. A missing projection preserves the honest unavailable
 // state and never fabricates a client from cfg tenant or role display facts.
 func hydratePersonaAdminView(view *productui.View, cfg journeyclient.Config) {
+	if view == nil {
+		return
+	}
 	snapshot := cfg.PersonaAdminSnapshot
 	personaAdminBrowser.Lock()
 	if personaAdminBrowser.tenant == cfg.Tenant && personaAdminBrowser.subject == cfg.Subject && personaAdminBrowser.bearer == cfg.Bearer && personaAdminBrowser.snapshot != nil {
@@ -87,11 +98,29 @@ func hydratePersonaAdminView(view *productui.View, cfg journeyclient.Config) {
 	}
 	if snapshot != nil {
 		copy := *snapshot
+		view.Locale = view.Locale.WithTimeZone(agentViewerTimeZone())
+		copy.DocumentServiceAvailable = copy.DocumentServiceAvailable || personaAdminDocumentServiceAvailable()
 		copy.CommandStatus = personaAdminBrowser.commandStatus
+		copy.CommandPersonaID = personaAdminBrowser.commandPersona
+		copy.CommandAction = personaAdminBrowser.commandAction
 		copy.PreviewPersonaID = personaAdminBrowser.selected
 		copy.PreviewSubjectID = personaAdminBrowser.previewSubject
 		copy.PreviewConversationID = personaAdminBrowser.previewConversation
 		copy.PreviewUnavailable = personaAdminBrowser.previewUnavailable
+		copy.PreviewValidationFields = append([]string(nil), personaAdminBrowser.previewValidation...)
+		copy.Personas = append([]productui.PersonaAdminPersona(nil), copy.Personas...)
+		for index := range copy.Personas {
+			if result, ok := personaAdminBrowser.evaluationResults[copy.Personas[index].ID]; ok {
+				copy.Personas[index].EvaluationStatus = result.Status
+				copy.Personas[index].EvaluationPassed = result.Passed
+				copy.Personas[index].EvaluationFailed = result.Failed
+				copy.Personas[index].EvaluationCaseCount = result.Passed + result.Failed
+				copy.Personas[index].EvaluationFailureNames = append([]string(nil), result.FailingCases...)
+				if result.Status == "PASSED" && copy.Personas[index].EvaluationRef == "" {
+					copy.Personas[index].EvaluationRef = "recorded"
+				}
+			}
+		}
 		snapshot = &copy
 	}
 	personaAdminBrowser.Unlock()
@@ -103,20 +132,43 @@ func hydratePersonaAdminView(view *productui.View, cfg journeyclient.Config) {
 
 func configurePersonaAdminBrowser(cfg journeyclient.Config, revalidate func()) {
 	installPersonaAdminCommandHandlers()
+	installPersonaDocumentPickerHandlers()
 	personaAdminBrowser.Lock()
-	personaAdminBrowser.commandStatus = ""
-	personaAdminBrowser.previewSubject, personaAdminBrowser.previewConversation = "", ""
-	personaAdminBrowser.selected = ""
-	personaAdminBrowser.previewUnavailable = false
+	if personaAdminBrowser.tenant != cfg.Tenant || personaAdminBrowser.subject != cfg.Subject {
+		personaAdminBrowser.evaluationResults = make(map[string]productui.PersonaAdminEvaluationResult)
+	}
+	identityChanged := personaAdminBrowser.tenant != cfg.Tenant || personaAdminBrowser.subject != cfg.Subject || personaAdminBrowser.bearer != cfg.Bearer
+	if identityChanged {
+		personaAdminBrowser.historyRequested = false
+		personaAdminBrowser.commandStatus = ""
+		personaAdminBrowser.commandPersona = ""
+		personaAdminBrowser.commandAction = ""
+		personaAdminBrowser.previewSubject, personaAdminBrowser.previewConversation = "", ""
+		personaAdminBrowser.selected = ""
+		personaAdminBrowser.previewUnavailable = false
+		personaAdminBrowser.previewValidation = nil
+	}
 	personaAdminBrowser.tenant, personaAdminBrowser.subject, personaAdminBrowser.bearer, personaAdminBrowser.cfg = cfg.Tenant, cfg.Subject, cfg.Bearer, cfg
-	personaAdminBrowser.previewSeq++
-	personaAdminBrowser.snapshot, personaAdminBrowser.revalidate = cfg.PersonaAdminSnapshot, revalidate
-	if personaAdminBrowser.snapshot != nil {
-		personaAdminBrowser.selected = personaAdminPersonaID(*personaAdminBrowser.snapshot)
+	if identityChanged {
+		personaAdminBrowser.previewSeq++
+	}
+	if identityChanged || personaAdminBrowser.snapshot == nil {
+		personaAdminBrowser.snapshot = cfg.PersonaAdminSnapshot
+	}
+	personaAdminBrowser.revalidate = revalidate
+	if identityChanged && personaAdminBrowser.snapshot != nil {
+		personaAdminBrowser.selected = personaAdminBrowser.snapshot.PreviewPersonaID
+	}
+	loadHistory := personaAdminShouldLoadHistory(personaAdminBrowser.snapshot != nil, personaAdminBrowser.historyRequested)
+	if loadHistory {
+		personaAdminBrowser.historyRequested = true
 	}
 	install := !personaAdminBrowser.installed
 	personaAdminBrowser.installed = true
 	personaAdminBrowser.Unlock()
+	if loadHistory {
+		go refreshPersonaAdminRunHistory(cfg)
+	}
 	if install {
 		listener := js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if len(args) == 0 || !args[0].Truthy() {
@@ -127,36 +179,121 @@ func configurePersonaAdminBrowser(cfg journeyclient.Config, revalidate func()) {
 				return nil
 			}
 			id := target.Get("id").String()
-			if id == "persona-admin-preview-persona" {
+			if id == "persona-admin-preview-persona" || id == "persona-admin-preview-subject" || id == "persona-admin-preview-conversation" {
+				personaAdminResolveBrowserCombobox(target)
+				return nil
+			}
+			card := target.Call("closest", "[data-persona-id]")
+			if card.Truthy() {
 				personaAdminBrowser.Lock()
-				personaAdminBrowser.selected = target.Get("value").String()
+				personaAdminBrowser.selected = domDataset(card, "personaId")
 				personaAdminBrowser.Unlock()
-			} else if id != "persona-admin-preview-subject" && id != "persona-admin-preview-conversation" {
-				card := target.Call("closest", "[data-persona-id]")
-				if card.Truthy() {
-					personaAdminBrowser.Lock()
-					personaAdminBrowser.selected = card.Get("dataset").Get("personaId").String()
-					personaAdminBrowser.Unlock()
-				}
-				return nil
 			}
-			document := js.Global().Get("document")
-			subject := document.Call("getElementById", "persona-admin-preview-subject").Get("value").String()
-			conversation := document.Call("getElementById", "persona-admin-preview-conversation").Get("value").String()
-			personaAdminBrowser.Lock()
-			persona := personaAdminBrowser.selected
-			personaAdminBrowser.Unlock()
-			if persona == "" || subject == "" || conversation == "" {
-				return nil
-			}
-			personaAdminBrowser.Lock()
-			currentCfg := personaAdminBrowser.cfg
-			personaAdminBrowser.Unlock()
-			go refreshPersonaAdminPreview(currentCfg, persona, subject, conversation)
 			return nil
 		})
-		js.Global().Get("document").Call("addEventListener", "change", listener)
+		document := js.Global().Get("document")
+		document.Call("addEventListener", "change", listener)
+		keyup := js.FuncOf(func(_ js.Value, args []js.Value) any {
+			if len(args) == 0 || !args[0].Truthy() || args[0].Get("key").String() != "Enter" {
+				return nil
+			}
+			target := args[0].Get("target")
+			if target.Truthy() && target.Get("dataset").Get("personaCombobox").Type() == js.TypeString {
+				personaAdminResolveBrowserCombobox(target)
+			}
+			return nil
+		})
+		document.Call("addEventListener", "keyup", keyup)
+		submit := js.FuncOf(func(_ js.Value, args []js.Value) any {
+			if len(args) == 0 || !args[0].Truthy() {
+				return nil
+			}
+			event := args[0]
+			form := event.Get("target")
+			if !form.Truthy() || !form.Call("matches", "form[data-persona-preview-check]").Bool() {
+				return nil
+			}
+			event.Call("preventDefault")
+			personaAdminCheckPreview()
+			return nil
+		})
+		document.Call("addEventListener", "submit", submit)
 	}
+}
+
+func personaAdminCheckPreview() {
+	document := js.Global().Get("document")
+	persona := personaAdminComboboxValue(document.Call("getElementById", "persona-admin-preview-persona"))
+	subject := personaAdminComboboxValue(document.Call("getElementById", "persona-admin-preview-subject"))
+	conversation := personaAdminComboboxValue(document.Call("getElementById", "persona-admin-preview-conversation"))
+	personaAdminBrowser.Lock()
+	personaAdminBrowser.selected, personaAdminBrowser.previewSubject, personaAdminBrowser.previewConversation = persona, subject, conversation
+	personaAdminBrowser.previewValidation = personaAdminMissingPreviewFields(persona, subject, conversation)
+	currentCfg, revalidate := personaAdminBrowser.cfg, personaAdminBrowser.revalidate
+	if personaAdminBrowser.snapshot != nil && (persona == "" || subject == "" || conversation == "") {
+		cleared := *personaAdminBrowser.snapshot
+		cleared.Preview = productui.PersonaAdminPreview{}
+		personaAdminBrowser.snapshot = &cleared
+	}
+	personaAdminBrowser.Unlock()
+	if persona == "" || subject == "" || conversation == "" {
+		if revalidate != nil {
+			revalidate()
+		}
+		fields := personaAdminMissingPreviewFields(persona, subject, conversation)
+		if len(fields) > 0 {
+			ui.PostAsync(func() {
+				field := document.Call("getElementById", "persona-admin-preview-"+fields[0])
+				if field.Truthy() {
+					field.Call("focus")
+				}
+			})
+		}
+		return
+	}
+	go refreshPersonaAdminPreview(currentCfg, persona, subject, conversation)
+}
+
+func personaAdminComboboxValue(input js.Value) string {
+	if !input.Truthy() {
+		return ""
+	}
+	if input.Get("tagName").String() == "SELECT" {
+		return strings.TrimSpace(input.Get("value").String())
+	}
+	value, _, ok := personaAdminBrowserComboboxSelection(input)
+	if ok {
+		input.Get("dataset").Set("selectedValue", value)
+		return value
+	}
+	input.Get("dataset").Set("selectedValue", "")
+	return ""
+}
+
+func personaAdminResolveBrowserCombobox(input js.Value) {
+	value, label, ok := personaAdminBrowserComboboxSelection(input)
+	if !ok {
+		input.Get("dataset").Set("selectedValue", "")
+		return
+	}
+	input.Set("value", label)
+	input.Get("dataset").Set("selectedValue", value)
+}
+
+func personaAdminBrowserComboboxSelection(input js.Value) (string, string, bool) {
+	label := strings.TrimSpace(input.Get("value").String())
+	listID := domAttribute(input, "list")
+	list := js.Global().Get("document").Call("getElementById", listID)
+	if !list.Truthy() {
+		return "", label, false
+	}
+	options := list.Get("options")
+	values := make([]personaAdminSelectionOption, 0, options.Get("length").Int())
+	for index := 0; index < options.Get("length").Int(); index++ {
+		option := options.Call("item", index)
+		values = append(values, personaAdminSelectionOption{Value: domDataset(option, "value"), Label: option.Get("value").String()})
+	}
+	return personaAdminResolveSelection(label, domDataset(input, "selectedValue"), values)
 }
 
 func personaAdminPersonaID(snapshot productui.PersonaAdminSnapshot) string {
@@ -191,6 +328,7 @@ func refreshPersonaAdminPreview(cfg journeyclient.Config, persona, subject, conv
 	personaAdminBrowser.previewSeq++
 	seq := personaAdminBrowser.previewSeq
 	personaAdminBrowser.previewSubject, personaAdminBrowser.previewConversation = subject, conversation
+	personaAdminBrowser.previewValidation = nil
 	personaAdminBrowser.Unlock()
 	snapshot, err := fetchPersonaAdminSnapshot(context.Background(), cfg, persona, subject, conversation)
 	if err != nil {
@@ -215,6 +353,10 @@ func refreshPersonaAdminPreview(cfg journeyclient.Config, persona, subject, conv
 		personaAdminBrowser.Unlock()
 		return
 	}
+	snapshot = personaAdminApplyPreviewSelection(snapshot, persona, subject, conversation)
+	if personaAdminBrowser.snapshot != nil {
+		snapshot = personaAdminPreserveRunHistory(*personaAdminBrowser.snapshot, snapshot)
+	}
 	personaAdminBrowser.snapshot = &snapshot
 	personaAdminBrowser.previewUnavailable = false
 	personaAdminBrowser.selected = persona
@@ -223,6 +365,13 @@ func refreshPersonaAdminPreview(cfg journeyclient.Config, persona, subject, conv
 	if revalidate != nil {
 		revalidate()
 	}
+	ui.PostAsync(func() {
+		result := js.Global().Get("document").Call("querySelector", "[data-persona-preview-result]")
+		if result.Truthy() {
+			result.Call("setAttribute", "tabindex", "-1")
+			result.Call("focus")
+		}
+	})
 }
 
 const personaAdminFetchTimeout = 15 * time.Second
@@ -378,4 +527,29 @@ func fetchPersonaAdminSnapshot(ctx context.Context, cfg journeyclient.Config, pe
 
 type personaAdminDataWire struct {
 	Snapshot productui.PersonaAdminSnapshot `json:"snapshot"`
+}
+
+func refreshPersonaAdminRunHistory(cfg journeyclient.Config) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	reply, err := agentControlsRequest(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), "", nil)
+	ui.PostAsync(func() {
+		personaAdminBrowser.Lock()
+		if personaAdminBrowser.bearer != cfg.Bearer || personaAdminBrowser.snapshot == nil {
+			personaAdminBrowser.Unlock()
+			return
+		}
+		snapshot := *personaAdminBrowser.snapshot
+		snapshot.Personas = append([]productui.PersonaAdminPersona(nil), snapshot.Personas...)
+		for i := range snapshot.Personas {
+			snapshot.Personas[i].RecentRuns = reply.Snapshot.Runs
+			snapshot.Personas[i].RecentRunsUnavailable = err != nil
+		}
+		personaAdminBrowser.snapshot = &snapshot
+		revalidate := personaAdminBrowser.revalidate
+		personaAdminBrowser.Unlock()
+		if revalidate != nil {
+			revalidate()
+		}
+	})
 }

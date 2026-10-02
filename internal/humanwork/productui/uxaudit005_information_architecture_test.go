@@ -28,7 +28,7 @@ func TestTodo_UXAUDIT_005(t *testing.T) {
 		}
 	}
 	admin := items[navigationPageIndex(items, PageAdmin)]
-	wantAdmin := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices}
+	wantAdmin := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageAgentOperations, PageClockDevices}
 	if len(admin.Children) != len(wantAdmin) {
 		t.Fatalf("Admin children = %+v, want published configuration only", admin.Children)
 	}
@@ -52,7 +52,7 @@ func TestTodo_UXAUDIT_005_Golden(t *testing.T) {
 		}
 	}
 	// UXBLIND-027/107: one page name (Workflow Designer, Documents) and Overview children.
-	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-designer:Workflow Designer\nchat:Chat\ndocs:Documents\nwork:My Work\n  work:Overview\n  history:Work History\nprojects:Projects\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n  chat-settings:Chat settings\ntime-clock:Time clock\n"
+	const want = "home:Home\nmyself:Myself\njourneys:Journeys\nworkflow-start:Workflows\n  workflow-start:Overview\n  workflow-history:Workflow history\nworkflow-designer:Workflow Designer\nchat:Chat\n  chat:Overview\n  agents:Agents\ndocs:Documents\nwork:My Work\n  work:Your actions\nprojects:Projects\npeople:People\norganization:Organization\ninsights:Insights\nadmin:Admin\n  admin:Overview\n  worker-ids:Worker IDs\n  roles:Roles & access\n  organization-visibility:Organization visibility\n  appearance:Brand & appearance\n  chat-settings:Chat settings\n  persona-admin:Agent setup\n  agent-operations:Agent operations\n  time-devices:Time clock devices\ntime-clock:Time clock\n  time-clock:Overview\n  time-timecard:My timecard\n  time-schedule:Crew schedule\n"
 	if actual.String() != want {
 		t.Fatalf("published navigation changed:\n%s", actual.String())
 	}
@@ -76,7 +76,7 @@ func TestTodo_UXAUDIT_005_Browser(t *testing.T) {
 	if err := xhtml.Render(&markup, navigation); err != nil {
 		t.Fatal(err)
 	}
-	for _, page := range []PageID{PageWorkflowStart, PageWorkflowDesigner, PageChat, PageAgents, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices} {
+	for _, page := range []PageID{PageWorkflowStart, PageWorkflowDesigner, PageChat, PageAgents, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageAgentOperations, PageClockDevices} {
 		if !strings.Contains(markup.String(), pageHref(page)) {
 			t.Fatalf("published Admin destination %s is missing from rendered navigation", page)
 		}

@@ -192,7 +192,7 @@ func appearanceThemeText(key string) string {
 	root := js.Global().Get("document").Get("documentElement")
 	locale := "en-US"
 	if root.Truthy() {
-		locale = root.Call("getAttribute", "lang").String()
+		locale = domAttribute(root, "lang")
 	}
 	return productui.ResolveProductLocale(locale).Text(key)
 }
@@ -212,7 +212,7 @@ func (c *browserThemeController) syncEditContext(theme productui.CustomerTheme) 
 	dirty := !reflect.DeepEqual(productui.NormalizeCustomerTheme(theme), productui.NormalizeCustomerTheme(c.saved))
 	document := js.Global().Get("document")
 	root := document.Get("documentElement")
-	locale := productui.ResolveProductLocale(root.Call("getAttribute", "lang").String())
+	locale := productui.ResolveProductLocale(domAttribute(root, "lang"))
 	setThemeText(`[data-hcm-theme-current]`, productui.AppearanceThemeSummary(locale, c.saved))
 	setThemeText(`[data-hcm-theme-proposed]`, productui.AppearanceThemeSummary(locale, theme))
 	bar := document.Call("querySelector", `.appearance-actions-sticky`)
@@ -225,7 +225,7 @@ func (c *browserThemeController) syncEditContext(theme productui.CustomerTheme) 
 func (c *browserThemeController) setSaveDisabled(disabled bool) {
 	button := js.Global().Get("document").Call("querySelector", `[data-hcm-action="save-appearance"]`)
 	if button.Truthy() {
-		button.Set("disabled", disabled || button.Call("getAttribute", "data-hcm-editable").String() != "true")
+		button.Set("disabled", disabled || domAttribute(button, "data-hcm-editable") != "true")
 	}
 }
 
@@ -261,10 +261,7 @@ func applyThemeDocumentIdentity(pageTitle string, theme productui.CustomerTheme,
 	}
 	root := document.Get("documentElement")
 	if strings.TrimSpace(pageTitle) == "" && root.Truthy() {
-		value := root.Call("getAttribute", "data-hcm-page-title")
-		if value.Type() == js.TypeString {
-			pageTitle = value.String()
-		}
+		pageTitle = domAttribute(root, "data-hcm-page-title")
 	}
 	if strings.TrimSpace(pageTitle) != "" {
 		document.Set("title", productui.DocumentTitle(pageTitle, theme, tenant))

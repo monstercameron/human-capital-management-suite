@@ -18,7 +18,7 @@ func resetChatChannelFragment() {
 	chatBrowser.claimChannelFragment("")
 }
 
-func currentChatChannelFragment() (id, hash string) {
+func currentChatChannelFragment(loaded ...[]chatui.Conversation) (id, hash string) {
 	location := js.Global().Get("location")
 	if !location.Truthy() {
 		return "", ""
@@ -35,7 +35,11 @@ func currentChatChannelFragment() (id, hash string) {
 	// can (chatChannelFragmentValue); map it back to the room id here so
 	// every reader of the fragment keeps working with ids. An id fragment
 	// (older entries, pasted links) resolves to itself.
-	resolved, _ := resolveChatChannelFragment(chatFragmentRooms(), refs[0].ID)
+	rooms := chatFragmentRooms()
+	if len(loaded) > 0 {
+		rooms = loaded[0]
+	}
+	resolved, _ := resolveChatChannelFragment(rooms, refs[0].ID)
 	return resolved, hash
 }
 

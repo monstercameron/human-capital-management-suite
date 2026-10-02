@@ -43,7 +43,12 @@ func channelProjectWidgetModel(widget *chatv1.ChannelProjectWidget) chatui.Chann
 	return result
 }
 
-func loadChannelWidgets(cfg journeyclient.Config, room string) {
+// loadChannelWidgetsOnce makes one read of the channel widgets. It reports
+// whether the read is settled: false means it failed (or was overtaken without
+// an answer) and the caller should try again. CHATUX-012: a failed read leaves
+// no error on the page; loadChannelWidgets retries it quietly. quiet marks a
+// retry, which does not raise the loading flag again.
+func loadChannelWidgetsOnce(cfg journeyclient.Config, room string, quiet bool) bool {
 	allowed := false
 	for _, c := range chatBrowser.snapshot().Conversations {
 		if c.ID == room && (c.Kind == chatui.PublicChannel || c.Kind == chatui.PrivateChannel) && c.Joined {
@@ -52,34 +57,51 @@ func loadChannelWidgets(cfg journeyclient.Config, room string) {
 		}
 	}
 	if !allowed || room == "" {
-		return
+		return true
 	}
 	client := channelTodoClient()
 	if client == nil {
-		return
+		return true
 	}
 	active := chatBrowser.config(cfg)
 	generation := chatBrowser.currentGeneration()
-	chatBrowser.mutate(func(m *chatui.Model) {
-		if m.SelectedID == room {
-			m.ChannelWidgetsLoading = true
-		}
-	})
-	refreshChannelWidgets(room, generation)
+	if !quiet {
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelWidgetsLoading = true
+			}
+		})
+		refreshChannelWidgets(room, generation)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	response, err := client.GetChannelWidgets(chatRPCContext(ctx, active), &chatv1.GetChannelWidgetsRequest{ConversationId: room, HostTenantId: channelTodoHost(room, active.Tenant)})
 	current := chatBrowser.config(journeyclient.Config{})
-	if active.Tenant != current.Tenant || active.Subject != current.Subject || active.Bearer != current.Bearer || generation != chatBrowser.currentGeneration() {
-		return
+	if active.Tenant != current.Tenant || active.Subject != current.Subject || active.Bearer != current.Bearer {
+		return true
 	}
+	if generation != chatBrowser.currentGeneration() {
+		// Overtaken: nothing is applied, but the flag this read raised must not
+		// stay up for a read that will not clear it.
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelWidgetsLoading = false
+			}
+		})
+		return chatBrowser.selectedID() != room
+	}
+	settled := true
 	chatBrowser.mutate(func(m *chatui.Model) {
 		if m.SelectedID != room {
 			return
 		}
 		m.ChannelWidgetsLoading = false
 		if err != nil || response.GetTeam() == nil || response.GetProject() == nil || response.GetTeam().GetConversationId() != room || response.GetProject().GetConversationId() != room {
-			m.ChannelWidgetsError = "load"
+			if chatux012FinalRefusal(err) {
+				m.ChannelWidgetsError = "load"
+			} else {
+				settled = false
+			}
 			return
 		}
 		if response.GetTeam().GetRevision() >= m.ChannelTeam.Revision {
@@ -91,6 +113,7 @@ func loadChannelWidgets(cfg journeyclient.Config, room string) {
 		m.ChannelWidgetsError = ""
 	})
 	refreshChannelWidgets(room, generation)
+	return settled
 }
 
 func clearChannelMilestoneForm() {
@@ -148,7 +171,7 @@ func mutateChannelWidget(cfg journeyclient.Config, kind, operation string, apply
 		}
 		m.ChannelWidgetsPending = false
 		if err != nil || response == nil {
-			m.ChannelWidgetsError = "save"
+			m.ChannelWidgetsError = chatmod002ErrorCode(err, "save")
 			return
 		}
 		if kind == "TEAM" {

@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
@@ -25,33 +26,66 @@ const (
 
 // AgentsConfig is the JSON-island form of productui.AgentsAvailabilityProjection.
 // Tasks are the signed-in user's own tasks and are present only when agents
-// are on; they never carry ledger entries, tainted content or failure detail.
+// are on; they never carry ledger entries, tainted content or unsanitized
+// failure detail.
 type AgentsConfig struct {
-	StartAvailable         bool              `json:"start_available"`
-	StartUnavailableReason string            `json:"start_unavailable_reason,omitempty"`
-	Enabled                bool              `json:"enabled"`
-	ViewerIsAdmin          bool              `json:"viewer_is_admin"`
-	Reason                 string            `json:"reason,omitempty"`
-	SettingsHref           string            `json:"settings_href,omitempty"`
-	Service                string            `json:"service,omitempty"`
-	Tasks                  []AgentTaskConfig `json:"tasks,omitempty"`
+	StartAvailable         bool                 `json:"start_available"`
+	StartUnavailableReason string               `json:"start_unavailable_reason,omitempty"`
+	Enabled                bool                 `json:"enabled"`
+	ViewerIsAdmin          bool                 `json:"viewer_is_admin"`
+	Reason                 string               `json:"reason,omitempty"`
+	SettingsHref           string               `json:"settings_href,omitempty"`
+	Service                string               `json:"service,omitempty"`
+	Agents                 []AgentSummaryConfig `json:"agents,omitempty"`
+	Tasks                  []AgentTaskConfig    `json:"tasks,omitempty"`
+}
+
+// AgentSummaryConfig is one named agent choice that the viewer may invoke.
+type AgentSummaryConfig struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status,omitempty"`
 }
 
 // AgentTaskConfig is one owner-scoped task row.
 type AgentTaskConfig struct {
-	ID           string                `json:"id"`
-	Version      uint64                `json:"version"`
-	Title        string                `json:"title"`
-	Goal         string                `json:"goal,omitempty"`
-	AnswerText   string                `json:"answer_text,omitempty"`
-	State        string                `json:"state"`
-	LiveStep     string                `json:"live_step,omitempty"`
-	BudgetUsed   string                `json:"budget_used,omitempty"`
-	BudgetLimit  string                `json:"budget_limit,omitempty"`
-	PlanRevision string                `json:"plan_revision,omitempty"`
-	Steps        []AgentStepConfig     `json:"steps,omitempty"`
-	Approvals    []AgentApprovalConfig `json:"approvals,omitempty"`
-	Actions      AgentTaskActionPolicy `json:"actions"`
+	ID                        string                             `json:"id"`
+	Version                   uint64                             `json:"version"`
+	Title                     string                             `json:"title"`
+	Goal                      string                             `json:"goal,omitempty"`
+	AnswerText                string                             `json:"answer_text,omitempty"`
+	State                     string                             `json:"state"`
+	LiveStep                  string                             `json:"live_step,omitempty"`
+	BudgetUsed                string                             `json:"budget_used,omitempty"`
+	BudgetLimit               string                             `json:"budget_limit,omitempty"`
+	PlanRevision              string                             `json:"plan_revision,omitempty"`
+	Steps                     []AgentStepConfig                  `json:"steps,omitempty"`
+	Approvals                 []AgentApprovalConfig              `json:"approvals,omitempty"`
+	Actions                   AgentTaskActionPolicy              `json:"actions"`
+	CreatedAt                 string                             `json:"created_at,omitempty"`
+	UpdatedAt                 string                             `json:"updated_at,omitempty"`
+	ResultPreview             string                             `json:"result_preview,omitempty"`
+	FailureReason             string                             `json:"failure_reason,omitempty"`
+	Retryable                 bool                               `json:"retryable,omitempty"`
+	AnsweringAgentID          string                             `json:"answering_agent_id,omitempty"`
+	AnsweringAgentDisplayName string                             `json:"answering_agent_display_name,omitempty"`
+	AnsweringAgentVersion     string                             `json:"answering_agent_version,omitempty"`
+	Documents                 []AgentTaskDocumentReferenceConfig `json:"document_references,omitempty"`
+	UsedDocuments             []AgentTaskDocumentReferenceConfig `json:"used_document_references,omitempty"`
+	DocumentUsageState        string                             `json:"document_usage_state,omitempty"`
+	DocumentOmissions         []AgentTaskDocumentOmissionConfig  `json:"document_omissions,omitempty"`
+}
+
+type AgentTaskDocumentReferenceConfig struct {
+	DocumentID    string `json:"document_id"`
+	Label         string `json:"label,omitempty"`
+	SectionAnchor string `json:"section_anchor,omitempty"`
+}
+
+type AgentTaskDocumentOmissionConfig struct {
+	Label  string `json:"label,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // AgentTaskActionPolicy is server-derived affordance state. It is advisory
@@ -65,9 +99,12 @@ type AgentTaskActionPolicy struct {
 
 // AgentStepConfig is one plan step.
 type AgentStepConfig struct {
-	Name  string `json:"name"`
-	State string `json:"state"`
-	Tier  string `json:"tier"`
+	Name          string `json:"name"`
+	State         string `json:"state"`
+	Tier          string `json:"tier"`
+	StartedAt     string `json:"started_at,omitempty"`
+	FinishedAt    string `json:"finished_at,omitempty"`
+	FailureReason string `json:"failure_reason,omitempty"`
 }
 
 // AgentApprovalConfig is one step awaiting the user's approval.
@@ -116,6 +153,10 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 	}
 	config.Service = agentServiceAvailable
 	config.StartAvailable, config.StartUnavailableReason = snapshot.StartAvailable, snapshot.StartUnavailableReason
+	config.Agents = make([]AgentSummaryConfig, 0, len(snapshot.Agents))
+	for _, agent := range snapshot.Agents {
+		config.Agents = append(config.Agents, AgentSummaryConfig{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status})
+	}
 	config.Tasks = make([]AgentTaskConfig, 0, len(snapshot.Tasks))
 	for _, task := range snapshot.Tasks {
 		row := AgentTaskConfig{
@@ -123,12 +164,37 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 			BudgetUsed: task.BudgetUsed, BudgetLimit: task.BudgetLimit, PlanRevision: task.PlanRevision,
 			Actions: AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel},
 		}
+		if !task.CreatedAt.IsZero() {
+			row.CreatedAt = task.CreatedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if !task.UpdatedAt.IsZero() {
+			row.UpdatedAt = task.UpdatedAt.UTC().Format(time.RFC3339Nano)
+		}
+		row.ResultPreview, row.FailureReason, row.Retryable = task.ResultPreview, task.FailureReason, task.Retryable
+		row.AnsweringAgentID, row.AnsweringAgentDisplayName, row.AnsweringAgentVersion = task.AnsweringAgentID, task.AnsweringAgentDisplayName, task.AnsweringAgentVersion
+		row.DocumentUsageState = string(task.DocumentUsageState)
+		for _, reference := range task.Documents {
+			row.Documents = append(row.Documents, AgentTaskDocumentReferenceConfig{DocumentID: reference.DocumentID, Label: reference.Label, SectionAnchor: reference.SectionAnchor})
+		}
+		for _, reference := range task.UsedDocuments {
+			row.UsedDocuments = append(row.UsedDocuments, AgentTaskDocumentReferenceConfig{DocumentID: reference.DocumentID, Label: reference.Label, SectionAnchor: reference.SectionAnchor})
+		}
+		for _, omission := range task.DocumentOmissions {
+			row.DocumentOmissions = append(row.DocumentOmissions, AgentTaskDocumentOmissionConfig{Label: omission.Label, Reason: omission.Reason})
+		}
 		if policyClient, ok := h.agents.(agentclient.PolicyReader); ok {
 			policy := policyClient.TaskPolicy(ctx, string(principal.Tenant()), principal.Subject(), task.ID)
 			row.Actions = AgentTaskActionPolicy{ConfirmPlan: policy.ConfirmPlan, Pause: policy.Pause, Resume: policy.Resume, Cancel: policy.Cancel}
 		}
 		for _, step := range task.Steps {
-			row.Steps = append(row.Steps, AgentStepConfig{Name: step.Name, State: step.State, Tier: step.Tier})
+			item := AgentStepConfig{Name: step.Name, State: step.State, Tier: step.Tier, FailureReason: step.FailureReason}
+			if !step.StartedAt.IsZero() {
+				item.StartedAt = step.StartedAt.UTC().Format(time.RFC3339Nano)
+			}
+			if !step.FinishedAt.IsZero() {
+				item.FinishedAt = step.FinishedAt.UTC().Format(time.RFC3339Nano)
+			}
+			row.Steps = append(row.Steps, item)
 		}
 		for _, approval := range task.Approvals {
 			row.Approvals = append(row.Approvals, AgentApprovalConfig{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary})
@@ -154,14 +220,34 @@ func ProductAgentsAvailability(config *AgentsConfig) productui.AgentsAvailabilit
 		if config.Service == agentServiceAvailable {
 			projection.Snapshot.Availability = productui.AgentsAvailable
 		}
+		for _, agent := range config.Agents {
+			projection.Snapshot.Agents = append(projection.Snapshot.Agents, productui.AgentSummary{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status})
+		}
 		for _, task := range config.Tasks {
 			item := productui.AgentTask{
 				ID: task.ID, Version: task.Version, Title: task.Title, Goal: task.Goal, AnswerText: task.AnswerText, State: productui.AgentTaskState(task.State), LiveStep: task.LiveStep,
 				BudgetUsed: task.BudgetUsed, BudgetLimit: task.BudgetLimit, PlanRevision: task.PlanRevision,
 				Actions: productui.AgentTaskActionPolicy{ConfirmPlan: task.Actions.ConfirmPlan, Pause: task.Actions.Pause, Resume: task.Actions.Resume, Cancel: task.Actions.Cancel},
 			}
+			item.CreatedAt, _ = time.Parse(time.RFC3339Nano, task.CreatedAt)
+			item.UpdatedAt, _ = time.Parse(time.RFC3339Nano, task.UpdatedAt)
+			item.ResultPreview, item.FailureReason, item.Retryable = task.ResultPreview, task.FailureReason, task.Retryable
+			item.AnsweringAgentID, item.AnsweringAgentDisplayName, item.AnsweringAgentVersion = task.AnsweringAgentID, task.AnsweringAgentDisplayName, task.AnsweringAgentVersion
+			item.DocumentUsageState = productui.AgentDocumentUsageState(task.DocumentUsageState)
+			for _, reference := range task.Documents {
+				item.Documents = append(item.Documents, productui.AgentTaskDocumentReference{DocumentID: reference.DocumentID, Label: reference.Label, SectionAnchor: reference.SectionAnchor})
+			}
+			for _, reference := range task.UsedDocuments {
+				item.UsedDocuments = append(item.UsedDocuments, productui.AgentTaskDocumentReference{DocumentID: reference.DocumentID, Label: reference.Label, SectionAnchor: reference.SectionAnchor})
+			}
+			for _, omission := range task.DocumentOmissions {
+				item.DocumentOmissions = append(item.DocumentOmissions, productui.AgentTaskDocumentOmission{Label: omission.Label, Reason: omission.Reason})
+			}
 			for _, step := range task.Steps {
-				item.Steps = append(item.Steps, productui.AgentTaskStep{Name: step.Name, State: step.State, Tier: step.Tier})
+				projected := productui.AgentTaskStep{Name: step.Name, State: step.State, Tier: step.Tier, FailureReason: step.FailureReason}
+				projected.StartedAt, _ = time.Parse(time.RFC3339Nano, step.StartedAt)
+				projected.FinishedAt, _ = time.Parse(time.RFC3339Nano, step.FinishedAt)
+				item.Steps = append(item.Steps, projected)
 			}
 			for _, approval := range task.Approvals {
 				item.Approvals = append(item.Approvals, productui.AgentApproval{ID: approval.ID, Digest: approval.Digest, Summary: approval.Summary})

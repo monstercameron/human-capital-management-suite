@@ -187,7 +187,9 @@ func TestTodo_WEB_040(t *testing.T) {
 // viewer opens the control. UXSCAN-002 also clarifies the input's employee
 // search path; this digest pins that updated closed-state scaffold.
 // UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
-const web040GoldenDigest = "5f25774381cf4815644f7338169f8cd6b280e6f66513bb9e18777dbbdc5c1073"
+// Agent setup and Agent operations are now registered launcher destinations;
+// sparkles also renders its real glyph rather than the fallback ring.
+const web040GoldenDigest = "77202428acb9ac395648a2191585ac6f94a8b729ded57cbb2fea852d93593c43"
 
 func TestTodo_WEB_040_Golden(t *testing.T) {
 	doc, err := Render(testView(PageHome))

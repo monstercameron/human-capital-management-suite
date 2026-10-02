@@ -6,9 +6,14 @@ import (
 )
 
 type ChatSettingsPageProps struct {
-	Settings ui.Node
+	Settings       ui.Node
+	AgentReactions *AgentAnswerReactionSettingsProps
 }
 
 func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
-	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings)
+	var reactions ui.Node
+	if props.AgentReactions != nil {
+		reactions = ui.CreateElement(AgentAnswerReactionSettings, *props.AgentReactions)
+	}
+	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions)
 }

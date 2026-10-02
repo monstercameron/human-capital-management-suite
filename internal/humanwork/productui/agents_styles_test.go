@@ -30,8 +30,7 @@ func TestTodo_UXBLIND_122_AgentsVisualLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, class := range []string{
-		`class="agents-page"`, `class="agents-layout"`, `class="agents-sidebar"`,
-		`class="agents-main"`, `class="agents-composer"`, `class="agents-task-view"`,
+		`class="agents-page"`, `class="agents-back-link"`, `class="agents-task-view"`,
 		`class="agents-task-answer"`,
 	} {
 		if !strings.Contains(markup, class) {
@@ -45,7 +44,7 @@ func TestTodo_UXBLIND_122_AgentsVisualLayout(t *testing.T) {
 	css := Stylesheet()
 	layout := declarationsFor(css, ".agents-layout")
 	for _, declaration := range []string{
-		"align-items:flex-start", "display:grid", "grid-template-columns:minmax(224px,288px) minmax(0,1fr)", "min-width:0",
+		"align-items:flex-start", "display:grid", "grid-template-columns:minmax(0,1fr)", "min-width:0", "width:100%",
 	} {
 		if !strings.Contains(layout, declaration) {
 			t.Errorf("Agents layout missing %q: %s", declaration, layout)
@@ -67,13 +66,16 @@ func TestTodo_UXBLIND_122_AgentsVisualLayout(t *testing.T) {
 			t.Errorf("Agents controls do not meet the touch target (%s): %s", selector, controls)
 		}
 	}
-	focus := declarationsFor(css, ".agents-page :is(.button,.agents-task-link,.agents-composer textarea):focus-visible")
+	focus := declarationsFor(css, ".agents-page :is(.button,.agents-task-link,.agents-task-filter,.agents-manage-link,.agents-back-link,.agents-agent-choice,.agents-composer textarea):focus-visible")
 	if !strings.Contains(focus, "var(--hcm-color-focus,var(--accent))") {
 		t.Errorf("Agents focus ring does not use theme tokens: %s", focus)
 	}
 
-	if !strings.Contains(css, "@media (max-width:800px){.agents-layout{grid-template-columns:minmax(0,1fr);") {
-		t.Error("Agents layout does not stack at 800px")
+	request := declarationsFor(css, ".agents-task-request")
+	for _, declaration := range []string{"display:-webkit-box", "-webkit-box-orient:vertical", "-webkit-line-clamp:2", "overflow:hidden"} {
+		if !strings.Contains(request, declaration) {
+			t.Errorf("task requests are not clamped to two lines, missing %q: %s", declaration, request)
+		}
 	}
 	if !strings.Contains(css, "@media (max-width:390px){.agents-composer-actions .button,.agents-task-actions .button{flex:1 1 100%;") {
 		t.Error("Agents actions do not become full-width at 390px")

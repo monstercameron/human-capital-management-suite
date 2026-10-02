@@ -9,8 +9,8 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/promotion/positionpicker"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/reasontext"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/wait"
 )
@@ -1006,7 +1006,7 @@ func journeyReasonNode(locale string, j JourneyCard) ui.Node {
 		return nil
 	}
 	copy := productui.ResolveProductLocale(locale)
-	value := ui.Node(html.Text(" "+reason))
+	value := ui.Node(html.Text(" " + reason))
 	if reasontext.TokenShaped(reason) {
 		value = html.Span(html.Props{Class: "jn-mono", Dir: "auto"}, html.Text(" "+reason))
 	}
@@ -1814,9 +1814,9 @@ func heroSectionLocale(locale string, j JourneyCard, diagnostics bool) ui.Node {
 		htmlIf(separated, func() ui.Node {
 			return html.Fragment(
 				journeyReasonNode(locale, j),
-			htmlIf(j.Headline != "", func() ui.Node {
-				return html.P(html.Props{Class: "jn-lead jn-journey-headline"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
-			}),
+				htmlIf(j.Headline != "", func() ui.Node {
+					return html.P(html.Props{Class: "jn-lead jn-journey-headline"}, html.Text(logicalizeDirectionalText(locale, j.Headline)))
+				}),
 				journeyPlacementCodesNode(locale, j),
 			)
 		}),

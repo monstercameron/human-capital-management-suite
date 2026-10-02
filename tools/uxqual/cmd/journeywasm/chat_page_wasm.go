@@ -52,6 +52,11 @@ func renderChatPage(props chatPageProps) ui.Node {
 	ui.UseEffectOf(func() func() {
 		chatRerenderEpoch++
 		epoch := chatRerenderEpoch
+		// CHATUX-009: the page is on screen; open the conversation the first load
+		// left without its messages. This comes before the page's other reads so
+		// the messages are the first thing asked for.
+		chatux009Mounted()
+		configureIntegrate1Chat(chatBrowser.config(journeyclient.Config{}))
 		chatRerender = func() { tick.Update(func(n int) int { return n + 1 }) }
 		installChatSoundUnlock()
 		stopChatSoundPolling := startChatSoundPolling()
@@ -88,6 +93,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 			resetChatChannelFragment()
 			time.AfterFunc(time.Millisecond, func() {
 				if chatRerenderEpoch == epoch {
+					disposeIntegrate1Chat()
 					openChatChannelFragment(chatBrowser.config(journeyclient.Config{}))
 				}
 			})
@@ -124,7 +130,13 @@ func renderChatPage(props chatPageProps) ui.Node {
 		// Nothing has been adopted yet: the loader's model is the only one.
 		model = props.View.Chat
 	}
+	// CHATUX-009: a load still going after five seconds says so.
+	chatux009TrackLoading(model.State == chatui.StateLoading)
 	active := chatBrowser.config(journeyclient.Config{})
+	// CHATBUG-024: the message-filter settings open inside Conversation details
+	// for the open conversation; the page reads its channel from SelectedID.
+	model.FilterSettings = func() ui.Node { return ChatFilterPage(active, model) }
+	model.WorkspaceFilterSettings = func() ui.Node { return ChatWorkspaceFilterPage(active, model) }
 	model.ProjectTaskPreviews = chatProjectTaskPreviews.projection(active.Tenant+"\x00"+active.Subject, chatProjectTaskPreviewRefs(model), time.Now())
 	model.JourneyPreviews = chatJourneyProjection(active.Tenant+"\x00"+active.Subject, chatJourneyRefs(model))
 	// Live finding: the server-rendered #chat-search and #chat-composer keep
@@ -160,5 +172,9 @@ func renderChatPage(props chatPageProps) ui.Node {
 	ui.UseEffectOf(func() func() { resolveVisibleChatDocs(chatBrowser.config(journeyclient.Config{})); return nil }, chatDocPreviewFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatProjectTasks(chatBrowser.config(journeyclient.Config{})); return nil }, chatProjectTaskPreviewFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatJourneys(chatBrowser.config(journeyclient.Config{})); return nil }, chatJourneyFingerprint(model))
-	return productui.BuildChatPage(props.View, model)
+	ui.UseEffectOf(func() func() { integrate2SyncProjection(); return nil }, integrate2ProjectionKey(model))
+	bootMark("chat-render-start")
+	page := productui.BuildChatPage(props.View, model)
+	bootMark("chat-render-built")
+	return page
 }

@@ -60,7 +60,7 @@ func (c *ownerAgentClient) Snapshot(_ context.Context, req productui.AgentSnapsh
 	if c.err != nil {
 		return productui.AgentSnapshot{}, c.err
 	}
-	return productui.AgentSnapshot{Availability: productui.AgentsAvailable, Tasks: []productui.AgentTask{{
+	return productui.AgentSnapshot{Availability: productui.AgentsAvailable, Agents: []productui.AgentSummary{{ID: "coach", Name: "People Coach", Description: "Helps with people questions", Status: "ready"}}, Tasks: []productui.AgentTask{{
 		ID: "task-" + req.Principal, Version: 8, Title: "Task owned by " + req.Principal, Goal: "Goal of " + req.Principal, State: productui.AgentTaskRunning,
 		Actions: productui.AgentTaskActionPolicy{Pause: true, Cancel: true},
 		Steps:   []productui.AgentTaskStep{{Name: "skill.lookup", State: "running", Tier: "T0"}},
@@ -156,6 +156,24 @@ func renderIslandPage(t *testing.T, config JourneyConfig, locale string) string 
 	return markup
 }
 
+func TestAgentUX008WorkspaceProjection(t *testing.T) {
+	created := time.Date(2026, 9, 30, 12, 0, 0, 0, time.UTC)
+	config := &AgentsConfig{Enabled: true, Service: agentServiceAvailable, Tasks: []AgentTaskConfig{{
+		ID: "failed-owned", Version: 4, Title: "Read policy", State: string(productui.AgentTaskFailed), CreatedAt: created.Format(time.RFC3339Nano), UpdatedAt: created.Add(time.Minute).Format(time.RFC3339Nano),
+		FailureReason: "The document service was temporarily unavailable.", ResultPreview: "No answer was produced.",
+		Documents:         []AgentTaskDocumentReferenceConfig{{DocumentID: "policy", Label: "Benefits policy", SectionAnchor: "leave"}},
+		DocumentOmissions: []AgentTaskDocumentOmissionConfig{{Label: "Private notes", Reason: "unreadable"}},
+	}}}
+	projection := ProductAgentsAvailability(config)
+	if projection.Snapshot.Availability != productui.AgentsAvailable || len(projection.Snapshot.Tasks) != 1 {
+		t.Fatalf("served projection = %+v", projection)
+	}
+	task := projection.Snapshot.Tasks[0]
+	if task.ID != "failed-owned" || task.FailureReason != "The document service was temporarily unavailable." || task.CreatedAt.IsZero() || task.UpdatedAt.IsZero() || len(task.Documents) != 1 || task.Documents[0].SectionAnchor != "leave" || len(task.DocumentOmissions) != 1 {
+		t.Fatalf("failed task projection = %+v", task)
+	}
+}
+
 const agentsNavHref = `href="/workspace/app/chat/agents"`
 
 // TestTodo_UXBLIND_122_Browser drives the browser-facing HTTP contract through
@@ -233,12 +251,14 @@ func TestTodo_UXBLIND_122_Browser(t *testing.T) {
 	}
 	workerIsland = island(t, workerBody)
 	if workerIsland.Agents == nil || !workerIsland.Agents.Enabled || workerIsland.Agents.Service != "available" ||
+		len(workerIsland.Agents.Agents) != 1 || workerIsland.Agents.Agents[0].Name != "People Coach" ||
 		len(workerIsland.Agents.Tasks) != 1 || workerIsland.Agents.Tasks[0].ID != "task-hc-051-linh-tran" ||
 		workerIsland.Agents.Tasks[0].Version != 8 || !workerIsland.Agents.Tasks[0].Actions.Pause || !workerIsland.Agents.Tasks[0].Actions.Cancel {
 		t.Fatalf("worker enabled island = %+v", workerIsland.Agents)
 	}
 	pageProjection := ProductAgentsAvailability(workerIsland.Agents)
-	if len(pageProjection.Snapshot.Tasks) != 1 || pageProjection.Snapshot.Tasks[0].Version != 8 ||
+	if len(pageProjection.Snapshot.Agents) != 1 || pageProjection.Snapshot.Agents[0].Name != "People Coach" ||
+		len(pageProjection.Snapshot.Tasks) != 1 || pageProjection.Snapshot.Tasks[0].Version != 8 ||
 		!pageProjection.Snapshot.Tasks[0].Actions.Pause || !pageProjection.Snapshot.Tasks[0].Actions.Cancel {
 		t.Fatalf("workspace projection lost task control state: %+v", pageProjection.Snapshot.Tasks)
 	}
@@ -262,7 +282,7 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	if adminIsland.Agents == nil || !adminIsland.Agents.Enabled || adminIsland.Agents.Service != "unavailable" || len(adminIsland.Agents.Tasks) != 0 {
 		t.Fatalf("erroring client island = %+v", adminIsland.Agents)
 	}
-	if page := renderIslandPage(t, adminIsland, "en-US"); !strings.Contains(page, "Agents are not available yet") {
+	if page := renderIslandPage(t, adminIsland, "en-US"); !strings.Contains(page, "Agents could not be loaded") || !strings.Contains(page, "Try again") {
 		t.Fatalf("erroring client page = %s", page)
 	}
 	// The authority check fails closed: no principal, and a role store that
@@ -296,6 +316,126 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	forged := ProductAgentsAvailability(&AgentsConfig{ViewerIsAdmin: true, SettingsHref: "https://evil.example", Tasks: []AgentTaskConfig{{ID: "x", Title: "forged", State: "running"}}})
 	if len(forged.Snapshot.Tasks) != 0 || forged.SettingsHref != productui.AgentsSettingsHref() {
 		t.Fatalf("forged island = %+v", forged)
+	}
+}
+
+func TestTodo_AGENTUX_002_WorkspaceIntegration(t *testing.T) {
+	settings := &memoryAgentSettings{enabled: map[values.TenantId]bool{shellTenant: true}}
+	server := uxblind122Server(t, settings, &ownerAgentClient{})
+	admin := uxblind122SignIn(t, server, uxblind122Admin)
+	worker := uxblind122SignIn(t, server, uxblind122Worker)
+	operationsURL := server.URL + "/workspace/app/admin/agents"
+
+	adminResponse, err := admin.Get(operationsURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminBodyBytes, readErr := io.ReadAll(adminResponse.Body)
+	adminResponse.Body.Close()
+	if readErr != nil || adminResponse.StatusCode != http.StatusOK {
+		t.Fatalf("administrator Agent operations = %d (%v): %s", adminResponse.StatusCode, readErr, adminBodyBytes)
+	}
+	adminBody := string(adminBodyBytes)
+	for _, want := range []string{`class="app-shell`, `id="workspace-navigation"`, `href="/workspace/app/admin/agents"`, "Agent operations"} {
+		if !strings.Contains(adminBody, want) {
+			t.Fatalf("administrator shell missing %q: %s", want, adminBody)
+		}
+	}
+	adminIsland := island(t, adminBody)
+	foundGrant := false
+	for _, permission := range adminIsland.PagePermissions {
+		if permission.PageID == string(productui.PageAgentOperations) && permission.View {
+			foundGrant = true
+		}
+	}
+	if !foundGrant {
+		t.Fatalf("administrator island has no Agent operations navigation grant: %+v", adminIsland.PagePermissions)
+	}
+
+	request, err := http.NewRequest(http.MethodGet, operationsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Referer", server.URL+"/workspace/app/chat/agents")
+	workerResponse, err := worker.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workerBodyBytes, readErr := io.ReadAll(workerResponse.Body)
+	workerResponse.Body.Close()
+	if readErr != nil || workerResponse.StatusCode != http.StatusForbidden {
+		t.Fatalf("employee Agent operations = %d (%v): %s", workerResponse.StatusCode, readErr, workerBodyBytes)
+	}
+	workerBody := string(workerBodyBytes)
+	for _, want := range []string{`class="app-shell`, `id="workspace-navigation"`, "Agent operations", "You do not have access to this page.", "Ask your workspace administrator to grant access.", `class="button primary" href="/workspace/app/chat/agents"`, "Go to Agents", ">Back<"} {
+		if !strings.Contains(workerBody, want) {
+			t.Fatalf("employee refusal shell missing %q: %s", want, workerBody)
+		}
+	}
+	for _, forbidden := range []string{"Running agents", "Versions and rollout", "portable definitions", ">Try again<", `aria-label="Agent operations" class="nav-link"`} {
+		if strings.Contains(workerBody, forbidden) {
+			t.Fatalf("employee refusal exposed %q: %s", forbidden, workerBody)
+		}
+	}
+	for _, private := range []string{"task-hc-051-linh-tran", "People Coach", "Goal of hc-051-linh-tran"} {
+		if strings.Contains(workerBody, private) {
+			t.Fatalf("employee refusal island exposed personal agent projection %q", private)
+		}
+	}
+	workerHome := uxblind122Get(t, worker, server.URL+PathProductHome)
+	if strings.Contains(workerHome, `href="/workspace/app/admin/agents"`) {
+		t.Fatal("employee navigation projected Agent operations")
+	}
+}
+
+func TestTodo_AGENTUX_010(t *testing.T) {
+	h, _ := newShellHandler(t, false)
+	config := JourneyConfig{Tenant: string(shellTenant), Subject: uxblind122Admin.subject, Roles: uxblind122Admin.roles}
+	request := httptest.NewRequest(http.MethodGet, "http://cell.test/workspace/app/admin/agents?locale=en-US", nil)
+	request.Header.Set("Referer", "http://cell.test/workspace/app/chat/agents?filter=failed")
+	recorder := httptest.NewRecorder()
+	h.writeProductProblem(recorder, request, http.StatusServiceUnavailable, productui.ResolveProductLocale("en-US"), productui.PageAgentOperations, config)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unavailable status = %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	for _, want := range []string{`class="app-shell`, `id="workspace-navigation"`, "Agent operations", "This page could not be loaded.", ">Try again<", `href="/workspace/app/chat/agents?filter=failed"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("unavailable shell missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestTodo_AGENTUX_010_Security(t *testing.T) {
+	access := productAccess{configured: true, roles: []string{productui.RoleHCMAdmin}, permissions: roleaccess.EffectivePagePermissions(roleaccess.Snapshot{PagePermissions: roleaccess.DefaultPagePermissions()}, []string{productui.RoleHCMAdmin})}
+	projected := projectAgentOperationsAccess(access)
+	if !agentsAdmin(access) || !projected.can(productui.PageAgentOperations, roleaccess.ActionView) {
+		t.Fatalf("agent owner authority was not projected: %+v", projected.permissions)
+	}
+	employee := productAccess{configured: true, roles: []string{"worker_self"}, permissions: roleaccess.EffectivePagePermissions(roleaccess.Snapshot{PagePermissions: roleaccess.DefaultPagePermissions()}, []string{"worker_self"})}
+	if projectAgentOperationsAccess(employee).can(productui.PageAgentOperations, roleaccess.ActionView) {
+		t.Fatal("employee received a derived Agent operations grant")
+	}
+}
+
+func TestTodo_AGENTUX_010_Browser(t *testing.T) {
+	h, _ := newShellHandler(t, false)
+	for _, localeID := range []string{"en-US", "de-DE", "ar"} {
+		locale := productui.ResolveProductLocale(localeID)
+		request := httptest.NewRequest(http.MethodGet, "http://cell.test/workspace/app/admin/agents?locale="+localeID, nil)
+		recorder := httptest.NewRecorder()
+		h.writeProductProblem(recorder, request, http.StatusForbidden, locale, productui.PageAgentOperations, JourneyConfig{Tenant: string(shellTenant), Subject: uxblind122Worker.subject, Roles: uxblind122Worker.roles})
+		body := recorder.Body.String()
+		for _, want := range []string{`dir="` + string(locale.Direction) + `"`, locale.Text("page.agent_operations.title"), locale.Text("agents.page_access_denied"), locale.Text("agents.page_access_help"), locale.Text("agents.back"), agentUXProblemText(locale, "go_to_agents"), `href="/workspace/app/chat/agents"`} {
+			if !strings.Contains(body, want) {
+				t.Fatalf("%s refusal shell missing %q", localeID, want)
+			}
+		}
+		problem := body[strings.Index(body, `class="surface empty-state workspace-page-problem"`):]
+		problem = problem[:strings.Index(problem, "</section>")]
+		if !strings.Contains(problem, `class="button primary"`) || strings.Contains(problem, ">"+locale.Text("shell.load_retry")+"<") {
+			t.Fatalf("%s access refusal lost its permitted primary action or offered the wrong recovery", localeID)
+		}
 	}
 }
 

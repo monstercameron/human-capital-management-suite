@@ -28,7 +28,7 @@ func TestNavigationRegistryBuildsReusableSubmenus(t *testing.T) {
 	// capability. The published Chat settings and Personas pages follow the
 	// overview and other admitted configuration destinations.
 	admin, ok := projectedNavigationItem(items, PageAdmin)
-	wantAdminChildren := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices}
+	wantAdminChildren := []PageID{PageAdmin, PageWorkerIDs, PageRoles, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageAgentOperations, PageClockDevices}
 	if !ok || len(admin.Children) != len(wantAdminChildren) {
 		t.Fatalf("Admin submenu = %+v, present=%t", admin, ok)
 	}
@@ -42,6 +42,31 @@ func TestNavigationRegistryBuildsReusableSubmenus(t *testing.T) {
 			if child.Page == unadmitted {
 				t.Fatalf("Admin submenu still carries unadmitted page %s", unadmitted)
 			}
+		}
+	}
+}
+
+func TestTodo_AGENTUX_015_AdminPagesAreAdjacentAndCurrent(t *testing.T) {
+	for _, current := range []PageID{PagePersonaAdmin, PageAgentOperations} {
+		_, items := projectNavigation(testView(current))
+		admin, ok := projectedNavigationItem(items, PageAdmin)
+		if !ok {
+			t.Fatalf("%s has no Admin navigation", current)
+		}
+		setup, operations := -1, -1
+		for index, child := range admin.Children {
+			switch child.Page {
+			case PagePersonaAdmin:
+				setup = index
+			case PageAgentOperations:
+				operations = index
+			}
+			if child.Page == current && !child.Active {
+				t.Fatalf("%s is not current in Admin submenu: %+v", current, admin.Children)
+			}
+		}
+		if setup < 0 || operations != setup+1 {
+			t.Fatalf("Agent setup and Agent operations are not adjacent: %+v", admin.Children)
 		}
 	}
 }

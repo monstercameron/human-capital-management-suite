@@ -63,6 +63,8 @@ const chatReactionFanout = 8
 var chatWorkers journeyv1.JourneyServiceClient
 
 func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Config) {
+	chatattach001Dispose()
+	disposeIntegrate1Chat()
 	clearChatMediaCache()
 	resetChatPersonActions()
 	client := chatv1.NewConversationServiceClient(conn)
@@ -75,17 +77,19 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	configureChatDocuments(conn, cfg)
 	configureChatProjects(conn)
 	configurePersonaChatBrowser(cfg)
+	configureIntegrate1Icons(cfg)
+	chatattach001Configure(cfg)
 }
 
 // loadChatDirectory reads the worker directory once per session.
-func loadChatDirectory(cfg journeyclient.Config) {
+func loadChatDirectory(cfg journeyclient.Config) bool {
 	workers := chatWorkers
 	if workers == nil {
-		return
+		return true
 	}
 	epoch, claimed := chatBrowser.claimDirectoryReadFor(cfg)
 	if !claimed {
-		return
+		return true
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -93,25 +97,31 @@ func loadChatDirectory(cfg journeyclient.Config) {
 	if err != nil {
 		// A directory failure is never a page failure. Chat is fully usable
 		// without names -- every author falls back to a humanized reference --
-		// so this sets no LoadError, raises no notice, and is retried on the
-		// next open rather than leaving the session on identifiers for good.
+		// so this sets no LoadError and raises no notice. CHATUX-012: it is
+		// retried with backoff (1 s, 2 s, 5 s, then every 15 s) instead of
+		// leaving the session on identifiers until the next open.
 		chatBrowser.releaseDirectoryReadAt(epoch, cfg)
-		return
+		if !chatux012FinalRefusal(err) {
+			chatux012RetryDirectory(cfg)
+			return false
+		}
+		return true
 	}
 	directory := chatDirectoryFromWorkers(result.GetWorkers())
 	if len(directory) == 0 {
 		chatBrowser.releaseDirectoryReadAt(epoch, cfg)
-		return
+		return true
 	}
 	people := chatSearchDirectoryFromWorkers(result.GetWorkers())
 	if !chatBrowser.completeDirectoryRead(epoch, cfg, directory, chatPhotosFromWorkers(result.GetWorkers()), people) {
-		return
+		return true
 	}
 	refreshChatRoute()
 	current := chatBrowser.snapshot()
 	if strings.TrimSpace(current.Search) != "" && current.Callbacks.Search != nil {
 		current.Callbacks.Search(current.Search)
 	}
+	return true
 }
 
 func chatRPCContext(ctx context.Context, cfg journeyclient.Config) context.Context {
@@ -304,6 +314,13 @@ func refreshChatRoute() {
 		chatRerender()
 		return
 	}
+	if chatux009RenderPending() {
+		// CHATUX-009: the first render is on its way and draws from the model as
+		// it is when it runs; re-reading the route for it only repeats the list
+		// read, the agent list and the shell's reads once for every change made
+		// while it waits.
+		return
+	}
 	if productRouteRetry != nil {
 		// Chat has already applied the change to its local model. Keep the
 		// mounted conversation still while the route re-reads its projection.
@@ -337,7 +354,9 @@ func refreshChatThreadRoute(conversation, root string) {
 // and no invented names when it is empty.
 func productPeopleDirectory() []productui.Person {
 	if lastResolvedProductView == nil {
-		return nil
+		// CHATUX-009: the first load asks Chat for its list beside the shell's
+		// reads, so the shell's people are held here until its view is published.
+		return chatux009People()
 	}
 	return lastResolvedProductView.People
 }
@@ -414,6 +433,17 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	// and Messages over the newer one.
 	generation := chatBrowser.currentGeneration()
 	callCtx := chatRPCContext(ctx, cfg)
+	// CHATUX-009: the page's first load does not wait for the open conversation's
+	// messages; see chatux009_first_wasm.go.
+	firstLoad := chatux009FirstLoad(chatBrowser.snapshot())
+	bootMark("chat-load-start")
+	// Which direct conversations are with agents, and each agent's name, own
+	// description and stored icon, is read beside the list so the first paint of
+	// the sidebar already has them.
+	var agentRail <-chan agentRailResult
+	if _, current := chatAgentRail.state(agentRailIdentity(cfg.Tenant, cfg.Subject), nil); !current {
+		agentRail = startAgentRail(cfg)
+	}
 	list, err := client.ListConversations(callCtx, &chatv1.ListConversationsRequest{TenantId: cfg.Tenant, PageSize: 100, IncludeDiscoverable: true})
 	if err != nil {
 		if ctx.Err() != nil || !chatBrowser.generationActive(generation) {
@@ -427,12 +457,20 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 			model.State, model.Error = chatui.StateError, message
 			model.CurrentUser, model.Locale = cfg.Subject, cfg.Locale
 		})
+		if !chatux012FinalRefusal(err) {
+			chatux012RetryProjection()
+		}
 		return model, err
 	}
 	// The directory read is chat's own and happens on open, in the background:
 	// the first render may show an id, and the read that lands a moment later
 	// replaces it with a name.
-	go loadChatDirectory(cfg)
+	bootMark("chat-list-done")
+	if !firstLoad {
+		// On the first load the read waits for the first paint (chatux009Mounted):
+		// the shell's people already name everyone the page shows.
+		go loadChatDirectory(cfg)
+	}
 	directory := chatDirectorySnapshot()
 
 	local := chatBrowser.snapshot()
@@ -462,6 +500,22 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	model.Number = chatNumberFormatter(cfg.Locale)
 	sortChatRail(conversations, chatBrowser.activitySnapshot())
 	model.Conversations = conversations
+	railWait := agentRailWait
+	if firstLoad {
+		railWait = chatux009RailWait
+	}
+	railEntries, railState := resolveAgentRail(cfg, conversations, agentRail, railWait)
+	bootMark("chat-rail-done")
+	switch railState {
+	case agentRailReady:
+		applyAgentRail(&model, railEntries)
+	case agentRailPending:
+		// Known agents keep their identity; the rest wait without an avatar.
+		applyAgentRailEntries(&model, railEntries)
+		model.AgentRailPending = true
+	default:
+		model.AgentRailPending, model.AgentIconsReady = false, true
+	}
 	model.EditDrafts = chatBrowser.editDraftSnapshot()
 	previous := model.SelectedID
 	model.SelectedID = ""
@@ -481,8 +535,13 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 			previewAccess = &previewCopy
 		}
 	}
-	fragmentID, _ := currentChatChannelFragment()
-	if model.SelectedID == "" && fragmentID != "" {
+	addressRooms := append([]chatui.Conversation(nil), conversations...)
+	for _, room := range discoverable {
+		addressRooms = append(addressRooms, room)
+	}
+	fragmentID, _ := currentChatChannelFragment(addressRooms)
+	fragmentID = integrate2AddressSelection(addressRooms, fragmentID, model.SelectedID)
+	if fragmentID != "" && fragmentID != model.SelectedID {
 		// The URL can name a room absent from this reader's listing. Keep its
 		// pending or unavailable view through route revalidation; selecting
 		// the first listed room here would put that room under the wrong URL.
@@ -495,15 +554,6 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	}
 	if model.SelectedID == "" && len(conversations) > 0 {
 		model.SelectedID = conversations[0].ID
-		// C-5: this is a landing, not a navigation -- nothing in the route
-		// asked for this room, the first conversation was picked for the
-		// reader. On a phone the room and the rail cannot both fit
-		// (.chat-rail hides under 760px unless the sidebar is open), so
-		// landing straight in a room leaves the rail unreachable without
-		// already knowing to tap back. Start on the list instead.
-		if chatNarrowViewport() {
-			model.SidebarOpen = true
-		}
 	}
 	if model.SelectedID != previous {
 		model.Messages, model.HasOlder = nil, false
@@ -526,13 +576,22 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	if model.PreviewConversation != nil && model.PreviewConversation.ID == model.SelectedID {
 		selectedListed = true
 	}
-	if model.SelectedID != "" && selectedListed && model.Search == "" && !streaming {
+	deferTimeline := chatux009DeferTimeline(firstLoad, model, selectedListed, streaming)
+	if deferTimeline {
+		// CHATUX-009: show the list and a skeleton of the timeline now; the page
+		// opens this conversation once it is on screen (chatux009Mounted).
+		model.State, model.Error = chatui.StateLoading, ""
+		chatBrowser.setLoadError("")
+	} else if model.SelectedID != "" && selectedListed && model.Search == "" && !streaming {
 		reloaded = true
 		loaded, postErr := loadChatPosts(callCtx, client, cfg, &model, directory)
 		if postErr != nil {
 			message := chatLoadFailureMessage("this conversation", postErr)
 			chatBrowser.setLoadError(message)
 			model.State, model.Error = chatui.StateError, message
+			if !chatux012FinalRefusal(postErr) {
+				chatux012RetryProjection()
+			}
 		} else {
 			chatBrowser.setLoadError("")
 			cursor = loaded
@@ -562,6 +621,14 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	startChatRecipientProjection(cfg, chatMembershipRows(list.GetConversations()))
 	startPersonaChat(cfg, model.SelectedID)
 	startChatDMPeers(cfg, conversations)
+	if deferTimeline {
+		chatux009Defer(cfg, model.SelectedID)
+		bootMark("chat-adopted")
+		return chatBrowser.snapshot(), nil
+	}
+	if firstLoad {
+		go loadChatDirectory(cfg)
+	}
 	openChatShareFragment(cfg)
 	openChatChannelFragment(cfg)
 	openChatPersonFragment(cfg)
@@ -579,40 +646,53 @@ func startChatDMPeers(cfg journeyclient.Config, rooms []chatui.Conversation) {
 		go func(roomID string) {
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			defer cancel()
-			client := chatBrowser.conversationClient()
-			if client == nil {
-				chatBrowser.releaseDMPeerRead(roomID)
-				return
-			}
-			result, err := client.ListMemberships(chatRPCContext(ctx, cfg), &chatv1.ListMembershipsRequest{TenantId: cfg.Tenant, ConversationId: roomID, PageSize: 100})
-			if err != nil {
-				chatBrowser.releaseDMPeerRead(roomID)
-				return
-			}
-			peer := chatDMPeerFromMemberships(result.GetMemberships(), cfg.Subject)
-			if peer == "" {
-				return
-			}
-			current := chatBrowser.config(journeyclient.Config{})
-			if current.Tenant != cfg.Tenant || current.Subject != cfg.Subject || current.Bearer != cfg.Bearer {
-				return
-			}
-			chatBrowser.mutate(func(model *chatui.Model) {
-				if model.PeerIDs == nil {
-					model.PeerIDs = make(map[string]string)
-				}
-				model.PeerIDs[roomID] = peer
-			})
-			chatBrowser.applyChatDirectory(chatDirectorySnapshot())
-			ui.PostAsync(func() {
-				if chatRerender != nil {
-					refreshChatRoute()
-				}
-			})
+			readChatDMPeer(cfg, roomID)
 		}(room.ID)
 	}
+}
+
+// readChatDMPeer reads who is on the other end of one direct conversation. It
+// reports whether the read is settled; a read that did not get an answer is
+// released (so it is not remembered as asked) and retried with backoff
+// (CHATUX-012) until it does.
+func readChatDMPeer(cfg journeyclient.Config, roomID string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	client := chatBrowser.conversationClient()
+	if client == nil {
+		chatBrowser.releaseDMPeerRead(roomID)
+		return true
+	}
+	result, err := client.ListMemberships(chatRPCContext(ctx, cfg), &chatv1.ListMembershipsRequest{TenantId: cfg.Tenant, ConversationId: roomID, PageSize: 100})
+	if err != nil {
+		chatBrowser.releaseDMPeerRead(roomID)
+		if chatux012FinalRefusal(err) {
+			return true
+		}
+		chatux012RetryDMPeer(cfg, roomID)
+		return false
+	}
+	peer := chatDMPeerFromMemberships(result.GetMemberships(), cfg.Subject)
+	if peer == "" {
+		return true
+	}
+	current := chatBrowser.config(journeyclient.Config{})
+	if current.Tenant != cfg.Tenant || current.Subject != cfg.Subject || current.Bearer != cfg.Bearer {
+		return true
+	}
+	chatBrowser.mutate(func(model *chatui.Model) {
+		if model.PeerIDs == nil {
+			model.PeerIDs = make(map[string]string)
+		}
+		model.PeerIDs[roomID] = peer
+	})
+	chatBrowser.applyChatDirectory(chatDirectorySnapshot())
+	ui.PostAsync(func() {
+		if chatRerender != nil {
+			refreshChatRoute()
+		}
+	})
+	return true
 }
 
 func chatMembershipRows(rows []*chatv1.Conversation) []*chatv1.Conversation {
@@ -786,7 +866,7 @@ func applyChatPins(ctx context.Context, client chatv1.ConversationServiceClient,
 		post := pin.GetPost()
 		model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{
 			PostID: pin.GetPostId(), Author: chatDisplayName(directory, post.GetAuthorId()),
-			Body: post.GetBody(), Sequence: post.GetSequence(),
+			Body: post.GetBody(), Sequence: post.GetSequence(), Revision: post.GetRevision(),
 		})
 	}
 	if model.ChannelTodoSourcePin != "" {
@@ -886,6 +966,18 @@ func chatReactionSnapshot(reactions []*chatv1.Reaction, viewer string) ([]chatui
 
 func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 	callbacks := chatui.Callbacks{
+		SubmitAgentFeedback: func(invocationID string, helpful bool) {
+			clearPersonaFeedbackRestored(invocationID)
+			go submitPersonaChatFeedback(cfg, invocationID, helpful)
+		},
+		UndoAgentFeedback: func(invocationID string) {
+			clearPersonaFeedbackRestored(invocationID)
+			go undoPersonaChatFeedback(cfg, invocationID)
+		},
+		ShareAgentAnswer: func(invocationID string) { go sharePersonaChatAnswer(cfg, invocationID) },
+		CancelPersonaInvocation: func(invocationID string) {
+			go cancelPersonaChat(cfg, invocationID)
+		},
 		ToggleSidebar: func(open bool) {
 			chatBrowser.mutate(func(model *chatui.Model) {
 				model.Pane.RailCollapsed = !open
@@ -983,7 +1075,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 						chatBrowser.restoreDraft(chatBrowser.selectedID(), strings.Join(waiting, "\n"))
 						flushChatDraftPersist(active)
 					}
-					chatActionFailed("create this conversation", err)
+					chatmod002Failed("create this conversation", err, "", "", chatui.ModAuthorSurfaceSaved, strings.TrimSpace(name))
 					refreshChatRoute()
 					return
 				}
@@ -1018,6 +1110,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				refreshChatRoute()
 			}()
 		},
+		ThreadDraftChanged: func(parentID, value string) { chatBrowser.setThreadDraft(parentID, value) },
 		DraftChanged: func(conversationID, value string) {
 			// Local only. No RPC, no revalidation: see the file comment.
 			chatBrowser.setDraft(conversationID, value)
@@ -1056,6 +1149,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				// A reply keys its idempotency on the thread, not the room, so
 				// the same text in the conversation and under a message are two
 				// different attempts.
+				chatBrowser.clearAuthorBlocked(chatui.ModAuthorKeyReply(parentID))
 				key := chatBrowser.sendKey(conversationID+"\x00"+parentID, body, func() string {
 					return fmt.Sprintf("wasm-reply-%d", time.Now().UnixNano())
 				})
@@ -1065,7 +1159,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				_, err := client.SendPost(callCtx, &chatv1.SendPostRequest{
 					TenantId: active.Tenant, ConversationId: conversationID, Body: body, ParentId: parentID, IdempotencyKey: key,
 				})
-				if chatActionFailed("post this reply", err) {
+				if chatmod002Failed("post this reply", err, conversationID, chatui.ModAuthorKeyReply(parentID), chatui.ModAuthorSurfaceMessage, body) {
 					return
 				}
 				chatBrowser.clearSendKey(conversationID + "\x00" + parentID)
@@ -1077,8 +1171,14 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		},
 		Search: func(query string) {
 			query = strings.TrimSpace(query)
+			if chatsearchBegin(cfg, query) {
+				return
+			}
 			generation := chatBrowser.beginGeneration()
 			if query == "" {
+				// Clearing the box ends the search for good: a request still on
+				// its way is dropped, so its answer cannot bring the results back.
+				chatsearchClear()
 				chatBrowser.commit(generation, func(model *chatui.Model) {
 					model.Search, model.SearchLoading, model.SearchError = "", false, ""
 					model.SearchMoreError, model.SearchNextCursor = "", ""
@@ -1211,6 +1311,9 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		},
 		CloseThread: func() {
 			chatBrowser.mutate(func(model *chatui.Model) {
+				// A reaction picker or menu opened on a reply is anchored to the pane
+				// that is going away; it closes with it.
+				chatui.ClearThreadOverlays(model)
 				model.ShowThread, model.ThreadParentID, model.ThreadMessages = false, "", nil
 				model.ThreadLoading = false
 				model.ThreadParent = nil
@@ -1277,6 +1380,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				return
 			}
 			chatBrowser.clearEditDraft(model.EditingID)
+			chatBrowser.clearAuthorBlocked(chatui.ModAuthorKeyEdit(model.EditingID))
 			chatBrowser.mutate(func(m *chatui.Model) { m.EditingID = "" })
 			refreshChatRoute()
 		},
@@ -1287,12 +1391,13 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 					return
 				}
 				active := chatBrowser.config(cfg)
+				chatBrowser.clearAuthorBlocked(chatui.ModAuthorKeyEdit(postID))
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				_, err := client.EditPost(chatRPCContext(ctx, active), &chatv1.EditPostRequest{
 					Post: &chatv1.Post{TenantId: active.Tenant, ConversationId: chatBrowser.selectedID(), Id: postID}, Body: body, ExpectedRevision: revision,
 				})
-				if chatActionFailed("save this edit", err) {
+				if chatmod002Failed("save this edit", err, chatBrowser.selectedID(), chatui.ModAuthorKeyEdit(postID), chatui.ModAuthorSurfaceMessage, body) {
 					return
 				}
 				chatBrowser.clearEditDraft(postID)
@@ -1457,7 +1562,7 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 		// kept: the same body retried reuses it.
 		chatBrowser.restoreDraft(conversationID, body)
 		flushChatDraftPersist(active)
-		chatActionFailed("send this message", err)
+		chatmod002Failed("send this message", err, conversationID, chatui.ModAuthorKeyComposer(conversationID), chatui.ModAuthorSurfaceMessage, body)
 		chatStreamRender.Schedule()
 		return
 	}
@@ -1530,16 +1635,30 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 	chatBrowser.releaseReactionRead()
 	_, generation := chatBrowser.selectChatConversation(id)
 	startPersonaChat(cfg, id)
-	refreshChatRoute()
-	go loadChannelTodo(cfg, id)
-	go loadChannelWidgets(cfg, id)
-	go loadChannelPoll(cfg, id)
+	// CHATUX-009: the first open of the page shows its skeleton already, so it
+	// neither repaints it nor reads the channel's to-do list, widgets and poll
+	// until the messages are on screen.
+	held := chatux009TakeHold(id)
+	if !held {
+		refreshChatRoute()
+		go loadChannelTodo(cfg, id)
+		go loadChannelWidgets(cfg, id)
+		go loadChannelPoll(cfg, id)
+	}
 	go func() {
 		// However this read ends, the open ends with it, and anything typed
 		// while it was in flight goes to the room that is now open -- in the
 		// order it was typed. A return that left the open marked would queue
 		// every later send in silence.
 		defer func() {
+			// CHATUX-009: the worker directory is read once the messages are on
+			// screen, not while they are being read (a no-op when it already was).
+			go loadChatDirectory(cfg)
+			if held {
+				go loadChannelTodo(cfg, id)
+				go loadChannelWidgets(cfg, id)
+				go loadChannelPoll(cfg, id)
+			}
 			for _, body := range chatBrowser.finishChatOpen(id, generation) {
 				sendChatMessage(chatBrowser.config(cfg), id, body)
 			}
@@ -1562,6 +1681,9 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 		}
 		if err != nil {
 			chatBrowser.setLoadError(chatLoadFailureMessage("this conversation", err))
+			if !chatux012FinalRefusal(err) {
+				chatux012RetryProjection()
+			}
 		} else {
 			chatBrowser.setLoadError("")
 			model.State = chatui.StateReady
@@ -1759,16 +1881,16 @@ func chatCopyableBody(model chatui.Model, postID string) (string, bool) {
 	}
 	for _, message := range model.Messages {
 		if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-			return message.Body, true
+			return chatui.ReaderMessageBody(model, message), true
 		}
 	}
 	if model.ShowThread {
 		if model.ThreadParent != nil && model.ThreadParentID == postID && model.ThreadParent.ID == postID && strings.TrimSpace(model.ThreadParent.Body) != "" {
-			return model.ThreadParent.Body, true
+			return chatui.ReaderMessageBody(model, *model.ThreadParent), true
 		}
 		for _, message := range model.ThreadMessages {
 			if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-				return message.Body, true
+				return chatui.ReaderMessageBody(model, message), true
 			}
 		}
 	}
@@ -1962,7 +2084,7 @@ func setChatPinned(model *chatui.Model, postID string, pinned bool) {
 					}
 				}
 				if !found {
-					model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{PostID: postID, Author: model.Messages[i].Author, Body: model.Messages[i].Body, Sequence: model.Messages[i].Sequence})
+					model.ChannelPins = append(model.ChannelPins, chatui.ChannelPin{PostID: postID, Author: model.Messages[i].Author, Body: model.Messages[i].Body, Sequence: model.Messages[i].Sequence, Revision: model.Messages[i].Revision})
 				}
 			}
 			break
@@ -2018,11 +2140,16 @@ func loadChatMembers(cfg journeyclient.Config) {
 	directory := chatDirectorySnapshot()
 	peer := chatDMPeerFromMemberships(result.GetMemberships(), active.Subject)
 	members := make([]chatui.Member, 0, len(result.GetMemberships()))
+	agentID, agentName := "", ""
+	var agentIdentity agentDirectIdentity
 	canPinTodo := false
 	for _, room := range chatBrowser.snapshot().Conversations {
 		if room.ID == conversation && room.OwnerID == active.Subject {
 			canPinTodo = true
-			break
+		}
+		if room.ID == conversation && room.Kind == chatui.DirectMessage && room.Agent {
+			agentID, agentName = room.AgentID, room.Name
+			agentIdentity = agentDirectIdentity{Icon: room.Icon, Revision: room.IconRevision}
 		}
 	}
 	for _, membership := range result.GetMemberships() {
@@ -2033,7 +2160,17 @@ func loadChatMembers(cfg journeyclient.Config) {
 		if homeTenantID == "" {
 			homeTenantID = channelTodoHost(conversation, active.Tenant)
 		}
-		members = append(members, chatui.Member{ID: membership.GetSubjectId(), HomeTenantID: homeTenantID, Name: chatMembershipDisplayName(directory, membership.GetSubjectId(), homeTenantID, active.Tenant)})
+		isAgent := membership.GetSubjectId() == agentID
+		name := chatMembershipDisplayName(directory, membership.GetSubjectId(), homeTenantID, active.Tenant)
+		if isAgent {
+			name = agentName
+		}
+		member := chatui.Member{ID: membership.GetSubjectId(), HomeTenantID: homeTenantID, Name: name, Agent: isAgent}
+		if isAgent {
+			// The member list draws the agent with the icon its conversation holds.
+			member.Icon, member.IconRevision = agentIdentity.Icon, agentIdentity.Revision
+		}
+		members = append(members, member)
 		if membership.GetSubjectId() == active.Subject && membership.GetRole() == chatv1.MembershipRole_MEMBERSHIP_ROLE_MANAGER {
 			canPinTodo = true
 		}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
 // PersonaMentionContext is the already-authorized conversation context used
@@ -32,6 +33,8 @@ type PersonaMentionSkill struct {
 // A missing or incomplete envelope is rendered as unavailable; display names
 // and message text never infer persona status.
 type PersonaChatActor struct {
+	Icon          agenticon.Value
+	IconRevision  int64
 	PersonaID     string
 	AgentID       string
 	InvokerHandle string
@@ -44,6 +47,11 @@ type PersonaChatActor struct {
 type PersonaMentionPersona struct {
 	ID                      string
 	Name                    string
+	Handle                  string
+	Icon                    agenticon.Value
+	IconRevision            int64
+	Initials                string
+	AvatarURL               string
 	Purpose                 string
 	Owner                   string
 	Version                 string
@@ -66,15 +74,28 @@ const (
 )
 
 type PersonaMentionMenuProps struct {
-	Locale  LocaleContext
-	Target  string
-	Query   string
-	Active  int
-	Context PersonaMentionContext
-	People  []PersonaMentionPerson
-	Agents  []PersonaMentionPersona
-	Profile *PersonaMentionPersona
+	Locale         LocaleContext
+	Target         string
+	Query          string
+	Active         int
+	Context        PersonaMentionContext
+	People         []PersonaMentionPerson
+	Agents         []PersonaMentionPersona
+	Profile        *PersonaMentionPersona
+	Loading        bool
+	Failed         bool
+	CanAdminAgents bool
 }
+
+type PersonaMentionKeyAction string
+
+const (
+	PersonaMentionKeyNone     PersonaMentionKeyAction = ""
+	PersonaMentionKeyNext     PersonaMentionKeyAction = "next"
+	PersonaMentionKeyPrevious PersonaMentionKeyAction = "previous"
+	PersonaMentionKeySelect   PersonaMentionKeyAction = "select"
+	PersonaMentionKeyClose    PersonaMentionKeyAction = "close"
+)
 
 // FilterInvocablePersonas is the security boundary for the menu payload. It
 // deliberately drops hidden records rather than passing them to a renderer
@@ -112,8 +133,25 @@ func NextPersonaMention(active, delta, count int) int {
 	return ((active+delta)%count + count) % count
 }
 
+// PersonaMentionActionForKey keeps the browser bridge's keyboard contract
+// explicit and testable. Enter and Tab both accept the highlighted option.
+func PersonaMentionActionForKey(key string) PersonaMentionKeyAction {
+	switch key {
+	case "ArrowDown":
+		return PersonaMentionKeyNext
+	case "ArrowUp":
+		return PersonaMentionKeyPrevious
+	case "Enter", "Tab":
+		return PersonaMentionKeySelect
+	case "Escape":
+		return PersonaMentionKeyClose
+	default:
+		return PersonaMentionKeyNone
+	}
+}
+
 func PersonaMentionInputAria(target string, active int, open bool) map[string]string {
-	aria := map[string]string{"autocomplete": "list", "haspopup": "listbox", "keyshortcuts": "ArrowDown ArrowUp Enter Escape"}
+	aria := map[string]string{"autocomplete": "list", "haspopup": "listbox", "expanded": personaBoolString(open), "keyshortcuts": "ArrowDown ArrowUp Enter Tab Escape"}
 	if open {
 		aria["controls"] = target + "-persona-mentions"
 		aria["activedescendant"] = target + "-persona-mention-" + personaNumber(active+1)
@@ -137,37 +175,56 @@ func PersonaMentionMenu(props PersonaMentionMenuProps) ui.Node {
 		}
 	}
 	agents := FilterInvocablePersonas(props.Agents, props.Context)
+	eligibleAgentCount := len(agents)
 	filteredAgents := agents[:0]
 	for _, agent := range agents {
-		if personaMentionMatches(props.Query, agent.Name) {
+		if personaMentionMatches(props.Query, agent.Name) || personaMentionMatches(props.Query, agent.Handle) || personaMentionMatches(props.Query, agent.ID) {
 			filteredAgents = append(filteredAgents, agent)
 		}
 	}
 	agents = filteredAgents
 
 	optionCount := len(people) + len(agents)
+	if props.Loading || props.Failed {
+		optionCount = len(people)
+	}
 	active := props.Active
 	if active < 0 || active >= optionCount {
 		active = 0
 	}
 	children := []ui.Node{html.P(html.Props{ID: target + "-persona-mention-heading", Class: "sr-only", Text: personaMentionText(locale, "menu")})}
 	optionIndex := 0
+	children = append(children, html.H3(html.Props{Class: "persona-mention-group", Text: personaMentionText(locale, "agents")}))
+	if props.Loading {
+		children = append(children, html.P(html.Props{Class: "persona-mention-state loading", Role: "status", Aria: map[string]string{"live": "polite"}, Text: personaMentionText(locale, "loading")}))
+	} else if props.Failed {
+		children = append(children, html.Div(html.Props{Class: "persona-mention-state error", Role: "status", Aria: map[string]string{"live": "assertive"}},
+			html.P(html.Props{Text: personaMentionText(locale, "load_failed")}),
+			html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "persona-mention-retry"}}, ui.Text(personaMentionText(locale, "retry")))))
+	} else if len(agents) > 0 {
+		for _, agent := range agents {
+			children = append(children, personaMentionAgentOption(locale, target, agent, optionIndex, active == optionIndex))
+			optionIndex++
+		}
+	} else {
+		if strings.TrimSpace(props.Query) != "" && eligibleAgentCount > 0 {
+			children = append(children, html.P(html.Props{Class: "persona-mention-state empty", Role: "status", Aria: map[string]string{"live": "polite"}, Text: personaMentionText(locale, "no_agent_matches")}))
+		} else {
+			actions := []ui.Node{html.A(html.Props{Class: "persona-mention-action", Href: "/workspace/app/chat/agents", Text: personaMentionText(locale, "agents_page")})}
+			if props.CanAdminAgents {
+				actions = append(actions, html.A(html.Props{Class: "persona-mention-action", Href: "/workspace/app/admin/personas", Text: personaMentionText(locale, "add_agent")}))
+			}
+			children = append(children, html.Div(html.Props{Class: "persona-mention-empty"},
+				html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite"}, Text: personaMentionText(locale, "no_agents")}),
+				html.Div(html.Props{Class: "persona-mention-actions"}, actions...)))
+		}
+	}
 	if len(people) > 0 {
 		children = append(children, html.H3(html.Props{Class: "persona-mention-group", Text: personaMentionText(locale, "people")}))
 		for _, person := range people {
 			children = append(children, personaMentionPersonOption(target, person, optionIndex, active == optionIndex))
 			optionIndex++
 		}
-	}
-	if len(agents) > 0 {
-		children = append(children, html.H3(html.Props{Class: "persona-mention-group", Text: personaMentionText(locale, "agents")}))
-		for _, agent := range agents {
-			children = append(children, personaMentionAgentOption(locale, target, agent, optionIndex, active == optionIndex))
-			optionIndex++
-		}
-	}
-	if optionCount == 0 {
-		children = append(children, html.P(html.Props{Class: "persona-mention-empty", Role: "status", Aria: map[string]string{"live": "polite"}, Text: personaMentionText(locale, "none")}))
 	}
 
 	root := html.Div(html.Props{
@@ -191,12 +248,21 @@ func personaMentionPersonOption(target string, person PersonaMentionPerson, inde
 
 func personaMentionAgentOption(locale LocaleContext, target string, agent PersonaMentionPersona, index int, selected bool) ui.Node {
 	optionID := target + "-persona-mention-" + personaNumber(index+1)
+	handle := personaMentionHandle(agent)
+	initials := strings.TrimSpace(agent.Initials)
+	if initials == "" {
+		initials = personaMentionInitials(agent.Name)
+	}
 	return html.Div(html.Props{Class: "persona-mention-agent-row"},
 		html.Button(html.Props{
 			ID: optionID, Class: "persona-mention-option persona-mention-agent", Type: "button", Role: "option", TabIndex: -1,
 			Data: map[string]string{"action": "mention-pick", "kind": "agent", "id": agent.ID, "profile-id": agent.ID},
-			Aria: map[string]string{"selected": personaBoolString(selected)},
-		}, ui.Text("@"+agent.Name), html.Small(html.Props{Class: "persona-mention-purpose", Text: agent.Purpose}), PersonaAgentBadge(agent.Actor)),
+			Aria: map[string]string{"selected": personaBoolString(selected), "label": agent.Name + ", @" + handle + ", " + personaMentionText(locale, "agent")},
+		}, agenticon.NodeFor(agent.Icon, agent.ID),
+			html.Span(html.Props{Class: "persona-mention-identity"},
+				html.Strong(html.Props{Class: "persona-mention-name", Text: agent.Name}),
+				html.Small(html.Props{Class: "persona-mention-handle", Dir: "ltr", Text: "@" + handle})),
+			html.Small(html.Props{Class: "persona-mention-purpose", Text: agent.Purpose}), personaMentionTypeBadge(locale)),
 		html.Button(html.Props{
 			Class: "persona-mention-profile", Type: "button", Data: map[string]string{"action": "persona-profile", "id": agent.ID},
 			Aria: map[string]string{"label": personaMentionText(locale, "view_profile") + ": " + agent.Name, "controls": target + "-persona-profile-" + safeAgentDOMToken(agent.ID)},
@@ -204,17 +270,48 @@ func personaMentionAgentOption(locale LocaleContext, target string, agent Person
 	)
 }
 
+func personaMentionHandle(agent PersonaMentionPersona) string {
+	handle := strings.TrimSpace(strings.TrimPrefix(agent.Handle, "@"))
+	if handle != "" {
+		return handle
+	}
+	return strings.Join(strings.Fields(strings.ToLower(agent.Name)), "-")
+}
+
+func personaMentionInitials(name string) string {
+	words := strings.Fields(name)
+	if len(words) == 0 {
+		return "?"
+	}
+	initials := []rune(strings.ToUpper(words[0]))[:1]
+	if len(words) > 1 {
+		initials = append(initials, []rune(strings.ToUpper(words[len(words)-1]))[0])
+	}
+	return string(initials)
+}
+
+func personaMentionTypeBadge(locale LocaleContext) ui.Node {
+	agent := personaMentionText(locale, "agent")
+	return html.Span(html.Props{Class: "agent-badge", Aria: map[string]string{"label": agent}, Text: agent})
+}
+
 // PersonaAgentBadge renders the permanent agent marker and explicit invoker
 // attribution for a mention chip. It fails closed when actor fields are absent.
 func PersonaAgentBadge(actor *PersonaChatActor) ui.Node {
+	return personaAgentBadge(ResolveProductLocale("en-US"), actor)
+}
+
+func personaAgentBadge(locale LocaleContext, actor *PersonaChatActor) ui.Node {
 	if actor == nil || !actor.Trusted || strings.TrimSpace(actor.PersonaID) == "" || strings.TrimSpace(actor.AgentID) == "" {
-		return html.Span(html.Props{Class: "agent-badge unavailable", Aria: map[string]string{"label": "Agent identity unavailable"}, Text: "Agent identity unavailable"})
+		unavailable := personaMentionText(locale, "identity_unavailable")
+		return html.Span(html.Props{Class: "agent-badge unavailable", Aria: map[string]string{"label": unavailable}, Text: unavailable})
 	}
-	attribution := "Acting for unavailable"
+	attribution := personaMentionText(locale, "acting_unavailable")
 	if strings.TrimSpace(actor.InvokerHandle) != "" {
-		attribution = "acting for @" + strings.TrimSpace(actor.InvokerHandle)
+		attribution = personaMentionText(locale, "acting_for") + " @" + strings.TrimSpace(actor.InvokerHandle)
 	}
-	return html.Span(html.Props{Class: "agent-badge", Aria: map[string]string{"label": "Agent; " + attribution}}, html.Strong(html.Props{Text: "Agent"}), html.Span(html.Props{Class: "agent-attribution", Text: attribution}))
+	agent := personaMentionText(locale, "agent")
+	return html.Span(html.Props{Class: "agent-badge", Aria: map[string]string{"label": agent + "; " + attribution}}, html.Strong(html.Props{Text: agent}), html.Span(html.Props{Class: "agent-attribution", Text: attribution}))
 }
 
 func personaBoolString(value bool) string {
@@ -337,15 +434,15 @@ func personaMentionText(locale LocaleContext, key string) string {
 
 var personaMentionCopy = map[string]map[string]string{
 	"en": {
-		"menu": "Mention someone", "people": "People", "agents": "Agents", "none": "No people or agents match this search.", "view_profile": "View persona profile", "profile": "Profile", "close_profile": "Close persona profile", "purpose": "Purpose", "owner": "Owner", "version": "Version", "skills": "Skills", "data_reach": "Data this persona can reach", "acts_with_access": "Acts with your current access.", "cannot_do": "What it cannot do", "replies": "Replies go", "in_thread": "in this thread", "private_always": "privately because this conversation is always private", "private_audience": "privately because the audience floor will divert this answer", "unavailable": "Not provided", "none_listed": "No skills listed.",
+		"menu": "Mention someone", "people": "People in this conversation", "agents": "Agents", "none": "No people or agents match this search.", "no_agents": "No agents are in this conversation yet. You can still ask on the Agents page.", "no_agent_matches": "No agents match this search.", "agents_page": "Agents page", "add_agent": "Add an agent to this conversation", "loading": "Loading agents…", "load_failed": "The agent list could not be loaded.", "retry": "Retry loading agents", "agent": "Agent", "identity_unavailable": "Agent identity unavailable", "acting_unavailable": "Acting for unavailable", "acting_for": "acting for", "view_profile": "View agent details", "profile": "Profile", "close_profile": "Close agent details", "purpose": "Purpose", "owner": "Owner", "version": "Version", "skills": "Skills", "data_reach": "Data this agent can reach", "acts_with_access": "Acts with your current access.", "cannot_do": "What it cannot do", "replies": "Replies go", "in_thread": "in this thread", "private_always": "privately because this conversation is always private", "private_audience": "privately because the audience floor will divert this answer", "unavailable": "Not provided", "none_listed": "No skills listed.",
 		"tier_t0": "Read only", "tier_t1": "Private draft", "tier_t2": "Communicate", "tier_t3": "Governed submission", "tier_t4": "External write",
 	},
 	"de": {
-		"menu": "Person erwähnen", "people": "Personen", "agents": "Agenten", "none": "Keine passende Person oder kein passender Agent gefunden.", "view_profile": "Persona-Profil anzeigen", "profile": "Profil", "close_profile": "Persona-Profil schließen", "purpose": "Zweck", "owner": "Besitzer", "version": "Version", "skills": "Fähigkeiten", "data_reach": "Daten, auf die diese Persona zugreifen kann", "acts_with_access": "Handelt mit Ihrem aktuellen Zugriff.", "cannot_do": "Was sie nicht kann", "replies": "Antworten gehen", "in_thread": "in diesen Thread", "private_always": "privat, weil diese Unterhaltung immer privat ist", "private_audience": "privat, weil die Zielgruppe diese Antwort nicht vollständig sehen darf", "unavailable": "Nicht angegeben", "none_listed": "Keine Fähigkeiten aufgeführt.",
+		"menu": "Person erwähnen", "people": "Personen in dieser Unterhaltung", "agents": "Agenten", "none": "Keine passende Person oder kein passender Agent gefunden.", "no_agents": "In dieser Unterhaltung gibt es noch keine Agenten. Sie können trotzdem auf der Seite „Agenten“ fragen.", "no_agent_matches": "Keine Agenten passen zu dieser Suche.", "agents_page": "Seite „Agenten“", "add_agent": "Agent zu dieser Unterhaltung hinzufügen", "loading": "Agenten werden geladen…", "load_failed": "Die Agentenliste konnte nicht geladen werden.", "retry": "Agenten erneut laden", "agent": "Agent", "identity_unavailable": "Agentenidentität nicht verfügbar", "acting_unavailable": "Handelt für eine nicht verfügbare Person", "acting_for": "handelt für", "view_profile": "Agentendetails anzeigen", "profile": "Profil", "close_profile": "Agentendetails schließen", "purpose": "Zweck", "owner": "Besitzer", "version": "Version", "skills": "Fähigkeiten", "data_reach": "Daten, auf die dieser Agent zugreifen kann", "acts_with_access": "Handelt mit Ihrem aktuellen Zugriff.", "cannot_do": "Was er nicht kann", "replies": "Antworten gehen", "in_thread": "in diesen Thread", "private_always": "privat, weil diese Unterhaltung immer privat ist", "private_audience": "privat, weil die Zielgruppe diese Antwort nicht vollständig sehen darf", "unavailable": "Nicht angegeben", "none_listed": "Keine Fähigkeiten aufgeführt.",
 		"tier_t0": "Nur lesen", "tier_t1": "Privater Entwurf", "tier_t2": "Kommunizieren", "tier_t3": "Gesteuerte Einreichung", "tier_t4": "Externer Schreibzugriff",
 	},
 	"ar": {
-		"menu": "الإشارة إلى شخص", "people": "الأشخاص", "agents": "الوكلاء", "none": "لا يوجد شخص أو وكيل يطابق هذا البحث.", "view_profile": "عرض ملف الشخصية", "profile": "الملف الشخصي", "close_profile": "إغلاق ملف الشخصية", "purpose": "الغرض", "owner": "المالك", "version": "الإصدار", "skills": "المهارات", "data_reach": "فئات البيانات التي يمكن لهذه الشخصية الوصول إليها", "acts_with_access": "يعمل الوكيل بصلاحياتك الحالية.", "cannot_do": "ما لا يستطيع فعله", "replies": "تذهب الردود", "in_thread": "إلى سلسلة المحادثة الحالية", "private_always": "بشكل خاص لأن هذه المحادثة خاصة دائماً", "private_audience": "بشكل خاص لأن نطاق الجمهور سيحوّل هذه الإجابة", "unavailable": "غير متوفر", "none_listed": "لا توجد مهارات مدرجة.",
+		"menu": "الإشارة إلى شخص", "people": "الأشخاص في هذه المحادثة", "agents": "الوكلاء", "none": "لا يوجد شخص أو وكيل يطابق هذا البحث.", "no_agents": "لا يوجد وكلاء في هذه المحادثة حتى الآن. لا يزال بإمكانك طرح سؤالك في صفحة الوكلاء.", "no_agent_matches": "لا يوجد وكلاء يطابقون هذا البحث.", "agents_page": "صفحة الوكلاء", "add_agent": "إضافة وكيل إلى هذه المحادثة", "loading": "جارٍ تحميل الوكلاء…", "load_failed": "تعذر تحميل قائمة الوكلاء.", "retry": "إعادة محاولة تحميل الوكلاء", "agent": "وكيل", "identity_unavailable": "هوية الوكيل غير متاحة", "acting_unavailable": "ينوب عن شخص غير متاح", "acting_for": "ينوب عن", "view_profile": "عرض تفاصيل الوكيل", "profile": "التفاصيل", "close_profile": "إغلاق تفاصيل الوكيل", "purpose": "الغرض", "owner": "المالك", "version": "الإصدار", "skills": "المهارات", "data_reach": "فئات البيانات التي يمكن لهذا الوكيل الوصول إليها", "acts_with_access": "يعمل الوكيل بصلاحياتك الحالية.", "cannot_do": "ما لا يستطيع فعله", "replies": "تذهب الردود", "in_thread": "إلى سلسلة المحادثة الحالية", "private_always": "بشكل خاص لأن هذه المحادثة خاصة دائماً", "private_audience": "بشكل خاص لأن نطاق الجمهور سيحوّل هذه الإجابة", "unavailable": "غير متوفر", "none_listed": "لا توجد مهارات مدرجة.",
 		"tier_t0": "قراءة فقط", "tier_t1": "مسودة خاصة", "tier_t2": "تواصل", "tier_t3": "إرسال خاضع للحوكمة", "tier_t4": "كتابة خارجية",
 	},
 }

@@ -243,6 +243,6 @@ func chatAppReducedInterruption() bool {
 	defer func() { _ = recover() }()
 	document := js.Global().Get("document")
 	root := document.Get("documentElement")
-	preference := root.Call("getAttribute", "data-hcm-motion-preference").String()
+	preference := domAttribute(root, "data-hcm-motion-preference")
 	return preference == "reduce" || preference == "limited"
 }

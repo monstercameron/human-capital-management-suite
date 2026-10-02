@@ -1,10 +1,10 @@
 package pagedef
 
 import (
-	adminv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
+	"strings"
+
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
-	registryv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 )
 
 // This file is the whole of pagedef's coupling to generated code, and it is
@@ -31,13 +31,35 @@ import (
 var JourneyServiceName = journeyv1.JourneyService_ServiceDesc.ServiceName
 
 // IntentServiceName is the intents service's fully qualified name.
-var IntentServiceName = intentsv1.IntentService_ServiceDesc.ServiceName
+//
+// The name is read from a generated full-method-name constant rather than
+// from the service's ServiceDesc variable: the intents service has no
+// streaming RPC, so the browser bundle's only reference to its ServiceDesc
+// would be this one, and a reference to the variable keeps every server
+// handler it lists (about 30 KB of compiled code) in the client.
+// TestServiceNamesMatchGeneratedServiceDescs holds it to the ServiceDesc's
+// own name.
+var IntentServiceName = serviceNameOf(intentsv1.IntentService_CreateIntent_FullMethodName)
 
-// RegistryServiceName is the registry service's fully qualified name.
-var RegistryServiceName = registryv1.RegistryService_ServiceDesc.ServiceName
+// RegistryServiceName is the registry service's fully qualified name. It and
+// AdminServiceName are literals, not read from generated code: the browser
+// bundle must not import those two generated packages (rpcregistry_wasm.go).
+// TestServiceNamesMatchGeneratedServiceDescs holds both to the generated names.
+var RegistryServiceName = "hcmnext.registry.v1.RegistryService"
 
 // AdminServiceName is the admin service's fully qualified name.
-var AdminServiceName = adminv1.AdminService_ServiceDesc.ServiceName
+var AdminServiceName = "hcmnext.admin.v1.AdminService"
+
+// serviceNameOf returns the service half of a generated full method name:
+// "/hcmnext.admin.v1.AdminService/ListIntents" gives
+// "hcmnext.admin.v1.AdminService".
+func serviceNameOf(fullMethodName string) string {
+	name := strings.TrimPrefix(fullMethodName, "/")
+	if slash := strings.LastIndex(name, "/"); slash >= 0 {
+		name = name[:slash]
+	}
+	return name
+}
 
 // RPCRef builds the "<ServiceName>/<MethodName>" form every DataBinding.RPC
 // and ActionRef.RPC is written in, from the generated service name rather
@@ -74,32 +96,6 @@ func journeyServiceRPCs() []string {
 
 func intentServiceRPCs() []string {
 	desc := intentsv1.IntentService_ServiceDesc
-	methods := make([]string, 0, len(desc.Methods))
-	for _, m := range desc.Methods {
-		methods = append(methods, m.MethodName)
-	}
-	streams := make([]string, 0, len(desc.Streams))
-	for _, s := range desc.Streams {
-		streams = append(streams, s.StreamName)
-	}
-	return serviceMethods(desc.ServiceName, methods, streams)
-}
-
-func registryServiceRPCs() []string {
-	desc := registryv1.RegistryService_ServiceDesc
-	methods := make([]string, 0, len(desc.Methods))
-	for _, m := range desc.Methods {
-		methods = append(methods, m.MethodName)
-	}
-	streams := make([]string, 0, len(desc.Streams))
-	for _, s := range desc.Streams {
-		streams = append(streams, s.StreamName)
-	}
-	return serviceMethods(desc.ServiceName, methods, streams)
-}
-
-func adminServiceRPCs() []string {
-	desc := adminv1.AdminService_ServiceDesc
 	methods := make([]string, 0, len(desc.Methods))
 	for _, m := range desc.Methods {
 		methods = append(methods, m.MethodName)

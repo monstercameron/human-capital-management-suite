@@ -89,7 +89,7 @@ func (c *refreshCoalescer) Trigger(ctx context.Context) error {
 	c.mu.Lock()
 	c.waiters = append(c.waiters, result)
 	if c.timer == nil {
-		c.timer = c.schedule(c.delay, c.fire)
+		c.timer = c.schedule(c.delay, c.asyncFire)
 	}
 	c.mu.Unlock()
 	select {
@@ -110,10 +110,15 @@ func (c *refreshCoalescer) Schedule() {
 	}
 	c.mu.Lock()
 	if c.timer == nil {
-		c.timer = c.schedule(c.delay, c.fire)
+		c.timer = c.schedule(c.delay, c.asyncFire)
 	}
 	c.mu.Unlock()
 }
+
+// asyncFire keeps a scheduler callback bounded even when the scheduler calls
+// it synchronously. Browser timers use the same rule, but enforcing it at the
+// coalescer seam also protects tests and future non-browser adapters.
+func (c *refreshCoalescer) asyncFire() { go c.fire() }
 
 func (c *refreshCoalescer) fire() {
 	c.mu.Lock()

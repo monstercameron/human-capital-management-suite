@@ -243,6 +243,9 @@ func requestChatJoinPrompt(model *chatui.Model, id string) {
 
 // joinChatConversation adds the reader to a public channel and selects it.
 func joinChatConversation(cfg journeyclient.Config, id string) {
+	if openChatgateForJoin(cfg, id) {
+		return
+	}
 	client := chatBrowser.conversationClient()
 	if client == nil || id == "" {
 		return

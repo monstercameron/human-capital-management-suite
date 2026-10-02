@@ -57,7 +57,7 @@ func bindProjectCreateForms(cfg journeyclient.Config, service projectv1.ProjectS
 		if !form.Call("matches", `form[data-projectui-action="create-project"], form[data-projectui-action="create-task"]`).Bool() {
 			return nil
 		}
-		action := form.Call("getAttribute", "data-projectui-action").String()
+		action := domAttribute(form, "data-projectui-action")
 		route, err := projectclient.ParseState(currentPath(), currentQuery())
 		if err != nil {
 			return nil
@@ -66,7 +66,7 @@ func bindProjectCreateForms(cfg journeyclient.Config, service projectv1.ProjectS
 			return nil
 		}
 		if action == "create-task" {
-			if projectID := form.Call("getAttribute", "data-project-id").String(); projectID == "" || projectID != route.ProjectID {
+			if projectID := domAttribute(form, "data-project-id"); projectID == "" || projectID != route.ProjectID {
 				return nil
 			}
 		}
@@ -453,9 +453,9 @@ func bindProjectBoardSettings(cfg journeyclient.Config, service projectv1.Projec
 		if err != nil || route.Route != projectclient.RouteProject {
 			return nil
 		}
-		projectID := form.Call("getAttribute", "data-project-id").String()
-		viewID := form.Call("getAttribute", "data-view-id").String()
-		expectedRevision, parseErr := strconv.ParseUint(form.Call("getAttribute", "data-view-revision").String(), 10, 64)
+		projectID := domAttribute(form, "data-project-id")
+		viewID := domAttribute(form, "data-view-id")
+		expectedRevision, parseErr := strconv.ParseUint(domAttribute(form, "data-view-revision"), 10, 64)
 		if projectID == "" || projectID != route.ProjectID || viewID == "" || viewID != route.BoardViewID || parseErr != nil || expectedRevision == 0 {
 			return nil
 		}

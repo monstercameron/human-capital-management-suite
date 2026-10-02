@@ -128,7 +128,7 @@ func focusChatOriginalPost(room, post string) {
 		rows := js.Global().Get("document").Call("querySelectorAll", ".chat-workspace [data-message-id]")
 		for i := 0; i < rows.Get("length").Int(); i++ {
 			row := rows.Index(i)
-			if row.Get("dataset").Get("messageId").String() == post {
+			if domDataset(row, "messageId") == post {
 				row.Call("scrollIntoView", js.ValueOf(map[string]any{"block": "center"}))
 				row.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 				frame.Release()

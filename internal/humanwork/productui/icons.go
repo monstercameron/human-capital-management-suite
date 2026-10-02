@@ -55,6 +55,10 @@ var registeredIcons = []IconDefinition{
 	{Name: "document", Path: "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"},
 	{Name: "projects", Path: "M4 5h6l2 2h8v12H4zM4 9h16M8 13h4M8 16h7"},
 	{Name: "copy", Path: "M9 9h11v11H9zM5 15H4V4h11v1"},
+	// The agent pages. "sparkles" was named by three page definitions but
+	// never registered, so Agents, Agent setup and Agent operations all showed
+	// the generic ring that other unregistered names fall back to.
+	{Name: "sparkles", Path: "M11 4l1.8 4.7L17.5 10.5l-4.7 1.8L11 17l-1.8-4.7L4.5 10.5l4.7-1.8zM18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"},
 	{Name: "link", Path: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"},
 	{Name: "share", Path: "M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 3 18.5V20M9 12a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19 8v6M22 11h-6"},
 	{Name: "more", Path: "M5 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM12 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6zM19 11.2a.8.8 0 1 0 0 1.6.8.8 0 1 0 0-1.6z"},

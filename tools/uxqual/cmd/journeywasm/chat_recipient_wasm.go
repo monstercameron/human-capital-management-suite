@@ -55,6 +55,15 @@ type recipientLayout struct {
 	Starred              []string                    `json:"starred,omitempty"`
 	Filters              map[string]string           `json:"filters,omitempty"`
 	DismissedJoinPrompts []string                    `json:"dismissedJoinPrompts,omitempty"`
+	// ComposerFormat is the reader's choice for the composer's formatting row:
+	// "shown", "hidden", or empty for the width default (CHATUX-004).
+	ComposerFormat string `json:"composerFormat,omitempty"`
+	// EmojiPrefs and VoicePrefs are the reader's emoji choices (skin tone, most
+	// used) and voice playback choices (speed, collapsed), each as the string the
+	// picker or player encodes. They ride in this blob like ComposerFormat, so
+	// they follow the person to every device (CHATEMOJI-004).
+	EmojiPrefs string `json:"emojiPrefs,omitempty"`
+	VoicePrefs string `json:"voicePrefs,omitempty"`
 	// Drafts is the reader's unsent composer text, keyed by conversation.
 	// Chat has no drafts store of its own: NotificationPreferences has no
 	// such field and the product preference schema is closed, so the sidebar
@@ -290,6 +299,12 @@ func applyRecipientLayout(model *chatui.Model, layout recipientLayout, hosts map
 	if model.JoinPromptID != "" && model.JoinPromptSeen[model.JoinPromptID] {
 		model.JoinPromptID, model.JoinPromptPending = "", false
 	}
+	if layout.ComposerFormat == "shown" || layout.ComposerFormat == "hidden" {
+		model.ComposerFormatRow = layout.ComposerFormat
+	}
+	if layout.EmojiPrefs != "" {
+		model.EmojiPrefs = layout.EmojiPrefs
+	}
 	starred := make(map[string]bool, len(layout.Starred))
 	for _, id := range layout.Starred {
 		starred[id] = true
@@ -497,6 +512,28 @@ func withChatRecipientCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 			persistChatRecipientSidebar(cfg, model)
 			refresh()
 		}
+	}
+	// The Aa button's choice is kept in the client model and written with the
+	// rest of the reader's sidebar layout, so it holds across a reload. The
+	// composer shows the choice at once from its own state; nothing here
+	// redraws the page.
+	callbacks.SetComposerFormatRow = func(shown bool) {
+		choice := "hidden"
+		if shown {
+			choice = "shown"
+		}
+		model := chatBrowser.mutate(func(model *chatui.Model) { model.ComposerFormatRow = choice })
+		persistChatRecipientSidebar(cfg, model)
+	}
+	// The emoji picker's skin tone and most-used list: the picker spaces its own
+	// writes (at most one every few seconds), this keeps them with the rest of the
+	// reader's sidebar layout.
+	callbacks.SaveEmojiPrefs = func(encoded string) {
+		chatRecipientBrowser.Lock()
+		chatRecipientBrowser.layout.EmojiPrefs = encoded
+		chatRecipientBrowser.Unlock()
+		model := chatBrowser.mutate(func(model *chatui.Model) { model.EmojiPrefs = encoded })
+		persistChatRecipientSidebar(cfg, model)
 	}
 	callbacks.ResizeRail = func(px int) {
 		changeRecipientPane(cfg, refresh, func(p *chatui.PaneSizes) { p.Rail = clampChatPane(px, chatRailMin, chatRailMax) })
@@ -863,7 +900,18 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		ensureRecipientSections(&model)
 		layout := recipientLayout{Panes: model.Pane, Sections: make([]recipientSection, 0, len(model.Sections))}
 		layout.DismissedJoinPrompts = chatDismissedJoinPromptIDs(model.JoinPromptSeen)
+		layout.ComposerFormat = model.ComposerFormatRow
 		chatRecipientBrowser.Lock()
+		if layout.ComposerFormat == "" {
+			// Not chosen on this page: keep what the account already holds.
+			layout.ComposerFormat = chatRecipientBrowser.layout.ComposerFormat
+		}
+		// The emoji and voice choices live in the account's layout; the page model
+		// holds the emoji copy it last showed, the cached layout the voice copy.
+		layout.EmojiPrefs, layout.VoicePrefs = model.EmojiPrefs, chatRecipientBrowser.layout.VoicePrefs
+		if layout.EmojiPrefs == "" {
+			layout.EmojiPrefs = chatRecipientBrowser.layout.EmojiPrefs
+		}
 		layout.PanesByDevice = make(map[string]chatui.PaneSizes, len(chatRecipientBrowser.layout.PanesByDevice)+1)
 		for device, pane := range chatRecipientBrowser.layout.PanesByDevice {
 			layout.PanesByDevice[device] = pane
@@ -967,12 +1015,18 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 				return
 			}
 			draftRevision = stamp
+			// Another device wrote first: its emoji use is kept alongside ours.
+			emojiWritten, voiceWritten := layout.EmojiPrefs, layout.VoicePrefs
 			if len(draftOnly) > 0 && draftOnly[0] {
 				if !keepDraftRooms(&server, layout, drafts) {
 					reportWriteError(status.Error(codes.FailedPrecondition, "sidebar conversation changed"))
 					return
 				}
 				layout = server
+			}
+			layout.EmojiPrefs = chatui.MergeEmojiPrefs(server.EmojiPrefs, emojiWritten)
+			if voiceWritten != "" {
+				layout.VoicePrefs = voiceWritten
 			}
 			layout.Drafts = drafts
 		}

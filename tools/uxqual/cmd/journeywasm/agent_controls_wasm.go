@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall/js"
 	"time"
@@ -26,6 +27,7 @@ var agentControlsBrowser struct {
 	bound, busy    bool
 	locale         string
 	snapshot       productui.AgentControlsSnapshot
+	historyFilter  productui.AgentRunHistoryFilter
 }
 
 func configureAgentControls(cfg journeyclient.Config) {
@@ -52,6 +54,13 @@ func configureAgentControls(cfg journeyclient.Config) {
 			return nil
 		})
 		js.Global().Get("document").Call("addEventListener", "click", agentControlsBrowser.click)
+		change := js.FuncOf(func(_ js.Value, args []js.Value) any {
+			if len(args) > 0 {
+				handleAgentHistoryChange(args[0])
+			}
+			return nil
+		})
+		js.Global().Get("document").Call("addEventListener", "change", change)
 		agentControlsBrowser.observe = js.FuncOf(func(_ js.Value, _ []js.Value) any { findAgentControlsMount(); return nil })
 		agentControlsBrowser.observer = js.Global().Get("MutationObserver").New(agentControlsBrowser.observe)
 		agentControlsBrowser.observer.Call("observe", js.Global().Get("document").Get("body"), map[string]any{"childList": true, "subtree": true, "attributes": true, "attributeFilter": []any{"data-locale"}})
@@ -60,12 +69,18 @@ func configureAgentControls(cfg journeyclient.Config) {
 }
 
 func findAgentControlsMount() {
+	if !agentOperationsRoute(js.Global().Get("location").Get("pathname").String()) {
+		agentControlsBrowser.Lock()
+		agentControlsBrowser.mount = js.Undefined()
+		agentControlsBrowser.Unlock()
+		return
+	}
 	mount := js.Global().Get("document").Call("getElementById", "agent-controls")
 	if !mount.Truthy() {
 		return
 	}
 	agentControlsBrowser.Lock()
-	locale := mount.Call("getAttribute", "data-locale").String()
+	locale := domAttribute(mount, "data-locale")
 	if agentControlsBrowser.mount.Truthy() && agentControlsBrowser.mount.Equal(mount) && agentControlsBrowser.locale == locale {
 		agentControlsBrowser.Unlock()
 		return
@@ -81,10 +96,11 @@ func renderAgentControlsMount(mount js.Value, snapshot productui.AgentControlsSn
 	if !mount.Truthy() || !mount.Get("isConnected").Bool() {
 		return
 	}
-	locale := productui.ResolveProductLocale(mount.Call("getAttribute", "data-locale").String())
+	locale := productui.ResolveProductLocale(domAttribute(mount, "data-locale")).WithTimeZone(agentViewerTimeZone())
 	markup, err := ui.RenderToString(productui.RenderAgentControls(locale, snapshot, message))
 	if err == nil {
 		mount.Set("innerHTML", markup)
+		renderAgentHistoryMount(mount, snapshot)
 	}
 }
 
@@ -96,6 +112,13 @@ func runAgentOwnerRequest(mount js.Value, action string, input any, message stri
 	defer cancel()
 	reply, err := agentControlsRequest(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), action, input)
 	ui.PostAsync(func() {
+		personas := cfg.PersonaAdminSnapshot
+		personaAdminBrowser.Lock()
+		if personaAdminBrowser.tenant == cfg.Tenant && personaAdminBrowser.subject == cfg.Subject && personaAdminBrowser.bearer == cfg.Bearer && personaAdminBrowser.snapshot != nil {
+			current := *personaAdminBrowser.snapshot
+			personas = &current
+		}
+		personaAdminBrowser.Unlock()
 		agentControlsBrowser.Lock()
 		if !agentControlsBrowser.mount.Equal(mount) || agentControlsBrowser.config.Bearer != cfg.Bearer {
 			agentControlsBrowser.Unlock()
@@ -104,8 +127,15 @@ func runAgentOwnerRequest(mount js.Value, action string, input any, message stri
 		agentControlsBrowser.busy = false
 		if err == nil {
 			agentControlsBrowser.snapshot = reply.Snapshot
+			if personas != nil {
+				agentControlsBrowser.snapshot.Agents = personas.Personas
+				agentControlsBrowser.snapshot.AllowedCommands = personas.AllowedCommands
+			}
 		} else if errors.Is(err, errAgentControlsDenied) {
-			message = "denied"
+			message = "access_denied"
+			agentControlsBrowser.snapshot = productui.AgentControlsSnapshot{}
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			message = "timed_out"
 			agentControlsBrowser.snapshot = productui.AgentControlsSnapshot{}
 		} else if errors.Is(err, errAgentControlsConflict) {
 			message = "conflict"
@@ -147,11 +177,25 @@ func handleAgentOwnerClick(event js.Value) {
 	if !target.Truthy() || target.Get("closest").Type() != js.TypeFunction {
 		return
 	}
+	if pager := target.Call("closest", "[data-agent-history-page]"); pager.Truthy() {
+		event.Call("preventDefault")
+		page, _ := strconv.Atoi(domDataset(pager, "agentHistoryPage"))
+		agentControlsBrowser.Lock()
+		agentControlsBrowser.historyFilter.Page = page
+		mount, snapshot := agentControlsBrowser.mount, agentControlsBrowser.snapshot
+		agentControlsBrowser.Unlock()
+		renderAgentHistoryMount(mount, snapshot)
+		return
+	}
 	button := target.Call("closest", "button[data-owner-action],button[data-owner-draft],button[data-owner-refresh]")
 	if !button.Truthy() || button.Get("disabled").Bool() {
 		return
 	}
 	event.Call("preventDefault")
+	dataset := button.Get("dataset")
+	if confirmation := dataset.Get("ownerConfirm"); confirmation.Type() == js.TypeString && confirmation.String() != "" && !js.Global().Call("confirm", confirmation.String()).Bool() {
+		return
+	}
 	agentControlsBrowser.Lock()
 	if agentControlsBrowser.busy {
 		agentControlsBrowser.Unlock()
@@ -161,7 +205,10 @@ func handleAgentOwnerClick(event js.Value) {
 	mount := agentControlsBrowser.mount
 	agentControlsBrowser.Unlock()
 	button.Set("disabled", true)
-	dataset := button.Get("dataset")
+	button.Call("setAttribute", "aria-busy", "true")
+	if busyLabel := dataset.Get("busyLabel"); busyLabel.Type() == js.TypeString {
+		button.Set("textContent", busyLabel.String())
+	}
 	if dataset.Get("ownerRefresh").Type() == js.TypeString {
 		go runAgentOwnerRequest(mount, "", nil, "done")
 		return
@@ -219,7 +266,7 @@ func handleAgentOwnerClick(event js.Value) {
 			input = command
 		}
 	}
-	go runAgentOwnerRequest(mount, action, input, "done")
+	go runAgentOwnerRequest(mount, action, input, "action_done")
 }
 
 func reportAgentControlsInputError(id string) {
@@ -227,7 +274,7 @@ func reportAgentControlsInputError(id string) {
 	field := document.Call("getElementById", id)
 	status := document.Call("getElementById", "agent-controls-status")
 	if status.Truthy() {
-		status.Set("textContent", status.Get("dataset").Get("msgInvalid").String())
+		status.Set("textContent", domDataset(status, "msgInvalid"))
 	}
 	if field.Truthy() {
 		field.Call("setAttribute", "aria-invalid", "true")
@@ -243,4 +290,47 @@ func downloadAgentOwnerExport(content []byte) {
 	anchor.Set("download", "agent-records.json")
 	anchor.Call("click")
 	js.Global().Get("URL").Call("revokeObjectURL", url)
+}
+
+func handleAgentHistoryChange(event js.Value) {
+	field := event.Get("target")
+	if !field.Truthy() || field.Get("dataset").Get("agentHistoryFilter").Type() != js.TypeString {
+		return
+	}
+	agentControlsBrowser.Lock()
+	filter := agentControlsBrowser.historyFilter
+	switch domDataset(field, "agentHistoryFilter") {
+	case "agent":
+		filter.Agent = field.Get("value").String()
+	case "version":
+		filter.Version = field.Get("value").String()
+	case "outcome":
+		filter.Outcome = field.Get("value").String()
+	}
+	filter.Page = 1
+	agentControlsBrowser.historyFilter = filter
+	mount, snapshot := agentControlsBrowser.mount, agentControlsBrowser.snapshot
+	agentControlsBrowser.Unlock()
+	renderAgentHistoryMount(mount, snapshot)
+}
+func renderAgentHistoryMount(mount js.Value, snapshot productui.AgentControlsSnapshot) {
+	history := mount.Call("querySelector", "#agent-run-history")
+	if !history.Truthy() {
+		return
+	}
+	agentControlsBrowser.Lock()
+	filter := agentControlsBrowser.historyFilter
+	agentControlsBrowser.Unlock()
+	finished := []productui.AgentControlRun{}
+	for _, run := range snapshot.Runs {
+		switch strings.ToUpper(run.State) {
+		case "COMPLETED", "FAILED", "CANCELLED", "CANCELED", "EXPIRED", "STOPPED_RESPONDING":
+			finished = append(finished, run)
+		}
+	}
+	locale := productui.ResolveProductLocale(domAttribute(mount, "data-locale")).WithTimeZone(agentViewerTimeZone())
+	markup, err := ui.RenderToString(productui.RenderAgentRunHistory(locale, finished, filter))
+	if err == nil {
+		history.Set("outerHTML", markup)
+	}
 }

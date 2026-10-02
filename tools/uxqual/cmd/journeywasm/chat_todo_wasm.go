@@ -46,7 +46,10 @@ func channelTodoModel(list *chatv1.ChannelTodoList) chatui.ChannelTodoList {
 	return result
 }
 
-func loadChannelTodo(cfg journeyclient.Config, room string) {
+// loadChannelTodoOnce makes one read of the channel to-do list and reports
+// whether it is settled (CHATUX-012: false means retry, and the page shows no
+// error for it).
+func loadChannelTodoOnce(cfg journeyclient.Config, room string, quiet bool) bool {
 	allowed := false
 	for _, conversation := range chatBrowser.snapshot().Conversations {
 		if conversation.ID == room && (conversation.Kind == chatui.PublicChannel || conversation.Kind == chatui.PrivateChannel) && conversation.Joined {
@@ -55,35 +58,50 @@ func loadChannelTodo(cfg journeyclient.Config, room string) {
 		}
 	}
 	if !allowed {
-		return
+		return true
 	}
 	client := channelTodoClient()
 	if client == nil || room == "" {
-		return
+		return true
 	}
 	active := chatBrowser.config(cfg)
 	host := channelTodoHost(room, active.Tenant)
 	generation := chatBrowser.currentGeneration()
-	chatBrowser.mutate(func(model *chatui.Model) {
-		if model.SelectedID == room {
-			model.ChannelTodoLoading = true
-		}
-	})
-	refreshChannelTodoRoute(room, generation)
+	if !quiet {
+		chatBrowser.mutate(func(model *chatui.Model) {
+			if model.SelectedID == room {
+				model.ChannelTodoLoading = true
+			}
+		})
+		refreshChannelTodoRoute(room, generation)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	response, err := client.GetChannelTodoList(chatRPCContext(ctx, active), &chatv1.GetChannelTodoListRequest{ConversationId: room, HostTenantId: host})
 	currentConfig := chatBrowser.config(journeyclient.Config{})
-	if active.Tenant != currentConfig.Tenant || active.Subject != currentConfig.Subject || active.Bearer != currentConfig.Bearer || generation != chatBrowser.currentGeneration() {
-		return
+	if active.Tenant != currentConfig.Tenant || active.Subject != currentConfig.Subject || active.Bearer != currentConfig.Bearer {
+		return true
 	}
+	if generation != chatBrowser.currentGeneration() {
+		chatBrowser.mutate(func(model *chatui.Model) {
+			if model.SelectedID == room {
+				model.ChannelTodoLoading = false
+			}
+		})
+		return chatBrowser.selectedID() != room
+	}
+	settled := true
 	chatBrowser.mutate(func(model *chatui.Model) {
 		if model.SelectedID != room {
 			return
 		}
 		model.ChannelTodoLoading = false
 		if err != nil || response.GetList() == nil || response.GetList().GetConversationId() != room {
-			model.ChannelTodoError = "load"
+			if chatux012FinalRefusal(err) {
+				model.ChannelTodoError = "load"
+			} else {
+				settled = false
+			}
 			return
 		}
 		if response.GetList().GetRevision() < model.ChannelTodo.Revision {
@@ -93,6 +111,7 @@ func loadChannelTodo(cfg journeyclient.Config, room string) {
 		model.ChannelTodoError = ""
 	})
 	refreshChannelTodoRoute(room, generation)
+	return settled
 }
 
 func channelTodoHost(room, fallback string) string {
@@ -157,7 +176,7 @@ func mutateChannelTodo(cfg journeyclient.Config, room, operation, itemID, text, 
 		}
 		current.ChannelTodoPending = false
 		if err != nil || response.GetList() == nil || response.GetList().GetConversationId() != room {
-			current.ChannelTodoError = "save"
+			current.ChannelTodoError = chatmod002ErrorCode(err, "save")
 			return
 		}
 		if response.GetList().GetRevision() < current.ChannelTodo.Revision {

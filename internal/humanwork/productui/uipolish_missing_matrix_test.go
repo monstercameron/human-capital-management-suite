@@ -256,7 +256,11 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	}
 	digest := fmt.Sprintf("%x", sha256.Sum256([]byte(doc)))
 	// UXBLIND blind-test lanes (Home, top bar, scroll/loading, brand) re-pin: whole-document digest.
-	const want = "6d70f19c9bf3249d21750c7628e3e4a9d94c87afd4b62f4d892af3ba145678c5"
+	// The agent surfaces add their scoped stylesheet and the shell registry
+	// publishes Agent setup and Agent operations. Green2 re-pins the whole
+	// document after the shared agent page frame took ownership of the outer
+	// width/gutter and shell-wide frame, dark-control, and link-state rules.
+	const want = "a1f82bf08a8103f86b18b5e500da2784468361f33070da610c3971e14ac057ed"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s", digest, want)
 	}

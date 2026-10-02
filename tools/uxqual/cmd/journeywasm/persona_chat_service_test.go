@@ -5,8 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -43,17 +46,91 @@ func TestTodo_AGENTP_019_ClientBoundary(t *testing.T) {
 	}
 }
 
+func TestPersonaChatRejectedFetchIsFalseBeforeStatusAccess(t *testing.T) {
+	if personaChatResponseOK(nil, errors.New("fetch rejected")) {
+		t.Fatal("rejected fetch was treated as a usable response")
+	}
+	if personaChatResponseOK(nil, nil) {
+		t.Fatal("falsey fetch result was treated as a usable response")
+	}
+	if !personaChatResponseOK(&http.Response{StatusCode: http.StatusOK}, nil) {
+		t.Fatal("successful fetch was rejected")
+	}
+}
+
+func TestTodo_AGENTUX_006_Fault(t *testing.T) {
+	failed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer failed.Close()
+	never := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	defer never.Close()
+	refused := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	refusedURL := refused.URL
+	refused.Close()
+
+	failedConfig := journeyclient.Config{TunnelURL: strings.Replace(failed.URL, "http:", "ws:", 1), Tenant: "tenant"}
+	neverConfig := journeyclient.Config{TunnelURL: strings.Replace(never.URL, "http:", "ws:", 1), Tenant: "tenant"}
+	refusedConfig := journeyclient.Config{TunnelURL: strings.Replace(refusedURL, "http:", "ws:", 1), Tenant: "tenant"}
+
+	for _, tc := range []struct {
+		name    string
+		cfg     journeyclient.Config
+		timeout time.Duration
+	}{
+		{name: "refused", cfg: refusedConfig, timeout: time.Second},
+		{name: "failed", cfg: failedConfig, timeout: time.Second},
+		{name: "never answered", cfg: neverConfig, timeout: 40 * time.Millisecond},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), tc.timeout)
+			defer cancel()
+			var payload personaChatDirectory
+			err := personaChatRequest(ctx, http.DefaultClient, tc.cfg, http.MethodGet, "/personas", "room", &payload)
+			if err == nil {
+				t.Fatal("faulting lookup unexpectedly succeeded")
+			}
+			model := chatui.Model{}
+			retried := false
+			applyPersonaDirectoryResult(&model, payload, tc.cfg, "room", err, func() { retried = true })
+			if model.PersonaLookup != chatui.PersonaLookupFailed || model.Callbacks.RetryPersonaMentions == nil {
+				t.Fatalf("lookup state = %q, retry=%v", model.PersonaLookup, model.Callbacks.RetryPersonaMentions != nil)
+			}
+			model.Callbacks.RetryPersonaMentions()
+			if !retried {
+				t.Fatal("retry callback was not retained")
+			}
+		})
+	}
+}
+
+func TestPersonaChatWatchFailurePolicy(t *testing.T) {
+	refused := &url.Error{Op: "Get", URL: "http://127.0.0.1", Err: syscall.ECONNREFUSED}
+	if !personaWatchTerminal(nil, refused) || !personaWatchTerminal(nil, errors.New("net::ERR_CONNECTION_REFUSED")) || !personaWatchTerminal(&http.Response{StatusCode: http.StatusUnauthorized}, nil) || !personaWatchTerminal(&http.Response{StatusCode: http.StatusForbidden}, nil) {
+		t.Fatal("refused watch was not terminal")
+	}
+	if personaWatchTerminal(nil, context.DeadlineExceeded) || personaWatchTerminal(&http.Response{StatusCode: http.StatusServiceUnavailable}, nil) {
+		t.Fatal("transient watch failure was classified as terminal")
+	}
+	want := []time.Duration{3 * time.Second, 6 * time.Second, 12 * time.Second, 24 * time.Second, 48 * time.Second, 60 * time.Second, 60 * time.Second}
+	for attempt, expected := range want {
+		if got := personaWatchBackoff(attempt); got != expected {
+			t.Fatalf("attempt %d backoff = %s, want %s", attempt, got, expected)
+		}
+	}
+}
+
 func TestTodo_AGENTP_019_CanonicalSend(t *testing.T) {
-	refs := []chatui.ChatReference{{Kind: "AGENT_MENTION", TenantID: "tenant", ID: "agent", Display: "Policy Helper", ConversationID: "room"}}
+	refs := []chatui.ChatReference{{Kind: "AGENT_MENTION", TenantID: "tenant", ID: "agent", Display: "Policy Helper", ConversationID: "room"}, {Kind: "PERSON_MENTION", TenantID: "tenant", ID: "person", Display: "Pat Lee", ConversationID: "room"}}
 	canonical, err := personaChatReferences(refs, "tenant", "room")
-	if err != nil || len(canonical) != 1 || canonical[0].GetKind() != chatv1.ReferenceKind_REFERENCE_KIND_AGENT_MENTION || canonical[0].GetId() != "agent" {
+	if err != nil || len(canonical) != 2 || canonical[0].GetKind() != chatv1.ReferenceKind_REFERENCE_KIND_AGENT_MENTION || canonical[0].GetId() != "agent" || canonical[1].GetKind() != chatv1.ReferenceKind_REFERENCE_KIND_PERSON_MENTION {
 		t.Fatalf("canonical send: %+v %v", canonical, err)
 	}
 	if _, err := personaChatReferences(refs, "tenant", "other"); !errors.Is(err, errPersonaChat) {
 		t.Fatal("cross-room send accepted")
 	}
 	post := &chatv1.Post{References: canonical}
-	if mapped := personaChatPostReferences(post); len(mapped) != 1 || mapped[0].ID != "agent" {
+	if mapped := personaChatPostReferences(post); len(mapped) != 2 || mapped[0].ID != "agent" || mapped[1].ID != "person" {
 		t.Fatalf("post profile references: %+v", mapped)
 	}
 	first := personaChatSendIdentity("@Policy Helper search", refs)
@@ -67,7 +144,7 @@ func TestTodo_AGENTP_020_ClientProjection(t *testing.T) {
 	cfg := journeyclient.Config{Tenant: "tenant", Subject: "viewer"}
 	invocation := personaChatInvocation{InvocationID: "invoke", ConversationID: "room", PostID: "post", ThreadID: "root", InvokerID: "viewer", Status: "running", Activity: "reading 3 sources", CurrentStep: 2, TotalSteps: 5, TaskID: "task", TaskTitle: "Review policy", TaskState: "awaiting_approval", TaskRevision: 3}
 	rows := personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")
-	if len(rows) != 1 || rows[0].PostID != "root" || rows[0].Projection.Progress.CurrentStep != 2 || !rows[0].Projection.Task.AwaitingApproval || rows[0].Projection.Task.Revision != "3" {
+	if len(rows) != 1 || rows[0].PostID != "post" || rows[0].ThreadID != "root" || rows[0].Projection.Progress.CurrentStep != 2 || !rows[0].Projection.Task.AwaitingApproval || rows[0].Projection.Task.Revision != "3" {
 		t.Fatalf("progress mapping: %+v", rows)
 	}
 	invocation.Status, invocation.FailureCode, invocation.FailureMessage, invocation.Retryable = "failed", "MODEL_UNAVAILABLE", "Provider unavailable", true
@@ -82,11 +159,23 @@ func TestTodo_AGENTP_020_ClientProjection(t *testing.T) {
 	}
 	invocation.Status = "COMPLETED"
 	invocation.PrivateConversationID, invocation.PrivatePostID = "private-room", "private-post"
-	if href := personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection.PrivateReplyHref; href != chatui.ChannelReferenceURL("private-room") {
+	privateProjection := personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection
+	if href := privateProjection.PrivateReplyHref; href != chatui.ChannelReferenceURL("private-room") {
 		t.Fatalf("private result link=%q", href)
 	}
+	if privateProjection.DurablePostID != "private-post" {
+		t.Fatalf("private durable post id=%q", privateProjection.DurablePostID)
+	}
+	directProjection := personaChatInvocations([]personaChatInvocation{invocation}, cfg, "private-room")
+	if len(directProjection) != 1 || directProjection[0].Projection.DurablePostID != "private-post" || directProjection[0].Projection.PrivateReplyHref != "" {
+		t.Fatalf("direct agent-conversation projection=%+v", directProjection)
+	}
+	if personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection.Progress == nil {
+		t.Fatal("private completion disappeared before its recipient-only answer arrived")
+	}
+	invocation.PrivateConversationID, invocation.PrivatePostID = "", ""
 	if personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")[0].Projection.Progress != nil {
-		t.Fatal("terminal spinner retained")
+		t.Fatal("public completion retained a duplicate progress row")
 	}
 	invocation.InvokerID = "other"
 	if len(personaChatInvocations([]personaChatInvocation{invocation}, cfg, "room")) != 0 {

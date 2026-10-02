@@ -47,7 +47,7 @@ func refreshChatShareRoute() {
 		dialog := js.Global().Get("document").Call("querySelector", ".share-dialog")
 		matched := model.SharePostID == "" && !dialog.Truthy()
 		if model.SharePostID != "" && dialog.Truthy() {
-			matched = dialog.Get("dataset").Get("shareVersion").String() == fmt.Sprint(model.ShareVersion)
+			matched = domDataset(dialog, "shareVersion") == fmt.Sprint(model.ShareVersion)
 		}
 		if matched {
 			if dialog.Truthy() {

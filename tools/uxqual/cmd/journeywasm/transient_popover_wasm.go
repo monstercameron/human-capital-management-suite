@@ -88,8 +88,8 @@ func (c *browserTransientPopoverController) Bind() {
 }
 
 func (c *browserTransientPopoverController) popoverID(details js.Value) string {
-	if id := details.Call("getAttribute", "data-hcm-popover-runtime-id"); id.Truthy() {
-		return id.String()
+	if id := domAttribute(details, "data-hcm-popover-runtime-id"); id != "" {
+		return id
 	}
 	c.nextID++
 	id := "hcm-popover-" + strconv.FormatUint(c.nextID, 10)
@@ -117,7 +117,7 @@ func (c *browserTransientPopoverController) scheduleClose(details js.Value) {
 	}
 	c.cancelClose(details)
 	id := c.popoverID(details)
-	grace := normalizedTransientPopoverGraceMilliseconds(details.Call("getAttribute", "data-hcm-popover-grace-ms").String())
+	grace := normalizedTransientPopoverGraceMilliseconds(domAttribute(details, "data-hcm-popover-grace-ms"))
 	callback := js.FuncOf(func(_ js.Value, _ []js.Value) any {
 		pending, ok := c.pendingByID[id]
 		if !ok {

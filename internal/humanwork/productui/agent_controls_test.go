@@ -2,6 +2,7 @@ package productui
 
 import (
 	"encoding/json"
+	stdhtml "html"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestTodo_AGENT_030_Controls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`data-owner-revision="7"`, `data-owner-action="resume"`, `data-owner-action="dry_run"`, "America/New_York", "2026-11-01T01:30:00-04:00", `agent-schedule-revision`, `agent-schedule-dst`, `aria-describedby="agent-schedule-help"`} {
+	for _, want := range []string{`data-owner-revision="7"`, `data-owner-action="resume"`, `data-owner-action="dry_run"`, "America/New_York", "2026-11-01T01:30:00-04:00", `tab=announcements`, "Manage announcements"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("missing %s", want)
 		}
@@ -36,17 +37,17 @@ func TestTodo_AGENT_030_Controls(t *testing.T) {
 }
 
 func TestTodo_AGENT_041_ControlsSecurity(t *testing.T) {
-	snapshot := AgentControlsSnapshot{Available: true, Runs: []AgentControlRun{{ID: "run", Revision: 3, Failure: "provider_down", Incident: "incident-3", Denials: []string{"tool_denied"}, Actions: []string{"pause"}}}, Memory: []AgentControlMemory{{ID: "derived", Source: `<script>alert(1)</script>`, Purpose: "policy", Held: true, Actions: []string{"revoke"}}}}
+	snapshot := AgentControlsSnapshot{Available: true, Runs: []AgentControlRun{{ID: "run", State: "FAILED", Revision: 3, FailureGate: "MODEL_UNAVAILABLE", Failure: "provider_down", Incident: "incident-3", Denials: []string{"tool_denied"}}, {ID: "running", State: "RUNNING", Revision: 3, Actions: []string{"pause"}}}, Memory: []AgentControlMemory{{ID: "derived", Source: `<script>alert(1)</script>`, Purpose: "policy", Held: true, Actions: []string{"revoke"}}}}
 	markup, err := ui.RenderToString(RenderAgentControls(ResolveProductLocale("en-US"), snapshot, "done"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"provider_down", "incident-3", "tool_denied", `data-owner-action="pause"`, `data-owner-action="revoke"`, "Legal hold", `role="status"`, `aria-live="polite"`} {
+	for _, want := range []string{stdhtml.EscapeString(agentControlsText(ResolveProductLocale("en-US"), "failure_model_unavailable")), `data-owner-action="pause"`, `data-owner-action="revoke"`, "Legal hold", `role="status"`, `aria-live="polite"`} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("missing %s", want)
 		}
 	}
-	if strings.Contains(markup, "<script>") || strings.Contains(markup, `data-owner-action="quarantine"`) || strings.Contains(markup, `data-owner-action="delete"`) {
+	if strings.Contains(markup, "provider_down") || strings.Contains(markup, "incident-3") || strings.Contains(markup, "tool_denied") || strings.Contains(markup, "<script>") || strings.Contains(markup, `data-owner-action="quarantine"`) || strings.Contains(markup, `data-owner-action="delete"`) {
 		t.Fatal("projection widened authority or inserted markup")
 	}
 	unavailable, err := ui.RenderToString(RenderAgentControls(ResolveProductLocale("en-US"), AgentControlsSnapshot{}, "error"))
@@ -65,13 +66,13 @@ func TestTodo_AGENT_043_ControlsConformance(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, key := range []string{"title", "revision", "dst", "reason", "conflict"} {
+		for _, key := range []string{"title", "reason", "conflict"} {
 			if !strings.Contains(markup, agentControlsText(locale, key)) {
 				t.Fatalf("%s missing %s", localeID, key)
 			}
 		}
-		if !strings.Contains(markup, `dir="`+string(locale.Direction)+`"`) || !strings.Contains(markup, `for="agent-schedule-zone"`) {
-			t.Fatalf("%s missing direction/label association", localeID)
+		if !strings.Contains(markup, `dir="`+string(locale.Direction)+`"`) || !strings.Contains(markup, agentUXR7Text(locale, "manage_announcements")) || !strings.Contains(markup, `for="agent-controls-reason"`) {
+			t.Fatalf("%s missing direction, announcement navigation or label association", localeID)
 		}
 		mount, err := ui.RenderToString(AgentControlsMount(locale))
 		if err != nil || !strings.Contains(mount, `id="agent-controls"`) || !strings.Contains(mount, agentControlsText(locale, "loading")) {

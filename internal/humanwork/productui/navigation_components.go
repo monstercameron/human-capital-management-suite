@@ -243,7 +243,7 @@ func projectNavigation(view View) ([]NavigationItemProps, []NavigationItemProps)
 	favoritePages := authorizedFavoritePages(view.Navigation, view.FavoritePages)
 	leaves := make(map[PageID]NavItem)
 	for _, item := range view.Navigation {
-		collectNavigationLeaves(item, leaves)
+		collectNavigationLeaves(item, NavItem{}, leaves)
 	}
 	favorites := make([]NavigationItemProps, 0, len(favoritePages))
 	for _, page := range favoritePages {
@@ -263,13 +263,17 @@ func projectNavigation(view View) ([]NavigationItemProps, []NavigationItemProps)
 	return favorites, items
 }
 
-func collectNavigationLeaves(item NavItem, into map[PageID]NavItem) {
+func collectNavigationLeaves(item, parent NavItem, into map[PageID]NavItem) {
 	if len(item.Children) == 0 {
+		if navigationOverviewChild(parent, item) {
+			item.Label = parent.Label
+			item.LabelKey = parent.LabelKey
+		}
 		into[item.Page] = item
 		return
 	}
 	for _, child := range item.Children {
-		collectNavigationLeaves(child, into)
+		collectNavigationLeaves(child, item, into)
 	}
 }
 
@@ -286,6 +290,7 @@ func projectNavigationItem(view View, item NavItem, openGroup PageID) (Navigatio
 		if navigationSearchScore(child, view.MenuQuery) == 0 {
 			continue
 		}
+		child = navigationChildDisplayItem(view, item, child)
 		childProps := navigationLeafProps(view, child, false)
 		children = append(children, childProps)
 	}
@@ -310,6 +315,18 @@ func projectNavigationItem(view View, item NavItem, openGroup PageID) (Navigatio
 		Href: navigationHrefForItem(view, item), Active: active, Expanded: expanded, ForceOpen: view.MenuQuery != "",
 		MatchScore: maxNavigationScore(groupScore, children), Children: children, Navigate: view.Navigate,
 	}, true
+}
+
+func navigationChildDisplayItem(view View, parent, child NavItem) NavItem {
+	if navigationOverviewChild(parent, child) && parent.Page == PageChat {
+		child.Label = view.Locale.Text("nav.conversations")
+		child.LabelKey = "nav.conversations"
+	}
+	return child
+}
+
+func navigationOverviewChild(parent, child NavItem) bool {
+	return parent.Page != "" && parent.Page == child.Page && child.LabelKey == "nav.overview"
 }
 
 // preferredNavigationGroup keeps the two tall navigation groups mutually

@@ -1,0 +1,81 @@
+package productui
+
+import "strings"
+
+func agentUXR7Text(locale LocaleContext, key string, replacements ...string) string {
+	copy := map[string][3]string{
+		"manage_announcements": {"Manage announcements", "Ankündigungen verwalten", "إدارة الإعلانات"},
+		"cost":                 {"Cost", "Kosten", "التكلفة"},
+		"cost_unavailable":     {"Cost information is not available for this run. Find the contact who can help in Agent setup.", "Für diese Ausführung sind keine Kosteninformationen verfügbar. Die zuständige Kontaktperson finden Sie in der Agenteneinrichtung.", "لا تتوفر معلومات التكلفة لهذا التشغيل. ابحث عن جهة الاتصال التي يمكنها المساعدة في إعداد الوكيل."},
+		"open_setup":           {"Open Agent setup", "Agenteneinrichtung öffnen", "فتح إعداد الوكيل"},
+
+		"pause_saved":  {"{agent} is paused. Resume it when it is ready to answer again.", "{agent} ist pausiert. Setzen Sie ihn fort, wenn er wieder antworten soll.", "تم إيقاف {agent} مؤقتًا. استأنفه عندما يكون جاهزًا للإجابة مجددًا."},
+		"resume_saved": {"{agent} can answer again.", "{agent} kann wieder antworten.", "يمكن لـ {agent} الإجابة مجددًا."},
+		"pause_task":   {"Pause task", "Aufgabe pausieren", "إيقاف المهمة مؤقتًا"},
+		"resume_task":  {"Resume task", "Aufgabe fortsetzen", "استئناف المهمة"},
+		"cancel_task":  {"Cancel task", "Aufgabe abbrechen", "إلغاء المهمة"},
+
+		"history_unavailable": {"Run history could not be loaded. Check Activity and try again.", "Der Ausführungsverlauf konnte nicht geladen werden. Prüfen Sie Aktivität und versuchen Sie es erneut.", "تعذر تحميل سجل التشغيل. تحقق من النشاط وحاول مجددًا."},
+		"activity":            {"Open Activity", "Aktivität öffnen", "فتح النشاط"},
+		"review_rejected":     {"You rejected version {version}. The owner can make changes and request review again.", "Sie haben Version {version} abgelehnt. Die verantwortliche Person kann Änderungen vornehmen und erneut eine Prüfung anfordern.", "رفضت الإصدار {version}. يمكن للمالك إجراء تغييرات وطلب المراجعة مجددًا."},
+		"file_version":        {"File version", "Dateiversion", "إصدار الملف"},
+		"export_incomplete":   {"This file contains the built-in instructions. Changes made in Agent setup are not included.", "Diese Datei enthält die integrierten Anweisungen. Änderungen aus der Agenteneinrichtung sind nicht enthalten.", "يتضمن هذا الملف التعليمات المضمّنة. لا يتضمن التغييرات التي أُجريت في إعداد الوكيل."},
+		"reviewed_versions":   {"Reviewed versions", "Geprüfte Versionen", "الإصدارات المراجَعة"},
+		"agent_administrator": {"your agent administrator", "Ihre Agentenadministration", "مسؤول الوكلاء لديك"},
+		"asked_by":            {"Asked by", "Gefragt von", "طلب بواسطة"},
+		"duration_seconds":    {"{count} seconds", "{count} Sekunden", "{count} ثوانٍ"},
+		"duration_minutes":    {"{count} minutes", "{count} Minuten", "{count} دقائق"},
+		"duration_hours":      {"{count} hours", "{count} Stunden", "{count} ساعات"},
+		"under_second":        {"Under a second", "Unter einer Sekunde", "أقل من ثانية"},
+		"time_minutes":        {"{count} min ago", "vor {count} Min.", "قبل {count} د"},
+		"time_hours":          {"{count} h ago", "vor {count} Std.", "قبل {count} س"},
+		"time_days":           {"{count} d ago", "vor {count} Tagen", "قبل {count} ي"},
+		"reviewed_by":         {"Reviewed by", "Geprüft von", "راجعه"},
+		"policy_purpose":      {"Answers policy questions using current documents and names its sources.", "Beantwortet Richtlinienfragen anhand aktueller Dokumente und nennt die Quellen.", "يجيب عن أسئلة السياسات باستخدام المستندات الحالية ويذكر مصادره."},
+		"read_prefix":         {"Official documents in its conversations, plus ", "Offizielle Dokumente in seinen Unterhaltungen sowie ", "المستندات الرسمية في محادثاته، بالإضافة إلى "},
+		"sources":             {"Sources:", "Quellen:", "المصادر:"},
+		"attached":            {"Attached:", "Angehängt:", "المرفقات:"},
+		"close":               {"Close", "Schließen", "إغلاق"},
+		"other_agents":        {"Other agents may be available in your conversations. Ask the conversation owner to add you.", "Weitere Agenten können in Ihren Unterhaltungen verfügbar sein. Bitten Sie die verantwortliche Person, Sie hinzuzufügen.", "قد تتوفر وكلاء أخرى في محادثاتك. اطلب من مالك المحادثة إضافتك."},
+		"owner_page":          {"This page is for people who manage agents. To ask an agent a question, go to Agents.", "Diese Seite ist für Personen, die Agenten verwalten. Um eine Frage zu stellen, gehen Sie zu Agenten.", "هذه الصفحة لمن يديرون الوكلاء. لطرح سؤال على وكيل، انتقل إلى الوكلاء."},
+		"ask_link":            {"Ask it a question", "Eine Frage stellen", "اطرح عليه سؤالاً"},
+		"pause":               {"Pause agent", "Agent pausieren", "إيقاف الوكيل مؤقتًا"},
+		"resume":              {"Resume agent", "Agent fortsetzen", "استئناف الوكيل"},
+		"pause_confirm":       {"{agent} stops answering in {count} conversations and on Agents until you resume it. Tasks already running may stop before answering. Confirm pause?", "{agent} antwortet in {count} Unterhaltungen und auf Agenten erst wieder, wenn Sie ihn fortsetzen. Laufende Aufgaben können vor der Antwort anhalten. Pausieren?", "يتوقف {agent} عن الإجابة في {count} محادثات وفي صفحة الوكلاء حتى تستأنفه. قد تتوقف المهام الجارية قبل الإجابة. تأكيد الإيقاف المؤقت؟"},
+		"resume_confirm":      {"Let {agent} answer again in its conversations and on Agents?", "Darf {agent} wieder in seinen Unterhaltungen und auf Agenten antworten?", "هل تسمح لـ {agent} بالإجابة مجددًا في محادثاته وفي صفحة الوكلاء؟"},
+		"pause_permission":    {"{person} can pause or resume this agent.", "{person} kann diesen Agenten pausieren oder fortsetzen.", "يمكن لـ {person} إيقاف هذا الوكيل مؤقتًا أو استئنافه."},
+		"direct_always":       {"Direct messages are always allowed.", "Direktnachrichten sind immer erlaubt.", "الرسائل المباشرة مسموحة دائمًا."},
+		"history":             {"Version history", "Versionsverlauf", "سجل الإصدارات"},
+		"version":             {"Version", "Version", "الإصدار"},
+		"status":              {"Status", "Status", "الحالة"},
+		"published":           {"Published", "Veröffentlicht", "نُشر"},
+		"by":                  {"By", "Von", "بواسطة"},
+		"conversations":       {"Conversations running it", "Unterhaltungen mit dieser Version", "المحادثات التي تستخدمه"},
+		"view":                {"View", "Ansehen", "عرض"},
+		"rollback":            {"Roll back to version {version}", "Zu Version {version} zurückkehren", "العودة إلى الإصدار {version}"},
+		"rollback_help":       {"Preview which conversations move back before making any changes.", "Prüfen Sie vor der Änderung, welche Unterhaltungen zurückkehren.", "عاين المحادثات التي ستعود قبل إجراء أي تغييرات."},
+		"retire_help":         {"Permanently remove this agent from use. Create a new agent if you need it again.", "Diesen Agenten dauerhaft außer Betrieb nehmen. Bei Bedarf erstellen Sie einen neuen Agenten.", "إزالة هذا الوكيل من الاستخدام نهائيًا. أنشئ وكيلاً جديدًا إذا احتجته مجددًا."},
+		"failure_streak":      {"Version {version} of {agent} has failed its last 5 runs since {time}.", "Version {version} von {agent} ist in den letzten 5 Läufen seit {time} fehlgeschlagen.", "فشل الإصدار {version} من {agent} في آخر ٥ تشغيلات منذ {time}."},
+		"running_now":         {"Running now ({count})", "Jetzt aktiv ({count})", "قيد التشغيل الآن ({count})"},
+		"recent":              {"Recent runs ({count})", "Letzte Läufe ({count})", "التشغيلات الأخيرة ({count})"},
+		"agent_version":       {"Agent and version", "Agent und Version", "الوكيل والإصدار"},
+		"all_agents":          {"All agents", "Alle Agenten", "كل الوكلاء"},
+		"all_versions":        {"All versions", "Alle Versionen", "كل الإصدارات"},
+		"all_outcomes":        {"All outcomes", "Alle Ergebnisse", "كل النتائج"},
+		"previous":            {"Previous page", "Vorherige Seite", "الصفحة السابقة"},
+		"next":                {"Next page", "Nächste Seite", "الصفحة التالية"},
+		"page":                {"Page {page} of {total}", "Seite {page} von {total}", "الصفحة {page} من {total}"},
+		"no_runs_match":       {"No runs match. Change the filters to see other runs.", "Keine passenden Läufe. Ändern Sie die Filter.", "لا توجد تشغيلات مطابقة. غيّر المرشحات لرؤية تشغيلات أخرى."},
+		"dm":                  {"Direct message with {person}", "Direktnachricht mit {person}", "رسالة مباشرة مع {person}"},
+		"your_conversation":   {"Your conversation with {agent}", "Ihre Unterhaltung mit {agent}", "محادثتك مع {agent}"},
+		"rollback_group":      {"Roll back to an earlier version", "Zu einer früheren Version zurückkehren", "العودة إلى إصدار سابق"},
+		"rollback_note":       {"This moves conversations back from version {current} to version {target}.", "Unterhaltungen wechseln von Version {current} zurück zu Version {target}.", "يعيد هذا المحادثات من الإصدار {current} إلى الإصدار {target}."},
+		"all_current":         {"All {count} conversations already run version {version}. Nothing to roll out.", "Alle {count} Unterhaltungen verwenden bereits Version {version}. Kein Wechsel nötig.", "كل المحادثات وعددها {count} تستخدم الإصدار {version} بالفعل. لا يوجد ما يُطرح."},
+		"limit_help":          {"To change usage limits, contact", "Für andere Nutzungslimits kontaktieren Sie", "لتغيير حدود الاستخدام، تواصل مع"},
+	}
+	text := copy[key][agentRPLocaleIndex(locale)]
+	if len(replacements) > 0 {
+		text = strings.NewReplacer(replacements...).Replace(text)
+	}
+	return text
+}

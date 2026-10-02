@@ -110,7 +110,9 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// latest pin: the action launcher trigger now always reads "Jump to"
 	// instead of switching between "Start an action" and "Go to".
 	// UXBLIND blind-test lanes (top bar, scroll/loading, navigation rework) re-pin: whole-document digest, structural checks above unchanged.
-	const want = "808134e772d44d141d208681c535c20e5af09daf2c11f626d8274dd65bc6e96e"
+	// Agent setup/operations registration and their scoped shell styles are
+	// now part of the authorization-resolved product shell.
+	const want = "e980b251aca5e5fa8d1349224c559d56ba08377ac0ee0393aeb504de7abbeca7"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

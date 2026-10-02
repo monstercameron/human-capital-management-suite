@@ -14,6 +14,7 @@ import (
 // Markdown and its diagrams are neither parsed nor diffed again.
 type docsMarkdownBodyProps struct {
 	Locale, VersionID, Markdown string
+	SectionMarkdown             string
 	// ChatRefs is the reader's resolved chat references, encoded
 	// (docs_chat_chips.go) so the props still compare by value.
 	ChatRefs string
@@ -51,8 +52,8 @@ func docsMarkdownBody(props docsMarkdownBodyProps) ui.Node {
 		if props.Navigate != nil {
 			view.Navigate = props.Navigate.navigate
 		}
-		return docsASTMarkdownNodes(view, props.Markdown)
-	}, props.Locale, props.VersionID, props.Markdown, props.ChatRefs, props.Links, props.ProjectTasks, props.Journeys, props.Navigate, props.DocumentID, props.Media, props.Origin)
+		return docsASTMarkdownNodes(view, props.Markdown, props.SectionMarkdown)
+	}, props.Locale, props.VersionID, props.Markdown, props.SectionMarkdown, props.ChatRefs, props.Links, props.ProjectTasks, props.Journeys, props.Navigate, props.DocumentID, props.Media, props.Origin)
 	return html.Div(html.Props{ID: "docs-markdown", Class: "docs-markdown", Dir: docsContentDirection(props.Markdown), Raw: map[string]any{"tabindex": "0"}}, nodes...)
 }
 

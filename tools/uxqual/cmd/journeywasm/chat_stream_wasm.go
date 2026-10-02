@@ -277,7 +277,18 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 	var soundModel chatui.Model
 	soundCandidate := false
 	installChatSoundUnlock()
-	return drainChatStream(ctx, stream, chatStreamHooks{
+	privateStream := &agentReplyEphemeralStream{next: stream, apply: func(delivery *chatv1.EphemeralDelivery, resume string) bool {
+		applied := chatBrowser.applyEphemeralDelivery(generation, conversationID, delivery, time.Now(), resume)
+		if applied {
+			// Private delivery also created an agent-authored durable post in the
+			// agent conversation. Refresh the server-owned rail counts immediately.
+			invalidateChatRecipientProjection()
+			chatStreamRender.Schedule()
+			personaDirectoryRefresh.Schedule()
+		}
+		return applied
+	}}
+	delivered, reason, termination = drainChatStream(ctx, privateStream, chatStreamHooks{
 		Apply: func(event *chatv1.ConversationEvent, resume string) (chatEventOutcome, bool) {
 			soundModel = chatBrowser.snapshot()
 			soundCandidate = event.GetKind() == chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_POST_CREATED && chatPostNewerThanLoadedTimeline(soundModel, event.GetPost())
@@ -320,6 +331,7 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 			chatStreamRender.Schedule()
 		},
 	})
+	return delivered || privateStream.delivered, reason, termination
 }
 
 // catchUpChatConversation reads forward from the last applied sequence and

@@ -3,9 +3,36 @@
 package main
 
 import (
+	"net/url"
 	"strings"
 	"syscall/js"
+
+	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
+
+// useTabletNavigationPreference keeps the CSS tablet default and an explicit
+// nav=expanded route in agreement after software navigation. The server has
+// already emitted the correct class for full loads; the effect repairs only
+// the long-lived shell that the history router keeps mounted.
+func useTabletNavigationPreference(rawQuery string) {
+	ui.UseEffectOf(func() func() {
+		values, err := url.ParseQuery(strings.TrimPrefix(rawQuery, "?"))
+		if err != nil {
+			return nil
+		}
+		shell := js.Global().Get("document").Call("querySelector", ".app-shell")
+		if !shell.Truthy() {
+			return nil
+		}
+		classes := shell.Get("classList")
+		if values.Get("nav") == "expanded" {
+			classes.Call("add", "nav-expanded")
+		} else {
+			classes.Call("remove", "nav-expanded")
+		}
+		return nil
+	}, rawQuery)
+}
 
 type browserNavigationGroupController struct {
 	state    map[string]bool
@@ -51,7 +78,7 @@ func (c *browserNavigationGroupController) Bind() {
 		if !group.Truthy() || group.Get("tagName").String() != "DETAILS" || group.Call("hasAttribute", "data-hcm-nav-force-open").Bool() {
 			return nil
 		}
-		key := strings.TrimSpace(group.Call("getAttribute", "data-hcm-nav-group").String())
+		key := strings.TrimSpace(domAttribute(group, "data-hcm-nav-group"))
 		if !validNavigationGroupKey(key) {
 			return nil
 		}

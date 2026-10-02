@@ -33,36 +33,53 @@ func refreshChannelPoll(room string, generation uint64) {
 	})
 }
 
-func loadChannelPoll(cfg journeyclient.Config, room string) {
+// loadChannelPollOnce makes one read of the channel poll and reports whether it
+// is settled (CHATUX-012: false means retry, and the page shows no error for it).
+func loadChannelPollOnce(cfg journeyclient.Config, room string, quiet bool) bool {
 	if !channelPollAllowed(room) {
-		return
+		return true
 	}
 	client := channelTodoClient()
 	if client == nil {
-		return
+		return true
 	}
 	active := chatBrowser.config(cfg)
 	generation := chatBrowser.currentGeneration()
-	chatBrowser.mutate(func(m *chatui.Model) {
-		if m.SelectedID == room {
-			m.ChannelPollLoading = true
-		}
-	})
-	refreshChannelPoll(room, generation)
+	if !quiet {
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelPollLoading = true
+			}
+		})
+		refreshChannelPoll(room, generation)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	response, err := client.GetChannelPoll(chatRPCContext(ctx, active), &chatv1.GetChannelPollRequest{ConversationId: room, HostTenantId: channelTodoHost(room, active.Tenant)})
 	current := chatBrowser.config(journeyclient.Config{})
-	if active.Tenant != current.Tenant || active.Subject != current.Subject || active.Bearer != current.Bearer || generation != chatBrowser.currentGeneration() {
-		return
+	if active.Tenant != current.Tenant || active.Subject != current.Subject || active.Bearer != current.Bearer {
+		return true
 	}
+	if generation != chatBrowser.currentGeneration() {
+		chatBrowser.mutate(func(m *chatui.Model) {
+			if m.SelectedID == room {
+				m.ChannelPollLoading = false
+			}
+		})
+		return chatBrowser.selectedID() != room
+	}
+	settled := true
 	chatBrowser.mutate(func(m *chatui.Model) {
 		if m.SelectedID != room {
 			return
 		}
 		m.ChannelPollLoading = false
 		if err != nil || response == nil || response.GetPoll() == nil || response.GetPoll().GetConversationId() != room {
-			m.ChannelPollError = "load"
+			if chatux012FinalRefusal(err) {
+				m.ChannelPollError = "load"
+			} else {
+				settled = false
+			}
 			return
 		}
 		if response.GetPoll().GetRevision() >= m.ChannelPoll.Revision {
@@ -71,6 +88,7 @@ func loadChannelPoll(cfg journeyclient.Config, room string) {
 		m.ChannelPollError = ""
 	})
 	refreshChannelPoll(room, generation)
+	return settled
 }
 
 func channelPollAllowed(room string) bool {
@@ -115,7 +133,7 @@ func mutateChannelPoll(cfg journeyclient.Config, operation, question string, opt
 		}
 		m.ChannelPollPending = false
 		if err != nil || response == nil || response.GetPoll() == nil || response.GetPoll().GetConversationId() != room || response.GetPoll().GetRevision() < m.ChannelPoll.Revision {
-			m.ChannelPollError = "save"
+			m.ChannelPollError = chatmod002ErrorCode(err, "save")
 			return
 		}
 		m.ChannelPoll = channelPollModel(response.GetPoll())

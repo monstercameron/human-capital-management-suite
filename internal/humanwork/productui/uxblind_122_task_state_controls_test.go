@@ -129,14 +129,14 @@ func TestTodo_UXBLIND_122_TaskPlanUsesReadableLocalizedLabels(t *testing.T) {
 			"Read own worker state", "Summarize request",
 			ResolveProductLocale(locale).Text("agents.step_state.running"),
 			ResolveProductLocale(locale).Text("agents.step_state.awaiting_approval"),
-			ResolveProductLocale(locale).Text("agents.tier.read"),
-			ResolveProductLocale(locale).Text("agents.tier.private_draft"),
 		} {
 			if !strings.Contains(markup, want) {
 				t.Fatalf("%s plan missing readable localized label %q: %s", locale, want, markup)
 			}
 		}
-		for _, raw := range []string{"agent.read_own_worker_state", "agent.summarize_request", ">T0<", ">T1<", ">RUNNING<", ">AWAITING_APPROVAL<"} {
+		// AGENTUX-017: the step name already says what happened, so the tier
+		// caption is not repeated under it.
+		for _, raw := range []string{"agent.read_own_worker_state", "agent.summarize_request", ">T0<", ">T1<", ">RUNNING<", ">AWAITING_APPROVAL<", ">" + ResolveProductLocale(locale).Text("agents.tier.read") + "<", ">" + ResolveProductLocale(locale).Text("agents.tier.private_draft") + "<"} {
 			if strings.Contains(markup, raw) {
 				t.Fatalf("%s plan leaked internal value %q: %s", locale, raw, markup)
 			}

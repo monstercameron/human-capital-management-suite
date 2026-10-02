@@ -33,7 +33,7 @@ func TestTodo_WEB_046(t *testing.T) {
 	roles := ApplyRoleVisibility(testView(PageRoles), []string{RoleHCMAdmin})
 	adminSections := utilityDrawerSections(roles)
 	adminRelated := findDrawerSection(adminSections, "related")
-	wantRelated := []PageID{PageAdmin, PageWorkerIDs, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageClockDevices}
+	wantRelated := []PageID{PageAdmin, PageWorkerIDs, PageOrganizationVisibility, PageAppearance, PageChatSettings, PagePersonaAdmin, PageAgentOperations, PageClockDevices}
 	if adminRelated == nil || len(adminRelated.Items) != len(wantRelated) {
 
 		t.Fatalf("roles drawer related = %#v, want current admitted admin destinations", adminSections)
@@ -98,7 +98,9 @@ func TestTodo_WEB_046_Golden(t *testing.T) {
 	// related pages, no unresolved key.
 	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
 	// Re-pinned 2026-09-28 after reading the render: same five related pages, Worker IDs now carries its own icon (UXBLIND-107), no unresolved key.
-	const want = "67c2278a7831d7aab4bedc2f46e8910fd07e5433e766f675a1629f07fdb8ab43"
+	// Agent setup and Agent operations are now related Admin destinations,
+	// and their sparkles icon renders the registered glyph.
+	const want = "f2aafdf97da4373a4e9bee93a2df8ab1480efb2c71611d9389a5ce0ba21b05fd"
 	if got != want {
 		t.Fatalf("utility drawer golden digest = %s, want %s", got, want)
 	}
@@ -186,9 +188,9 @@ func TestTodo_WEB_046_Browser(t *testing.T) {
 			t.Fatalf("drawer link leaves the page registry: %q", xhtmlAttr(link, "href"))
 		}
 	}
-	if len(collectElements(dialog, "a")) != 7 {
+	if len(collectElements(dialog, "a")) != 8 {
 
-		t.Fatalf("drawer links = %d, want 7 related and no actions on roles page", len(collectElements(dialog, "a")))
+		t.Fatalf("drawer links = %d, want 8 related and no actions on roles page", len(collectElements(dialog, "a")))
 	}
 
 	homeDoc, err := Render(testView(PageHome))

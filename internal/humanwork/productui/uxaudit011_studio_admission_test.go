@@ -108,7 +108,7 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 		t.Fatal("navigation DOM still contains a Studio anchor element")
 	}
 
-	// The Admin group's rendered subnav contains its seven admitted children;
+	// The Admin group's rendered subnav contains its eight admitted children;
 	// Studio and the eleven other unbuilt admin
 	// fallback surfaces claim no <a> element anywhere in the group. The
 	// group is located by its stable data-hcm-nav-group="admin" attribute
@@ -124,7 +124,7 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 	}
 	// Each leaf renders a nav-link anchor plus an optional nav-favorite
 	// toggle anchor, so count only the navigational links: one overview
-	// leaf (pointing back at Admin itself) plus the seven admitted
+	// leaf (pointing back at Admin itself) plus the eight admitted
 	// children -- Studio and the eleven other unbuilt admin fallback
 	// surfaces contribute none.
 	navLinks := 0
@@ -133,8 +133,8 @@ func TestTodo_UXAUDIT_011_Browser(t *testing.T) {
 			navLinks++
 		}
 	})
-	if navLinks != 8 {
-		t.Fatalf("Admin subnav has %d nav-link anchors, want 8 (overview plus 7 admitted children)", navLinks)
+	if navLinks != 9 {
+		t.Fatalf("Admin subnav has %d nav-link anchors, want 9 (overview plus 8 admitted children)", navLinks)
 	}
 
 	// Direct navigation to the unadmitted route claims no active

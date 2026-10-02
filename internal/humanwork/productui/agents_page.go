@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
 // PageAgents is the personal agent workspace nested under Chat. The runtime
@@ -39,14 +40,19 @@ type AgentSnapshot struct {
 	Threads                []AgentThread
 	Tasks                  []AgentTask
 	SelectedTask           *AgentTask
+	TasksLoading           bool
+	TasksLoadFailed        bool
+	DocumentHubAvailable   bool
 }
 
 type AgentSummary struct {
-	ID          string
-	Name        string
-	Description string
-	Status      string
-	Skills      []string
+	Icon         agenticon.Value
+	IconRevision int64
+	ID           string
+	Name         string
+	Description  string
+	Status       string
+	Skills       []string
 }
 
 type AgentThread struct {
@@ -82,25 +88,63 @@ const (
 	AgentTaskUnknown                  AgentTaskState = "unknown"
 )
 
+type AgentDocumentUsageState string
+
+const (
+	AgentDocumentUsageUnknown AgentDocumentUsageState = "UNKNOWN"
+	AgentDocumentUsageNone    AgentDocumentUsageState = "NONE"
+	AgentDocumentUsageUsed    AgentDocumentUsageState = "USED"
+)
+
 type AgentTask struct {
-	ID               string
-	Version          uint64
-	AgentID          string
-	Title            string
-	Goal             string
-	AnswerText       string
-	State            AgentTaskState
-	LiveStep         string
-	BudgetUsed       string
-	BudgetLimit      string
-	PlanRevision     string
-	PlanDiff         string
-	Steps            []AgentTaskStep
-	Checkpoints      []AgentCheckpoint
-	Artifacts        []AgentArtifact
-	Approvals        []AgentApproval
-	SubmittedIntents []AgentIntentStatus
-	Actions          AgentTaskActionPolicy
+	Icon                      agenticon.Value
+	IconRevision              int64
+	ID                        string
+	Version                   uint64
+	AgentID                   string
+	Title                     string
+	Goal                      string
+	AnswerText                string
+	State                     AgentTaskState
+	LiveStep                  string
+	BudgetUsed                string
+	BudgetLimit               string
+	PlanRevision              string
+	PlanDiff                  string
+	Steps                     []AgentTaskStep
+	Checkpoints               []AgentCheckpoint
+	Artifacts                 []AgentArtifact
+	Approvals                 []AgentApproval
+	SubmittedIntents          []AgentIntentStatus
+	Actions                   AgentTaskActionPolicy
+	CreatedAt                 time.Time
+	UpdatedAt                 time.Time
+	ResultPreview             string
+	FailureReason             string
+	Retryable                 bool
+	AnsweringAgentID          string
+	AnsweringAgentDisplayName string
+	AnsweringAgentVersion     string
+	Documents                 []AgentTaskDocumentReference
+	UsedDocuments             []AgentTaskDocumentReference
+	DocumentUsageState        AgentDocumentUsageState
+	DocumentOmissions         []AgentTaskDocumentOmission
+}
+
+// AgentTaskDocumentReference is the display-safe reference carried by the
+// owner-scoped task projection. The document service still authorizes the
+// destination when its link is opened.
+type AgentTaskDocumentReference struct {
+	DocumentID    string
+	Label         string
+	SectionAnchor string
+}
+
+// AgentTaskDocumentOmission explains only what the task service elected to
+// disclose. An empty label is deliberately rendered as an aggregate count.
+type AgentTaskDocumentOmission struct {
+	Label  string
+	Reason string
 }
 
 // AgentTaskActionPolicy is the server-derived affordance projection for one
@@ -113,10 +157,13 @@ type AgentTaskActionPolicy struct {
 }
 
 type AgentTaskStep struct {
-	Name   string
-	State  string
-	Tier   string
-	Detail string
+	Name          string
+	State         string
+	Tier          string
+	Detail        string
+	StartedAt     time.Time
+	FinishedAt    time.Time
+	FailureReason string
 }
 
 type AgentCheckpoint struct {
@@ -173,37 +220,40 @@ func BuildAgentsPage(view View, client AgentClient) ui.Node {
 }
 
 func agentsUnavailablePage(view View, locale LocaleContext) ui.Node {
-	return html.Section(html.Props{Class: "agents-page agents-page-unavailable", Aria: map[string]string{"labelledby": "agents-page-title"}},
-		html.H1(html.Props{ID: "agents-page-title"}, ui.Text(locale.Text("agents.page_title"))),
-		html.P(html.Props{Class: "agents-page-subtitle"}, ui.Text(locale.Text("agents.page_subtitle"))),
-		ui.CreateElement(EmptyState, EmptyStateProps{
-			Title: locale.Text("agents.unavailable_title"), Description: locale.Text("agents.unavailable_detail"), Role: "status", Class: "agents-unavailable",
-		}),
-	)
+	actions := []ui.Node(nil)
+	if view.AgentsProjection != nil && view.AgentsProjection.ViewerIsAdmin {
+		actions = append(actions, AgentPageNavigation(view, AgentPageAsk))
+	}
+	return ProductPageFrame(ProductPageFrameProps{
+		Class: "agent-page-frame", Dir: string(locale.Direction), Aria: map[string]string{"labelledby": "agents-page-title"},
+		Breadcrumbs: agentUXR7Breadcrumb(locale), Title: locale.Text("agents.page_title"), TitleID: "agents-page-title", Actions: actions,
+		Body: []ui.Node{html.Div(html.Props{Class: "agents-page agents-page-unavailable"},
+			html.P(html.Props{Class: "agents-page-subtitle"}, ui.Text(locale.Text("agents.page_subtitle"))),
+			ui.CreateElement(EmptyState, EmptyStateProps{
+				Title: locale.Text("agents.unavailable_title"), Description: locale.Text("agents.load_failed_detail"), Role: "status", Class: "agents-unavailable",
+			}),
+			html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-page-retry": "true"}}, ui.Text(locale.Text("agents.try_again"))),
+		)},
+	})
 }
 
 func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) ui.Node {
-	var selectedTask ui.Node
-	if snapshot.SelectedTask != nil {
-		selectedTask = tagAgentTaskView(view, locale, *snapshot.SelectedTask)
+	children := make([]ui.Node, 0, 4)
+	actions := []ui.Node(nil)
+	if view.AgentsProjection != nil && view.AgentsProjection.ViewerIsAdmin {
+		actions = append(actions, AgentPageNavigation(view, AgentPageAsk))
 	}
-	children := []ui.Node{
-		html.H1(html.Props{ID: "agents-page-title"}, ui.Text(locale.Text("agents.page_title"))),
+	children = append(children,
 		html.P(html.Props{Class: "agents-page-subtitle"}, ui.Text(locale.Text("agents.page_subtitle"))),
-		html.Div(html.Props{Class: "agents-layout"},
-			tagAgentsSidebar(locale, snapshot),
-			html.Section(html.Props{Class: "agents-main", Role: "region", Aria: map[string]string{"label": locale.Text("agents.conversations")}},
-				selectedTask,
-				tagAgentComposer(locale, snapshot),
-				tagAgentThreads(locale, snapshot),
-				tagAgentTasks(view, locale, snapshot),
-			),
-		),
+	)
+	main := []ui.Node{tagAgentComposerForView(view, locale, snapshot)}
+	if len(snapshot.Threads) > 0 {
+		main = append(main, tagAgentThreads(locale, snapshot))
 	}
-	children = append(children, AgentControlsMount(locale), AgentRolloutPortableMount(locale, AgentRolloutSnapshot{Loading: true}, AgentPortableSnapshot{}))
-	if view.Allows(PagePersonaAdmin, "view") {
-		children = append(children, ui.CreateElement(ActionLink, ActionLinkProps{Label: locale.Text("page.personas.label"), Href: statefulHref(view, PagePersonaAdmin), Class: "button secondary", Navigate: view.Navigate}))
-	}
+	main = append(main, tagAgentTasks(view, locale, snapshot))
+	children = append(children, html.Div(html.Props{Class: "agents-layout"},
+		html.Section(html.Props{Class: "agents-main", Role: "region", Aria: map[string]string{"label": locale.Text("agents.workspace")}}, main...),
+	))
 	if !snapshot.StartAvailable {
 		for _, page := range []PageID{PageChatSettings, PageConfigurationCenter} {
 			if view.Allows(page, "view") {
@@ -211,18 +261,32 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 			}
 		}
 	}
-	return html.Section(html.Props{Class: "agents-page", Aria: map[string]string{"labelledby": "agents-page-title"}}, children...)
+	raw := map[string]any{}
+	if snapshot.SelectedTask != nil {
+		raw["data-has-task-detail"] = "true"
+	}
+	return ProductPageFrame(ProductPageFrameProps{
+		Class: "agent-page-frame", Dir: string(locale.Direction), Aria: map[string]string{"labelledby": "agents-page-title"},
+		Breadcrumbs: agentUXR7Breadcrumb(locale), Title: locale.Text("agents.page_title"), TitleID: "agents-page-title", Actions: actions,
+		Body: []ui.Node{html.Div(html.Props{Class: "agents-page", Raw: raw}, children...)},
+	})
 }
 
 func tagAgentsSidebar(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 	items := make([]ui.Node, 0, len(snapshot.Agents))
+	// An agent with no stored icon wears its own fallback, never a glyph another
+	// agent in this list has.
+	siblings := make([]string, 0, len(snapshot.Agents))
+	for _, agent := range snapshot.Agents {
+		siblings = append(siblings, agent.ID)
+	}
 	for _, agent := range snapshot.Agents {
 		label := agent.Name
 		if strings.TrimSpace(label) == "" {
 			label = agent.ID
 		}
 		items = append(items, html.Li(html.Props{Class: "agents-agent-item", Raw: map[string]any{"data-agent-id": agent.ID}},
-			html.Strong(html.Props{}, ui.Text(label)),
+			agenticon.NodeFor(agent.Icon, agent.ID, siblings...), html.Strong(html.Props{}, ui.Text(label)),
 			html.Span(html.Props{Class: "agents-agent-status"}, ui.Text(agent.Status)),
 			html.P(html.Props{Class: "muted"}, ui.Text(agent.Description)),
 			agentSkills(locale, agent.Skills),
@@ -279,39 +343,204 @@ func tagAgentThreads(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 }
 
 func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.Node {
-	groups := map[AgentTaskState][]AgentTask{}
+	groups := map[string][]AgentTask{"active": {}, "completed": {}, "failed": {}}
+	selectedListed := false
 	for _, task := range snapshot.Tasks {
-		groups[task.State] = append(groups[task.State], task)
+		category := agentTaskCategory(task.State)
+		groups[category] = append(groups[category], task)
+		selectedListed = selectedListed || snapshot.SelectedTask != nil && snapshot.SelectedTask.ID == task.ID
 	}
-	ordered := []AgentTaskState{AgentTaskRunning, AgentTaskDrafting, AgentTaskAwaitingPlanConfirmation, AgentTaskAwaitingApproval, AgentTaskAwaitingInput, AgentTaskWaiting, AgentTaskPaused, AgentTaskCompleted, AgentTaskFailed, AgentTaskCancelled, AgentTaskExpired, AgentTaskUnknown}
-	sections := make([]ui.Node, 0, len(ordered))
-	for _, state := range ordered {
-		tasks := groups[state]
-		if len(tasks) == 0 {
-			continue
+	if snapshot.SelectedTask != nil && !selectedListed {
+		category := agentTaskCategory(snapshot.SelectedTask.State)
+		groups[category] = append([]AgentTask{*snapshot.SelectedTask}, groups[category]...)
+	}
+	selected := "active"
+	if snapshot.SelectedTask != nil {
+		selected = agentTaskCategory(snapshot.SelectedTask.State)
+	} else if len(groups[selected]) == 0 {
+		if len(groups["completed"]) > 0 {
+			selected = "completed"
+		} else if len(groups["failed"]) > 0 {
+			selected = "failed"
 		}
-		rows := make([]ui.Node, 0, len(tasks))
-		for _, task := range tasks {
-			rows = append(rows, html.Li(html.Props{Class: "agents-task-row", Raw: map[string]any{"data-task-id": task.ID}},
-				RenderAgentTaskSummary(locale, task, statefulHref(view, PageAgents, "task", task.ID)),
+	}
+	rows := make([]ui.Node, 0, len(snapshot.Tasks))
+	for _, category := range []string{"active", "completed", "failed"} {
+		for index, task := range groups[category] {
+			isSelected := snapshot.SelectedTask != nil && snapshot.SelectedTask.ID == task.ID
+			rows = append(rows, agentTaskRow(view, locale, task, isSelected, category, index, category != selected || index >= 20))
+		}
+	}
+	listing := []ui.Node{html.Div(html.Props{Class: "agents-tasks-heading"}, html.Div(html.Props{},
+		html.H2(html.Props{}, ui.Text(locale.Text("agents.tasks"))),
+		html.P(html.Props{Class: "muted agents-chat-history-note"}, ui.Text(locale.Text("agents.chat_history_note"))),
+	))}
+	if len(snapshot.Tasks) > 0 {
+		filters := make([]ui.Node, 0, 3)
+		for _, category := range []string{"active", "completed", "failed"} {
+			filters = append(filters, html.Button(html.Props{Type: "button", Class: "agents-task-filter", Role: "tab", Raw: map[string]any{
+				"data-agent-task-filter": category,
+				"aria-selected":          fmt.Sprint(category == selected),
+				"aria-controls":          "agents-task-list",
+				"tabindex":               map[bool]string{true: "0", false: "-1"}[category == selected],
+			}},
+				html.Span(html.Props{Class: "agents-task-filter-label"}, ui.Text(locale.Text("agents.filter."+category+"_label"))),
+				html.Span(html.Props{Class: "agents-task-filter-count", Aria: map[string]string{"label": locale.Text("agents.task_count")}}, ui.Text(locale.FormatNumber(fmt.Sprint(len(groups[category])), 0))),
 			))
 		}
-		sections = append(sections, html.Section(html.Props{Class: "agents-task-group", Raw: map[string]any{"data-task-state": string(state)}},
-			html.H3(html.Props{}, ui.Text(agentTaskStateLabel(locale, state))), html.Ul(html.Props{Class: "agents-task-list"}, rows...)))
+		listing = append(listing, html.Div(html.Props{Class: "agents-task-filters", Role: "tablist", Aria: map[string]string{"label": locale.Text("agents.task_filters")}}, filters...))
 	}
-	if len(sections) == 0 {
-		sections = append(sections, html.P(html.Props{Class: "muted"}, ui.Text(locale.Text("agents.no_tasks"))))
+	if snapshot.TasksLoading {
+		listing = append(listing, html.P(html.Props{Class: "agents-tasks-loading", Role: "status"}, ui.Text(locale.Text("agents.tasks_loading"))))
 	}
-	content := append([]ui.Node{html.H2(html.Props{}, ui.Text(locale.Text("agents.tasks")))}, sections...)
-	return html.Section(html.Props{Class: "agents-tasks", Role: "region", Aria: map[string]string{"label": locale.Text("agents.tasks")}}, content...)
+	if snapshot.TasksLoadFailed {
+		listing = append(listing, html.Div(html.Props{Class: "agents-tasks-failed", Role: "alert"},
+			html.P(html.Props{}, ui.Text(locale.Text("agents.tasks_load_failed"))),
+			html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-tasks-retry": "true"}}, ui.Text(locale.Text("agents.try_again"))),
+		))
+	}
+	if len(rows) > 0 && !snapshot.TasksLoadFailed {
+		listing = append(listing, html.Ul(html.Props{ID: "agents-task-list", Class: "agents-task-list", Role: "tabpanel"}, rows...))
+	}
+	for _, category := range []string{"active", "completed", "failed"} {
+		if snapshot.TasksLoadFailed {
+			break
+		}
+		key := "agents.no_tasks_" + category
+		if category == "active" && len(snapshot.Tasks) == 0 {
+			key = "agents.no_tasks"
+		}
+		listing = append(listing, html.P(html.Props{Class: "agents-tasks-empty", Hidden: category != selected || len(groups[category]) > 0, Role: "status", Raw: map[string]any{"data-agent-task-empty": category}}, ui.Text(locale.Text(key))))
+	}
+	if len(snapshot.Tasks) > 0 {
+		listing = append(listing, html.Button(html.Props{Type: "button", Class: "button secondary agents-task-more", Hidden: len(groups[selected]) <= 20, Raw: map[string]any{"data-agent-task-more": "true"}}, ui.Text(locale.Text("agents.show_more"))))
+	}
+	listing = append(listing, html.P(html.Props{ID: "agents-tasks-announcement", Class: "agents-tasks-announcement", Role: "status", Raw: map[string]any{
+		"aria-live":              "polite",
+		"data-msg-task-answered": locale.Text("agents.task_answered_announcement", map[string]string{"agent": "__AGENT__"}),
+		"data-msg-task-failed":   locale.Text("agents.task_failed_announcement", map[string]string{"agent": "__AGENT__"}),
+		"data-msg-agent":         locale.Text("agents.agent_identity"),
+	}}))
+	selectedTaskID := ""
+	if snapshot.SelectedTask != nil {
+		selectedTaskID = snapshot.SelectedTask.ID
+	}
+	content := []ui.Node{html.Div(html.Props{Class: "agents-task-listing"}, listing...)}
+	if snapshot.SelectedTask != nil {
+		content = append(content, html.Div(html.Props{ID: "agents-task-detail-" + snapshot.SelectedTask.ID, Class: "agents-task-detail-pane"}, tagAgentTaskViewWithRetry(view, locale, *snapshot.SelectedTask, snapshot.StartAvailable)))
+	}
+	return html.Section(html.Props{ID: "agents-tasks", Class: "agents-tasks", Role: "region", Aria: map[string]string{"label": locale.Text("agents.tasks")}, Raw: map[string]any{"data-selected-task-filter": selected, "data-selected-task-id": selectedTaskID, "data-has-task-detail": fmt.Sprint(snapshot.SelectedTask != nil), "aria-busy": fmt.Sprint(snapshot.TasksLoading)}}, content...)
+}
+
+func agentTaskCategory(state AgentTaskState) string {
+	switch state {
+	case AgentTaskCompleted:
+		return "completed"
+	case AgentTaskFailed, AgentTaskCancelled, AgentTaskExpired, AgentTaskUnknown:
+		return "failed"
+	default:
+		return "active"
+	}
+}
+
+func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool, category string, index int, hidden bool) ui.Node {
+	request := strings.TrimSpace(task.Title)
+	if request == "" {
+		request = strings.TrimSpace(task.Goal)
+	}
+	preview := agentTaskResultPreview(locale, task)
+	if preview == "" {
+		preview = strings.TrimSpace(task.LiveStep)
+	}
+	if task.State == AgentTaskCompleted {
+		if answer := strings.TrimSpace(task.AnswerText); answer != "" {
+			preview = answer
+		}
+	}
+	failureReason := ""
+	if category == "failed" {
+		preview = locale.Text("agents.task_failed_reassurance")
+		failureReason = localizedAgentFailureReason(locale, task.FailureReason)
+	}
+	children := []ui.Node{
+		html.Div(html.Props{Class: "agents-task-row-heading"},
+			html.Span(html.Props{Class: "agents-task-state-icon", Raw: map[string]any{"data-tone": category, "aria-hidden": "true"}}, ui.Text(agentTaskStatusGlyph(category))),
+			html.Strong(html.Props{Class: "agents-task-request"}, html.Tag("bdi", html.Props{}, ui.Text(request))),
+			html.Span(html.Props{Class: "agents-task-chevron", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("›")),
+			agentTaskRowTimes(locale, task, time.Now()),
+		),
+	}
+	if preview != "" {
+		props := html.Props{Class: "agents-task-preview"}
+		if category != "failed" {
+			props.Raw = map[string]any{"dir": "auto"}
+		}
+		children = append(children, html.P(props, ui.Text(preview)))
+	}
+	if failureReason != "" {
+		children = append(children, html.P(html.Props{Class: "agents-task-failure-reason"}, ui.Text(failureReason)))
+	}
+	var agentLine ui.Node
+	if category == "failed" {
+		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(agentTaskAgentName(locale, task)))
+	} else if category == "completed" {
+		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(locale.Text("agents.answered_by", map[string]string{"agent": agentTaskAgentName(locale, task)})))
+	} else {
+		agentLine = html.P(html.Props{Class: "agents-task-agent muted"}, ui.Text(locale.Text("agents.agent_active", map[string]string{
+			"agent":  agentTaskAgentName(locale, task),
+			"status": agentTaskStateLabel(locale, task.State),
+		})))
+	}
+	detailID := "agents-task-detail-" + task.ID
+	rowClass := "agents-task-row"
+	if selected {
+		// The route remains expanded semantically; layout is now owned by the
+		// adjacent detail pane rather than by this row.
+		rowClass += " is-expanded"
+	}
+	// The browser enhances this ordinary link into an in-page disclosure. Keeping
+	// the href preserves the script-free route without letting page navigation
+	// race the delegated disclosure handler.
+	rowChildren := []ui.Node{html.A(html.Props{Class: "agents-task-link", Aria: map[string]string{
+		"label": locale.Text("agents.open_named_task", map[string]string{"request": request}), "expanded": fmt.Sprint(selected), "controls": detailID,
+	}, Raw: map[string]any{"data-agent-task-row-link": task.ID}, Href: statefulHref(view, PageAgents, "task", task.ID) + "#agents-task-title"}, children...)}
+	metaChildren := []ui.Node{html.Div(html.Props{Class: "agents-task-source-meta"}, agentLine, agentTaskDocumentLinks(view, locale, task, true))}
+	if category == "failed" {
+		actions := []ui.Node{askAgainButton(locale, task)}
+		metaChildren = append(metaChildren, html.Div(html.Props{Class: "agents-task-row-actions"}, actions...))
+	}
+	rowChildren = append(rowChildren, html.Div(html.Props{Class: "agents-task-row-meta"}, metaChildren...))
+	return html.Li(html.Props{Class: rowClass, Hidden: hidden, Raw: map[string]any{"data-task-id": task.ID, "data-task-category": category, "data-task-index": index, "data-selected": fmt.Sprint(selected)}}, rowChildren...)
+}
+
+func agentTaskStatusGlyph(category string) string {
+	if category == "completed" {
+		return "✓"
+	}
+	if category == "failed" {
+		return "!"
+	}
+	return "•"
+}
+
+func agentTaskResultPreview(_ LocaleContext, task AgentTask) string {
+	// ResultPreview is projection-owned answer text. The UI must not attempt to
+	// repair server copy: doing so can turn a plan or a transport preamble into
+	// a misleading answer. The task projection owns choosing the answer field.
+	return strings.TrimSpace(task.ResultPreview)
+
 }
 
 func tagAgentComposer(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
+	return tagAgentComposerForView(View{}, locale, snapshot)
+}
+
+func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 	helper := locale.Text("agents.composer_help")
 	if !snapshot.StartAvailable {
 		copy := [3]string{"Task creation is unavailable for your current access.", "Die Aufgabenerstellung ist für Ihren Zugriff nicht verfügbar.", "إنشاء المهام غير متاح لصلاحياتك الحالية."}
 		if snapshot.StartUnavailableReason == "model_unavailable" {
-			copy = [3]string{"Connect a model provider to start agent tasks.", "Verbinden Sie einen Modellanbieter, um Agentenaufgaben zu starten.", "اربط مزود نموذج لبدء مهام الوكيل."}
+			copy = [3]string{"Agents cannot answer right now. Contact the person who manages agents in your workspace.", "Agenten können gerade nicht antworten. Kontaktieren Sie die Person, die Ihre Agenten verwaltet.", "لا يمكن للوكلاء الإجابة الآن. تواصل مع الشخص الذي يدير الوكلاء في مساحة عملك."}
 		}
 		if snapshot.StartUnavailableReason == "disabled" {
 			copy = [3]string{"Enable agents in Chat settings to start tasks.", "Aktivieren Sie Agenten in den Chat-Einstellungen, um Aufgaben zu starten.", "فعّل الوكلاء في إعدادات الدردشة لبدء المهام."}
@@ -324,10 +553,37 @@ func tagAgentComposer(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 			helper = copy[2]
 		}
 	}
-	return html.Form(html.Props{Class: "agents-composer", Raw: map[string]any{"aria-label": locale.Text("agents.composer")}},
+	children := make([]ui.Node, 0, 8)
+	if len(snapshot.Agents) > 0 {
+		choices := make([]ui.Node, 0, len(snapshot.Agents)+1)
+		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true))
+		for index, agent := range snapshot.Agents {
+			name := strings.TrimSpace(agent.Name)
+			if name == "" {
+				name = locale.Text("agents.agent_identity")
+			}
+			purpose := strings.TrimSpace(agent.Description)
+			if purpose == "" {
+				purpose = locale.Text("agents.agent_purpose_unavailable")
+			}
+			id := fmt.Sprintf("agents-choice-%d", index)
+			choices = append(choices, agentChoice(locale, id, agent.ID, name, purpose, false, agent.Icon))
+		}
+		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, choices...)))
+	} else {
+		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true))))
+		children = append(children, html.P(html.Props{Class: "agents-general-agent muted", Role: "status"}, ui.Text(agentUXR7Text(locale, "other_agents"))))
+	}
+	inputProps := html.Props{ID: "agents-composer-input", Name: "prompt", Rows: 3, Placeholder: locale.Text("agents.composer_placeholder")}
+	if !snapshot.StartAvailable {
+		inputProps.Raw = map[string]any{"aria-describedby": "agents-composer-help"}
+	}
+	children = append(children,
 		html.Label(html.Props{For: "agents-composer-input"}, ui.Text(locale.Text("agents.composer_label"))),
-		html.Textarea(html.Props{ID: "agents-composer-input", Name: "prompt", Rows: 3, Placeholder: locale.Text("agents.composer_placeholder"), Raw: map[string]any{"aria-describedby": "agents-composer-help"}}),
-		html.P(html.Props{ID: "agents-composer-help", Class: "muted", Raw: map[string]any{"data-start-unavailable-reason": snapshot.StartUnavailableReason}}, ui.Text(helper)),
+		html.Textarea(inputProps),
+		html.Div(html.Props{Class: "agents-document-picker-mount", Raw: map[string]any{"data-agent-request-document-mount": "true"}},
+			map[bool]ui.Node{true: AgentRequestDocumentPicker(locale), false: nil}[snapshot.DocumentHubAvailable],
+		),
 		// The client writes progress and refusals here. Its localized messages
 		// ride on the node, so the browser needs no catalog of its own.
 		html.P(html.Props{ID: "agents-composer-status", Class: "muted", Role: "status", Raw: map[string]any{
@@ -335,21 +591,46 @@ func tagAgentComposer(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
 			"data-msg-empty": locale.Text("agents.start_empty"), "data-msg-disabled": locale.Text("agents.start_disabled"),
 			"data-msg-denied": locale.Text("agents.start_denied"), "data-msg-failed": locale.Text("agents.start_failed"),
 		}}),
+	)
+	if !snapshot.StartAvailable {
+		children = append(children, html.P(html.Props{ID: "agents-composer-help", Class: "muted", Raw: map[string]any{"data-start-unavailable-reason": snapshot.StartUnavailableReason}}, ui.Text(helper)))
+	}
+	children = append(children,
+		html.P(html.Props{Class: "agents-composer-actions-help muted"}, ui.Text(locale.Text("agents.actions_help"))),
 		html.Div(html.Props{Class: "agents-composer-actions"},
-			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "quick-answer"}}, ui.Text(locale.Text("agents.quick_answer"))),
-			html.Button(html.Props{Class: "button primary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "long-task"}}, ui.Text(locale.Text("agents.start_task"))),
+			html.Button(html.Props{Class: "button primary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "quick-answer"}}, ui.Text(locale.Text("agents.quick_answer"))),
+			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "long-task"}}, ui.Text(locale.Text("agents.start_task"))),
 		),
+	)
+	return html.Form(html.Props{Class: "agents-composer", Raw: map[string]any{"aria-label": locale.Text("agents.composer")}}, children...)
+}
+
+func agentChoice(locale LocaleContext, id, value, name, purpose string, checked bool, identity ...agenticon.Value) ui.Node {
+	return html.Label(html.Props{Class: "agents-agent-choice", For: id},
+		html.Input(html.Props{ID: id, Type: "radio", Name: "agent", Checked: checked, Raw: map[string]any{"value": value}}),
+		html.Span(html.Props{Dir: string(locale.Direction)}, agenticon.NodeFor(integrate1IconValue(identity), choiceSeed(id, value)), html.Strong(html.Props{Dir: "auto"}, ui.Text(name)), agentUXR7Description(locale, purpose)),
 	)
 }
 
 func tagAgentTaskView(view View, locale LocaleContext, task AgentTask) ui.Node {
-	steps := make([]ui.Node, 0, len(task.Steps))
-	for index, step := range task.Steps {
-		steps = append(steps, html.Li(html.Props{Class: "agents-plan-step", Raw: map[string]any{"data-step-state": step.State, "data-step-tier": step.Tier}},
-			html.Span(html.Props{Class: "agents-step-number"}, ui.Text(fmt.Sprintf("%d", index+1))),
-			html.Strong(html.Props{}, ui.Text(agentStepName(step.Name))), html.Span(html.Props{Class: "status"}, ui.Text(agentStepStateLabel(locale, step.State))),
-			html.Span(html.Props{Class: "agents-step-tier"}, ui.Text(agentStepTierLabel(locale, step.Tier))), html.P(html.Props{Class: "muted"}, ui.Text(step.Detail))))
+	return tagAgentTaskViewWithRetry(view, locale, task, false)
+}
+
+func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, retryAvailable bool) ui.Node {
+	displaySteps := append([]AgentTaskStep(nil), task.Steps...)
+	for index := range displaySteps {
+		if strings.EqualFold(strings.TrimSpace(displaySteps[index].State), "failed") && strings.TrimSpace(displaySteps[index].Detail) == "" {
+			reason := strings.TrimSpace(displaySteps[index].FailureReason)
+			if reason == "" {
+				reason = strings.TrimSpace(task.FailureReason)
+			}
+			displaySteps[index].Detail = localizedAgentFailureReason(locale, reason)
+			if displaySteps[index].Detail == "" {
+				displaySteps[index].Detail = locale.Text("agents.step_failed_generic")
+			}
+		}
 	}
+	steps := agentTaskStepItems(locale, displaySteps)
 	checkpoints := make([]ui.Node, 0, len(task.Checkpoints))
 	for _, checkpoint := range task.Checkpoints {
 		checkpoints = append(checkpoints, html.Li(html.Props{}, html.Strong(html.Props{}, ui.Text(checkpoint.Label)), html.Span(html.Props{Class: "muted"}, ui.Text(checkpoint.At))))
@@ -372,21 +653,55 @@ func tagAgentTaskView(view View, locale LocaleContext, task AgentTask) ui.Node {
 	for _, intent := range task.SubmittedIntents {
 		intents = append(intents, html.Li(html.Props{}, html.Strong(html.Props{}, ui.Text(intent.Name)), html.Span(html.Props{Class: "status"}, ui.Text(intent.Status))))
 	}
+	request := agentTaskRequest(task)
+	heading := []ui.Node{
+		html.H1(html.Props{ID: "agents-task-title", Raw: map[string]any{"tabindex": "-1", "dir": "auto"}}, ui.Text(request)),
+		html.Span(html.Props{Class: "agents-task-status", Raw: map[string]any{"data-tone": agentTaskCategory(task.State)}}, ui.Text(agentTaskStateLabel(locale, task.State))),
+	}
 	children := []ui.Node{
-		html.Div(html.Props{Class: "agents-task-heading"}, html.H2(html.Props{ID: "agents-task-title"}, ui.Text(task.Title)), html.Span(html.Props{Class: "status"}, ui.Text(agentTaskStateLabel(locale, task.State)))),
-		html.P(html.Props{Class: "agents-task-goal"}, ui.Text(task.Goal)),
-		answerBlock(locale, task.AnswerText),
+		softwareLink(view.Navigate, html.Props{Class: "agents-back-link", Raw: map[string]any{"data-agent-back-tasks": "true", "data-agent-back-task-id": task.ID}}, statefulHref(view, PageAgents)+"#agents-tasks", html.Span(html.Props{Class: "agents-detail-back-mobile"}, ui.Text(locale.Text("agents.back_to_tasks"))), html.Span(html.Props{Class: "agents-detail-close-desktop"}, ui.Text("× "+agentUXR7Text(locale, "close")))),
+		html.Div(html.Props{Class: "agents-task-heading"}, heading...),
+		agentTaskDetailMeta(locale, task),
 	}
-	if actions := taskActions(locale, task); actions != nil {
-		children = append(children, actions)
+	if task.State == AgentTaskFailed {
+		children = append(children, failedTaskBlock(locale, task))
+	} else if answer := answerBlock(locale, task.AnswerText); answer != nil {
+		children = append(children, answer)
 	}
-	children = append(children, taskControlStatus(locale))
-	if len(steps) > 0 {
-		planKey := "agents.confirmed_plan"
+	var plan ui.Node
+	if len(steps) > 1 {
+		planKey := "agents.what_agent_did"
 		if task.State == AgentTaskAwaitingPlanConfirmation || task.State == AgentTaskDrafting {
 			planKey = "agents.proposed_plan"
 		}
-		children = append(children, html.Section(html.Props{Class: "agents-task-plan"}, html.H3(html.Props{}, ui.Text(locale.Text(planKey))), html.Ol(html.Props{}, steps...)))
+		plan = html.Section(html.Props{Class: "agents-task-plan"}, html.H3(html.Props{}, ui.Text(locale.Text(planKey))), html.Ol(html.Props{}, steps...))
+	}
+	planFirst := task.State == AgentTaskAwaitingPlanConfirmation || task.State == AgentTaskDrafting
+	if planFirst && plan != nil {
+		children = append(children, plan)
+	}
+	if documents := agentTaskDocumentLinks(view, locale, task, false); documents != nil {
+		children = append(children, documents)
+	}
+	if omissions := agentTaskOmissions(locale, task.DocumentOmissions); omissions != nil {
+		children = append(children, omissions)
+	}
+	if next := taskNextActions(view, locale, task, retryAvailable); next != nil {
+		children = append(children, next)
+	}
+	if planFirst {
+		if actions := taskActions(view, locale, task); actions != nil {
+			children = append(children, actions)
+		}
+	}
+	if !planFirst {
+		if actions := taskActions(view, locale, task); actions != nil {
+			children = append(children, actions)
+		}
+	}
+	children = append(children, taskControlStatus(locale))
+	if !planFirst && plan != nil {
+		children = append(children, plan)
 	}
 	if strings.TrimSpace(task.LiveStep) != "" {
 		liveChildren := []ui.Node{html.H3(html.Props{}, ui.Text(locale.Text("agents.live_step"))), html.P(html.Props{}, ui.Text(task.LiveStep))}
@@ -403,7 +718,114 @@ func tagAgentTaskView(view View, locale LocaleContext, task AgentTask) ui.Node {
 	if strings.TrimSpace(task.PlanDiff) != "" {
 		children = append(children, html.Section(html.Props{Class: "agents-plan-diff"}, html.H3(html.Props{}, ui.Text(locale.Text("agents.plan_revision", map[string]string{"revision": task.PlanRevision}))), html.Pre(html.Props{}, ui.Text(task.PlanDiff))))
 	}
-	return html.Section(html.Props{Class: "agents-task-view", Role: "region", Aria: map[string]string{"label": locale.Text("agents.task_view"), "labelledby": "agents-task-title"}, Raw: map[string]any{"data-task-view": task.ID}}, children...)
+	return html.Section(html.Props{Class: "agents-task-view", Role: "region", Aria: map[string]string{"label": locale.Text("agents.task_view"), "labelledby": "agents-task-title"}, Raw: map[string]any{"data-task-view": task.ID, "data-task-request": request}}, children...)
+}
+
+func agentTaskRequest(task AgentTask) string {
+	if request := strings.TrimSpace(task.Title); request != "" {
+		return request
+	}
+	if request := strings.TrimSpace(task.Goal); request != "" {
+		return request
+	}
+	return "Task"
+}
+
+func failedTaskBlock(locale LocaleContext, task AgentTask) ui.Node {
+	detail := localizedAgentFailureReason(locale, task.FailureReason)
+	if detail == "" {
+		if task.Retryable {
+			detail = locale.Text("agents.task_failed_detail")
+		} else {
+			detail = locale.Text("agents.task_failed_detail_no_retry")
+		}
+	}
+	return html.Section(html.Props{Class: "agents-task-answer agents-task-failure", Role: "alert"},
+		html.H2(html.Props{}, ui.Text(locale.Text("agents.task_failed_title"))),
+		html.P(html.Props{Raw: map[string]any{"dir": "auto"}}, ui.Text(detail)),
+	)
+}
+
+func agentTaskAgentName(locale LocaleContext, task AgentTask) string {
+	if strings.EqualFold(strings.TrimSpace(task.AnsweringAgentID), "general-agent") {
+		return locale.Text("agents.general_agent")
+	}
+	if name := strings.TrimSpace(task.AnsweringAgentDisplayName); name != "" {
+		return name
+	}
+	return locale.Text("agents.general_agent")
+}
+
+func agentTaskDetailAgentLine(locale LocaleContext, task AgentTask) ui.Node {
+	key := "agents.agent_active"
+	switch agentTaskCategory(task.State) {
+	case "completed":
+		key = "agents.answered_by"
+	case "failed":
+		key = "agents.agent_failed"
+	}
+	return html.P(html.Props{Class: "agents-task-agent muted"}, agenticon.NodeFor(task.Icon, task.AgentID), ui.Text(locale.Text(key, map[string]string{
+		"agent":  agentTaskAgentName(locale, task),
+		"status": agentTaskStateLabel(locale, task.State),
+	})))
+}
+
+func agentTaskDetailMeta(locale LocaleContext, task AgentTask) ui.Node {
+	at := task.UpdatedAt
+	if at.IsZero() {
+		at = task.CreatedAt
+	}
+	when := locale.Text("agents.time_now")
+	if !at.IsZero() {
+		when = agentTaskDateTimeLabel(locale, at, time.Now())
+	}
+	duration := locale.Text("agents.detail_took_under_minute")
+	if !task.CreatedAt.IsZero() && !task.UpdatedAt.IsZero() && task.UpdatedAt.Sub(task.CreatedAt) >= time.Minute {
+		duration = locale.Text("agents.detail_took_minutes", map[string]string{"count": locale.FormatNumber(fmt.Sprint(int(task.UpdatedAt.Sub(task.CreatedAt).Round(time.Minute)/time.Minute)), 0)})
+	}
+	return html.P(html.Props{Class: "agents-task-meta muted"}, ui.Text(locale.Text("agents.detail_meta", map[string]string{
+		"agent": agentTaskAgentName(locale, task), "time": when, "duration": duration,
+	})))
+}
+
+func askAgainButton(locale LocaleContext, task AgentTask) ui.Node {
+	return html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{
+		"data-agent-ask-again": "true", "data-agent-retry": "true", "data-agent-retry-prompt": agentTaskRequest(task), "data-agent-retry-persona": agentTaskPersonaSelection(task),
+	}}, ui.Text(locale.Text("agents.ask_again")))
+}
+
+func taskNextActions(view View, locale LocaleContext, task AgentTask, retryAvailable bool) ui.Node {
+	request := agentTaskRequest(task)
+	followUpClass := "button primary"
+	if task.State == AgentTaskFailed {
+		followUpClass = "button secondary"
+	}
+	followUp := html.Button(html.Props{Class: followUpClass, Type: "button", Raw: map[string]any{
+		"data-agent-follow-up": "true", "data-agent-follow-up-context": request, "data-agent-follow-up-href": statefulHref(view, PageAgents) + "#agents-composer-input",
+	}}, ui.Text(locale.Text("agents.ask_follow_up")))
+	children := make([]ui.Node, 0, 3)
+	switch task.State {
+	case AgentTaskCompleted:
+		children = append(children, followUp)
+	case AgentTaskFailed:
+		children = append(children, askAgainButton(locale, task))
+		if strings.TrimSpace(task.AnsweringAgentID) != "" {
+			children = append(children, ui.CreateElement(ActionLink, ActionLinkProps{Label: locale.Text("agents.ask_in_chat"), Href: statefulHref(view, PageChat), Class: "button secondary", Navigate: view.Navigate}))
+		}
+	case AgentTaskAwaitingPlanConfirmation:
+		return nil
+	default:
+		children = append(children, followUp)
+	}
+	return html.Div(html.Props{Class: "agents-task-next-actions"}, children...)
+}
+
+func agentTaskPersonaSelection(task AgentTask) string {
+	id := strings.TrimSpace(task.AnsweringAgentID)
+	if id == "general-agent" {
+		return ""
+	}
+	return id
 }
 
 func taskControlStatus(locale LocaleContext) ui.Node {
@@ -422,20 +844,30 @@ func answerBlock(locale LocaleContext, answer string) ui.Node {
 	if answer == "" {
 		return nil
 	}
-	return html.Section(html.Props{Class: "agents-task-answer"}, html.H3(html.Props{}, ui.Text(locale.Text("agents.answer"))), html.P(html.Props{}, ui.Text(answer)))
+	return html.Section(html.Props{Class: "agents-task-answer"},
+		html.Div(html.Props{Class: "agents-task-answer-heading"},
+			html.H2(html.Props{}, ui.Text(locale.Text("agents.answer"))),
+			html.Button(html.Props{Class: "button secondary compact", Type: "button", Raw: map[string]any{"data-agent-copy-answer": "true", "data-agent-answer": answer}}, ui.Text(locale.Text("agents.copy_answer"))),
+		),
+		html.P(html.Props{Raw: map[string]any{"dir": "auto"}}, ui.Text(answer)),
+		html.Span(html.Props{Class: "muted", Role: "status", Raw: map[string]any{"aria-live": "polite", "data-agent-copy-status": "true", "data-msg-copied": locale.Text("agents.copied"), "data-msg-failed": locale.Text("agents.copy_failed")}}),
+	)
 }
 
 func taskActionButton(locale LocaleContext, taskID, action, key string, version uint64) ui.Node {
 	return html.Button(html.Props{Class: "button secondary", Type: "button", Aria: map[string]string{"label": locale.Text(key)}, Raw: map[string]any{"data-task-action": action, "data-task-id": taskID, "data-task-version": version}}, ui.Text(locale.Text(key)))
 }
 
-func taskActions(locale LocaleContext, task AgentTask) ui.Node {
+func taskActions(view View, locale LocaleContext, task AgentTask) ui.Node {
 	if task.Version == 0 || !knownAgentTaskState(task.State) {
 		return nil
 	}
 	buttons := make([]ui.Node, 0, 4)
 	if task.Actions.ConfirmPlan && task.State == AgentTaskAwaitingPlanConfirmation {
-		buttons = append(buttons, taskActionButton(locale, task.ID, "confirm-plan", "agents.confirm_plan", task.Version))
+		buttons = append(buttons,
+			html.Button(html.Props{Class: "button primary", Type: "button", Aria: map[string]string{"label": locale.Text("agents.start_plan")}, Raw: map[string]any{"data-task-action": "confirm-plan", "data-task-id": task.ID, "data-task-version": task.Version}}, ui.Text(locale.Text("agents.start_plan"))),
+			html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-follow-up": "true", "data-agent-follow-up-context": agentTaskRequest(task), "data-agent-follow-up-href": statefulHref(view, PageAgents) + "#agents-composer-input"}}, ui.Text(locale.Text("agents.change_request"))),
+		)
 	}
 	if task.Actions.Pause && (task.State == AgentTaskRunning || task.State == AgentTaskAwaitingApproval || task.State == AgentTaskAwaitingInput || task.State == AgentTaskWaiting) {
 		buttons = append(buttons, taskActionButton(locale, task.ID, "pause", "agents.pause", task.Version))
@@ -489,23 +921,56 @@ func agentTaskStateLabel(locale LocaleContext, state AgentTaskState) string {
 	}
 }
 
-func agentStepName(name string) string {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return "Step"
+func agentStepPresentation(locale LocaleContext, step AgentTaskStep) (string, string) {
+	normalized := strings.ToLower(strings.TrimSpace(step.Name))
+	normalized = strings.NewReplacer(".", "_", "-", "_", " ", "_").Replace(normalized)
+	for strings.Contains(normalized, "__") {
+		normalized = strings.ReplaceAll(normalized, "__", "_")
 	}
-	if dot := strings.LastIndex(trimmed, "."); dot >= 0 {
-		trimmed = trimmed[dot+1:]
+	name := strings.TrimSpace(step.Name)
+	switch normalized {
+	case "agent_read_own_worker_state", "read_own_worker_state":
+		name = locale.Text("agents.step.own_record")
+	case "agent_summarize_request", "summarize_request", "summarise_request":
+		name = locale.Text("agents.step.private_draft")
+	case "agent_read_handbook", "read_handbook":
+		name = locale.Text("agents.step.read_handbook")
+	case "read_information":
+		name = locale.Text("agents.step.read_information")
+	case "prepare_answer":
+		name = locale.Text("agents.step.prepare_answer")
+	case "prepare_draft":
+		name = locale.Text("agents.step.prepare_draft")
+	case "send_message":
+		name = locale.Text("agents.step.send_message")
+	case "submit_request":
+		name = locale.Text("agents.step.submit_request")
+	case "verify_result":
+		name = locale.Text("agents.step.verify_result")
+	case "ask_for_information":
+		name = locale.Text("agents.step.ask_information")
+	case "wait_for_an_update":
+		name = locale.Text("agents.step.wait_update")
+	case "work_on_request":
+		name = locale.Text("agents.step.generic")
 	}
-	words := strings.FieldsFunc(trimmed, func(r rune) bool { return r == '_' || r == '-' })
-	if len(words) == 0 {
-		return "Step"
+	if name == "" {
+		name = locale.Text("agents.step.generic")
 	}
-	if strings.Contains(name, ".") || strings.ContainsAny(name, "_-") {
-		words[0] = upperFirst(strings.ToLower(words[0]))
-		return strings.Join(words, " ")
+	return name, agentStepTierLabel(locale, step.Tier)
+}
+
+func legacyAgentStepLabel(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	normalized = strings.NewReplacer(".", "_", "-", "_", " ", "_").Replace(normalized)
+	switch normalized {
+	case "agent_read_own_worker_state", "read_own_worker_state":
+		return "Read own worker state"
+	case "agent_summarize_request", "summarize_request", "summarise_request":
+		return "Summarize request"
+	default:
+		return strings.TrimSpace(name)
 	}
-	return trimmed
 }
 
 func agentStepStateLabel(locale LocaleContext, state string) string {
@@ -544,13 +1009,4 @@ func agentStepTierLabel(locale LocaleContext, tier string) string {
 	default:
 		return locale.Text("agents.tier.unknown")
 	}
-}
-
-func upperFirst(value string) string {
-	runes := []rune(value)
-	if len(runes) == 0 {
-		return value
-	}
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
 }

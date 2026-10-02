@@ -48,6 +48,32 @@ func asset(name string) ([]byte, bool) {
 	return embeddedAsset(name)
 }
 
+// The Chat emoji picker's data files (CHATEMOJI-001). tools/emojidata writes
+// them beside the bundle: one order file shared by every language, one file of
+// names and keywords per product language, and the Unicode licence notice that
+// must accompany them. They are static and immutable, so the server answers
+// with the content-addressed, compressed bytes like it does for the wasm module.
+const (
+	assetEmojiOrder  = "emoji-order.json"
+	assetEmojiNotice = "emoji-LICENSE.txt"
+)
+
+// emojiLanguages are the languages the picker has name data for.
+var emojiLanguages = []string{"en", "de", "ar"}
+
+// isEmojiDataAsset reports whether name is one of the picker's JSON data files.
+func isEmojiDataAsset(name string) bool {
+	if name == assetEmojiOrder {
+		return true
+	}
+	for _, lang := range emojiLanguages {
+		if name == "emoji-"+lang+".json" {
+			return true
+		}
+	}
+	return false
+}
+
 func isSeedPhotoProxy(name string) bool {
 	const prefix, suffix = "person-hc-", "-small.jpg"
 	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
@@ -78,8 +104,8 @@ func embeddedAsset(name string) ([]byte, bool) {
 // compressedAsset returns only build-produced transfer representations for
 // compressible executable assets. The .gz files are never directly routable.
 func compressedAsset(name string) ([]byte, bool) {
-	switch name {
-	case assetJourneyWasm, assetWasmExec:
+	switch {
+	case name == assetJourneyWasm, name == assetWasmExec, isEmojiDataAsset(name):
 		if _, identityExists := embeddedAsset(name); !identityExists {
 			return nil, false
 		}
@@ -94,14 +120,20 @@ func compressedAsset(name string) ([]byte, bool) {
 // source originals and legacy fixtures cannot enter the release manifest.
 func FrontendAssetContentType(name string) (string, bool) {
 	switch name {
-	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo, assetIronridgeLogo:
+	case assetJourneyWasm, assetWasmExec, assetHarborcareLogo, assetIronridgeLogo, assetEmojiNotice:
 	default:
-		if !isSeedPhotoProxy(name) {
+		if !isSeedPhotoProxy(name) && !isEmojiDataAsset(name) {
 			return "", false
 		}
 	}
 	if name == assetWasm || name == assetJourneyWasm {
 		return "application/wasm", true
+	}
+	if isEmojiDataAsset(name) {
+		return "application/json; charset=utf-8", true
+	}
+	if name == assetEmojiNotice {
+		return "text/plain; charset=utf-8", true
 	}
 	if strings.HasSuffix(name, ".png") {
 		return "image/png", true

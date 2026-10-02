@@ -49,7 +49,21 @@ const (
 )
 
 // wasmBuildTags are the build tags the browser bundle is compiled with.
-const wasmBuildTags = "grpcnotrace"
+//
+// nethttpomithttp2 drops net/http's own bundled HTTP/2 client and server (the
+// standard library's documented opt-out): in a browser every request goes
+// through fetch, which negotiates its own protocol, and gRPC brings its own
+// golang.org/x/net/http2. It removed about 700 KB from the module with no
+// change to any request the client makes.
+const wasmBuildTags = "grpcnotrace,nethttpomithttp2"
+
+// wasmGCFlags switches inlining off for this module's own packages only (the
+// GoWebComponents runtime, gRPC and the standard library keep it). The
+// module's code is view-building and event wiring, not a hot loop, and the
+// inliner was copying the same small view helpers into thousands of call
+// sites: measured on the same sources, journey.wasm went from 64.68 MB to
+// 61.56 MB and its gzip from 12.95 MB to 11.89 MB (CHATBUG-014).
+const wasmGCFlags = "github.com/monstercameron/human-capital-management-suite/...=-l"
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -147,7 +161,7 @@ func build(outDir string, stdout io.Writer) error {
 	// exists to serve /debug/requests pages from a server. A browser client
 	// cannot serve them, and the integration alone pulled html/template and
 	// text/template into the bundle (UXBLIND-089).
-	cmd := exec.Command(goBin, "build", "-tags="+wasmBuildTags, "-ldflags=-s -w", "-o", wasmPath, wasmPackage)
+	cmd := exec.Command(goBin, "build", "-tags="+wasmBuildTags, "-ldflags=-s -w", "-gcflags="+wasmGCFlags, "-o", wasmPath, wasmPackage)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	// The build's own diagnostics are the useful part of a failure, so they
 	// are carried into the error rather than discarded.

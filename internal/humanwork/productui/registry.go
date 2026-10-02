@@ -256,7 +256,14 @@ func buildRegisteredModules() []PageModule {
 		pageModule(PageDefinition{ID: PageReleaseGate, Route: "/workspace/app/admin/release-gate", Label: "Release gate", Icon: "admin", Title: "Production frontend release gate", Subtitle: "Gate the release through the governed release service.", ParentNav: PageAdmin, LabelKey: "page.release_gate.label", TitleKey: "page.release_gate.title", SubtitleKey: "page.release_gate.subtitle", SearchTerms: []string{"release", "gate", "production", "approve", "admin"}, RenderOrder: 173}, releaseGatePageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/release-gate"), dataProfileFor("/workspace/app/admin/release-gate")),
 		pageModule(PageDefinition{ID: PageChatSettings, Route: "/workspace/app/admin/chat-settings", Label: "Chat settings", Icon: "chat", Title: "Chat settings", Subtitle: "Manage tenant-wide chat retention settings.", LabelKey: "page.chat_settings.label", TitleKey: "page.chat_settings.title", SubtitleKey: "page.chat_settings.subtitle", SearchTerms: []string{"chat", "retention", "messages", "storage"}, ParentNav: PageAdmin, Admitted: true, NavigationPublished: true, RenderOrder: 174}, chatSettingsPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/chat-settings"), dataProfileFor("/workspace/app/admin/chat-settings")),
 	}
-	modules = append(modules, ClockPageModule(), MissingPunchAdminPageModule(), pageModule(PageDefinition{ID: PagePersonaAdmin, Route: "/workspace/app/admin/personas", Label: "Personas", Icon: "sparkles", Title: "Personas", Subtitle: "Review persona lifecycle, reach, and conversation placements.", LabelKey: "page.personas.label", TitleKey: "page.personas.title", SubtitleKey: "page.personas.subtitle", SearchTerms: []string{"personas", "agents", "lifecycle", "skills", "data reach", "conversation placements"}, ParentNav: PageAdmin, Admitted: true, NavigationPublished: true, OwnsHeading: true, RenderOrder: 177}, personaAdminPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/personas"), dataProfileFor("/workspace/app/admin/personas")), timecardPageModule(), crewSchedulePageModule(), clockDevicesPageModule())
+	timecard, crewSchedule, clockDevices := timecardPageModule(), crewSchedulePageModule(), clockDevicesPageModule()
+	timecard.Definition.RenderOrder = 179
+	crewSchedule.Definition.RenderOrder = 180
+	clockDevices.Definition.RenderOrder = 181
+	modules = append(modules, ClockPageModule(), MissingPunchAdminPageModule(),
+		pageModule(PageDefinition{ID: PagePersonaAdmin, Route: "/workspace/app/admin/personas", Label: "Agent setup", Icon: "sparkles", Title: "Agent setup", Subtitle: "Define who an agent is, what it may do, and where it may work.", LabelKey: "page.personas.label", TitleKey: "page.personas.title", SubtitleKey: "page.personas.subtitle", SearchTerms: []string{"agent setup", "agents", "lifecycle", "skills", "data reach", "conversation access"}, ParentNav: PageAdmin, Admitted: true, NavigationPublished: true, OwnsHeading: true, RenderOrder: 177}, personaAdminPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/personas"), dataProfileFor("/workspace/app/admin/personas")),
+		pageModule(PageDefinition{ID: PageAgentOperations, Route: "/workspace/app/admin/agents", Label: "Agent operations", Icon: "sparkles", Title: "Agent operations", Subtitle: "Manage running agents, version rollout, and portable agent files.", LabelKey: "page.agent_operations.label", TitleKey: "page.agent_operations.title", SubtitleKey: "page.agent_operations.subtitle", SearchTerms: []string{"agent operations", "agent owner", "rollout", "portable agent file", "pause agent"}, ParentNav: PageAdmin, Admitted: true, NavigationPublished: true, OwnsHeading: true, RenderOrder: 178}, agentOperationsPageModuleRenderer{}, PageAccessPolicy{Audience: PageAudienceDenied}, routeProfileFor("/workspace/app/admin/agents"), dataProfileFor("/workspace/app/admin/agents")),
+		timecard, crewSchedule, clockDevices)
 	if err := ValidatePageModules(modules); err != nil {
 		panic(err)
 	}
@@ -341,6 +348,11 @@ func authorizedNavigationForPermissions(locale LocaleContext, permissions []Role
 		allowed[permission.Page] = allowed[permission.Page] || permission.View
 	}
 	return authorizedNavigationProjection(locale, navigationForPermissions(locale, permissions), func(page PageID) bool { return allowed[page] })
+}
+
+func authorizedNavigationForView(view View) AuthorizedNavigationProjection {
+	items := navigationFor(view.Locale, func(page PageID) bool { return view.Can(page, "view") })
+	return authorizedNavigationProjection(view.Locale, items, func(page PageID) bool { return view.Can(page, "view") })
 }
 
 func authorizedNavigationProjection(locale LocaleContext, items []NavItem, supportAllowed func(PageID) bool) AuthorizedNavigationProjection {

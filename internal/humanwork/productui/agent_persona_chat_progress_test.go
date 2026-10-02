@@ -23,7 +23,7 @@ func TestTodo_AGENTP_020(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"persona-thread-reply", "agent-reply-to=\"post-1\"", "Comp Analyst", "persona-chat-progress", "reading 3 sources", `agent-task-card="task-1"`, `agent-task-revision="rev-2"`, "awaiting_approval"} {
+	for _, want := range []string{"persona-thread-reply", "agent-reply-to=\"post-1\"", "Comp Analyst", "persona-chat-progress", "reading 3 sources", `agent-task-card="task-1"`, `agent-task-revision="rev-2"`, "Awaiting approval"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("persona chat missing %q: %s", want, markup)
 		}
@@ -116,5 +116,23 @@ func TestTodo_AGENTP_020_Fault(t *testing.T) {
 	}
 	if !strings.Contains(member, "I found the relevant bands.") {
 		t.Fatalf("thread reply was not preserved for the conversation audience: %s", member)
+	}
+}
+
+func TestAgentUXChat3_LocalizedAnswerStates(t *testing.T) {
+	keys := []string{
+		"chat.agent.finding_answer", "chat.agent.still_working", "chat.agent.saved_conversation",
+		"chat.agent.subtitle", "chat.agent.failed_now", "chat.agent.thread_continue",
+		"chat.agent.legacy_private", "chat.agent.feedback_owner_named", "chat.agent.undo",
+		"chat.agent.you_asked_in", "chat.agent.view_in",
+	}
+	for _, locale := range []string{"en-US", "de-DE", "ar"} {
+		resolved := ResolveProductLocale(locale)
+		for _, key := range keys {
+			text := resolved.Text(key, map[string]string{"name": "Policy Helper", "conversation": "#general"})
+			if strings.TrimSpace(text) == "" || text == key || strings.Contains(text, "{name}") || strings.Contains(text, "{conversation}") {
+				t.Errorf("%s catalog did not resolve %s: %q", locale, key, text)
+			}
+		}
 	}
 }

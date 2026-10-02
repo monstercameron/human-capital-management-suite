@@ -21,6 +21,9 @@ func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 	if view.NavCollapsed {
 		class += " nav-collapsed"
 	}
+	if view.NavExpanded {
+		class += " nav-expanded"
+	}
 	if view.Loading {
 		class += " is-loading"
 	} else if view.ContentLoading {
@@ -619,6 +622,8 @@ func currentPageAddressState(view View, collapsed bool) url.Values {
 	values := url.Values{}
 	if collapsed {
 		values.Set("nav", "collapsed")
+	} else if view.NavExpanded {
+		values.Set("nav", "expanded")
 	}
 	setMenuAddressState(values, view)
 	if routeProfile, _, ok := PageProfiles(view.Page); ok {

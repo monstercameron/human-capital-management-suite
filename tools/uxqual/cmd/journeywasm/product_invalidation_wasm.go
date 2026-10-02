@@ -71,5 +71,5 @@ func browserHasUnsavedForm() bool {
 		return false
 	}
 	root := document.Call("querySelector", "[data-unsaved-protection='true']")
-	return root.Truthy() && root.Get("dataset").Get("unsaved").String() == "true"
+	return root.Truthy() && domDataset(root, "unsaved") == "true"
 }

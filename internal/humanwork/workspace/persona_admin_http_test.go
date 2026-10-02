@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,9 +13,11 @@ import (
 )
 
 type personaAdminHTTPClient struct {
-	request productui.PersonaAdminSnapshotRequest
-	preview productui.PersonaAdminPreviewRequest
-	err     error
+	request    productui.PersonaAdminSnapshotRequest
+	preview    productui.PersonaAdminPreviewRequest
+	snapshot   productui.PersonaAdminSnapshot
+	err        error
+	previewErr error
 }
 
 func (c *personaAdminHTTPClient) Snapshot(_ context.Context, request productui.PersonaAdminSnapshotRequest) (productui.PersonaAdminSnapshot, error) {
@@ -22,11 +25,37 @@ func (c *personaAdminHTTPClient) Snapshot(_ context.Context, request productui.P
 	if c.err != nil {
 		return productui.PersonaAdminSnapshot{}, c.err
 	}
+	if c.snapshot.Available {
+		return c.snapshot, nil
+	}
 	return productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "server-persona", Name: "Server Persona"}}}, nil
 }
 func (c *personaAdminHTTPClient) Preview(_ context.Context, request productui.PersonaAdminPreviewRequest) (productui.PersonaAdminPreview, error) {
 	c.preview = request
+	if c.previewErr != nil {
+		return productui.PersonaAdminPreview{}, c.previewErr
+	}
 	return productui.PersonaAdminPreview{Subject: request.SubjectID, Conversation: request.ConversationID}, nil
+}
+
+func TestTodo_AGENTUX_003_PreviewFailureKeepsServedSnapshot(t *testing.T) {
+	h, token := newShellHandler(t, false)
+	client := &personaAdminHTTPClient{snapshot: productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper"}}}, previewErr: errors.New("selected member is not in the placement")}
+	h.personaAdmin = personaAdminHTTPFactory{client: client}
+	req := httptest.NewRequest(http.MethodGet, PathPersonaAdminData+"?persona_id=policy-helper&subject_id=admin&conversation_id=direct", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	h.servePersonaAdminData(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("regional preview failure status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var payload personaAdminDataResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if !payload.Snapshot.Available || len(payload.Snapshot.Personas) != 1 || !payload.Snapshot.PreviewState.Unavailable || !payload.Snapshot.PreviewUnavailable {
+		t.Fatalf("preview failure took down catalog: %+v", payload.Snapshot)
+	}
 }
 
 func TestPersonaAdminDataRouteReturnsServerSelectedPreview(t *testing.T) {

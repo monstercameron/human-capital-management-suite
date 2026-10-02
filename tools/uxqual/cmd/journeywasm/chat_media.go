@@ -67,6 +67,51 @@ type chatMediaGrants struct {
 	// inflight stops two renders of the same timeline from fetching one
 	// artifact twice.
 	inflight map[string]bool
+	// changed is closed, and replaced on the next Changed call, whenever the
+	// wanted set or a grant changes, so a waiter wakes on the change itself
+	// instead of polling on a chain of short timers (CHATBUG-031).
+	changed chan struct{}
+}
+
+// Changed returns a channel that is closed at the next change to what the
+// cache wants or holds. Take it before checking the condition waited on, so a
+// change between the check and the wait is not missed.
+func (c *chatMediaGrants) Changed() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.changed == nil {
+		c.changed = make(chan struct{})
+	}
+	return c.changed
+}
+
+func (c *chatMediaGrants) notifyLocked() {
+	if c.changed != nil {
+		close(c.changed)
+		c.changed = nil
+	}
+}
+
+// WaitUntil blocks until done reports true, the limit passes, or cancelled
+// reports true, whichever comes first, and returns done's last answer. It uses
+// one timer for the whole wait: a page that throttles or starves timers (the
+// review browser pane) then pays that delay once, not once per poll, and a
+// change the cache announces ends the wait at once.
+func (c *chatMediaGrants) WaitUntil(done func() bool, limit time.Duration, cancelled func() bool) bool {
+	deadline := time.NewTimer(limit)
+	defer deadline.Stop()
+	for !cancelled() {
+		changed := c.Changed()
+		if done() {
+			return true
+		}
+		select {
+		case <-changed:
+		case <-deadline.C:
+			return done()
+		}
+	}
+	return false
 }
 
 func (c *chatMediaGrants) SetRevoker(revoke func(string)) {
@@ -120,6 +165,7 @@ func (c *chatMediaGrants) SetWanted(ids []string) {
 		}
 	}
 	c.wanted, c.wantKnown = wanted, true
+	c.notifyLocked()
 	c.suppressed = map[string]bool{}
 	c.failedUntil = map[string]time.Time{}
 	var evicted []chatMediaGrant
@@ -189,6 +235,7 @@ func (c *chatMediaGrants) Put(id string, grant chatMediaGrant) {
 	c.grants[id] = grant
 	c.touch(id)
 	delete(c.inflight, id)
+	c.notifyLocked()
 	revoke := c.revoke
 	c.mu.Unlock()
 	if revoke != nil && previous.URL != "" && previous.URL != grant.URL {
@@ -225,6 +272,7 @@ func (c *chatMediaGrants) PutIfEpoch(id string, grant chatMediaGrant, epoch uint
 		}
 	}
 	delete(c.inflight, id)
+	c.notifyLocked()
 	revoke := c.revoke
 	c.mu.Unlock()
 	if revoke != nil && previous.URL != "" && previous.URL != grant.URL {
@@ -345,6 +393,24 @@ func (c *chatMediaGrants) ReleaseIfEpoch(id string, epoch uint64) {
 		delete(c.inflight, id)
 	}
 	c.mu.Unlock()
+}
+
+// MintUnderClaim runs mint for a claim the caller holds and always ends the
+// claim: a mint that fails or is aborted (the element that asked for it was
+// replaced by a re-render) releases it, so the next request for the artifact
+// can mint instead of waiting on a claim nobody holds and then reporting the
+// preview as failed (CHATBUG-009).
+func (c *chatMediaGrants) MintUnderClaim(id string, epoch uint64, mint func() (token string, expires time.Time, ok bool)) (chatMediaGrant, bool) {
+	token, expires, ok := mint()
+	if !ok {
+		c.ReleaseIfEpoch(id, epoch)
+		return chatMediaGrant{}, false
+	}
+	if !c.PutIfEpoch(id, chatMediaGrant{Token: token, ExpiresAt: expires}, epoch) {
+		c.ReleaseIfEpoch(id, epoch)
+		return chatMediaGrant{}, false
+	}
+	return c.Get(id, time.Now())
 }
 
 func (c *chatMediaGrants) FailIfEpoch(id string, epoch uint64, until time.Time) {

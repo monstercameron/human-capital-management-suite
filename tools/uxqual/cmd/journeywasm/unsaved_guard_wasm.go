@@ -27,14 +27,14 @@ func bindUnsavedFormGuard() {
 		}
 		form := document.Call("querySelector", "[data-unsaved-form='worker-id']")
 		root := document.Call("querySelector", "[data-unsaved-protection='true']")
-		if !form.Truthy() || !root.Truthy() || root.Get("dataset").Get("unsaved").String() != "true" {
+		if !form.Truthy() || !root.Truthy() || domDataset(root, "unsaved") != "true" {
 			return nil
 		}
 		href := link.Get("href").String()
 		if !shouldBlockUnsavedNavigation(true, href, window.Get("location").Get("href").String()) {
 			return nil
 		}
-		message := form.Get("dataset").Get("unsavedMessage").String()
+		message := domDataset(form, "unsavedMessage")
 		if message == "" {
 			message = "You have unsaved changes. Leave this page?"
 		}
@@ -51,7 +51,7 @@ func bindUnsavedFormGuard() {
 			return nil
 		}
 		root := document.Call("querySelector", "[data-unsaved-protection='true']")
-		if root.Truthy() && root.Get("dataset").Get("unsaved").String() == "true" {
+		if root.Truthy() && domDataset(root, "unsaved") == "true" {
 			event := args[0]
 			event.Call("preventDefault")
 			event.Set("returnValue", "")

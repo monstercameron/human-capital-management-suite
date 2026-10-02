@@ -142,9 +142,10 @@ const (
 type chatState struct {
 	mu sync.RWMutex
 
-	client chatv1.ConversationServiceClient
-	cfg    journeyclient.Config
-	model  chatui.Model
+	client        chatv1.ConversationServiceClient
+	cfg           journeyclient.Config
+	model         chatui.Model
+	chatattach001 *chatattach001State
 
 	// callbacks rebuilds the callback table. Every model the UI is handed
 	// must carry live callbacks, and the table is rebuilt rather than copied
@@ -352,11 +353,12 @@ func (s *chatState) selectedID() string {
 // snapshot is the current model with a live callback table.
 func (s *chatState) snapshot() chatui.Model {
 	s.mu.RLock()
-	model, build := s.model, s.callbacks
+	model, build, attachments := s.model, s.callbacks, s.chatattach001
 	s.mu.RUnlock()
 	if build != nil {
 		model.Callbacks = build()
 	}
+	model.Chatattach001 = attachments.projection(model.SelectedID)
 	return model
 }
 
@@ -497,6 +499,9 @@ func chatFriendlyError(err error) string {
 	case codes.AlreadyExists, codes.Aborted, codes.FailedPrecondition:
 		return "Someone else changed it first. Try again."
 	case codes.InvalidArgument:
+		if line, ok := chatmod002Notice(err, chatui.ModAuthorSurfaceSaved, "", chatBrowser.localeTag()); ok {
+			return line
+		}
 		return "The details were not accepted."
 	case codes.ResourceExhausted:
 		return "There were too many requests. Try again in a moment."
@@ -1043,6 +1048,11 @@ func actionFailureNotice(action string, err error) string {
 	if err == nil {
 		return ""
 	}
+	// CHATMOD-002: a language-filter refusal says what the filter did, not that
+	// the service failed.
+	if line, ok := chatmod002Notice(err, chatui.ModAuthorSurfaceSaved, "", chatBrowser.localeTag()); ok {
+		return line
+	}
 	return fmt.Sprintf("We couldn't %s. %s", action, chatFriendlyError(err))
 }
 
@@ -1077,6 +1087,7 @@ func (s *chatState) setDraft(conversationID, value string) {
 	if s.draftRevs == nil {
 		s.draftRevs = make(map[string]uint64)
 	}
+	previous := s.drafts[conversationID]
 	if conversationID != "" {
 		s.draftRev++
 		s.draftRevs[conversationID] = s.draftRev
@@ -1090,6 +1101,9 @@ func (s *chatState) setDraft(conversationID, value string) {
 	}
 	if s.model.SelectedID == conversationID {
 		s.model.Draft = value
+		s.dropStaleAuthorBlockedLocked(conversationID, value)
+		// CHATBUG-038: the previews under the composer belong to the draft.
+		s.pruneChatEmbedsAfterDraftLocked(previous, value)
 	}
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
 	s.mu.Unlock()
@@ -1210,6 +1224,7 @@ func swapChatDraft(model *chatui.Model, drafts map[string]string, next string) {
 		}
 	}
 	model.SelectedID = next
+	model.AuthorBlocked, model.ThreadDrafts = nil, nil
 	model.Draft = drafts[next]
 	model.Preferences.Drafts = copyChatDrafts(drafts)
 }
@@ -1231,13 +1246,18 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		s.reactionPagePending = nil
 		swapChatDraft(model, s.drafts, id)
 		model.Search = ""
+		model.ChatSearch, model.SearchOpened = nil, false
 		model.ShowThread = false
 		model.ThreadParentID = ""
 		model.ThreadParent = nil
 		model.ThreadMessages = nil
 		model.ResolvedPersonaMentions = nil
 		model.PersonaInvocations = nil
+		model.PersonaActivityReady = false
 		model.PersonaPostActors = nil
+		model.EphemeralMessages = nil
+		model.PersonaLookup, model.PersonaLookupConversationID = chatui.PersonaLookupIdle, ""
+		model.Callbacks.RetryPersonaMentions = nil
 		model.ThreadLoading = false
 		model.ThreadHasOlder, model.ThreadHasNewer = false, false
 		s.threadBeforeSequence, s.threadAfterSequence = 0, 0
@@ -1511,7 +1531,11 @@ func (s *chatState) applySentChatPost(conversationID string, post *chatv1.Post, 
 	} else if post.GetSequence() > s.cursor.LastSequence+1 {
 		gapped = true
 	}
+	if chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
+		return true, gapped
+	}
 	if post.GetParentId() != "" {
+		applyCommittedAgentPending(&s.model, post)
 		if s.model.ThreadParent != nil && s.model.ThreadParent.ID == post.GetParentId() {
 			s.model.ThreadParent.Replies++
 		}
@@ -1534,6 +1558,7 @@ func (s *chatState) applySentChatPost(conversationID string, post *chatv1.Post, 
 		return true, gapped
 	}
 	s.model.Messages = append(s.model.Messages, chatMessage(post, locale, directory, now))
+	applyCommittedAgentPending(&s.model, post)
 	sortChatMessagesBySequence(s.model.Messages, s.cursor.Seen)
 	trimmed := len(s.model.Messages) > chatMessageWindow
 	window := s.window
@@ -1684,6 +1709,22 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 	// may have completed while the RPC was in flight, so the current cache
 	// owns this field regardless of which conversation the listing selected.
 	loaded.SearchDirectory = s.model.SearchDirectory
+	loaded.ChatFeatures = s.model.ChatFeatures
+	loaded.ShowFilterSettings = loaded.SelectedID == s.model.SelectedID && s.model.ShowFilterSettings
+	loaded.ChannelStatuses = s.model.ChannelStatuses
+	loaded.ChangeChannelStatus, loaded.RetryChannelStatus = s.model.ChangeChannelStatus, s.model.RetryChannelStatus
+	loaded.ReaderRenderings = s.model.ReaderRenderings
+	loaded.ReaderSelections = s.model.ReaderSelections
+	loaded.ReaderPending = s.model.ReaderPending
+	loaded.ReaderPolicyRequired = s.model.ReaderPolicyRequired
+	loaded.MessageLocations = s.model.MessageLocations
+	loaded.SavedOpenCount = s.model.SavedOpenCount
+	loaded.Moderation = s.model.Moderation
+	loaded.SavedBodies = s.model.SavedBodies
+	// What the server said about agents while this listing was in flight is
+	// newer than the snapshot it started from.
+	loaded.AgentIconsReady = loaded.AgentIconsReady || s.model.AgentIconsReady
+	loaded.AgentRailPending = loaded.AgentRailPending && !s.model.AgentIconsReady
 	retry := s.model.NoticeRetry
 	preservedThreadPage := false
 	if loaded.SelectedID == s.model.SelectedID {
@@ -1694,7 +1735,12 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		// not be rolled back by a refresh that only re-read the listing.
 		cur := s.model
 		loaded.ResolvedPersonaMentions, loaded.PersonaInvocations, loaded.RenderPersonaTask = cur.ResolvedPersonaMentions, cur.PersonaInvocations, cur.RenderPersonaTask
+		loaded.PersonaActivityReady = cur.PersonaActivityReady
 		loaded.PersonaPostActors = cur.PersonaPostActors
+		loaded.AgentFeedbackRestored, loaded.AgentShare = cur.AgentFeedbackRestored, cur.AgentShare
+		loaded.EphemeralMessages = cur.EphemeralMessages
+		loaded.PersonaLookup, loaded.PersonaLookupConversationID = cur.PersonaLookup, cur.PersonaLookupConversationID
+		loaded.Callbacks.RetryPersonaMentions = cur.Callbacks.RetryPersonaMentions
 		loaded.SidebarOpen, loaded.ShowDetails, loaded.ShowCreate, loaded.ShowBrowse = cur.SidebarOpen, cur.ShowDetails, cur.ShowCreate, cur.ShowBrowse
 		loaded.ShowPerson, loaded.PersonDetails = cur.ShowPerson, cur.PersonDetails
 		loaded.SharePostID, loaded.ShareSourceRoomID, loaded.ShareDestinationID, loaded.ShareQuery, loaded.ShareError = cur.SharePostID, cur.ShareSourceRoomID, cur.ShareDestinationID, cur.ShareQuery, cur.ShareError
@@ -1766,6 +1812,7 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 			}
 		}
 	}
+	preserveAgentConversationIdentity(s.model, &loaded)
 	// The recipient rail is local authority while this listing RPC is in flight.
 	// Rebind its order to fresh conversation values without losing a collapse.
 	if len(s.model.Sections) > 0 {
@@ -1802,6 +1849,7 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		loaded.Sections = sections
 	}
 	loaded.RailMenuID = s.model.RailMenuID
+	integrate2PrepareReaderSelections(&loaded)
 	s.model = loaded
 	s.model.PeerIDs = peerIDs
 	s.model.PhotoURLs = make(map[string]string, len(s.photos))
@@ -1846,6 +1894,8 @@ func (s *chatState) restoreDraft(conversationID, body string) {
 			s.model.Draft = body
 		}
 		s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
+		// CHATBUG-038: this text comes back on purpose; it is not a stale copy.
+		chatui.ForgetClearedDraft(conversationID)
 	}
 	s.mu.Unlock()
 }
@@ -2005,6 +2055,9 @@ func (s *chatState) applyChatDirectoryLocked(directory map[string]string) bool {
 	}
 	resolveRoom := func(room *chatui.Conversation) {
 		if room == nil {
+			return
+		}
+		if room.Kind == chatui.DirectMessage && room.Agent && strings.TrimSpace(room.Name) != "" {
 			return
 		}
 		if room.Kind == chatui.DirectMessage && directory[s.model.PeerIDs[room.ID]] != "" {
@@ -2239,6 +2292,21 @@ func (s *chatState) applyStreamEvent(generation uint64, conversationID string, e
 	return outcome, true
 }
 
+func (s *chatState) applyEphemeralDelivery(generation uint64, conversationID string, delivery *chatv1.EphemeralDelivery, now time.Time, resume string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.generation != generation || s.cursor.ConversationID != conversationID || s.model.SelectedID != conversationID {
+		return false
+	}
+	if !applyAgentReplyEphemeral(&s.model, delivery, now) {
+		return false
+	}
+	if resume != "" {
+		s.cursor.Resume = resume
+	}
+	return true
+}
+
 // applyCatchup folds a forward ListPosts read into the timeline after a gap or
 // between two streams. Posts already applied are skipped by id, so a
 // replayed page is not a duplicated timeline.
@@ -2265,8 +2333,11 @@ func (s *chatState) applyCatchup(generation uint64, conversationID string, posts
 			s.cursor.LastSequence = post.GetSequence()
 		}
 		applied = true
+		if chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
+			continue
+		}
 		switch {
-		case post.GetDeleted():
+		case chatmod004Gone(post):
 			applyChatPostDeleted(&s.model, post)
 		case post.GetParentId() != "":
 			replies[post.GetParentId()]++
@@ -2537,7 +2608,7 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 func chatMessages(posts []*chatv1.Post, locale string, directory map[string]string, reactions map[string][]chatui.ReactionChip, now time.Time) []chatui.Message {
 	replies := make(map[string]int, len(posts))
 	for _, post := range posts {
-		if post == nil || post.GetDeleted() {
+		if post == nil || chatmod004Gone(post) || chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
 			continue
 		}
 		if parent := post.GetParentId(); parent != "" {
@@ -2547,7 +2618,7 @@ func chatMessages(posts []*chatv1.Post, locale string, directory map[string]stri
 	ordered := chatInConversationOrder(posts)
 	out := make([]chatui.Message, 0, len(ordered))
 	for _, post := range ordered {
-		if post.GetDeleted() || post.GetParentId() != "" {
+		if chatmod004Gone(post) || post.GetParentId() != "" || chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
 			continue
 		}
 		message := chatMessage(post, locale, directory, now)
@@ -2568,7 +2639,7 @@ func chatThreadMessages(posts []*chatv1.Post, root, locale string, directory map
 	}
 	out := make([]chatui.Message, 0, 8)
 	for _, post := range posts {
-		if post == nil || post.GetDeleted() || post.GetParentId() != root {
+		if post == nil || chatmod004Gone(post) || post.GetParentId() != root || chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
 			continue
 		}
 		out = append(out, chatMessage(post, locale, directory, now))
@@ -2989,7 +3060,7 @@ func advanceChatWatchPosition(cursor *chatCursor, streamSequence uint64) {
 }
 
 func applyChatPostCreated(model *chatui.Model, post *chatv1.Post, sequences map[string]uint64, locale string, directory map[string]string, now time.Time) {
-	if post == nil || post.GetId() == "" {
+	if post == nil || post.GetId() == "" || chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
 		return
 	}
 	if parent := post.GetParentId(); parent != "" {
@@ -3074,6 +3145,15 @@ func carryChatLocalState(current, next chatui.Message) chatui.Message {
 }
 
 func applyChatPostDeleted(model *chatui.Model, post *chatv1.Post) {
+	if chatui.IsLegacyPrivateAnswerReceipt(post.GetBody()) {
+		return
+	}
+	if chatmod004Removed(post) {
+		// CHATMOD-004: an administrator's removal keeps the message and the thread
+		// in place, with the text replaced.
+		chatmod004Apply(model, post)
+		return
+	}
 	id := post.GetId()
 	if id == "" {
 		return

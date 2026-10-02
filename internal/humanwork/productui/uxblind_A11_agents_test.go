@@ -50,12 +50,14 @@ func pausedAgentsFixture() AgentSnapshot {
 
 func TestTodo_AGENT2_016(t *testing.T) {
 	view := ApplyLocale(NewView(PageAgents, "tenant-1", "principal-1", "scope-1"), ResolveProductLocale("en-US"))
-	markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: agentsFixture()}))
+	snapshot := agentsFixture()
+	snapshot.SelectedTask = nil
+	markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: snapshot}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Your agents", "People Coach", "Acting for you", "Skills used", "Tasks", "Awaiting approval", "Awaiting input", "Quick answer", "Start long task", "agents-composer-input", "task=task-approval",
+		"Agents", "People Coach", "Acting for you", "Skills used", "Tasks", "Awaiting approval", "Awaiting input", "Ask", "Plan a longer task", "agents-composer-input", "task=task-approval",
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("agents page missing %q: %s", want, markup)
@@ -65,7 +67,7 @@ func TestTodo_AGENT2_016(t *testing.T) {
 		t.Fatalf("agents page must have one h1 and no nested main, h1=%d: %s", got, markup)
 	}
 	unavailable, err := ui.RenderToString(BuildAgentsPage(view, nil))
-	if err != nil || !strings.Contains(unavailable, "Agents are not available yet") || strings.Contains(unavailable, "People Coach") {
+	if err != nil || !strings.Contains(unavailable, "Agents could not be loaded") || strings.Contains(unavailable, "People Coach") {
 		t.Fatalf("unavailable agent client did not produce a truthful empty state: %s", unavailable)
 	}
 	navigation := navigationFor(view.Locale, nil)
@@ -100,12 +102,14 @@ func TestTodo_AGENT2_016_Browser(t *testing.T) {
 
 func TestTodo_AGENT2_016_Accessibility(t *testing.T) {
 	view := ApplyLocale(NewView(PageAgents, "tenant-1", "principal-1", "scope-1"), ResolveProductLocale("en-US"))
-	markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: agentsFixture()}))
+	snapshot := agentsFixture()
+	snapshot.SelectedTask = nil
+	markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: snapshot}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`class="agents-page"`, `aria-labelledby="agents-page-title"`, `aria-label="Agent conversations"`, `aria-label="Start work with an agent"`, `aria-describedby="agents-composer-help"`, `type="button"`,
+		`class="agents-page"`, `aria-labelledby="agents-page-title"`, `aria-label="Agent workspace"`, `aria-label="Start work with an agent"`, `type="button"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("accessibility contract missing %q: %s", want, markup)
@@ -134,12 +138,11 @@ func TestTodo_AGENT2_017_SelectedTaskBeforeHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	answer, composer, history := strings.Index(markup, "Live answer appears here."), strings.Index(markup, `id="agents-composer-input"`), strings.Index(markup, `class="agents-tasks"`)
-	if strings.Count(markup, `id="agents-composer-input"`) != 1 {
-		t.Fatal("agent composer must appear exactly once")
+	if !strings.Contains(markup, "Live answer appears here.") || !strings.Contains(markup, "Back to tasks") {
+		t.Fatalf("selected task is missing its answer or return path: %s", markup)
 	}
-	if answer < 0 || composer < 0 || history < 0 || answer >= composer || composer >= history {
-		t.Fatalf("selected answer, composer, history order=%d,%d,%d", answer, composer, history)
+	if !strings.Contains(markup, `id="agents-composer-input"`) || !strings.Contains(markup, `class="agents-tasks"`) || !strings.Contains(markup, `class="agents-task-row is-expanded"`) {
+		t.Fatalf("selected task should stay with the composer and list: %s", markup)
 	}
 }
 
@@ -150,11 +153,14 @@ func TestTodo_AGENT2_017(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Confirmed plan", "Owner-scoped read", ResolveProductLocale("en-US").Text("agents.tier.communicate"), "Live step", "Budget used: 12 of 40", "Population verified", "Promotion draft report", "sha256:abc123", "Calibration document", "derived-tainted", "Plan revision 3", "Pause", "Cancel", "Extend budget", "people.promote_worker/v1", "draft",
+		"What the agent did", "Owner-scoped read", "Live step", "Budget used: 12 of 40", "Population verified", "Promotion draft report", "sha256:abc123", "Calibration document", "derived-tainted", "Plan revision 3", "Pause", "Cancel", "people.promote_worker/v1", "draft",
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("task view missing %q: %s", want, markup)
 		}
+	}
+	if strings.Contains(markup, ResolveProductLocale("en-US").Text("agents.tier.communicate")) || strings.Contains(markup, ResolveProductLocale("en-US").Text("agents.tier.read")) {
+		t.Fatalf("task steps exposed internal tier captions: %s", markup)
 	}
 	pausedView := ApplyLocale(NewView(PageAgents, "tenant-1", "principal-1", "scope-1"), ResolveProductLocale("en-US"))
 	pausedMarkup, err := ui.RenderToString(BuildAgentsPage(pausedView, agentSnapshotFixture{snapshot: pausedAgentsFixture()}))
@@ -169,7 +175,7 @@ func TestTodo_AGENT2_017_Browser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, action := range []string{"pause", "cancel", "extend-budget"} {
+	for _, action := range []string{"pause", "cancel"} {
 		if !strings.Contains(markup, `data-task-action="`+action+`"`) {
 			t.Fatalf("task action %q is not rendered as a one-click control: %s", action, markup)
 		}
@@ -236,7 +242,9 @@ func TestTodo_UXBLIND_122_ComposerStatus(t *testing.T) {
 	seen := map[string]string{}
 	for locale, failed := range want {
 		view := ApplyLocale(NewView(PageAgents, "tenant-1", "principal-1", "scope-1"), ResolveProductLocale(locale))
-		markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: agentsFixture()}))
+		snapshot := agentsFixture()
+		snapshot.SelectedTask = nil
+		markup, err := ui.RenderToString(BuildAgentsPage(view, agentSnapshotFixture{snapshot: snapshot}))
 		if err != nil {
 			t.Fatal(err)
 		}

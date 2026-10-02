@@ -71,6 +71,9 @@ func isProductPath(path string) bool {
 
 func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service, conn grpc.ClientConnInterface) error {
 	configureChatBrowser(conn, cfg)
+	// CHATUX-009: on Chat's address the conversation list is asked for now, before
+	// the router is built.
+	chatux009Prefetch(ctx)
 	configureChatRetention(conn)
 	configureAgentService(conn, cfg)
 	// Finite RPC work shares a bounded lane. WatchJourney subscriptions stay
@@ -96,6 +99,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// Docs uses the same authenticated gRPC connection as the rest of the
 	// workspace. A disabled document service reports UNAVAILABLE server-side.
 	documentService := documentv1.NewDocumentServiceClient(conn)
+	configurePersonaAdminDocumentService(documentService)
 	projectService := projectv1.NewProjectServiceClient(conn)
 	liveService.ResolveDocsProjectTaskPreview = func(ctx context.Context, reference productui.DocsProjectTaskReference) (productui.DocsProjectTaskPreview, bool, error) {
 		if reference.ProjectID == "" {
@@ -355,6 +359,10 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// the outlet below /workspace/app, so navigation cannot temporarily unmount
 	// the header, sidebar, or their local interaction state.
 	productRouter.Register("/workspace/app", productShellLayoutComponent, router.Options{Layout: true})
+	// CHATBUG-024: an address no page owns gets the ordinary not-found state
+	// inside the shell. Without this the router fell back to Home and printed
+	// whatever error that load ended with ("context canceled").
+	productRouter.Register("*", productRouteNotFoundComponent, router.Options{Error: productRouteErrorComponent})
 	productHistory = newBrowserProductHistoryController()
 	productScroll = newBrowserProductScrollController()
 	productScroll.Bind()
@@ -432,6 +440,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			// The router writes this before the route renders; name the company
 			// rather than the product so the tab never flashes the suite name.
 			Title: productui.DocumentTitle(definition.Title, productui.DefaultCustomerTheme(), tenantLabel),
+			// A failed read never prints its error; see productRouteErrorComponent.
+			Error: productRouteErrorComponent,
 			Loader: func(loadCtx context.Context, routeContext router.RouteContext) (router.Attrs, error) {
 				if detailOnly && strings.TrimSpace(routeContext.Query.Get("journey")) == "" {
 					return nil, errors.New(productui.ResolveProductLocale(routeContext.Query.Get("locale")).Text("journey.error_denied_detail"))
@@ -486,6 +496,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				if lastResolvedProductView != nil {
 					previous := productBaselineForLoad(*lastResolvedProductView, state, journeys.fragment, productclient.JourneyFragment(state.Request))
 					baseline = &previous
+				}
+				// CHATUX-009: Chat's own list read starts beside the shell's reads, not
+				// after them; the two share nothing.
+				var chatRead <-chan chatux009Read
+				if state.Page == productui.PageChat {
+					chatRead = chatux009StartRead(loadCtx)
 				}
 				handle, scheduleErr := frontendTasks.Submit(loadCtx, taskmux.Spec{
 					Key: "product:route-projection", Priority: taskmux.UserVisible, Duplicate: taskmux.ReplaceExisting,
@@ -598,7 +614,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					return nil, context.Canceled
 				}
 				if state.Page == productui.PageChat {
-					chatModel, chatLoadErr = loadChatProjection(loadCtx)
+					chatModel, chatLoadErr = chatux009AwaitRead(loadCtx, chatRead)
+					chatux009AdoptShellPeople(view.People)
 					if chatLoadErr != nil && chatModel.Error == "" {
 						chatModel.State, chatModel.Error = chatui.StateError, chatLoadErr.Error()
 					}
@@ -1301,12 +1318,9 @@ func focusWorkflowStepName() {
 
 func takeWorkflowAuthoringMessage() string {
 	root := js.Global().Get("document").Get("documentElement")
-	message := root.Call("getAttribute", "data-workflow-message")
+	message := domAttribute(root, "data-workflow-message")
 	root.Call("removeAttribute", "data-workflow-message")
-	if message.IsNull() || message.IsUndefined() {
-		return ""
-	}
-	return message.String()
+	return message
 }
 
 // selectWorkflowNodeInAddress makes a step the address's selection without
@@ -1411,8 +1425,15 @@ func browserDebounceScheduler(delay time.Duration, fire func()) debounceTimer {
 			return nil
 		}
 		timer.active = false
-		fire()
-		timer.callback.Release()
+		// A syscall/js callback owns the browser event loop until it returns.
+		// Every scheduled function therefore starts on a new goroutine, whether
+		// it performs a network read or only a short DOM/history update. This
+		// also preserves ordering: the callback marks the timer inactive before
+		// the goroutine can make a subsequent Schedule observable.
+		go func() {
+			fire()
+			timer.callback.Release()
+		}()
 		return nil
 	})
 	timer.id = js.Global().Call("setTimeout", timer.callback, delay.Milliseconds())
@@ -1551,6 +1572,7 @@ var productViews = newProductViewCache(24, 5*time.Minute, time.Now)
 var productHistoryMounted bool
 
 func renderProductShellLayout(props productShellLayoutProps) ui.Node {
+	useTabletNavigationPreference(currentQuery())
 	historyControlsTick := ui.UseState(0)
 	// The arrows this shell last rendered. A same-route push (every chat room
 	// switch) or a search-as-you-type replace asks for a refresh, but the

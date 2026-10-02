@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -20,6 +22,81 @@ import (
 )
 
 func timerScheduler(d time.Duration, fire func()) debounceTimer { return time.AfterFunc(d, fire) }
+
+func TestTodo_AGENTUX_006(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		close(started)
+		<-release
+	}))
+	defer server.Close()
+
+	finished := make(chan struct{})
+	coalescer := newRefreshCoalescer(func(_ time.Duration, fire func()) debounceTimer {
+		fire()
+		return manualTimer{}
+	}, time.Millisecond, func() error {
+		defer close(finished)
+		response, err := server.Client().Get(server.URL)
+		if response != nil {
+			response.Body.Close()
+		}
+		return err
+	})
+	returned := make(chan struct{})
+	go func() {
+		coalescer.Schedule()
+		close(returned)
+	}()
+	select {
+	case <-returned:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Schedule inherited blocking work from a synchronous timer callback")
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("scheduled refresh did not reach the blocking HTTP round trip")
+	}
+	close(release)
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("released refresh did not finish")
+	}
+}
+
+func TestTodo_AGENTUX_006_Browser(t *testing.T) {
+	var pendingRead sync.Mutex
+	pendingRead.Lock()
+	finished := make(chan struct{})
+	coalescer := newRefreshCoalescer(func(_ time.Duration, fire func()) debounceTimer {
+		fire()
+		return manualTimer{}
+	}, time.Millisecond, func() error {
+		pendingRead.Lock()
+		pendingRead.Unlock()
+		close(finished)
+		return nil
+	})
+	returned := make(chan struct{})
+	go func() {
+		coalescer.Schedule()
+		close(returned)
+	}()
+	select {
+	case <-returned:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timer callback waited for a lock held by pending work")
+	}
+	pendingRead.Unlock()
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("scheduled work did not resume after the pending read released its lock")
+	}
+}
 
 func shellHint(t *testing.T, tenant values.TenantId, projection string, seq, revision uint64) []byte {
 	t.Helper()
@@ -172,9 +249,7 @@ func TestTodo_REV_091_03(t *testing.T) {
 		t.Fatalf("two admitted hints opened %d windows and ran %d refreshes, want one pending window", clock.windows(), refreshes.Load())
 	}
 	clock.fireAll()
-	if refreshes.Load() != 1 {
-		t.Fatalf("refreshes after the first window = %d", refreshes.Load())
-	}
+	waitFor(t, "the first refresh", func() bool { return refreshes.Load() == 1 })
 
 	close(first.release)
 	waitFor(t, "the reconnect to be read", second.drained.Load)
@@ -189,9 +264,7 @@ func TestTodo_REV_091_03(t *testing.T) {
 		t.Fatalf("the reconnect catch-up and its hint opened %d windows, want one", clock.windows())
 	}
 	clock.fireAll()
-	if refreshes.Load() != 2 {
-		t.Fatalf("refreshes = %d, want 2", refreshes.Load())
-	}
+	waitFor(t, "the reconnect refresh", func() bool { return refreshes.Load() == 2 })
 	cancel()
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("run ended with %v", err)

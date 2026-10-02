@@ -779,8 +779,11 @@ type View struct {
 	SelectedWorkflowDraftID string
 	SelectedWorkflowNodeID  string
 	NavCollapsed            bool
-	MenuQuery               string
-	FavoritePages           []PageID
+	// NavExpanded records an explicit expanded-rail choice.  The zero value
+	// deliberately leaves tablet widths to the compact shell default.
+	NavExpanded   bool
+	MenuQuery     string
+	FavoritePages []PageID
 	// NavigationGroupOpen contains the authenticated user's server-side
 	// disclosure preferences. Missing entries retain the contextual default.
 	NavigationGroupOpen          map[PageID]bool
@@ -1038,6 +1041,9 @@ func ApplyPagePermissions(view View, permissions []RolePagePermission) View {
 // policy cannot fall back to page-level authority.
 func ApplyFeaturePermissions(view View, permissions []RoleFeaturePermission) View {
 	view.EffectiveFeatures = append([]RoleFeaturePermission{}, permissions...)
+	if view.NavigationProjection != nil && len(view.EffectivePermissions) > 0 {
+		return ApplyNavigationProjection(view, authorizedNavigationForView(view))
+	}
 	return view
 }
 

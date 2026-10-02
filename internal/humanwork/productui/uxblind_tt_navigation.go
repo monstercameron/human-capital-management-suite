@@ -13,11 +13,11 @@ func navigationCurrentKey(props NavigationSidebarProps) string {
 
 func navigationCurrentItemKey(items []NavigationItemProps) string {
 	for _, item := range items {
-		if item.Active {
-			return string(item.Page)
-		}
 		if page := navigationCurrentItemKey(item.Children); page != "" {
 			return page
+		}
+		if item.Active {
+			return string(item.Page)
 		}
 	}
 	return ""

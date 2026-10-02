@@ -13,6 +13,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
 // docsFetchKey is an effect key for a read that can be retried: the
@@ -214,9 +215,13 @@ func docsCompareDialog(props docsCompareDialogProps) ui.Node {
 // is left out rather than shown as a blank, unexplained row.
 func docsCompareSelectable(versions []DocumentVersionSummary) []DocumentVersionSummary {
 	out := make([]DocumentVersionSummary, 0, len(versions))
-	for _, v := range versions {
+	for index, v := range versions {
 		if v.Redacted {
 			continue
+		}
+		v.Version = chat.DisplayVersionLabel(v.Version)
+		if v.Version == "" {
+			v.Version = chat.DisplayVersion(uint64(index + 1))
 		}
 		out = append(out, v)
 	}
@@ -243,6 +248,9 @@ func docsCompareTitlesDiffer(versions []DocumentVersionSummary) bool {
 // intentional, not arbitrary.
 func docsCompareOptionLabel(locale LocaleContext, text func(string) string, v DocumentVersionSummary, includeTime, showTitle bool) string {
 	label := docsCompareDateLabel(locale, v.CreatedAt, includeTime)
+	if version := chat.DisplayVersionLabel(v.Version); version != "" {
+		label = version + " · " + label
+	}
 	if showTitle && v.Title != "" {
 		label += " — " + v.Title
 	}

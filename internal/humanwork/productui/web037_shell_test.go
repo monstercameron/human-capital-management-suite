@@ -161,7 +161,9 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// panel and account menu were rebuilt, and favorite hrefs no longer
 	// carry account state.
 	// UXBLIND blind-test lanes (scroll/loading, top bar, brand, personal colour mode) re-pin: whole-document digest, structural checks above unchanged.
-	const want = "69b10cbdc9ca64d5155e0f31d303c688cf582f222b86c2e4b04ff1da6a4f53b5"
+	// Agent UI adds scoped shell CSS and publishes the new setup/operations
+	// destinations; stable chrome otherwise retains the checks above.
+	const want = "e022baf92e70235c2e95d8211619676c15f17855878c2c82d894417d07eb6ab7"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
 	}

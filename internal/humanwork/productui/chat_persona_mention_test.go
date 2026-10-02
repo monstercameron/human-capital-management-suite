@@ -21,7 +21,7 @@ func personaMentionFixture() PersonaMentionMenuProps {
 		Locale: ResolveProductLocale("en-US"), Target: "composer", Query: "",
 		People: []PersonaMentionPerson{{ID: "person-1", Name: "Camila Morales"}},
 		Agents: []PersonaMentionPersona{
-			{ID: "people-ops", Name: "People Guide", Purpose: "Answer policy questions", Owner: "People Operations", Version: "v3", Invocable: true, InstalledInConversation: true, AudienceIncludesViewer: true, Skills: []PersonaMentionSkill{{Name: "Read policy", Tier: "T0"}, {Name: "Draft a private answer", Tier: "T1"}}, DataClasses: []string{"People policy", "Organization data"}, CannotDo: []string{"Change a record", "Approve a request"}, ReplyPlacement: PersonaReplyInThread},
+			{ID: "people-ops", Name: "People Guide", Handle: "people-guide", Purpose: "Answer policy questions", Owner: "People Operations", Version: "v3", Invocable: true, InstalledInConversation: true, AudienceIncludesViewer: true, Skills: []PersonaMentionSkill{{Name: "Read policy", Tier: "T0"}, {Name: "Draft a private answer", Tier: "T1"}}, DataClasses: []string{"People policy", "Organization data"}, CannotDo: []string{"Change a record", "Approve a request"}, ReplyPlacement: PersonaReplyInThread},
 			{ID: "comp-analyst", Name: "Comp Analyst", Purpose: "Hidden compensation access", Invocable: false, InstalledInConversation: true, AudienceIncludesViewer: true},
 			{ID: "not-installed", Name: "Not Installed", Purpose: "Not available here", Invocable: true, InstalledInConversation: false, AudienceIncludesViewer: true},
 		},
@@ -34,7 +34,7 @@ func TestTodo_AGENTP_019(t *testing.T) {
 	props.Profile = &props.Agents[0]
 	markup := renderPersonaMention(t, PersonaMentionMenu(props))
 	for _, want := range []string{
-		"People", "Agents", "@Camila Morales", "@People Guide", "Answer policy questions",
+		"People", "Agents", "@Camila Morales", "@people-guide", "Answer policy questions",
 		"Purpose: </strong>Answer policy questions", "People Operations", "v3", "Read policy", "Read only", "Private draft",
 		"People policy", "Acts with your current access.", "Change a record", "in this thread",
 	} {
@@ -58,7 +58,7 @@ func TestTodo_AGENTP_019_Browser(t *testing.T) {
 	markup := renderPersonaMention(t, PersonaMentionMenu(props))
 	for _, want := range []string{
 		`role="listbox"`, `role="option"`, `type="button"`, `data-action="mention-pick"`, `data-kind="agent"`,
-		`data-action="persona-profile"`, `aria-label="View persona profile: People Guide"`,
+		`data-action="persona-profile"`, `aria-label="View agent details: People Guide"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("browser menu missing %q:\n%s", want, markup)
@@ -76,7 +76,7 @@ func TestTodo_AGENTP_019_Accessibility(t *testing.T) {
 	markup := renderPersonaMention(t, PersonaMentionMenu(props))
 	for _, want := range []string{
 		`aria-live="polite"`, `aria-labelledby="composer-persona-mention-heading"`, `aria-selected="true"`,
-		`role="dialog"`, `aria-labelledby="persona-profile-people-ops-title"`, `aria-label="Close persona profile"`,
+		`role="dialog"`, `aria-labelledby="persona-profile-people-ops-title"`, `aria-label="Close agent details"`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("accessibility markup missing %q:\n%s", want, markup)

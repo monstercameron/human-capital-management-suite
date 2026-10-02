@@ -29,12 +29,17 @@ var _ parser.Parser = docsMarkdownParser
 
 // docsASTMarkdownNodes renders the supported Markdown profile as typed UI
 // nodes. Raw HTML and unsafe links never become active browser content.
-func docsASTMarkdownNodes(view View, markdown string) []ui.Node {
+func docsASTMarkdownNodes(view View, markdown string, sectionMarkdown ...string) []ui.Node {
 	if len(markdown) > 64*1024 {
 		return []ui.Node{ui.Text(markdown)}
 	}
 	source := []byte(markdown)
 	root := docsMarkdownParser.Parse(text.NewReader(source))
+	original := markdown
+	if len(sectionMarkdown) > 0 && sectionMarkdown[0] != "" {
+		original = sectionMarkdown[0]
+	}
+	agentAnswerBindDocumentSections(root, source, original)
 	return docsMarkdownChildren(view, root, source)
 }
 
@@ -241,7 +246,9 @@ func docsMarkdownNode(view View, node ast.Node, source []byte) []ui.Node {
 		}
 		// Headings carry a stable id so the outline beside the document
 		// can link to them.
-		return []ui.Node{html.Tag("h"+string(rune('0'+level)), html.Props{ID: docsHeadingID(string(n.Text(source))), Dir: "auto"}, children()...)}
+		section, _ := n.AttributeString("agentux-section")
+		anchor, _ := section.(string)
+		return []ui.Node{html.Tag("h"+string(rune('0'+level)), html.Props{ID: docsHeadingID(string(n.Text(source))), Dir: "auto", Data: map[string]string{"document-section": anchor}}, children()...)}
 	case *ast.Emphasis:
 		if n.Level == 2 {
 			return []ui.Node{html.Strong(html.Props{}, children()...)}

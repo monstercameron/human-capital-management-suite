@@ -21,7 +21,9 @@ import (
 
 func TestTodo_UXBLIND_122_ClientProjection(t *testing.T) {
 	var cfg journeyclient.Config
-	island := `{"tunnel_url":"ws://x","bearer":"b","agents":{"enabled":true,"viewer_is_admin":false,"service":"available","tasks":[
+	island := `{"tunnel_url":"ws://x","bearer":"b","agents":{"enabled":true,"viewer_is_admin":false,"service":"available","agents":[
+		{"id":"coach","name":"People Coach","description":"Helps with people questions.","status":"ready"},
+		{"id":"coach","name":"Duplicate"},{"id":"","name":"Missing ID"}],"tasks":[
 		{"id":"t1","version":7,"title":"Mine","state":"completed","answer_text":"sanitized answer","actions":{"confirm_plan":true,"cancel":true},"steps":[{"name":"skill.lookup","state":"running","tier":"T0"}],"approvals":[{"id":"t1/a","digest":"sha256:x","summary":"skill.lookup"}]},
 		{"id":"t1","title":"Duplicate","state":"running"},
 		{"id":"t2","title":"Odd state","state":"exploded"}]}}`
@@ -31,6 +33,9 @@ func TestTodo_UXBLIND_122_ClientProjection(t *testing.T) {
 	got := projectAgents(cfg.Agents)
 	if !got.Enabled || got.Snapshot.Availability != productui.AgentsAvailable || len(got.Snapshot.Tasks) != 2 {
 		t.Fatalf("projection = %+v", got)
+	}
+	if len(got.Snapshot.Agents) != 1 || got.Snapshot.Agents[0].ID != "coach" || got.Snapshot.Agents[0].Name != "People Coach" || got.Snapshot.Agents[0].Description != "Helps with people questions." || got.Snapshot.Agents[0].Status != "ready" {
+		t.Fatalf("named agents = %+v", got.Snapshot.Agents)
 	}
 	if got.Snapshot.Tasks[0].Version != 7 || got.Snapshot.Tasks[0].Title != "Mine" || got.Snapshot.Tasks[0].AnswerText != "sanitized answer" || got.Snapshot.Tasks[0].Steps[0].Tier != "T0" || got.Snapshot.Tasks[0].Approvals[0].Digest != "sha256:x" || !got.Snapshot.Tasks[0].Actions.ConfirmPlan || !got.Snapshot.Tasks[0].Actions.Cancel {
 		t.Fatalf("task = %+v", got.Snapshot.Tasks[0])
@@ -62,6 +67,42 @@ func TestTodo_UXBLIND_122_ClientProjection(t *testing.T) {
 	}
 	if unavailable := projectAgents(&journeyclient.Agents{Enabled: true, Service: "unavailable"}); unavailable.Snapshot.Availability != productui.AgentsUnavailable {
 		t.Fatalf("unavailable service = %+v", unavailable)
+	}
+}
+
+func TestTodo_AGENTUX_012_FilterKeyboard(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		current       int
+		key           string
+		want          int
+		wantSupported bool
+	}{
+		{name: "right", current: 0, key: "ArrowRight", want: 1, wantSupported: true},
+		{name: "right wraps", current: 2, key: "ArrowRight", want: 0, wantSupported: true},
+		{name: "left wraps", current: 0, key: "ArrowLeft", want: 2, wantSupported: true},
+		{name: "home", current: 2, key: "Home", want: 0, wantSupported: true},
+		{name: "end", current: 0, key: "End", want: 2, wantSupported: true},
+		{name: "other", current: 1, key: "Enter", want: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, supported := nextAgentTaskFilterIndex(test.current, 3, test.key)
+			if got != test.want || supported != test.wantSupported {
+				t.Fatalf("nextAgentTaskFilterIndex(%d, 3, %q) = %d, %t; want %d, %t", test.current, test.key, got, supported, test.want, test.wantSupported)
+			}
+		})
+	}
+	if got, supported := nextAgentTaskFilterIndex(0, 0, "ArrowRight"); got != 0 || supported {
+		t.Fatalf("empty tab list = %d, %t", got, supported)
+	}
+}
+
+func TestTodo_AGENTUX_017_TaskNavigationCopy(t *testing.T) {
+	if got := agentTaskTitlePrefix(strings.Repeat("Long request words ", 6)); len([]rune(got)) > 48 || !strings.HasSuffix(got, "…") {
+		t.Fatalf("task title prefix = %q", got)
+	}
+	if got := agentFollowUpContext("First line\nSecond line"); got != "> First line\n> Second line\n\n" {
+		t.Fatalf("follow-up context = %q", got)
 	}
 }
 
@@ -107,6 +148,9 @@ type fakeAgentClient struct {
 	gotStart   *agentv1.StartAgentTaskRequest
 	control    *agentv1.ControlAgentTaskResponse
 	gotControl *agentv1.ControlAgentTaskRequest
+	list       *agentv1.ListAgentTasksResponse
+	get        *agentv1.GetAgentTaskResponse
+	gotGet     *agentv1.GetAgentTaskRequest
 }
 
 func (c *fakeAgentClient) capture(ctx context.Context) {
@@ -131,6 +175,17 @@ func (c *fakeAgentClient) ControlAgentTask(ctx context.Context, in *agentv1.Cont
 	c.capture(ctx)
 	c.gotControl = in
 	return c.control, c.err
+}
+
+func (c *fakeAgentClient) ListAgentTasks(ctx context.Context, _ *agentv1.ListAgentTasksRequest, _ ...grpc.CallOption) (*agentv1.ListAgentTasksResponse, error) {
+	c.capture(ctx)
+	return c.list, c.err
+}
+
+func (c *fakeAgentClient) GetAgentTask(ctx context.Context, in *agentv1.GetAgentTaskRequest, _ ...grpc.CallOption) (*agentv1.GetAgentTaskResponse, error) {
+	c.capture(ctx)
+	c.gotGet = in
+	return c.get, c.err
 }
 
 func TestTodo_UXBLIND_122_AgentServiceBinding(t *testing.T) {

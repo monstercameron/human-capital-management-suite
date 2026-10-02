@@ -36,7 +36,9 @@ func TestTodo_UXSCAN_009_Golden(t *testing.T) {
 		fmt.Fprintf(&combined, "%s\x00%s\x00", page.name, markup)
 	}
 	digest := sha256.Sum256([]byte(combined.String()))
-	if got, want := hex.EncodeToString(digest[:]), "9a4c894ae50ab62e01f4fecd1f97269039b70926726388535b031065ea07e2cd"; got != want {
+	// Agent setup replaces Personas and Agent operations is now a published
+	// admin destination; both intended registry changes alter this pin.
+	if got, want := hex.EncodeToString(digest[:]), "db06d1601f373052f1bf7ae8273700e696f75f0c5e3af0da9dc1d41359cd3d2e"; got != want {
 		t.Fatalf("settings, visibility and admin copy/layout digest = %s, want %s", got, want)
 	}
 }

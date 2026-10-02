@@ -1,12 +1,15 @@
 package workspace
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -24,12 +27,26 @@ type personaAdminCommandError interface {
 }
 
 type personaAdminCommandResponse struct {
-	OK    bool                        `json:"ok,omitempty"`
-	Error *personaAdminCommandProblem `json:"error,omitempty"`
+	OK         bool                                    `json:"ok,omitempty"`
+	Evaluation *productui.PersonaAdminEvaluationResult `json:"evaluation,omitempty"`
+	Error      *personaAdminCommandProblem             `json:"error,omitempty"`
 }
 
 type personaAdminCommandProblem struct {
 	Code string `json:"code"`
+}
+
+type personaAdminDocumentCommandTransport interface {
+	ExecutePersonaAdminCommandWithDocumentReferences(context.Context, productui.PersonaAdminCommandRequest, []agentdocref.Reference) error
+}
+
+type personaAdminResultCommandTransport interface {
+	ExecutePersonaAdminCommandWithResult(context.Context, productui.PersonaAdminCommandRequest) (productui.PersonaAdminEvaluationResult, error)
+}
+
+type personaAdminCommandRequest struct {
+	productui.PersonaAdminCommandRequest
+	DocumentReferences []agentdocref.Reference `json:"document_references"`
 }
 
 func (h *Handler) servePersonaAdminCommand(w http.ResponseWriter, r *http.Request) {
@@ -68,40 +85,63 @@ func (h *Handler) servePersonaAdminCommand(w http.ResponseWriter, r *http.Reques
 		h.writePersonaAdminCommandError(w, http.StatusForbidden, "forbidden")
 		return
 	}
-	if err := h.personaAdminCommands.ExecutePersonaAdminCommand(admitted.Context(), request); err != nil {
-		h.writePersonaAdminCommandFailure(w, err)
+	var commandErr error
+	var evaluation *productui.PersonaAdminEvaluationResult
+	if request.Action == "RUN_EVALUATION" {
+		transport, supported := h.personaAdminCommands.(personaAdminResultCommandTransport)
+		if !supported {
+			h.writePersonaAdminCommandError(w, http.StatusServiceUnavailable, "evaluation_unavailable")
+			return
+		}
+		result, resultErr := transport.ExecutePersonaAdminCommandWithResult(admitted.Context(), request.PersonaAdminCommandRequest)
+		commandErr = resultErr
+		if resultErr == nil {
+			evaluation = &result
+		}
+	} else if request.DocumentReferences != nil {
+		transport, supported := h.personaAdminCommands.(personaAdminDocumentCommandTransport)
+		if !supported {
+			h.writePersonaAdminCommandError(w, http.StatusServiceUnavailable, "unavailable")
+			return
+		}
+		commandErr = transport.ExecutePersonaAdminCommandWithDocumentReferences(admitted.Context(), request.PersonaAdminCommandRequest, request.DocumentReferences)
+	} else {
+		commandErr = h.personaAdminCommands.ExecutePersonaAdminCommand(admitted.Context(), request.PersonaAdminCommandRequest)
+	}
+	if commandErr != nil {
+		h.writePersonaAdminCommandFailure(w, commandErr)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(personaAdminCommandResponse{OK: true})
+	_ = json.NewEncoder(w).Encode(personaAdminCommandResponse{OK: true, Evaluation: evaluation})
 }
 
 func personaAdminJSONRequest(r *http.Request) bool {
 	return r != nil && strings.EqualFold(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]), "application/json")
 }
 
-func decodePersonaAdminCommand(r *http.Request) (productui.PersonaAdminCommandRequest, error) {
+func decodePersonaAdminCommand(r *http.Request) (personaAdminCommandRequest, error) {
 	if r == nil || r.Body == nil {
-		return productui.PersonaAdminCommandRequest{}, errors.New("persona admin command body missing")
+		return personaAdminCommandRequest{}, errors.New("persona admin command body missing")
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(nil, r.Body, personaAdminCommandBodyLimit))
 	decoder.DisallowUnknownFields()
-	var request productui.PersonaAdminCommandRequest
+	var request personaAdminCommandRequest
 	if err := decoder.Decode(&request); err != nil {
-		return productui.PersonaAdminCommandRequest{}, err
+		return personaAdminCommandRequest{}, err
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		return productui.PersonaAdminCommandRequest{}, errors.New("persona admin command must contain one JSON value")
+		return personaAdminCommandRequest{}, errors.New("persona admin command must contain one JSON value")
 	}
 	return request, nil
 }
 
 func validPersonaAdminCommandAction(action string) bool {
 	switch action {
-	case "CREATE_DRAFT", "CREATE_VERSION", "REQUEST_REVIEW", "REVIEW", "PUBLISH", "ROLLBACK", "INSTALL", "SUSPEND", "RETIRE":
+	case "CREATE_DRAFT", "CREATE_VERSION", "REQUEST_REVIEW", "REVIEW", "RUN_EVALUATION", "PUBLISH", "ROLLBACK", "INSTALL", "UNINSTALL", "REINSTALL", "SUSPEND", "RETIRE":
 		return true
 	default:
 		return false
@@ -133,7 +173,17 @@ func (h *Handler) writePersonaAdminCommandFailure(w http.ResponseWriter, err err
 			code, status = "invalid", http.StatusUnprocessableEntity
 		case "conflict":
 			code, status = "conflict", http.StatusConflict
+		case "document_unreadable":
+			code, status = "document_unreadable", http.StatusForbidden
+		case "evaluation_unavailable":
+			code, status = "evaluation_unavailable", http.StatusServiceUnavailable
 		}
+	}
+	// The response carries only the code. The cause goes to the server log so
+	// an operator can tell which check refused; without it every refusal of an
+	// administration command looked the same.
+	if err != nil {
+		slog.Warn("hcmnext.persona_admin_command_failed", "code", code, "cause", err.Error())
 	}
 	h.writePersonaAdminCommandError(w, status, code)
 }

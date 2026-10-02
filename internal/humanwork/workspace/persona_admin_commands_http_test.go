@@ -20,6 +20,14 @@ type personaAdminCommandTransportFake struct {
 	principal *trust.Principal
 	err       error
 	calls     int
+	result    productui.PersonaAdminEvaluationResult
+}
+
+func (f *personaAdminCommandTransportFake) ExecutePersonaAdminCommandWithResult(ctx context.Context, request productui.PersonaAdminCommandRequest) (productui.PersonaAdminEvaluationResult, error) {
+	f.calls++
+	f.request = request
+	f.principal, _ = trust.FromContext(ctx)
+	return f.result, f.err
 }
 
 func (f *personaAdminCommandTransportFake) ExecutePersonaAdminCommand(ctx context.Context, request productui.PersonaAdminCommandRequest) error {
@@ -43,6 +51,53 @@ func TestTodo_AGENTP_018_ReviewCommandUsesViewPermission(t *testing.T) {
 	h.ServeHTTP(response, request)
 	if response.Code != http.StatusOK || commands.calls != 1 || commands.request.Action != "REVIEW" || commands.request.Decision != "APPROVE" {
 		t.Fatalf("review transport refused the separate view-only reviewer: status=%d calls=%d", response.Code, commands.calls)
+	}
+}
+
+func TestTodo_AGENTUX_014_CommandReturnsEvaluationResult(t *testing.T) {
+	h, token := personaAdminCommandAuthorizedHandler(t)
+	commands := &personaAdminCommandTransportFake{result: productui.PersonaAdminEvaluationResult{Status: "FAILED", Passed: 6, Failed: 2, FailingCases: []string{"mixed-audience", "peer-injection-2"}}}
+	h.personaAdminCommands = commands
+	request := httptest.NewRequest(http.MethodPost, PathPersonaAdminCommand, strings.NewReader(`{"action":"RUN_EVALUATION","persona_id":"policy-helper"}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, request)
+	var payload personaAdminCommandResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || commands.calls != 1 || payload.Evaluation == nil || payload.Evaluation.Status != "FAILED" || payload.Evaluation.Failed != 2 || len(payload.Evaluation.FailingCases) != 2 {
+		t.Fatalf("evaluation response status=%d calls=%d payload=%+v", response.Code, commands.calls, payload)
+	}
+}
+
+func TestTodo_AGENTUX_014_Security(t *testing.T) {
+	h, token := personaAdminCommandAuthorizedHandler(t)
+	h.roleAccess = personaRoleAccessStore{snapshot: roleaccess.Snapshot{PagePermissions: []roleaccess.PagePermission{{RoleID: productui.RoleHCMAdmin, PageID: string(productui.PagePersonaAdmin), View: true}}}}
+	commands := &personaAdminCommandTransportFake{}
+	h.personaAdminCommands = commands
+	request := httptest.NewRequest(http.MethodPost, PathPersonaAdminCommand, strings.NewReader(`{"action":"RUN_EVALUATION","persona_id":"policy-helper"}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || commands.calls != 0 {
+		t.Fatalf("administrator without evaluation update permission status=%d calls=%d", response.Code, commands.calls)
+	}
+}
+
+func TestAgentUXSetup2_UninstallCommandReachesAuthenticatedTransport(t *testing.T) {
+	h, token := personaAdminCommandAuthorizedHandler(t)
+	commands := &personaAdminCommandTransportFake{}
+	h.personaAdminCommands = commands
+	request := httptest.NewRequest(http.MethodPost, PathPersonaAdminCommand, strings.NewReader(`{"action":"UNINSTALL","persona_id":"policy-helper","conversation_id":"general"}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	h.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || commands.calls != 1 || commands.request.Action != "UNINSTALL" || commands.request.PersonaID != "policy-helper" || commands.request.ConversationID != "general" {
+		t.Fatalf("uninstall transport status=%d calls=%d request=%+v body=%s", response.Code, commands.calls, commands.request, response.Body.String())
 	}
 }
 
@@ -144,6 +199,7 @@ func TestPersonaAdminCommandRouteReturnsTypedErrorsWithoutBackendDetails(t *test
 		{code: "invalid", want: http.StatusUnprocessableEntity},
 		{code: "conflict", want: http.StatusConflict},
 		{code: "unavailable", want: http.StatusServiceUnavailable},
+		{code: "evaluation_unavailable", want: http.StatusServiceUnavailable},
 	}
 	for _, tc := range tests {
 		t.Run(tc.code, func(t *testing.T) {

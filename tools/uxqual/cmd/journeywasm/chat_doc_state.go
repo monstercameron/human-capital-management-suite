@@ -79,6 +79,11 @@ func chatDocPreviewIDs(model chatui.Model) []string {
 	for i := 0; i < len(model.SearchMessages) && len(out) < chatDocPreviewLimit; i++ {
 		add(model.SearchMessages[i].Message.Body)
 	}
+	// The Saved panel shows a document reference as the document's title, so the
+	// previews its messages need are claimed too.
+	for i := 0; i < len(model.SavedBodies) && len(out) < chatDocPreviewLimit; i++ {
+		add(model.SavedBodies[i])
+	}
 	return out
 }
 

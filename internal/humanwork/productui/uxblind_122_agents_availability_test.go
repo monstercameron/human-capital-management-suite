@@ -51,7 +51,7 @@ func TestTodo_UXBLIND_122(t *testing.T) {
 		wantNav               bool
 		wantText, forbidTexts []string
 	}{
-		{name: "enabled admin", enabled: true, admin: true, wantState: AgentsSurfaceEnabled, wantNav: true, wantText: []string{"Prepare quarterly summary", "Your agents"}, forbidTexts: []string{"agents-disabled"}},
+		{name: "enabled admin", enabled: true, admin: true, wantState: AgentsSurfaceEnabled, wantNav: true, wantText: []string{"Prepare quarterly summary", "Agents"}, forbidTexts: []string{"agents-disabled"}},
 		{name: "enabled regular", enabled: true, wantState: AgentsSurfaceEnabled, wantNav: true, wantText: []string{"Prepare quarterly summary"}, forbidTexts: []string{"agents-disabled"}},
 		{name: "disabled admin", admin: true, wantState: AgentsSurfaceDisabledAdmin, wantNav: true, wantText: []string{"Agents are turned off for your organization", "Turn agents on in Chat settings", `href="/workspace/app/admin/chat-settings"`, "Open agent settings"}, forbidTexts: []string{"Prepare quarterly summary"}},
 		{name: "disabled regular", wantState: AgentsSurfaceDisabledHidden, wantNav: false, wantText: []string{"Agents are not available", "Ask an administrator", `href="/workspace/app/chat"`}, forbidTexts: []string{"Prepare quarterly summary", "chat-settings", "Open agent settings"}},
@@ -114,7 +114,7 @@ func TestTodo_UXBLIND_122(t *testing.T) {
 	if !navHasAgents(preview.Navigation) || ResolveAgentsSurface(nil).State != AgentsSurfaceUnresolved {
 		t.Fatal("a preview without a projection changed the registry navigation")
 	}
-	if page := renderUXBLIND122(t, BuildAgentsSurface(preview)); !strings.Contains(page, "Agents are not available yet") {
+	if page := renderUXBLIND122(t, BuildAgentsSurface(preview)); !strings.Contains(page, "Agents could not be loaded") {
 		t.Fatalf("preview page = %s", page)
 	}
 }
@@ -166,7 +166,7 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	// Enabled but the agent service failed: truthful unavailable state, no data.
 	failed := AgentsAvailabilityProjection{Enabled: true, Snapshot: AgentSnapshot{Availability: AgentsUnavailable, Tasks: uxblind122Snapshot().Tasks}}
 	page = renderUXBLIND122(t, BuildAgentsSurface(uxblind122View(t, "en-US", &failed)))
-	if !strings.Contains(page, "Agents are not available yet") || strings.Contains(page, "Prepare quarterly summary") {
+	if !strings.Contains(page, "Agents could not be loaded") || strings.Contains(page, "Prepare quarterly summary") {
 		t.Fatalf("a failed agent service rendered data: %s", page)
 	}
 	// The zero projection (what a composed client installs when the server

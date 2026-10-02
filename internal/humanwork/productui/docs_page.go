@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/docsdiagram"
 )
 
@@ -84,6 +85,7 @@ type DocumentSearchProjection struct {
 // DocumentDetail is an authorized read projection. Markdown remains plain
 // text in the product UI; it is never treated as trusted HTML.
 type DocumentDetail struct {
+	Citation            *AgentAnswerDocumentCitation
 	Summary             DocumentSummary
 	Markdown            string
 	ContentHash         string
@@ -118,6 +120,7 @@ type DocumentLinkTarget struct {
 // not be read.
 type DocumentVersionProjection struct {
 	DocumentID, VersionID, Title, Markdown string
+	Version                                string
 	Readable                               bool
 }
 
@@ -128,6 +131,7 @@ type DocumentVersionProjection struct {
 // more sensitive than the document's current classification.
 type DocumentVersionSummary struct {
 	VersionID, Title, AuthorID string
+	Version                    string
 	CreatedAt                  time.Time
 	IsCurrent, Redacted        bool
 }
@@ -206,7 +210,7 @@ func docsText(locale, key string) string {
 func docsPage(view View) ui.Node {
 	locale := view.Locale.Resolved
 	if view.Document != nil {
-		return ui.CreateElement(docsDetail, docsDetailProps{View: view})
+		return ui.CreateElement(agentAnswerCitedDocument, docsDetailProps{View: view})
 	}
 	if view.DocumentUnavailable {
 		back := strings.TrimSpace(view.DocumentReturnHref)
@@ -294,7 +298,7 @@ func docsDisplayVersion(document DocumentSummary) string {
 	if strings.TrimSpace(document.Version) == "" || document.Version == document.VersionID {
 		return ""
 	}
-	return document.Version
+	return chat.DisplayVersionLabel(document.Version)
 }
 
 type docsDetailProps struct {
@@ -656,7 +660,7 @@ func docsDetail(props docsDetailProps) ui.Node {
 	reader := html.Section(html.Props{ID: "docs-reader-box", Class: "docs-reader", Dir: docsContentDirection(markdown), Raw: map[string]any{"aria-labelledby": "docs-reader-heading"}},
 		html.H2(html.Props{ID: "docs-reader-heading", Class: "sr-only"}, ui.Text(docsText(locale, "markdown_content"))),
 		html.Div(html.Props{Class: "docs-anchor-gutter", Aria: map[string]string{"label": docsText(locale, "comment_pins")}, Role: "group", Hidden: len(pins) == 0}, pins...),
-		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), ProjectTasks: encodeDocsProjectTasks(document.ProjectTasks), Journeys: encodeDocsJourneys(document.Journeys), Navigate: docsNav, DocumentID: summary.ID, Media: view.DocumentMedia, Origin: view.DocumentOrigin}),
+		ui.CreateElement(docsMarkdownBody, docsMarkdownBodyProps{Locale: locale, VersionID: summary.VersionID, Markdown: markdown, SectionMarkdown: document.Markdown, ChatRefs: encodeDocsChatRefs(document.Chat), Links: encodeDocsLinks(document.Links), ProjectTasks: encodeDocsProjectTasks(document.ProjectTasks), Journeys: encodeDocsJourneys(document.Journeys), Navigate: docsNav, DocumentID: summary.ID, Media: view.DocumentMedia, Origin: view.DocumentOrigin}),
 		ui.CreateElement(docsAttachmentsSection, docsAttachmentsSectionProps{Locale: locale, DocumentID: summary.ID, VersionID: summary.VersionID, Media: view.DocumentMedia}),
 	)
 	var primary ui.Node = reader
