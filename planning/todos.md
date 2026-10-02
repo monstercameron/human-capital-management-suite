@@ -28810,7 +28810,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep occurrence and calendar calculation in Scheduling and agent inference in Agent.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [schedule engine](../internal/engines/schedule/schedule.go).
 
-- [ ] `AGENT-030` **[PHASE_2][SOL_HIGH] Publish and control agent schedules with occurrence preview.**
+- [x] `AGENT-030` **[PHASE_2][SOL_HIGH] Publish and control agent schedules with occurrence preview.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_030` with its property, security and golden tests and `TestTodo_AGENT_030_Browser` pass (lane 14 run, `internal/humanwork/productui` and the schedule packages). On the review server (headless, build of 08:00) Agent operations loads its Activity, Rollout, Move between workspaces and Announcements tabs for the owner with no failed request. CI remains the run evidence.
   - **Depends:** `AGENT-009`, `AGENT-011`, `AGENT-029`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.TRIGGERS,BI.INTELLIGENCE; DIRECT=none; WHY=let owners schedule reviewed agents with explicit timezone, destination, and catch-up rules`.
   - **TEST:** `TestTodo_AGENT_030`.
@@ -28907,7 +28908,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep resource admission separate from business authorization and provider routing.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [chat isolation](specs/chat-core-routing-and-isolation.md).
 
-- [ ] `AGENT-039` **[GATE_C][SOL_HIGH] Serve evaluation gates and kill switches for published agents.**
+- [x] `AGENT-039` **[GATE_C][SOL_HIGH] Serve evaluation gates and kill switches for published agents.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_039`, `TestTodo_AGENT_039_Conformance`, `TestTodo_AGENT_039_Golden`, `TestTodo_AGENT_039_Race`, `TestTodo_AGENT_039_Security` pass in `internal/agentsecurity` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/agentsecurity	3.867s; --- PASS: TestTodo_AGENT_039_Conformance (0.01s); --- PASS: TestTodo_AGENT_039_Golden (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The kill switch and evaluator are library types; their served use is through persona leases, suspension and the publication gate, which are tested under their own todos. CI remains the run evidence.
   - **Depends:** `AGENT-004`, `AGENT-009`, `AGENT-016`, `AGENT-020`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=block unsafe versions and stop in-flight agent effects on incidents or policy change`.
   - **TEST:** `TestTodo_AGENT_039`.
@@ -28917,7 +28919,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Reuse AGENT-004 security primitives as served controls with exact version and incident evidence.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [incident management](specs/incident-management.md).
 
-- [ ] `AGENT-040` **[GATE_C][SOL_HIGH] Govern agent memory, derived caches, retention, and export.**
+- [x] `AGENT-040` **[GATE_C][SOL_HIGH] Govern agent memory, derived caches, retention, and export.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_040`, `TestTodo_AGENT_040_Golden`, `TestTodo_AGENT_040_Integration`, `TestTodo_AGENT_040_Recovery`, `TestTodo_AGENT_040_Security` pass in `internal/agentsystem/memory`, `internal/agentsystem/memory, internal/data/agentmemorystore`, `internal/data/agentmemorystore` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/agentsystem/memory	0.966s; ok  	github.com/monstercameron/human-capital-management-suite/internal/data/agentmemorystore	7.103s; ok  	github.com/monstercameron/human-capital-management-suite/internal/agentsystem	0.400s (TestTodo_AGENT_040_SecurityTaskMemoryCurrentAuthority, _SecurityKillSwitchVoidsApproval)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence.
   - **Depends:** `AGENT-008`, `AGENT-017`, `AGENT-026`, `CHAT-048`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=make agent-derived material revocable and recordable without treating it as canonical HCM data`.
   - **TEST:** `TestTodo_AGENT_040`.
@@ -28947,7 +28950,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Keep transport thin and reject unrestricted provider or tool endpoints.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [endpoint contract](specs/http-grpc-endpoint-contract.md).
 
-- [ ] `AGENT-043` **[PHASE_2][SOL_HIGH] Make agent creation, schedules, and chat controls accessible and localized.**
+- [x] `AGENT-043` **[PHASE_2][SOL_HIGH] Make agent creation, schedules, and chat controls accessible and localized.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_043`, `TestTodo_AGENT_043_Browser`, `TestTodo_AGENT_043_Conformance` and `TestTodo_AGENT_043_Security` pass in `internal/humanwork/productui` (lane 14 run). On the review server (headless, build of 08:00) the Agents, Agent setup and Agent operations pages load in English with named controls and no failed request; German and Arabic renders are covered by the browser test. CI remains the run evidence.
   - **Depends:** `AGENT-012`, `AGENT-030`, `AGENT-042`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=let employees and owners operate agents across supported language, keyboard, and assistive modes`.
   - **TEST:** `TestTodo_AGENT_043`.
@@ -28957,7 +28961,8 @@ Related open items are not duplicated here:
   - **REFACTOR:** Reuse shared components and canonical UI state rather than provider-branded controls.
   - **Refs:** [Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [experience UI](specs/experience-ui-and-branding.md).
 
-- [ ] `AGENT-044` **[GATE_C][SOL_HIGH] Roll out agent versions and installations without silent scope expansion.**
+- [x] `AGENT-044` **[GATE_C][SOL_HIGH] Roll out agent versions and installations without silent scope expansion.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_044`, `TestTodo_AGENT_044_Fault`, `TestTodo_AGENT_044_Golden`, `TestTodo_AGENT_044_Integration`, `TestTodo_AGENT_044_Race`, `TestTodo_AGENT_044_Recovery`, `TestTodo_AGENT_044_Security` pass in `internal/agentsystem/rollout`, `internal/application`, `internal/data/agentpersonastore` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/agentsystem/rollout	0.607s; ok  	github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore	31.915s; ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence.
   - **Depends:** `AGENT-014`, `AGENT-039`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE; DIRECT=none; WHY=upgrade many installed agents safely while preserving independent grants and rollback`.
   - **TEST:** `TestTodo_AGENT_044`.
@@ -31451,7 +31456,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** no other package imports SchemaFlux or a provider SDK; callers depend on the `agentmodel` interface.
   - **Refs:** `internal/agentsecurity`, `definitions/architecture/dependency-roles.yaml`, `tools/policy/depmanifest`, `tools/gen/schemaflux`.
 
-- [ ] `AGENT2-027` **[PHASE_3][SOL_HIGH] Persist current named population membership for agent discovery.**
+- [x] `AGENT2-027` **[PHASE_3][SOL_HIGH] Persist current named population membership for agent discovery.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_027`, `TestTodo_AGENT2_027_Integration`, `TestTodo_AGENT2_027_Race`, `TestTodo_AGENT2_027_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s; --- PASS: TestTodo_AGENT2_027_Integration (20.25s); --- PASS: TestTodo_AGENT2_027_Security (7.14s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence.
   - **Depends:** `AGENT2-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=persona and skill discovery require a source-owned population fact distinct from roles and organization scope`.
   - **TEST:** `TestTodo_AGENT2_027`.
@@ -31472,7 +31478,8 @@ This section plans the agents experience inside Chat from the owner request for 
   - **REFACTOR:** use the existing revisioned population relation and local-demo provisioning path; do not infer population from roles or add a generic default for production tenants.
   - **Refs:** `AGENT2-027`, `internal/application/agent_directory_db.go`, `internal/application/persona_audience_directory_db.go`, `UXBLIND-122`.
 
-- [ ] `AGENT2-029` **[PHASE_3][SOL_HIGH] Resolve each chat member's exact home organization for persona audience discovery.**
+- [x] `AGENT2-029` **[PHASE_3][SOL_HIGH] Resolve each chat member's exact home organization for persona audience discovery.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_029`, `TestTodo_AGENT2_029_Integration`, `TestTodo_AGENT2_029_Race`, `TestTodo_AGENT2_029_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s; --- PASS: TestTodo_AGENT2_029 (0.00s); --- PASS: TestTodo_AGENT2_029_Integration). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence.
   - **Depends:** `AGENT2-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.PRIVACY; DIRECT=none; WHY=role visibility grants describe what a role may see, not the member's home organization, so their union cannot safely establish persona audience scope`.
   - **TEST:** `TestTodo_AGENT2_029`.
@@ -31597,7 +31604,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse `AGENT2-015` quarantine and taint labels; add only the peer taint source.
   - **Refs:** `internal/agentsecurity/semantic_trust.go`, `internal/agentsystem/quarantine.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-011` **[PHASE_3][SOL_HIGH] Add a visible-only-to-invoker ephemeral post to chat with a durable copy in the invoker's persona DM.**
+- [x] `AGENTP-011` **[PHASE_3][SOL_HIGH] Add a visible-only-to-invoker ephemeral post to chat with a durable copy in the invoker's persona DM.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_011`, `TestTodo_AGENTP_011_Security`, `TestTodo_AGENTP_011_Integration`, `TestTodo_AGENTP_011_Fault` and `TestTodo_AGENTP_011_Race` pass, with `TestTodo_AGENTP_011_ExpiredPrivateAnswersAreDeleted` in `internal/application`, `TestTodo_AGENTP_011_Security_SameRoomNonRecipient` in `internal/data/chatstore` and the 200-round race in `internal/collaboration/chatstream` (lane 14 run). Expired private answers are now deleted by a scheduled prune on the served assembly. CI remains the run evidence.
   - **Depends:** `CHAT-017`, `CHAT-018`, `CHAT-019`, `CHAT-022`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.EXPERIENCE,BI.PRIVACY; DIRECT=none; WHY=private answers, limit notices and approval cards need a place in the conversation that only the invoker sees and that no other member's stream, search or export can reach`.
   - **TEST:** `TestTodo_AGENTP_011`.
@@ -31723,7 +31731,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** share fixtures with `AGENT2-023` and `CONF-023`.
   - **Refs:** `internal/agentsecurity/testdata`, `AGENTP-001` record.
 
-- [ ] `AGENTP-023` **[PHASE_3][SOL_HIGH] Ship Onboarding Coordinator, Comp Analyst, Policy Helper and Schedule Fixer as versioned starter persona templates.**
+- [x] `AGENTP-023` **[PHASE_3][SOL_HIGH] Ship Onboarding Coordinator, Comp Analyst, Policy Helper and Schedule Fixer as versioned starter persona templates.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_023`, `TestTodo_AGENTP_023_Golden`, `TestTodo_AGENTP_023_Security` pass in `internal/agenttemplate, tools/policy/agentpersonas` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/agenttemplate	0.479s; ok  	github.com/monstercameron/human-capital-management-suite/tools/policy/agentpersonas	0.740s; ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s (TestTodo_AGENTP_023_* provisioning, draft builder, native schedule and compensation tests)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The dependency AGENT-013 (a production caller for the template registry) is still open. CI remains the run evidence.
   - **Depends:** `AGENTP-003`, `AGENTP-021`, `AGENT-013`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.PEOPLE,BI.REWARDS,BI.WORK; DIRECT=none; WHY=administrators should start from reviewed personas whose skills, tiers and channel classes already follow the defaults rather than composing from scratch`.
   - **TEST:** `TestTodo_AGENTP_023`.
@@ -31753,7 +31762,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** one invocation resolver and audience evaluator across chat, workflow pages and documents.
   - **Refs:** `internal/workflow`, [company chat](specs/company-chat-and-collaboration.md), `AGENTP-001` record.
 
-- [ ] `AGENTP-026` **[PHASE_3][SOL_HIGH] Bind current directory population facts to persona audience discovery.**
+- [x] `AGENTP-026` **[PHASE_3][SOL_HIGH] Bind current directory population facts to persona audience discovery.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_026`, `TestTodo_AGENTP_026_Integration`, `TestTodo_AGENTP_026_Race`, `TestTodo_AGENTP_026_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s; --- PASS: TestTodo_AGENTP_026 (0.00s); --- PASS: TestTodo_AGENTP_026_Security (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The browser half of the last clause is proved at render level; a real-browser run would need a paid model. CI remains the run evidence.
   - **Depends:** `AGENT2-027`, `AGENTP-004`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.PRIVACY; DIRECT=none; WHY=persona discovery must use the same current named population authority as the per-call skill gate`.
   - **TEST:** `TestTodo_AGENTP_026`.
@@ -31790,7 +31800,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one reference value type shared by the persona profile and the request path of `AGENTDOC-004`.
   - **Refs:** `internal/agentpersona`, `internal/data/agentpersonastore`, `AGENTDOC-001` record.
 
-- [ ] `AGENTDOC-003` **[PHASE_3][SOL_HIGH] Resolve referenced documents at run time under the invoking user's read access.**
+- [x] `AGENTDOC-003` **[PHASE_3][SOL_HIGH] Resolve referenced documents at run time under the invoking user's read access.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTDOC_003`, `TestTodo_AGENTDOC_003_Golden`, `TestTodo_AGENTDOC_003_Integration`, `TestTodo_AGENTDOC_003_Mutation`, `TestTodo_AGENTDOC_003_Property`, `TestTodo_AGENTDOC_003_Security` pass in `internal/application`, `internal/application, internal/agentdocref` (lane 12 audit, 2026-10-02: ok  	github.com/monstercameron/human-capital-management-suite/internal/application	183.717s; ok  	github.com/monstercameron/human-capital-management-suite/internal/agentdocref	0.579s; --- PASS: TestTodo_AGENTDOC_003 / _Golden / _Security / _Property / _Mutation / _Integration (4.05s) / _CitationsUseExistingGroundingPath / _MissingDocumentRuntimeProducesGenericOmission). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence.
   - **Depends:** `AGENTDOC-002`, `AGENT2-005`, `AGENT2-015`, `AGENTP-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.DOCUMENTS,BI.INTELLIGENCE; DIRECT=none; WHY=a reference must never let an agent read a document its invoker cannot read, and referenced text must never gain instruction authority`.
   - **TEST:** `TestTodo_AGENTDOC_003`.
@@ -31863,7 +31874,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** reuse the Personas administration page frame rather than a third layout.
   - **Refs:** `internal/humanwork/productui/agent_controls_page.go`, `internal/humanwork/productui/agent_rollout_portable.go`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `AGENTUX-003` **[PHASE_3][TERRA] Make the Personas administration page readable and its lifecycle actions self-explaining.**
+- [x] `AGENTUX-003` **[PHASE_3][TERRA] Make the Personas administration page readable and its lifecycle actions self-explaining.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_003` and `TestTodo_AGENTUX_003_Browser` pass in `internal/humanwork/productui` (lane 7 run). On the review server Agent setup shows each agent as one card with its purpose, owners with photographs, who can use it, what it can read, what it can do with a short line per skill, where it is added and its lifecycle step; the page stays responsive after the layout fix recorded under AGENTUX-073 (shot `shots/v7/admin_personas.png`). CI remains the run evidence.
   - **Depends:** `AGENTP-018`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=an administrator must understand a persona's state and the next step without knowing internal identifiers`.
   - **TEST:** `TestTodo_AGENTUX_003`.
@@ -31915,9 +31927,10 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one mention row component shared by people and agents.
   - **Refs:** `internal/humanwork/chatui`, `internal/humanwork/productui/chat_persona_mention.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `AGENTUX-008` **[PHASE_3][TERRA] Project task time, failure reason and documents to the Agents task list.**
+- [x] `AGENTUX-008` **[PHASE_3][TERRA] Project task time, failure reason and documents to the Agents task list.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_008`, `TestTodo_AGENTUX_008_Browser` and `TestTodo_AGENTUX_008_Integration` pass (lane 7 run). On the review server each task row shows its age ("23 h ago", "1 d ago"), the documents attached ("Attached: Sick leave policy" as a link), and the Failed tab holds the failed tasks with their reason (shot `shots/v7/chat_agents.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-001`, `AGENTDOC-004`.
-  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a task row cannot say when it ran, why it failed or which documents it used because the projection does not carry those facts`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a task row cannot say when it ran, why it failed or which documents it used because the projection does not carry those facts; CAPABILITY=LIBRARY; OWNER=PLATFORM_ENGINEERING_OWNER`.
   - **TEST:** `TestTodo_AGENTUX_008`.
   - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_008`; `INTEGRATION=TestTodo_AGENTUX_008_Integration`; `BROWSER=TestTodo_AGENTUX_008_Browser`.
   - **RED:** (2026-09-30 review) task rows show no time; failed tasks show one generic sentence; "Documents used" cannot render; there is no loading or load-failure state for the task list; checkpoint values such as `09:14` are display strings that cannot give a relative time.
@@ -31957,7 +31970,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** share the step list with the chat task card.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/persona_chat_task.go`.
 
-- [ ] `AGENTUX-012` **[PHASE_3][LUNA] Align the Agents task list with the composer and fix its copy.**
+- [x] `AGENTUX-012` **[PHASE_3][LUNA] Align the Agents task list with the composer and fix its copy.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_012` and `TestTodo_AGENTUX_012_Browser` pass in `internal/humanwork/productui` (lane 7 run). On the review server (headless, build of 05:07) the task list on the Agents page spans the same width as the question form, each task is two lines (question and time; who answered and the answer's first sentence) and the copy reads "Questions you ask in Chat are answered in Chat and are not listed here." (shot `.artifacts/lanes/agent-ui/shots/v7/chat_agents.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-001`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=misaligned regions and inconsistent chips make a simple page look unfinished`.
   - **TEST:** `TestTodo_AGENTUX_012`.
@@ -31967,7 +31981,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`, `internal/humanwork/productui/i18n.go`.
 
-- [ ] `AGENTUX-013` **[PHASE_3][TERRA] Show nothing misleading in the effective access preview before a choice, and fit it to its card.**
+- [x] `AGENTUX-013` **[PHASE_3][TERRA] Show nothing misleading in the effective access preview before a choice, and fit it to its card.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_013` and `TestTodo_AGENTUX_013_Browser` pass in `internal/humanwork/productui` (lane 7 run). On the review server the Agent setup card shows "Who can use it" and "What it can read" inside the card with nothing shown before a choice is made (shot `shots/v7/b_admin_personas.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY,BI.INTELLIGENCE; DIRECT=none; WHY=an access preview that prints empty results before anything is chosen reads as "this persona can do nothing"`.
   - **TEST:** `TestTodo_AGENTUX_013`.
@@ -31977,7 +31992,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** reuse the combobox used by the People directory.
   - **Refs:** `internal/humanwork/productui/agent_access_admin.go`, `internal/humanwork/productui/agent_access_page.go`.
 
-- [ ] `AGENTUX-014` **[PHASE_3][SOL_HIGH] Give a persona in review a way forward to evaluation and publication from the page.**
+- [x] `AGENTUX-014` **[PHASE_3][SOL_HIGH] Give a persona in review a way forward to evaluation and publication from the page.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_014`, `_Browser`, `_Integration` and `_Security` pass (lane 7 run). On the review server a published agent's card reads "Step 4 of 4: Published"; the in-review path was not walked on the page in this pass. CI remains the run evidence.
   - **Depends:** `AGENTUX-003`, `AGENTP-006`, `AGENTP-021`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=a lifecycle page whose every button is disabled and which names no next step is a dead end for the administrator`.
   - **TEST:** `TestTodo_AGENTUX_014`.
@@ -32018,7 +32034,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`.
 
-- [ ] `AGENTUX-018` **[DESIGN][TERRA] Use one name, "agent", across the Agents page, Chat and administration.**
+- [x] `AGENTUX-018` **[DESIGN][TERRA] Use one name, "agent", across the Agents page, Chat and administration.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_018`, `_Golden`, `_Browser` and `_VisibleVocabulary` pass in `internal/humanwork/productui` (lane 7 run). On the review server the three pages read Agents, Agent setup and Agent operations, Chat tags them "Agent", and no page shows the words persona, installation or placement (shots `shots/v7/chat_agents.png`, `admin_personas.png`, `admin_agents.png`). CI remains the run evidence.
   - **Depends:** `AGENTP-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=one concept shown under six names makes every agent surface harder to understand and to connect`.
   - **TEST:** `TestTodo_AGENTUX_018`.
@@ -32129,7 +32146,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** a per-run verified snapshot passed to helpers within one boundary.
   - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_run_tenant_runtime.go`, `internal/application/persona_foreground_run_authority.go`, `internal/agentsystem/runstate`.
 
-- [ ] `AGENTUX-029` **[PHASE_3][TERRA] Open the mention menu on the first try in every load order.**
+- [x] `AGENTUX-029` **[PHASE_3][TERRA] Open the mention menu on the first try in every load order.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_029`, `TestTodo_AGENTUX_029_Browser`, `TestTodo_AGENTUX_029_Grouping` and `TestTodo_AGENTUX_029_StableHighlight` pass in `internal/humanwork/chatui`, with `TestTodo_CHATBUG_068_MentionGroupsKeepOneOrder` and `TestTodo_CHATBUG_068_MentionMembersFailed` (lanes S10 and S17 runs). On the review server (headless, builds of 07:06 to 08:00) typing "@" opens the menu on the first try with "People in this conversation" grouped, a loading line for a group still loading, and an outsider listed apart. CI remains the run evidence.
   - **Depends:** `AGENTUX-021`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=one failed open teaches a user that agents cannot be mentioned`.
   - **TEST:** `TestTodo_AGENTUX_029`.
@@ -32139,7 +32157,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one pure function from composer text, caret, lookup state and members to the menu model.
   - **Refs:** `internal/humanwork/chatui/mention.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `tools/uxqual/cmd/journeywasm/chat_state.go`.
 
-- [ ] `AGENTUX-030` **[PHASE_3][TERRA] Name a direct conversation with an agent after the agent.**
+- [x] `AGENTUX-030` **[PHASE_3][TERRA] Name a direct conversation with an agent after the agent.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_030`, `TestTodo_AGENTUX_030_Integration` and `TestTodo_AGENTUX_030_Browser` pass (lane S14 run). On the review server (headless, build of 08:00) the direct conversation with Policy Helper is named "Policy Helper" with the Agent badge in the sidebar and header, the composer reads "Ask Policy Helper a follow-up" and the browser title is "Policy Helper - Chat - Ironridge Builders". CI remains the run evidence.
   - **Depends:** `AGENTUX-021`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a conversation titled with a 36 character identifier cannot be found or trusted`.
   - **TEST:** `TestTodo_AGENTUX_030`.
@@ -32149,7 +32168,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one display-name resolver for direct conversations with a person or an agent.
   - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/data/chatstore`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `AGENTUX-031` **[PHASE_3][TERRA] Attribute a stored agent answer to the agent and drop the raw path.**
+- [x] `AGENTUX-031` **[PHASE_3][TERRA] Attribute a stored agent answer to the agent and drop the raw path.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_031_Integration` and `TestTodo_AGENTUX_031_Browser` pass (lane 11 run). On the review server the stored answers in the Policy Helper conversation are attributed to Policy Helper with its icon and show no raw path (shot `shots/v5/03-policy-dm.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-030`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=an answer stored and shown as the asker's own message misstates who said it`.
   - **TEST:** `TestTodo_AGENTUX_031`.
@@ -32189,7 +32209,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one placed-document count reader shared by Agent setup and Agent operations.
   - **Refs:** `internal/data/documenthubstore/placement.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
 
-- [ ] `AGENTUX-035` **[GATE_C][SOL_HIGH] Post a document-grounded answer publicly when every member may read the document.**
+- [x] `AGENTUX-035` **[GATE_C][SOL_HIGH] Post a document-grounded answer publicly when every member may read the document.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_035`, `TestTodo_AGENTUX_035_Security`, `TestTodo_AGENTUX_035_Integration` and `TestTodo_AGENTUX_035_Browser` pass in `internal/application` and `internal/humanwork/chatui` (lane S15 run): a document-grounded answer is posted publicly only when every member may read every cited document. On the review server (headless, build of 08:00) the Policy Helper answer in #general, citing two documents every member can read, is marked "Shared with #general". CI remains the run evidence.
   - **Depends:** `AGENTUX-032`, `AGENTP-011`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a policy answer the whole channel is entitled to read is hidden from everyone but the asker, so the same question is asked again`.
   - **TEST:** `TestTodo_AGENTUX_035`.
@@ -32250,7 +32271,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/persona_admin_styles.go`, `tools/uxqual/cmd/journeywasm/agentdoc_ui_picker.go`.
 
-- [ ] `AGENTUX-040` **[PHASE_3][TERRA] Keep the Agents page question field visible and the page where the user left it.**
+- [x] `AGENTUX-040` **[PHASE_3][TERRA] Keep the Agents page question field visible and the page where the user left it.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_040` and `TestTodo_AGENTUX_040_Browser` pass in `internal/humanwork/productui` and `TestTodo_AGENTUX_040` in `tools/uxqual/cmd/journeywasm` (lane 7 run). On the review server the question field stays at the top of the Agents page with the task list under it (shot `shots/v7/b_chat_agents.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-009`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the page offered an Ask button and no visible place to type a question`.
   - **TEST:** `TestTodo_AGENTUX_040`.
@@ -32260,7 +32282,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** a tested helper for the selected task id from a query string.
   - **Refs:** `internal/humanwork/productui/agents_styles.go`, `tools/uxqual/cmd/journeywasm/agentux_page3_agents_wasm.go`, `internal/humanwork/productui/agents_page.go`.
 
-- [ ] `AGENTUX-041` **[GATE_C][TERRA] Admit the agent owner to Agent operations on a tenant with feature-level role policy.**
+- [x] `AGENTUX-041` **[GATE_C][TERRA] Admit the agent owner to Agent operations on a tenant with feature-level role policy.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_041`, `TestTodo_AGENTUX_041_Security` and `TestTodo_AGENTUX_041_Browser` pass in `internal/humanwork/workspace` (lane 14 run); the derived grant is now in the page document so the link survives hydration. On the review server (headless, build of 08:00) the owner opens Agent operations from the Agents tabs and the page loads with no failed request. CI remains the run evidence.
   - **Depends:** `AGENTUX-010`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=the administrator who owns the agents was refused the page that runs them, and the navigation still linked to it`.
   - **TEST:** `TestTodo_AGENTUX_041`.
@@ -32280,7 +32303,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the problem page uses the shared page frame.
   - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/agentux_polish_ops_problem_copy.go`, `internal/humanwork/productui/shell.go`.
 
-- [ ] `AGENTUX-043` **[PHASE_3][TERRA] Replace the unknown-address page with one that belongs to the workspace.**
+- [x] `AGENTUX-043` **[PHASE_3][TERRA] Replace the unknown-address page with one that belongs to the workspace.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_043` and `TestTodo_AGENTUX_043_Browser` pass in `internal/humanwork/workspace` (lane 7 run; behaviour was already built). Not looked at in a browser in this pass. CI remains the run evidence.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a mistyped or stale address shows an unstyled developer message about a different product area`.
   - **TEST:** `TestTodo_AGENTUX_043`.
@@ -32290,7 +32314,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/workspace/handler.go`, `internal/humanwork/productui/registry.go`.
 
-- [ ] `AGENTUX-044` **[PHASE_3][TERRA] Name a favorite by its page, not by its position in the menu.**
+- [x] `AGENTUX-044` **[PHASE_3][TERRA] Name a favorite by its page, not by its position in the menu.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_044` and `TestTodo_AGENTUX_044_Browser` pass in `internal/humanwork/productui` (lane 7 run; behaviour was already built). Not looked at in a browser in this pass. CI remains the run evidence.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the favorites list shows "Overview" with no indication it is Chat`.
   - **TEST:** `TestTodo_AGENTUX_044`.
@@ -32300,7 +32325,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/agentux_page7_nav.go`, `internal/humanwork/productui/i18n.go`, `internal/humanwork/productui/shell.go`.
 
-- [ ] `AGENTUX-045` **[GATE_C][SOL_HIGH] Let a version be evaluated and published on a cell that serves more than one tenant, and keep the result after a reload.**
+- [x] `AGENTUX-045` **[GATE_C][SOL_HIGH] Let a version be evaluated and published on a cell that serves more than one tenant, and keep the result after a reload.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_045`, `TestTodo_AGENTUX_045_Integration` (two-tenant cell fixture), `TestTodo_AGENTUX_045_Security` and `TestTodo_AGENTUX_045_Browser` pass (lane 14 run, `internal/application` and `internal/humanwork/productui`). On the review server (headless, build of 08:00) Agent setup lists Assistant version 2 and Policy Helper version 6 as published with no failed request. CI remains the run evidence.
   - **Depends:** `AGENTUX-026`, `AGENTDOC-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=a reviewed version could not be evaluated, so instructions that reference a document could never be published`.
   - **TEST:** `TestTodo_AGENTUX_045`.
@@ -32310,7 +32336,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one persona store per process, composed once with every verifier it needs, so no component can hold an earlier copy.
   - **Refs:** `internal/application/serve.go`, `internal/application/agentux_runtime_evaluation.go`, `internal/application/persona_admin_lifecycle_executor.go`, `internal/application/persona_admin_composition.go`, `internal/data/agentpersonastore/publication_evidence_query.go`.
 
-- [ ] `AGENTUX-046` **[PHASE_3][TERRA] Make the version lifecycle on Agent setup say what is true at each step.**
+- [x] `AGENTUX-046` **[PHASE_3][TERRA] Make the version lifecycle on Agent setup say what is true at each step.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_046`, `_Browser`, `_Accessibility` and `_StatusPlacesAgree` pass in `internal/humanwork/productui` (lane 7 run). On the review server the Assistant card on Agent setup reads "Version 2 - Published", "Every conversation runs version 2." and "Step 4 of 4: Published" over a four-step bar (Draft, Reviewed, Evaluated, Published) (shot `shots/v7/admin_personas.png`). The owner and reviewer walk through a new version was not run in this pass. CI remains the run evidence.
   - **Depends:** `AGENTUX-013`, `AGENTUX-045`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the card contradicts itself at every step between draft and published, so the owner cannot tell what has happened or who acts next`.
   - **TEST:** `TestTodo_AGENTUX_046`.
@@ -32320,7 +32347,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one function maps (lifecycle, review, evaluation) to the badge, the sentence and the step.
   - **Refs:** `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agentux_setup2_components.go`, `internal/humanwork/productui/i18n.go`, `tools/uxqual/cmd/journeywasm/persona_admin_wasm.go`.
 
-- [ ] `AGENTUX-047` **[GATE_C][SOL_HIGH] Publishing an agent version through the product must leave a version that can run.**
+- [x] `AGENTUX-047` **[GATE_C][SOL_HIGH] Publishing an agent version through the product must leave a version that can run.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_047`, `TestTodo_AGENTUX_047_Integration`, `TestTodo_AGENTUX_047_Security` and `TestTodo_AGENTUX_047_Browser` pass (lane 14 run); a stopped placement now reaches the page as "Stopped: reason" with "Start again" and a publish refused for a missing runtime has its own sentence. On the review server (headless, build of 08:00) Agent setup shows both published agents answering, and the owner's question of 08:16 in the Assistant conversation started a run on the published version. CI remains the run evidence.
   - **Depends:** `AGENTUX-045`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=a version published and rolled out through the product silently took the agent out of every conversation`.
   - **TEST:** `TestTodo_AGENTUX_047`.
@@ -32420,7 +32448,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one searcher with a scope parameter (conversation placements, workspace-public) instead of two.
   - **Refs:** `internal/data/documenthubstore/embeddings.go`, `internal/application/documentembed`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_run_t0_tools.go`, `internal/transport/document/document.go`, `internal/application/agentux_runtime_prepare.go`.
 
-- [ ] `AGENTUX-057` **[GATE_C][SOL_HIGH] Enter must send a question that starts with a mention picked from the menu.**
+- [x] `AGENTUX-057` **[GATE_C][SOL_HIGH] Enter must send a question that starts with a mention picked from the menu.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_057` and `TestTodo_AGENTUX_057_Browser` pass in `internal/humanwork/chatui`, with `TestS24_MentionLoadingEnterDoesNothing` (lanes S10 and S24 runs): the first Enter picks the highlighted mention, the next sends, and Enter does nothing while the menu is still loading. The page check stops short of sending a question to an agent, which would be a paid run. CI remains the run evidence.
   - **Depends:** `AGENTUX-038`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=the main way to ask an agent in a channel silently does nothing`.
   - **TEST:** `TestTodo_AGENTUX_057`.
@@ -32430,7 +32459,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one keydown decision function (pure, unit-tested) for the composer instead of handlers that each consume Enter.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `AGENTUX-058` **[PHASE_3][SOL_HIGH] Hovering a message must not move the page.**
+- [x] `AGENTUX-058` **[PHASE_3][SOL_HIGH] Hovering a message must not move the page.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_058` and `TestTodo_AGENTUX_058_Browser` pass in `internal/humanwork/chatui` (lane S12 run). On the review server (headless, build of 08:00, script `verify-0830.mjs`) moving the pointer over each visible message row in #random changed neither the list's scroll height nor any row's height or the distance between rows. CI remains the run evidence.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner report and hands-on QA 2026-10-01; WHY=moving the pointer over the conversation makes the whole list jump`.
   - **TEST:** `TestTodo_AGENTUX_058`.
@@ -32440,7 +32470,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/agentux_chat4_styles.go`, `internal/humanwork/chatui/agentux_chat2_styles.go`, `internal/humanwork/chatui/agentux_chat3_styles.go`.
 
-- [ ] `AGENTUX-059` **[GATE_C][SOL_HIGH] Feedback and stop on an agent answer must reach the server, and the page must not show a save that failed.**
+- [x] `AGENTUX-059` **[GATE_C][SOL_HIGH] Feedback and stop on an agent answer must reach the server, and the page must not show a save that failed.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_059` and `TestTodo_AGENTUX_059_Browser` pass in `internal/humanwork/chatui`, `TestTodo_AGENTUX_059_Fault` in `tools/uxqual/cmd/journeywasm` and `TestTodo_AGENTUX_059_Integration` in `internal/application` (lanes 5 and 13 runs). On the review server a stored rating is shown filled after a fresh sign-in; the refused-save path was not provoked on the page. CI remains the run evidence.
   - **Depends:** `AGENTUX-051`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=hands-on QA 2026-10-01; WHY=the page tells a person their rating was recorded when the server refused it`.
   - **TEST:** `TestTodo_AGENTUX_059`.
@@ -32490,7 +32521,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_chat4_styles.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
 
-- [ ] `AGENTUX-064` **[PHASE_3][TERRA] Show which agents are in a conversation and what they can do there.**
+- [x] `AGENTUX-064` **[PHASE_3][TERRA] Show which agents are in a conversation and what they can do there.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_064`, `TestTodo_AGENTUX_064_Security` and `TestTodo_AGENTUX_064_Browser` pass in `internal/humanwork/chatui`, with `TestTodo_AGENTUX_004_Integration` (lane S14 run). On the review server (headless, build of 08:00) Conversation details in #general lists "Agents - 2" with each agent's purpose and what it reads ("Reads workspace documents", "Reads documents placed in this channel") and an Ask button, and the header says "2 agents". CI remains the run evidence.
   - **Depends:** `AGENTUX-049`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=the only way to learn an agent is in a channel is to type "@" and wait`.
   - **TEST:** `TestTodo_AGENTUX_064`.
@@ -32725,7 +32757,8 @@ This section holds the owner-requested channel gates work of 2026-10-01. A chann
 
 This section holds the owner-requested work of 2026-10-01: voice messages in Chat that every reader can listen to or read, a "Listen" action for typed messages, and one rule for search: everything a person can see in Chat, they can find. A voice message is the sender recording themselves; recording calls or other people is out of scope. The audio is the record and the transcript is a labelled aid produced inside the deployment. Search never widens access: a result exists for a person only if they could open the thing it points to.
 
-- [ ] `CHATVOICE-001` **[DESIGN][SOL_HIGH] Record the decisions for voice messages, transcripts and read-aloud.**
+- [x] `CHATVOICE-001` **[DESIGN][SOL_HIGH] Record the decisions for voice messages, transcripts and read-aloud.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATVOICE_001` and its golden digest pass in `internal/collaboration/chat` (lane S2 run). Decisions pinned as `chat.VoiceDecisions()`: a voice message is a self-recording of at most two minutes; by the owner's decision of 2026-10-02 transcription and read-aloud call OpenAI through the agent model gateway (same key, metering and outside-service rule; a channel set to never use an outside service is never sent); the audio is the record and the transcript is marked automatic and correctable; audio and transcript follow the message's audience, retention, hold and export rules; no speaker identification or emotion inference; agents read the transcript only. CI remains the run evidence.
   - **Depends:** `CHAT-057`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=voice identifies the speaker and a transcript can be wrong, so what is recorded, where it is processed and which one is the record must be fixed before anything is built`.
   - **TEST:** `TestTodo_CHATVOICE_001`.
@@ -33400,7 +33433,8 @@ This section holds two owner requests of 2026-10-01. First, an optional "redirec
 
 This section holds the owner request of 2026-10-01: let field workers show where they are with a map embedded in a message, from the device's position or from an address. What exists today (read 2026-10-01): a message's references are people, agents, conversations, media and workflow pages, and the composer embeds workflow items, to-dos and polls; there is no location kind. Location appears elsewhere only as evidence for time capture, and that work (`FTIME-010`) says in terms "do not build general employee tracking". The page security policy allows no frames at all (`frame-src 'none'`), starts from `default-src 'none'`, and pins the addresses the page may connect to, so the usual embedded third-party map cannot load and should not. Three positions follow, to be confirmed by `CHATMAP-001`: a location in Chat is something a person chooses to share, never something collected; it is a statement by the sender and is never evidence for time or pay; and the reader's browser talks only to the product, which draws or relays the map, so no map company learns who looked at which place.
 
-- [ ] `CHATMAP-001` **[DESIGN][SOL_HIGH] Research maps, address lookup and location privacy, and record the decisions.**
+- [x] `CHATMAP-001` **[DESIGN][SOL_HIGH] Research maps, address lookup and location privacy, and record the decisions.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATMAP_001`, `TestTodo_CHATMAP_001_Golden`, `TestTodo_CHATMAP_001_Security` and `TestTodo_CHATMAP_001_Performance` pass in `internal/collaboration/chat` (lane S6 run). Decisions recorded in `internal/collaboration/chat/chatmap001_decisions.go` with a golden file: maps are drawn by the product itself (schematic by default; real street maps need an owner-approved OpenStreetMap extract hosted in the deployment or a relayed commercial service, never public tile servers); address lookup stays behind a port that is unavailable by default; position is read only on a press, approximate by default; retention is 24 hours at most; live shares end by themselves and keep no trail or end point; sharing is the worker's own act and stays off per country until a works agreement exists. CI remains the run evidence.
   - **Depends:** `EXTCOST-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.WORKFORCE,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("allow for gps or address based map embeds for field workers to show their locations, research and add this as a todo"); WHY=a worker's location is sensitive personal data, employer location tracking is regulated differently in each country, and the map itself normally comes from a third party who sees every request`.
   - **TEST:** `TestTodo_CHATMAP_001`.
@@ -33487,7 +33521,8 @@ This section holds the owner request of 2026-10-01: typing `/poll 1="" 2="" ...`
   - **REFACTOR:** the channel-level poll and list share the option, vote and item code with the message kind.
   - **Refs:** `internal/data/chatstore/channel_poll.go`, `internal/data/chatstore/channel_todo.go`, `internal/data/chatstore/migrations`, `internal/application/chat_channel_poll.go`, `internal/application/chat_channel_todo.go`, `internal/humanwork/chatui/channel_poll.go`, `internal/collaboration/chat/chat_references.go`.
 
-- [ ] `CHATCMD-003` **[PHASE_3][SOL_HIGH] /poll: write it loosely, see it tidied, post it when it looks right.**
+- [x] `CHATCMD-003` **[PHASE_3][SOL_HIGH] /poll: write it loosely, see it tidied, post it when it looks right.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATCMD_003`, `_Property`, `_Security`, `_Accessibility` pass in `internal/humanwork/chatui`, and `TestTodo_CHATCMD_003_Golden` in `internal/collaboration/chat` and `internal/application` (lane 10 run; the model pass was never called). On the review server "/poll Where for lunch? Tacos, pho or pizza" previews a question with three options, lists "Tidied: 2 changes (pho -> Pho, pizza -> Pizza)" with "Use what I typed", offers several-choices, anonymous, result and closing settings, and Enter posts it; Escape leaves the composer empty (shot `shots/v23/40-poll-preview.png`). CI remains the run evidence.
   - **Depends:** `CHATCMD-002`, `CHATTONE-004`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("/poll 1=\"\" 2=\"\" ... adds a new poll using ai to for properly format, and preview before posting"); WHY=people type polls fast and badly; the poll everyone votes on should read well`.
   - **TEST:** `TestTodo_CHATCMD_003`.
@@ -33617,7 +33652,8 @@ This section tracks every defect found by scanning Chat on the combined build of
   - **REFACTOR:** none.
   - **Refs:** `internal/application/chatsave_http.go`, `internal/humanwork/chatui/chatsave_view.go`, `tools/uxqual/cmd/journeywasm/chatsave_client.go`.
 
-- [ ] `CHATBUG-006` **[PHASE_3][SOL_HIGH] Sources under an agent's answer are not links and claim the owner cannot open the document.**
+- [x] `CHATBUG-006` **[PHASE_3][SOL_HIGH] Sources under an agent's answer are not links and claim the owner cannot open the document.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_006` passes in `internal/application` and `TestTodo_CHATBUG_006_Browser` in `internal/humanwork/chatui` (lane 5 run). On the review server the three sources on the #general answer are links to `/workspace/app/docs?document=...` and no source claims the owner cannot open it. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the owner asked for document links twice today`.
   - **TEST:** `TestTodo_CHATBUG_006`.
@@ -33628,7 +33664,8 @@ This section tracks every defect found by scanning Chat on the combined build of
   - **REFACTOR:** none.
   - **Refs:** `internal/application/agentux_answer_source_access.go`, `internal/humanwork/chatui/agentux_dm_sources.go`.
 
-- [ ] `CHATBUG-007` **[PHASE_3][SOL_HIGH] The posted announcement shows raw data instead of a message.**
+- [x] `CHATBUG-007` **[PHASE_3][SOL_HIGH] The posted announcement shows raw data instead of a message.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_007` and `TestTodo_CHATBUG_007_Browser` pass in `internal/humanwork/chatui` (lane S13 run; two stored shapes, three languages, channel row, Saved row and first paint). On the review server (headless, build of 08:00) the Assistant's announcement in #general reads as its sentence and list with its source, in English, German and Arabic. The same envelope shown raw in a search result is tracked in CHATBUG-089. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the first announcement on the served product is unreadable to the people it was for`.
   - **TEST:** `TestTodo_CHATBUG_007`.
@@ -33733,7 +33770,8 @@ This section tracks every defect found by scanning Chat on the combined build of
   - **REFACTOR:** none.
   - **Refs:** `internal/application/agentux_search_runtime.go`, `internal/application/persona_runtime_tools.go`.
 
-- [ ] `CHATBUG-016` **[PHASE_3][TERRA] At phone width, channel details opens underneath the composer.**
+- [x] `CHATBUG-016` **[PHASE_3][TERRA] At phone width, channel details opens underneath the composer.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_016`, `TestTodo_CHATBUG_016_Browser` and `TestTodo_CHATBUG_016_Cascade` pass in `internal/humanwork/chatui` (lanes 15 and S11 runs). On the review server (headless, build of 08:00, 390 x 844) Conversation details opens as a sheet covering the conversation from under the top bar to the foot of the screen (390 x 763) and the composer is covered by it. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=the lower part of the panel, where the agents are listed, cannot be read or pressed`.
   - **TEST:** `TestTodo_CHATBUG_016`.
@@ -33744,7 +33782,8 @@ This section tracks every defect found by scanning Chat on the combined build of
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/styles_surfaces.go`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `CHATBUG-017` **[PHASE_3][TERRA] At phone width a stray "more" button floats at the edge of the message list.**
+- [x] `CHATBUG-017` **[PHASE_3][TERRA] At phone width a stray "more" button floats at the edge of the message list.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_017`, `TestTodo_CHATBUG_017_Browser` and `TestTodo_CHATBUG_017_Cascade` pass in `internal/humanwork/chatui` (lanes 15 and S11 runs). On the review server (headless, builds of 07:43 and 08:00, 390 x 844) no action button floats at the edge of the message list with nothing touched; the only menu button drawn is the one inside the answer card's own action row (shot `.artifacts/lanes/agent-ui/shots/min/004-phone-1.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=it belongs to no visible message and overlaps text`.
   - **TEST:** `TestTodo_CHATBUG_017`.
@@ -33755,7 +33794,8 @@ This section tracks every defect found by scanning Chat on the combined build of
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/agentux_chat4_styles.go`, `internal/humanwork/chatui/agentux_chat4_touch_js.go`.
 
-- [ ] `CHATBUG-018` **[PHASE_3][SOL_HIGH] An agent retried an old question by itself when Chat loaded, and answered with only a document title.**
+- [x] `CHATBUG-018` **[PHASE_3][SOL_HIGH] An agent retried an old question by itself when Chat loaded, and answered with only a document title.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_018` and `TestTodo_CHATBUG_018_Browser` pass in `tools/uxqual/cmd/journeywasm` and `internal/application` (lane S13 run): loading Chat, leaving and re-entering never marks a question as asked again. On the review server (headless, builds of 07:06 to 08:00) more than sixty fresh loads of Chat as the owner started no agent run; Agent operations lists no run between the owner's own questions. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs"); WHY=nothing should spend a model call without a person asking, and a title is not an answer`.
   - **TEST:** `TestTodo_CHATBUG_018`.
@@ -33840,7 +33880,8 @@ Found by walking every Chat surface by hand in the Claude browser pane at 800 px
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatfilter_view.go`, `internal/humanwork/chatui/copy.go`, `internal/humanwork/workspace`.
 
-- [ ] `CHATBUG-025` **[PHASE_3][SOL_HIGH] The channel status block and the agent rows in the details panel are unfinished.**
+- [x] `CHATBUG-025` **[PHASE_3][SOL_HIGH] The channel status block and the agent rows in the details panel are unfinished.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_025` and `TestTodo_CHATBUG_025_Browser` pass in `internal/humanwork/chatui` (lane 3 run). On the review server Status is one row in Manage channel with its form under it, and the agent rows use the panel's row style. The status history under About still uses large type; that is tracked in CHATBUG-082. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("visually scan every inch of the chat and track all the bugs ... using the claude code browser"); WHY=the panel mixes three visual styles and lists empty fields`.
   - **TEST:** `TestTodo_CHATBUG_025`.
@@ -34013,7 +34054,8 @@ Decisions taken for the owner (standard practice, change if wanted):
   - **REFACTOR:** one picker component serves the composer, the thread composer and reactions; the two existing variants are removed.
   - **Refs:** `internal/humanwork/chatui/agentux_chat4_emoji.go`, `internal/humanwork/chatui/emoji_picker_js.go`, `internal/humanwork/chatui/agentux_chat5_layers.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
 
-- [ ] `CHATEMOJI-003` **[PHASE_3][SOL_HIGH] Reach an emoji without opening the picker: type a colon, and one-click reactions that are yours.**
+- [x] `CHATEMOJI-003` **[PHASE_3][SOL_HIGH] Reach an emoji without opening the picker: type a colon, and one-click reactions that are yours.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATEMOJI_003`, `TestTodo_CHATEMOJI_003_Accessibility` and `TestTodo_CHATEMOJI_003_Browser` pass in `internal/humanwork/chatui` (lane 6 run). On the review server typing "nice :thum" offers thumbs up, Enter inserts it, and typing continues in the message box without touching the pointer (draft read back as the sentence with the emoji, focus on `chat-composer`); the hover bar offers the person's three one-click reactions. CI remains the run evidence.
   - **Depends:** `CHATEMOJI-001`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("easier and faster to use"); WHY=the fastest picker is the one that never has to open`.
   - **TEST:** `TestTodo_CHATEMOJI_003`.
@@ -34051,7 +34093,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/sidebar.go`, `internal/humanwork/chatui/quiet_hours.go`, `internal/humanwork/chatui/chatrender_settings.go`, `internal/humanwork/chatui/sidebar_sections.go`.
 
-- [ ] `CHATUX-003` **[PHASE_3][SOL_HIGH] An agent's answer card spends five rows on chrome around one sentence.**
+- [x] `CHATUX-003` **[PHASE_3][SOL_HIGH] An agent's answer card spends five rows on chrome around one sentence.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) The `TestTodo_CHATUX_003` tests pass in `internal/humanwork/chatui` (lane 5 run). On the review server the answer card is one header line (icon, name, Agent, time, Only visible to you), the answer, one Sources row of chips and one action row (shot `shots/v5/01-general.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=the answer is the point; the person should read it, check its source and act in one glance`.
   - **TEST:** `TestTodo_CHATUX_003`.
@@ -34094,7 +34137,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/agentux_mention_hint.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `CHATUX-007` **[PHASE_3][SOL_HIGH] The Saved count looks like an alert, and unread conversations are hard to tell apart.**
+- [x] `CHATUX-007` **[PHASE_3][SOL_HIGH] The Saved count looks like an alert, and unread conversations are hard to tell apart.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_007`, `TestTodo_CHATUX_007_Accessibility` and their companions pass in `internal/humanwork/chatui` (lanes 4 and 9 runs). On the review server the Saved count is plain text at the row's end and unread conversations are bold with a count. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=red means something needs attention; a count of saved items does not`.
   - **TEST:** `TestTodo_CHATUX_007`.
@@ -34136,7 +34180,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/search_filters.go`, `internal/humanwork/chatui/chatsearch_results.go`.
 
-- [ ] `CHATUX-011` **[PHASE_3][SOL_HIGH] At phone width the empty composer takes a third of the screen.**
+- [x] `CHATUX-011` **[PHASE_3][SOL_HIGH] At phone width the empty composer takes a third of the screen.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_011`, `TestTodo_CHATUX_011_Browser` and `TestTodo_CHATUX_011_Cascade` pass in `internal/humanwork/chatui` (lanes 15 and S11 runs). On the review server (headless, build of 08:00, 390 x 844) the empty composer is one row 53 px high of an 844 px screen with Send beside it. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use, be clear and easy to understand"); WHY=on a phone the conversation is the scarce thing`.
   - **TEST:** `TestTodo_CHATUX_011`.
@@ -34157,7 +34202,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/chatstate_status.go`.
 
-- [ ] `CHATEMOJI-004` **[PHASE_3][SOL_HIGH] Remember each person's emoji choices on the server.**
+- [x] `CHATEMOJI-004` **[PHASE_3][SOL_HIGH] Remember each person's emoji choices on the server.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATEMOJI_004` and `TestTodo_CHATEMOJI_004_Browser` pass in `internal/humanwork/chatui`, with the `TestTodo_CHATEMOJI_004_*` tests in `tools/uxqual/cmd/journeywasm` and `internal/collaboration/chatrecipient` (lane 6 run, behaviour already built on the existing preferences store). On the review server the picker's Frequently used row and the hover bar's reactions were the same after a fresh sign-in in a new browser context. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("use the international list of all emojis and make sure they are searchable"); WHY=a skin tone chosen once should not be asked for again on another device or after a reload`.
   - **TEST:** `TestTodo_CHATEMOJI_004`.
@@ -34167,7 +34213,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatemoji_js.go`, `tools/uxqual/cmd/journeywasm/chatvoice_playback_wasm.go`, `internal/collaboration/chat`.
 
-- [ ] `CHATBUG-037` **[PHASE_3][SOL_HIGH] A shared message link prints its long address in the middle of the sentence.**
+- [x] `CHATBUG-037` **[PHASE_3][SOL_HIGH] A shared message link prints its long address in the middle of the sentence.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_037`, `TestTodo_CHATBUG_037_Browser` and `TestTodo_CHATBUG_037_OtherHostName` pass in `internal/humanwork/chatui` (lane 1 run, which found the behaviour already built and removed the last break-all rule). Not looked at in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=an opaque address is unreadable and pushes the words apart`.
   - **TEST:** `TestTodo_CHATBUG_037`.
@@ -34177,7 +34224,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `CHATBUG-038` **[PHASE_3][SOL_HIGH] The composer keeps the preview of a link after the message is sent.**
+- [x] `CHATBUG-038` **[PHASE_3][SOL_HIGH] The composer keeps the preview of a link after the message is sent.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_038_Composer` and `TestTodo_CHATBUG_038_Browser` pass in `internal/humanwork/chatui` and `TestTodo_CHATBUG_038` in `tools/uxqual/cmd/journeywasm` (lane 1 run). Not looked at in a browser in this pass. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("do a quick visual scan every minute and check for the issues ... spawn new todos to handle them"); WHY=the leftover card fills half the empty composer and looks like an unsent draft`.
   - **TEST:** `TestTodo_CHATBUG_038`.
@@ -34305,7 +34353,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_chat_surface_progress.go`, `internal/application/agentrun_recovery_dispatch.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/chatux003_card.go`.
 
-- [ ] `CHATBUG-048` **[PHASE_3][SOL_HIGH] Manage channel is a stack of rows in three different sizes, and its Filters note talks about direct messages.**
+- [x] `CHATBUG-048` **[PHASE_3][SOL_HIGH] Manage channel is a stack of rows in three different sizes, and its Filters note talks about direct messages.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_048` and `TestTodo_CHATBUG_048_Browser` pass in `internal/humanwork/chatui` (lane 3 run). On the review server Manage channel is three captioned groups (Channel, Rules and language, Apps) of rows in one style, and the filter note about direct messages no longer shows in a channel (shot `shots/v1/07-deleted.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=the section a channel manager uses most reads as unfinished and one sentence is about the wrong kind of conversation`.
   - **TEST:** `TestTodo_CHATBUG_048`.
@@ -34325,7 +34374,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_run_executor.go`, `internal/agentic/agenteval`.
 
-- [ ] `CHATLANG-007` **[PHASE_3][SOL_HIGH] Workspace translation settings sit inside one channel's details and give no sign of being saved.**
+- [x] `CHATLANG-007` **[PHASE_3][SOL_HIGH] Workspace translation settings sit inside one channel's details and give no sign of being saved.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATLANG_007` and `TestTodo_CHATLANG_007_Browser` pass in `internal/humanwork/chatui` (lane 3 run). On the review server the workspace translation settings are on the Chat settings administration page under a Translation heading, and a channel's details hold one "Translation - Follow the workspace" row (shot `shots/v3/10-chat-settings.png`). CI remains the run evidence.
   - **Depends:** `CHATLANG-006`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("slow down spawning agents and focus on quality"); WHY=an administrator changing a workspace-wide setting from inside #general cannot tell what it applies to or whether it was saved`.
   - **TEST:** `TestTodo_CHATLANG_007`.
@@ -34345,7 +34395,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatlayer_state.go`, `internal/humanwork/chatui/agentux_chat5_layers_js.go`, `tools/uxqual/cmd/journeywasm/chatsave002_browser_wasm.go`.
 
-- [ ] `CHATBUG-052` **[PHASE_3][SOL_HIGH] Moderation, search results and Saved have no address, and the tab keeps an old title.**
+- [x] `CHATBUG-052` **[PHASE_3][SOL_HIGH] Moderation, search results and Saved have no address, and the tab keeps an old title.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_052` passes in `internal/humanwork/chatui` and `tools/uxqual/cmd/journeywasm`, with `TestTodo_CHATBUG_052_Browser` (lane 4 run). On the review server the address reads `#search=carry+over`, `#saved` and `#moderation`, the tab title reads "Search: carry over - Chat", "Saved - Chat" and "Moderation - Chat", and a reload on the search address restores the results. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=Back does not return to them, they cannot be linked or reloaded, and the tab names the wrong conversation`.
   - **TEST:** `TestTodo_CHATBUG_052`.
@@ -34355,7 +34406,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`, `internal/humanwork/chatui/chatmod005_page.go`.
 
-- [ ] `CHATBUG-053` **[PHASE_3][SOL_HIGH] A long address in a message is printed in full, is not a link and breaks in the middle.**
+- [x] `CHATBUG-053` **[PHASE_3][SOL_HIGH] A long address in a message is printed in full, is not a link and breaks in the middle.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_053` passes in `internal/humanwork/chatui` (lane 1 run). On the review server the scratch message's 95-character address is a link drawn as "https://example.com/.../going/for/a/while?with=query&and=..." on one line, with the whole address as its target. The browser-matrix test is being added by the follow-up lane. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=four lines of characters push the conversation apart and cannot be clicked`.
   - **TEST:** `TestTodo_CHATBUG_053`.
@@ -34365,7 +34417,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/markdown.go`, `internal/humanwork/chatui/chatbug037_links.go`.
 
-- [ ] `CHATBUG-054` **[PHASE_3][SOL_HIGH] A failed agent answer is a dead end and is laid out unlike an answered one.**
+- [x] `CHATBUG-054` **[PHASE_3][SOL_HIGH] A failed agent answer is a dead end and is laid out unlike an answered one.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_054` passes in `internal/humanwork/chatui` (with `TestTodo_CHATBUG_054_Browser`), `tools/uxqual/cmd/journeywasm` and `internal/application` (`TestTodo_CHATBUG_054_Integration`) (lane 5 run). No failed answer exists on the review cell to look at, and producing one would need a paid run, so the page layout rests on the browser-level render test. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the person is told the answer was interrupted and given nothing to press`.
   - **TEST:** `TestTodo_CHATBUG_054`.
@@ -34375,7 +34428,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/chatux003_card.go`, `internal/humanwork/chatui/agentux_chat4_reply.go`.
 
-- [ ] `CHATBUG-055` **[PHASE_3][SOL_HIGH] Search results show a raw document reference, repeat themselves and do not look like messages.**
+- [x] `CHATBUG-055` **[PHASE_3][SOL_HIGH] Search results show a raw document reference, repeat themselves and do not look like messages.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_055` and `TestTodo_CHATBUG_055_Browser` pass in `internal/humanwork/chatui` (lane 4 run). On the review server results are drawn like messages (avatar, name, time, text), an agent answer is listed once under Agent answers and not again under Messages, and no raw document reference is shown (shot `shots/v4/01-search.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the results page is where a person decides which message to open; it must read like the conversation`.
   - **TEST:** `TestTodo_CHATBUG_055`.
@@ -34385,7 +34439,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chatsearch_wasm.go`, `internal/humanwork/chatui/chatsearch_view.go`, `internal/humanwork/chatui/chatsearch_styles.go`.
 
-- [ ] `CHATBUG-056` **[PHASE_3][SOL_HIGH] The command list offers one command and a hint that does nothing.**
+- [x] `CHATBUG-056` **[PHASE_3][SOL_HIGH] The command list offers one command and a hint that does nothing.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_056`, `TestTodo_CHATBUG_056_Chosen` and `TestTodo_CHATBUG_056_Browser` pass in `internal/humanwork/chatui` (lanes 2 and 10 runs). On the review server typing "/" lists /poll, /todo, /giphy and /location with a one-line description each, "/po" narrows it to /poll, and the hint reads "Up/Down to move - Enter or Tab to choose - Esc to close" (shots `shots/v23/20-slash-random.png`, `21-slash-po.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the commands a person was told about are not in the list they open`.
   - **TEST:** `TestTodo_CHATBUG_056`.
@@ -34395,7 +34450,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/composer_commands.go`, `internal/humanwork/chatui/chatcmd003_preview.go`.
 
-- [ ] `CHATBUG-057` **[PHASE_3][SOL_HIGH] Poll in the add menu opens the old channel widget, and voting in it does nothing.**
+- [x] `CHATBUG-057` **[PHASE_3][SOL_HIGH] Poll in the add menu opens the old channel widget, and voting in it does nothing.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_057` and its `_OneField`, `_Refused`, `_Settings`, `_Reload`, `_Anonymous`, `_States`, `_Standing`, `_Move` and `_Browser` tests pass in `internal/humanwork/chatui`; `TestTodo_CHATBUG_057`, `_Security`, `_Anonymous`, `_Results`, `_Race`, `_Integration` in `internal/data/chatstore`; `TestTodo_CHATBUG_057`, `_Security`, `_Integration`, `_Served` in `internal/application`; `TestTodo_CHATBUG_057`, `_Sync` in `tools/uxqual/cmd/journeywasm` (lanes 2 and 10 runs). On the review server (headless, build of 04:58, scratch channel): Add, Poll writes "/poll " into the composer with the cursor after it; typing "Where for lunch? Tacos, pho or pizza" draws the card preview above the composer; Enter posts the card (7 messages before, 8 after, composer empty); pressing "Vote: Tacos" changes the card to "1 vote - Tacos 1 - 100% - you" (shots `.artifacts/lanes/agent-ui/shots/v23/40-poll-preview.png`, `41-poll-posted.png`, `42-poll-voted.png`). The older standing poll under the header is moved by its starter with "Move it here"; its own vote button is tracked in CHATCMD-002. CI remains the run evidence.
   - **Depends:** `CHATCMD-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the first thing a person tries from the add menu does not post anything and cannot be answered`.
   - **TEST:** `TestTodo_CHATBUG_057`.
@@ -34415,7 +34471,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/chatlang003_worker.go`, `internal/data/chatstore/chatrender_language.go`, `internal/humanwork/chatui/chatlang002_view.go`.
 
-- [ ] `CHATBUG-058` **[PHASE_3][SOL_HIGH] The reading-language row prints its label over its value, and its form is sixteen checkboxes long.**
+- [x] `CHATBUG-058` **[PHASE_3][SOL_HIGH] The reading-language row prints its label over its value, and its form is sixteen checkboxes long.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_058` and `TestTodo_CHATBUG_058_Browser` pass in `internal/humanwork/chatui` (lane 3 run). On the review server Chat preferences shows "Reading language - English - Change" as one row and Conversation details has a "Reading in this conversation - English" row (shot `shots/v3/09-prefs.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the one setting most people want (which language to read in) is buried under two lists few will use`.
   - **TEST:** `TestTodo_CHATBUG_058`.
@@ -34425,7 +34482,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatbug045_prefs.go`, `internal/humanwork/chatui/chatrender_components.go`, `internal/humanwork/chatui/chatlang002_view.go`.
 
-- [ ] `CHATBUG-059` **[PHASE_3][SOL_HIGH] In German, an English error line sits above a member list that loaded, and some words are not translated.**
+- [x] `CHATBUG-059` **[PHASE_3][SOL_HIGH] In German, an English error line sits above a member list that loaded, and some words are not translated.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_059`, `TestTodo_CHATBUG_059_Browser` (about 85 surfaces in three languages), `TestTodo_CHATBUG_059_Catalog` in `internal/humanwork/productui` and `TestTodo_CHATBUG_059_Notices` in `tools/uxqual/cmd/journeywasm` pass (lane S11 run). On the review server (headless, build of 08:00, German) the conversation view shows none of the English words Send, Saved, Channels, Direct messages, Helpful, Not right, Sources, members, Archived, Search Chat or reply, and no error line sits above the member list. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a German reader sees an alarm in another language about something that is working`.
   - **TEST:** `TestTodo_CHATBUG_059`.
@@ -34435,7 +34493,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `internal/humanwork/chatui/chatbug039_copy.go`, `internal/humanwork/chatui/chatux005_details.go`.
 
-- [ ] `CHATBUG-060` **[PHASE_3][SOL_HIGH] In Arabic the search placeholder runs under the shortcut badge and the Send arrow points the wrong way.**
+- [x] `CHATBUG-060` **[PHASE_3][SOL_HIGH] In Arabic the search placeholder runs under the shortcut badge and the Send arrow points the wrong way.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_060`, `TestTodo_CHATBUG_060_Browser` and `TestTodo_CHATBUG_060_Cascade` pass in `internal/humanwork/chatui` (lanes 15 and S11 runs). On the review server (headless, build of 08:00, Arabic) the workspace is right-to-left, the search placeholder clears the Ctrl+K badge and the Send icon is mirrored (computed transform matrix(-1, 0, 0, 1, 0, 0)). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=right-to-left readers get a clipped field and a control that points backwards`.
   - **TEST:** `TestTodo_CHATBUG_060`.
@@ -34445,7 +34504,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux002_sidebar.go`, `internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/chatpolish_styles.go`.
 
-- [ ] `CHATUX-013` **[PHASE_3][SOL_HIGH] On a phone, two rows of application controls sit above every conversation and the search field shows a keyboard shortcut.**
+- [x] `CHATUX-013` **[PHASE_3][SOL_HIGH] On a phone, two rows of application controls sit above every conversation and the search field shows a keyboard shortcut.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_013`, `TestTodo_CHATUX_013_Browser` and `TestTodo_CHATUX_013_Band` pass in `internal/humanwork/chatui` (lanes 4 and 9 runs). On the review server at 390 px the conversation header sits directly under the one-row application bar with no empty band, and the search field shows no keyboard shortcut (shot `shots/v9/09-phone-sheet.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a fifth of a phone screen is spent before the first message`.
   - **TEST:** `TestTodo_CHATUX_013`.
@@ -34455,7 +34515,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatpolish_styles.go`, `internal/humanwork/workspace`.
 
-- [ ] `CHATUX-014` **[PHASE_3][SOL_HIGH] The thread composer has different tools from the conversation composer.**
+- [x] `CHATUX-014` **[PHASE_3][SOL_HIGH] The thread composer has different tools from the conversation composer.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_014` and `TestTodo_CHATUX_014_Browser` pass in `internal/humanwork/chatui` (lane 4 run). On the review server the thread composer offers Bold, Italic, Code, Link, Bulleted list, Quote, Mention someone, Insert emoji, Formatting and "Also send to #random" (shot `shots/v4/06-thread.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person learns the composer once and expects it everywhere`.
   - **TEST:** `TestTodo_CHATUX_014`.
@@ -34475,7 +34536,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux002_sidebar.go`, `internal/humanwork/chatui/chatux001_create.go`, `internal/humanwork/chatui/chatmod005_page.go`.
 
-- [ ] `CHATUX-016` **[PHASE_3][SOL_HIGH] An agent conversation's header cuts its description and its privacy note mid-sentence.**
+- [x] `CHATUX-016` **[PHASE_3][SOL_HIGH] An agent conversation's header cuts its description and its privacy note mid-sentence.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_016` and `TestTodo_CHATUX_016_Browser` pass in `internal/humanwork/chatui` (lane 5 run). On the review server the Assistant and Policy Helper conversations show name, Agent, "Private to you" on one line and the full description on its own line, uncut at 1280 px (shots `shots/v5/03-policy-dm.png`, `04-assistant-dm.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the header is the one place that says who this agent is and who can see the conversation`.
   - **TEST:** `TestTodo_CHATUX_016`.
@@ -34485,7 +34547,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_chat5_findings.go`.
 
-- [ ] `CHATBUG-061` **[PHASE_3][SOL_HIGH] An agent answer card has an empty band under its buttons.**
+- [x] `CHATBUG-061` **[PHASE_3][SOL_HIGH] An agent answer card has an empty band under its buttons.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_061` and `TestTodo_CHATBUG_061_Browser` pass in `internal/humanwork/chatui` and `TestTodo_CHATBUG_061` in `tools/uxqual/cmd/journeywasm` (lane 5 run). On the review server the answer card in #general ends directly under its action row with no empty band (shot `shots/v5/01-general.png`). CI remains the run evidence.
   - **Depends:** `CHATBUG-040`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the card looks unfinished and pushes the next message down for nothing`.
   - **TEST:** `TestTodo_CHATBUG_061`.
@@ -34495,7 +34558,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatbug040_reserve.go`, `internal/humanwork/chatui/chatux003_card.go`.
 
-- [ ] `CHATUX-017` **[PHASE_3][SOL_HIGH] An agent's details in a conversation read like a system record.**
+- [x] `CHATUX-017` **[PHASE_3][SOL_HIGH] An agent's details in a conversation read like a system record.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_017` and `TestTodo_CHATUX_017_Browser` pass in `internal/humanwork/chatui` (lane 5 run). On the review server the agent row in Conversation details shows the agent's icon, name, purpose and "Manage in Agent setup", with the fuller summary behind its disclosure, and a direct message with an agent has no Manage channel and no Ask button (shot `shots/v5/05-assistant-details.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person deciding whether to ask the agent learns nothing they can use and sees an identifier`.
   - **TEST:** `TestTodo_CHATUX_017`.
@@ -34516,7 +34580,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** the routed addresses of each Chat surface come from one table that the client and the served assembly both read, so a new address cannot be added on one side only.
   - **Refs:** `internal/application/agent_served_assembly.go`, `internal/application/chatfilter_http.go`, `tools/uxqual/cmd/journeywasm/chatfilter_client.go`.
 
-- [ ] `CHATBUG-063` **[PHASE_3][SOL_HIGH] An ordinary message gets an agent failure card from an agent called "Persona".**
+- [x] `CHATBUG-063` **[PHASE_3][SOL_HIGH] An ordinary message gets an agent failure card from an agent called "Persona".**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_063` passes in `internal/application` and `internal/humanwork/chatui`, with `TestTodo_CHATBUG_063_Browser` (lane 5 run). On the review server #announcements shows no agent card under an ordinary message and no agent named "Persona" (shot `shots/v5/02-announcements.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person who asked no agent is told an agent failed, and is offered a button that would start a paid run`.
   - **TEST:** `TestTodo_CHATBUG_063`.
@@ -34526,7 +34591,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatbug040_reserve.go`, `tools/uxqual/cmd/journeywasm/chat_state.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/chatui/agentux_reply_row.go`.
 
-- [ ] `CHATBUG-064` **[PHASE_3][SOL_HIGH] On a phone a message cannot be reacted to or replied to in a thread.**
+- [x] `CHATBUG-064` **[PHASE_3][SOL_HIGH] On a phone a message cannot be reacted to or replied to in a thread.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_064` and `TestTodo_CHATBUG_064_Browser` pass in `internal/humanwork/chatui` (lane 4 run). On the review server (headless, 390 px touch context, build of 04:58) tapping a message shows its More button and tapping that opens a sheet from the bottom edge (0,284 390x560) with a row of three reactions and Add reaction, then Reply in thread, Save for later, Mark unread from here, Copy link, Copy text, Share to channel, Pin message, Report message and Remove for everyone (shot `.artifacts/lanes/agent-ui/shots/v9/09-phone-sheet.png`). CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the two most common actions on a message are missing on the device most people use`.
   - **TEST:** `TestTodo_CHATBUG_064`.
@@ -34536,7 +34602,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatpolish_styles.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/events_js.go`.
 
-- [ ] `CHATBUG-065` **[PHASE_3][SOL_HIGH] In a direct message the Add and Record voice buttons sit on top of each other.**
+- [x] `CHATBUG-065` **[PHASE_3][SOL_HIGH] In a direct message the Add and Record voice buttons sit on top of each other.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_065`, `TestTodo_CHATBUG_065_Browser` and `TestTodo_CHATBUG_065_Cascade` pass in `internal/humanwork/chatui` (lane S11 run). On the review server (headless, build of 08:00) the composer in the direct conversation with Loretta Haynes shows Add, Mention, Emoji, Formatting and Send with no two controls overlapping; recording a voice message is reached from the Add menu. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=one of the two cannot be pressed and the composer looks different from a channel's`.
   - **TEST:** `TestTodo_CHATBUG_065`.
@@ -34546,7 +34613,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/composer_tools.go`, `internal/humanwork/chatui/chatvoice_view.go`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`.
 
-- [ ] `CHATUX-018` **[PHASE_3][SOL_HIGH] The filter panel is in larger type than the panel it sits in, and a blocked message does not show which word.**
+- [x] `CHATUX-018` **[PHASE_3][SOL_HIGH] The filter panel is in larger type than the panel it sits in, and a blocked message does not show which word.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_018`, `TestTodo_CHATUX_018_Browser`, `TestTodo_CHATUX_018_RuleLine` and `TestTodo_CHATUX_018_Cascade` pass in `internal/humanwork/chatui` (lane S11 run; the type-scale rule had an empty selector the browser dropped, now fixed and guarded by a test). On the review server (headless, build of 07:43) the filter panel in Conversation details is set in the panel's small type (shot `.artifacts/lanes/agent-ui/shots/min/000-details-9.png`). CI remains the run evidence.
   - **Depends:** `CHATMOD-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the panel reads as a different product, and the author has to find the word themselves`.
   - **TEST:** `TestTodo_CHATUX_018`.
@@ -34556,7 +34624,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatfilter_view.go`, `internal/humanwork/chatui/chatmod002_composer.go`.
 
-- [ ] `CHATUX-019` **[PHASE_3][SOL_HIGH] Small unclear things in Conversation details: notification choice, pinned items, reaction names.**
+- [x] `CHATUX-019` **[PHASE_3][SOL_HIGH] Small unclear things in Conversation details: notification choice, pinned items, reaction names.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_019`, `TestTodo_CHATUX_019_Accessibility` and `TestTodo_CHATUX_019_Browser` pass in `internal/humanwork/chatui` (lane 3 run). On the review server (headless, build of 03:17) Notifications for me is a radio group with All messages checked, and the pinned item shows the formatted text, "Pinned by Walt Brennan - 12:57 AM", Copy link and Unpin (shots `.artifacts/lanes/agent-ui/shots/v23/02-details-notifications.png`, `shots/v3/err-addPerson.png`). CI remains the run evidence.
   - **Depends:** `CHATUX-005`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=each one makes a person stop and guess what is selected or what a control will do`.
   - **TEST:** `TestTodo_CHATUX_019`.
@@ -34566,7 +34635,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/chatemoji_nodes.go`.
 
-- [ ] `CHATBUG-066` **[PHASE_3][SOL_HIGH] A rating on an agent answer is forgotten by the page after a reload.**
+- [x] `CHATBUG-066` **[PHASE_3][SOL_HIGH] A rating on an agent answer is forgotten by the page after a reload.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_066` passes in `internal/application`, `internal/humanwork/chatui` (with `TestTodo_CHATBUG_066_Browser`) and `tools/uxqual/cmd/journeywasm`, and `TestTodo_CHATBUG_066_Integration` against the real store (lane 5 run). On the review server a fresh browser context shows the Helpful button on the 11:18 answer filled and `aria-pressed=true` from first paint. CI remains the run evidence.
   - **Depends:** `CHATUX-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the person cannot tell whether they already rated the answer and may rate it twice`.
   - **TEST:** `TestTodo_CHATBUG_066`.
@@ -34576,7 +34646,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_chat_surface_progress.go`, `internal/humanwork/chatui/chatux003_card.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `CHATBUG-067` **[PHASE_3][SOL_HIGH] Share to channel is refused and the card says only to try again.**
+- [x] `CHATBUG-067` **[PHASE_3][SOL_HIGH] Share to channel is refused and the card says only to try again.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_067` passes in `internal/application` and `internal/humanwork/chatui` (with `TestTodo_CHATBUG_067_Browser`) and `tools/uxqual/cmd/journeywasm` (lane 5 run). On the review server (headless, build of 04:05) pressing Share to channel on the private 11:18 answer in #general was accepted with no failed request: the card reads "Shared to #general" and the question shows "1 reply" holding the shared copy (shot `.artifacts/lanes/agent-ui/shots/v5/11-share-done.png`). The missing confirmation and the stale "Only visible to you" mark are tracked in CHATUX-026. CI remains the run evidence.
   - **Depends:** `AGENTUX-070`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=the one action that makes a private answer useful to the team does not work and gives no reason`.
   - **TEST:** `TestTodo_CHATBUG_067`.
@@ -34586,7 +34657,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/agentux070_share.go`, `internal/transport/personachat/http.go`, `internal/humanwork/chatui/chatux003_card.go`, `tools/uxqual/cmd/journeywasm/agentux070_share_wasm.go`.
 
-- [ ] `CHATBUG-068` **[PHASE_3][SOL_HIGH] An open tab changed conversation by itself.**
+- [x] `CHATBUG-068` **[PHASE_3][SOL_HIGH] An open tab changed conversation by itself.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_068`, `TestTodo_CHATBUG_068_Browser`, `TestTodo_CHATBUG_068_ListReadNeverMovesTheOpenConversation`, `TestTodo_CHATBUG_068_DraftFromAnotherSessionNeverReplacesTheComposer` and `TestTodo_CHATBUG_068_TwoSessionsOfOnePersonDoNotMoveEachOther` pass in `tools/uxqual/cmd/journeywasm` and `internal/humanwork/chatui` (lane S17 run). On the review server (headless, build of 08:00, two sessions of one person on different conversations) neither session changed conversation while the other navigated, and Back returned to the previous conversation. CI remains the run evidence.
   - **Depends:** `AGENTUX-071`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("you review every inch of the UI/UX and create new todos for later"); WHY=a person typing in one conversation must never find themselves in another`.
   - **TEST:** `TestTodo_CHATBUG_068`.
@@ -34605,3 +34677,494 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **GREEN:** an announcement made with a retired installation is named from the agent as it is installed in that conversation now (done 2026-10-02, test passing); a record that still cannot be named is left out of the list instead of failing it (done); to do: such a record is shown as "Agent no longer in this conversation" with Delete, a scheduled announcement is moved to the new installation or paused with a reason when its installation is retired, and the tab's address survives a load.
   - **REFACTOR:** none.
   - **Refs:** `internal/application/agentux_proactive_names.go`, `internal/application/agentux_proactive_surface.go`, `internal/application/agentux_runtime_prepare.go`, `internal/humanwork/productui/agentux_proactive_announcements.go`.
+
+- [x] `CHATBUG-070` **[PHASE_3][SOL_HIGH] Deleting a message fails for everyone: the database refuses it.**
+  - **Evidence (2026-10-02, test run and headless browser):** `TestTodo_CHATBUG_070` in `internal/data/chatstore` fails with SQLSTATE 42501 at schema 38 and passes at 39 (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3); migration `00039_chatbug070_delete_grant.sql` applied to the review chat database (`has_table_privilege` now true for the three tables); in a headless browser on the review server a sent message was deleted from its menu (5 messages before, 4 after, no error banner; `.artifacts/lanes/agent-ui/probe-delete070.mjs`). CI remains the run evidence.
+  - **Depends:** `CHAT-026`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=nobody can delete their own message`.
+  - **TEST:** `TestTodo_CHATBUG_070`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_070`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) More actions, Delete message on three of the person's own messages shows "We couldn't delete this message. The service did not answer. Try again." and the message stays. Server log: `/hcmnext.chat.v1.ConversationService/DeletePost`, `error_type=DATABASE_FAILURE`. Cause: the trigger `chatrender_remove_views` on `chat_post` deletes from `chatrender_rendering`, `chatrender_job` and `chatrender_report` when a post becomes a tombstone, as the caller, and the runtime role had no DELETE on those tables; the store tests run as superuser and passed.
+  - **GREEN:** migration 39 gives every role that may update posts DELETE on the three tables; a store test holding exactly the runtime role's default grants tombstones a post, refused before the migration and accepted after.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/data/chatstore/migrations/00039_chatbug070_delete_grant.sql`, `internal/data/chatstore/chatbug070_delete_grant_test.go`, `internal/data/chatstore/migrations/00024_chatrender_views.sql`, `internal/data/chatstore/contracts_adapter.go`.
+- [x] `CHATBUG-071` **[PHASE_3][SOL_HIGH] Mentioning a person is treated as asking an agent, and the message does not send.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_071`, `TestTodo_CHATBUG_071_Browser`, `TestTodo_CHATBUG_071_PageSequence` and the outside, render and pick tests pass in `internal/humanwork/chatui`, and `TestTodo_CHATBUG_071_MemberMention` in `tools/uxqual/cmd/journeywasm` (lane S10 run). On the review server (headless, build of 07:06) typing "hi @Sofia" in #random and picking Sofia Beltran, who is not a member, inserts the mention and draws under the composer "Sofia Beltran is not in this conversation and will not be notified." with "Add Sofia Beltran"; the note stays while more text is typed, and the mention menu lists people and agents in separate groups. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the most common way to address a colleague shows an agent warning and then silently refuses to send`.
+  - **TEST:** `TestTodo_CHATBUG_071`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_071`; `BROWSER=TestTodo_CHATBUG_071_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) typing "hello @Lor" and choosing Loretta Haynes puts a chip "@Loretta Haynes" in front of the draft in addition to the mention in the text, and under the draft: "Everyone in #General Chat! will see your question and Loretta Haynes's answer. To keep the answer to yourself, add "keep this private"."; Enter does not send and gives no reason (3 messages before, 3 after, draft kept); in the pane the first press of Send did nothing either and a later one sent it. The sent message stores `references_json = []` and shows "@Sofia Beltran" as plain text; Sofia Beltran is not a member of the conversation and was offered with no note. A message with no mention sends on the first Enter.
+  - **GREEN:** choosing a person puts one mention in the text and no leading chip, and shows no agent hint (the hint is for agents only); Enter and Send send on the first press; the stored message carries a mention reference for the person, is drawn as a mention that opens their details, and notifies them; choosing someone who is not in the conversation says so under the draft and offers to add them.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/mention.go`, `internal/humanwork/chatui/mention_refs.go`, `internal/humanwork/chatui/agentux_chat5_composer.go`, `internal/humanwork/chatui/chatux006_hint.go`, `tools/uxqual/cmd/journeywasm/chat_recipient_wasm.go`.
+
+- [x] `CHATBUG-072` **[PHASE_3][SOL_HIGH] A channel can be created with a name the form says is not allowed, and that name breaks search.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_072` and `TestTodo_CHATBUG_072_Browser` pass with `TestTodo_CHATBUG_072_ServiceRefusesABrokenRename` in `internal/collaboration/chat` (lanes 3 and S17 runs): the form, the service and rename apply one naming rule. On the review server (headless, build of 07:43) the Create conversation dialog states the rule under the Name field ("Lowercase, no spaces. Use dashes, like design-reviews.") and keeps Create disabled until the name is valid. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the rule printed under the field is not enforced anywhere, and the result cannot be searched`.
+  - **TEST:** `TestTodo_CHATBUG_072`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_072`; `BROWSER=TestTodo_CHATBUG_072_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) Create conversation, Public channel, name "General Chat!": the hint reads "Lowercase, no spaces. Use dashes, like design-reviews." and Create channel is enabled; the service stores `General Chat!`; the address becomes `#channel=General+Chat%21`; the new row is added under "sales" out of order while Browse channels sorts it. In search the chip "In #General Chat!" is drawn like an active filter while the results include #incident-review; pressing it rewrites the query to `item in:#General Chat!`, read as channel "#General" plus the word "Chat!", and finds nothing ("Remove filter: In a channel #General").
+  - **GREEN:** the name field lowercases as typed, turns spaces into dashes and refuses other characters with the reason under the field; the service applies the same rule and answers with a field error; names that already break the rule keep working: the `in:` filter accepts a quoted name and the chip filters by the channel's identifier; the sidebar sorts a new channel into place; the scope chip reads as an offer ("Search only in #name") until pressed and as a removable filter after.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/dialogs.go`, `internal/humanwork/chatui/search_filters.go`, `internal/humanwork/chatui/chatsearch_results.go`, `internal/collaboration/chat/service.go`, `tools/uxqual/cmd/journeywasm/chat_channel_wasm.go`, `tools/uxqual/cmd/journeywasm/chatsearch_flow.go`.
+
+- [x] `CHATBUG-073` **[PHASE_3][SOL_HIGH] Editing a message: the box is not focused, shows two lines, and Enter does not save.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_073` and `TestTodo_CHATBUG_073_Browser` pass in `internal/humanwork/chatui` (lane 1 run). On the review server (headless, build of 02:42): ArrowUp in an empty composer opens the editor with the cursor at the end of the text, the box is 40 px for 38 px of text, the line under it reads "Enter to save, Shift+Enter for a new line, Esc to cancel", Enter saves, and "(edited)" sits under the message text. The saved text is now applied from the EditPost answer (`chat_wasm.go`), since waiting for the stream left the old text on screen. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=correcting a typo takes a click, a scroll and a reach for the mouse`.
+  - **TEST:** `TestTodo_CHATBUG_073`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_073`; `BROWSER=TestTodo_CHATBUG_073_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) Edit message opens a two-row box (62 px tall for 81 px of text) and leaves focus on the page (`document.activeElement` is BODY), so typing goes nowhere until the box is clicked; Enter adds a line while Enter sends in the composer, and nothing under the box says which key saves; after saving a grouped message the word "edited" is printed above its text, directly under the previous message's "1 reply", and reads as that message's; ArrowUp in an empty composer does not open the last message for editing. Escape cancels, Save changes saves.
+  - **GREEN:** Edit puts the cursor at the end of the text; the box grows with the text up to half the window; Enter saves and Shift+Enter adds a line, with the composer's key hint under the box; "edited" follows the message text; ArrowUp in an empty composer edits the person's latest message in that conversation.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/edit_focus_js.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/keys_js.go`, `internal/humanwork/chatui/chatmsglist_styles.go`.
+
+- [ ] `CHATBUG-074` **[PHASE_3][SOL_HIGH] To-do list: Enter does not add a task, and every task carries a two-line permission row.**
+  - **Depends:** `CHATBUG-057`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=adding three tasks takes three trips to a button, and the list is mostly permission text`.
+  - **TEST:** `TestTodo_CHATBUG_074`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_074`; `BROWSER=TestTodo_CHATBUG_074_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) Add, To-do list: typing a task and pressing Enter leaves the text in the field and adds nothing; only "Add a task" adds. Each task shows "Who can complete or reopen this task: Everyone" as a two-line row under it. More options prints "Attach pinned message" in small type and "Who can complete or reopen this task" in large type. The pin button adds a header button, a third way in beside the chip under the header and the add menu. Opened from the chip the card's left 160 px lie over the sidebar; opened from the add menu it sits at 19,455, over the rail, the sidebar and the composer (CHATBUG-051). A conversation holds one poll and offers no way to close it or start another.
+  - **GREEN:** Enter adds the task and keeps the cursor in the field; a task is one line (checkbox, text, who finished it, remove) with the permission in the row's menu and shown only when it is not Everyone; More options uses the panel's label style; the list and the poll each have one home, the chip under the header, and the add menu opens that same card anchored inside the conversation column; a poll can be closed by its author and a new one started.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/channel_widgets.go`, `internal/humanwork/chatui/channel_tray.go`, `internal/humanwork/chatui/channel_poll.go`, `internal/humanwork/chatui/todo_focus_js.go`, `tools/uxqual/cmd/journeywasm/chat_todo_wasm.go`.
+
+- [x] `CHATBUG-075` **[PHASE_3][SOL_HIGH] An open conversation asks for its status every five seconds and writes a server log line every second.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_075`, `_Integration` and `_Browser` pass in `internal/application`, `TestTodo_CHATBUG_075`, `_Signal` and `_Browser` in `tools/uxqual/cmd/journeywasm`, and `TestTodo_CHATBUG_075_Integration` and `_Security` in `internal/data/chatstore` (lanes 5 and 11 runs). On the review server three cold loads followed by 30 idle seconds made 0, 2 and 3 requests in the idle period (8 before, six of them status polls) (`.artifacts/lanes/agent-ui/perf-after-lane8.json`); the status change now travels over the conversation stream with a one-minute fallback read. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=each open tab costs a steady stream of requests and fills the log that is needed to diagnose real failures`.
+  - **TEST:** `TestTodo_CHATBUG_075`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_075`; `BROWSER=TestTodo_CHATBUG_075_Browser`.
+  - **RED:** (browser network log and server log, 2026-10-02 about 01:00) `GET /api/chat/v1/channel-status/{id}` is sent about every 5 s for the open conversation; the server writes `hcmnext.persona_projection_empty projection=chat_directory conversation_id=... available_profiles=2 reference_candidates=0` at INFO about once a second for as long as a conversation with no agent is open.
+  - **GREEN:** a conversation's status comes with the conversation read and then over its event stream; polling remains only as a one-minute fallback while the stream is down; the directory projection is read when the conversation opens and when membership or agent placement changes; an empty projection is logged once per conversation per process at DEBUG; a test counts requests and log lines over thirty seconds of an idle open conversation.
+  - **REFACTOR:** none.
+  - **Refs:** `tools/uxqual/cmd/journeywasm/chatstate_client.go`, `internal/application/chatstate_http.go`, `internal/application/persona_chat_surface_directory.go`, `internal/application/agent_available_personas.go`, `tools/uxqual/cmd/journeywasm/agentux_chat5_directory.go`.
+
+- [x] `CHATBUG-076` **[PHASE_3][SOL_HIGH] The message action bar covers the message's name, time and Pinned mark when the column is narrow.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_076` and `TestTodo_CHATBUG_076_Browser` pass in `internal/humanwork/chatui` (lane 1 run). On the review server at 1280 px with a thread open the action bar measured 644,158 276x24 and the author line 446,186 474x24: no overlap, name and Pinned mark uncut (shot `.artifacts/lanes/agent-ui/shots/v1/10-thread-bar.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=pointing at a message hides who wrote it and when`.
+  - **TEST:** `TestTodo_CHATBUG_076`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_076`; `BROWSER=TestTodo_CHATBUG_076_Browser`.
+  - **RED:** (headless, 1280 px, shots 11-thread and 13-saved) with a thread, details or Saved open the hover bar (eight buttons, about 290 px) lies on the author line: the name is cut to "Walt Bren..." and only "Pi" of "Pinned" shows; on a grouped message the bar sits on the boundary with the next message, so it is unclear which message it acts on.
+  - **GREEN:** the bar sits above the message's top edge, over the previous message's bottom padding and never over the author line; under 560 px of column width it shows reactions, Reply and More only; a grouped message is tinted while its bar is shown.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/message_menu_position.go`, `internal/humanwork/chatui/chatmsglist_styles.go`, `internal/humanwork/chatui/message_row_guard.go`.
+
+- [x] `CHATBUG-077` **[PHASE_3][SOL_HIGH] Search prints the count three times, reads "results" with no number when there are none, and agent answers have no conversation.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_077` and `TestTodo_CHATBUG_077_Browser` pass in `internal/humanwork/chatui` (lane 4 run). On the review server a search for "carry over" prints "5 results" once in the header, a search with no match reads "No results", the phrase is one highlight and "Carryover" is one highlight, and every result begins with its conversation (shot `shots/v4/01-search.png`). Recent searches under an empty field are not drawn yet (noted in CHATSEARCH-002). CI remains the run evidence.
+  - **Depends:** `CHATBUG-055`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the results page spends its first rows repeating itself and one kind of result cannot be placed`.
+  - **TEST:** `TestTodo_CHATBUG_077`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_077`; `BROWSER=TestTodo_CHATBUG_077_Browser`.
+  - **RED:** (browser pane and headless, 2026-10-02) with no match the header's second line is the bare word "results"; with matches the count is in the header, above the list and in the group heading ("6 results", "6 results", "Messages - 5"); a phrase is highlighted as one box per word and "Carryover" is drawn as two boxes; an agent's result reads "Policy Helper - Yesterday 11:18 AM" with no conversation while a person's starts with the conversation; recent searches sit under the results.
+  - **GREEN:** the count is printed once, in the header, and reads "No results" at zero; a matched phrase is one highlight and a word is never split; every result line starts with its conversation; recent searches are offered only while the field is empty.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatsearch_results.go`, `internal/humanwork/chatui/search_highlight.go`, `internal/humanwork/chatui/chatux010_search.go`, `tools/uxqual/cmd/journeywasm/chatsearch_state.go`.
+
+- [x] `CHATBUG-078` **[PHASE_3][SOL_HIGH] The Saved panel stays open over Moderation, and a deleted message stays in To do.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_078` passes in `tools/uxqual/cmd/journeywasm` and `TestTodo_CHATBUG_078_Browser` in `internal/humanwork/chatui` (lane 4 run). On the review server (headless, build of 03:05) opening Moderation with Saved open closes Saved, and only the Moderation row is drawn as selected (shot `.artifacts/lanes/agent-ui/shots/v4/05-moderation.png`). CI remains the run evidence.
+  - **Depends:** `CHATSAVE-002`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=one page is drawn under another, and the to-do count includes something that can no longer be done`.
+  - **TEST:** `TestTodo_CHATBUG_078`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_078`; `BROWSER=TestTodo_CHATBUG_078_Browser`.
+  - **RED:** (headless, 1280 px, shots 13-saved and 14-moderation) with Saved open, pressing Moderation draws the Moderation page under the Saved panel: "Nothing to review" is half hidden; Saved, Moderation and the last channel are all drawn as selected. Saved's To do lists "This message was deleted." and counts it ("2 to do").
+  - **GREEN:** opening Moderation or search closes Saved, or the page is laid out beside it; exactly one sidebar row is drawn as selected; a saved item whose message was deleted leaves To do and the count, and stays under All with a remove control.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatsave002_view.go`, `internal/humanwork/chatui/chatmod005_page.go`, `internal/humanwork/chatui/chatmod005_sidebar.go`, `tools/uxqual/cmd/journeywasm/chatsave_refresh.go`.
+
+- [x] `CHATBUG-079` **[PHASE_3][SOL_HIGH] A finished private answer shows "Finding an answer" for seconds after the page loads.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_079` and `TestTodo_CHATBUG_079_Browser` pass in `internal/humanwork/chatui` and `TestTodo_CHATBUG_079` in `tools/uxqual/cmd/journeywasm` (lane 5 run). On the review server (headless, fresh sign-in, build of 04:05) the page was sampled every 400 ms for 16 s after navigation: the text "Finding an answer" never appeared; messages were drawn at 9.6 s and the stored answer at 11.4 s (shot `.artifacts/lanes/agent-ui/shots/v5/01-general.png`). CI remains the run evidence.
+  - **Depends:** `CHATBUG-040`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=an answer from yesterday looks like a run that has just started, on a product where a run costs money`.
+  - **TEST:** `TestTodo_CHATBUG_079`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_079`; `BROWSER=TestTodo_CHATBUG_079_Browser`.
+  - **RED:** (headless, fresh sign-in, #general, 5 s after the composer appeared, shot 23-dark-general) the card under "@Policy Helper how many PTO hours carry over?", answered the day before, reads "Policy Helper - Finding an answer in your policy documents..." with the time 11:18 AM; the stored answer replaces it later. No run was started (`persona_invocations` unchanged, latest 2026-10-01 19:25).
+  - **GREEN:** a reserved card for a question that already has a stored answer shows a neutral loading row or the answer's skeleton; the working text appears only for a run whose state is running; a test loads a conversation with a stored private answer and fails if the working text is ever drawn.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug040_reserve.go`, `internal/humanwork/chatui/persona_progress.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
+
+- [x] `CHATBUG-080` **[PHASE_3][SOL_HIGH] At tablet width the bar above Chat shows an empty box with "EN" in it, and the rail lists Chat twice.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_080` and `TestTodo_CHATBUG_080_Browser` pass in `internal/humanwork/productui` (lane 4 run). On the review server at 820 px the top bar is one row (rail toggle, back, forward, search and go-to-page icons, language, notifications, account) and the rail lists Chat once (shot `shots/v4/11-tablet.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the first thing on the page at 820 px looks broken (application shell, seen on the Chat page)`.
+  - **TEST:** `TestTodo_CHATBUG_080`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_080`; `BROWSER=TestTodo_CHATBUG_080_Browser`.
+  - **RED:** (headless, 820 x 1000, shot 22-tablet-general) the top bar is a wide empty bordered box holding only the language code "EN", with back, forward, search and go-to-page on a second row; the rail holds two entries named "Chat" (first and seventh; keyboard order confirms both).
+  - **GREEN:** between 700 and 1000 px the top bar is one row: rail toggle, back and forward, a search field that shrinks to an icon, go-to-page, language, notifications, account; the rail has one Chat entry; a layout test at 820 px fails when a top-bar control is wider than its content needs.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/action_launcher.go`, `internal/humanwork/productui/i18n.go`.
+
+- [ ] `CHATUX-020` **[PHASE_3][SOL_HIGH] Sidebar: collapsing a section hides the open conversation, and the row menu offers moves that make no sense.**
+  - **Depends:** `CHATUX-015`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=people lose their place, and the menu does not hold the two things they look for`.
+  - **TEST:** `TestTodo_CHATUX_020`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_020`; `BROWSER=TestTodo_CHATUX_020_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) collapsing Channels hides the open channel and any unread ones; a channel's row menu offers "Move to Channels" although it is there and "Move to Direct messages", has "Move conversation up" and "down", and has neither Leave nor Mark as read or unread; the notification choices sit in the menu with no heading; a row holding an unsent draft has no mark; when a direct message is selected the list scrolls so that Saved and Moderation leave view and a channel row shows through above the pinned "Channels" heading (shots 35 and 37); Quiet hours offers UTC as the time zone before the device's own zone.
+  - **GREEN:** a collapsed section still shows the open conversation and unread ones; the row menu holds Mark as read or unread, a headed notification group, Move to section (only sections the row is not in and that fit its kind), and Leave for channels; a row with a draft shows a pencil; the section heading is opaque and the list keeps Saved and Moderation fixed above it; Quiet hours starts on the device's time zone.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/chatux007_unread.go`, `internal/humanwork/chatui/drafts.go`, `internal/humanwork/chatui/chatux002_prefs.go`, `internal/humanwork/chatui/timezone.go`.
+
+- [ ] `CHATUX-021` **[PHASE_3][SOL_HIGH] Conversation details: the purpose editor, status form and person view each take an extra step or mislead.**
+  - **Depends:** `CHATUX-019`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the panel people use to manage a channel has several places where the next step is unclear`.
+  - **TEST:** `TestTodo_CHATUX_021`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_021`; `BROWSER=TestTodo_CHATUX_021_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) the purpose editor repeats "Purpose" as the row and the field label, has Save and no Cancel, and stays open after saving with no sign it saved; once a purpose exists the header line shows it and drops "Public - N members"; Change status opens with a target already chosen ("Archived" in the pane, "Announcements only" headless) so Confirm can be pressed without choosing, and shows "End the lock at" for every status; Person details replaces Conversation details and its X returns to details instead of closing; adding a person posts nothing in the conversation; Members has a refresh icon; "Copy sample request for apps" is offered to every member; a direct message with an agent shows "Manage channel" and an Ask button for the agent the person is already writing to; the pinned preview prints raw markdown ("**bold**, _italic_, `code`").
+  - **GREEN:** the purpose is edited in place with Enter to save and Escape to cancel and shows "Saved" for two seconds; the header keeps visibility and member count and adds the purpose after them; Change status starts with nothing chosen and Confirm disabled until a status is picked, and shows the lock end only for Locked; Person details has a Back arrow and a Close; adding people posts a system line ("Walt Brennan added Loretta Haynes"); the member list refreshes itself; the sample request is shown only to people who can create an app token; a direct message has no Manage channel and no Ask button; pinned previews show formatted text.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatstate_status.go`, `internal/humanwork/chatui/integration_curl.go`, `internal/humanwork/chatui/mention_profile.go`, `internal/humanwork/chatui/chatux001_header.go`.
+
+- [x] `CHATUX-022` **[PHASE_3][SOL_HIGH] The message menu repeats the action bar and lacks Reply in thread and Mark unread.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_022` passes in `internal/collaboration/chat`, `internal/transport/chat`, `tools/uxqual/cmd/journeywasm` and `internal/humanwork/chatui` (with `TestTodo_CHATUX_022_Browser`), and `TestTodo_CHATUX_022_Integration` in `internal/data/chatstore` (lanes 1 and 6 runs). On the review server (headless, build of 03:40) a colleague's message menu reads Reply in thread, Mark unread from here, Copy link, Copy text, Share to channel, Report message, Remove for everyone; choosing Mark unread from here draws the New line above the message, marks #random unread, and after switching away the row shows a count of 2 (shots `.artifacts/lanes/agent-ui/shots/v6b/02-unread.png`, `03-unread-away.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the menu is eight rows long and still misses two everyday actions`.
+  - **TEST:** `TestTodo_CHATUX_022`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_022`; `BROWSER=TestTodo_CHATUX_022_Browser`.
+  - **RED:** (browser pane and headless browser, 2026-10-02 about 01:00, scratch channel) More actions lists Copy link, Copy message contents, Share to channel, Edit message, Message language, Pin message, Save for later and Delete message; Pin and Save are already on the bar one button away; Reply in thread and Mark unread from here are absent; "Message language..." sits between Edit and Pin.
+  - **GREEN:** the menu holds what the bar does not: Reply in thread (first), Mark unread from here, Copy link, Copy text, Share to channel, Edit, Delete, with Message language under a divider; Pin and Save stay on the bar and appear in the menu only on a phone, where there is no bar.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/message_menu.go`, `internal/humanwork/chatui/chatux007_unread.go`.
+
+- [x] `CHATUX-023` **[PHASE_3][SOL_HIGH] On a wide window messages stop at 670 px while the composer and day lines run the full width.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_023` and `TestTodo_CHATUX_023_Browser` pass in `internal/humanwork/chatui` (lane 4 run). On the review server at 1920 px the composer's right edge is at 1333 px and Send at 1331 px, the 960 px column that messages use (shot `shots/v4/10-wide.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=two thirds of the conversation is empty and the Send button is 1,400 px from the text`.
+  - **TEST:** `TestTodo_CHATUX_023`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_023`; `BROWSER=TestTodo_CHATUX_023_Browser`.
+  - **RED:** (headless, 1920 x 1080, shot 27-wide-general) message text and answer cards end about 670 px from the column's left edge; the composer is about 1,520 px wide with Send at its far right; day dividers span the column.
+  - **GREEN:** messages, cards, day dividers, the chip row and the composer share one measure (about 960 px) aligned to the same left edge, so the Send button sits under the end of the text column; a layout test at 1920 px compares the right edges.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatmsglist_styles.go`, `internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/styles.go`.
+
+- [ ] `CHATUX-024` **[PHASE_3][SOL_HIGH] An empty conversation with an agent says "follow-up" and offers nothing to start from.**
+  - **Depends:** `CHATUX-016`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=a person opening an agent for the first time is not told what it is for or what to ask`.
+  - **TEST:** `TestTodo_CHATUX_024`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_024`; `BROWSER=TestTodo_CHATUX_024_Browser`.
+  - **RED:** (headless, shot 38-agent-dm-assistant) the Assistant conversation shows "Start the conversation - There are no messages here yet. Send the first message when you're ready." and the placeholder "Ask Assistant a follow-up"; the header description is cut ("Only you can see this c...", CHATUX-016); the hint "Enter to send, Shift+Enter for a new line" shows in the Assistant and #announcements composers and not in #general or Policy Helper.
+  - **GREEN:** an empty agent conversation shows the agent's purpose and three example questions from its definition (pressing one fills the composer and never sends); the placeholder is "Ask Assistant" until there is an answer; the key hint is shown the same way in every composer.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/agentux_chat5_composer.go`, `internal/humanwork/chatui/agentux_chat4_composer.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/composer_tools.go`.
+
+- [ ] `CHATUX-025` **[PHASE_3][SOL_HIGH] Small presentation defects from the pass of 2026-10-02.**
+  - **Depends:** `CHATUX-015`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=each is minor; together they make the page read as unfinished`.
+  - **TEST:** `TestTodo_CHATUX_025`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_025`; `BROWSER=TestTodo_CHATUX_025_Browser`.
+  - **RED:** (headless shots under `.artifacts/lanes/agent-ui/shots/grind`) Browse channels shows six rows in a short scroll area with half the window free, and "Joined" is a label with no way to leave; the linked document card under a message repeats the title printed on the line above and its excerpt includes table headings ("Common questions. Question Answer."); the chip row under the header covers the top of the message list when the list is scrolled; the operating system's dark setting is not followed (dark emulation draws the light page); the thread pane's parent message has no day; the pane could not confirm two items, which need a headless check before work starts: Create conversation staying open after Create, and chips drawn at the bottom left after the first poll and task were created.
+  - **GREEN:** Browse channels fills the available height and each joined row has Leave; the document card does not repeat a title already linked above it and its excerpt takes body text only; the message list starts below the chip row; Chat follows the shell's colour mode and the shell follows the system setting unless the person chose otherwise; the thread parent shows its date; the two unconfirmed items are checked and either fixed or struck from this entry.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/dialogs.go`, `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/chatui/channel_tray.go`, `internal/humanwork/chatui/chatbug042_styles.go`, `internal/humanwork/chatui/chatux008_thread.go`.
+
+- [x] `CHATBUG-081` **[PHASE_3][SOL_HIGH] A refused write says "the service did not answer", its cause is not logged, and delete has no confirmation.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_081` passes in `internal/transport/chat`, `internal/data/chatstore`, `internal/humanwork/chatui` and `tools/uxqual/cmd/journeywasm`, with `TestTodo_CHATBUG_081_Browser` in chatui (lane 1 run); the trigger-grant test finds the three CHATBUG-070 refusals at schema 38 and none at 40. On the review server Delete message first asks "Delete this message? This cannot be undone." with Cancel focused, and a refused delete showed its notice over the top of the list without moving it. CI remains the run evidence.
+  - **Depends:** `CHATBUG-070`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the delete failure of CHATBUG-070 took a database session to diagnose and the page blamed the wrong thing`.
+  - **TEST:** `TestTodo_CHATBUG_081`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_081`; `BROWSER=TestTodo_CHATBUG_081_Browser`.
+  - **RED:** (found with CHATBUG-070, 2026-10-02) a write the database refused was shown as "We couldn't delete this message. The service did not answer. Try again."; the request log carried `error_type=DATABASE_FAILURE` and no SQLSTATE, table or constraint; the banner pushed the message list down by its own height; Delete message runs at once with no question and no undo; nothing stops a later migration adding a trigger that writes to a table the runtime role may not write.
+  - **GREEN:** a failed database call logs its SQLSTATE and the table or constraint name, never row values; the page says the message could not be deleted and keeps the list where it was; Delete asks once ("Delete this message? This cannot be undone.") or offers Undo for five seconds; a migration test builds the schema with a role holding only the default grants and fails when any trigger function on a table that role may write touches a table it may not.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/transport/chat/chat.go`, `internal/humanwork/chatui/message_menu.go`, `internal/humanwork/chatui/chatux012_retry.go`, `internal/data/chatstore/chatbug070_delete_grant_test.go`.
+
+- [x] `CHATBUG-082` **[PHASE_3][SOL_HIGH] An archived channel says its widgets could not be loaded, twice, and loses its purpose.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_082` passes in `internal/data/chatstore` and `internal/humanwork/chatui`, with `TestTodo_CHATBUG_082_Restore` and `TestTodo_CHATBUG_082_Browser` (lanes 2, 9 and 13 runs). On the review server the archived scratch channel shows its chips, no widget error, its purpose in the header, a Restore button on the archive notice, and its persona reads answer 200 (no failed request during the load). CI remains the run evidence.
+  - **Depends:** `CHATBUG-025`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the first thing in an archived channel is an error with a Try again that cannot work`.
+  - **TEST:** `TestTodo_CHATBUG_082`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_082`; `BROWSER=TestTodo_CHATBUG_082_Browser`.
+  - **RED:** (headless, 2026-10-02 01:28, shot 62-error) opening the archived scratch channel shows "Could not save or load channel widgets. Refresh and try again." with Try again above the messages and again under About in Conversation details; Purpose reads "Not set" although one was saved before archiving; the header line falls back to "Public - 2 members"; the status block is a list in large type with indented values; Restore sits inside the collapsed Manage channel while the notice under the messages says "a workspace administrator can restore it" with no link.
+  - **GREEN:** an archived channel reads its purpose, poll and to-do list like any other (read-only) and shows no error; a widget failure is shown once, in the place the widget would be; the archive notice carries a Restore button for people who may restore; the status block uses the panel's row style.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/channel_widgets.go`, `internal/humanwork/chatui/chatstate_status.go`, `internal/humanwork/chatui/chatdetails.go`, `tools/uxqual/cmd/journeywasm/chat_widgets_wasm.go`, `internal/collaboration/chat/service.go`.
+
+- [x] `CHATBUG-083` **[PHASE_3][SOL_HIGH] The image viewer shows a bare picture: no name, no download, no way to the next one.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_083` and `TestTodo_CHATBUG_083_Browser` pass in `internal/humanwork/chatui` (lane 6 run). On the review server the viewer shows the 160 px demo image at 320 px with "person-hc-007-small.png - Walt Brennan - Sep 27, 2:32 AM - 2 of 2", Open original, Download, Close, Previous and Next; the Left arrow steps to the previous image and Escape closes it (shots `shots/v6b/04-viewer.png`, `05-viewer-prev.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=opening an image gives less than the message did`.
+  - **TEST:** `TestTodo_CHATBUG_083`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_083`; `BROWSER=TestTodo_CHATBUG_083_Browser`.
+  - **RED:** (browser pane, 2026-10-02 01:57, direct message with Loretta Haynes) pressing an image opens a dark page with the picture at its own size (160 px for the demo files) and a Close button; there is no file name, sender or time, no download or open-original, no next or previous for the other images in the conversation, and a small image is not enlarged.
+  - **GREEN:** the viewer shows the file name, who sent it and when; Download and Open original; next and previous through the images of the conversation with the arrow keys; a small image is scaled up to a comfortable size (never past twice its own) and a large one fits the window; Escape and a press outside close it and focus returns to the thumbnail.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/image_viewer.go`, `internal/humanwork/chatui/image_viewer_js.go`, `internal/humanwork/chatui/image_original_js.go`.
+
+- [x] `CHATBUG-084` **[PHASE_3][SOL_HIGH] An archived channel is still listed under Channels as well as under Archived, and the reaction picker opens over the sidebar.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_084` and `TestTodo_CHATBUG_084_Browser` pass in `internal/humanwork/chatui` (lanes 9 and 13 runs). On the review server, with #design open, the archived channel is not listed under Channels and is reachable under Archived (shot `shots/v9/01-sidebar.png`). CI remains the run evidence.
+  - **Depends:** `CHATBUG-051`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=the list people scan every day keeps a channel that was put away, and a picker hides the list`.
+  - **TEST:** `TestTodo_CHATBUG_084`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_084`; `BROWSER=TestTodo_CHATBUG_084_Browser`.
+  - **RED:** (browser pane, 2026-10-02 01:55) after archiving, "General Chat!" stays in the Channels section with an "Archived" tag and is also in the collapsed Archived section at the foot of the sidebar; the status copy says an archived channel is "hidden from the usual channel list". The reaction picker opened from a message's "add reaction" button extends left over the sidebar and covers the message it reacts to.
+  - **GREEN:** an archived channel is listed only under Archived, except while it is the open conversation; the reaction picker opens inside the conversation column, beside or above its button, and leaves the message it reacts to visible.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/integrate2_status.go`, `internal/humanwork/chatui/chatemoji_place.go`.
+
+- [x] `AGENTUX-073` **[PHASE_3][SOL_HIGH] Agent operations: Activity and Announcements are laid out as raw text.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_073`, `_Browser`, `_DurationsAreGrammatical`, `_Localized`, `_LayoutCannotHang`, `_ActivityAgentsOnDirectLoad`, `_HintMatchesWhatIsDrawn` and `_FailedAtOnce` pass in `internal/humanwork/productui` and `tools/uxqual/cmd/journeywasm`, and `TestTodo_AGENTUX_073_RunDuration` in `internal/application` (lane 7 runs). On the review server (headless, build of 05:26) Agent operations opened directly lists Assistant (Version 2) and Policy Helper (Version 6) as rows with their icons, Answering and Pause agent; the three filters are on one line labelled Agent, Version and Outcome; failed runs read "Failed after 2 minutes"; the page stays responsive (shot `.artifacts/lanes/agent-ui/shots/v7/b_admin_agents.png`). The cause of the unstyled pages was the content policy refusing the pages' inline style elements; the rules now ride in the hashed stylesheet. CI remains the run evidence.
+  - **Depends:** `AGENTUX-055`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=the page an owner uses to pause an agent or post an announcement reads like unstyled output`.
+  - **TEST:** `TestTodo_AGENTUX_073`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_073`; `BROWSER=TestTodo_AGENTUX_073_Browser`.
+  - **RED:** (browser pane, 2026-10-02 02:05) Activity: "Assistant" and "Policy Helper" are printed directly against their "Pause agent" buttons; the three filters are full-width selects stacked on three lines, labelled "Agent and version", "Version" and "Outcome"; "Recent runs (50)" sits on the first filter's label; explanatory text wraps at about 370 px inside a 1,000 px card; failed runs show durations of "45 minutes" and "1 hours". Announcements: one record is a stack of lines ("Assistant - general", "Set by Walt Brennan", the date, the instruction, "View posting history", "Next run", "No future post", "Last result", "Posted. Open the message.") with Pause, Post now, Edit and Delete touching each other and "New announcement" touching the sentence above it.
+  - **GREEN:** Activity lists agents as rows (icon, name, state, Pause) and puts the filters on one line with distinct labels; a failed run shows how long it ran before it failed and durations are grammatical; text uses the card's width up to a readable measure. Announcements shows each record as a card: agent and conversation as the heading, the instruction as body text, schedule and last result as two labelled rows, history behind a disclosure, and a spaced action row with Delete set apart.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/chatui/agentux_proactive_projection.go`, `tools/uxqual/cmd/journeywasm/persona_admin_wasm.go`.
+
+- [x] `AGENTUX-074` **[PHASE_3][SOL_HIGH] An agent has one icon in Chat and another on the Agents page, and Agent setup tells an administrator to ask an administrator.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTUX_074`, `_Browser`, `_SetupNeverTellsAnAdministratorToAskOne`, `_PeopleWearTheirPhotographs` and `_TaskRowsWearTheChoiceIcon` pass in `internal/humanwork/productui`, `TestTodo_AGENTUX_074_AgentPageIcons` in `internal/application` and `TestTodo_AGENTUX_074_ProjectionCarriesIcon` in `tools/uxqual/cmd/journeywasm` (lane 7 runs). On the review server the Agents page, Agent setup and Agent operations draw the Assistant with the star and Policy Helper with the book, as Chat does; Agent setup says the build ships no template instead of telling an administrator to ask one; owners are drawn with photographs (shots `shots/v7/b_chat_agents.png`, `b_admin_personas.png`, `b_admin_agents.png`). CI remains the run evidence.
+  - **Depends:** `AGENTUX-055`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=people cannot tell that the Assistant on the Agents page is the Assistant in Chat`.
+  - **TEST:** `TestTodo_AGENTUX_074`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_074`; `BROWSER=TestTodo_AGENTUX_074_Browser`.
+  - **RED:** (browser pane, 2026-10-02 02:00) on the Agents page the Assistant is drawn with a gift and Policy Helper with a rocket; in Chat they are a four-point star and an open book; Agent setup shows the star. Agent setup tells Walt Brennan, who administers the workspace, "New agents start from a reviewed template, and none is installed here yet. Ask the person who manages this workspace." The Ask form's explanation wraps at about 370 px; the task list uses a 360 px column with five lines per task and leaves the rest of the page empty; business owner and technical contact are drawn as initials where Chat shows photographs.
+  - **GREEN:** one function gives an agent's icon on every surface, with a test that renders the Agents page, Agent setup, the mention menu, the sidebar and a message for the same agent and compares the icon; Agent setup offers an administrator the way to install a template or says plainly that none ships with this build; the Ask form and the task list use the page width (question, answer excerpt, agent and time on one or two lines); people are drawn with the same avatar component as Chat.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug013_agent_icon.go`, `internal/humanwork/chatui/chatbug033_agent_avatar.go`, `internal/humanwork/productui/agentux_ops_page.go`, `tools/uxqual/cmd/journeywasm/persona_admin_wasm.go`.
+
+- [x] `CHATBUG-085` **[PHASE_3][SOL_HIGH] Report message opens beside its own menu, can be sent with no reason, and two action bars show at once.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_085`, `TestTodo_CHATBUG_085_Browser` and `TestTodo_CHATBUG_085_Escape` pass in `internal/humanwork/chatui` and `tools/uxqual/cmd/journeywasm` (lanes 6 and 13 runs). On the review server (headless, build of 06:00) Report message closes the message menu and opens a centred dialog with a backdrop and Close; Send report is disabled until a reason is chosen; the quoted message is drawn with its list; Escape pressed with a reason radio focused closes it and focus returns to the message's More actions button; on a phone the More button sits beside the author line (shots `.artifacts/lanes/agent-ui/shots/v6/01-report.png`, `shots/v9/09-phone-sheet.png`). CI remains the run evidence.
+  - **Depends:** `CHATMOD-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=reporting a colleague's message is a careful act and the form looks unfinished`.
+  - **TEST:** `TestTodo_CHATBUG_085`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_085`; `BROWSER=TestTodo_CHATBUG_085_Browser`.
+  - **RED:** (browser pane and page inspection, 2026-10-02 02:15, #random) choosing Report message leaves the message menu open beside the form (`.message-menu` still displayed); the form (`.chatremove-overlay-dialog`) sits at the left edge of the conversation with no backdrop and no Close; Send report is enabled before a reason is chosen; the quoted message prints its list as raw dashes; its type is larger than the rest of Chat. While a menu is open, a second action bar is drawn on whichever message the pointer is over. The administrator's "Remove this message?" form is the same overlay with the same faults (menu left open, no backdrop, Remove message enabled with no reason, top edge over the conversation header). On a phone the add-reaction button wraps to a row of its own and is taller than the reactions beside it.
+  - **GREEN:** opening the report form closes the menu; the form is the standard Chat dialog (centred, backdrop, Close, Escape, focus returned to the message) in Chat's type scale; Send report is disabled until a reason is chosen; the quoted message is drawn as the message is; one action bar is shown at a time, on the message whose menu is open; the add-reaction button is the size of a reaction and stays on the reactions' row.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatremove_views.go`, `internal/humanwork/chatui/chatmod004_dialog.go`, `internal/humanwork/chatui/message_menu.go`, `internal/humanwork/chatui/chatmsglist_styles.go`.
+
+- [x] `CHATBUG-086` **[PHASE_3][SOL_HIGH] Picking an emoji from the colon list takes the cursor out of the message box.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_086` and `TestTodo_CHATBUG_086_Browser` pass in `internal/humanwork/chatui` (lanes 6 and 13 runs). On the review server typing "nice :thum", Enter, then " more" leaves the draft as the sentence with the emoji and focus on the message box; a press 6 px under the text area inside the composer focuses the text area (`document.activeElement.id` is `chat-composer`). CI remains the run evidence.
+  - **Depends:** `CHATEMOJI-003`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=the person has to click back into the box after every emoji, and their next keys go to the page`.
+  - **TEST:** `TestTodo_CHATBUG_086`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_086`; `BROWSER=TestTodo_CHATBUG_086_Browser`.
+  - **RED:** (browser pane and page inspection, 2026-10-02 02:25, #random) typing "nice :thum" and pressing Enter on the suggestion turns the draft into "nice 👍 " and leaves `document.activeElement` on BODY: the next Ctrl+A selects the whole page and Delete does nothing. A press on the composer's padding (3 px under the text area) focuses the page's main region, not the text area. A draft restored on load that ends in a shortcode opens the suggestion list before the box has focus.
+  - **GREEN:** after a suggestion is accepted by Enter, Tab or a press, the cursor is in the message box directly after the inserted emoji; a press anywhere inside the composer that is not a control focuses the text area; a restored draft does not open the suggestion list until the person types; a browser test types a shortcode, accepts it and keeps typing without touching the pointer.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatemoji_colon.go`, `internal/humanwork/chatui/emoji_text.go`, `internal/humanwork/chatui/focus_field_js.go`, `internal/humanwork/chatui/composer_tools.go`.
+
+- [ ] `CHATUX-026` **[PHASE_3][SOL_HIGH] Sharing a private agent answer happens on one press, lands in the thread, and the card still says "Only visible to you".**
+  - **Depends:** `CHATBUG-067`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=making a private answer public is the one agent action a person cannot take back, and the card then contradicts itself`.
+  - **TEST:** `TestTodo_CHATUX_026`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_026`; `BROWSER=TestTodo_CHATUX_026_Browser`.
+  - **RED:** (headless, review server build of 04:05, 2026-10-02, #general) pressing Share to channel on the private 11:18 answer shares at once with no question; the button becomes the text "Shared to #general" while the card's header still reads "Only visible to you"; the shared copy is a reply in the question's thread (the question gains "1 reply"), not a message in the channel as the label says; there is no way to take the shared copy back from the card.
+  - **GREEN:** the first press shows what will be posted, to whom ("Everyone in #general, 18 people") and where (under your question), with Share and Cancel; after sharing, the card's header reads "Shared with #general" in place of "Only visible to you", the action row offers "View shared answer" (opens the thread at the copy) and, for the asker, "Remove shared answer" (deletes the copy and returns the card to private); a refusal keeps the card private and says why.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux003_share.go`, `internal/humanwork/chatui/chatux003_card.go`, `internal/application/agentux070_share.go`, `tools/uxqual/cmd/journeywasm/chatbug067_share.go`.
+
+- [ ] `CHATBUG-087` **[PHASE_3][SOL_HIGH] The reading language cannot be changed: every save answers "Settings could not be saved".**
+  - **Depends:** `CHATLANG-007`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("this is broken, cant do lang change"); WHY=a person who reads another language cannot turn translation on for themselves`.
+  - **TEST:** `TestTodo_CHATBUG_087`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_087`; `BROWSER=TestTodo_CHATBUG_087_Browser`; `INTEGRATION=TestTodo_CHATBUG_087_Integration`.
+  - **RED:** (owner, review server, 2026-10-02) in the personal settings panel, Reading language, pressing Change opens the form; choosing a language or pressing the "Translate messages into my language" switch answers "Settings could not be saved. Try again." every time; Conversation details shows "Translation settings could not load or save. Try again." under Integrations. The error names no cause and nothing is written to the server log.
+  - **GREEN:** choosing a reading language or switching translation on or off saves on the first press on the served product, the summary line changes to the chosen language at once, the choice survives a reload, and messages are then read in that language; when the save does fail the form keeps the person's choice, says what failed in plain words and the server logs the cause; the channel translation setting in Conversation details loads and saves the same way. A served-assembly test saves a reading language through the real route with the runtime database role.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatrender_personal.go`, `internal/humanwork/chatui/chatrender_personal_wasm.go`, `internal/humanwork/chatui/chatrender_client.go`, `internal/humanwork/chatui/chatlang006_admin_wasm.go`, `internal/application`.
+
+- [ ] `CHATUX-027` **[PHASE_3][SOL_HIGH] Conversation details: the "Manage channel" sections are a stack of unrelated rows, and opening one makes it worse.**
+  - **Depends:** `CHATUX-021`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("this ui when you expand the sections is dogshit, eval and refine it"); WHY=a channel manager cannot tell what is a heading, what is a setting and what is open`.
+  - **TEST:** `TestTodo_CHATUX_027`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_027`; `BROWSER=TestTodo_CHATUX_027_Browser`; `INTEGRATION=TestTodo_CHATUX_027_Integration`.
+  - **RED:** (owner screenshot, review server, 2026-10-02) under "Manage channel": the header row and "Workspace filters" are tinted orange while Status is white and the rest are grey, with no meaning to the difference; small capital group labels ("CHANNEL", "RULES AND LANGUAGE", "APPS") sit directly on the row above with no space; rows are in three weights and two text colours ("Status", "Role labels - 11" bold, "Project and milestones" grey); a help sentence ("Channel labels are informal and do not change organization roles.") hangs under a closed row; an error ("Translation settings could not load or save. Try") is printed under Integrations, where it does not belong, and is cut off; an opened section puts its form at a different indent and type size from its row, and nothing shows which row the form belongs to.
+  - **GREEN:** Manage channel is one consistent settings list: every row has the same height, weight, colour and chevron position, with its current value at the right in secondary text; groups are separated by space and a quiet label; exactly one row style marks "open" and none marks anything else (no tint on closed rows); help text appears only inside an open section; an open section shows its content in an inset block directly under its row, at the panel body type size and a single indent, with its own Save and Cancel where it edits something, and opening one section closes the previous one; an error is shown inside the section it belongs to, in full, with Try again; the panel scrolls as one column with no nested scroll areas, works at 320 px panel width and at phone width as a full-height sheet, and each row is a button with aria-expanded and a name. Reviewed on the served page at 1280, 768 and 390 px in English, German and Arabic.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatdetails_styles.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatux021_line.go`, `internal/humanwork/chatui/chatux021_styles.go`.
+
+- [ ] `CHATSIDE-001` **[PHASE_3][SOL_HIGH] Sidebar sections of one's own: Favorites, custom sections, and moving conversations between them.**
+  - **Depends:** `CHATUX-020`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("we need custom channel sections and a favorite section and a way to move channels between sections"); WHY=a person with thirty channels cannot keep the six they live in at the top or group the rest their own way`.
+  - **TEST:** `TestTodo_CHATSIDE_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSIDE_001`; `BROWSER=TestTodo_CHATSIDE_001_Browser`; `INTEGRATION=TestTodo_CHATSIDE_001_Integration`.
+  - **RED:** (owner, 2026-10-02) the sidebar has fixed sections only (Channels, Direct messages, Agents, Archived). There is no Favorites section, no way to create a section, and no way to move a conversation from one section to another.
+  - **GREEN:** each person has their own sidebar layout, stored on the server per person and tenant and the same on every device: (1) a Favorites section at the top, shown once it holds something; any channel, direct message or agent conversation is added with "Add to favorites" in its row menu or a star in the conversation header, and removed the same way; (2) custom sections: "New section" in the sidebar add menu and in the row menu "Move to" list creates one with a name (1 to 40 characters, unique per person, no more than 20 sections); a section can be renamed, moved up or down, collapsed, and deleted (its conversations return to their default section; nothing is left or archived); (3) moving: every row menu has "Move to" listing Favorites, each custom section, "New section" and the default section; a row can also be dragged onto a section heading; a conversation is in one section at a time; (4) unread counts, mentions, status marks and the open-conversation highlight work in every section, a collapsed section still shows the open conversation and its unread total, and an archived channel stays under Archived only; (5) the layout arrives with the first sidebar read (no extra request per section), changes apply at once and are confirmed by the server, a failed change is put back with a plain notice, and a second tab picks the change up from the event stream or its next read; (6) section names and order are private to the person: no other member, administrator export or agent sees them. Store: a per-person section table and a per-person conversation placement table under row-level tenant rules, with the runtime role granted what the statements need including DELETE.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/chatbug084_sidebar.go`, `internal/humanwork/chatui/render.go`, `internal/data/chatstore`, `internal/application`, `internal/transport/chat`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `AGENTUX-075` **[PHASE_3][SOL_HIGH] A question in the Assistant's own conversation gets no answer; an agent must react, show what it is doing, then answer in formatted text.**
+  - **Depends:** `AGENTUX-038`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("the assistant chat doesnt work, I want agents to contextually respond to the users first with an emoji, then a loading message while the agent and its tools process the request then it gives a properly formatted response"); WHY=the one place a person expects an agent to answer says nothing, and where agents do answer the person waits with no sign of life`.
+  - **TEST:** `TestTodo_AGENTUX_075`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_075`; `BROWSER=TestTodo_AGENTUX_075_Browser`; `INTEGRATION=TestTodo_AGENTUX_075_Integration`.
+  - **RED:** (owner screenshot, review server, 2026-10-02 06:26) in the direct conversation with Assistant, Walt Brennan posted "What can you help me with here?"; minutes later the conversation shows only that message: no reaction, no working indicator, no answer, no failure. The server log has no invocation for the post.
+  - **GREEN:** every message a person posts in their direct conversation with an agent is a question to that agent, with no mention needed, and is answered exactly once; a mention in a channel follows the same sequence: (1) within a second of the post being accepted the agent adds one emoji reaction to the question that fits what was asked (chosen from the message without a model call, by intent: a question, a request for a list, a thank-you, a problem; the mapping is one table and an agent's owner can turn the reaction off); (2) at once after it, a working message from the agent appears under the question, in the agent's name and icon, with a moving indicator and one plain line that says what it is doing now and changes as the run moves through its steps and tools ("Reading the question", "Searching the handbook", "Reading Holiday guide 2026", "Writing the answer"), with elapsed time after ten seconds and a Stop control for the asker; (3) the working message is replaced in place, without moving the page, by the answer, rendered as formatted text: paragraphs, headings, bulleted and numbered lists, tables, bold and italic, inline code and code blocks, and links, with the sources as links underneath; raw Markdown characters never show; (4) on failure the working message becomes one plain sentence saying why (no model configured on this server, the model did not answer in time, no document it may read covers this) with "Try again"; silence is never an outcome; (5) the reaction, the working message and the answer follow the audience of the question (private in a direct conversation, the channel's rule in a channel) and a reload in the middle shows the current state. A served-assembly test with a fake model proves the sequence and its order for a direct conversation and for a mention.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_invocation_served_runtime.go`, `internal/application/persona_invocation_serve_wiring.go`, `internal/application/chat_persona_invocation_hook_test.go`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`.
+
+- [x] `CHATSEED-001` **[PHASE_3][SOL_HIGH] Every demo employee is fully seeded, and Person details shows names, not identifiers.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATSEED_001` (`internal/data/demoworkforce`), `TestTodo_CHATSEED_001_Integration` (`internal/transport/journey`) and `TestTodo_CHATSEED_001_Browser` (`tools/uxqual/cmd/journeywasm`) pass (coordinator run): all 38 Ironridge employees carry title, department, business unit, location, work email, work phone, hire date, manager and a photograph, with no manager gap or cycle and no shared image. On the review server (headless, build of 08:00) Person details for Hector Salas shows a photograph, "Warranty & Service", (303) 555-0137 and hector.salas@ironridge.example; Priya Raman shows "Project Management" with phone and email; no row prints "Not available". Email, phone, department name and missing photographs are derived in the directory because stored worker rows are append-only. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("make sure all employees have fully seeded data"); WHY=the demo company reads as unfinished: people without a phone, an email or a photo, and a department printed as an identifier`.
+  - **TEST:** `TestTodo_CHATSEED_001`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSEED_001`; `BROWSER=TestTodo_CHATSEED_001_Browser`; `INTEGRATION=TestTodo_CHATSEED_001_Integration`.
+  - **RED:** (owner screenshot, review server, 2026-10-02) Person details for Greg Novak: Phone "Not available"; Email "Not available"; Department "project-management" (an identifier); Manager Priya Raman and direct report Sofia Beltran drawn as initials while Greg Novak has a photograph.
+  - **GREEN:** every employee of the demo tenant has job title, department, business unit, location, time zone, work email, work phone, hire date and a manager (except the head of the organization), with a manager chain that has no gap or cycle and direct reports consistent with it; a department is shown by its name on every surface; a person with a photograph is drawn with it wherever they appear; a field with no value is left out rather than printed as "Not available"; a seed-completeness test names any employee with a missing field; the seed can be applied again to a running database without duplicating or wiping anything.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`, the demo seed sources.
+
+- [x] `CHATBUG-088` **[PHASE_3][SOL_HIGH] An agent's message is sometimes drawn as "Agent" with another icon.**
+  - **Evidence (2026-10-02, test run and served page):** (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_088` and `TestTodo_CHATBUG_088_Browser` pass in `internal/humanwork/chatui`, with `TestTodo_CHATBUG_088_DirectoryArrival` and `TestTodo_CHATBUG_088_DirectoryHeld` in `tools/uxqual/cmd/journeywasm` (lane S14 run). On the review server (headless, build of 08:00) the Assistant's message in #general is named "Assistant" with its star at 1280 px in English and German after 7 s, at 390 px after 16 s and in Arabic after 18 s; before the directory arrives the row shows a neutral placeholder and never "Agent" or another icon. CI remains the run evidence.
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"); WHY=the same message names a different author from one load to the next`.
+  - **TEST:** `TestTodo_CHATBUG_088`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_088`; `BROWSER=TestTodo_CHATBUG_088_Browser`.
+  - **RED:** (headless, review server, 2026-10-02 06:41 to 06:44) in #general the Assistant's message of 4:30 PM shows "Assistant" with its four-point star on one load at 1280 px, and "Agent" with a gift icon on three other loads (390 px English, 1280 px German, 1280 px Arabic); it does not correct itself after the persona directory arrives (shots `.artifacts/lanes/agent-ui/shots/min/004-phone-1.png`, `005-arabic-1.png`, `006-german-details-1.png`).
+  - **GREEN:** a message from an agent identity takes its name and icon from the one agent name and icon function on every load order; while the persona directory has not arrived the row shows a neutral placeholder, never another name or icon, and it is redrawn when the directory arrives; a test renders the message list before and after the directory loads at phone and desktop widths in three languages.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug013_agent_icon.go`, `internal/humanwork/chatui/chatbug033_agent_avatar.go`, `tools/uxqual/cmd/journeywasm/persona_chat_service.go`.
+
+- [ ] `CHATUX-028` **[PHASE_3][SOL_HIGH] The agent answer card carries six controls; on a phone they take five rows.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"); WHY=the controls take more room than the answer and the two that manage sharing read as primary actions`.
+  - **TEST:** `TestTodo_CHATUX_028`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_028`; `BROWSER=TestTodo_CHATUX_028_Browser`.
+  - **RED:** (headless, review server, 2026-10-02 06:41) the answer card in #general shows Helpful, Not right, Ask a follow-up, View shared answer, Remove shared answer and a menu button in one row; at 390 px they wrap onto five rows; in German they wrap onto two rows at 1280 px (shots `shots/min/004-phone-1.png`, `006-german-details-1.png`).
+  - **GREEN:** the card shows Helpful, Not right and Ask a follow-up; View shared answer, Remove shared answer, copy and the rest are in the menu; at phone width Helpful and Not right are icon buttons with accessible names and the row stays on one line in English, German and Arabic; "Shared with" stays as the status mark.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`.
+
+- [ ] `CHATUX-029` **[PHASE_3][SOL_HIGH] Role labels is a five-line block per member with its own Save button.**
+  - **Depends:** `CHATUX-027`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"); WHY=labelling eighteen people means scrolling through ninety lines and pressing eighteen buttons`.
+  - **TEST:** `TestTodo_CHATUX_029`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_029`; `BROWSER=TestTodo_CHATUX_029_Browser`.
+  - **RED:** (headless, review server, 2026-10-02 06:38) Conversation details, Manage channel, Role labels in #general: each of 18 members is a block of name (bold, larger than the panel text), "Channel member", "Channel role label", a full-width field and a full-width Save button; the word-list filters print "Off" beside the switch and again on the line below; "Add milestone" is drawn as a section row inside the Project section; three button styles are used for the one primary action of a section (shots `shots/min/000-details-6.png`, `000-details-10.png`, `000-details-12.png`).
+  - **GREEN:** Role labels is one row per member (avatar, name, label field with a placeholder) saved on Enter or on leaving the field with a small saved mark, with a filter field above eight members; a switch prints its state once; "Add milestone" is a text button that reveals its fields in place; each open section has one solid primary action in a footer row with Cancel.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux027_section.go`.
+
+- [ ] `CHATBUG-089` **[PHASE_3][SOL_HIGH] A thread shows an internal marker as text, and its document cards stop mid-sentence.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=internal text on the page reads as a broken product`.
+  - **TEST:** `TestTodo_CHATBUG_089`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_089`; `BROWSER=TestTodo_CHATBUG_089_Browser`.
+  - **RED:** (headless, review server, build of 07:43) in the thread panel of the PTO question in #general the first source line prints `<!-- chat.agent.source.readable:true-->` after "2026 holiday guide - v1.0.0"; the linked document cards end mid-sentence ("years four to seven...", "the Monday after...") with no way to read more and are attributed "Walt Brennan - Oct 1" although the agent quoted them (shot `shots/minb/004-thread-1.png`).
+  - **GREEN:** no internal marker, comment or flag is ever printed in a message, a card or an excerpt on any surface (one display function strips them; a test feeds every marker the writers produce through every surface); a document card in a thread ends at a sentence or word boundary with an ellipsis and "Show more", and names the document as its source, not the person who asked.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatbug021_excerpt.go`, `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/chatui/agentux_dm_sources.go`.
+
+- [ ] `CHATBUG-090` **[PHASE_3][SOL_HIGH] The sidebar row menu does not open, and "Archived" is drawn on top of conversation rows.**
+  - **Depends:** `CHATBUG-051`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the list people use all day cannot be managed and looks broken at the foot`.
+  - **TEST:** `TestTodo_CHATBUG_090`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_090`; `BROWSER=TestTodo_CHATBUG_090_Browser`.
+  - **RED:** (headless, review server, build of 07:43) pressing "More options for random" and "More options for Loretta Haynes" opens no menu (no menu items in the page; the same script opened it on the build of 07:06, before the menu was moved onto the shared layer); the "Archived" footer label and its chevron are drawn over the rows "people-ops" and "Q4 hiring huddle"; the last visible row of a section is cut through the middle of its avatar; "announcements" is clipped under the Conversations header in the Assistant conversation (shots `shots/minb/003-row-menu-1.png`, `-2.png`, `shots/min/002-assistant-dm-1.png`).
+  - **GREEN:** the row menu opens from its button on the first press at every scroll position, next to the button, and from the keyboard; the Archived footer has its own band below the scrolling list and never overlaps a row; the list scrolls whole rows under an opaque header edge and its last visible row is never cut through its content (a fade or a full row); a test opens the row menu on the first, a middle and the last row with the list scrolled.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/agentux_chat5_layers.go`, `internal/humanwork/chatui/chatbug084_sidebar.go`.
+
+- [ ] `CHATBUG-091` **[PHASE_3][SOL_HIGH] Saved says there is nothing to keep while its tabs count two done items.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=an empty state that contradicts the numbers beside it`.
+  - **TEST:** `TestTodo_CHATBUG_091`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATBUG_091`; `BROWSER=TestTodo_CHATBUG_091_Browser`.
+  - **RED:** (headless, review server, build of 07:43) Saved opens on "To do 0" and shows "Hover a message and press the bookmark to keep it here." while the tabs read "To do 0 / Done 2 / All 3"; the selected sidebar row for Saved is orange text only while Moderation selected is a tint with a bar, and "Policy Helper" stays drawn as selected at the same time (shot `shots/minb/005-moderation-saved-2-saved.png`).
+  - **GREEN:** Saved opens on the first tab that has items; an empty tab says what is true ("Nothing left to do. Done holds 2.") with a link to the tab that has items; the first-use sentence appears only when nothing was ever saved; Saved, Moderation and a conversation use one selected-row style and exactly one row is selected at a time.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`.
+
+- [ ] `CHATUX-030` **[PHASE_3][SOL_HIGH] Conversation details says things that are unclear, wrong or developer-facing.**
+  - **Depends:** `CHATUX-027`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=a channel manager cannot trust or understand the panel`.
+  - **TEST:** `TestTodo_CHATUX_030`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_030`; `BROWSER=TestTodo_CHATUX_030_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shots `shots/min/000-details-1.png` to `-12.png`) "Gate" is a lone underlined word; opening Status shows "Change status" already set to "Archived" while the channel is Open; the Translation row says "Follow the workspace" and its select says "Off"; "Copy sample request for apps" is the loudest button in the panel and is a developer action; each agent repeats the same paragraph about where answers are posted and the caption "Reads workspace documents" sits between two agents; "Purpose - Add a purpose" does not look editable and an unexplained pin sits at the right; Notifications for me comes after sixteen member rows; a pinned preview is cut mid-word and Copy link and Unpin are the same button; Save is live on an untouched empty form; the panel spends 160 px on a letter tile and the channel name; "Workspace filters" repeats the channel list; help sentences are circular ("Direct messages are only checked by workspace filters that also apply in direct messages").
+  - **GREEN:** every row names its thing in plain words (the gate row reads "Joining: anyone can join" or the gate's state, never "Gate"); a select shows the current value and a destructive value needs its own confirmation; a row's summary and its control never disagree; developer actions are secondary and live under an "For developers" disclosure; an agent block holds its own caption and the shared explanation appears once; Purpose is a field-shaped placeholder; Notifications for me and the other personal settings sit above the member list and members are collapsed to the first eight with "Show all 18"; pinned previews clamp to two lines at a word boundary and Unpin is a quiet action; Save is disabled until a field changes; the panel title row is compact (48 px); workspace filters show only what differs from the channel; help text is one clear sentence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux027_manage.go`, `internal/humanwork/chatui/chatux005_details.go`.
+
+- [ ] `CHATUX-031` **[PHASE_3][SOL_HIGH] Chat preferences is a heavy popover with a confusing language form.**
+  - **Depends:** `CHATUX-027`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the one place a person sets how Chat behaves for them reads as a debug form`.
+  - **TEST:** `TestTodo_CHATUX_031`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_031`; `BROWSER=TestTodo_CHATUX_031_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shots `shots/min/001-settings-language-1.png`, `-2.png`) "Language settings saved" is plain grey text above the controls; "Reading language" has a Change button and under it a second label "Read messages in" with a heavy select; "English: 1" sits in a box that looks like an input; the six skin-tone swatches wrap five and one; an off switch (dark outline, dark knob) is louder than an on switch.
+  - **GREEN:** the popover is one settings list in the panel section style: each row has a label, its current value and one control; Reading language is a single select that saves on change with a brief inline tick; read-only counts are text; the skin tones sit in one row of six; an off switch is neutral grey and an on switch uses the accent; the popover fits 320 px width and has no nested boxes.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatrender_personal.go`, `internal/humanwork/chatui/chatbug058_reading.go`, `internal/humanwork/chatui/chatemoji_view.go`.
+
+- [ ] `CHATUX-032` **[PHASE_3][SOL_HIGH] The thread panel uses a different type scale, header and composer from the rest of Chat.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=opening a thread looks like another product`.
+  - **TEST:** `TestTodo_CHATUX_032`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_032`; `BROWSER=TestTodo_CHATUX_032_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shot `shots/minb/004-thread-1.png`) thread text is about 16 px beside 13 px panels; the thread header differs in height from the details header; the reply composer stacks a lone paperclip, "Also send to #general", an always-open formatting row and Reply over five rows to type one line; close buttons are drawn four ways across panels (grey filled square, plain X, outlined X with a stuck focus ring); Saved's header is about 100 px against 52 px for details; disabled Send (pale peach, white text) and disabled Create channel (flat grey) are two treatments, both under 3:1 contrast.
+  - **GREEN:** the thread, details, Saved and Moderation panels share one header component (height, title size, one close button with a focus ring only on keyboard focus) and one body type scale; the thread composer is the channel composer in compact form: one field, tools behind the same buttons, formatting closed by default, "Also send to #channel" as a quiet checkbox on the tool row; one disabled button style with at least 3:1 text contrast on every primary button.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`.
+
+- [ ] `CHATUX-033` **[PHASE_3][SOL_HIGH] Phone: two header bars, a bare composer and 28 px targets.**
+  - **Depends:** `CHATUX-011`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=on a phone a sixth of the screen is chrome and the composer cannot attach, mention or add an emoji`.
+  - **TEST:** `TestTodo_CHATUX_033`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_033`; `BROWSER=TestTodo_CHATUX_033_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shots `shots/min/004-phone-1.png`, `-2.png`) two stacked bars take about 140 of 844 px and the logo text cannot be read; the composer is a bare field with a pale send square and about 47 px of empty left padding, with no attach, mention, emoji or format control; Helpful and Not right are 28 px icon targets; the avatar column takes 67 of 390 px.
+  - **GREEN:** at phone width Chat shows one bar (back, conversation name, search, details; the workspace menu behind the conversation list); the composer has a "+" that opens the same add menu as desktop, plus mention and emoji, and grows with text; every target is at least 44 px; avatars shrink to 28 px and the text column starts at 48 px.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`, `internal/humanwork/workspace`.
+
+- [ ] `CHATUX-034` **[PHASE_3][SOL_HIGH] Composer menus and the message toolbar: small inconsistencies.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the menus people open most have details that look unfinished`.
+  - **TEST:** `TestTodo_CHATUX_034`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_034`; `BROWSER=TestTodo_CHATUX_034_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shots `shots/minb/000-message-hover-menu-1.png`, `-2.png`, `001-composer-menus-*.png`, `002-create-and-browse-2-add.png`) the emoji search field has a dark ring and an orange ring and the preview prints the shortcode `:thumbs_up:`; the "/" rows mix a bold command, a description and a monospace hint on a second line with a faint footer; the "@" footer says "Tab details"; "Attach a file" wraps to three lines where its neighbours use two; the toolbar bookmark is drawn filled dark orange among grey icons on an unsaved message; "Message language..." uses an info icon; the hovered row's highlight is wider than the composer; "Create a channel" and "New section" share a plus icon and "New section" carries a chevron; pressing Browse channels showed nothing.
+  - **GREEN:** one focus ring per field; the emoji preview shows the name only; each "/" row is one line (command, description) and shows its argument hint when selected; menu footers read as plain words ("Enter to insert - Esc to close"); add-menu rows have one-line descriptions of equal height; toolbar icons are grey and filled only when the state is on; icons match their action; row highlight and composer share their edges; "New section" opens its name field directly; Browse channels opens the list.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`.
+
+- [ ] `CHATUX-035` **[PHASE_3][SOL_HIGH] Right-to-left: mixed-direction content, numerals and plural forms.**
+  - **Depends:** `CHATBUG-060`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=an Arabic reader sees English blocks pinned to the wrong edge and two numeral systems side by side`.
+  - **TEST:** `TestTodo_CHATUX_035`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_035`; `BROWSER=TestTodo_CHATUX_035_Browser`.
+  - **RED:** (headless, review server, build of 07:43; shot `shots/min/005-arabic-1.png`) English message bodies, bullet lists and Sources chips are left-aligned inside right-to-left cards, far from their author; the header reads the member count with a singular noun; Latin "v1.0.0" and "[1]" sit next to Arabic-Indic times; the Archived footer is not indented like the section headers and its chevron is at the other end.
+  - **GREEN:** a message block starts at the reading edge of the page (right in Arabic) whatever its own language, with the text itself isolated for direction; counts use the plural rules of the language; one numeral rule per locale for every number Chat prints; section headers and the Archived footer follow one pattern.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui`.
+
+- [ ] `CHATUX-036` **[PHASE_3][SOL_HIGH] Accent, contrast and small text.**
+  - **Depends:** `AGENTUX-071`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=orange is on everything, so nothing reads as the primary action, and help text is hard to read`.
+  - **TEST:** `TestTodo_CHATUX_036`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_036`; `BROWSER=TestTodo_CHATUX_036_Browser`.
+  - **RED:** (headless, review server, build of 07:43; all shots) orange is used for links, pills, "1 reply", the rail, icon tiles, selected rows, tab strips and outline buttons; help text is 11 px grey on warm grey; the selected channel row is a muddy salmon block darker than the rail; "Helpful" is a filled orange pill in a channel and outlined in a direct conversation; a hollow circle stands for the Open status.
+  - **GREEN:** the accent marks the one primary action of a surface and the selected state; links and secondary buttons use the ink colour with an underline or a neutral outline; help text is at least 12 px and meets 4.5:1; the selected row is a light tint with the bar; a rating button is filled only when chosen; status is a small pill with a dot.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/agentux_063_states.go`.
+
+- [ ] `CHATUX-037` **[PHASE_3][SOL_HIGH] Loading states in Chat are bare sentences at the top-left corner.**
+  - **Depends:** `AGENTUX-061`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("moderation loader looks like dogshit and it needs some moderation examples added to the seeder"); WHY=a page that is loading looks broken`.
+  - **TEST:** `TestTodo_CHATUX_037`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATUX_037`; `BROWSER=TestTodo_CHATUX_037_Browser`.
+  - **RED:** (owner screenshot, review server, 2026-10-02 08:35) opening Moderation shows the sentence "Loading moderation items. Please wait." in body text at the top-left corner of an empty white page, with no heading, no tabs and no placeholder rows; Agent operations shows "Loading authorized controls..." the same way; other Chat surfaces each draw loading differently (grey bars in the message list, text in the mention menu, nothing in Saved).
+  - **GREEN:** every Chat and Agents surface draws loading with one component: the surface's own frame is shown at once (heading, tabs or filters, disabled), with three to five placeholder rows shaped like the rows that will arrive, a calm shimmer that stops under reduced motion, and an accessible status ("Loading moderation items") announced once; no loading sentence is printed as page text; after eight seconds the placeholder says it is taking longer than usual and offers Try again; a failed load shows what failed with Try again in the same place; an empty result shows the surface's empty state. Moderation, Saved, search results, thread, Conversation details, Person details, the mention and command menus, Browse channels, Agents (Ask, Setup, Operations and their tabs) all use it. A test renders each surface in its loading state and fails on a bare loading sentence.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/humanwork/chatui/chatmod005_sidebar.go`, `internal/humanwork/chatui`, `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`.
+
+- [ ] `CHATSEED-002` **[PHASE_3][SOL_HIGH] The demo has nothing to moderate: seed reports, filter hits, removals and an appeal.**
+  - **Depends:** `CHATMOD-005`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("moderation loader looks like dogshit and it needs some moderation examples added to the seeder"); WHY=the Moderation page cannot be shown or judged while it is empty`.
+  - **TEST:** `TestTodo_CHATSEED_002`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_CHATSEED_002`; `INTEGRATION=TestTodo_CHATSEED_002_Integration`; `BROWSER=TestTodo_CHATSEED_002_Browser`.
+  - **RED:** (owner, review server, 2026-10-02 08:35) Moderation shows "Open 0 / Resolved 0" and "Nothing to review" on the demo tenant; no seeded message was ever reported, caught by a filter, removed or appealed.
+  - **GREEN:** the demo tenant carries a believable moderation history that the seed can add to a running database without wiping anything and without duplicates when run again: open items - a message reported as harassment by one member with a note, a message reported as spam by two members, a message caught by a channel word-list filter (held for review), a message caught by a workspace filter set to notify, a message in a private channel reported by a member; resolved items - a report dismissed with a reason, a message removed by an administrator with a reason and the notice readers see in its place, a removal restored after an appeal with both decisions recorded, a filter hit released; each item names the reporter (where the product shows it), the author, the conversation, the time within office hours of the last two weeks, and the rule or reason; a custom channel filter and a workspace filter exist so the filter screens have content; the messages involved are realistic workplace text with nothing offensive spelled out (the word-list hit uses a mild word from the built-in list); the Moderation queue, the removed-message notice in the conversation, the filter hits screen and the appeals view all show these on the demo tenant. A seed test loads the seed twice and asserts the same rows; a rendered test shows each kind in the queue.
+  - **REFACTOR:** none.
+  - **Refs:** `cmd/migrate/chat_seed.go`, `internal/data/chatstore`, `internal/collaboration/chatfilter`, `internal/humanwork/chatui/chatmod005_sidebar.go`.
+
+- [ ] `AGENTUX-076` **[PHASE_3][SOL_HIGH] The Assistant fails its own example question, and any question its search does not match.**
+  - **Depends:** `AGENTUX-075`.
+  - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner report 2026-10-02 ("the interaction was much better but its results are still failing"); WHY=an agent that answers its own suggested question with a failure cannot be shown to anyone`.
+  - **TEST:** `TestTodo_AGENTUX_076`.
+  - **TEST MATRIX:** `PRIMARY=TestTodo_AGENTUX_076`; `INTEGRATION=TestTodo_AGENTUX_076_Integration`; `GOLDEN=TestTodo_AGENTUX_076_Golden`; `BROWSER=TestTodo_AGENTUX_076_Browser`; `PERFORMANCE=TestTodo_AGENTUX_076_Performance`.
+  - **RED:** (owner screenshot and server log, review server, 2026-10-02 08:16) in the direct conversation with Assistant the owner asked "Which documents can you read in this conversation?", one of the questions the empty conversation itself suggests; 21 seconds later the Assistant answered "Assistant found nothing about this in the documents it can read here. Try naming the document." with Ask again and Dismiss. The log shows the run searched documents for the question text, the search returned nothing, and the executor ended the run as a failure (`persona_run_failed code=NO_RESULTS gate=output_schema`, persona_run_executor.go:510); the emoji reaction was refused (`agent_question_reaction_failed`); admission to delivery took 20.9 s of which the model took 3.3 s and the tool 3.3 s. Earlier the same morning "What can you help me with here?" got no answer at all.
+  - **GREEN:** (1) questions about the agent itself are answered from facts, not from a document search: what it can do, which documents it can read in this conversation (titles as links, grouped as placed here and workspace-wide, with the count and "none yet" when there are none), who looks after it, what it will not do; the model is given these facts and a list-documents tool for every run; (2) a search that finds nothing is not a failure: the model answers that it found nothing on that subject, names the documents it can read that are closest, and asks one clarifying question or suggests how to rephrase, as a normal formatted answer with no warning icon and no Ask again; a general-purpose agent may answer from general knowledge when its instructions allow, marked "Not from your documents"; a failure card is kept for real failures (model unavailable, timed out, refused by policy); (3) every example question the empty conversation suggests is answerable by rule (1) or (2), and a golden suite of twenty everyday questions (about itself, lists, a fact in a document, a fact in no document, a follow-up, a greeting, thanks, a request outside its role) passes against a fake model that follows the tool protocol, with the context the model is given asserted for each; (4) the answer arrives in the model's time plus three seconds: the fixed overhead between admission and delivery (claim, build, checkpoints, effects) is at most three seconds in total, measured per stage in the run timing line; (5) the reaction to the question is placed in a direct conversation and in a channel.
+  - **REFACTOR:** none.
+  - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_chat_invocation.go`, `internal/collaboration/chat/agentux075_reaction.go`, `internal/collaboration/chat/agentux_answer_failures.go`.
