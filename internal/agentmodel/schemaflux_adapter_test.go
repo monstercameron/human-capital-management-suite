@@ -70,6 +70,39 @@ func TestTodo_AGENT2_026_OpenAI_TypedReply(t *testing.T) {
 		t.Fatal("classified input changed")
 	}
 }
+
+func TestTodo_AGENTUX_PATH_T1_PersonaInstructionsMatchTurnTools(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		withTools  bool
+		want       string
+		mustNotSay string
+	}{
+		{name: "answer turn", want: "No tools are available in this turn", mustNotSay: "propose exactly one available document search"},
+		{name: "search turn", withTools: true, want: "propose exactly one available document search", mustNotSay: "No tools are available in this turn"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter, provider, request := typedAdapterTestFixture(t, `{"text":"The Paid time off policy says carryover is limited.","tool_proposals":[],"requested_actions":["read_policy"]}`)
+			request.ActionPolicy = &RequestedActionPolicy{ProfileDigest: "sha256:" + strings.Repeat("a", 64), Allowed: []RequestedAction{ActionReadPolicy}}
+			request.Tools = nil
+			if tc.withTools {
+				request.Tools = []ToolSchema{{Name: "search_policy", Description: "Search policy documents", InputSchema: json.RawMessage(`{"type":"object"}`)}}
+			}
+			if _, err := adapter.Invoke(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+			instruction := provider.request.Messages[len(provider.request.Messages)-1].Content
+			if !strings.Contains(instruction, tc.want) || strings.Contains(instruction, tc.mustNotSay) {
+				t.Fatalf("instruction does not describe the turn tools: %q", instruction)
+			}
+			for _, required := range []string{"plain text", "no links", "[[1]]", "actually used", "numbered list", "how many documents", "semantic version", "no line beginning with Source"} {
+				if !strings.Contains(instruction, required) {
+					t.Errorf("instruction missing %q: %q", required, instruction)
+				}
+			}
+		})
+	}
+}
 func TestTodo_AGENT2_026_OpenAI_ToolProposals(t *testing.T) {
 	adapter, provider, request := typedAdapterTestFixture(t, `{"text":"","tool_proposals":[{"id":"call-1","name":"search_policy","arguments_json":"{\"query\":\"leave\"}"}]}`)
 	result, err := adapter.Invoke(context.Background(), request)

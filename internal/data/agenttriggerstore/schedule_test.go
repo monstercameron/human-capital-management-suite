@@ -203,10 +203,16 @@ func TestTodo_AGENT_031_Integration(t *testing.T) {
 	if err := store.Acknowledge(ctx, "tenant-a", delivery.Key, receipt); err != nil {
 		t.Fatal(err)
 	}
-	acknowledged,next,err:=store.AcknowledgedPage(ctx,"tenant-a","",1)
-	if err!=nil || len(acknowledged)!=1 || acknowledged[0].Receipt!=receipt || next!=delivery.Key {t.Fatalf("ack page=%+v cursor=%q err=%v",acknowledged,next,err)}
-	if after,cursor,err:=store.AcknowledgedPage(ctx,"tenant-a",next,1);err!=nil || len(after)!=0 || cursor!="" {t.Fatalf("duplicate ack page=%+v cursor=%q err=%v",after,cursor,err)}
-	if _,_,err:=store.AcknowledgedPage(ctx,"tenant-b","",1);!errors.Is(err,scheduled.ErrAuthority) {t.Fatalf("cross tenant ack page=%v",err)}
+	acknowledged, next, err := store.AcknowledgedPage(ctx, "tenant-a", "", 1)
+	if err != nil || len(acknowledged) != 1 || acknowledged[0].Receipt != receipt || next != delivery.Key {
+		t.Fatalf("ack page=%+v cursor=%q err=%v", acknowledged, next, err)
+	}
+	if after, cursor, err := store.AcknowledgedPage(ctx, "tenant-a", next, 1); err != nil || len(after) != 0 || cursor != "" {
+		t.Fatalf("duplicate ack page=%+v cursor=%q err=%v", after, cursor, err)
+	}
+	if _, _, err := store.AcknowledgedPage(ctx, "tenant-b", "", 1); !errors.Is(err, scheduled.ErrAuthority) {
+		t.Fatalf("cross tenant ack page=%v", err)
+	}
 	changed := receipt
 	changed.RunRequestID = "different"
 	if err := store.Acknowledge(ctx, "tenant-a", delivery.Key, changed); !errors.Is(err, scheduled.ErrReceiptConflict) {

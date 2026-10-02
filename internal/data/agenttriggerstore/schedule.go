@@ -286,12 +286,22 @@ func validateDelivery(d scheduled.Delivery, s scheduled.Schedule) error {
 		return err
 	}
 	source.Ref = source.Key
+	if s.SourceKind == agentrun.SourceAnnouncement {
+		source.Kind = agentrun.SourceAnnouncement
+	}
 	if d.TenantID != s.Trigger.Definition.TenantID || d.ScheduleID != s.Trigger.Definition.ID || d.ControlRevision != s.Revision || d.Key != source.Key || d.Request.Source != source || d.EnqueuedAt.IsZero() || !d.Request.Deadline.After(d.EnqueuedAt) || d.Request.InstallationID != s.InstallationID || d.Request.Agent.AgentID != d.Firing.Target.Agent.ID || d.Firing.Occurrence.Trigger != s.Trigger.Ref() || s.Trigger.Definition.AgentRun == nil || d.Firing.Target != *s.Trigger.Definition.AgentRun {
 		return scheduled.ErrInvalidFiring
 	}
 	target := d.Firing.Target
 	r := d.Request
-	if r.Agent != (agentrun.VersionRef{AgentID: target.Agent.ID, Version: target.Agent.Version, Digest: target.Agent.Digest}) || r.LegalEntity != s.LegalEntity || r.Context != s.Context || r.Principal != (agentrun.PrincipalChain{Mode: agentrun.ModeSponsored, AgentPrincipalID: s.AgentPrincipalID, SponsorID: target.SponsorID}) || r.Purpose != target.Purpose || r.Audience != (agentrun.AudienceScope{ID: target.Destination.AudienceID, SnapshotID: target.Destination.AudienceSnapshotID, Digest: target.Destination.AudienceDigest}) || r.Budget != (agentrun.Budget{MaxCostMicros: target.Budget.MaxCostMicros, MaxInputTokens: target.Budget.MaxInputTokens, MaxOutputTokens: target.Budget.MaxOutputTokens}) || !r.Deadline.Equal(d.EnqueuedAt.Add(s.RunTimeout)) {
+	principal := agentrun.PrincipalChain{Mode: agentrun.ModeSponsored, AgentPrincipalID: s.AgentPrincipalID, SponsorID: target.SponsorID}
+	if s.SourceKind == agentrun.SourceAnnouncement {
+		principal.RequesterID = s.RequesterID
+		if r.Persona == nil || s.Persona == nil || *r.Persona != *s.Persona {
+			return scheduled.ErrInvalidFiring
+		}
+	}
+	if r.Agent != (agentrun.VersionRef{AgentID: target.Agent.ID, Version: target.Agent.Version, Digest: target.Agent.Digest}) || r.LegalEntity != s.LegalEntity || r.Context != s.Context || r.Principal != principal || r.Purpose != target.Purpose || r.Audience != (agentrun.AudienceScope{ID: target.Destination.AudienceID, SnapshotID: target.Destination.AudienceSnapshotID, Digest: target.Destination.AudienceDigest}) || r.Budget != (agentrun.Budget{MaxCostMicros: target.Budget.MaxCostMicros, MaxInputTokens: target.Budget.MaxInputTokens, MaxOutputTokens: target.Budget.MaxOutputTokens}) || !r.Deadline.Equal(d.EnqueuedAt.Add(s.RunTimeout)) {
 		return scheduled.ErrInvalidFiring
 	}
 	return nil

@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 	"strings"
@@ -349,9 +350,11 @@ func (g *Gate) Discover(ctx context.Context, req DiscoveryRequest) ([]agentskill
 		key := record.Definition.Key()
 		grant, err := g.matchGrant(ctx, req.User, key, req.Purpose, at, req.Subjects)
 		if err != nil {
+			slog.DebugContext(ctx, "agentgate.discovery_skill_skipped", "skill", key.ID, "stage", "grant", "error", err.Error())
 			continue
 		}
-		if err := g.authorizeRecord(ctx, req.User, AgentActor{AgentVersion: "discovery", InstallationID: "discovery", RunID: "discovery", StepID: "discovery"}, key, record, grant, req.Purpose, req.Subjects, req.Fields, at); err != nil {
+		if err := g.authorizeRecord(ctx, req.User, AgentActor{AgentVersion: "discovery", InstallationID: "discovery", RunID: "discovery", StepID: "discovery"}, key, record, grant, req.Purpose, req.Subjects, discoveryFieldsFor(record, req.Fields), at); err != nil {
+			slog.DebugContext(ctx, "agentgate.discovery_skill_skipped", "skill", key.ID, "stage", "authorize", "error", err.Error())
 			continue
 		}
 		out = append(out, record)
@@ -500,6 +503,68 @@ func FilterResult(decision CallDecision, result Result) (Result, error) {
 // RedactedValue is deliberately content-free. The caller may render a
 // localized label, but it can never recover the withheld raw value.
 type RedactedValue struct{}
+
+// DiscoverGranted lists the active skills the signed-in user holds a current
+// administrator grant for under the purpose, and whose capabilities the
+// user's roles may invoke for that purpose. It evaluates no record subjects
+// or fields: it answers "may this person be offered this skill", for skills
+// whose exact subject is only known at call time (a chat-scoped reply or a
+// document search inside a conversation). Every call still goes through
+// Authorize or ProjectSkillAuthorization with exact bindings, so a skill
+// listed here can still be refused when it is used.
+func (g *Gate) DiscoverGranted(ctx context.Context, req DiscoveryRequest) ([]agentskills.SkillRecord, error) {
+	if g == nil {
+		return nil, fmt.Errorf("%w: nil gate", ErrInvalid)
+	}
+	at, err := g.resolveTime(req.At)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateUser(req.User, req.Purpose); err != nil {
+		return nil, err
+	}
+	out := make([]agentskills.SkillRecord, 0)
+	for _, record := range g.skills.List() {
+		if record.Status != agentskills.StatusActive || !skillAllowsPurpose(record.Definition.RequiredPurposes, req.Purpose) {
+			continue
+		}
+		key := record.Definition.Key()
+		grant, err := g.matchGrant(ctx, req.User, key, req.Purpose, at, nil)
+		if err != nil {
+			slog.DebugContext(ctx, "agentgate.discovery_skill_skipped", "skill", key.ID, "stage", "grant", "error", err.Error())
+			continue
+		}
+		if err := g.authorizeRecord(ctx, req.User, discoveryActor(), key, record, grant, req.Purpose, nil, nil, at); err != nil {
+			slog.DebugContext(ctx, "agentgate.discovery_skill_skipped", "skill", key.ID, "stage", "authorize", "error", err.Error())
+			continue
+		}
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+// discoveryFieldsFor narrows the user's visible fields to those a skill's
+// capabilities declare. Discovery asks which skills the user could use, and
+// its field set is everything the user may see for the purpose; a field no
+// capability of the skill covers is irrelevant to that skill, not a reason to
+// hide it. A call is never narrowed: a requested field outside the capability
+// scope still denies.
+func discoveryFieldsFor(record agentskills.SkillRecord, fields []authz.FieldID) []authz.FieldID {
+	out := make([]authz.FieldID, 0, len(fields))
+	for _, field := range fields {
+		covered := true
+		for _, operation := range record.ResolvedOperations {
+			if operation.HasCapability && !definitionCoversField(operation.Capability.Definition, field) {
+				covered = false
+				break
+			}
+		}
+		if covered {
+			out = append(out, field)
+		}
+	}
+	return out
+}
 
 func (g *Gate) authorizeRecord(ctx context.Context, user UserContext, actor AgentActor, key agentskills.SkillKey, record agentskills.SkillRecord, grant SkillGrant, purpose string, subjects []Subject, fields []authz.FieldID, at time.Time) error {
 	for _, operation := range record.ResolvedOperations {

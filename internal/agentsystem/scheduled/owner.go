@@ -53,6 +53,9 @@ type Actor struct{ TenantID, UserID string }
 // Schedule retains a pinned Scheduling publication and independently revisioned
 // owner controls. Cursor advances only with the durable occurrence outbox.
 type Schedule struct {
+	SourceKind                                                    agentrun.SourceKind
+	Persona                                                       *agentrun.PersonaRef
+	RequesterID                                                   string
 	Trigger                                                       schedule.PublishedTrigger
 	Revision                                                      uint64
 	State, OwnerID, InstallationID, AgentPrincipalID, LegalEntity string
@@ -97,6 +100,12 @@ func NewOwner(store OwnerStore, authority OwnerAuthority) (*Owner, error) {
 	return &Owner{store, authority}, nil
 }
 func ValidateSchedule(s Schedule) error {
+	if s.SourceKind != "" && s.SourceKind != agentrun.SourceSchedule && s.SourceKind != agentrun.SourceAnnouncement {
+		return ErrInvalidSchedule
+	}
+	if s.SourceKind == agentrun.SourceAnnouncement && (s.Persona == nil || !required(s.RequesterID) || s.RequesterID != s.OwnerID) {
+		return ErrInvalidSchedule
+	}
 	if err := s.Trigger.Verify(); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidSchedule, err)
 	}

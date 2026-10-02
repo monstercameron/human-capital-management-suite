@@ -20,21 +20,21 @@ import (
 
 var (
 	// ErrInvalid identifies malformed subscription or event admission input.
-	ErrInvalid           = errors.New("agent event subscription: invalid input")
+	ErrInvalid = errors.New("agent event subscription: invalid input")
 	// ErrInactive means the subscription or installation revision is stale.
-	ErrInactive          = errors.New("agent event subscription: subscription is not current and active")
+	ErrInactive = errors.New("agent event subscription: subscription is not current and active")
 	// ErrRevoked means the current installation grant is unavailable.
-	ErrRevoked           = errors.New("agent event subscription: current grant or installation is revoked")
+	ErrRevoked = errors.New("agent event subscription: current grant or installation is revoked")
 	// ErrAudience means the event projection differs from the current audience grant.
-	ErrAudience          = errors.New("agent event subscription: audience does not match current grant")
+	ErrAudience = errors.New("agent event subscription: audience does not match current grant")
 	// ErrLoop means the cause chain contains this agent or exceeds its depth cap.
-	ErrLoop              = errors.New("agent event subscription: cause chain is recursive or too deep")
+	ErrLoop = errors.New("agent event subscription: cause chain is recursive or too deep")
 	// ErrDebounced means the last admitted event falls within the cooldown window.
-	ErrDebounced         = errors.New("agent event subscription: debounce window has not elapsed")
+	ErrDebounced = errors.New("agent event subscription: debounce window has not elapsed")
 	// ErrBudget means the candidate exceeds the subscription's declared ceiling.
-	ErrBudget            = errors.New("agent event subscription: requested budget exceeds subscription ceiling")
+	ErrBudget = errors.New("agent event subscription: requested budget exceeds subscription ceiling")
 	// ErrForbiddenField means the source projection contains a field outside its schema.
-	ErrForbiddenField    = errors.New("agent event subscription: source projection contains an undeclared field")
+	ErrForbiddenField = errors.New("agent event subscription: source projection contains an undeclared field")
 	// ErrProjectionInvalid means the source projection cannot be safely filtered.
 	ErrProjectionInvalid = errors.New("agent event subscription: source projection is invalid")
 )

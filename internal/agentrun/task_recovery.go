@@ -104,6 +104,7 @@ func (r *Runtime) PauseAuthority(ctx context.Context, id string, expected uint64
 		step.Approved, step.ApprovalDigest = false, ""
 		if step.State == StepAwaitingApproval {
 			step.State = StepPending
+			step.StartedAt, step.FinishedAt = time.Time{}, time.Time{}
 			task.PausedState, task.PausedWake = StateRunning, nil
 		}
 	}
@@ -164,6 +165,7 @@ func (r *Runtime) ReconcileEffect(ctx context.Context, id string, expected uint6
 		return completed, nil
 	}
 	task.Plan.Steps[task.CurrentStep].State = StepPending
+	task.Plan.Steps[task.CurrentStep].StartedAt, task.Plan.Steps[task.CurrentStep].FinishedAt = time.Time{}, time.Time{}
 	task.FailureCode, task.FailureDetail = "", ""
 	task.Version++
 	task.UpdatedAt = now.UTC()

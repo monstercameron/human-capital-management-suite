@@ -49,7 +49,13 @@ func SignPersonaEvaluationClaim(privateKey ed25519.PrivateKey, claim PersonaEval
 		!validSHA256(claim.ProfileDigest) || !validSHA256(claim.SuiteDigest) || !validSHA256(claim.RunDigest) || !validSHA256(claim.ModelDigest) || claim.IssuedAt.IsZero() || !claim.ExpiresAt.After(claim.IssuedAt) {
 		return SignedPersonaEvaluation{}, fmt.Errorf("%w: incomplete claim or signing key", errInvalidEvaluationEvidence)
 	}
-	claim.IssuedAt, claim.ExpiresAt = claim.IssuedAt.UTC(), claim.ExpiresAt.UTC()
+	// The signature covers the encoded times, and the evidence table keeps
+	// microseconds. A claim signed at finer precision could be recorded and
+	// then never verified again, so the claim is sealed at stored precision.
+	claim.IssuedAt, claim.ExpiresAt = evaluationSealTime(claim.IssuedAt), evaluationSealTime(claim.ExpiresAt)
+	if !claim.ExpiresAt.After(claim.IssuedAt) {
+		return SignedPersonaEvaluation{}, fmt.Errorf("%w: incomplete claim or signing key", errInvalidEvaluationEvidence)
+	}
 	encoded, err := json.Marshal(claim)
 	if err != nil {
 		return SignedPersonaEvaluation{}, fmt.Errorf("%w: encode claim: %v", errInvalidEvaluationEvidence, err)
@@ -91,6 +97,11 @@ func (a *EvaluationSealAuthority) RecordPersonaEvaluation(ctx context.Context, t
 		return err
 	}
 	claim := evidence.Claim
+	// A claim sealed at finer precision than the table keeps would verify
+	// here and fail on every later read; refuse it before it is stored.
+	if !claim.IssuedAt.Equal(evaluationSealTime(claim.IssuedAt)) || !claim.ExpiresAt.Equal(evaluationSealTime(claim.ExpiresAt)) {
+		return fmt.Errorf("%w: claim times are finer than stored precision", errInvalidEvaluationEvidence)
+	}
 	tenant := values.TenantId(claim.TenantID)
 	tenantID := a.tenantUUID(tenant)
 	if tenantID == uuid.Nil {
@@ -164,6 +175,12 @@ func (a *EvaluationSealAuthority) verify(evidence SignedPersonaEvaluation, tenan
 		return fmt.Errorf("%w: failed evaluation cannot authorize publication", ErrPublicationEvidenceRequired)
 	}
 	return nil
+}
+
+// evaluationSealTime is a claim time at the precision the evidence table
+// stores, in UTC.
+func evaluationSealTime(value time.Time) time.Time {
+	return value.UTC().Truncate(time.Microsecond)
 }
 
 func evaluationSealMessage(claim []byte) []byte {

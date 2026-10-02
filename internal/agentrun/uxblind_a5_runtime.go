@@ -11,11 +11,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 )
 
 const (
@@ -155,18 +158,23 @@ type PlanStep struct {
 	Attempt              uint32        `json:"attempt"`
 	ResultRef            string        `json:"result_ref,omitempty"`
 	VerificationRef      string        `json:"verification_ref,omitempty"`
+	StartedAt            time.Time     `json:"started_at,omitempty"`
+	FinishedAt           time.Time     `json:"finished_at,omitempty"`
 	// Wait is the typed wake condition of a WAIT or ASK_USER step. It is part of
 	// the step identity, so it is bound by the plan digest and by an approval.
 	Wait *WakeCondition `json:"wait,omitempty"`
 }
 
 type AgentPlan struct {
-	Revision    uint64     `json:"revision"`
-	Steps       []PlanStep `json:"steps"`
-	Confirmed   bool       `json:"confirmed"`
-	ConfirmedBy string     `json:"confirmed_by,omitempty"`
-	ConfirmedAt time.Time  `json:"confirmed_at,omitempty"`
-	Digest      string     `json:"digest"`
+	Revision           uint64                  `json:"revision"`
+	Steps              []PlanStep              `json:"steps"`
+	DocumentReferences []agentdocref.Reference `json:"document_references,omitempty"`
+	DocumentOmissions  []agentdocref.Omission  `json:"document_omissions,omitempty"`
+	AnsweringAgent     *TaskAgentIdentity      `json:"answering_agent,omitempty"`
+	Confirmed          bool                    `json:"confirmed"`
+	ConfirmedBy        string                  `json:"confirmed_by,omitempty"`
+	ConfirmedAt        time.Time               `json:"confirmed_at,omitempty"`
+	Digest             string                  `json:"digest"`
 }
 
 // NewPlan validates and canonically digests a plan. Plan digest excludes the
@@ -224,15 +232,25 @@ func digestPlan(plan AgentPlan) string {
 	for i, step := range plan.Steps {
 		steps[i] = identityOf(step)
 	}
-	return digestPlanIdentity(plan.Revision, steps)
+	return digestPlanIdentityWithTaskInputs(plan.Revision, steps, plan.DocumentReferences, plan.AnsweringAgent)
 }
 
 func digestPlanIdentity(revision uint64, steps []PlanStepIdentity) string {
+	return digestPlanIdentityWithDocuments(revision, steps, nil)
+}
+
+func digestPlanIdentityWithDocuments(revision uint64, steps []PlanStepIdentity, refs []agentdocref.Reference) string {
+	return digestPlanIdentityWithTaskInputs(revision, steps, refs, nil)
+}
+
+func digestPlanIdentityWithTaskInputs(revision uint64, steps []PlanStepIdentity, refs []agentdocref.Reference, agent *TaskAgentIdentity) string {
 	type binding struct {
-		Revision uint64             `json:"revision"`
-		Steps    []PlanStepIdentity `json:"steps"`
+		Revision           uint64                  `json:"revision"`
+		Steps              []PlanStepIdentity      `json:"steps"`
+		DocumentReferences []agentdocref.Reference `json:"document_references,omitempty"`
+		AnsweringAgent     *TaskAgentIdentity      `json:"answering_agent,omitempty"`
 	}
-	encoded, _ := json.Marshal(binding{Revision: revision, Steps: steps})
+	encoded, _ := json.Marshal(binding{Revision: revision, Steps: steps, DocumentReferences: refs, AnsweringAgent: cloneTaskAgentIdentity(agent)})
 	sum := sha256.Sum256(append([]byte("hcm-next-agent-plan/v1\x00"), encoded...))
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
@@ -431,6 +449,13 @@ func (s *MemoryStore) SaveWithEvents(_ context.Context, task AgentTask, expected
 	if task.Version != expectedVersion+1 {
 		return fmt.Errorf("%w: next version must be %d", ErrInvalid, expectedVersion+1)
 	}
+	if !slices.Equal(current.Plan.DocumentReferences, task.Plan.DocumentReferences) {
+		return ErrDocumentReferenceInvalid
+	}
+	if !sameTaskAgentIdentity(current.Plan.AnsweringAgent, task.Plan.AnsweringAgent) {
+		return ErrTaskAgentInvalid
+	}
+	task.Plan.DocumentOmissions = cloneDocumentOmissions(current.Plan.DocumentOmissions)
 	copyEvents, err := sequenceTaskEvents(s.events[task.ID], events)
 	if err != nil {
 		return err
@@ -501,6 +526,13 @@ func (s *MemoryStore) Save(_ context.Context, task AgentTask, expectedVersion ui
 	if task.Version != expectedVersion+1 {
 		return fmt.Errorf("%w: next version must be %d", ErrInvalid, expectedVersion+1)
 	}
+	if !slices.Equal(current.Plan.DocumentReferences, task.Plan.DocumentReferences) {
+		return ErrDocumentReferenceInvalid
+	}
+	if !sameTaskAgentIdentity(current.Plan.AnsweringAgent, task.Plan.AnsweringAgent) {
+		return ErrTaskAgentInvalid
+	}
+	task.Plan.DocumentOmissions = cloneDocumentOmissions(current.Plan.DocumentOmissions)
 	s.tasks[task.ID] = cloneTask(task)
 	return nil
 }
@@ -584,6 +616,14 @@ func (r *Runtime) CreateTask(ctx context.Context, req CreateRequest) (AgentTask,
 	if !req.Plan.validDigest() {
 		return AgentTask{}, fmt.Errorf("%w: plan digest is invalid", ErrInvalid)
 	}
+	if refs := documentReferencesFromContext(ctx); len(refs) > 0 {
+		req.Plan.DocumentReferences = cloneDocumentReferences(refs)
+		req.Plan.Digest = digestPlan(req.Plan)
+	}
+	if agent := taskAgentIdentityFromContext(ctx); agent != nil {
+		req.Plan.AnsweringAgent = agent
+		req.Plan.Digest = digestPlan(req.Plan)
+	}
 	if err := validateTaskLineage(req); err != nil {
 		return AgentTask{}, err
 	}
@@ -610,6 +650,12 @@ func (r *Runtime) CreateTask(ctx context.Context, req CreateRequest) (AgentTask,
 
 func (p AgentPlan) validDigest() bool {
 	if len(p.Steps) == 0 || len(p.Steps) > MaxPlanSteps || p.Revision == 0 || p.Digest == "" || digestPlan(p) != p.Digest {
+		return false
+	}
+	if agentdocref.Validate(p.DocumentReferences, agentdocref.MaxRequestReferences) != nil || ValidateTaskDocumentOmissions(p.DocumentReferences, p.DocumentOmissions) != nil {
+		return false
+	}
+	if p.AnsweringAgent != nil && p.AnsweringAgent.Validate() != nil {
 		return false
 	}
 	seen := make(map[string]struct{}, len(p.Steps))
@@ -656,6 +702,7 @@ func (r *Runtime) ConfirmPlan(ctx context.Context, id, user string, expectedVers
 		}
 		if step.State != StepCompleted {
 			step.State = StepPending
+			step.StartedAt, step.FinishedAt = time.Time{}, time.Time{}
 			step.Approved = false
 			step.ApprovalDigest = ""
 		}
@@ -714,6 +761,9 @@ func (r *Runtime) Replan(ctx context.Context, id string, expectedVersion uint64,
 			needsConfirmation = true
 		}
 	}
+	plan.DocumentReferences = cloneDocumentReferences(task.Plan.DocumentReferences)
+	plan.DocumentOmissions = cloneDocumentOmissions(task.Plan.DocumentOmissions)
+	plan.AnsweringAgent = cloneTaskAgentIdentity(task.Plan.AnsweringAgent)
 	plan.Revision = task.Plan.Revision + 1
 	plan = normalizeProposedPlan(plan)
 	plan.Steps = preserveCompletedSteps(task.Plan.Steps, cloneSteps(plan.Steps))
@@ -809,6 +859,8 @@ func (r *Runtime) ExecuteNext(ctx context.Context, id string, expectedVersion ui
 	}
 	step.State = StepRunning
 	step.Attempt++
+	step.StartedAt = now.UTC()
+	step.FinishedAt = time.Time{}
 	task.WorkerLease = "step:" + step.ID
 	task.Version++
 	task.UpdatedAt = now.UTC()
@@ -850,15 +902,18 @@ func (r *Runtime) finishStep(ctx context.Context, id string, expected uint64, no
 	stepPaused := !executorSucceeded && errors.As(runErr, &pause) && pause.valid()
 	if stepPaused {
 		step.State = StepPending
+		step.StartedAt, step.FinishedAt = time.Time{}, time.Time{}
 		task.State, task.PausedState, task.PausedWake = StatePaused, StateRunning, nil
 		task.FailureCode, task.FailureDetail = pause.Reason, "step resource admission paused before execution"
 	} else if runErr != nil {
 		step.State = StepFailed
+		step.FinishedAt = now.UTC()
 		task.State = StateFailed
 		task.FailureCode = "STEP_FAILED"
 		task.FailureDetail = runErr.Error()
 	} else {
 		step.State = StepCompleted
+		step.FinishedAt = now.UTC()
 		if task.FailureCode == "AMBIGUOUS_EFFECT" {
 			task.FailureCode, task.FailureDetail = "", ""
 		}
@@ -1095,6 +1150,7 @@ func (r *Runtime) Resume(ctx context.Context, id string, expectedVersion uint64,
 			return task, ErrReconciliationRequired
 		}
 		task.Plan.Steps[task.CurrentStep].State = StepPending
+		task.Plan.Steps[task.CurrentStep].StartedAt, task.Plan.Steps[task.CurrentStep].FinishedAt = time.Time{}, time.Time{}
 	}
 	if task.PausedState.valid() && task.PausedState != StatePaused {
 		task.State = task.PausedState
@@ -1177,6 +1233,7 @@ func (r *Runtime) RecoverStale(ctx context.Context, id string, expectedVersion u
 		task.FailureCode, task.FailureDetail = "AMBIGUOUS_EFFECT", "owner reconciliation required before this effect can advance"
 	} else {
 		task.Plan.Steps[task.CurrentStep].State = StepPending
+		task.Plan.Steps[task.CurrentStep].StartedAt, task.Plan.Steps[task.CurrentStep].FinishedAt = time.Time{}, time.Time{}
 	}
 	task.WorkerLease, task.ModelSession = "", ""
 	task.Version++
@@ -1418,7 +1475,13 @@ func cloneSteps(in []PlanStep) []PlanStep {
 	}
 	return out
 }
-func clonePlan(in AgentPlan) AgentPlan { in.Steps = cloneSteps(in.Steps); return in }
+func clonePlan(in AgentPlan) AgentPlan {
+	in.Steps = cloneSteps(in.Steps)
+	in.DocumentReferences = cloneDocumentReferences(in.DocumentReferences)
+	in.DocumentOmissions = cloneDocumentOmissions(in.DocumentOmissions)
+	in.AnsweringAgent = cloneTaskAgentIdentity(in.AnsweringAgent)
+	return in
+}
 func cloneTask(in AgentTask) AgentTask {
 	if in.LastWake != nil {
 		event := *in.LastWake
@@ -1472,6 +1535,8 @@ func preserveCompletedSteps(previous, next []PlanStep) []PlanStep {
 		next[i].Attempt = prior.Attempt
 		next[i].ResultRef = prior.ResultRef
 		next[i].VerificationRef = prior.VerificationRef
+		next[i].StartedAt = prior.StartedAt
+		next[i].FinishedAt = prior.FinishedAt
 	}
 	return next
 }
@@ -1484,6 +1549,7 @@ func normalizeProposedPlan(plan AgentPlan) AgentPlan {
 		step.State, step.Attempt = StepPending, 0
 		step.Approved, step.ApprovalDigest, step.ApprovalRevision = false, "", 0
 		step.ResultRef, step.VerificationRef = "", ""
+		step.StartedAt, step.FinishedAt = time.Time{}, time.Time{}
 	}
 	return plan
 }
@@ -1566,6 +1632,8 @@ func (r *Runtime) ParkStep(ctx context.Context, id string, expectedVersion uint6
 	}
 	step.State = StepWaiting
 	step.Attempt++
+	step.StartedAt = now.UTC()
+	step.FinishedAt = time.Time{}
 	task.Wake = &condition
 	task.LastWake = nil
 	task.State = StateWaiting

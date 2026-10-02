@@ -222,6 +222,9 @@ func migrateCommandFields(command string) []bootstrap.Field {
 // spec builds the full migrate Spec for one invocation's subcommand and
 // remaining flag arguments.
 func spec(command string, rest []string) bootstrap.Spec {
+	if command == agentDemoCommand {
+		return agentDemoSpec(rest)
+	}
 	return bootstrap.Spec{
 		Role:         bootstrap.RoleMigrate,
 		Args:         rest,

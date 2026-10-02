@@ -33,6 +33,12 @@ type Outbox interface {
 type ContextBuilder interface {
 	BuildScheduleContext(context.Context, Schedule, schedule.Occurrence) (agentrun.ContextScope, error)
 }
+
+// RequestBuilder refreshes source-specific authority before the occurrence is
+// frozen. Replay always uses the persisted request without rebuilding it.
+type RequestBuilder interface {
+	BuildScheduleRequest(context.Context, Schedule, agentrun.Request) (agentrun.Request, error)
+}
 type OutboxWorker struct {
 	owner    *Owner
 	outbox   Outbox
@@ -88,11 +94,24 @@ func (w *OutboxWorker) Plan(ctx context.Context, tenant, id string, at time.Time
 		// The stable source key is also the source-owned lookup reference, allowing
 		// a durable reader to restore identity without trusting a caller's key.
 		source.Ref = source.Key
+		if s.SourceKind == agentrun.SourceAnnouncement {
+			source.Kind = agentrun.SourceAnnouncement
+		}
 		contextScope, err := w.contexts.BuildScheduleContext(ctx, s, occ)
 		if err != nil {
 			return err
 		}
 		request := agentrun.Request{Source: source, Agent: targetAgentRef(firing.Target), InstallationID: s.InstallationID, LegalEntity: s.LegalEntity, Principal: agentrun.PrincipalChain{Mode: agentrun.ModeSponsored, AgentPrincipalID: s.AgentPrincipalID, SponsorID: firing.Target.SponsorID}, Purpose: firing.Target.Purpose, Audience: targetAudience(firing.Target.Destination), Context: contextScope, Deadline: at.UTC().Add(s.RunTimeout), Budget: targetBudget(firing.Target.Budget), CauseID: source.Key}
+		if s.SourceKind == agentrun.SourceAnnouncement {
+			request.Persona = s.Persona
+			request.Principal.RequesterID = s.RequesterID
+		}
+		if builder, ok := w.contexts.(RequestBuilder); ok {
+			request, err = builder.BuildScheduleRequest(ctx, s, request)
+			if err != nil {
+				return err
+			}
+		}
 		deliveries = append(deliveries, Delivery{tenant, source.Key, id, s.Revision, firing, request, at.UTC()})
 	}
 	return w.outbox.AppendWindow(ctx, s, end, deliveries)
@@ -138,13 +157,22 @@ func (w *OutboxWorker) CheckRequest(ctx context.Context, request agentrun.Reques
 	if err != nil {
 		return err
 	}
-	if !found || request.Source.Kind != agentrun.SourceSchedule || delivery.Key != request.Source.Key {
+	if !found || (request.Source.Kind != agentrun.SourceSchedule && request.Source.Kind != agentrun.SourceAnnouncement) || delivery.Request.Source.Kind != request.Source.Kind || delivery.Key != request.Source.Key {
 		return ErrFiringRefused
 	}
 	want, wantErr := agentrun.AdmissionRequestDigest(delivery.Request)
 	got, gotErr := agentrun.AdmissionRequestDigest(request)
 	if wantErr != nil || gotErr != nil || want != got {
 		return ErrFiringRefused
+	}
+	if request.Source.Kind == agentrun.SourceAnnouncement {
+		current, found, err := w.owner.store.Load(ctx, request.Source.TenantID, delivery.ScheduleID)
+		if err != nil {
+			return err
+		}
+		if !found || current.Revision != delivery.ControlRevision {
+			return errors.Join(ErrFiringRefused, ErrRevision)
+		}
 	}
 	if err := w.owner.CheckCurrent(ctx, delivery.Firing); err != nil {
 		return errors.Join(ErrFiringRefused, err)
@@ -156,7 +184,7 @@ func (w *OutboxWorker) ResolveSourceKey(ctx context.Context, request agentrun.Re
 	if err != nil {
 		return "", err
 	}
-	if !found || request.Source.Kind != agentrun.SourceSchedule {
+	if !found || (request.Source.Kind != agentrun.SourceSchedule && request.Source.Kind != agentrun.SourceAnnouncement) || delivery.Request.Source.Kind != request.Source.Kind {
 		return "", ErrInvalidFiring
 	}
 	return delivery.Key, nil

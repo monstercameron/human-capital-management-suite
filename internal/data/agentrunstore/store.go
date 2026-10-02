@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
@@ -173,11 +174,16 @@ func (s *TenantStore) SaveWithEvents(ctx context.Context, task agentrun.AgentTas
 	}
 	defer tx.Rollback(ctx)
 	if task.Version == expectedVersion+1 && expectedVersion <= math.MaxInt64-1 {
-		n, err := tx.Exec(ctx, `UPDATE agent_task SET user_id=$3, goal=$4, constraints=$5::jsonb, plan=$6::jsonb, plan_digest=$7, plan_confirmed=$8,
+		n, err := tx.Exec(ctx, `UPDATE agent_task SET user_id=$3, goal=$4, constraints=$5::jsonb,
+			plan=(CASE WHEN plan ? 'document_omissions'
+				THEN (($6::jsonb - 'document_omissions') || jsonb_build_object('document_omissions',plan->'document_omissions'))
+				ELSE ($6::jsonb - 'document_omissions') END), plan_digest=$7, plan_confirmed=$8,
 			state=$9, version=$10, current_step=$11, wake=$12::jsonb, wake_kind=$13, wake_key=$14, wake_due_at=$15, wake_stale_after=$16,
 			paused_state=$17, paused_wake=$18::jsonb, worker_lease=$19, model_session=$20, failure_code=$21, failure_detail=$22,
 			ledger=$23::jsonb, created_at=$24, updated_at=$25, expires_at=$26, last_wake_event=$28::jsonb,task_lineage=$29::jsonb
-			WHERE tenant_id=$1 AND task_id=$2 AND version=$27`, f.updateArgs(s.tenant, int64(expectedVersion))...)
+			WHERE tenant_id=$1 AND task_id=$2 AND version=$27
+			AND COALESCE(plan->'document_references','[]'::jsonb)=COALESCE($6::jsonb->'document_references','[]'::jsonb)
+			AND COALESCE(plan->'answering_agent','null'::jsonb)=COALESCE($6::jsonb->'answering_agent','null'::jsonb)`, f.updateArgs(s.tenant, int64(expectedVersion))...)
 		if err != nil {
 			return fmt.Errorf("agentrunstore: save: %w", err)
 		}
@@ -528,6 +534,12 @@ func (s *TenantStore) encode(task agentrun.AgentTask) (fields, error) {
 		}
 	}
 	plan := task.Plan
+	if agentdocref.Validate(plan.DocumentReferences, agentdocref.MaxRequestReferences) != nil || agentrun.ValidateTaskDocumentOmissions(plan.DocumentReferences, plan.DocumentOmissions) != nil {
+		return fields{}, agentrun.ErrDocumentReferenceInvalid
+	}
+	if plan.AnsweringAgent != nil && plan.AnsweringAgent.Validate() != nil {
+		return fields{}, agentrun.ErrTaskAgentInvalid
+	}
 	plan.ConfirmedAt = plan.ConfirmedAt.UTC()
 	f := fields{id: task.ID, tenantRef: task.TenantID, userID: task.UserID, goal: task.Goal, planDigest: plan.Digest, planConfirmed: plan.Confirmed,
 		state: string(task.State), version: int64(task.Version), currentStep: task.CurrentStep, pausedState: string(task.PausedState),
@@ -634,6 +646,12 @@ func scanTask(row scanner) (agentrun.AgentTask, error) {
 	}
 	if err := json.Unmarshal(plan, &t.Plan); err != nil {
 		return agentrun.AgentTask{}, fmt.Errorf("agentrunstore: decode plan: %w", err)
+	}
+	if agentdocref.Validate(t.Plan.DocumentReferences, agentdocref.MaxRequestReferences) != nil || agentrun.ValidateTaskDocumentOmissions(t.Plan.DocumentReferences, t.Plan.DocumentOmissions) != nil {
+		return agentrun.AgentTask{}, agentrun.ErrDocumentReferenceInvalid
+	}
+	if t.Plan.AnsweringAgent != nil && t.Plan.AnsweringAgent.Validate() != nil {
+		return agentrun.AgentTask{}, agentrun.ErrTaskAgentInvalid
 	}
 	if err := json.Unmarshal(ledger, &t.Ledger); err != nil {
 		return agentrun.AgentTask{}, fmt.Errorf("agentrunstore: decode ledger: %w", err)

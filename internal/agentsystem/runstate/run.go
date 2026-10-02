@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -124,8 +126,50 @@ type Run struct {
 	WaitKind         WaitKind         `json:"wait_kind,omitempty"`
 	WaitRef          string           `json:"wait_ref,omitempty"`
 	TerminalCode     string           `json:"terminal_code,omitempty"`
+	FailureGate      string           `json:"failure_gate,omitempty"`
+	FailureOwner     string           `json:"failure_owner,omitempty"`
+	FailureLocation  string           `json:"failure_location,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`
+}
+
+// FailureGate is the closed operational vocabulary for why a run stopped.
+type FailureGate string
+
+const (
+	FailureGateAuthority        FailureGate = "authority"
+	FailureGateGrant            FailureGate = "grant"
+	FailureGateInstallation     FailureGate = "installation"
+	FailureGateAudience         FailureGate = "audience"
+	FailureGateBudget           FailureGate = "budget"
+	FailureGateModelRoute       FailureGate = "model_route"
+	FailureGateModelCall        FailureGate = "model_call"
+	FailureGateModelOutput      FailureGate = "model_output"
+	FailureGateToolScope        FailureGate = "tool_scope"
+	FailureGateToolCall         FailureGate = "tool_call"
+	FailureGateOutputGrounding  FailureGate = "output_grounding"
+	FailureGateOutputSchema     FailureGate = "output_schema"
+	FailureGateDeliveryAudience FailureGate = "delivery_audience"
+	FailureGateDeliveryWrite    FailureGate = "delivery_write"
+	FailureGateDeadline         FailureGate = "deadline"
+	FailureGateStopped          FailureGate = "stopped"
+)
+
+// FailureRefusal carries only closed-list operational fields. It must never
+// contain prompts, document text, model text, provider errors, or request body.
+type FailureRefusal struct {
+	Gate     FailureGate `json:"gate"`
+	Owner    string      `json:"owner"`
+	Location string      `json:"location"`
+}
+
+func NewFailureRefusal(gate FailureGate, owner string) FailureRefusal {
+	_, file, line, ok := runtime.Caller(1)
+	location := "unknown:0"
+	if ok {
+		location = fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	}
+	return FailureRefusal{Gate: gate, Owner: owner, Location: location}
 }
 
 // Store persists execution snapshots with compare-and-swap revisions.
@@ -365,15 +409,23 @@ func (s *Service) Resume(ctx context.Context, id string, expected uint64, now ti
 // Fail records a typed non-sensitive failure outcome. Ambiguous effects remain
 // in RECONCILING until their owner supplies authoritative evidence.
 func (s *Service) Fail(ctx context.Context, id, owner, code string, retryable bool, fence, expected uint64, now time.Time) (Run, error) {
+	return s.FailWithRefusal(ctx, id, owner, code, retryable, FailureRefusal{}, fence, expected, now)
+}
+
+// FailWithRefusal records a typed non-sensitive failure with closed-list
+// operator diagnostics. Ambiguous effects remain in RECONCILING until their
+// owner supplies authoritative evidence.
+func (s *Service) FailWithRefusal(ctx context.Context, id, owner, code string, retryable bool, refusal FailureRefusal, fence, expected uint64, now time.Time) (Run, error) {
 	run, err := s.currentLease(ctx, id, owner, fence, expected, now)
 	if err != nil {
 		return Run{}, err
 	}
-	if !cleanCode(code) {
+	if !cleanCode(code) || !validFailureRefusal(refusal) {
 		return Run{}, fmt.Errorf("%w: failure code", ErrInvalid)
 	}
 	prior := run.Version
 	run.FailureRequested, run.TerminalCode, run.Retryable = true, code, retryable
+	run.FailureGate, run.FailureOwner, run.FailureLocation = string(refusal.Gate), refusal.Owner, refusal.Location
 	run.Lease, run.Version, run.UpdatedAt = nil, run.Version+1, now.UTC()
 	run.finishRequestedTerminal()
 	if err := s.store.Save(ctx, run, prior); err != nil {
@@ -576,4 +628,26 @@ func cleanCode(value string) bool {
 		}
 	}
 	return true
+}
+
+func validFailureRefusal(refusal FailureRefusal) bool {
+	if refusal == (FailureRefusal{}) {
+		return true
+	}
+	if !validFailureGate(refusal.Gate) || !clean(refusal.Owner) || !clean(refusal.Location) || strings.ContainsAny(refusal.Owner+refusal.Location, "\r\n") {
+		return false
+	}
+	return len(refusal.Owner) <= 96 && len(refusal.Location) <= 160
+}
+
+func validFailureGate(gate FailureGate) bool {
+	switch gate {
+	case FailureGateAuthority, FailureGateGrant, FailureGateInstallation, FailureGateAudience, FailureGateBudget,
+		FailureGateModelRoute, FailureGateModelCall, FailureGateModelOutput, FailureGateToolScope, FailureGateToolCall,
+		FailureGateOutputGrounding, FailureGateOutputSchema, FailureGateDeliveryAudience, FailureGateDeliveryWrite,
+		FailureGateDeadline, FailureGateStopped:
+		return true
+	default:
+		return false
+	}
 }

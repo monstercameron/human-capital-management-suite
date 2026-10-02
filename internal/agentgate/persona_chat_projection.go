@@ -25,6 +25,8 @@ func (g *Gate) ProjectPersonaChatSkillAuthorization(ctx context.Context, req Pri
 		resolve, scope = privateReplyCapability, PrivateChatReplyScope
 	case "hcmnext.skill.knowledge_search_with_citations":
 		resolve, scope = privatePolicySearchCapability, "documents:search"
+	case "hcmnext.skill.workspace_document_search":
+		resolve, scope = privateWorkspaceSearchCapability, "documents:search"
 	default:
 		return PrivateChatSkillAuthorization{}, &DeniedError{Code: DenyCapability, Skill: req.Skill.Key(), Detail: "skill has no persona chat domain projection"}
 	}

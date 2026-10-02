@@ -8,8 +8,8 @@ import (
 
 func TestTodo_AGENTP_023(t *testing.T) {
 	starters := PersonaStarters()
-	if len(starters) != 4 {
-		t.Fatalf("starter count = %d, want 4", len(starters))
+	if len(starters) != 5 {
+		t.Fatalf("starter count = %d, want 5", len(starters))
 	}
 	for _, starter := range starters {
 		if starter.Version != 1 || starter.Status != "DRAFT" || !starter.OwnerNeeded || !starter.OwnerRequired {
@@ -50,6 +50,7 @@ func TestTodo_AGENTP_023_Golden(t *testing.T) {
 		"comp":       {"hcmnext.persona_template.comp_analyst", "T1", 3, []string{"PRIVATE", "MANAGER", "ONE_TO_ONE_DM"}, true, false},
 		"policy":     {"hcmnext.persona_template.policy_helper", "T0", 2, []string{"ANY_INTERNAL"}, false, true},
 		"schedule":   {"hcmnext.persona_template.schedule_fixer", "T3", 3, []string{"CREW", "SCHEDULER", "ONE_TO_ONE_DM"}, false, false},
+		"assistant":  {"hcmnext.persona_template.assistant", "T0", 2, []string{"ANY_INTERNAL"}, false, true},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -114,6 +115,7 @@ func TestTodo_AGENTP_023_GoldenStarterProvenance(t *testing.T) {
 		"hcmnext.persona_template.comp_analyst":           "sha256:126e2a650b2a1db080937f2e34d7df21dc66ba96a203add723f0f53bd8ca376f",
 		"hcmnext.persona_template.policy_helper":          "sha256:91bfb2b82f409cabc414e19de6901f14c5a240cf03ed6548884f483e91e117de",
 		"hcmnext.persona_template.schedule_fixer":         "sha256:5cccea56cdad94364670dfb27dd529d0bfd6c0a04b91c94d71f2fc9826ce84e8",
+		"hcmnext.persona_template.assistant":              "sha256:c9cd4321ac9fd6c4650885725bc961461f6792c908371fcc93191eba1326e41d",
 	}
 	for _, starter := range PersonaStarters() {
 		pin := PersonaStarterPin(starter)

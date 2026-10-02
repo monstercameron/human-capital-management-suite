@@ -18,6 +18,7 @@ type CatalogInstallation struct {
 	Revision          int64
 	RevocationEpoch   int64
 	State             string
+	SuspensionReason  string
 }
 
 // CatalogEntry combines one immutable persona version with its durable
@@ -67,7 +68,7 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 		l.to_state,l.profile_digest,l.review_digest,l.reviewer_id,l.evaluation_digest,l.evaluation_profile_digest,l.evaluation_suite_digest,
 		business_owner.principal_id,technical_steward.principal_id,
 		i.installation_id,i.persona_id,i.persona_version,i.conversation_id,i.conversation_class,
-		i.channel_policy,i.revision,i.revocation_epoch,i.state
+		i.channel_policy,i.revision,i.revocation_epoch,i.state,i.suspension_reason
 	FROM persona_versions v
 	LEFT JOIN latest_lifecycle l ON l.persona_id=v.persona_id AND l.persona_version=v.version
 	LEFT JOIN persona_owners business_owner ON business_owner.tenant_id=v.tenant_id AND business_owner.persona_id=v.persona_id AND business_owner.owner_role='BUSINESS_OWNER'
@@ -96,11 +97,12 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 		var installVersion *int64
 		var revision, revocationEpoch *int64
 		var installState *InstallationState
+		var suspensionReason *string
 		if err := rows.Scan(&version.PersonaID, &version.Version, &version.AgentVersion, &version.Handle, &version.DisplayName,
 			&version.Profile, &version.ContentDigest, &version.CreatedAt, &lifecycle,
 			&profileDigest, &reviewDigest, &reviewerID, &evaluationDigest, &evaluationProfileDigest, &evaluationSuiteDigest, &owner, &steward,
 			&installID, &installPersona, &installVersion, &conversationID, &conversationClass,
-			&policyJSON, &revision, &revocationEpoch, &installState); err != nil {
+			&policyJSON, &revision, &revocationEpoch, &installState, &suspensionReason); err != nil {
 			return nil, fmt.Errorf("agentpersonastore: scan admin persona catalog: %w", err)
 		}
 		version.TenantID, version.CreatedAt = s.tenant, version.CreatedAt.UTC()
@@ -126,7 +128,7 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 				ID: *installID, PersonaID: *installPersona, PersonaVersion: *installVersion,
 				ConversationID: *conversationID, ConversationClass: *conversationClass,
 				ChannelPolicy: policy, Revision: *revision, RevocationEpoch: *revocationEpoch,
-				State: string(*installState),
+				State: string(*installState), SuspensionReason: nonnilCatalogString(suspensionReason),
 			})
 		}
 	}
@@ -137,6 +139,13 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 		return nil, err
 	}
 	return entries, nil
+}
+
+func nonnilCatalogString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func publicationEvidenceStatus(state LifecycleState, contentDigest string, fields ...*string) PublicationEvidenceStatus {

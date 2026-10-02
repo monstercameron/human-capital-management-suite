@@ -1,0 +1,1135 @@
+{
+  "Operations": [
+    {
+      "Package": "internal/agentmodel/openai",
+      "Provider": "openai",
+      "Operation": "responses",
+      "Purpose": "answers",
+      "PriceSource": "Deployment-approved agentmodel.PricingSchedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "cached_input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/agentmodel/openai",
+      "Provider": "azure-openai",
+      "Operation": "responses",
+      "Purpose": "answers",
+      "PriceSource": "Deployment-approved agentmodel.PricingSchedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "cached_input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/agentmodel/anthropic",
+      "Provider": "anthropic",
+      "Operation": "messages",
+      "Purpose": "answers",
+      "PriceSource": "Deployment-approved agentmodel.PricingSchedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/agentmodel/private",
+      "Provider": "private",
+      "Operation": "invoke",
+      "Purpose": "answers",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/agentmodel/private",
+      "Provider": "private",
+      "Operation": "health",
+      "Purpose": "identity",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "tenant and person/connector",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application/documentembed",
+      "Provider": "openai-compatible",
+      "Operation": "embeddings",
+      "Purpose": "indexing",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["input_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store/object/aws",
+      "Provider": "s3",
+      "Operation": "put",
+      "Purpose": "storage",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests", "bytes_transferred"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store/object/aws",
+      "Provider": "s3",
+      "Operation": "get",
+      "Purpose": "storage",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests", "bytes_transferred"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store/object/aws",
+      "Provider": "s3",
+      "Operation": "head",
+      "Purpose": "storage",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store/object/aws",
+      "Provider": "s3",
+      "Operation": "delete",
+      "Purpose": "storage",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store/object/aws",
+      "Provider": "s3",
+      "Operation": "retention",
+      "Purpose": "storage",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["byte_months"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "payroll",
+      "Operation": "deliver",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "payroll",
+      "Operation": "reverse",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "payroll",
+      "Operation": "status",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "identity",
+      "Operation": "deliver",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "identity",
+      "Operation": "reverse",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/providerdelivery",
+      "Provider": "identity",
+      "Operation": "status",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity/oauthcc",
+      "Provider": "oauth",
+      "Operation": "token",
+      "Purpose": "identity",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "tenant and person/connector",
+      "Reason": "Identity discovery/token exchange or customer-owned endpoint is included by contract; explicit no-charge schedule is required",
+      "Gateway": true,
+      "Units": [],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/authn/oidc",
+      "Provider": "oidc",
+      "Operation": "token",
+      "Purpose": "identity",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "tenant and person/connector",
+      "Reason": "Identity discovery/token exchange or customer-owned endpoint is included by contract; explicit no-charge schedule is required",
+      "Gateway": false,
+      "Units": [],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/authn/oidc",
+      "Provider": "oidc",
+      "Operation": "discovery",
+      "Purpose": "identity",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "tenant and person/connector",
+      "Reason": "Identity discovery/token exchange or customer-owned endpoint is included by contract; explicit no-charge schedule is required",
+      "Gateway": false,
+      "Units": [],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/operations/messagingdelivery",
+      "Provider": "smtp",
+      "Operation": "send",
+      "Purpose": "delivery",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["messages"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/timeclockapp",
+      "Provider": "customer-endpoint",
+      "Operation": "device",
+      "Purpose": "timekeeping",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Identity discovery/token exchange or customer-owned endpoint is included by contract; explicit no-charge schedule is required",
+      "Gateway": false,
+      "Units": [],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application/chattone_model.go",
+      "Provider": "configured-model",
+      "Operation": "writing-style",
+      "Purpose": "answers",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application/chatlang003_model.go",
+      "Provider": "configured-model",
+      "Operation": "translate",
+      "Purpose": "translation",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "Feature/run-specific model usage; no common ledger",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application",
+      "Provider": "configured-model",
+      "Operation": "tidy-poll",
+      "Purpose": "answers",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application",
+      "Provider": "configured-model",
+      "Operation": "tidy-todo",
+      "Purpose": "answers",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application",
+      "Provider": "configured-model",
+      "Operation": "chat-meaning-search",
+      "Purpose": "indexing",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/humanwork/chatui/giphy_picker_js.go",
+      "Provider": "giphy",
+      "Operation": "search",
+      "Purpose": "gif-search",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application/chatmap_picture.go",
+      "Provider": "map-provider",
+      "Operation": "picture",
+      "Purpose": "map-picture",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["requests"],
+      "Planned": false,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/application/chatvoice_service.go",
+      "Provider": "speech-provider",
+      "Operation": "transcribe",
+      "Purpose": "transcription",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["seconds"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/collaboration/chat",
+      "Provider": "speech-provider",
+      "Operation": "read-aloud",
+      "Purpose": "speech",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": false,
+      "Units": ["characters"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/workflow",
+      "Provider": "configured-model",
+      "Operation": "decision",
+      "Purpose": "screening",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["input_tokens", "output_tokens"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity",
+      "Provider": "search-provider",
+      "Operation": "web-search",
+      "Purpose": "search",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/connectivity",
+      "Provider": "relay-provider",
+      "Operation": "relay",
+      "Purpose": "calls",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["minutes_relayed"],
+      "Planned": true,
+      "CommonLedger": false
+    },
+    {
+      "Package": "internal/store",
+      "Provider": "scan-provider",
+      "Operation": "scan",
+      "Purpose": "virus-scanning",
+      "PriceSource": "Administrator-approved provider/region/customer contract schedule",
+      "UsageToday": "",
+      "Attribution": "person, workflow run/node or agent run/step, conversation/document/job when applicable",
+      "Reason": "Configured provider must declare its charge; local/static implementations make no external call",
+      "Gateway": true,
+      "Units": ["requests", "bytes_transferred"],
+      "Planned": true,
+      "CommonLedger": false
+    }
+  ],
+  "Allowed": [
+    {
+      "Site": {
+        "File": "internal/agentmodel/anthropic/adapter.go",
+        "Function": "New",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/agentmodel/openai/adapter.go",
+        "Function": "New",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/application/documentembed/embedder.go",
+        "Function": "NewHTTP",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/authn/oidc/transport.go",
+        "Function": "Exchange",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/egress/egress.go",
+        "Function": "New",
+        "Kind": "net/http.Transport"
+      },
+      "Reason": "Central outbound enforcement transport",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/transport/security.go",
+        "Function": "NewSafeHTTPClient",
+        "Kind": "dial_context"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/transport/security.go",
+        "Function": "NewSafeHTTPClient",
+        "Kind": "net.Dialer"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/transport/security.go",
+        "Function": "NewSafeHTTPClient",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/transport/security.go",
+        "Function": "NewSafeHTTPClient",
+        "Kind": "net/http.DefaultTransport"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/connectivity/transport/security.go",
+        "Function": "NewSafeHTTPClient",
+        "Kind": "net/http.Transport"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/data/pgtest/embedded.go",
+        "Function": "download",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Test PostgreSQL archive support",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "internal/humanwork/chatui/chatemoji_js.go",
+        "Function": "chatEmojiStartLoad",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "internal/humanwork/chatui/chatlang006_admin_wasm.go",
+        "Function": "translationAdminRequest",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "internal/humanwork/chatui/chatrender_personal_wasm.go",
+        "Function": "renderingSettingsClient",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "internal/operations/messagingdelivery/smtp_provider.go",
+        "Function": "Send",
+        "Kind": "dial_context"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/operations/messagingdelivery/smtp_provider.go",
+        "Function": "Send",
+        "Kind": "net.Dialer"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/store/object/aws/adapter.go",
+        "Function": "New",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/timeclockapp/httpclient.go",
+        "Function": "NewHTTPClient",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/timeclockapp/kioskserver/serve.go",
+        "Function": "proxyRequest",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "internal/transport/admin/hcmctl/hcmctl.go",
+        "Function": "DialInsecure",
+        "Kind": "google.golang.org/grpc.NewClient"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "tools/clockpartner/tclock_openapi.go",
+        "Function": "FetchClockOpenAPI",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "tools/timeclockkit/tclock_t14_openapi.go",
+        "Function": "FetchClockOpenAPI",
+        "Kind": "net/http.Client"
+      },
+      "Reason": "Existing outbound client: requires common-ledger composition and egress review",
+      "Defect": true
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agent_controls_wasm.go",
+        "Function": "runAgentOwnerRequest",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agent_rollout_portable_wasm.go",
+        "Function": "postPortable",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agent_rollout_portable_wasm.go",
+        "Function": "postRollout",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agentux070_share_wasm.go",
+        "Function": "personaChatShareRequest",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agentux_ambient_client.go",
+        "Function": "agentUXAmbientRequest",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agentux_ambient_wasm.go",
+        "Function": "request",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agentux_demo_inbox_wasm.go",
+        "Function": "agentuxDemoInboxSubmit",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/agentux_proactive_wasm.go",
+        "Function": "runAgentAnnouncementRequest",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatbug033_rail_wasm.go",
+        "Function": "startAgentRail",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatfilter_client.go",
+        "Function": "call",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatlang004_wasm.go",
+        "Function": "chatlang004SyncAudience",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatlang004_wasm.go",
+        "Function": "chatlang004Watch",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "SendLocation",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "cardAction",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "cardAction",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "cardAction",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "load",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "loadPicture",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmap_browser.go",
+        "Function": "loadPicture",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmod004_client.go",
+        "Function": "chatmod004Quick",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmod005_overlay_wasm.go",
+        "Function": "act",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmod005_overlay_wasm.go",
+        "Function": "openOverlay",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatmod005_wasm.go",
+        "Function": "chatmod005Refresh",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatremove_wasm.go",
+        "Function": "handleSubmit",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go",
+        "Function": "command",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go",
+        "Function": "sync",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatsearch_wasm.go",
+        "Function": "chatsearchClick",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatsearch_wasm.go",
+        "Function": "chatsearchLoad",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatsearch_wasm.go",
+        "Function": "chatsearchLoad",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chattone_wasm.go",
+        "Function": "chattoneFindMounts",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chattone_wasm.go",
+        "Function": "chattoneRewrite",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatux012_agents_wasm.go",
+        "Function": "chatux012RetryAgentRail",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatvoice_playback_wasm.go",
+        "Function": "hydratePlayer",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatvoice_playback_wasm.go",
+        "Function": "playerAction",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatvoice_playback_wasm.go",
+        "Function": "playerAction",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/chatvoice_recorder_wasm.go",
+        "Function": "send",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate1_icons_wasm.go",
+        "Function": "installIntegrate1Icons",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "configureIntegrate2Chat",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "integrate2SyncLocations",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "integrate2SyncProjection",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "integrate2SyncStatus",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "integrate2SyncStatusDirectory",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/integrate2_browser_wasm.go",
+        "Function": "integrate2SyncStatusDirectory",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/main_wasm.go",
+        "Function": "dial",
+        "Kind": "google.golang.org/grpc.NewClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/persona_admin_wasm.go",
+        "Function": "refreshPersonaAdminRunHistory",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/persona_chat_wasm.go",
+        "Function": "personaChatInvocationRequest",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/persona_chat_wasm.go",
+        "Function": "refreshPersonaChatDirectory",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/persona_chat_wasm.go",
+        "Function": "retryPersonaChat",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    },
+    {
+      "Site": {
+        "File": "tools/uxqual/cmd/journeywasm/persona_chat_wasm.go",
+        "Function": "watchPersonaChat",
+        "Kind": "net/http.DefaultClient"
+      },
+      "Reason": "Same-origin browser or RPC client",
+      "Defect": false
+    }
+  ]
+}

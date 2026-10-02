@@ -92,6 +92,14 @@ func (g *Gate) ProjectPrivateChatDocumentSearchAuthorization(ctx context.Context
 	return g.projectPrivateChatScope(ctx, req, chat, privatePolicySearchCapability, "documents:search")
 }
 
+// ProjectPrivateChatWorkspaceSearchAuthorization admits only the pinned
+// workspace-search capability, with the same read-only T0 checks and the same
+// search-not-read rule as the conversation search: the document owner still
+// filters every hit by the invoker's current grants at execution.
+func (g *Gate) ProjectPrivateChatWorkspaceSearchAuthorization(ctx context.Context, req PrivateChatScopeRequest, chat PrivateChatScopeAuthorizer) (PrivateChatSkillAuthorization, error) {
+	return g.projectPrivateChatScope(ctx, req, chat, privateWorkspaceSearchCapability, "documents:search")
+}
+
 func (g *Gate) projectPrivateChatScope(ctx context.Context, req PrivateChatScopeRequest, chat PrivateChatScopeAuthorizer, resolveCapability func(agentskills.SkillRecord) (capability.Key, bool), scope string) (PrivateChatSkillAuthorization, error) {
 	var authorize func(context.Context, PrivateChatScopeRequest) (PrivateChatScopeEvidence, error)
 	if chat != nil {
@@ -142,19 +150,34 @@ func (g *Gate) projectChatScope(ctx context.Context, req PrivateChatScopeRequest
 	policyReq := req
 	policyReq.At = at
 	evidence, err := authorize(ctx, policyReq)
-	if err != nil || !matches(evidence, policyReq) {
+	if err != nil {
+		// The policy owner's error names its refusing check and no request
+		// content; without it every chat-scope denial reads the same.
+		return deny(DenySubject, "current membership or invoking-post policy denied this scope: "+err.Error())
+	}
+	if !matches(evidence, policyReq) {
 		return deny(DenySubject, "current membership or invoking-post policy denied this scope")
 	}
 	return PrivateChatSkillAuthorization{Skill: record, Grant: cloneGrant(grant), Capability: capKey, Scope: scope, Evidence: evidence, EvaluatedAt: at, Purpose: req.Purpose}, nil
 }
 
 func privatePolicySearchCapability(record agentskills.SkillRecord) (capability.Key, bool) {
-	if record.Definition.ID != "hcmnext.skill.knowledge_search_with_citations" || len(record.ResolvedOperations) != 1 {
+	return privateDocumentSearchCapability(record, "hcmnext.skill.knowledge_search_with_citations", "hcmnext.agent.document_search")
+}
+
+// privateWorkspaceSearchCapability is the second search skill: the exact
+// workspace skill resolving only to the exact workspace capability.
+func privateWorkspaceSearchCapability(record agentskills.SkillRecord) (capability.Key, bool) {
+	return privateDocumentSearchCapability(record, "hcmnext.skill.workspace_document_search", "hcmnext.agent.workspace_document_search")
+}
+
+func privateDocumentSearchCapability(record agentskills.SkillRecord, skillID, capabilityID string) (capability.Key, bool) {
+	if record.Definition.ID != skillID || len(record.ResolvedOperations) != 1 {
 		return capability.Key{}, false
 	}
 	op := record.ResolvedOperations[0]
 	d := op.Capability.Definition
-	if !op.HasCapability || d.ID != "hcmnext.agent.document_search" || d.Version != 1 || d.OwnerDomain != "documents" ||
+	if !op.HasCapability || d.ID != capabilityID || d.Version != 1 || d.OwnerDomain != "documents" ||
 		d.AuthZScopeRef != "documents:search" || d.EffectClass != capability.EffectReadOnly || !d.AgentEligible || op.Capability.Status != capability.StatusActive ||
 		len(d.ReadData.DataDomains) != 1 || d.ReadData.DataDomains[0] != "policy_document" || len(d.ReadData.FieldPaths) != 0 ||
 		len(d.WriteData.DataDomains) != 0 || len(d.WriteData.FieldPaths) != 0 {

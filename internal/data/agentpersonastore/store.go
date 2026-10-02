@@ -319,6 +319,9 @@ func (s *TenantStore) CreateDraft(ctx context.Context, version PersonaVersion, b
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err = s.lockIcons(ctx, tx); err != nil {
+		return err
+	}
 	n, err := tx.Exec(ctx, `INSERT INTO persona_versions
 		(tenant_id,persona_id,version,agent_version,handle,display_name,profile,content_digest,created_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9) ON CONFLICT DO NOTHING`,
@@ -352,6 +355,9 @@ func (s *TenantStore) CreateDraft(ctx context.Context, version PersonaVersion, b
 	if n == 0 {
 		return fmt.Errorf("%w: initial lifecycle event already exists", ErrConflict)
 	}
+	if _, err = s.ensureIcon(ctx, tx, version, actorID, at, "create"); err != nil {
+		return err
+	}
 	return commit(ctx, tx)
 }
 
@@ -372,6 +378,9 @@ func (s *TenantStore) PutVersion(ctx context.Context, version PersonaVersion) er
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err = s.lockIcons(ctx, tx); err != nil {
+		return err
+	}
 	n, err := tx.Exec(ctx, `INSERT INTO persona_versions
 		(tenant_id,persona_id,version,agent_version,handle,display_name,profile,content_digest,created_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9) ON CONFLICT DO NOTHING`,
@@ -382,6 +391,9 @@ func (s *TenantStore) PutVersion(ctx context.Context, version PersonaVersion) er
 	}
 	if n == 0 {
 		return fmt.Errorf("%w: persona version already exists", ErrConflict)
+	}
+	if _, err = s.ensureIcon(ctx, tx, version, "system:persona-version", created, "create"); err != nil {
+		return err
 	}
 	return commit(ctx, tx)
 }
@@ -737,6 +749,9 @@ func (s *TenantStore) Install(ctx context.Context, installation PersonaInstallat
 		return fmt.Errorf("agentpersonastore: lock installation conversation: %w", err)
 	}
 	if installation.State == InstallationActive {
+		if _, err := s.retireSuspendedDuplicateInstallationsTx(ctx, tx, installation.PersonaID, installation.ConversationID); err != nil {
+			return err
+		}
 		var count int64
 		var duplicate bool
 		if err := tx.QueryRow(ctx, `SELECT count(*),COALESCE(bool_or(persona_id=$3),false)

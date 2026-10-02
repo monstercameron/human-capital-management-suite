@@ -62,7 +62,7 @@ const (
 	personaStarterEval  = "AGENTP-021"
 )
 
-// PersonaStarters returns the four platform persona starters. Each call
+// PersonaStarters returns the platform persona starters. Each call
 // returns independent slices so callers cannot mutate the platform catalog.
 func PersonaStarters() []PersonaStarter {
 	return []PersonaStarter{
@@ -70,6 +70,7 @@ func PersonaStarters() []PersonaStarter {
 		newCompAnalystStarter(),
 		newPolicyHelperStarter(),
 		newScheduleFixerStarter(),
+		newAssistantStarter(),
 	}
 }
 

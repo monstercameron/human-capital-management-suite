@@ -83,6 +83,7 @@ type SourceClassificationRequest struct {
 	DataClass                               trustdlp.DataClass
 	Provenance                              []string
 	ValueDigest                             string
+	MessageRole                             agentmodel.MessageRole
 }
 
 // ProviderDispatcher centralizes checks that must pass before model dispatch.
@@ -193,6 +194,11 @@ func (d *ProviderDispatcher) Dispatch(ctx context.Context, req ProviderDispatchR
 	}
 	result, invokeErr := adapter.Invoke(ctx, req.Model)
 	if err := agentmodel.ValidateModelResult(req.Model, result, adapter.Capabilities()); err != nil {
+		if invokeErr != nil {
+			// An adapter that failed returns no result; name its own error
+			// instead of the validation of that empty result.
+			return DispatchResult{}, fmt.Errorf("%w: adapter: %v", err, invokeErr)
+		}
 		return DispatchResult{}, err
 	}
 	if err := validateProviderIdentity(term, result); err != nil {
@@ -299,6 +305,10 @@ func validateMessageBinding(req ProviderDispatchRequest) error {
 }
 
 func validateSourceBindings(ctx context.Context, verifier SourceClassificationVerifier, req ProviderDispatchRequest, term ProviderTerms) error {
+	roles := make(map[string]agentmodel.MessageRole, len(req.Model.Messages))
+	for i, message := range req.Model.Messages {
+		roles[fmt.Sprintf("model.message.%d", i)] = message.Role
+	}
 	rules := make(map[string]map[trustdlp.DataClass]struct{}, len(term.SourceRules))
 	for _, rule := range term.SourceRules {
 		classes := make(map[trustdlp.DataClass]struct{}, len(rule.Classes))
@@ -322,7 +332,7 @@ func validateSourceBindings(ctx context.Context, verifier SourceClassificationVe
 			return refuse(RefusalProviderSource, name, "model source value must be canonical text")
 		}
 		digest := sha256.Sum256([]byte(value))
-		proof := SourceClassificationRequest{Tenant: req.Outbound.Tenant, Purpose: req.Outbound.Purpose, FieldName: name, SourceClass: source, DataClass: field.Class, Provenance: append([]string(nil), field.Provenance...), ValueDigest: "sha256:" + hex.EncodeToString(digest[:])}
+		proof := SourceClassificationRequest{Tenant: req.Outbound.Tenant, Purpose: req.Outbound.Purpose, FieldName: name, SourceClass: source, DataClass: field.Class, Provenance: append([]string(nil), field.Provenance...), ValueDigest: "sha256:" + hex.EncodeToString(digest[:]), MessageRole: roles[name]}
 		if err := verifier.VerifySourceClassification(ctx, proof); err != nil {
 			return refuse(RefusalProviderSource, name, "authoritative source classification verification failed")
 		}

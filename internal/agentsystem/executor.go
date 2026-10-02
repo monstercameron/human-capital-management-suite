@@ -201,6 +201,7 @@ func (e *executor) model(ctx context.Context, task agentrun.AgentTask, step agen
 	return agentrun.StepResult{
 		Ref: "model:" + step.ID + ":" + out.OutputDigest[:16], Digest: out.OutputDigest,
 		Taint: []string{taintDerived}, Note: out.SchemaID, AnswerText: out.Value.Text,
+		SourceIDs: append([]string{"agent-document-usage:v1"}, out.Value.Citations...),
 	}, nil
 }
 

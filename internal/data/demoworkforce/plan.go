@@ -57,6 +57,8 @@ type Employee struct {
 	PhotoSourceName  string
 	PhotoOriginalRef string
 	PhotoProxyRef    string
+	BirthdayMonth    time.Month
+	BirthdayDay      int
 }
 
 // HarborCare is a wholly fictional multi-state community-care company. Its
@@ -208,6 +210,7 @@ func (p *Pack) plannedEmployee(tenant uuid.UUID, index int, key, given, family s
 		return Employee{}, err
 	}
 	fte := p.fteFor(key)
+	birthdayMonth, birthdayDay, _ := DemoBirthday(key)
 	hasPhoto := photo > 0
 	photoSource, originalRef, proxyRef := "", "", ""
 	if hasPhoto {
@@ -229,6 +232,7 @@ func (p *Pack) plannedEmployee(tenant uuid.UUID, index int, key, given, family s
 			ProfilePhotoOriginalRef: originalRef, ProfilePhotoProxyRef: proxyRef,
 		},
 		JobTitle: role.Title, Organization: unit, HasProfilePhoto: hasPhoto, PhotoSourceName: photoSource, PhotoOriginalRef: originalRef, PhotoProxyRef: proxyRef,
+		BirthdayMonth: birthdayMonth, BirthdayDay: birthdayDay,
 	}, nil
 }
 

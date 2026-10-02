@@ -18,6 +18,7 @@ type SourceKind string
 const (
 	SourceChat           SourceKind = "CHAT"
 	SourcePersonaMention SourceKind = "PERSONA_MENTION"
+	SourceAnnouncement   SourceKind = "ANNOUNCEMENT"
 	SourceAPI            SourceKind = "API"
 	SourceEvent          SourceKind = "EVENT"
 	SourceSchedule       SourceKind = "SCHEDULE"
@@ -80,6 +81,7 @@ type PrincipalChain struct {
 	Mode                   RunMode `json:"mode"`
 	AgentPrincipalID       string  `json:"agent_principal_id"`
 	SponsorID              string  `json:"sponsor_id,omitempty"`
+	RequesterID            string  `json:"requester_id,omitempty"`
 	InvokerID              string  `json:"invoker_id,omitempty"`
 	DelegatedCredentialRef string  `json:"delegated_credential_ref,omitempty"`
 }
@@ -216,7 +218,7 @@ func (CanonicalSourceConverter) ConvertSource(_ context.Context, request Request
 }
 
 func personaSourceID(request Request) string {
-	if request.Source.Kind != SourcePersonaMention || request.Persona == nil {
+	if (request.Source.Kind != SourcePersonaMention && request.Source.Kind != SourceAnnouncement) || request.Persona == nil {
 		return ""
 	}
 	return request.Persona.ID
@@ -328,7 +330,14 @@ func validateSource(source SourceIdentity) error {
 }
 
 func validateRequest(r Request, now time.Time) error {
-	if r.Source.Kind == SourcePersonaMention {
+	if r.Source.Kind == SourceAnnouncement {
+		if r.Principal.Mode != ModeSponsored || !cleanRequired(r.Principal.RequesterID, 256) || r.CauseID != r.Source.Ref {
+			return ErrInvalidRequest
+		}
+	} else if r.Principal.RequesterID != "" {
+		return ErrInvalidRequest
+	}
+	if r.Source.Kind == SourcePersonaMention || r.Source.Kind == SourceAnnouncement {
 		if r.Persona == nil || !cleanRequired(r.Persona.ID, 256) || !cleanRequired(r.Persona.Version, 256) || !validDigest(r.Persona.Digest) {
 			return fmt.Errorf("%w: persona mentions require an exact persona version pin", ErrInvalidRequest)
 		}
@@ -384,7 +393,7 @@ func withinBudget(requested, ceiling Budget) bool {
 
 func validSourceKind(k SourceKind) bool {
 	switch k {
-	case SourceChat, SourcePersonaMention, SourceAPI, SourceEvent, SourceSchedule, SourceWorkflow:
+	case SourceChat, SourcePersonaMention, SourceAnnouncement, SourceAPI, SourceEvent, SourceSchedule, SourceWorkflow:
 		return true
 	default:
 		return false

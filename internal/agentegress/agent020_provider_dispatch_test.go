@@ -126,6 +126,27 @@ func TestTodo_AGENT_020(t *testing.T) {
 	}
 }
 
+func TestTodo_AGENTUX_PATH_T2_AdapterErrorPrecedesEmptyResultValidation(t *testing.T) {
+	dispatcher, _, adapter, request := providerDispatchFixture(t)
+	adapter.result = agentmodel.ModelResult{}
+	adapter.err = errors.New("adapter transport unavailable")
+	_, err := dispatcher.Dispatch(context.Background(), request, adapter)
+	if err == nil || !strings.Contains(err.Error(), "adapter transport unavailable") {
+		t.Fatalf("empty adapter result error=%v", err)
+	}
+
+	dispatcher, _, adapter, request = providerDispatchFixture(t)
+	adapter.err = errors.New("provider returned normalized failure")
+	adapter.result.Text = ""
+	adapter.result.Finish = ""
+	adapter.result.Failure = &agentmodel.ModelFailure{Code: agentmodel.FailureUnavailable, Retryable: true, Message: "raw provider detail"}
+	result, err := dispatcher.Dispatch(context.Background(), request, adapter)
+	var failure ProviderDispatchFailure
+	if !errors.As(err, &failure) || failure.Code != agentmodel.FailureUnavailable || result.Model.Failure == nil || result.Model.Failure.Message != "" {
+		t.Fatalf("valid normalized result changed: result=%+v err=%v", result, err)
+	}
+}
+
 func TestTodo_AGENT_020_Security(t *testing.T) {
 	cases := []struct {
 		name   string

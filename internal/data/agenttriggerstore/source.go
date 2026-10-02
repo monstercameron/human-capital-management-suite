@@ -64,7 +64,7 @@ func (r AgentScheduleExecutions) Outstanding(ctx context.Context, tenant uuid.UU
 		result[key] = true
 	}
 	err := r.Database.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT q.source_ref,q.decision,e.state FROM agent_run_request q LEFT JOIN agent_run_execution e ON e.tenant_id=q.tenant_id AND e.admission_id=q.request_id WHERE q.tenant_id=$1 AND q.source_kind='SCHEDULE' AND q.source_ref=ANY($2::text[])`, tenant, keys)
+		rows, err := tx.Query(ctx, `SELECT q.source_ref,q.decision,e.state FROM agent_run_request q LEFT JOIN agent_run_execution e ON e.tenant_id=q.tenant_id AND e.admission_id=q.request_id WHERE q.tenant_id=$1 AND q.source_kind IN ('SCHEDULE','ANNOUNCEMENT') AND q.source_ref=ANY($2::text[])`, tenant, keys)
 		if err != nil {
 			return err
 		}
@@ -84,6 +84,20 @@ func (r AgentScheduleExecutions) Outstanding(ctx context.Context, tenant uuid.UU
 
 func NewScheduleSource(runner ScheduleSourceRunner, tenantID uuid.UUID, tenant string, executions ScheduleExecutions) (*Store, error) {
 	if runner.DB == nil || runner.FenceDB == nil || executions == nil {
+		return nil, scheduled.ErrInvalidSchedule
+	}
+	store, err := New(runner, tenantID, tenant)
+	if err != nil {
+		return nil, err
+	}
+	store.executions = executions
+	return store, nil
+}
+
+// NewAnnouncementSource uses the existing native schedule tables and the
+// Agent database's own tenant and fence pools, retaining its least-privilege role.
+func NewAnnouncementSource(runner TenantTxRunner, tenantID uuid.UUID, tenant string, executions ScheduleExecutions) (*Store, error) {
+	if executions == nil {
 		return nil, scheduled.ErrInvalidSchedule
 	}
 	store, err := New(runner, tenantID, tenant)

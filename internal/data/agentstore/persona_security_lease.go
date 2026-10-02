@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -47,7 +49,7 @@ type PersonaSecurityScope struct {
 func (s *Store) IssuePersonaSecurityLease(ctx context.Context, req PersonaSecurityLeaseRequest) (PersonaSecurityLease, error) {
 	if s == nil || ctx == nil || req.TenantID == uuid.Nil || strings.TrimSpace(req.AdmissionID) == "" ||
 		req.IssuedAt.IsZero() || !req.ExpiresAt.After(req.IssuedAt) {
-		return PersonaSecurityLease{}, ErrPersonaSecurityLeaseInvalid
+		return PersonaSecurityLease{}, personaSecurityLeaseInvalidHere()
 	}
 	var lease PersonaSecurityLease
 	err := s.RunTenantTx(ctx, req.TenantID, func(tx dbport.Tx) error {
@@ -95,7 +97,7 @@ func (s *Store) IssuePersonaSecurityLease(ctx context.Context, req PersonaSecuri
 			return fmt.Errorf("agentstore: resolve accepted persona admission for security lease: %w", err)
 		}
 		if req.ExpiresAt.After(deadline) {
-			return ErrPersonaSecurityLeaseInvalid
+			return personaSecurityLeaseInvalidHere()
 		}
 		lease.TenantID, lease.AdmissionID = req.TenantID.String(), req.AdmissionID
 		lease.IssuerID, lease.AuthorityRef, lease.PolicyDigest = issuerID, authorityRef, policyDigest
@@ -128,7 +130,7 @@ func (s *Store) IssuePersonaSecurityLease(ctx context.Context, req PersonaSecuri
 		if err == nil {
 			existing.TenantID, existing.AdmissionID = lease.TenantID, lease.AdmissionID
 			if !samePersonaSecurityLease(existing, lease) {
-				return ErrPersonaSecurityLeaseInvalid
+				return personaSecurityLeaseInvalidHere()
 			}
 			lease.LeaseID = existing.LeaseID
 			return nil
@@ -160,7 +162,7 @@ func (s *Store) IssuePersonaSecurityLease(ctx context.Context, req PersonaSecuri
 // LoadPersonaSecurityLease recovers the exact persisted lease after process restart.
 func (s *Store) LoadPersonaSecurityLease(ctx context.Context, tenantID uuid.UUID, leaseID string) (PersonaSecurityLease, error) {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || strings.TrimSpace(leaseID) == "" {
-		return PersonaSecurityLease{}, ErrPersonaSecurityLeaseInvalid
+		return PersonaSecurityLease{}, personaSecurityLeaseInvalidHere()
 	}
 	return s.loadPersonaSecurityLease(ctx, tenantID, "l.lease_id", leaseID)
 }
@@ -169,7 +171,7 @@ func (s *Store) LoadPersonaSecurityLease(ctx context.Context, tenantID uuid.UUID
 // admission and checks every durable scope epoch before returning it.
 func (s *Store) ResolveActivePersonaSecurityLease(ctx context.Context, tenantID uuid.UUID, admissionID string, at time.Time) (PersonaSecurityLease, error) {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || strings.TrimSpace(admissionID) == "" || at.IsZero() {
-		return PersonaSecurityLease{}, ErrPersonaSecurityLeaseInvalid
+		return PersonaSecurityLease{}, personaSecurityLeaseInvalidHere()
 	}
 	lease, err := s.loadPersonaSecurityLease(ctx, tenantID, "l.admission_id", admissionID)
 	if err != nil {
@@ -247,7 +249,7 @@ func (s *Store) loadPersonaSecurityLease(ctx context.Context, tenantID uuid.UUID
 func (s *Store) RevokePersonaSecurityScope(ctx context.Context, tenantID uuid.UUID, scope PersonaSecurityScope, reason string, revokedAt time.Time) (int64, error) {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || !validPersonaSecurityScope(scope) ||
 		strings.TrimSpace(reason) == "" || strings.ContainsAny(reason, "\r\n") || revokedAt.IsZero() {
-		return 0, ErrPersonaSecurityLeaseInvalid
+		return 0, personaSecurityLeaseInvalidHere()
 	}
 	var epoch int64
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
@@ -280,7 +282,7 @@ func (s *Store) RevokePersonaSecurityScope(ctx context.Context, tenantID uuid.UU
 // lease revoked. Retrying an already active scope preserves its current epoch.
 func (s *Store) ReactivatePersonaSecurityScope(ctx context.Context, tenantID uuid.UUID, scope PersonaSecurityScope, reason string, at time.Time) (int64, error) {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || !validPersonaSecurityScope(scope) || scope.Kind != "VERSION" || strings.TrimSpace(reason) == "" || strings.ContainsAny(reason, "\r\n") || at.IsZero() {
-		return 0, ErrPersonaSecurityLeaseInvalid
+		return 0, personaSecurityLeaseInvalidHere()
 	}
 	var epoch int64
 	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
@@ -326,7 +328,7 @@ func (s *Store) ReactivatePersonaSecurityScope(ctx context.Context, tenantID uui
 func (s *Store) RunPersonaSecurityStep(ctx context.Context, tenantID uuid.UUID, leaseID, stepID string, at time.Time, work func(context.Context) error) error {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || strings.TrimSpace(leaseID) == "" ||
 		strings.TrimSpace(stepID) == "" || at.IsZero() || work == nil {
-		return ErrPersonaSecurityLeaseInvalid
+		return personaSecurityLeaseInvalidHere()
 	}
 	lease, err := s.LoadPersonaSecurityLease(ctx, tenantID, leaseID)
 	if err != nil {
@@ -334,7 +336,7 @@ func (s *Store) RunPersonaSecurityStep(ctx context.Context, tenantID uuid.UUID, 
 	}
 	scopes := personaLeaseScopes(lease)
 	if s.fencePool == nil {
-		return ErrPersonaSecurityLeaseInvalid
+		return personaSecurityLeaseInvalidHere()
 	}
 	return s.fencePool.WithConn(ctx, func(conn dbport.Conn) error {
 		unlock, err := acquirePersonaScopeLocks(ctx, conn, tenantID, scopes)
@@ -363,7 +365,7 @@ func (s *Store) RunPersonaSecurityStep(ctx context.Context, tenantID uuid.UUID, 
 // same scope locks wait for any still-live worker before recovery proceeds.
 func (s *Store) RecoverPersonaSecuritySteps(ctx context.Context, tenantID uuid.UUID, leaseID string, at time.Time) (int64, error) {
 	if s == nil || ctx == nil || tenantID == uuid.Nil || strings.TrimSpace(leaseID) == "" || at.IsZero() {
-		return 0, ErrPersonaSecurityLeaseInvalid
+		return 0, personaSecurityLeaseInvalidHere()
 	}
 	lease, err := s.LoadPersonaSecurityLease(ctx, tenantID, leaseID)
 	if err != nil {
@@ -372,7 +374,7 @@ func (s *Store) RecoverPersonaSecuritySteps(ctx context.Context, tenantID uuid.U
 	scopes := personaLeaseScopes(lease)
 	var recovered int64
 	if s.fencePool == nil {
-		return 0, ErrPersonaSecurityLeaseInvalid
+		return 0, personaSecurityLeaseInvalidHere()
 	}
 	err = s.fencePool.WithConn(ctx, func(conn dbport.Conn) error {
 		unlock, err := acquirePersonaScopeLocks(ctx, conn, tenantID, scopes)
@@ -485,13 +487,23 @@ func setPersonaTenant(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID) err
 	return err
 }
 
+// personaSecurityLeaseInvalidHere returns the invalid-lease sentinel with the
+// source location of the check that refused, for operator diagnosis.
+func personaSecurityLeaseInvalidHere() error {
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		return ErrPersonaSecurityLeaseInvalid
+	}
+	return fmt.Errorf("%w (%s:%d)", ErrPersonaSecurityLeaseInvalid, filepath.Base(file), line)
+}
+
 func beginPersonaSecurityConn(conn dbport.Conn, ctx context.Context) (dbport.Tx, error) {
 	beginner, ok := conn.(interface {
 		dbport.Conn
 		dbport.Beginner
 	})
 	if !ok {
-		return nil, ErrPersonaSecurityLeaseInvalid
+		return nil, personaSecurityLeaseInvalidHere()
 	}
 	return beginner.Begin(ctx)
 }
@@ -571,12 +583,20 @@ func acquirePersonaScopeLocks(ctx context.Context, conn dbport.Conn, tenantID uu
 	}, nil
 }
 
+// samePersonaSecurityLease reports whether a request names the lease already
+// issued for an admission. The issue time is not compared: a run asks for its
+// lease again on every model turn, and the lease issued first is the lease.
+// Expiry is compared at the precision the database stores.
 func samePersonaSecurityLease(a, b PersonaSecurityLease) bool {
+	expiresDelta := a.ExpiresAt.Sub(b.ExpiresAt)
+	if expiresDelta < 0 {
+		expiresDelta = -expiresDelta
+	}
 	return a.TenantID == b.TenantID && a.AdmissionID == b.AdmissionID && a.IssuerID == b.IssuerID &&
 		a.AuthorityRef == b.AuthorityRef && a.PolicyDigest == b.PolicyDigest && a.InvocationID == b.InvocationID &&
 		a.RunID == b.RunID && a.PrincipalID == b.PrincipalID && a.PersonaID == b.PersonaID &&
 		a.PersonaVersion == b.PersonaVersion && a.InstallationID == b.InstallationID &&
 		a.TenantEpoch == b.TenantEpoch && a.PrincipalEpoch == b.PrincipalEpoch && a.PersonaEpoch == b.PersonaEpoch &&
 		a.VersionEpoch == b.VersionEpoch && a.InstallationEpoch == b.InstallationEpoch && a.RunEpoch == b.RunEpoch &&
-		a.IssuedAt.Equal(b.IssuedAt) && a.ExpiresAt.Equal(b.ExpiresAt)
+		expiresDelta < time.Microsecond
 }

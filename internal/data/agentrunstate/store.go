@@ -67,10 +67,12 @@ func (s *TenantStore) Create(ctx context.Context, run runstate.Run) error {
 	return s.db.RunTenantTx(ctx, s.tenantID, func(tx dbport.Tx) error {
 		_, err := tx.Exec(ctx, `INSERT INTO agent_run_execution
 		(tenant_id,run_id,admission_id,request_digest,agent_id,agent_version,agent_digest,context_digest,deadline,state,revision,fence,
-			 lease_owner,lease_until,cancel_requested,expire_requested,failure_requested,terminal_code,created_at,updated_at,retryable,wait_kind,wait_ref)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULL,NULL,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+			 lease_owner,lease_until,cancel_requested,expire_requested,failure_requested,terminal_code,created_at,updated_at,retryable,wait_kind,wait_ref,
+			 failure_gate,failure_owner,failure_location)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULL,NULL,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
 			s.tenantID, run.ID, run.AdmissionID, run.RequestDigest, run.AgentID, run.AgentVersion, run.AgentDigest, run.ContextDigest,
-			run.Deadline.UTC(), string(run.State), int64(run.Version), int64(run.Fence), run.CancelRequested, run.ExpireRequested, run.FailureRequested, nullable(run.TerminalCode), run.CreatedAt.UTC(), run.UpdatedAt.UTC(), run.Retryable, string(run.WaitKind), run.WaitRef)
+			run.Deadline.UTC(), string(run.State), int64(run.Version), int64(run.Fence), run.CancelRequested, run.ExpireRequested, run.FailureRequested, nullable(run.TerminalCode), run.CreatedAt.UTC(), run.UpdatedAt.UTC(), run.Retryable, string(run.WaitKind), run.WaitRef,
+			run.FailureGate, run.FailureOwner, run.FailureLocation)
 		if err != nil {
 			return fmt.Errorf("agentrunstate: create run: %w", err)
 		}
@@ -89,12 +91,13 @@ func (s *TenantStore) Get(ctx context.Context, id string) (runstate.Run, error) 
 		var terminalCode *string
 		err := tx.QueryRow(ctx, `SELECT run_id,admission_id,request_digest,agent_id,agent_version,agent_digest,context_digest,deadline,
 			state,revision,fence,lease_owner,lease_until,cancel_requested,expire_requested,failure_requested,terminal_code,created_at,updated_at,retryable,wait_kind,wait_ref,
+			failure_gate,failure_owner,failure_location,
 			(SELECT principal_chain->>'mode' FROM agent_run_request a WHERE a.tenant_id=$1 AND a.request_id=agent_run_execution.admission_id),
 			(SELECT CASE WHEN principal_chain->>'mode'='SPONSORED' THEN principal_chain->>'sponsor_id' ELSE principal_chain->>'invoker_id' END
 			 FROM agent_run_request a WHERE a.tenant_id=$1 AND a.request_id=agent_run_execution.admission_id)
 			FROM agent_run_execution WHERE tenant_id=$1 AND run_id=$2`, s.tenantID, id).
 			Scan(&run.ID, &run.AdmissionID, &run.RequestDigest, &run.AgentID, &run.AgentVersion, &run.AgentDigest, &run.ContextDigest, &run.Deadline,
-				&state, &version, &fence, &owner, &until, &run.CancelRequested, &run.ExpireRequested, &run.FailureRequested, &terminalCode, &run.CreatedAt, &run.UpdatedAt, &run.Retryable, &run.WaitKind, &run.WaitRef, &run.PrincipalMode, &run.ActorID)
+				&state, &version, &fence, &owner, &until, &run.CancelRequested, &run.ExpireRequested, &run.FailureRequested, &terminalCode, &run.CreatedAt, &run.UpdatedAt, &run.Retryable, &run.WaitKind, &run.WaitRef, &run.FailureGate, &run.FailureOwner, &run.FailureLocation, &run.PrincipalMode, &run.ActorID)
 		if errors.Is(err, dbport.ErrNoRows) {
 			return ErrNotFound
 		}
@@ -160,8 +163,10 @@ func (s *TenantStore) Save(ctx context.Context, run runstate.Run, expected uint6
 		}
 		leaseOwner, leaseUntil := leaseValues(run.Lease)
 		n, err := tx.Exec(ctx, `UPDATE agent_run_execution SET state=$3,revision=$4,fence=$5,lease_owner=$6,lease_until=$7,
-			cancel_requested=$8,expire_requested=$9,failure_requested=$10,terminal_code=$11,updated_at=$12,retryable=$14,wait_kind=$15,wait_ref=$16 WHERE tenant_id=$1 AND run_id=$2 AND revision=$13`,
-			s.tenantID, run.ID, string(run.State), int64(run.Version), int64(run.Fence), leaseOwner, leaseUntil, run.CancelRequested, run.ExpireRequested, run.FailureRequested, nullable(run.TerminalCode), run.UpdatedAt.UTC(), current, run.Retryable, string(run.WaitKind), run.WaitRef)
+			cancel_requested=$8,expire_requested=$9,failure_requested=$10,terminal_code=$11,updated_at=$12,retryable=$14,wait_kind=$15,wait_ref=$16,
+			failure_gate=$17,failure_owner=$18,failure_location=$19 WHERE tenant_id=$1 AND run_id=$2 AND revision=$13`,
+			s.tenantID, run.ID, string(run.State), int64(run.Version), int64(run.Fence), leaseOwner, leaseUntil, run.CancelRequested, run.ExpireRequested, run.FailureRequested, nullable(run.TerminalCode), run.UpdatedAt.UTC(), current, run.Retryable, string(run.WaitKind), run.WaitRef,
+			run.FailureGate, run.FailureOwner, run.FailureLocation)
 		if err != nil {
 			return fmt.Errorf("agentrunstate: update run: %w", err)
 		}

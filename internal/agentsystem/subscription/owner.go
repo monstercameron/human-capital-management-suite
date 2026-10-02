@@ -54,7 +54,7 @@ type SourceOwner interface {
 // composition requires this port; a declaration is a lookup request, not proof.
 type GovernedSourceOwner interface {
 	SourceOwner
-	ProjectForSubscription(context.Context,Definition,Subscription,string)(EventProjection,error)
+	ProjectForSubscription(context.Context, Definition, Subscription, string) (EventProjection, error)
 }
 type Policy interface {
 	Authorize(context.Context, Actor, string, Definition) error
@@ -177,10 +177,10 @@ func (o *Owner) Ingest(ctx context.Context, tenant, id, eventID string, at time.
 		return prior, false, nil
 	}
 	var event EventProjection
-	if source,ok:=o.source.(GovernedSourceOwner);ok {
-		event,err=source.ProjectForSubscription(ctx,d,sub,eventID)
-	}else{
-		event,err=o.source.Project(ctx,tenant,eventID,sub.Audience)
+	if source, ok := o.source.(GovernedSourceOwner); ok {
+		event, err = source.ProjectForSubscription(ctx, d, sub, eventID)
+	} else {
+		event, err = o.source.Project(ctx, tenant, eventID, sub.Audience)
 	}
 	if err != nil {
 		return Delivery{}, false, err

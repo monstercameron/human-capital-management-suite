@@ -1,0 +1,5 @@
+{
+  "canonical_digest": "sha256:5b4417378197c5ab4a4607149a0050bad548358096d4927e93d0b11ab64f49b4",
+  "sites": ["PERSONA_VERSION", "USER_REQUEST"],
+  "modes": ["PINNED", "LATEST_PUBLISHED"]
+}

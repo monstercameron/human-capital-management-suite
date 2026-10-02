@@ -11,7 +11,7 @@ import (
 // policy table. It changes whenever [PolicyTable] or [FieldRegistry] changes,
 // so a recorded decision can always be replayed against the policy that
 // produced it.
-const PolicyVersion = "authz.p1a.bootstrap.v2"
+const PolicyVersion = "authz.p1a.bootstrap.v3"
 
 // Effect is the outcome of one authorization ruling. It is shared by the
 // tenant, scope and field layers so that "allow" and "deny" mean the same
@@ -232,6 +232,10 @@ const (
 	DomainMedical           DataDomain = "worker.medical"
 	DomainEmployeeRelations DataDomain = "worker.employee_relations"
 	DomainImmigration       DataDomain = "worker.immigration"
+	// DomainPersonaInvocation carries no workforce field. Its purpose-bound
+	// rules authorize the entry to a separately constrained persona invocation;
+	// skill grants and invocation admission still decide what it may read.
+	DomainPersonaInvocation DataDomain = "workspace.persona_invocation"
 )
 
 // FieldID names one governed field. It is a policy token, never a struct
@@ -294,6 +298,7 @@ const (
 	PurposeCaseManagement     = "case_management"
 	PurposeImmigrationCase    = "immigration_case"
 	PurposeAuditReview        = "audit_review"
+	PurposePersonaMention     = "persona-mention"
 )
 
 // obligationEvidenceLogged is attached to every redacted ruling: a redacted
@@ -328,41 +333,59 @@ func (g PurposeGrant) appliesTo(purpose string) bool {
 	return slices.Contains(g.Purposes, purpose)
 }
 
+// RolesAuthorizePurpose reports whether a human role bundle has an explicit
+// rule for a purpose. Any-purpose data rules are intentionally excluded: they
+// cannot establish that a credential was granted this particular purpose.
+func RolesAuthorizePurpose(roles []string, purpose string) bool {
+	for _, role := range RolesForKind(trust.SubjectKindHuman, roles) {
+		for _, grant := range PolicyTable[role] {
+			if !grant.AnyPurpose && slices.Contains(grant.Purposes, purpose) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // PolicyTable is the compiled-in P1A bootstrap authorization policy: for each
 // of the six role templates, the purpose-bound grant over each data domain.
 // A role/domain pair absent from the table has no grant, which is
 // deny-by-default rather than an omission to fix later.
 var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 	RoleWorkerSelf: {
-		DomainCore:         {RuleID: "p1a.worker_self.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact:      {RuleID: "p1a.worker_self.contact", AnyPurpose: true, Effect: EffectAllow},
-		DomainCompensation: {RuleID: "p1a.worker_self.compensation", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
-		DomainTax:          {RuleID: "p1a.worker_self.tax", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
-		DomainBank:         {RuleID: "p1a.worker_self.bank", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
-		DomainPerformance:  {RuleID: "p1a.worker_self.performance", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
-		DomainMedical:      {RuleID: "p1a.worker_self.medical", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
-		DomainImmigration:  {RuleID: "p1a.worker_self.immigration", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.worker_self.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.worker_self.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.worker_self.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation:      {RuleID: "p1a.worker_self.compensation", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainTax:               {RuleID: "p1a.worker_self.tax", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainBank:              {RuleID: "p1a.worker_self.bank", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainPerformance:       {RuleID: "p1a.worker_self.performance", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainMedical:           {RuleID: "p1a.worker_self.medical", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
+		DomainImmigration:       {RuleID: "p1a.worker_self.immigration", Purposes: []string{PurposeSelfService}, Effect: EffectAllow},
 	},
 	RoleManager: {
-		DomainCore:         {RuleID: "p1a.manager.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact:      {RuleID: "p1a.manager.contact", AnyPurpose: true, Effect: EffectAllow},
-		DomainCompensation: {RuleID: "p1a.manager.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
-		DomainPerformance:  {RuleID: "p1a.manager.performance", Purposes: []string{PurposePerformanceReview}, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.manager.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.manager.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.manager.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation:      {RuleID: "p1a.manager.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
+		DomainPerformance:       {RuleID: "p1a.manager.performance", Purposes: []string{PurposePerformanceReview}, Effect: EffectAllow},
 	},
 	RoleHRPartner: {
-		DomainCore:         {RuleID: "p1a.hr_partner.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact:      {RuleID: "p1a.hr_partner.contact", AnyPurpose: true, Effect: EffectAllow},
-		DomainCompensation: {RuleID: "p1a.hr_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
-		DomainPerformance:  {RuleID: "p1a.hr_partner.performance", Purposes: []string{PurposePerformanceReview}, Effect: EffectAllow},
-		DomainMedical:      {RuleID: "p1a.hr_partner.medical", Purposes: []string{PurposeAccommodationCase}, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.hr_partner.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.hr_partner.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.hr_partner.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation:      {RuleID: "p1a.hr_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
+		DomainPerformance:       {RuleID: "p1a.hr_partner.performance", Purposes: []string{PurposePerformanceReview}, Effect: EffectAllow},
+		DomainMedical:           {RuleID: "p1a.hr_partner.medical", Purposes: []string{PurposeAccommodationCase}, Effect: EffectAllow},
 		DomainEmployeeRelations: {
 			RuleID: "p1a.hr_partner.employee_relations", Purposes: []string{PurposeCaseManagement}, Effect: EffectAllow,
 		},
 		DomainImmigration: {RuleID: "p1a.hr_partner.immigration", Purposes: []string{PurposeImmigrationCase}, Effect: EffectAllow},
 	},
 	RoleCompAdmin: {
-		DomainCore:    {RuleID: "p1a.comp_admin.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact: {RuleID: "p1a.comp_admin.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.comp_admin.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.comp_admin.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.comp_admin.contact", AnyPurpose: true, Effect: EffectAllow},
 		DomainCompensation: {
 			RuleID: "p1a.comp_admin.compensation", Purposes: []string{PurposeCompensationReview, PurposePayrollProcessing}, Effect: EffectAllow,
 		},
@@ -370,8 +393,9 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 		DomainBank: {RuleID: "p1a.comp_admin.bank", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 	},
 	RolePayrollManager: {
-		DomainCore:    {RuleID: "p1a.payroll_manager.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact: {RuleID: "p1a.payroll_manager.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.payroll_manager.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.payroll_manager.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.payroll_manager.contact", AnyPurpose: true, Effect: EffectAllow},
 		DomainCompensation: {
 			RuleID: "p1a.payroll_manager.compensation", Purposes: []string{PurposeCompensationReview, PurposePayrollProcessing}, Effect: EffectAllow,
 		},
@@ -379,12 +403,14 @@ var PolicyTable = map[RoleID]map[DataDomain]PurposeGrant{
 		DomainBank: {RuleID: "p1a.payroll_manager.bank", Purposes: []string{PurposePayrollProcessing}, Effect: EffectAllow},
 	},
 	RoleFinancePartner: {
-		DomainCore:         {RuleID: "p1a.finance_partner.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainCompensation: {RuleID: "p1a.finance_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.finance_partner.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.finance_partner.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainCompensation:      {RuleID: "p1a.finance_partner.compensation", Purposes: []string{PurposeCompensationReview}, Effect: EffectAllow},
 	},
 	RoleAuditor: {
-		DomainCore:    {RuleID: "p1a.auditor.core", AnyPurpose: true, Effect: EffectAllow},
-		DomainContact: {RuleID: "p1a.auditor.contact", AnyPurpose: true, Effect: EffectAllow},
+		DomainPersonaInvocation: {RuleID: "p1a.auditor.persona_mention", Purposes: []string{PurposePersonaMention}, Effect: EffectAllow},
+		DomainCore:              {RuleID: "p1a.auditor.core", AnyPurpose: true, Effect: EffectAllow},
+		DomainContact:           {RuleID: "p1a.auditor.contact", AnyPurpose: true, Effect: EffectAllow},
 		DomainCompensation: {
 			RuleID: "p1a.auditor.compensation", Purposes: []string{PurposeAuditReview}, Effect: EffectRedacted, Obligations: []string{obligationEvidenceLogged},
 		},

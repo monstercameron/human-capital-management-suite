@@ -97,6 +97,10 @@ type PersonaCaseEvidence struct {
 	PlanDigest, BaselinePlanDigest                           string
 	SettledCostMicros                                        int64
 	CompletedAt                                              time.Time
+	ToolCalls                                                []string                    `json:",omitempty"`
+	AnswerCitations                                          []AssistantDocumentCitation `json:",omitempty"`
+	AnswerDates                                              []string                    `json:",omitempty"`
+	AnswerText                                               string                      `json:",omitempty"`
 }
 
 type PersonaCaseEvidenceReader interface {
@@ -210,6 +214,9 @@ func PersonaCaseDigest(testCase PersonaCase) string { return personaDigest("case
 func PersonaSuiteDigest(suite PersonaSuite) string { return personaDigest("suite", suite) }
 
 func personaCasePassed(target PersonaEvaluationTarget, testCase PersonaCase, observed PersonaCaseEvidence) bool {
+	if !assistantWorkspaceCasePassed(testCase, observed) {
+		return false
+	}
 	switch testCase.Kind {
 	case PersonaOutOfScope:
 		return observed.Outcome == "REFUSED" && observed.RefusalCode == "OUT_OF_SCOPE" && strings.TrimSpace(observed.RefusalPointer) != "" && len(observed.Skills) == 0 && len(observed.DeliveredTo) == 0

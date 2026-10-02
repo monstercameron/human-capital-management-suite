@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 
+	iconmigration "github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore/migrations"
 	"github.com/pressly/goose/v3"
 )
 
@@ -35,5 +36,5 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("agentstore: apply migrations: %w", err)
 	}
-	return nil
+	return iconmigration.Migrate(ctx, db)
 }

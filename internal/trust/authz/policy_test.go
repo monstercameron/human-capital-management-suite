@@ -71,3 +71,15 @@ func TestPolicy_RoleAndGrantSelectionIsDeterministic(t *testing.T) {
 		t.Fatalf("dedupeSorted mutated its input: %v", input)
 	}
 }
+
+func TestPolicy_RolesAuthorizePurpose(t *testing.T) {
+	if !RolesAuthorizePurpose([]string{string(RoleWorkerSelf)}, PurposePersonaMention) {
+		t.Fatal("worker self does not authorize the explicit persona mention purpose")
+	}
+	if RolesAuthorizePurpose([]string{string(RoleWorkerSelf)}, "not-a-purpose") {
+		t.Fatal("unknown purpose was authorized")
+	}
+	if RolesAuthorizePurpose([]string{string(RoleWorkerSelf)}, PurposeAuditReview) {
+		t.Fatal("any-purpose core data grant established an unrelated purpose")
+	}
+}
