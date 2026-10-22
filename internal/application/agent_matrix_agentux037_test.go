@@ -250,7 +250,9 @@ func TestTodo_AGENTUX_037_Security(t *testing.T) {
 		}
 		active.ChannelPolicy = installation
 		var private personaPrivateReasonError
-		if _, err := personaRuntimePublicProfile(version, active, identity); !errors.As(err, &private) || private.reason != chat.PrivateReasonAgent {
+		// The channel's requirement outranks the agent's own setting, so the
+		// reason names the channel (AGENTUX-070).
+		if _, err := personaRuntimePublicProfile(version, active, identity); !errors.As(err, &private) || private.reason != chat.PrivateReasonChannel {
 			t.Fatalf("the delivery after the conversation was made private = %v, want a private answer", err)
 		}
 	})
