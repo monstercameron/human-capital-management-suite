@@ -96,7 +96,7 @@ func TestTodo_CHATUX_032(t *testing.T) {
 		`height:52px`,
 		`inline-size:32px`,
 		`.chat-workspace .chat-panel-close:focus:not(:focus-visible){outline:none;box-shadow:none}`,
-		`.chat-workspace .chat-panel-close:focus-visible{outline:2px solid var(--accent)`,
+		`.chat-workspace .chat-panel-close:focus-visible{outline:var(--hcm-focus-ring-width) solid var(--hcm-color-focus)`,
 		`.send-button:disabled`,
 		`.button:not(.secondary):disabled`,
 		`background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1`,

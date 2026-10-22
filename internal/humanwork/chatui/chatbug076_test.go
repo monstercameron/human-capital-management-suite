@@ -87,10 +87,10 @@ func TestTodo_CHATBUG_076_Browser(t *testing.T) {
 			kept = append(kept, action)
 		}
 	}
-	if got := strings.Join(kept, ","); got != "reply,react-pick,menu" {
+	if got := strings.Join(kept, ","); got != "react-pick,reply,menu" {
 		t.Fatalf("in a narrow column the bar keeps %q, want reply, the reaction picker and More", got)
 	}
-	if len(dropped) != 5 {
-		t.Fatalf("the narrow rule hides %d buttons (%v), want the three quick reactions, Save and Pin", len(dropped), dropped)
+	if len(dropped) != 4 {
+		t.Fatalf("the narrow rule hides %d buttons (%v), want the three quick reactions and Save", len(dropped), dropped)
 	}
 }

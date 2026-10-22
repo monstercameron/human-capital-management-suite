@@ -17,10 +17,10 @@ import (
 // accepted only when its hash is a well-formed SHA-256 CSP source.
 type cspPolicy struct {
 	styleHashes []string
-	// styleAsset names the one stylesheet the page links from the asset route
-	// (product-<sha256>.css). It is admitted at its exact address on
-	// connectHost; see cspStyleAssetSource.
-	styleAsset            string
+	// styleAssets names the stylesheets the page links, or may link, from the
+	// asset route (product-<sha256>.css, chat-<sha256>.css). Each is admitted at
+	// its exact address on connectHost; see cspStyleAssetSource.
+	styleAssets           []string
 	scriptHash            string
 	formActionSelf        bool
 	connectHost           string
@@ -79,11 +79,13 @@ func (p cspPolicy) header() string {
 		}
 	}
 	styleSources := cspStyleSources(p.styleHashes)
-	if linked := cspStyleAssetSource(p.connectHost, p.styleAsset); linked != "" {
-		if styleSources == "'none'" {
-			styleSources = linked
-		} else {
-			styleSources += " " + linked
+	for _, styleAsset := range p.styleAssets {
+		if linked := cspStyleAssetSource(p.connectHost, styleAsset); linked != "" {
+			if styleSources == "'none'" {
+				styleSources = linked
+			} else {
+				styleSources += " " + linked
+			}
 		}
 	}
 	directives = append(directives,
@@ -170,6 +172,12 @@ func cspProductAgentSources(rawHost, existing string) string {
 	// invocation watch and retry routes beneath it, so both forms are
 	// admitted: a source without a trailing slash matches only that path.
 	for _, path := range []string{PathPersonaAdminData + "/", personachat.Path, personachat.Path + "/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/"} {
+		sources = append(sources, authority+path)
+	}
+	// The owner's access, cost and limits, and the budget extension of a task,
+	// are read by the Agents pages from their own prefixes. Without them the
+	// browser refuses the request and the card can only say it could not be read.
+	for _, path := range []string{"/api/agent-access/", "/api/agent-cost/", "/api/agent-tasks/"} {
 		sources = append(sources, authority+path)
 	}
 	// Chat's own HTTP surfaces (saved messages, search, filters, moderation,

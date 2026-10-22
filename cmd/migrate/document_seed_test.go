@@ -648,6 +648,14 @@ func TestDocumentEmbedCommand_Integration(t *testing.T) {
 	if err != nil || len(refs) < 30 {
 		t.Fatalf("versions = %d, %v", len(refs), err)
 	}
+	expectedRemoteDone, expectedRemoteSkipped := 0, 0
+	for _, ref := range refs {
+		if ref.Deployed {
+			expectedRemoteDone++
+		} else {
+			expectedRemoteSkipped++
+		}
+	}
 	cfg := documentembed.DefaultIndexerConfig()
 	var queued bytes.Buffer
 	if err := runDocumentEmbedCommand(ctx, store, unitEmbedder{}, cfg, tenant, false, &queued); err != nil {
@@ -674,8 +682,15 @@ func TestDocumentEmbedCommand_Integration(t *testing.T) {
 	if err := runDocumentEmbedCommand(ctx, store, unitEmbedder{remote: true, model: "unit-remote"}, cfg, tenant, true, &remote); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(remote.String(), " 0 skipped;") {
-		t.Fatalf("remote model embedded drafts: %q", remote.String())
+	remoteStats, err := store.IndexQueueStats(ctx, tenant, "unit-remote")
+	if err != nil {
+		t.Fatalf("remote queue stats: %v", err)
+	}
+	if expectedRemoteSkipped == 0 || remoteStats.Skipped != expectedRemoteSkipped || remoteStats.Done != expectedRemoteDone || remoteStats.Queued != 0 || remoteStats.Running != 0 || remoteStats.Failed != 0 {
+		t.Fatalf("remote model did not finish while withholding drafts: stats=%+v expected done=%d skipped=%d output=%q", remoteStats, expectedRemoteDone, expectedRemoteSkipped, remote.String())
+	}
+	if !strings.Contains(remote.String(), fmt.Sprintf("drain: %d done, 0 remaining, 0 failed, %d skipped;", remoteStats.Done, remoteStats.Skipped)) {
+		t.Fatalf("remote final drain summary disagrees with queue state: stats=%+v output=%q", remoteStats, remote.String())
 	}
 	if err := runDocumentEmbedAction(ctx, "postgres://x@127.0.0.1:1/docs", "postgres://x@127.0.0.1:1/core", "", "", false, func(string) string { return "" }, &again); err == nil {
 		t.Fatal("embed without a model accepted")

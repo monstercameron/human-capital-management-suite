@@ -32,6 +32,11 @@ type TranslationAdminData struct {
 	Supported          []string `json:"supported"`
 	CanManageWorkspace bool     `json:"can_manage_workspace"`
 	CanManageChannel   bool     `json:"can_manage_channel"`
+	// Pairs, Reports and the glossary lines are for workspace administrators (CHATLANG-006).
+	Pairs             []TranslationAdminPair             `json:"pairs,omitempty"`
+	Reports           []TranslationAdminReport           `json:"reports,omitempty"`
+	GlossaryVersion   int64                              `json:"glossary_version,omitempty"`
+	GlossaryLanguages []TranslationAdminGlossaryLanguage `json:"glossary_languages,omitempty"`
 }
 
 // TranslationAdminModel is everything the form needs to draw. Each handler is
@@ -54,6 +59,8 @@ type TranslationAdminModel struct {
 	SignedOut                           bool
 	SaveWorkspace, SaveChannel, AddTerm ui.Handler
 	RemoveTerm                          ui.Handler
+	// ResolveReport closes a reader's report of a wrong translation.
+	ResolveReport ui.Handler
 	// Retry reads the settings again after a failure (CHATUX-027).
 	Retry ui.Handler
 }

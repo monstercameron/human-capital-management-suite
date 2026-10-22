@@ -209,7 +209,8 @@ func TestAgentUXChat5_LightPageAndMotion(t *testing.T) {
 	if chatRowActionsVisible(localUI{}, "0") {
 		t.Fatal("blurred row keeps actions")
 	}
-	if regexp.MustCompile(`\b\d*\.?\d+(ms|s)\b`).MatchString(ScopedStylesheet()) {
+	// Apart from the slow loading line's eight-second wait (see AGENTUX-063).
+	if regexp.MustCompile(`\b\d*\.?\d+(ms|s)\b`).MatchString(strings.ReplaceAll(ScopedStylesheet(), chatux037RevealWait, "")) {
 		t.Fatal("literal duration bypasses motion tokens")
 	}
 	chat4Require(t, ScopedStylesheet(), "min-height:24px", ":scope a{min-width:24px;min-height:24px}", "transition:none!important;animation:none!important", "var(--hcm-motion-fast)")

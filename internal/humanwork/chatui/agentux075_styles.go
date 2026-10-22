@@ -10,4 +10,8 @@ const AgentUX075Styles = `.message-body .md-table-wrap,.agent-reply-answer .md-t
 	`.md-table .md-align-end{text-align:end}.md-table .md-align-center{text-align:center}` +
 	`.message-body del,.agent-reply-answer del{opacity:.7}` +
 	`.agent-cite{display:inline;margin-inline-start:2px;font-size:.75em;line-height:1;vertical-align:super;text-decoration:none;font-weight:650;white-space:nowrap}` +
-	`.agent-cite:hover,.agent-cite:focus-visible{text-decoration:underline}`
+	`.agent-cite:hover,.agent-cite:focus-visible{text-decoration:underline}` +
+	// The workspace gives every link a 24 px minimum size; on the small marker it
+	// left 8 px of box after "]" and pushed the sentence's full stop away from it.
+	// The marker's own tap area is the ::after in chatux033_styles.go.
+	`.chat-workspace .agent-cite{display:inline;min-width:0;min-height:0}`

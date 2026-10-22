@@ -41,8 +41,11 @@ const agentCallTimeout = 30 * time.Second
 func configureAgentService(conn grpc.ClientConnInterface, cfg journeyclient.Config) {
 	configureAgentControls(cfg)
 	configureAgentAnnouncements(cfg)
-	configureAgentRolloutPortable(cfg)
+	// The access pieces are configured first: the rollout panel's tab selection
+	// asks them to read, and a read made before they hold the session's
+	// credential would fail and be drawn as "unavailable".
 	configureAgentAccess(cfg)
+	configureAgentRolloutPortable(cfg)
 	agentBrowser.Lock()
 	if agentBrowser.pollCancel != nil {
 		agentBrowser.pollCancel()

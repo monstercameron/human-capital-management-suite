@@ -96,9 +96,14 @@ func TestTodo_UIPOLISH_006_RenderedDocument(t *testing.T) {
 }
 
 func TestTodo_UIPOLISH_006_Performance(t *testing.T) {
-	css := Stylesheet()
+	// The workspace serves two sheets (chatsheet_split.go): the control sheet
+	// of the shell and every page, and Chat's own. Each has the same bound.
+	css := ControlStylesheet()
 	if len(css) > 1_000_000 {
 		t.Fatalf("production control stylesheet grew to %d bytes", len(css))
+	}
+	if chat := ChatStylesheet(); len(chat) > 1_000_000 {
+		t.Fatalf("production Chat stylesheet grew to %d bytes", len(chat))
 	}
 	if strings.Contains(css, "transition:all") || strings.Contains(css, "transition: all") {
 		t.Fatal("control styles use an unbounded transition")
@@ -260,8 +265,23 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// publishes Agent setup and Agent operations. Green2 re-pins the whole
 	// document after the shared agent page frame took ownership of the outer
 	// width/gutter and shell-wide frame, dark-control, and link-state rules.
-	const want = "a1f82bf08a8103f86b18b5e500da2784468361f33070da610c3971e14ac057ed"
+	// 2026-10-02 (W7) re-pin. The pinned a1f82bf0... did not reproduce at the
+	// parent commit 8a8673502 either (that tree renders 5a9a9e8e...). Compared
+	// with the parent, the markup outside the inline stylesheet is byte-identical;
+	// every difference is in the stylesheet, which is the product stylesheet the
+	// document inlines: 1534 rules added and 191 replaced or removed, from the
+	// Chat features (chatcmd002/003, chatlang, chatmod, chatremove, chatvoice, the
+	// chatux037 loading frames, chatsave, details and manage rows), the agent pages
+	// (persona-admin, agent-announcement, agent-history, agent-cost, agents-task
+	// and agent-operations rules) and the Projects dialog rules still being edited
+	// by another lane. The rendered documents of both trees are kept under
+	// .artifacts/tmp/W7; this digest moves with every stylesheet edit, so a later
+	// lane re-pins it from the copy a failing run writes.
+	// 2026-10-02 (Z4) re-pin after the chat lanes' stylesheet edits (the saved
+	// tick's duration from the motion tokens, the open-row and bidi rules, the
+	// agents page grid); the markup outside the stylesheet did not change.
+	const want = "ddf4b7d4f92b2c906d3db545a8b8fd4aafdc4ba4f6412d6f43b6612c8db65689"
 	if digest != want {
-		t.Fatalf("production Home document golden = %s, want %s", digest, want)
+		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}
 }

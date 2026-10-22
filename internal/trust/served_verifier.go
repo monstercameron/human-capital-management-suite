@@ -1,3 +1,10 @@
+//go:build !(js && wasm)
+
+// The served verifier only runs on the server: it holds the machine-token key
+// set, whose ECDSA and RSA verification the browser client has no use for. The
+// build tag keeps internal/trust/machine, and the curves it names, out of the
+// client's import graph.
+
 package trust
 
 import (

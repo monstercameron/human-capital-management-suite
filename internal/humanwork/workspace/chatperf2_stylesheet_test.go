@@ -98,10 +98,11 @@ func TestTodo_CHATBUG_014_LinkedStylesheet(t *testing.T) {
 		t.Fatalf("the link's integrity %q is not the digest of the product stylesheet %q", integrity, productStylesheetHash)
 	}
 
-	// The policy names the one address. It admits no inline style, by hash or
+	// The policy names the control sheet's address and, so the client can load
+	// it on the way into Chat, Chat's. It admits no inline style, by hash or
 	// otherwise, and nothing else on the origin.
 	policy := document.Header().Get("Content-Security-Policy")
-	want := "example.com" + href
+	want := "example.com" + href + " example.com" + PathAssetPrefix + chatStylesheet().name
 	for _, directive := range []string{"style-src", "style-src-elem"} {
 		if got := chatperf2Directive(policy, directive); got != want {
 			t.Fatalf("%s = %q, want exactly %q", directive, got, want)
@@ -169,13 +170,17 @@ func TestTodo_CHATBUG_014_LinkedStylesheet(t *testing.T) {
 		}
 	}
 
-	// A host the policy cannot name an address on keeps the inline sheet and
-	// its hash.
+	// A host the policy cannot name an address on keeps the inline sheets, each
+	// with its hash.
 	inline := chatperf2Get(t, h, token, PathProductHome, map[string]string{"Host": "[::1]:8080"})
 	if inline.Code != http.StatusOK || !strings.Contains(inline.Body.String(), "<style>"+productStylesheet()+"</style>") || strings.Contains(inline.Body.String(), "<link") {
 		t.Fatalf("a document for an unnameable host (%d) does not carry its stylesheet inline", inline.Code)
 	}
-	if got := chatperf2Directive(inline.Header().Get("Content-Security-Policy"), "style-src-elem"); got != "'"+productStylesheetHash+"'" {
+	if !strings.Contains(inline.Body.String(), "<style>"+productui.ChatStylesheet()+"</style>") {
+		t.Fatal("a document for an unnameable host does not carry Chat's sheet inline")
+	}
+	got := chatperf2Directive(inline.Header().Get("Content-Security-Policy"), "style-src-elem")
+	if !strings.Contains(got, "'"+productStylesheetHash+"'") || !strings.Contains(got, "'"+chatStylesheet().integrity+"'") || strings.Count(got, "'sha256-") != 2 {
 		t.Fatalf("inline style-src-elem = %q", got)
 	}
 }
@@ -208,7 +213,7 @@ func TestTodo_CHATBUG_014_LinkedStylesheet_CustomTheme(t *testing.T) {
 	if hex.EncodeToString(sum[:]) != strings.TrimSuffix(strings.TrimPrefix(name, productStylesheetAssetPrefix), productStylesheetAssetSuffix) {
 		t.Fatal("the custom stylesheet's address is not the digest of its bytes")
 	}
-	if got := chatperf2Directive(document.Header().Get("Content-Security-Policy"), "style-src-elem"); got != "example.com"+href {
+	if got := chatperf2Directive(document.Header().Get("Content-Security-Policy"), "style-src-elem"); got != "example.com"+href+" example.com"+PathAssetPrefix+chatStylesheet().name {
 		t.Fatalf("style-src-elem = %q", got)
 	}
 

@@ -13,9 +13,39 @@ import { test, expect } from "@playwright/test";
 const ADMIN_ROUTE = "/workspace/app/admin/personas";
 const WIDTHS = [1280, 1920, 390, 320];
 const LOCALES = [
-  { value: "en-US", dir: "ltr", title: "Personas", starter: "Starter", personaId: "Persona ID", handle: "Handle", purpose: "Purpose", instructions: "Instructions", channels: "Allowed channels" },
-  { value: "de-DE", dir: "ltr", title: "Personas", starter: "Vorlage", personaId: "Persona-ID", handle: "Handle", purpose: "Zweck", instructions: "Anweisungen", channels: "Zulässige Kanäle" },
-  { value: "ar", dir: "rtl", title: "الشخصيات", starter: "القالب", personaId: "معرّف الشخصية", handle: "المعرّف", purpose: "الغرض", instructions: "التعليمات", channels: "القنوات المسموح بها" },
+  {
+    value: "en-US",
+    dir: "ltr",
+    title: "Personas",
+    starter: "Starter",
+    personaId: "Persona ID",
+    handle: "Handle",
+    purpose: "Purpose",
+    instructions: "Instructions",
+    channels: "Allowed channels",
+  },
+  {
+    value: "de-DE",
+    dir: "ltr",
+    title: "Personas",
+    starter: "Vorlage",
+    personaId: "Persona-ID",
+    handle: "Handle",
+    purpose: "Zweck",
+    instructions: "Anweisungen",
+    channels: "Zulässige Kanäle",
+  },
+  {
+    value: "ar",
+    dir: "rtl",
+    title: "الشخصيات",
+    starter: "القالب",
+    personaId: "معرّف الشخصية",
+    handle: "المعرّف",
+    purpose: "الغرض",
+    instructions: "التعليمات",
+    channels: "القنوات المسموح بها",
+  },
 ];
 
 async function signIn(page, persona) {
@@ -33,9 +63,16 @@ async function signIn(page, persona) {
 
 async function expectServedCatalog(page, where) {
   const catalog = page.locator(".persona-admin-page");
-  const state = await catalog.getAttribute("data-persona-admin-state").catch(() => null);
+  const state = await catalog
+    .getAttribute("data-persona-admin-state")
+    .catch(() => null);
   if (!(await catalog.count()) || state === "unavailable") {
-    const body = (await page.locator("body").innerText().catch(() => ""))
+    const body = (
+      await page
+        .locator("body")
+        .innerText()
+        .catch(() => "")
+    )
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 240);
@@ -57,10 +94,20 @@ async function assertCatalog(page, locale, width) {
   await expect(catalog.getByText("Read compensation", { exact: true })).toBeVisible();
   await expect(catalog.getByText("COMPENSATION", { exact: true })).toBeVisible();
   await expect(catalog.getByText("#hr-ops", { exact: true })).toBeVisible();
-  await expect(catalog.getByText("Effective access preview", { exact: true })).toBeVisible();
-  await expect(catalog.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
-  await expect(catalog.getByRole("button", { name: "Suspend", exact: true })).toBeVisible();
-  await expect(catalog.locator("[data-review-approved='false']").getByRole("button", { name: "Publish", exact: true })).toBeDisabled();
+  await expect(
+    catalog.getByText("Effective access preview", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    catalog.getByRole("button", { name: "Publish", exact: true }),
+  ).toBeVisible();
+  await expect(
+    catalog.getByRole("button", { name: "Suspend", exact: true }),
+  ).toBeVisible();
+  await expect(
+    catalog
+      .locator("[data-review-approved='false']")
+      .getByRole("button", { name: "Publish", exact: true }),
+  ).toBeDisabled();
 
   const editor = page.locator("#persona-admin-create-form");
   await expect(editor).toBeVisible();
@@ -81,35 +128,50 @@ async function assertCatalog(page, locale, width) {
   } else {
     await expect(starter).toBeDisabled();
     await expect(editor.locator("#persona-admin-create-submit")).toBeDisabled();
-    await expect(editor.locator("#persona-admin-editor-status")).toContainText(/starter|template|Vorlage|قالب/i);
+    await expect(editor.locator("#persona-admin-editor-status")).toContainText(
+      /starter|template|Vorlage|قالب/i,
+    );
   }
 
   const nameLayout = await page.evaluate(() => {
     const label = document.querySelector('label[for="persona-admin-name"]');
     const input = document.querySelector("#persona-admin-name");
     if (!label || !input) return null;
-    return {labelBottom: label.getBoundingClientRect().bottom, inputTop: input.getBoundingClientRect().top, inputWidth: input.getBoundingClientRect().width};
+    return {
+      labelBottom: label.getBoundingClientRect().bottom,
+      inputTop: input.getBoundingClientRect().top,
+      inputWidth: input.getBoundingClientRect().width,
+    };
   });
   expect(nameLayout, `${where}: name label and control are rendered`).not.toBeNull();
-  expect(nameLayout.inputTop, `${where}: label/control spacing`).toBeGreaterThan(nameLayout.labelBottom + 2);
-  expect(nameLayout.inputWidth, `${where}: readable name input width`).toBeGreaterThan(200);
+  expect(nameLayout.inputTop, `${where}: label/control spacing`).toBeGreaterThan(
+    nameLayout.labelBottom + 2,
+  );
+  expect(nameLayout.inputWidth, `${where}: readable name input width`).toBeGreaterThan(
+    200,
+  );
 
   const facts = await page.evaluate(() => ({
     lang: document.documentElement.lang,
     dir: document.documentElement.dir,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
-    taskContent: [...document.querySelectorAll(".persona-admin-page")]
-      .some((node) => /task-secret|prompt/i.test(node.textContent ?? "")),
+    taskContent: [...document.querySelectorAll(".persona-admin-page")].some((node) =>
+      /task-secret|prompt/i.test(node.textContent ?? ""),
+    ),
   }));
   expect(facts.lang, `${where}: lang`).toBe(locale.value);
   expect(facts.dir, `${where}: dir`).toBe(locale.dir);
-  expect(facts.scrollWidth, `${where}: horizontal overflow`).toBeLessThanOrEqual(facts.innerWidth + 1);
+  expect(facts.scrollWidth, `${where}: horizontal overflow`).toBeLessThanOrEqual(
+    facts.innerWidth + 1,
+  );
   expect(facts.taskContent, `${where}: task content leaked`).toBe(false);
 }
 
 test.describe("AGENTP-018 persona admin served boundary", () => {
-  test("admin sees lifecycle, reach, placements and explicit controls", async ({ page }) => {
+  test("admin sees lifecycle, reach, placements and explicit controls", async ({
+    page,
+  }) => {
     test.setTimeout(90000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signIn(page, "admin");
@@ -150,11 +212,17 @@ test.describe("AGENTP-018 persona admin served boundary", () => {
     await page.goto(`${ADMIN_ROUTE}?locale=en-US`);
     await page.waitForLoadState("networkidle");
     const catalog = await expectServedCatalog(page, "keyboard");
-    const controls = catalog.locator("select, button, input:not([type='hidden']), textarea");
-    expect(await controls.count(), "catalog needs keyboard controls").toBeGreaterThan(0);
+    const controls = catalog.locator(
+      "select, button, input:not([type='hidden']), textarea",
+    );
+    expect(await controls.count(), "catalog needs keyboard controls").toBeGreaterThan(
+      0,
+    );
     for (const control of await controls.all()) {
       await control.focus();
-      expect(await control.evaluate((node) => document.activeElement === node)).toBe(true);
+      expect(await control.evaluate((node) => document.activeElement === node)).toBe(
+        true,
+      );
     }
   });
 });

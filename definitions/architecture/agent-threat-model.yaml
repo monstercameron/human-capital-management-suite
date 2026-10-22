@@ -90,7 +90,7 @@ threats:
     control_todos: [AGENT2-013, AGENT2-015, AGENT2-017]
     red_team_case: AGENT2-023
     mitigations: [OBO-QUARANTINE, OBO-PLAN-BINDING]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-002
     asset: skill_and_connection_operations
     trust_boundary: typed_skill_to_tool_gateway
@@ -103,7 +103,7 @@ threats:
     control_todos: [AGENT2-004, AGENT2-005, AGENT2-008, AGENT2-009]
     red_team_case: AGENT2-023
     mitigations: [OBO-SKILL-GATE, OBO-TOOL-GATEWAY]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-003
     asset: delegated_user_authority
     trust_boundary: user_authority_to_agent_step
@@ -116,7 +116,7 @@ threats:
     control_todos: [AGENT2-003, AGENT2-005, AGENT2-020, AGENT-003]
     red_team_case: AGENT2-023
     mitigations: [OBO-AUTHORITY-INTERSECTION, OBO-REVOCATION]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-004
     asset: delegated_tokens_and_external_credentials
     trust_boundary: agent_gateway_to_connection
@@ -129,7 +129,7 @@ threats:
     control_todos: [AGENT2-003, AGENT2-007, AGENT2-008, AGENT-002, AGENT-020]
     red_team_case: AGENT2-023
     mitigations: [OBO-NO-TOKEN-PASSTHROUGH, OBO-CONNECTION-LEASE]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-005
     asset: task_ledger_and_context
     trust_boundary: external_result_to_future_step
@@ -142,7 +142,7 @@ threats:
     control_todos: [AGENT2-010, AGENT2-013, AGENT2-014, AGENT2-015, AGENT2-021]
     red_team_case: AGENT2-023
     mitigations: [OBO-TAINTED-CONTEXT, OBO-VERIFY-BEFORE-EFFECT]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-006
     asset: delegated_agent_chain
     trust_boundary: agent_to_agent_delegation
@@ -155,7 +155,7 @@ threats:
     control_todos: [AGENT2-003, AGENT2-010, AGENT2-012, AGENT-003]
     red_team_case: AGENT2-023
     mitigations: [OBO-NESTED-INTERSECTION, OBO-CHAIN-AUDIT]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-007
     asset: task_runtime_and_tenant_capacity
     trust_boundary: long_horizon_task_to_platform
@@ -168,7 +168,7 @@ threats:
     control_todos: [AGENT2-010, AGENT2-011, AGENT2-012, AGENT2-022, AGENT-039]
     red_team_case: AGENT2-023
     mitigations: [OBO-BOUNDS, OBO-KILL-SWITCH]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-008
     asset: user_approval_and_trust
     trust_boundary: agent_proposal_to_user_decision
@@ -178,10 +178,11 @@ threats:
     detection: "exact digest, itemized batch capped at 25, material fields and sources, step-up, and product-surface-only approval"
     recovery: "expire the approval, cancel the task, notify the user, and route any submitted intent through its normal correction path"
     owner: agent-product-governance
-    control_todos: [AGENT2-006, AGENT2-016, AGENT2-017, AGENT2-018, AGENT2-022, AGENT-003]
+    control_todos:
+      [AGENT2-006, AGENT2-016, AGENT2-017, AGENT2-018, AGENT2-022, AGENT-003]
     red_team_case: AGENT2-023
     mitigations: [OBO-EXACT-APPROVAL, OBO-APPROVAL-SEPARATION]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: ATH-009
     asset: published_agent_version_and_manifest
     trust_boundary: agent_publication_to_runtime
@@ -194,7 +195,7 @@ threats:
     control_todos: [AGENT2-004, AGENT2-019, AGENT2-020, AGENT-039]
     red_team_case: AGENT2-023
     mitigations: [OBO-IMMUTABLE-VERSION, OBO-QUARANTINE]
-    tests: [{kind: SECURITY, name: TestTodo_AGENT2_023_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENT2_023_Security }]
   - id: APTH-001
     asset: persona_goal_and_plan
     trust_boundary: peer_message_to_persona_planner
@@ -209,7 +210,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: peer-injection
     mitigations: [PERSONA-PEER-QUARANTINE]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-002
     asset: persona_answer_and_citations
     trust_boundary: invoker_authority_to_shared_conversation
@@ -224,7 +225,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: audience-leak
     mitigations: [PERSONA-AUDIENCE-FLOOR]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-003
     asset: persona_output_links_and_images
     trust_boundary: persona_renderer_to_conversation_client
@@ -239,7 +240,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: audience-leak
     mitigations: [PERSONA-SAFE-OUTPUT]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-004
     asset: invoker_scoped_thread_context
     trust_boundary: one_thread_to_multiple_invocations
@@ -254,7 +255,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: peer-injection
     mitigations: [PERSONA-INVOKER-ISOLATION]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-005
     asset: chat_confirmation_and_approval_cards
     trust_boundary: persona_proposal_to_chat_callback
@@ -269,7 +270,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: approval-hijack
     mitigations: [PERSONA-INVOKER-APPROVAL]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-006
     asset: persona_handle_and_badge
     trust_boundary: chat_identity_to_mention_resolver
@@ -284,7 +285,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: handle-impersonation
     mitigations: [PERSONA-VERIFIED-HANDLE]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-007
     asset: persona_delegation_graph
     trust_boundary: persona_to_persona_invocation
@@ -299,7 +300,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: recruitment
     mitigations: [PERSONA-NO-RECRUITMENT]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-008
     asset: conversation_audience_snapshot
     trust_boundary: membership_change_to_result_commit
@@ -314,7 +315,7 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: audience-leak
     mitigations: [PERSONA-COMMIT-AUDIENCE-RECHECK]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]
   - id: APTH-009
     asset: persona_run_and_waiting_task
     trust_boundary: lifecycle_control_to_next_persona_step
@@ -329,4 +330,4 @@ threats:
     red_team_case: AGENTP-022
     red_team_case_id: suspend-race
     mitigations: [PERSONA-REVOCATION-FENCE]
-    tests: [{kind: SECURITY, name: TestTodo_AGENTP_022_Security}]
+    tests: [{ kind: SECURITY, name: TestTodo_AGENTP_022_Security }]

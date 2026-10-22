@@ -115,6 +115,12 @@ func (e *personaAdmittedRunExecutor) executeQualityModel(ctx context.Context, ru
 	if err != nil {
 		return result, currentRun, err
 	}
+	// The first call consumed its credential lease; the second needs its own.
+	if refresher, ok := interface{}(nil).(personaModelLeaseRefresher); ok {
+		if refreshErr := refresher.RefreshPersonaRunModelLease(callCtx, &request); refreshErr != nil {
+			return result, run, refreshErr
+		}
+	}
 	// A distinct admitted step identity accounts for the second provider call.
 	request.StepID += ":retry"
 	request.Route.TraceID, request.Model.TraceID = request.StepID, request.StepID
@@ -194,6 +200,11 @@ func personaQualityModelFailureCode(result AgentModelExecutorResult, err error) 
 	}
 	if result.Result.Failure != nil && result.Result.Failure.Code == agentmodel.FailureLimit {
 		return "MODEL_LIMIT"
+	}
+	// The router found no eligible pinned model: the route lapsed or no longer
+	// fits the request. That is a setup problem, not a service problem to retry.
+	if errors.Is(err, agentmodel.ErrNoEligibleModel) {
+		return "MODEL_ROUTE_UNAVAILABLE"
 	}
 	return "MODEL_UNAVAILABLE"
 }

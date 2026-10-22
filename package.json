@@ -23,7 +23,7 @@
     "dev:third-party:compensation-decision": "npm --workspace @human-capital-management-suite/third-party-compensation-decision-api run dev",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint .",
-    "check:code-style": "node --test scripts/check-code-style.test.mjs && node scripts/check-code-style.mjs",
+    "check:code-style": "node --test scripts/check-code-style.test.mjs scripts/build-timeclock-kiosk.test.mjs && node scripts/check-code-style.mjs",
     "check:code-style:staged": "node scripts/check-code-style.mjs --staged",
     "check:go": "node scripts/check-go-style.mjs",
     "check:race-policy": "node scripts/check-race-policy.mjs",

@@ -145,13 +145,29 @@ func positionChatLayer(layer, opener js.Value, above bool) {
 			column = chatLayerRect{box.Get("left").Float(), box.Get("top").Float(), box.Get("right").Float(), box.Get("bottom").Float()}
 		}
 		placement = chatSidebarLayerPlacement(anchorRect, column, viewportWidth, viewportHeight, rtl)
+		// CHATUX-048: a panel opening downward ends above the band at the foot of
+		// the sidebar instead of covering it.
+		if rail.Truthy() {
+			if footer := rail.Call("querySelector", ":scope>.chatstate-archived"); footer.Truthy() {
+				placement = chatux048AboveFooter(placement, footer.Call("getBoundingClientRect").Get("top").Float())
+			}
+		}
 	} else {
 		width := chatLayerWidth(kind, viewportWidth)
+		// CHATUX-040: a sidebar menu takes the width of its longest item and
+		// stays below the sidebar's head.
+		var railBounds chatLayerRect
+		if kind == "rail-menu" {
+			width, railBounds = chatux040RailMenuLayout(layer, root, chatLayerRect{0, 0, viewportWidth, viewportHeight}, viewportWidth, rtl)
+		}
 		// What the layer needs to show all it holds, border included; it only
 		// chooses the side, the layer is not capped at it.
 		need := chatLayerContentHeight(layer.Get("scrollHeight").Float(), layer.Get("offsetHeight").Float(), layer.Get("clientHeight").Float())
 		// CHATBUG-051: a layer opened from the conversation stays in it.
 		bounds := chatLayerBounds(anchorRect, chatLayerArea(root, opener), viewportWidth, viewportHeight)
+		if kind == "rail-menu" {
+			bounds = railBounds
+		}
 		if chatLayerAnchorGone(anchorRect, bounds) {
 			style.Call("setProperty", "visibility", "hidden")
 			return
@@ -176,7 +192,9 @@ func positionChatLayer(layer, opener js.Value, above bool) {
 		style.Call("setProperty", "bottom", "auto")
 	}
 	style.Call("setProperty", "position", "fixed")
-	style.Call("setProperty", "inset-inline-end", "auto")
+	// The physical right edge is released: inset-inline-end is the left edge in a
+	// right-to-left page, which put every layer at the page's right edge there.
+	style.Call("setProperty", "right", "auto")
 	style.Call("setProperty", "transform", "none")
 }
 
@@ -754,59 +772,12 @@ func SetChatDisclosureOpen(disclosure js.Value, open bool) {
 	}
 }
 
-func ToggleWritingStyleComposer(button js.Value) {
-	panel := button.Call("closest", "[data-chattone=toolbar]").Call("querySelector", "[data-chat-layer=writing-style]")
-	opening := panel.Get("hidden").Bool()
-	panel.Set("hidden", !opening)
-	button.Call("setAttribute", "aria-expanded", strconv.FormatBool(opening))
-	if opening {
-		if root := chatLayerRoot(); root.Truthy() {
-			root.Set("__chatLayerOpener_writing-style", button)
-		}
-		positionChatLayer(panel, button, true)
-		if field := panel.Call("querySelector", "button:not([disabled])"); field.Truthy() {
-			field.Call("focus")
-		} else {
-			panel.Set("tabIndex", -1)
-			panel.Call("focus")
-		}
-	} else {
-		button.Call("focus")
-	}
-}
-
-func OpenWritingStyleComposer(button js.Value) {
-	panel := button.Call("closest", "[data-chattone=toolbar]").Call("querySelector", "[data-chat-layer=writing-style]")
-	closeChatLayersOfKind(panel)
-	panel.Set("hidden", false)
-	controls := button.Call("closest", "[data-chattone=toolbar]").Call("querySelectorAll", "[data-chattone-action=rewrite]")
-	for i := 0; i < controls.Length(); i++ {
-		controls.Index(i).Call("setAttribute", "aria-expanded", "false")
-	}
-	button.Call("setAttribute", "aria-expanded", "true")
-	if root := chatLayerRoot(); root.Truthy() {
-		root.Set("__chatLayerOpener_writing-style", button)
-	}
-	positionChatLayer(panel, button, true)
-}
+// The Rewrite control's two layers (its menu of styles and the one See changes
+// opens) are opened, placed and closed in chattone_menu_js.go.
+func ToggleWritingStyleComposer(button js.Value) { toggleWritingStyleMenu(button) }
 
 func CloseWritingStyleComposer(button js.Value, restoreFocus bool) {
-	panel := button.Call("closest", "[data-chattone=toolbar]").Call("querySelector", "[data-chat-layer=writing-style]")
-	panel.Set("hidden", true)
-	if panel.Call("matches", ":popover-open").Bool() {
-		panel.Call("hidePopover")
-	}
-	controls := button.Call("closest", "[data-chattone=toolbar]").Call("querySelectorAll", "[data-chattone-action=rewrite]")
-	for i := 0; i < controls.Length(); i++ {
-		controls.Index(i).Call("setAttribute", "aria-expanded", "false")
-	}
-	if restoreFocus {
-		if root := chatLayerRoot(); root.Truthy() {
-			if opener := root.Get("__chatLayerOpener_writing-style"); opener.Truthy() {
-				opener.Call("focus")
-			}
-		}
-	}
+	closeWritingStyleLayers(button, restoreFocus)
 }
 
 func ToggleLocationComposer(button js.Value) {

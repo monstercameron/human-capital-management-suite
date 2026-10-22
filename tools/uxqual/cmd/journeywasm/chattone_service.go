@@ -133,7 +133,13 @@ type chattonePreview struct {
 	Original, Rewritten string
 	Busy, ShowChanges   bool
 	Serial              uint64
+	// Style is the style asked for, shown in the line above the text; Output is
+	// what the model wrote, so a later edit can be told from the rewrite itself.
+	Style, Output string
 }
+
+// Edited reports whether the field no longer holds what the model wrote.
+func (p *chattonePreview) Edited() bool { return p.Original != "" && p.Rewritten != p.Output }
 
 func (p *chattonePreview) Begin(draft string) (uint64, bool) {
 	if p.Busy || len(strings.Fields(draft)) < 3 {
@@ -153,6 +159,7 @@ func (p *chattonePreview) Complete(serial uint64, typed, current, rewrite string
 	}
 	p.Original = typed
 	p.Rewritten = rewrite
+	p.Output = rewrite
 	p.ShowChanges = false
 	return true
 }
@@ -163,6 +170,8 @@ func (p *chattonePreview) Undo() (string, bool) {
 	original := p.Original
 	p.Original = ""
 	p.Rewritten = ""
+	p.Output = ""
+	p.Style = ""
 	p.ShowChanges = false
 	p.Serial++
 	return original, true
@@ -170,6 +179,8 @@ func (p *chattonePreview) Undo() (string, bool) {
 func (p *chattonePreview) Clear() {
 	p.Original = ""
 	p.Rewritten = ""
+	p.Output = ""
+	p.Style = ""
 	p.ShowChanges = false
 	p.Busy = false
 	p.Serial++

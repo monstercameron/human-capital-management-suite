@@ -124,6 +124,12 @@ func agentReplyTime(model Model, at time.Time) ui.Node {
 }
 
 func renderAgentReplyIdentity(model Model, name string, identity ...agenticon.Value) ui.Node {
+	return renderAgentAuthorLine(model, name, time.Time{}, identity...)
+}
+
+// renderAgentAuthorLine is the author line of an answer: the agent's avatar, its
+// name, the Agent badge and, when the answer has a time, the time (CHATUX-042).
+func renderAgentAuthorLine(model Model, name string, at time.Time, identity ...agenticon.Value) ui.Node {
 	if name = strings.TrimSpace(name); name == "" {
 		name = personaProgressText(model, "chat.agent.name", "Agent")
 	}
@@ -138,7 +144,11 @@ func renderAgentReplyIdentity(model Model, name string, identity ...agenticon.Va
 		value = model.selected().Icon
 	}
 	avatar := agentDMAvatar(name, "avatar small agent-reply-avatar", agentIconFor(model, nil, name, value))
-	return html.Header(html.Props{Class: "agent-reply-identity"}, avatar, html.Strong(html.Props{Class: "agent-reply-name", Text: name}), AgentBadgeLabel(model.Locale))
+	head := []ui.Node{avatar, html.Strong(html.Props{Class: "agent-reply-name", Text: name}), AgentBadgeLabel(model.Locale)}
+	if clock := agentReplyTime(model, at); clock != nil {
+		head = append(head, clock)
+	}
+	return html.Header(html.Props{Class: "agent-reply-identity"}, head...)
 }
 
 func agentReplyDirection(locale string) string {

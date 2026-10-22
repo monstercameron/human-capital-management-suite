@@ -45,6 +45,7 @@ type PageRequest struct {
 	SelectedWork       string
 	AgentTaskID        string
 	AgentOperationsTab string
+	AgentsView         string
 	SelectedPerson     string
 	PositionReference  string
 	WorkFilter         string
@@ -122,6 +123,11 @@ func ApplyRequest(view View, request PageRequest) View {
 		// Agent operations has no search box, so the address names its tab in the
 		// field the page already reads it from.
 		view.Query = "tab=" + strings.TrimSpace(request.AgentOperationsTab)
+	}
+	if routeProfile == RouteProfileAgents && strings.TrimSpace(request.AgentsView) != "" {
+		// The Agents page reads its second view (My agent access) from the same
+		// field, so the address alone names it.
+		view.Query = "view=" + strings.TrimSpace(request.AgentsView)
 	}
 	if routeProfile == RouteProfileAgents && view.AgentsProjection != nil {
 		// The server projection is already filtered to this owner. Clear any

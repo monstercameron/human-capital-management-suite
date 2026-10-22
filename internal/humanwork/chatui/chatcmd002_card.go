@@ -72,8 +72,9 @@ func chatcmd002Poll(m Model, post string, view chat.Chatcmd002View, preview, clo
 	if len(meta) > 0 {
 		nodes = append(nodes, html.P(html.Props{Class: "chatcmd002-meta", Dir: "auto", Text: strings.Join(meta, " · ")}))
 	}
-	locked := preview || closed || m.Chatcmd002.Mutate == nil
+	locked := preview || closed || m.Chatcmd002.Mutate == nil || view.NotInAudience
 	ballot := poll.Anonymous && !preview
+	nodes = append(nodes, chatgatePollAudience(m, view)...)
 	var rows []ui.Node
 	for _, option := range poll.Options {
 		mine := false
@@ -147,6 +148,7 @@ func chatcmd002Poll(m Model, post string, view chat.Chatcmd002View, preview, clo
 		}
 		nodes = append(nodes, html.P(html.Props{Class: "chatcmd002-note", Role: "status", Text: chatcmd003Text(m, key)}))
 	}
+	nodes = append(nodes, chatgatePollBreakdown(m, view)...)
 	return nodes
 }
 

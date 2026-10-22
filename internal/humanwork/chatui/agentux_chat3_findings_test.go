@@ -175,7 +175,7 @@ func TestAgentUXR5Srv_OriginalQuestionContext(t *testing.T) {
 func TestAgentUXChat3_FeedbackStateFailureAndLegacyReceipt(t *testing.T) {
 	model := Model{Locale: "en-US", PersonaInvocations: []PersonaThreadInvocation{{Projection: PersonaProgressProjection{InvocationID: "run-1", AgentName: "Policy Helper", DurablePostID: "answer"}}}, Callbacks: Callbacks{SubmitAgentFeedback: func(string, bool) {}, UndoAgentFeedback: func(string) {}}}
 	markup := renderAgentUXChat3Node(t, renderAgentFeedback(model, localUI{agentFeedback: map[string]string{"run-1": "not-right"}}, "answer"), 800)
-	for _, want := range []string{"icon-thumb-up", "icon-thumb-down", `aria-pressed="true"`, "Thanks. Policy Helper&#39;s owner has been told.", ">Undo<"} {
+	for _, want := range []string{"icon-thumb-up", "icon-check", `aria-pressed="true"`, "Thanks. Policy Helper&#39;s owner has been told.", ">Undo<"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("feedback state missing %q: %s", want, markup)
 		}

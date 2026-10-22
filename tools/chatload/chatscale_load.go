@@ -38,6 +38,27 @@ type Config struct {
 	Operations  int
 }
 
+// Database is the scoped handle passed to chatload callers. The underlying
+// PostgreSQL connection remains private to this package.
+type Database struct{ conn *pgx.Conn }
+
+// Exec executes one statement on the owned fixture connection.
+func (d *Database) Exec(ctx context.Context, sql string, args ...any) error {
+	_, err := d.conn.Exec(ctx, sql, args...)
+	return err
+}
+
+// Row exposes only scanning, without exposing a driver-specific row type.
+type Row struct{ scan func(...any) error }
+
+func (r Row) Scan(dest ...any) error { return r.scan(dest...) }
+
+// QueryRow returns a value-only scan handle for one query result.
+func (d *Database) QueryRow(ctx context.Context, sql string, args ...any) Row {
+	row := d.conn.QueryRow(ctx, sql, args...)
+	return Row{scan: row.Scan}
+}
+
 func (c Config) Validate() error {
 	if len(c.Database) > 63 {
 		return errors.New("database name exceeds PostgreSQL identifier limit")
@@ -70,7 +91,7 @@ func databaseConfig(c Config) *pgx.ConnConfig {
 
 // WithDatabase creates only a new test database and always drops exactly that
 // database after the callback, even on failure. Existing databases are refused.
-func WithDatabase(ctx context.Context, c Config, fn func(*pgx.Conn) error) (err error) {
+func WithDatabase(ctx context.Context, c Config, fn func(*Database) error) (err error) {
 	if err = c.Validate(); err != nil {
 		return err
 	}
@@ -95,7 +116,7 @@ func WithDatabase(ctx context.Context, c Config, fn func(*pgx.Conn) error) (err 
 		return e
 	}
 	defer conn.Close(context.Background())
-	return fn(conn)
+	return fn(&Database{conn: conn})
 }
 func Migrate(ctx context.Context, c Config) error {
 	if e := c.Validate(); e != nil {
@@ -180,7 +201,11 @@ func generate(c Config, i int64, sequences []int64) generatedPost {
 
 // Load resumes at the last committed COPY batch. The progress row, RNG seed and
 // shape are committed atomically with all correlated fixture rows.
-func Load(ctx context.Context, conn *pgx.Conn, c Config) error {
+func Load(ctx context.Context, database *Database, c Config) error {
+	return load(ctx, database.conn, c)
+}
+
+func load(ctx context.Context, conn *pgx.Conn, c Config) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
@@ -320,7 +345,7 @@ func guardConnection(ctx context.Context, conn *pgx.Conn) error {
 // WithResumedDatabase accepts only a database containing this generator's
 // matching progress marker, then takes responsibility for dropping it. This
 // supports recovery after abrupt termination, without adopting other fixtures.
-func WithResumedDatabase(ctx context.Context, c Config, fn func(*pgx.Conn) error) (err error) {
+func WithResumedDatabase(ctx context.Context, c Config, fn func(*Database) error) (err error) {
 	if err = c.Validate(); err != nil {
 		return err
 	}
@@ -351,7 +376,7 @@ func WithResumedDatabase(ctx context.Context, c Config, fn func(*pgx.Conn) error
 		e := dropDatabase(cleanup, admin, c.Database)
 		err = errors.Join(err, e)
 	}()
-	return fn(conn)
+	return fn(&Database{conn: conn})
 }
 
 func dropDatabase(ctx context.Context, admin *pgx.Conn, name string) error {

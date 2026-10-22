@@ -85,8 +85,11 @@ func personaEditorOpen(form js.Value) {
 		control.Get("dataset").Set("personaEditorInitial", personaEditorControlValue(control))
 	}
 	personaEditorSetExpanded(form, true)
+	// The editor can open below the fold of a long card: bring it to the top of
+	// the view, then put focus in its first field without a second scroll.
+	form.Call("scrollIntoView", map[string]any{"block": "start", "behavior": "auto"})
 	if first := form.Call("querySelector", personaEditorFirstField); first.Truthy() {
-		first.Call("focus")
+		first.Call("focus", map[string]any{"preventScroll": true})
 	}
 }
 

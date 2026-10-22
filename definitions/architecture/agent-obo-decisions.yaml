@@ -84,7 +84,8 @@ model_gateway:
   implementation_todo: AGENT2-026
   module: github.com/monstercameron/schemaflux
   gateway: SchemaFlux
-  all_agent_calls: [planning, tool_call_selection, quarantined_extraction, summarisation, evaluations]
+  all_agent_calls:
+    [planning, tool_call_selection, quarantined_extraction, summarisation, evaluations]
   typed_output: "schemaflux.Generating[T] validated against Go types"
   free_text_parsing: false
   provider_selection: SCHEMAFLUX_OPTIONS_ONLY

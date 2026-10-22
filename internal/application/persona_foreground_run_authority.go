@@ -62,10 +62,18 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 		return agentrun.AuthoritySnapshot{}, errPersonaForegroundRunAuthority
 	}
 	if cached, ok := agentUXSpeedCachedAuthority(ctx, request); ok {
-		return cached, nil
+		// A boundary that carries the run's last full verification probes it first
+		// (AGENTUX-076); a probe that fails falls through to a full verification.
+		if a.agentUX076CarryHolds(ctx, request) {
+			return cached, nil
+		}
+		agentUX076InvalidateRun(ctx)
 	}
 	doneVerify := agentUXSpeedEvent(ctx, "authority.verify")
 	defer doneVerify()
+	// The persona authority is asked once for this verification and the T0
+	// policy below reuses the answer (AGENTUX-076).
+	ctx = agentUX076WithResolveMemo(ctx)
 	now := a.now().UTC()
 	principal, ok := trust.FromContext(ctx)
 	if !ok || principal == nil || principal.SubjectKind() != trust.SubjectKindHuman ||
@@ -102,7 +110,7 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 		return agentrun.AuthoritySnapshot{}, fmt.Errorf("%w: current persona, manifest, post, audience, context, or policy facts changed (%s)", agentrun.ErrAuthorityRefusal, personaForegroundRequestDifference(request, currentRequest, now, err))
 	}
 	done = agentUXSpeedEvent(ctx, "authority.persona_resolve")
-	current, err := a.persona.Resolve(ctx, agentinvoke.AdmissionRequest{TenantID: invocation.TenantID, ConversationID: invocation.ConversationID, InvokerID: invocation.InvokerID, PersonaID: invocation.PersonaID})
+	current, err := agentUX076Resolve(ctx, a.persona, agentinvoke.AdmissionRequest{TenantID: invocation.TenantID, ConversationID: invocation.ConversationID, InvokerID: invocation.InvokerID, PersonaID: invocation.PersonaID})
 	done()
 	if err != nil || !current.HumanMember || !current.AudienceMember || !current.PersonaInstalled || !current.Persona.Current || current.Persona.Suspended ||
 		!current.Installation.Current || current.Installation.Suspended || current.Persona.ID != invocation.PersonaID || current.Persona.Version != invocation.PersonaVersion ||
@@ -125,6 +133,7 @@ func (a *PersonaForegroundRunAuthority) VerifyAdmission(ctx context.Context, req
 	snapshot := agentrun.AuthoritySnapshot{Agent: request.Agent, InstallationID: request.InstallationID, Principal: request.Principal,
 		Audience: request.Audience, Context: request.Context, BudgetCeiling: currentRequest.Budget, GrantRef: grant.GrantID, PolicyDigest: digest}
 	agentUXSpeedCacheAuthority(ctx, request, snapshot)
+	agentUX076NoteVerified(ctx, a.policy, epoch, grant.ExpiresAt)
 	return snapshot, nil
 }
 

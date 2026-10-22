@@ -97,10 +97,10 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 		outboxRows = `SELECT o.id,o.event_type,o.payload,o.created_at FROM chat_outbox o JOIN chat_post p
 			ON p.id=(o.payload->>'` + OutboxKeyTargetID + `') AND p.tenant_id=o.tenant_id AND p.conversation_id=$2 AND p.created_at>=$9
 			WHERE o.tenant_id=$1 AND o.id>$3 AND o.payload->>'` + OutboxKeyConversationID + `'=$2
-			AND o.created_at>=$9 AND o.event_type IN ('post.created','post.edited','post.deleted')`
+			AND o.created_at>=$9 AND o.event_type IN ('post.created','post.edited','post.deleted')` + chatgateOutboxAudienceNone
 	} else {
 		outboxRows = `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$3
-			AND payload->>'` + OutboxKeyConversationID + `'=$2`
+			AND payload->>'` + OutboxKeyConversationID + `'=$2` + chatgateOutboxAudience7
 	}
 	query := chatscaleTimelineSQL(outboxRows, ephemeralRows)
 	rows, err := tx.Query(ctx, query, args...)

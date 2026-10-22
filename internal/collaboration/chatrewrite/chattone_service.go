@@ -86,6 +86,18 @@ func (s *Service) run(ctx context.Context, req Request, instruction string) (str
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
+		if attempt == 2 {
+			// The second call says the first was refused, so it is not the same
+			// request sent twice. The added text is fixed, and is verified like
+			// the first prompt before it leaves.
+			prompt.Instruction += RetryInstruction
+			if err := s.Outbound.Verify(ctx, prompt); err != nil {
+				if errors.Is(err, ErrPolicy) {
+					return "", ErrPolicy
+				}
+				return "", ErrUnavailable
+			}
+		}
 		if err := s.Ledger.Reserve(ctx, req.Identity, s.now()); err != nil {
 			return "", err
 		}

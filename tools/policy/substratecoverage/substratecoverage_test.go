@@ -77,6 +77,61 @@ func TestTodo_SUBSTRATE_COVERAGE_001_Integration(t *testing.T) {
 	}
 }
 
+func TestTodo_SUBSTRATE_COVERAGE_001_ExactConsumerAllowlist(t *testing.T) {
+	root := t.TempDir()
+	want := map[string]string{
+		"internal/agentsystem/scheduled":    "agent platform",
+		"internal/application/crewschedule": "experience platform",
+		"internal/collaboration/chatsearch": "collaboration platform",
+		"internal/operations/telemetry":     "operations platform",
+	}
+	allowlist := make([]ImplicitEntry, 0, len(want))
+	for _, entry := range ImplicitAllowlist {
+		owner, expected := want[entry.Package]
+		if !expected {
+			continue
+		}
+		if entry.Owner != owner || entry.Reason == "" {
+			t.Fatalf("allowlist entry for %s = %+v, want owner %q and an ownership reason", entry.Package, entry, owner)
+		}
+		allowlist = append(allowlist, entry)
+		packageDir := filepath.Join(root, filepath.FromSlash(entry.Package))
+		if err := os.MkdirAll(packageDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(packageDir, "consumer.go"), []byte("package consumer\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(allowlist) != len(want) {
+		t.Fatalf("exact consumer allowlist entries = %d, want %d", len(allowlist), len(want))
+	}
+	report, err := Scan(root, Options{Responsibilities: []Responsibility{}, Allowlist: allowlist})
+	if err != nil || !report.OK() || len(report.Findings) != len(want) {
+		t.Fatalf("known exact consumers = %+v, %v; want only allowlisted findings", report, err)
+	}
+	for _, finding := range report.Findings {
+		if !finding.Allowlisted || finding.Owner != want[finding.Package] || finding.Detail == "" {
+			t.Errorf("consumer finding = %+v, want exact owner-bearing allowlist evidence", finding)
+		}
+	}
+
+	unknownDir := filepath.Join(root, "internal", "application", "crewscheduleextra")
+	if err := os.MkdirAll(unknownDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(unknownDir, "unknown.go"), []byte("package crewscheduleextra\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err = Scan(root, Options{Responsibilities: []Responsibility{}, Allowlist: allowlist})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Violations()) != 1 || report.Violations()[0].Package != "internal/application/crewscheduleextra" {
+		t.Fatalf("new similarly named consumer = %+v, want one unallowlisted exact-path violation", report.Violations())
+	}
+}
+
 func TestTodo_SUBSTRATE_COVERAGE_001_Security(t *testing.T) {
 	root := t.TempDir()
 	packageDir := filepath.Join(root, "internal", "data", "outbox-new")

@@ -20,6 +20,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentinvocationstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
@@ -133,6 +134,12 @@ type agentDocEgressOptions struct {
 	invoker      string
 	history      bool
 	candidate    bool
+	// facts gives the agent the Assistant's two search skills and puts its facts
+	// block in the request (AGENTUX-076); question is what the asker typed;
+	// language is the asker's reading language tag (CHATLANG-005).
+	facts    bool
+	question string
+	language string
 }
 
 func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciousDocument *agentdocref.ResolvedDocument, options ...agentDocEgressOptions) (context.Context, *agentegress.ProviderDispatcher, agentegress.ProviderDispatchRequest, *agentDocEgressAdapter) {
@@ -185,6 +192,10 @@ func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciou
 	if maliciousDocument != nil {
 		profile.Guidance = ""
 	}
+	if option.facts {
+		profile.SkillPins = []agentskills.SkillPin{{ID: personaPolicyHelperSkillID, Version: 1, Digest: runSourceDigest('e')}, {ID: personaWorkspaceSearchSkillID, Version: 1, Digest: runSourceDigest('f')}}
+		profile.DisplayName, profile.EvalSuiteRef = "Assistant", localAgentDemoAssistantSuiteID
+	}
 	sealed, err := agentpersona.Seal(profile)
 	if err != nil {
 		t.Fatal(err)
@@ -230,13 +241,17 @@ func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciou
 		t.Fatal(err)
 	}
 	version := agentstore.PersonaModelRoutePolicy{TenantID: tenantID, LegalEntityID: request.LegalEntity, PolicyID: manifest.ModelPolicy.ID, PolicyVersion: int64(manifest.ModelPolicy.Version), PolicySchemaVersion: int64(manifest.ModelPolicy.SchemaVersion), PolicyDigest: manifest.ModelPolicy.Digest, Revision: 1, RoutePayload: routePayload}
-	posts := personaRunModelThreadFake{posts: []agentinvoke.ThreadPost{{TenantID: "tenant-a", ConversationID: request.Audience.ID, ThreadID: request.Context.ID, ID: request.Source.Ref, AuthorID: request.Principal.InvokerID, Body: "How much paid time off do I receive?"}}}
+	question := "How much paid time off do I receive?"
+	if option.question != "" {
+		question = option.question
+	}
+	posts := personaRunModelThreadFake{posts: []agentinvoke.ThreadPost{{TenantID: "tenant-a", ConversationID: request.Audience.ID, ThreadID: request.Context.ID, ID: request.Source.Ref, AuthorID: request.Principal.InvokerID, Body: question}}}
 	if option.history {
 		previous := posts.posts[0]
 		previous.ID, previous.Body = "prior-post", "Use the paid time off policy."
 		posts.posts = append([]agentinvoke.ThreadPost{previous}, posts.posts...)
 	}
-	evidence, err := NewPersonaOpenAIModelEvidence(PersonaOpenAIModelOwnerConfig{DB: store, Personas: personaRunAuthorityFactoryFake{reader: personaRunAuthorityReaderFake{version: agentDocEgressPersonaVersion(t, profile, sealed.Digest), install: agentpersonastore.ActiveInstallation{InstallationID: request.InstallationID, PersonaID: profile.PersonaID, PersonaVersion: int64(profile.Version), AgentVersion: manifest.ID + "@" + fmt.Sprint(manifest.Version), ConversationID: request.Audience.ID}}}, Manifests: personaRunManifestFactoryFake{resolver: personaRunManifestResolverFake{manifest: manifest, tenant: "tenant-a"}}, Routes: agentDocEgressRoute{record: version}, Threads: posts, Authority: authority, Audit: agentDocEgressAudit{}, ChatClasses: agentDocEgressClasses{}, Documents: resolver, TenantUUID: func(values.TenantId) uuid.UUID { return tenantID }, Now: func() time.Time { return now }})
+	evidence, err := NewPersonaOpenAIModelEvidence(PersonaOpenAIModelOwnerConfig{DB: store, Personas: personaRunAuthorityFactoryFake{reader: personaRunAuthorityReaderFake{version: agentDocEgressPersonaVersion(t, profile, sealed.Digest), install: agentpersonastore.ActiveInstallation{InstallationID: request.InstallationID, PersonaID: profile.PersonaID, PersonaVersion: int64(profile.Version), AgentVersion: manifest.ID + "@" + fmt.Sprint(manifest.Version), ConversationID: request.Audience.ID}}}, Manifests: personaRunManifestFactoryFake{resolver: personaRunManifestResolverFake{manifest: manifest, tenant: "tenant-a"}}, Routes: agentDocEgressRoute{record: version}, Threads: posts, Authority: authority, Audit: agentDocEgressAudit{}, ChatClasses: agentDocEgressClasses{}, Documents: resolver, ReaderLanguage: func(context.Context, string, string) string { return option.language }, TenantUUID: func(values.TenantId) uuid.UUID { return tenantID }, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,6 +268,7 @@ func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciou
 		t.Fatal(err)
 	}
 	model := buildPersonaRunModelRequest(record, runstate.Run{ID: record.ID, Deadline: now.Add(time.Minute)}, profile, manifest, route, PersonaRunEffectivePolicy{Budget: request.Budget, Deadline: request.Deadline}, goal, history, references)
+	addPersonaReaderLanguage(ctx, func(context.Context, string, string) string { return option.language }, "tenant-a", request.Principal.InvokerID, &model)
 	fields, sources := personaRunModelFields(model)
 	work := AgentModelExecutorRequest{Model: model, FieldSources: sources, Outbound: agentegress.OutboundRequest{TaskID: record.ID, Tenant: "tenant-a", Principal: request.Principal.InvokerID, Purpose: request.Purpose, Profile: route.Egress, Region: "test-region", DeclaredFields: fields, Fields: personaRunModelOutboundFields(model, route), Task: route.TaskPolicy, Now: now}}
 	if err := addAgentDocumentsToModelRequest(&work, documents, route); err != nil {
@@ -264,6 +280,16 @@ func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciou
 			t.Fatal(err)
 		}
 		classifyPersonaReferenceDocumentFields(&work, class)
+	}
+	if option.facts {
+		// AGENTUX-076: the request a served run builds carries the agent's facts.
+		facts, ok := personaAgentFactsFor(ctx, resolver, record, profile, true)
+		if !ok {
+			t.Fatal("the resolver carries no agent facts")
+		}
+		if err := insertPersonaAgentFacts(&work, facts, route); err != nil {
+			t.Fatal(err)
+		}
 	}
 	terms := agentegress.ProviderTerms{ModelProfile: "test-model", ProviderID: "test-provider", ModelID: "test-model", ModelVersion: "v1", ContractRef: "test-contract", EgressGrantRef: "test-grant", Approved: true, Encryption: true, AllowedRegions: []string{"test-region"}, AllowedClasses: classes, Retention: agentegress.RetentionPolicy{Mode: agentegress.RetentionNone}, TrainingUse: agentmodel.UseDenied, Logging: agentmodel.UseDenied, SourceRules: []agentegress.ProviderSourceRule{{Class: "persona-profile", Classes: classes}, {Class: "persona-invoking-post", Classes: classes}, {Class: "persona-thread-context", Classes: classes}, {Class: "persona-untrusted-reference-document", Classes: classes}, {Class: "persona-reference-document", Classes: classes}}}
 	var sourceEvidence agentegress.SourceClassificationVerifier = evidence

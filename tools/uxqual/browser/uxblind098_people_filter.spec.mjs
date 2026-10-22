@@ -2,12 +2,19 @@
 // seeded with Ironridge's Walt Brennan persona (HCMNEXT_DEV_URL).
 import { test, expect } from "@playwright/test";
 
-test("[UXBLIND-098] hydrated People search filters and clears the directory", async ({ page }) => {
+test("[UXBLIND-098] hydrated People search filters and clears the directory", async ({
+  page,
+}) => {
   const diagnostics = [];
   page.on("pageerror", (error) => diagnostics.push(`pageerror: ${error.message}`));
-  page.on("requestfailed", (request) => diagnostics.push(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`));
+  page.on("requestfailed", (request) =>
+    diagnostics.push(
+      `requestfailed: ${request.url()} ${request.failure()?.errorText ?? ""}`,
+    ),
+  );
   page.on("console", (message) => {
-    if (message.type() === "error" || message.type() === "warning") diagnostics.push(`console ${message.type()}: ${message.text()}`);
+    if (message.type() === "error" || message.type() === "warning")
+      diagnostics.push(`console ${message.type()}: ${message.text()}`);
   });
   test.setTimeout(90000);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -15,24 +22,36 @@ test("[UXBLIND-098] hydrated People search filters and clears the directory", as
   await page.getByRole("button", { name: "Continue as Walt Brennan" }).click();
   await page.waitForURL(/\/workspace\/app\//);
   await page.waitForFunction(
-    () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+    () =>
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 30000, polling: 50 },
   );
   await page.waitForFunction(
-    () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:load-done"),
+    () =>
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:load-done"),
     null,
     { timeout: 30000, polling: 50 },
   );
 
   await page.goto("/workspace/app/people");
   await page.waitForFunction(
-    () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+    () =>
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 30000, polling: 50 },
   );
   await page.waitForFunction(
-    () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:load-done"),
+    () =>
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:load-done"),
     null,
     { timeout: 30000, polling: 50 },
   );
@@ -48,16 +67,22 @@ test("[UXBLIND-098] hydrated People search filters and clears the directory", as
     await expect(page).toHaveURL(/[?&]q=Curtis(?:&|$)/, { timeout: 15000 });
   } catch (error) {
     const state = await page.evaluate(() => ({
-      url: location.href,
+      url: window.location.href,
       queryValue: document.querySelector("#people-filter")?.value,
       rows: document.querySelectorAll(".people-row-item").length,
-      marks: performance.getEntriesByType("mark").map((mark) => mark.name).filter((name) => name.startsWith("hcm:")),
+      marks: window.performance
+        .getEntriesByType("mark")
+        .map((mark) => mark.name)
+        .filter((name) => name.startsWith("hcm:")),
     }));
     await test.info().attach("people-filter-failure", {
       body: JSON.stringify({ state, diagnostics }, null, 2),
       contentType: "application/json",
     });
-    console.log("[UXBLIND-098 filter failure]", JSON.stringify({ state, diagnostics }));
+    globalThis.console.log(
+      "[UXBLIND-098 filter failure]",
+      JSON.stringify({ state, diagnostics }),
+    );
     throw error;
   }
   await expect(peopleRows).not.toHaveCount(20, { timeout: 15000 });
@@ -66,7 +91,11 @@ test("[UXBLIND-098] hydrated People search filters and clears the directory", as
   await expect(peopleRows.first()).toContainText("Curtis");
 
   await page.getByRole("link", { name: "Clear", exact: true }).click();
-  await expect.poll(() => new URL(page.url()).searchParams.get("q"), { timeout: 15000 }).toBe("");
+  await expect
+    .poll(() => new globalThis.URL(page.url()).searchParams.get("q"), {
+      timeout: 15000,
+    })
+    .toBe("");
   await expect(page.getByText("38 people", { exact: true })).toBeVisible();
   await expect(peopleRows).toHaveCount(20, { timeout: 15000 });
 
@@ -74,5 +103,8 @@ test("[UXBLIND-098] hydrated People search filters and clears the directory", as
     body: JSON.stringify({ url: page.url(), diagnostics }, null, 2),
     contentType: "application/json",
   });
-  expect(diagnostics, "the hydrated People filter journey should not emit runtime errors").toEqual([]);
+  expect(
+    diagnostics,
+    "the hydrated People filter journey should not emit runtime errors",
+  ).toEqual([]);
 });

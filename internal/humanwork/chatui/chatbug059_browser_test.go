@@ -86,7 +86,7 @@ var chatbug059SharedGerman = map[string]bool{
 
 // chatbug059Token matches what is not a sentence in any language: a slash
 // command, an emoji short name, a time zone, a key chord, an identifier.
-var chatbug059Token = regexp.MustCompile(`^(?:/[a-z]+(?: [a-z]+)?|:[a-z0-9_+-]+:|[A-Z][A-Za-z]+/[A-Za-z_ ]+|UTC|\p{Lu}[\p{L} .'-]+ \(UTC[+\x{2212}-]\d{1,2}(?::\d{2})?\)|Ctrl\+K|Cmd\+K|in #[a-z-]+|item-\d+: .*|sha256:.*|[a-z]+(?:_[a-z]+)+|\x{2068}?#[a-z-]+\x{2069}?|@[a-z-]+|Emoji \S+)$`)
+var chatbug059Token = regexp.MustCompile(`^(?:/[a-z]+(?: [a-z]+)?|:[a-z0-9_+-]+:|[A-Z][A-Za-z]+/[A-Za-z_ ]+|UTC|\p{Lu}[\p{L} .'-]+ \(UTC[+\x{2212}-]\d{1,2}(?::\d{2})?\)|Ctrl\+K|Cmd\+K|Alt\+Shift\+[1-3]|in #[a-z-]+|item-\d+: .*|sha256:.*|[a-z]+(?:_[a-z]+)+|\x{2068}?#[a-z-]+\x{2069}?|@[a-z-]+|Emoji \S+)$`)
 
 // chatbug059Words are English words no German sentence uses; two of them in one
 // string, or one in a string of three words or more, mark it as English.
@@ -160,6 +160,18 @@ func chatbug059Surfaces(t *testing.T, locale string) map[string][]string {
 // shows word for word, or text that reads as English. What the fixtures carry as
 // data (names, a message body) is listed in chatbug059Fixture.
 func TestTodo_CHATBUG_059_Browser(t *testing.T) {
+	for _, locale := range []string{"de-DE", "ar"} {
+		for _, shortcut := range []string{"Alt+Shift+1", "Alt+Shift+2", "Alt+Shift+3"} {
+			if why := chatbug059English(shortcut, locale, map[string]bool{shortcut: true}); why != "" {
+				t.Errorf("%s: canonical shortcut %q was treated as English prose: %s", locale, shortcut, why)
+			}
+		}
+		for _, prose := range []string{"Open the conversation", "Open the conversation Alt+Shift+1"} {
+			if why := chatbug059English(prose, locale, map[string]bool{prose: true}); why == "" {
+				t.Errorf("%s: English prose %q escaped detection", locale, prose)
+			}
+		}
+	}
 	english := map[string]bool{}
 	for _, segments := range chatbug059Surfaces(t, "en-US") {
 		for _, text := range segments {

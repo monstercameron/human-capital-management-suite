@@ -50,17 +50,41 @@ var Exclusions = []Exclusion{
 	{Path: "tools/gen/schemaflux/cmd/modelgen/main.go", Kind: "thin generator wrapper", Reason: "The command delegates its generation behavior to the tested tools/gen/schemaflux package."},
 }
 
-const checkpointVersion = 1
+const checkpointVersion = 2
 
 type listedPackage struct {
-	Dir            string
-	ImportPath     string
-	Name           string
-	GoFiles        []string
-	CgoFiles       []string
-	IgnoredGoFiles []string
-	TestGoFiles    []string
-	XTestGoFiles   []string
+	Dir             string
+	ImportPath      string
+	ForTest         string
+	Name            string
+	GoFiles         []string
+	CgoFiles        []string
+	IgnoredGoFiles  []string
+	TestGoFiles     []string
+	XTestGoFiles    []string
+	CFiles          []string
+	CXXFiles        []string
+	MFiles          []string
+	HFiles          []string
+	FFiles          []string
+	SFiles          []string
+	SwigFiles       []string
+	SwigCXXFiles    []string
+	SysoFiles       []string
+	EmbedFiles      []string
+	TestEmbedFiles  []string
+	XTestEmbedFiles []string
+	Module          *listedModule
+}
+
+type listedModule struct {
+	Path      string
+	Version   string
+	Sum       string
+	GoVersion string
+	Dir       string
+	GoMod     string
+	Replace   *listedModule
 }
 
 type sourceRow struct {
@@ -97,6 +121,10 @@ func generate(ctx context.Context, repo string, module Module, checkpointDir str
 	if err != nil {
 		return nil, err
 	}
+	contextHash, err := moduleContextHash(ctx, moduleRoot, repo)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := inventoryRowsForPackages(ctx, repo, module, packages)
 	if err != nil {
 		return nil, err
@@ -117,7 +145,7 @@ func generate(ctx context.Context, repo string, module Module, checkpointDir str
 			statusByPackage[p.ImportPath] = "no tests"
 			continue
 		}
-		inputHash, err := packageInputHash(packageRows, p)
+		inputHash, err := packageInputHash(packageRows, p, contextHash)
 		if err != nil {
 			return nil, fmt.Errorf("hash coverage inputs for %s: %w", p.ImportPath, err)
 		}
@@ -169,9 +197,10 @@ func generate(ctx context.Context, repo string, module Module, checkpointDir str
 	return render(module, repo, rows), nil
 }
 
-func packageInputHash(rows []sourceRow, p listedPackage) (string, error) {
+func packageInputHash(rows []sourceRow, p listedPackage, contextHash string) (string, error) {
 	h := sha256.New()
 	io.WriteString(h, p.ImportPath+"\n")
+	io.WriteString(h, "module-context "+contextHash+"\n")
 	files := packageGoFiles(p)
 	for _, name := range files {
 		digest, err := hashFile(filepath.Join(p.Dir, name))
@@ -184,6 +213,524 @@ func packageInputHash(rows []sourceRow, p listedPackage) (string, error) {
 		io.WriteString(h, "tests "+rows[0].testHash+"\n")
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// moduleContextHash conservatively binds a package checkpoint to the complete
+// dependency and test source view used by this module, as well as the Go build
+// context. A package-local source hash alone cannot detect a changed imported
+// package, embed input, local replacement, overlay file, or toolchain setting.
+func moduleContextHash(ctx context.Context, moduleRoot, repoRoot string) (string, error) {
+	packages, err := listDependencyPackages(ctx, moduleRoot)
+	if err != nil {
+		return "", err
+	}
+	env, err := goBuildEnvironment(ctx, moduleRoot)
+	if err != nil {
+		return "", err
+	}
+	goFlags, overlays, err := parseGoFlags(env["GOFLAGS"])
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	writeHashField(h, "format", "testcoverage-module-context-v2")
+	for _, key := range []string{"GOVERSION", "GOROOT", "GOOS", "GOARCH", "CGO_ENABLED", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS", "GOEXPERIMENT", "GOTOOLCHAIN", "GO386", "GOAMD64", "GOARM", "GOARM64", "GOMIPS", "GOMIPS64", "GOWASM", "CC", "CXX", "PKG_CONFIG"} {
+		writeHashField(h, "env:"+key, env[key])
+	}
+	for i, flag := range goFlags {
+		writeHashField(h, fmt.Sprintf("goflag:%d", i), flag)
+	}
+
+	files := make(map[string]string)
+	modules := make(map[string]listedModule)
+	overlayReplacements, err := collectOverlayReplacements(moduleRoot, overlays)
+	if err != nil {
+		return "", err
+	}
+	for _, p := range packages {
+		if p.Module != nil {
+			collectListedModules(modules, *p.Module)
+		}
+		packageKey := p.ImportPath
+		if p.ForTest != "" {
+			packageKey += " [test for " + p.ForTest + "]"
+		}
+		for _, name := range dependencySourceFiles(p) {
+			path := name
+			if !filepath.IsAbs(path) {
+				if p.Dir == "" {
+					return "", fmt.Errorf("dependency package %s has relative source %s without a directory", p.ImportPath, name)
+				}
+				path = filepath.Join(p.Dir, path)
+			}
+			label := packageKey + "/" + filepath.ToSlash(name)
+			if replacement, ok := overlayReplacements[filepath.Clean(path)]; ok {
+				if replacement == nil || *replacement == "" {
+					files[label] = hashString("deleted by overlay")
+					continue
+				}
+				path = *replacement
+				if !filepath.IsAbs(path) {
+					path = filepath.Join(moduleRoot, path)
+				}
+			}
+			if err := addContextFile(files, label, path); err != nil {
+				return "", err
+			}
+		}
+		if err := addPackageTestdataFiles(files, p); err != nil {
+			return "", err
+		}
+	}
+
+	moduleIDs := make([]string, 0, len(modules))
+	for id := range modules {
+		moduleIDs = append(moduleIDs, id)
+	}
+	sort.Strings(moduleIDs)
+	for _, id := range moduleIDs {
+		m := modules[id]
+		writeHashField(h, "module", id)
+		for _, rel := range []string{"go.mod", "go.sum"} {
+			path := filepath.Join(m.Dir, rel)
+			if m.GoMod != "" {
+				if rel == "go.mod" {
+					path = m.GoMod
+				} else {
+					path = strings.TrimSuffix(m.GoMod, ".mod") + ".sum"
+				}
+			}
+			if path == "" {
+				continue
+			}
+			if err := addContextFile(files, id+"/"+rel, path); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return "", err
+			}
+		}
+	}
+
+	if workspace := env["GOWORK"]; workspace != "" && workspace != "off" {
+		if !filepath.IsAbs(workspace) {
+			workspace = filepath.Join(moduleRoot, workspace)
+		}
+		if err := addContextFile(files, "workspace/go.work", workspace); err != nil {
+			return "", err
+		}
+		if err := addContextFile(files, "workspace/go.work.sum", filepath.Join(filepath.Dir(workspace), "go.work.sum")); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+	}
+	if err := addOverlayContextFiles(files, moduleRoot, overlays); err != nil {
+		return "", err
+	}
+	if err := addRepositoryContextFiles(files, repoRoot); err != nil {
+		return "", err
+	}
+
+	fileLabels := make([]string, 0, len(files))
+	for label := range files {
+		fileLabels = append(fileLabels, label)
+	}
+	sort.Strings(fileLabels)
+	for _, label := range fileLabels {
+		writeHashField(h, "file:"+label, files[label])
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func listDependencyPackages(ctx context.Context, root string) ([]listedPackage, error) {
+	cmd := exec.CommandContext(ctx, "go", "list", "-deps", "-test", "-json", "./...")
+	cmd.Dir = root
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list dependency context: %w\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+	decoder := json.NewDecoder(bytes.NewReader(out))
+	var packages []listedPackage
+	for {
+		var p listedPackage
+		if err := decoder.Decode(&p); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("decode go list dependency context: %w", err)
+		}
+		if p.ImportPath == "" {
+			return nil, errors.New("go list dependency context returned a package without import path")
+		}
+		packages = append(packages, p)
+	}
+	return packages, nil
+}
+
+func goBuildEnvironment(ctx context.Context, dir string) (map[string]string, error) {
+	keys := []string{"GOVERSION", "GOROOT", "GOOS", "GOARCH", "CGO_ENABLED", "CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS", "GOFLAGS", "GOEXPERIMENT", "GOTOOLCHAIN", "GO386", "GOAMD64", "GOARM", "GOARM64", "GOMIPS", "GOMIPS64", "GOWASM", "CC", "CXX", "PKG_CONFIG", "GOWORK"}
+	args := append([]string{"env", "-json"}, keys...)
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go env build context: %w", err)
+	}
+	var env map[string]string
+	if err := json.Unmarshal(out, &env); err != nil {
+		return nil, fmt.Errorf("decode go env build context: %w", err)
+	}
+	return env, nil
+}
+
+func dependencySourceFiles(p listedPackage) []string {
+	files := append([]string{}, p.GoFiles...)
+	files = append(files, p.CgoFiles...)
+	files = append(files, p.IgnoredGoFiles...)
+	files = append(files, p.TestGoFiles...)
+	files = append(files, p.XTestGoFiles...)
+	files = append(files, p.CFiles...)
+	files = append(files, p.CXXFiles...)
+	files = append(files, p.MFiles...)
+	files = append(files, p.HFiles...)
+	files = append(files, p.FFiles...)
+	files = append(files, p.SFiles...)
+	files = append(files, p.SwigFiles...)
+	files = append(files, p.SwigCXXFiles...)
+	files = append(files, p.SysoFiles...)
+	files = append(files, p.EmbedFiles...)
+	files = append(files, p.TestEmbedFiles...)
+	files = append(files, p.XTestEmbedFiles...)
+	sort.Strings(files)
+	return files
+}
+
+func addPackageTestdataFiles(files map[string]string, p listedPackage) error {
+	if p.Dir == "" {
+		return nil
+	}
+	root := filepath.Join(p.Dir, "testdata")
+	if _, err := os.Stat(root); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("inspect package testdata for %s: %w", p.ImportPath, err)
+	}
+	packageLabel := p.ImportPath
+	if p.ForTest != "" {
+		packageLabel += " [test for " + p.ForTest + "]"
+	}
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		label := "package-testdata/" + packageLabel + "/" + filepath.ToSlash(rel)
+		if entry.Type()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			files[label+"/symlink"] = hashString(filepath.ToSlash(target))
+			info, err := os.Stat(path)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return nil
+				}
+				return fmt.Errorf("inspect package testdata symlink %s: %w", path, err)
+			}
+			if info.IsDir() {
+				return fmt.Errorf("package testdata contains directory symlink %s; refusing to omit its contents", path)
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("package testdata contains non-regular symlink target %s", path)
+			}
+		}
+		if entry.Type().IsRegular() || entry.Type()&os.ModeSymlink != 0 {
+			if err := addContextFile(files, label, path); err != nil {
+				return fmt.Errorf("hash package testdata %s: %w", path, err)
+			}
+		}
+		return nil
+	})
+}
+
+func collectListedModules(modules map[string]listedModule, module listedModule) {
+	if module.Path == "" {
+		return
+	}
+	id := moduleIdentity(module)
+	if _, exists := modules[id]; exists {
+		return
+	}
+	modules[id] = module
+	if module.Replace != nil {
+		collectListedModules(modules, *module.Replace)
+	}
+}
+
+func moduleIdentity(module listedModule) string {
+	parts := []string{module.Path, module.Version, module.Sum, module.GoVersion}
+	if module.Replace != nil {
+		parts = append(parts, "replace", moduleIdentity(*module.Replace))
+	}
+	return strings.Join(parts, "\x00")
+}
+
+func addContextFile(files map[string]string, label, path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	digest := sha256.Sum256(data)
+	value := hex.EncodeToString(digest[:])
+	if old, exists := files[label]; exists && old != value {
+		return fmt.Errorf("conflicting dependency context contents for %s", label)
+	}
+	files[label] = value
+	return nil
+}
+
+// addRepositoryContextFiles includes test fixtures and repository-level policy
+// inputs that Go's package graph cannot discover. Output/cache trees are
+// excluded, while generated repository files remain inputs and therefore
+// conservatively invalidate checkpoints when they change.
+func addRepositoryContextFiles(files map[string]string, root string) error {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if rel != "." && (entry.Name() == ".git" || entry.Name() == ".artifacts" || entry.Name() == "node_modules") {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		label := "repo/" + filepath.ToSlash(rel)
+		if entry.Type()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			files[label+"/symlink"] = hashString(filepath.ToSlash(target))
+			info, err := os.Stat(path)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return nil
+				}
+				return fmt.Errorf("inspect repository symlink %s: %w", rel, err)
+			}
+			if info.IsDir() {
+				return fmt.Errorf("repository context contains directory symlink %s; refusing to omit its contents", rel)
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("repository context contains non-regular symlink target %s", rel)
+			}
+		}
+		if entry.Type().IsRegular() || entry.Type()&os.ModeSymlink != 0 {
+			if err := addContextFile(files, label, path); err != nil {
+				return fmt.Errorf("hash repository input %s: %w", rel, err)
+			}
+		}
+		return nil
+	})
+}
+
+func parseGoFlags(goflags string) ([]string, []string, error) {
+	words, err := splitGoFlagWords(goflags)
+	if err != nil {
+		return nil, nil, err
+	}
+	flags := make([]string, 0, len(words))
+	var overlays []string
+	for i := 0; i < len(words); i++ {
+		if words[i] == "-overlay" {
+			if i+1 >= len(words) {
+				return nil, nil, errors.New("GOFLAGS contains -overlay without a path")
+			}
+			overlays = append(overlays, words[i+1])
+			flags = append(flags, "-overlay")
+			i++
+		} else if strings.HasPrefix(words[i], "-overlay=") {
+			overlays = append(overlays, strings.TrimPrefix(words[i], "-overlay="))
+			flags = append(flags, "-overlay")
+		} else {
+			flags = append(flags, words[i])
+		}
+	}
+	return flags, overlays, nil
+}
+
+func collectOverlayReplacements(root string, overlays []string) (map[string]*string, error) {
+	replacements := make(map[string]*string)
+	for _, overlayPath := range overlays {
+		if overlayPath == "" {
+			return nil, errors.New("GOFLAGS contains -overlay without a path")
+		}
+		if !filepath.IsAbs(overlayPath) {
+			overlayPath = filepath.Join(root, overlayPath)
+		}
+		data, err := os.ReadFile(overlayPath)
+		if err != nil {
+			return nil, fmt.Errorf("read Go overlay %s: %w", overlayPath, err)
+		}
+		var overlay struct {
+			Replace map[string]*string
+		}
+		if err := json.Unmarshal(data, &overlay); err != nil {
+			return nil, fmt.Errorf("decode Go overlay %s: %w", overlayPath, err)
+		}
+		originals := make([]string, 0, len(overlay.Replace))
+		for original := range overlay.Replace {
+			originals = append(originals, original)
+		}
+		sort.Strings(originals)
+		for _, original := range originals {
+			replacement := overlay.Replace[original]
+			originalPath := original
+			if !filepath.IsAbs(originalPath) {
+				originalPath = filepath.Join(root, originalPath)
+			}
+			if replacement == nil || *replacement == "" {
+				replacements[filepath.Clean(originalPath)] = replacement
+				continue
+			}
+			replacementPath := *replacement
+			if !filepath.IsAbs(replacementPath) {
+				replacementPath = filepath.Join(root, replacementPath)
+			}
+			replacementCopy := replacementPath
+			replacements[filepath.Clean(originalPath)] = &replacementCopy
+		}
+	}
+	return replacements, nil
+}
+
+func addOverlayContextFiles(files map[string]string, root string, overlays []string) error {
+	for overlayIndex, overlayPath := range overlays {
+		if !filepath.IsAbs(overlayPath) {
+			overlayPath = filepath.Join(root, overlayPath)
+		}
+		data, err := os.ReadFile(overlayPath)
+		if err != nil {
+			return fmt.Errorf("read Go overlay %s: %w", overlayPath, err)
+		}
+		var overlay struct {
+			Replace map[string]*string
+		}
+		if err := json.Unmarshal(data, &overlay); err != nil {
+			return fmt.Errorf("decode Go overlay %s: %w", overlayPath, err)
+		}
+		files[fmt.Sprintf("overlay/%d/present", overlayIndex)] = hashString("present")
+		originals := make([]string, 0, len(overlay.Replace))
+		for original := range overlay.Replace {
+			originals = append(originals, original)
+		}
+		sort.Strings(originals)
+		for _, original := range originals {
+			label := fmt.Sprintf("overlay/%d/%s", overlayIndex, stableContextPath(root, original))
+			replacement := overlay.Replace[original]
+			if replacement == nil {
+				files[label] = hashString("deleted")
+				continue
+			}
+			path := *replacement
+			if path == "" {
+				files[label] = hashString("deleted")
+				continue
+			}
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(root, path)
+			}
+			if err := addContextFile(files, label, path); err != nil {
+				return fmt.Errorf("read Go overlay replacement %s: %w", path, err)
+			}
+		}
+	}
+	return nil
+}
+
+func splitGoFlagWords(value string) ([]string, error) {
+	var words []string
+	var word strings.Builder
+	quoted := false
+	started := false
+	flush := func() {
+		if started {
+			words = append(words, word.String())
+			word.Reset()
+			started = false
+		}
+	}
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if quoted {
+			if c == '"' {
+				quoted = false
+			} else if c == '\\' && i+1 < len(value) && (value[i+1] == '"' || value[i+1] == '\\') {
+				i++
+				word.WriteByte(value[i])
+			} else {
+				word.WriteByte(c)
+			}
+			started = true
+			continue
+		}
+		switch c {
+		case ' ', '\t', '\r', '\n':
+			flush()
+		case '"':
+			quoted = true
+			started = true
+		default:
+			word.WriteByte(c)
+			started = true
+		}
+	}
+	if quoted {
+		return nil, errors.New("GOFLAGS contains an unterminated quoted argument")
+	}
+	flush()
+	return words, nil
+}
+
+func writeHashField(h io.Writer, name, value string) {
+	fmt.Fprintf(h, "%d:%s%d:%s\n", len(name), name, len(value), value)
+}
+
+func hashString(value string) string {
+	digest := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(digest[:])
+}
+
+func stableContextPath(root, path string) string {
+	absolute := path
+	if !filepath.IsAbs(absolute) {
+		absolute = filepath.Join(root, absolute)
+	}
+	absolute, err := filepath.Abs(absolute)
+	if err != nil {
+		return filepath.ToSlash(filepath.Clean(path))
+	}
+	relative, err := filepath.Rel(root, absolute)
+	if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "repo/" + filepath.ToSlash(relative)
+	}
+	return "external/" + filepath.ToSlash(filepath.Clean(absolute))
 }
 
 func checkpointFile(dir string, module Module, importPath, inputHash string) string {
@@ -410,10 +957,10 @@ func parseExclusions(data []byte) (map[string][2]string, error) {
 			break
 		}
 	}
-	if start < 0 || start+2 >= len(lines) || lines[start+1] != "" || lines[start+2] != "| file | kind | reason |" {
+	if start < 0 || start+2 >= len(lines) || lines[start+1] != "" || !equalTableCells(markdownTableCells(lines[start+2]), []string{"file", "kind", "reason"}) {
 		return nil, errors.New("missing or malformed exclusions table")
 	}
-	if start+3 >= len(lines) || lines[start+3] != "| --- | --- | --- |" {
+	if start+3 >= len(lines) || !validTableSeparator(lines[start+3], 3) {
 		return nil, errors.New("missing or malformed exclusions table separator")
 	}
 	result := make(map[string][2]string)
@@ -421,13 +968,7 @@ func parseExclusions(data []byte) (map[string][2]string, error) {
 		if line == "" {
 			break
 		}
-		if !strings.HasPrefix(line, "| ") || !strings.HasSuffix(line, " |") {
-			return nil, fmt.Errorf("malformed exclusion row %q", line)
-		}
-		fields := strings.Split(strings.Trim(line, "|"), "|")
-		for i := range fields {
-			fields[i] = strings.TrimSpace(fields[i])
-		}
+		fields := markdownTableCells(line)
 		if len(fields) != 3 || fields[0] == "" || fields[1] == "" || fields[2] == "" {
 			return nil, fmt.Errorf("malformed exclusion row %q", line)
 		}
@@ -437,6 +978,49 @@ func parseExclusions(data []byte) (map[string][2]string, error) {
 		result[fields[0]] = [2]string{fields[1], fields[2]}
 	}
 	return result, nil
+}
+
+func markdownTableCells(line string) []string {
+	line = strings.TrimSpace(line)
+	if len(line) < 2 || line[0] != '|' || line[len(line)-1] != '|' {
+		return nil
+	}
+	fields := strings.Split(line[1:len(line)-1], "|")
+	for i := range fields {
+		fields[i] = strings.TrimSpace(fields[i])
+	}
+	return fields
+}
+
+func equalTableCells(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func validTableSeparator(line string, columns int) bool {
+	cells := markdownTableCells(line)
+	if len(cells) != columns {
+		return false
+	}
+	for _, cell := range cells {
+		if strings.HasPrefix(cell, ":") {
+			cell = cell[1:]
+		}
+		if strings.HasSuffix(cell, ":") {
+			cell = cell[:len(cell)-1]
+		}
+		if len(cell) < 3 || strings.Trim(cell, "-") != "" {
+			return false
+		}
+	}
+	return true
 }
 
 func validateCoverageFields(data []byte, key string) string {
@@ -558,6 +1142,10 @@ func CheckpointPackagesWithWorkers(ctx context.Context, repo string, module Modu
 	if err != nil {
 		return err
 	}
+	contextHash, err := moduleContextHash(ctx, moduleRoot, absRepo)
+	if err != nil {
+		return err
+	}
 	selectedByPath := make(map[string]listedPackage, len(packages))
 	for _, pkg := range packages {
 		selectedByPath[pkg.ImportPath] = pkg
@@ -589,7 +1177,7 @@ func CheckpointPackagesWithWorkers(ctx context.Context, repo string, module Modu
 		go func() {
 			defer wg.Done()
 			for index := range jobs {
-				failuresByPath[index] = checkpointSelectedPackage(ctx, absRepo, moduleRoot, module, selectedByPath, paths[index])
+				failuresByPath[index] = checkpointSelectedPackage(ctx, absRepo, moduleRoot, module, selectedByPath, paths[index], contextHash)
 			}
 		}()
 	}
@@ -610,7 +1198,7 @@ func CheckpointPackagesWithWorkers(ctx context.Context, repo string, module Modu
 	return nil
 }
 
-func checkpointSelectedPackage(ctx context.Context, absRepo, moduleRoot string, module Module, selectedByPath map[string]listedPackage, importPath string) string {
+func checkpointSelectedPackage(ctx context.Context, absRepo, moduleRoot string, module Module, selectedByPath map[string]listedPackage, importPath, contextHash string) string {
 	selected, ok := selectedByPath[importPath]
 	if !ok {
 		return fmt.Sprintf("package %q is not in module %s", importPath, module.Name)
@@ -622,7 +1210,7 @@ func checkpointSelectedPackage(ctx context.Context, absRepo, moduleRoot string, 
 	if err != nil {
 		return fmt.Sprintf("inventory rows for %s: %v", importPath, err)
 	}
-	inputHash, err := packageInputHash(rows, selected)
+	inputHash, err := packageInputHash(rows, selected, contextHash)
 	if err != nil {
 		return fmt.Sprintf("hash coverage inputs for %s: %v", importPath, err)
 	}

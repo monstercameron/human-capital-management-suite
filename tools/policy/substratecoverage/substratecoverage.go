@@ -119,6 +119,10 @@ var ImplicitAllowlist = []ImplicitEntry{
 	{Package: "internal/connectivity/syncjob", Owner: "integration platform", Reason: "the resumable SyncJob kernel (INTG-019) is pure: it plans batches and returns a cursor, and the scheduling and persistence of that cursor stay with its callers"},
 	{Package: "internal/connectivity/providertelemetry", Owner: "integration platform", Reason: "provider-call metrics and trace/correlation header propagation are a connector consumer of telemetry mechanics; the telemetry owner keeps the catalog and exporters"},
 	{Package: "internal/connectivity/providertelemetry/providerwire", Owner: "integration platform", Reason: "the provider wire-header names shared by the connector and the simulators are a connector consumer of telemetry mechanics"},
+	{Package: "internal/agentsystem/scheduled", Owner: "agent platform", Reason: "agent occurrence routing translates scheduled events into the shared admission inbox; canonical scheduling authority remains internal/engines/schedule"},
+	{Package: "internal/application/crewschedule", Owner: "experience platform", Reason: "FTIME-006 application authorization and revision boundary delegates shift rules to internal/domains/crewshift; it is not the scheduling substrate owner"},
+	{Package: "internal/collaboration/chatsearch", Owner: "collaboration platform", Reason: "Chat owns its current-access search contract; canonical search substrate remains internal/data/search"},
+	{Package: "internal/operations/telemetry", Owner: "operations platform", Reason: "OPS-002 owns operational telemetry policy facts; signal construction and exporters remain owned by internal/platform/telemetry"},
 }
 
 // Options allows focused tests and future reviewed table revisions without

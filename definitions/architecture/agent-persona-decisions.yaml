@@ -12,7 +12,8 @@ authority:
   persona_kind: PROFILE_OVER_AGENT_VERSION
   invocation_mode: ON_BEHALF_OF
   effective_authority: "persona_version_skill_pins intersected with installation_grant, channel_policy_ceiling, and invoker_current_authority"
-  forbidden_authorities: [AUTHOR, BUSINESS_OWNER, TECHNICAL_STEWARD, INSTALLER, ADMINISTRATOR]
+  forbidden_authorities:
+    [AUTHOR, BUSINESS_OWNER, TECHNICAL_STEWARD, INSTALLER, ADMINISTRATOR]
   sponsored_mode_from_mention: FORBIDDEN
   persona_service_credential: NONE
   decision_todo: AGENTP-001
@@ -20,7 +21,8 @@ authority:
 invocation:
   starts_only_from: [SERVER_RESOLVED_HANDLE, SERVER_RESOLVED_SLASH_COMMAND]
   new_post_authored_by_invoker: REQUIRED
-  rejected_sources: [QUOTED_TEXT, FORWARDED_TEXT, EDITED_TEXT, BOT_POST, AGENT_POST, PERSONA_MENTION]
+  rejected_sources:
+    [QUOTED_TEXT, FORWARDED_TEXT, EDITED_TEXT, BOT_POST, AGENT_POST, PERSONA_MENTION]
   automatic_routing: FORBIDDEN
   persona_discovery_by_agents: FORBIDDEN
   decision_todo: AGENTP-008
@@ -36,7 +38,12 @@ context:
   decision_todo: AGENTP-010
 
 audience_floor:
-  shared_result_commit_requires: [EVERY_CITED_SOURCE_READABLE, EVERY_RECORD_AND_FIELD_READABLE, EVERY_DATA_CLASS_ALLOWED_BY_CHANNEL_POLICY]
+  shared_result_commit_requires:
+    [
+      EVERY_CITED_SOURCE_READABLE,
+      EVERY_RECORD_AND_FIELD_READABLE,
+      EVERY_DATA_CLASS_ALLOWED_BY_CHANNEL_POLICY,
+    ]
   public_channel_audience: CURRENT_MEMBERS_PLUS_CHAT010_ELIGIBILITY_POPULATION
   private_channel_audience: CURRENT_MEMBERS
   group_dm_audience: CURRENT_MEMBERS
@@ -105,7 +112,19 @@ ux:
   decision_todo: AGENTP-020
 
 audit:
-  actor_chain: [INVOKER, PERSONA_ID_AND_VERSION, INSTALLATION, CONVERSATION, INVOKING_POST, INVOCATION, TASK, PLAN_REVISION, STEP, SKILL_CALL]
+  actor_chain:
+    [
+      INVOKER,
+      PERSONA_ID_AND_VERSION,
+      INSTALLATION,
+      CONVERSATION,
+      INVOKING_POST,
+      INVOCATION,
+      TASK,
+      PLAN_REVISION,
+      STEP,
+      SKILL_CALL,
+    ]
   context_evidence: POST_ID_AND_DIGEST_WITH_TAINT
   decision_todo: AGENTP-017
 
@@ -125,16 +144,16 @@ release_gate:
   decision_todo: AGENTP-021
 
 decision_owners:
-  - {decision: authority, owner_todo: AGENTP-001}
-  - {decision: invocation, owner_todo: AGENTP-008}
-  - {decision: context, owner_todo: AGENTP-010}
-  - {decision: audience_floor, owner_todo: AGENTP-012}
-  - {decision: writes, owner_todo: AGENTP-014}
-  - {decision: ownership, owner_todo: AGENTP-006}
-  - {decision: placement, owner_todo: AGENTP-007}
-  - {decision: limits, owner_todo: AGENTP-015}
-  - {decision: stop, owner_todo: AGENTP-016}
-  - {decision: ux, owner_todo: AGENTP-020}
-  - {decision: audit, owner_todo: AGENTP-017}
-  - {decision: output_safety, owner_todo: AGENTP-012}
-  - {decision: release_gate, owner_todo: AGENTP-021}
+  - { decision: authority, owner_todo: AGENTP-001 }
+  - { decision: invocation, owner_todo: AGENTP-008 }
+  - { decision: context, owner_todo: AGENTP-010 }
+  - { decision: audience_floor, owner_todo: AGENTP-012 }
+  - { decision: writes, owner_todo: AGENTP-014 }
+  - { decision: ownership, owner_todo: AGENTP-006 }
+  - { decision: placement, owner_todo: AGENTP-007 }
+  - { decision: limits, owner_todo: AGENTP-015 }
+  - { decision: stop, owner_todo: AGENTP-016 }
+  - { decision: ux, owner_todo: AGENTP-020 }
+  - { decision: audit, owner_todo: AGENTP-017 }
+  - { decision: output_safety, owner_todo: AGENTP-012 }
+  - { decision: release_gate, owner_todo: AGENTP-021 }

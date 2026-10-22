@@ -1,10 +1,13 @@
 package agenteval
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAgentUXDemo_Suites(t *testing.T) {
 	birthday, support := BirthdayBuddySuite("reply"), SupportDeskSuite("ticket", "alert")
-	if birthday.ID != "AGENTUX-053.birthday-buddy" || len(birthday.Cases) != 8 || support.ID != "AGENTUX-054.support-desk" || len(support.Cases) != 10 {
+	if birthday.ID != "AGENTUX-053.birthday-buddy" || len(birthday.Cases) != 12 || support.ID != "AGENTUX-054.support-desk" || len(support.Cases) != 13 {
 		t.Fatalf("contracts: %+v %+v", birthday, support)
 	}
 	for _, suite := range []PersonaSuite{birthday, support} {
@@ -17,6 +20,11 @@ func TestAgentUXDemo_Suites(t *testing.T) {
 		}
 		if PersonaSuiteDigest(suite) == "" {
 			t.Fatal("missing suite digest")
+		}
+		// A suite the publication path cannot evaluate is no contract at all.
+		target := PersonaEvaluationTarget{TenantID: "tenant", SyntheticTenantID: "synthetic", PersonaID: "persona", PersonaVersion: 1, InvokerID: "admin", ProfileDigest: "sha256:" + strings.Repeat("a", 64), ModelDigest: "sha256:" + strings.Repeat("b", 64)}
+		if err := validatePersonaSuite(target, suite); err != nil {
+			t.Fatalf("%s cannot be evaluated: %v", suite.ID, err)
 		}
 	}
 	for _, i := range []int{2, 3, 4, 7} {

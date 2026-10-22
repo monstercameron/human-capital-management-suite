@@ -35,6 +35,7 @@ type RemovalCandidate struct {
 type RemovalPreview struct {
 	Count        int
 	Confirmation string
+	_            incomparable
 }
 
 type ModerationItem struct {
@@ -52,6 +53,12 @@ type ModerationItem struct {
 	// was closed: the action, who took it, the reason they gave, and when.
 	Decision, DecidedBy, DecisionReason string
 	DecidedAt                           time.Time
+	// RemovedBy and RestoredBy are set on a removal item only. They come from
+	// the removal record itself, not from the last decision, so a restore does
+	// not take the removal's credit: At is when it was removed, RestoredAt when
+	// it was put back (zero while it is still removed).
+	RemovedBy, RestoredBy string
+	RestoredAt            time.Time
 }
 
 type ModerationNotice struct {
@@ -59,6 +66,7 @@ type ModerationNotice struct {
 	ID, ConversationID, PostID, Reason, Outcome string
 	CanAppeal                                   bool
 	At                                          time.Time
+	_                                           incomparable
 }
 
 // ModerationStore rechecks current permissions inside each mutation transaction.

@@ -343,6 +343,11 @@ func selectAgentOperationsTab() {
 		panel := panels.Index(index)
 		panel.Set("hidden", domDataset(panel, "agentOperationsPanel") != selected)
 	}
+	// Showing a panel changes no node the access observer watches, so the
+	// Connections and Cost panels are asked to read now. Left to the observer,
+	// a tab reached by a click stayed on "Loading" until something else moved
+	// (AGENT2-019, AGENTCOST-006).
+	findAgentAccessMounts()
 }
 
 func updatePortableDefinition(body string, rerender bool) {

@@ -152,7 +152,7 @@ func TestTodo_CHATMOD_002_Lists_Browser(t *testing.T) {
 			}
 			for id, selected := range map[string]string{"builtin-en-profanity": "block", "builtin-de-profanity": "mask", "builtin-de-slurs": "flag"} {
 				block := regexp.MustCompile(`(?s)<select[^>]*id="modadmin-act-` + id + `".*?</select>`).FindString(markup)
-				if !strings.Contains(block, `selected value="`+selected+`"`) || strings.Count(block, "<option") != 3 || strings.Contains(block, "notify") {
+				if !strings.Contains(block, `selected value="`+selected+`"`) || strings.Count(block, "<option") != 4 || !strings.Contains(block, `value="reword"`) || strings.Contains(block, "notify") {
 					t.Errorf("%s: outcome select of %s: %s", locale, id, block)
 				}
 			}

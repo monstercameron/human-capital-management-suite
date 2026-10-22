@@ -24,6 +24,9 @@ operation_policy:
   search_form: owned_and_explicit
   confusable_detection: review_signal_only
   identity_merge: forbidden
+mechanics:
+  normalization_forms: [NFC, NFKC, NFKD]
+  case_folding: full
 locale_policy:
   supported_tags:
     - en-US
@@ -32,16 +35,19 @@ locale_policy:
   ambient_locale: forbidden
 decision: >-
   ADOPT: the pinned golang.org/x/text v0.41.0 data and operations are
-  qualified behind the current narrow production roots. Existing owners use
-  x/text only for NFC canonicalization/rejection and expose no x/text types;
-  collation, case folding, locale formatting, and confusable review remain
-  owned policies. A Unicode/CLDR data change requires impact and reindex
-  evidence before changing the pin.
+  qualified behind the current narrow production roots. For domain identity
+  and moderation consumers, internal/kernel/values exposes raw NFC, NFKC, NFKD
+  and full case-fold mechanics without x/text types. Callers select those
+  operations under their owned field and moderation policies; NFC remains the
+  default canonical field policy. Collation, locale formatting, and confusable
+  review remain owned policies, and identity merging from a confusable signal
+  is forbidden. A Unicode/CLDR data change requires impact and reindex evidence
+  before changing the pin.
 removal_path: >-
   Keep the field profiles, canonical byte contract, locale tag allow-list,
   confusable review signal, and regression vectors unchanged; replace norm,
-  collate, cases, or message at the adapter seam and rerun this suite. No
-  domain or identity API may import x/text directly.
+  collate, cases, or message behind internal/kernel/values and rerun this suite.
+  No domain or identity API may import x/text directly.
 evidence:
   - test: TestXTextQualificationPinsDataAndPreservesOwnedFieldSemantics
     package: tools/quality/xtextkit

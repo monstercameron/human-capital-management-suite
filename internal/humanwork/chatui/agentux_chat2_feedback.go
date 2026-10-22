@@ -60,8 +60,9 @@ func renderAgentFeedback(model Model, local localUI, postID string) ui.Node {
 		return "agent-feedback"
 	}
 	controls := html.Div(html.Props{Class: "agent-feedback", Role: "group", Aria: map[string]string{"label": agentReplyFallback(model.Locale, "chat.agent.feedback", "Rate this answer")}},
-		html.Button(html.Props{Class: "agent-feedback-button", Type: "button", Title: helpful, Disabled: disabled, Data: map[string]string{"action": action(AgentFeedbackHelpful), "id": invocationID, "extra": "helpful"}, Aria: map[string]string{"label": helpful, "pressed": boolString(state == "helpful")}}, icon("thumb-up"), html.Span(html.Props{Text: helpful})),
-		html.Button(html.Props{Class: "agent-feedback-button", Type: "button", Title: notRight, Disabled: disabled, Data: map[string]string{"action": action(AgentFeedbackNotRight), "id": invocationID, "extra": "not-right"}, Aria: map[string]string{"label": notRight, "pressed": boolString(state == "not-right")}}, icon("thumb-down"), html.Span(html.Props{Text: notRight})),
+		// CHATUX-042: a chosen rating is marked with a check and the accent colour.
+		chatux042RatingButton(helpful, action(AgentFeedbackHelpful), invocationID, "helpful", "thumb-up", state == "helpful", disabled),
+		chatux042RatingButton(notRight, action(AgentFeedbackNotRight), invocationID, "not-right", "thumb-down", state == "not-right", disabled),
 	)
 	// AGENTUX-059: a rating the server did not take is not shown as given. The
 	// controls are back at what the server holds, and the reason stands beside

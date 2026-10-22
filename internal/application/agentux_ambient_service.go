@@ -65,7 +65,7 @@ type AgentUXAmbientService struct {
 func agentUXAmbientMember(ctx context.Context, tx dbport.Tx, tenant, conversation, person string, manage bool) error {
 	var manager bool
 	var kind string
-	err := tx.QueryRow(ctx, `SELECT (c.owner_id=$3 OR m.role='manager'),c.kind FROM chat_membership m JOIN chat_conversation c ON c.tenant_id=m.tenant_id AND c.id=m.conversation_id WHERE m.tenant_id=$1 AND m.conversation_id=$2 AND m.member_id=$3 AND m.home_tenant_id=$1 AND m.state='active' AND m.left_at IS NULL AND c.lifecycle='ACTIVE' FOR SHARE OF m,c`, tenant, conversation, person).Scan(&manager, &kind)
+	err := tx.QueryRow(ctx, `SELECT (c.owner_id=$3 OR upper(m.role)='MANAGER'),c.kind FROM chat_membership m JOIN chat_conversation c ON c.tenant_id=m.tenant_id AND c.id=m.conversation_id WHERE m.tenant_id=$1 AND m.conversation_id=$2 AND m.member_id=$3 AND m.home_tenant_id=$1 AND m.state='active' AND m.left_at IS NULL AND c.lifecycle='ACTIVE' FOR SHARE OF m,c`, tenant, conversation, person).Scan(&manager, &kind)
 	if err != nil || kind == "DIRECT" || manage && !manager {
 		return ErrAgentUXAmbientDenied
 	}

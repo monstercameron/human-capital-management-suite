@@ -17,6 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	notificationv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
@@ -98,9 +99,10 @@ type Session struct {
 	// WorkflowStarts, WorkflowStartFavorites and WorkflowStartRecent are the
 	// server-authorized workflow start catalog and the viewer's saved ids from
 	// the admitted island; the server resolved availability per viewer.
-	WorkflowStarts         []productui.WorkflowStartItem
-	WorkflowStartFavorites []string
-	WorkflowStartRecent    []string
+	WorkflowStarts          []productui.WorkflowStartItem
+	WorkflowStartFavorites  []string
+	WorkflowStartRecent     []string
+	WorkflowStartWorkflowID string
 	// Agents is the server's agents availability projection (UXBLIND-122).
 	// A composed session without one fails closed: agents stay hidden.
 	Agents *productui.AgentsAvailabilityProjection
@@ -125,9 +127,10 @@ func (session Session) tenantLabel() string {
 
 // State is presentation-only address-bar state.
 type State struct {
-	Page     productui.PageID
-	Request  productui.PageRequest
-	Provided map[string]bool
+	Page                    productui.PageID
+	Request                 productui.PageRequest
+	Provided                map[string]bool
+	WorkflowStartWorkflowID string
 }
 
 // LoadingView builds the non-authoritative shell shown while Load is waiting
@@ -150,6 +153,7 @@ func LoadingView(session Session, state State) productui.View {
 	view.WorkflowStartCatalog = append([]productui.WorkflowStartItem(nil), session.WorkflowStarts...)
 	view.WorkflowStartFavorites = append([]string(nil), session.WorkflowStartFavorites...)
 	view.WorkflowStartRecent = append([]string(nil), session.WorkflowStartRecent...)
+	view.WorkflowStartWorkflowID = session.WorkflowStartWorkflowID
 	if session.Agents != nil {
 		view = productui.ApplyAgentsAvailability(view, *session.Agents)
 	} else if session.EnforceRoleVisibility {
@@ -161,6 +165,7 @@ func LoadingView(session Session, state State) productui.View {
 		view = productui.ApplyClockAvailability(view, productui.ClockAvailabilityProjection{})
 	}
 	view = productui.ApplyRequest(view, state.Request)
+	view.WorkflowStartWorkflowID = workflowStartDeepLinkFromCatalog(session.WorkflowStarts, state.WorkflowStartWorkflowID)
 	if view.Page == productui.PageHome {
 		// The authenticated principal is not necessarily the admitted worker's
 		// preferred display name. Hold a stable generic document title until
@@ -181,14 +186,25 @@ func ContentLoadingView(previous productui.View, state State) productui.View {
 	previous.ContentLoading = true
 	previous.Refreshing = false
 	previous.RefreshingRegion = ""
-	return productui.ApplyRequest(previous, state.Request)
+	previous.DocumentsLoadFailed = false
+	previous = productui.ApplyRequest(previous, state.Request)
+	previous.WorkflowStartWorkflowID = workflowStartDeepLinkFromCatalog(previous.WorkflowStartCatalog, state.WorkflowStartWorkflowID)
+	return previous
 }
 
 // ParseState resolves a production product route and its presentation query.
 func ParseState(pathname, rawQuery string) (State, error) {
 	page, routeProfile, _, ok := productui.RouteProfiles(pathname)
+	workflowStartWorkflowID := ""
 	if !ok {
-		return State{}, fmt.Errorf("productclient: unknown product route %q", pathname)
+		if id, matched := productWorkflowStartDeepLinkID(pathname); matched {
+			page = productui.PageWorkflowStart
+			routeProfile, _, ok = productui.PageProfiles(page)
+			workflowStartWorkflowID = id
+		}
+		if !ok {
+			return State{}, fmt.Errorf("productclient: unknown product route %q", pathname)
+		}
 	}
 	// Route state is presentation-only, but it still crosses an untrusted
 	// address-bar boundary. Keep recognized state strict: an ambiguous
@@ -256,16 +272,17 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if !routeProfile.ValidControlledValues(values) {
 		return State{}, errors.New("productclient: route state is malformed")
 	}
-	agentTaskID, agentOperationsTab := "", ""
+	agentTaskID, agentOperationsTab, agentsView := "", "", ""
 	if routeProfile == productui.RouteProfileAgents {
 		agentTaskID = routeValue(values, "task")
+		agentsView = routeValue(values, "view")
 	}
 	if routeProfile == productui.RouteProfileAgentOperations {
 		agentOperationsTab = routeValue(values, "tab")
 	}
-	state := State{Page: page, Provided: provided, Request: productui.PageRequest{
+	state := State{Page: page, Provided: provided, WorkflowStartWorkflowID: workflowStartWorkflowID, Request: productui.PageRequest{
 		Page: page, Locale: routeValue(values, "locale"), Query: routeValue(values, "q"), RolePage: rolePage, Mode: routeValue(values, "mode"),
-		SelectedWork: routeValue(values, "selected"), AgentTaskID: agentTaskID, AgentOperationsTab: agentOperationsTab, SelectedPerson: routeValue(values, "person"),
+		SelectedWork: routeValue(values, "selected"), AgentTaskID: agentTaskID, AgentOperationsTab: agentOperationsTab, AgentsView: agentsView, SelectedPerson: routeValue(values, "person"),
 		PeoplePage: peoplePage, PeoplePageSize: peoplePageSize, PeopleTeam: routeValue(values, "team"), PeopleLocation: routeValue(values, "location"), PeopleEligibleOnly: routeValue(values, "eligible") == "1", PeopleSort: routeValue(values, "sort"), PeopleDirection: routeValue(values, "dir"),
 		PeopleColumns:    routeValue(values, "columns"),
 		OrganizationView: routeValue(values, "org_view"), OrganizationAsOf: routeValue(values, "as_of"), OrganizationUnit: routeValue(values, "unit"),
@@ -298,6 +315,36 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		state.Request.JourneyList = productui.JourneyListFilterFromValues(values)
 	}
 	return state, nil
+}
+
+func productWorkflowStartDeepLinkID(pathname string) (string, bool) {
+	const maxWorkflowStartDeepLinkIDBytes = 4096
+	prefix := productui.Path(productui.PageWorkflowStart) + "/start/"
+	if !strings.HasPrefix(pathname, prefix) {
+		return "", false
+	}
+	escapedID := strings.TrimPrefix(pathname, prefix)
+	if escapedID == "" || strings.Contains(escapedID, "/") {
+		return "", false
+	}
+	id, err := url.PathUnescape(escapedID)
+	if err != nil || id == "" || len(id) > maxWorkflowStartDeepLinkIDBytes || strings.TrimSpace(id) != id || !safeRouteValue(id) {
+		return "", false
+	}
+	return id, true
+}
+
+func workflowStartDeepLinkFromCatalog(catalog []productui.WorkflowStartItem, workflowID string) string {
+	workflowID = strings.TrimSpace(workflowID)
+	if workflowID == "" {
+		return ""
+	}
+	for _, item := range catalog {
+		if item.WorkflowID == workflowID && strings.TrimSpace(item.Name) != "" {
+			return workflowID
+		}
+	}
+	return ""
 }
 
 const maxRouteQueryBytes = 4096
@@ -345,6 +392,9 @@ func CanonicalHref(state State) string {
 		}
 	}
 	href := productui.Path(state.Page)
+	if state.Page == productui.PageWorkflowStart && state.WorkflowStartWorkflowID != "" {
+		href += "/start/" + url.PathEscape(state.WorkflowStartWorkflowID)
+	}
 	if query := values.Encode(); query != "" {
 		return href + "?" + query
 	}
@@ -854,7 +904,10 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.ReviewParticipants = nil
 	}
 	if documentsErr != nil {
-		failures = append(failures, documentsErr)
+		if !documentServiceNotConfigured(documentsErr) {
+			failures = append(failures, documentsErr)
+			view.DocumentsLoadFailed = true
+		}
 		view.Documents = nil
 		view.DocumentsReady = false
 	} else if requirements.documents && documentsResponse != nil {
@@ -872,6 +925,9 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		if documentCursorReset {
 			view.DocumentPageToken = ""
 		}
+	} else if requirements.documents {
+		failures = append(failures, errors.New("DocumentService.ListDocuments returned no response"))
+		view.DocumentsLoadFailed = true
 	}
 	if documentErr != nil && (status.Code(errors.Unwrap(documentErr)) == codes.NotFound || status.Code(errors.Unwrap(documentErr)) == codes.PermissionDenied || status.Code(documentErr) == codes.NotFound) {
 		// A document the reader cannot open (removed, or never shared with
@@ -1124,6 +1180,19 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		view.SignedOut = productui.UnauthenticatedRecovery()
 	}
 	return view, loadErr
+}
+
+func documentServiceNotConfigured(err error) bool {
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != codes.Unavailable {
+		return false
+	}
+	for _, detail := range st.Details() {
+		if owned, ok := detail.(*commonv1.ErrorDetail); ok && owned.GetReasonRef() == "document.service.not_configured" {
+			return true
+		}
+	}
+	return false
 }
 
 func notificationReadHandler(ctx context.Context, service Service) func(string, func(error)) {

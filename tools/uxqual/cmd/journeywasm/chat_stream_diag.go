@@ -26,6 +26,7 @@ type chatStreamEvent struct {
 	Attempt  int
 	Backoff  time.Duration
 	Rollover bool
+	_        incomparable
 }
 
 // String is the one-line form the browser buffer holds.

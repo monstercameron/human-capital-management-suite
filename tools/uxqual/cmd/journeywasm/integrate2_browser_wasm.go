@@ -328,7 +328,7 @@ func integrate2SyncProjection() {
 				chatStreamRender.Schedule()
 			}
 		})
-		if !failed && len(chatlang004Unsettled(selected)) > 0 {
+		if !failed && len(readerUnsettled(selected)) > 0 {
 			// CHATLANG-004: a translation still on its way replaces the text when it is ready.
 			chatlang004Watch(ctx, cfg, m.SelectedID)
 		}
@@ -343,7 +343,7 @@ func integrate2SyncProjection() {
 			current := integrate2Browser.readerKey == key
 			integrate2Browser.Unlock()
 			return ctx.Err() == nil && current
-		}, read)
+		}, boundedRead(readerRetryLimit, read))
 	}()
 }
 

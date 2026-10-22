@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agenteval"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenttemplate"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
@@ -28,12 +29,12 @@ func TestAgentUXAmbient_StarterManifest_Golden(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if manifest.OutputSchema.ID != AgentUXAmbientProposalSchemaID || manifest.InstructionsDigest != personaRunBytesDigest([]byte(AgentUXAmbientInstructions(starter.Handle))) || manifest.EvaluationRefs[0].Digest != personaRunBytesDigest(contracts[starter.EvaluationSuite]) || len(manifest.SourceCeiling) != 1 {
-			t.Fatalf("manifest contracts not pinned %+v", manifest)
+		var suite agenteval.PersonaSuite
+		if json.Unmarshal(contracts[starter.EvaluationSuite], &suite) != nil || len(suite.Cases) != 44 {
+			t.Fatal("contract does not contain the forty labels and four injection cases")
 		}
-		var cases []json.RawMessage
-		if json.Unmarshal(contracts[starter.EvaluationSuite], &cases) != nil || len(cases) != 40 {
-			t.Fatal("contract does not contain forty labels")
+		if manifest.OutputSchema.ID != AgentUXAmbientProposalSchemaID || manifest.InstructionsDigest != personaRunBytesDigest([]byte(AgentUXAmbientInstructions(starter.Handle))) || manifest.EvaluationRefs[0].Digest != agenteval.PersonaSuiteDigest(suite) || len(manifest.SourceCeiling) != 1 {
+			t.Fatalf("manifest contracts not pinned %+v", manifest)
 		}
 	}
 	if AgentUXAmbientInstructions("unknown") != "" {

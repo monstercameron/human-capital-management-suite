@@ -26,7 +26,7 @@ func agentAdminLifecycleActions(props AgentAdminAccessPageProps, revision AgentC
 	locale := props.Locale
 	status := strings.ToUpper(strings.TrimSpace(revision.Status))
 	button := func(class, key string, run func()) ui.Node {
-		return html.Button(html.Props{Class: class, Type: "button", Raw: map[string]any{"data-agent-admin-action": key, "data-revision-id": revision.ID}, OnClick: ui.UseEvent(func(ui.MouseEvent) { run() })}, ui.Text(agentAdminExtraText(locale, key)))
+		return agentRunButton(html.Props{Class: class, Type: "button", Raw: map[string]any{"data-agent-admin-action": key, "data-revision-id": revision.ID}}, agentAdminExtraText(locale, key), run)
 	}
 	switch {
 	case status == "PUBLISHED":

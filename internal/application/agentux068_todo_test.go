@@ -1,6 +1,10 @@
 package application
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/agenteval"
+)
 
 // TestTodo_AGENTUX_068 covers Reminder: the shared audience decision with
 // Task Catcher, explicit requests that are never second-guessed, the stated lead
@@ -36,10 +40,10 @@ func TestTodo_AGENTUX_068_Integration(t *testing.T) {
 	)
 }
 
-// TestTodo_AGENTUX_068_Golden is the labelled suite with expected audience, time
-// and lead time.
+// TestTodo_AGENTUX_068_Golden evaluates only Reminder's labelled messages
+// against their expected audience, time and lead time.
 func TestTodo_AGENTUX_068_Golden(t *testing.T) {
-	TestAgentUXAmbient_LabelledSuites_Golden(t)
+	runAgentUXAmbientGolden(t, "reminder", agenteval.ReminderAmbientSuite())
 }
 
 // TestTodo_AGENTUX_068_Property: time zone conversion and daylight-saving

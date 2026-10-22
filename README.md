@@ -543,6 +543,30 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/platform [platform; P1A; owner=platform-foundation]
 │   ├── internal/transport [transport; P1A; owner=experience-and-transport]
 │   ├── internal/a11y [transport; P1A; owner=experience-and-transport]
+│   ├── internal/agentaudit [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentaccess [trust; deferred; owner=governance-and-trust]
+│   ├── internal/agentbudget [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentconnect [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentcost [trust; deferred; owner=governance-and-trust]
+│   ├── internal/agentdelegation [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentegress [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agenteval [trust; deferred; owner=governance-and-trust]
+│   ├── internal/agentmodel [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentrun [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentskills [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentsystem [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentapproval [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentcontext [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentdeliver [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentdocref [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentgate [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentinvoke [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentmanifest [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentmcp [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentpersona [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agentportable [trust; deferred; owner=governance-and-trust]
+│   ├── internal/agentrevoke [trust; P1A; owner=governance-and-trust]
+│   ├── internal/agenttemplate [trust; P1A; owner=governance-and-trust]
 │   ├── internal/agentsecurity [trust; P1A; owner=governance-and-trust]
 │   ├── internal/commercial [domains; P1A; owner=intent-and-capability]
 │   ├── internal/conformance [engines; P1A; owner=shared-engines]
@@ -563,6 +587,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 │   ├── internal/replan [platform; P1A; owner=platform-foundation]
 │   ├── internal/resource [data; P1A; owner=data-and-ledger]
 │   ├── internal/store [platform; P1A; owner=platform-foundation]
+│   ├── internal/timeclockapp [transport; deferred; owner=experience-and-transport]
 │   ├── internal/configuration [platform; deferred; owner=platform-foundation]
 │   └── internal/evidence [data; deferred; owner=data-and-ledger]
 └── replaceable mechanics (versions and roles below)
@@ -591,7 +616,7 @@ Go product core (github.com/monstercameron/human-capital-management-suite)
 | `github.com/mfridman/interpolate`                                   | `v0.0.2`                               | `INFRASTRUCTURE_MECHANIC` | indirect | data-and-ledger          |
 | `github.com/monstercameron/GoGRPCBridge`                            | `v1.1.2`                               | `INFRASTRUCTURE_MECHANIC` | direct   | experience-and-transport |
 | `github.com/monstercameron/GoWebComponents/v5`                      | `v5.0.1`                               | `INFRASTRUCTURE_MECHANIC` | direct   | experience-and-transport |
-| `github.com/monstercameron/schemaflux`                              | `v1.2.0`                               | `DEV_TEST_ONLY`           | direct   | platform-foundation      |
+| `github.com/monstercameron/schemaflux`                              | `v1.2.0`                               | `INFRASTRUCTURE_MECHANIC` | direct   | platform-foundation      |
 | `github.com/pressly/goose/v3`                                       | `v3.28.0`                              | `INFRASTRUCTURE_MECHANIC` | direct   | data-and-ledger          |
 | `github.com/rogpeppe/go-internal`                                   | `v1.16.0`                              | `DEV_TEST_ONLY`           | indirect | platform-foundation      |
 | `github.com/sashabaranov/go-openai`                                 | `v1.20.4`                              | `DEV_TEST_ONLY`           | indirect | platform-foundation      |

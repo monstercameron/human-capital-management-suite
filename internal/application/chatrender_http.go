@@ -53,6 +53,10 @@ func chatrenderHTTPFailure(w http.ResponseWriter, err error) {
 		status, code = http.StatusForbidden, "denied"
 	case errors.Is(err, chatrender.ErrInvalid):
 		status, code = http.StatusBadRequest, "invalid"
+	case errors.Is(err, chat.ErrNotFound):
+		// A message that is not there is an answer, not an outage: the page does not
+		// ask again.
+		status, code = http.StatusNotFound, "not_found"
 	}
 	chatrenderJSON(w, status, chatrenderHTTPError{code, code})
 }
@@ -99,7 +103,7 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	method := http.MethodGet
 	switch action {
 	case "list", "settings", "languages", "selection", "reader", "search", "search-language", "audience":
-	case "request", "report", "correct-language":
+	case "request", "report", "correct-language", "send-as-written":
 		method = http.MethodPost
 	default:
 		http.NotFound(w, r)
@@ -166,9 +170,19 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		selections := map[string]chatui.ReaderSelection{}
+		missing := 0
 		for _, id := range ids {
 			var selected chatui.ReaderSelection
 			selected.Rendering, selected.Mark, err = h.Port.ReadRenderingSelection(r.Context(), scope, id)
+			if errors.Is(err, chat.ErrNotFound) {
+				// A message that is gone (removed since the page listed it) is left
+				// out like one the pipeline cannot judge: the page keeps what it has
+				// for the others. Only when every message asked about is gone is the
+				// answer "not found".
+				missing++
+				err = nil
+				continue
+			}
 			if errors.Is(err, chatrender.ErrInvalid) {
 				// One message the rendering pipeline cannot judge (a text whose
 				// language it cannot place, say) is left out of the answer, so the
@@ -181,7 +195,18 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			if err != nil {
 				break
 			}
+			if extras, ok := h.Port.(chatrenderReaderExtras); ok {
+				extras.ExtendReaderSelection(r.Context(), scope, id, &selected)
+			}
 			selections[id] = selected
+		}
+		if missing > 0 {
+			// Counts only, never ids or text: an operator can tell that the page asked
+			// about messages the service cannot read for this person.
+			slog.Warn("hcmnext.chat_rendering", "outcome", "omitted", "method", r.Method, "action", action, "cause", "not_found", "missing", missing, "asked", len(ids))
+		}
+		if err == nil && missing == len(ids) {
+			err = chat.ErrNotFound
 		}
 		out = selections
 	case "search":
@@ -208,6 +233,12 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		err = h.Port.ReportRendering(r.Context(), scope, input.Rendering, input.Reason)
 	case "correct-language":
 		err = h.Port.CorrectRevisionLanguage(r.Context(), scope, input.Message, input.Revision, input.Language)
+	case "send-as-written":
+		if source, ok := h.Port.(chatrenderSendAsWritten); ok {
+			err = source.SendAsWritten(r.Context(), scope, input.Message)
+		} else {
+			err = chatrender.ErrUnavailable
+		}
 	case "settings":
 		if method == http.MethodPut {
 			err = h.Port.PutLanguageSettings(r.Context(), scope, input.Settings)

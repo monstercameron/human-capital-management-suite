@@ -68,4 +68,8 @@ func TestTodo_CHATBUG_014_NoDataLayerInTheClient(t *testing.T) {
 			}
 		}
 	}
+	// Nor does anything it imports: the workflow engine, the transaction
+	// coordinator, the ledger and outbox, tenancy and the intent and governance
+	// engines, which reached the client through a few type references.
+	assertNoServerFamiliesInClient(t)
 }

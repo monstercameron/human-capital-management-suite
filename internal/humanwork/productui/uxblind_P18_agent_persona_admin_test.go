@@ -192,7 +192,7 @@ func TestTodo_AGENTUX_003(t *testing.T) {
 	client := &personaAdminTestClient{snapshot: snapshot}
 	markup := personaAdminRender(t, PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, State: PersonaAdminReady, Snapshot: snapshot, Client: client}))
 	for _, want := range []string{
-		"Agent setup", "New agent", "@policy-helper", "In review", "Walt Brennan", "Loretta Haynes", "Compensation administrator", "Employees", "Executive leadership", "Documents marked official", "No limits set",
+		"Agent setup", "You can edit any agent below", "@policy-helper", "In review", "Walt Brennan", "Loretta Haynes", "Compensation administrator", "Employees", "Executive leadership", "Documents marked official", `data-agent-spend-mount="persona-policy-helper"`,
 		"Knowledge search with citations", "Finds answers in policy documents the person asking may read, and cites them.", "Read-only", "Chat reply", "Replies to the person who asked. Answers drawn from documents are sent to them privately.", "Posts a reply", "Not added to a conversation yet.",
 		"Step 3 of 4: Ready to evaluate", "Run evaluation", "Checks this version against the approved scenarios.", "More", "Version history", "persona-policy-helper",
 		"Walt Brennan — HCM administrator", "#Leadership · Private channel", "Walt Brennan can use Policy Helper in #Leadership.", "It can do: reply to Walt.",
@@ -411,7 +411,7 @@ func TestTodo_AGENTUX_018_Personas(t *testing.T) {
 	snapshot := personaAdminSnapshot()
 	snapshot.Starters = nil
 	markup := personaAdminRender(t, PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, State: PersonaAdminReady, Snapshot: snapshot, Client: &personaAdminTestClient{}}))
-	for _, want := range []string{"Agent setup", `href="/workspace/app/admin">Admin</a>`, `aria-current="page" class="muted">Agents</span>`, "New agent", "Agents", "Each card shows what the agent can do and how close it is to being available.", "Not added to a conversation yet"} {
+	for _, want := range []string{"Agent setup", `href="/workspace/app/admin">Admin</a>`, `aria-current="page">Agent setup</span>`, "You can edit any agent below", "Agents", "Each card shows what the agent can do, who can use it and where it is in use.", "Not added to a conversation yet"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("agent vocabulary missing %q: %s", want, markup)
 		}

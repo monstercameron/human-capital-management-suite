@@ -472,6 +472,11 @@ func ensureDemoDocument(ctx context.Context, store *documenthubstore.Store, blob
 		sp.Created = opts.Now.Add(-time.Duration(d.AgeHours) * time.Hour).Truncate(time.Second)
 		revisionID := ""
 		if len(d.Assets) > 0 {
+			// The body above was composed before the attachments had ids, so its
+			// image and file links were empty. Compose it again now that env.media
+			// holds them; a rerun composes this same text and finds nothing to
+			// update, where the stale one made every attachment document differ.
+			body = seedTenantTextForWorker(owner.Key, d.Body(env))
 			v, err := store.CreatePersonalDocumentVersion(ctx, opts.Tenant, newID, owner.Key, first.ID, d.Title, documenthubstore.NormalizeMarkdown(body))
 			if err != nil {
 				return "", fmt.Errorf("reference attachments in %q: %w", d.Title, err)
@@ -573,6 +578,10 @@ func postDemoMessages(ctx context.Context, chat *chatstore.Store, opts documentS
 	// refuses every post with ErrNoRouteLease. chatSeedWriteLeaseContext
 	// builds the same lease the chat seeder's own writes use.
 	ctx = chatSeedWriteLeaseContext(ctx, opts.Routes, opts.Tenant, opts.Now)
+	// A message's age is counted in the office's working time back from the
+	// latest office moment of the run (CHATSEED-003), so none is dated at night
+	// or on a weekend and the order of the ages is the order of the posts.
+	timeline := newChatSeedTimeline(opts.Now.AddDate(0, 0, -30), opts.Now, chatSeedOfficeZone(opts.Tenant))
 	for _, m := range messages {
 		conversation := env.rooms[m.Room]
 		docID := env.docs[m.Doc]
@@ -588,7 +597,7 @@ func postDemoMessages(ctx context.Context, chat *chatstore.Store, opts documentS
 		send := func(author string) (chatcore.Post, error) {
 			return adapter.SendPost(ctx,
 				chatcore.SendPostRequest{Principal: chatcore.Principal{TenantID: opts.Tenant, SubjectID: author}, TenantID: opts.Tenant, ConversationID: conversation, IdempotencyKey: "docseed:" + m.Key + ":" + docID},
-				chatcore.Post{AuthorID: author, AuthorHomeTenantID: opts.Tenant, Body: body, References: refs, CreatedAt: opts.Now.Add(-time.Duration(m.AgeMinutes) * time.Minute).Truncate(time.Second)})
+				chatcore.Post{AuthorID: author, AuthorHomeTenantID: opts.Tenant, Body: body, References: refs, CreatedAt: timeline.Back(time.Duration(m.AgeMinutes) * time.Minute).Truncate(time.Second)})
 		}
 		post, err := send(byPrefix(m.AuthorPrefix).Key)
 		if errors.Is(err, chatstore.ErrNotMember) {

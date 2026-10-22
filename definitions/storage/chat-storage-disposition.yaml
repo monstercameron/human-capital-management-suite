@@ -56,6 +56,8 @@ sources:
   - internal/data/chatstore/migrations/00043_chattone_reword_settings.sql
   - internal/data/chatstore/migrations/00045_chatmap005_live_policy.sql
   - internal/data/chatstore/migrations/00046_chatscale_sidebar_delta.sql
+  - internal/data/chatstore/migrations/00047_chatgate_post_audience.sql
+  - internal/data/chatstore/migrations/00048_chatlang006_monitoring_reports.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -241,6 +243,30 @@ tables:
     retention_class: OPERATIONAL
     encryption_class: PLATFORM_MANAGED
     migration: internal/data/chatstore/migrations/00040_chatcmd002_card_votes.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_post_card_segment_tally
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00047_chatgate_post_audience.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_post_audience
+    plane: CHAT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/chatstore/migrations/00047_chatgate_post_audience.sql
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
@@ -746,3 +772,18 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: chatlang_pair_stat
+    migration: internal/data/chatstore/migrations/00048_chatlang006_monitoring_reports.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chatlang_report_resolution
+    migration: internal/data/chatstore/migrations/00048_chatlang006_monitoring_reports.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chattone_reword_exemption
+    migration: internal/data/chatstore/migrations/00048_chatlang006_monitoring_reports.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true

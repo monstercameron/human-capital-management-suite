@@ -39,7 +39,7 @@ func BuildAgentOperationsPage(view View) ui.Node {
 	selectedTab := agentOperationsSelectedTab(view.Query)
 	return ProductPageFrame(ProductPageFrameProps{
 		Class: "agent-page-frame", Dir: string(locale.Direction), Aria: map[string]string{"labelledby": "agent-operations-title"}, Raw: map[string]any{"data-agent-operations-state": "ready"},
-		Breadcrumbs: personaAdminBreadcrumb(locale), Title: agentOperationsText(locale, "title"), TitleID: "agent-operations-title", Actions: []ui.Node{AgentPageNavigation(view, AgentPageOperations)},
+		Breadcrumbs: agentUX077Breadcrumb(locale, agentOperationsText(locale, "title")), Title: agentOperationsText(locale, "title"), TitleID: "agent-operations-title", Actions: []ui.Node{AgentPageNavigation(view, AgentPageOperations)},
 		Body: []ui.Node{html.Div(html.Props{Class: "persona-admin-page agent-operations-page"},
 			agentOperationsTabs(view, locale),
 			AgentControlsMountForTab(locale, selectedTab == "running"),

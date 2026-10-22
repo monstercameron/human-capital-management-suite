@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatlang"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrewrite"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
 )
 
@@ -37,6 +38,9 @@ type chatlangServeInput struct {
 	Env     func(string) string
 	Now     func() time.Time
 	Tenants []string
+	// Reworder, when set, lets the same worker produce reworded renderings
+	// (CHATTONE-002); nil leaves messages as written.
+	Reworder *chatrewrite.Reworder
 }
 
 // composeServedChatlang puts the translation worker together over the composed
@@ -78,11 +82,14 @@ func composeServedChatlang(ctx context.Context, in chatlangServeInput) (*Chatlan
 		}
 		engine, info.Name = model, name
 	}
-	runtime, err := NewChatlangRuntime(in.Chat.store, in.Chat.renderings.Languages, engine, ChatlangFilterScreen{Filters: in.Chat.filters}, now, in.Tenants)
+	runtime, err := NewChatlangRuntime(in.Chat.store, in.Chat.renderings.Languages, engine, ChatlangFilterScreen{Filters: in.Chat.filters}, now, in.Tenants, chatlangExtraRegistrations(in)...)
 	if err != nil {
 		return nil, "", err
 	}
 	in.Chat.renderings.Languages.BindEngine(info)
+	if in.Env(EnvChatTranslationGate) == "run" {
+		runtime.Startup = chatlangGateStartup(in.Chat.renderings.Languages, engine)
+	}
 	return runtime, "", nil
 }
 

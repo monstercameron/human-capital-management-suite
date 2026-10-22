@@ -182,8 +182,7 @@ func RunChattoneRewordQualification(ctx context.Context, reworder *chatrewrite.R
 // agreement words, or a negation, than the original: the content a tone-only
 // rewrite must not add.
 func chattoneAddedContent(original, rewrite string) bool {
-	o, r := chattoneWords(original), chattoneWords(rewrite)
-	return chattoneAdditionCount(r) > chattoneAdditionCount(o)
+	return chattoneCommitmentsAdded(chattoneWords(original), chattoneWords(rewrite))
 }
 
 // chattoneUnnatural is the cheap naturalness check: the rewrite is a different

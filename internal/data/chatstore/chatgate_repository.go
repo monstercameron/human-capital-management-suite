@@ -304,7 +304,13 @@ func (r *GateRepository) GateSummaries(ctx context.Context, tenant, person strin
 				for _, override := range gate.Overrides {
 					current = current || (override.Person == person && override.Version == gate.Gate.Current)
 				}
-				summary.AnswerAgain = !current && live.Major > 1
+				// A gate added to a channel that has members asks them only when its
+				// administrators chose to (CHATGATE-013), and by the date they gave.
+				asked := gate.Ops.Existing.Mode == chatgate.ExistingAsk
+				summary.AnswerAgain = !current && (live.Major > 1 || asked)
+				if asked && summary.AnswerAgain {
+					summary.AnswerBy = gate.Ops.Existing.AnswerBy
+				}
 			}
 			if !summary.AnswerAgain {
 				summary.AnswerBy = time.Time{}

@@ -148,7 +148,7 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 		if e != nil {
 			code = chatsearchErrorCode(e)
 		}
-		outcome := chatPolishSearchOutcome(previous, conversation, query, response, recent, code)
+		outcome := chatsearchAppendPage(previous, cursor, chatPolishSearchOutcome(previous, conversation, query, response, recent, code))
 		ui.PostAsync(func() {
 			// Success or failure, the outcome is drawn in the results area:
 			// the matches, or the one quiet line. A box cleared meanwhile
@@ -484,7 +484,7 @@ func chatsearchSubmit(event js.Value) {
 	event.Call("preventDefault")
 	values := map[string]string{}
 	checks := map[string]bool{}
-	for _, name := range []string{"channel", "person", "kind", "before", "after", "on"} {
+	for _, name := range []string{"channel", "person", "kind", "written", "before", "after", "on"} {
 		values[name] = form.Call("querySelector", "[name='"+name+"']").Get("value").String()
 	}
 	for _, name := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {

@@ -39,7 +39,7 @@ func TestTodo_CHATTONE_004_Accessibility(t *testing.T) {
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		p := ChattoneToolbarProps{Locale: locale, Target: "chat-composer", Draft: "one two three", Styles: chatrewrite.DefaultStyles(), Enabled: true}
 		markup := chattoneMarkup(t, p)
-		for _, want := range []string{`type="button"`, `role="group"`, `role="status"`, `aria-live="polite"`, `title=`, `aria-label=`, `data-chat-layer="writing-style"`, ChattoneText(locale, "professional"), ChattoneText(locale, "notice")} {
+		for _, want := range []string{`type="button"`, `role="menu"`, `role="menuitem"`, `aria-haspopup="menu"`, `title=`, `aria-label=`, `data-chat-layer="writing-style"`, ChattoneText(locale, "professional"), ChattoneText(locale, "notice")} {
 			if !strings.Contains(markup, want) {
 				t.Fatalf("%s missing %s", locale, want)
 			}
@@ -47,11 +47,21 @@ func TestTodo_CHATTONE_004_Accessibility(t *testing.T) {
 		if locale == "ar" && !strings.Contains(markup, `dir="rtl"`) {
 			t.Fatal("missing RTL")
 		}
-		preview, err := ui.RenderToString(RenderChattonePreview(ChattonePreviewProps{Locale: locale, Original: "  exactly\n typed <script>  ", Rewritten: "Changed", ShowChanges: true}))
+		// The status line is a live region in the composer, above the text.
+		slot, err := ui.RenderToString(chattoneChipSlot(Model{Locale: locale}, "chat-composer"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{ChattoneText(locale, "undo"), ChattoneText(locale, "changes"), `aria-expanded="true"`, `<del`, `<ins`, "&lt;script&gt;"} {
+		for _, want := range []string{`role="status"`, `aria-live="polite"`, `chat-composer-chattone-status`} {
+			if !strings.Contains(slot, want) {
+				t.Fatalf("%s slot missing %s", locale, want)
+			}
+		}
+		preview, err := ui.RenderToString(RenderChattonePreview(ChattonePreviewProps{Locale: locale, Target: "chat-composer", Original: "  exactly\n typed <script>  ", Rewritten: "Changed"}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{ChattoneText(locale, "undo"), ChattoneText(locale, "changes"), `aria-expanded="false"`, `<del`, `<ins`, "&lt;script&gt;"} {
 			if !strings.Contains(preview, want) {
 				t.Fatalf("preview %s missing %s", locale, want)
 			}
@@ -85,7 +95,8 @@ func TestTodo_CHATTONE_004_Golden(t *testing.T) {
 		}
 	}
 	markup, err := ui.RenderToString(RenderChattonePreview(ChattonePreviewProps{Locale: "en-US", Original: "Original", Rewritten: "Rewritten"}))
-	if err != nil || strings.Contains(markup, "<del") || !strings.Contains(markup, `aria-expanded="false"`) {
+	// The changes layer is drawn closed; the browser opens it against its button.
+	if err != nil || !strings.Contains(markup, " hidden") || !strings.Contains(markup, `aria-expanded="false"`) || strings.Contains(markup, "chattone-chip-edited") {
 		t.Fatal("preview default", markup, err)
 	}
 }
@@ -95,7 +106,7 @@ func TestTodo_CHATTONE_004_HouseStyle(t *testing.T) {
 	styles[0].Label = "House voice"
 	p := ChattoneToolbarProps{Locale: "de-DE", Target: "chat-composer", Draft: "one two three", Styles: styles, Enabled: true}
 	markup := chattoneMarkup(t, p)
-	if !strings.Contains(markup, "House voice") || !strings.Contains(markup, `aria-keyshortcuts="Alt+Shift+1"`) || !strings.Contains(markup, `role="tooltip"`) || !strings.Contains(markup, `aria-describedby="chat-composer-chattone-help-1"`) {
-		t.Fatal("renamed style or focus tooltip missing", markup)
+	if !strings.Contains(markup, "House voice") || !strings.Contains(markup, `aria-keyshortcuts="Alt+Shift+1"`) || !strings.Contains(markup, `role="menuitem"`) || !strings.Contains(markup, `aria-describedby="chat-composer-chattone-note-1"`) {
+		t.Fatal("renamed style or its description missing", markup)
 	}
 }

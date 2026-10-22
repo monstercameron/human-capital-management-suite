@@ -168,41 +168,51 @@ func (d VoiceSettingsData) value(scope string) bool {
 }
 
 func voiceSettingsPanel(props voiceSettingsProps) ui.Node {
-	state := ui.UseState(voiceSettingsState{})
+	key := props.storeKey()
+	local := ui.UseState(voiceSettingsState{})
+	// The page's copy of the row's state is what is drawn (chatvoice_settings_state.go);
+	// the component's own state only makes it draw again.
+	draw := func(next voiceSettingsState) {
+		local.Set(next)
+		chatbug045Redraw()
+	}
 	apply := func(data VoiceSettingsData, status int, err error, saved bool) {
-		current := state.Get()
-		current.Loading, current.Saving = false, false
-		switch {
-		case err == nil:
-			current.Data, current.Loaded, current.LoadFailed, current.Denied = data, true, false, false
-			current.Saved, current.Fails = saved, false
-		case status == 403 && !current.Loaded:
-			current.Denied, current.Loaded = true, true
-		case status == 503 && !current.Loaded:
-			// The server answered that voice messages are not composed.
-			current.Unavailable, current.Loaded = true, true
-		default:
-			// The last good value stays on show; the line says what failed.
-			current.LoadFailed = !current.Loaded
-			current.Saved, current.Fails = false, current.Loaded
-			if current.Loaded {
-				voiceSettingsReset("chatvoice-switch-"+props.Scope, current.Data.value(props.Scope))
-			}
+		restore := false
+		next := voiceSettingsChange(key, local.Get(), func(current *voiceSettingsState) {
+			*current, restore = voiceSettingsAnswered(*current, data, status, err, saved)
+		})
+		if restore {
+			voiceSettingsReset("chatvoice-switch-"+props.Scope, next.Data.value(props.Scope))
 		}
-		state.Set(current)
+		draw(next)
 	}
-	read := func(saved bool) func() {
+	// ask sends one request and applies its answer on the render thread, whichever
+	// instance of the row is on the page by then.
+	ask := func(action string, body any, done func(VoiceSettingsData, int, error)) {
+		voiceSettingsCall(action, body, func(data VoiceSettingsData, status int, err error) {
+			ui.PostAsync(func() { done(data, status, err) })
+		})
+	}
+	read := func(saved bool) {
 		action, body := props.readAction()
-		return voiceSettingsCall(action, body, func(data VoiceSettingsData, status int, err error) { apply(data, status, err, saved) })
+		ask(action, body, func(data VoiceSettingsData, status int, err error) { apply(data, status, err, saved) })
 	}
-	ui.UseEffectOf(func() func() { return read(false) }, struct{ Scope, Tenant, Conversation string }{props.Scope, props.Tenant, props.Conversation})
+	ui.UseEffectOf(func() func() {
+		// A read another instance of this row already sent is not sent twice.
+		if voiceSettingsCurrent(key, local.Get()).Loading {
+			return nil
+		}
+		voiceSettingsChange(key, local.Get(), func(current *voiceSettingsState) { current.Loading, current.LoadFailed = true, false })
+		read(false)
+		return nil
+	}, struct{ Scope, Tenant, Conversation string }{props.Scope, props.Tenant, props.Conversation})
 	change := ui.UseEvent(func(e ui.ChangeEvent) {
 		enabled := e.IsChecked()
-		current := state.Get()
-		current.Saving, current.Saved, current.Fails = true, false, false
-		state.Set(current)
+		draw(voiceSettingsChange(key, local.Get(), func(current *voiceSettingsState) {
+			current.Saving, current.Saved, current.Fails = true, false, false
+		}))
 		body := map[string]any{"TenantID": props.Tenant, "Scope": props.Scope, "ConversationID": props.Conversation, "Enabled": enabled}
-		voiceSettingsCall("switch", body, func(_ VoiceSettingsData, status int, err error) {
+		ask("switch", body, func(_ VoiceSettingsData, status int, err error) {
 			if err != nil {
 				// Nothing was saved: show the value the server holds, not the one the
 				// switch was moved to.
@@ -214,12 +224,10 @@ func voiceSettingsPanel(props voiceSettingsProps) ui.Node {
 		})
 	})
 	retry := ui.UseEvent(func() {
-		current := state.Get()
-		current.Loading, current.LoadFailed = true, false
-		state.Set(current)
+		draw(voiceSettingsChange(key, local.Get(), func(current *voiceSettingsState) { current.Loading, current.LoadFailed = true, false }))
 		read(false)
 	})
-	return voiceSettingsView(props, state.Get(), change, retry)
+	return voiceSettingsView(props, voiceSettingsCurrent(key, local.Get()), change, retry)
 }
 
 // voiceSettingsView draws the row for one scope in the shape of the place it
@@ -240,12 +248,11 @@ func voiceSettingsView(props voiceSettingsProps, s voiceSettingsState, change ui
 	default:
 		status = html.Span(html.Props{Class: "chatvoice-settings-state", Role: "status", Aria: map[string]string{"live": "polite"}})
 	}
-	retryButton := html.Button(html.Props{Type: "button", Class: "button secondary", Text: t("retry"), OnClick: retry})
 	switch {
 	case !s.Loaded && !s.LoadFailed:
-		return voiceSettingsShell(props, title, dir, html.P(html.Props{Role: "status", Aria: map[string]string{"busy": "true"}, Text: t("loading")}), false)
+		return voiceSettingsShell(props, title, dir, ChatLoadingFrame(LoadingFrame{Locale: props.Locale, Shape: LoadingShapeSection, Rows: 1, Status: t("loading"), OnRetry: &retry}), false)
 	case s.LoadFailed:
-		return voiceSettingsShell(props, title, dir, html.Div(html.Props{Role: "alert"}, html.P(html.Props{Text: t("loadfailed")}), retryButton), true)
+		return voiceSettingsShell(props, title, dir, ChatLoadFailed(props.Locale, t("loadfailed"), nil, &retry), true)
 	case s.Unavailable && props.Scope != voiceScopeWorkspace:
 		return nil
 	case s.Unavailable:

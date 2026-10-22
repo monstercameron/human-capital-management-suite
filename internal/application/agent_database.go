@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"crypto/ed25519"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -11,9 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
@@ -162,32 +158,8 @@ func ensureLocalDevAgentDatabase(ctx context.Context, cfg ServeConfig) error {
 	if !localDevAgentDatabaseRequired(cfg) {
 		return nil
 	}
-	config, err := pgx.ParseConfig(cfg.AgentDatabaseURL)
-	if err != nil {
-		return fmt.Errorf("compose agent database: parse local-dev DSN: %w", err)
-	}
-	databaseName := config.Database
-	if strings.TrimSpace(databaseName) == "" {
-		return fmt.Errorf("compose agent database: local-dev DSN has no database name")
-	}
-	config.Database = "postgres"
-	db := stdlib.OpenDB(*config)
-	defer db.Close()
-	if err := db.PingContext(ctx); err != nil {
-		return fmt.Errorf("compose agent database: local-dev maintenance connection: %w", err)
-	}
-	var exists bool
-	if err := db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname=$1)", databaseName).Scan(&exists); err != nil {
-		return fmt.Errorf("compose agent database: check local-dev database: %w", err)
-	}
-	if exists {
-		return nil
-	}
-	if _, err := db.ExecContext(ctx, "CREATE DATABASE "+(pgx.Identifier{databaseName}).Sanitize()); err != nil {
-		var pgErr *pgconn.PgError
-		if !errors.As(err, &pgErr) || pgErr.Code != "42P04" {
-			return fmt.Errorf("compose agent database: create local-dev database: %w", err)
-		}
+	if err := agentstore.EnsureDatabase(ctx, cfg.AgentDatabaseURL); err != nil {
+		return fmt.Errorf("compose agent database: %w", err)
 	}
 	return nil
 }
@@ -197,17 +169,8 @@ func localDevAgentDatabaseRequired(cfg ServeConfig) bool {
 }
 
 func migrateAgentDatabase(ctx context.Context, dsn string) error {
-	config, err := pgx.ParseConfig(dsn)
-	if err != nil {
-		return fmt.Errorf("compose agent database: parse migration DSN: %w", err)
-	}
-	db := stdlib.OpenDB(*config)
-	defer db.Close()
-	if err := db.PingContext(ctx); err != nil {
-		return fmt.Errorf("compose agent database: migration connection: %w", err)
-	}
-	if err := agentstore.Migrate(ctx, db); err != nil {
-		return fmt.Errorf("compose agent database: migrate: %w", err)
+	if err := agentstore.MigrateDSN(ctx, dsn); err != nil {
+		return fmt.Errorf("compose agent database: %w", err)
 	}
 	return nil
 }

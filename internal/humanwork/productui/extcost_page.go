@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. The external-cost page is rendered by the
+// server, and its package reaches the data layer the browser client must not carry.
+
 package productui
 
 import (
@@ -15,7 +20,7 @@ const ExtcostPageID PageID = "external-usage"
 const ExtcostPagePath = "/workspace/app/admin/external-usage"
 
 type ExtcostPageProps struct {
-	View                    View
+	Locale                  LocaleContext
 	Allowed, Loading, Error bool
 	Report                  extcost.Report
 	Filter                  extcost.Filter
@@ -25,17 +30,17 @@ type ExtcostPageRenderer struct{ Project func(View) ExtcostPageProps }
 
 func (r ExtcostPageRenderer) Render(v View) ui.Node {
 	if r.Project == nil {
-		return BuildExternalUsagePage(ExtcostPageProps{View: v})
+		return BuildExternalUsagePage(ExtcostPageProps{Locale: v.Locale})
 	}
 	p := r.Project(v)
-	p.View = v
+	p.Locale = v.Locale
 	return BuildExternalUsagePage(p)
 }
 func ExtcostPageModule(r ExtcostPageRenderer) PageModule {
 	return PageModule{Definition: PageDefinition{ID: ExtcostPageID, Route: ExtcostPagePath, Label: "External usage", Title: "External usage", ParentNav: PageAdmin, RenderOrder: 179, OwnsHeading: true, Admitted: true, NavigationPublished: true}, Render: r, Access: PageAccessPolicy{Audience: PageAudienceDenied}, RouteProfile: RouteProfileAdmin, DataProfile: DataProfileNone}
 }
 func BuildExternalUsagePage(p ExtcostPageProps) ui.Node {
-	locale := p.View.Locale
+	locale := p.Locale
 	if locale.Resolved == "" {
 		locale = ResolveProductLocale(DefaultProductLocale)
 	}

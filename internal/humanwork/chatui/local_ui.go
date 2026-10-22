@@ -14,6 +14,7 @@ import (
 type localUI struct {
 	chatcmd003           chatcmd003Preview
 	searchOpen           bool
+	archivedOpen         bool
 	pointerRow, focusRow string
 	room                 string
 	tray                 string

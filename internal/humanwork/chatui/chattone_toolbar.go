@@ -53,60 +53,59 @@ func RenderChattoneToolbar(p ChattoneToolbarProps) ui.Node {
 	for _, key := range []string{"working", "unavailable", "preservation", "policy", "limit", "invalid", "denied", "disabled", "edited", "notice", "suggested", "undo", "changes", "before", "after"} {
 		data["copy-"+key] = text(key)
 	}
-	buttons := []ui.Node{}
-	for index, style := range p.Styles {
-		label := style.Label
-		if (style.ID == "professional" && label == "Professional") || (style.ID == "friendly" && label == "Friendly") || (style.ID == "concise" && label == "Concise") {
-			label = text(style.Register)
-		}
-		help := text(style.Register + "_help")
-		if index < 3 {
-			help += " (Alt+Shift+" + itoa(index+1) + ")"
-		}
-		suggested := p.Suggestion != nil && p.Suggestion.StyleID == style.ID
-		reason := ""
-		if suggested {
-			reason = text(p.Suggestion.ReasonKey)
-			help += " " + text("suggested") + ": " + reason
-		}
-		tooltipID := p.Target + "-chattone-help-" + itoa(index+1)
-		aria := map[string]string{"label": label, "describedby": tooltipID, "haspopup": "dialog", "controls": p.Target + "-chattone-options", "expanded": "false"}
-		if index < 3 {
-			aria["keyshortcuts"] = "Alt+Shift+" + itoa(index+1)
-		}
-		buttons = append(buttons, html.Span(html.Props{Class: "chattone-choice"},
-			html.Button(html.Props{Type: "button", Class: "tool-button chattone-style", Disabled: p.Disabled || p.Pending, Title: label, Data: map[string]string{"chattone-action": "rewrite", "style": style.ID, "help": text(style.Register + "_help"), "index": itoa(index + 1)}, Aria: aria},
-				icon("edit"), html.Span(html.Props{Class: "sr-only", Text: label}), html.Span(html.Props{Class: "chattone-suggested", Data: map[string]string{"suggested": boolString(suggested)}, Text: text("suggested")})),
-			html.Span(html.Props{ID: tooltipID, Class: "chattone-tooltip", Role: "tooltip", Text: help})))
-	}
-	panelChildren := []ui.Node{
-		html.P(html.Props{Class: "chattone-notice", Text: text("notice")}),
-		html.Div(html.Props{ID: p.Target + "-chattone-status", Class: "chattone-status", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}),
-		html.Div(html.Props{Class: "chattone-preview"}),
-	}
 	return html.Div(html.Props{Class: "chattone", Data: data, Dir: agentReplyDirection(p.Locale), Hidden: p.Pending},
-		html.Div(html.Props{Class: "chattone-toolbar-choices", Role: "group", Aria: map[string]string{"label": text("style")}}, buttons...),
-		anchoredChatLayer(html.Props{ID: p.Target + "-chattone-options", Class: "chattone-options", Hidden: true, Role: "dialog", Aria: map[string]string{"label": text("style")}}, "writing-style", panelChildren...),
+		html.Div(html.Props{Class: "chattone-toolbar-choices"}, chattoneTrigger(p, text)),
+		chattoneMenu(p, text),
 	)
 }
 
+// ChattonePreviewProps is what the line above the composer's text says about an
+// applied rewrite: the style it used, the text as typed and the text now in the
+// field (which the person may have edited since).
 type ChattonePreviewProps struct {
-	Locale, Original, Rewritten string
-	ShowChanges                 bool
+	Locale, Target, StyleName, Original, Rewritten string
+	// Edited is set once the field no longer holds what the model wrote.
+	Edited bool
 }
 
+// RenderChattonePreview is the line that stays above the composer's text after a
+// rewrite is applied: "Rewritten: Professional", the Undo and See changes text
+// buttons, and the layer See changes opens (the text as typed beside the text
+// now in the field). It stays until the draft is sent, undone or cleared. The
+// layer is closed when drawn; the browser opens it against its button.
 func RenderChattonePreview(p ChattonePreviewProps) ui.Node {
 	if p.Original == "" {
 		return nil
 	}
-	children := []ui.Node{
-		html.Button(html.Props{Type: "button", Class: "chattone-undo", Data: map[string]string{"chattone-action": "undo"}, Text: ChattoneText(p.Locale, "undo")}),
-		html.Button(html.Props{Type: "button", Data: map[string]string{"chattone-action": "changes"}, Text: ChattoneText(p.Locale, "changes"), Aria: map[string]string{"expanded": boolString(p.ShowChanges)}}),
+	text := func(key string) string { return ChattoneText(p.Locale, key) }
+	label := []ui.Node{icon("sparkles"), html.Span(html.Props{Class: "chattone-chip-text", Text: text("rewritten")})}
+	if p.StyleName != "" {
+		label = append(label, html.Span(html.Props{Class: "chattone-chip-style", Dir: "auto", Text: p.StyleName}))
 	}
-	if p.ShowChanges {
-		children = append(children, html.Div(html.Props{Class: "chattone-diff", Role: "region", Aria: map[string]string{"label": ChattoneText(p.Locale, "changes")}},
-			html.P(html.Props{Text: ChattoneText(p.Locale, "before")}), html.Del(html.Props{Dir: "auto", Text: p.Original}),
-			html.P(html.Props{Text: ChattoneText(p.Locale, "after")}), html.Ins(html.Props{Dir: "auto", Text: p.Rewritten})))
+	if p.Edited {
+		label = append(label, html.Span(html.Props{Class: "chattone-chip-edited", Text: text("edited_tag")}))
 	}
-	return html.Div(html.Props{Class: "chattone-preview-actions"}, children...)
+	diffID := p.Target + "-chattone-options"
+	return html.Div(html.Props{Class: "chattone-chip", Dir: agentReplyDirection(p.Locale), Role: "group", Aria: map[string]string{"label": text("rewrite")}},
+		html.Span(html.Props{Class: "chattone-chip-label"}, label...),
+		html.Button(html.Props{Type: "button", Class: "chattone-chip-action chattone-undo", Data: map[string]string{"chattone-action": "undo"}, Text: text("undo_chip"), Aria: map[string]string{"label": text("undo")}}),
+		html.Button(html.Props{Type: "button", Class: "chattone-chip-action", Data: map[string]string{"chattone-action": "changes"}, Text: text("changes"), Aria: map[string]string{"expanded": "false", "haspopup": "dialog", "controls": diffID}}),
+		anchoredChatLayer(html.Props{ID: diffID, Class: "chattone-options", Hidden: true, Role: "dialog", Data: map[string]string{"chattone-diff": "true", "chattone-for": p.Target}, Aria: map[string]string{"label": text("changes")}}, "writing-style",
+			html.Div(html.Props{Class: "chattone-diff", Role: "region", Aria: map[string]string{"label": text("changes")}},
+				html.P(html.Props{Text: text("before")}), html.Del(html.Props{Dir: "auto", Text: p.Original}),
+				html.P(html.Props{Text: text("after")}), html.Ins(html.Props{Dir: "auto", Text: p.Rewritten}))))
+}
+
+// chattoneChipSlot is where the browser draws what a rewrite leaves behind, in
+// the composer directly above the text: the status line (working, or why a
+// rewrite did not happen) and the line RenderChattonePreview draws. It is empty,
+// and takes no room, until there is something to say. The status is a live
+// region, so it exists before it has words.
+func chattoneChipSlot(m Model, target string) ui.Node {
+	if m.ChatFeatures != nil && !m.ChatFeatures.WritingStyles {
+		return nil
+	}
+	return html.Div(html.Props{ID: target + "-chattone-chip", Class: "chattone-chip-slot", Dir: agentReplyDirection(m.Locale), Data: map[string]string{"chattone-chip": target}},
+		html.P(html.Props{ID: target + "-chattone-status", Class: "chattone-status", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}),
+		html.Div(html.Props{Class: "chattone-chip-region"}))
 }

@@ -225,7 +225,7 @@ func (e fencedPersonaRunModelExecutor) Execute(ctx context.Context, request Agen
 	})
 	done()
 	if err != nil {
-		return AgentModelExecutorResult{}, fmt.Errorf("%w: fenced model execution failed: %v", ErrPersonaRunModelFailure, err)
+		return AgentModelExecutorResult{}, fmt.Errorf("%w: fenced model execution failed: %w", ErrPersonaRunModelFailure, err)
 	}
 	return result, nil
 }

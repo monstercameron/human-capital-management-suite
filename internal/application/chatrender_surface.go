@@ -205,6 +205,11 @@ func (s *ChatRenderingSurface) ReadRenderingSelection(ctx context.Context, scope
 		if tone, err := s.Reword.ReaderTone(ctx, scope.Tenant, scope.Principal.SubjectID, scope.Conversation, pref.Tone); err == nil {
 			pref.Tone = tone
 		}
+		// A writer reads what they wrote; what others read is shown beneath it
+		// (OthersSee).
+		if policy.Own {
+			pref.Tone = chatrender.AsWritten
+		}
 	} else {
 		pref.Tone = chatrender.AsWritten
 	}

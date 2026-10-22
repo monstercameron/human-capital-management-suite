@@ -81,7 +81,7 @@ func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "settings":
 		method = http.MethodGet
-	case "workspace", "channel", "glossary/add", "glossary/remove":
+	case "workspace", "channel", "glossary/add", "glossary/remove", "report/resolve":
 	default:
 		http.NotFound(w, r)
 		return
@@ -107,6 +107,8 @@ func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		External     chatlang.External  `json:"external"`
 		Term         chatlang.Term      `json:"term"`
 		ID           string             `json:"id"`
+		State        string             `json:"state"`
+		Note         string             `json:"note"`
 	}
 	if method == http.MethodPost {
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
@@ -138,6 +140,12 @@ func (h ChatlangHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_, err = h.Surface.AddTerm(r.Context(), input.Term)
 	case "glossary/remove":
 		err = h.Surface.RemoveTerm(r.Context(), input.ID)
+	case "report/resolve":
+		if reports, ok := h.Surface.(chatlangReportSurface); ok {
+			err = reports.ResolveReport(r.Context(), input.ID, input.State, input.Note)
+		} else {
+			err = chatlang.ErrUnavailable
+		}
 	}
 	if err != nil {
 		chatlangLogFailure(r, action, err)

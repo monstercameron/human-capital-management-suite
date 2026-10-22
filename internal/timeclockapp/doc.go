@@ -6,8 +6,8 @@
 // punch queue, the en-US/de-DE/ar catalog and formatting, a protojson
 // client for the public ClockDeviceService, and a hook-free GoWebComponents
 // view that renders a Snapshot. Nothing here touches syscall/js, so every
-// rule is proven by ordinary `go test`; cmd/timeclock/wasm is the thin
-// browser host (localStorage, timers, delegated DOM events) and
+// rule is proven by ordinary `go test`; tools/uxqual/cmd/timeclockwasm is
+// the thin browser host (localStorage, timers, delegated DOM events) and
 // internal/timeclockapp/kioskserver serves the page and proxies the device
 // API same-origin.
 //

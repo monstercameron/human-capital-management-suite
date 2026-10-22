@@ -71,7 +71,7 @@ func TestTodo_AGENTCOST_006(t *testing.T) {
 		f.gate.Record(policy("general"), 100_000, "olive")
 	}
 	decision := f.gate.Admit(policy("general"))
-	want := "Policy Helper reached today's limit for #general. It resets at 00:00."
+	want := "Policy Helper reached today's limit for #general. It resets at 00:00 UTC."
 	if decision.Allowed || decision.Reached != want {
 		t.Fatalf("decision = %+v, want %q", decision, want)
 	}
@@ -113,7 +113,7 @@ func TestTodo_AGENTCOST_006(t *testing.T) {
 	g3, _ := NewGate(f.owners, nil, zone, func() time.Time { return time.Date(2026, 10, 14, 20, 0, 0, 0, time.UTC) })
 	_ = g3.Set("olive", Limit{TenantID: "t1", AgentID: "policy", MaxRuns: 1})
 	g3.Record(policy(""), 1, "olive")
-	if decision := g3.Admit(policy("")); !strings.HasSuffix(decision.Reached, "It resets at 00:00.") || decision.ResetsAt.UTC().Hour() != 4 {
+	if decision := g3.Admit(policy("")); !strings.HasSuffix(decision.Reached, "It resets at 00:00 EDT.") || decision.ResetsAt.UTC().Hour() != 4 {
 		t.Fatalf("reset in the tenant's zone = %+v", decision)
 	}
 }

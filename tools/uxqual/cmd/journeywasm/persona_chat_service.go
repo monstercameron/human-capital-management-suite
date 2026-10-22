@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -25,6 +26,11 @@ var errPersonaChat = errors.New("persona chat is unavailable")
 // answer. It is not a failure of the agent list: the person has no agents to
 // mention there, so the mention menu shows its people alone (CHATBUG-028).
 var errPersonaChatDenied = errors.New("persona chat is not offered in this conversation")
+
+// errPersonaChatNotFound is the server's "there is no such thing" answer (a
+// message removed since the page listed it). It is still an unavailable read to
+// whoever asks, but it is an answer, so it is not asked again.
+var errPersonaChatNotFound = fmt.Errorf("%w: not found", errPersonaChat)
 
 func personaChatResponseOK(response *http.Response, err error) bool {
 	return response != nil && err == nil && response.StatusCode == http.StatusOK
@@ -100,6 +106,7 @@ type personaChatReference struct {
 	ID             string `json:"id"`
 	Display        string `json:"display"`
 	ConversationID string `json:"conversation_id"`
+	_              incomparable
 }
 type personaChatProfile struct {
 	Icon          agenticon.Value      `json:"icon"`
@@ -132,6 +139,7 @@ type personaChatPostActor struct {
 	AgentID        string          `json:"agent_id"`
 	InvokerHandle  string          `json:"invoker_handle"`
 	Display        string          `json:"display"`
+	_              incomparable
 }
 
 type personaChatDirectory struct {
@@ -195,23 +203,27 @@ func personaChatActorProjection(actors []personaChatPostActor) map[string]chatui
 }
 
 type personaChatInvocation struct {
-	InvocationID          string `json:"invocation_id"`
-	PostID                string `json:"post_id"`
-	ThreadID              string `json:"thread_id"`
-	ConversationID        string `json:"conversation_id"`
-	InvokerID             string `json:"invoker_id"`
-	AgentName             string `json:"agent_name"`
-	Status                string `json:"status"`
-	Activity              string `json:"activity"`
-	CurrentStep           int    `json:"current_step"`
-	TotalSteps            int    `json:"total_steps"`
-	TaskID                string `json:"task_id"`
-	TaskTitle             string `json:"task_title"`
-	TaskState             string `json:"task_state"`
-	TaskRevision          uint64 `json:"task_revision"`
-	FailureCode           string `json:"failure_code"`
-	FailureMessage        string `json:"failure_message"`
-	Retryable             bool   `json:"retryable"`
+	InvocationID   string `json:"invocation_id"`
+	PostID         string `json:"post_id"`
+	ThreadID       string `json:"thread_id"`
+	ConversationID string `json:"conversation_id"`
+	InvokerID      string `json:"invoker_id"`
+	AgentName      string `json:"agent_name"`
+	Status         string `json:"status"`
+	Activity       string `json:"activity"`
+	CurrentStep    int    `json:"current_step"`
+	TotalSteps     int    `json:"total_steps"`
+	TaskID         string `json:"task_id"`
+	TaskTitle      string `json:"task_title"`
+	TaskState      string `json:"task_state"`
+	TaskRevision   uint64 `json:"task_revision"`
+	FailureCode    string `json:"failure_code"`
+	FailureMessage string `json:"failure_message"`
+	Retryable      bool   `json:"retryable"`
+	// RetryAt and MentionsAsked carry a mention refused by a mention ceiling
+	// (AGENTP-015): when the person can ask again, and how many times they asked.
+	RetryAt               string `json:"retry_at"`
+	MentionsAsked         int    `json:"mentions_asked"`
 	PrivateConversationID string `json:"private_conversation_id"`
 	PrivatePostID         string `json:"private_post_id"`
 	// PublicPostID is the answer posted to the channel (AGENTUX-070); feedback on
@@ -227,6 +239,7 @@ type personaChatInvocation struct {
 	// ElapsedSeconds is how long the run has been going since its admission, by
 	// the server's clock (AGENTUX-026).
 	ElapsedSeconds int `json:"elapsed_seconds"`
+	_              incomparable
 }
 
 func personaChatURL(cfg journeyclient.Config, path, conversation string) (string, error) {
@@ -275,6 +288,9 @@ func personaChatRequest(ctx context.Context, client *http.Client, cfg journeycli
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusForbidden {
 		return errPersonaChatDenied
+	}
+	if response.StatusCode == http.StatusNotFound {
+		return errPersonaChatNotFound
 	}
 	if response.StatusCode != http.StatusOK {
 		return errPersonaChat
@@ -349,7 +365,10 @@ func personaChatInvocations(invocations []personaChatInvocation, cfg journeyclie
 		}
 		switch strings.ToLower(invocation.Status) {
 		case "failed", "denied", "needs_repair":
-			projection.Failure = &chatui.PersonaProgressFailure{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, Code: invocation.FailureCode, Message: invocation.FailureMessage, Retryable: invocation.Retryable}
+			projection.Failure = &chatui.PersonaProgressFailure{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, Code: invocation.FailureCode, Message: invocation.FailureMessage, Retryable: invocation.Retryable, MentionsAsked: invocation.MentionsAsked}
+			if retryAt, err := time.Parse(time.RFC3339, invocation.RetryAt); err == nil {
+				projection.Failure.RetryAt = retryAt
+			}
 		case "cancelled":
 			code := invocation.FailureCode
 			if code == "" {

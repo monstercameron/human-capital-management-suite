@@ -77,6 +77,18 @@ func TestTodo_AGENTP_005_Golden(t *testing.T) {
 	}
 }
 
+func TestCanonicalHandleCompatibilityAndCaseFold(t *testing.T) {
+	for _, tc := range []struct{ input, want string }{
+		{"@ＡGent", "agent"},
+		{"Straße", "strasse"},
+	} {
+		got, err := CanonicalHandle(tc.input)
+		if err != nil || got != tc.want {
+			t.Errorf("CanonicalHandle(%q)=%q, %v; want %q", tc.input, got, err, tc.want)
+		}
+	}
+}
+
 func TestTodo_AGENTP_005_Security(t *testing.T) {
 	r := NewRegistry()
 	persona, person := personaFixture()

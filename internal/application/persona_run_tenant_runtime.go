@@ -49,8 +49,10 @@ func (r *PersonaRunAdmissionRechecker) Recheck(ctx context.Context, tenant, admi
 	}
 	// Every runstate boundary invalidates the helper-level snapshot first. The
 	// successful result below may then be reused by helpers inside this one
-	// boundary, but never by the next checkpoint or side effect.
-	agentUXSpeedInvalidateAuthority(ctx)
+	// boundary, but never by the next checkpoint or side effect. A boundary the
+	// executor marks as carrying keeps the run's last full verification and
+	// probes it instead (AGENTUX-076).
+	agentUX076BeginBoundary(ctx)
 	done := agentUXSpeedEvent(ctx, "store.admission.get")
 	record, err := r.reader.GetByID(ctx, admissionID)
 	done()

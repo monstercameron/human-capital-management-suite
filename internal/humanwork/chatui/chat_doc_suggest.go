@@ -171,11 +171,10 @@ func docSuggestMenu(m Model, state docSuggestState, target string) ui.Node {
 		return html.Div(html.Props{Class: "doc-suggest-slot"})
 	}
 	if len(state.Items) == 0 {
-		text := m.t(KeyDocSuggestNone)
 		if state.Loading {
-			text = m.t(KeyEmbedLoading)
+			return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty"}, ChatLoadingFrame(LoadingFrame{Locale: m.Locale, Shape: LoadingShapeMenu, Rows: 2, Status: m.t(KeyEmbedLoading)}))
 		}
-		return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: text}))
+		return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: m.t(KeyDocSuggestNone)}))
 	}
 	rows := []ui.Node{html.P(html.Props{Class: "mention-heading", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyDocSuggestTitle)})}
 	for i, item := range state.Items {

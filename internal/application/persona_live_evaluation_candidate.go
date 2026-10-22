@@ -24,15 +24,25 @@ func NewLocalPersonaOpenAICandidate(manifest agentmanifest.Manifest) (agentmodel
 		// Assistant's second starter image pins the workspace search skill too.
 		starter = AssistantWorkspaceStarter()
 	}
+	schemaPinned, toolsPinned := ok, ok
+	if ok {
+		schemaPinned = manifest.OutputSchema.ID == PersonaChatReplySchema && manifest.OutputSchema.Digest == PersonaChatReplySchemaDigest
+		toolsPinned = slices.Equal(manifest.ToolCeiling, personaStarterToolCeiling(starter))
+	} else if demoStarter, found := agentUXDemoStarterForManifest(manifest); found {
+		// Birthday Buddy, Task Catcher, Reminder and Support Desk are not in the
+		// template registry; each pins its own output schema (AGENTUX-049).
+		starter, ok = demoStarter, true
+		schemaPinned, toolsPinned = agentUXDemoCandidateContracts(manifest, demoStarter)
+	}
 	digest, err := manifest.Digest()
-	if err != nil || !ok || manifest.ModelPolicy != policy || manifest.OutputSchema.ID != PersonaChatReplySchema || manifest.OutputSchema.Digest != PersonaChatReplySchemaDigest || !slices.Equal(manifest.ToolCeiling, personaStarterToolCeiling(starter)) || manifest.Budget.MaxCostMicros > uint64(LocalPersonaOpenAIMaxCostMicros) {
+	if err != nil || !ok || manifest.ModelPolicy != policy || !schemaPinned || !toolsPinned || manifest.Budget.MaxCostMicros > uint64(LocalPersonaOpenAIMaxCostMicros) {
 		return agentmodel.ModelProfile{}, PersonaRunModelRoute{}, agenteval.ErrPersonaEvaluation
 	}
 	// Policy Helper's task profile was published as local.persona.policy_helper.reply;
 	// the handle is policy-helper, so the separator is normalized to keep that
 	// identifier (and the model profiles sealed against it) stable.
 	taskID := "local.persona." + strings.ReplaceAll(starter.Handle, "-", "_") + ".reply"
-	profile := agentmodel.ModelProfile{ID: "local-openai-policy-helper-" + strings.TrimPrefix(digest, "sha256:")[:12], Identity: agentmodel.ModelIdentity{ProviderID: "openai", ModelID: LocalPersonaOpenAIModelID, Version: LocalPersonaOpenAIModelVersion}, Regions: []string{LocalPersonaOpenAIRegion}, DataClasses: []string{"INTERNAL", "PUBLIC"}, TaskProfileIDs: []string{taskID}, MaxLatency: LocalPersonaOpenAIMaxLatency, MaxCostMicros: int64(manifest.Budget.MaxCostMicros), ExpectedCostMicros: int64(manifest.Budget.MaxCostMicros), SemanticsDigest: policy.Digest, OutputSchemaDigest: PersonaChatReplySchemaDigest, ToolSchemaDigest: LocalPersonaOpenAIToolSchemaDigest()}
+	profile := agentmodel.ModelProfile{ID: "local-openai-policy-helper-" + strings.TrimPrefix(digest, "sha256:")[:12], Identity: agentmodel.ModelIdentity{ProviderID: "openai", ModelID: LocalPersonaOpenAIModelID, Version: LocalPersonaOpenAIModelVersion}, Regions: []string{LocalPersonaOpenAIRegion}, DataClasses: []string{"INTERNAL", "PUBLIC"}, TaskProfileIDs: []string{taskID}, MaxLatency: LocalPersonaOpenAIMaxLatency, MaxCostMicros: int64(manifest.Budget.MaxCostMicros), ExpectedCostMicros: int64(manifest.Budget.MaxCostMicros), SemanticsDigest: policy.Digest, OutputSchemaDigest: manifest.OutputSchema.Digest, ToolSchemaDigest: LocalPersonaOpenAIToolSchemaDigest()}
 	profile.ProfileDigest = agentmodel.ModelProfileDigest(profile)
 	selection := agentmodel.ModelSelection{ProfileID: profile.ID, ProfileDigest: profile.ProfileDigest, Identity: profile.Identity}
 	classes := []trustdlp.DataClass{trustdlp.ClassPublic, trustdlp.ClassInternal}

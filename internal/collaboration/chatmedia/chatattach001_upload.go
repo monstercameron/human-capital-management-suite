@@ -34,7 +34,12 @@ type Chatattach001Uploads struct {
 	Linked                         func(context.Context, Reference) (bool, error)
 	PersonBytes, ConversationBytes int64
 	Now                            func() time.Time
-	mu                             sync.Mutex
+	// RetainEvery, when set, is the least time between two Retain passes for one
+	// tenant. Zero reconciles on every call.
+	RetainEvery time.Duration
+	mu          sync.Mutex
+	retainMu    sync.Mutex
+	retainedAt  map[string]time.Time
 }
 
 func (s *Chatattach001Uploads) Upload(ctx context.Context, r UploadRequest) (Reference, error) {
@@ -127,12 +132,17 @@ func (s *Chatattach001Uploads) records(ctx context.Context, tenant string) ([]Ch
 	var out []Chatattach001Record
 	for _, file := range files {
 		b, err := os.ReadFile(file)
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
 		var a Chatattach001Record
 		if err := json.Unmarshal(b, &a); err != nil {
-			return nil, err
+			// One torn record (a crash mid-write) names no tenant, and refusing it
+			// here refused every upload and every read of every tenant.
+			continue
 		}
 		if a.TenantID != tenant {
 			continue
@@ -171,10 +181,42 @@ func (s *Chatattach001Uploads) records(ctx context.Context, tenant string) ([]Ch
 // Retain synchronises the tenant's ledger with message retention on each
 // media operation. Files linked to a retained tombstone remain for record holds.
 func (s *Chatattach001Uploads) Retain(ctx context.Context, tenant string) error {
+	if !s.retainDue(tenant) {
+		return nil
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, err := s.records(ctx, tenant)
+	if err != nil {
+		s.retainFailed(tenant)
+	}
 	return err
+}
+
+// retainDue reports whether this tenant's ledger is due for reconciliation, and
+// claims the pass when it is, so concurrent reads do one pass between them.
+func (s *Chatattach001Uploads) retainDue(tenant string) bool {
+	if s.RetainEvery <= 0 {
+		return true
+	}
+	s.retainMu.Lock()
+	defer s.retainMu.Unlock()
+	now := s.now()
+	if last, ok := s.retainedAt[tenant]; ok && now.Sub(last) < s.RetainEvery {
+		return false
+	}
+	if s.retainedAt == nil {
+		s.retainedAt = map[string]time.Time{}
+	}
+	s.retainedAt[tenant] = now
+	return true
+}
+
+// retainFailed gives a failed pass back, so the next read tries again.
+func (s *Chatattach001Uploads) retainFailed(tenant string) {
+	s.retainMu.Lock()
+	delete(s.retainedAt, tenant)
+	s.retainMu.Unlock()
 }
 
 func (s *Chatattach001Uploads) remove(r Reference) error {

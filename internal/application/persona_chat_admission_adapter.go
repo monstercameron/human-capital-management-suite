@@ -83,6 +83,8 @@ func (a *personaChatAdmissionAdapter) Start(ctx context.Context, invocation agen
 		return &agentrun.AdmissionRefusal{Code: record.RefusalCode}
 	}
 	if _, err := a.executor.Start(ctx, record); err != nil {
+		// The run's own failure (its code and whether to try again) travels with
+		// the error: the outcome reaction and the stored failure are chosen from it.
 		return fmt.Errorf("%w: start admitted AgentRun: %v", errPersonaChatAdmissionAdapter, err)
 	}
 	return nil

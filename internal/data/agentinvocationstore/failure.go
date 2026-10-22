@@ -20,17 +20,50 @@ type PostFailure struct {
 	Code           string
 	Retryable      bool
 	OccurredAt     time.Time
+	// RetryAt is when a mention refused by a mention ceiling can be asked
+	// again, and MentionsAsked how many times the person asked in the hour when
+	// it was the hourly per-person ceiling (zero otherwise). Both belong to the
+	// MENTION_LIMIT_REACHED outcome and to no other (AGENTP-015).
+	RetryAt       time.Time
+	MentionsAsked int
 }
 
+// MentionLimitCode is the outcome of a mention refused by a mention ceiling.
+const MentionLimitCode = "MENTION_LIMIT_REACHED"
+
+// NoModelCode is the outcome of a question asked of an agent on a server that
+// has no model to run it (AGENTUX-078).
+const NoModelCode = "SERVER_HAS_NO_MODEL"
+
+// retryableFailureCodes are the outcomes a person may be offered a retry for;
+// every other code is stored as not retryable. Together with
+// finalFailureCodes this is the list the table's check constraints must match
+// (TestTodo_AGENTUX_078_FailureCodesMatchConstraint).
+var retryableFailureCodes = []string{"MODEL_UNAVAILABLE", "ADMISSION_UNAVAILABLE", "EXECUTION_UNAVAILABLE", "ANSWER_INTERRUPTED"}
+
+var finalFailureCodes = []string{"OUTPUT_REJECTED", "DELIVERY_FAILED", "ADMISSION_REFUSED", "INVOCATION_FAILED", "DAILY_LIMIT_REACHED", MentionLimitCode, NoModelCode}
+
 func validFailureCode(code string, retryable bool) bool {
-	switch code {
-	case "MODEL_UNAVAILABLE", "ADMISSION_UNAVAILABLE", "EXECUTION_UNAVAILABLE", "ANSWER_INTERRUPTED":
-		return true
-	case "OUTPUT_REJECTED", "DELIVERY_FAILED", "ADMISSION_REFUSED", "INVOCATION_FAILED", "DAILY_LIMIT_REACHED":
-		return !retryable
-	default:
-		return false
+	for _, known := range retryableFailureCodes {
+		if code == known {
+			return true
+		}
 	}
+	for _, known := range finalFailureCodes {
+		if code == known {
+			return !retryable
+		}
+	}
+	return false
+}
+
+// retryAtValue is what the retry_at column holds: the time for a mention-limit
+// outcome and NULL for every other, which the table's check enforces.
+func (f PostFailure) retryAtValue() any {
+	if f.Code != MentionLimitCode {
+		return nil
+	}
+	return f.RetryAt.UTC()
 }
 
 // RecordPostFailure records one sanitized outcome exactly once for its owner.
@@ -40,13 +73,18 @@ func (s *Store) RecordPostFailure(ctx context.Context, failure PostFailure) erro
 	if ctx == nil || err != nil || !validFailureCode(failure.Code, failure.Retryable) {
 		return ErrInvalid
 	}
+	// A mention-limit outcome without the time to ask again would leave the card
+	// with nothing to say; any other outcome carries neither fact.
+	if (failure.Code == MentionLimitCode) == failure.RetryAt.IsZero() || failure.MentionsAsked < 0 || (failure.Code != MentionLimitCode && failure.MentionsAsked != 0) {
+		return ErrInvalid
+	}
 	for _, field := range []string{failure.InvokerID, failure.ConversationID, failure.ThreadID, failure.PostID} {
 		if field == "" || strings.TrimSpace(field) != field {
 			return ErrInvalid
 		}
 	}
 	return s.db.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
-		n, err := tx.Exec(ctx, `INSERT INTO persona_invocation_failure (tenant_id,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tenant_id,invoker_id,post_id) DO NOTHING`, tenant, failure.InvokerID, failure.PostID, failure.ConversationID, failure.ThreadID, failure.Code, failure.Retryable)
+		n, err := tx.Exec(ctx, `INSERT INTO persona_invocation_failure (tenant_id,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable,retry_at,mentions_asked) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (tenant_id,invoker_id,post_id) DO NOTHING`, tenant, failure.InvokerID, failure.PostID, failure.ConversationID, failure.ThreadID, failure.Code, failure.Retryable, failure.retryAtValue(), failure.MentionsAsked)
 		if err != nil {
 			return err
 		}
@@ -73,15 +111,19 @@ func (s *Store) ListPostFailures(ctx context.Context, tenantID, invokerID, conve
 	}
 	out := make([]PostFailure, 0)
 	err = s.db.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT tenant_id::text,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable,occurred_at FROM persona_invocation_failure WHERE tenant_id=$1 AND invoker_id=$2 AND conversation_id=$3 ORDER BY occurred_at DESC,post_id LIMIT 100`, tenant, invokerID, conversationID)
+		rows, err := tx.Query(ctx, `SELECT tenant_id::text,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable,occurred_at,retry_at,mentions_asked FROM persona_invocation_failure WHERE tenant_id=$1 AND invoker_id=$2 AND conversation_id=$3 ORDER BY occurred_at DESC,post_id LIMIT 100`, tenant, invokerID, conversationID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var failure PostFailure
-			if err := rows.Scan(&failure.TenantID, &failure.InvokerID, &failure.PostID, &failure.ConversationID, &failure.ThreadID, &failure.Code, &failure.Retryable, &failure.OccurredAt); err != nil {
+			var retryAt *time.Time
+			if err := rows.Scan(&failure.TenantID, &failure.InvokerID, &failure.PostID, &failure.ConversationID, &failure.ThreadID, &failure.Code, &failure.Retryable, &failure.OccurredAt, &retryAt, &failure.MentionsAsked); err != nil {
 				return err
+			}
+			if retryAt != nil {
+				failure.RetryAt = retryAt.UTC()
 			}
 			failure.TenantID = tenantID
 			out = append(out, failure)
@@ -99,9 +141,13 @@ func (s *Store) LookupPostFailure(ctx context.Context, tenantID, invokerID, post
 	}
 	var failure PostFailure
 	err = s.db.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT tenant_id::text,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable,occurred_at FROM persona_invocation_failure WHERE tenant_id=$1 AND invoker_id=$2 AND post_id=$3`, tenant, invokerID, postID).Scan(&failure.TenantID, &failure.InvokerID, &failure.PostID, &failure.ConversationID, &failure.ThreadID, &failure.Code, &failure.Retryable, &failure.OccurredAt)
+		var retryAt *time.Time
+		err := tx.QueryRow(ctx, `SELECT tenant_id::text,invoker_id,post_id,conversation_id,thread_id,failure_code,retryable,occurred_at,retry_at,mentions_asked FROM persona_invocation_failure WHERE tenant_id=$1 AND invoker_id=$2 AND post_id=$3`, tenant, invokerID, postID).Scan(&failure.TenantID, &failure.InvokerID, &failure.PostID, &failure.ConversationID, &failure.ThreadID, &failure.Code, &failure.Retryable, &failure.OccurredAt, &retryAt, &failure.MentionsAsked)
 		if errors.Is(err, dbport.ErrNoRows) {
 			return ErrNotFound
+		}
+		if retryAt != nil {
+			failure.RetryAt = retryAt.UTC()
 		}
 		return err
 	})

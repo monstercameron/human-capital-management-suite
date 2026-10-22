@@ -2,10 +2,9 @@ package main
 
 import "testing"
 
-// TestTodo_AGENTUX_054_Browser reads the owner's "Simulate a customer email"
-// control: the form, its fault and replay states and the client that posts the
-// email to the server, which never carries a tenant or a verified sender.
+// TestTodo_AGENTUX_054_Browser checks the rendered owner control and the
+// authenticated transport contract used to submit its untrusted email.
 func TestTodo_AGENTUX_054_Browser(t *testing.T) {
-	TestAgentUXDemo_Inbox_Browser(t)
-	TestAgentUXDemo_InboxClient(t)
+	assertAgentUXDemoInboxBrowser(t)
+	assertAgentUXDemoInboxTransport(t)
 }

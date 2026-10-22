@@ -62,7 +62,7 @@ func TestTodo_CHATLANG_004_Browser(t *testing.T) {
 		{"de-DE", "en", "Please read the message with the team today.", "Bitte lesen Sie die Nachricht heute mit dem Team.", map[string]int{"en": 3},
 			[]string{"Übersetzt aus Englisch", "Original anzeigen", "Wird übersetzt…", "Nicht übersetzt", "Nachrichten in anderen Sprachen werden für Sie übersetzt.", "Originale anzeigen", "Spracheinstellungen", "3 Personen lesen dies auf Englisch", "Nachrichten in meine Sprache übersetzen"}, "ltr"},
 		{"ar", "en", "Please read the message with the team today.", "يرجى قراءة الرسالة مع الفريق اليوم.", map[string]int{"en": 3},
-			[]string{"مترجم من الإنجليزية", "عرض الأصل", "جارٍ الترجمة…", "لم تتم الترجمة", "تُترجم الرسائل المكتوبة بلغات أخرى من أجلك.", "عرض النصوص الأصلية", "إعدادات اللغة", "سيقرأ 3 أشخاص هذه الرسالة بالإنجليزية", "ترجمة الرسائل إلى لغتي"}, "rtl"},
+			[]string{"مترجم من الإنجليزية", "عرض الأصل", "جارٍ الترجمة…", "لم تتم الترجمة", "تُترجم الرسائل المكتوبة بلغات أخرى من أجلك.", "عرض النصوص الأصلية", "إعدادات اللغة", "سيقرأ ٣ أشخاص هذه الرسالة بالإنجليزية", "ترجمة الرسائل إلى لغتي"}, "rtl"},
 	} {
 		t.Run(c.locale, func(t *testing.T) {
 			page := chatlangBrowserPage(t, c.locale, c.source, c.translation, c.original, c.readers)

@@ -34,6 +34,10 @@ type AgentUXAmbientAnnouncements struct {
 	Bindings   AgentUXAmbientScheduleBindings
 	Delivery   AgentUXAmbientAnnouncementDelivery
 	Admissions scheduled.Inbox
+	// EnsureDM, when set, makes sure a person's conversation with the agent exists
+	// while they set a private reminder, which is the one moment the person's own
+	// authority is present to create it; delivery later only writes into it.
+	EnsureDM func(ctx context.Context, tenant, person, agent string) error
 }
 
 func agentUXAmbientScheduleID(o AgentUXAmbientOffer, at time.Time) string {
@@ -50,6 +54,11 @@ func agentUXAmbientOfferDigest(o AgentUXAmbientOffer) string {
 func (a AgentUXAmbientAnnouncements) SetAmbientMessageAnnouncement(ctx context.Context, o AgentUXAmbientOffer) error {
 	if a.Store == nil || a.Bindings == nil || a.Service == nil || len(o.Time.Fire) == 0 || o.State != "SET" {
 		return ErrAgentUXAmbientInvalid
+	}
+	if o.Scope == "PRIVATE" && a.EnsureDM != nil {
+		if err := a.EnsureDM(ctx, o.Tenant, o.Person, o.Agent); err != nil {
+			return err
+		}
 	}
 	for _, at := range o.Time.Fire {
 		id := agentUXAmbientScheduleID(o, at)

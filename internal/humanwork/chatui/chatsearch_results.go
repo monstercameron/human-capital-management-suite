@@ -130,6 +130,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		options = append(options, html.Option(html.Props{Value: string(kind), Text: chatsearchKind(locale, kind)}))
 	}
 	controls = append(controls, html.Label(html.Props{Text: t("kind"), For: "chatsearch-kind"}, html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
+	controls = append(controls, chatsearchWrittenControl(locale))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
 		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox"}), ui.Text(t(field))))
 	}
@@ -150,6 +151,8 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			}
 		case "kind":
 			label += chatsearchKind(locale, chatsearch.Kind(value))
+		case "lang", "language":
+			label += chattoneW10Text(locale, "search_written") + " " + chatlangLanguageName(locale, value)
 		case "has":
 			label += t(value)
 		case "is":
@@ -231,29 +234,39 @@ func ResolveChatSearchQuery(m Model, query string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for i, token := range tokens {
+	out := make([]string, 0, len(tokens))
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
 		key, value, ok := strings.Cut(token, ":")
 		key = strings.ToLower(key)
 		if !ok {
+			out = append(out, token)
 			continue
 		}
 		if key == "in" {
 			value = strings.TrimPrefix(value, "#")
-			for _, c := range m.Conversations {
-				if strings.EqualFold(displayName(m, c), value) || strings.EqualFold(c.Name, value) {
-					value = c.ID
-					break
+			resolved, used := resolveSearchFilterName(tokens[i+1:], value, func(name string) string {
+				for _, c := range m.Conversations {
+					if strings.EqualFold(displayName(m, c), name) || strings.EqualFold(c.Name, name) {
+						return c.ID
+					}
 				}
-			}
+				return ""
+			})
+			value, i = resolved, i+used
 		}
 		if key == "from" && value != "agent" {
 			value = strings.TrimPrefix(value, "@")
-			for _, p := range mentionIndex(m) {
-				if strings.EqualFold(p.name, value) {
-					value = p.id
-					break
+			people := mentionIndex(m)
+			resolved, used := resolveSearchFilterName(tokens[i+1:], value, func(name string) string {
+				for _, p := range people {
+					if strings.EqualFold(p.name, name) {
+						return p.id
+					}
 				}
-			}
+				return ""
+			})
+			value, i = resolved, i+used
 		}
 		if key == "in" || key == "from" {
 			token = key + ":" + value
@@ -266,7 +279,38 @@ func ResolveChatSearchQuery(m Model, query string) (string, error) {
 				token = `"` + token + `"`
 			}
 		}
-		tokens[i] = token
+		out = append(out, token)
 	}
-	return strings.Join(tokens, " "), nil
+	return strings.Join(out, " "), nil
+}
+
+// searchFilterNameWords is how many words after the first a channel or person
+// name typed without quotes may run on.
+const searchFilterNameWords = 4
+
+// resolveSearchFilterName finds the channel or person a filter names. A name with
+// spaces typed without quotes (from:@Camila Morales) reached here as the first
+// word and the words after it; the longest run of them that is exactly one known
+// name wins, and a word that is not part of a name is left for the search. It
+// returns the id and how many of the following words it used, or value unchanged
+// and none when nothing is known by that name.
+func resolveSearchFilterName(following []string, value string, find func(string) string) (string, int) {
+	most := searchFilterNameWords
+	for used := 0; used < len(following) && used < searchFilterNameWords; used++ {
+		if strings.Contains(following[used], ":") {
+			// The next filter starts here.
+			most = used
+			break
+		}
+	}
+	if most > len(following) {
+		most = len(following)
+	}
+	for used := most; used >= 0; used-- {
+		name := strings.Join(append([]string{value}, following[:used]...), " ")
+		if id := find(name); id != "" {
+			return id, used
+		}
+	}
+	return value, 0
 }

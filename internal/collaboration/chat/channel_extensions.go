@@ -6,6 +6,7 @@ package chat
 type ChannelTodoSelectedMember struct {
 	HomeTenantID string
 	SubjectID    string
+	_            incomparable
 }
 
 type ChannelTodoItem struct {
@@ -78,6 +79,7 @@ type ChannelWidgetMutation struct {
 type ChannelPollOption struct {
 	ID, Text string
 	Count    int
+	_        incomparable
 }
 
 type ChannelPoll struct {

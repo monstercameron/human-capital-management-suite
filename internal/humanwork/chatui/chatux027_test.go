@@ -192,14 +192,14 @@ func TestTodo_CHATUX_021_OneShape(t *testing.T) {
 	mp := m
 	mp.ShowDetails = true
 	head := renderNode(t, personPaneHeading(mp))
-	if !strings.Contains(head, `class="side-heading person-pane-head"`) || !strings.Contains(head, `data-action="person-back"`) || !strings.Contains(head, `data-action="close-person"`) {
+	if !strings.Contains(head, `class="side-heading chat-panel-head person-pane-head"`) || !strings.Contains(head, `data-action="person-back"`) || !strings.Contains(head, `data-action="close-person"`) {
 		t.Errorf("the person pane header: %s", head)
 	}
 	if strings.Index(head, `data-action="person-back"`) > strings.Index(head, "person-pane-heading") || strings.Index(head, "person-pane-heading") > strings.Index(head, `data-action="close-person"`) {
 		t.Errorf("Back, title, Close are out of order: %s", head)
 	}
 	panel := chatux021Details(t, m, handlers{})
-	if !strings.Contains(panel, `class="side-heading"`) || !strings.Contains(panel, `data-action="close-details"`) {
+	if !strings.Contains(panel, `class="side-heading chat-panel-head"`) || !strings.Contains(panel, `data-action="close-details"`) {
 		t.Errorf("the details header: %s", panel)
 	}
 }

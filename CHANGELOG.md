@@ -1,3 +1,27 @@
+## 2026-10-21 — UI validation corrections (#77)
+
+- UXAUDIT-018 now checks visible text in the Insights summary, so shared stylesheet selectors do not count as page copy; a regression still rejects unsupported visible wording. The stylesheet class inventory also ignores selectors inside `:not(...)`, with a focused regression for excluded classes. UXBLIND-031/109 expectations now match the published-workflow catalog guidance and do not infer a named promotion configuration from publication status. Focused UXAUDIT-018 and UXBLIND-031/070/109 rendered tests and the stylesheet-class regressions pass. No planning TODO changed; the named promotion configuration remains unproven.
+
+## 2026-10-21 — workspace refusal recovery (#56)
+
+- Generic workspace 403 pages now offer a localized Home action while agent-operations refusals retain their Agents recovery link. The focused regression renders en-US, de-DE and Arabic forbidden pages and verifies both recovery actions; a fresh browser retest against the current build remains pending.
+
+## 2026-10-21 — reproducible time-clock kiosk build
+
+- #69 adds an artifact-only build helper, usage documentation and Node fake-runner tests. The fixtures verify the Wasm build arguments, toolchain-matched `wasm_exec.js`, refusal when the shim is missing, and preservation of prior outputs after a failed build. The real helper build produced a Wasm binary with the expected magic header and copied a shim matching the selected Go toolchain hash. Browser acceptance remains pending.
+
+## 2026-10-21 — Linux race-policy selection
+
+- Race-policy checks now select Go files using the Linux/amd64 CI race build context, including cgo and the `race` tag, so JS/WASM-only concurrency is not treated as Linux race coverage. Focused policy tests and the 530-package policy scan pass; no `go test -race` run is claimed.
+
+## 2026-10-21 — time-clock kiosk host classification
+
+- The time-clock browser host now lives under `tools/uxqual/cmd/timeclockwasm`, keeping browser-only WASM code in UX tooling instead of a production command boundary. Native invocations now fail with browser-build guidance; the three browser-specific source files remain byte-identical to their pre-move snapshot. The architecture golden was regenerated from the current package tree; its prior dirty baseline already contained unrelated package-list drift. Focused archdoc, WEB-031, JS/WASM build, and decomposition checks pass. Five deferred roots needed to satisfy the layout policy are recorded in #70; no live kiosk or TCLOCK-016 completion is claimed.
+
+## 2026-10-21 — repository layout ownership
+
+- ARCH-GO-001 now declares five existing internal roots with explicit owner, layer and deferred architecture phase. The focused layout and architecture-document tests pass; no TODO status was changed.
+
 ## 2026-09-30 — grouped implementation commits
 
 - Land the eight completed agent foundation TODOs: AGENT2-003, AGENT2-004, AGENT2-007, AGENT2-010, AGENT2-012, AGENT2-015, AGENT2-021 and AGENT2-026. Their existing evidence remains in planning/todos.md. A fresh run passes delegation, skill registry, connections, task plans, budgets, security, egress, SchemaFlux, OpenAI adapter and task-system packages.
@@ -3627,3 +3651,25 @@ operation` had no rate, quota, concurrency or throttle concept at all, and
 ## 2026-09-24 (traceability audit corrections)
 
 - Reopened 15 checked records with absent Browser/served or named matrix proof. Corrected DATA-022, REV-033-01, REV-047-01 and UXSCAN-011 to the exact existing test declarations, and normalized primary evidence identifiers for remaining checked test records.
+
+## 2026-10-21 — focused time-clock gate regressions
+
+- #71 makes the CHATUX-026 arrival-order fixture use a current, second-truncated UTC clock; its focused Go test passes. The recipient and expiry focused UI tests pass as well. Browser and full CHATUX-026 acceptance remain pending.
+- #73 adds TCLOCK-016 tests for HTTP client methods, optional APIs, state projection, expiry, storage keys, formatting and UTC timestamps. The focused package coverage run measures 79.8% (above the 70% floor), and `go vet ./internal/timeclockapp` passes. No TODO status changed.
+
+## 2026-10-21 — time-clock demo assets
+
+- #74 makes the existing Ironridge logo files visible to the tracked embed source through two narrow ignore exceptions. The assets are unchanged; the `internal/data/demoworkforce` package compiles. No product behavior or live kiosk acceptance is claimed.
+
+## 2026-10-21 — WASM bundle headroom
+
+- #72 compacts selected package-initialized localized message tables using deterministic gzip with fresh-map decoding. The real builder and focused generated-source, determinism, TLS-stub and headroom tests pass: 61,728,798-byte WASM and 12,212,423-byte gzip, above the required raw and compressed safety margins. A repeat-call benchmark showed a material cost, so compression is limited to package initialization. The bundle is not live-browser validated.
+- #75 makes `TestClientBundleHeadroom` fail when the builder returns an error even if output files remain measurable. The focused current build passes; an artifact-only post-manifest error injection exits nonzero and preserves both size diagnostics. The failure-path log is `.artifacts/lanes/qa-cycle-20261021/client-bundle-headroom-sentinel/sentinel-test.log`.
+
+## 2026-10-21 — scoped architecture, coverage and test corrections (#80–85)
+
+- #80 adds exact secondary-consumer ownership mappings; the full firewall suite remains under validation.
+- #81 corrects the test-coverage table parser to accept Prettier-aligned tables without accepting malformed columns or separators. The nested inventory is accepted; the root inventory still has 0 of 6,480 required rows and remains incomplete.
+- #82 adjusts the preferences layout for narrow RTL rows. Its focused Go selector passes and the offline 16-case geometry matrix passes; live browser verification remains pending.
+- #83 moves provider selection behind the agentmodel boundary. `go test -count=1 ./internal/agentmodel` passes. The chatload API test is still blocked before test execution because its required shared PostgreSQL endpoint at 127.0.0.1:18540 is not configured; the existing seeded database was not reused.
+- #84 scopes seeded classification equality to public posts while separately checking private classification. #85 verifies the final document-index queue summary rather than an intermediate progress line. The focused migration selector passes (13.515s); no TODO closure or full-gate claim is made.

@@ -13,7 +13,7 @@ async function signInAsWalt(page) {
 
 async function waitForHydration(page) {
   await page.waitForFunction(
-    () => performance.getEntriesByName("hcm:hydrated").length > 0,
+    () => window.performance.getEntriesByName("hcm:hydrated").length > 0,
     null,
     { timeout: 30_000 },
   );
@@ -30,11 +30,15 @@ async function openPopover(root) {
     // GoWebComponents installs OnClick through the DOM `onclick` property,
     // not addEventListener. Wait for that actual property before clicking;
     // otherwise a visible SSR button can race hydration's event binding.
-    await trigger.page().waitForFunction(
-      () => typeof document.querySelector("#action-launcher-trigger")?.onclick === "function",
-      null,
-      { timeout: 10_000 },
-    );
+    await trigger
+      .page()
+      .waitForFunction(
+        () =>
+          typeof document.querySelector("#action-launcher-trigger")?.onclick ===
+          "function",
+        null,
+        { timeout: 10_000 },
+      );
     await trigger.evaluate((element) => {
       window.__uxblind057TriggerClicks = 0;
       window.__uxblind057ClickTimeline = [];
@@ -42,10 +46,12 @@ async function openPopover(root) {
       const record = (phase) =>
         window.__uxblind057ClickTimeline.push({
           phase,
-          at: performance.now(),
+          at: window.performance.now(),
           className: root.className,
           expanded: element.getAttribute("aria-expanded"),
-          dialogHidden: root.querySelector("#action-launcher-dialog")?.hasAttribute("hidden"),
+          dialogHidden: root
+            .querySelector("#action-launcher-dialog")
+            ?.hasAttribute("hidden"),
         });
       const managedClick = element.onclick;
       window.__uxblind057ManagedClickType = typeof managedClick;
@@ -66,9 +72,13 @@ async function openPopover(root) {
       const observeTrigger = (event, phase) => {
         if (event.target.closest?.("#action-launcher-trigger")) record(phase);
       };
-      document.addEventListener("click", (event) => observeTrigger(event, "capture"), true);
+      document.addEventListener(
+        "click",
+        (event) => observeTrigger(event, "capture"),
+        true,
+      );
       document.addEventListener("click", (event) => observeTrigger(event, "bubble"));
-      new MutationObserver(() => record("mutation")).observe(root, {
+      new window.MutationObserver(() => record("mutation")).observe(root, {
         attributes: true,
         subtree: true,
         attributeFilter: ["class", "aria-expanded", "hidden"],
@@ -79,35 +89,37 @@ async function openPopover(root) {
     try {
       await expect
         .poll(async () =>
-        JSON.stringify(
-          await root.evaluate((element) => ({
-            className: element.className,
-            clicks: window.__uxblind057TriggerClicks,
-            expanded: element
-              .querySelector("#action-launcher-trigger")
-              ?.getAttribute("aria-expanded"),
-            dialogHidden: element
-              .querySelector("#action-launcher-dialog")
-              ?.hasAttribute("hidden"),
-            errors: window.__uxblind057Errors,
-            consoleErrors: window.__uxblind057ConsoleErrors,
-            runtimePanics: window.__uxblind057RuntimePanics,
-            clickTimeline: window.__uxblind057ClickTimeline,
-            managedClickType: window.__uxblind057ManagedClickType,
-            managedClickError: window.__uxblind057ManagedClickError,
-            bootMarks: performance
-              .getEntriesByType("mark")
-              .filter((entry) => entry.name.startsWith("hcm:"))
-              .map((entry) => ({ name: entry.name, at: entry.startTime })),
-            listenerBindings: window.__uxblind057ListenerBindings,
-          })),
-        ),
+          JSON.stringify(
+            await root.evaluate((element) => ({
+              className: element.className,
+              clicks: window.__uxblind057TriggerClicks,
+              expanded: element
+                .querySelector("#action-launcher-trigger")
+                ?.getAttribute("aria-expanded"),
+              dialogHidden: element
+                .querySelector("#action-launcher-dialog")
+                ?.hasAttribute("hidden"),
+              errors: window.__uxblind057Errors,
+              consoleErrors: window.__uxblind057ConsoleErrors,
+              runtimePanics: window.__uxblind057RuntimePanics,
+              clickTimeline: window.__uxblind057ClickTimeline,
+              managedClickType: window.__uxblind057ManagedClickType,
+              managedClickError: window.__uxblind057ManagedClickError,
+              bootMarks: window.performance
+                .getEntriesByType("mark")
+                .filter((entry) => entry.name.startsWith("hcm:"))
+                .map((entry) => ({ name: entry.name, at: entry.startTime })),
+              listenerBindings: window.__uxblind057ListenerBindings,
+            })),
+          ),
         )
         .toContain("action-launcher-open");
     } catch (error) {
       const firstClick = await root.evaluate((element) => ({
         className: element.className,
-        expanded: element.querySelector("#action-launcher-trigger")?.getAttribute("aria-expanded"),
+        expanded: element
+          .querySelector("#action-launcher-trigger")
+          ?.getAttribute("aria-expanded"),
       }));
       if (!firstClick.className.includes("action-launcher-open")) {
         await trigger.click();
@@ -115,10 +127,14 @@ async function openPopover(root) {
       }
       const secondClickDiagnostic = await root.evaluate((element) => ({
         className: element.className,
-        expanded: element.querySelector("#action-launcher-trigger")?.getAttribute("aria-expanded"),
+        expanded: element
+          .querySelector("#action-launcher-trigger")
+          ?.getAttribute("aria-expanded"),
         clickTimeline: window.__uxblind057ClickTimeline,
       }));
-      throw new Error(`${error.message}; second-click diagnostic=${JSON.stringify(secondClickDiagnostic)}`);
+      throw new Error(
+        `${error.message}; second-click diagnostic=${JSON.stringify(secondClickDiagnostic)}`,
+      );
     }
     const diagnostic = await root.evaluate((element) => ({
       clicks: window.__uxblind057TriggerClicks,
@@ -157,16 +173,18 @@ test.describe("UXBLIND-057 transient popovers", () => {
       window.__uxblind057ConsoleErrors = [];
       window.__uxblind057RuntimePanics = [];
       window.__uxblind057ListenerBindings = [];
-      const addEventListener = EventTarget.prototype.addEventListener;
-      EventTarget.prototype.addEventListener = function (type, listener, options) {
-        if (
-          type === "click" &&
-          this === document
-        ) {
+      const addEventListener = window.EventTarget.prototype.addEventListener;
+      window.EventTarget.prototype.addEventListener = function (
+        type,
+        listener,
+        options,
+      ) {
+        if (type === "click" && this === document) {
           window.__uxblind057ListenerBindings.push({
             target: "document",
-            at: performance.now(),
-            capture: typeof options === "boolean" ? options : options?.capture ?? false,
+            at: window.performance.now(),
+            capture:
+              typeof options === "boolean" ? options : (options?.capture ?? false),
           });
         }
         return addEventListener.call(this, type, listener, options);
@@ -180,10 +198,13 @@ test.describe("UXBLIND-057 transient popovers", () => {
       window.addEventListener("gwc:runtime-panic", (event) => {
         window.__uxblind057RuntimePanics.push(event.detail);
       });
-      const originalConsoleError = console.error.bind(console);
-      console.error = (...args) => {
+      const originalConsoleError = window.console.error.bind(window.console);
+      window.console.error = (...args) => {
         window.__uxblind057ConsoleErrors.push(
-          args.map((value) => value?.stack || String(value)).join(" ").slice(0, 1000),
+          args
+            .map((value) => value?.stack || String(value))
+            .join(" ")
+            .slice(0, 1000),
         );
         originalConsoleError(...args);
       };

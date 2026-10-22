@@ -19,6 +19,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentconsolestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentcoststore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentdelegationstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/custody"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/lease"
@@ -280,9 +281,10 @@ func composeAgentAccess(in agentServedAssemblyInput, logger agentLogger) (*agent
 		return nil, fmt.Errorf("agent grant store: %w", err)
 	}
 	admins, notices := newAgentRequestAdmins(), newAgentCostNotices()
+	notices.now = in.Now
 	owners := agentAccessAgentOwners{store: costStore, admins: admins}
 	// A day is midnight to midnight UTC until a tenant carries a time zone of its
-	// own; "It resets at 00:00." is then true for everyone.
+	// own; "It resets at 00:00 UTC." is then true for everyone.
 	gate, err := agentcost.NewGate(owners, notices, time.UTC, in.Now)
 	if err != nil {
 		return nil, err
@@ -326,11 +328,13 @@ func composeAgentAccess(in agentServedAssemblyInput, logger agentLogger) (*agent
 		return nil, err
 	}
 	var extender AgentBudgetExtender
+	var roles roleaccess.Store
 	if in.Cell != nil {
 		extender, _ = in.Cell.AgentController.(AgentBudgetExtender)
+		roles = in.Cell.RoleAccess
 	}
 	return &agentAccessServices{
-		HTTP: &AgentAccessHTTP{Users: users, Console: console, Roles: in.Cell.RoleAccess, Admins: admins, Meter: meter, Owners: owners, Notices: notices, Zone: time.UTC, Extender: extender, Now: in.Now},
+		HTTP: &AgentAccessHTTP{Users: users, Console: console, Roles: roles, Admins: admins, Meter: meter, Owners: owners, Notices: notices, Zone: time.UTC, Extender: extender, Now: in.Now},
 		// A model call is expected to cost a cent or two; the figure only decides
 		// whether a call that would pass a money limit is made at all.
 		Gate: &PersonaRunCostGate{Meter: meter, Owners: costStore, EstimateMicros: 10_000, Now: in.Now, Logger: logger},

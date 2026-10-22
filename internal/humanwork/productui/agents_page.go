@@ -255,8 +255,7 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 		actions = append(actions, AgentPageNavigation(view, AgentPageAsk))
 	}
 	children = append(children,
-		agentsViewTabs(view, locale, "ask"),
-		html.P(html.Props{Class: "agents-page-subtitle"}, ui.Text(locale.Text("agents.page_subtitle"))),
+		agentsIntroLine(view, locale),
 	)
 	main := []ui.Node{tagAgentComposerForView(view, locale, snapshot)}
 	if len(snapshot.Threads) > 0 {
@@ -626,13 +625,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 	if !snapshot.StartAvailable {
 		children = append(children, html.P(html.Props{ID: "agents-composer-help", Class: "muted", Raw: map[string]any{"data-start-unavailable-reason": snapshot.StartUnavailableReason}}, ui.Text(helper)))
 	}
-	children = append(children,
-		html.P(html.Props{Class: "agents-composer-actions-help muted"}, ui.Text(locale.Text("agents.actions_help"))),
-		html.Div(html.Props{Class: "agents-composer-actions"},
-			html.Button(html.Props{Class: "button primary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "quick-answer"}}, ui.Text(locale.Text("agents.quick_answer"))),
-			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: !snapshot.StartAvailable, Raw: map[string]any{"data-agent-action": "long-task"}}, ui.Text(locale.Text("agents.start_task"))),
-		),
-	)
+	children = append(children, agentUX077ComposerActions(locale, snapshot.StartAvailable))
 	return html.Form(html.Props{Class: "agents-composer", Raw: map[string]any{"aria-label": locale.Text("agents.composer")}}, children...)
 }
 

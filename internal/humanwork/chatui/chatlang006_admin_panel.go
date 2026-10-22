@@ -85,6 +85,13 @@ func translationAdminPanel(props translationAdminProps) ui.Node {
 		}
 		send("glossary/remove", map[string]string{"id": id}, "glossary")
 	})
+	resolveReport := ui.UseEvent(func(event ui.Event) {
+		id, resolution := translationAdminReadReport(event)
+		if id == "" {
+			return
+		}
+		send("report/resolve", map[string]string{"id": id, "state": resolution}, "report")
+	})
 	// Try again reads the settings once more, keeping what is on show meanwhile.
 	retry := ui.UseEvent(func() {
 		current := state.Get()
@@ -94,6 +101,7 @@ func translationAdminPanel(props translationAdminProps) ui.Node {
 	})
 	model := state.Get()
 	model.SaveWorkspace, model.SaveChannel, model.AddTerm, model.RemoveTerm, model.Retry = saveWorkspace, saveChannel, addTerm, removeTerm, retry
+	model.ResolveReport = resolveReport
 	if props.Mode == translationModeChannel {
 		return translationChannelRow(model, props.Text, props.Section)
 	}

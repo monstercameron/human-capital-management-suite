@@ -358,6 +358,7 @@ func chatux005Details(m Model, h handlers) ui.Node {
 		// moved to the end of the panel when it mounts.
 		html.Div(html.Props{Class: "details-slot"}, chatux027Reading(m, h)),
 		chatux030Gate(m),
+		chatgate014Labels(m, h),
 		chatux005Members(m, h, c),
 		keyed(chatux005Manage(m, h, c, parts), "chatux005-manage-"),
 	)

@@ -27,8 +27,12 @@ const (
 var ModKinds = []string{ModKindWords, ModKindPattern, ModKindSensitive, ModKindLinks, ModKindAttachment}
 
 // ModActions is the order of the editor's "What happens" choices; the built-in
-// lists offer the first three.
-var ModActions = []string{"block", "mask", "flag", "notify"}
+// lists offer the first four (ModBuiltinActions).
+var ModActions = []string{"block", "mask", "flag", "reword", "notify"}
+
+// ModBuiltinActions is what a shipped list may be set to: everything but a
+// notice, which needs a destination a list does not have.
+var ModBuiltinActions = []string{"block", "mask", "flag", "reword"}
 
 // ModDetectors is the order of the sensitive-data choices.
 var ModDetectors = []string{"card", "national-id", "access-key", "secret"}

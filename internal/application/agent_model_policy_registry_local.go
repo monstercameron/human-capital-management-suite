@@ -69,7 +69,7 @@ func LocalPersonaOpenAIPolicyRecords() []agentmodelpolicystore.Record {
 	policySuiteRaw, _ := json.Marshal(policySuite)
 	assistantSuite := agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID)
 	assistantSuiteRaw, _ := json.Marshal(assistantSuite)
-	return []agentmodelpolicystore.Record{
+	records := []agentmodelpolicystore.Record{
 		{Kind: agentmodelpolicystore.ModelPolicy, Reference: model, Content: raw},
 		{Kind: agentmodelpolicystore.OutputSchema, Reference: agentmanifest.Reference{ID: PersonaChatReplySchema, Version: 1, SchemaVersion: 1, Digest: PersonaChatReplySchemaDigest}, Content: []byte(PersonaChatReplyJSONSchema)},
 		{Kind: agentmodelpolicystore.EvaluationSuite, Reference: agentmanifest.Reference{ID: policySuite.ID, Version: 1, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(policySuite)}, Content: policySuiteRaw},
@@ -82,6 +82,11 @@ func LocalPersonaOpenAIPolicyRecords() []agentmodelpolicystore.Record {
 		AssistantWorkspaceEvaluationRecordV3(),
 		AssistantWorkspaceEvaluationRecord(),
 	}
+	// Birthday Buddy, Support Desk, Task Catcher and Reminder pin their own
+	// suites (and the support plan and ambient proposal schemas). They follow the
+	// records above so the positions the selection reads do not move.
+	records = append(records, AgentUXDemoPolicyRecords()...)
+	return append(records, AgentUXAmbientPolicyRecords()...)
 }
 
 // LocalPersonaOpenAIPolicySelection selects the newest Assistant suite (v4);

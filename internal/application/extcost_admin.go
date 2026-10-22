@@ -49,7 +49,7 @@ func ExtcostFilter(q url.Values) (extcost.Filter, error) {
 	return f, nil
 }
 func (s *ExtcostAdminService) Page(ctx context.Context, v productui.View, tenant, actor string, f extcost.Filter) (productui.ExtcostPageProps, error) {
-	p := productui.ExtcostPageProps{View: v, Filter: f}
+	p := productui.ExtcostPageProps{Locale: v.Locale, Filter: f}
 	if s == nil || s.Port == nil {
 		p.Error = true
 		return p, extcost.ErrInvalid
@@ -98,7 +98,7 @@ func (h *ExtcostAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	f, err := ExtcostFilter(r.URL.Query())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		h.Render(w, r, productui.ExtcostPageProps{View: view, Allowed: true, Error: true})
+		h.Render(w, r, productui.ExtcostPageProps{Locale: view.Locale, Allowed: true, Error: true})
 		return
 	}
 	export := r.URL.Query().Get("export") == "csv"
@@ -118,7 +118,7 @@ func (h *ExtcostAdminHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if export {
 		if p.Report.Truncated {
 			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			h.Render(w, r, productui.ExtcostPageProps{View: view, Allowed: true, Error: true})
+			h.Render(w, r, productui.ExtcostPageProps{Locale: view.Locale, Allowed: true, Error: true})
 			return
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")

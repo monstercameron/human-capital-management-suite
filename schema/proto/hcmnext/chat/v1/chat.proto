@@ -93,6 +93,44 @@ message Conversation {
   // ignored on a request message: only the server computes them.
   uint32 member_count = 9;
   google.protobuf.Timestamp last_activity_at = 10;
+  // peer names the other side of a direct conversation, so the sidebar row,
+  // the header and the first message can be drawn with a name and a picture in
+  // the same answer that lists the conversation. For a conversation with one
+  // person it is that person; for a conversation with an agent it is the
+  // agent; for a person's own notes space it is the caller. It is unset for any
+  // other kind and when the server cannot say who the peer is, and it is
+  // ignored on a request message: only the server derives it.
+  Identity peer = 11;
+}
+
+// Identity is how an answer names a person or an agent beside the id it
+// carries, so a row is drawn with its name and picture in one round trip. It
+// only describes: it grants nothing, and the directory reads a client makes
+// later refine it rather than replace it. A person's display_name follows the
+// chat directory's own rule (the preferred name completed with the legal
+// surname). Empty fields mean the server cannot name that subject yet, and the
+// client then waits for the directory instead of printing the id.
+message Identity {
+  string subject_id = 1;
+  string display_name = 2;
+  // avatar_ref is the same-origin address of a person's profile photograph. It
+  // is empty for an agent, and for a person who has no photograph.
+  string avatar_ref = 3;
+  bool agent = 4;
+  // agent_id and agent_icon describe an agent and are unset for a person.
+  string agent_id = 5;
+  AgentIcon agent_icon = 6;
+  int64 agent_icon_revision = 7;
+}
+
+// AgentIcon is an agent's stored icon: closed vocabulary identifiers only,
+// never source text, the same value the agent directory carries.
+message AgentIcon {
+  string glyph = 1;
+  string shape = 2;
+  string foreground = 3;
+  string background = 4;
+  uint32 variation = 5;
 }
 
 message MemberRef {
@@ -125,6 +163,18 @@ message Post {
   repeated Reference references = 11;
   SourceAttribution source_attribution = 12;
   string author_home_tenant_id = 13;
+  // author names author_id with the post, so a message is drawn with its
+  // author's name and picture in the answer that carries it. It is set on a
+  // read when the server can name the author, and ignored on a request.
+  Identity author = 14;
+  // audience_segments names the segments of a channel's gate a message is
+  // addressed to (CHATGATE-011), as the reader may see it; empty for a message
+  // for everyone. audience_restricted says only those segments' members at the
+  // time of sending (and the author) can read it, and audience_people how many
+  // they were. Set on a read and ignored on a request.
+  repeated string audience_segments = 15;
+  bool audience_restricted = 16;
+  uint32 audience_people = 17;
 }
 
 message Reaction {
@@ -196,7 +246,10 @@ message AddMembershipResponse { Membership membership = 1; }
 message RemoveMembershipRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string subject_id = 4; uint64 expected_revision = 5; string home_tenant_id = 6; }
 message RemoveMembershipResponse { Membership membership = 1; }
 
-message SendPostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string body = 4; string parent_id = 5; string idempotency_key = 6; repeated Reference references = 7; SourceAttribution source_attribution = 8 [deprecated = true]; }
+// audience_segments addresses the message to segments of the channel's gate and
+// audience_restricted makes it readable by their members alone (CHATGATE-011);
+// the server decides whether the sender may and refuses otherwise.
+message SendPostRequest { Principal principal = 1 [deprecated = true]; string tenant_id = 2; string conversation_id = 3; string body = 4; string parent_id = 5; string idempotency_key = 6; repeated Reference references = 7; SourceAttribution source_attribution = 8 [deprecated = true]; repeated string audience_segments = 9; bool audience_restricted = 10; }
 message SendPostResponse { Post post = 1; }
 // descending pages backward instead of forward, so a client can open a
 // conversation at its newest posts and walk older. before_sequence is the

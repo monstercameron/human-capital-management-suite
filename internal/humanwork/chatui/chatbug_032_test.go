@@ -42,7 +42,7 @@ func TestTodo_CHATBUG_032_Browser(t *testing.T) {
 			}
 			parts[class] = chatbug030Text(found[0])
 		}
-		if parts["chat-embed-label"] != m.t(KeyDocEmbedTitle) || parts["chat-embed-source"] != "2026 holiday guide" || parts["chat-embed-byline"] != "Walt Brennan · Oct 1" {
+		if parts["chat-embed-label"] != m.t(KeyDocEmbedTitle) || parts["chat-embed-source"] != "2026 holiday guide" || parts["chat-embed-byline"] != chatux031DocSourceCopy[chatEmojiLocale(locale)]+" · Oct 1" {
 			t.Fatalf("%s: parts %q", locale, parts)
 		}
 		// Whatever flattens the card (copy, a reader) still sees three words groups

@@ -8,6 +8,13 @@ const chattoneCopyTable = "\nstyle\u0000Style\u0000Stil\u0000الأسلوب\u000
 	"\nfriendly_help\u0000Rewrite with warm, positive wording.\u0000Warm und positiv umformulieren.\u0000أعد الصياغة بلغة ودودة وإيجابية.\u0000" +
 	"\nconcise_help\u0000Rewrite shorter and directly, keeping the same content.\u0000Kürzer und direkt umformulieren, mit gleichem Inhalt.\u0000أعد الصياغة باختصار ووضوح مع الحفاظ على المحتوى.\u0000" +
 	"\nsuggested\u0000Suggested\u0000Empfohlen\u0000مقترح\u0000" +
+	"\nrewrite\u0000Rewrite\u0000Umformulieren\u0000إعادة الصياغة\u0000" +
+	"\nrewrite_tip\u0000Rewrite your draft in another style\u0000Entwurf in einem anderen Stil umformulieren\u0000أعد صياغة مسودتك بأسلوب آخر\u0000" +
+	"\nrewriting\u0000Rewriting…\u0000Wird umformuliert…\u0000جارٍ إعادة الصياغة…\u0000" +
+	"\nmenu\u0000Rewrite your draft as\u0000Entwurf umformulieren als\u0000أعد صياغة مسودتك بأسلوب\u0000" +
+	"\nrewritten\u0000Rewritten:\u0000Umformuliert:\u0000أُعيدت صياغتها:\u0000" +
+	"\nedited_tag\u0000(edited)\u0000(bearbeitet)\u0000(معدَّلة)\u0000" +
+	"\nundo_chip\u0000Undo\u0000Rückgängig\u0000تراجع\u0000" +
 	"\nnotice\u0000Your draft is sent to the model only when you choose a style. Review and edit the preview before sending.\u0000Ihr Entwurf wird erst an das Modell gesendet, wenn Sie einen Stil wählen. Prüfen und bearbeiten Sie die Vorschau vor dem Senden.\u0000تُرسل مسودتك إلى النموذج فقط عند اختيار أسلوب. راجع المعاينة وعدّلها قبل الإرسال.\u0000" +
 	"\nworking\u0000Rewriting… Keep typing; your changes will be kept.\u0000Wird umformuliert… Sie können weiterschreiben; Änderungen bleiben erhalten.\u0000جارٍ إعادة الصياغة… يمكنك متابعة الكتابة؛ ستبقى تغييراتك محفوظة.\u0000" +
 	"\nnote_not_qualified\u0000Writing styles are not available yet: no model has passed the quality check for them in this workspace.\u0000Schreibstile sind noch nicht verfügbar: Für diesen Arbeitsbereich hat noch kein Modell die Qualitätsprüfung bestanden.\u0000أساليب الكتابة غير متاحة بعد: لم ينجح أي نموذج في فحص الجودة لمساحة العمل هذه.\u0000" +

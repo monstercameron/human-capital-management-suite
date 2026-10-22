@@ -23,7 +23,7 @@ package chatui
 // high; both are 24 now, and a switch's thumb keeps its place in the middle of
 // the taller track.
 const agentux063StateStyles = `.chat-workspace.chat-workspace :focus-visible:not(.composer-input):not(.chip-input){outline-width:2px;outline-color:var(--hcm-color-focus)}` +
-	`.chat-workspace :is(button,a,summary,[role="button"],[role="tab"],[role="menuitem"])[aria-busy="true"]{cursor:progress;opacity:.7}` +
+	`.chat-workspace :is(button,a,summary)[aria-busy="true"],.chat-workspace :is([role="button"],[role="tab"],[role="menuitem"])[aria-busy="true"]{cursor:progress;opacity:.7}` +
 	`:root .chat-workspace :is(.switch,.chatmod-switch-track){block-size:24px;min-block-size:24px}` +
 	`:root .chat-workspace :is(.switch,.chatmod-switch-track)::after{inset-block-start:3px}` +
 	`:root[data-hcm-color-mode="dark"] .chat-workspace input.switch:not(:checked){block-size:24px}` +

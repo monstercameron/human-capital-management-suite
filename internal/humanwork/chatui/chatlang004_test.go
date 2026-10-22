@@ -143,7 +143,7 @@ func TestTodo_CHATLANG_004_Composer(t *testing.T) {
 	}
 	for locale, want := range map[string]string{
 		"de-DE": "3 Personen lesen dies auf Deutsch",
-		"ar":    "سيقرأ 3 أشخاص هذه الرسالة بالألمانية",
+		"ar":    "سيقرأ ٣ أشخاص هذه الرسالة بالألمانية",
 	} {
 		m.Locale = locale
 		if got := renderNode(t, chatlangComposerLine(m)); !strings.Contains(got, want) {

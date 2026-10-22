@@ -22,7 +22,7 @@ func chatbug056Model(locale string) Model {
 func TestTodo_CHATBUG_056(t *testing.T) {
 	m := chatbug056Model("en-US")
 	registry := defaultComposerCommands()
-	if names := composerCommandNames(registry.menu(m, "")); names != "poll,todo,giphy,location" {
+	if names := composerCommandNames(registry.menu(m, "")); names != "poll,todo,giphy,location,ask" {
 		t.Fatalf("the list offers %s", names)
 	}
 	for query, want := range map[string]string{"p": "poll,giphy", "po": "poll", "t": "todo,location", "o": "poll,todo,location", "gi": "giphy", "x": ""} {
@@ -31,7 +31,7 @@ func TestTodo_CHATBUG_056(t *testing.T) {
 		}
 	}
 	markup := composerToolsMarkup(t, m, localUI{commandMenu: composerCommandMenu{Target: "chat-composer", Open: true}})
-	for _, want := range []string{">/poll<", "Ask a question and let people vote", ">/todo<", "Post a to-do list people can tick off", ">/giphy<", "Search for a GIF and post it", ">/location<", "Share your location",
+	for _, want := range []string{">/poll<", "Ask a question and let people vote", ">/todo<", "Post a to-do list people can tick off", ">/giphy<", "Search for a GIF and post it", ">/location<", "Share your location", ">/ask<", "Ask an agent in this conversation",
 		"↑↓ to move", "Enter or Tab to choose", "Esc to close"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("the open list lacks %q", want)
@@ -74,7 +74,7 @@ func TestTodo_CHATBUG_056(t *testing.T) {
 				t.Errorf("%s: the list shows %q", locale, raw)
 			}
 		}
-		if strings.Count(translated, `role="option"`) != 4 {
+		if strings.Count(translated, `role="option"`) != 5 {
 			t.Errorf("%s: %d commands listed", locale, strings.Count(translated, `role="option"`))
 		}
 	}

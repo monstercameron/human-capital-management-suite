@@ -49,6 +49,10 @@ type sidebarLayout struct {
 // sidebarPrefsMax bounds each personal-preference string in the sidebar layout.
 const sidebarPrefsMax = 16 << 10
 
+// sidebarDocumentMax bounds the whole layout document, drafts and filters
+// included. The per-field limits leave draft text and filter values open.
+const sidebarDocumentMax = 1 << 20
+
 // draftHosts ties each local composer key to one unambiguous room in the
 // sidebar. An ID used by different host tenants cannot identify a safe draft.
 func (x sidebarLayout) draftHosts() map[string]string {
@@ -233,7 +237,7 @@ func (s *Service) PutSidebar(ctx context.Context, p chat.Principal, x Sidebar, e
 	if s == nil || s.Repo == nil || s.Conversations == nil {
 		return Sidebar{}, chat.ErrUnavailable
 	}
-	if p.TenantID == "" || p.SubjectID == "" || expected == 0 || !json.Valid(x.Layout) {
+	if p.TenantID == "" || p.SubjectID == "" || expected == 0 || len(x.Layout) > sidebarDocumentMax || !json.Valid(x.Layout) {
 		return Sidebar{}, chat.ErrInvalidArgument
 	}
 	var layout sidebarLayout

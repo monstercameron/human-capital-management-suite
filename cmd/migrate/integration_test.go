@@ -183,10 +183,19 @@ func TestTodo_SVC_013_Integration(t *testing.T) {
 		t.Fatalf("insert durable webhook receipt: %v", err)
 	}
 
+	// "down" rolls back one migration, the latest. Later migrations hold nothing
+	// that guards their rollback in this fresh schema, so they roll back one after
+	// the other until the receipt table's own guard refuses; the loop is bounded
+	// so a schema with no such guard fails here instead of unwinding for good.
 	var downOut bytes.Buffer
-	downErr := runMigrateCommand(ctx, "down", db.SQL, &downOut)
+	var downErr error
+	rolledBack := 0
+	for ; rolledBack < 200 && downErr == nil; rolledBack++ {
+		downOut.Reset()
+		downErr = runMigrateCommand(ctx, "down", db.SQL, &downOut)
+	}
 	if downErr == nil {
-		t.Fatalf("down succeeded with a durable webhook receipt; output = %q", downOut.String())
+		t.Fatalf("down succeeded %d times with a durable webhook receipt; last output = %q", rolledBack, downOut.String())
 	}
 	if !strings.Contains(downErr.Error(), "cannot remove durable provider webhook receipts") {
 		t.Fatalf("down error = %v, want the durable-receipt guard", downErr)

@@ -1,1 +1,55 @@
-{"v":1,"emoji":"17.0","cldr":"not stated in the source files (see the SHA-256 of each file)","generator":"tools/emojidata 1","groups":[{"id":"smileys-emotion","name":"Smileys \u0026 Emotion","e":["😀","😂","😊","😍","🤔","😴","😎","😢","💔","❤️","💯"]},{"id":"people-body","name":"People \u0026 Body","e":["👋","👍","👏","🙏","💪","👀","🧑‍💻","👨‍👩‍👧"],"v":{"0":"👋🏻 👋🏼 👋🏽 👋🏾 👋🏿","1":"👍🏻 👍🏼 👍🏽 👍🏾 👍🏿","2":"👏🏻 👏🏼 👏🏽 👏🏾 👏🏿","3":"🙏🏻 🙏🏼 🙏🏽 🙏🏾 🙏🏿","4":"💪🏻 💪🏼 💪🏽 💪🏾 💪🏿","6":"🧑🏻‍💻 🧑🏼‍💻 🧑🏽‍💻 🧑🏾‍💻 🧑🏿‍💻"}},{"id":"animals-nature","name":"Animals \u0026 Nature","e":["🐶","🐱","🐻","🌸","🌹","🌳"]},{"id":"food-drink","name":"Food \u0026 Drink","e":["🍎","🍕","☕","🍺"]},{"id":"travel-places","name":"Travel \u0026 Places","e":["🌍","🏠","🚗","✈️","☀️","⭐","🔥"]},{"id":"activities","name":"Activities","e":["🎉","🏆","⚽","🎮"]},{"id":"objects","name":"Objects","e":["📞","💻","💡","📅","📌","🔒","🔑"]},{"id":"symbols","name":"Symbols","e":["⚠️","✅","❌","#️⃣","1️⃣"]},{"id":"flags","name":"Flags","e":["🏁","🏳️","🇫🇷","🇩🇪","🇯🇵","🇺🇸"]}],"licence":"Unicode License v3; see emoji-LICENSE.txt","sources":{"annotations/ar.xml":"5c10dc5d2142ef36b07bd7fd13384f0bab4b23a4497f72f84d0722a4360a2dd9","annotations/de.xml":"0aeaaefa27a3ddc01ec7baa423b01e89914c8285343a88449bda00b7af4bd1c1","annotations/en.xml":"a4b12830ebc06271793656166bee377205fb657c8766098998ccf742699031e7","annotationsDerived/ar.xml":"27c09beec7cff0e0d867764e6abb5b7492c5e958c16a2565e5a355e65ab9b4aa","annotationsDerived/de.xml":"3c7d1c530a34bd50349747722c782a2ad749272609fe33f0a2758fbf6e6886b8","annotationsDerived/en.xml":"da7f2d390cb6b75e1102b94a94e705a6b6079fd4f798931a89f8774e2225712a","emoji-test.txt":"d7c49e9bbc15993db83b994ae3696b72bacceb5acc16a8f35c836052dde966b7"}}
+{
+  "v": 1,
+  "emoji": "17.0",
+  "cldr": "not stated in the source files (see the SHA-256 of each file)",
+  "generator": "tools/emojidata 1",
+  "groups": [
+    {
+      "id": "smileys-emotion",
+      "name": "Smileys \u0026 Emotion",
+      "e": ["😀", "😂", "😊", "😍", "🤔", "😴", "😎", "😢", "💔", "❤️", "💯"]
+    },
+    {
+      "id": "people-body",
+      "name": "People \u0026 Body",
+      "e": ["👋", "👍", "👏", "🙏", "💪", "👀", "🧑‍💻", "👨‍👩‍👧"],
+      "v": {
+        "0": "👋🏻 👋🏼 👋🏽 👋🏾 👋🏿",
+        "1": "👍🏻 👍🏼 👍🏽 👍🏾 👍🏿",
+        "2": "👏🏻 👏🏼 👏🏽 👏🏾 👏🏿",
+        "3": "🙏🏻 🙏🏼 🙏🏽 🙏🏾 🙏🏿",
+        "4": "💪🏻 💪🏼 💪🏽 💪🏾 💪🏿",
+        "6": "🧑🏻‍💻 🧑🏼‍💻 🧑🏽‍💻 🧑🏾‍💻 🧑🏿‍💻"
+      }
+    },
+    {
+      "id": "animals-nature",
+      "name": "Animals \u0026 Nature",
+      "e": ["🐶", "🐱", "🐻", "🌸", "🌹", "🌳"]
+    },
+    { "id": "food-drink", "name": "Food \u0026 Drink", "e": ["🍎", "🍕", "☕", "🍺"] },
+    {
+      "id": "travel-places",
+      "name": "Travel \u0026 Places",
+      "e": ["🌍", "🏠", "🚗", "✈️", "☀️", "⭐", "🔥"]
+    },
+    { "id": "activities", "name": "Activities", "e": ["🎉", "🏆", "⚽", "🎮"] },
+    {
+      "id": "objects",
+      "name": "Objects",
+      "e": ["📞", "💻", "💡", "📅", "📌", "🔒", "🔑"]
+    },
+    { "id": "symbols", "name": "Symbols", "e": ["⚠️", "✅", "❌", "#️⃣", "1️⃣"] },
+    { "id": "flags", "name": "Flags", "e": ["🏁", "🏳️", "🇫🇷", "🇩🇪", "🇯🇵", "🇺🇸"] }
+  ],
+  "licence": "Unicode License v3; see emoji-LICENSE.txt",
+  "sources": {
+    "annotations/ar.xml": "5c10dc5d2142ef36b07bd7fd13384f0bab4b23a4497f72f84d0722a4360a2dd9",
+    "annotations/de.xml": "0aeaaefa27a3ddc01ec7baa423b01e89914c8285343a88449bda00b7af4bd1c1",
+    "annotations/en.xml": "a4b12830ebc06271793656166bee377205fb657c8766098998ccf742699031e7",
+    "annotationsDerived/ar.xml": "27c09beec7cff0e0d867764e6abb5b7492c5e958c16a2565e5a355e65ab9b4aa",
+    "annotationsDerived/de.xml": "3c7d1c530a34bd50349747722c782a2ad749272609fe33f0a2758fbf6e6886b8",
+    "annotationsDerived/en.xml": "da7f2d390cb6b75e1102b94a94e705a6b6079fd4f798931a89f8774e2225712a",
+    "emoji-test.txt": "d7c49e9bbc15993db83b994ae3696b72bacceb5acc16a8f35c836052dde966b7"
+  }
+}

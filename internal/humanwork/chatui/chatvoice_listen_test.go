@@ -32,8 +32,8 @@ func TestTodo_CHATVOICE_006_Browser(t *testing.T) {
 	} {
 		for _, msg := range []Message{listenTypedMessage, listenAgentMessage} {
 			markup := render(t, listenModel(features, c.locale, msg.ID, msg))
-			if strings.Count(markup, `data-chatlisten="start"`) != 2 {
-				t.Fatalf("%s %s: want the action bar icon and the menu item, found %d", c.locale, msg.ID, strings.Count(markup, `data-chatlisten="start"`))
+			if strings.Count(markup, `data-chatlisten="start"`) != 1 {
+				t.Fatalf("%s %s: want the menu item only (the bar holds four other actions), found %d", c.locale, msg.ID, strings.Count(markup, `data-chatlisten="start"`))
 			}
 			label := c.typedLabel
 			if msg.PersonaActor != nil {
@@ -44,8 +44,8 @@ func TestTodo_CHATVOICE_006_Browser(t *testing.T) {
 					t.Fatalf("%s %s: missing %q", c.locale, msg.ID, want)
 				}
 			}
-			if !regexp.MustCompile(`(?s)class="message-actions".*chatlisten-action`).MatchString(markup) {
-				t.Fatalf("%s: Listen is not in the action bar", c.locale)
+			if !regexp.MustCompile(`(?s)class="message-menu.*chatlisten-action`).MatchString(markup) {
+				t.Fatalf("%s: Listen is not in the menu", c.locale)
 			}
 			// The control is an action: the message's content comes before its action
 			// bar in the row, so the first Listen is after the bar begins.
@@ -85,8 +85,8 @@ func TestTodo_CHATVOICE_006_Absent(t *testing.T) {
 // row's structure, status and controls.
 func TestTodo_CHATVOICE_006_Accessibility(t *testing.T) {
 	bar := render(t, listenModel(&ChatFeatures{Listen: true}, "en-US", "typed", listenTypedMessage))
-	if !regexp.MustCompile(`<button[^>]*class="message-action chatlisten-action"[^>]*>`).MatchString(bar) || !strings.Contains(bar, `<span class="sr-only">Listen</span>`) || strings.Contains(bar, `tabindex="-1"`) && regexp.MustCompile(`chatlisten-action[^>]*tabindex="-1"`).MatchString(bar) {
-		t.Fatalf("the action bar button has no name or is out of the keyboard order: %s", bar)
+	if !regexp.MustCompile(`<button[^>]*class="menu-item chatlisten-action"[^>]*>`).MatchString(bar) || !strings.Contains(bar, `<span>Listen</span>`) || strings.Contains(bar, `tabindex="-1"`) && regexp.MustCompile(`chatlisten-action[^>]*tabindex="-1"`).MatchString(bar) {
+		t.Fatalf("the menu item has no name or is out of the keyboard order: %s", bar)
 	}
 	markup, err := ui.RenderToString(RenderListenPlayer(ListenPlayerProps{Locale: "en-US", PostID: "p"}))
 	if err != nil {

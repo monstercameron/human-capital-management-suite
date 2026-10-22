@@ -20,6 +20,11 @@ type agentuxDemoInboxRoundTrip func(*http.Request) (*http.Response, error)
 func (f agentuxDemoInboxRoundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestAgentUXDemo_Inbox_Browser(t *testing.T) {
+	assertAgentUXDemoInboxBrowser(t)
+}
+
+func assertAgentUXDemoInboxBrowser(t *testing.T) {
+	t.Helper()
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
 		markup, err := ui.RenderToString(agentuxDemoInboxControl(productui.ResolveProductLocale(locale)))
 		if err != nil || strings.ContainsAny(markup, "⟦⟧") || strings.Contains(markup, "AGENTUX") || strings.Contains(markup, ` value=`) || strings.Contains(markup, "font-family") {
@@ -37,6 +42,11 @@ func TestAgentUXDemo_Inbox_Browser(t *testing.T) {
 }
 
 func TestAgentUXDemo_InboxClient(t *testing.T) {
+	assertAgentUXDemoInboxTransport(t)
+}
+
+func assertAgentUXDemoInboxTransport(t *testing.T) {
+	t.Helper()
 	client := &http.Client{Transport: agentuxDemoInboxRoundTrip(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != agentdemo.Path || r.URL.RawQuery != "" || r.Header.Get("Authorization") != "Bearer session" || r.Method != http.MethodPost {
 			t.Fatalf("request binding: %s %s", r.Method, r.URL)

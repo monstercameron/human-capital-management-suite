@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. It names the workflow engine's plan type, which
+// the browser client has no use for and must not carry.
+
 package productui
 
 import (

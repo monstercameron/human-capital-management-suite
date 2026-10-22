@@ -242,6 +242,9 @@ func (s *Service) Submit(ctx context.Context, c Command, version string, values 
 		if st.Gate.State != "active" || version != d.Version.String() {
 			return nil, ErrConflict
 		}
+		if e = s.limits(st, c.Actor.Person); e != nil {
+			return nil, e
+		}
 		if e = s.validateAnswers(ctx, c.Actor, c.Scope, d, values); e != nil {
 			return nil, e
 		}
@@ -276,6 +279,9 @@ func (s *Service) Submit(ctx context.Context, c Command, version string, values 
 				}
 			}
 		}
+		if sub.Status == "admitted" || sub.Status == "declined" {
+			sub.DecidedAt = s.now()
+		}
 		if sub.Status == "admitted" {
 			st.Submissions = append(st.Submissions, sub)
 			if e := tx.Membership(ctx, c.Actor, version, true); e != nil {
@@ -295,6 +301,7 @@ func (s *Service) Submit(ctx context.Context, c Command, version string, values 
 				*tx.Answers() = append(*tx.Answers(), Answer{SubmissionID: sub.ID, Person: sub.Person, FieldID: f.ID, Value: append(json.RawMessage(nil), v...), ExpiresAt: s.now().Add(time.Duration(f.RetentionDays) * 24 * time.Hour)})
 			}
 		}
+		s.applySegments(tx, c, sub.Person, true)
 		s.event(st, c, kind, sub.Person, sub.ID, version)
 		if sub.Status == "admitted" || sub.Status == "declined" {
 			s.event(st, c, sub.Status, sub.Person, sub.ID, version)
@@ -331,6 +338,8 @@ func (s *Service) Review(ctx context.Context, c Command, id string, expected uin
 			sub.Revision++
 			sub.Reason = reason
 			sub.Reviewer = c.Actor.Person
+			sub.DecidedAt = s.now()
+			s.applySegments(tx, c, sub.Person, true)
 			s.event(tx.State(), c, sub.Status, sub.Person, sub.ID, sub.Version)
 			return *sub, nil
 		}
@@ -368,6 +377,7 @@ func (s *Service) Withdraw(ctx context.Context, c Command, id string, expected u
 			sub.Status = "withdrawn"
 			sub.Revision++
 			s.erase(tx, sub.Person, false)
+			s.applySegments(tx, c, sub.Person, false)
 			s.event(st, c, "withdrawn", sub.Person, id, sub.Version)
 			return *sub, nil
 		}
@@ -394,6 +404,11 @@ func (s *Service) erase(tx Transaction, person string, expired bool) {
 func (s *Service) Erase(ctx context.Context, c Command, person string, expired bool) error {
 	_, e := s.mutate(ctx, c, "retention", []any{person, expired}, func(tx Transaction) (any, error) {
 		s.erase(tx, person, expired)
+		if expired {
+			s.reapplySegments(tx, c, false)
+		} else {
+			s.applySegments(tx, c, person, false)
+		}
 		s.event(tx.State(), c, "expired", person, "", tx.State().Gate.Current)
 		return "erased", nil
 	})
@@ -551,12 +566,18 @@ func (s *Service) Install(ctx context.Context, c Command, in Installation) error
 	return e
 }
 func (s *Service) ListSubmissions(ctx context.Context, a Actor, scope Scope, status string) ([]Submission, error) {
+	if lister, ok := s.Repository.(SubmissionLister); ok {
+		if e := s.access(ctx, a, scope, "admin"); e != nil {
+			return nil, e
+		}
+		return lister.ListSubmissionRows(ctx, scope, status)
+	}
 	var out []Submission
-	e := s.Repository.Transact(ctx, scope, func(tx Transaction) error {
+	e := s.view(ctx, scope, func(st State) error {
 		if e := s.access(ctx, a, scope, "admin"); e != nil {
 			return e
 		}
-		for _, sub := range tx.State().Submissions {
+		for _, sub := range st.Submissions {
 			if status == "" || sub.Status == status {
 				x := sub
 				x.Fields = nil
@@ -618,6 +639,13 @@ func (s *Service) CanJoin(ctx context.Context, a Actor, scope Scope) error {
 		g := tx.State().Gate
 		if g.Current == "" || g.State == "paused" || g.State == "retired" {
 			return nil
+		}
+		// A person already in the channel is never locked out because a gate was
+		// added: a change to their membership is not a join.
+		if roster, ok := tx.(Roster); ok {
+			if member, e := roster.IsMember(ctx, a.Person); e == nil && member {
+				return nil
+			}
 		}
 		for _, sub := range tx.State().Submissions {
 			if sub.Person == a.Person && sub.Status == "admitted" {

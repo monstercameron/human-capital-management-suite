@@ -8,6 +8,7 @@ import (
 	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -252,5 +253,20 @@ func TestDocumentRPCSecurity(t *testing.T) {
 	read, err := s.GetDocument(ctx, &documentv1.GetDocumentRequest{DocumentId: "doc-1"})
 	if err != nil || read.GetDocument().GetDocumentId() != "doc-1" || read.GetMarkdown() != "# Guide\n" || f.tenant != "server" || f.actor != "signed-in-user" {
 		t.Fatalf("trusted read = %+v, %v; call = %+v", read, err, f)
+	}
+}
+
+func TestUnconfiguredDocumentServiceHasTypedUnavailableReasonAfterAuthentication(t *testing.T) {
+	s := &server{}
+	if _, err := s.ListDocuments(context.Background(), &documentv1.ListDocumentsRequest{}); status.Code(err) != codes.Unauthenticated {
+		t.Fatalf("unauthenticated request reached configuration state: %v", err)
+	}
+	if _, err := s.ListDocuments(documentContextKind(t, trust.SubjectKindService), &documentv1.ListDocumentsRequest{}); status.Code(err) != codes.PermissionDenied {
+		t.Fatalf("non-human principal reached configuration state: %v", err)
+	}
+	_, err := s.ListDocuments(documentContext(t), &documentv1.ListDocumentsRequest{})
+	owned, ok := envelope.FromGRPC(err)
+	if !ok || owned.Code() != envelope.CodeUnavailable || owned.Detail().GetReasonRef() != "document.service.not_configured" {
+		t.Fatalf("authenticated unconfigured service error = %+v (%v), want typed UNAVAILABLE/document.service.not_configured", owned, err)
 	}
 }

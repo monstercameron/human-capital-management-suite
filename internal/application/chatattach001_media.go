@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	chat "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatmedia"
@@ -17,6 +18,14 @@ import (
 	mediahttp "github.com/monstercameron/human-capital-management-suite/internal/transport/chatmedia"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
+
+// chatattach001SlotWait is how long an upload waits for one of the four upload
+// slots before the server answers that it is busy. chatattach001RetainEvery is
+// the least time between two reconciliations of one tenant's attachment ledger
+// with message retention; a media read otherwise runs one per image on screen.
+var chatattach001SlotWait = 20 * time.Second
+
+const chatattach001RetainEvery = 30 * time.Second
 
 // This upload adapter calls the attachment port; reads continue through the
 // existing grant boundary. Both use one durable store and one media authority.
@@ -47,11 +56,19 @@ func (h *chatattach001HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.reads.ServeHTTP(w, r)
 		return
 	}
+	// Ten files chosen at once are ten requests against four slots. The rest
+	// wait their turn; a 429 here read as "attachment quota reached" on the page
+	// and dropped the file. A server that stays busy says so as a retryable 503.
+	wait := time.NewTimer(chatattach001SlotWait)
+	defer wait.Stop()
 	select {
 	case h.slots <- struct{}{}:
 		defer func() { <-h.slots }()
-	default:
-		http.Error(w, "uploads busy", 429)
+	case <-r.Context().Done():
+		return
+	case <-wait.C:
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "uploads busy; try again", http.StatusServiceUnavailable)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, chatmedia.Chatattach001MaxBytes+(64<<10))
@@ -197,7 +214,7 @@ func chatattach001Overlay(next http.Handler, cfg ChatMediaConfig, admission tran
 	}
 	scanner := chatmedia.Chatattach001Scanner{External: cfg.Scanner}
 	media := chatmedia.New(chatmedia.Config{Store: store, Scanner: scanner, Authorize: cfg.Authorize, MaxBytes: chatmedia.Chatattach001MaxBytes})
-	uploads := &chatmedia.Chatattach001Uploads{Media: media, Root: cfg.ArtifactRoot, Authorize: chatattach001PostAuthority(runtime), Linked: chatattach001Linked(runtime.store)}
+	uploads := &chatmedia.Chatattach001Uploads{Media: media, Root: cfg.ArtifactRoot, Authorize: chatattach001PostAuthority(runtime), Linked: chatattach001Linked(runtime.store), RetainEvery: chatattach001RetainEvery}
 	if runtime.core != nil {
 		runtime.core.SetMediaDirectory(chatattach001Directory{media: media})
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenttemplate"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/agentmodelpolicystore"
 )
 
 const AgentUXAmbientProposalSchemaID = "hcmnext.ambient.proposal"
@@ -30,7 +31,7 @@ func AgentUXAmbientStarters() []agenttemplate.PersonaStarter {
 			todo = "AGENTUX-068"
 			suite = "AGENTUX-068.reminder"
 		}
-		result = append(result, agenttemplate.PersonaStarter{ID: "hcmnext.persona_template." + strings.ReplaceAll(agent, "-", "_"), Version: 1, Handle: agent, DisplayName: name, Purpose: purpose, Status: "DRAFT", OwnerNeeded: true, OwnerRequired: true, SkillPins: []agentskills.SkillPin{{ID: record.Definition.ID, Version: 1, Digest: record.Digest}}, DefaultGrants: []string{}, TierCeiling: "T1", AudienceRoles: []string{"ALL_MEMBERS"}, AudiencePopulations: []string{"TENANT_WIDE"}, AllowedChannelClasses: []string{"ANY_INTERNAL"}, EvaluationSuite: suite, Provenance: agenttemplate.PersonaStarterProvenance{SourceTodo: todo, PersonaTodo: todo, DecisionRef: "AGENTUX-066", SkillRegistryRef: "internal/agentskills/agentux_ambient.go", EvaluationSuite: suite, CopyOnInstall: "TENANT_OWNED_DRAFT", ImmutableAfterPublish: true}})
+		result = append(result, agenttemplate.PersonaStarter{ID: "hcmnext.persona_template." + strings.ReplaceAll(agent, "-", "_"), Version: 1, Handle: agent, DisplayName: name, Purpose: purpose, Status: "DRAFT", OwnerNeeded: true, OwnerRequired: true, SkillPins: []agentskills.SkillPin{{ID: record.Definition.ID, Version: 1, Digest: record.Digest}}, DefaultGrants: []string{}, TierCeiling: "T1", AudienceRoles: []string{"ALL_MEMBERS"}, AudiencePopulations: []string{"TENANT_WIDE"}, AllowedChannelClasses: []string{"ANY_INTERNAL"}, PublicAnswersExpected: true, EvaluationSuite: suite, Provenance: agenttemplate.PersonaStarterProvenance{SourceTodo: todo, PersonaTodo: todo, DecisionRef: "AGENTUX-066", SkillRegistryRef: "internal/agentskills/agentux_ambient.go", EvaluationSuite: suite, CopyOnInstall: "TENANT_OWNED_DRAFT", ImmutableAfterPublish: true}})
 	}
 	return result
 }
@@ -60,7 +61,7 @@ func AgentUXAmbientManifest(base agentmanifest.Manifest, starter agenttemplate.P
 	base.SourceCeiling = []agentmanifest.Reference{{ID: "chat.message", Version: 1, SchemaVersion: 1, Digest: personaRunBytesDigest([]byte("CHAT_MESSAGE:source-and-parent-only"))}}
 	base.ToolCeiling = []agentmanifest.Reference{{ID: starter.SkillPins[0].ID, Version: 1, SchemaVersion: 1, Digest: "sha256:" + strings.TrimPrefix(starter.SkillPins[0].Digest, "sha256:")}}
 	base.OutputSchema = agentmanifest.Reference{ID: AgentUXAmbientProposalSchemaID, Version: 1, SchemaVersion: 1, Digest: personaRunBytesDigest([]byte(AgentUXAmbientProposalSchema))}
-	base.EvaluationRefs = []agentmanifest.Reference{{ID: starter.EvaluationSuite, Version: 1, SchemaVersion: 1, Digest: personaRunBytesDigest(agentUXAmbientSuiteBytes(starter.Handle))}}
+	base.EvaluationRefs = []agentmanifest.Reference{{ID: starter.EvaluationSuite, Version: 1, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(agentUXAmbientPersonaSuite(starter.Handle))}}
 	base.Budget = agentmanifest.Budget{MaxCostMicros: 10000, MaxInputTokens: 2048, MaxOutputTokens: 256, MaxConcurrentRuns: 1}
 	if _, err := base.Digest(); err != nil {
 		return agentmanifest.Manifest{}, err
@@ -140,11 +141,31 @@ func AgentUXAmbientEvaluationContracts() map[string]json.RawMessage {
 	return map[string]json.RawMessage{"AGENTUX-067.task-catcher": agentUXAmbientSuiteBytes("task-catcher"), "AGENTUX-068.reminder": agentUXAmbientSuiteBytes("reminder")}
 }
 
-func agentUXAmbientSuiteBytes(agent string) json.RawMessage {
-	cases := agenteval.TaskCatcherAmbientSuite()
+// agentUXAmbientPersonaSuite is the suite the agent's version is evaluated and
+// published against: the forty labels plus the injection cases, in the shape
+// every persona's evaluation contract has.
+func agentUXAmbientPersonaSuite(agent string) agenteval.PersonaSuite {
+	skills := agentskills.AmbientOfferSkills()
 	if agent == "reminder" {
-		cases = agenteval.ReminderAmbientSuite()
+		return agenteval.AmbientPersonaSuite("AGENTUX-068.reminder", skills[1].ID, agenteval.ReminderAmbientSuite())
 	}
-	raw, _ := json.Marshal(cases)
+	return agenteval.AmbientPersonaSuite("AGENTUX-067.task-catcher", skills[0].ID, agenteval.TaskCatcherAmbientSuite())
+}
+
+func agentUXAmbientSuiteBytes(agent string) json.RawMessage {
+	raw, _ := json.Marshal(agentUXAmbientPersonaSuite(agent))
 	return raw
+}
+
+// AgentUXAmbientPolicyRecords are the immutable contracts the two ambient
+// agents' manifests pin: their evaluation suites and the proposal schema. They
+// are appended to the local policy source beside the shipped ones, so a version
+// can be published against them; building the bytes publishes nothing.
+func AgentUXAmbientPolicyRecords() []agentmodelpolicystore.Record {
+	var records []agentmodelpolicystore.Record
+	for _, agent := range []string{"task-catcher", "reminder"} {
+		suite := agentUXAmbientPersonaSuite(agent)
+		records = append(records, agentmodelpolicystore.Record{Kind: agentmodelpolicystore.EvaluationSuite, Reference: agentmanifest.Reference{ID: suite.ID, Version: 1, SchemaVersion: 1, Digest: agenteval.PersonaSuiteDigest(suite)}, Content: agentUXAmbientSuiteBytes(agent)})
+	}
+	return append(records, agentmodelpolicystore.Record{Kind: agentmodelpolicystore.OutputSchema, Reference: agentmanifest.Reference{ID: AgentUXAmbientProposalSchemaID, Version: 1, SchemaVersion: 1, Digest: personaRunBytesDigest([]byte(AgentUXAmbientProposalSchema))}, Content: []byte(AgentUXAmbientProposalSchema)})
 }

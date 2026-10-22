@@ -19,14 +19,20 @@ func chatbug084Model() Model {
 	return m
 }
 
-// chatbug084Rows is the names of the sidebar rows that sit in the sections,
-// not in the Archived list at the foot of the rail.
-func chatbug084Rows(t *testing.T, m Model) (inSections, inArchived string) {
+// chatbug084Rows is the names of the sidebar rows that sit in the arranged
+// sections and the expanded Archived section.
+func chatbug084Rows(t *testing.T, m Model, wantArchived bool) (inSections, inArchived string) {
 	t.Helper()
-	markup := renderNode(t, rail(m, handlers{}))
-	foot := strings.Index(markup, "chatstate-archived")
+	markup := renderNode(t, rail(m, handlers{local: localUI{archivedOpen: true}}))
+	foot := strings.Index(markup, `data-section-id="archived"`)
 	if foot < 0 {
-		t.Fatalf("no Archived list in the rail: %s", markup)
+		if wantArchived {
+			t.Fatalf("the Archived section is missing: %s", markup)
+		}
+		return markup, ""
+	}
+	if !wantArchived {
+		t.Fatalf("the Archived section should be absent when the only archived conversation is selected: %s", markup[foot:])
 	}
 	return markup[:foot], markup[foot:]
 }
@@ -35,7 +41,11 @@ func chatbug084Rows(t *testing.T, m Model) (inSections, inArchived string) {
 // except while it is the open conversation.
 func TestTodo_CHATBUG_084(t *testing.T) {
 	m := chatbug084Model()
-	sections, archived := chatbug084Rows(t, m)
+	collapsed := renderNode(t, rail(m, handlers{}))
+	if !strings.Contains(collapsed, `data-section-id="archived"`) || !strings.Contains(collapsed, `aria-expanded="false"`) || strings.Contains(collapsed, "old-project") {
+		t.Fatalf("Archived should start as a collapsed section with no visible archived rows: %s", collapsed)
+	}
+	sections, archived := chatbug084Rows(t, m, true)
 	if strings.Contains(sections, "old-project") {
 		t.Fatalf("the archived channel is still under Channels: %s", sections)
 	}
@@ -46,11 +56,15 @@ func TestTodo_CHATBUG_084(t *testing.T) {
 	if !strings.Contains(sections, `class="section-count">2<`) && !strings.Contains(sections, ">2</span>") {
 		t.Errorf("Channels count does not match its rows: %s", sections)
 	}
-	// While it is open, the row stays where the person is reading.
+	// While it is open, the selected row stays in its arranged section and is
+	// omitted from Archived, so the person does not see a duplicate.
 	m.SelectedID = "old"
-	sections, _ = chatbug084Rows(t, m)
+	sections, archived = chatbug084Rows(t, m, false)
 	if !strings.Contains(sections, "old-project") {
 		t.Fatalf("the open archived channel vanished from the list: %s", sections)
+	}
+	if strings.Contains(archived, "old-project") {
+		t.Fatalf("the selected archived channel is duplicated in Archived: %s", archived)
 	}
 }
 
@@ -109,7 +123,7 @@ func TestTodo_CHATBUG_084_SavedLayout(t *testing.T) {
 	} {
 		m := chatbug084Model()
 		arrange(&m)
-		sections, archived := chatbug084Rows(t, m)
+		sections, archived := chatbug084Rows(t, m, true)
 		if strings.Contains(sections, "old-project") {
 			t.Errorf("%s: the archived channel is drawn in a section: %s", name, sections)
 		}
@@ -117,7 +131,7 @@ func TestTodo_CHATBUG_084_SavedLayout(t *testing.T) {
 			t.Errorf("%s: Archived lost it", name)
 		}
 		m.SelectedID = "old"
-		if open, _ := chatbug084Rows(t, m); !strings.Contains(open, "old-project") {
+		if open, _ := chatbug084Rows(t, m, false); !strings.Contains(open, "old-project") {
 			t.Errorf("%s: the open archived channel vanished", name)
 		}
 	}

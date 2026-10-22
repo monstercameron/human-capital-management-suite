@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -26,21 +25,11 @@ import (
 // does is left out until its run planner exists, so no card appears that a
 // person did not cause a model to write.
 //
-// A person's own time zone is not stored anywhere on the server yet, so the
-// cards state their times in UTC and say so in the zone abbreviation.
+// The cards state their times in each person's own Chat preference time zone
+// (UTC until they choose one). This is the surface alone, without a scheduler
+// or a model; BindAgentUXAmbient composes the rest on the served assembly.
 func composeAgentUXAmbientSurface(store *chatstore.Store, todoAuthority func(context.Context, string, string, string) error, now func() time.Time) ambientagents.Surface {
-	if store == nil || now == nil {
-		return nil
-	}
-	service := &AgentUXAmbientService{DB: store, Now: now}
-	service.Effects = AgentUXAmbientEffectsAdapter{Chat: store, TodoAuthority: todoAuthority}
-	return AgentUXAmbientSurface{
-		Service:    service,
-		ViewerZone: func(context.Context, string, string) (string, error) { return "UTC", nil },
-		SourceLink: func(_ context.Context, _, conversation, post string) (string, error) {
-			return "/workspace/app/chat?" + url.Values{"conversation": {conversation}, "message": {post}}.Encode(), nil
-		},
-	}
+	return composeAgentUXAmbient(agentUXAmbientComposition{Chat: store, TodoAuthority: todoAuthority, Now: now}).Surface
 }
 
 // agentUXServed is what the served assembly mounts for the ambient agents and
@@ -54,6 +43,9 @@ type agentUXServed struct {
 	// production composition yet: the executor's ports (objects, queue, owner
 	// check, planner, alert delivery) are libraries only.
 	SupportInbox agentdemo.Surface
+	// AmbientWorker is the ambient agents' share of the tenant loop: the cards
+	// from real messages (with a screen model) and the reminders that come due.
+	AmbientWorker *AgentUXAmbientWorker
 }
 
 func (u agentUXServed) overlay(next http.Handler, admission transport.Config) http.Handler {

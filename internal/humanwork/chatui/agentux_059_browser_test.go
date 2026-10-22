@@ -48,7 +48,7 @@ func agentux059Page(t *testing.T, locale string, change func(*chatui.Model)) str
 // agentux059Button finds one rating button on the page by its data-extra.
 func agentux059Button(t *testing.T, page, rating string) string {
 	t.Helper()
-	for _, button := range regexp.MustCompile(`<button[^>]*class="agent-feedback-button"[^>]*>`).FindAllString(page, -1) {
+	for _, button := range regexp.MustCompile(`<button[^>]*class="agent-feedback-button(?: is-chosen)?"[^>]*>`).FindAllString(page, -1) {
 		if strings.Contains(button, `data-extra="`+rating+`"`) {
 			return button
 		}

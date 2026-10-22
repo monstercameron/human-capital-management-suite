@@ -33,11 +33,11 @@ func chatux021Purpose(m Model, h handlers, parts *channelWidgetParts) ui.Node {
 		return html.Form(html.Props{Class: "details-purpose-form manage-sec-form", OnSubmit: h.teamPurposeSubmit},
 			html.Div(html.Props{},
 				html.Label(html.Props{Class: "details-purpose-label", For: purposeFieldID, Text: label}),
-				html.Input(html.Props{ID: purposeFieldID, Class: "chat-input", Type: "text", MaxLength: 500, AutoFocus: true, AutoComplete: "off", OnKeyDown: h.purposeKey,
-					Data: map[string]string{"chat-value": h.local.purposeDraft}, Aria: map[string]string{"describedby": "details-purpose-hint"}})),
+				html.Input(html.Props{ID: purposeFieldID, Class: "chat-input", Type: "text", MaxLength: 500, AutoFocus: true, AutoComplete: "off", OnKeyDown: h.purposeKey, OnInput: h.detailsInput,
+					Data: map[string]string{"chat-value": h.local.purposeDraft, "action": chatux041InputAction, "id": "purpose"}, Aria: map[string]string{"describedby": "details-purpose-hint"}})),
 			html.P(html.Props{ID: "details-purpose-hint", Class: "details-purpose-hint manage-sec-hint", Text: laneText(m, chatux021Copy, keyChatux021PurposeHint)}),
 			html.Div(html.Props{Class: "details-purpose-actions manage-sec-actions"},
-				html.Button(html.Props{Class: "button small", Type: "submit", Text: m.t(KeyWidgetSave)}),
+				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: !chatux041Dirty(m, h, "purpose"), Text: m.t(KeyWidgetSave)}),
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "purpose-cancel"}, Text: m.t(KeyCancel)})))
 	}
 	value := purpose
@@ -65,7 +65,10 @@ func chatux021Click(e ui.MouseEvent, m Model, local localStore) bool {
 	switch action {
 	case "purpose-edit":
 		current := strings.TrimSpace(m.ChannelTeam.Purpose)
-		local.update(func(u *localUI) { u.purposeEditing, u.purposeDraft = true, current })
+		local.update(func(u *localUI) {
+			u.purposeEditing, u.purposeDraft = true, current
+			u.setDetailGroup(chatux041DirtyKey(m, "purpose"), false)
+		})
 		focusField(purposeFieldID)
 		return true
 	case "purpose-cancel":

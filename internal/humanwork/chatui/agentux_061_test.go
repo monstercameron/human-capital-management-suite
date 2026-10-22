@@ -40,10 +40,17 @@ func TestTodo_AGENTUX_061(t *testing.T) {
 			resolved := chat4Fixture("en-US", "answered", direct)
 			resolved.PersonaActivityReady = true
 			page := renderAgentUXChat3Node(t, Build(resolved), 1440)
-			for _, leftover := range []string{"agent-reply-pending", "chatbug040-reserve", "agent-reply-identity-pending", "chat-skeleton"} {
+			for _, leftover := range []string{"agent-reply-pending", "chatbug040-reserve", "agent-reply-identity-pending"} {
 				if strings.Contains(page, leftover) {
 					t.Errorf("direct=%v: a settled conversation keeps %s", direct, leftover)
 				}
+			}
+			// The shared loading frame (CHATUX-037) draws its rows as
+			// .chat-skeleton.chatux037-bar for other surfaces still reading
+			// (Saved, the language list); a skeleton outside it belongs to the
+			// answer card or the message list.
+			if loose := strings.Count(page, "chat-skeleton") - strings.Count(page, "chat-skeleton chatux037-bar"); loose != 0 {
+				t.Errorf("direct=%v: a settled conversation keeps %d chat-skeleton placeholders outside the shared loading frame", direct, loose)
 			}
 		}
 

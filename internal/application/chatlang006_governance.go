@@ -175,6 +175,12 @@ type ChatlangView struct {
 	Supported          []string                 `json:"supported"`
 	CanManageWorkspace bool                     `json:"can_manage_workspace"`
 	CanManageChannel   bool                     `json:"can_manage_channel"`
+	// Pairs, Reports and the glossary's version and editors are for workspace
+	// administrators (chatlang006_w10_governance.go).
+	Pairs             []chatstore.ChatlangPairStat `json:"pairs,omitempty"`
+	Reports           []chatstore.ChatlangReport   `json:"reports,omitempty"`
+	GlossaryVersion   int64                        `json:"glossary_version,omitempty"`
+	GlossaryLanguages []ChatlangGlossaryLanguage   `json:"glossary_languages,omitempty"`
 }
 
 type chatlangPerson struct{ tenant, subject string }
@@ -230,6 +236,9 @@ func (g *ChatlangGovernance) View(ctx context.Context, conversation string) (Cha
 		}
 		if view.Glossary == nil {
 			view.Glossary = []chatstore.ChatlangTerm{}
+		}
+		if err = g.chatlangAdminExtras(ctx, actor.tenant, &view); err != nil {
+			return ChatlangView{}, err
 		}
 	}
 	view.BudgetMicros = view.Workspace.Budget()

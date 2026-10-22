@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentbudget"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentconnect"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentcost"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentcoststore"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
@@ -95,13 +98,27 @@ func (a *agentRequestAdmins) CanAdminister(tenant, actor string) bool {
 
 // agentCostNotices keeps the 80 percent notices an owner has not yet seen, so
 // the cost panel can show them. It is not a delivery channel: a notice a person
-// never opens the page for stays here until the process restarts.
+// never opens the page for stays here until the process restarts. A notice is
+// about one day (the limit counts per day), so it is kept with its day: the same
+// sentence on the next day is a new notice, and yesterday's is not shown today.
 type agentCostNotices struct {
 	mu    sync.Mutex
-	items map[string][]string
+	items map[string][]agentCostNotice
+	now   func() time.Time
 }
 
-func newAgentCostNotices() *agentCostNotices { return &agentCostNotices{items: map[string][]string{}} }
+type agentCostNotice struct{ day, message string }
+
+func newAgentCostNotices() *agentCostNotices {
+	return &agentCostNotices{items: map[string][]agentCostNotice{}, now: func() time.Time { return time.Now().UTC() }}
+}
+
+func (n *agentCostNotices) today() string {
+	if n.now != nil {
+		return n.now().UTC().Format("2006-01-02")
+	}
+	return time.Now().UTC().Format("2006-01-02")
+}
 
 // Notify implements agentcost.Notifier.
 func (n *agentCostNotices) Notify(tenant, owner, message string) {
@@ -110,13 +127,18 @@ func (n *agentCostNotices) Notify(tenant, owner, message string) {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	key := tenant + "\x00" + owner
+	key, day := tenant+"\x00"+owner, n.today()
+	kept := n.items[key][:0:0]
 	for _, have := range n.items[key] {
-		if have == message {
+		if have.day != day {
+			continue
+		}
+		if have.message == message {
 			return
 		}
+		kept = append(kept, have)
 	}
-	n.items[key] = append(n.items[key], message)
+	n.items[key] = append(kept, agentCostNotice{day: day, message: message})
 }
 
 func (n *agentCostNotices) peek(tenant, owner string) []string {
@@ -125,7 +147,14 @@ func (n *agentCostNotices) peek(tenant, owner string) []string {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return append([]string(nil), n.items[tenant+"\x00"+owner]...)
+	var out []string
+	day := n.today()
+	for _, have := range n.items[tenant+"\x00"+owner] {
+		if have.day == day {
+			out = append(out, have.message)
+		}
+	}
+	return out
 }
 
 // agentAccessAgentOwners adapts the cost store and the request's administrators
@@ -137,6 +166,12 @@ type agentAccessAgentOwners struct {
 
 func (o agentAccessAgentOwners) IsOwner(tenant, agentID, actor string) bool {
 	return o.store != nil && o.store.IsBusinessOwner(tenant, agentID, actor)
+}
+func (o agentAccessAgentOwners) CheckOwner(tenant, agentID, actor string) (bool, error) {
+	if o.store == nil {
+		return false, agentcost.ErrUnavailable
+	}
+	return o.store.CheckBusinessOwner(tenant, agentID, actor)
 }
 func (o agentAccessAgentOwners) IsAdmin(tenant, actor string) bool {
 	return o.admins.CanAdminister(tenant, actor)
@@ -410,8 +445,16 @@ var (
 
 func agentAccessErrorStatus(err error) (int, string) {
 	switch {
-	case errors.Is(err, agentaccess.ErrDenied), errors.Is(err, agentcost.ErrDenied), errors.Is(err, agentconnect.ErrDenied), errors.Is(err, agentclient.ErrNotAuthorized):
+	case errors.Is(err, agentaccess.ErrDenied), errors.Is(err, agentcost.ErrDenied), errors.Is(err, agentconnect.ErrDenied), errors.Is(err, agentclient.ErrNotAuthorized),
+		// A task that is not the person's own and one that does not exist answer
+		// alike, so the call reveals nothing about either (AGENT2-017).
+		errors.Is(err, agentsystem.ErrDenied), errors.Is(err, agentrun.ErrNotFound), errors.Is(err, agentbudget.ErrTaskNotFound):
 		return http.StatusForbidden, "permission_denied"
+	case errors.Is(err, agentbudget.ErrStaleRevision), errors.Is(err, agentbudget.ErrExtensionConflict), errors.Is(err, agentbudget.ErrExtensionReserved),
+		errors.Is(err, agentbudget.ErrExtensionUnavailable), errors.Is(err, agentbudget.ErrExtensionOverflow):
+		return http.StatusConflict, "conflict"
+	case errors.Is(err, agentsystem.ErrInvalid), errors.Is(err, agentbudget.ErrInvalid):
+		return http.StatusBadRequest, "invalid_request"
 	case errors.Is(err, agentaccess.ErrSeparation):
 		return http.StatusForbidden, "separation_of_duties"
 	case errors.Is(err, agentaccess.ErrStateRejected):
@@ -613,7 +656,10 @@ func (h *AgentAccessHTTP) costReport(ctx context.Context, principal *trust.Princ
 		return nil, err
 	}
 	now := h.now()
-	report, err := h.Meter.Ledger.ReportFor(h.Owners, tenant, subject, now, h.zone())
+	// The report asks "does this person own this run's agent" for every agent that
+	// ran in the tenant; the owned list above already answers it without a
+	// database round trip per agent.
+	report, err := h.Meter.Ledger.ReportFor(ownedAgentSet{AgentCostOwners: h.Owners, owned: agents}, tenant, subject, now, h.zone())
 	if err != nil {
 		return nil, err
 	}
@@ -668,6 +714,15 @@ func (h *AgentAccessHTTP) costLimits(principal *trust.Principal, body agentCostL
 		return nil, agentcost.ErrInvalid
 	}
 	tenant, subject := principal.Tenant().String(), principal.Subject()
+	// The sentence a reached limit gives names the agent the way its owner sees it.
+	names := map[string]string{}
+	if h.Owners != nil {
+		if owned, err := h.Owners.OwnedAgents(tenant, subject); err == nil {
+			for _, agent := range owned {
+				names[agent.ID] = agent.Name
+			}
+		}
+	}
 	views := make([]AgentSpendLimitView, 0, len(body.AgentIDs))
 	for _, id := range body.AgentIDs {
 		limits, err := h.Meter.Gate.Limits(tenant, id, subject)
@@ -684,7 +739,7 @@ func (h *AgentAccessHTTP) costLimits(principal *trust.Principal, body agentCostL
 				view.MaxRunsPerDay, view.MaxSpendMicrosPerDay = limit.MaxRuns, limit.MaxSpendMicros
 			}
 		}
-		if decision := h.Meter.Gate.Admit(agentcost.Subject{TenantID: tenant, AgentID: id}); !decision.Allowed && !decision.Unavailable {
+		if decision := h.Meter.Gate.Admit(agentcost.Subject{TenantID: tenant, AgentID: id, AgentName: names[id]}); !decision.Allowed && !decision.Unavailable {
 			view.Reached = decision.Reached
 		}
 		views = append(views, view)

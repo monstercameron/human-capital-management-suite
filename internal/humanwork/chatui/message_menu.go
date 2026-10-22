@@ -45,11 +45,12 @@ func messageMenuNextIndex(key string, current, length int) int {
 //	Delete message             (the author; Report, and Remove for everyone
 //	                            after its own divider, on someone else's)
 //
-// Pin and Save stay in the menu's markup after Share to channel, and the
-// stylesheet shows them only where the bar does not carry them: on a phone,
-// which has no bar, and in a column under 560 px, where the bar is cut down
-// (CHATBUG-076). A reply in the thread pane has no Pin on its bar, so its menu
-// always shows Pin.
+// CHATUX-042: the hover bar holds four actions (react, reply in thread, save,
+// more) and the menu repeats none of them where the bar is drawn. Reply and
+// Save stay in the menu's markup and the stylesheet shows them only where the
+// bar does not carry them: Reply on a phone or a touch screen, which have no
+// bar, and Save there and in a column under 560 px, where the bar is cut down
+// (CHATBUG-076). Pin and Listen are not on the bar, so the menu always has them.
 
 // ChatUX022Styles is joined into the workspace stylesheet through
 // ChatMsgListStyles.
@@ -93,7 +94,9 @@ func chatux022MenuItems(m Model, msg Message) []ui.Node {
 	own := msg.AuthorID == m.CurrentUser
 	var items []ui.Node
 	if !thread && m.Callbacks.OpenThread != nil && !m.selected().Agent {
-		items = append(items, chatux022Item("menu-item", "reply", msg.ID, "reply", m.t(KeyReply), false))
+		// CHATUX-042: Reply is on the hover bar; the menu offers it only where there
+		// is no bar (a phone, a touch screen).
+		items = append(items, chatux022Item("menu-item menu-phone-only", "reply", msg.ID, "reply", m.t(KeyReply), false))
 	}
 	if !thread && m.Callbacks.MarkUnreadFrom != nil {
 		items = append(items, chatux022Item("menu-item", "mark-unread", msg.ID, "eye", chatux022Text(m, keyChatux022MarkUnread), false))
@@ -113,12 +116,10 @@ func chatux022MenuItems(m Model, msg Message) []ui.Node {
 		shareAria += ". " + shareTitle
 	}
 	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: shareDisabled, Title: shareTitle, Aria: map[string]string{"label": shareAria}, Data: map[string]string{"action": "open-share", "id": msg.ID}}, icon("send"), html.Span(html.Props{Text: m.t(KeyShareToChannel)})))
-	pinAction, pinLabel, pinClass := "pin", m.t(KeyPin), "menu-item menu-bar-twin"
+	// CHATUX-042: Pin is not on the bar any more, so the menu always offers it.
+	pinAction, pinLabel, pinClass := "pin", m.t(KeyPin), "menu-item"
 	if msg.Pinned {
 		pinAction, pinLabel = "unpin", m.t(KeyUnpin)
-	}
-	if thread {
-		pinClass = "menu-item"
 	}
 	items = append(items, chatux022Item(pinClass, pinAction, msg.ID, "pin", pinLabel, m.Callbacks.Pin == nil), chatsaveAction(m, msg, true))
 	if listen := chatListenAction(m, msg, true); listen != nil {

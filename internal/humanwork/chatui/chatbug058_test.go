@@ -28,8 +28,9 @@ func TestTodo_CHATBUG_058(t *testing.T) {
 	if !strings.Contains(ChatBug045ReadingStyles, ".chat-prefs-head{flex-wrap:wrap") || !strings.Contains(ChatBug045ReadingStyles, ".chat-prefs-title{flex:1 1 auto;white-space:normal;overflow-wrap:anywhere}") {
 		t.Error("the row's head does not wrap")
 	}
-	// The two lists are chips under the one disclosure.
-	if strings.Count(row, "chatrender-chip") < 16 || strings.Count(row, `data-chat-disclosure="true"`) < 2 {
+	// The two lists are chips under the one disclosure (CHATUX-031 removed the
+	// "Change" disclosure, so More options is the only one left).
+	if strings.Count(row, "chatrender-chip") < 16 || strings.Count(row, `data-chat-disclosure="true"`) != 1 {
 		t.Errorf("the lists are not chips under More options: %d chips", strings.Count(row, "chatrender-chip"))
 	}
 }

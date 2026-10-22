@@ -45,6 +45,9 @@ type chatlangLocal struct {
 	// is also remembered in the browser (chatlangBarStoredDismissed) so the bar is
 	// not shown again after it was dismissed (CHATLANG-008).
 	barDismissed bool
+	// w10 is the state of the writer's reword block and of the translation
+	// report form (chattone_w10_view.go).
+	w10 chattoneW10Local
 }
 
 func (l chatlangLocal) originalShown(room, id string) bool { return l.all[room] || l.original[id] }
@@ -164,7 +167,7 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 	}
 	v := chatlangMessageOf(m, msg)
 	local := h.local.chatlang
-	var nodes []ui.Node
+	nodes := chattoneExtras(m, h, msg)
 	if v.Translated || v.Pending || v.NotTranslated {
 		text := ""
 		switch {
@@ -191,6 +194,14 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 			parts = []ui.Node{html.Span(html.Props{Class: "chatlang-mark-text", Text: RenderingText(m.Locale, "reworded")}), html.Span(html.Props{Class: "chatlang-mark-text", Text: text})}
 		}
 		shown := local.originalShown(m.SelectedID, msg.ID)
+		var buttons, below []ui.Node
+		if v.Translated {
+			// CHATLANG-006: "may be inaccurate", "Report this translation", the
+			// report form and the first-read notice.
+			var words []ui.Node
+			words, buttons, below = chatlangTranslationAddons(m, h, msg, v.CanOriginal)
+			parts = append(parts, words...)
+		}
 		if v.CanOriginal {
 			label, aria := "show_original", "show_original_a"
 			if shown {
@@ -201,6 +212,7 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 				Aria: map[string]string{"expanded": boolString(shown), "controls": "chatlang-original-" + msg.ID, "label": strings.ReplaceAll(chatlangText(m.Locale, aria), "{name}", chatlangAuthor(msg))},
 				Text: chatlangText(m.Locale, label)}))
 		}
+		parts = append(parts, buttons...)
 		nodes = append(nodes, html.Div(html.Props{Class: "chatlang-mark", Data: map[string]string{"chatlang-state": state, "message-id": msg.ID}}, parts...))
 		if v.CanOriginal && shown {
 			label := chatlangText(m.Locale, "original")
@@ -215,6 +227,7 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 				html.Span(html.Props{Class: "chatlang-original-label", Text: label}),
 				html.Div(textProps, markdownMessageBody(m, msg.Body)...)))
 		}
+		nodes = append(nodes, below...)
 	}
 	if local.fixing == msg.ID && msg.AuthorID == m.CurrentUser {
 		nodes = append(nodes, chatlangFixer(m, local, msg, v))

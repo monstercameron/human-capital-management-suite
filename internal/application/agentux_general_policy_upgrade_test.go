@@ -88,7 +88,7 @@ func agentUXGeneralUpgradePolicyContracts(t *testing.T, ctx context.Context, cor
 			t.Fatal(err)
 		}
 		var contracts, assertions int
-		if err := db.SQL.QueryRow(`SELECT (SELECT count(*) FROM agent_immutable_contract WHERE tenant_id=$1),(SELECT count(*) FROM agent_contract_authority WHERE tenant_id=$1)`, mapper(tenant)).Scan(&contracts, &assertions); err != nil || contracts != 6 || assertions != 9 {
+		if err := db.SQL.QueryRow(`SELECT (SELECT count(*) FROM agent_immutable_contract WHERE tenant_id=$1),(SELECT count(*) FROM agent_contract_authority WHERE tenant_id=$1)`, mapper(tenant)).Scan(&contracts, &assertions); err != nil || contracts != 12 || assertions != 15 {
 			t.Fatalf("upgrade/replay contracts=%d assertions=%d err=%v", contracts, assertions, err)
 		}
 		var retained string
@@ -223,7 +223,7 @@ func TestAgentUXGeneral_PolicyRevision_Security(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), "policy upgrade publication fault") || after != before {
 					t.Fatalf("failed publication was not atomic: err=%v assertions=%d -> %d", err, before, after)
 				}
-			} else if err != nil || after != 12 {
+			} else if err != nil || after != 24 {
 				t.Fatalf("revision repair err=%v assertions=%d", err, after)
 			}
 		})

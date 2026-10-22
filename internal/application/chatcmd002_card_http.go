@@ -260,5 +260,8 @@ func chatcmd002CardPort(runtime composedChat) Chatcmd002CardPort {
 	if runtime.service != nil {
 		cards.Sender = runtime.service
 	}
+	if runtime.segments != nil {
+		cards.Segments = runtime.segments
+	}
 	return cards
 }

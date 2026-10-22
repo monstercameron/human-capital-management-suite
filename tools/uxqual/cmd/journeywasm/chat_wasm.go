@@ -484,14 +484,18 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	directory := chatDirectorySnapshot()
 
 	local := chatBrowser.snapshot()
+	// CHATUX-047: the list names each direct conversation's peer, so the first
+	// frame has names, photographs and who is an agent; the directories refine.
+	peerIDs := chatux047PeerIDs(local.PeerIDs, list.GetConversations())
+	chatBrowser.mergePhotos(chatux047PeerPhotos(list.GetConversations()), false)
 	conversations := make([]chatui.Conversation, 0, len(list.GetConversations()))
 	discoverable := make(map[string]chatui.Conversation)
 	for _, conversation := range list.GetConversations() {
 		if conversation == nil {
 			continue
 		}
-		room := chatBrowseConversation(conversation)
-		room = chatDirectoryNamedDirect(room, local.PeerIDs, directory)
+		room := chatux047Peer(chatBrowseConversation(conversation), conversation)
+		room = chatDirectoryNamedDirect(room, peerIDs, directory)
 		if room.Joined {
 			conversations = append(conversations, room)
 		} else if room.Kind == chatui.PublicChannel {
@@ -510,9 +514,16 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	model.Number = chatNumberFormatter(cfg.Locale)
 	sortChatRail(conversations, chatBrowser.activitySnapshot())
 	model.Conversations = conversations
+	model.PeerIDs = peerIDs
 	railWait := agentRailWait
 	if firstLoad {
 		railWait = chatux009RailWait
+	}
+	// CHATUX-047: when the list named every direct peer, the agent list is only a
+	// refinement; the first frame does not wait for it.
+	named := chatux047AllDirectNamed(list.GetConversations())
+	if named {
+		railWait = 0
 	}
 	railEntries, railState := resolveAgentRail(cfg, conversations, agentRail, railWait)
 	bootMark("chat-rail-done")
@@ -522,7 +533,8 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 	case agentRailPending:
 		// Known agents keep their identity; the rest wait without an avatar.
 		applyAgentRailEntries(&model, railEntries)
-		model.AgentRailPending = true
+		model.AgentRailPending = !named
+		model.AgentIconsReady = model.AgentIconsReady || named
 	default:
 		model.AgentRailPending, model.AgentIconsReady = false, true
 	}
@@ -674,8 +686,10 @@ func loadChatProjection(ctx context.Context) (chatui.Model, error) {
 // are opaque and never treated as worker IDs or photo paths.
 func startChatDMPeers(cfg journeyclient.Config, rooms []chatui.Conversation) {
 	semaphore := make(chan struct{}, 4)
+	// CHATUX-047: a peer the list answer already named needs no membership read.
+	known := chatBrowser.snapshot().PeerIDs
 	for _, room := range rooms {
-		if room.Kind != chatui.DirectMessage || !chatBrowser.claimDMPeerRead(room.ID) {
+		if room.Kind != chatui.DirectMessage || known[room.ID] != "" || !chatBrowser.claimDMPeerRead(room.ID) {
 			continue
 		}
 		go func(roomID string) {
@@ -1624,12 +1638,16 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 	// render between here and the response must show an empty composer. This
 	// also cancels the pending debounced write of the text being sent, which
 	// would otherwise land after it.
+	// CHATGATE-014: the audience chosen under "Visible to" is read before the
+	// composer is emptied, and goes with this one message.
+	audience, restricted := chatgateComposerAudience()
 	chatBrowser.setDraft(conversationID, "")
 	flushChatDraftPersist(active)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	sent, err := client.SendPost(chatRPCContext(ctx, active), &chatv1.SendPostRequest{
 		TenantId: active.Tenant, ConversationId: conversationID, Body: body, IdempotencyKey: key,
+		AudienceSegments: audience, AudienceRestricted: restricted,
 	})
 	if err != nil {
 		// A failed send is the one thing allowed to put the text back, so the
@@ -1642,6 +1660,7 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 		return
 	}
 	chatBrowser.clearSendKey(conversationID)
+	chatgateComposerAudienceReset()
 	// The response is the committed post, so the reader's own message appears
 	// from it. No projection reload: a send used to cost a full route
 	// revalidation -- ListConversations, a ListPosts walk, ListPins -- for a

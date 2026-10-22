@@ -9,7 +9,9 @@ async function signIn(page) {
   await page.goto("/workspace/app/agents");
   await page.waitForFunction(
     () =>
-      performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 45000 },
   );

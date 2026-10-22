@@ -62,7 +62,8 @@ func agentDirectoryArrived(m Model) bool {
 func agentMessageAuthor(msg Message) ui.Node {
 	name := strings.TrimSpace(msg.Author)
 	if name == "" {
-		return html.Strong(html.Props{Class: "message-author agent-name-pending", Text: "…", Aria: map[string]string{"busy": "true"}})
+		// CHATUX-047: the shared loading bar, never a printed mark.
+		return html.Strong(html.Props{Class: "message-author agent-name-pending-bar", Aria: map[string]string{"busy": "true"}}, chatux047NameBar("author"))
 	}
 	return html.Strong(html.Props{Class: "message-author", Text: msg.Author})
 }

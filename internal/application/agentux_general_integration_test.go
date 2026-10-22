@@ -44,6 +44,15 @@ func TestAgentUXGeneral_PolicyUpgrade_Integration(t *testing.T) {
 }
 
 func agentUXGeneralPublishRunnable(t *testing.T, upgrade, workspaceSearch bool) {
+	agentUXGeneralPublishRunnableWith(t, upgrade, workspaceSearch, nil)
+}
+
+// agentUXGeneralAfter runs against the same prepared cell once Policy Helper and
+// Assistant are prepared and checked, so a test of another starter's preparation
+// starts from the cell the review database is in.
+type agentUXGeneralAfter func(t *testing.T, preparation localAgentDemoPreparation, adminCtx context.Context, policy agentpersona.PersonaProfile, scoped *agentpersonastore.TenantStore, general string, agentDB *pgtest.DB)
+
+func agentUXGeneralPublishRunnableWith(t *testing.T, upgrade, workspaceSearch bool, after agentUXGeneralAfter) {
 	ctx := context.Background()
 	coreDB, agentDB := pgtest.New(t), pgtest.NewEmpty(t)
 	if err := agentstore.Migrate(ctx, agentDB.SQL); err != nil {
@@ -423,5 +432,8 @@ func agentUXGeneralPublishRunnable(t *testing.T, upgrade, workspaceSearch bool) 
 	}
 	if len(agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID).Cases) != 8 {
 		t.Fatal("Assistant suite changed")
+	}
+	if after != nil {
+		after(t, preparation, adminCtx, policyProfile, scoped, publicID, agentDB)
 	}
 }

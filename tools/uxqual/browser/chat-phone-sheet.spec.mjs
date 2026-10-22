@@ -19,7 +19,10 @@ test.setTimeout(90000);
 
 async function signIn(page) {
   await page.goto("/workspace/login");
-  await page.getByRole("button", { name: /^Continue as / }).first().click();
+  await page
+    .getByRole("button", { name: /^Continue as / })
+    .first()
+    .click();
   await page.waitForURL(/\/workspace\/app\//);
 }
 

@@ -193,7 +193,7 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 		}
 		first := func(article string) string {
 			row := regexp.MustCompile(`(?s)<div class="chatmod005-actions".*?</div>`).FindString(article)
-			m := regexp.MustCompile(`class="chatmod005-action(?: primary)?"[^>]*>([^<]*)<`).FindStringSubmatch(row)
+			m := regexp.MustCompile(`class="chatmod005-action(?: [^"]*)?"[^>]*>([^<]*)<`).FindStringSubmatch(row)
 			if m == nil {
 				return ""
 			}

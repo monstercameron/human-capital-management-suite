@@ -50,6 +50,40 @@ func TestTodo_HUB_032_Accessibility(t *testing.T) {
 	}
 }
 
+func TestDocsLoadFailureDoesNotClaimCapabilityIsUnconfigured(t *testing.T) {
+	view := NewView(PageDocs, "tenant-a", "reader-a", "scope-a")
+	view.LoadError = "We couldn't load this page. Try again."
+	view.DocumentsLoadFailed = true
+	markup, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(markup, "Not set up for this workspace") || !strings.Contains(markup, `class="loading-proxy loading-proxy-docs loading-proxy-failed"`) {
+		t.Fatalf("Docs render conflated failed list read with absent capability:\n%s", markup)
+	}
+	if got := strings.Count(markup, `class="async-region-failure"`); got != 1 {
+		t.Fatalf("Docs render has %d async failure regions, want exactly one", got)
+	}
+	if got := strings.Count(markup, `class="button secondary async-region-retry"`); got != 1 {
+		t.Fatalf("Docs render has %d retries, want exactly one", got)
+	}
+	if got := strings.Count(markup, `id="main-content"`); got != 1 {
+		t.Fatalf("Docs SSR has %d main shell regions, want exactly one", got)
+	}
+	if got := strings.Count(markup, `id="primary-nav"`); got != 1 {
+		t.Fatalf("Docs SSR has %d primary navigation regions, want exactly one", got)
+	}
+
+	view.DocumentsLoadFailed = false
+	markup, err = Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(markup, "Not set up for this workspace") || !strings.Contains(markup, "Live data unavailable") {
+		t.Fatal("an absent capability with an independent page error lost either its setup state or independent recovery notice")
+	}
+}
+
 // TestTodo_HUB_034 is the PRIMARY test for HUB-034: the review screen
 // displays the exact diff, content hash and deploy scope for a candidate
 // version, and review/deploy forms appear only under current, independently
@@ -249,7 +283,7 @@ func TestTodo_HUB_032_DocumentReadIsPlainTextAndHasReturnControl(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`href="/workspace/app/docs"`, `tabIndex="-1">Handbook</h1>`, `<h2 dir="auto" id="sec-heading">Heading</h2>`, "&lt;script&gt;should stay text&lt;/script&gt;", "People Operations", `href="/workspace/app/docs?document=plain-3"`, `href="/workspace/app/docs?document=plain-4"`, "doc:team-7#intro", "doc:private-2@version-3", "javascript:alert(1)"} {
+	for _, want := range []string{`href="/workspace/app/docs"`, `tabIndex="-1">Handbook</h1>`, `<h2 data-document-section="heading" dir="auto" id="sec-heading">Heading</h2>`, "&lt;script&gt;should stay text&lt;/script&gt;", "People Operations", `href="/workspace/app/docs?document=plain-3"`, `href="/workspace/app/docs?document=plain-4"`, "doc:team-7#intro", "doc:private-2@version-3", "javascript:alert(1)"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("document read omitted %q", want)
 		}
@@ -301,7 +335,7 @@ func TestTodo_HUB_032_MarkdownDocumentUsesSafeTypedNodes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`<h3 dir="auto" id="sec-heading">Heading</h3>`, "<strong>bold</strong>", "<em>emphasis</em>", "<code>code</code>", `<ul dir="auto">`, `<li dir="auto">one</li>`, "javascript:alert(1)"} {
+	for _, want := range []string{`<h3 data-document-section="heading" dir="auto" id="sec-heading">Heading</h3>`, "<strong>bold</strong>", "<em>emphasis</em>", "<code>code</code>", `<ul dir="auto">`, `<li dir="auto">one</li>`, "javascript:alert(1)"} {
 		if !strings.Contains(doc, want) {
 			t.Fatalf("typed Markdown omitted %q", want)
 		}

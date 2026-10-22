@@ -134,7 +134,7 @@ func TestTodo_CHATTONE_001_Golden(t *testing.T) {
 	}
 	// A model is evaluated for exactly this instruction text. Changing it is a new
 	// version that must be evaluated again; update this line only with that run.
-	if got := InstructionDigest(); got != "c15efa7c26d966424cdfa1ceaa805f80e2888216344c44fa78e5a65b512e3624" {
+	if got := InstructionDigest(); got != "f2f949d2c405bac2f61492b07b77fcf2c961cf90aa99566dde11ea80d11ae6bb" {
 		t.Fatalf("the instruction text changed: digest %s", got)
 	}
 }

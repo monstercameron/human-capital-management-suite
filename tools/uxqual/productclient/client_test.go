@@ -3,9 +3,12 @@ package productclient
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
+	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
@@ -31,6 +34,154 @@ func TestTodo_UIPOLISH_009_LoadingHomeTitleDoesNotFlashPrincipalIdentifier(t *te
 		if view.Title != tc.want || strings.Contains(view.Title, "Hc 050") {
 			t.Fatalf("%s loading Home title = %q; want stable registry title %q", tc.locale, view.Title, tc.want)
 		}
+	}
+}
+
+func TestWorkflowStartDeepLinkRouteAndViewLifecycle(t *testing.T) {
+	const firstID = "hcmnext.workflows.new_hire"
+	const secondID = "workflow/time-entry"
+	session := Session{
+		WorkflowStartWorkflowID: firstID,
+		WorkflowStarts: []productui.WorkflowStartItem{
+			{WorkflowID: firstID, Name: "New hire", Availability: productui.WorkflowStartAvailable},
+			{WorkflowID: secondID, Name: "Time entry", Availability: productui.WorkflowStartMissingAuthority},
+		},
+	}
+	firstPath := productui.Path(productui.PageWorkflowStart) + "/start/" + firstID
+	secondPath := productui.Path(productui.PageWorkflowStart) + "/start/workflow%2Ftime-entry"
+
+	first, err := ParseState(firstPath, "locale=en-US")
+	if err != nil {
+		t.Fatalf("parse first workflow deep link: %v", err)
+	}
+	if first.Page != productui.PageWorkflowStart || first.WorkflowStartWorkflowID != firstID {
+		t.Fatalf("first route state = %+v", first)
+	}
+	if got := CanonicalHref(first); got != firstPath+"?locale=en-US" {
+		t.Fatalf("canonical first deep link = %q", got)
+	}
+	view := LoadingView(session, first)
+	if view.WorkflowStartWorkflowID != firstID {
+		t.Fatalf("initial loading view workflow ID = %q, want %q", view.WorkflowStartWorkflowID, firstID)
+	}
+
+	second, err := ParseState(secondPath, "locale=en-US")
+	if err != nil {
+		t.Fatalf("parse encoded workflow deep link: %v", err)
+	}
+	if second.WorkflowStartWorkflowID != secondID || CanonicalHref(second) != secondPath+"?locale=en-US" {
+		t.Fatalf("encoded route state = %+v, canonical = %q", second, CanonicalHref(second))
+	}
+	view = ContentLoadingView(view, second)
+	if view.WorkflowStartWorkflowID != secondID {
+		t.Fatalf("second deep link retained ID %q, want %q", view.WorkflowStartWorkflowID, secondID)
+	}
+
+	base, err := ParseState(productui.Path(productui.PageWorkflowStart), "locale=en-US")
+	if err != nil {
+		t.Fatalf("parse workflow catalog route: %v", err)
+	}
+	view = ContentLoadingView(view, base)
+	if view.WorkflowStartWorkflowID != "" {
+		t.Fatalf("catalog route retained stale workflow ID %q", view.WorkflowStartWorkflowID)
+	}
+	baseView := LoadingView(session, base)
+	if baseView.WorkflowStartWorkflowID != "" {
+		t.Fatalf("initial catalog view inherited session deep link ID %q", baseView.WorkflowStartWorkflowID)
+	}
+
+	other, err := ParseState(productui.Path(productui.PageHome), "")
+	if err != nil {
+		t.Fatalf("parse unrelated route: %v", err)
+	}
+	view = ContentLoadingView(view, first)
+	view = ContentLoadingView(view, other)
+	if view.WorkflowStartWorkflowID != "" {
+		t.Fatalf("unrelated route retained stale workflow ID %q", view.WorkflowStartWorkflowID)
+	}
+
+	unknown, err := ParseState(productui.Path(productui.PageWorkflowStart)+"/start/hidden", "")
+	if err != nil {
+		t.Fatalf("parse syntactically valid unknown ID: %v", err)
+	}
+	if got := LoadingView(session, unknown).WorkflowStartWorkflowID; got != "" {
+		t.Fatalf("unknown ID escaped the authorized catalog: %q", got)
+	}
+	if _, err := ParseState(productui.Path(productui.PageWorkflowStart)+"/start/a/b", ""); err == nil {
+		t.Fatal("extra workflow route segment was accepted")
+	}
+	if _, err := ParseState(productui.Path(productui.PageWorkflowStart)+"/start/workflow%00id", ""); err == nil {
+		t.Fatal("workflow route containing an encoded control character was accepted")
+	}
+}
+
+func TestDocsListLoadSeparatesUnconfiguredCapabilityFromFailures(t *testing.T) {
+	session := Session{Tenant: "tenant-a", Principal: "reader-a", Scope: "scope-a"}
+	state := State{Page: productui.PageDocs, Request: productui.PageRequest{Page: productui.PageDocs}}
+	baseline := LoadingView(session, State{Page: productui.PageHome, Request: productui.PageRequest{Page: productui.PageHome}})
+
+	statusWithReason := func(code codes.Code, reason string) error {
+		st, err := status.New(code, "safe summary").WithDetails(&commonv1.ErrorDetail{ReasonRef: reason})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st.Err()
+	}
+	tests := []struct {
+		name       string
+		list       func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error)
+		wantFailed bool
+		wantReady  bool
+		wantErr    bool
+	}{
+		{name: "typed absent service", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, statusWithReason(codes.Unavailable, "document.service.not_configured")
+		}},
+		{name: "bare unavailable", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, status.Error(codes.Unavailable, "temporary network failure")
+		}, wantFailed: true, wantErr: true},
+		{name: "same reason with permission denied", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, statusWithReason(codes.PermissionDenied, "document.service.not_configured")
+		}, wantFailed: true, wantErr: true},
+		{name: "unavailable with another reason", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, statusWithReason(codes.Unavailable, "document.internal_error")
+		}, wantFailed: true, wantErr: true},
+		{name: "nil client", wantFailed: true, wantErr: true},
+		{name: "nil response", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, nil
+		}, wantFailed: true, wantErr: true},
+		{name: "healthy empty library", list: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return &documentv1.ListDocumentsResponse{}, nil
+		}, wantReady: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			view, err := LoadWithBaseline(context.Background(), Service{ListDocuments: tc.list}, session, state, baseline)
+			if (err != nil) != tc.wantErr || view.DocumentsLoadFailed != tc.wantFailed {
+				t.Fatalf("LoadWithBaseline() failed=%v err=%v, want failed=%v err=%v", view.DocumentsLoadFailed, err, tc.wantFailed, tc.wantErr)
+			}
+			if view.DocumentsReady != tc.wantReady {
+				t.Fatalf("DocumentsReady=%v, want %v", view.DocumentsReady, tc.wantReady)
+			}
+		})
+	}
+	failedView, err := LoadWithBaseline(context.Background(), Service{ListDocuments: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		return nil, status.Error(codes.Unavailable, "temporary network failure")
+	}}, session, state, baseline)
+	if err == nil || !failedView.DocumentsLoadFailed {
+		t.Fatalf("transient Docs read did not enter failed state: failed=%v err=%v", failedView.DocumentsLoadFailed, err)
+	}
+	recovered, err := LoadWithBaseline(context.Background(), Service{ListDocuments: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		return &documentv1.ListDocumentsResponse{}, nil
+	}}, session, state, baseline)
+	if err != nil || recovered.DocumentsLoadFailed || !recovered.DocumentsReady {
+		t.Fatalf("successful Docs retry retained failure state: failed=%v ready=%v err=%v", recovered.DocumentsLoadFailed, recovered.DocumentsReady, err)
+	}
+
+	// A transport error is opaque user-facing data; the known typed config
+	// reason is the sole condition that may be interpreted as absent setup.
+	if !documentServiceNotConfigured(fmt.Errorf("wrapper: %w", statusWithReason(codes.Unavailable, "document.service.not_configured"))) {
+		t.Fatal("wrapped typed configuration status was not recognized")
 	}
 }
 

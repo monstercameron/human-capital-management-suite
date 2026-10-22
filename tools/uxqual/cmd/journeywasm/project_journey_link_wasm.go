@@ -27,6 +27,7 @@ import (
 type projectLinkerTask struct {
 	projectID, taskID, key, title string
 	revision                      uint64
+	_                             incomparable
 }
 
 var projectLinkerTasks []projectLinkerTask

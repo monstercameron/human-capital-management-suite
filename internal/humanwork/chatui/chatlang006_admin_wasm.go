@@ -181,3 +181,14 @@ func translationAdminChangedField(event ui.Event) string {
 	}
 	return target.Get("name").String()
 }
+
+// translationAdminReadReport is the report and the resolution a press of a
+// report's button names (its data-report and data-state).
+func translationAdminReadReport(event ui.Event) (string, string) {
+	target := event.JSValue().Get("currentTarget")
+	if !target.Truthy() {
+		return "", ""
+	}
+	dataset := target.Get("dataset")
+	return dataset.Get("report").String(), dataset.Get("state").String()
+}

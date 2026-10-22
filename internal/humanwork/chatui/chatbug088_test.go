@@ -10,7 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
-var chatbug088Author = regexp.MustCompile(`<strong[^>]*class="message-author[^"]*"[^>]*>([^<]*)</strong>`)
+var chatbug088Author = regexp.MustCompile(`(?s)<strong[^>]*class="message-author[^"]*"[^>]*>(.*?)</strong>`)
 
 // chatbug088Room is #general with the Assistant's stored announcement in it and
 // a second agent, Policy Helper, in the room's agent directory: the case where a
@@ -51,13 +51,14 @@ func TestTodo_CHATBUG_088(t *testing.T) {
 		if match == nil {
 			t.Fatalf("the row has no author line: %s", markup)
 		}
-		return match[1]
+		return regexp.MustCompile(`<[^>]*>`).ReplaceAllString(match[1], "")
 	}
 
-	// Before the directory: neutral mark, empty slot.
+	// Before the directory: the shared loading bar (CHATUX-047, never a printed
+	// mark), empty slot.
 	before := row(model)
-	if got := authorOf(before); got != "…" {
-		t.Fatalf("before the directory the author line is %q, want the neutral mark", got)
+	if got := authorOf(before); got != "" || !strings.Contains(before, "chat-skeleton chatux037-bar") || strings.Contains(before, "…") {
+		t.Fatalf("before the directory the author line is %q, want the loading bar: %s", got, before)
 	}
 	for _, bad := range []string{"Assistant", "Policy Helper", "Hcmnext Local Persona Assistant", `<svg class="agent-icon"`} {
 		if strings.Contains(before, bad) {

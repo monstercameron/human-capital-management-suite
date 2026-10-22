@@ -315,6 +315,10 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 	if err = seedAdminReadState(writeCtx, adapter, opts, rooms, people); err != nil {
 		return err
 	}
+	// CHATSEED-002: the Moderation page needs something to moderate.
+	if _, err = seedChatModerationWithClassifier(writeCtx, store, opts.Tenant, opts.Now, classifier, out); err != nil {
+		return err
+	}
 	fmt.Fprintf(out, "seeded chat demo for %s (%s): %d conversations, %d memberships, %d posts, %d threads with %d replies, %d reactions, %d pins, %d image posts, %d animated posts\n",
 		opts.Tenant, opts.Scale, receipt.Conversations, receipt.Memberships, receipt.Posts, receipt.Threads, receipt.ThreadReplies, receipt.Reactions, receipt.Pins, receipt.Images, receipt.GIFs)
 	fmt.Fprintf(out, "history spans %s to %s\n", receipt.EarliestPost.Format(time.RFC3339), receipt.LatestPost.Format(time.RFC3339))
@@ -519,33 +523,24 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 	// jitter inside it. Stepping by a random amount instead would make the span a
 	// random walk, and a room whose history covers nine of fourteen days looks
 	// like a room that went quiet rather than a room with two weeks in it.
-	window := time.Duration(chatSeedDays) * 24 * time.Hour
-	slot := window / time.Duration(posts+1)
+	// The slots are laid on the office's working time (08:00 to 18:00 on
+	// weekdays, CHATSEED-003) and not on the calendar, so no post lands at night
+	// or on a weekend and none can pass the run's own clock.
+	slotBound := int64(chatSeedDays*24*time.Hour/time.Duration(posts+1)/2 + time.Minute)
 	roots := make([]chatcore.Post, 0, posts)
-	office := chatSeedOfficeZone(in.opts.Tenant)
-	var lastRoot time.Time
+	timeline := newChatSeedTimeline(in.start, in.opts.Now, chatSeedOfficeZone(in.opts.Tenant))
+	// newest is the latest moment written in this room so far, replies included,
+	// so the next post never lands before the one that precedes it.
+	var newest time.Time
 	for i := 0; i < posts; i++ {
-		jitter := time.Duration(in.rng.Int63n(int64(slot/2+time.Minute))) - slot/4
-		clock := in.start.Add(time.Duration(i+1)*slot + jitter)
-		if !clock.After(in.start) {
-			clock = in.start.Add(time.Minute)
+		jitter := (float64(in.rng.Int63n(slotBound))/float64(slotBound) - 0.5) / 2
+		// The last two percent of the window stays free, so the thread under the
+		// newest post has room to run before the run's own clock.
+		clock := timeline.At(0.98 * (float64(i) + 0.5 + jitter) / float64(posts))
+		if !clock.After(newest) {
+			clock = timeline.Advance(newest, time.Minute)
 		}
-		if clock.After(in.opts.Now) {
-			clock = in.opts.Now.Add(-time.Duration(posts-i) * time.Minute)
-		}
-		// Office hours, never later than the run itself and never before the
-		// post that precedes it.
-		clock = chatSeedWorkday(clock, office)
-		for clock.After(in.opts.Now) {
-			clock = clock.Add(-24 * time.Hour)
-		}
-		if !clock.After(lastRoot) {
-			clock = lastRoot.Add(time.Minute)
-		}
-		if clock.After(in.opts.Now) {
-			clock = in.opts.Now
-		}
-		lastRoot = clock
+		newest = clock
 		author := in.people[in.room.Members[i%len(in.room.Members)]]
 		body, refs := seedBody(in, i, author)
 		mediaRefs, mediaErr := seedMediaFor(ctx, media, in, i, author, receipt)
@@ -575,10 +570,10 @@ func seedRoomHistory(ctx context.Context, adapter *chatstore.Adapter, media *see
 			replies := 2 + in.rng.Intn(7)
 			receipt.Threads++
 			for r := 0; r < replies; r++ {
-				clock = chatSeedReplyTime(clock.Add(time.Duration(3+in.rng.Intn(40))*time.Minute), office)
-				if clock.After(in.opts.Now) {
-					clock = in.opts.Now
-				}
+				// A few minutes after the message before it, which keeps a thread
+				// of eight inside the stretch to the next post.
+				clock = timeline.Advance(clock, time.Duration(2+in.rng.Intn(8))*time.Minute)
+				newest = clock
 				replyAuthor := in.people[in.room.Members[(i+r+1)%len(in.room.Members)]]
 				reply, replyErr := adapter.SendPost(ctx,
 					chatcore.SendPostRequest{Principal: chatcore.Principal{TenantID: in.opts.Tenant, SubjectID: replyAuthor}, TenantID: in.opts.Tenant, ConversationID: in.conversation, IdempotencyKey: fmt.Sprintf("seed:%s:%d:%d", in.room.Key, i, r), ParentID: post.ID},
@@ -907,23 +902,25 @@ func headcountTable() []byte {
 // Multi-frame and genuinely animated, because a one-frame GIF proves nothing
 // about how the client renders one.
 func celebrationLoop(variant int) []byte {
-	const w, h, frames = 120, 90, 8
+	// A dark ground and large pieces: on a white 120 by 90 canvas with twelve
+	// 5 pixel dots the tile read as an empty box in the timeline.
+	const w, h, frames, piece = 240, 160, 8, 14
 	palette := color.Palette{
+		color.RGBA{34, 46, 92, 255},
+		color.RGBA{240, 84, 100, 255},
 		color.RGBA{255, 255, 255, 255},
-		color.RGBA{232, 76, 92, 255},
-		color.RGBA{63, 98, 168, 255},
-		color.RGBA{246, 190, 75, 255},
-		color.RGBA{86, 176, 128, 255},
+		color.RGBA{250, 200, 80, 255},
+		color.RGBA{90, 200, 140, 255},
 	}
 	anim := gif.GIF{LoopCount: 0}
 	for f := 0; f < frames; f++ {
 		frame := image.NewPaletted(image.Rect(0, 0, w, h), palette)
 		draw.Draw(frame, frame.Bounds(), &image.Uniform{palette[0]}, image.Point{}, draw.Src)
-		for dot := 0; dot < 12; dot++ {
-			x := (dot*11 + variant*3) % (w - 6)
-			y := (dot*17 + f*11) % (h - 6)
+		for dot := 0; dot < 24; dot++ {
+			x := (dot*23 + variant*7) % (w - piece)
+			y := (dot*31 + f*19) % (h - piece)
 			shade := uint8(1 + (dot+variant)%4)
-			draw.Draw(frame, image.Rect(x, y, x+5, y+5), &image.Uniform{palette[shade]}, image.Point{}, draw.Src)
+			draw.Draw(frame, image.Rect(x, y, x+piece, y+piece), &image.Uniform{palette[shade]}, image.Point{}, draw.Src)
 		}
 		anim.Image = append(anim.Image, frame)
 		anim.Delay = append(anim.Delay, 12)

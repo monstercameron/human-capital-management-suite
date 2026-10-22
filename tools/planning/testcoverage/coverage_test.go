@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -158,6 +159,77 @@ hand-written=1 generated=0
 	}
 }
 
+func TestParseExclusionsAcceptsFormattedThreeColumnTable(t *testing.T) {
+	data := []byte(`
+## Exclusions
+
+| file   | kind                 | reason |
+| :----- | -------------------: | :----: |
+| sample.go | thin command wrapper | Delegates behavior to the tested package. |
+`)
+	got, err := parseExclusions(data)
+	if err != nil {
+		t.Fatalf("formatted exclusions table rejected: %v", err)
+	}
+	want := map[string][2]string{
+		"sample.go": {"thin command wrapper", "Delegates behavior to the tested package."},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("parsed exclusions = %#v, want %#v", got, want)
+	}
+}
+
+func TestParseExclusionsRejectsMalformedTables(t *testing.T) {
+	tests := []struct {
+		name  string
+		table string
+	}{
+		{
+			name:  "short separator",
+			table: "| file | kind | reason |\n| -- | --- | --- |\n| sample.go | wrapper | delegates behavior |\n",
+		},
+		{
+			name:  "wrong separator column count",
+			table: "| file | kind | reason |\n| --- | --- |\n| sample.go | wrapper | delegates behavior |\n",
+		},
+		{
+			name:  "wrong header column count",
+			table: "| file | kind |\n| --- | --- |\n| sample.go | wrapper |\n",
+		},
+		{
+			name:  "wrong header names",
+			table: "| file | package | reason |\n| --- | --- | --- |\n| sample.go | wrapper | delegates behavior |\n",
+		},
+		{
+			name:  "extra edge columns",
+			table: "|| file | kind | reason ||\n| --- | --- | --- |\n| sample.go | wrapper | delegates behavior |\n",
+		},
+		{
+			name:  "repeated separator colons",
+			table: "| file | kind | reason |\n| ::--- | --- | --- |\n| sample.go | wrapper | delegates behavior |\n",
+		},
+		{
+			name:  "extra edge columns in row",
+			table: "| file | kind | reason |\n| --- | --- | --- |\n|| sample.go | wrapper | delegates behavior ||\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := []byte("## Exclusions\n\n" + tt.table)
+			if _, err := parseExclusions(data); err == nil {
+				t.Fatal("malformed exclusions table was accepted")
+			}
+		})
+	}
+}
+
+func TestParseExclusionsRejectsDuplicateRows(t *testing.T) {
+	data := []byte("## Exclusions\n\n| file | kind | reason |\n| --- | --- | --- |\n| sample.go | wrapper | first |\n| sample.go | wrapper | second |\n")
+	if _, err := parseExclusions(data); err == nil || !strings.Contains(err.Error(), "duplicate exclusion row sample.go") {
+		t.Fatalf("duplicate exclusion was not rejected: %v", err)
+	}
+}
+
 func TestCheckpointResumesOnlyMatchingPassingPackage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "root", "package.json")
 	module := Module{Path: ".", Name: "fixture", Root: "example.test/fixture"}
@@ -191,6 +263,263 @@ func TestCheckpointResumesOnlyMatchingPassingPackage(t *testing.T) {
 	}
 }
 
+func TestCheckpointContextHashTracksDependencyAndBuildInputs(t *testing.T) {
+	root := newCheckpointFingerprintFixture(t)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+
+	first, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash initial context: %v", err)
+	}
+	unchanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("rehash unchanged context: %v", err)
+	}
+	if unchanged != first {
+		t.Fatal("unchanged source/build context produced a different checkpoint fingerprint")
+	}
+
+	packages, err := listPackages(context.Background(), root)
+	if err != nil {
+		t.Fatalf("list fixture packages: %v", err)
+	}
+	var fixturePackage listedPackage
+	for _, pkg := range packages {
+		if pkg.ImportPath == "example.test/checkpoint" {
+			fixturePackage = pkg
+			break
+		}
+	}
+	if fixturePackage.ImportPath == "" {
+		t.Fatal("fixture root package was not listed")
+	}
+	rows := []sourceRow{{testHash: "unchanged-test-hash"}}
+	firstPackageHash, err := packageInputHash(rows, fixturePackage, first)
+	if err != nil {
+		t.Fatalf("hash fixture package: %v", err)
+	}
+
+	dependencyFile := filepath.Join(root, "dependency", "value.go")
+	writeCheckpointFixtureFile(t, dependencyFile, "package dependency\nfunc Value() string { return \"changed dependency\" }\n")
+	dependencyChanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash changed dependency: %v", err)
+	}
+	if dependencyChanged == first {
+		t.Fatal("dependency-only change did not invalidate module context")
+	}
+	dependencyPackageHash, err := packageInputHash(rows, fixturePackage, dependencyChanged)
+	if err != nil {
+		t.Fatalf("hash package after dependency change: %v", err)
+	}
+	if dependencyPackageHash == firstPackageHash {
+		t.Fatal("dependency-only change reused the package checkpoint key")
+	}
+
+	writeCheckpointFixtureFile(t, filepath.Join(root, "notice.txt"), "updated embedded text\n")
+	embedChanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash changed embed input: %v", err)
+	}
+	if embedChanged == dependencyChanged {
+		t.Fatal("embed-only change did not invalidate module context")
+	}
+
+	goModPath := filepath.Join(root, "go.mod")
+	goMod, err := os.ReadFile(goModPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCheckpointFixtureFile(t, goModPath, string(goMod)+"// context fingerprint change\n")
+	moduleChanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash changed go.mod: %v", err)
+	}
+	if moduleChanged == embedChanged {
+		t.Fatal("go.mod-only change did not invalidate module context")
+	}
+
+	t.Setenv("GOFLAGS", "-tags=checkpointcontext")
+	buildFlagsChanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash changed build flags: %v", err)
+	}
+	if buildFlagsChanged == moduleChanged {
+		t.Fatal("GOFLAGS-only change did not invalidate module context")
+	}
+}
+
+func TestCheckpointContextHashTracksOverlayReplacement(t *testing.T) {
+	root := newCheckpointFingerprintFixture(t)
+	t.Setenv("GOWORK", "off")
+	mainPath := filepath.Join(root, "main.go")
+	mainSource, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainSource), "dependency.Value()") {
+		t.Fatal("fixture source lacks expected dependency expression")
+	}
+	replacementPath := filepath.Join(root, ".artifacts", "main.overlay.go")
+	writeCheckpointFixtureFile(t, replacementPath, strings.Replace(string(mainSource), "dependency.Value()", "dependency.Value() + \" overlay one\"", 1))
+	overlayPath := filepath.Join(root, ".artifacts", "go-overlay.json")
+	overlay, err := json.Marshal(struct {
+		Replace map[string]string `json:"Replace"`
+	}{Replace: map[string]string{mainPath: replacementPath}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCheckpointFixtureFile(t, overlayPath, string(overlay))
+	t.Setenv("GOFLAGS", "-overlay="+overlayPath)
+
+	first, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash initial overlay context: %v", err)
+	}
+	unchanged, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("rehash unchanged overlay context: %v", err)
+	}
+	if unchanged != first {
+		t.Fatal("unchanged overlay inputs produced a different checkpoint fingerprint")
+	}
+	writeCheckpointFixtureFile(t, replacementPath, strings.Replace(string(mainSource), "dependency.Value()", "dependency.Value() + \" overlay two\"", 1))
+	changed, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash changed overlay replacement: %v", err)
+	}
+	if changed == first {
+		t.Fatal("overlay replacement-only change did not invalidate module context")
+	}
+
+	writeCheckpointFixtureFile(t, replacementPath, "package checkpoint\nconst overlayAdded = true\n")
+	addedSourcePath := filepath.Join(root, "overlay_added.go")
+	writeCheckpointFixtureFile(t, overlayPath, mustMarshalOverlay(t, map[string]string{
+		addedSourcePath: replacementPath,
+	}))
+	addedSourceHash, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash overlay-added source: %v", err)
+	}
+	if addedSourceHash == changed {
+		t.Fatal("overlay-added Go source did not invalidate the checkpoint key")
+	}
+
+	writeCheckpointFixtureFile(t, filepath.Join(root, "obsolete.go"), "package checkpoint\nconst obsolete = true\n")
+	writeCheckpointFixtureFile(t, overlayPath, mustMarshalOverlay(t, map[string]string{
+		filepath.Join(root, "obsolete.go"): "",
+	}))
+	deletedSourceHash, err := moduleContextHash(context.Background(), root, root)
+	if err != nil {
+		t.Fatalf("hash overlay-deleted source: %v", err)
+	}
+	if deletedSourceHash == addedSourceHash {
+		t.Fatal("empty overlay replacement did not invalidate the checkpoint key")
+	}
+}
+
+func mustMarshalOverlay(t *testing.T, replacements map[string]string) string {
+	t.Helper()
+	data, err := json.Marshal(struct {
+		Replace map[string]string `json:"Replace"`
+	}{Replace: replacements})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func newCheckpointFingerprintFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writeCheckpointFingerprintModule(t, root)
+	return root
+}
+
+func writeCheckpointFingerprintModule(t *testing.T, root string) {
+	t.Helper()
+	writeCheckpointFingerprintModuleWithDependency(t, root, filepath.Join(root, "dependency"))
+}
+
+func writeCheckpointFingerprintModuleWithDependency(t *testing.T, root, dependencyRoot string) {
+	t.Helper()
+	replacement, err := filepath.Rel(root, dependencyRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement = filepath.ToSlash(replacement)
+	if replacement == "." || !strings.HasPrefix(replacement, "../") && !filepath.IsAbs(replacement) {
+		replacement = "./" + strings.TrimPrefix(replacement, "./")
+	}
+	writeCheckpointFixtureFile(t, filepath.Join(root, "go.mod"), "module example.test/checkpoint\n\ngo 1.26.0\n\nrequire example.test/dependency v0.0.0\nreplace example.test/dependency => "+replacement+"\n")
+	writeCheckpointFixtureFile(t, filepath.Join(root, "main.go"), "package checkpoint\nimport (_ \"embed\"; \"example.test/dependency\")\n//go:embed notice.txt\nvar notice string\nfunc Value() string { return dependency.Value() + notice }\n")
+	writeCheckpointFixtureFile(t, filepath.Join(root, "main_test.go"), "package checkpoint\nimport \"testing\"\nfunc TestValue(t *testing.T) { if Value() == \"\" { t.Fatal(\"empty\") } }\n")
+	writeCheckpointFixtureFile(t, filepath.Join(root, "notice.txt"), "fixture text\n")
+	writeCheckpointFixtureFile(t, filepath.Join(dependencyRoot, "go.mod"), "module example.test/dependency\n\ngo 1.26.0\n")
+	writeCheckpointFixtureFile(t, filepath.Join(dependencyRoot, "value.go"), "package dependency\nfunc Value() string { return \"initial dependency\" }\n")
+}
+
+func TestCheckpointContextHashTracksExternalDependencyTestdata(t *testing.T) {
+	base := t.TempDir()
+	repo := filepath.Join(base, "repo")
+	moduleRoot := filepath.Join(repo, "module")
+	dependencyRoot := filepath.Join(base, "local-replacement")
+	if err := os.MkdirAll(moduleRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeCheckpointFingerprintModuleWithDependency(t, moduleRoot, dependencyRoot)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+
+	first, err := moduleContextHash(context.Background(), moduleRoot, repo)
+	if err != nil {
+		t.Fatalf("hash initial external dependency: %v", err)
+	}
+	writeCheckpointFixtureFile(t, filepath.Join(dependencyRoot, "testdata", "runtime.json"), "{\"mode\":\"first\"}\n")
+	changed, err := moduleContextHash(context.Background(), moduleRoot, repo)
+	if err != nil {
+		t.Fatalf("hash external dependency testdata change: %v", err)
+	}
+	if changed == first {
+		t.Fatal("external local-replacement testdata change did not invalidate the checkpoint context")
+	}
+}
+
+func TestCheckpointContextHashTracksRepositoryLevelInputs(t *testing.T) {
+	repo := t.TempDir()
+	moduleRoot := filepath.Join(repo, "tools", "fixture")
+	if err := os.MkdirAll(moduleRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeCheckpointFingerprintModule(t, moduleRoot)
+	t.Setenv("GOFLAGS", "")
+	t.Setenv("GOWORK", "off")
+
+	first, err := moduleContextHash(context.Background(), moduleRoot, repo)
+	if err != nil {
+		t.Fatalf("hash initial repository context: %v", err)
+	}
+	writeCheckpointFixtureFile(t, filepath.Join(repo, "definitions", "policy.yaml"), "policy: initial\n")
+	changed, err := moduleContextHash(context.Background(), moduleRoot, repo)
+	if err != nil {
+		t.Fatalf("hash changed repository input: %v", err)
+	}
+	if changed == first {
+		t.Fatal("repository-level non-Go input did not invalidate the checkpoint context")
+	}
+}
+
+func writeCheckpointFixtureFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWriteStoresPerPackageCheckpoint(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.test/writefixture\n\ngo 1.26.0\n"), 0644); err != nil {
@@ -219,16 +548,58 @@ func TestWriteStoresPerPackageCheckpoint(t *testing.T) {
 	if err := Check(context.Background(), root, []Module{m}); err != nil {
 		t.Fatalf("resumed inventory rejected: %v", err)
 	}
-	if !strings.Contains(string(data), "| sample.go | example.test/writefixture | 1 | 1 | 100.0% | true | pass |") {
-		t.Fatalf("written inventory lacks per-file coverage:\n%s", data)
-	}
 	checkpointDir := filepath.Join(root, ".artifacts", "coverage", "testcoverage", m.Name)
-	entries, err := os.ReadDir(checkpointDir)
+	firstEntries, err := os.ReadDir(checkpointDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 1 || filepath.Ext(entries[0].Name()) != ".json" {
-		t.Fatalf("expected one durable package checkpoint, found %v", entries)
+	if len(firstEntries) != 2 {
+		t.Fatalf("first inventory write should invalidate the pre-inventory checkpoint once; found %d checkpoints", len(firstEntries))
+	}
+	firstHashes := make(map[string]bool, len(firstEntries))
+	for _, entry := range firstEntries {
+		checkpointData, err := os.ReadFile(filepath.Join(checkpointDir, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var checkpoint packageCheckpoint
+		if err := json.Unmarshal(checkpointData, &checkpoint); err != nil {
+			t.Fatal(err)
+		}
+		if checkpoint.Package != m.Root || !checkpoint.Passed || len(checkpoint.Coverage) == 0 {
+			t.Fatalf("checkpoint did not retain the expected passing measurement: %+v", checkpoint)
+		}
+		firstHashes[checkpoint.InputHash] = true
+	}
+	if len(firstHashes) != 2 {
+		t.Fatalf("expected distinct pre- and post-inventory input hashes, got %v", firstHashes)
+	}
+	stableNames := make([]string, len(firstEntries))
+	for i, entry := range firstEntries {
+		stableNames[i] = entry.Name()
+	}
+	if err := Write(context.Background(), root, []Module{m}); err != nil {
+		t.Fatalf("stable-view write failed: %v", err)
+	}
+	stableEntries, err := os.ReadDir(checkpointDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stableEntries) != len(stableNames) {
+		t.Fatalf("unchanged repository view added a checkpoint: before %v after %v", stableNames, stableEntries)
+	}
+	for i, entry := range stableEntries {
+		if entry.Name() != stableNames[i] {
+			t.Fatalf("unchanged repository view changed checkpoint set: before %v after %v", stableNames, stableEntries)
+		}
+	}
+	if !strings.Contains(string(data), "| sample.go | example.test/writefixture | 1 | 1 | 100.0% | true | pass |") {
+		t.Fatalf("written inventory lacks per-file coverage:\n%s", data)
+	}
+	for _, entry := range stableEntries {
+		if filepath.Ext(entry.Name()) != ".json" {
+			t.Fatalf("unexpected checkpoint artifact %q", entry.Name())
+		}
 	}
 }
 

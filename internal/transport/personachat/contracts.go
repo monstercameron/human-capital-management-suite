@@ -65,23 +65,29 @@ type PostActor struct {
 }
 
 type Invocation struct {
-	InvocationID          string `json:"invocation_id"`
-	PostID                string `json:"post_id"`
-	ThreadID              string `json:"thread_id"`
-	ConversationID        string `json:"conversation_id"`
-	InvokerID             string `json:"invoker_id"`
-	AgentName             string `json:"agent_name"`
-	Status                string `json:"status"`
-	Activity              string `json:"activity"`
-	CurrentStep           int    `json:"current_step"`
-	TotalSteps            int    `json:"total_steps"`
-	TaskID                string `json:"task_id,omitempty"`
-	TaskTitle             string `json:"task_title,omitempty"`
-	TaskState             string `json:"task_state,omitempty"`
-	TaskRevision          uint64 `json:"task_revision,omitempty"`
-	FailureCode           string `json:"failure_code,omitempty"`
-	FailureMessage        string `json:"failure_message,omitempty"`
-	Retryable             bool   `json:"retryable"`
+	InvocationID   string `json:"invocation_id"`
+	PostID         string `json:"post_id"`
+	ThreadID       string `json:"thread_id"`
+	ConversationID string `json:"conversation_id"`
+	InvokerID      string `json:"invoker_id"`
+	AgentName      string `json:"agent_name"`
+	Status         string `json:"status"`
+	Activity       string `json:"activity"`
+	CurrentStep    int    `json:"current_step"`
+	TotalSteps     int    `json:"total_steps"`
+	TaskID         string `json:"task_id,omitempty"`
+	TaskTitle      string `json:"task_title,omitempty"`
+	TaskState      string `json:"task_state,omitempty"`
+	TaskRevision   uint64 `json:"task_revision,omitempty"`
+	FailureCode    string `json:"failure_code,omitempty"`
+	FailureMessage string `json:"failure_message,omitempty"`
+	Retryable      bool   `json:"retryable"`
+	// RetryAt is when a mention refused by a mention ceiling (failure code
+	// MENTION_LIMIT_REACHED) can be asked again, as an RFC 3339 time, and
+	// MentionsAsked how many times the person asked in the hour when it was the
+	// hourly per-person ceiling (AGENTP-015).
+	RetryAt               string `json:"retry_at,omitempty"`
+	MentionsAsked         int    `json:"mentions_asked,omitempty"`
 	PrivateConversationID string `json:"private_conversation_id,omitempty"`
 	PrivatePostID         string `json:"private_post_id,omitempty"`
 	// PublicPostID is the answer posted to the conversation (AGENTUX-070).
@@ -141,11 +147,13 @@ type RetryResult struct {
 	PostID         string `json:"post_id"`
 	ConversationID string `json:"conversation_id"`
 	ThreadID       string `json:"thread_id"`
+	_              incomparable
 }
 
 type CancelResult struct {
 	InvocationID string `json:"invocation_id"`
 	State        string `json:"state"`
+	_            incomparable
 }
 
 type FeedbackResult struct {
@@ -153,6 +161,7 @@ type FeedbackResult struct {
 	Helpful      bool   `json:"helpful,omitempty"`
 	Reason       string `json:"reason,omitempty"`
 	Active       bool   `json:"active"`
+	_            incomparable
 }
 
 // ActionSurface contains authenticated mutations on an invocation. It is

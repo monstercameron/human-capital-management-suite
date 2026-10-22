@@ -33,7 +33,6 @@ type chattoneBrowserController struct {
 	rooms                              map[string]*chattoneRoomState
 	previews                           map[string]*chattonePreview
 	mounts                             map[string]js.Value
-	noticeSeen                         bool
 	session                            chattoneSession
 }
 
@@ -73,7 +72,6 @@ func configureChattoneBrowser(cfg journeyclient.Config) {
 	c.rooms = make(map[string]*chattoneRoomState)
 	c.previews = make(map[string]*chattonePreview)
 	c.mounts = make(map[string]js.Value)
-	c.noticeSeen = false
 	c.session = chattoneSession{}
 	bind := !c.bound
 	c.bound = true
@@ -198,14 +196,18 @@ func chattonePopulate(mount js.Value, reply chattoneHTTPReply) {
 	if err != nil {
 		return
 	}
-	// Only replace the registry-controlled group; the textarea and its selection stay intact.
+	// Only replace what the server's answer decides (the Rewrite button and the
+	// rows of its menu: the styles on offer and the suggested one); the textarea
+	// and its selection stay intact.
 	doc := js.Global().Get("document")
 	scratch := doc.Call("createElement", "div")
 	scratch.Set("innerHTML", markup)
-	group := scratch.Call("querySelector", ".chattone-toolbar-choices")
-	current := mount.Call("querySelector", ".chattone-toolbar-choices")
-	if group.Truthy() && current.Truthy() {
-		current.Set("innerHTML", group.Get("innerHTML"))
+	for _, selector := range []string{".chattone-toolbar-choices", ".chattone-menu"} {
+		fresh := scratch.Call("querySelector", selector)
+		current := mount.Call("querySelector", selector)
+		if fresh.Truthy() && current.Truthy() {
+			current.Set("innerHTML", fresh.Get("innerHTML"))
+		}
 	}
 }
 func chattonePaint(mount js.Value) {
@@ -213,7 +215,6 @@ func chattonePaint(mount js.Value) {
 	c.Lock()
 	row := c.rooms[domAttribute(mount, "data-conversation")]
 	preview := c.previews[chattoneScope(mount)]
-	seen := c.noticeSeen
 	available := row != nil && !row.loading && row.errorCode == "" && row.reply.Enabled
 	disabled := domAttribute(mount, "data-disabled") == "true"
 	if row != nil && !row.loading && row.errorCode == "" {
@@ -235,42 +236,82 @@ func chattonePaint(mount js.Value) {
 	mount.Call("setAttribute", "data-available", boolText(available))
 	mount.Call("setAttribute", "data-ready", boolText(ready))
 	mount.Call("setAttribute", "aria-busy", boolText(busy))
-	buttons := mount.Call("querySelectorAll", "[data-chattone-action='rewrite']")
+	// The Rewrite button and the rows of its menu are all switched together.
+	buttons := mount.Call("querySelectorAll", "[data-chattone-action='rewrite'],[data-chattone-action='toggle']")
 	for i := 0; i < buttons.Length(); i++ {
 		buttons.Index(i).Set("disabled", !available || disabled || busy)
 	}
-	notice := mount.Call("querySelector", ".chattone-notice")
-	if notice.Truthy() {
-		notice.Set("hidden", seen && !mount.Get("__chattoneFirstNotice").Truthy())
+	if (!available || !ready || disabled || busy) && chatui.WritingStyleMenuOpen(domAttribute(mount, "data-target")) {
+		// The menu offers nothing while the draft is too short or a rewrite is
+		// under way.
+		chatui.CloseWritingStyleComposer(mount.Call("querySelector", "[data-chattone-action=toggle]"), false)
 	}
 	if busy {
 		chattoneStatus(mount, "working")
 	}
 	chattonePaintPreview(mount)
 }
+
+// chattoneSlot is the part of the composer above its text that this toolbar
+// draws into: the status line and the line a rewrite leaves behind.
+func chattoneSlot(mount js.Value) js.Value {
+	return js.Global().Get("document").Call("getElementById", domAttribute(mount, "data-target")+"-chattone-chip")
+}
+
+// chattoneStyleName is the name the menu shows for a style id, or "" if the menu
+// no longer offers it.
+func chattoneStyleName(mount js.Value, style string) string {
+	if style == "" {
+		return ""
+	}
+	row := mount.Call("querySelector", "[data-chattone-action='rewrite'][data-style='"+style+"']")
+	if !row.Truthy() {
+		return ""
+	}
+	return domAttribute(row, "aria-label")
+}
+
+// chattonePaintPreview draws the line above the text ("Rewritten: Professional",
+// Undo, See changes) from the preview state. The layer See changes opens is part
+// of that line, so when the line is drawn anew while the layer is open it is
+// opened again.
 func chattonePaintPreview(mount js.Value) {
 	c := chattoneBrowser
 	c.Lock()
 	p := c.previews[chattoneScope(mount)]
 	var props chatui.ChattonePreviewProps
+	style := ""
 	if p != nil {
-		props = chatui.ChattonePreviewProps{Locale: domAttribute(mount, "data-locale"), Original: p.Original, Rewritten: p.Rewritten, ShowChanges: p.ShowChanges}
+		style = p.Style
+		props = chatui.ChattonePreviewProps{Locale: domAttribute(mount, "data-locale"), Target: domAttribute(mount, "data-target"), Original: p.Original, Rewritten: p.Rewritten, Edited: p.Edited()}
 	}
 	c.Unlock()
+	props.StyleName = chattoneStyleName(mount, style)
 	markup, err := ui.RenderToString(chatui.RenderChattonePreview(props))
 	if err != nil {
 		return
 	}
-	region := mount.Call("querySelector", ".chattone-preview")
+	slot := chattoneSlot(mount)
+	if !slot.Truthy() {
+		return
+	}
+	region := slot.Call("querySelector", ".chattone-chip-region")
 	digest := sha256.Sum256([]byte(markup))
 	stamp := hex.EncodeToString(digest[:])
 	if region.Truthy() && domAttribute(region, "data-chattone-preview-stamp") != stamp {
+		reopen := chatui.WritingStyleChangesOpen(props.Target)
 		region.Call("setAttribute", "data-chattone-preview-stamp", stamp)
 		region.Set("innerHTML", markup)
+		if reopen && props.Original != "" {
+			chatui.ShowWritingStyleChanges(props.Target)
+		}
 	}
 }
 func chattoneStatus(mount js.Value, code string) {
-	status := mount.Call("querySelector", ".chattone-status")
+	status := js.Undefined()
+	if slot := chattoneSlot(mount); slot.Truthy() {
+		status = slot.Call("querySelector", ".chattone-status")
+	}
 	if status.Truthy() {
 		text := domAttribute(mount, "data-copy-"+code)
 		if text == "" && code != "" {
@@ -280,6 +321,30 @@ func chattoneStatus(mount js.Value, code string) {
 			status.Set("textContent", text)
 		}
 	}
+}
+
+// chattoneOwnerMount is the toolbar a part of the control belongs to: the
+// toolbar itself and its menu, or the line above the composer's text and the
+// layer See changes opens, which are found through the composer's id.
+func chattoneOwnerMount(node js.Value) js.Value {
+	if !node.Truthy() || node.Get("closest").Type() != js.TypeFunction {
+		return js.Undefined()
+	}
+	if mount := node.Call("closest", "[data-chattone='toolbar']"); mount.Truthy() {
+		return mount
+	}
+	for _, probe := range [][2]string{{"[data-chattone-for]", "chattoneFor"}, {"[data-chattone-chip]", "chattoneChip"}} {
+		if owner := node.Call("closest", probe[0]); owner.Truthy() {
+			return chattoneMountFor(owner.Get("dataset").Get(probe[1]).String())
+		}
+	}
+	return js.Undefined()
+}
+
+// chattoneSlotContains reports whether a node is in the line above the text.
+func chattoneSlotContains(mount, node js.Value) bool {
+	slot := chattoneSlot(mount)
+	return slot.Truthy() && slot.Call("contains", node).Bool()
 }
 func chattoneMountFor(target string) js.Value {
 	nodes := js.Global().Get("document").Call("querySelectorAll", "[data-chattone='toolbar']")
@@ -301,23 +366,26 @@ func chattoneInput(event js.Value) {
 	}
 	c := chattoneBrowser
 	c.Lock()
+	idle := false
 	if p := c.previews[chattoneScope(mount)]; p != nil {
 		p.Edit(field.Get("value").String())
+		idle = !p.Busy
 	}
 	c.Unlock()
+	if idle {
+		// What the last rewrite said about itself (a refusal, a limit) is about the
+		// text that was there; typing on moves past it.
+		chattoneStatus(mount, "")
+	}
 	chattoneFindMounts()
 	chattonePaint(mount)
 }
 func chattoneKey(event js.Value) {
+	if chatui.HandleWritingStyleMenuKey(event) {
+		event.Call("preventDefault")
+		return
+	}
 	if event.Get("key").String() == "Escape" {
-		if target := event.Get("target"); target.Truthy() && target.Get("closest").Type() == js.TypeFunction {
-			if mount := target.Call("closest", "[data-chattone=toolbar]"); mount.Truthy() {
-				if button := mount.Call("querySelector", "[data-chattone-action=rewrite]"); button.Truthy() {
-					event.Call("preventDefault")
-					chatui.CloseWritingStyleComposer(button, true)
-				}
-			}
-		}
 		return
 	}
 	if !event.Get("altKey").Truthy() || !event.Get("shiftKey").Truthy() || event.Get("ctrlKey").Truthy() || event.Get("metaKey").Truthy() || event.Get("isComposing").Truthy() {
@@ -354,18 +422,23 @@ func chattoneClick(event js.Value) {
 	if !target.Truthy() || target.Get("closest").Type() != js.TypeFunction {
 		return
 	}
+	// A press anywhere outside the control closes its open layer. The control is
+	// the toolbar and the line above the composer's text.
 	panels := js.Global().Get("document").Call("querySelectorAll", "[data-chat-layer=writing-style]:not([hidden])")
 	for i := 0; i < panels.Length(); i++ {
-		mount := panels.Index(i).Call("closest", "[data-chattone=toolbar]")
-		if !mount.Call("contains", target).Bool() {
-			chatui.CloseWritingStyleComposer(mount.Call("querySelector", "[data-chattone-action=rewrite]"), false)
+		panel := panels.Index(i)
+		if panel.Call("contains", target).Bool() {
+			continue
+		}
+		if owner := chattoneOwnerMount(panel); owner.Truthy() && !owner.Call("contains", target).Bool() && !chattoneSlotContains(owner, target) {
+			chatui.CloseWritingStyleComposer(panel, false)
 		}
 	}
 	button := target.Call("closest", "[data-chattone-action]")
 	if !button.Truthy() || button.Get("disabled").Truthy() {
 		return
 	}
-	mount := button.Call("closest", "[data-chattone='toolbar']")
+	mount := chattoneOwnerMount(button)
 	if !mount.Truthy() {
 		return
 	}
@@ -375,16 +448,9 @@ func chattoneClick(event js.Value) {
 		chatui.ToggleWritingStyleComposer(button)
 		chattoneFindMounts()
 	case "rewrite":
-		chatui.OpenWritingStyleComposer(button)
-		c := chattoneBrowser
-		c.Lock()
-		seen := c.noticeSeen
-		c.noticeSeen = true
-		c.Unlock()
-		mount.Set("__chattoneFirstNotice", !seen)
-		if notice := mount.Call("querySelector", ".chattone-notice"); notice.Truthy() {
-			notice.Set("hidden", seen)
-		}
+		// Choosing a style closes the menu; the rewrite's progress is the button's
+		// "Rewriting…" and the status line above the text.
+		chatui.CloseWritingStyleComposer(button, false)
 		chattoneRewrite(mount, domAttribute(button, "data-style"))
 	case "undo":
 		c := chattoneBrowser
@@ -401,14 +467,9 @@ func chattoneClick(event js.Value) {
 			chattonePaintPreview(mount)
 		}
 	case "changes":
-		c := chattoneBrowser
-		c.Lock()
-		if p := c.previews[chattoneScope(mount)]; p != nil {
-			p.ShowChanges = !p.ShowChanges
-		}
-		c.Unlock()
-		chattonePaintPreview(mount)
-		chattoneFocus(mount)
+		// The layer is opened or closed where it is; focus stays on the button so
+		// Escape closes it from there.
+		chatui.ToggleWritingStyleChanges(button)
 	}
 }
 func chattoneRewrite(mount js.Value, style string) {
@@ -462,8 +523,10 @@ func chattoneRewrite(mount js.Value, style string) {
 			if err != nil {
 				output = ""
 			}
-			c.noticeSeen = true
 			accepted := p.Complete(serial, typed, field.Get("value").String(), output)
+			if accepted {
+				p.Style = style
+			}
 			c.Unlock()
 			code := ""
 			if err != nil {

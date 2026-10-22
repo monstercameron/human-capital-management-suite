@@ -41,8 +41,15 @@ func chatux030Gate(m Model) ui.Node {
 	if canAdministerConversation(m, c) {
 		label = laneText(m, chatux030Copy, chatux030KeyGateAdmin)
 	}
+	// The row is a link that opens the gate's page, so it ends in a right chevron
+	// where the rows that open in place end in a down one; it says where the gate
+	// stands when the page knows (CHATUX-041).
+	content := []ui.Node{html.Span(html.Props{Class: "manage-sec-label", Dir: "auto", Text: label})}
+	if state := chatux041GateState(m, c); state != "" {
+		content = append(content, html.Span(html.Props{Class: "manage-sec-value", Dir: "auto", Text: state}))
+	}
 	return html.Section(html.Props{Class: "details-section details-gate"},
-		html.A(html.Props{Href: "#gate=" + url.QueryEscape(c.ID), Text: label, Dir: "auto", Data: map[string]string{"gate-open": c.ID}}))
+		html.A(html.Props{Href: "#gate=" + url.QueryEscape(c.ID), Dir: "auto", Data: map[string]string{"gate-open": c.ID}}, content...))
 }
 
 // chatux030PeopleWindow keeps the first rows of a long member list and offers

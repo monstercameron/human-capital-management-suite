@@ -18,7 +18,9 @@ const screenshotDir = resolve(
 async function waitForHydration(page) {
   await page.waitForFunction(
     () =>
-      performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 30000, polling: 50 },
   );
@@ -38,7 +40,7 @@ async function readHeaderGeometry(page) {
       };
     };
     const visible = (element) => {
-      const style = getComputedStyle(element);
+      const style = window.getComputedStyle(element);
       const box = element.getBoundingClientRect();
       return (
         style.display !== "none" &&
@@ -88,13 +90,25 @@ async function readHeaderGeometry(page) {
     ].filter(Boolean);
     const sampledBackground = surfaces
       .map((element) => ({
-        selector: element.tagName.toLowerCase() + (element.className ? `.${String(element.className).trim().replaceAll(" ", ".")}` : ""),
-        color: getComputedStyle(element).backgroundColor,
+        selector:
+          element.tagName.toLowerCase() +
+          (element.className
+            ? `.${String(element.className).trim().replaceAll(" ", ".")}`
+            : ""),
+        color: window.getComputedStyle(element).backgroundColor,
       }))
       .find(({ color }) => color !== "rgba(0, 0, 0, 0)" && color !== "transparent");
-    const rgb = sampledBackground?.color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+    const rgb = sampledBackground?.color
+      .match(/[\d.]+/g)
+      ?.slice(0, 3)
+      .map(Number);
     const luminance = rgb
-      ? rgb.map((channel) => channel / 255).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0)
+      ? rgb
+          .map((channel) => channel / 255)
+          .reduce(
+            (sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index],
+            0,
+          )
       : null;
     return {
       viewportWidth: document.documentElement.clientWidth,
@@ -112,9 +126,10 @@ async function readHeaderGeometry(page) {
       visualTheme: {
         rootColorMode: document.documentElement.getAttribute("data-hcm-color-mode"),
         rootTheme: document.documentElement.getAttribute("data-theme"),
-        cssColorScheme: getComputedStyle(document.documentElement).colorScheme,
+        cssColorScheme: window.getComputedStyle(document.documentElement).colorScheme,
         sampledBackground,
-        estimatedMode: luminance === null ? "unknown" : luminance < 0.35 ? "dark" : "light",
+        estimatedMode:
+          luminance === null ? "unknown" : luminance < 0.35 ? "dark" : "light",
       },
     };
   });
@@ -138,7 +153,7 @@ test("[UXBLIND-125] header utilities and search remain usable at responsive widt
     const recordDiagnostic = (type, detail) =>
       diagnostics.push({
         at: new Date().toISOString(),
-        route: new URL(page.url()).pathname,
+        route: new globalThis.URL(page.url()).pathname,
         target: target.name,
         phase,
         type,
@@ -185,7 +200,10 @@ test("[UXBLIND-125] header utilities and search remain usable at responsive widt
         const screenshotTheme = before.visualTheme.estimatedMode;
         const context = `${target.name} at ${width}px`;
         await page.screenshot({
-          path: resolve(screenshotDir, `${target.name}-${width}px-${screenshotTheme}.png`),
+          path: resolve(
+            screenshotDir,
+            `${target.name}-${width}px-${screenshotTheme}.png`,
+          ),
           fullPage: false,
           animations: "disabled",
         });

@@ -4,13 +4,12 @@
 # duplicate definitions/architecture/dependency-roles.yaml (LIB-001, edited
 # by a different agent/lane): the generic LIB-002 firewall
 # (libfirewall.CheckImport) reads allowed_import_roots directly from that
-# manifest. This file adds only the narrower, module-specific qualification
-# detail each of LIB-003/004/006/007/008 needs and that dependency-roles.yaml
-# does not (yet) carry at row granularity: which import paths count as
-# "the module" for AST leak-scanning purposes, which concrete types must
-# never leak past their owning package's exported API, and one explicitly
-# orchestrator-granted business-side exception for LIB-003 that
-# dependency-roles.yaml's own pgx/protobuf/grpc rows do not list yet.
+# manifest. This file adds module-specific qualification details for
+# LIB-003/004/006/007/008: module-match paths for AST leak scanning, concrete
+# types that must never leak past owning APIs, and reviewed markers for
+# hand-authored Go migrations. LIB-003 scans its qualified wire/transport
+# modules together, so its roots are their reviewed union; LIB-002 still
+# enforces each dependency-roles.yaml row's exact, module-specific roots.
 #
 # See planning/specs/go-only-technology-constitution.md and the LIB-003/
 # LIB-004/LIB-006/LIB-007/LIB-008 todo entries in planning/todos.md.
@@ -20,21 +19,11 @@ module: github.com/monstercameron/human-capital-management-suite
 
 # LIB-003: Protobuf/grpc-go qualified as wire and RPC mechanics only.
 #
-# dependency-roles.yaml's google.golang.org/protobuf row carries the full
-# seam list (gen, schema/proto/gen, internal/transport,
-# internal/intent/protomap, internal/engines/wire, tools/gen,
-# tools/quality/bufprotovalidatekit, the
-# uxqual clients, cmd), and this file's protobuf_grpc.allowed_import_roots
-# mirrors it exactly so LIB-002 and LIB-003 agree. Beyond gen and
-# internal/transport, the extra roots are narrowly scoped mechanics rather
-# than business packages: internal/intent/protomap is the one authored
-# Protobuf<->domain-type translation seam; tools/gen resolves descriptors
-# to emit clients; internal/engines/wire is the generic Protobuf
-# canonical-byte engine and schema-reflection registry. It decides no HCM
-# policy and exposes no Protobuf type through a capability/domain port. The
-# narrower roots are intentional: internal/kernel/values, other tools, and
-# all data/application packages must reach the runtime through an owned
-# adapter instead.
+# These are explicit package roots for the combined LIB-003 integration scan,
+# including cmd because the exact grpc/connect rows admit that composition
+# root. The independent LIB-002 gate continues to deny cmd a direct protobuf
+# import, per the protobuf row in dependency-roles.yaml. Neither gate grants
+# domain or kernel packages a wire dependency.
 protobuf_grpc:
   modules:
     - google.golang.org/protobuf
@@ -45,21 +34,28 @@ protobuf_grpc:
     - gen
     - schema/proto/gen
     - internal/transport
+    - internal/data/projection/wire
+    - internal/data/provenance
+    - internal/data/roleaccessstore
+    - internal/data/siemstore
+    - internal/application
+    - internal/intent/app
     - internal/intent/protomap
     - internal/engines/wire
+    - internal/timeclockapp
     - tools/gen
-    - tools/quality/bufprotovalidatekit
-    # UX-009: the browser-resident GoWebComponents client speaks canonical gRPC
-    # over the WebSocket tunnel; these two roots are the whole client.
     - tools/uxqual/journeyclient
     - tools/uxqual/cmd/journeywasm
     - tools/uxqual/productclient
+    - tools/clockpartner
+    - tools/timeclockkit
+    - tools/uxqual/projectclient
+    - tools/quality/bufprotovalidatekit
     - cmd
 
 # LIB-004: pgx/v5 confined behind the PostgreSQL adapter boundary. The
 # leak-scan runs over dependency-roles.yaml's own pgx row
-# (allowed_import_roots: [internal/data, internal/ledger, migrations,
-# internal/platform/bootstrap, cmd/hcmnext, cmd/migrate]) via depmanifest,
+# (allowed_import_roots in dependency-roles.yaml) via depmanifest,
 # not a separate list here, so this file only needs to name the concrete
 # types that must never appear in an exported signature/alias anywhere in
 # the graph, even inside those allowed roots.
@@ -86,10 +82,9 @@ apd_leak_types:
 # names it.
 otel_module_prefix: go.opentelemetry.io/
 
-# LIB-008: goose confined to the SQL-first migration runner. Scan scope
+# LIB-008: goose confined to explicit SQL-first migration runners. Scan scope
 # comes from dependency-roles.yaml's goose row
-# (allowed_import_roots: [migrations, cmd, internal/data/pgtest,
-# internal/data/schema]). marker_comment is the required
+# (allowed_import_roots in dependency-roles.yaml). marker_comment is the required
 # review marker on any hand-authored Go migration file (as opposed to a
 # goose embed/registration boilerplate file); its absence is what RED means
 # by "a Go migration lacking explicit need, idempotency and resumable

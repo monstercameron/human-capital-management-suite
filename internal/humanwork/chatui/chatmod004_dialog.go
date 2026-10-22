@@ -226,31 +226,21 @@ func chatremoveTombstone(m Model, msg Message) ui.Node {
 // The thread stays. The author of a removed message also sees why and how to ask
 // for a review; a person who may restore it sees Restore.
 func ModerationTombstone(m Model, msg Message, byAdministrator bool) ui.Node {
-	key := "deleted"
-	if byAdministrator {
-		key = "removed"
-	}
-	children := []ui.Node{html.P(html.Props{Class: "message-body", Text: chatremoveText(m.Locale, key)})}
-	if byAdministrator {
-		children = append(children, chatmodTombstoneActions(m, msg)...)
-	}
-	if msg.Replies > 0 {
-		children = append(children, html.Button(html.Props{Type: "button", Class: "thread-link", Disabled: m.Callbacks.OpenThread == nil, Data: map[string]string{"action": "thread", "id": msg.ID}, Text: m.t(KeyThread)}))
-	}
-	return html.Div(html.Props{Class: "message-row chatremove-tombstone", Data: map[string]string{"message-id": msg.ID}}, children...)
+	// CHATUX-048: the row, its words and its buttons are in chatux048_removed.go.
+	return chatux048Tombstone(m, msg, byAdministrator)
 }
 
+// chatmodTombstoneActions are the buttons under a removed message: "Ask for a
+// review" for its author while they may, Restore for a person who may review.
+// Both are the page's standard secondary button.
 func chatmodTombstoneActions(m Model, msg Message) []ui.Node {
 	var out []ui.Node
-	if notice, ok := m.Moderation.Notices[msg.ID]; ok && msg.AuthorID != "" && msg.AuthorID == m.CurrentUser {
-		out = append(out, html.P(html.Props{Class: "chatremove-own-reason", Dir: "auto", Text: strings.ReplaceAll(chatremoveText(m.Locale, "own_reason"), "{reason}", chatremoveReason(m.Locale, notice.Reason))}))
-		if notice.CanAppeal {
-			out = append(out, html.Form(html.Props{Class: "chatremove-appeal", Data: map[string]string{"chatremove": "appeal", "conversation-id": notice.ConversationID, "post-id": notice.PostID, "host-tenant": notice.HostTenantID}},
-				html.Button(html.Props{Type: "submit", Class: "chatremove-link", Text: chatremoveText(m.Locale, "appeal")})))
-		}
+	if notice, ok := m.Moderation.Notices[msg.ID]; ok && msg.AuthorID != "" && msg.AuthorID == m.CurrentUser && notice.CanAppeal {
+		out = append(out, html.Form(html.Props{Class: "chatremove-appeal", Data: map[string]string{"chatremove": "appeal", "conversation-id": notice.ConversationID, "post-id": notice.PostID, "host-tenant": notice.HostTenantID}},
+			html.Button(html.Props{Type: "submit", Class: "button secondary small chatux048-removed-button", Text: chatremoveText(m.Locale, "appeal")})))
 	}
 	if cid := m.SelectedID; cid != "" && m.Moderation.CanRestoreIn(cid) {
-		out = append(out, html.Button(html.Props{Type: "button", Class: "chatremove-link", Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + chatmodQuery(m.Locale, cid, msg.ID, "restore")}, Text: chatremoveText(m.Locale, "restore")}))
+		out = append(out, html.Button(html.Props{Type: "button", Class: "button secondary small chatux048-removed-button", Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + chatmodQuery(m.Locale, cid, msg.ID, "restore")}, Text: chatremoveText(m.Locale, "restore")}))
 	}
 	return out
 }

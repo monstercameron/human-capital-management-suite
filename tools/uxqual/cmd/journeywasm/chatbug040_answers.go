@@ -20,6 +20,7 @@ type personaChatAnswer struct {
 	// message it was shared to the channel as, when it was (CHATUX-026).
 	InvocationID string `json:"invocation_id"`
 	SharedPostID string `json:"shared_post_id"`
+	_            incomparable
 }
 
 // personaChatActivity is one event of a conversation's agent activity. The

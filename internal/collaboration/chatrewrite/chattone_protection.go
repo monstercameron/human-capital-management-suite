@@ -8,9 +8,12 @@ import (
 	"strings"
 )
 
-// Longer protected spans take precedence over tokens nested inside them.
+// Longer protected spans take precedence over tokens nested inside them. A
+// link or a mention never ends in sentence punctuation: the full stop after
+// "@morgan." belongs to the sentence, so a rewrite that keeps or adds one
+// restores to the same text.
 func protectedPattern() *regexp.Regexp {
-	return regexp.MustCompile("(?m)```[\\s\\S]*?```|~~~[\\s\\S]*?~~~|``[^`]+``|`[^`\\n]+`|^>[ \\t]?.*$|\\\"[^\\\"\\n]+\\\"|(?:^|[^\\p{L}\\p{N}])'[^'\\n]+'|“[^”\\n]+”|‘[^’\\n]+’|\\[[^]\\n]*\\]\\([^ )\\n]+\\)|(?:https?://|mailto:|www\\.)[^\\s<>]+|<@[^>]+>|@[\\p{L}\\p{N}_][\\p{L}\\p{N}_.-]*|[$€£]?[-+]?[\\p{N}]+(?:[-/:.,][\\p{N}]+)*(?:%|[ \\t]?(?:USD|EUR|GBP))?")
+	return regexp.MustCompile("(?m)```[\\s\\S]*?```|~~~[\\s\\S]*?~~~|``[^`]+``|`[^`\\n]+`|^>[ \\t]?.*$|\\\"[^\\\"\\n]+\\\"|(?:^|[^\\p{L}\\p{N}])'[^'\\n]+'|“[^”\\n]+”|‘[^’\\n]+’|\\[[^]\\n]*\\]\\([^ )\\n]+\\)|(?:https?://|mailto:|www\\.)[^\\s<>]*[^\\s<>.,;:!?)]|<@[^>]+>|@[\\p{L}\\p{N}_](?:[\\p{L}\\p{N}_.-]*[\\p{L}\\p{N}_])?|[$€£]?[-+]?[\\p{N}]+(?:[-/:.,][\\p{N}]+)*(?:%|[ \\t]?(?:USD|EUR|GBP))?")
 }
 
 type protectedDraft struct {

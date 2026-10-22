@@ -16,7 +16,7 @@ const ChatUX032Styles = `
 .chat-panel-head .chat-panel-close.chat-panel-close.icon-button{box-sizing:border-box;inline-size:32px;min-inline-size:32px;block-size:32px;min-block-size:32px;padding:0;border:0;border-radius:var(--hcm-radius-control);background:transparent;box-shadow:none;color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
 .chat-workspace .chat-panel-close:hover:not(:disabled){background:var(--soft);color:var(--ink)}
 .chat-workspace .chat-panel-close:focus:not(:focus-visible){outline:none;box-shadow:none}
-.chat-workspace .chat-panel-close:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chat-workspace .chat-panel-close:focus-visible{outline:var(--hcm-focus-ring-width) solid var(--hcm-color-focus);outline-offset:1px}
 .chat-panel-close .chat-icon{inline-size:18px;block-size:18px}
 @media(pointer:coarse){.chat-panel-head .chat-panel-close.chat-panel-close.icon-button{inline-size:44px;min-inline-size:44px;block-size:44px;min-block-size:44px}}
 @media(max-width:767px){.chat-panel-head .chat-panel-close.chat-panel-close.icon-button.thread-back{inline-size:auto;padding-inline:10px}}

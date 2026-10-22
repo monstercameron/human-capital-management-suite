@@ -172,6 +172,8 @@ type composedChat struct {
 	renderings       *ChatRenderingSurface
 	search           ChatSearchHTTP
 	gates            ChatgateSurface
+	segments         chatcore.SegmentAudiencePort
+	gateAuthority    *ChatgateAuthority
 	filters          *chatfilter.Service
 	store            *chatstore.Store
 	locations        ChatmapSurface
@@ -352,7 +354,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	if err != nil {
 		if errors.Is(err, ErrChatStreamingDisabled) {
 			grants.withRevocation(authorityCache, nil)
-			return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
+			return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, locations: wave.locations, locationPictures: wave.locationPictures, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
 		}
 		store.Close()
 		return composedChat{}, fmt.Errorf("application: compose chat stream: %w", err)
@@ -361,5 +363,5 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	// cached authority and closes that tenant's live subscriptions.
 	grants.withRevocation(authorityCache, streamRuntime)
 	extensions.Admission = streamRuntime
-	return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
+	return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, locations: wave.locations, locationPictures: wave.locationPictures, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
 }

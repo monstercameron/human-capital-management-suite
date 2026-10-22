@@ -13,6 +13,12 @@ type Chatcmd002Request struct {
 	TenantID, ConversationID, PostID string
 	ExpectedRevision                 uint64
 	Mutation                         Chatcmd002Mutation
+	// Segments answers which of a card's audience segments the voter is in. The
+	// store asks it once it has read the card, and refuses a vote or a tick on a
+	// card addressed to segments when it is nil or the voter is in none of them
+	// (CHATGATE-010). VoterSegments is that answer, kept for the tally.
+	Segments      func(ctx context.Context, audience []string) ([]string, error)
+	VoterSegments []string
 }
 type Chatcmd002Repository interface {
 	Chatcmd002Read(context.Context, Chatcmd002Request, func(context.Context) error) (Chatcmd002View, error)
@@ -30,6 +36,9 @@ type Chatcmd002Service struct {
 	// refused here as well as left out of the menu. The zero value is the
 	// product's own registry.
 	Commands Chatcmd001Registry
+	// Segments is the gate's segments (CHATGATE-010). Without it a card cannot
+	// be addressed, and a card addressed to segments cannot be voted on.
+	Segments SegmentAudiencePort
 }
 
 // Chatcmd002Sender is the one conversation call a card needs to be posted.
@@ -94,6 +103,15 @@ func (s *Chatcmd002Service) Post(ctx context.Context, r Chatcmd002PostRequest) (
 		return Post{}, ErrPermissionDenied
 	}
 	card := chatcmd003Clone(r.Card)
+	if len(card.Audience) > 0 {
+		// Addressing a card is addressing a post: the same rule decides who may.
+		if s.Segments == nil {
+			return Post{}, ErrUnavailable
+		}
+		if _, err := s.Segments.Resolve(ctx, r.Principal, r.TenantID, r.ConversationID, card.Audience, false); err != nil {
+			return Post{}, err
+		}
+	}
 	if card.Poll != nil {
 		for i := range card.Poll.Options {
 			card.Poll.Options[i].ID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(r.TenantID+"\x00"+r.ConversationID+"\x00"+r.Principal.TenantID+"\x00"+r.Principal.SubjectID+"\x00"+r.IdempotencyKey+"\x00option:"+strconv.Itoa(i))).String()
@@ -132,6 +150,12 @@ func (s *Chatcmd002Service) Read(ctx context.Context, r Chatcmd002Request) (Chat
 	if err := s.authorize(ctx, r, false); err != nil {
 		return Chatcmd002View{}, err
 	}
+	if s.Segments != nil {
+		person := r.Principal.SubjectID
+		r.Segments = func(ctx context.Context, audience []string) ([]string, error) {
+			return s.Segments.Signature(ctx, r.TenantID, r.ConversationID, person, audience)
+		}
+	}
 	return s.Repository.Chatcmd002Read(ctx, r, func(ctx context.Context) error { return s.authorize(ctx, r, false) })
 }
 func (s *Chatcmd002Service) Mutate(ctx context.Context, r Chatcmd002Request) (Post, error) {
@@ -156,6 +180,12 @@ func (s *Chatcmd002Service) Mutate(ctx context.Context, r Chatcmd002Request) (Po
 		}
 		if err := s.Chat.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: c, Body: words, Edit: true}); err != nil {
 			return Post{}, err
+		}
+	}
+	if s.Segments != nil {
+		person := r.Principal.SubjectID
+		r.Segments = func(ctx context.Context, audience []string) ([]string, error) {
+			return s.Segments.Signature(ctx, r.TenantID, r.ConversationID, person, audience)
 		}
 	}
 	return s.Repository.Chatcmd002Mutate(ctx, r, func(ctx context.Context) error { return s.authorize(ctx, r, true) })

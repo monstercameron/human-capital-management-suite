@@ -29,7 +29,7 @@ func (w *AgentAnnouncementWorker) refuseInactiveOccurrences(ctx context.Context,
 		return err
 	}
 	for _, delivery := range pending {
-		if delivery.Request.Source.Kind != agentrun.SourceAnnouncement {
+		if delivery.Request.Source.Kind != agentrun.SourceAnnouncement || agentUXAmbientScheduleOwned(delivery.ScheduleID) {
 			continue
 		}
 		current, found, err := store.Load(ctx, tenant, delivery.ScheduleID)

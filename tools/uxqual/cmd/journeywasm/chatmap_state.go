@@ -33,6 +33,7 @@ type ChatmapDraft struct {
 	Status    string
 	// Live asks the server for a bounded share the device keeps updating.
 	Live bool
+	_    incomparable
 }
 
 func (d *ChatmapDraft) PressRead(ctx context.Context, recorder ChatmapRecorder, now time.Time) error {
@@ -78,6 +79,7 @@ type ChatmapPending struct {
 	Queued, Sent                               bool
 	// ShareID is the server's id for the share once it is attached.
 	ShareID string
+	_       incomparable
 }
 type ChatmapSender interface {
 	SendLocation(context.Context, *ChatmapPending) error

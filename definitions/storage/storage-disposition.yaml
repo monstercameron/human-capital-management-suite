@@ -50,7 +50,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00730_agent_schedule_source.sql
+source: migrations/00001_platform_control.sql .. migrations/00731_revoke_update_on_sealed_tables.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary

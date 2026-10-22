@@ -90,7 +90,15 @@ func TestClientBundleHeadroom(t *testing.T) {
 	raw, gzip := sizes[wasmFile], sizes[wasmFile+".gz"]
 	t.Logf("%s: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, raw, mib(raw), maxJourneyWasmBytes-raw, mib(maxJourneyWasmBytes-raw), maxJourneyWasmBytes)
 	t.Logf("%s.gz: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, gzip, mib(gzip), maxJourneyWasmGzipBytes-gzip, mib(maxJourneyWasmGzipBytes-gzip), maxJourneyWasmGzipBytes)
-	if problems := clientBundleHeadroomProblems(raw, gzip); len(problems) != 0 {
+	problems := clientBundleHeadroomProblems(raw, gzip)
+	if buildErr != nil {
+		if len(problems) != 0 {
+			t.Fatalf("the browser client build failed: %v\nThe browser client is running out of room:\n  %s",
+				buildErr, strings.Join(problems, "\n  "))
+		}
+		t.Fatalf("the browser client build failed despite measurable bundle files: %v", buildErr)
+	}
+	if len(problems) != 0 {
 		t.Fatalf("the browser client is running out of room:\n  %s\n"+
 			"Do not raise the ceilings in performance_budget.go. Make the client smaller: move large static tables of text or style out of compiled code into data parsed at use, and look for packages one call pulls in. "+
 			"Measure by building with GOOS=js GOARCH=wasm without -s and reading the name section of the module by package and function-name prefix.",

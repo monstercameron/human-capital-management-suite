@@ -49,11 +49,11 @@ func chatSubcommand(command string) string {
 // a known action, a chat DSN, and a chat DSN that is not the core database.
 func validateChatCommand(action, chatURL, coreURL string) error {
 	switch action {
-	case "up", "status", "seed":
+	case "up", "status", "seed", "seed-moderation":
 	case "":
-		return fmt.Errorf("usage: migrate chat up|status|seed")
+		return fmt.Errorf("usage: migrate chat up|status|seed|seed-moderation")
 	default:
-		return fmt.Errorf("unknown chat command %q; usage: migrate chat up|status|seed", action)
+		return fmt.Errorf("unknown chat command %q; usage: migrate chat up|status|seed|seed-moderation", action)
 	}
 	if strings.TrimSpace(chatURL) == "" {
 		return fmt.Errorf("%s is not set; pass -%s or set the environment variable", EnvChatDatabaseURL, fieldChatDatabaseURL)

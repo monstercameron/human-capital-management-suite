@@ -128,7 +128,7 @@ func TestTodo_CHATSIDE_001_OrderRule(t *testing.T) {
 			}
 			last = at
 		}
-		if archived := strings.Index(markup, "chatstate-archived"); archived < last {
+		if archived := strings.Index(markup, `data-section-id="archived"`); archived < last {
 			t.Errorf("order %v: Archived (%d) is not after the last section (%d)", order, archived, last)
 		}
 	}

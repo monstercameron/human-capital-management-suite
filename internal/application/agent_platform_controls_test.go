@@ -46,7 +46,7 @@ func TestTodo_UXBLIND_122_ControlProjectionAndLongTaskLifecycle(t *testing.T) {
 	if err != nil || long.State != string(agentrun.StateAwaitingPlanConfirmation) {
 		t.Fatalf("long start = %+v, %v, want awaiting plan confirmation", long, err)
 	}
-	if calls := f.runtime.Model.Fake.CallCount(); calls != 0 {
+	if calls := f.runtime.Model.Observer.CallCount(); calls != 0 {
 		t.Fatalf("long start ran the model before confirmation: %d calls", calls)
 	}
 	snapshot, err := client.Snapshot(ctx, productui.AgentSnapshotRequest{TenantID: f.tenant, Principal: agentTestWorker})
@@ -79,8 +79,8 @@ func TestTodo_UXBLIND_122_ControlProjectionAndLongTaskLifecycle(t *testing.T) {
 	// task drive and tenant-bound grant adapter must survive it.
 	cancelRequest()
 	done := waitForAgentTaskState(t, f, long.ID, agentrun.StateCompleted)
-	if !done.Plan.Confirmed || done.Plan.ConfirmedBy != agentTestWorker || f.runtime.Model.Fake.CallCount() != 1 {
-		t.Fatalf("confirmed long task = state %s, confirmed=%v by=%q, model calls=%d", done.State, done.Plan.Confirmed, done.Plan.ConfirmedBy, f.runtime.Model.Fake.CallCount())
+	if !done.Plan.Confirmed || done.Plan.ConfirmedBy != agentTestWorker || f.runtime.Model.Observer.CallCount() != 1 {
+		t.Fatalf("confirmed long task = state %s, confirmed=%v by=%q, model calls=%d", done.State, done.Plan.Confirmed, done.Plan.ConfirmedBy, f.runtime.Model.Observer.CallCount())
 	}
 	if _, err := f.runtime.Controller.ControlTask(ctx, worker, agentclient.TaskControl{TaskID: long.ID, ExpectedVersion: long.Version, Action: agentclient.TaskConfirmPlan}); !errors.Is(err, agentrun.ErrConflict) {
 		t.Fatalf("confirmation replay = %v, want ErrConflict", err)
@@ -120,8 +120,8 @@ func TestTodo_UXBLIND_122_ControlProjectionAndLongTaskLifecycle(t *testing.T) {
 	}
 	cancelResume()
 	resumedDone := waitForAgentTaskState(t, f, resumable.ID, agentrun.StateCompleted)
-	if !resumedDone.Plan.Confirmed || resumedDone.Plan.ConfirmedBy != agentTestWorker || f.runtime.Model.Fake.CallCount() != 2 {
-		t.Fatalf("resumed task = state %s, confirmed=%v by=%q, model calls=%d", resumedDone.State, resumedDone.Plan.Confirmed, resumedDone.Plan.ConfirmedBy, f.runtime.Model.Fake.CallCount())
+	if !resumedDone.Plan.Confirmed || resumedDone.Plan.ConfirmedBy != agentTestWorker || f.runtime.Model.Observer.CallCount() != 2 {
+		t.Fatalf("resumed task = state %s, confirmed=%v by=%q, model calls=%d", resumedDone.State, resumedDone.Plan.Confirmed, resumedDone.Plan.ConfirmedBy, f.runtime.Model.Observer.CallCount())
 	}
 }
 

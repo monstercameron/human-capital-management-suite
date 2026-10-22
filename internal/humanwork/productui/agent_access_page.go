@@ -46,11 +46,11 @@ func agentAccessStatus(locale LocaleContext, state AgentAccessLoadState, detail 
 			AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3, Status: agentAccessText(locale, "loading")}),
 		)
 	}
+	// A read that failed is drawn as the shared loading placeholder that offers
+	// Try again after a few seconds; the reason is announced, not printed.
 	return agentAccessContainer(embedded, html.Props{Class: "agent-access-page", Raw: map[string]any{"data-agent-access-state": string(state)}},
-		ui.CreateElement(EmptyState, EmptyStateProps{
-			Title: agentAccessText(locale, "unavailable_title"), Description: detail, Role: "status",
-		}),
-		html.Div(html.Props{Class: "action-row"}, html.Button(html.Props{Class: "button primary", Type: "button", Raw: map[string]any{"data-agent-access-action": "retry"}}, ui.Text(agentAccessText(locale, "try_again")))),
+		agentAccessHeading(embedded, html.Props{}, agentAccessText(locale, "title")),
+		AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3, Status: agentAccessText(locale, "unavailable_title") + ". " + detail, RetryRaw: map[string]any{"data-agent-access-action": "retry"}}),
 	)
 }
 
@@ -82,7 +82,7 @@ func agentConnectionCard(props AgentAccessPageProps, connection AgentAccessConne
 		html.Span(html.Props{Class: "status agent-link-state", Raw: map[string]any{"data-link-state": strings.ToLower(strings.TrimSpace(connection.LinkState))}}, ui.Text(status)),
 	}
 	if mode := strings.TrimSpace(connection.CredentialMode); mode != "" {
-		meta = append(meta, html.Small(html.Props{Class: "muted"}, ui.Text(agentAccessText(locale, "credential_mode")+": "+mode)))
+		meta = append(meta, html.Small(html.Props{Class: "muted"}, ui.Text(agentAccessText(locale, "credential_mode")+": "+agentCredentialModeLabel(locale, mode))))
 	}
 	actions := make([]ui.Node, 0, 2)
 	if connection.CanLink && !strings.EqualFold(connection.LinkState, "linked") {
@@ -106,26 +106,24 @@ func agentLinkButton(props AgentAccessPageProps, connection AgentAccessConnectio
 	if props.Client == nil {
 		button.Disabled = true
 		button.Raw["aria-disabled"] = "true"
-	} else {
-		button.OnClick = ui.UseEvent(func(ui.MouseEvent) {
-			start, err := props.Client.StartProviderAuthorization(connection.ID)
-			if err != nil || !start.ValidPKCE() || props.OnAuthorization == nil {
-				return
-			}
-			props.OnAuthorization(start)
-		})
+		return html.Button(button, ui.Text(agentAccessText(props.Locale, "link_account")))
 	}
-	return html.Button(button, ui.Text(agentAccessText(props.Locale, "link_account")))
+	return agentRunButton(button, agentAccessText(props.Locale, "link_account"), func() {
+		start, err := props.Client.StartProviderAuthorization(connection.ID)
+		if err != nil || !start.ValidPKCE() || props.OnAuthorization == nil {
+			return
+		}
+		props.OnAuthorization(start)
+	})
 }
 
 func agentUnlinkButton(props AgentAccessPageProps, connection AgentAccessConnection) ui.Node {
 	button := html.Props{Class: "button secondary agent-unlink-button", Type: "button", Aria: map[string]string{"label": agentAccessText(props.Locale, "unlink_account")}, Raw: map[string]any{"data-agent-access-action": "unlink", "data-connection-id": connection.ID}}
 	if props.Client == nil {
 		button.Disabled = true
-	} else {
-		button.OnClick = ui.UseEvent(func(ui.MouseEvent) { _ = props.Client.UnlinkConnection(connection.ID) })
+		return html.Button(button, ui.Text(agentAccessText(props.Locale, "unlink_account")))
 	}
-	return html.Button(button, ui.Text(agentAccessText(props.Locale, "unlink_account")))
+	return agentRunButton(button, agentAccessText(props.Locale, "unlink_account"), func() { _ = props.Client.UnlinkConnection(connection.ID) })
 }
 
 func agentSkillsList(locale LocaleContext, skills []AgentAccessSkill) ui.Node {
@@ -155,7 +153,8 @@ func agentDelegationGrants(props AgentAccessPageProps) ui.Node {
 		grantID := "agent-grant-" + safeAgentDOMToken(grant.TaskID)
 		actions := ui.Node(html.Small(html.Props{Class: "muted"}, ui.Text(agentAccessText(locale, "not_revocable"))))
 		if grant.Revocable && props.Client != nil {
-			actions = html.Button(html.Props{Class: "button secondary compact", Type: "button", Raw: map[string]any{"data-agent-access-action": "revoke", "data-task-id": grant.TaskID}, OnClick: ui.UseEvent(func(ui.MouseEvent) { _ = props.Client.RevokeDelegation(grant.TaskID) })}, ui.Text(agentAccessText(locale, "revoke")))
+			taskID := grant.TaskID
+			actions = agentRunButton(html.Props{Class: "button secondary compact", Type: "button", Raw: map[string]any{"data-agent-access-action": "revoke", "data-task-id": taskID}}, agentAccessText(locale, "revoke"), func() { _ = props.Client.RevokeDelegation(taskID) })
 		}
 		rows = append(rows, html.Li(html.Props{Class: "agent-delegation-grant", Raw: map[string]any{"data-grant-id": grant.ID, "aria-labelledby": grantID + "-label"}},
 			html.Div(html.Props{}, html.Strong(html.Props{ID: grantID + "-label"}, ui.Text(grant.TaskLabel)), html.Small(html.Props{Class: "muted"}, ui.Text(grant.Scope))),

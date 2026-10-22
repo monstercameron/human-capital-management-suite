@@ -44,7 +44,7 @@ const (
 	localAgentDemoAgentID   = "policy-helper"
 	localAgentDemoAdmin     = "ir-001-walt-brennan"
 	localAgentDemoSynthetic = "ironridge-agent-eval"
-	localAgentDemoFreshFor  = 24 * time.Hour
+	localAgentDemoFreshFor  = 30 * 24 * time.Hour
 )
 
 // LocalAgentDemoConfig contains only operator-owned configuration. The
@@ -97,10 +97,14 @@ type LocalAgentDemoSummary struct {
 	// WorkspaceDocumentsShared counts the demo documents that became readable
 	// by every workspace member in this run.
 	WorkspaceDocumentsShared int
+	// Placements is what the preparation did after the agents themselves: where
+	// Task Catcher, Reminder and Support Desk were placed, how many messages
+	// #general's history gained, and how many support emails it seeded.
+	Placements LocalAgentDemoPlacements
 }
 
 func (s LocalAgentDemoSummary) Changed() bool {
-	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0
+	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.Placements.Changed() || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0
 }
 
 // ValidateLocalAgentDemoConfig rejects the command before any connection is
@@ -221,7 +225,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	if err != nil {
 		return summary, fmt.Errorf("read Policy Helper version: %w", err)
 	}
-	if state != agentpersonastore.StateInReview && state != agentpersonastore.StatePublished {
+	if state != agentpersonastore.StateDraft && state != agentpersonastore.StateInReview && state != agentpersonastore.StatePublished {
 		return summary, fmt.Errorf("Policy Helper must be IN_REVIEW or PUBLISHED, found %s", state)
 	}
 	var profile agentpersona.PersonaProfile
@@ -283,19 +287,37 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	directConversation := ""
 	// The starters are one list (AGENTUX-049); one that has no seed yet is named
 	// in the receipt with the reason rather than skipped without a word.
+	versions := map[string]int64{}
 	for _, entry := range localAgentDemoStarterList() {
-		if entry.seed == nil {
+		prepared, direct, ran, prepareErr := preparation.prepareEntry(adminCtx, entry, profile)
+		if prepareErr != nil {
+			// What was prepared before the failure is the only state the operator
+			// can see, so it stays in the receipt and the failed starter is named.
+			var done []string
+			for _, started := range localAgentDemoStarterList() {
+				if _, ok := versions[started.Name]; ok {
+					done = append(done, started.Name)
+				}
+			}
+			summary.Starters = localAgentDemoStarterReceipts(done, versions)
+			for i := range summary.Starters {
+				if summary.Starters[i].State != localAgentDemoStarterPrepared {
+					summary.Starters[i].Reason = "not prepared in this run"
+					if summary.Starters[i].Name == entry.Name {
+						summary.Starters[i].Reason = "failed"
+					}
+				}
+			}
+			return summary, fmt.Errorf("prepare %s: %w", entry.Name, prepareErr)
+		}
+		if !ran {
 			continue
 		}
-		seed := *entry.seed
-		prepared, direct, prepareErr := preparation.prepare(adminCtx, seed, profile)
-		if prepareErr != nil {
-			return summary, prepareErr
-		}
-		if seed.personaID == localAgentDemoPersonaID {
+		versions[entry.Name] = prepared.version
+		if entry.seed != nil && entry.seed.personaID == localAgentDemoPersonaID {
 			directConversation = direct
 			summary.Persona, summary.DisplayName, summary.Version, summary.State = row.PersonaID, row.DisplayName, prepared.version, string(prepared.state)
-		} else if seed.personaID == localAgentDemoAssistantPersonaID {
+		} else if entry.seed != nil && entry.seed.personaID == localAgentDemoAssistantPersonaID {
 			summary.AssistantVersion, summary.AssistantState = prepared.version, string(prepared.state)
 		}
 		summary.EvaluationRecorded = summary.EvaluationRecorded || prepared.evaluationRecorded
@@ -308,7 +330,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		summary.DuplicateInstallationsRetired += prepared.duplicateInstallationsGone
 		summary.SkillGrantsCreated += prepared.skillGrantsCreated
 	}
-	summary.Starters = localAgentDemoStarterReceipts(localAgentDemoStarterNames())
+	summary.Starters = localAgentDemoStarterReceipts(localAgentDemoStarterNames(), versions)
 	summary.IconsSet, err = scoped.BackfillIcons(ctx, localAgentDemoAdmin, now)
 	if err != nil {
 		return summary, err
@@ -327,6 +349,13 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	summary.WorkspaceDocumentsShared, err = ensureLocalAgentDemoWorkspaceReaders(ctx, documents, WorkspaceDocumentDirectory{DB: core, TenantUUID: mapper}, config.Tenant, localAgentDemoAdmin, publicConversation)
 	if err != nil {
 		return summary, err
+	}
+	// AGENTUX-053, -054, -067, -068: where the later agents are placed, #general's
+	// dated history and the seeded support inbox. Nothing here deletes a post or
+	// turns on an agent's "Reads every message here".
+	summary.Placements, err = prepareLocalAgentDemoTail(adminCtx, config, agents, chat, documents, mapper, publicConversation, now)
+	if err != nil {
+		return summary, fmt.Errorf("place the demo agents: %w", err)
 	}
 	if modelErr != nil {
 		summary.WorkspaceIndex.Unavailable = modelErr.Error()

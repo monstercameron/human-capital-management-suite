@@ -97,7 +97,14 @@ func ensureLocalAgentDemoReviewerGrant(ctx context.Context, db dbport.Beginner, 
 	if current {
 		return tx.Commit(ctx)
 	}
-	grantID := fmt.Sprintf("local-demo/persona-review/%s/admin/%s/renewed-%s", reviewer, owner, now.UTC().Format("20060102T150405Z"))
+	// The identifier carries how many grants this reviewer has held, so a grant
+	// renewed in the same second as a revoked one is a new grant, not a conflict
+	// with the revoked row.
+	var held int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM persona_review_grant WHERE tenant_id=$1 AND principal_id=$2 AND permission='persona:review'`, tenantID, reviewer).Scan(&held); err != nil {
+		return err
+	}
+	grantID := fmt.Sprintf("local-demo/persona-review/%s/admin/%s/renewed-%s-%d", reviewer, owner, now.UTC().Format("20060102T150405Z"), held)
 	if _, err := tx.Exec(ctx, `INSERT INTO persona_review_grant(tenant_id,grant_id,principal_id,permission,granted_at,expires_at) VALUES($1,$2,$3,'persona:review',$4,$5) ON CONFLICT DO NOTHING`, tenantID, grantID, reviewer, now.Add(-time.Minute), now.Add(24*time.Hour)); err != nil {
 		return err
 	}

@@ -116,6 +116,11 @@ func (e *journeyEngine) Execute(ctx context.Context, intentID string) (detail wo
 			"%w: this promotion has already been executed", workspace.ErrJourneyStage)
 	}
 
+	// An agent-created promotion has recorded no candidates or holds yet.
+	if recordErr := e.recordAgentProposalCandidates(ctx, principal, intentID, got.GetIntent().GetOriginEventRef(), simulated); recordErr != nil {
+		return workspace.JourneyDetail{}, recordErr
+	}
+
 	// WF-RUN-027: runtime.Start no longer takes this page's word that the
 	// proposal may run -- it reads the decisions recorded against the exact
 	// revision. The execution-authority gate's own admission is that decision,

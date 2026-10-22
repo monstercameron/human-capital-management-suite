@@ -38,6 +38,9 @@ func chatgateFetch(cfg journeyclient.Config, r chatgateClientRequest) (chatgateC
 	if r.Action == chatgateListAction {
 		options.Set("method", "GET")
 		path += "?list=1"
+	} else if r.Action == chatgateLabelsAction || r.Action == chatgateAudienceAction {
+		options.Set("method", "GET")
+		path += "?" + r.Action + "=1&conversation=" + url.QueryEscape(r.Conversation)
 	} else if r.Action == "get" {
 		options.Set("method", "GET")
 		path += "?conversation=" + url.QueryEscape(r.Conversation) + "&locale=" + url.QueryEscape(r.Locale)
@@ -295,6 +298,7 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 		if action == "try" {
 			req.Person = values["gate-sample-person"]
 		}
+		chatgateConsumerRequest(&req, action, id, values, checks, view)
 		for _, sub := range view.Submissions {
 			if sub.ID == id {
 				req.SubmissionRevision = sub.Revision

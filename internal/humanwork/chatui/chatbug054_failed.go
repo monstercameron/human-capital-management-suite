@@ -42,7 +42,20 @@ func chatbug054Reason(model Model, failure PersonaProgressFailure, name string) 
 	if failure.Code == chat.AgentMentionLimitCode {
 		description = chat.AgentAnswerMentionLimit(model.Locale, name, failure.MentionsAsked, failure.RetryAt.Local())
 	}
-	nodes := []ui.Node{html.P(html.Props{Class: "agent-failure-heading", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}, icon("warning"), html.Span(html.Props{Dir: "auto", Text: description.Sentence}))}
+	if failure.Code == chat.AgentDailyLimitCode {
+		// AGENTCOST-006: the limit is the agent's in this conversation, so the
+		// card says where, in the name the conversation list shows.
+		description = chat.AgentAnswerDailyLimit(model.Locale, name, agentLimitConversation(model))
+	}
+	// CHATUX-042: "found nothing" is an answer, so it carries no warning glyph.
+	heading := html.Props{Class: "agent-failure-heading", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}}
+	sentence := html.Span(html.Props{Dir: "auto", Text: description.Sentence})
+	lead := []ui.Node{icon("warning"), sentence}
+	if chatux042NothingFound(model.Locale, name, description) {
+		heading.Data = map[string]string{"outcome": "nothing-found"}
+		lead = []ui.Node{sentence}
+	}
+	nodes := []ui.Node{html.P(heading, lead...)}
 	if !description.Retryable && strings.TrimSpace(description.NextStep) != "" {
 		nodes = append(nodes, html.P(html.Props{Class: "agent-failure-next", Dir: "auto", Text: description.NextStep}))
 	}

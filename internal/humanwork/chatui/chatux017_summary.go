@@ -27,36 +27,44 @@ func chatux017AgentSummary(m Model, persona ResolvedPersonaMention) ui.Node {
 // block, instead of under every agent (CHATUX-030).
 func chatux017AgentSummaryWith(m Model, persona ResolvedPersonaMention, withAnswers bool) ui.Node {
 	text := func(key string) string { return chatux017Text(m.Locale, key) }
+	fact := func(key string, value ui.Node) []ui.Node {
+		return chatux041Fact(laneText(m, chatux041Copy, key), value)
+	}
 	rows := []ui.Node{}
 	if purpose := strings.TrimSpace(persona.Purpose); purpose != "" {
 		rows = append(rows, html.P(html.Props{Class: "agent-summary-purpose", Dir: "auto", Text: purpose}))
 	}
+	// The facts are one list in one label style (CHATUX-041): owner, version,
+	// what it reads, the access it acts with, what it can do, what it never does.
+	var facts []ui.Node
 	// Who looks after it: a person's name, as a link to that person. The
 	// definition may name a team in words instead ("People Operations"), which
 	// is shown as written. An identifier is never shown in a name's place.
 	if owner := strings.TrimSpace(persona.Owner); owner != "" {
 		if name := chatux003PersonName(m, owner); name != "" {
-			rows = append(rows, html.P(html.Props{Class: "agent-summary-owner"}, html.Span(html.Props{Text: text("looked_after") + " "}),
-				personButton(m, owner, name, "agent-summary-person person-name", ui.Text(name))))
+			facts = append(facts, fact(chatux041KeyFactOwner, html.Span(html.Props{Class: "agent-summary-owner"}, personButton(m, owner, name, "agent-summary-person person-name", ui.Text(name))))...)
 		} else if chatux017WrittenName(owner) {
-			rows = append(rows, html.P(html.Props{Class: "agent-summary-owner", Dir: "auto", Text: text("looked_after") + " " + owner}))
+			facts = append(facts, fact(chatux041KeyFactOwner, html.Span(html.Props{Class: "agent-summary-owner", Dir: "auto", Text: owner}))...)
 		}
 	}
 	// AGENTP-019: the version, what the agent does and the access it acts with
 	// are on this card as they are on the mention menu's.
-	if version := agentp019Version(m.Locale, persona, false); version != nil {
-		rows = append(rows, version)
+	if version := strings.TrimSpace(persona.Version); version != "" {
+		facts = append(facts, fact(chatux041KeyFactVersion, ui.Text(version))...)
 	}
-	rows = append(rows, agentp019Access(m.Locale))
-	if len(persona.Skills) > 0 {
-		rows = append(rows, agentp019Skills(m.Locale, persona))
+	// What it reads comes from the same facts as the line under a collapsed row,
+	// so the two never name different scopes.
+	if reads := chatux041ReadsPhrase(m, persona); reads != "" {
+		facts = append(facts, fact(chatux041KeyFactReads, html.Span(html.Props{Class: "agent-summary-reads", Dir: "auto", Text: reads}))...)
 	}
-	if reads := chatux017Reads(m.Locale, persona.DataClasses); len(reads) > 0 {
-		rows = append(rows, chatux017List(text("reads"), "agent-summary-reads", reads))
+	facts = append(facts, fact(chatux041KeyFactAccess, ui.Text(personaMentionText(m.Locale, "acts_with_access")))...)
+	if lines := personaSkillRows(m.Locale, persona.Skills); len(lines) > 0 {
+		facts = append(facts, fact(chatux041KeyFactSkills, chatux041FactList(lines))...)
 	}
 	if never := chatux017Never(m.Locale, persona.CannotDo); len(never) > 0 {
-		rows = append(rows, chatux017List(text("never"), "agent-summary-never", never))
+		facts = append(facts, fact(chatux041KeyFactNever, html.Div(html.Props{Class: "agent-summary-never"}, chatux041FactList(never)))...)
 	}
+	rows = append(rows, html.Tag("dl", html.Props{Class: "agent-facts"}, facts...))
 	if answers := chatux017Answers(m.Locale, persona.ReplyPlacement); answers != "" && withAnswers {
 		rows = append(rows, html.P(html.Props{Class: "agent-summary-answers", Dir: "auto", Text: answers}))
 	}

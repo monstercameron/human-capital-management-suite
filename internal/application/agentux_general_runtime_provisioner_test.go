@@ -162,7 +162,7 @@ func TestAgentUXGeneral_VerifierKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	keys, err := localAgentDemoEvaluationVerificationKeys(key, "ironridge-demo", "harborcare-demo", "production")
-	if err != nil || len(keys) != 4 {
+	if err != nil || len(keys) != 12 {
 		t.Fatalf("local verifier keys=%d err=%v", len(keys), err)
 	}
 	for _, tenant := range []string{"ironridge-demo", "harborcare-demo"} {

@@ -180,21 +180,22 @@ func chatside001Menu(m Model) (ui.Node, bool) {
 			}
 		}
 	}
-	item := func(action, class string, disabled bool, label string) ui.Node {
-		return html.Button(html.Props{Class: class, Type: "button", Role: "menuitem", Disabled: disabled, Data: map[string]string{"action": action, "id": id}, Text: label})
+	// CHATUX-040: every item leads with a glyph.
+	item := func(action, class, glyph string, disabled bool, label string) ui.Node {
+		return chatux040MenuItem(class, action, id, glyph, label, disabled)
 	}
 	var items []ui.Node
 	if chatside001IsCustom(id) {
-		items = append(items, item("side-rename", "menu-item", m.Callbacks.RenameSection == nil, laneText(m, chatside001Copy, keyChatside001Rename)))
+		items = append(items, item("side-rename", "menu-item", "edit", m.Callbacks.RenameSection == nil, laneText(m, chatside001Copy, keyChatside001Rename)))
 	}
 	if Chatside001Neighbor(m.Sections, id, -1) >= 0 {
-		items = append(items, item("section-up", "menu-item", m.Callbacks.ReorderSection == nil, m.t(KeyMoveSectionUp)))
+		items = append(items, item("section-up", "menu-item", "arrow-up", m.Callbacks.ReorderSection == nil, m.t(KeyMoveSectionUp)))
 	}
 	if Chatside001Neighbor(m.Sections, id, 1) >= 0 {
-		items = append(items, item("section-down", "menu-item", m.Callbacks.ReorderSection == nil, m.t(KeyMoveSectionDown)))
+		items = append(items, item("section-down", "menu-item", "arrow-down", m.Callbacks.ReorderSection == nil, m.t(KeyMoveSectionDown)))
 	}
 	if chatside001IsCustom(id) {
-		items = append(items, item("section-remove", "menu-item danger", m.Callbacks.RemoveSection == nil, laneText(m, chatside001Copy, keyChatside001Delete)))
+		items = append(items, item("section-remove", "menu-item danger", "trash", m.Callbacks.RemoveSection == nil, laneText(m, chatside001Copy, keyChatside001Delete)))
 	}
 	// CHATBUG-090: the section menu is the same anchored layer as the row menu;
 	// as a plain div it sat in the top-left corner of the page.
@@ -382,14 +383,12 @@ func chatside001FavoriteItem(m Model, c Conversation) ui.Node {
 	if chatside001Starred(m)[c.ID] {
 		key, flag = keyChatside001RemoveFavorite, "0"
 	}
-	return html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.SetFavorite == nil,
-		Data: map[string]string{"action": "side-fav", "id": c.ID, "extra": flag}, Text: laneText(m, chatside001Copy, key)})
+	return chatux040MenuItem("menu-item", "side-fav", c.ID, "star", laneText(m, chatside001Copy, key), m.Callbacks.SetFavorite == nil, flag)
 }
 
 // chatside001NewSectionItem is the row menu's "Move to a new section".
 func chatside001NewSectionItem(m Model, c Conversation) ui.Node {
-	return html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.CreateSectionFor == nil,
-		Data: map[string]string{"action": "side-move-new", "id": c.ID}, Text: laneText(m, chatside001Copy, keyChatside001MoveNew)})
+	return chatux040MenuItem("menu-item", "side-move-new", c.ID, "section-new", laneText(m, chatside001Copy, keyChatside001MoveNew), m.Callbacks.CreateSectionFor == nil)
 }
 
 // chatside001HeaderStar is the star in the conversation header: it favorites the

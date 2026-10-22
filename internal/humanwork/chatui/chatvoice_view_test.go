@@ -16,7 +16,7 @@ func TestTodo_CHATVOICE_004_Browser(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{"<audio", `preload="none"`, "2:00", VoiceCopy(locale, "more"), VoiceCopy(locale, "automatic"), VoiceCopy(locale, "correct"), VoiceCopy(locale, "report"), "chatvoice-low", `data-chatvoice-seek="0"`, `data-chatvoice-end="1000"`, "1.5×", "2×"} {
+		for _, want := range []string{"<audio", `preload="none"`, chatNumeral(locale, "2:00"), VoiceCopy(locale, "more"), VoiceCopy(locale, "automatic"), VoiceCopy(locale, "correct"), VoiceCopy(locale, "report"), "chatvoice-low", `data-chatvoice-seek="0"`, `data-chatvoice-end="1000"`, "1.5×", "2×"} {
 			if !strings.Contains(markup, want) {
 				t.Fatalf("locale=%s missing %q", locale, want)
 			}

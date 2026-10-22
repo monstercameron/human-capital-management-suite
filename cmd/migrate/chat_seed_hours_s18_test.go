@@ -5,29 +5,12 @@ import (
 	"time"
 )
 
-// Every moment of the seeded fortnight, laid onto office hours, reads as a
-// working hour in Denver and keeps its order.
-func TestChatSeedWorkdayKeepsOrderAndOfficeHours(t *testing.T) {
-	office := chatSeedOfficeZone("ironridge-demo")
-	if office.String() != "America/Denver" {
-		t.Fatalf("Ironridge office zone = %s", office)
+func TestChatSeedOfficeZone(t *testing.T) {
+	if zone := chatSeedOfficeZone("ironridge-demo"); zone.String() != "America/Denver" {
+		t.Fatalf("Ironridge office zone = %s", zone)
 	}
 	if zone := chatSeedOfficeZone("harborcare-demo"); zone.String() != "America/New_York" {
 		t.Fatalf("HarborCare office zone = %s", zone)
-	}
-	start := time.Date(2026, time.September, 18, 3, 17, 0, 0, time.UTC)
-	var previous time.Time
-	for step := 0; step < 14*24*4; step++ {
-		raw := start.Add(time.Duration(step) * 15 * time.Minute)
-		got := chatSeedWorkday(raw, office)
-		local := got.In(office)
-		if local.Hour() < 8 || local.Hour() >= 18 {
-			t.Fatalf("%s became %s, outside 08:00 to 18:00", raw.In(office).Format("Mon 15:04"), local.Format("Mon 15:04"))
-		}
-		if !previous.IsZero() && got.Before(previous) {
-			t.Fatalf("%s moved before the moment ahead of it", raw.In(office).Format("Mon 15:04"))
-		}
-		previous = got
 	}
 }
 
@@ -44,6 +27,44 @@ func TestChatSeedReplyTimeNeverLandsAtNight(t *testing.T) {
 		}
 		if got.Before(at) && at.In(office).Hour() >= 8 {
 			t.Errorf("reply at %s moved earlier, to %s", clock, got.Format("Mon 15:04"))
+		}
+	}
+}
+
+// A reply that would land on a weekend, or after Friday's closing, goes to
+// Monday morning.
+func TestChatSeedReplyTimeSkipsTheWeekend(t *testing.T) {
+	office := chatSeedOfficeZone("ironridge-demo")
+	for clock, want := range map[string]string{
+		"2026-09-26 11:00": "Mon 11:00", // Saturday
+		"2026-09-27 15:30": "Mon 15:30", // Sunday
+		"2026-09-25 19:10": "Mon 09:10", // Friday after closing
+		"2026-09-25 16:00": "Fri 16:00", // Friday in hours is left alone
+	} {
+		at, err := time.ParseInLocation("2006-01-02 15:04", clock, office)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := chatSeedReplyTime(at, office).In(office).Format("Mon 15:04"); got != want {
+			t.Errorf("reply at %s became %s, want %s", clock, got, want)
+		}
+	}
+}
+
+func TestLatestOfficeMomentIsNeverAtNightOrOnAWeekend(t *testing.T) {
+	office := chatSeedOfficeZone("ironridge-demo")
+	for clock, want := range map[string]string{
+		"2026-09-26 11:00": "Fri 18:00", // Saturday
+		"2026-09-27 23:00": "Fri 18:00", // Sunday night
+		"2026-09-28 06:00": "Fri 18:00", // Monday before opening
+		"2026-09-28 10:00": "Mon 10:00", // Monday in hours is now itself
+	} {
+		at, err := time.ParseInLocation("2006-01-02 15:04", clock, office)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := latestOfficeMoment(at.UTC(), office).In(office).Format("Mon 15:04"); got != want {
+			t.Errorf("latest office moment at %s = %s, want %s", clock, got, want)
 		}
 	}
 }

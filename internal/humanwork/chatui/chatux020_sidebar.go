@@ -114,22 +114,24 @@ func chatux020RailMenu(m Model, h handlers) ui.Node {
 	if found {
 		name = displayName(m, c)
 	}
-	item := func(action string, disabled bool, children ...ui.Node) ui.Node {
-		return html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: disabled, Data: map[string]string{"action": action, "id": id}}, children...)
+	// CHATUX-040: every item leads with a glyph, so the labels share one edge.
+	item := func(action, glyph, label string, disabled bool) ui.Node {
+		return chatux040MenuItem("menu-item", action, id, glyph, label, disabled)
 	}
-	text := func(s string) ui.Node { return html.Span(html.Props{Text: s}) }
 	items := []ui.Node{
-		item("rail-details", m.Callbacks.OpenConversationDetails == nil, text(m.t(KeyDetails))),
-		item("rail-copy-reference", m.Callbacks.CopyConversationReference == nil || !found, icon("link"), text(m.t(KeyCopyConversationReference))),
+		item("rail-details", "info", m.t(KeyDetails), m.Callbacks.OpenConversationDetails == nil),
+		item("rail-copy-reference", "link", m.t(KeyCopyConversationReference), m.Callbacks.CopyConversationReference == nil || !found),
 	}
 	if found {
 		if c.Unread > 0 || c.Mentions > 0 {
-			items = append(items, item("rail-mark-read", m.Callbacks.MarkConversationRead == nil, text(laneText(m, chatux020Copy, keyChatux020MarkRead))))
+			items = append(items, item("rail-mark-read", "check", laneText(m, chatux020Copy, keyChatux020MarkRead), m.Callbacks.MarkConversationRead == nil))
 		} else {
-			items = append(items, item("rail-mark-unread", m.Callbacks.MarkConversationUnread == nil, text(laneText(m, chatux020Copy, keyChatux020MarkUnread))))
+			items = append(items, item("rail-mark-unread", "unread", laneText(m, chatux020Copy, keyChatux020MarkUnread), m.Callbacks.MarkConversationUnread == nil))
 		}
 		items = append(items, chatside001FavoriteItem(m, c))
 	}
+	// An archived conversation's menu leads with Open and Restore (CHATBUG-092).
+	items = chatbug092ArchivedMenuItems(m, id, items)
 	// The notification choice is its own group with a heading, so the three
 	// radios read as one setting and not as three more actions.
 	mode := m.Preferences.Notifications[id]
@@ -149,7 +151,7 @@ func chatux020RailMenu(m Model, h handlers) ui.Node {
 		}
 		radios = append(radios, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitemradio", Disabled: m.Callbacks.SetConversationNotification == nil, Data: map[string]string{"action": choice.action, "id": id},
 			Aria: map[string]string{"checked": boolString(mode == choice.mode)}},
-			html.Span(html.Props{Class: "rail-menu-check", Aria: map[string]string{"hidden": "true"}, Text: check}), text(m.t(choice.key))))
+			html.Span(html.Props{Class: "rail-menu-check", Aria: map[string]string{"hidden": "true"}, Text: check}), html.Span(html.Props{Text: m.t(choice.key)})))
 	}
 	items = append(items, html.Div(html.Props{Class: "menu-group", Role: "group", Aria: map[string]string{"labelledby": headingID}}, radios...))
 	// Moves: only to a section the row is not in and that fits its kind.
@@ -164,7 +166,7 @@ func chatux020RailMenu(m Model, h handlers) ui.Node {
 			case chatside001Favorites:
 				sectionName = laneText(m, chatside001Copy, keyChatside001Favorites)
 			}
-			items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.MoveConversationSection == nil, Data: map[string]string{"action": "rail-move-section", "id": id, "extra": section.ID}, Text: m.tf(KeyMoveToSection, map[string]string{"name": sectionName})}))
+			items = append(items, chatux040MenuItem("menu-item", "rail-move-section", id, "section-move", m.tf(KeyMoveToSection, map[string]string{"name": sectionName}), m.Callbacks.MoveConversationSection == nil, section.ID))
 		}
 		items = append(items, chatside001NewSectionItem(m, c))
 	}
@@ -173,7 +175,7 @@ func chatux020RailMenu(m Model, h handlers) ui.Node {
 		if h.local.railLeave == id {
 			label, action, class = laneTextf(m, chatux020Copy, keyChatux020LeaveConfirm, map[string]string{"name": name}), "rail-leave-confirm", "menu-item danger"
 		}
-		items = append(items, html.Button(html.Props{Class: class, Type: "button", Role: "menuitem", Disabled: m.Callbacks.LeaveConversation == nil, Data: map[string]string{"action": action, "id": id}}, text(label)))
+		items = append(items, chatux040MenuItem(class, action, id, "logout", label, m.Callbacks.LeaveConversation == nil))
 	}
 	// Reorder is the last thing in the menu, after a divider.
 	if found {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentskillgrantstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
@@ -24,6 +25,16 @@ func localAgentDemoPinPurposes(skillID string) ([]string, bool) {
 		return slices.Clone(personaPolicySearchSkillDefinition().RequiredPurposes), true
 	case personaWorkspaceSearchSkillID:
 		return slices.Clone(personaWorkspaceSearchSkillDefinition().RequiredPurposes), true
+	}
+	// The ambient offer skills and Support Desk's effect skills (AGENTUX-049).
+	definitions := agentskills.AmbientOfferSkills()
+	for _, effect := range agentskills.SupportEffectSkills() {
+		definitions = append(definitions, effect.Skill)
+	}
+	for _, definition := range definitions {
+		if definition.ID == skillID {
+			return slices.Clone(definition.RequiredPurposes), true
+		}
 	}
 	return nil, false
 }

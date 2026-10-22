@@ -110,15 +110,17 @@ func chatsearchControlQuery(query string, values map[string]string, checks map[s
 	}
 	// Controls add to the current chips, so an unchecked empty control never
 	// removes a filter silently. Chips are the explicit removal action.
-	for _, pair := range [][2]string{{"channel", "in"}, {"person", "from"}, {"kind", "kind"}, {"before", "before"}, {"after", "after"}, {"on", "on"}} {
+	for _, pair := range [][2]string{{"channel", "in"}, {"person", "from"}, {"kind", "kind"}, {"written", "lang"}, {"before", "before"}, {"after", "after"}, {"on", "on"}} {
 		if value := strings.TrimSpace(values[pair[0]]); value != "" {
 			if strings.Contains(value, `"`) {
 				return "", chatsearch.ErrInvalid
 			}
 			kept := tokens[:0]
 			for _, token := range tokens {
-				key, old, _ := strings.Cut(token, ":")
-				if key == pair[1] && !(key == "from" && old == "agent") {
+				// Only a token with a colon is a filter; "in", "on" and "from"
+				// typed as words are part of the search and stay.
+				key, old, filter := strings.Cut(token, ":")
+				if filter && strings.EqualFold(key, pair[1]) && !(strings.EqualFold(key, "from") && old == "agent") {
 					continue
 				}
 				kept = append(kept, token)

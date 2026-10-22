@@ -2325,6 +2325,14 @@ func (s *chatState) applyStreamEvent(generation uint64, conversationID string, e
 	// asks for a repaint (chatperf_render.go). A replayed event usually does not.
 	before, comparable := chatperfEventMark(&s.model, event)
 	outcome := applyChatEvent(&s.model, &s.cursor, event, locale, directory, now)
+	if outcome == chatEventGap {
+		// The resubscribe that follows resumes after the last event applied, so
+		// anything really missed arrives again. A jump that is still there is a
+		// number the server never sends this reader (a moderation event, a post
+		// for other people), and measuring the new stream against the old
+		// position would report it as a gap for good.
+		s.cursor.Baselined = false
+	}
 	if outcome == chatEventApplied || outcome == chatEventUnordered {
 		if event.GetKind() == chatv1.ConversationEventKind_CONVERSATION_EVENT_KIND_REACTION_CHANGED {
 			s.applyReactionEventMembers(event, s.cfg.Tenant)
@@ -2638,10 +2646,11 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 		forwardedAuthorID = source.GetOriginalAuthorId()
 		forwardedAuthor = chatDisplayName(directory, source.GetOriginalAuthorId())
 	}
+	author, photo, authorAgent := chatux047Author(v, directory)
 	return chatui.Message{
 		ID:        v.GetId(),
 		AuthorID:  v.GetAuthorId(),
-		Author:    chatDisplayName(directory, v.GetAuthorId()),
+		Author:    author,
 		Body:      v.GetBody(),
 		Revision:  v.GetRevision(),
 		Sequence:  v.GetSequence(),
@@ -2654,6 +2663,9 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 		ForwardedAuthor:   forwardedAuthor,
 		ForwardedAuthorID: forwardedAuthorID,
 		PersonaReferences: personaChatPostReferences(v),
+		Audience:          chatgateMessageAudience(v),
+		Avatar:            photo,
+		AuthorAgent:       authorAgent,
 	}
 }
 

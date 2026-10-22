@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
 	kernelvalues "github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
@@ -946,12 +946,7 @@ func canonicalPublicOrigin(raw string) (string, error) {
 // exact comparison so validation remains fail-closed without exposing a
 // parser error that could include connection details.
 func sameLogicalDatabaseURL(a, b string) bool {
-	left, leftErr := pgconn.ParseConfig(strings.TrimSpace(a))
-	right, rightErr := pgconn.ParseConfig(strings.TrimSpace(b))
-	if leftErr != nil || rightErr != nil {
-		return strings.TrimSpace(a) == strings.TrimSpace(b)
-	}
-	return strings.EqualFold(left.Host, right.Host) && left.Port == right.Port && left.Database == right.Database
+	return pgxadapter.SameDatabaseIdentity(a, b)
 }
 
 // validatePersonaReviewAuthorityDatabaseURL requires a distinct PostgreSQL
@@ -962,7 +957,7 @@ func (c ServeConfig) validatePersonaReviewAuthorityDatabaseURL() error {
 	if reviewDSN == "" {
 		return nil
 	}
-	review, err := pgconn.ParseConfig(reviewDSN)
+	review, err := pgxadapter.ParseDSNMetadata(reviewDSN)
 	if err != nil || strings.TrimSpace(review.User) == "" {
 		return fmt.Errorf("-%s must be a valid PostgreSQL URL with a dedicated login role", FieldPersonaReviewAuthorityDatabaseURL)
 	}
@@ -973,7 +968,7 @@ func (c ServeConfig) validatePersonaReviewAuthorityDatabaseURL() error {
 		if strings.TrimSpace(source.dsn) == "" {
 			continue
 		}
-		other, parseErr := pgconn.ParseConfig(strings.TrimSpace(source.dsn))
+		other, parseErr := pgxadapter.ParseDSNMetadata(strings.TrimSpace(source.dsn))
 		if parseErr == nil && review.User == other.User {
 			return fmt.Errorf("-%s must use a login role distinct from -%s", FieldPersonaReviewAuthorityDatabaseURL, source.field)
 		}

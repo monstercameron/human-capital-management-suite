@@ -39,6 +39,7 @@ type AnnouncementCommand struct {
 	IdempotencyKey   string `json:"idempotency_key"`
 	PreviewDigest    string `json:"preview_digest,omitempty"`
 	RetryOccurrence  string `json:"retry_occurrence,omitempty"`
+	_                incomparable
 }
 
 type AnnouncementPreview struct {

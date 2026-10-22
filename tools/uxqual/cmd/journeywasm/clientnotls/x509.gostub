@@ -1,0 +1,47 @@
+// Package x509 is the browser client's stand-in for crypto/x509.
+//
+// It is compiled in place of the toolchain's package by the client build
+// (clientnotls_overlay.go) and carries only the names that gRPC's credentials
+// and the stand-in crypto/tls mention. The browser validates certificates
+// itself; nothing in a page parses or verifies one, so each operation that
+// would panics with a message that names it.
+package x509
+
+import (
+	"net/url"
+	"time"
+)
+
+const notAvailable = "hcm-next browser client: crypto/x509 is not part of this build (the browser validates certificates itself); called "
+
+func unavailable(call string) { panic(notAvailable + call) }
+
+// Certificate is a parsed certificate. Only the fields a caller reads are kept.
+type Certificate struct {
+	Raw       []byte
+	DNSNames  []string
+	URIs      []*url.URL
+	NotBefore time.Time
+	NotAfter  time.Time
+}
+
+// VerifyHostname is not available.
+func (c *Certificate) VerifyHostname(h string) error {
+	unavailable("Certificate.VerifyHostname")
+	return nil
+}
+
+// CertPool is a set of certificates.
+type CertPool struct{}
+
+// NewCertPool returns an empty pool.
+func NewCertPool() *CertPool { return &CertPool{} }
+
+// AppendCertsFromPEM is not available.
+func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) bool {
+	unavailable("CertPool.AppendCertsFromPEM")
+	return false
+}
+
+// Clone returns the pool, which never holds anything.
+func (s *CertPool) Clone() *CertPool { return &CertPool{} }

@@ -43,10 +43,11 @@ func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessag
 	class := "agent-announcement-message"
 	if !message.identityRendered {
 		class = "message agent-reply-row " + class
-		children = append(children, renderAgentReplyIdentity(model, name))
+		children = append(children, renderAgentAuthorLine(model, name, message.PostedAt))
 	}
 	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, envelope.Body)...))
 	children = append(children, renderAgentReplySources(model, envelope)...)
 	children = append(children, agentux048ScheduleFooter(model, message)...)
-	return html.Article(html.Props{Class: class, Raw: map[string]any{"data-agent-announcement": "true"}}, children...)
+	// CHATUX-042: an announcement is the standalone variant of the answer.
+	return chatux042Article(chatux042Standalone, html.Props{Class: class, Raw: map[string]any{"data-agent-announcement": "true"}}, children...)
 }

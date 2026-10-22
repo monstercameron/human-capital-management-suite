@@ -25,7 +25,7 @@ func productRouteFailure(view productui.View, page productui.PageID, loadErr err
 		view.LoadError = ""
 		return view, false
 	}
-	if productui.AsyncRegionFailureCovered(page) {
+	if productui.AsyncRegionFailureCovered(page) || (page == productui.PageDocs && view.DocumentsLoadFailed) {
 		view.LoadError = ""
 		return view, true
 	}

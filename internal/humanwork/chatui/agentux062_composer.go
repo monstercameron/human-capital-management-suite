@@ -62,7 +62,8 @@ func chatComposerRoom(composer, area chatLayerRect) float64 {
 // where the shared placement draws them (the older rules attached them to their
 // buttons), and gives the field's completion lists the same clearance above the
 // composer and the room cap.
-const agentux062ComposerStyles = `.chat-workspace .composer-add-menu[data-chat-layer],.chat-workspace .giphy-picker[data-chat-layer]{position:fixed;inset-inline-start:auto;inset-block-end:auto;z-index:1600}` +
+const agentux062ComposerStyles = `.chat-workspace{--chat-composer-room:9999px}` +
+	`.chat-workspace .composer-add-menu[data-chat-layer],.chat-workspace .giphy-picker[data-chat-layer]{position:fixed;inset-inline-start:auto;inset-block-end:auto;z-index:1600}` +
 	`.chat-workspace .giphy-picker[data-chat-layer]{max-block-size:none}` +
 	// A layer is drawn only while it is in the top layer, whatever display the older rules gave it.
 	`.chat-workspace :is(.composer-add-menu,.giphy-picker)[data-chat-layer]:not(:popover-open){display:none}` +

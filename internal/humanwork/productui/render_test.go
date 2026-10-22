@@ -424,8 +424,15 @@ func TestPersonPageShowsServerFactsAndFilterableWorkflowLaunchers(t *testing.T) 
 	if primaryNavAriaCurrentCount(doc) != 1 {
 		t.Fatal("person page must keep exactly its People navigation parent active")
 	}
-	if !strings.Contains(doc, `aria-current="page">Avery Patel · NW-40118</span>`) {
-		t.Fatal("person breadcrumb must name its worker beside the navigation marker")
+	// A resolved person's trail is a single crumb that repeats the page heading
+	// (showBreadcrumbTrail), so the worker is named by the heading and the
+	// duplicate crumb is not drawn; the trail itself still resolves to the
+	// worker (web044_breadcrumbs_test.go).
+	if !strings.Contains(doc, `>Avery Patel · NW-40118</h1>`) {
+		t.Fatal("person page heading must name its worker")
+	}
+	if strings.Contains(doc, `aria-current="page">Avery Patel · NW-40118</span>`) {
+		t.Fatal("a single person crumb must not repeat the page heading")
 	}
 
 	view.WorkflowQuery = "promotion"

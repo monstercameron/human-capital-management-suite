@@ -143,6 +143,9 @@ func localAgentDemoEvaluationSuite(id string) (agenteval.PersonaSuite, error) {
 	case localAgentDemoAssistantSuiteID:
 		return agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID), nil
 	default:
+		if suite, ok := agentUXDemoStarterSuite(id); ok {
+			return suite, nil
+		}
 		return agenteval.PersonaSuite{}, ErrPersonaAdminEvaluationUnavailable
 	}
 }

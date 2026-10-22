@@ -25,6 +25,14 @@ type personaAuthoritativeModelField struct {
 // the sealed profile and the current invoker's document access. It never reads
 // a value or class from the outbound request.
 func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocref.Resolver, threads agentinvoke.ThreadReader, admission agentrun.Record, profile agentpersona.PersonaProfile, manifest agentmanifest.Manifest, route PersonaRunModelRoute) (map[string]personaAuthoritativeModelField, error) {
+	return personaAuthoritativeDocumentFieldsFor(ctx, resolver, threads, admission, profile, manifest, route, nil)
+}
+
+// personaAuthoritativeDocumentFieldsFor is the same with the asker's reading
+// language read through readerLanguage (CHATLANG-005): the message that tells the
+// agent the language sits after its own instructions, so every field after it
+// moves down one.
+func personaAuthoritativeDocumentFieldsFor(ctx context.Context, resolver agentdocref.Resolver, threads agentinvoke.ThreadReader, admission agentrun.Record, profile agentpersona.PersonaProfile, manifest agentmanifest.Manifest, route PersonaRunModelRoute, readerLanguage func(context.Context, string, string) string) (map[string]personaAuthoritativeModelField, error) {
 	if admission.Request.Source.Kind == agentrun.SourceAnnouncement {
 		return announcementAuthoritativeModelFields(ctx, admission, profile, manifest, route)
 	}
@@ -44,6 +52,13 @@ func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocre
 		"model.message.0": {value: manifest.Purpose, class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleSystem},
 		"model.message.1": {value: personaDeveloperMessage(profile), class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleDeveloper},
 	}
+	// What follows the agent's own instructions starts at message 2, or at message
+	// 3 when the asker's reading language was added after them.
+	next := 2
+	if message, ok := personaReaderLanguageMessage(ctx, readerLanguage, admission.Request.Source.TenantID, admission.Request.Principal.InvokerID); ok {
+		fields["model.message.2"] = personaAuthoritativeModelField{value: message.Content, class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleDeveloper}
+		next = 3
+	}
 	// AGENTUX-076: the agent's facts block sits just before the invoking message,
 	// after the reference documents when there are any.
 	withFacts := func(first int) (map[string]personaAuthoritativeModelField, error) {
@@ -55,7 +70,7 @@ func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocre
 		return fields, nil
 	}
 	if len(documents) == 0 {
-		return withFacts(2 + len(history))
+		return withFacts(next + len(history))
 	}
 	documentClass, err := personaReferenceDocumentDataClass(ctx, resolver, admission, documents, route)
 	if err != nil {
@@ -65,7 +80,7 @@ func personaAuthoritativeDocumentFields(ctx context.Context, resolver agentdocre
 	if err != nil {
 		return nil, err
 	}
-	containmentIndex := 2 + len(history)
+	containmentIndex := next + len(history)
 	fields[fmt.Sprintf("model.message.%d", containmentIndex)] = personaAuthoritativeModelField{value: agentDocumentContainmentMessage, class: route.ProfileClass, source: "persona-profile", role: agentmodel.RoleDeveloper}
 	fields[fmt.Sprintf("model.message.%d", containmentIndex+1)] = personaAuthoritativeModelField{value: content, class: documentClass, source: "persona-untrusted-reference-document", role: agentmodel.RoleUser}
 	for i, ref := range documentRefs {

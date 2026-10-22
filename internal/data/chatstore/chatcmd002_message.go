@@ -138,6 +138,11 @@ func (s *Store) Chatcmd002Read(ctx context.Context, r chat.Chatcmd002Request, au
 		}
 		now := time.Now()
 		out.Card, out.CanManage, out.Revision = card, chatcmd002Own(post, r.Principal), uint64(post.Revision)
+		if len(card.Audience) > 0 {
+			// Who the card is for is public; whether the reader is among them is theirs.
+			in, err := chatcmd002VoterSegments(ctx, r, card)
+			out.NotInAudience = err != nil || len(in) == 0
+		}
 		out.CanAddOption = card.CanAddOption(now, out.CanManage)
 		if card.Poll != nil {
 			ballots, err := chatcmd002ReadBallots(ctx, tx, r, card)
@@ -154,6 +159,12 @@ func (s *Store) Chatcmd002Read(ctx context.Context, r chat.Chatcmd002Request, au
 			}
 			if out.ResultsVisible && !card.Poll.Anonymous {
 				out.Voters = ballots.voters
+			}
+			if out.ResultsVisible && len(card.Audience) > 0 {
+				out.BySegment, err = chatcmd002SegmentBreakdown(ctx, tx, r)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		if card.Todo != nil {
@@ -222,6 +233,9 @@ func chatcmd002Vote(ctx context.Context, tx dbport.Tx, r chat.Chatcmd002Request,
 				return false, err
 			}
 		}
+		if err := chatcmd002SegmentTally(ctx, tx, r, options); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	changed := false
@@ -274,6 +288,16 @@ func (s *Store) Chatcmd002Mutate(ctx context.Context, r chat.Chatcmd002Request, 
 			return err
 		}
 		now := time.Now()
+		if len(card.Audience) > 0 && (mutation.Operation == "VOTE" || mutation.Operation == "TICK") {
+			// CHATGATE-010: a card addressed to segments is voted on and ticked by
+			// people in them, whoever calls the service. Without a way to ask the
+			// gate the answer is no.
+			segments, err := chatcmd002VoterSegments(ctx, r, card)
+			if err != nil {
+				return err
+			}
+			r.VoterSegments = segments
+		}
 		switch mutation.Operation {
 		case "VOTE":
 			if card.Poll == nil || card.Closed(now) {
@@ -397,6 +421,8 @@ func (s *Store) Chatcmd002Mutate(ctx context.Context, r chat.Chatcmd002Request, 
 				}
 			}
 			next.ClosedAt = card.ClosedAt
+			// Who a card is for is fixed when it is posted, after the gate vouched for it.
+			next.Audience = card.Audience
 			card = next
 		default:
 			return chat.ErrInvalidArgument

@@ -227,6 +227,10 @@ const ChatUX037Styles = `.chatux037-loading{display:grid;align-content:start;gap
 	`@keyframes chatux037-reveal{to{visibility:visible;opacity:1}}` +
 	`.chatux037-retry{min-block-size:32px;padding:4px 12px;border:1px solid var(--line,#ccc);border-radius:var(--hcm-radius-control,6px);background:var(--surface,transparent);color:inherit;font:inherit;font-size:.875rem;cursor:pointer}` +
 	`.chatux037-failed{display:grid;justify-items:start;gap:10px;padding:16px}.chatux037-failed-text{margin:0}` +
-	`.chatux037-empty{padding-block:48px}.chatux037-empty-title{font-weight:650;color:var(--ink,inherit)}.chatux037-empty .chatux037-empty-hint{margin:0;color:var(--muted)}` +
+	`.chatux037-empty{padding-block:clamp(48px,14vh,140px)}.chatux037-empty-title{font-weight:650;color:var(--ink,inherit)}.chatux037-empty .chatux037-empty-hint{margin:0;color:var(--muted)}` +
 	`.mention-agent-state .chatux037-loading{padding:4px 8px;gap:6px}.mention-agent-state .chatux037-rows{gap:6px}.chatux037-loading .chatux037-slow{margin:0}` +
-	`.chatmod005-tab:disabled{opacity:.55;cursor:default}`
+	`.chatmod005-tab:disabled{opacity:.55;cursor:default}` +
+	// An address that names Moderation or Saved does not show the last open
+	// conversation while the chat loads: the page's script sets this attribute until
+	// it has opened the page (chatbug052_route_wasm.go).
+	`html[data-chat-page-pending] .chat-main{visibility:hidden}`

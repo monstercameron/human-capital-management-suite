@@ -101,8 +101,8 @@ func TestTodo_CHATBUG_011_Browser(t *testing.T) {
 		if strings.Contains(markup, ">673214ec") || strings.Contains(markup, ">6<") || strings.Contains(markup, `title="673214ec`) {
 			t.Fatalf("an identifier or its initial is rendered: %s", markup)
 		}
-		if !strings.Contains(markup, `title="Conversation"`) {
-			t.Fatalf("the neutral placeholder row is missing: %s", markup)
+		if !strings.Contains(markup, `class="chat-row-name chatux047-name-slot"`) || !strings.Contains(markup, `aria-label="Conversation"`) || strings.Contains(markup, ">Conversation<") {
+			t.Fatalf("the neutral accessible loading placeholder is missing or rendered as a name: %s", markup)
 		}
 	}
 	named := Model{State: StateReady, SelectedID: id, Conversations: []Conversation{{ID: id, Name: "Planner Agent", Kind: DirectMessage, Joined: true, Agent: true, AgentID: "agent-1"}}}

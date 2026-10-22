@@ -62,16 +62,17 @@ func isGeneratedPath(relDir string) bool {
 	return relDir == "gen/go" || strings.HasPrefix(relDir, "gen/go/")
 }
 
-// FindConcurrentPackages walks root and returns every Go package (directory
-// containing at least one .go file) whose source imports "sync",
-// "sync/atomic", or starts a goroutine (a `go` statement) anywhere in a
-// non-generated, non-testdata .go file — production or test code alike, so
-// a package whose only concurrency lives in a test helper is still
-// declared. The result is sorted by ImportPath for determinism.
+// FindConcurrentPackages walks root and returns every Linux/amd64 race-build
+// package whose selected source imports "sync", "sync/atomic", or starts a
+// goroutine (a `go` statement) in a non-generated, non-testdata .go file —
+// production or test code alike, so a package whose only concurrency lives
+// in a test helper is still declared. The result is sorted by ImportPath for
+// determinism.
 func FindConcurrentPackages(root, modulePath string) ([]ConcurrentPackage, error) {
 	found := make(map[string]*ConcurrentPackage) // dir -> package
 
 	fset := token.NewFileSet()
+	buildContext := linuxRaceBuildContext()
 	walkErr := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -116,6 +117,13 @@ func FindConcurrentPackages(root, modulePath string) ([]ConcurrentPackage, error
 		if isGeneratedPath(relDir) {
 			return nil
 		}
+		matches, err := buildContext.MatchFile(filepath.Dir(path), filepath.Base(path))
+		if err != nil {
+			return err
+		}
+		if !matches {
+			return nil
+		}
 
 		reasons, err := fileConcurrencyReasons(fset, path)
 		if err != nil {
@@ -150,12 +158,11 @@ func FindConcurrentPackages(root, modulePath string) ([]ConcurrentPackage, error
 	return result, nil
 }
 
-// fileConcurrencyReasons parses one Go source file and reports which
-// concurrency triggers it contains. Go's parser does not evaluate build
-// constraints, so a file is inspected regardless of its own `//go:build`
-// tags; a syntactically invalid file is reported as an error rather than
-// silently skipped, since a package this policy cannot even parse cannot
-// be honestly declared either concurrent or safe.
+// fileConcurrencyReasons parses one selected Go source file and reports
+// which concurrency triggers it contains. The caller first checks the file
+// against linuxRaceBuildContext, so constraints and filename suffixes match
+// the Linux CI race job. A syntactically invalid selected file is an error,
+// not silently skipped.
 func fileConcurrencyReasons(fset *token.FileSet, path string) ([]string, error) {
 	f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {

@@ -27,6 +27,12 @@ type ChatgateRequest struct {
 	Definition                                                               chatgate.Definition
 	Answers                                                                  map[string]json.RawMessage
 	Installation                                                             chatgate.Installation
+	// The consumers of answers and the running of a gate (CHATGATE-009 to 013).
+	Rules                                              []chatgate.SegmentRule
+	Segments, People                                   []string
+	RulesVersion, ReviewAfterHours, EscalateAfterHours int
+	Addressing, Restricted                             bool
+	ExistingMode, AnswerBy                             string
 }
 type ChatgateReply struct {
 	View   *chatui.GateView `json:"view,omitempty"`
@@ -54,6 +60,13 @@ type ChatgateApplication struct {
 	// for the banner that tells a member the questions changed (CHATGATE-005).
 	// Unset, the list is unavailable and the page offers a plain Join.
 	Summaries ChatgateSummaries
+	// Consumers are the labels, segments and operating settings of a gate
+	// (CHATGATE-009, 011 and 013); unset, those actions are unavailable.
+	Consumers ChatgateConsumers
+	// Restricted counts a channel's restricted messages for its administrators.
+	Restricted interface {
+		RestrictedCount(ctx context.Context, tenant, conversation string) (int, error)
+	}
 }
 
 // ChatgateSummaries is the read behind the list of gates. The chat store's gate
@@ -92,6 +105,12 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		return ChatgateReply{Result: summaries}, nil
 	}
 	scope := chatgate.Scope{Tenant: actor.Tenant, Conversation: r.Conversation}
+	switch r.Action {
+	case chatgateLabelsAction:
+		return a.labelsReply(ctx, actor, scope)
+	case chatgateAudienceAction:
+		return a.audienceReply(ctx, actor, scope)
+	}
 	c := chatgate.Command{Actor: actor, Scope: scope, Key: r.Key, ExpectedRevision: r.ExpectedRevision}
 	var result any
 	var err error
@@ -124,6 +143,8 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		err = a.Service.ReviewMany(ctx, c, r.Reviews, r.Reason)
 	case "install":
 		err = a.Service.Install(ctx, c, r.Installation)
+	case "segments-save", "segments-revert", "levels-save", "ops-save", "existing-save", "remove-unanswered", "reach", "override":
+		result, err = a.consumerAction(ctx, c, actor, scope, r)
 	case "try":
 		result, err = a.Service.TryAs(ctx, actor, scope, r.Person, r.Definition, r.Answers)
 	case "export":
@@ -141,7 +162,7 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 	if err != nil {
 		return ChatgateReply{}, err
 	}
-	if r.Action == "export" || r.Action == "try" {
+	if r.Action == "export" || r.Action == "try" || r.Action == "reach" {
 		return ChatgateReply{Result: result}, nil
 	}
 	gate, err := a.Service.Get(ctx, actor, scope, true)
@@ -195,6 +216,7 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 			v.VisibleAnswers[sub.Person] = values
 		} // Export permission is evaluated by the service, never by this display flag.
 		v.ExportAllowed = a.Service.CanExport(ctx, actor, scope)
+		a.consumerView(ctx, actor, scope, &v)
 	} else {
 		v.Submission, err = a.Service.MySubmission(ctx, actor, scope)
 		if err != nil {
@@ -220,6 +242,11 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		v.Held, err = a.Service.HasHold(ctx, actor, scope)
 		if err != nil {
 			return ChatgateReply{}, err
+		}
+		if a.Consumers != nil {
+			// A person's labels and segments are theirs to read; a read that fails
+			// leaves the page without them rather than without the form.
+			v.MySegments, _ = a.Consumers.MySegments(ctx, actor, scope)
 		}
 	}
 	return ChatgateReply{View: &v, Result: result}, nil
@@ -288,6 +315,14 @@ func (h ChatgateHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			// The list of gates the person may know of, for no one conversation.
 			req.Action, req.Conversation = chatgateBrowseAction, ""
 		}
+		if r.URL.Query().Get("labels") == "1" {
+			// The channel's labels and who holds each, for Conversation details.
+			req.Action = chatgateLabelsAction
+		}
+		if r.URL.Query().Get("audience") == "1" {
+			// What the writer may address a message to, for the composer.
+			req.Action = chatgateAudienceAction
+		}
 	} else if r.Method == http.MethodPost {
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 24<<10))
 		if e := decoder.Decode(&req); e != nil {
@@ -304,7 +339,7 @@ func (h ChatgateHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if r.Method == http.MethodPost && req.Action == chatgateBrowseAction {
+	if r.Method == http.MethodPost && (req.Action == chatgateBrowseAction || req.Action == chatgateLabelsAction || req.Action == chatgateAudienceAction) {
 		// The list is a read; it is asked for by GET alone.
 		chatgateHTTPError(w, chatgate.ErrInvalid)
 		return
@@ -338,6 +373,12 @@ func chatgateHTTPError(w http.ResponseWriter, e error) {
 		code, status = "conflict", 409
 	case errors.Is(e, chatgate.ErrHeld):
 		code, status = "legal_hold", 409
+	case errors.Is(e, chatgate.ErrLimited):
+		code, status = "too_many_requests", 429
+	case errors.Is(e, chatgate.ErrReservedLabel):
+		code, status = "reserved_label", 422
+	case errors.Is(e, chatgate.ErrRestricted):
+		code, status = "restricted_not_allowed", 422
 	}
 	w.WriteHeader(status)
 	fields := map[string]string{}

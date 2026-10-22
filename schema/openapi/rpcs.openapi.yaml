@@ -10288,6 +10288,22 @@ components:
       properties:
         reaction:
           $ref: '#/components/schemas/hcmnext.chat.v1.Reaction'
+    hcmnext.chat.v1.AgentIcon:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.AgentIcon`.
+      properties:
+        glyph:
+          type: string
+        shape:
+          type: string
+        foreground:
+          type: string
+        background:
+          type: string
+        variation:
+          type: integer
+          format: uint32
+          minimum: 0
     hcmnext.chat.v1.ChangeAppStatusRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ChangeAppStatusRequest`.
@@ -10550,6 +10566,8 @@ components:
           type: string
           format: date-time
           description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        peer:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Identity'
     hcmnext.chat.v1.ConversationEvent:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ConversationEvent`.
@@ -10930,6 +10948,25 @@ components:
       properties:
         follow:
           $ref: '#/components/schemas/hcmnext.chat.v1.ThreadFollow'
+    hcmnext.chat.v1.Identity:
+      type: object
+      description: Protobuf message `hcmnext.chat.v1.Identity`.
+      properties:
+        subjectId:
+          type: string
+        displayName:
+          type: string
+        avatarRef:
+          type: string
+        agent:
+          type: boolean
+        agentId:
+          type: string
+        agentIcon:
+          $ref: '#/components/schemas/hcmnext.chat.v1.AgentIcon'
+        agentIconRevision:
+          type: string
+          format: int64
     hcmnext.chat.v1.InstallAppRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.InstallAppRequest`.
@@ -11399,6 +11436,8 @@ components:
           $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
         authorHomeTenantId:
           type: string
+        author:
+          $ref: '#/components/schemas/hcmnext.chat.v1.Identity'
     hcmnext.chat.v1.Principal:
       type: object
       description: Protobuf message `hcmnext.chat.v1.Principal`.

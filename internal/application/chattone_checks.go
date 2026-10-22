@@ -170,10 +170,15 @@ func (v *ChattoneOutboundVerifier) Verify(ctx context.Context, p chatrewrite.Pro
 // when every check below holds, with confidence 1, and otherwise answers "not
 // preserved" with confidence 0 so the service retries once and then refuses.
 //
-//   - negations keep their count (a "no" stays a "no", a "yes" is not made one);
+//   - negations inside a clause keep their count (a "no" stays a "no", a "yes"
+//     is not made one); a standalone "No," in front of a clause that carries its
+//     own negation may be dropped ("No, no voy" may become "No voy"), but a
+//     draft that says no anywhere is never answered by a rewrite that does not;
 //   - questions stay questions;
 //   - apologies, promises and agreements the writer did not make are not added
-//     (their count in the rewrite may not exceed the draft's);
+//     (their count in the rewrite may not exceed the draft's); a future tense
+//     put on a statement the writer already made about the same subject ("or I
+//     escalate" made "or I will escalate") is grammar, not a new promise;
 //   - the rewrite keeps a share of the draft's content words, so it answers the
 //     same message and not another one.
 //
@@ -275,15 +280,67 @@ func chattoneStem(w string) string {
 	return w
 }
 
+// chattoneInterjections are the negations that also stand alone as an answer.
+var chattoneInterjections = map[string]bool{"no": true, "nope": true, "nein": true, "non": true, "não": true}
+
+// chattoneStandaloneNegations counts an answer word followed directly by
+// punctuation ("No, ...", "und nein, ..."): a "no" said beside the clause, not
+// the negation inside it.
+func chattoneStandaloneNegations(text string) int {
+	n := 0
+	for _, field := range strings.Fields(strings.ToLower(text)) {
+		field = strings.TrimLeftFunc(field, func(r rune) bool { return !unicode.IsLetter(r) })
+		word := strings.TrimRight(field, ",.;:!")
+		if word != field && chattoneInterjections[word] {
+			n++
+		}
+	}
+	return n
+}
+
+// chattoneTenseOnly counts the "will", "shall" and "'ll" of a rewrite that only
+// put the future tense on something the draft already says of the same
+// subject: the draft holds the subject directly followed by the same verb.
+func chattoneTenseOnly(original, rewrite []string) int {
+	said := map[[2]string]bool{}
+	for i := 0; i+1 < len(original); i++ {
+		said[[2]string{original[i], chattoneStem(original[i+1])}] = true
+	}
+	n := 0
+	for i, w := range rewrite {
+		if i+1 >= len(rewrite) {
+			break
+		}
+		subject := ""
+		switch {
+		case strings.HasSuffix(w, "'ll"):
+			subject = strings.TrimSuffix(w, "'ll")
+		case (w == "will" || w == "shall") && i > 0:
+			subject = rewrite[i-1]
+		}
+		if subject != "" && said[[2]string{subject, chattoneStem(rewrite[i+1])}] {
+			n++
+		}
+	}
+	return n
+}
+
+// chattoneCommitmentsAdded reports a rewrite that carries more apology, promise
+// or agreement words than the draft, tense-only changes aside.
+func chattoneCommitmentsAdded(ow, rw []string) bool {
+	return chattoneAdditionCount(rw)-chattoneTenseOnly(ow, rw) > chattoneAdditionCount(ow)
+}
+
 func chattoneMeaningPreserved(original, rewrite string) bool {
 	ow, rw := chattoneWords(original), chattoneWords(rewrite)
-	if chattoneNegationCount(ow) != chattoneNegationCount(rw) {
+	on, rn := chattoneNegationCount(ow), chattoneNegationCount(rw)
+	if on-chattoneStandaloneNegations(original) != rn-chattoneStandaloneNegations(rewrite) || (on > 0) != (rn > 0) {
 		return false
 	}
 	if (strings.Contains(original, "?") || strings.Contains(original, "？")) != (strings.Contains(rewrite, "?") || strings.Contains(rewrite, "？")) {
 		return false
 	}
-	if chattoneAdditionCount(rw) > chattoneAdditionCount(ow) {
+	if chattoneCommitmentsAdded(ow, rw) {
 		return false
 	}
 	oc, rc := chattoneContentWords(ow), chattoneContentWords(rw)

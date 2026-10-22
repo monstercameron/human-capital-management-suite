@@ -271,6 +271,10 @@ func Generate[T any](ctx context.Context, gateway *Gateway, req Request) (Result
 		}
 		if reservation != nil {
 			if err := reservation.Settle(usage); err != nil {
+				// A settlement that is refused leaves its reservation held, and a held
+				// reservation counts against the task, the person's day and the tenant's
+				// month until the process restarts.
+				failModelReservation(reservation)
 				return Result[T]{}, gateway.finishFailedCall(ctx, req, skill, attempt, promptDigest, usage, fmt.Errorf("%w: settle: %v", ErrBudgetFailed, err))
 			}
 		}

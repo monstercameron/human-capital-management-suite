@@ -3,6 +3,8 @@ package chatui
 import (
 	"regexp"
 	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
 // Display-time cleaning of answers that are already stored. A stored agent
@@ -40,6 +42,15 @@ func agentAnswerStripInternal(body string) string {
 // sources are shown in their own row, version labels in the display form, and
 // each readable source's title a link inside the sentence.
 func agentAnswerPresentBody(body string, sources []agentReplySource) string {
+	// AGENTUX-076: the mark for an answer no document backs is the one internal
+	// comment kept, last, for the renderer that turns it into a line of words.
+	if _, notFromDocuments := chat.SplitUngrounded(body); notFromDocuments {
+		return strings.TrimSpace(agentAnswerPresentBodyText(body, sources) + "\n" + chat.UngroundedMark())
+	}
+	return agentAnswerPresentBodyText(body, sources)
+}
+
+func agentAnswerPresentBodyText(body string, sources []agentReplySource) string {
 	body = agentAnswerStripInternal(body)
 	if len(sources) > 0 {
 		body = strings.TrimSpace(agentSourcesTail.ReplaceAllString(body, ""))

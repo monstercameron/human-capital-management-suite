@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode"
 
 	gwchtml "github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -40,7 +41,12 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, location, http.StatusSeeOther)
 		return
 	}
-	definition, ok := productui.LookupRoute(r.URL.Path)
+	workflowStartID, isWorkflowStartDeepLink := productWorkflowStartDeepLinkID(r.URL)
+	routePath := r.URL.Path
+	if isWorkflowStartDeepLink {
+		routePath = productui.Path(productui.PageWorkflowStart)
+	}
+	definition, ok := productui.LookupRoute(routePath)
 	if !ok {
 		h.serveProductNotFound(w, r)
 		return
@@ -121,6 +127,13 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		theme, accessibility := h.productProblemAppearance(admitted.Context(), principal, config)
 		h.writeProductProblemWithAppearance(w, r, http.StatusForbidden, productui.ResolveProductLocalePreference(r.URL.Query().Get("locale"), ""), definition.ID, config, theme, accessibility)
 		return
+	}
+	if isWorkflowStartDeepLink {
+		if !workflowStartCatalogContains(config.WorkflowStarts, workflowStartID) {
+			h.serveProductNotFound(w, r)
+			return
+		}
+		config.WorkflowStartWorkflowID = workflowStartID
 	}
 	if definition.ID == productui.PageHistory {
 		location := PathProductPrefix + "workflows/history"
@@ -246,7 +259,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		h.writeProductProblem(w, r, http.StatusServiceUnavailable, locale, definition.ID, config)
 		return
 	}
-	styleElement, policy := productDocumentStyle(h.policyHost(r), sheet, h.giphyAPIKey != "")
+	styleElement, policy := productDocumentStyle(h.policyHost(r), sheet, definition.ID, h.giphyAPIKey != "")
 	var doc string
 	timing.measure("render", func() {
 		doc, err = productShellDocumentWithStyleElement(config, JourneyBundleBuilt(), locale, definition.ID, query.Get("menu_q"), nav, appearance, accessibility, styleElement, favoritePages, navigationGroups, nil)
@@ -257,6 +270,42 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Server-Timing", timing.header())
 	writeProductDocument(w, r, http.StatusOK, doc, policy)
+}
+
+const workflowStartDeepLinkPrefix = "/workspace/app/workflows/start/"
+
+const workflowStartDeepLinkIDMaxBytes = 4096
+
+// productWorkflowStartDeepLinkID recognizes the escaped single-segment route
+// emitted by productui.WorkflowStartHref. It decodes only after confirming the
+// URL has exactly one escaped segment, so an encoded slash remains part of the
+// catalog ID while an extra literal path segment stays a 404.
+func productWorkflowStartDeepLinkID(requestURL *url.URL) (string, bool) {
+	if requestURL == nil {
+		return "", false
+	}
+	escapedPath := requestURL.EscapedPath()
+	if !strings.HasPrefix(escapedPath, workflowStartDeepLinkPrefix) {
+		return "", false
+	}
+	escapedID := strings.TrimPrefix(escapedPath, workflowStartDeepLinkPrefix)
+	if escapedID == "" || strings.Contains(escapedID, "/") {
+		return "", false
+	}
+	id, err := url.PathUnescape(escapedID)
+	if err != nil || id == "" || len(id) > workflowStartDeepLinkIDMaxBytes || strings.TrimSpace(id) != id || strings.IndexFunc(id, unicode.IsControl) >= 0 {
+		return "", false
+	}
+	return id, true
+}
+
+func workflowStartCatalogContains(items []WorkflowStartConfig, workflowID string) bool {
+	for _, item := range items {
+		if item.WorkflowID == workflowID && strings.TrimSpace(item.Name) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func productLegacyAgentsPath(path string) bool {
@@ -416,7 +465,11 @@ func (h *Handler) writeProductProblemWithAppearance(w http.ResponseWriter, r *ht
 	actions := []ui.Node{gwchtml.A(gwchtml.Props{Class: "button secondary", Href: PathProductHome}, ui.Text(locale.Text("shell.page_recovery")))}
 	if status == http.StatusForbidden {
 		actions = []ui.Node{gwchtml.A(gwchtml.Props{Class: "button secondary", Href: productProblemBackHref(r)}, ui.Text(locale.Text("agents.back")))}
-		actions = append([]ui.Node{gwchtml.A(gwchtml.Props{Class: "button primary", Href: productui.Path(productui.PageAgents)}, ui.Text(agentUXProblemText(locale, "go_to_agents")))}, actions...)
+		if agentOperationsProblem {
+			actions = append([]ui.Node{gwchtml.A(gwchtml.Props{Class: "button primary", Href: productui.Path(productui.PageAgents)}, ui.Text(agentUXProblemText(locale, "go_to_agents")))}, actions...)
+		} else {
+			actions = append([]ui.Node{gwchtml.A(gwchtml.Props{Class: "button primary", Href: PathProductHome}, ui.Text(locale.Text("agents.home")))}, actions...)
+		}
 	} else {
 		actions = append([]ui.Node{gwchtml.A(gwchtml.Props{Class: "button primary", Href: r.URL.RequestURI()}, ui.Text(locale.Text("shell.load_retry")))}, actions...)
 		if agentOperationsProblem {
@@ -680,6 +733,7 @@ func productShellView(config JourneyConfig, locale productui.LocaleContext, page
 	}
 	view.LauncherActions = productLauncherActions(config.LauncherActions)
 	view.WorkflowStartCatalog = productWorkflowStartItems(config.WorkflowStarts)
+	view.WorkflowStartWorkflowID = config.WorkflowStartWorkflowID
 	view.WorkflowStartFavorites = append([]string(nil), config.WorkflowStartFavorites...)
 	view.WorkflowStartRecent = append([]string(nil), config.WorkflowStartRecent...)
 	if config.Agents != nil {
@@ -845,14 +899,15 @@ func productFeaturePermissions(values []roleaccess.FeaturePermission) []productu
 func productStylesheet() string {
 	// Journey CSS comes first so the product shell retains ownership of
 	// global layout while the prefixed journey components keep their tokens.
-	return journey.Stylesheet() + productui.Stylesheet()
+	// Chat's rules are their own sheet (chatStylesheet), linked by Chat pages.
+	return journey.Stylesheet() + productui.ControlStylesheet()
 }
 
 func productStylesheetForTheme(theme productui.CustomerTheme) (string, error) {
 	if theme.Palette != "custom" {
 		return productStylesheet(), nil
 	}
-	stylesheet, err := productui.StylesheetForCustomerTheme(theme)
+	stylesheet, err := productui.ControlStylesheetForCustomerTheme(theme)
 	if err != nil {
 		return "", err
 	}
@@ -876,20 +931,33 @@ func productContentSecurityPolicyForHash(host, stylesheetHash string) string {
 }
 
 func productContentSecurityPolicyForHashAndGiphy(host, stylesheetHash string, allowGiphy bool) string {
-	return productContentSecurityPolicyFor(host, stylesheetHash, "", allowGiphy)
+	return productContentSecurityPolicyFor(host, []string{stylesheetHash}, nil, allowGiphy)
 }
 
 // productContentSecurityPolicyForStyleAsset is the policy of a document that
 // links its stylesheet: no inline style is admitted at all, only the sheet's
 // own address.
 func productContentSecurityPolicyForStyleAsset(host, styleAsset string, allowGiphy bool) string {
-	return productContentSecurityPolicyFor(host, "", styleAsset, allowGiphy)
+	return productContentSecurityPolicyForStyleAssets(host, []string{styleAsset}, allowGiphy)
 }
 
-func productContentSecurityPolicyFor(host, stylesheetHash, styleAsset string, allowGiphy bool) string {
+// productContentSecurityPolicyForStyleAssets admits each named sheet at its
+// exact address and nothing else: a document links the control sheet and either
+// links Chat's or names it for the client to load.
+func productContentSecurityPolicyForStyleAssets(host string, styleAssets []string, allowGiphy bool) string {
+	return productContentSecurityPolicyFor(host, nil, styleAssets, allowGiphy)
+}
+
+// productContentSecurityPolicyForHashesAndGiphy is the policy of a document
+// that carries its sheets inline, one hash for each.
+func productContentSecurityPolicyForHashesAndGiphy(host string, stylesheetHashes []string, allowGiphy bool) string {
+	return productContentSecurityPolicyFor(host, stylesheetHashes, nil, allowGiphy)
+}
+
+func productContentSecurityPolicyFor(host string, stylesheetHashes, styleAssets []string, allowGiphy bool) string {
 	return cspPolicy{
-		styleHashes:                  []string{stylesheetHash},
-		styleAsset:                   styleAsset,
+		styleHashes:                  stylesheetHashes,
+		styleAssets:                  styleAssets,
 		scriptHash:                   journeyLoaderHash,
 		formActionSelf:               true,
 		connectHost:                  host,

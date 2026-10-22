@@ -64,7 +64,7 @@ func agentSpendLimitsCard(props AgentSpendLimitsProps) ui.Node {
 		status.Set("saved")
 	})
 	children := []ui.Node{
-		html.H3(html.Props{ID: idBase + "-title"}, ui.Text(agentCostText(locale, "limits_title"))),
+		html.H3(html.Props{ID: idBase + "-title"}, ui.Text(agentSpendLimitsTitle(locale, props.AgentName))),
 		html.P(html.Props{Class: "muted"}, ui.Text(agentCostText(locale, "limits_detail"))),
 	}
 	if strings.TrimSpace(props.Reached) != "" {
@@ -174,9 +174,8 @@ type AgentCostReport struct {
 // AgentCostPanelProps are the inputs of the cost panel.
 type AgentCostPanelProps struct {
 	I18nProps
-	State   AgentAccessLoadState
-	Report  AgentCostReport
-	OnRetry func()
+	State  AgentAccessLoadState
+	Report AgentCostReport
 }
 
 // AgentCostPanel shows what the owner's agents cost: the headline figures,
@@ -188,13 +187,11 @@ func AgentCostPanel(props AgentCostPanelProps) ui.Node {
 		return html.Section(html.Props{Class: "surface agent-cost-panel", Role: "status", Raw: map[string]any{"data-agent-cost-state": "loading", "aria-live": "polite"}},
 			html.H3(html.Props{}, ui.Text(agentCostText(locale, "cost_title"))), AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingTable, Rows: 3, Status: agentCostText(locale, "loading")}))
 	case AgentAccessStateUnavailable:
-		retry := html.Button(html.Props{Class: "button primary", Type: "button", Raw: map[string]any{"data-agent-cost-action": "retry"}, OnClick: ui.UseEvent(func(ui.MouseEvent) {
-			if props.OnRetry != nil {
-				props.OnRetry()
-			}
-		})}, ui.Text(agentCostText(locale, "try_again")))
-		return html.Section(html.Props{Class: "surface agent-cost-panel", Role: "alert", Raw: map[string]any{"data-agent-cost-state": "failed"}},
-			html.H3(html.Props{}, ui.Text(agentCostText(locale, "cost_title"))), html.P(html.Props{Class: "muted"}, ui.Text(agentCostText(locale, "failed"))), html.Div(html.Props{Class: "action-row"}, retry))
+		// A failed read looks like a read in progress: the shared placeholder,
+		// which offers Try again after a few seconds. The page's script answers
+		// the button through its data attribute.
+		return html.Section(html.Props{Class: "surface agent-cost-panel", Raw: map[string]any{"data-agent-cost-state": "failed"}},
+			html.H3(html.Props{}, ui.Text(agentCostText(locale, "cost_title"))), AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingTable, Rows: 3, Status: agentCostText(locale, "failed"), RetryRaw: map[string]any{"data-agent-cost-action": "retry"}}))
 	}
 	report := props.Report
 	if len(report.Runs) == 0 && len(report.PerAgentDay) == 0 {
@@ -213,19 +210,26 @@ func AgentCostPanel(props AgentCostPanelProps) ui.Node {
 	if report.PerHundredMessagesMicros > 0 {
 		figures = append(figures, figure("per_hundred", agentCostMoney(locale, report.PerHundredMessagesMicros)))
 	}
-	trendRows := make([]ui.Node, 0, len(report.Trend))
+	// A row is its cells' text, last column the cost. Each rendered cell names
+	// its column (data-label): on a phone a table is one card per row and the
+	// label stands in front of the value (agentUX045Styles).
+	type costRow struct {
+		cells   []string
+		numeric []bool
+	}
+	trendRows := make([]costRow, 0, len(report.Trend))
 	for _, day := range report.Trend {
-		trendRows = append(trendRows, html.Tr(html.Props{}, html.Td(html.Props{}, ui.Text(day.Day)), html.Td(html.Props{Class: "numeric"}, ui.Text(locale.FormatNumber(strconv.FormatInt(day.Runs, 10), 0))), html.Td(html.Props{Class: "numeric"}, ui.Text(agentCostMoney(locale, day.Micros)))))
+		trendRows = append(trendRows, costRow{[]string{day.Day, locale.FormatNumber(strconv.FormatInt(day.Runs, 10), 0), agentCostMoney(locale, day.Micros)}, []bool{false, true, true}})
 	}
-	agentRows := make([]ui.Node, 0, len(report.PerAgentDay))
+	agentRows := make([]costRow, 0, len(report.PerAgentDay))
 	for _, row := range report.PerAgentDay {
-		agentRows = append(agentRows, html.Tr(html.Props{}, html.Td(html.Props{}, ui.Text(row.Agent)), html.Td(html.Props{}, ui.Text(row.Day)), html.Td(html.Props{Class: "numeric"}, ui.Text(agentCostMoney(locale, row.Micros)))))
+		agentRows = append(agentRows, costRow{[]string{row.Agent, row.Day, agentCostMoney(locale, row.Micros)}, []bool{false, false, true}})
 	}
-	runRows := make([]ui.Node, 0, len(report.Runs))
+	runRows := make([]costRow, 0, len(report.Runs))
 	for _, run := range report.Runs {
-		runRows = append(runRows, html.Tr(html.Props{}, html.Td(html.Props{}, ui.Text(run.Agent)), html.Td(html.Props{}, ui.Text(run.When)), html.Td(html.Props{}, ui.Text(agentCostText(locale, "kind_"+run.Kind))), html.Td(html.Props{Class: "numeric"}, ui.Text(agentCostMoney(locale, run.Micros)))))
+		runRows = append(runRows, costRow{[]string{run.Agent, run.When, agentCostText(locale, "kind_"+run.Kind), agentCostMoney(locale, run.Micros)}, []bool{false, false, false, true}})
 	}
-	table := func(titleKey string, heads []string, rows []ui.Node) ui.Node {
+	table := func(titleKey string, heads []string, rows []costRow) ui.Node {
 		if len(rows) == 0 {
 			return nil
 		}
@@ -233,8 +237,20 @@ func AgentCostPanel(props AgentCostPanelProps) ui.Node {
 		for _, key := range heads {
 			head = append(head, html.Th(html.Props{Raw: map[string]any{"scope": "col"}}, ui.Text(agentCostText(locale, key))))
 		}
+		body := make([]ui.Node, 0, len(rows))
+		for _, row := range rows {
+			cells := make([]ui.Node, 0, len(row.cells))
+			for i, text := range row.cells {
+				class := ""
+				if row.numeric[i] {
+					class = "numeric"
+				}
+				cells = append(cells, html.Td(html.Props{Class: class, Raw: map[string]any{"data-label": agentCostText(locale, heads[i])}}, ui.Text(text)))
+			}
+			body = append(body, html.Tr(html.Props{}, cells...))
+		}
 		return html.Div(html.Props{Class: "agent-cost-table"}, html.H4(html.Props{}, ui.Text(agentCostText(locale, titleKey))),
-			html.Table(html.Props{Class: "data-table"}, html.Thead(html.Props{}, html.Tr(html.Props{}, head...)), html.Tbody(html.Props{}, rows...)))
+			html.Table(html.Props{Class: "data-table"}, html.Thead(html.Props{}, html.Tr(html.Props{}, head...)), html.Tbody(html.Props{}, body...)))
 	}
 	children := []ui.Node{
 		html.H3(html.Props{}, ui.Text(agentCostText(locale, "cost_title"))),
@@ -281,7 +297,7 @@ func agentCostText(locale LocaleContext, key string) string {
 
 var agentCostCopy = map[string][3]string{
 	"limits_title":       {"Spend limits", "Ausgabengrenzen", "حدود الإنفاق"},
-	"limits_detail":      {"Limits count each day, midnight to midnight. When one is reached the agent stops answering until the day ends.", "Die Grenzen gelten je Tag, von Mitternacht bis Mitternacht. Ist eine erreicht, antwortet der Agent bis zum Tagesende nicht mehr.", "تُحتسب الحدود لكل يوم من منتصف الليل إلى منتصف الليل. عند بلوغ أحدها يتوقف الوكيل عن الإجابة حتى نهاية اليوم."},
+	"limits_detail":      {"Limits count each day, midnight to midnight UTC. When one is reached the agent stops answering until the day ends.", "Die Grenzen gelten je Tag, von Mitternacht bis Mitternacht (UTC). Ist eine erreicht, antwortet der Agent bis zum Tagesende nicht mehr.", "تُحتسب الحدود لكل يوم من منتصف الليل إلى منتصف الليل بالتوقيت العالمي (UTC). عند بلوغ أحدها يتوقف الوكيل عن الإجابة حتى نهاية اليوم."},
 	"no_limits":          {"No limits set. Leave a field empty for no limit.", "Keine Grenzen festgelegt. Ein leeres Feld bedeutet keine Grenze.", "لم يتم تحديد حدود. اترك الحقل فارغاً لعدم وضع حد."},
 	"runs_per_day":       {"Runs per day", "Läufe pro Tag", "عدد التشغيلات يومياً"},
 	"runs_per_day_help":  {"A whole number. Counts every answer and every screening check.", "Eine ganze Zahl. Zählt jede Antwort und jede Prüfung.", "عدد صحيح. يشمل كل إجابة وكل فحص."},

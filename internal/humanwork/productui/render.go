@@ -12,35 +12,63 @@ import (
 // authorized presentation model. Feature pages never construct document
 // chrome, and the shell never owns domain presentation logic.
 func Render(view View) (string, error) {
+	return renderDocument(view, false)
+}
+
+// renderDocument is Render with the choice of how the document carries its
+// stylesheet: inline (the whole product sheet in one style element, a document
+// that stands alone) or linked (what the workspace serves, see RenderLinked).
+func renderDocument(view View, linked bool) (string, error) {
 	appearance := view.EffectiveAppearance()
 	if err := ValidateCustomerTheme(appearance); err != nil {
 		return "", fmt.Errorf("productui: appearance: %w", err)
 	}
 	stylesheet := Stylesheet()
+	if linked {
+		stylesheet = ControlStylesheet()
+	}
 	if appearance.Palette == "custom" {
 		var err error
-		stylesheet, err = StylesheetForCustomerTheme(appearance)
+		if linked {
+			stylesheet, err = ControlStylesheetForCustomerTheme(appearance)
+		} else {
+			stylesheet, err = StylesheetForCustomerTheme(appearance)
+		}
 		if err != nil {
 			return "", fmt.Errorf("productui: appearance stylesheet: %w", err)
 		}
+	}
+	styleElement := "<style>" + stylesheet + "</style>"
+	if linked {
+		styleElement = linkedStyleElements(stylesheet, view.Page)
 	}
 	body, err := ui.RenderToString(Build(view))
 	if err != nil {
 		return "", fmt.Errorf("productui: render: %w", err)
 	}
-	return document(ResolveDocumentPageTitle(view), appearance, view.Accessibility, view.Locale, view.Tenant, stylesheet, body), nil
+	return document(ResolveDocumentPageTitle(view), appearance, view.Accessibility, view.Locale, view.Tenant, styleElement, body), nil
 }
 
 // Build returns the same component tree used by SSR tests and the browser
 // WASM client.
 func Build(view View) ui.Node {
-	return BuildShell(view, BuildPageContent(view), !PageOwnsHeading(view.Page))
+	if view.Page == PageDocs && view.DocumentsLoadFailed && !signedOutState(view) {
+		// Docs owns its list failure and retry control; compose that single
+		// region with the shell instead of stacking the older shell panel.
+		view.LoadError = ""
+		return BuildShell(view, BuildContentFailure(view, nil), !PageOwnsHeading(view.Page))
+	}
+	content := BuildPageContent(view)
+	return BuildShell(view, content, !PageOwnsHeading(view.Page))
 }
 
 // BuildPageContent renders only the feature-owned route body. Browser routers
 // place this node in a persistent shell outlet so a leaf navigation cannot
 // unmount global application chrome.
 func BuildPageContent(view View) ui.Node {
+	if view.Page == PageDocs && view.DocumentsLoadFailed && !signedOutState(view) {
+		return BuildContentFailure(view, nil)
+	}
 	page, err := renderPage(view)
 	if err != nil {
 		page = unavailablePanel(view.Locale.Text("shell.page_unavailable"), view.Locale.Text("shell.page_recovery"))
@@ -62,7 +90,7 @@ func BuildEmbedded(view View, content ui.Node) ui.Node {
 	return appShellWithHeading(view, content, false)
 }
 
-func document(title string, appearance CustomerTheme, accessibility AccessibilityPreferences, locale LocaleContext, tenant, stylesheet, body string) string {
+func document(title string, appearance CustomerTheme, accessibility AccessibilityPreferences, locale LocaleContext, tenant, styleElements, body string) string {
 	appearance = NormalizeCustomerTheme(appearance)
 	accessibility = NormalizeAccessibilityPreferences(accessibility)
 	locale = locale.normalized()
@@ -97,7 +125,7 @@ func document(title string, appearance CustomerTheme, accessibility Accessibilit
 	// every subsequent navigation on one suffix.
 	brandName, _ := HeaderBrandIdentity(appearance, tenant)
 	brand := escapeTitle(brandName)
-	return "<!doctype html>" + root + "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"" + escapeTitle(ColorSchemeContent(attributes["data-hcm-color-mode"])) + "\"><meta name=\"application-name\" content=\"" + brand + "\"><title>" + escapeTitle(DocumentTitle(title, appearance, tenant)) + "</title><style>" + stylesheet + "</style></head><body>" + body + "</body></html>"
+	return "<!doctype html>" + root + "<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"color-scheme\" content=\"" + escapeTitle(ColorSchemeContent(attributes["data-hcm-color-mode"])) + "\"><meta name=\"application-name\" content=\"" + brand + "\"><title>" + escapeTitle(DocumentTitle(title, appearance, tenant)) + "</title>" + styleElements + "</head><body>" + body + "</body></html>"
 }
 
 var titleEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&#34;")

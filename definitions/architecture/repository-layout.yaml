@@ -180,6 +180,13 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: AGENT2-014 agent-for-user audit chain and provenance joins.
+  - name: agentaccess
+    owner: governance-and-trust
+    layer: trust
+    phase: deferred
+    description: >-
+      AGENT2-018/019 user-linked agent access and administrator connection/skill
+      grant boundaries; deferred in the architecture sequence.
   - name: agentbudget
     owner: governance-and-trust
     layer: trust
@@ -190,6 +197,13 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: AGENT2-007 admin-granted system connections with per-user delegated or brokered credentials.
+  - name: agentcost
+    owner: governance-and-trust
+    layer: trust
+    phase: deferred
+    description: >-
+      AGENTCOST-006 owner-set agent spend limits and tenant-scoped cost
+      reporting; deferred in the architecture sequence.
   - name: agentdelegation
     owner: governance-and-trust
     layer: trust
@@ -200,6 +214,13 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: AGENT2-021 DLP, residency and minimum-necessary evaluation for connections and model providers.
+  - name: agenteval
+    owner: governance-and-trust
+    layer: trust
+    phase: deferred
+    description: >-
+      AGENT2-025 and AGENTP-021 read-only task and persona evaluation suites
+      grounded in tenant-scoped runtime evidence; deferred in the architecture sequence.
   - name: agentmodel
     owner: governance-and-trust
     layer: trust
@@ -265,6 +286,13 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: Immutable reviewed persona profiles, with tenant-local handles and installation admission under conversation policy.
+  - name: agentportable
+    owner: governance-and-trust
+    layer: trust
+    phase: deferred
+    description: >-
+      AGENT-045 authority-free canonical agent-definition transfer and
+      reference remapping; deferred in the architecture sequence.
   - name: agentrevoke
     owner: governance-and-trust
     layer: trust
@@ -375,6 +403,13 @@ internal_package_roots:
     layer: platform
     phase: P1A
     description: Declared on 2026-09-06 when the repository-layout policy joined the pre-commit gates; the package existed and was in use before its root was written down here.
+  - name: timeclockapp
+    owner: experience-and-transport
+    layer: transport
+    phase: deferred
+    description: >-
+      TCLOCK-016 reference kiosk client and nested same-origin kiosk shell/API
+      proxy; deferred PHASE_4 experience, not a separate process.
   - name: configuration
     owner: platform-foundation
     layer: platform

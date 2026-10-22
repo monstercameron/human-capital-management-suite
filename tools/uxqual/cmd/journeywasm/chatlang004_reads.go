@@ -17,6 +17,8 @@ import (
 func chatlang004Unsettled(selections map[string]chatui.ReaderSelection) []string {
 	var ids []string
 	for id, selection := range selections {
+		// A reworded view that is on its way is not a translation: it is asked about
+		// by chattoneUnsettled, which has its own rules.
 		asked := false
 		for _, kind := range selection.Mark.Wanted {
 			asked = asked || kind == chatrender.Translate

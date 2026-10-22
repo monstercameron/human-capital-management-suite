@@ -198,12 +198,22 @@ func TestAgentUXR7_LiveControlsAndRecovery(t *testing.T) {
 		markup := agentUXR7Render(t, RenderAgentControls(locale, snapshot, ""))
 		agentUXR7Contains(t, markup, `data-persona-command="SUSPEND"`, `data-persona-confirm=`, `data-owner-action="pause"`, `data-owner-action="resume"`, `data-owner-action="stop"`, `data-owner-confirm=`, `data-owner-revision="3"`, "Walt Brennan", `data-chevron=`, `<bdi dir="ltr">#general</bdi>`)
 		agentUXR7Contains(t, markup, agentUXR7Text(locale, "pause_task"), agentUXR7Text(locale, "resume_task"), agentUXR7Text(locale, "cancel_task"))
-		agentUXR7Contains(t, markup, agentUXR7Text(locale, "cost_unavailable"), agentUXR7Text(locale, "open_setup"))
-		for _, internal := range []string{"private-installation", "123456", "internal-cause"} {
+		// Spend is the server's own display label for the run's cost (the page
+		// does not format it), so a run that has one shows it as its Cost.
+		agentUXR7Contains(t, markup, agentUXR7Text(locale, "cost"), "123456")
+		if strings.Contains(markup, agentUXR7Text(locale, "cost_unavailable")) {
+			t.Fatal("a run with a projected cost says its cost is unavailable")
+		}
+		for _, internal := range []string{"private-installation", "internal-cause"} {
 			if strings.Contains(markup, internal) {
 				t.Fatalf("running details expose internal fact %s", internal)
 			}
 		}
+		// A run the server projects no cost for says so and links to Agent setup.
+		noCost := snapshot
+		noCost.Runs = []AgentControlRun{snapshot.Runs[0]}
+		noCost.Runs[0].Spend = ""
+		agentUXR7Contains(t, agentUXR7Render(t, RenderAgentControls(locale, noCost, "")), agentUXR7Text(locale, "cost_unavailable"), agentUXR7Text(locale, "open_setup"))
 		markup = agentUXR7Render(t, RenderAgentControls(locale, AgentControlsSnapshot{TechnicalContact: "Loretta Young"}, "timed_out"))
 		agentUXR7Contains(t, markup, `role="alert"`, `data-owner-refresh="true"`, "Loretta Young", agentSetupHref(locale))
 		snapshot.Runs = nil

@@ -152,6 +152,9 @@ type JourneyConfig struct {
 	WorkflowStarts         []WorkflowStartConfig `json:"workflow_starts,omitempty"`
 	WorkflowStartFavorites []string              `json:"workflow_start_favorites,omitempty"`
 	WorkflowStartRecent    []string              `json:"workflow_start_recent,omitempty"`
+	// WorkflowStartWorkflowID is set only for a catalog-visible workflow
+	// deep link, so the product client can render its authorized detail state.
+	WorkflowStartWorkflowID string `json:"workflow_start_workflow_id,omitempty"`
 	// Agents is the server's agents availability projection for this viewer
 	// (UXBLIND-122): it decides the Agents menu entry and the Agents page.
 	Agents *AgentsConfig `json:"agents,omitempty"`

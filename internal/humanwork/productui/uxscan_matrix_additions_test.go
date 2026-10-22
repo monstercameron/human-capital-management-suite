@@ -15,7 +15,10 @@ func TestTodo_UXSCAN_005_Performance(t *testing.T) {
 		view.People[i] = Person{ID: fmt.Sprintf("worker-%03d", i), Name: fmt.Sprintf("Worker %03d", i), WorkerNumber: fmt.Sprintf("HC-%03d", i)}
 	}
 
-	markup, err := Render(view)
+	// The document a person downloads on each navigation links its stylesheets
+	// (the workspace serves them as cached assets), so it is the linked
+	// document that is measured; the sheets are bounded on their own below.
+	markup, err := RenderLinked(view)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,6 +33,15 @@ func TestTodo_UXSCAN_005_Performance(t *testing.T) {
 	const maxBytesPerRow = 11000
 	if limit := peopleCount * maxBytesPerRow; len(markup) > limit {
 		t.Fatalf("%d-row directory rendered %d bytes, over the %d-byte bound", peopleCount, len(markup), limit)
+	}
+	// The same bound as TestTodo_UIPOLISH_006_Performance, applied here so the
+	// document and the sheets it links are held in one place.
+	const maxStylesheetBytes = 1_000_000
+	if got := len(ControlStylesheet()); got > maxStylesheetBytes {
+		t.Fatalf("control stylesheet is %d bytes, over the %d-byte bound", got, maxStylesheetBytes)
+	}
+	if got := len(ChatStylesheet()); got > maxStylesheetBytes {
+		t.Fatalf("Chat stylesheet is %d bytes, over the %d-byte bound", got, maxStylesheetBytes)
 	}
 }
 

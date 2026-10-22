@@ -34,7 +34,7 @@ func newPersonaServedModelFactory(in personaServedModelFactoryInput) (func(Perso
 			DB: owner.AgentStore, Personas: owner.Personas, Manifests: owner.Manifests,
 			Routes: owner.Routes, Threads: owner.Threads, Authority: owner.Authority,
 			Audit: in.Runtime.Audit, ToolJournal: owner.ToolJournal, ToolSources: owner.ToolSources,
-			ChatClasses: owner.ChatClasses, Documents: owner.Documents,
+			ChatClasses: owner.ChatClasses, Documents: owner.Documents, ReaderLanguage: owner.ReaderLanguage,
 			TenantUUID: owner.TenantUUID, Now: owner.Now,
 		})
 		if err != nil {

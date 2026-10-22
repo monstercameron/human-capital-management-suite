@@ -80,4 +80,9 @@ func TestPersonaReviewAuthorityDatabaseMayShareAgentDatabaseWithSeparateRole(t *
 	if err := cfg.validatePersonaReviewAuthorityDatabaseURL(); err == nil || strings.Contains(err.Error(), "not-a-postgres-url") {
 		t.Fatalf("malformed DSN error=%v; want safe validation error", err)
 	}
+	cfg.PersonaReviewAuthorityDatabaseURL = "postgres://review_user:review_pw@db.internal:5432/hcm_next_agents"
+	cfg.DatabaseURL = "malformed-source-dsn"
+	if err := cfg.validatePersonaReviewAuthorityDatabaseURL(); err != nil {
+		t.Fatalf("malformed comparison source should retain existing skip behavior: %v", err)
+	}
 }

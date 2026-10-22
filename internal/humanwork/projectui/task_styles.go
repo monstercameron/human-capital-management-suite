@@ -82,17 +82,17 @@ const projectUIInteractionStyles = `
 .projectui-section-head{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem}
 .projectui-inline-link{color:var(--accent);font-size:.8125rem;font-weight:600;text-decoration:none}
 .projectui-inline-link:hover{text-decoration:underline}
-.projectui-modal-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.875rem 1.25rem;border-block-start:1px solid var(--pu-line,var(--line))}
+
 .projectui-touch-hint{margin:0;color:var(--muted);font-size:.8125rem;max-inline-size:none}
 .projectui-touch-hint:empty{display:none}
 @media (pointer:fine){.projectui-touch-hint{visibility:hidden}}
-.projectui-modal-actions{display:flex;gap:.5rem;margin-inline-start:auto}
+
 .projectui-button{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;min-block-size:2.25rem;min-height:2.25rem;block-size:auto;padding-inline:.875rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.875rem;font-weight:600;text-decoration:none;cursor:pointer;white-space:nowrap}
 .projectui-button:hover{background:var(--hcm-hover-surface)}
 .projectui-button-primary{border-color:transparent;background:var(--accent);color:var(--on-brand)}
 .projectui-button-primary:hover{background:var(--accent-hover)}
-.projectui-arrow{inline-size:.4rem;block-size:.4rem;border-right:1.5px solid currentColor;border-top:1.5px solid currentColor;transform:rotate(45deg)}
-[dir="rtl"] .projectui-arrow{transform:rotate(-135deg)}
+
+
 .projectui-link-button{min-height:auto;block-size:auto;padding:0;border:0;background:none;color:var(--muted);font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer}
 .projectui-link-button:hover{color:var(--ink);text-decoration:underline}
 
@@ -185,9 +185,9 @@ const projectUIInteractionStyles = `
 .projectui-modal-body{grid-template-columns:minmax(0,1fr)}
 .projectui-modal-side{order:-1;border-inline-start:0;border-block-end:1px solid var(--pu-line,var(--line))}
 .projectui-modal-head,.projectui-modal-main,.projectui-modal-side,.projectui-modal-foot{padding-inline:1rem}
-.projectui-modal-foot{padding-block-end:max(.875rem,env(safe-area-inset-bottom))}
-.projectui-modal-actions{inline-size:100%}
-.projectui-modal-actions .projectui-button{flex:1}
+
+
+
 .projectui-field{grid-template-columns:5.5rem minmax(0,1fr)}
 }
 @keyframes projectui-sheet-in{from{transform:translateY(24px);opacity:.5}to{transform:none;opacity:1}}

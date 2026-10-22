@@ -9,14 +9,14 @@ import (
 	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
-	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
+	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/semanticversion"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func projectWorkflowCatalog(values []*workflowv1.WorkflowPublicationSummary) []productui.WorkflowCatalogItem {
 	result := make([]productui.WorkflowCatalogItem, 0, len(values))
 	for _, value := range values {
-		if value == nil || strings.TrimSpace(value.GetWorkflowId()) == "" || workflowversion.ValidateSemanticVersion(value.GetSemanticVersion()) != nil {
+		if value == nil || strings.TrimSpace(value.GetWorkflowId()) == "" || workflowversion.Validate(value.GetSemanticVersion()) != nil {
 			continue
 		}
 		result = append(result, productui.WorkflowCatalogItem{
@@ -55,7 +55,7 @@ func projectWorkflowPalette(values []*workflowv1.WorkflowPaletteEntry) []product
 }
 
 func projectWorkflowDraft(value *workflowv1.WorkflowDraftView) (productui.WorkflowDraftView, error) {
-	if value == nil || strings.TrimSpace(value.GetDraftId()) == "" || strings.TrimSpace(value.GetWorkflowId()) == "" || value.GetRevision() == 0 || workflowversion.ValidateSemanticVersion(value.GetSemanticVersion()) != nil {
+	if value == nil || strings.TrimSpace(value.GetDraftId()) == "" || strings.TrimSpace(value.GetWorkflowId()) == "" || value.GetRevision() == 0 || workflowversion.Validate(value.GetSemanticVersion()) != nil {
 		return productui.WorkflowDraftView{}, errors.New("project workflow draft: response has no draft identity")
 	}
 	result := productui.WorkflowDraftView{
@@ -199,7 +199,7 @@ func timePointer(value *timestamppb.Timestamp) *time.Time {
 }
 
 func projectWorkflowView(value *workflowv1.WorkflowDefinitionView) (workflowview.View, error) {
-	if value == nil || strings.TrimSpace(value.GetWorkflowId()) == "" || strings.TrimSpace(value.GetCompiledPlanDigest()) == "" || workflowversion.ValidateSemanticVersion(value.GetSemanticVersion()) != nil {
+	if value == nil || strings.TrimSpace(value.GetWorkflowId()) == "" || strings.TrimSpace(value.GetCompiledPlanDigest()) == "" || workflowversion.Validate(value.GetSemanticVersion()) != nil {
 		return workflowview.View{}, errors.New("project workflow definition view: response has no workflow identity")
 	}
 	result := workflowview.View{

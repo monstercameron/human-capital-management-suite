@@ -114,6 +114,21 @@ func chatPageSync() {
 	}
 }
 
+// chatPagePending marks the document while the page the address names is not
+// open yet; a style rule (ChatUX037Styles) keeps the conversation out of sight
+// until then.
+func chatPagePending(on bool) {
+	root := js.Global().Get("document").Get("documentElement")
+	if !root.Truthy() {
+		return
+	}
+	if on {
+		root.Call("setAttribute", "data-chat-page-pending", "true")
+		return
+	}
+	root.Call("removeAttribute", "data-chat-page-pending")
+}
+
 // chatPageRestore moves the screen to the page the address names.
 func chatPageRestore(cfg journeyclient.Config) {
 	location := js.Global().Get("location")
@@ -125,6 +140,7 @@ func chatPageRestore(cfg journeyclient.Config) {
 	defer func() {
 		chatPageRoute.restoring = false
 		chatPageRoute.applied = chatPageFragment(kind, query)
+		chatPagePending(false)
 		syncChatTabTitle()
 	}()
 	js.Global().Get("document").Call("dispatchEvent", js.Global().Get("CustomEvent").New(chatPageRestoreEvent, map[string]any{"detail": kind}))
@@ -156,6 +172,10 @@ func installChatPageRoute(cfg journeyclient.Config) func() {
 	js.Global().Call("addEventListener", "popstate", restore)
 	stopped := false
 	if kind, _ := parseChatPageFragment(js.Global().Get("location").Get("hash").String()); kind != "" {
+		// Until the page is open the conversation the chat loads is not shown: it
+		// is not what the address asked for, and it would be the wrong thing on
+		// screen for as long as the chat takes to be ready.
+		chatPagePending(true)
 		go func() {
 			for deadline := time.Now().Add(30 * time.Second); !stopped && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
 				if chatBrowser.snapshot().State == chatui.StateReady && js.Global().Get("document").Call("querySelector", ".chat-workspace").Truthy() {
@@ -167,10 +187,16 @@ func installChatPageRoute(cfg journeyclient.Config) func() {
 					return
 				}
 			}
+			ui.PostAsync(func() {
+				if !stopped {
+					chatPagePending(false)
+				}
+			})
 		}()
 	}
 	return func() {
 		stopped = true
+		chatPagePending(false)
 		js.Global().Call("removeEventListener", "popstate", restore)
 		restore.Release()
 	}

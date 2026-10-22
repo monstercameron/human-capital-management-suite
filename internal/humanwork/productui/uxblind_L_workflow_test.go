@@ -8,6 +8,9 @@ import (
 )
 
 func TestTodo_UXBLIND_031(t *testing.T) {
+	// The catalog exposes published names and status, not the workflow selected
+	// by promotion configuration. Until that authority is projected here, the
+	// page must not infer the configured workflow from whichever entry is active.
 	props := WorkflowDesignerPageProps{
 		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
 		Catalog: []WorkflowCatalogItem{
@@ -19,10 +22,13 @@ func TestTodo_UXBLIND_031(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render workflow catalog: %v", err)
 	}
-	for _, want := range []string{"New promotions use the active product configuration shown here.", "Promotion execute"} {
+	for _, want := range []string{"Select a workflow to inspect its latest published path.", "Promotion execute"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("catalog missing %q:\n%s", want, markup)
 		}
+	}
+	if strings.Contains(markup, "New promotions run on") || strings.Contains(markup, "New promotions use the active product configuration") {
+		t.Fatalf("catalog claimed a promotion configuration not present in its metadata:\n%s", markup)
 	}
 	if strings.Contains(markup, "Prototype promotion approval") {
 		t.Fatalf("reference workflow was visible before opting in:\n%s", markup)
@@ -45,7 +51,7 @@ func TestTodo_UXBLIND_031_Browser(t *testing.T) {
 		I18nProps: I18nProps{Locale: ResolveProductLocale("de-DE")},
 		Catalog:   []WorkflowCatalogItem{{WorkflowID: "promotion.execute", Name: "Beförderung ausführen", SemanticVersion: "1.2.0", Status: "ACTIVE"}},
 	}))
-	if err != nil || !strings.Contains(markup, "Neue Beförderungen verwenden") {
+	if err != nil || !strings.Contains(markup, "Wählen Sie einen Workflow aus, um den zuletzt veröffentlichten Ablauf zu prüfen.") {
 		t.Fatalf("German catalog note missing: err=%v markup=%s", err, markup)
 	}
 }

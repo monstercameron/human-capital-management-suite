@@ -48,8 +48,20 @@ func TestProductShellCarriesOnlyAuthorizedPersonaMetadataProjection(t *testing.T
 	if !strings.Contains(doc, `"persona_admin_snapshot"`) || !strings.Contains(doc, "policy-helper") || !strings.Contains(doc, "POLICY") {
 		t.Fatalf("authorized persona metadata was not hydrated into the island: %s", doc)
 	}
-	if strings.Contains(doc, "task-secret") || strings.Contains(doc, "prompt") {
-		t.Fatalf("persona island leaked task content: %s", doc)
+	// The word "prompt" is ordinary page vocabulary (the inline stylesheet names a
+	// prompt box), so prompt text is looked for where the persona projection is
+	// carried: the hydration island, whose payload is the projection itself.
+	const open = `<script type="application/json" id="` + JourneyConfigElementID + `">`
+	_, rest, found := strings.Cut(doc, open)
+	if !found {
+		t.Fatalf("the shell carries no %q island", JourneyConfigElementID)
+	}
+	payload, _, terminated := strings.Cut(rest, "</script>")
+	if !terminated {
+		t.Fatal("the config island is not terminated")
+	}
+	if strings.Contains(doc, "task-secret") || strings.Contains(strings.ToLower(payload), "prompt") {
+		t.Fatalf("persona island leaked task content: %s", payload)
 	}
 }
 
@@ -134,7 +146,7 @@ func TestProductShellCarriesAuthenticatedLiveClientConfiguration(t *testing.T) {
 	}
 	// CHATBUG-014: the served document links its stylesheet, so its policy names
 	// the sheet's address instead of the hash of an inline copy.
-	if got := recorder.Header().Get("Content-Security-Policy"); got != productContentSecurityPolicyForStyleAsset("cell.test", defaultServedStylesheet().name, false) {
+	if got := recorder.Header().Get("Content-Security-Policy"); got != productContentSecurityPolicyForStyleAssets("cell.test", []string{defaultServedStylesheet().name, chatStylesheet().name}, false) {
 		t.Fatalf("product CSP = %q", got)
 	}
 }

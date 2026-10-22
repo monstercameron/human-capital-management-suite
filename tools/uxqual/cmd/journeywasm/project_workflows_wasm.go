@@ -37,6 +37,7 @@ const (
 type projectWorkflowEntry struct {
 	journeyID, person, from, to, stage, effective string
 	open                                          bool
+	_                                             incomparable
 }
 
 var (

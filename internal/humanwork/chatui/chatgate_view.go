@@ -37,6 +37,15 @@ type GateView struct {
 	VisibleAnswers                                             map[string]map[string]json.RawMessage
 	Names                                                      map[string]string
 	Reads                                                      []chatgate.ReadAudit
+	// What the consumers of answers add (CHATGATE-009 to 013). An administrator
+	// reads the rules, the metrics and the operating settings; everybody reads
+	// their own labels and segments.
+	Segments           *chatgate.SegmentOverview
+	MySegments         []chatgate.Placement
+	Metrics            *chatgate.GateMetrics
+	Ops                *chatgate.Ops
+	Unanswered         []string
+	RestrictedMessages int
 	// Sample marks the form the builder shows under "Sample form": it is there
 	// to be looked at and tried, so it has no Submit and no Save draft. With
 	// them, an administrator trying the form sent a real submission.
@@ -85,6 +94,12 @@ func RenderGate(v GateView) ui.Node {
 		}
 		if v.Administrator {
 			children = append(children, renderGateBuilder(v), renderGateQueue(v), renderGateAnswers(v))
+			if segments := renderGateSegments(v); segments != nil {
+				children = append(children, segments)
+			}
+			if operating := renderGateOperating(v); operating != nil {
+				children = append(children, operating)
+			}
 		} else {
 			children = append(children, renderGateApplicant(v))
 		}
@@ -169,11 +184,11 @@ func renderGateApplicant(v GateView) ui.Node {
 	}
 	audit := []ui.Node{html.H3(html.Props{Text: t("readers")})}
 	for _, a := range v.Reads {
-		name := v.Names[a.Reader]
-		if name == "" {
-			name = t("admin")
-		}
+		name := gateReaderName(v, a)
 		audit = append(audit, html.P(html.Props{Text: name + " · " + a.Purpose + " · " + a.At.Format("2006-01-02")}))
+	}
+	if mine := renderGateMySegments(v); mine != nil {
+		nodes = append(nodes, mine)
 	}
 	nodes = append(nodes, html.Section(html.Props{}, audit...))
 	return html.Div(html.Props{}, nodes...)

@@ -219,6 +219,7 @@ type PromotionSubject struct {
 	OrgUnit  string
 	Location string
 	PayLine  string
+	_        incomparable
 }
 
 // PeopleView is the workforce-first half of the list view. It exists because
@@ -330,6 +331,7 @@ type EditDefaults struct {
 	// EffectiveISO is yyyy-mm-dd, which is what a date input accepts.
 	EffectiveISO   string
 	BusinessReason string
+	_              incomparable
 }
 
 // PositionIdentity is the safe, reader-facing identity of a selected
@@ -459,6 +461,7 @@ type VacancyOption struct {
 	OrgUnit          string
 	VacancyEndISO    string
 	ReservationState string
+	_                incomparable
 }
 
 // Field is one form control.
@@ -600,6 +603,7 @@ type NoteEntry struct {
 	At   string
 	ISO  string
 	Body string
+	_    incomparable
 }
 
 // NoteComposer is the add-a-note form. Field is the controlled textarea (its
@@ -637,6 +641,7 @@ type PayBand struct {
 	// midpoint". It carries the meaning for anyone who cannot see the
 	// drawing, so it is never decorative.
 	Note string
+	_    incomparable
 }
 
 // Budget is what the proposal takes out of the approved envelope.
@@ -680,6 +685,7 @@ type Fact struct {
 	Mono bool
 	// Tone is empty or one of info, warning, success, danger.
 	Tone string
+	_    incomparable
 }
 
 // ComparisonRow is one line of the before/after table.
@@ -691,6 +697,7 @@ type ComparisonRow struct {
 	Delta string
 	// Changed marks rows whose value differs.
 	Changed bool
+	_       incomparable
 }
 
 // Finding is one simulation finding.
@@ -731,6 +738,7 @@ type NodeRow struct {
 	Completed string
 	// Tone is one of neutral, info, warning, success, danger.
 	Tone string
+	_    incomparable
 }
 
 // WorkItemCard is one work item.
@@ -745,6 +753,7 @@ type WorkItemCard struct {
 	// Completed is "by whom, when" once completed.
 	Completed string
 	Tone      string
+	_         incomparable
 }
 
 // LedgerCard is the recorded promotion outcome.
@@ -770,6 +779,7 @@ type LedgerCard struct {
 	// StatusTone is one of neutral, info, warning, success, danger. Empty
 	// falls back to success when Recorded and warning when not.
 	StatusTone string
+	_          incomparable
 }
 
 // TimelineEvent is one chronological entry.
@@ -781,6 +791,7 @@ type TimelineEvent struct {
 	Ref    string
 	// Tone is one of neutral, info, warning, success, danger.
 	Tone string
+	_    incomparable
 }
 
 // Action is one thing the signed-in person can do now. Each renders as its

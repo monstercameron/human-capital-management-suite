@@ -90,7 +90,7 @@ func TestTodo_CHATTONE_003_Browser(t *testing.T) {
 	admin.Channel = ChattoneRewordSetting{Mode: "on", MembersMayViewOriginal: false, Override: true}
 	admin.ChoiceAllowed = false
 	got = chattoneRewordMarkup(t, chattoneRewordProbeProps{Locale: "en-US", View: admin})
-	for _, want := range []string{"Administrator settings", "Reword heated messages", "Whole workspace", "This channel only", "Offered to writers", "Members may view messages as written",
+	for _, want := range []string{"Administrator settings", "Reword heated messages", "Whole workspace", "This channel only", "Offered to writers", "Members may read messages as written",
 		"A reworded version is made for heated messages; each member chooses which to read.", "Heated messages are shown reworded by default;", "Only the writer can read the original", "This channel has its own choice.", "Use the workspace&#39;s choice here"} {
 		if !strings.Contains(got, want) && !strings.Contains(got, strings.ReplaceAll(want, "&#39;", "'")) {
 			t.Errorf("administrator view lacks %q: %s", want, got)
@@ -113,7 +113,9 @@ func TestTodo_CHATTONE_003_Accessibility(t *testing.T) {
 	if strings.Count(got, `type="button"`) != strings.Count(got, "<button") {
 		t.Errorf("a control is not a plain button: %s", got)
 	}
-	if strings.Count(got, `role="group"`) != 6 {
+	// Two segmented controls for the member's own choice and one per scope for
+	// the mode; the two yes-or-no settings are switches, not groups.
+	if strings.Count(got, `role="group"`) != 4 || strings.Count(got, `role="switch"`) != 2 {
 		t.Errorf("groups: %s", got)
 	}
 	for _, id := range []string{"chattone-reword-general", "chattone-reword-channel", "workspace-mode", "workspace-view", "channel-mode", "channel-view"} {

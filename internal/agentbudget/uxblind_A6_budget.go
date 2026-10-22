@@ -553,7 +553,7 @@ func capacityReason(used, reserved, estimate, limit Limits, scope Scope) PauseRe
 func (l *Ledger) pauseLocked(task *taskState, reason PauseReason, scope Scope, current, limit Limits) *PauseError {
 	card := ExtensionCard{ID: "extension-" + task.spec.ID, TaskID: task.spec.ID, Scope: scope, Reason: reason, Message: "Review the budget extension before resuming this task."}
 	if scope == ScopeTask && isTaskCeilingReason(reason) {
-		card.MaxAdditional = minLimits(l.policy.ExtensionPolicy.MaxAdditional, l.policy.TenantMonthly.sub(task.spec.Limit))
+		card.MaxAdditional = l.extensionAllowanceLocked(task)
 		card.CanAccept = card.MaxAdditional.any()
 	}
 	if reason == PauseLoopDetected || reason == PauseRetryLimit {

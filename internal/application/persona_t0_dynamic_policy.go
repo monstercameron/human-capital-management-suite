@@ -84,7 +84,7 @@ func (p *DatabasePersonaT0SkillPolicy) IsBoundT0Run(ctx context.Context, request
 	if now.IsZero() {
 		return false, errPersonaT0DynamicPolicy
 	}
-	current, err := p.authority.Resolve(ctx, agentinvoke.AdmissionRequest{TenantID: request.TenantID,
+	current, err := agentUX076Resolve(ctx, p.authority, agentinvoke.AdmissionRequest{TenantID: request.TenantID,
 		ConversationID: request.ConversationID, InvokerID: request.InvokerID, PersonaID: request.PersonaID})
 	if err != nil || !current.Persona.Current || current.Persona.Suspended || !current.Installation.Current || current.Installation.Suspended ||
 		!current.HumanMember || !current.AudienceMember || !current.PersonaInstalled || current.Persona.ID != request.PersonaID ||

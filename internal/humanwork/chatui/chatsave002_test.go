@@ -169,7 +169,7 @@ func TestTodo_CHATSAVE_002_Done(t *testing.T) {
 		t.Fatalf("a done item is drawn muted: %s", markup)
 	}
 	text := chatsave002NodeText(items[0])
-	if !strings.Contains(text, "Done Today") || !strings.Contains(text, "Reopen") {
+	if !strings.Contains(text, "Done today") || !strings.Contains(text, "Reopen") {
 		t.Errorf("a done item says when it was done and offers Reopen: %s", text)
 	}
 	// One action only.

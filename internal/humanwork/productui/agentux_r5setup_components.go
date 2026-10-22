@@ -208,9 +208,9 @@ func personaAdminNoStarterNotice(locale LocaleContext, options []PersonaAdminTar
 func personaAdminR5SetupText(locale LocaleContext, key string) string {
 	copy := map[string][3]string{
 		"rejection_reason":           {"What should the owner change before requesting review again?", "Was soll die verantwortliche Person ändern, bevor sie erneut eine Prüfung anfordert?", "ما الذي يجب أن يغيّره المالك قبل طلب المراجعة مجددًا؟"},
-		"no_template":                {"New agents start from a reviewed template, and this build ships with none.", "Neue Agenten beginnen mit einer geprüften Vorlage; dieser Build enthält keine.", "يبدأ الوكلاء الجدد من قالب تمت مراجعته، وهذا الإصدار لا يتضمن أي قالب."},
-		"no_template_next":           {"Templates arrive with a product update, not from this page. To change an agent you already have, choose Edit on its card.", "Vorlagen kommen mit einem Produktupdate, nicht über diese Seite. Um einen vorhandenen Agenten zu ändern, wählen Sie auf seiner Karte „Bearbeiten“.", "تصل القوالب مع تحديث المنتج وليس من هذه الصفحة. لتغيير وكيل موجود لديك، اختر «تحرير» في بطاقته."},
-		"named_template_manager":     {"{person} can add one with a product update.", "{person} kann mit einem Produktupdate eine hinzufügen.", "يمكن لـ {person} إضافة قالب مع تحديث المنتج."},
+		"no_template":                {"You can edit any agent below, pause or resume it, set its usage limits and choose which conversations it is added to.", "Sie können jeden Agenten unten bearbeiten, pausieren oder fortsetzen, seine Nutzungsgrenzen festlegen und bestimmen, zu welchen Unterhaltungen er hinzugefügt wird.", "يمكنك تحرير أي وكيل أدناه، وإيقافه مؤقتاً أو استئنافه، وتحديد حدود استخدامه، واختيار المحادثات التي يُضاف إليها."},
+		"no_template_next":           {"To change an agent, choose Edit on its card.", "Um einen Agenten zu ändern, wählen Sie auf seiner Karte „Bearbeiten“.", "لتغيير وكيل، اختر «تحرير» في بطاقته."},
+		"named_template_manager":     {"{person} also looks after agents and can help.", "{person} betreut ebenfalls Agenten und kann helfen.", "{person} يشرف أيضاً على الوكلاء ويمكنه المساعدة."},
 		"message_person":             {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
 		"retire_agent":               {"Retire agent…", "Agent stilllegen…", "إيقاف الوكيل…"},
 		"retire_role_reason":         {"Only an agent administrator can retire an agent. Ask your agent administrator.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie sie.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل معه."},

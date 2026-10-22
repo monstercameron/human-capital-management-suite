@@ -145,11 +145,12 @@ func TestTodo_CHATBUG_026(t *testing.T) {
 	if !strings.Contains(loading, RenderingText("en-US", "loading")) || !strings.Contains(loading, RenderingText("en-US", "languages_loading")) {
 		t.Fatal("loading is not shown")
 	}
-	loadedBody, loadingBody := chatbugDisclosure(t, loaded, "chatrender-personal"), chatbugDisclosure(t, loading, "chatrender-personal")
-	// The panel's own elements are the same whether it is loading or loaded; a
-	// reconciler patches them in place and the open panel is never replaced
-	// (and so never reset to closed) by a state change.
-	if a, b := chatbugShape(loadedBody, 2), chatbugShape(loadingBody, 2); a != b {
+	loadedBody, loadingBody := chatbugReadingSection(t, loaded), chatbugReadingSection(t, loading)
+	// The panel's own elements (the form and the languages block, one level down
+	// from the section that replaced the old disclosure) are the same whether it is
+	// loading or loaded; a reconciler patches them in place and the open panel is
+	// never replaced (and so never reset to closed) by a state change.
+	if a, b := chatbugShape(loadedBody, 1), chatbugShape(loadingBody, 1); a != b {
 		t.Fatalf("a state change would replace the open panel:\n%s\n%s", a, b)
 	}
 	// CHATUX-002 changed this assertion and the one after the failed render: the
@@ -300,4 +301,18 @@ func TestTodo_CHATBUG_026_WiredToTheBrowser(t *testing.T) {
 	if body := chatbugFuncBody(t, layers, "restoreChatLayerFocus"); !strings.Contains(body, "chatFocusRestoreAllowed(chatFocusHeldNow())") {
 		t.Fatal("closing a layer can still take focus back from where the person clicked")
 	}
+}
+
+// chatbugReadingSection is the Reading language section of Chat preferences.
+// CHATUX-031 made it a plain section of the panel, not a disclosure of its own,
+// so it is found by its class and prefs-section marker.
+func chatbugReadingSection(t *testing.T, markup string) *xhtml.Node {
+	t.Helper()
+	found := chatPolishNodes(t, markup, func(n *xhtml.Node) bool {
+		return chatPolishAttr(n, "data-prefs-section") == "reading-languages" && chatPolishHasClass(n, "chatrender-personal")
+	})
+	if len(found) != 1 {
+		t.Fatalf("%d reading language sections", len(found))
+	}
+	return found[0]
 }

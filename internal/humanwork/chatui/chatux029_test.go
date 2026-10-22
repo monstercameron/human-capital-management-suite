@@ -18,10 +18,17 @@ func TestTodo_CHATUX_029(t *testing.T) {
 			"label.details-notify-option{display:flex;align-items:center;gap:8px;margin:0;min-block-size:32px"},
 		{"1 notifications: the radio is a 16 px square with no margin of its own",
 			".details-notify-radio{flex:none;inline-size:16px;block-size:16px"},
-		{"2 an open row is not tinted, hovered or not",
-			".manage-sec-row[aria-expanded=true],.manage-sec-row[aria-expanded=true]:hover{background:transparent}"},
+		// CHATUX-038 confines every :hover selector to devices that can hover, so
+		// the served sheet carries each open-row rule split in two: the plain
+		// selector, and its hover twin inside @media(hover:hover).
+		{"2 an open row is not tinted",
+			".manage-sec-row[aria-expanded=true]{background:transparent}"},
+		{"2 an open row is not tinted when hovered",
+			"@media(hover:hover){.manage-sec-row[aria-expanded=true]:hover{background:transparent}}"},
 		{"2 an open agent row is not tinted either",
-			".chat-details .chat-disclosure-button[aria-expanded=true],.chat-details .chat-disclosure-button[aria-expanded=true]:hover{background:transparent}"},
+			".chat-details .chat-disclosure-button[aria-expanded=true]{background:transparent}"},
+		{"2 an open agent row is not tinted when hovered",
+			"@media(hover:hover){.chat-details .chat-disclosure-button[aria-expanded=true]:hover{background:transparent}}"},
 		{"3 a group label is the quiet small label with 16 px above and 6 px below",
 			".details-manage .manage-caption{display:block;margin:16px 0 6px;padding:0 8px;font-size:.75rem;font-weight:500"},
 		{"4 the joining row has the row shape and an arrow at the end",

@@ -922,7 +922,11 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		for id, filter := range chatRecipientBrowser.layout.Filters {
 			layout.Filters[id] = filter
 		}
+		// R7: the layout this tab last held from the server, to tell this tab's
+		// own change apart from what another tab saved first.
+		heldLayout := chatRecipientBrowser.layout
 		chatRecipientBrowser.Unlock()
+		rebased := false
 		layout.PanesByDevice[recipientDeviceClass()] = model.Pane
 		var draftRevision uint64
 		var draftEpoch uint64
@@ -976,6 +980,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 			}
 		}
 		var result *chatv1.PutSidebarResponse
+		own := layout
 		for attempt := 0; attempt < 3; attempt++ {
 			if !recipientGenerationActive(generation) {
 				return
@@ -1032,6 +1037,12 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 					return
 				}
 				layout = server
+			} else {
+				// R7: keep what the other tab saved (a section, a favorite)
+				// and apply only this tab's own change on top of it.
+				var changed bool
+				layout, changed = rebaseSidebarLayout(heldLayout, own, server)
+				rebased = changed
 			}
 			layout.EmojiPrefs = chatui.MergeEmojiPrefs(server.EmojiPrefs, emojiWritten)
 			if voiceWritten != "" {
@@ -1055,10 +1066,16 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		}
 		chatRecipientBrowser.sidebarRevision = result.GetSidebar().GetRevision()
 		chatRecipientBrowser.sidebarSaved = edit
-		if edit == chatRecipientBrowser.sidebarEdit {
+		settled := edit == chatRecipientBrowser.sidebarEdit
+		if settled {
 			chatRecipientBrowser.layout = layout
 		}
 		chatRecipientBrowser.Unlock()
+		if rebased && settled {
+			// R7: the saved layout holds the other tab's change too; draw it.
+			chatBrowser.mutate(func(m *chatui.Model) { applyRecipientLayout(m, layout, hosts) })
+			refreshChatRoute()
+		}
 	}()
 }
 func persistChatQuietHours(cfg journeyclient.Config, prefs chatui.Preferences) {

@@ -664,7 +664,7 @@ func chatPost(q Post) (chat.Post, error) {
 // the order. The membership join and the history-visibility predicate are
 // identical, because paging direction must not be a way to read posts from before
 // a member joined.
-const listPostsSelect = `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$3 AND m.member_id=$4 AND m.state='active' WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))`
+const listPostsSelect = `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$3 AND m.member_id=$4 AND m.state='active' WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))` + chatgateAudienceFilter4
 
 const listPostsForward = listPostsSelect + ` AND p.sequence>$5 ORDER BY p.sequence LIMIT $6`
 
@@ -673,7 +673,7 @@ const listPostsBackward = listPostsSelect + ` AND p.sequence<$5 ORDER BY p.seque
 // Machine readers use the named installation as their row-level admission
 // evidence. They see history only from installation time, and revocation or
 // scope removal takes effect before each page is returned.
-const listMachinePostsSelect = `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_app_installation i ON i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.tenant_id=$3 AND i.app_id=$4 AND i.id=i.tenant_id||':'||i.conversation_id||':'||i.app_id AND i.status='ACTIVE' AND i.version>0 AND i.created_at<=now() AND 'chat.posts.read'=ANY(i.granted_scopes) WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.created_at>=i.created_at`
+const listMachinePostsSelect = `SELECT p.id,p.tenant_id,p.conversation_id,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_app_installation i ON i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.tenant_id=$3 AND i.app_id=$4 AND i.id=i.tenant_id||':'||i.conversation_id||':'||i.app_id AND i.status='ACTIVE' AND i.version>0 AND i.created_at<=now() AND 'chat.posts.read'=ANY(i.granted_scopes) WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.created_at>=i.created_at` + chatgateAudienceNone
 
 const listMachinePostsForward = listMachinePostsSelect + ` AND p.sequence>$5 ORDER BY p.sequence LIMIT $6`
 const listMachinePostsBackward = listMachinePostsSelect + ` AND p.sequence<$5 ORDER BY p.sequence DESC LIMIT $6`
@@ -946,7 +946,7 @@ func (s *Adapter) Search(ctx context.Context, r chat.SearchRequest) (chat.Search
 	if !r.SkipMessages {
 		// The predicate repeats the GIN index expression exactly. Active
 		// membership and history visibility filter before results or snippets.
-		rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,c.name,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND c.lifecycle<>'ARCHIVED' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND (p.created_at,p.id)<($7,$8) ORDER BY p.created_at DESC,p.id DESC LIMIT $9`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, messageBefore, messageID, limit+1)
+		rows, err := tx.Query(ctx, `SELECT p.id,p.tenant_id,p.conversation_id,c.name,p.author_id,p.author_home_tenant_id,p.sequence,p.body,p.revision,p.tombstoned,p.created_at,p.parent_id,p.references_json,p.source_attribution FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.member_id=$2 AND m.home_tenant_id=$3 AND m.state='active' WHERE p.tenant_id=$1 AND ($4='' OR p.conversation_id=$4) AND ($5='' OR p.author_id=$5) AND to_tsvector('simple', p.body) @@ plainto_tsquery('simple', $6) AND p.tombstoned=false AND c.lifecycle<>'ARCHIVED' AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND (p.created_at,p.id)<($7,$8)`+chatgateAudienceFilter2+` ORDER BY p.created_at DESC,p.id DESC LIMIT $9`, r.TenantID, r.Principal.SubjectID, r.Principal.TenantID, r.ConversationID, r.AuthorID, r.Query, messageBefore, messageID, limit+1)
 		if err != nil {
 			return chat.SearchResponse{}, err
 		}
@@ -1623,13 +1623,16 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 	}
 	// The filter uses the one payload key every chatstore producer writes; see
 	// the OutboxKey constants in store.go.
-	query := `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$2 AND payload->>'` + OutboxKeyConversationID + `'=$3 ORDER BY id LIMIT $4`
+	query := `SELECT id,event_type,payload,created_at FROM chat_outbox WHERE tenant_id=$1 AND id>$2 AND payload->>'` + OutboxKeyConversationID + `'=$3` + chatgateOutboxAudience5 + ` ORDER BY id LIMIT $4`
 	args := []any{r.TenantID, after, r.ConversationID, limit}
 	if machine {
 		// Filter before LIMIT. A newly installed agent must reach its first
 		// visible post even when thousands of older outbox rows exist.
-		query = `SELECT o.id,o.event_type,o.payload,o.created_at FROM chat_outbox o JOIN chat_post p ON p.id=(o.payload->>'` + OutboxKeyTargetID + `') AND p.tenant_id=o.tenant_id AND p.conversation_id=$3 AND p.created_at>=$5 WHERE o.tenant_id=$1 AND o.id>$2 AND o.payload->>'` + OutboxKeyConversationID + `'=$3 AND o.created_at>=$5 AND o.event_type IN ('post.created','post.edited','post.deleted') ORDER BY o.id LIMIT $4`
+		query = `SELECT o.id,o.event_type,o.payload,o.created_at FROM chat_outbox o JOIN chat_post p ON p.id=(o.payload->>'` + OutboxKeyTargetID + `') AND p.tenant_id=o.tenant_id AND p.conversation_id=$3 AND p.created_at>=$5 WHERE o.tenant_id=$1 AND o.id>$2 AND o.payload->>'` + OutboxKeyConversationID + `'=$3 AND o.created_at>=$5 AND o.event_type IN ('post.created','post.edited','post.deleted')` + chatgateOutboxAudienceNone + ` ORDER BY o.id LIMIT $4`
 		args = append(args, joined)
+	} else {
+		// CHATGATE-011: a restricted post's events go to its audience only.
+		args = append(args, r.Principal.SubjectID)
 	}
 	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {

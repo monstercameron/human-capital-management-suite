@@ -207,18 +207,27 @@ func (m *chattoneLiveModel) RewriteChecked(ctx context.Context, p chatrewrite.Pr
 		Messages: []agentmodel.ModelMessage{{Role: agentmodel.RoleSystem, Content: p.Instruction}, {Role: agentmodel.RoleUser, Content: p.Data}},
 		Deadline: time.Now().Add(m.timeout), Limits: m.limits, TraceID: "chattone-qualify-" + hex.EncodeToString(nonce[:]),
 		Processing: agentmodel.ProcessingPolicy{Residency: m.region, Retention: m.retain, TrainingUse: m.training, Logging: m.logging}}
-	callCtx, cancel := context.WithTimeout(ctx, m.timeout)
-	defer cancel()
 	// The qualification calls the provider through the same SchemaFlux operation
-	// the service's schema comes from, so what is measured is what is served.
-	rewrite, result, err := m.op.Run(callCtx, request)
-	m.mu.Lock()
-	m.cost += result.Usage.CostMicros
-	m.mu.Unlock()
-	if err != nil {
-		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
+	// the service's schema comes from, so what is measured is what is served. A
+	// call the provider does not answer in time is asked once more: a stalled
+	// connection says nothing about the model's writing, and one in about sixty
+	// calls stalled on the first live runs, which is most runs of this suite.
+	for attempt := 1; ; attempt++ {
+		request.Deadline = time.Now().Add(m.timeout)
+		callCtx, cancel := context.WithTimeout(ctx, m.timeout)
+		rewrite, result, err := m.op.Run(callCtx, request)
+		timedOut := callCtx.Err() != nil && ctx.Err() == nil
+		cancel()
+		m.mu.Lock()
+		m.cost += result.Usage.CostMicros
+		m.mu.Unlock()
+		if err == nil {
+			return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
+		}
+		if !timedOut || attempt == 2 {
+			return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
+		}
 	}
-	return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
 }
 
 // ChattoneQualifyConfig is what a live evaluation needs: an approved base
@@ -239,6 +248,9 @@ type ChattoneQualifyConfig struct {
 	// pass; Recorder, when set, records the model's answers to it for replay.
 	RewordSuite []ChattoneRewordCase
 	Recorder    *ChattoneRewordRecorder
+	// StyleRecorder, when set, records the model's answers to the writing-style
+	// suite (synthetic drafts only), so a failed case can be read.
+	StyleRecorder *ChattoneRewordRecorder
 }
 
 // identity is the model identity a qualification runs on: the base
@@ -308,7 +320,12 @@ func QualifyChattoneModel(ctx context.Context, cfg ChattoneQualifyConfig) (Chatt
 		return ChattoneQualification{}, PersonaModelDeployment{}, err
 	}
 	registry := chatrewrite.NewRegistry()
-	service := &chatrewrite.Service{Registry: registry, Model: live, Policy: chattoneAllowAllPolicy{}, Meaning: ChattoneMeaningGuard{}, Outbound: verifier, Ledger: chatrewrite.NewMemoryLedger(1000), Now: cfg.Now}
+	var styleModel chatrewrite.Model = live
+	if cfg.StyleRecorder != nil {
+		cfg.StyleRecorder.Model = live
+		styleModel = cfg.StyleRecorder
+	}
+	service := &chatrewrite.Service{Registry: registry, Model: styleModel, Policy: chattoneAllowAllPolicy{}, Meaning: ChattoneMeaningGuard{}, Outbound: verifier, Ledger: chatrewrite.NewMemoryLedger(1000), Now: cfg.Now}
 	q := RunChattoneQualification(ctx, service, chatrewrite.Identity{Tenant: "qualification", Person: "qualification", Conversation: "qualification"}, identity, cfg.Now)
 	// The same model, on the same typed call, is also scored on rewording; a
 	// model qualifies for the task only when it passes both suites.

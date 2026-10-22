@@ -28,8 +28,8 @@ func loadFirewallConfigAndRoles(t *testing.T) (*libfirewall.Config, *depmanifest
 
 // pgxOwningRoots returns dependency-roles.yaml's own allowed_import_roots
 // for pgx/v5 -- the scope TestPGXAdapterQualification's leak-scan runs
-// over (currently the data and ledger adapters, the migration runner, the
-// bootstrap composer and the migrate commands). It deliberately reuses that
+// over data/ledger adapters, command composition, and two narrowly-scoped
+// developer database tools. It deliberately reuses that
 // manifest's row rather than a second, possibly-drifting list in
 // library-firewall.yaml.
 func pgxOwningRoots(t *testing.T, roles *depmanifest.Manifest) []string {
@@ -112,6 +112,9 @@ func TestPGXAdapterQualification(t *testing.T) {
 			{"internal/data may import pgx", cfg.Module + "/internal/data/postgres", false},
 			{"internal/ledger may import pgx", cfg.Module + "/internal/ledger", false},
 			{"migrations may import pgx", cfg.Module + "/migrations", false},
+			{"chat load tool may import pgx", cfg.Module + "/tools/chatload", false},
+			{"migration CI tool may import pgx", cfg.Module + "/tools/policy/migrationci/cmd/migrationci", false},
+			{"unrelated policy tool may not import pgx", cfg.Module + "/tools/policy/lineageconformance", true},
 			{"a domain package may not import pgx", cfg.Module + "/internal/domains/people", true},
 			{"capability may not import pgx", cfg.Module + "/internal/capability", true},
 			{"transport may not import pgx", cfg.Module + "/internal/transport", true},

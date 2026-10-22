@@ -133,6 +133,9 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 	if in.Chat.store != nil {
 		service.Reword = &ChattoneRewordPolicy{Store: in.Chat.store}
 	}
+	if service.Reworder, err = NewChattoneReworder(cfgService.Model, cfgService.Policy, nil, now); err != nil {
+		return nil, "", err
+	}
 	// The development tenant is the only workspace the composition root turns
 	// on. Every other workspace opts in through its administrator.
 	if local && slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {

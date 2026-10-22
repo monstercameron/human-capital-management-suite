@@ -22,7 +22,7 @@ func chatux022Rows(t *testing.T, m Model, msg Message) []string {
 			continue
 		}
 		label := strings.TrimSpace(chatbug030Text(n))
-		if chatPolishHasClass(n, "menu-bar-twin") || chatPolishHasClass(n, "chatsave-action") {
+		if chatPolishHasClass(n, "menu-bar-twin") || chatPolishHasClass(n, "menu-phone-only") || chatPolishHasClass(n, "chatsave-action") {
 			label += " (bar)"
 		}
 		rows = append(rows, label)
@@ -49,14 +49,14 @@ func TestTodo_CHATUX_022(t *testing.T) {
 
 	t.Run("own message", func(t *testing.T) {
 		m := chatux022Model()
-		want := "Reply in thread | Copy link | Copy text | Share to channel | Pin message (bar) | Save for later (bar) | Edit message | --- | Delete message"
+		want := "Reply in thread (bar) | Copy link | Copy text | Share to channel | Pin message | Save for later (bar) | Edit message | --- | Delete message"
 		if got := join(chatux022Rows(t, m, own)); got != want {
 			t.Fatalf("menu rows:\n got %s\nwant %s", got, want)
 		}
 		marked := ""
 		m.Callbacks.MarkUnreadFrom = func(id string) { marked = id }
 		m.Messages = []Message{own}
-		if got := join(chatux022Rows(t, m, own)); !strings.HasPrefix(got, "Reply in thread | Mark unread from here | Copy link | ") {
+		if got := join(chatux022Rows(t, m, own)); !strings.HasPrefix(got, "Reply in thread (bar) | Mark unread from here | Copy link | ") {
 			t.Fatalf("Mark unread from here is not the second row: %s", got)
 		}
 		m.act("mark-unread", "m1")
@@ -73,7 +73,7 @@ func TestTodo_CHATUX_022(t *testing.T) {
 	t.Run("someone else's message", func(t *testing.T) {
 		m := chatux022Model()
 		got := join(chatux022Rows(t, m, other))
-		if !strings.HasPrefix(got, "Reply in thread | Copy link | Copy text | Share to channel | Pin message (bar) | Save for later (bar) | --- | ") || strings.Contains(got, "Edit message") || strings.Contains(got, "Delete message") {
+		if !strings.HasPrefix(got, "Reply in thread (bar) | Copy link | Copy text | Share to channel | Pin message | Save for later (bar) | --- | ") || strings.Contains(got, "Edit message") || strings.Contains(got, "Delete message") {
 			t.Fatalf("menu rows of someone else's message: %s", got)
 		}
 	})

@@ -15,9 +15,8 @@ import (
 )
 
 // chatbug084Sidebar renders the whole Chat page with the product's own catalog
-// and returns the sidebar in two parts: its sections, and the Archived list at
-// its foot.
-func chatbug084Sidebar(t *testing.T, locale, selected string) (sections, archived string) {
+// and returns the arranged sections and the Archived section, when present.
+func chatbug084Sidebar(t *testing.T, locale, selected string, wantArchived bool) (sections, archived string) {
 	t.Helper()
 	ctx := productui.ResolveProductLocale(locale)
 	at := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
@@ -51,9 +50,15 @@ func chatbug084Sidebar(t *testing.T, locale, selected string) (sections, archive
 		t.Fatalf("%s: the page has no sidebar before the conversation", locale)
 	}
 	rail := page[start:end]
-	foot := strings.Index(rail, "chatstate-archived")
+	foot := strings.Index(rail, `data-section-id="archived"`)
 	if foot < 0 {
-		t.Fatalf("%s: the sidebar has no Archived list: %s", locale, rail)
+		if wantArchived {
+			t.Fatalf("%s: the Archived section is missing: %s", locale, rail)
+		}
+		return rail, ""
+	}
+	if !wantArchived {
+		t.Fatalf("%s: the Archived section should be absent when the only archived conversation is selected: %s", locale, rail[foot:])
 	}
 	return rail[:foot], rail[foot:]
 }
@@ -71,7 +76,7 @@ func chatbug084Row(part, id string) bool {
 // the list (selected) so they can see where they are.
 func TestTodo_CHATBUG_084_Browser(t *testing.T) {
 	for locale, archivedLabel := range map[string]string{"en-US": "Archived", "de-DE": "Archiviert", "ar": "مؤرشفة"} {
-		sections, archived := chatbug084Sidebar(t, locale, "general")
+		sections, archived := chatbug084Sidebar(t, locale, "general", true)
 		if chatbug084Row(sections, "old") || strings.Contains(sections, "old-project") {
 			t.Errorf("%s: the archived channel is still listed among the channels", locale)
 		}
@@ -80,11 +85,11 @@ func TestTodo_CHATBUG_084_Browser(t *testing.T) {
 				t.Errorf("%s: the sidebar lost the open conversation %q", locale, id)
 			}
 		}
-		if !strings.Contains(archived, "old-project") {
-			t.Errorf("%s: the archived channel is not under Archived: %s", locale, archived)
+		if !strings.Contains(archived, archivedLabel) || !strings.Contains(archived, `aria-expanded="false"`) || !strings.Contains(archived, `class="section-count"`) {
+			t.Errorf("%s: Archived is missing its collapsed heading or count: %s", locale, archived)
 		}
-		if !strings.Contains(archived, archivedLabel) {
-			t.Errorf("%s: the Archived list is not labelled %q: %.300s", locale, archivedLabel, archived)
+		if strings.Contains(archived, "old-project") {
+			t.Errorf("%s: a collapsed Archived section renders a hidden row: %s", locale, archived)
 		}
 		for _, name := range []string{"people-ops", "Loretta Haynes"} {
 			if strings.Contains(archived, name) {
@@ -92,8 +97,9 @@ func TestTodo_CHATBUG_084_Browser(t *testing.T) {
 			}
 		}
 
-		// While the archived channel is open its row stays in the list, selected.
-		sections, archived = chatbug084Sidebar(t, locale, "old")
+		// While the archived channel is open its selected row stays in its
+		// arranged section and is removed from Archived.
+		sections, archived = chatbug084Sidebar(t, locale, "old", false)
 		if !chatbug084Row(sections, "old") {
 			t.Errorf("%s: the open archived channel vanished from the list", locale)
 		}
@@ -101,8 +107,8 @@ func TestTodo_CHATBUG_084_Browser(t *testing.T) {
 		if !strings.Contains(row, "selected") {
 			t.Errorf("%s: the open archived channel's row is not the selected one: %s", locale, row)
 		}
-		if !strings.Contains(archived, "old-project") {
-			t.Errorf("%s: opening the archived channel took it out of Archived", locale)
+		if archived != "" {
+			t.Errorf("%s: the selected archived channel remains duplicated in Archived: %s", locale, archived)
 		}
 	}
 }

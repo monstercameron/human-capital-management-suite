@@ -1,42 +1,47 @@
-﻿=== nested (human-capital-management-suite-executor) ===
-files(non-test)=30 generated=0 hand-written=30 hand-written-in-untested-pkgs=0
+=== nested (github.com/monstercameron/human-capital-management-suite-executor) ===
+files(hand-written)=30 generated=0 hand-written-in-untested-pkgs=0
 untested pkgs(0):
 
-# Test-coverage file inventory - nested (human-capital-management-suite-executor) module
+# Test-coverage file inventory - nested (github.com/monstercameron/human-capital-management-suite-executor) module
 
-generated=0 hand-written=30
+hand-written=30 generated=0
 
 ## Hand-written files
 
-| dir                              | file                | pkg-has-tests |
-| -------------------------------- | ------------------- | ------------- |
-| .                                | main.go             | yes           |
-| cmd/executor                     | main.go             | yes           |
-| internal/blocks/compensation     | contracts.go        | yes           |
-| internal/blocks/compensation     | plan_transaction.go | yes           |
-| internal/blocks/compensation     | preflight.go        | yes           |
-| internal/blocks/contactinfo      | contracts.go        | yes           |
-| internal/blocks/contactinfo      | plan_transaction.go | yes           |
-| internal/blocks/contactinfo      | preflight.go        | yes           |
-| internal/blocks/emergencycontact | contracts.go        | yes           |
-| internal/blocks/emergencycontact | plan_transaction.go | yes           |
-| internal/blocks/emergencycontact | preflight.go        | yes           |
-| internal/blocks/legalname        | contracts.go        | yes           |
-| internal/blocks/legalname        | plan_transaction.go | yes           |
-| internal/blocks/legalname        | preflight.go        | yes           |
-| internal/blocks/orgtransfer      | contracts.go        | yes           |
-| internal/blocks/orgtransfer      | plan_transaction.go | yes           |
-| internal/blocks/orgtransfer      | preflight.go        | yes           |
-| internal/blocks/termination      | contracts.go        | yes           |
-| internal/blocks/termination      | plan_transaction.go | yes           |
-| internal/blocks/termination      | preflight.go        | yes           |
-| internal/blockshared             | dates.go            | yes           |
-| internal/blockshared             | decode.go           | yes           |
-| internal/blockshared             | facts.go            | yes           |
-| internal/blockshared             | strings.go          | yes           |
-| internal/blockshared             | validation.go       | yes           |
-| internal/executor                | contracts.go        | yes           |
-| internal/executor                | errors.go           | yes           |
-| internal/executor                | registry.go         | yes           |
-| internal/executor                | server.go           | yes           |
-| sdk                              | contract.go         | yes           |
+| dir                                            | file                | package                                                                  | statements | covered | coverage | pkg-has-tests | go-test | source-sha256                                                    | test-sha256                                                      |
+| ---------------------------------------------- | ------------------- | ------------------------------------------------------------------------ | ---------: | ------: | -------: | ------------- | ------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| src/blocks/go                                  | main.go             | human-capital-management-suite-executor                                  |         53 |       9 |    17.0% | true          | pass    | 08c03709f285ac5a0a43530d69343da35e300fa9a50f8861be560ad6fcaf809b | 0271c37e17fd5328359272366ef2222183c3db4b3c77b8b453f8cded559ac3c8 |
+| src/blocks/go/cmd/executor                     | main.go             | human-capital-management-suite-executor/cmd/executor                     |         38 |       0 |     0.0% | true          | pass    | 7201cbcd09f5d379d92dd80bb04410ee01e354081416e5f3b7e079f1c8d7f317 | 38e2dfb76bcfe8baf6815580b71013d2f860d6fe0720d202e668fbe4e60e840f |
+| src/blocks/go/internal/blocks/compensation     | contracts.go        | human-capital-management-suite-executor/internal/blocks/compensation     |          3 |       0 |     0.0% | true          | pass    | f59bc8b55bcb626d37104ae2dd6d877d113398022aa43da71f9730fad078a853 | 7be238191e22bd33d55be65c4e317c560897bab5dd324602f7fc6bda64d658f4 |
+| src/blocks/go/internal/blocks/compensation     | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/compensation     |         34 |      26 |    76.5% | true          | pass    | 7cddfe9fb07445be4b216ad0eeb6cd79e215e874311897f9be438692a0c7ebbb | 7be238191e22bd33d55be65c4e317c560897bab5dd324602f7fc6bda64d658f4 |
+| src/blocks/go/internal/blocks/compensation     | preflight.go        | human-capital-management-suite-executor/internal/blocks/compensation     |         39 |      30 |    76.9% | true          | pass    | 784579b026c652ec3a347385552ba8ee82f9bf66acc860e4bff1e2df894f1d14 | 7be238191e22bd33d55be65c4e317c560897bab5dd324602f7fc6bda64d658f4 |
+| src/blocks/go/internal/blocks/contactinfo      | contracts.go        | human-capital-management-suite-executor/internal/blocks/contactinfo      |          3 |       0 |     0.0% | true          | pass    | 6d3853b430bfbc11a0e5a003edaa70c6bf21dc07f9346b96321755eaa9e24a53 | c7718f63a1f49ed0ea4050c457daf52a3631e121df5fc6d44c975014bb1f372f |
+| src/blocks/go/internal/blocks/contactinfo      | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/contactinfo      |         26 |      24 |    92.3% | true          | pass    | 331034e9c83054636a4a0483305d0e687ad2e36e2041836e3f68d4a4499229b5 | c7718f63a1f49ed0ea4050c457daf52a3631e121df5fc6d44c975014bb1f372f |
+| src/blocks/go/internal/blocks/contactinfo      | preflight.go        | human-capital-management-suite-executor/internal/blocks/contactinfo      |         62 |      55 |    88.7% | true          | pass    | 61d32d0d02d81cf7dee9ac6557ea1f0769ad878e92135607f2e0d6c332bc3ef4 | c7718f63a1f49ed0ea4050c457daf52a3631e121df5fc6d44c975014bb1f372f |
+| src/blocks/go/internal/blocks/emergencycontact | contracts.go        | human-capital-management-suite-executor/internal/blocks/emergencycontact |          3 |       0 |     0.0% | true          | pass    | c8787034e0c361606a76f9742655f11ed6cc0554ac456b69482b490ec300ea08 | 1304ca75aeb5f3434a65d9dfc910b0c00451a03f1272d54caac2db3f3da3fd7b |
+| src/blocks/go/internal/blocks/emergencycontact | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/emergencycontact |         32 |      25 |    78.1% | true          | pass    | d77707f0bbacbce141c99d152aa9783bdc2adb2326492b92aa7ab1645a8d3ee4 | 1304ca75aeb5f3434a65d9dfc910b0c00451a03f1272d54caac2db3f3da3fd7b |
+| src/blocks/go/internal/blocks/emergencycontact | preflight.go        | human-capital-management-suite-executor/internal/blocks/emergencycontact |         48 |      37 |    77.1% | true          | pass    | 593b40d605d983bb0f5f214334540e4b5ee2d4950be6ca0e917dc70a94d5e25d | 1304ca75aeb5f3434a65d9dfc910b0c00451a03f1272d54caac2db3f3da3fd7b |
+| src/blocks/go/internal/blocks/legalname        | contracts.go        | human-capital-management-suite-executor/internal/blocks/legalname        |          3 |       0 |     0.0% | true          | pass    | 3eaa25d18370920bfa8286fdf7f05bc94c33ecc1bd6f8ffc1416be59e8ab989e | a37dbfa73451a8d017a9e69e80a295fa3ae32352906f935e91aef9a3486253c5 |
+| src/blocks/go/internal/blocks/legalname        | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/legalname        |         25 |      23 |    92.0% | true          | pass    | b80f8c5da5e62668ae4238ad72c7370218922603322eb12ac5037cc7b147fdf9 | a37dbfa73451a8d017a9e69e80a295fa3ae32352906f935e91aef9a3486253c5 |
+| src/blocks/go/internal/blocks/legalname        | preflight.go        | human-capital-management-suite-executor/internal/blocks/legalname        |         31 |      28 |    90.3% | true          | pass    | 27038c87aacb255eccb834ad370d691e1363758fc36defb68739dcb5f9099eee | a37dbfa73451a8d017a9e69e80a295fa3ae32352906f935e91aef9a3486253c5 |
+| src/blocks/go/internal/blocks/orgtransfer      | contracts.go        | human-capital-management-suite-executor/internal/blocks/orgtransfer      |          3 |       0 |     0.0% | true          | pass    | ef4ccc6e3deb6d93bf850eb04f886e052ae26a2a5fc2c7098272cd8149f4bad0 | 6d5556712cf40887d060e8a4033b5b172c0eb5bcbecc837005dd8f02504198f7 |
+| src/blocks/go/internal/blocks/orgtransfer      | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/orgtransfer      |         62 |      58 |    93.5% | true          | pass    | 08c998028cf39a8f306de997de8122e4e573f2ea0a2b67b73330a58ec9ba26b3 | 6d5556712cf40887d060e8a4033b5b172c0eb5bcbecc837005dd8f02504198f7 |
+| src/blocks/go/internal/blocks/orgtransfer      | preflight.go        | human-capital-management-suite-executor/internal/blocks/orgtransfer      |         81 |      54 |    66.7% | true          | pass    | d6c86c9195a565ba99242dfb8774a063de1f292235652ced45bd8d01901b397d | 6d5556712cf40887d060e8a4033b5b172c0eb5bcbecc837005dd8f02504198f7 |
+| src/blocks/go/internal/blocks/termination      | contracts.go        | human-capital-management-suite-executor/internal/blocks/termination      |          3 |       0 |     0.0% | true          | pass    | ba94bf1cc21733f32c00fc1d68a4df4d2654060ded7fa05ac6b4ef82cc494c7d | 24cb28f0fa6e549628151aa28edf8747ca633f7485c1046c8b1b3b12f82393df |
+| src/blocks/go/internal/blocks/termination      | plan_transaction.go | human-capital-management-suite-executor/internal/blocks/termination      |         17 |      16 |    94.1% | true          | pass    | b847224a875a63c8462f9738f4b95eeb1fd3abee6533c6603f163456ddddd894 | 24cb28f0fa6e549628151aa28edf8747ca633f7485c1046c8b1b3b12f82393df |
+| src/blocks/go/internal/blocks/termination      | preflight.go        | human-capital-management-suite-executor/internal/blocks/termination      |         56 |      50 |    89.3% | true          | pass    | e0385b8d3986d03be7f42fa3347c550b08d2f3bbf78190502552788d5bc1626c | 24cb28f0fa6e549628151aa28edf8747ca633f7485c1046c8b1b3b12f82393df |
+| src/blocks/go/internal/blockshared             | dates.go            | human-capital-management-suite-executor/internal/blockshared             |         29 |      16 |    55.2% | true          | pass    | e411614318497e581746b76de8a8f2547e6dd823b1cbb8b422001b3a93ba5fde | dafe78543401c66118899eaed9a27c0c269a1cfc2057c5d5aabb39479f5d5515 |
+| src/blocks/go/internal/blockshared             | decode.go           | human-capital-management-suite-executor/internal/blockshared             |          6 |       5 |    83.3% | true          | pass    | cf0aed30428d6dddeaebfcdd93f87c1b39e3b47e47cd89992b6bf65f094d5509 | dafe78543401c66118899eaed9a27c0c269a1cfc2057c5d5aabb39479f5d5515 |
+| src/blocks/go/internal/blockshared             | facts.go            | human-capital-management-suite-executor/internal/blockshared             |         13 |       0 |     0.0% | true          | pass    | 2ac730e799c80f8d667a8adcee5fd4d07e634a7a5f5d6badc945cf0380e332da | dafe78543401c66118899eaed9a27c0c269a1cfc2057c5d5aabb39479f5d5515 |
+| src/blocks/go/internal/blockshared             | strings.go          | human-capital-management-suite-executor/internal/blockshared             |         12 |       8 |    66.7% | true          | pass    | efb11edba62ef55816cbba622c76b875ec49cabc90da7c0d26e94259f323f582 | dafe78543401c66118899eaed9a27c0c269a1cfc2057c5d5aabb39479f5d5515 |
+| src/blocks/go/internal/blockshared             | validation.go       | human-capital-management-suite-executor/internal/blockshared             |          6 |       6 |   100.0% | true          | pass    | 0cdb0a9ed9c97a23525cc8401bcc00484f0588092288067e688a625084083bba | dafe78543401c66118899eaed9a27c0c269a1cfc2057c5d5aabb39479f5d5515 |
+| src/blocks/go/internal/executor                | contracts.go        | human-capital-management-suite-executor/internal/executor                |         27 |      18 |    66.7% | true          | pass    | eaa0a783368efd386931a556b3c8c7a48805482bd5b18ebf77e3889e717c9125 | 2f14fbe3b183dac2401ae487e4ab1cffb7ba483a49a16283ec7b3b120a647d6d |
+| src/blocks/go/internal/executor                | errors.go           | human-capital-management-suite-executor/internal/executor                |          6 |       2 |    33.3% | true          | pass    | 8fcbf66dbadf573375acac0f40ba4064465222ceb85572fc1ea6f8a847ba733f | 2f14fbe3b183dac2401ae487e4ab1cffb7ba483a49a16283ec7b3b120a647d6d |
+| src/blocks/go/internal/executor                | registry.go         | human-capital-management-suite-executor/internal/executor                |         17 |      13 |    76.5% | true          | pass    | 335d87a4f7e928b41a7b2aab3d5b1341f33167d370091d7095229ec9d6d12319 | 2f14fbe3b183dac2401ae487e4ab1cffb7ba483a49a16283ec7b3b120a647d6d |
+| src/blocks/go/internal/executor                | server.go           | human-capital-management-suite-executor/internal/executor                |         82 |      62 |    75.6% | true          | pass    | 09e0717eea705f2c7d7262a8d6ae63342dad5c4b2a736d3820c3bb93d0c80db6 | 2f14fbe3b183dac2401ae487e4ab1cffb7ba483a49a16283ec7b3b120a647d6d |
+| src/blocks/go/sdk                              | contract.go         | human-capital-management-suite-executor/sdk                              |          9 |       9 |   100.0% | true          | pass    | 14261c84f22fa5cbf843b813de2995d959f2fcc17415056095a9af0d34b230ac | 1536e35bc748e521f3f0297786f87f7a75595a7c874cff6c3b622abfbea70c63 |
+
+## Exclusions
+
+| file | kind | reason |
+| ---- | ---- | ------ |

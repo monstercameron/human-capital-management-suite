@@ -6,13 +6,11 @@ import "strings"
 // document covers a question. Such an answer carries a typed mark, the way a
 // private answer carries its reason: one trailing line that is a code, never
 // prose. The card turns it into "Not from your documents" in the reader's
-// language, and the copy saved in the asker's conversation keeps a plain line.
-const (
-	ungroundedMarker = "<!--chat.agent.source:none-->"
-	// UngroundedNote is the plain line the saved copy of such an answer carries,
-	// where there is no card to show the mark.
-	UngroundedNote = "Not from your documents."
-)
+// language (en, de-DE and ar copy in chatui), and so does every body the client
+// draws that still carries the mark: the post in a channel, the copy saved in
+// the asker's own conversation and a shared answer. The server writes no English
+// sentence of its own into a message a person reads.
+const ungroundedMarker = "<!--chat.agent.source:none-->"
 
 // UngroundedMark is the trailing line that marks an answer as not from the
 // documents.

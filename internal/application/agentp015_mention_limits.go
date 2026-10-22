@@ -110,6 +110,8 @@ type PersonaMentionLimitError struct {
 	Code       limits.DenialCode
 	Scope      limits.Scope
 	RetryAfter time.Duration
+	// Observed is how many admissions the ceiling had counted when it refused.
+	Observed int64
 }
 
 func (e *PersonaMentionLimitError) Error() string {
@@ -155,7 +157,7 @@ func (s personaMentionLimitedRunStarter) Start(ctx context.Context, request agen
 	if err != nil {
 		var denial *limits.Denial
 		if errors.As(err, &denial) {
-			return &PersonaMentionLimitError{Code: denial.Code, Scope: denial.Scope, RetryAfter: denial.RetryAfter}
+			return &PersonaMentionLimitError{Code: denial.Code, Scope: denial.Scope, RetryAfter: denial.RetryAfter, Observed: denial.Observed}
 		}
 		// The ceilings could not be read: admitting the mention would be
 		// admitting it unmetered.

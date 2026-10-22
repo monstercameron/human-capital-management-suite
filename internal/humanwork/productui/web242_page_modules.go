@@ -183,7 +183,7 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.Project = true
 		result.QueryKeys = []string{"project", "task", "board_view", "cursor", "view", "lane", "filter", "q"}
 	case RouteProfileAgents:
-		result.QueryKeys = []string{"task"}
+		result.QueryKeys = []string{"task", "view"}
 	case RouteProfileAgentOperations:
 		result.QueryKeys = []string{"tab"}
 	case RouteProfileKnowledgeSearch:
@@ -243,7 +243,10 @@ func (profile RouteProfile) ValidControlledValues(values url.Values) bool {
 	if profile == RouteProfileWorkflow && !oneOf("workflow_references", "1") {
 		return false
 	}
-	if profile == RouteProfileAgentOperations && !oneOf("tab", "running", "rollout", "move", "announcements") {
+	if profile == RouteProfileAgentOperations && !oneOf("tab", "running", "rollout", "move", "announcements", "connections", "cost") {
+		return false
+	}
+	if profile == RouteProfileAgents && !oneOf("view", "ask", "access") {
 		return false
 	}
 	if profile == RouteProfileDocs && (!oneOf("docs_sort", "relevance", "updated", "updated_asc", "title", "title_desc", "owner", "owner_desc") || !oneOf("docs_size", "25", "50", "100") || !oneOf("docs_mode", "smart", "contains", "fuzzy", "meaning") || !oneOf("collection", "all", "private", "shared", "starred") || !oneOf("docs_edit", "1")) {
@@ -379,6 +382,7 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 	}
 	if profile == RouteProfileAgents {
 		setProfileValue(values, provided, "task", request.AgentTaskID)
+		setProfileValue(values, provided, "view", request.AgentsView)
 	}
 	if profile == RouteProfileAgentOperations {
 		setProfileValue(values, provided, "tab", request.AgentOperationsTab)

@@ -169,7 +169,7 @@ func (w *AgentAnnouncementWorker) TickTenant(ctx context.Context, tenant string)
 	}
 	var failures []error
 	for _, record := range records {
-		if record.SourceKind == agentrun.SourceAnnouncement && record.State == scheduled.StateActive && w.Runtime.Now().After(record.Cursor.Time()) {
+		if record.SourceKind == agentrun.SourceAnnouncement && !agentUXAmbientScheduleOwned(record.Trigger.Definition.ID) && record.State == scheduled.StateActive && w.Runtime.Now().After(record.Cursor.Time()) {
 			if err := worker.Plan(ctx, tenant, record.Trigger.Definition.ID, w.Runtime.Now()); err != nil {
 				failures = append(failures, err)
 			}
@@ -188,7 +188,7 @@ func (s announcementOutbox) Pending(ctx context.Context, tenant string, limit in
 	}
 	out := make([]scheduled.Delivery, 0)
 	for _, item := range items {
-		if item.Request.Source.Kind == agentrun.SourceAnnouncement {
+		if item.Request.Source.Kind == agentrun.SourceAnnouncement && !agentUXAmbientScheduleOwned(item.ScheduleID) {
 			out = append(out, item)
 			if len(out) == limit {
 				break

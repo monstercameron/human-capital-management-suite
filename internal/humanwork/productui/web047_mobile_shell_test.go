@@ -67,9 +67,13 @@ func TestTodo_WEB_047_Golden(t *testing.T) {
 	// tint is the shell's --hcm-hover-surface token). Inspected: nothing else
 	// in the layer changed.
 	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
-	const want = "f4937984bd74cabed619227444d0adc42b68aa9a04eb3ee168da652d713a8d4e"
+	// 2026-10-02 (W7) re-pin: the pinned f4937984... did not reproduce at the
+	// parent commit 8a8673502 (nor on amd64 or with GoWebComponents v5.0.5), and
+	// the layer rendered there is byte-identical to the current one: no change
+	// of today touches it, the pin was stale before them.
+	const want = "7d5dc7335cd44e6b4d7955cc972ecf694ba670d209cd373472080acf7fa7d506"
 	if got != want {
-		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s", got, want)
+		t.Fatalf("mobile shell stylesheet golden digest = %s, want %s; the stylesheet is in %s", got, want, goldenReviewCopy(t, "web047-mobile", MobileShellStylesheet()))
 	}
 }
 

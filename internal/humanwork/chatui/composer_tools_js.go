@@ -18,6 +18,40 @@ func viewportAtLeast(px int) bool {
 	return js.Global().Call("matchMedia", "(min-width:"+itoa(px)+"px)").Get("matches").Bool()
 }
 
+// composerDraftValue reads the live field because typing does not necessarily
+// rerender the surrounding tree. The rendered model remains the fallback for
+// native calls and before the field is mounted.
+func composerDraftValue(m Model) string {
+	doc := js.Global().Get("document")
+	if doc.Truthy() {
+		field := doc.Call("querySelector", ".chat-composer .composer-input")
+		if field.Truthy() && field.Get("value").Type() == js.TypeString {
+			return field.Get("value").String()
+		}
+	}
+	return m.Draft
+}
+
+// syncComposerFormatControl keeps the CSS state and Aa's pressed state current
+// on input without waiting for a route or application rerender.
+func syncComposerFormatControl(m Model, local localUI, draft string) {
+	doc := js.Global().Get("document")
+	if !doc.Truthy() {
+		return
+	}
+	form := doc.Call("querySelector", ".chat-composer")
+	if !form.Truthy() {
+		return
+	}
+	m.Draft = draft
+	form.Call("setAttribute", "data-draft-empty", boolString(draft == ""))
+	form.Call("setAttribute", "data-format-row", composerFormatState(m, local))
+	button := form.Call("querySelector", ".composer-format-toggle")
+	if button.Truthy() {
+		button.Call("setAttribute", "aria-pressed", boolString(composerFormatVisible(m, local)))
+	}
+}
+
 // openComposerAddMenu returns the open Add menu, or an undefined value.
 func openComposerAddMenu() js.Value {
 	doc := js.Global().Get("document")

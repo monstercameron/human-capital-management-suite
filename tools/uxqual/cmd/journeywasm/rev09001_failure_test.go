@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -13,7 +14,12 @@ import (
 	"testing"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	commonv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
+	documentv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/document/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
+	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/productclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // REV-090-01: a genuine route read failure in the live product router renders
@@ -121,6 +127,62 @@ func TestTodo_REV_090_01_Fault(t *testing.T) {
 		if strings.Count(shell, `role="alert"`) < 1 || !strings.Contains(shell, `id="main-content"`) {
 			t.Fatalf("%s: failed region is not announced inside the kept shell", page)
 		}
+	}
+}
+
+func TestDocsFailureUsesRegionOnlyForTypedListFailureAndKeepsSignedOutFirst(t *testing.T) {
+	view := productui.NewView(productui.PageDocs, "Tenant", "Principal", "Scope")
+	view.DocumentsLoadFailed = true
+	failed, region := productRouteFailure(view, productui.PageDocs, errors.New("list documents: temporary network failure"))
+	if !region || failed.LoadError != "" {
+		t.Fatalf("Docs transient failure = region %v LoadError %q", region, failed.LoadError)
+	}
+	markup := rev09001Render(t, productRouteContent(failed, region))
+	if strings.Contains(markup, "Not set up for this workspace") || !strings.Contains(markup, `class="async-region-failure`) {
+		t.Fatalf("Docs failure content did not retain the single failure state:\n%s", markup)
+	}
+
+	view.SignedOut = productui.UnauthenticatedRecovery()
+	failed, region = productRouteFailure(view, productui.PageDocs, errors.New("list documents: permission denied"))
+	markup = rev09001Render(t, productui.BuildShell(failed, productRouteContent(failed, region), false))
+	if region || !strings.Contains(markup, "Sign in") || strings.Contains(markup, `class="async-region-failure`) {
+		t.Fatalf("signed-out Docs state was downgraded to a data failure:\n%s", markup)
+	}
+}
+
+func TestDocsLoadFailureAdapterUsesRealClientClassification(t *testing.T) {
+	session := productclient.Session{Tenant: "Tenant", Principal: "Principal", Scope: "Scope"}
+	state := productclient.State{Page: productui.PageDocs, Request: productui.PageRequest{Page: productui.PageDocs}}
+	baseline := productclient.LoadingView(session, productclient.State{Page: productui.PageHome, Request: productui.PageRequest{Page: productui.PageHome}})
+	transient, err := productclient.LoadWithBaseline(context.Background(), productclient.Service{
+		ListDocuments: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, status.Error(codes.Unavailable, "temporary network failure")
+		},
+	}, session, state, baseline)
+	if err == nil {
+		t.Fatal("transient ListDocuments failure returned no load error")
+	}
+	failed, region := productRouteFailure(transient, productui.PageDocs, err)
+	if !region || failed.LoadError != "" {
+		t.Fatalf("real transient client result mapped to region=%v LoadError=%q", region, failed.LoadError)
+	}
+
+	unconfiguredStatus, detailErr := status.New(codes.Unavailable, "not configured").WithDetails(&commonv1.ErrorDetail{ReasonRef: "document.service.not_configured"})
+	if detailErr != nil {
+		t.Fatal(detailErr)
+	}
+	unconfigured, err := productclient.LoadWithBaseline(context.Background(), productclient.Service{
+		ListDocuments: func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+			return nil, unconfiguredStatus.Err()
+		},
+	}, session, state, baseline)
+	if err != nil || unconfigured.DocumentsLoadFailed || unconfigured.DocumentsReady {
+		t.Fatalf("typed absent capability = failed %v, ready %v, err %v", unconfigured.DocumentsLoadFailed, unconfigured.DocumentsReady, err)
+	}
+	resolved, region := productRouteFailure(unconfigured, productui.PageDocs, err)
+	markup := rev09001Render(t, productui.BuildShell(resolved, productRouteContent(resolved, region), false))
+	if region || !strings.Contains(markup, "Not set up for this workspace") || strings.Contains(markup, "Live data unavailable") {
+		t.Fatalf("typed absent capability became a retry failure:\n%s", markup)
 	}
 }
 

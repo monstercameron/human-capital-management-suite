@@ -32,10 +32,10 @@ func (s *TenantStore) RetireActiveInstallation(ctx context.Context, personaID, c
 	}
 	var policyJSON []byte
 	err = tx.QueryRow(ctx, `UPDATE persona_installations
-		SET state='RETIRED',suspension_reason=$4,revision=revision+1,revocation_epoch=revocation_epoch+1,updated_at=now()
+		SET state='RETIRED',suspension_reason=$4,revision=revision+1,revocation_epoch=revocation_epoch+1,updated_at=now(),retired_by=$5,retired_at=now()
 		WHERE tenant_id=$1 AND installation_id=$2 AND revision=$3 AND state='ACTIVE'
 		RETURNING installation_id,persona_id,persona_version,conversation_id,conversation_class,installer_id,channel_policy,state,suspension_reason,revision,revocation_epoch,created_at,updated_at`,
-		s.tenantID, current.InstallationID, current.Revision, reason).Scan(&current.InstallationID, &current.PersonaID, &current.PersonaVersion, &current.ConversationID, &current.ConversationClass, &current.InstallerID, &policyJSON, &current.State, &current.SuspensionReason, &current.Revision, &current.RevocationEpoch, &current.CreatedAt, &current.UpdatedAt)
+		s.tenantID, current.InstallationID, current.Revision, reason, actor).Scan(&current.InstallationID, &current.PersonaID, &current.PersonaVersion, &current.ConversationID, &current.ConversationClass, &current.InstallerID, &policyJSON, &current.State, &current.SuspensionReason, &current.Revision, &current.RevocationEpoch, &current.CreatedAt, &current.UpdatedAt)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return PersonaInstallation{}, false, fmt.Errorf("%w: installation changed", ErrConflict)
 	}

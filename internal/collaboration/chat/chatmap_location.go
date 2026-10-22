@@ -39,6 +39,7 @@ type LocationPlace struct {
 	CapturedAt             time.Time
 	Precision              string
 	ApproximateRadius      float64
+	_                      incomparable
 }
 type LocationShare struct {
 	Version                                                        int
@@ -59,6 +60,7 @@ type LocationShare struct {
 	EndedAt      *time.Time
 	EndedReason  string
 	Paused       bool
+	_            incomparable
 }
 type LocationKey struct{ TenantID, ConversationID, PostID, ID string }
 type AttachLocationRequest struct {
@@ -109,6 +111,7 @@ func (s *LocationService) SharingNow(ctx context.Context, p Principal, tenant, c
 type LocationSite struct {
 	ID, Label, Address string
 	Position           LocationPosition
+	_                  incomparable
 }
 type LocationSitePort interface {
 	ReadLocationSite(context.Context, Principal, string) (LocationSite, error)

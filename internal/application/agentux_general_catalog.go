@@ -61,7 +61,7 @@ func (r personaAdminCatalogInstallations) ListPersonaCatalogInstallationStates(c
 			if !ok || !valid || len(in.ChannelPolicy.AllowedDataClasses) == 0 {
 				continue
 			}
-			out = append(out, PersonaCatalogInstallation{ID: in.ID, PersonaID: in.PersonaID, PersonaVersion: uint32(in.PersonaVersion), ConversationID: in.ConversationID, State: in.State, SuspensionReason: in.SuspensionReason, Active: in.State == string(agentpersonastore.InstallationActive), ChannelClass: string(channel), ConversationKind: string(kind), MaxTier: tier, AllowedDataClasses: append([]string(nil), in.ChannelPolicy.AllowedDataClasses...)})
+			out = append(out, PersonaCatalogInstallation{ID: in.ID, PersonaID: in.PersonaID, PersonaVersion: uint32(in.PersonaVersion), ConversationID: in.ConversationID, State: in.State, SuspensionReason: in.SuspensionReason, RemovedBy: in.RemovedBy, RemovedAt: in.RemovedAt, Active: in.State == string(agentpersonastore.InstallationActive), ChannelClass: string(channel), ConversationKind: string(kind), MaxTier: tier, AllowedDataClasses: append([]string(nil), in.ChannelPolicy.AllowedDataClasses...)})
 		}
 	}
 	return out, nil

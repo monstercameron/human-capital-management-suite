@@ -122,6 +122,7 @@ type docsMediaWire struct {
 	Width      int    `json:"width"`
 	Height     int    `json:"height"`
 	Pages      int    `json:"pages"`
+	_          incomparable
 }
 
 func (w docsMediaWire) attachment() productui.DocumentAttachment {

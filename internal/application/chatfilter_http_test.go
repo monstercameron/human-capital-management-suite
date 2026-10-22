@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
@@ -164,13 +163,12 @@ func TestTodo_CHATMOD_003_Authority(t *testing.T) {
 func TestTodo_CHATMOD_003_Browser(t *testing.T) {
 	service := &chatfilter.Service{Store: &chatfilterHTTPStore{}, Registry: chatfilter.NewRegistry(), Authority: chatfilterHTTPAuthority{}}
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
-		node, err := RenderChatFilterPanel(filterHTTPContext(t), service, chatfilter.Actor{Tenant: "tenant-a", Subject: "admin"}, chatui.Model{Locale: locale})
+		markup, err := RenderChatFilterPanel(filterHTTPContext(t), service, chatfilter.Actor{Tenant: "tenant-a", Subject: "admin"}, chatui.Model{Locale: locale})
 		if err != nil {
 			t.Fatal(err)
 		}
-		markup, err := ui.RenderToString(node)
-		if err != nil || !strings.Contains(markup, "chatfilter-panel") {
-			t.Fatal("SSR page absent", err)
+		if !strings.Contains(markup, "chatfilter-panel") {
+			t.Fatal("SSR page absent")
 		}
 	}
 	service.Authority = chatfilterHTTPAuthority{denied: true}

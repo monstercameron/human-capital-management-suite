@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -138,8 +139,13 @@ func (a *PersonaPublicAudienceAuthority) ResolvePersonaAdminPlacement(ctx contex
 		return PersonaAdminPlacementFacts{}, ErrPersonaAdminLifecycleUnavailable
 	}
 	snapshot, err := a.Store.CapturePersonaChannelPolicy(ctx, actor.Tenant.String(), conversationID, actor.Subject)
-	if err != nil || snapshot.TenantID != actor.Tenant.String() || snapshot.ConversationID != conversationID || snapshot.Revision == 0 || snapshot.PolicyRevision <= 0 || snapshot.ManagerID != actor.Subject {
-		return PersonaAdminPlacementFacts{}, ErrPersonaAdminLifecycleUnavailable
+	if err != nil {
+		// The reason names what is missing: the installer is not a manager of the
+		// conversation, or the conversation has no persona channel policy yet.
+		return PersonaAdminPlacementFacts{}, fmt.Errorf("%w: conversation %s cannot be placed into by %s (it needs the installer as an active manager and a persona channel policy): %v", ErrPersonaAdminLifecycleUnavailable, conversationID, actor.Subject, err)
+	}
+	if snapshot.TenantID != actor.Tenant.String() || snapshot.ConversationID != conversationID || snapshot.Revision == 0 || snapshot.PolicyRevision <= 0 || snapshot.ManagerID != actor.Subject {
+		return PersonaAdminPlacementFacts{}, fmt.Errorf("%w: conversation %s has an incomplete channel policy snapshot", ErrPersonaAdminLifecycleUnavailable, conversationID)
 	}
 	var class agentpersonastore.ConversationClass
 	switch snapshot.Kind {

@@ -19,7 +19,7 @@ func agentp019Version(locale string, persona ResolvedPersonaMention, always bool
 	if !always && strings.TrimSpace(persona.Version) == "" {
 		return nil
 	}
-	return html.P(html.Props{Class: "mention-profile-version"}, html.Strong(html.Props{Text: personaMentionText(locale, "version") + ": "}), ui.Text(personaProfileFact(persona.Version, locale)))
+	return html.P(html.Props{Class: "mention-profile-version"}, html.Strong(html.Props{Text: personaMentionText(locale, "version") + ": "}), chatux043Fact(locale, personaProfileFact(persona.Version, locale)))
 }
 
 // agentp019Access is the line that says the agent works with the asker's own

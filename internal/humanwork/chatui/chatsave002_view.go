@@ -200,7 +200,7 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	}
 
 	if row.Done {
-		when := SavedDoneLabel(loc, row.DoneAt, now)
+		when := chatux040DoneWhen(loc, SavedDoneLabel(loc, row.DoneAt, now))
 		text := copy.Done
 		if when != "" {
 			text = chatsave002Text(loc, "done_on", "when", when)
@@ -338,14 +338,27 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 		if selected {
 			segment.TabIndex = html.TabIndexZero
 		}
+		// CHATUX-040: a count of All that is more than To do plus Done says why.
+		if note := chatux040AllNote(loc, todo, done, all); entry.key == "all" && note != "" && !view.Loading {
+			segment.Title = note
+		}
+		// CHATUX-037: a count that has not been read is not shown as "0".
+		if view.Loading {
+			segments = append(segments, html.Button(segment, html.Span(html.Props{Text: entry.label})))
+			continue
+		}
 		segments = append(segments, html.Button(segment, html.Span(html.Props{Text: entry.label}), html.Span(html.Props{Class: "chatsave-seg-count", Text: chatsave002Num(loc, entry.count)})))
+	}
+	todoCount := SavedTodoCountText(loc, todo)
+	if view.Loading {
+		todoCount = ""
 	}
 	top := []ui.Node{
 		// The panel's heading is the one the thread and details panels use: the
 		// title and the close icon, in a heading row of the same height. On a
 		// phone the panel is a page, and the same close control is its Back.
 		// CHATUX-032: the shared panel header, the count on the title's line.
-		chatux032Header(chatux032HeaderProps{Class: "chatsave-header", Title: copy.Saved, Subtitle: SavedTodoCountText(loc, todo), SubtitleData: map[string]string{"saved-todo-count": "true"},
+		chatux032Header(chatux032HeaderProps{Class: "chatsave-header", Title: copy.Saved, Subtitle: todoCount, SubtitleData: map[string]string{"saved-todo-count": "true"},
 			Leading: []ui.Node{html.Button(html.Props{Class: "icon-button chatsave-back", Type: "button", Title: chatsave002Text(loc, "back"), Data: map[string]string{"saved-action": "close"}, Aria: map[string]string{"label": chatsave002Text(loc, "back")}}, icon("arrow-left"))},
 			Close:   chatux032CloseButton(copy.Close, false, map[string]string{"saved-action": "close"}, "")}),
 		html.Div(html.Props{Class: "chatsave-seg", Role: "tablist", Aria: map[string]string{"label": chatsave002Text(loc, "segments")}}, segments...),
@@ -380,6 +393,10 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 	nodes = append(nodes, html.P(html.Props{ID: "chatsave-status", Class: statusClass, Role: "status", Text: status, Aria: map[string]string{"live": "polite"}, Data: map[string]string{"saved-status": "true"}}))
 	if view.Error != "" {
 		nodes = append(nodes, chatsave002Button("button secondary small chatsave-retry", copy.Retry, "retry"))
+	}
+	// CHATUX-040: on All, the saved messages that only All holds are named.
+	if note := chatux040AllNote(loc, todo, done, all); tab == "all" && note != "" && !view.Loading && view.Error == "" {
+		nodes = append(nodes, html.P(html.Props{Class: "chatsave-all-note", Data: map[string]string{"saved-all-note": "true"}, Text: note}))
 	}
 
 	var panel []ui.Node

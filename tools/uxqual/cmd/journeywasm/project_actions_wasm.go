@@ -190,6 +190,7 @@ type projectMoveRequest struct {
 	LaneField string
 	// Action names the control whose focus is restored after a rollback.
 	Action string
+	_      incomparable
 }
 
 var projectPendingTargets = map[string]projectMoveTarget{}

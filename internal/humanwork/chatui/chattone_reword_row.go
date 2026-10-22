@@ -1,12 +1,14 @@
 package chatui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
 // ChattoneRewordSetting is what applies to a conversation: the administrator's
-// "Reword heated messages" and "Members may view messages as written".
+// "Reword heated messages" and "Members may read messages as written".
 type ChattoneRewordSetting struct {
 	Mode                   string `json:"mode"`
 	MembersMayViewOriginal bool   `json:"members_may_view_original"`
@@ -50,29 +52,77 @@ var (
 	chattoneRewordTones = [2]string{"as-written", "reworded"}
 )
 
+// chattoneRewordPressed is one choice of a segmented control: the page's own
+// segmented button (the one Saved and Moderation use), pressed when it is the
+// current value.
 func chattoneRewordPressed(label string, pressed bool, on ui.Handler, disabled bool) ui.Node {
-	return html.Button(html.Props{Type: "button", Class: "button secondary chattone-reword-choice", Text: label, OnClick: on, Disabled: disabled || on.Value() == nil,
+	return html.Button(html.Props{Type: "button", Class: "chatsave-seg-button chattone-reword-choice", Text: label, OnClick: on, Disabled: disabled || on.Value() == nil,
 		Aria: map[string]string{"pressed": boolString(pressed)}})
 }
 
-func chattoneRewordGroup(id, label string, children ...ui.Node) ui.Node {
-	return html.Div(html.Props{ID: id, Class: "chattone-reword-group", Role: "group", Aria: map[string]string{"label": label}}, children...)
+// chattoneRewordGroup is a segmented control named by the visible label of its
+// row, so a screen reader hears the same question the page shows.
+func chattoneRewordGroup(id, labelID, helpID string, children ...ui.Node) ui.Node {
+	aria := map[string]string{"labelledby": labelID}
+	if helpID != "" {
+		aria["describedby"] = helpID
+	}
+	return html.Div(html.Props{ID: id, Class: "chatsave-seg chattone-reword-seg", Role: "group", Aria: aria}, children...)
 }
 
+// chattoneRewordSwitch is the row-end switch of a yes-or-no setting: the track
+// the channel filters use, on a button, so the page's state alone decides how it
+// reads and a failed save leaves it where it was.
+func chattoneRewordSwitch(id, labelID, helpID string, on bool, press ui.Handler, disabled bool) ui.Node {
+	return html.Button(html.Props{ID: id, Type: "button", Role: "switch", Class: "chatmod-switch chattone-reword-switch", OnClick: press, Disabled: disabled || press.Value() == nil,
+		Aria: map[string]string{"checked": boolString(on), "labelledby": labelID, "describedby": helpID}},
+		html.Span(html.Props{Class: "chatmod-switch-track", Aria: map[string]string{"hidden": "true"}}))
+}
+
+// chattoneRewordRow is one setting of the reword block, drawn as the rows above
+// it in Chat preferences are: the label first, its control at the end of the row
+// (when it has one that fits there), the saved tick in the slot after it, one
+// line of help under the label, and a segmented control under that when the
+// choice has more than two values. saved is the key of the row that was just
+// saved, "" when none was.
+func chattoneRewordRow(locale, key, label, help, saved string, end ui.Node, below ...ui.Node) ui.Node {
+	head := []ui.Node{html.Span(html.Props{ID: chattoneRewordLabelID(key), Class: "chat-prefs-title", Dir: "auto", Text: label})}
+	if end != nil {
+		head = append(head, end)
+	}
+	// The slot is always drawn, so the control does not move when the tick comes.
+	var tick []ui.Node
+	if saved == key {
+		tick = append(tick, html.Span(html.Props{Class: "chatux031-tick", Text: "✓"}))
+	}
+	head = append(head, html.Span(html.Props{Class: "chatux031-end", Aria: map[string]string{"hidden": "true"}}, tick...))
+	nodes := []ui.Node{html.Div(html.Props{Class: "chat-prefs-head chattone-reword-head"}, head...)}
+	if help != "" {
+		nodes = append(nodes, html.P(html.Props{ID: chattoneRewordHelpID(key), Class: "chattone-reword-help", Dir: agentReplyDirection(locale), Text: help}))
+	}
+	nodes = append(nodes, below...)
+	return html.Div(html.Props{Class: "chattone-reword-row", Dir: agentReplyDirection(locale), Data: map[string]string{"reword-row": key}}, nodes...)
+}
+
+func chattoneRewordLabelID(row string) string { return "chattone-reword-" + row + "-label" }
+func chattoneRewordHelpID(row string) string  { return "chattone-reword-" + row + "-help" }
+
 // RenderChattoneRewordRow draws the row from what the server said. status is
-// "", "saved" or "failed"; busy keeps the choices from being pressed twice.
+// "", "saved", "saved:<row>" (the row whose choice was just saved) or "failed";
+// busy keeps the choices from being pressed twice.
 func RenderChattoneRewordRow(locale string, v ChattoneRewordState, status string, busy bool, h chattoneRewordHandlers) ui.Node {
 	if !chattoneRewordVisible(v) {
 		return nil
 	}
 	t := func(key string) string { return ChattoneRewordText(locale, key) }
+	state, saved, _ := strings.Cut(status, ":")
 	children := []ui.Node{}
 	if !v.ChoiceAllowed && !v.CanAdmin && v.Channel.Mode != "off" {
 		children = append(children, html.P(html.Props{Class: "chattone-reword-note", Dir: agentReplyDirection(locale), Text: t("forced")}))
 	}
 	if v.ChoiceAllowed {
 		general, channel := v.General, v.ForChannel
-		pick := func(group string, current string, handlers []ui.Handler) []ui.Node {
+		pick := func(current string, handlers []ui.Handler) []ui.Node {
 			out := []ui.Node{}
 			for i, tone := range chattoneRewordTones {
 				label := t("written")
@@ -84,13 +134,16 @@ func RenderChattoneRewordRow(locale string, v ChattoneRewordState, status string
 			return out
 		}
 		children = append(children,
-			html.P(html.Props{Class: "chattone-reword-help", Dir: agentReplyDirection(locale), Text: t("show_help")}),
-			chattoneRewordGroup("chattone-reword-general", t("everywhere"), pick("general", general, h.PersonGeneral[:])...),
-			chattoneRewordGroup("chattone-reword-channel", t("here"), append(pick("channel", channel, h.PersonChannel[:2]),
-				html.Button(html.Props{Type: "button", Class: "button secondary chattone-reword-choice", Text: t("general"), OnClick: h.PersonChannel[2], Disabled: busy || channel == "" || h.PersonChannel[2].Value() == nil}))...))
+			html.P(html.Props{Class: "chattone-reword-help chattone-reword-intro", Dir: agentReplyDirection(locale), Text: t("show_help")}),
+			chattoneRewordRow(locale, "general", t("everywhere"), "", saved, nil,
+				chattoneRewordGroup("chattone-reword-general", chattoneRewordLabelID("general"), "", pick(general, h.PersonGeneral[:])...)),
+			chattoneRewordRow(locale, "channel", t("here"), "", saved, nil,
+				chattoneRewordGroup("chattone-reword-channel", chattoneRewordLabelID("channel"), "", append(pick(channel, h.PersonChannel[:2]),
+					html.Button(html.Props{Type: "button", Class: "chatsave-seg-button chattone-reword-choice", Text: t("general"), OnClick: h.PersonChannel[2], Disabled: busy || channel == "" || h.PersonChannel[2].Value() == nil}))...)))
 	}
 	if v.CanAdmin {
 		scope := func(id, title string, s ChattoneRewordSetting, mode [3]ui.Handler, view [2]ui.Handler, extra ...ui.Node) ui.Node {
+			modeKey, viewKey := id+"-mode", id+"-view"
 			modeButtons := []ui.Node{}
 			for i, m := range chattoneRewordModes {
 				modeButtons = append(modeButtons, chattoneRewordPressed(t(m), s.Mode == m, mode[i], busy))
@@ -99,32 +152,38 @@ func RenderChattoneRewordRow(locale string, v ChattoneRewordState, status string
 			if !s.MembersMayViewOriginal {
 				viewHelp = "no_help"
 			}
-			viewButtons := []ui.Node{chattoneRewordPressed(t("yes"), s.MembersMayViewOriginal, view[0], busy), chattoneRewordPressed(t("no"), !s.MembersMayViewOriginal, view[1], busy)}
+			// One press flips the switch: it asks for the other answer.
+			press := view[1]
+			if !s.MembersMayViewOriginal {
+				press = view[0]
+			}
 			body := []ui.Node{
-				html.H4(html.Props{Class: "chattone-reword-scope", Text: title}),
-				chattoneRewordGroup(id+"-mode", t("mode"), modeButtons...),
-				html.P(html.Props{Class: "chattone-reword-help", Dir: agentReplyDirection(locale), Text: t(s.Mode + "_help")}),
-				chattoneRewordGroup(id+"-view", t("view"), viewButtons...),
-				html.P(html.Props{Class: "chattone-reword-help", Dir: agentReplyDirection(locale), Text: t(viewHelp)}),
+				html.H5(html.Props{Class: "chattone-reword-scope", Dir: "auto", Text: title}),
+				chattoneRewordRow(locale, modeKey, t("mode"), t(s.Mode+"_help"), saved, nil,
+					chattoneRewordGroup(modeKey, chattoneRewordLabelID(modeKey), chattoneRewordHelpID(modeKey), modeButtons...)),
+				chattoneRewordRow(locale, viewKey, t("view"), t(viewHelp), saved,
+					chattoneRewordSwitch(viewKey, chattoneRewordLabelID(viewKey), chattoneRewordHelpID(viewKey), s.MembersMayViewOriginal, press, busy)),
 			}
 			return html.Div(html.Props{Class: "chattone-reword-admin-scope", Data: map[string]string{"scope": id}}, append(body, extra...)...)
 		}
 		clear := []ui.Node{}
 		if v.Channel.Override {
-			clear = append(clear, html.P(html.Props{Class: "chattone-reword-help", Text: t("override")}),
-				html.Button(html.Props{Type: "button", Class: "button secondary chattone-reword-choice", Text: t("inherit"), OnClick: h.ChannelClear, Disabled: busy || h.ChannelClear.Value() == nil}))
+			clear = append(clear, html.Div(html.Props{Class: "chattone-reword-override"},
+				html.P(html.Props{Class: "chattone-reword-help", Dir: agentReplyDirection(locale), Text: t("override")}),
+				html.Button(html.Props{Type: "button", Class: "button secondary small chattone-reword-inherit", Text: t("inherit"), OnClick: h.ChannelClear, Disabled: busy || h.ChannelClear.Value() == nil})))
 		}
 		children = append(children,
-			html.H4(html.Props{Class: "chattone-reword-admin", Text: t("admin")}),
+			html.H4(html.Props{Class: "chattone-reword-admin", Dir: "auto", Text: t("admin")}),
 			scope("workspace", t("workspace"), v.Workspace, h.WorkspaceMode, h.WorkspaceView),
 			scope("channel", t("channel"), v.Channel, h.ChannelMode, h.ChannelView, clear...))
 	}
-	switch status {
+	switch state {
 	case "saved":
-		children = append(children, html.P(html.Props{Class: "chattone-reword-status", Role: "status", Text: t("saved")}))
+		// The row's own tick shows the save; this line is for a screen reader.
+		children = append(children, html.P(html.Props{Class: "chattone-reword-status", Role: "status", Data: map[string]string{"state": "saved"}, Text: t("saved")}))
 	case "failed":
-		children = append(children, html.P(html.Props{Class: "chattone-reword-status", Role: "alert", Text: t("failed")}),
-			html.Button(html.Props{Type: "button", Class: "button secondary", Text: t("retry"), OnClick: h.Retry, Disabled: h.Retry.Value() == nil}))
+		children = append(children, html.P(html.Props{Class: "chattone-reword-status", Role: "alert", Data: map[string]string{"state": "error"}, Text: t("failed")}),
+			html.Button(html.Props{Type: "button", Class: "button secondary small chattone-reword-retry", Text: t("retry"), OnClick: h.Retry, Disabled: h.Retry.Value() == nil}))
 	default:
 		children = append(children, html.P(html.Props{Class: "chattone-reword-status", Role: "status", Hidden: true}))
 	}
@@ -135,8 +194,9 @@ func RenderChattoneRewordRow(locale string, v ChattoneRewordState, status string
 	return chatux002Row("heated-messages", t("title"), value, nil, html.Div(html.Props{Class: "chattone-reword", Dir: agentReplyDirection(locale)}, children...))
 }
 
-// ChattoneRewordStyles is the row's own rules; the buttons are the page's.
-const ChattoneRewordStyles = `.chattone-reword{display:flex;flex-direction:column;gap:8px;min-width:0}.chattone-reword-group{display:flex;flex-wrap:wrap;gap:6px}.chattone-reword-choice{min-height:44px;min-width:44px;max-width:100%;overflow-wrap:anywhere}.chattone-reword-choice[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.chattone-reword-help,.chattone-reword-note{margin:0;font-size:.8125rem;color:var(--hcm-color-text-muted);overflow-wrap:anywhere}.chattone-reword-admin,.chattone-reword-scope{margin:8px 0 0;font-size:.9rem}.chattone-reword-status[hidden]{display:none}`
+// ChattoneRewordStyles is the row's base rule; how the rows are laid out is
+// ChatUX048Styles, which comes after the preferences styles it builds on.
+const ChattoneRewordStyles = `.chattone-reword{min-width:0}`
 
 type chattoneRewordProps struct{ Locale, Conversation string }
 
@@ -166,7 +226,9 @@ func chattoneRewordComponent(p chattoneRewordProps) ui.Node {
 			})
 		})
 	}, struct{ Room string }{p.Conversation})
-	send := func(path string, body map[string]any) {
+	// send saves one choice; row names the row it belongs to, so the tick appears
+	// beside the choice that was saved.
+	send := func(row, path string, body map[string]any) {
 		current := state.Get()
 		if current.Busy {
 			return
@@ -182,7 +244,7 @@ func chattoneRewordComponent(p chattoneRewordProps) ui.Node {
 					// The last good answer stays; the person is told and may try again.
 					next.Status = "failed"
 				} else {
-					next.View, next.Status = view, "saved"
+					next.View, next.Status = view, "saved:"+row
 				}
 				state.Set(next)
 			})
@@ -191,37 +253,37 @@ func chattoneRewordComponent(p chattoneRewordProps) ui.Node {
 	var h chattoneRewordHandlers
 	for i, tone := range chattoneRewordTones {
 		tone := tone
-		h.PersonGeneral[i] = ui.UseEvent(func() { send("/reword/choice", map[string]any{"scope": "general", "tone": tone}) })
+		h.PersonGeneral[i] = ui.UseEvent(func() { send("general", "/reword/choice", map[string]any{"scope": "general", "tone": tone}) })
 	}
 	for i := 0; i < 3; i++ {
 		i := i
 		if i < 2 {
 			tone := chattoneRewordTones[i]
-			h.PersonChannel[i] = ui.UseEvent(func() { send("/reword/choice", map[string]any{"scope": "channel", "tone": tone}) })
+			h.PersonChannel[i] = ui.UseEvent(func() { send("channel", "/reword/choice", map[string]any{"scope": "channel", "tone": tone}) })
 		} else {
-			h.PersonChannel[i] = ui.UseEvent(func() { send("/reword/choice", map[string]any{"scope": "channel", "clear": true}) })
+			h.PersonChannel[i] = ui.UseEvent(func() { send("channel", "/reword/choice", map[string]any{"scope": "channel", "clear": true}) })
 		}
 	}
-	admin := func(scope string, mode string, view bool) {
-		send("/reword/admin", map[string]any{"scope": scope, "mode": mode, "members_may_view_original": view})
+	admin := func(scope, row string, mode string, view bool) {
+		send(scope+"-"+row, "/reword/admin", map[string]any{"scope": scope, "mode": mode, "members_may_view_original": view})
 	}
 	for i, mode := range chattoneRewordModes {
 		mode := mode
-		h.WorkspaceMode[i] = ui.UseEvent(func() { admin("workspace", mode, state.Get().View.Workspace.MembersMayViewOriginal) })
+		h.WorkspaceMode[i] = ui.UseEvent(func() { admin("workspace", "mode", mode, state.Get().View.Workspace.MembersMayViewOriginal) })
 	}
 	for i := 0; i < 2; i++ {
 		view := i == 0
-		h.WorkspaceView[i] = ui.UseEvent(func() { admin("workspace", state.Get().View.Workspace.Mode, view) })
+		h.WorkspaceView[i] = ui.UseEvent(func() { admin("workspace", "view", state.Get().View.Workspace.Mode, view) })
 	}
 	for i, mode := range chattoneRewordModes {
 		mode := mode
-		h.ChannelMode[i] = ui.UseEvent(func() { admin("channel", mode, state.Get().View.Channel.MembersMayViewOriginal) })
+		h.ChannelMode[i] = ui.UseEvent(func() { admin("channel", "mode", mode, state.Get().View.Channel.MembersMayViewOriginal) })
 	}
 	for i := 0; i < 2; i++ {
 		view := i == 0
-		h.ChannelView[i] = ui.UseEvent(func() { admin("channel", state.Get().View.Channel.Mode, view) })
+		h.ChannelView[i] = ui.UseEvent(func() { admin("channel", "view", state.Get().View.Channel.Mode, view) })
 	}
-	h.ChannelClear = ui.UseEvent(func() { send("/reword/admin", map[string]any{"scope": "channel", "clear": true}) })
+	h.ChannelClear = ui.UseEvent(func() { send("channel-mode", "/reword/admin", map[string]any{"scope": "channel", "clear": true}) })
 	h.Retry = ui.UseEvent(func() {
 		current := state.Get()
 		current.Status = ""

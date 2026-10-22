@@ -19,25 +19,30 @@ type Command struct {
 	Date             string `json:"date,omitempty"`
 	Clock            string `json:"clock,omitempty"`
 	ExpectedRevision uint64 `json:"expected_revision"`
+	_                incomparable
 }
 type GrantCommand struct {
 	Conversation    string `json:"conversation"`
 	Agent           string `json:"agent"`
 	Enabled         bool   `json:"enabled"`
 	AutomaticPublic bool   `json:"automatic_public"`
+	_               incomparable
 }
 type OptOutCommand struct {
 	Conversation string `json:"conversation"`
 	OptOut       bool   `json:"opt_out"`
+	_            incomparable
 }
 type Grant struct {
 	Agent                            string
 	Enabled, AutomaticPublic, Paused bool
+	_                                incomparable
 }
 type Task struct {
 	ID, Title, Conversation, Source string
 	Completed                       bool
 	Due                             string
+	_                               incomparable
 }
 type Snapshot struct {
 	Cards  []chatui.AgentUXAmbientCard `json:"cards"`

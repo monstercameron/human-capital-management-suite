@@ -14,6 +14,7 @@ type MapTheme struct {
 	Locale                string
 	PanX, PanY            int
 	Surface, Text, Accent string
+	_                     incomparable
 }
 type MapPicture struct {
 	Image       []byte

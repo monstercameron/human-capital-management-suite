@@ -11,7 +11,8 @@ template:
     skill_registry_ref: AGENT2-004
     copy_on_install: TENANT_OWNED_DRAFT
     immutable_after_publish: true
-    material_change_requires_new_version: [SKILLS, TIER_CEILING, AUDIENCE, CHANNEL_CLASSES]
+    material_change_requires_new_version:
+      [SKILLS, TIER_CEILING, AUDIENCE, CHANNEL_CLASSES]
 persona:
   id: hcmnext.persona.comp_analyst
   version: 1

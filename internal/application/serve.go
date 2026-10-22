@@ -853,6 +853,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if chatRuntime.extensions != nil && chatRuntime.extensions.TodoStore != nil {
 		personaAudience = NewPersonaPublicAudienceAuthority(chatRuntime.extensions.TodoStore)
 	}
+	bindChatIdentities(chatRuntime.service, cell.Journey, agentDatabase.personas, options.Now)
 	if personaWiring != nil && chatRuntime.service != nil {
 		if bindErr := personaWiring.bindChat(chatRuntime.service); bindErr != nil {
 			logger.Error("hcmnext.persona_catalog_unavailable", "stage", personaServeWiringStage(bindErr))
@@ -1136,7 +1137,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// composed over a qualified model (or, in the local development profile only,
 	// the deterministic test engine); every workspace stays off until its
 	// administrator turns it on.
-	chatlangRuntime, chatlangReason, chatlangErr := composeServedChatlang(ctx, chatlangServeInput{Config: cfg, Runtime: platformAgentRuntime, Chat: chatRuntime, Now: options.Now, Tenants: cfg.ServedTenants()})
+	chatlangRuntime, chatlangReason, chatlangErr := composeServedChatlang(ctx, chatlangServeInput{Config: cfg, Runtime: platformAgentRuntime, Chat: chatRuntime, Now: options.Now, Tenants: cfg.ServedTenants(), Reworder: chatlangReworderOf(in.WritingStyles)})
 	logChatlangComposition(logger, chatlangRuntime, chatlangReason, chatlangErr)
 	// CHATVOICE: voice messages, their transcripts and Listen, over OpenAI through
 	// the model gateway's key and the channel's outside-service switch. A missing
@@ -1397,6 +1398,16 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	if err := agentServices.BindAgentUX(chatRuntime.store, chatRuntime.extensions, agentDatabase.store, options.Now); err != nil {
 		return nil, fmt.Errorf("bind served ambient agents: %w", err)
+	}
+	// AGENTUX-066, -067, -068: "Set reminder" on the announcement scheduler, the
+	// consumer of real messages (idle until a screen model is configured) and the
+	// agents' share of the tenant loop.
+	if err := agentServices.BindAgentUXAmbientServed(chatRuntime.store, chatRuntime.extensions, chatRuntime.service, agentDatabase.store, agentDatabase.personas, in.Pool, options.Now); err != nil {
+		return nil, fmt.Errorf("bind served ambient reminders: %w", err)
+	}
+	// AGENTUX-054: the owner's "Simulate a customer email", local development only.
+	if err := agentServices.BindAgentUXSupportDesk(cfg.Profile, agentDatabase.store, chatRuntime.store, nil, nil, options.Now); err != nil {
+		return nil, fmt.Errorf("bind support desk: %w", err)
 	}
 	edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
 	edgeHandler = OverlayChatVoiceFeatures(edgeHandler, in.Voice, cell.Config)

@@ -176,6 +176,9 @@ func projectPersonaPostFailure(out *personachat.Invocation, failure agentinvocat
 	if failure.Code == "ADMISSION_REFUSED" {
 		out.FailureMessage = "This persona is unavailable for this request with your current access."
 	}
+	if failure.Code == agentinvocationstore.MentionLimitCode && !failure.RetryAt.IsZero() {
+		out.RetryAt, out.MentionsAsked = failure.RetryAt.UTC().Format(time.RFC3339), failure.MentionsAsked
+	}
 }
 
 func projectPersonaSurfaceRun(out *personachat.Invocation, run runstate.Run) {

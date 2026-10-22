@@ -129,6 +129,14 @@ type Message struct {
 	// incomplete value is rendered as unavailable; display names never infer it.
 	PersonaActor      *PersonaActor
 	PersonaReferences []ChatReference
+	// AuthorAgent is set when the answer that carried this message said its
+	// author is an agent, with the agent's own name already in Author and its
+	// stored icon (CHATUX-047). It names; it never attests: the Agent badge still
+	// comes from PersonaActor alone.
+	AuthorAgent *AuthorAgent
+	// Audience is who a message addressed to segments of the channel's gate is
+	// for (CHATGATE-014); nil for a message for everyone.
+	Audience *MessageAudience
 }
 
 // ChannelPin is an authorized pin projection, independent of the timeline page.
@@ -452,7 +460,8 @@ type Model struct {
 	// (CHATEMOJI-004); "" before they have any or before the read has landed.
 	EmojiPrefs string
 	// ComposerFormatRow is the viewer's saved choice for the formatting row:
-	// "shown", "hidden", or "" for the default (shown from 800 px up).
+	// "shown", "hidden", or "" for automatic visibility (shown from 800 px up
+	// once the draft has content; an empty draft keeps the composer compact).
 	ComposerFormatRow string
 
 	ReaderRenderings     map[string]ReaderRendering
@@ -610,6 +619,8 @@ type Model struct {
 	Draft                     string
 	Chatattach001             *Chatattach001Composer
 	GateJoins                 map[string]GateJoin
+	GateLabels                map[string][]GateLabel
+	GateAudience              map[string]GateAudienceOptions
 	Search                    string
 	SearchRecent              []string // newest first; offered under the search box while it is empty
 	SearchLoading             bool

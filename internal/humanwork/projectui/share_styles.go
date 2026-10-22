@@ -208,10 +208,10 @@ const projectUIShareStyles = `
 [dir="rtl"] .projectui-scroll-btn[data-dir="prev"] .projectui-scroll-chevron{transform:translateX(-2px) rotate(45deg)}
 @media (max-width:40rem){.projectui-scroll-btn{display:none!important}}
 .projectui-tickets .projectui-filterbar{display:flex}
-@media (max-width:40rem){.projectui-tickets .projectui-tickets-filters{flex-wrap:nowrap;overflow-x:auto;padding-block-end:.25rem;inline-size:100%}}
+@media (max-width:40rem){.projectui-tickets .projectui-tickets-filters{flex-wrap:wrap;overflow-x:visible;padding-block-end:.25rem;inline-size:100%}}
 
 /* Tickets list. */
-.projectui-tickets{display:grid;gap:.75rem;min-inline-size:0;color:var(--ink)}
+.projectui-tickets{display:grid;grid-template-columns:minmax(0,1fr);gap:.75rem;min-inline-size:0;color:var(--ink)}
 .projectui-tickets-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem}
 .projectui-tickets-filters{flex:1 1 auto}
 .projectui-tickets-count{margin:0;color:var(--muted);font-size:.875rem;white-space:nowrap}
@@ -240,11 +240,12 @@ const projectUIShareStyles = `
 .projectui-tickets-project{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .projectui-tickets-td .projectui-assignee-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .projectui-tickets-empty{display:grid;justify-items:center;gap:.5rem;padding:2.5rem 1rem;color:var(--muted);text-align:center}
-.projectui-tickets-empty p{margin:0}
+.projectui-tickets-empty p{margin:0;max-inline-size:100%;overflow-wrap:anywhere}
+.project-my-tickets-empty p{max-inline-size:100%;overflow-wrap:anywhere}
 .projectui-tickets-empty-title{color:var(--ink);font-weight:650}
 .projectui-tickets-shimmer{display:grid;grid-template-columns:5rem 1fr 8rem;gap:1rem;padding:1rem;opacity:.7}
 .projectui-tickets-shimmer span{block-size:.75rem;border-radius:999px;background:var(--pu-subtle)}
-.projectui-tickets-pager{display:flex;align-items:center;justify-content:flex-end;gap:.75rem}
+
 .projectui-tickets-page{color:var(--muted);font-size:.875rem}
 @media (max-width:75rem){.projectui-tickets-head,.projectui-tickets-row{grid-template-columns:6rem minmax(10rem,2fr) minmax(7rem,1fr) 8rem minmax(7rem,1fr) 6rem}.projectui-tickets-th:is([data-col="priority"],[data-col="updated"]),.projectui-tickets-td:is([data-col="priority"],[data-col="updated"]){display:none}}
 @media (max-width:48rem){

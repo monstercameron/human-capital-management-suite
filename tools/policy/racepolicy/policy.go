@@ -4,20 +4,17 @@ import (
 	"go/build"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // Finding is one concurrent package's race-coverage verdict.
 type Finding struct {
 	Package ConcurrentPackage
 	// HasLinuxRaceableTests is true when go/build, targeting linux/amd64
-	// (where TOOL-012's -race CI job actually runs) with the default build
-	// context otherwise, resolves at least one test file for this
-	// package's directory. Go's race detector is a runtime flag, not a
-	// build tag, so any file that resolves under a plain `go test` also
-	// compiles, and races, under `go test -race`; a file gated behind a
-	// nonstandard tag (e.g. an accidental `//go:build race`, which is not
-	// a tag `-race` ever sets) simply never resolves and never runs
-	// anywhere, on any CI job — which is exactly the gap this check finds.
+	// with the race build tag and cgo enabled (the context TOOL-012's CI job
+	// uses), resolves at least one test file for this package's directory.
+	// A file gated behind `!race` is excluded from that job even though it
+	// may run in ordinary tests — which is exactly the gap this check finds.
 	HasLinuxRaceableTests bool
 	// Detail explains a false HasLinuxRaceableTests: what go/build reported
 	// (no Go files at all, or Go files but zero test files) for this
@@ -45,21 +42,28 @@ func (r Report) Violations() []Finding {
 	return out
 }
 
-// linuxBuildContext is a copy of go/build.Default retargeted at
-// linux/amd64 — the platform TOOL-012's actual `-race` CI job runs on
-// (.github/workflows/tests.yml's go-core job) — regardless of the host
-// platform running this policy check itself (this repository's own
-// development host is windows/arm64, which has no race detector at all;
-// see doc.go).
-func linuxBuildContext() build.Context {
+// linuxRaceBuildContext is a copy of go/build.Default retargeted at the
+// context TOOL-012's actual `go test -race` CI job uses: linux/amd64 with
+// cgo enabled and the race build tag. It does not depend on the host
+// platform running this policy check (this repository's development host
+// is windows/arm64, which has no race detector; see doc.go).
+func linuxRaceBuildContext() build.Context {
 	ctx := build.Default
 	ctx.GOOS = "linux"
 	ctx.GOARCH = "amd64"
-	ctx.CgoEnabled = false
-	// Match the default build (no `-tags race` or similar): a test file
-	// gated behind such a tag is exactly the failure mode this policy
-	// exists to catch, so BuildTags is deliberately left empty.
-	ctx.BuildTags = nil
+	ctx.CgoEnabled = true
+	// Keep toolchain experiment tags but replace host architecture feature
+	// tags with the default CI target level (GOAMD64=v1). In particular, a
+	// policy run on arm64 must not select arm64-only source files.
+	toolTags := make([]string, 0, len(ctx.ToolTags)+1)
+	for _, tag := range ctx.ToolTags {
+		if strings.HasPrefix(tag, "goexperiment.") {
+			toolTags = append(toolTags, tag)
+		}
+	}
+	ctx.ToolTags = append(toolTags, "amd64.v1")
+	// The go command adds this build tag whenever -race is enabled.
+	ctx.BuildTags = []string{"race"}
 	return ctx
 }
 
@@ -67,11 +71,11 @@ func linuxBuildContext() build.Context {
 // resolves at least one test file (TestGoFiles or XTestGoFiles) under the
 // Linux build context.
 func packageHasLinuxRaceableTests(dir string) (bool, string) {
-	ctx := linuxBuildContext()
+	ctx := linuxRaceBuildContext()
 	pkg, err := ctx.ImportDir(dir, 0)
 	if err != nil {
 		if _, ok := err.(*build.NoGoError); ok {
-			return false, "no Go source files resolve for this directory under linux/amd64 (default build context)"
+			return false, "no Go source files resolve for this directory under the linux/amd64 race build context"
 		}
 		// build.MultiplePackageError and similar still populate pkg with
 		// what it found; fall through and judge on the file lists.
@@ -82,7 +86,7 @@ func packageHasLinuxRaceableTests(dir string) (bool, string) {
 	if len(pkg.TestGoFiles) > 0 || len(pkg.XTestGoFiles) > 0 {
 		return true, ""
 	}
-	return false, "Go source files resolve under linux/amd64, but no test file does (either none exist, or the only ones present are excluded by a build constraint)"
+	return false, "Go source files resolve under linux/amd64 with -race, but no test file does (either none exist, or the only ones present are excluded by a build constraint)"
 }
 
 // Evaluate finds every concurrent package under root (module path

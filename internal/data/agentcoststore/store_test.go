@@ -111,7 +111,7 @@ func TestTodo_AGENTCOST_006_StoreIntegration(t *testing.T) {
 	restarted, _ := agentcost.NewGate(owners{store}, nil, time.UTC, clock)
 	restarted.WithStore(store)
 	decision := restarted.Admit(subject)
-	if decision.Allowed || decision.Reached != "Policy Helper reached today's limit. It resets at 00:00." {
+	if decision.Allowed || decision.Reached != "Policy Helper reached today's limit. It resets at 00:00 UTC." {
 		t.Fatalf("after a restart: %+v", decision)
 	}
 	// Lowering is audited with both sides; the trail survives the restart.

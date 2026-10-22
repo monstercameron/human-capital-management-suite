@@ -47,11 +47,12 @@ func PrivateReasonMarker(reason string) string {
 // body and the reason it named. A body with no well-formed marker is returned
 // unchanged with an empty reason.
 func SplitPrivateReason(body string) (clean, reason string) {
-	// AGENTUX-076: where the card is not there to show the mark that an answer is
-	// not from the documents, the answer says so in a plain line of its own.
+	// AGENTUX-076: the mark that an answer is not from the documents stays on the
+	// body, last, so that wherever the body is drawn the client says it in the
+	// reader's language.
 	if cleaned, ungrounded := SplitUngrounded(body); ungrounded {
 		clean, reason = SplitPrivateReason(cleaned)
-		return clean + "\n\n" + UngroundedNote, reason
+		return clean + "\n" + ungroundedMarker, reason
 	}
 	start := strings.LastIndex(body, privateReasonOpen)
 	if start < 0 {

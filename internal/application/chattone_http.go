@@ -90,6 +90,9 @@ type ChattoneService struct {
 	// Reword keeps the administrator's and each person's reword choices; nil
 	// leaves the reword settings unavailable.
 	Reword *ChattoneRewordPolicy
+	// Reworder produces the reworded rendering of a heated message over the same
+	// governed model call; the rendering worker registers it (CHATTONE-002).
+	Reworder *chatrewrite.Reworder
 	// Settings, when set, is where a workspace's choice is kept. Each
 	// workspace's saved setting is read once per process, before its first use.
 	Settings       ChattoneSettingsStore

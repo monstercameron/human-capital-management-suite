@@ -11,12 +11,52 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmanifest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 )
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
+
+func TestAgentDatabaseBootstrapAndMigrateDSNIntegration(t *testing.T) {
+	db := pgtest.NewEmpty(t)
+	ctx := context.Background()
+	databaseName := "agentstore_bootstrap_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	dsnURL, err := url.Parse(db.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dsnURL.Path = "/" + databaseName
+	targetDSN := dsnURL.String()
+	t.Cleanup(func() {
+		if _, err := db.SQL.ExecContext(context.Background(), "DROP DATABASE IF EXISTS "+(pgx.Identifier{databaseName}).Sanitize()); err != nil {
+			t.Errorf("drop test database: %v", err)
+		}
+	})
+	if err := EnsureDatabase(ctx, targetDSN); err != nil {
+		t.Fatalf("EnsureDatabase(first): %v", err)
+	}
+	if err := EnsureDatabase(ctx, targetDSN); err != nil {
+		t.Fatalf("EnsureDatabase(repeat): %v", err)
+	}
+	if err := MigrateDSN(ctx, targetDSN); err != nil {
+		t.Fatalf("MigrateDSN: %v", err)
+	}
+	conn, err := pgxadapter.Connect(ctx, targetDSN, nil)
+	if err != nil {
+		t.Fatalf("connect to migrated test database: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close(context.Background()) })
+	var exists bool
+	if err := conn.QueryRow(ctx, "SELECT to_regclass('public.tenant') IS NOT NULL").Scan(&exists); err != nil {
+		t.Fatalf("check migrated agent table: %v", err)
+	}
+	if !exists {
+		t.Fatal("MigrateDSN did not create the agent tenant table")
+	}
+}
 
 func TestTodo_AGENT_008_Integration(t *testing.T) {
 	db := pgtest.NewEmpty(t)

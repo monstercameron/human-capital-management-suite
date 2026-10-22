@@ -12,8 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatapps"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/unicode/norm"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 var (
@@ -153,7 +152,7 @@ func CanonicalHandle(raw string) (string, error) {
 	if !unicode.IsLetter(last) && !unicode.IsDigit(last) {
 		return "", ErrInvalid
 	}
-	return cases.Fold().String(norm.NFKC.String(s)), nil
+	return values.CaseFold(values.NFKC(s)), nil
 }
 
 // ConfusableSkeleton produces a conservative, case-folded skeleton. It uses
@@ -164,7 +163,7 @@ func ConfusableSkeleton(raw string) (string, error) {
 	if !utf8.ValidString(raw) {
 		return "", ErrInvalid
 	}
-	s := cases.Fold().String(norm.NFKD.String(strings.TrimSpace(raw)))
+	s := values.CaseFold(values.NFKD(strings.TrimSpace(raw)))
 	var b strings.Builder
 	for _, r := range s {
 		if unicode.Is(unicode.Mn, r) || unicode.IsSpace(r) || unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {

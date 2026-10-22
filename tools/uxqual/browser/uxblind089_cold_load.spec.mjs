@@ -13,8 +13,21 @@ import { test, expect } from "@playwright/test";
 
 // Keep in step with workspace.ColdContentBudget (a Go test pins the two).
 const COLD_CONTENT_BUDGET_MS = 3000;
-const LOADER_PHASES = ["loader", "manifest", "wasm-response", "compiled", "instantiated"];
-const CLIENT_PHASES = ["go-main", "dial", "hydrate-start", "load-start", "hydrated", "load-done"];
+const LOADER_PHASES = [
+  "loader",
+  "manifest",
+  "wasm-response",
+  "compiled",
+  "instantiated",
+];
+const CLIENT_PHASES = [
+  "go-main",
+  "dial",
+  "hydrate-start",
+  "load-start",
+  "hydrated",
+  "load-done",
+];
 
 function watchForContent() {
   const state = { skeleton: undefined, content: undefined };
@@ -23,15 +36,23 @@ function watchForContent() {
     const app = document.getElementById("app");
     if (!app || state.content !== undefined) return;
     if (app.querySelector(".loading-proxy")) {
-      if (state.skeleton === undefined) state.skeleton = performance.now();
+      if (state.skeleton === undefined) state.skeleton = window.performance.now();
       return;
     }
-    if (state.skeleton !== undefined && app.querySelector("main")) state.content = performance.now();
+    if (state.skeleton !== undefined && app.querySelector("main"))
+      state.content = window.performance.now();
   };
-  new MutationObserver(check).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["class"] });
+  new window.MutationObserver(check).observe(document, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 }
 
-test("[UXBLIND-089] cold sign-in shows Home content within the budget", async ({ browser }) => {
+test("[UXBLIND-089] cold sign-in shows Home content within the budget", async ({
+  browser,
+}) => {
   const context = await browser.newContext();
   const page = await context.newPage();
   try {
@@ -39,32 +60,58 @@ test("[UXBLIND-089] cold sign-in shows Home content within the budget", async ({
     await page.addInitScript(watchForContent);
     await page.getByRole("button", { name: "Continue as Walt Brennan" }).click();
     await page.waitForURL(/\/workspace\/app\//);
-    await page.waitForFunction(() => window.__uxblind089 && window.__uxblind089.content !== undefined, null, {
-      timeout: 30_000,
-      polling: 50,
-    });
+    await page.waitForFunction(
+      () => window.__uxblind089 && window.__uxblind089.content !== undefined,
+      null,
+      {
+        timeout: 30_000,
+        polling: 50,
+      },
+    );
     const result = await page.evaluate(() => {
       const marks = {};
-      for (const mark of performance.getEntriesByType("mark")) {
-        if (mark.name.startsWith("hcm:")) marks[mark.name.slice(4)] = Math.round(mark.startTime);
+      for (const mark of window.performance.getEntriesByType("mark")) {
+        if (mark.name.startsWith("hcm:"))
+          marks[mark.name.slice(4)] = Math.round(mark.startTime);
       }
-      return { content: Math.round(window.__uxblind089.content), skeleton: Math.round(window.__uxblind089.skeleton), marks };
+      return {
+        content: Math.round(window.__uxblind089.content),
+        skeleton: Math.round(window.__uxblind089.skeleton),
+        marks,
+      };
     });
-    await test.info().attach("cold-load-phases", { body: JSON.stringify(result, null, 2), contentType: "application/json" });
+    await test.info().attach("cold-load-phases", {
+      body: JSON.stringify(result, null, 2),
+      contentType: "application/json",
+    });
 
     // The skeleton is replaced by the page, never left in place.
     await expect(page.locator("#app .loading-proxy")).toHaveCount(0);
     // Every phase ran, in order, before the content frame.
     let previous = -1;
-    for (const phase of [...LOADER_PHASES, "go-main", "dial", "hydrate-start", "load-start"]) {
+    for (const phase of [
+      ...LOADER_PHASES,
+      "go-main",
+      "dial",
+      "hydrate-start",
+      "load-start",
+    ]) {
       expect(result.marks[phase], `phase ${phase} was not marked`).toBeDefined();
-      expect(result.marks[phase], `phase ${phase} ran out of order`).toBeGreaterThanOrEqual(previous);
+      expect(
+        result.marks[phase],
+        `phase ${phase} ran out of order`,
+      ).toBeGreaterThanOrEqual(previous);
       previous = result.marks[phase];
     }
     for (const phase of CLIENT_PHASES) {
-      expect(result.marks[phase], `phase ${phase} ran after content`).toBeLessThanOrEqual(result.content);
+      expect(
+        result.marks[phase],
+        `phase ${phase} ran after content`,
+      ).toBeLessThanOrEqual(result.content);
     }
-    expect(result.content, `content after ${result.content} ms`).toBeLessThan(COLD_CONTENT_BUDGET_MS);
+    expect(result.content, `content after ${result.content} ms`).toBeLessThan(
+      COLD_CONTENT_BUDGET_MS,
+    );
   } finally {
     await context.close();
   }

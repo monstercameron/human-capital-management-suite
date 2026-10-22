@@ -98,6 +98,10 @@ type Row struct {
 	Private, HasFile, HasLink, HasReactions, InThread, MentionsMe, ByAgent, HasVoice bool
 	Deleted, Removed                                                                 bool
 	ExpiresAt                                                                        time.Time
+	// Language is the language a message was written in, when the source knows it
+	// (the "written in" filter).
+	Language string
+	_        incomparable
 }
 
 type Request struct {
@@ -142,6 +146,7 @@ type Response struct {
 type SourceFailure struct {
 	Kind Kind
 	Err  error
+	_    incomparable
 }
 
 // DefaultSourceTimeout bounds how long any one source may hold a search. A

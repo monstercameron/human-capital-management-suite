@@ -144,6 +144,7 @@ func searchSnippet(body, query string, limit int) string {
 	if end > len(flat) {
 		end, start = len(flat), max(0, len(flat)-limit)
 	}
+	hardStart, hardEnd := start, end
 	// Cut at word boundaries so an excerpt never opens or closes mid-word.
 	if start > 0 {
 		for start < end && flat[start-1] != ' ' {
@@ -154,6 +155,11 @@ func searchSnippet(body, query string, limit int) string {
 		for end > start && flat[end] != ' ' {
 			end--
 		}
+	}
+	// One unbroken run (an address, an encoded blob) has no boundary to cut at:
+	// show the stretch as it falls rather than nothing but ellipses.
+	if start >= end {
+		start, end = hardStart, hardEnd
 	}
 	out := strings.TrimSpace(string(flat[start:end]))
 	if start > 0 {

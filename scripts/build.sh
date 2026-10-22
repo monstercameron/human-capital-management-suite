@@ -18,28 +18,20 @@ cmds=("$@")
 cd "$root"
 for c in "${cmds[@]}"; do
   if [ "$c" = "hcmnext" ]; then
-    # The only committed source asset needed by the served catalog is the
-    # brand mark. WASM, its runtime shim, compressed forms, and their manifest
-    # live under .artifacts and enter go:embed through a build overlay.
-    cp "$root/internal/humanwork/workspace/assets/harborcare-logo.svg" "$embed/harborcare-logo.svg"
-    # The development seed writes only bounded display proxies into assets/.
-    # Package those generated files when present; source originals never enter
-    # this directory and the Go route allowlist rejects arbitrary names.
-    rm -f "$embed"/person-hc-*-small.jpg
-    shopt -s nullglob
-    for photo in "$root"/internal/humanwork/workspace/assets/person-hc-*-small.jpg; do
-      name="${photo##*/}"
-      case "$name" in
-        person-hc-[0-9][0-9][0-9]-small.jpg)
-          index="${name#person-hc-}"
-          index="${index%-small.jpg}"
-          number=$((10#$index))
-          if [ "$number" -ge 1 ] && [ "$number" -le 59 ] && [ $((number % 4)) -ne 0 ]; then
-            cp "$photo" "$embed/$name"
-          fi
-          ;;
-      esac
-    done
+    # Stage the complete candidate source asset catalog in the embed directory.
+    # WASM, its runtime shim, compressed forms, and their manifest are built
+    # into this directory below and enter go:embed through a build overlay,
+    # while every other served asset is embedded from the candidate source assets
+    # directory. The manifest the bundle builder generates describes only the
+    # files present here, but the runtime validator compares it against the
+    # whole embedded catalog (overlay bundle plus source assets), so
+    # staging a subset yields a manifest the server rejects as stale on
+    # startup. scripts/stage-workspace-assets.sh owns that clear-and-stage
+    # behaviour (and refuses unsafe destinations before clearing anything);
+    # the bundle build below then overwrites the generated bundle files and
+    # manifest.json in place.
+    bash "$root/scripts/stage-workspace-assets.sh" \
+      "$root/internal/humanwork/workspace/assets" "$embed"
     # Building the helper to a named .artifacts path avoids `go run`'s
     # temporary executable cleanup race on Windows.
     go build -o "$asset_tool" ./tools/uxqual/cmd/journeywasm

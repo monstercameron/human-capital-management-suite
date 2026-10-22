@@ -329,7 +329,7 @@ func (r Resolver) materialize(ctx context.Context, tx dbport.Tx, tenant, instanc
 		BudgetReservationID: reservation.EntityID.String(), BudgetReservationRef: reservation.ProposalRef.String(),
 		PositionReservationRef: positionReservationRef(dto, proposalID),
 		Location:               position.Location, PayZone: assignment.PayZone, FTE: position.CapacityFTE,
-		EffectiveAt: businessAt, RecordedAt: time.Now().UTC(),
+		EffectiveAt: businessAt, RecordedAt: commandRecordedAt(req),
 		ExpectedWorkerDigest: frozen.worker, ExpectedEmploymentDigest: frozen.employment,
 		ExpectedAssignmentDigest: frozen.assignment, ExpectedJobDigest: frozen.job,
 		ExpectedPositionDigest: frozen.position, ExpectedPackageDigest: frozen.pkg,
@@ -381,13 +381,8 @@ func approvedAssignmentWrites(dto intent.ProposalRevision, worker uuid.UUID) ([]
 	var writes []domaincommit.AssignmentWrite
 	seen := map[string]bool{}
 	for _, write := range dto.Writes {
-		var field string
-		switch write.FieldPath {
-		case resolvePlacementGradePath:
-			field = "assignment.grade"
-		case resolvePlacementJobCodePath:
-			field = "assignment.job_code"
-		default:
+		field, placement := resolvePlacementField(write.FieldPath)
+		if !placement {
 			continue
 		}
 		if write.Subject.Kind != "EMPLOYMENT" || write.Subject.SubjectID != worker.String() || seen[field] ||
@@ -717,8 +712,10 @@ func matchApprovedEffects(dto intent.ProposalRevision, rendered []domaincommit.E
 		switch w.FieldPath {
 		case resolvePayFieldPath:
 			kinds[resolveCompensationRevisionKind] = true
-		case resolvePlacementJobCodePath, resolvePlacementGradePath:
-			kinds[resolveAssignmentRevisionKind] = true
+		default:
+			if _, placement := resolvePlacementField(w.FieldPath); placement {
+				kinds[resolveAssignmentRevisionKind] = true
+			}
 		}
 	}
 	if !kinds[resolveCompensationRevisionKind] {
@@ -731,4 +728,28 @@ func matchApprovedEffects(dto intent.ProposalRevision, rendered []domaincommit.E
 		return fmt.Errorf("%w: terminal renders %d effects, want exactly the payroll and IAM syncs", ErrPlanBinding, len(rendered))
 	}
 	return nil
+}
+
+// resolvePlacementField names the assignment field a placement write changes. A
+// proposal spells it "assignment.job_code" or "assignment.grade"; the older
+// projection prefixed it twice ("assignment.assignment.job_code"), and a proposal
+// recorded that way is still read.
+func resolvePlacementField(path string) (field string, ok bool) {
+	switch path {
+	case resolvePlacementGradePath, "assignment.grade":
+		return "assignment.grade", true
+	case resolvePlacementJobCodePath, "assignment.job_code":
+		return "assignment.job_code", true
+	}
+	return "", false
+}
+
+// commandRecordedAt is when the commit's rows are recorded: the instant of the
+// step that asked for them, so the provenance a write leaves is never later than
+// the step that wrote it. A request that names no instant is recorded now.
+func commandRecordedAt(req execute.TerminalWriteRequest) time.Time {
+	if req.RecordedAt.IsZero() {
+		return time.Now().UTC()
+	}
+	return req.RecordedAt.UTC()
 }

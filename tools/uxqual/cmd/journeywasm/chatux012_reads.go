@@ -35,8 +35,10 @@ func chatux012FinalRefusal(err error) bool {
 }
 
 // chatux012HTTPFinal is chatux012FinalRefusal for the same-origin HTTP reads:
-// a 403 is the server's answer, anything else is a failure to get one.
-func chatux012HTTPFinal(err error) bool { return errors.Is(err, errPersonaChatDenied) }
+// a 403 or a 404 is the server's answer, anything else is a failure to get one.
+func chatux012HTTPFinal(err error) bool {
+	return errors.Is(err, errPersonaChatDenied) || errors.Is(err, errPersonaChatNotFound)
+}
 
 // chatux012StatusFinal is chatux012FinalRefusal for the channel status reads:
 // the server named a reason (a refusal whose code is not "unavailable"), as

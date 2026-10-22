@@ -80,7 +80,7 @@ func visibleRoot(ctx context.Context, tx dbport.Tx, id chatrecipient.Identity, r
 	err := tx.QueryRow(ctx, `SELECT p.parent_id FROM chat_post p JOIN chat_membership m
         ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$4 AND m.member_id=$5 AND m.state='active'
         WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.id=$3
-        AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))`, id.HostTenantID, id.ConversationID, root, id.HomeTenantID, id.SubjectID).Scan(&parent)
+        AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))`+chatgateRootAudience5, id.HostTenantID, id.ConversationID, root, id.HomeTenantID, id.SubjectID).Scan(&parent)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return chat.ErrNotFound
 	}

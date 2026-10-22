@@ -4027,7 +4027,7 @@
     "refs": "`internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/registry.go`, `internal/humanwork/productui/agentux_ops_page.go`",
     "retired": false,
     "done": true,
-    "evidence": "`TestTodo_AGENTUX_010`, `TestTodo_AGENTUX_010_Browser`, `TestTodo_AGENTUX_010_Security` exist and passed in `internal/humanwork/workspace` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence"
+    "evidence": "`TestTodo_AGENTUX_010`, `TestTodo_AGENTUX_010_Browser`, `TestTodo_AGENTUX_010_Security` exist and passed in `internal/humanwork/workspace` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence; issue #56 follow-up `TestProductProblemForbiddenFallbackIsPageSpecific` passes with `go test -count=1 -run TestProductProblemForbiddenFallbackIsPageSpecific ./internal/humanwork/workspace/` on Windows/arm64 Go 1.26.3; rendered retest is pending"
   },
   {
     "id": "AGENTUX-011",
@@ -5555,6 +5555,136 @@
     "green": "(1) questions about the agent itself are answered from facts, not from a document search: what it can do, which documents it can read in this conversation (titles as links, grouped as placed here and workspace-wide, with the count and \"none yet\" when there are none), who looks after it, what it will not do; the model is given these facts and a list-documents tool for every run; (2) a search that finds nothing is not a failure: the model answers that it found nothing on that subject, names the documents it can read that are closest, and asks one clarifying question or suggests how to rephrase, as a normal formatted answer with no warning icon and no Ask again; a general-purpose agent may answer from general knowledge when its instructions allow, marked \"Not from your documents\"; a failure card is kept for real failures (model unavailable, timed out, refused by policy); (3) every example question the empty conversation suggests is answerable by rule (1) or (2), and a golden suite of twenty everyday questions (about itself, lists, a fact in a document, a fact in no document, a follow-up, a greeting, thanks, a request outside its role) passes against a fake model that follows the tool protocol, with the context the model is given asserted for each; (4) the answer arrives in the model's time plus three seconds: the fixed overhead between admission and delivery (claim, build, checkpoints, effects) is at most three seconds in total, measured per stage in the run timing line; (5) the reaction to the question is placed in a direct conversation and in a channel",
     "refactor": "none",
     "refs": "`internal/application/persona_run_executor.go`, `internal/application/persona_chat_invocation.go`, `internal/collaboration/chat/agentux075_reaction.go`, `internal/collaboration/chat/agentux_answer_failures.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-077",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Agents pages: run-together sub-navigation, wrong breadcrumb, card inside card",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-073"
+    ],
+    "test": "TestTodo_AGENTUX_077",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_077_Browser",
+      "PRIMARY": "TestTodo_AGENTUX_077"
+    },
+    "red": "(critic review, committed build of 10:25; shots `shots/min/008-agents-page-1.png`, `shots/v1030/ops-announcements.png`, `shots/minb/007-agents-setup-ops-1-setup.png`, `-2-ops.png`) under the title the links \"Ask\" and \"My agent access\" are printed together as \"AskMy agent access\", one underlined; the breadcrumb reads \"Chat/Agents\" with no spacing and \"Admin/Agents\" on Agent operations; the top bar says \"Start an action / Page utilities\" here and \"Go to a page\" in Chat; the selected agent card is marked only by its radio dot; two explanatory sentences wrap above the buttons; an announcement is a card inside a card with half its width empty, Pause, Post now, Edit and Delete in one style, \"Once - No future post\", and an unstyled native disclosure; Setup and Activity show only pale skeleton blocks with no title or tabs while loading; the expanded admin navigation is cut mid-glyph by a fade",
+    "green": "the Agents page has a spaced tab-style switch (Ask, My agent access) matching the Setup/Operations switch; breadcrumbs name the page (\"Chat / Agents\", \"Admin / Agent operations\"); the selected agent card has a visible selected state; each button carries its own one-line explanation; an announcement is one card with a labelled schedule row (\"Posts once - already posted\"), a danger-styled Delete set apart, and the shared disclosure component; a loading page shows its title and tabs at once with the shared loading rows inside; the navigation list scrolls without cutting a row",
+    "refactor": "none",
+    "refs": "`internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agentux_proactive_announcements.go`, `internal/humanwork/productui/agentux_ops_page.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-078",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "The served chat writer panics on a conversation read, and one failure code cannot be stored",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-076"
+    ],
+    "test": "TestTodo_AGENTUX_078",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_078_Browser",
+      "INTEGRATION": "TestTodo_AGENTUX_078_Integration",
+      "PRIMARY": "TestTodo_AGENTUX_078"
+    },
+    "red": "(lane reports, 2026-10-02) `TestTodo_AGENTP_008` (real PostgreSQL reads) dereferences nil in `servedPortChatWriter.GetConversation` (`persona_chat_invocation.go`); the failure code `SERVER_HAS_NO_MODEL` is written by the run path but is not in the failure-code CHECK constraint, so the row is refused",
+    "green": "the served writer returns the typed not-found or unavailable error when its reader is absent, never a nil dereference; every failure code the code can write is in the constraint (a test compares the Go list with the constraint text); both show their plain sentence on the run row",
+    "refactor": "none",
+    "refs": "`internal/application/persona_chat_invocation.go`, `internal/data/agentstore/migrations`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-079",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Ready-made agents: finish what preparation cannot do yet",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-076"
+    ],
+    "test": "TestTodo_AGENTUX_079",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_079_Browser",
+      "INTEGRATION": "TestTodo_AGENTUX_079_Integration",
+      "PRIMARY": "TestTodo_AGENTUX_079"
+    },
+    "red": "(lane W9 report, 2026-10-02) Support Desk has no \"Customer support\" project to create tickets in, so Simulate answers 503, and its executor uses a source kind the admission layer refuses; Task Catcher offers need a qualified screen model and a served planner (none is composed); Birthday Buddy's daily schedule is not created; Support Desk and the ambient skills are not in the served skill registry, so the Agents page may not list them; the dated #general history is inserted text",
+    "green": "preparation creates the \"Customer support\" project and its grant when the project database is configured and says so plainly when it is not; `SUPPORT_EMAIL` is an admitted source kind with its store change; the offers planner is composed from a qualified screen-model deployment of the same kind writing styles use, and is absent with a stated reason without one; the Birthday Buddy schedule exists and is paused until a model route exists; the four agents are listed on the Agents page with their skills in plain words",
+    "refactor": "none",
+    "refs": "`internal/application/agentux049_starter_specs.go`, `internal/application/agentux054_support_desk.go`, `internal/application/agentux067_*`, `internal/agentrun`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-080",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Agents pages: three of their reads are refused by the page security policy, and the first screen speaks to builders",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-077"
+    ],
+    "test": "TestTodo_AGENTUX_080",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_080_Browser",
+      "PRIMARY": "TestTodo_AGENTUX_080"
+    },
+    "red": "(coordinator probe and critic review, build of 12:39; `shots/minb/007-agents-setup-ops-1-setup.png`, `shots/min/008-agents-page-1.png`) the document's connect-src did not list `/api/agent-access/`, `/api/agent-cost/` or `/api/agent-tasks/`, so \"My agent access\", an agent's limits, the Cost tab and \"extend budget\" were refused by the browser and showed \"could not be read\" (the policy is corrected in `csp.go`; the page is not yet re-checked); Agent setup says \"this build ships with none\" and \"how close it is to being available\"; two switches stacked on the Agents page both start with \"Ask\"; people are black underlined links while other links are accent; \"Plan a longer task\" has a two-line explanation; the top bar says \"Start an action / Page utilities\" on Agents and \"Go to a page\" in Chat",
+    "green": "each agent read is allowed by the policy and a test walks every API prefix the client code calls and fails when one is missing from connect-src; a refused or failed read shows the shared loading-then-retry state, not an inline error on the default view; Agent setup opens with what an administrator can do here in plain words, with no build or template talk; one navigation switch (Ask, Setup, Operations) and, under Ask only, a quiet second row for \"My agent access\"; one link style; each button's explanation fits one line at 1280 px; the top bar uses one vocabulary on every page",
+    "refactor": "none",
+    "refs": "`internal/humanwork/workspace/csp.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agent2018_page.go`, `tools/uxqual/cmd/journeywasm/agentaccess_service.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-081",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "An agent opens the person panel, non-answering agents are offered in Ask, and three Agents-page states never resolve",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-080"
+    ],
+    "test": "TestTodo_AGENTUX_081",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_081_Browser",
+      "INTEGRATION": "TestTodo_AGENTUX_081_Integration",
+      "PRIMARY": "TestTodo_AGENTUX_081"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/desktop/032-agent-profile.png`, `.artifacts/lanes/agent-ui/shots/deep/agents/ask-full.png`, `011-ops-activity.png`, `015-ops-cost.png`, `014-ops-connections.png`, `009-setup-edit-form.png`, `.artifacts/lanes/agent-ui/shots/deep/scroll/setup-01.png`) clicking an agent's name or mention opens \"Person details - NA - Not available\" with a Message button; \"Who should answer?\" offers Birthday Buddy; Activity gives Birthday Buddy and Task Catcher the status \"Answering\" (Task Catcher is in no conversation); the Cost tab says \"Loading costs...\" without end; Connections says \"Agent administration is unavailable\"; pressing Edit on an agent card changes nothing in view; on the card \"React to questions with an emoji\" runs straight into its explanation with no space",
+    "green": "an agent opens its own profile (what it does, what it reads, its owner, Ask); Ask, the mention list and /ask list only agents that answer questions, decided from the agent's declared kind; Activity states each agent's real state in words; every Agents-page read ends in content or in the shared retry state, also when the browser refuses the request; Edit brings its form into view with focus in the first field; a checkbox label and its help are separate lines",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/mention_profile.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agent2018_page.go`, `tools/uxqual/cmd/journeywasm/agentcost006_wasm.go`, `internal/application/agentux049_starter_specs.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "AGENTUX-082",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Agents stopped answering a day after they were prepared, and nothing on the page said so",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "AGENTUX-079"
+    ],
+    "test": "TestTodo_AGENTUX_082",
+    "test_matrix": {
+      "BROWSER": "TestTodo_AGENTUX_082_Browser",
+      "INTEGRATION": "TestTodo_AGENTUX_082_Integration",
+      "PRIMARY": "TestTodo_AGENTUX_082"
+    },
+    "red": "(lane W9 finding and coordinator check of the review database, 2026-10-02) a local agent's model route was valid for 24 hours; after that the served runtime refuses the agent while Agent setup shows \"Version N - Published\" and Activity shows \"Answering\"; preparation then refused to renew (\"review decision revoked or stale\") until the renewal path was added; the first renewal on real data moved two of Policy Helper's four placements",
+    "green": "a route's validity is shown on the agent card and in Activity (\"Answers until Nov 1\", \"Stopped: evidence expired on Oct 2 - Renew\"); an expired agent tells the person who asks, in the conversation, that it is unavailable and who can fix it; renewal keeps every placement and is covered by a test that starts from four; the served runtime logs one line per refusal with the cause",
+    "refactor": "none",
+    "refs": "`internal/application/agentux_general_prepare.go`, `internal/application/agentux_runtime_prepare.go`, `internal/humanwork/productui/agent2018_page.go`, `internal/agentrun`",
     "retired": false,
     "done": false
   },
@@ -14165,7 +14295,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatbug021_excerpt.go`, `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/chatui/agentux_dm_sources.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATBUG_089`, `TestTodo_CHATBUG_089_SearchRowOfAHeldAnnouncement`, `TestTodo_CHATBUG_089_SearchLongAnnouncement` and `TestTodo_CHATBUG_089_Browser` pass in `internal/humanwork/chatui` (coordinator and lane W7 runs). The cause was the reader-selection lookup returning the stored announcement envelope to the search row and the saved view; both now unwrap it (commit 3340ef612). On the review server (headless, build of 12:39) no internal marker appears in any of 46 screenshots, and a linked-document card ends at a word with an ellipsis and \"Show more\" under the heading \"Linked document\" with \"Policy document · Oct 1\" (shot `shots/minb/009-phone-sidebar-dm-1.png`). The thread panel was not captured in that pass. CI remains the run evidence"
   },
   {
     "id": "CHATBUG-090",
@@ -14206,6 +14337,203 @@
     "green": "Saved opens on the first tab that has items; an empty tab says what is true (\"Nothing left to do. Done holds 2.\") with a link to the tab that has items; the first-use sentence appears only when nothing was ever saved; Saved, Moderation and a conversation use one selected-row style and exactly one row is selected at a time",
     "refactor": "none",
     "refs": "`internal/humanwork/chatui`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-092",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A restored removal credits the restorer for the removal, and \"Archived\" sits over a row after a menu opens",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATMOD-005"
+    ],
+    "test": "TestTodo_CHATBUG_092",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_092_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_092_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_092"
+    },
+    "red": "(lane W2 report and coordinator sweep, 2026-10-02) restoring a removed message leaves the queue item reading \"Removed by\" with the person who restored it; after opening a sidebar row menu or Saved, the \"Archived\" band is drawn over the last conversation row",
+    "green": "a queue item keeps who removed and, separately, who restored, each with its time; the Archived footer never overlaps a row in any sidebar state (menu open, Saved open, section collapsed), checked at 1280, 768 and 390 px",
+    "refactor": "none",
+    "refs": "`internal/data/chatstore`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatux035_styles.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-093",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Tests left red after the second wave",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATBUG-091"
+    ],
+    "test": "TestTodo_CHATBUG_093",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_093_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_093_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_093"
+    },
+    "red": "(lane W7 report, 2026-10-02) still failing: `TestTodo_AGENTUX_063` and `TestAgentUXChat5_LightPageAndMotion` (a 2.4 s literal in `chatux031_styles.go`), `TestTodo_CHATUX_029`, `TestNoIsMixesElementsWithClasses` and `TestEveryCSSVariableUsedIsDefined` (`agentux077_agents_page.go`, `--hcm-space-6`), `TestTextAlignmentIsLogical` (`chatux043_bidi.go`), `TestTodo_CHATUX_026_ArrivalOrder`, `TestDocumentSeedDemoDocuments_RoutedChat`, `TestTodo_CHATUX_025_Literals`, the wasm vet of `journeywasm` (`productui.ResolveWorkflowPageSupport` undefined in a test); two `println(\"S3DIAG ...\")` lines are committed in `internal/platform/execution`",
+    "green": "each named test passes on the whole-package run, by fixing the product where the test states the rule and the test only where the rule changed by decision; the debug prints are gone; `go vet` passes for native and wasm on the chat and agent packages",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui`, `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`, `cmd/migrate`, `internal/platform/execution`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-094",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A German or Arabic reader waits a minute for a channel: one rendering read answers 503 and holds the list",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATTONE-005"
+    ],
+    "test": "TestTodo_CHATBUG_094",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_094_Browser",
+      "PRIMARY": "TestTodo_CHATBUG_094"
+    },
+    "red": "(coordinator probe, build of 12:39; `shots/load/de-DE-1280-light.png`) with German as the reading language #general shows its messages after 11 s but keeps seven loading rows until 64 s; `GET /api/chat/renderings/v1/reader` for an ordinary English post answers 503 repeatedly, logged as `hcmnext.chat_rendering outcome=failed cause=\"chat: not found\"` (76 times in fifteen minutes); the Arabic, German, tablet and dark sweep shots all show \"Still loading... Try again\" on the same channel",
+    "green": "a post with no rendering yet is answered as pending or as written, never 503; a post that does not exist is 404 and is not retried; the list draws every message as written at once and swaps a rendering in when it arrives, so no rendering read can hold a loading row; retries back off and stop; a channel opens in German and Arabic within the same time as in English (a browser test compares them)",
+    "refactor": "none",
+    "refs": "`internal/application/chatlang*`, `internal/data/chatstore`, `tools/uxqual/cmd/journeywasm/chatlang004_reads.go`, `internal/collaboration/chatrender`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-095",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "No image or GIF attachment ever loads",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATATTACH-001"
+    ],
+    "test": "TestTodo_CHATBUG_095",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_095_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_095_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_095"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/desktop/003-conv-LH_Loretta_Haynes.png`, `004-…`, `011-…`, `022-…`, `026-…`) every image attachment is a grey tile with a paperclip, the file name and \"Image loading\" that never ends; a GIF's badge covers those words; after a thread is opened the tile becomes \"Preview unavailable\" with Download; the availability read `GET /v1/chat/media/attachments/availability` was seen aborted on load and no image request is logged",
+    "green": "an image or GIF attachment shows its picture at its stored dimensions with no layout jump; while it loads the tile shows the shared loading state for a bounded time, then either the picture or the file name, size and Download; the badge never covers text; the media route refuses a reader who cannot read the post; a browser test loads a seeded conversation and finds a decoded image (naturalWidth above zero)",
+    "refactor": "none",
+    "refs": "`tools/uxqual/cmd/journeywasm/chat_media_dimensions.go`, `internal/transport/chat`, `internal/humanwork/workspace/csp.go`, `internal/humanwork/chatui`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-096",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Searching one ordinary word reports every source unavailable",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATSEARCH-003"
+    ],
+    "test": "TestTodo_CHATBUG_096",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_096_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_096_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_096"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/panels/045-search-results-word.png`, `046-search-result-opened.png`) searching \"holiday\" shows loading rows for more than five seconds, then one result and \"Some content sources are unavailable: Agent, Agent answer, Channel, File, Location, Message, Person, Pinned messages, Poll, Saved item, Thread reply, To-do\"; the server logs `chat_search_source_unavailable cause=\"context deadline exceeded\"` for all twelve sources of that one search; a scoped search (`in:#general policy`) answers",
+    "green": "each source has its own time budget and they run side by side, so a slow one cannot fail the others; a page of rows is rechecked in one batch per source; message and thread text search uses an index; results appear as sources answer and only a source that truly failed is named, in one sentence with one Retry; a test with a slow fake source shows the others' rows; a plan test shows the index is used on 50,000 posts",
+    "refactor": "none",
+    "refs": "`internal/collaboration/chatsearch/chatsearch.go`, `internal/data/chatstore`, `internal/humanwork/chatui/chatsearch_results.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-097",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A thread opens scrolled past its parent message, and on a phone it does not open at all",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-039"
+    ],
+    "test": "TestTodo_CHATBUG_097",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_097_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_097_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_097"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/desktop/024-thread-random.png`, `026-thread-general.png`, `025-thread-with-draft.png`, `.artifacts/lanes/agent-ui/shots/deep/small/003-phone-thread.png`) the thread panel opens showing only the tail of the parent (its reactions or its attachment) above \"7 replies\"; the author, time and text of the parent are out of view; in the thread composer a tool is half hidden under Reply; with a thread open the document holds duplicate element ids; a date chip shows half-hidden under the conversation header and a message's hover toolbar covers the date divider above it; at 390 px pressing \"6 replies\" highlights the control and no thread view appears",
+    "green": "a thread opens with its whole parent at the top (author, time, text, attachments) and the replies under it, the newest in view only when the parent still fits; the thread composer's tools fit its width; no id is used twice; date chips and toolbars never overlap the header or each other; on a phone the thread takes the screen with a back control",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux008_thread.go`, `internal/humanwork/chatui/chatux033_phone.go`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-098",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "The Archived footer: mid-list after a search, an overlay when opened, and visible through a popover",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATBUG-092"
+    ],
+    "test": "TestTodo_CHATBUG_098",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_098_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_098_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_098"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/panels/045-search-results-word.png`, `042-archived-open.png`, `043-sidebar-bottom.png`, `022-prefs-expanded.png`) with search results shown the \"Archived\" band is drawn over a conversation row in the middle of the sidebar; expanding it opens a white box over the channel list with stray glyphs at its edge; after collapsing, the band sits on another row and a section is gone from view; the word shows through the bottom of the Chat preferences popover; the \"Direct messages\" header is half under the footer's fade",
+    "green": "archived conversations are a normal section at the end of the sidebar list (rows with a quiet \"Archived\" tag, Open and Restore in the row menu); nothing is positioned over rows; the footer area, if any, reserves its height and sits under every layer; a browser test opens search, a row menu, Chat preferences and the archived section in turn and finds no row covered",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux035_styles.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/render.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-099",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A click on a conversation row can do nothing; a group message demands a channel-style name; the keyboard path is unproven",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATBUG-091"
+    ],
+    "test": "TestTodo_CHATBUG_099",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_099_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_099_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_099"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/desktop/006-conv-_comp-review.png`, `.artifacts/lanes/agent-ui/shots/deep/panels/032-new-conversation-kind-2.png`, `.artifacts/lanes/agent-ui/shots/deep/desktop/022-message-more-menu.png`) clicking \"comp-review\" straight after \"benefits\" drew left the page on #benefits with the row only hovered; in Create conversation a Group message requires a Name with the placeholder \"For example, design-reviews\"; the workspace rail shows an item that appears and disappears between page states; the Tab order through Chat has not been established (the first attempt left Chat by accident)",
+    "green": "the latest selection always wins, with no click lost to a re-render; a group message needs only people; the rail shows the same items in every state of a page; Tab reaches sidebar, header, message list, composer and tools in that order with a visible ring, focus is never lost to the page body, Escape returns focus to the opener, and a test records the order",
+    "refactor": "none",
+    "refs": "`tools/uxqual/cmd/journeywasm/chat_state.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/productui`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATBUG-100",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Chat preferences: the voice block never finishes loading, and an empty state contradicts the setting beside it",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-048"
+    ],
+    "test": "TestTodo_CHATBUG_100",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATBUG_100_Browser",
+      "INTEGRATION": "TestTodo_CHATBUG_100_Integration",
+      "PRIMARY": "TestTodo_CHATBUG_100"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/panels/022-prefs-expanded.png`) \"Voice messages\" shows three loading bars and \"This is taking longer than usual. Try again\" for as long as the popover is open; \"Languages in this conversation\" says \"No reading languages shared yet. Set your reading language.\" while Reading language is set to English; the reading-language select sits mid-row",
+    "green": "a feature that is not set up says so in one line and never loads forever; a read that fails ends in the retry state within its bound; the languages line reflects the setting; controls sit at the row end",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chatvoice*`, `tools/uxqual/cmd/journeywasm`",
     "retired": false,
     "done": false
   },
@@ -14869,6 +15197,28 @@
     "green": "per-person and per-channel submission rate limits; a review queue older than the administrator's chosen time notifies the administrators and then the workspace administrator; adding a gate to a channel with members offers \"Ask current members to answer by \u003cdate\u003e\" or \"Only new members\", with reminders and the stated consequence, and never removes anyone without the administrator confirming a list; metrics per gate (started, submitted, admitted, declined, median time to decision, drop-off per question) for administrators; a gate with 10,000 submissions lists and filters within 300 ms; FAULT: the outbox and the membership path being unavailable in turn never loses a submission or double-admits",
     "refactor": "none",
     "refs": "`CHATGATE-004`, `CHATGATE-006`, `internal/data/chatstore`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATGATE-014",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A post restricted to some members still counts as unread and notifies members who cannot see it",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATGATE-013"
+    ],
+    "test": "TestTodo_CHATGATE_014",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATGATE_014_Browser",
+      "INTEGRATION": "TestTodo_CHATGATE_014_Integration",
+      "PRIMARY": "TestTodo_CHATGATE_014"
+    },
+    "red": "(lane W8 report, 2026-10-02) a post with an audience (`chat_post_audience`, migration 00047) is hidden from members outside it, but unread counts, the sidebar badge and notifications still include it; nothing erases a member's gate placements when they are removed from the conversation; Conversation details does not show a channel's gate labels; the composer has no control to choose an audience (CHATGATE-010, -011 partial)",
+    "green": "unread counts, badges, mentions and notifications count only posts the member may read, in the same query that hides them; removing a member erases their gate placements in the same transaction; Conversation details lists the channel's gate labels and who holds each; the composer offers \"Visible to\" with the labels the writer may use, shown on the sent post as a quiet tag",
+    "refactor": "none",
+    "refs": "`internal/data/chatstore`, `internal/collaboration/chat`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/styles_composer.go`",
     "retired": false,
     "done": false
   },
@@ -15597,6 +15947,29 @@
     "refactor": "none",
     "refs": "`cmd/migrate/chat_seed.go`, `internal/data/chatstore`, `internal/collaboration/chatfilter`, `internal/humanwork/chatui/chatmod005_sidebar.go`",
     "retired": false,
+    "done": true,
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATSEED_002`, `TestTodo_CHATSEED_002_Integration` and `TestTodo_CHATSEED_002_Browser` pass (lane W2 run). The moderation examples were seeded into the review database after chat migrations 00047 and 00048 were applied (\"14 added, 5 already there\"); on the review server Moderation shows Open 5 and Resolved 5 with reasons, reporters and the reported text (shots `.artifacts/lanes/agent-ui/shots/v1030/moderation-seeded-open.png`, `shots/minb/005-moderation-saved-1-moderation.png`), and the sidebar row carries the count 5. CI remains the run evidence"
+  },
+  {
+    "id": "CHATSEED-003",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Chat seed with reset fails, and seeded message times ignore office hours",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATSEED-002"
+    ],
+    "test": "TestTodo_CHATSEED_003",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATSEED_003_Browser",
+      "INTEGRATION": "TestTodo_CHATSEED_003_Integration",
+      "PRIMARY": "TestTodo_CHATSEED_003"
+    },
+    "red": "(coordinator check, 2026-10-02) `chat seed -reset` stops with a foreign-key error: the purge order omits `chat_persona_source_classification` and `chat_persona_channel_policy`; seeded messages carry times in the middle of the night for the demo workspace's time zone",
+    "green": "the purge lists every table the chat schema has (a test walks the catalogue and fails when a table is neither purged nor listed as kept); a reset followed by a seed succeeds on a database at the current schema; seeded messages fall inside 08:00 to 18:00 on weekdays in the workspace time zone, in a plausible order within each conversation",
+    "refactor": "none",
+    "refs": "`cmd/migrate`, `internal/data/chatstore/chat_seed*.go`, `internal/data/demoworkforce`",
+    "retired": false,
     "done": false
   },
   {
@@ -15764,6 +16137,50 @@
     "green": "three controls in the composer toolbar, shown once the draft has at least a few words, each with a text label and a tooltip saying what it does: Professional (neutral, courteous, no heat), Friendly (warm and positive), Concise (shorter and direct, same content); choosing one replaces the draft with the rewritten text as a preview the writer can edit, with Undo restoring exactly what they typed and \"See changes\" showing the difference; nothing is sent until the writer sends; the same preservation checks as `CHATTONE-002` apply and a rewrite that fails them is not offered; one control is marked \"Suggested\" for this conversation, chosen from the conversation itself (how formal recent messages are, how many people are in it, whether it is an announcement or incident channel, whether the draft answers a manager, a customer-facing channel or a close colleague) by a typed question to the decision port, computed at most once per conversation per hour and never from other conversations; the suggestion's reason is available in plain words (\"Most messages in #incident-review are short and direct\"); the three styles and their instructions are a registry, so a workspace can rename, replace or add a style (a house style) without a code change, and an administrator can turn the controls off; the writer's draft is sent to the model only when they press a control, and the composer says so the first time; keyboard shortcuts, focus kept in the draft, and the controls collapse into one \"Style\" menu at narrow widths; every call writes its usage line and counts against a per-person daily limit with a plain message at the limit; SECURITY: draft text is untrusted data in the prompt, the conversation context sent is bounded and governed by the outbound verifier, and a rewrite is never sent without the writer's action",
     "refactor": "the rewrite call is the one `CHATTONE-002` uses, with a different instruction",
     "refs": "`internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/copy.go`, `tools/uxqual/cmd/journeywasm`, `internal/agentmodel`, section 96 (`AGENTCOST-002`)",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATTONE-005",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A reader who may not view a message as written still gets it from the list, the stream and search; a direct message reads empty",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATTONE-003"
+    ],
+    "test": "TestTodo_CHATTONE_005",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATTONE_005_Browser",
+      "INTEGRATION": "TestTodo_CHATTONE_005_Integration",
+      "PRIMARY": "TestTodo_CHATTONE_005"
+    },
+    "red": "(lane W10 report and `TestTodo_CHATTONE_003_ServedAssembly`, 2026-10-02) with a channel set so members may not view messages as written, the per-message rendering read hides the original, but the message list, the live stream and search still return the original body to the same member; in a direct conversation with rewording On the reader's rendering read returns an empty text with state \"unavailable\" and \"reworded\" wanted, where the rule is that a direct conversation is never reworded",
+    "green": "every path that hands a member a message body or a search match (list, stream, search and its excerpts, thread, notification preview, saved and pinned previews, quotes) gives a reader who may not view the original the reworded rendering, or a \"not ready\" state while it is produced, and never matches their search against text they may not read; the writer and the roles the setting exempts keep the original; a direct conversation is delivered as written with nothing queued; no reader is ever handed an empty body when a rendering cannot be produced",
+    "refactor": "none",
+    "refs": "`internal/application/chattone_w10_served_test.go`, `internal/data/chatstore`, `internal/collaboration/chatrender`, `internal/application/chattone_reword_producer.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATTONE-006",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A model call that stalls leaves the writer waiting twenty seconds and then says \"unavailable\"",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATTONE-004"
+    ],
+    "test": "TestTodo_CHATTONE_006",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATTONE_006_Browser",
+      "INTEGRATION": "TestTodo_CHATTONE_006_Integration",
+      "PRIMARY": "TestTodo_CHATTONE_006"
+    },
+    "red": "(live qualification runs of 2026-10-02: 3 of about 165 calls to gpt-6-luna did not answer within the 20 s bound; every other call answered in 2 to 7 s) the served rewrite makes one call with the full latency bound; a stalled call holds the composer for 20 s and ends in the general \"unavailable\" line with nothing for the writer to do but press again",
+    "green": "the served rewrite gives a call a bound near the slowest ordinary answer (10 s), asks once more when that bound passes, counts the second call against the same daily allowance only when it is answered, and tells the writer it is taking longer than usual after 5 s; the status line names a retry button when both attempts fail; the qualification tool and the served path share the one retry rule; a test with a provider that stalls once shows one answered rewrite and one ledger line",
+    "refactor": "none",
+    "refs": "`internal/application/chattone_gateway.go`, `internal/application/chattone_qualify.go`, `internal/collaboration/chatrewrite/chattone_service.go`, `tools/uxqual/cmd/journeywasm`",
     "retired": false,
     "done": false
   },
@@ -16575,6 +16992,305 @@
     "green": "every Chat and Agents surface draws loading with one component: the surface's own frame is shown at once (heading, tabs or filters, disabled), with three to five placeholder rows shaped like the rows that will arrive, a calm shimmer that stops under reduced motion, and an accessible status (\"Loading moderation items\") announced once; no loading sentence is printed as page text; after eight seconds the placeholder says it is taking longer than usual and offers Try again; a failed load shows what failed with Try again in the same place; an empty result shows the surface's empty state. Moderation, Saved, search results, thread, Conversation details, Person details, the mention and command menus, Browse channels, Agents (Ask, Setup, Operations and their tabs) all use it. A test renders each surface in its loading state and fails on a bare loading sentence",
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatmod005_sidebar.go`, `internal/humanwork/chatui`, `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": true,
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_037` and `TestTodo_CHATUX_037_Browser` pass in `internal/humanwork/chatui` (lanes S24, W1 and W7 runs). On the review server (headless, build of 12:39; shots `.artifacts/lanes/agent-ui/shots/min/009-search-1.png`, `shots/minb/007-agents-setup-ops-2-ops.png`, `shots/min/006-german-details-1.png`) a surface shows its frame at once with the shared loading rows, and a slow load shows the one line with \"Try again\"; a read-only critic pass over 46 screenshots found every visible clause met. Reduced motion, the announced status and the failed and empty states were not on screen in that pass and rest on the tests. CI remains the run evidence"
+  },
+  {
+    "id": "CHATUX-038",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Phone, round two: crushed document cards, a second bar on the list, hover that sticks on touch",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-033"
+    ],
+    "test": "TestTodo_CHATUX_038",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_038_Browser",
+      "PRIMARY": "TestTodo_CHATUX_038"
+    },
+    "red": "(critic review, committed build of 10:25) at 390 px a linked-document card in a direct conversation is about 60 px wide and its text breaks per letter (shot `shots/minb/009-phone-sidebar-dm-1.png`); the conversation list still stacks the workspace bar and a \"Conversations\" bar with a close X on a root view; a grey hover band stays on a message after a touch (shots `shots/min/004-phone-1.png`, `shots/minb/009-phone-sidebar-dm-3-dm.png`); the direct-conversation header shows a blank avatar tile and, on one load, the title \"Conversation\"; a row avatar sits below its label",
+    "green": "at phone width a document card spans the message column and truncates by line; the conversation list has one bar; no hover style applies on a device without hover (`@media (hover: none)`), only a deliberate press highlight that clears; a direct-conversation header shows the person's photograph or initial and name from first paint; row avatars are centred on their row",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux033_phone.go`, `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/productui/chat_page.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-039",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Thread panel: the Sources list is broken, and a document card looks like an agent answer",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-032"
+    ],
+    "test": "TestTodo_CHATUX_039",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_039_Browser",
+      "PRIMARY": "TestTodo_CHATUX_039"
+    },
+    "red": "(critic review, committed build of 10:25; shot `shots/minb/004-thread-1.png`) in the thread panel the Sources list is a Markdown list whose first item has no bullet and wraps, with \"v1.0.0\" on a bullet of its own; linked-document cards use the same accent rule at the left as agent answer cards; thread text is larger than conversation text",
+    "green": "sources in a thread are the same chips as in the conversation, one per source, never a Markdown list; a document card is neutral (hairline border, no accent rule) so the accent rule means an agent answer only; thread and conversation text use one size",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux008_thread.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/chat_doc_links.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-040",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Sidebar menus, selected rows and Saved: wrapping items, two selected styles, a panel with no home",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATBUG-090"
+    ],
+    "test": "TestTodo_CHATUX_040",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_040_Browser",
+      "PRIMARY": "TestTodo_CHATUX_040"
+    },
+    "red": "(critic review, committed build of 10:25; shots `shots/minb/003-row-menu-1.png`, `-2.png`, `shots/minb/005-moderation-saved-1-moderation.png`, `-2-saved.png`) the row menu is about 200 px wide so \"Move to a new section...\", \"Move conversation down\" and \"Move to Direct messages\" wrap; only \"Copy name and link\" has an icon; the menu covers the sidebar head; selected Saved and Moderation rows are a strong fill while a selected channel is a pale tint with a bar, and a hovered row is darker than the selected one; row text starts at three different left edges; Saved opens beside an unrelated conversation; a saved item's attachment line is cut through by a fade; \"All 3\" sits beside \"Done 2\" with two items shown; \"Done Yesterday\" is capitalised mid-phrase",
+    "green": "the row and section menus are wide enough for their longest item in English, German and Arabic (min 240 px, max 320 px), every item has an icon or none does, and the menu opens beside its button without covering the sidebar head; one selected-row style everywhere, stronger than hover; one text column for all rows; Saved keeps the conversation that was open visibly behind it and says which conversation each item is from; saved text clamps on whole lines; tab counts add up and are explained (\"All\" counts to-do plus done); \"Done yesterday\" in sentence case",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatbug090_menu.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/chatbug091_saved.go`, `internal/humanwork/chatui/chatsave002_view.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-041",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Conversation details, round three: buttons in three styles, doubled filter grids, jargon in agent rows",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-030"
+    ],
+    "test": "TestTodo_CHATUX_041",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_041_Browser",
+      "PRIMARY": "TestTodo_CHATUX_041"
+    },
+    "red": "(critic review, committed build of 10:25; shots `shots/min/000-details-1.png` to `-12.png`) Copy link, Unpin, Ask and Show fewer are black outline buttons while other secondary buttons are accent text and Save is filled; \"Show fewer\" and \"Show all 18\" start 8 px left of the member rows; the channel title block is clipped under the sticky bar when scrolled; the translate switch touches its label and sits at the left while other switches sit at the right; \"Manage filters\" and \"Workspace filters\" show the same word-list grid with no sign of which scope a switch changes; an expanded agent prints \"deployed tenant policy documents\" and \"bounded plain-text persona reply ... - Read only\", in a 230 px column with a dead strip beside it, with \"Version:\" bold and \"Owner:\" plain, and a collapsed line that contradicts the expansion; \"Role labels 18\" counts members, not labels; Save is live on an empty form while \"Confirm status change\" is disabled; the pin icons have no label; \"Joining questions\" uses a right chevron",
+    "green": "one secondary button style in the panel; member list controls share the rows' left edge; the title block scrolls away cleanly; every switch sits at the row's end with a gap; the channel shows the workspace's word lists as read-only defaults with a per-channel override switch beside each, in one grid; an agent's skills read as plain sentences (\"Searches documents you can open (read only)\"), full width, with one label style and one scope statement; \"Role labels\" shows how many labels are set; Save is disabled until a field changes; icon buttons have a label or tooltip; rows that open in place use the down chevron and rows that navigate use the right chevron",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux027_manage.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatux030_details.go`, `internal/humanwork/chatui/chatmod003_panel.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-042",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "An agent answer is drawn three ways, and the message toolbar repeats its menu",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-028"
+    ],
+    "test": "TestTodo_CHATUX_042",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_042_Browser",
+      "PRIMARY": "TestTodo_CHATUX_042"
+    },
+    "red": "(critic review, committed build of 10:25; shots `shots/min/002-assistant-dm-1.png`, `shots/min/003-sidebar-menus-1.png`, `shots/minb/000-message-hover-menu-1.png`) an agent answer is a bordered card with an accent rule in a channel, plain text for an announcement, and plain text with grey rating buttons in a direct conversation; \"Helpful\" is filled when chosen but reads as the primary action; source chips and action buttons share one outlined pill style; \"found nothing\" answers carry a warning triangle; the hover toolbar repeats Reply and Listen from the menu and marks a saved message with a solid black bookmark",
+    "green": "one agent-answer component on every surface (author line, body, sources, actions) with the accent rule in channels only where the answer is attached to a question; a chosen rating is marked by a check and the accent text, never by a filled primary button; chips are visibly different from buttons (no border radius pill for actions, or a tinted chip); a \"nothing found\" answer is a normal answer without a warning glyph (the glyph is for real failures); the toolbar holds the four most used actions and the menu the rest, with no duplicates; a saved message's bookmark uses the accent",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux003_card.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/message_menu.go`",
+    "retired": false,
+    "done": true,
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_CHATUX_042` and `TestTodo_CHATUX_042_Browser` pass in `internal/humanwork/chatui` (lane X2 run). On the review server (headless, build of 12:39; shots `shots/minb/002-create-and-browse-2-add.png`, `shots/minb/005-moderation-saved-2-saved.png`, `shots/minb/000-message-hover-menu-1.png`, `-2.png`) an agent answer in a channel and in a direct conversation share one author line, badge, body and Sources; source chips are tinted and the rating buttons plain; the hover toolbar (three frequent emoji, React, Reply, Save, More) and the menu share no action, and a saved message's bookmark is the accent. A chosen rating and a \"nothing found\" answer were not on screen in that pass and rest on the tests. CI remains the run evidence"
+  },
+  {
+    "id": "CHATUX-043",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Arabic: punctuation lands at the wrong end, and a block and its list sit on opposite sides",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-035"
+    ],
+    "test": "TestTodo_CHATUX_043",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_043_Browser",
+      "PRIMARY": "TestTodo_CHATUX_043"
+    },
+    "red": "(critic review, committed build of 10:25; shots `shots/min/005-arabic-1.png`, `shots/minb/010-arabic-details-phone-1.png`, `-2.png`) in the agent profile sheet a skills bullet reads \".this installation may read. - (Arabic)\" with the full stop first; an English intro line is at the left while its bullets are at the right; the composer hint puts the comma before the Arabic clause; the \"details\" link sits at the end edge while everything else is at the start; the sheet has no bottom padding",
+    "green": "every mixed-direction run (a skill sentence, a title, a name, a hint with key names) is isolated so punctuation lands at its logical end; a paragraph and the list under it share one alignment; links and controls align to the start edge; a bottom sheet keeps safe-area padding",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux035_bidi.go`, `internal/humanwork/chatui/mention_profile.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-044",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "A person whose system is set to dark gets the light theme",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-025"
+    ],
+    "test": "TestTodo_CHATUX_044",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_044_Browser",
+      "PRIMARY": "TestTodo_CHATUX_044"
+    },
+    "red": "(critic review, committed build of 10:25; shot `shots/minb/008-tablet-and-dark-2-dark.png`) with the browser reporting a dark colour scheme the workspace and Chat render in the light theme; the shell has a colour-mode attribute with light, dark and system values and starts on light",
+    "green": "a person who has not chosen a theme gets the system setting (mode \"system\" is the default); a stored choice wins; Chat, the Agents pages and every layer follow the shell's mode with no flash of the other theme on load; a test renders the document for a new person and finds the system mode",
+    "refactor": "none",
+    "refs": "`internal/humanwork/workspace/product_shell.go`, `internal/humanwork/chatui/styles.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-045",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Tablet and phone leftovers: Saved squeezes the composer, a direct conversation is titled \"P.\", the Agents tabs overflow",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-038"
+    ],
+    "test": "TestTodo_CHATUX_045",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_045_Browser",
+      "INTEGRATION": "TestTodo_CHATUX_045_Integration",
+      "PRIMARY": "TestTodo_CHATUX_045"
+    },
+    "red": "(coordinator sweeps, 2026-10-02) at 768 px the Saved panel leaves the composer about 200 px wide and the brand mark collapses; at 390 px a direct conversation's title is cut to \"P.\", the Agents page tab strip runs off the screen, and cost tables in Arabic overflow; on a phone the bell and the account menu are no longer reachable from Chat",
+    "green": "at 768 px a side panel opens over the conversation instead of beside it; the brand mark keeps its size; at 390 px a direct conversation shows the person's full name on one line with an ellipsis only past the available width; the Agents tabs scroll horizontally with a visible edge fade and the selected tab in view; cost tables become one card per row; the phone bar keeps the bell and the account menu",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux033_phone.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/chat_page.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-046",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "The client bundle is 7 KB under its ceiling, and Chat can paint unstyled on a history arrival",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-025"
+    ],
+    "test": "TestTodo_CHATUX_046",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_046_Browser",
+      "INTEGRATION": "TestTodo_CHATUX_046_Integration",
+      "PRIMARY": "TestTodo_CHATUX_046"
+    },
+    "red": "(lane W11 report, 2026-10-02) journey.wasm is 61,858,831 bytes with 7 KB to spare against the headroom test; the Chat stylesheet is now loaded before navigation into Chat, but an arrival by Back or Forward from a same-document entry is covered only by a wait in the route loader and can show an unstyled skeleton; about 54 duplicate rules and 67 dead classes named by tests remain",
+    "green": "the bundle has at least 256 KB of headroom (candidates in the lane report: non-comparable markers on the chat, search and rewrite wire types; moving large composite-literal registries out of compiled code); a history arrival into Chat never paints before the Chat sheet is applied (a browser test goes Home, Chat, Back, Forward and samples the first painted frame); duplicate rules are removed where the earlier copy is provably the dead one",
+    "refactor": "none",
+    "refs": "`tools/uxqual/cmd/journeywasm/chatsheet_gate.go`, `tools/uxqual/cmd/journeywasm/clientnotls_overlay.go`, `internal/humanwork/productui/chatsheet_split.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-047",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Names and avatars arrive late: an agent's author line reads \"...\" and direct-message rows show an empty tile",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-038"
+    ],
+    "test": "TestTodo_CHATUX_047",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_047_Browser",
+      "PRIMARY": "TestTodo_CHATUX_047"
+    },
+    "red": "(critic review, build of 12:39; `shots/min/000-details-1.png`, `shots/min/002-assistant-dm-1.png`, `shots/min/003-sidebar-menus-1.png`, `shots/minb/008-tablet-and-dark-1-tablet.png`, `shots/min/004-phone-1.png`) an agent message's author is drawn as \"...\" beside a blank circle until the agent directory answers; direct-message rows in the sidebar show a blank bar or a name with an empty avatar tile; on a phone the direct-conversation header reads \"Conversation\" with a blank tile",
+    "green": "a message, a sidebar row and a conversation header carry the author's or person's name and avatar in the same answer that carries the row (the server sends display name and avatar reference with posts, conversation rows and headers; the directory read only refines them); where a name truly is not known yet the placeholder is the shared loading bar of the row's width, never \"...\" or \"Conversation\"; a test renders the first frame after the list answer with the directory still pending and finds every name",
+    "refactor": "none",
+    "refs": "`internal/transport/chat`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `tools/uxqual/cmd/journeywasm`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-048",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Chat preferences: the administrator block is unstyled, and Moderation makes Remove the primary button",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-031"
+    ],
+    "test": "TestTodo_CHATUX_048",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_048_Browser",
+      "PRIMARY": "TestTodo_CHATUX_048"
+    },
+    "red": "(critic review, build of 12:39; `shots/min/001-settings-language-1.png`, `shots/minb/005-moderation-saved-1-moderation.png`, `shots/min/000-details-1.png`) in Chat preferences the Administrator settings are native buttons (Off / Offered to writers / On, Yes / No) with no row padding, a different left edge from the rows above, help text under the buttons and no label saying what Yes or No answers; the popover overlaps the sidebar's Archived footer; in Moderation \"Remove\" is the solid accent button, the same as Send, and \"Dismiss\" an outline of equal weight; a removed message's notice and its square \"Restore\" box sit between the avatar and text columns with no author, time or reason",
+    "green": "the administrator rows use the same row component as the rows above (label, one-line help under the label, a segmented control or switch at the row end, each question written out: \"Reword heated messages\", \"Members may read messages as written\"); the popover stays inside the viewport and above the footer; Remove uses the danger style and is never the default action, Dismiss is the plain secondary; a removed message keeps its place in the text column and says who removed it, when and why, with Restore in the standard secondary style",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chattone_w10_admin.go`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatmod_removed_row.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-049",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "One control vocabulary: close buttons, disabled buttons, focus rings, selects and the pencil icon each come in two or three forms",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-041"
+    ],
+    "test": "TestTodo_CHATUX_049",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_049_Browser",
+      "PRIMARY": "TestTodo_CHATUX_049"
+    },
+    "red": "(critic review, build of 12:39; `shots/min/000-details-1.png` to `-12.png`, `shots/minb/000-message-hover-menu-1.png`, `shots/minb/002-create-and-browse-1-new.png`, `shots/min/009-search-1.png`) the panel close button is a filled peach square in some shots and a plain X in others; three disabled styles exist (Send pale peach, Create channel flat grey, Confirm status change salmon with white text), all low contrast; the Name field and the sidebar search show a dark ring and an orange ring together, and the search clear X is blue; native selects have a thick black arrow in two places and a thin chevron in a third, and inputs use dark borders while Purpose uses a light one; a hovered message row is wider than the composer; the pencil means new conversation, a draft on a channel row, edit purpose and (until CHATTONE-004 lands) a writing style; the mention highlight is khaki, off the accent tint",
+    "green": "one close button (plain X, focus ring on keyboard focus only); one disabled style for every button with at least 3:1 contrast for its label; one focus ring per field in the focus token; one select and one input component in panels; a hovered row and the composer share inline edges; the pencil is used for editing only (new conversation uses the compose icon, a draft row uses a \"Draft\" text tag); mentions use the accent tint",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/chatux032_styles.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/styles_composer.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-050",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Composer and small copy: a tall empty message box, a second row for Send on a phone, translated key names, unexplained counts",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-040"
+    ],
+    "test": "TestTodo_CHATUX_050",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_050_Browser",
+      "PRIMARY": "TestTodo_CHATUX_050"
+    },
+    "red": "(critic review, build of 12:39; `shots/min/002-assistant-dm-1.png`, `shots/min/004-phone-1.png`, `shots/min/006-german-details-1.png`, `shots/min/005-arabic-1.png`, `shots/minb/005-moderation-saved-2-saved.png`, `shots/minb/003-row-menu-1.png`, `shots/min/000-details-2.png`, `-10.png`, `-11.png`) one line of text sits in a 165 to 200 px composer with a dead band above Send; with text on a phone the composer becomes a tool row plus a separate Send row about 170 px tall; German says \"Eingabe sendet\" and \"Ctrl+K\" (the key is \"Strg+K\"); in Arabic the \"Ctrl+K\" chip sits on the wrong side of the search field; Saved shows \"To do 0 / Done 2 / All 3\" with two items; the notification choices in the row menu have no icon while every other row has one; \"Workspace filters\" lists all nine word lists instead of what differs; help text under several rows is two or three sentences; the channel title block shows half-hidden under the sticky header when scrolled; a GIF attachment is a mostly blank tile",
+    "green": "the composer is one text line tall when empty (56 to 80 px with its tool row) and grows with the text to a third of the viewport; on a phone Send is on the tool row; key names are the ones on the reader's keyboard (\"Enter\", \"Strg+K\") and the shortcut chip mirrors in right-to-left; Saved counts add up and \"All\" is explained by its label; every row menu item has an icon or none does; workspace filters show only what differs from the channel, with \"Same as workspace\" otherwise; one sentence of help per row; the title block scrolls away cleanly; a GIF shows its first frame",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/copy.go`, `internal/humanwork/chatui/chatbug091_saved.go`, `internal/humanwork/chatui/chatbug090_menu.go`, `internal/humanwork/chatui/chatux027_manage.go`",
+    "retired": false,
+    "done": false
+  },
+  {
+    "id": "CHATUX-051",
+    "phase": "PHASE_3",
+    "model": "SOL_HIGH",
+    "title": "Small composer and list roughness: no channel suggestions, cut emoji names, a pill over the last message, a keyboard hint on a phone",
+    "section": "107. Chat: flow and placement refinements from the scan loop",
+    "depends": [
+      "CHATUX-050"
+    ],
+    "test": "TestTodo_CHATUX_051",
+    "test_matrix": {
+      "BROWSER": "TestTodo_CHATUX_051_Browser",
+      "INTEGRATION": "TestTodo_CHATUX_051_Integration",
+      "PRIMARY": "TestTodo_CHATUX_051"
+    },
+    "red": "(deep inspection, build of 12:39; `.artifacts/lanes/agent-ui/shots/deep/composer/005-channel-reference.png`, `006-emoji-shortcode.png`, `.artifacts/lanes/agent-ui/shots/deep/small/005-phone-composer-with-text.png`, `008-phone-list.png`) typing \"#\" offers no channels; the emoji shortcode list cuts names to \"smiling fac...\" beside the full shortcode; \"Jump to newest\" sits on top of the last visible message text; the phone conversation list shows the \"Ctrl+K\" hint; the header subtitle gains \"- N agents\" late with a doubled space and moves the title",
+    "green": "typing \"#\" suggests channels the person can read and inserts a link; the shortcode list shows the full name and trims the shortcode; \"Jump to newest\" sits in reserved space above the composer; keyboard hints are hidden on touch devices; the header subtitle arrives whole",
+    "refactor": "none",
+    "refs": "`internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/chatemoji*`, `internal/humanwork/chatui/chatux033_phone.go`",
     "retired": false,
     "done": false
   },

@@ -129,4 +129,4 @@ button.manage-sec-row:focus-visible{outline:2px solid var(--hcm-color-brand-prim
 .chat-details .details-members-more:hover:not(:disabled){background:var(--soft)}
 .chat-details .integrations-developers .manage-sec-row{padding-inline:0}
 @media(prefers-reduced-motion:reduce){.manage-sec-chevron{transition:none}}
-`
+` + ChatUX041Styles

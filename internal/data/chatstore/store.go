@@ -464,6 +464,9 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if err = RecordRenderingRevisionTx(ctx, tx, r.TenantID, out.ID, uint64(out.Revision), nil); err != nil {
 		return out, err
 	}
+	if err = writePostAudience(ctx, tx, r.TenantID, r.ConversationID, out.ID, r.AuthorID); err != nil {
+		return out, err
+	}
 	value, err := chatPost(out)
 	if err != nil {
 		return out, err

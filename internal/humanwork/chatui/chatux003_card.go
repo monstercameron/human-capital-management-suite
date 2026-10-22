@@ -77,7 +77,7 @@ func chatux003AnswerCard(model Model, local localUI, message EphemeralMessage, p
 			children = append(children, menu)
 		}
 	}
-	return html.Article(html.Props{Class: "chat-ephemeral agent-reply-row", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"ephemeral-id": message.ID, "ephemeral-thread": message.ThreadID, "agent-reply-state": "answered-private", "agent-answer-visibility": visibility}}, children...)
+	return chatux042Article(chatux042Attached, html.Props{Class: "chat-ephemeral agent-reply-row", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"ephemeral-id": message.ID, "ephemeral-thread": message.ThreadID, "agent-reply-state": "answered-private", "agent-answer-visibility": visibility}}, children...)
 }
 
 // chatux003Header is the card's one header line. The agent's name opens the

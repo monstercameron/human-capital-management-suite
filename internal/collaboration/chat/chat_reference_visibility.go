@@ -13,6 +13,13 @@ const restrictedConversationReference = "Restricted conversation"
 // can render an inert placeholder, while dropping every target identifier and
 // the sender's display snapshot to avoid a discovery leak.
 func (s *Service) projectConversationReferences(ctx context.Context, p Principal, posts []Post) []Post {
+	projected, _ := s.projectReaderPosts(ctx, p, posts)
+	return projected
+}
+
+// projectReaderPosts is projectConversationReferences that also reports which
+// posts had their body replaced because the reader may not read them as written.
+func (s *Service) projectReaderPosts(ctx context.Context, p Principal, posts []Post) ([]Post, []bool) {
 	projected := make([]Post, len(posts))
 	visible := make(map[string]bool)
 	// CHATBUG-014: a source cited by several answers on the page is resolved
@@ -40,8 +47,8 @@ func (s *Service) projectConversationReferences(ctx context.Context, p Principal
 	}
 	// CHATMOD-002: what a reader sees of a filtered message is decided here, on
 	// the server, for every history read, search hit, pin and live event.
-	s.maskReaderBodies(ctx, p, projected)
-	return projected
+	replaced := s.maskReaderBodies(ctx, p, projected)
+	return projected, replaced
 }
 
 // ProjectWatchEvent is the reader projection of one watch event: the agent

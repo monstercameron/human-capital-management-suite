@@ -191,6 +191,9 @@ func loadingProxyBody(page PageID, locale LocaleContext) ui.Node {
 	// a document-style placeholder while the client fetches.
 	case PageChat:
 		return chatui.Build(chatLoadingModel(locale))
+	// The agent pages draw their own frame at once (AGENTUX-077).
+	case PageAgents, PageAgentOperations, PagePersonaAdmin:
+		return agentUX077LoadingBody(page, locale)
 	// Organization is a search field over one list of teams, which is this
 	// shape; it used to borrow Insights' metric cards and chart, none of which
 	// it has.

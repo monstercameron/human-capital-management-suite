@@ -55,14 +55,14 @@ const chatscaleCandidates = `
  WHERE p.tenant_id=$1 AND p.conversation_id=r.conversation_id
  AND p.sequence>r.last_sequence AND NOT p.tombstoned` + chatscaleNotSystemLine + `
  AND NOT (p.author_home_tenant_id=$2 AND p.author_id=$3)
- AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))
+ AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))` + chatgateCountAudience + `
  ORDER BY p.sequence DESC LIMIT $5)
  UNION ALL
  (SELECT p.sequence,p.references_json,false AS unseen FROM chat_post p
  WHERE p.tenant_id=$1 AND p.conversation_id=r.conversation_id
  AND p.sequence<=r.last_sequence AND p.revision>1 AND p.updated_at>r.read_at AND NOT p.tombstoned` + chatscaleNotSystemLine + `
  AND NOT (p.author_home_tenant_id=$2 AND p.author_id=$3)
- AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))
+ AND (r.history_visibility='FULL_HISTORY' OR (r.history_visibility='FROM_JOIN' AND p.created_at>=r.joined_at))` + chatgateCountAudience + `
  ORDER BY p.sequence DESC LIMIT $5)
  ) bounded ORDER BY sequence DESC LIMIT $5`
 

@@ -603,7 +603,7 @@ func (h *Handler) serveAsset(w http.ResponseWriter, r *http.Request) {
 		h.serveAssetIntegrityManifest(w, r)
 		return
 	}
-	if productStylesheetAssetName(name) {
+	if productStylesheetAssetName(name) || chatStylesheetAssetName(name) {
 		h.serveProductStylesheet(w, admitted, name)
 		return
 	}

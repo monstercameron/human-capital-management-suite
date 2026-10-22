@@ -55,8 +55,8 @@ func TestTodo_UXBLIND_122_AgentRouteProfile(t *testing.T) {
 		t.Fatalf("Agents route profile = %q, want %q", profile, RouteProfileAgents)
 	}
 	keys := profile.QueryKeys()
-	if len(keys) != 5 || keys[4] != "task" {
-		t.Fatalf("Agents route keys = %v, want shell keys plus task", keys)
+	if len(keys) != 6 || keys[4] != "task" || keys[5] != "view" {
+		t.Fatalf("Agents route keys = %v, want shell keys plus task and view", keys)
 	}
 	for index, want := range []string{"locale", "nav", "menu_q", "favorites"} {
 		if keys[index] != want {

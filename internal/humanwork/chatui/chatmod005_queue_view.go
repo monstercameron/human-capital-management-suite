@@ -181,6 +181,9 @@ func moderationQueueItem(m ModerationPageModel, item chat.ModerationItem, now ti
 	if item.Message.Deleted && item.PostID != "" {
 		head = append(head, html.Span(html.Props{Class: "chatmod005-kind chatmod005-removed", Text: t("removed_badge")}))
 	}
+	if tag := moderationRestoredTag(m, item); tag != nil && !item.Message.Deleted {
+		head = append(head, tag)
+	}
 	if item.ConversationName != "" {
 		head = append(head, html.A(html.Props{Class: "chatmod005-channel", Dir: "auto", Href: ChannelReferenceURL(item.ConversationID), Text: "#" + item.ConversationName}))
 	}
@@ -204,7 +207,7 @@ func moderationQueueItem(m ModerationPageModel, item chat.ModerationItem, now ti
 	case "filter":
 		children = append(children, html.P(html.Props{Class: "chatmod005-muted", Text: moderationFill(t("flag_line"), "{when}", when)}))
 	case "removal":
-		children = append(children, html.P(html.Props{Class: "chatmod005-muted", Dir: "auto", Text: moderationFill(t("removal_line"), "{name}", chatremoveName(m, item.DecidedBy), "{when}", when)}))
+		children = append(children, moderationRemovalLines(m, item, when, now)...)
 	}
 	if item.State != "OPEN" && item.Decision != "" && item.Kind != "removal" {
 		line := moderationFill(t("decided_"+item.Decision), "{name}", chatremoveName(m, item.DecidedBy), "{when}", moderationWhen(m.Locale, item.DecidedAt, m.TimeZone, now))
@@ -239,18 +242,21 @@ func moderationQueueItem(m ModerationPageModel, item chat.ModerationItem, now ti
 // dialog; Dismiss and Restore need nothing and happen at once.
 func moderationItemActions(m ModerationPageModel, item chat.ModerationItem) ui.Node {
 	t := func(key string) string { return chatremoveText(m.Locale, key) }
+	// CHATUX-048: every action is the page's standard secondary button; Remove is
+	// the danger style and never the filled one, and only a restore of an appeal
+	// is ever the lead (filled) action.
 	dialog := func(action, label string, primary bool) ui.Node {
 		q := url.Values{"conversation": {item.ConversationID}, "post": {item.PostID}, "action": {action}, "case": {item.ID}, "locale": {m.Locale}}
-		class := "chatmod005-action"
-		if primary {
-			class += " primary"
+		class := "chatmod005-action button secondary"
+		if action == "remove" {
+			class += " danger"
 		}
 		return html.Button(html.Props{Type: "button", Class: class, Text: label, Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + q.Encode()}})
 	}
 	direct := func(action, label string, primary bool) ui.Node {
-		class := "chatmod005-action"
+		class := "chatmod005-action button secondary"
 		if primary {
-			class += " primary"
+			class = "chatmod005-action button primary"
 		}
 		return html.Button(html.Props{Type: "button", Class: class, Text: label, Data: map[string]string{"chatremove-act": action, "case-id": item.ID}})
 	}

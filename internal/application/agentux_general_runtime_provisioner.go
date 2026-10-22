@@ -235,7 +235,16 @@ func publishLocalAgentDemoRoute(ctx context.Context, config LocalAgentDemoConfig
 	if err != nil {
 		return false, err
 	}
-	_, err = publisher.PublishPersonaModelRoutePolicy(ctx, agentstore.PersonaModelRoutePublication{Tenant: values.TenantId(config.Tenant), LegalEntityID: legalEntity, PolicyID: ref.ID, PolicyVersion: int64(ref.Version), SchemaVersion: int64(ref.SchemaVersion), PolicyDigest: ref.Digest, Revision: 1, EffectiveFrom: now, PersonaID: row.PersonaID, PersonaVersion: row.Version, ProfileDigest: row.ContentDigest, EvaluationRunID: runID, PolicyPayload: policyRaw, RoutePayload: raw})
+	// A route for this exact agent manifest may already have been issued and
+	// have expired (its qualification lasted as long as the evaluation did); a
+	// renewed version of the same agent is then the next revision of that
+	// policy key, never a repeat of revision 1.
+	for revision := int64(1); revision <= 64; revision++ {
+		_, err = publisher.PublishPersonaModelRoutePolicy(ctx, agentstore.PersonaModelRoutePublication{Tenant: values.TenantId(config.Tenant), LegalEntityID: legalEntity, PolicyID: ref.ID, PolicyVersion: int64(ref.Version), SchemaVersion: int64(ref.SchemaVersion), PolicyDigest: ref.Digest, Revision: revision, EffectiveFrom: now, PersonaID: row.PersonaID, PersonaVersion: row.Version, ProfileDigest: row.ContentDigest, EvaluationRunID: runID, PolicyPayload: policyRaw, RoutePayload: raw})
+		if !errors.Is(err, agentstore.ErrConflict) {
+			break
+		}
+	}
 	return err == nil, err
 }
 
@@ -317,7 +326,7 @@ func localAgentDemoEvaluationVerificationKeys(privateKey ed25519.PrivateKey, ten
 		if !localPersonaOpenAIDemoTenant(tenant) {
 			continue
 		}
-		for _, suite := range []agenteval.PersonaSuite{agenteval.PolicyHelperSuite(personaPolicyHelperSkillID), agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID)} {
+		for _, suite := range append([]agenteval.PersonaSuite{agenteval.PolicyHelperSuite(personaPolicyHelperSkillID), agenteval.AssistantSuite(personaPolicyHelperSkillID, personaChatReplySkillID)}, agentUXDemoStarterSuites()...) {
 			keyID, err := PersonaEvaluationVerificationKeyID(tenant, suite.ID, localAgentDemoEvaluationKeyID)
 			if err != nil {
 				return nil, err

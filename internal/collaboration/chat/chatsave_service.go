@@ -33,6 +33,7 @@ type SavedItem struct {
 	Post                                                     *Post  `json:",omitempty"`
 	Channel                                                  string `json:",omitempty"`
 	Availability                                             string
+	_                                                        incomparable
 }
 
 type SavedRequest struct {

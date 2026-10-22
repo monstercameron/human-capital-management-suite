@@ -43,6 +43,7 @@ type ChatmapLiveSession struct {
 	Failures                                       int
 	Stopped                                        bool
 	Reason                                         string
+	_                                              incomparable
 }
 
 // Tick runs one step of the loop: stop when the end time has passed, the

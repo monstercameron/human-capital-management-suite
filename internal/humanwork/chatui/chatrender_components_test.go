@@ -82,7 +82,7 @@ func TestTodo_CHATLANG_002_Browser(t *testing.T) {
 			}
 		}
 		markup := chatrenderMarkup(t, RenderingLanguageIndicator(locale, map[string]int{"de": 2, "en": 1, "ar": 0}))
-		if !strings.Contains(markup, RenderingText(locale, "de")+": 2") || strings.Contains(markup, ": 0") {
+		if !strings.Contains(markup, RenderingText(locale, "de")+": "+chatNumeral(locale, "2")) || strings.Contains(markup, ": "+chatNumeral(locale, "0")) {
 			t.Fatal(markup)
 		}
 		markup = chatrenderMarkup(t, RenderingLanguageIndicator(locale, nil))

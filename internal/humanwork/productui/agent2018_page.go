@@ -39,24 +39,6 @@ func agentAccessHeading(embedded bool, props html.Props, text string) ui.Node {
 	return html.H1(props, ui.Text(text))
 }
 
-// agentsViewTabs is the Ask / My agent access switch every person sees on the
-// Agents page. The current view is text, not a link.
-func agentsViewTabs(view View, locale LocaleContext, current string) ui.Node {
-	items := make([]ui.Node, 0, 2)
-	for _, item := range []struct{ id, key, href string }{
-		{"ask", "tab_ask", statefulHref(view, PageAgents)},
-		{"access", "tab_access", statefulHref(view, PageAgents, "view", "access")},
-	} {
-		label := agentAccessText(locale, item.key)
-		if item.id == current {
-			items = append(items, html.Span(html.Props{Class: "agents-view-tab", Raw: map[string]any{"aria-current": "page"}}, ui.Text(label)))
-			continue
-		}
-		items = append(items, ui.CreateElement(ActionLink, ActionLinkProps{Label: label, Href: item.href, Class: "agents-view-tab", Navigate: view.Navigate}))
-	}
-	return html.Nav(html.Props{Class: "agents-view-tabs", Aria: map[string]string{"label": agentAccessText(locale, "tabs_label")}}, items...)
-}
-
 // BuildAgentAccessPage is the Agents page's access view: the frame, the view
 // switch and the placeholder the script fills with the person's own access.
 func BuildAgentAccessPage(view View) ui.Node {
@@ -71,7 +53,7 @@ func BuildAgentAccessPage(view View) ui.Node {
 	return ProductPageFrame(ProductPageFrameProps{
 		Class: "agent-page-frame", Dir: string(locale.Direction), Aria: map[string]string{"labelledby": "agents-page-title"}, Raw: map[string]any{"data-agent-access-view": "true"},
 		Breadcrumbs: agentUXR7Breadcrumb(locale), Title: locale.Text("agents.page_title"), TitleID: "agents-page-title", Actions: actions,
-		Body: []ui.Node{html.Div(html.Props{Class: "agents-page agent-access-view"}, agentsViewTabs(view, locale, "access"), AgentAccessMount(locale))},
+		Body: []ui.Node{html.Div(html.Props{Class: "agents-page agent-access-view"}, agentsBackLine(view, locale), AgentAccessMount(locale))},
 	})
 }
 
@@ -110,13 +92,20 @@ func AgentCostMount(locale LocaleContext, active bool) ui.Node {
 // shows the real limit, or says there is none, and lets the owner set one.
 func AgentSpendLimitsMount(locale LocaleContext, agentID, agentName string) ui.Node {
 	return html.Div(html.Props{Class: "agent-spend-mount", Dir: string(locale.Direction), Raw: map[string]any{"data-agent-spend-mount": agentID, "data-agent-name": agentName, "data-locale": locale.Resolved}},
-		html.P(html.Props{Role: "status", Class: "muted", Aria: map[string]string{"live": "polite"}}, ui.Text(agentCostText(locale, "loading_limits"))))
+		AgentSpendLimitsLoading(locale))
 }
 
-// AgentSpendLimitsFailed is what an agent's limits card says when its limits
-// could not be read: a sentence, and a Try again that reads them again.
+// AgentSpendLimitsLoading is the line an agent's limits card shows while its
+// limits are read, and again when a person asks for them to be read again.
+func AgentSpendLimitsLoading(locale LocaleContext) ui.Node {
+	return html.P(html.Props{Role: "status", Class: "muted", Aria: map[string]string{"live": "polite"}}, ui.Text(agentCostText(locale, "loading_limits")))
+}
+
+// AgentSpendLimitsFailed is what an agent's limits card shows when its limits
+// could not be read: the shared loading placeholder, which after a few seconds
+// says it is taking longer than usual and offers Try again, the same as every
+// other region of the Agents pages. The sentence is announced, not drawn.
 func AgentSpendLimitsFailed(locale LocaleContext) ui.Node {
-	return html.Div(html.Props{Class: "agent-spend-failed", Role: "alert"},
-		html.P(html.Props{Class: "muted"}, ui.Text(agentCostText(locale, "limits_failed"))),
-		html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-spend-action": "retry"}}, ui.Text(agentCostText(locale, "try_again"))))
+	return html.Div(html.Props{Class: "agent-spend-failed"},
+		AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 1, Status: agentCostText(locale, "limits_failed"), RetryRaw: map[string]any{"data-agent-spend-action": "retry"}}))
 }

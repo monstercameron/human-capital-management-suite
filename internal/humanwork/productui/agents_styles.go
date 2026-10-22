@@ -6,7 +6,7 @@ import gwccss "github.com/monstercameron/GoWebComponents/v5/css"
 // workspace. Content and availability remain owned by agents_page.go; this
 // sheet only gives that semantic markup a bounded, theme-aware layout.
 func agentsStylesheet() string {
-	return buildTypedSheet(declareAgentsStyles)
+	return buildTypedSheet(declareAgentsStyles) + agentUX045Styles
 }
 
 func declareAgentsStyles() {
@@ -537,9 +537,6 @@ func declareAgentsStyles() {
 	)
 	declareGlobal(".agent-portable-draft-row .agent-portable-open-form",
 		mediaRule(gwccss.MaxW(800), gwccss.JustifySelf.Start),
-	)
-	declareGlobal(".agent-operations-tabs",
-		mediaRule(gwccss.MaxW(390), gwccss.Raw("overflow-x", "visible")),
 	)
 	declareGlobal(".agent-operations-tabs a",
 		mediaRule(gwccss.MaxW(390), gwccss.Raw("padding-inline", "10px")),

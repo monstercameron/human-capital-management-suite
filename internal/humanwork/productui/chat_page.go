@@ -104,11 +104,21 @@ func chatShellStylesheet() string {
 // chatPhoneShellStylesheet is the page's claim on the whole phone viewport
 // (CHATUX-033). While a conversation is open the chat's own header is the one
 // bar, so the workspace bar goes and the shell grid keeps only its main row;
-// the conversation list (the chat's sidebar-open state, or no conversation
-// chosen) is the screen that shows the workspace bar. The shell has no other
+// the conversation list is a bar of its own (CHATUX-038): the workspace bar
+// goes there too, and the list's bar carries the workspace menu button, so a
+// phone never stacks two bars. The workspace bar stays only for the empty
+// state (no conversation chosen and the list closed). The shell has no other
 // hook for a page to ask for this: the page's markup sits inside the shell's
 // main region, and :has() lets the one rule read the chat's state from there.
 const chatPhoneShellStylesheet = "@media(max-width:760px){" +
-	`.app-shell:has(.chat-workspace[data-has-selection="true"]:not([data-sidebar-open="true"])){grid-template-rows:minmax(0,1fr)}` +
-	`.app-shell:has(.chat-workspace[data-has-selection="true"]:not([data-sidebar-open="true"])) .topbar{display:none}` +
-	"}"
+	`.app-shell:has(.chat-workspace:is([data-has-selection="true"],[data-sidebar-open="true"])){grid-template-rows:minmax(0,1fr)}` +
+	`.app-shell:has(.chat-workspace:is([data-has-selection="true"],[data-sidebar-open="true"])) .topbar{display:none}` +
+	// CHATUX-045: the list's bar keeps the bell and the account menu. The
+	// workspace bar becomes a fixed strip at the end of the list's bar that
+	// holds only those two; the list leaves room for them (ChatUX045Styles).
+	`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar{display:flex;align-items:center;position:fixed;inset-block-start:0;inset-inline-end:0;inline-size:auto;block-size:52px;padding:0;gap:0;border:0;background:transparent;box-shadow:none;z-index:1250}` +
+	`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar>:not(.notifications,.account-menu){display:none}` +
+	"}" +
+	// The brand mark is 34 px at tablet widths; its slot is as wide as the
+	// mark, so no neighbour can take the width the mark sits in.
+	"@media(min-width:761px) and (max-width:1023px){.app-shell .brand-cluster .brand-logo-slot{min-inline-size:34px;flex:none}}"

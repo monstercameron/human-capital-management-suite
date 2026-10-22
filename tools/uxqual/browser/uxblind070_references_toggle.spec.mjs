@@ -14,13 +14,19 @@ test.describe("UXBLIND-070 reference workflow visibility", () => {
     await page.getByRole("button", { name: "Continue as Walt Brennan" }).click();
     await page.waitForURL(/\/workspace\/app\//);
     await page.waitForFunction(
-      () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      () =>
+        window.performance
+          .getEntriesByType("mark")
+          .some((mark) => mark.name === "hcm:hydrated"),
       null,
       { timeout: 30000 },
     );
     await page.goto("/workspace/app/admin/workflows");
     await page.waitForFunction(
-      () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      () =>
+        window.performance
+          .getEntriesByType("mark")
+          .some((mark) => mark.name === "hcm:hydrated"),
       null,
       { timeout: 30000 },
     );
@@ -33,10 +39,16 @@ test.describe("UXBLIND-070 reference workflow visibility", () => {
 
     await checkbox.evaluate((input) => {
       input.addEventListener("input", (event) => {
-        window.__uxblindToggleEvents.push({ type: event.type, checked: event.target.checked });
+        window.__uxblindToggleEvents.push({
+          type: event.type,
+          checked: event.target.checked,
+        });
       });
       input.addEventListener("change", (event) => {
-        window.__uxblindToggleEvents.push({ type: event.type, checked: event.target.checked });
+        window.__uxblindToggleEvents.push({
+          type: event.type,
+          checked: event.target.checked,
+        });
       });
       window.__uxblindToggleEvents = [];
     });
@@ -44,17 +56,23 @@ test.describe("UXBLIND-070 reference workflow visibility", () => {
     await expect(page.locator(".workflow-list-data-row")).toHaveCount(6);
     const trace = await page.evaluate(() => ({
       events: window.__uxblindToggleEvents,
-      url: location.href,
-      checked: document.querySelector(".workflow-list-references input[type=checkbox]")?.checked,
+      url: window.location.href,
+      checked: document.querySelector(".workflow-list-references input[type=checkbox]")
+        ?.checked,
       allChip: document.querySelector(".workflow-list-filter-chip")?.innerText,
       rows: document.querySelectorAll(".workflow-list-data-row").length,
-      references: Array.from(document.querySelectorAll(".workflow-list-data-row")).map((row) => row.innerText),
+      references: Array.from(document.querySelectorAll(".workflow-list-data-row")).map(
+        (row) => row.innerText,
+      ),
     }));
     const settled = await page.evaluate(() => ({
       events: window.__uxblindToggleEvents,
-      url: location.href,
-      checked: document.querySelector(".workflow-list-references input[type=checkbox]")?.checked,
-      checkedAttribute: document.querySelector(".workflow-list-references input[type=checkbox]")?.getAttribute("checked"),
+      url: window.location.href,
+      checked: document.querySelector(".workflow-list-references input[type=checkbox]")
+        ?.checked,
+      checkedAttribute: document
+        .querySelector(".workflow-list-references input[type=checkbox]")
+        ?.getAttribute("checked"),
       rows: document.querySelectorAll(".workflow-list-data-row").length,
     }));
     await test.info().attach("reference-toggle-trace", {
@@ -66,7 +84,9 @@ test.describe("UXBLIND-070 reference workflow visibility", () => {
     await expect(page).toHaveURL(/workflow_references=1/);
     await expect(page.locator(".workflow-list-filter-chip").first()).toContainText("6");
     await expect(page.locator(".workflow-list-data-row")).toHaveCount(6);
-    await expect(page.getByRole("row", { name: /Prototype promotion approval/ })).toBeVisible();
+    await expect(
+      page.getByRole("row", { name: /Prototype promotion approval/ }),
+    ).toBeVisible();
     expect(diagnostics).toEqual([]);
     await test.info().attach("reference-workflows-enabled", {
       body: await page.screenshot(),
@@ -75,25 +95,35 @@ test.describe("UXBLIND-070 reference workflow visibility", () => {
 
     await page.reload();
     await page.waitForFunction(
-      () => performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      () =>
+        window.performance
+          .getEntriesByType("mark")
+          .some((mark) => mark.name === "hcm:hydrated"),
       null,
       { timeout: 30000 },
     );
     await expect(page.locator(".loading-proxy")).toHaveCount(0, { timeout: 30000 });
     const reloadTrace = await page.evaluate(() => ({
-      url: location.href,
-      checked: document.querySelector(".workflow-list-references input[type=checkbox]")?.checked,
+      url: window.location.href,
+      checked: document.querySelector(".workflow-list-references input[type=checkbox]")
+        ?.checked,
       allChip: document.querySelector(".workflow-list-filter-chip")?.innerText,
       rows: document.querySelectorAll(".workflow-list-data-row").length,
-      references: Array.from(document.querySelectorAll(".workflow-list-data-row")).map((row) => row.innerText),
+      references: Array.from(document.querySelectorAll(".workflow-list-data-row")).map(
+        (row) => row.innerText,
+      ),
     }));
     await test.info().attach("reference-toggle-reload-trace", {
       body: JSON.stringify(reloadTrace, null, 2),
       contentType: "application/json",
     });
-    await expect(page.locator(".workflow-list-references input[type=checkbox]")).toBeChecked();
+    await expect(
+      page.locator(".workflow-list-references input[type=checkbox]"),
+    ).toBeChecked();
     await expect(page.locator(".workflow-list-data-row")).toHaveCount(6);
-    await expect(page.getByRole("row", { name: /Prototype promotion approval/ })).toBeVisible();
+    await expect(
+      page.getByRole("row", { name: /Prototype promotion approval/ }),
+    ).toBeVisible();
 
     await checkbox.uncheck();
     await expect(checkbox).not.toBeChecked();

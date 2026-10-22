@@ -19,7 +19,7 @@ func chatux016AgentHeading(m Model, c Conversation, title string) ui.Node {
 	mark := chatux016Text(m.Locale, "private")
 	full := agentReplyFallback(m.Locale, "chat.agent.private_note", "Only you can see this conversation")
 	children := []ui.Node{html.Div(html.Props{Class: "agent-identity-line"},
-		html.H1(html.Props{Text: title}), AgentBadgeLabel(m.Locale),
+		html.H1(html.Props{}, chatux047Title(title)), AgentBadgeLabel(m.Locale),
 		html.Span(html.Props{Class: "agent-header-private", Title: full}, icon("lock"), html.Span(html.Props{Text: mark}), html.Span(html.Props{Class: "sr-only", Text: " (" + full + ")"})))}
 	if purpose := agentConversationPurpose(m, c); purpose != "" {
 		children = append(children, html.P(html.Props{Class: "conversation-topic agent-header-purpose", Dir: "auto", Title: purpose, Text: purpose}))

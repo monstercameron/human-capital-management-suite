@@ -16,6 +16,13 @@ type chatgateClientRequest struct {
 	ExpectedRevision, SubmissionRevision                                     uint64
 	Definition                                                               chatgate.Definition
 	Answers                                                                  map[string]json.RawMessage
+	// The consumers of answers and the running of a gate (CHATGATE-009 to 013);
+	// the names are the server's request fields.
+	Rules                                              []chatgate.SegmentRule
+	Segments, People                                   []string
+	RulesVersion, ReviewAfterHours, EscalateAfterHours int
+	Addressing, Restricted                             bool
+	ExistingMode, AnswerBy                             string
 }
 
 // chatgateListAction asks for the list of gates the person may know of. It is
@@ -234,4 +241,45 @@ func chatgateSuggestedVersion(v chatui.GateView) string {
 		}
 	}
 	return "1.0.0"
+}
+
+// chatgateConsumerRequest fills the request of an action of the consumers of
+// answers from the fields of the page (CHATGATE-009, 011 and 013). A rule row with
+// no question or no answer is skipped, which is how a rule is removed.
+func chatgateConsumerRequest(req *chatgateClientRequest, action, id string, values map[string]string, checks map[string]bool, v chatui.GateView) {
+	reason := strings.TrimSpace(values["gate-seg-reason"])
+	if reason == "" {
+		reason = chatui.GateText(v.Locale, "segSave")
+	}
+	switch action {
+	case "segments-save":
+		for i := 0; ; i++ {
+			prefix := "gate-seg-" + strconv.Itoa(i) + "-"
+			field, ok := values[prefix+"field"]
+			if !ok {
+				break
+			}
+			answer := strings.TrimSpace(values[prefix+"value"])
+			if field == "" || answer == "" {
+				continue
+			}
+			req.Rules = append(req.Rules, chatgate.SegmentRule{ID: "rule-" + strconv.Itoa(len(req.Rules)+1), Field: field, Value: answer, Label: strings.TrimSpace(values[prefix+"label"]), Segment: strings.TrimSpace(values[prefix+"segment"])})
+		}
+		req.Reason = reason
+	case "segments-revert":
+		req.RulesVersion, _ = strconv.Atoi(id)
+		req.Reason = reason
+	case "levels-save":
+		req.Addressing, req.Restricted = checks["gate-levels-address"], checks["gate-levels-restrict"]
+	case "ops-save":
+		req.ReviewAfterHours, _ = strconv.Atoi(strings.TrimSpace(values["gate-ops-review"]))
+		req.EscalateAfterHours, _ = strconv.Atoi(strings.TrimSpace(values["gate-ops-escalate"]))
+	case "existing-save":
+		req.ExistingMode, req.AnswerBy = values["gate-existing-mode"], values["gate-existing-by"]
+	case "override":
+		req.Person, req.Reason = values["gate-override-person"], strings.TrimSpace(values["gate-override-reason"])
+	case "remove-unanswered":
+		// The list the administrator read on the page is the list they confirm.
+		req.People = append([]string(nil), v.Unanswered...)
+	}
 }

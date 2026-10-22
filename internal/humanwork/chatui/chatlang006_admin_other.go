@@ -27,3 +27,7 @@ func translationAdminReadTermID(ui.Event) string     { return "" }
 // translationAdminChangedField is the name of the control a change event came
 // from; with no browser there is no event.
 func translationAdminChangedField(ui.Event) string { return "" }
+
+// translationAdminReadReport is the report and the resolution a press of a
+// report's button names; with no browser there is no event.
+func translationAdminReadReport(ui.Event) (string, string) { return "", "" }

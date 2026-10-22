@@ -167,22 +167,28 @@ func TestChatPolish_D_WritingStylesStayInToolbar(t *testing.T) {
 	chatPolishMatrix(t, func(t *testing.T, m Model, width int, theme string) {
 		props := ChattoneToolbarProps{Locale: m.Locale, Target: "chat-composer", Draft: "one two three", Styles: chatrewrite.DefaultStyles(), Enabled: true}
 		markup := chatPolishMarkup(t, RenderChattoneToolbar(props), width, theme)
+		// One Rewrite button sits in the tool row like its neighbours; the three
+		// styles are rows of the menu it opens, not buttons in the row.
+		triggers := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-chattone-action") == "toggle" })
+		if len(triggers) != 1 || !chatPolishAncestor(triggers[0], "chattone-toolbar-choices") || !chatPolishHasClass(triggers[0], "tool-button") || chatPolishAttr(triggers[0], "title") == "" {
+			t.Fatal("the Rewrite tool differs from its neighbours")
+		}
 		styles := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-chattone-action") == "rewrite" })
 		if len(styles) != 3 {
-			t.Fatal("three style controls missing")
+			t.Fatal("three style rows missing")
 		}
 		for _, n := range styles {
-			if !chatPolishAncestor(n, "chattone-toolbar-choices") || !chatPolishHasClass(n, "tool-button") || chatPolishAttr(n, "title") == "" {
-				t.Fatal("style tool differs from its neighbours")
+			if !chatPolishAncestor(n, "chattone-menu") || chatPolishAncestor(n, "chattone-toolbar-choices") {
+				t.Fatal("a style sits in the tool row instead of the menu")
 			}
 		}
 		notices := chatPolishNodes(t, markup, func(n *xhtml.Node) bool {
 			return chatPolishHasClass(n, "chattone-notice") || chatPolishHasClass(n, "chattone-status")
 		})
-		for _, n := range notices {
-			if !chatPolishAncestor(n, "chattone-options") {
-				t.Fatal("notice occupies toolbar")
-			}
+		// The status line and the line a rewrite leaves are drawn above the
+		// composer's text (chattoneChipSlot), not in the tool row.
+		if len(notices) != 0 {
+			t.Fatal("status or notice occupies toolbar")
 		}
 		props.Pending = true
 		pending := chatPolishMarkup(t, RenderChattoneToolbar(props), width, theme)

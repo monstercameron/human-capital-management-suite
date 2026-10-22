@@ -139,7 +139,7 @@ func TestTodo_AGENTCOST_006_StoreSurvivesRestart(t *testing.T) {
 	}
 	restarted.WithStore(store)
 	decision := restarted.Admit(policy("general"))
-	if decision.Allowed || decision.Reached != "Policy Helper reached today's limit. It resets at 00:00." {
+	if decision.Allowed || decision.Reached != "Policy Helper reached today's limit. It resets at 00:00 UTC." {
 		t.Fatalf("after a restart: %+v", decision)
 	}
 	trail, err := restarted.AuditTrail("t1", "policy", "olive")

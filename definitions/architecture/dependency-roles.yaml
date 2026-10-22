@@ -239,7 +239,10 @@ modules:
         internal/transport,
         internal/collaboration/chat,
         internal/collaboration/chatroutingadapter,
+        tools/agenteval,
         tools/uxqual/journeyclient,
+        tools/uxqual/cmd/journeywasm,
+        tools/uxqual/productclient,
         tools/planning/lineageconformance,
         cmd,
         test,
@@ -261,6 +264,12 @@ modules:
       (uuid.NewString) for conversations and posts the same way, and
       internal/collaboration/chatroutingadapter derives deterministic
       idempotency keys (uuid.NewSHA1) alongside fresh string IDs.
+      tools/agenteval uses UUID only to carry provisioned synthetic tenant
+      storage IDs through exact marker/scope checks; its production code does
+      not mint HCM identities. The browser journey host creates opaque
+      idempotency keys and validates server-issued UUID references, while
+      productclient validates UUID-shaped response references; neither owns
+      identifier authority.
     replacement_strategy: A crypto/rand-backed hand-rolled UUID generator if this package's maintenance lapses; the kernel identity API is the seam.
 
   - path: github.com/jackc/pgpassfile
@@ -301,16 +310,21 @@ modules:
         internal/platform/bootstrap,
         cmd/hcmnext,
         cmd/migrate,
+        tools/chatload,
+        tools/policy/migrationci/cmd/migrationci,
       ]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.
     exposure: >-
       Owns the PostgreSQL wire-protocol connection: direct network and data
       exposure, isolated behind the internal/data and internal/ledger
-      port/adapter boundary (package-dependency-policy.yaml). Callers speak
-      internal/data/dbport instead: internal/data/pgxadapter is the only
-      package that turns a pgx handle into that port, so no pgx.Tx, pgx.Rows
-      or pgx.Conn appears in any package's exported surface (LIB-004).
+      port/adapter boundary (package-dependency-policy.yaml). The bounded
+      chatload performance harness and migrationci's disposable-database
+      rehearsal also use the driver as exact developer-tool roots. Production
+      callers speak internal/data/dbport: internal/data/pgxadapter is the only
+      package that turns a pgx handle into that port. The tools keep pgx
+      handles behind their owned APIs, so no pgx.Tx, pgx.Rows or pgx.Conn
+      appears in an exported surface (LIB-004).
     replacement_strategy: github.com/lib/pq is the declared fallback driver already in go.mod; database/sql is the abstraction seam.
 
   - path: github.com/jackc/puddle/v2
@@ -355,12 +369,15 @@ modules:
     semantic_owner: data-and-ledger
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [migrations, cmd, internal/data/pgtest, internal/data/schema]
+    allowed_import_roots: [migrations, cmd, internal/data/pgtest, internal/data/schema, internal/data/agentstore, internal/data/agentpersonastore/migrations, tools/chatload]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.
     exposure: >-
-      Executes DDL/DML migration files against PostgreSQL at "migrate"
-      command runtime; the highest write-privilege dependency in the graph.
+      Executes SQL-first migrations at "migrate" command runtime and in the
+      isolated agent-store migration runner; the highest write-privilege
+      dependency in the graph. The chatload tool applies only its validated
+      test-schema migration tree. Goose remains absent from application and
+      domain packages.
     replacement_strategy: A hand-rolled SQL migration runner if goose's maintenance or safety model regresses; the migration file format is the seam.
 
   - path: github.com/sethvargo/go-retry
@@ -413,15 +430,15 @@ modules:
 
   - path: golang.org/x/mod
     version: v0.38.0
-    role: DEV_TEST_ONLY
+    role: INFRASTRUCTURE_MECHANIC
     semantic_owner: platform-foundation
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [tools, internal/workflow/version]
+    allowed_import_roots: [tools, internal/workflow/semanticversion]
     direct_import_expected: true
-    upgrade_sla: Best-effort.
-    exposure: go.mod parsing (golang.org/x/mod/modfile) used only by tools/policy governance checks; never the production request path.
-    replacement_strategy: Hand-rolled go.mod line scanning if this package becomes unavailable; low switching cost.
+    upgrade_sla: Minor within 90 days; security patch within 14 days.
+    exposure: Tools use x/mod/modfile for dependency governance, while internal/workflow/semanticversion uses x/mod/semver in the browser workflow client. HCM owns canonical version grammar and next-patch behavior; x/mod supplies SemVer comparison mechanics and does not own workflow policy.
+    replacement_strategy: Replace only the narrow comparison calls with an audited SemVer comparator if x/mod becomes unavailable; retain HCM-owned grammar and next-patch rules.
 
   - path: golang.org/x/net
     version: v0.58.0
@@ -622,12 +639,14 @@ modules:
         tools/uxqual,
         internal/experience/journeycss,
         internal/experience/tokens,
+        internal/humanwork/agenticon,
         internal/humanwork/productui,
         internal/humanwork/projectui,
         internal/humanwork/uicomponents,
         internal/humanwork/workspace,
         internal/humanwork/chatui,
         internal/humanwork/docsdiagram,
+        internal/timeclockapp,
       ]
     direct_import_expected: false
     upgrade_sla: Minor within 90 days; security patch within 14 days.
@@ -640,6 +659,10 @@ modules:
       semantics may come from it.
       internal/humanwork/chatui and projectui import only the html/ui
       subpackages to render workspace trees from owned types.
+      internal/humanwork/agenticon renders its owned icon values as SVG UI
+      nodes, and internal/timeclockapp renders its owned kiosk state through
+      the selected client renderer; neither delegates business meaning to
+      GWC.
     replacement_strategy: Go html/template server-side rendering with progressive enhancement (UX-QUAL-001 fallback).
 
   - path: github.com/monstercameron/schemaflux
@@ -1043,10 +1066,13 @@ modules:
         internal/intent/app,
         internal/intent/protomap,
         internal/engines/wire,
+        internal/timeclockapp,
         tools/gen,
         tools/uxqual/journeyclient,
         tools/uxqual/cmd/journeywasm,
         tools/uxqual/productclient,
+        tools/clockpartner,
+        tools/timeclockkit,
         tools/uxqual/projectclient,
         tools/quality/bufprotovalidatekit,
       ]
@@ -1065,6 +1091,12 @@ modules:
       schema/proto/gen holds protoc-generated message code that is wire
       encoding like gen/. The project client projects protobuf responses for
       the browser and does not expose protobuf types to product UI components.
+      internal/timeclockapp is the TCLOCK-016 reference kiosk client: its
+      bounded HTTP adapter uses protojson only for allow-listed public
+      ClockDeviceService methods. tools/clockpartner and tools/timeclockkit
+      are TCLOCK-018's partner simulator and SDK/conformance clients; the SDK
+      forwards canonical generated messages unchanged. These client roots
+      consume the published wire contract and do not create server authority.
     replacement_strategy: No realistic replacement; Protobuf is the canonical wire contract per the Go technology constitution.
 
   - path: github.com/rogpeppe/go-internal
@@ -1095,6 +1127,7 @@ modules:
         internal/data/documenthubstore,
         internal/platform/telemetry,
         internal/transport/eastwest,
+        internal/transport/timeclock,
       ]
     direct_import_expected: true
     upgrade_sla: Best-effort.
@@ -1106,9 +1139,10 @@ modules:
       internal/data/tenancy/storagedisposition, which owns the physical
       storage registry parser, internal/data/documenthubstore, which owns
       document metadata isolation rules, internal/platform/telemetry, which owns
-      telemetry-contract loading. Neither parser grants YAML data business
-      authority: each projects it into an owned typed contract and validates
-      it before use.
+      telemetry-contract loading, and internal/transport/timeclock, which
+      serializes the descriptor-derived public Clock partner OpenAPI document.
+      These consumers project YAML to an owned typed contract or public
+      transport document; YAML data does not grant business authority.
     replacement_strategy: encoding/json against a JSON-rendered manifest, or a hand-rolled parser, if yaml.v3 becomes unavailable.
 
   - path: honnef.co/go/tools

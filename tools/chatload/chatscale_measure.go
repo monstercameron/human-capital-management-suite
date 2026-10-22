@@ -276,7 +276,11 @@ func explainOnce(ctx context.Context, conn *pgx.Conn, q Query, args []any) (raw 
 
 // Measure records executor percentiles. Writes are explained in rolled-back
 // transactions; their latency is not a committed send's end-to-end latency.
-func Measure(ctx context.Context, conn *pgx.Conn, q Query, channel string, repeats int) Measurement {
+func Measure(ctx context.Context, database *Database, q Query, channel string, repeats int) Measurement {
+	return measure(ctx, database.conn, q, channel, repeats)
+}
+
+func measure(ctx context.Context, conn *pgx.Conn, q Query, channel string, repeats int) Measurement {
 	m := Measurement{Query: q, Channel: channel, Degrades: "pending cross-size comparison"}
 	if e := guardConnection(ctx, conn); e != nil {
 		m.Error = e.Error()

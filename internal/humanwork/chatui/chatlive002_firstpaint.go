@@ -36,6 +36,11 @@ func unattestedAnnouncementIdentity(model Model, message Message) Message {
 	if _, ok := DecodeAnnouncementMessageBody(message.Body); !ok {
 		return message
 	}
+	// CHATUX-047: an answer that already named this author as an agent supplies its
+	// name and icon, so the row is complete before the directory arrives.
+	if named, ok := chatux047NamedAgent(message); ok {
+		return named
+	}
 	message.PersonaActor = &PersonaActor{PersonaID: message.AuthorID, AgentID: message.AuthorID, Trusted: true}
 	// CHATBUG-088: before the directory has said who wrote it the author line is
 	// a neutral mark, never a name; once it has, an author it did not list keeps

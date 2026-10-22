@@ -39,10 +39,10 @@ func chatux020Reorder(m Model, id string) []ui.Node {
 	headingID := "rail-menu-reorder-heading"
 	group := []ui.Node{}
 	if position > 0 {
-		group = append(group, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.MoveConversationOrder == nil, Data: map[string]string{"action": "rail-chat-up", "id": id}}, html.Span(html.Props{Text: m.t(KeyMoveConversationUp)})))
+		group = append(group, chatux040MenuItem("menu-item", "rail-chat-up", id, "arrow-up", m.t(KeyMoveConversationUp), m.Callbacks.MoveConversationOrder == nil))
 	}
 	if position < count-1 {
-		group = append(group, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: m.Callbacks.MoveConversationOrder == nil, Data: map[string]string{"action": "rail-chat-down", "id": id}}, html.Span(html.Props{Text: m.t(KeyMoveConversationDown)})))
+		group = append(group, chatux040MenuItem("menu-item", "rail-chat-down", id, "arrow-down", m.t(KeyMoveConversationDown), m.Callbacks.MoveConversationOrder == nil))
 	}
 	if len(group) == 0 {
 		return nil

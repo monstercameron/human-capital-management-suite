@@ -21,26 +21,24 @@
 // What a blind `-race -count=1 ./...` cannot prove on its own is
 // *coverage*: it races whatever tests already exist, but says nothing
 // about a concurrent package that has no tests at all, or whose only test
-// file happens to be excluded by an accidental build constraint (most
-// plausibly a well-intentioned but wrong `//go:build race` guard — `-race`
-// is a runtime flag, not a build tag, so a file gated on a "race" tag
-// never builds under any `go test` invocation, racing or not, anywhere).
+// file happens to be excluded by the `!race` build constraint. The go
+// command defines the `race` build tag whenever `-race` is enabled, so a
+// `race`-tagged test does run in that CI job.
 // A concurrent package with zero raceable tests passes `go test -race
 // ./...` today for the same reason an untested package passes `go test
 // ./...`: there is nothing there to fail.
 //
 // # What this package does instead
 //
-// FindConcurrentPackages walks the repository with go/ast and declares
-// every package that imports "sync" or "sync/atomic", or contains a `go`
-// statement, in any non-generated, non-testdata Go file (production or
-// test). Evaluate then checks each declared package against a build
-// context retargeted at linux/amd64 (linuxBuildContext, in policy.go) —
-// the platform the actual `-race` CI job runs on — and asks go/build
-// whether any test file resolves for that package under the *default*
-// build constraints there (no special tags, matching plain `go test
-// -race` with no extra flags). A package with zero resolving test files
-// fails the policy: whatever raced today, it was never this package.
+// FindConcurrentPackages uses go/build's file matching for the same
+// linux/amd64, cgo-enabled, race-tagged context as the CI job, then uses
+// go/ast to declare packages whose selected production or test files import
+// "sync" or "sync/atomic", or contain a `go` statement. This excludes
+// platform-specific code that the Linux race job does not compile, such as
+// JS/WASM-only browser hosts. Evaluate then asks go/build whether a test
+// file resolves for each declared package in this exact race build context.
+// A package with zero resolving test files fails the policy: its concurrent
+// Linux code is included in the race package list without a suite to run.
 //
 // # Known live-repository finding (not this lane's file root)
 //

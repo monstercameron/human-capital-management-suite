@@ -67,9 +67,11 @@ type Service struct {
 	linkCodec              LinkCodec
 	mediaDirectory         MediaDirectory
 	contentPolicy          ContentPolicy
+	readerBodies           ReaderBodyProjector
 	ephemeral              EphemeralStore
 	personaDM              PersonaDMResolver
 	channelGate            ChannelGatePort
+	segments               SegmentAudiencePort
 	agentSourceAccess      AgentSourceAccess
 	agentReactionAuthority AgentReactionAuthority
 	announceMembership     bool
@@ -457,6 +459,14 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	}
 	p := Post{ID: uuid.NewString(), ConversationID: r.ConversationID, TenantID: r.TenantID, AuthorID: r.Principal.SubjectID, AuthorHomeTenantID: r.Principal.TenantID, Body: strings.TrimSpace(r.Body), ParentID: r.ParentID, Revision: 1, CreatedAt: s.now(), References: append([]Reference(nil), r.References...), SourceAttribution: cloneSourceAttribution(r.SourceAttribution)}
 	ctx = chatrender.WithRevisionLanguage(ctx, p.Body)
+	if r.Audience != nil {
+		// CHATGATE-011: addressed to segments; the audience is stored with the post.
+		audience, err := s.resolvePostAudience(ctx, r)
+		if err != nil {
+			return Post{}, err
+		}
+		ctx = WithPostAudience(ctx, audience)
+	}
 	sent, err := s.store.SendPost(ctx, r, p)
 	if err != nil {
 		return sent, err
@@ -714,9 +724,18 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 		}
 	}
 	out.ChannelNextCursor = channelCursor
-	for i := range out.Results {
-		out.Results[i].Post = s.projectConversationReferences(ctx, r.Principal, []Post{out.Results[i].Post})[0]
+	shown := out.Results[:0]
+	for _, hit := range out.Results {
+		posts, replaced := s.projectReaderPosts(ctx, r.Principal, []Post{hit.Post})
+		// A reader who may not read a message as written is never matched on its
+		// original words: the hit stands only if what they are shown holds the words.
+		if replaced[0] && !searchWordsShown(posts[0].Body, r.Query) {
+			continue
+		}
+		hit.Post = posts[0]
+		shown = append(shown, hit)
 	}
+	out.Results = shown
 	return out, nil
 }
 func (s *Service) GetReadState(ctx context.Context, r GetReadStateRequest) (ReadState, error) {

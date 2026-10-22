@@ -8,7 +8,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workflowview"
-	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
+	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/semanticversion"
 )
 
 // WorkflowCatalogItem is the bounded navigation record for one published
@@ -346,7 +346,7 @@ type workflowVersionFormProps struct {
 // so any re-render put the suggested patch version back over the author's.
 func workflowVersionForm(props workflowVersionFormProps) ui.Node {
 	suggested := ""
-	if value, err := workflowversion.NextPatchVersion(props.SemanticVersion); err == nil {
+	if value, err := workflowversion.NextPatch(props.SemanticVersion); err == nil {
 		suggested = value
 	}
 	version := ui.UseState(suggested)

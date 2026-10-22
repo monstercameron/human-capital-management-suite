@@ -1,5 +1,7 @@
-// Package iconmigration supplies the isolated agent identity migration without
-// importing the persona store, so the agent database migration runner can use it.
+// Package iconmigration supplies the persona store's own migrations (agent icons,
+// and who removed a placement) without importing the persona store, so the agent
+// database migration runner can use it. They run after the agent database's own
+// numbered migrations, in the 10000 range.
 package iconmigration
 
 import (
@@ -11,7 +13,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-//go:embed *_agentux_icon.sql
+//go:embed *.sql
 var migrations embed.FS
 
 func Migrate(ctx context.Context, db *sql.DB) error {

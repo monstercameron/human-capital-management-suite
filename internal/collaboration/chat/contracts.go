@@ -178,6 +178,8 @@ type SendPostRequest struct {
 	TenantID, ConversationID, Body, ParentID, IdempotencyKey string
 	References                                               []Reference
 	SourceAttribution                                        *SourceAttribution
+	// Audience addresses the post to segments of the channel's gate (CHATGATE-011).
+	Audience *PostAudienceRequest
 }
 
 // PersonaReplyCommitRequest is the narrow server-owned write contract for a

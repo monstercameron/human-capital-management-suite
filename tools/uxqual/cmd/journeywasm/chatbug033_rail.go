@@ -21,6 +21,7 @@ type agentRailEntry struct {
 	Purpose        string          `json:"purpose"`
 	Icon           agenticon.Value `json:"icon"`
 	IconRevision   int64           `json:"icon_revision"`
+	_              incomparable
 }
 
 type agentRailPayload struct {

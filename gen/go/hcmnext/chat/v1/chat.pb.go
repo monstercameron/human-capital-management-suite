@@ -581,8 +581,16 @@ type Conversation struct {
 	// ignored on a request message: only the server computes them.
 	MemberCount    uint32                 `protobuf:"varint,9,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
 	LastActivityAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_activity_at,json=lastActivityAt,proto3" json:"last_activity_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// peer names the other side of a direct conversation, so the sidebar row,
+	// the header and the first message can be drawn with a name and a picture in
+	// the same answer that lists the conversation. For a conversation with one
+	// person it is that person; for a conversation with an agent it is the
+	// agent; for a person's own notes space it is the caller. It is unset for any
+	// other kind and when the server cannot say who the peer is, and it is
+	// ignored on a request message: only the server derives it.
+	Peer          *Identity `protobuf:"bytes,11,opt,name=peer,proto3" json:"peer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Conversation) Reset() {
@@ -685,6 +693,193 @@ func (x *Conversation) GetLastActivityAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Conversation) GetPeer() *Identity {
+	if x != nil {
+		return x.Peer
+	}
+	return nil
+}
+
+// Identity is how an answer names a person or an agent beside the id it
+// carries, so a row is drawn with its name and picture in one round trip. It
+// only describes: it grants nothing, and the directory reads a client makes
+// later refine it rather than replace it. A person's display_name follows the
+// chat directory's own rule (the preferred name completed with the legal
+// surname). Empty fields mean the server cannot name that subject yet, and the
+// client then waits for the directory instead of printing the id.
+type Identity struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	SubjectId   string                 `protobuf:"bytes,1,opt,name=subject_id,json=subjectId,proto3" json:"subject_id,omitempty"`
+	DisplayName string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// avatar_ref is the same-origin address of a person's profile photograph. It
+	// is empty for an agent, and for a person who has no photograph.
+	AvatarRef string `protobuf:"bytes,3,opt,name=avatar_ref,json=avatarRef,proto3" json:"avatar_ref,omitempty"`
+	Agent     bool   `protobuf:"varint,4,opt,name=agent,proto3" json:"agent,omitempty"`
+	// agent_id and agent_icon describe an agent and are unset for a person.
+	AgentId           string     `protobuf:"bytes,5,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	AgentIcon         *AgentIcon `protobuf:"bytes,6,opt,name=agent_icon,json=agentIcon,proto3" json:"agent_icon,omitempty"`
+	AgentIconRevision int64      `protobuf:"varint,7,opt,name=agent_icon_revision,json=agentIconRevision,proto3" json:"agent_icon_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Identity) Reset() {
+	*x = Identity{}
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Identity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Identity) ProtoMessage() {}
+
+func (x *Identity) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Identity.ProtoReflect.Descriptor instead.
+func (*Identity) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Identity) GetSubjectId() string {
+	if x != nil {
+		return x.SubjectId
+	}
+	return ""
+}
+
+func (x *Identity) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *Identity) GetAvatarRef() string {
+	if x != nil {
+		return x.AvatarRef
+	}
+	return ""
+}
+
+func (x *Identity) GetAgent() bool {
+	if x != nil {
+		return x.Agent
+	}
+	return false
+}
+
+func (x *Identity) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *Identity) GetAgentIcon() *AgentIcon {
+	if x != nil {
+		return x.AgentIcon
+	}
+	return nil
+}
+
+func (x *Identity) GetAgentIconRevision() int64 {
+	if x != nil {
+		return x.AgentIconRevision
+	}
+	return 0
+}
+
+// AgentIcon is an agent's stored icon: closed vocabulary identifiers only,
+// never source text, the same value the agent directory carries.
+type AgentIcon struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Glyph         string                 `protobuf:"bytes,1,opt,name=glyph,proto3" json:"glyph,omitempty"`
+	Shape         string                 `protobuf:"bytes,2,opt,name=shape,proto3" json:"shape,omitempty"`
+	Foreground    string                 `protobuf:"bytes,3,opt,name=foreground,proto3" json:"foreground,omitempty"`
+	Background    string                 `protobuf:"bytes,4,opt,name=background,proto3" json:"background,omitempty"`
+	Variation     uint32                 `protobuf:"varint,5,opt,name=variation,proto3" json:"variation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentIcon) Reset() {
+	*x = AgentIcon{}
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentIcon) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentIcon) ProtoMessage() {}
+
+func (x *AgentIcon) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentIcon.ProtoReflect.Descriptor instead.
+func (*AgentIcon) Descriptor() ([]byte, []int) {
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AgentIcon) GetGlyph() string {
+	if x != nil {
+		return x.Glyph
+	}
+	return ""
+}
+
+func (x *AgentIcon) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *AgentIcon) GetForeground() string {
+	if x != nil {
+		return x.Foreground
+	}
+	return ""
+}
+
+func (x *AgentIcon) GetBackground() string {
+	if x != nil {
+		return x.Background
+	}
+	return ""
+}
+
+func (x *AgentIcon) GetVariation() uint32 {
+	if x != nil {
+		return x.Variation
+	}
+	return 0
+}
+
 type MemberRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -695,7 +890,7 @@ type MemberRef struct {
 
 func (x *MemberRef) Reset() {
 	*x = MemberRef{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -707,7 +902,7 @@ func (x *MemberRef) String() string {
 func (*MemberRef) ProtoMessage() {}
 
 func (x *MemberRef) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[4]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -720,7 +915,7 @@ func (x *MemberRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemberRef.ProtoReflect.Descriptor instead.
 func (*MemberRef) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{4}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *MemberRef) GetTenantId() string {
@@ -753,7 +948,7 @@ type Membership struct {
 
 func (x *Membership) Reset() {
 	*x = Membership{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +960,7 @@ func (x *Membership) String() string {
 func (*Membership) ProtoMessage() {}
 
 func (x *Membership) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[5]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +973,7 @@ func (x *Membership) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Membership.ProtoReflect.Descriptor instead.
 func (*Membership) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{5}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Membership) GetConversationId() string {
@@ -852,13 +1047,25 @@ type Post struct {
 	References         []*Reference           `protobuf:"bytes,11,rep,name=references,proto3" json:"references,omitempty"`
 	SourceAttribution  *SourceAttribution     `protobuf:"bytes,12,opt,name=source_attribution,json=sourceAttribution,proto3" json:"source_attribution,omitempty"`
 	AuthorHomeTenantId string                 `protobuf:"bytes,13,opt,name=author_home_tenant_id,json=authorHomeTenantId,proto3" json:"author_home_tenant_id,omitempty"`
+	// author names author_id with the post, so a message is drawn with its
+	// author's name and picture in the answer that carries it. It is set on a
+	// read when the server can name the author, and ignored on a request.
+	Author *Identity `protobuf:"bytes,14,opt,name=author,proto3" json:"author,omitempty"`
+	// audience_segments names the segments of a channel's gate a message is
+	// addressed to (CHATGATE-011), as the reader may see it; empty for a message
+	// for everyone. audience_restricted says only those segments' members at the
+	// time of sending (and the author) can read it, and audience_people how many
+	// they were. Set on a read and ignored on a request.
+	AudienceSegments   []string `protobuf:"bytes,15,rep,name=audience_segments,json=audienceSegments,proto3" json:"audience_segments,omitempty"`
+	AudienceRestricted bool     `protobuf:"varint,16,opt,name=audience_restricted,json=audienceRestricted,proto3" json:"audience_restricted,omitempty"`
+	AudiencePeople     uint32   `protobuf:"varint,17,opt,name=audience_people,json=audiencePeople,proto3" json:"audience_people,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Post) Reset() {
 	*x = Post{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +1077,7 @@ func (x *Post) String() string {
 func (*Post) ProtoMessage() {}
 
 func (x *Post) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[6]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +1090,7 @@ func (x *Post) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Post.ProtoReflect.Descriptor instead.
 func (*Post) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{6}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Post) GetId() string {
@@ -977,6 +1184,34 @@ func (x *Post) GetAuthorHomeTenantId() string {
 	return ""
 }
 
+func (x *Post) GetAuthor() *Identity {
+	if x != nil {
+		return x.Author
+	}
+	return nil
+}
+
+func (x *Post) GetAudienceSegments() []string {
+	if x != nil {
+		return x.AudienceSegments
+	}
+	return nil
+}
+
+func (x *Post) GetAudienceRestricted() bool {
+	if x != nil {
+		return x.AudienceRestricted
+	}
+	return false
+}
+
+func (x *Post) GetAudiencePeople() uint32 {
+	if x != nil {
+		return x.AudiencePeople
+	}
+	return 0
+}
+
 type Reaction struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
@@ -992,7 +1227,7 @@ type Reaction struct {
 
 func (x *Reaction) Reset() {
 	*x = Reaction{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1004,7 +1239,7 @@ func (x *Reaction) String() string {
 func (*Reaction) ProtoMessage() {}
 
 func (x *Reaction) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[7]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1017,7 +1252,7 @@ func (x *Reaction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Reaction.ProtoReflect.Descriptor instead.
 func (*Reaction) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{7}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Reaction) GetConversationId() string {
@@ -1086,7 +1321,7 @@ type Pin struct {
 
 func (x *Pin) Reset() {
 	*x = Pin{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[8]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1333,7 @@ func (x *Pin) String() string {
 func (*Pin) ProtoMessage() {}
 
 func (x *Pin) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[8]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1346,7 @@ func (x *Pin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pin.ProtoReflect.Descriptor instead.
 func (*Pin) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{8}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Pin) GetConversationId() string {
@@ -1184,7 +1419,7 @@ type ReadState struct {
 
 func (x *ReadState) Reset() {
 	*x = ReadState{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[9]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1196,7 +1431,7 @@ func (x *ReadState) String() string {
 func (*ReadState) ProtoMessage() {}
 
 func (x *ReadState) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[9]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1209,7 +1444,7 @@ func (x *ReadState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadState.ProtoReflect.Descriptor instead.
 func (*ReadState) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{9}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ReadState) GetConversationId() string {
@@ -1269,7 +1504,7 @@ type NotificationPreferences struct {
 
 func (x *NotificationPreferences) Reset() {
 	*x = NotificationPreferences{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[10]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1281,7 +1516,7 @@ func (x *NotificationPreferences) String() string {
 func (*NotificationPreferences) ProtoMessage() {}
 
 func (x *NotificationPreferences) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[10]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1529,7 @@ func (x *NotificationPreferences) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationPreferences.ProtoReflect.Descriptor instead.
 func (*NotificationPreferences) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{10}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NotificationPreferences) GetConversationId() string {
@@ -1362,7 +1597,7 @@ type CreateConversationRequest struct {
 
 func (x *CreateConversationRequest) Reset() {
 	*x = CreateConversationRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[11]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1374,7 +1609,7 @@ func (x *CreateConversationRequest) String() string {
 func (*CreateConversationRequest) ProtoMessage() {}
 
 func (x *CreateConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[11]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1387,7 +1622,7 @@ func (x *CreateConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateConversationRequest.ProtoReflect.Descriptor instead.
 func (*CreateConversationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{11}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{13}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -1449,7 +1684,7 @@ type CreateConversationResponse struct {
 
 func (x *CreateConversationResponse) Reset() {
 	*x = CreateConversationResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[12]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1461,7 +1696,7 @@ func (x *CreateConversationResponse) String() string {
 func (*CreateConversationResponse) ProtoMessage() {}
 
 func (x *CreateConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[12]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1474,7 +1709,7 @@ func (x *CreateConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateConversationResponse.ProtoReflect.Descriptor instead.
 func (*CreateConversationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{12}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateConversationResponse) GetConversation() *Conversation {
@@ -1501,7 +1736,7 @@ type ListConversationsRequest struct {
 
 func (x *ListConversationsRequest) Reset() {
 	*x = ListConversationsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[13]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1513,7 +1748,7 @@ func (x *ListConversationsRequest) String() string {
 func (*ListConversationsRequest) ProtoMessage() {}
 
 func (x *ListConversationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[13]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1526,7 +1761,7 @@ func (x *ListConversationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationsRequest.ProtoReflect.Descriptor instead.
 func (*ListConversationsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{13}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{15}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -1575,7 +1810,7 @@ type ListConversationsResponse struct {
 
 func (x *ListConversationsResponse) Reset() {
 	*x = ListConversationsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[14]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1587,7 +1822,7 @@ func (x *ListConversationsResponse) String() string {
 func (*ListConversationsResponse) ProtoMessage() {}
 
 func (x *ListConversationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[14]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1600,7 +1835,7 @@ func (x *ListConversationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationsResponse.ProtoReflect.Descriptor instead.
 func (*ListConversationsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{14}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListConversationsResponse) GetConversations() []*Conversation {
@@ -1629,7 +1864,7 @@ type GetConversationRequest struct {
 
 func (x *GetConversationRequest) Reset() {
 	*x = GetConversationRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[15]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1641,7 +1876,7 @@ func (x *GetConversationRequest) String() string {
 func (*GetConversationRequest) ProtoMessage() {}
 
 func (x *GetConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[15]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1654,7 +1889,7 @@ func (x *GetConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationRequest.ProtoReflect.Descriptor instead.
 func (*GetConversationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{15}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{17}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -1688,7 +1923,7 @@ type GetConversationResponse struct {
 
 func (x *GetConversationResponse) Reset() {
 	*x = GetConversationResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[16]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1935,7 @@ func (x *GetConversationResponse) String() string {
 func (*GetConversationResponse) ProtoMessage() {}
 
 func (x *GetConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[16]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1948,7 @@ func (x *GetConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConversationResponse.ProtoReflect.Descriptor instead.
 func (*GetConversationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{16}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetConversationResponse) GetConversation() *Conversation {
@@ -1735,7 +1970,7 @@ type UpdateConversationRequest struct {
 
 func (x *UpdateConversationRequest) Reset() {
 	*x = UpdateConversationRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[17]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1747,7 +1982,7 @@ func (x *UpdateConversationRequest) String() string {
 func (*UpdateConversationRequest) ProtoMessage() {}
 
 func (x *UpdateConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[17]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1760,7 +1995,7 @@ func (x *UpdateConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConversationRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConversationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{17}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{19}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -1794,7 +2029,7 @@ type UpdateConversationResponse struct {
 
 func (x *UpdateConversationResponse) Reset() {
 	*x = UpdateConversationResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[18]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1806,7 +2041,7 @@ func (x *UpdateConversationResponse) String() string {
 func (*UpdateConversationResponse) ProtoMessage() {}
 
 func (x *UpdateConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[18]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1819,7 +2054,7 @@ func (x *UpdateConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConversationResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConversationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{18}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *UpdateConversationResponse) GetConversation() *Conversation {
@@ -1843,7 +2078,7 @@ type ListMembershipsRequest struct {
 
 func (x *ListMembershipsRequest) Reset() {
 	*x = ListMembershipsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[19]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1855,7 +2090,7 @@ func (x *ListMembershipsRequest) String() string {
 func (*ListMembershipsRequest) ProtoMessage() {}
 
 func (x *ListMembershipsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[19]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1868,7 +2103,7 @@ func (x *ListMembershipsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMembershipsRequest.ProtoReflect.Descriptor instead.
 func (*ListMembershipsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{19}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{21}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -1917,7 +2152,7 @@ type ListMembershipsResponse struct {
 
 func (x *ListMembershipsResponse) Reset() {
 	*x = ListMembershipsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[20]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1929,7 +2164,7 @@ func (x *ListMembershipsResponse) String() string {
 func (*ListMembershipsResponse) ProtoMessage() {}
 
 func (x *ListMembershipsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[20]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1942,7 +2177,7 @@ func (x *ListMembershipsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMembershipsResponse.ProtoReflect.Descriptor instead.
 func (*ListMembershipsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{20}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListMembershipsResponse) GetMemberships() []*Membership {
@@ -1970,7 +2205,7 @@ type AddMembershipRequest struct {
 
 func (x *AddMembershipRequest) Reset() {
 	*x = AddMembershipRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[21]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1982,7 +2217,7 @@ func (x *AddMembershipRequest) String() string {
 func (*AddMembershipRequest) ProtoMessage() {}
 
 func (x *AddMembershipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[21]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1995,7 +2230,7 @@ func (x *AddMembershipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMembershipRequest.ProtoReflect.Descriptor instead.
 func (*AddMembershipRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{21}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{23}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2022,7 +2257,7 @@ type AddMembershipResponse struct {
 
 func (x *AddMembershipResponse) Reset() {
 	*x = AddMembershipResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[22]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2034,7 +2269,7 @@ func (x *AddMembershipResponse) String() string {
 func (*AddMembershipResponse) ProtoMessage() {}
 
 func (x *AddMembershipResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[22]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2047,7 +2282,7 @@ func (x *AddMembershipResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddMembershipResponse.ProtoReflect.Descriptor instead.
 func (*AddMembershipResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{22}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AddMembershipResponse) GetMembership() *Membership {
@@ -2072,7 +2307,7 @@ type RemoveMembershipRequest struct {
 
 func (x *RemoveMembershipRequest) Reset() {
 	*x = RemoveMembershipRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[23]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2084,7 +2319,7 @@ func (x *RemoveMembershipRequest) String() string {
 func (*RemoveMembershipRequest) ProtoMessage() {}
 
 func (x *RemoveMembershipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[23]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2097,7 +2332,7 @@ func (x *RemoveMembershipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMembershipRequest.ProtoReflect.Descriptor instead.
 func (*RemoveMembershipRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{23}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{25}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2152,7 +2387,7 @@ type RemoveMembershipResponse struct {
 
 func (x *RemoveMembershipResponse) Reset() {
 	*x = RemoveMembershipResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[24]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2164,7 +2399,7 @@ func (x *RemoveMembershipResponse) String() string {
 func (*RemoveMembershipResponse) ProtoMessage() {}
 
 func (x *RemoveMembershipResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[24]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2177,7 +2412,7 @@ func (x *RemoveMembershipResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveMembershipResponse.ProtoReflect.Descriptor instead.
 func (*RemoveMembershipResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{24}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RemoveMembershipResponse) GetMembership() *Membership {
@@ -2187,6 +2422,9 @@ func (x *RemoveMembershipResponse) GetMembership() *Membership {
 	return nil
 }
 
+// audience_segments addresses the message to segments of the channel's gate and
+// audience_restricted makes it readable by their members alone (CHATGATE-011);
+// the server decides whether the sender may and refuses otherwise.
 type SendPostRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2198,14 +2436,16 @@ type SendPostRequest struct {
 	IdempotencyKey string       `protobuf:"bytes,6,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	References     []*Reference `protobuf:"bytes,7,rep,name=references,proto3" json:"references,omitempty"`
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
-	SourceAttribution *SourceAttribution `protobuf:"bytes,8,opt,name=source_attribution,json=sourceAttribution,proto3" json:"source_attribution,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	SourceAttribution  *SourceAttribution `protobuf:"bytes,8,opt,name=source_attribution,json=sourceAttribution,proto3" json:"source_attribution,omitempty"`
+	AudienceSegments   []string           `protobuf:"bytes,9,rep,name=audience_segments,json=audienceSegments,proto3" json:"audience_segments,omitempty"`
+	AudienceRestricted bool               `protobuf:"varint,10,opt,name=audience_restricted,json=audienceRestricted,proto3" json:"audience_restricted,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SendPostRequest) Reset() {
 	*x = SendPostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[25]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2217,7 +2457,7 @@ func (x *SendPostRequest) String() string {
 func (*SendPostRequest) ProtoMessage() {}
 
 func (x *SendPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[25]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2230,7 +2470,7 @@ func (x *SendPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendPostRequest.ProtoReflect.Descriptor instead.
 func (*SendPostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{25}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{27}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2291,6 +2531,20 @@ func (x *SendPostRequest) GetSourceAttribution() *SourceAttribution {
 	return nil
 }
 
+func (x *SendPostRequest) GetAudienceSegments() []string {
+	if x != nil {
+		return x.AudienceSegments
+	}
+	return nil
+}
+
+func (x *SendPostRequest) GetAudienceRestricted() bool {
+	if x != nil {
+		return x.AudienceRestricted
+	}
+	return false
+}
+
 type SendPostResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Post          *Post                  `protobuf:"bytes,1,opt,name=post,proto3" json:"post,omitempty"`
@@ -2300,7 +2554,7 @@ type SendPostResponse struct {
 
 func (x *SendPostResponse) Reset() {
 	*x = SendPostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[26]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2312,7 +2566,7 @@ func (x *SendPostResponse) String() string {
 func (*SendPostResponse) ProtoMessage() {}
 
 func (x *SendPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[26]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2325,7 +2579,7 @@ func (x *SendPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendPostResponse.ProtoReflect.Descriptor instead.
 func (*SendPostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{26}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SendPostResponse) GetPost() *Post {
@@ -2357,7 +2611,7 @@ type ListPostsRequest struct {
 
 func (x *ListPostsRequest) Reset() {
 	*x = ListPostsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[27]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2369,7 +2623,7 @@ func (x *ListPostsRequest) String() string {
 func (*ListPostsRequest) ProtoMessage() {}
 
 func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[27]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2382,7 +2636,7 @@ func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsRequest.ProtoReflect.Descriptor instead.
 func (*ListPostsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{27}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{29}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2452,7 +2706,7 @@ type ListPostsResponse struct {
 
 func (x *ListPostsResponse) Reset() {
 	*x = ListPostsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[28]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2464,7 +2718,7 @@ func (x *ListPostsResponse) String() string {
 func (*ListPostsResponse) ProtoMessage() {}
 
 func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[28]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2477,7 +2731,7 @@ func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsResponse.ProtoReflect.Descriptor instead.
 func (*ListPostsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{28}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListPostsResponse) GetPosts() []*Post {
@@ -2507,7 +2761,7 @@ type EditPostRequest struct {
 
 func (x *EditPostRequest) Reset() {
 	*x = EditPostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[29]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2519,7 +2773,7 @@ func (x *EditPostRequest) String() string {
 func (*EditPostRequest) ProtoMessage() {}
 
 func (x *EditPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[29]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2532,7 +2786,7 @@ func (x *EditPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditPostRequest.ProtoReflect.Descriptor instead.
 func (*EditPostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{29}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{31}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2573,7 +2827,7 @@ type EditPostResponse struct {
 
 func (x *EditPostResponse) Reset() {
 	*x = EditPostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[30]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2585,7 +2839,7 @@ func (x *EditPostResponse) String() string {
 func (*EditPostResponse) ProtoMessage() {}
 
 func (x *EditPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[30]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2598,7 +2852,7 @@ func (x *EditPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditPostResponse.ProtoReflect.Descriptor instead.
 func (*EditPostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{30}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *EditPostResponse) GetPost() *Post {
@@ -2622,7 +2876,7 @@ type DeletePostRequest struct {
 
 func (x *DeletePostRequest) Reset() {
 	*x = DeletePostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[31]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2634,7 +2888,7 @@ func (x *DeletePostRequest) String() string {
 func (*DeletePostRequest) ProtoMessage() {}
 
 func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[31]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2647,7 +2901,7 @@ func (x *DeletePostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePostRequest.ProtoReflect.Descriptor instead.
 func (*DeletePostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{31}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{33}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2695,7 +2949,7 @@ type DeletePostResponse struct {
 
 func (x *DeletePostResponse) Reset() {
 	*x = DeletePostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[32]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2707,7 +2961,7 @@ func (x *DeletePostResponse) String() string {
 func (*DeletePostResponse) ProtoMessage() {}
 
 func (x *DeletePostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[32]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2720,7 +2974,7 @@ func (x *DeletePostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePostResponse.ProtoReflect.Descriptor instead.
 func (*DeletePostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{32}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *DeletePostResponse) GetPost() *Post {
@@ -2747,7 +3001,7 @@ type SearchRequest struct {
 
 func (x *SearchRequest) Reset() {
 	*x = SearchRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[33]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2759,7 +3013,7 @@ func (x *SearchRequest) String() string {
 func (*SearchRequest) ProtoMessage() {}
 
 func (x *SearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[33]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2772,7 +3026,7 @@ func (x *SearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchRequest.ProtoReflect.Descriptor instead.
 func (*SearchRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{33}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{35}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -2842,7 +3096,7 @@ type SearchResult struct {
 
 func (x *SearchResult) Reset() {
 	*x = SearchResult{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[34]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2854,7 +3108,7 @@ func (x *SearchResult) String() string {
 func (*SearchResult) ProtoMessage() {}
 
 func (x *SearchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[34]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2867,7 +3121,7 @@ func (x *SearchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResult.ProtoReflect.Descriptor instead.
 func (*SearchResult) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{34}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SearchResult) GetPost() *Post {
@@ -2896,7 +3150,7 @@ type ChannelSearchResult struct {
 
 func (x *ChannelSearchResult) Reset() {
 	*x = ChannelSearchResult{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[35]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2908,7 +3162,7 @@ func (x *ChannelSearchResult) String() string {
 func (*ChannelSearchResult) ProtoMessage() {}
 
 func (x *ChannelSearchResult) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[35]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2921,7 +3175,7 @@ func (x *ChannelSearchResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChannelSearchResult.ProtoReflect.Descriptor instead.
 func (*ChannelSearchResult) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{35}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ChannelSearchResult) GetConversationId() string {
@@ -2964,7 +3218,7 @@ type SearchResponse struct {
 
 func (x *SearchResponse) Reset() {
 	*x = SearchResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[36]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2976,7 +3230,7 @@ func (x *SearchResponse) String() string {
 func (*SearchResponse) ProtoMessage() {}
 
 func (x *SearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[36]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2989,7 +3243,7 @@ func (x *SearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchResponse.ProtoReflect.Descriptor instead.
 func (*SearchResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{36}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SearchResponse) GetResults() []*SearchResult {
@@ -3037,7 +3291,7 @@ type UpdateReadStateRequest struct {
 
 func (x *UpdateReadStateRequest) Reset() {
 	*x = UpdateReadStateRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[37]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3049,7 +3303,7 @@ func (x *UpdateReadStateRequest) String() string {
 func (*UpdateReadStateRequest) ProtoMessage() {}
 
 func (x *UpdateReadStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[37]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3062,7 +3316,7 @@ func (x *UpdateReadStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReadStateRequest.ProtoReflect.Descriptor instead.
 func (*UpdateReadStateRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{37}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{39}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3103,7 +3357,7 @@ type UpdateReadStateResponse struct {
 
 func (x *UpdateReadStateResponse) Reset() {
 	*x = UpdateReadStateResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[38]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3115,7 +3369,7 @@ func (x *UpdateReadStateResponse) String() string {
 func (*UpdateReadStateResponse) ProtoMessage() {}
 
 func (x *UpdateReadStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[38]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3128,7 +3382,7 @@ func (x *UpdateReadStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateReadStateResponse.ProtoReflect.Descriptor instead.
 func (*UpdateReadStateResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{38}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *UpdateReadStateResponse) GetState() *ReadState {
@@ -3150,7 +3404,7 @@ type GetReadStateRequest struct {
 
 func (x *GetReadStateRequest) Reset() {
 	*x = GetReadStateRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[39]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3162,7 +3416,7 @@ func (x *GetReadStateRequest) String() string {
 func (*GetReadStateRequest) ProtoMessage() {}
 
 func (x *GetReadStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[39]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3175,7 +3429,7 @@ func (x *GetReadStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadStateRequest.ProtoReflect.Descriptor instead.
 func (*GetReadStateRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{39}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{41}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3209,7 +3463,7 @@ type GetReadStateResponse struct {
 
 func (x *GetReadStateResponse) Reset() {
 	*x = GetReadStateResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[40]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3221,7 +3475,7 @@ func (x *GetReadStateResponse) String() string {
 func (*GetReadStateResponse) ProtoMessage() {}
 
 func (x *GetReadStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[40]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3234,7 +3488,7 @@ func (x *GetReadStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadStateResponse.ProtoReflect.Descriptor instead.
 func (*GetReadStateResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{40}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetReadStateResponse) GetState() *ReadState {
@@ -3256,7 +3510,7 @@ type UpdatePreferencesRequest struct {
 
 func (x *UpdatePreferencesRequest) Reset() {
 	*x = UpdatePreferencesRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[41]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3268,7 +3522,7 @@ func (x *UpdatePreferencesRequest) String() string {
 func (*UpdatePreferencesRequest) ProtoMessage() {}
 
 func (x *UpdatePreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[41]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3281,7 +3535,7 @@ func (x *UpdatePreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePreferencesRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{41}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{43}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3315,7 +3569,7 @@ type UpdatePreferencesResponse struct {
 
 func (x *UpdatePreferencesResponse) Reset() {
 	*x = UpdatePreferencesResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[42]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3327,7 +3581,7 @@ func (x *UpdatePreferencesResponse) String() string {
 func (*UpdatePreferencesResponse) ProtoMessage() {}
 
 func (x *UpdatePreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[42]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3340,7 +3594,7 @@ func (x *UpdatePreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePreferencesResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{42}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *UpdatePreferencesResponse) GetPreferences() *NotificationPreferences {
@@ -3362,7 +3616,7 @@ type GetPreferencesRequest struct {
 
 func (x *GetPreferencesRequest) Reset() {
 	*x = GetPreferencesRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[43]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3374,7 +3628,7 @@ func (x *GetPreferencesRequest) String() string {
 func (*GetPreferencesRequest) ProtoMessage() {}
 
 func (x *GetPreferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[43]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3387,7 +3641,7 @@ func (x *GetPreferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreferencesRequest.ProtoReflect.Descriptor instead.
 func (*GetPreferencesRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{43}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{45}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3421,7 +3675,7 @@ type GetPreferencesResponse struct {
 
 func (x *GetPreferencesResponse) Reset() {
 	*x = GetPreferencesResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[44]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3433,7 +3687,7 @@ func (x *GetPreferencesResponse) String() string {
 func (*GetPreferencesResponse) ProtoMessage() {}
 
 func (x *GetPreferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[44]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3446,7 +3700,7 @@ func (x *GetPreferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreferencesResponse.ProtoReflect.Descriptor instead.
 func (*GetPreferencesResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{44}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetPreferencesResponse) GetPreferences() *NotificationPreferences {
@@ -3467,7 +3721,7 @@ type AddReactionRequest struct {
 
 func (x *AddReactionRequest) Reset() {
 	*x = AddReactionRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[45]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3479,7 +3733,7 @@ func (x *AddReactionRequest) String() string {
 func (*AddReactionRequest) ProtoMessage() {}
 
 func (x *AddReactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[45]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3492,7 +3746,7 @@ func (x *AddReactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddReactionRequest.ProtoReflect.Descriptor instead.
 func (*AddReactionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{45}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{47}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3519,7 +3773,7 @@ type AddReactionResponse struct {
 
 func (x *AddReactionResponse) Reset() {
 	*x = AddReactionResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[46]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3531,7 +3785,7 @@ func (x *AddReactionResponse) String() string {
 func (*AddReactionResponse) ProtoMessage() {}
 
 func (x *AddReactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[46]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3544,7 +3798,7 @@ func (x *AddReactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddReactionResponse.ProtoReflect.Descriptor instead.
 func (*AddReactionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{46}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *AddReactionResponse) GetReaction() *Reaction {
@@ -3568,7 +3822,7 @@ type RemoveReactionRequest struct {
 
 func (x *RemoveReactionRequest) Reset() {
 	*x = RemoveReactionRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[47]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3580,7 +3834,7 @@ func (x *RemoveReactionRequest) String() string {
 func (*RemoveReactionRequest) ProtoMessage() {}
 
 func (x *RemoveReactionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[47]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3593,7 +3847,7 @@ func (x *RemoveReactionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveReactionRequest.ProtoReflect.Descriptor instead.
 func (*RemoveReactionRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{47}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{49}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3640,7 +3894,7 @@ type RemoveReactionResponse struct {
 
 func (x *RemoveReactionResponse) Reset() {
 	*x = RemoveReactionResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[48]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3652,7 +3906,7 @@ func (x *RemoveReactionResponse) String() string {
 func (*RemoveReactionResponse) ProtoMessage() {}
 
 func (x *RemoveReactionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[48]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3665,7 +3919,7 @@ func (x *RemoveReactionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveReactionResponse.ProtoReflect.Descriptor instead.
 func (*RemoveReactionResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{48}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{50}
 }
 
 // post_ids asks for the reactions of several posts of one conversation in one
@@ -3690,7 +3944,7 @@ type ListReactionsRequest struct {
 
 func (x *ListReactionsRequest) Reset() {
 	*x = ListReactionsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[49]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3702,7 +3956,7 @@ func (x *ListReactionsRequest) String() string {
 func (*ListReactionsRequest) ProtoMessage() {}
 
 func (x *ListReactionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[49]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3715,7 +3969,7 @@ func (x *ListReactionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReactionsRequest.ProtoReflect.Descriptor instead.
 func (*ListReactionsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{49}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{51}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3778,7 +4032,7 @@ type ListReactionsResponse struct {
 
 func (x *ListReactionsResponse) Reset() {
 	*x = ListReactionsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[50]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3790,7 +4044,7 @@ func (x *ListReactionsResponse) String() string {
 func (*ListReactionsResponse) ProtoMessage() {}
 
 func (x *ListReactionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[50]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3803,7 +4057,7 @@ func (x *ListReactionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReactionsResponse.ProtoReflect.Descriptor instead.
 func (*ListReactionsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{50}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ListReactionsResponse) GetReactions() []*Reaction {
@@ -3831,7 +4085,7 @@ type PinPostRequest struct {
 
 func (x *PinPostRequest) Reset() {
 	*x = PinPostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[51]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3843,7 +4097,7 @@ func (x *PinPostRequest) String() string {
 func (*PinPostRequest) ProtoMessage() {}
 
 func (x *PinPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[51]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3856,7 +4110,7 @@ func (x *PinPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinPostRequest.ProtoReflect.Descriptor instead.
 func (*PinPostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{51}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{53}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -3883,7 +4137,7 @@ type PinPostResponse struct {
 
 func (x *PinPostResponse) Reset() {
 	*x = PinPostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[52]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3895,7 +4149,7 @@ func (x *PinPostResponse) String() string {
 func (*PinPostResponse) ProtoMessage() {}
 
 func (x *PinPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[52]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3908,7 +4162,7 @@ func (x *PinPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PinPostResponse.ProtoReflect.Descriptor instead.
 func (*PinPostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{52}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *PinPostResponse) GetPin() *Pin {
@@ -3932,7 +4186,7 @@ type UnpinPostRequest struct {
 
 func (x *UnpinPostRequest) Reset() {
 	*x = UnpinPostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[53]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3944,7 +4198,7 @@ func (x *UnpinPostRequest) String() string {
 func (*UnpinPostRequest) ProtoMessage() {}
 
 func (x *UnpinPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[53]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3957,7 +4211,7 @@ func (x *UnpinPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnpinPostRequest.ProtoReflect.Descriptor instead.
 func (*UnpinPostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{53}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{55}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4004,7 +4258,7 @@ type UnpinPostResponse struct {
 
 func (x *UnpinPostResponse) Reset() {
 	*x = UnpinPostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[54]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4016,7 +4270,7 @@ func (x *UnpinPostResponse) String() string {
 func (*UnpinPostResponse) ProtoMessage() {}
 
 func (x *UnpinPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[54]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4029,7 +4283,7 @@ func (x *UnpinPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnpinPostResponse.ProtoReflect.Descriptor instead.
 func (*UnpinPostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{54}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{56}
 }
 
 type ListPinsRequest struct {
@@ -4044,7 +4298,7 @@ type ListPinsRequest struct {
 
 func (x *ListPinsRequest) Reset() {
 	*x = ListPinsRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[55]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4056,7 +4310,7 @@ func (x *ListPinsRequest) String() string {
 func (*ListPinsRequest) ProtoMessage() {}
 
 func (x *ListPinsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[55]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4069,7 +4323,7 @@ func (x *ListPinsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinsRequest.ProtoReflect.Descriptor instead.
 func (*ListPinsRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{55}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{57}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4103,7 +4357,7 @@ type ListPinsResponse struct {
 
 func (x *ListPinsResponse) Reset() {
 	*x = ListPinsResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[56]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4115,7 +4369,7 @@ func (x *ListPinsResponse) String() string {
 func (*ListPinsResponse) ProtoMessage() {}
 
 func (x *ListPinsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[56]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4128,7 +4382,7 @@ func (x *ListPinsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPinsResponse.ProtoReflect.Descriptor instead.
 func (*ListPinsResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{56}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ListPinsResponse) GetPins() []*Pin {
@@ -4148,7 +4402,7 @@ type ReferenceCandidate struct {
 
 func (x *ReferenceCandidate) Reset() {
 	*x = ReferenceCandidate{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[57]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4160,7 +4414,7 @@ func (x *ReferenceCandidate) String() string {
 func (*ReferenceCandidate) ProtoMessage() {}
 
 func (x *ReferenceCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[57]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4173,7 +4427,7 @@ func (x *ReferenceCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReferenceCandidate.ProtoReflect.Descriptor instead.
 func (*ReferenceCandidate) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{57}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ReferenceCandidate) GetReference() *Reference {
@@ -4204,7 +4458,7 @@ type ResolveReferencesRequest struct {
 
 func (x *ResolveReferencesRequest) Reset() {
 	*x = ResolveReferencesRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[58]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4216,7 +4470,7 @@ func (x *ResolveReferencesRequest) String() string {
 func (*ResolveReferencesRequest) ProtoMessage() {}
 
 func (x *ResolveReferencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[58]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4229,7 +4483,7 @@ func (x *ResolveReferencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveReferencesRequest.ProtoReflect.Descriptor instead.
 func (*ResolveReferencesRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{58}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{60}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4277,7 +4531,7 @@ type ResolveReferencesResponse struct {
 
 func (x *ResolveReferencesResponse) Reset() {
 	*x = ResolveReferencesResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[59]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4289,7 +4543,7 @@ func (x *ResolveReferencesResponse) String() string {
 func (*ResolveReferencesResponse) ProtoMessage() {}
 
 func (x *ResolveReferencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[59]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4302,7 +4556,7 @@ func (x *ResolveReferencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveReferencesResponse.ProtoReflect.Descriptor instead.
 func (*ResolveReferencesResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{59}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ResolveReferencesResponse) GetCandidates() []*ReferenceCandidate {
@@ -4324,7 +4578,7 @@ type ConversationLink struct {
 
 func (x *ConversationLink) Reset() {
 	*x = ConversationLink{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[60]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4336,7 +4590,7 @@ func (x *ConversationLink) String() string {
 func (*ConversationLink) ProtoMessage() {}
 
 func (x *ConversationLink) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[60]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4349,7 +4603,7 @@ func (x *ConversationLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationLink.ProtoReflect.Descriptor instead.
 func (*ConversationLink) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{60}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ConversationLink) GetUrl() string {
@@ -4393,7 +4647,7 @@ type CreateShareLinkRequest struct {
 
 func (x *CreateShareLinkRequest) Reset() {
 	*x = CreateShareLinkRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[61]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4405,7 +4659,7 @@ func (x *CreateShareLinkRequest) String() string {
 func (*CreateShareLinkRequest) ProtoMessage() {}
 
 func (x *CreateShareLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[61]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4418,7 +4672,7 @@ func (x *CreateShareLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateShareLinkRequest.ProtoReflect.Descriptor instead.
 func (*CreateShareLinkRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{61}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{63}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4459,7 +4713,7 @@ type CreateShareLinkResponse struct {
 
 func (x *CreateShareLinkResponse) Reset() {
 	*x = CreateShareLinkResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[62]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4471,7 +4725,7 @@ func (x *CreateShareLinkResponse) String() string {
 func (*CreateShareLinkResponse) ProtoMessage() {}
 
 func (x *CreateShareLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[62]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4484,7 +4738,7 @@ func (x *CreateShareLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateShareLinkResponse.ProtoReflect.Descriptor instead.
 func (*CreateShareLinkResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{62}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *CreateShareLinkResponse) GetLink() *ConversationLink {
@@ -4505,7 +4759,7 @@ type ResolveShareLinkRequest struct {
 
 func (x *ResolveShareLinkRequest) Reset() {
 	*x = ResolveShareLinkRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[63]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4517,7 +4771,7 @@ func (x *ResolveShareLinkRequest) String() string {
 func (*ResolveShareLinkRequest) ProtoMessage() {}
 
 func (x *ResolveShareLinkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[63]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4530,7 +4784,7 @@ func (x *ResolveShareLinkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveShareLinkRequest.ProtoReflect.Descriptor instead.
 func (*ResolveShareLinkRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{63}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{65}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4558,7 +4812,7 @@ type ResolveShareLinkResponse struct {
 
 func (x *ResolveShareLinkResponse) Reset() {
 	*x = ResolveShareLinkResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[64]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4570,7 +4824,7 @@ func (x *ResolveShareLinkResponse) String() string {
 func (*ResolveShareLinkResponse) ProtoMessage() {}
 
 func (x *ResolveShareLinkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[64]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4583,7 +4837,7 @@ func (x *ResolveShareLinkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveShareLinkResponse.ProtoReflect.Descriptor instead.
 func (*ResolveShareLinkResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{64}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ResolveShareLinkResponse) GetConversation() *Conversation {
@@ -4621,7 +4875,7 @@ type ForwardPostRequest struct {
 
 func (x *ForwardPostRequest) Reset() {
 	*x = ForwardPostRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[65]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4633,7 +4887,7 @@ func (x *ForwardPostRequest) String() string {
 func (*ForwardPostRequest) ProtoMessage() {}
 
 func (x *ForwardPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[65]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4646,7 +4900,7 @@ func (x *ForwardPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForwardPostRequest.ProtoReflect.Descriptor instead.
 func (*ForwardPostRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{65}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{67}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -4716,7 +4970,7 @@ type ForwardPostResponse struct {
 
 func (x *ForwardPostResponse) Reset() {
 	*x = ForwardPostResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[66]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4728,7 +4982,7 @@ func (x *ForwardPostResponse) String() string {
 func (*ForwardPostResponse) ProtoMessage() {}
 
 func (x *ForwardPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[66]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4741,7 +4995,7 @@ func (x *ForwardPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForwardPostResponse.ProtoReflect.Descriptor instead.
 func (*ForwardPostResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{66}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *ForwardPostResponse) GetPost() *Post {
@@ -4768,7 +5022,7 @@ type ConversationEvent struct {
 
 func (x *ConversationEvent) Reset() {
 	*x = ConversationEvent{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[67]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4780,7 +5034,7 @@ func (x *ConversationEvent) String() string {
 func (*ConversationEvent) ProtoMessage() {}
 
 func (x *ConversationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[67]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4793,7 +5047,7 @@ func (x *ConversationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationEvent.ProtoReflect.Descriptor instead.
 func (*ConversationEvent) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{67}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *ConversationEvent) GetKind() ConversationEventKind {
@@ -4877,7 +5131,7 @@ type EphemeralDelivery struct {
 
 func (x *EphemeralDelivery) Reset() {
 	*x = EphemeralDelivery{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4889,7 +5143,7 @@ func (x *EphemeralDelivery) String() string {
 func (*EphemeralDelivery) ProtoMessage() {}
 
 func (x *EphemeralDelivery) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[68]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4902,7 +5156,7 @@ func (x *EphemeralDelivery) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EphemeralDelivery.ProtoReflect.Descriptor instead.
 func (*EphemeralDelivery) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{68}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *EphemeralDelivery) GetId() string {
@@ -4968,7 +5222,7 @@ type WatchConversationRequest struct {
 
 func (x *WatchConversationRequest) Reset() {
 	*x = WatchConversationRequest{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4980,7 +5234,7 @@ func (x *WatchConversationRequest) String() string {
 func (*WatchConversationRequest) ProtoMessage() {}
 
 func (x *WatchConversationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[69]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4993,7 +5247,7 @@ func (x *WatchConversationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchConversationRequest.ProtoReflect.Descriptor instead.
 func (*WatchConversationRequest) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{69}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{71}
 }
 
 // Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
@@ -5043,7 +5297,7 @@ type WatchConversationResponse struct {
 
 func (x *WatchConversationResponse) Reset() {
 	*x = WatchConversationResponse{}
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5055,7 +5309,7 @@ func (x *WatchConversationResponse) String() string {
 func (*WatchConversationResponse) ProtoMessage() {}
 
 func (x *WatchConversationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[70]
+	mi := &file_hcmnext_chat_v1_chat_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5068,7 +5322,7 @@ func (x *WatchConversationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchConversationResponse.ProtoReflect.Descriptor instead.
 func (*WatchConversationResponse) Descriptor() ([]byte, []int) {
-	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{70}
+	return file_hcmnext_chat_v1_chat_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *WatchConversationResponse) GetEvent() *ConversationEvent {
@@ -5118,7 +5372,7 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\apost_id\x18\x03 \x01(\tR\x06postId\x12#\n" +
 	"\rpost_revision\x18\x04 \x01(\x04R\fpostRevision\x12,\n" +
-	"\x12original_author_id\x18\x05 \x01(\tR\x10originalAuthorId\"\xda\x02\n" +
+	"\x12original_author_id\x18\x05 \x01(\tR\x10originalAuthorId\"\x89\x03\n" +
 	"\fConversation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x125\n" +
@@ -5130,7 +5384,29 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x06joined\x18\b \x01(\bR\x06joined\x12!\n" +
 	"\fmember_count\x18\t \x01(\rR\vmemberCount\x12D\n" +
 	"\x10last_activity_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\x0elastActivityAt\"G\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x0elastActivityAt\x12-\n" +
+	"\x04peer\x18\v \x01(\v2\x19.hcmnext.chat.v1.IdentityR\x04peer\"\x87\x02\n" +
+	"\bIdentity\x12\x1d\n" +
+	"\n" +
+	"subject_id\x18\x01 \x01(\tR\tsubjectId\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
+	"\n" +
+	"avatar_ref\x18\x03 \x01(\tR\tavatarRef\x12\x14\n" +
+	"\x05agent\x18\x04 \x01(\bR\x05agent\x12\x19\n" +
+	"\bagent_id\x18\x05 \x01(\tR\aagentId\x129\n" +
+	"\n" +
+	"agent_icon\x18\x06 \x01(\v2\x1a.hcmnext.chat.v1.AgentIconR\tagentIcon\x12.\n" +
+	"\x13agent_icon_revision\x18\a \x01(\x03R\x11agentIconRevision\"\x95\x01\n" +
+	"\tAgentIcon\x12\x14\n" +
+	"\x05glyph\x18\x01 \x01(\tR\x05glyph\x12\x14\n" +
+	"\x05shape\x18\x02 \x01(\tR\x05shape\x12\x1e\n" +
+	"\n" +
+	"foreground\x18\x03 \x01(\tR\n" +
+	"foreground\x12\x1e\n" +
+	"\n" +
+	"background\x18\x04 \x01(\tR\n" +
+	"background\x12\x1c\n" +
+	"\tvariation\x18\x05 \x01(\rR\tvariation\"G\n" +
 	"\tMemberRef\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
@@ -5145,7 +5421,7 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\tjoined_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bjoinedAt\x123\n" +
 	"\aleft_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06leftAt\x12O\n" +
 	"\x12history_visibility\x18\a \x01(\x0e2 .hcmnext.chat.v1.ReadHistoryFromR\x11historyVisibility\x12\x1a\n" +
-	"\brevision\x18\b \x01(\x04R\brevision\"\xf9\x03\n" +
+	"\brevision\x18\b \x01(\x04R\brevision\"\xb3\x05\n" +
 	"\x04Post\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x1b\n" +
@@ -5163,7 +5439,11 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"references\x18\v \x03(\v2\x1a.hcmnext.chat.v1.ReferenceR\n" +
 	"references\x12Q\n" +
 	"\x12source_attribution\x18\f \x01(\v2\".hcmnext.chat.v1.SourceAttributionR\x11sourceAttribution\x121\n" +
-	"\x15author_home_tenant_id\x18\r \x01(\tR\x12authorHomeTenantId\"\xff\x01\n" +
+	"\x15author_home_tenant_id\x18\r \x01(\tR\x12authorHomeTenantId\x121\n" +
+	"\x06author\x18\x0e \x01(\v2\x19.hcmnext.chat.v1.IdentityR\x06author\x12+\n" +
+	"\x11audience_segments\x18\x0f \x03(\tR\x10audienceSegments\x12/\n" +
+	"\x13audience_restricted\x18\x10 \x01(\bR\x12audienceRestricted\x12'\n" +
+	"\x0faudience_people\x18\x11 \x01(\rR\x0eaudiencePeople\"\xff\x01\n" +
 	"\bReaction\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\apost_id\x18\x02 \x01(\tR\x06postId\x12\x1b\n" +
@@ -5263,7 +5543,7 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x18RemoveMembershipResponse\x12;\n" +
 	"\n" +
 	"membership\x18\x01 \x01(\v2\x1b.hcmnext.chat.v1.MembershipR\n" +
-	"membership\"\x82\x03\n" +
+	"membership\"\xe0\x03\n" +
 	"\x0fSendPostRequest\x12<\n" +
 	"\tprincipal\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.PrincipalB\x02\x18\x01R\tprincipal\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12'\n" +
@@ -5274,7 +5554,10 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"references\x18\a \x03(\v2\x1a.hcmnext.chat.v1.ReferenceR\n" +
 	"references\x12U\n" +
-	"\x12source_attribution\x18\b \x01(\v2\".hcmnext.chat.v1.SourceAttributionB\x02\x18\x01R\x11sourceAttribution\"=\n" +
+	"\x12source_attribution\x18\b \x01(\v2\".hcmnext.chat.v1.SourceAttributionB\x02\x18\x01R\x11sourceAttribution\x12+\n" +
+	"\x11audience_segments\x18\t \x03(\tR\x10audienceSegments\x12/\n" +
+	"\x13audience_restricted\x18\n" +
+	" \x01(\bR\x12audienceRestricted\"=\n" +
 	"\x10SendPostResponse\x12)\n" +
 	"\x04post\x18\x01 \x01(\v2\x15.hcmnext.chat.v1.PostR\x04post\"\xbb\x02\n" +
 	"\x10ListPostsRequest\x12<\n" +
@@ -5516,7 +5799,7 @@ func file_hcmnext_chat_v1_chat_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_chat_v1_chat_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_hcmnext_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
+var file_hcmnext_chat_v1_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 73)
 var file_hcmnext_chat_v1_chat_proto_goTypes = []any{
 	(ConversationKind)(0),              // 0: hcmnext.chat.v1.ConversationKind
 	(MembershipRole)(0),                // 1: hcmnext.chat.v1.MembershipRole
@@ -5527,172 +5810,177 @@ var file_hcmnext_chat_v1_chat_proto_goTypes = []any{
 	(*Reference)(nil),                  // 6: hcmnext.chat.v1.Reference
 	(*SourceAttribution)(nil),          // 7: hcmnext.chat.v1.SourceAttribution
 	(*Conversation)(nil),               // 8: hcmnext.chat.v1.Conversation
-	(*MemberRef)(nil),                  // 9: hcmnext.chat.v1.MemberRef
-	(*Membership)(nil),                 // 10: hcmnext.chat.v1.Membership
-	(*Post)(nil),                       // 11: hcmnext.chat.v1.Post
-	(*Reaction)(nil),                   // 12: hcmnext.chat.v1.Reaction
-	(*Pin)(nil),                        // 13: hcmnext.chat.v1.Pin
-	(*ReadState)(nil),                  // 14: hcmnext.chat.v1.ReadState
-	(*NotificationPreferences)(nil),    // 15: hcmnext.chat.v1.NotificationPreferences
-	(*CreateConversationRequest)(nil),  // 16: hcmnext.chat.v1.CreateConversationRequest
-	(*CreateConversationResponse)(nil), // 17: hcmnext.chat.v1.CreateConversationResponse
-	(*ListConversationsRequest)(nil),   // 18: hcmnext.chat.v1.ListConversationsRequest
-	(*ListConversationsResponse)(nil),  // 19: hcmnext.chat.v1.ListConversationsResponse
-	(*GetConversationRequest)(nil),     // 20: hcmnext.chat.v1.GetConversationRequest
-	(*GetConversationResponse)(nil),    // 21: hcmnext.chat.v1.GetConversationResponse
-	(*UpdateConversationRequest)(nil),  // 22: hcmnext.chat.v1.UpdateConversationRequest
-	(*UpdateConversationResponse)(nil), // 23: hcmnext.chat.v1.UpdateConversationResponse
-	(*ListMembershipsRequest)(nil),     // 24: hcmnext.chat.v1.ListMembershipsRequest
-	(*ListMembershipsResponse)(nil),    // 25: hcmnext.chat.v1.ListMembershipsResponse
-	(*AddMembershipRequest)(nil),       // 26: hcmnext.chat.v1.AddMembershipRequest
-	(*AddMembershipResponse)(nil),      // 27: hcmnext.chat.v1.AddMembershipResponse
-	(*RemoveMembershipRequest)(nil),    // 28: hcmnext.chat.v1.RemoveMembershipRequest
-	(*RemoveMembershipResponse)(nil),   // 29: hcmnext.chat.v1.RemoveMembershipResponse
-	(*SendPostRequest)(nil),            // 30: hcmnext.chat.v1.SendPostRequest
-	(*SendPostResponse)(nil),           // 31: hcmnext.chat.v1.SendPostResponse
-	(*ListPostsRequest)(nil),           // 32: hcmnext.chat.v1.ListPostsRequest
-	(*ListPostsResponse)(nil),          // 33: hcmnext.chat.v1.ListPostsResponse
-	(*EditPostRequest)(nil),            // 34: hcmnext.chat.v1.EditPostRequest
-	(*EditPostResponse)(nil),           // 35: hcmnext.chat.v1.EditPostResponse
-	(*DeletePostRequest)(nil),          // 36: hcmnext.chat.v1.DeletePostRequest
-	(*DeletePostResponse)(nil),         // 37: hcmnext.chat.v1.DeletePostResponse
-	(*SearchRequest)(nil),              // 38: hcmnext.chat.v1.SearchRequest
-	(*SearchResult)(nil),               // 39: hcmnext.chat.v1.SearchResult
-	(*ChannelSearchResult)(nil),        // 40: hcmnext.chat.v1.ChannelSearchResult
-	(*SearchResponse)(nil),             // 41: hcmnext.chat.v1.SearchResponse
-	(*UpdateReadStateRequest)(nil),     // 42: hcmnext.chat.v1.UpdateReadStateRequest
-	(*UpdateReadStateResponse)(nil),    // 43: hcmnext.chat.v1.UpdateReadStateResponse
-	(*GetReadStateRequest)(nil),        // 44: hcmnext.chat.v1.GetReadStateRequest
-	(*GetReadStateResponse)(nil),       // 45: hcmnext.chat.v1.GetReadStateResponse
-	(*UpdatePreferencesRequest)(nil),   // 46: hcmnext.chat.v1.UpdatePreferencesRequest
-	(*UpdatePreferencesResponse)(nil),  // 47: hcmnext.chat.v1.UpdatePreferencesResponse
-	(*GetPreferencesRequest)(nil),      // 48: hcmnext.chat.v1.GetPreferencesRequest
-	(*GetPreferencesResponse)(nil),     // 49: hcmnext.chat.v1.GetPreferencesResponse
-	(*AddReactionRequest)(nil),         // 50: hcmnext.chat.v1.AddReactionRequest
-	(*AddReactionResponse)(nil),        // 51: hcmnext.chat.v1.AddReactionResponse
-	(*RemoveReactionRequest)(nil),      // 52: hcmnext.chat.v1.RemoveReactionRequest
-	(*RemoveReactionResponse)(nil),     // 53: hcmnext.chat.v1.RemoveReactionResponse
-	(*ListReactionsRequest)(nil),       // 54: hcmnext.chat.v1.ListReactionsRequest
-	(*ListReactionsResponse)(nil),      // 55: hcmnext.chat.v1.ListReactionsResponse
-	(*PinPostRequest)(nil),             // 56: hcmnext.chat.v1.PinPostRequest
-	(*PinPostResponse)(nil),            // 57: hcmnext.chat.v1.PinPostResponse
-	(*UnpinPostRequest)(nil),           // 58: hcmnext.chat.v1.UnpinPostRequest
-	(*UnpinPostResponse)(nil),          // 59: hcmnext.chat.v1.UnpinPostResponse
-	(*ListPinsRequest)(nil),            // 60: hcmnext.chat.v1.ListPinsRequest
-	(*ListPinsResponse)(nil),           // 61: hcmnext.chat.v1.ListPinsResponse
-	(*ReferenceCandidate)(nil),         // 62: hcmnext.chat.v1.ReferenceCandidate
-	(*ResolveReferencesRequest)(nil),   // 63: hcmnext.chat.v1.ResolveReferencesRequest
-	(*ResolveReferencesResponse)(nil),  // 64: hcmnext.chat.v1.ResolveReferencesResponse
-	(*ConversationLink)(nil),           // 65: hcmnext.chat.v1.ConversationLink
-	(*CreateShareLinkRequest)(nil),     // 66: hcmnext.chat.v1.CreateShareLinkRequest
-	(*CreateShareLinkResponse)(nil),    // 67: hcmnext.chat.v1.CreateShareLinkResponse
-	(*ResolveShareLinkRequest)(nil),    // 68: hcmnext.chat.v1.ResolveShareLinkRequest
-	(*ResolveShareLinkResponse)(nil),   // 69: hcmnext.chat.v1.ResolveShareLinkResponse
-	(*ForwardPostRequest)(nil),         // 70: hcmnext.chat.v1.ForwardPostRequest
-	(*ForwardPostResponse)(nil),        // 71: hcmnext.chat.v1.ForwardPostResponse
-	(*ConversationEvent)(nil),          // 72: hcmnext.chat.v1.ConversationEvent
-	(*EphemeralDelivery)(nil),          // 73: hcmnext.chat.v1.EphemeralDelivery
-	(*WatchConversationRequest)(nil),   // 74: hcmnext.chat.v1.WatchConversationRequest
-	(*WatchConversationResponse)(nil),  // 75: hcmnext.chat.v1.WatchConversationResponse
-	(*timestamppb.Timestamp)(nil),      // 76: google.protobuf.Timestamp
+	(*Identity)(nil),                   // 9: hcmnext.chat.v1.Identity
+	(*AgentIcon)(nil),                  // 10: hcmnext.chat.v1.AgentIcon
+	(*MemberRef)(nil),                  // 11: hcmnext.chat.v1.MemberRef
+	(*Membership)(nil),                 // 12: hcmnext.chat.v1.Membership
+	(*Post)(nil),                       // 13: hcmnext.chat.v1.Post
+	(*Reaction)(nil),                   // 14: hcmnext.chat.v1.Reaction
+	(*Pin)(nil),                        // 15: hcmnext.chat.v1.Pin
+	(*ReadState)(nil),                  // 16: hcmnext.chat.v1.ReadState
+	(*NotificationPreferences)(nil),    // 17: hcmnext.chat.v1.NotificationPreferences
+	(*CreateConversationRequest)(nil),  // 18: hcmnext.chat.v1.CreateConversationRequest
+	(*CreateConversationResponse)(nil), // 19: hcmnext.chat.v1.CreateConversationResponse
+	(*ListConversationsRequest)(nil),   // 20: hcmnext.chat.v1.ListConversationsRequest
+	(*ListConversationsResponse)(nil),  // 21: hcmnext.chat.v1.ListConversationsResponse
+	(*GetConversationRequest)(nil),     // 22: hcmnext.chat.v1.GetConversationRequest
+	(*GetConversationResponse)(nil),    // 23: hcmnext.chat.v1.GetConversationResponse
+	(*UpdateConversationRequest)(nil),  // 24: hcmnext.chat.v1.UpdateConversationRequest
+	(*UpdateConversationResponse)(nil), // 25: hcmnext.chat.v1.UpdateConversationResponse
+	(*ListMembershipsRequest)(nil),     // 26: hcmnext.chat.v1.ListMembershipsRequest
+	(*ListMembershipsResponse)(nil),    // 27: hcmnext.chat.v1.ListMembershipsResponse
+	(*AddMembershipRequest)(nil),       // 28: hcmnext.chat.v1.AddMembershipRequest
+	(*AddMembershipResponse)(nil),      // 29: hcmnext.chat.v1.AddMembershipResponse
+	(*RemoveMembershipRequest)(nil),    // 30: hcmnext.chat.v1.RemoveMembershipRequest
+	(*RemoveMembershipResponse)(nil),   // 31: hcmnext.chat.v1.RemoveMembershipResponse
+	(*SendPostRequest)(nil),            // 32: hcmnext.chat.v1.SendPostRequest
+	(*SendPostResponse)(nil),           // 33: hcmnext.chat.v1.SendPostResponse
+	(*ListPostsRequest)(nil),           // 34: hcmnext.chat.v1.ListPostsRequest
+	(*ListPostsResponse)(nil),          // 35: hcmnext.chat.v1.ListPostsResponse
+	(*EditPostRequest)(nil),            // 36: hcmnext.chat.v1.EditPostRequest
+	(*EditPostResponse)(nil),           // 37: hcmnext.chat.v1.EditPostResponse
+	(*DeletePostRequest)(nil),          // 38: hcmnext.chat.v1.DeletePostRequest
+	(*DeletePostResponse)(nil),         // 39: hcmnext.chat.v1.DeletePostResponse
+	(*SearchRequest)(nil),              // 40: hcmnext.chat.v1.SearchRequest
+	(*SearchResult)(nil),               // 41: hcmnext.chat.v1.SearchResult
+	(*ChannelSearchResult)(nil),        // 42: hcmnext.chat.v1.ChannelSearchResult
+	(*SearchResponse)(nil),             // 43: hcmnext.chat.v1.SearchResponse
+	(*UpdateReadStateRequest)(nil),     // 44: hcmnext.chat.v1.UpdateReadStateRequest
+	(*UpdateReadStateResponse)(nil),    // 45: hcmnext.chat.v1.UpdateReadStateResponse
+	(*GetReadStateRequest)(nil),        // 46: hcmnext.chat.v1.GetReadStateRequest
+	(*GetReadStateResponse)(nil),       // 47: hcmnext.chat.v1.GetReadStateResponse
+	(*UpdatePreferencesRequest)(nil),   // 48: hcmnext.chat.v1.UpdatePreferencesRequest
+	(*UpdatePreferencesResponse)(nil),  // 49: hcmnext.chat.v1.UpdatePreferencesResponse
+	(*GetPreferencesRequest)(nil),      // 50: hcmnext.chat.v1.GetPreferencesRequest
+	(*GetPreferencesResponse)(nil),     // 51: hcmnext.chat.v1.GetPreferencesResponse
+	(*AddReactionRequest)(nil),         // 52: hcmnext.chat.v1.AddReactionRequest
+	(*AddReactionResponse)(nil),        // 53: hcmnext.chat.v1.AddReactionResponse
+	(*RemoveReactionRequest)(nil),      // 54: hcmnext.chat.v1.RemoveReactionRequest
+	(*RemoveReactionResponse)(nil),     // 55: hcmnext.chat.v1.RemoveReactionResponse
+	(*ListReactionsRequest)(nil),       // 56: hcmnext.chat.v1.ListReactionsRequest
+	(*ListReactionsResponse)(nil),      // 57: hcmnext.chat.v1.ListReactionsResponse
+	(*PinPostRequest)(nil),             // 58: hcmnext.chat.v1.PinPostRequest
+	(*PinPostResponse)(nil),            // 59: hcmnext.chat.v1.PinPostResponse
+	(*UnpinPostRequest)(nil),           // 60: hcmnext.chat.v1.UnpinPostRequest
+	(*UnpinPostResponse)(nil),          // 61: hcmnext.chat.v1.UnpinPostResponse
+	(*ListPinsRequest)(nil),            // 62: hcmnext.chat.v1.ListPinsRequest
+	(*ListPinsResponse)(nil),           // 63: hcmnext.chat.v1.ListPinsResponse
+	(*ReferenceCandidate)(nil),         // 64: hcmnext.chat.v1.ReferenceCandidate
+	(*ResolveReferencesRequest)(nil),   // 65: hcmnext.chat.v1.ResolveReferencesRequest
+	(*ResolveReferencesResponse)(nil),  // 66: hcmnext.chat.v1.ResolveReferencesResponse
+	(*ConversationLink)(nil),           // 67: hcmnext.chat.v1.ConversationLink
+	(*CreateShareLinkRequest)(nil),     // 68: hcmnext.chat.v1.CreateShareLinkRequest
+	(*CreateShareLinkResponse)(nil),    // 69: hcmnext.chat.v1.CreateShareLinkResponse
+	(*ResolveShareLinkRequest)(nil),    // 70: hcmnext.chat.v1.ResolveShareLinkRequest
+	(*ResolveShareLinkResponse)(nil),   // 71: hcmnext.chat.v1.ResolveShareLinkResponse
+	(*ForwardPostRequest)(nil),         // 72: hcmnext.chat.v1.ForwardPostRequest
+	(*ForwardPostResponse)(nil),        // 73: hcmnext.chat.v1.ForwardPostResponse
+	(*ConversationEvent)(nil),          // 74: hcmnext.chat.v1.ConversationEvent
+	(*EphemeralDelivery)(nil),          // 75: hcmnext.chat.v1.EphemeralDelivery
+	(*WatchConversationRequest)(nil),   // 76: hcmnext.chat.v1.WatchConversationRequest
+	(*WatchConversationResponse)(nil),  // 77: hcmnext.chat.v1.WatchConversationResponse
+	(*timestamppb.Timestamp)(nil),      // 78: google.protobuf.Timestamp
 }
 var file_hcmnext_chat_v1_chat_proto_depIdxs = []int32{
 	3,  // 0: hcmnext.chat.v1.Reference.kind:type_name -> hcmnext.chat.v1.ReferenceKind
 	0,  // 1: hcmnext.chat.v1.Conversation.kind:type_name -> hcmnext.chat.v1.ConversationKind
-	76, // 2: hcmnext.chat.v1.Conversation.last_activity_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: hcmnext.chat.v1.Membership.role:type_name -> hcmnext.chat.v1.MembershipRole
-	76, // 4: hcmnext.chat.v1.Membership.joined_at:type_name -> google.protobuf.Timestamp
-	76, // 5: hcmnext.chat.v1.Membership.left_at:type_name -> google.protobuf.Timestamp
-	2,  // 6: hcmnext.chat.v1.Membership.history_visibility:type_name -> hcmnext.chat.v1.ReadHistoryFrom
-	76, // 7: hcmnext.chat.v1.Post.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 8: hcmnext.chat.v1.Post.references:type_name -> hcmnext.chat.v1.Reference
-	7,  // 9: hcmnext.chat.v1.Post.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
-	76, // 10: hcmnext.chat.v1.Reaction.created_at:type_name -> google.protobuf.Timestamp
-	76, // 11: hcmnext.chat.v1.Pin.created_at:type_name -> google.protobuf.Timestamp
-	11, // 12: hcmnext.chat.v1.Pin.post:type_name -> hcmnext.chat.v1.Post
-	5,  // 13: hcmnext.chat.v1.CreateConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	0,  // 14: hcmnext.chat.v1.CreateConversationRequest.kind:type_name -> hcmnext.chat.v1.ConversationKind
-	9,  // 15: hcmnext.chat.v1.CreateConversationRequest.members:type_name -> hcmnext.chat.v1.MemberRef
-	8,  // 16: hcmnext.chat.v1.CreateConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
-	5,  // 17: hcmnext.chat.v1.ListConversationsRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	8,  // 18: hcmnext.chat.v1.ListConversationsResponse.conversations:type_name -> hcmnext.chat.v1.Conversation
-	5,  // 19: hcmnext.chat.v1.GetConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	8,  // 20: hcmnext.chat.v1.GetConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
-	5,  // 21: hcmnext.chat.v1.UpdateConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	8,  // 22: hcmnext.chat.v1.UpdateConversationRequest.conversation:type_name -> hcmnext.chat.v1.Conversation
-	8,  // 23: hcmnext.chat.v1.UpdateConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
-	5,  // 24: hcmnext.chat.v1.ListMembershipsRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	10, // 25: hcmnext.chat.v1.ListMembershipsResponse.memberships:type_name -> hcmnext.chat.v1.Membership
-	5,  // 26: hcmnext.chat.v1.AddMembershipRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	10, // 27: hcmnext.chat.v1.AddMembershipRequest.membership:type_name -> hcmnext.chat.v1.Membership
-	10, // 28: hcmnext.chat.v1.AddMembershipResponse.membership:type_name -> hcmnext.chat.v1.Membership
-	5,  // 29: hcmnext.chat.v1.RemoveMembershipRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	10, // 30: hcmnext.chat.v1.RemoveMembershipResponse.membership:type_name -> hcmnext.chat.v1.Membership
-	5,  // 31: hcmnext.chat.v1.SendPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	6,  // 32: hcmnext.chat.v1.SendPostRequest.references:type_name -> hcmnext.chat.v1.Reference
-	7,  // 33: hcmnext.chat.v1.SendPostRequest.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
-	11, // 34: hcmnext.chat.v1.SendPostResponse.post:type_name -> hcmnext.chat.v1.Post
-	5,  // 35: hcmnext.chat.v1.ListPostsRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	11, // 36: hcmnext.chat.v1.ListPostsResponse.posts:type_name -> hcmnext.chat.v1.Post
-	5,  // 37: hcmnext.chat.v1.EditPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	11, // 38: hcmnext.chat.v1.EditPostRequest.post:type_name -> hcmnext.chat.v1.Post
-	11, // 39: hcmnext.chat.v1.EditPostResponse.post:type_name -> hcmnext.chat.v1.Post
-	5,  // 40: hcmnext.chat.v1.DeletePostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	11, // 41: hcmnext.chat.v1.DeletePostResponse.post:type_name -> hcmnext.chat.v1.Post
-	5,  // 42: hcmnext.chat.v1.SearchRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	11, // 43: hcmnext.chat.v1.SearchResult.post:type_name -> hcmnext.chat.v1.Post
-	39, // 44: hcmnext.chat.v1.SearchResponse.results:type_name -> hcmnext.chat.v1.SearchResult
-	40, // 45: hcmnext.chat.v1.SearchResponse.channels:type_name -> hcmnext.chat.v1.ChannelSearchResult
-	5,  // 46: hcmnext.chat.v1.UpdateReadStateRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	14, // 47: hcmnext.chat.v1.UpdateReadStateRequest.state:type_name -> hcmnext.chat.v1.ReadState
-	14, // 48: hcmnext.chat.v1.UpdateReadStateResponse.state:type_name -> hcmnext.chat.v1.ReadState
-	5,  // 49: hcmnext.chat.v1.GetReadStateRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	14, // 50: hcmnext.chat.v1.GetReadStateResponse.state:type_name -> hcmnext.chat.v1.ReadState
-	5,  // 51: hcmnext.chat.v1.UpdatePreferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	15, // 52: hcmnext.chat.v1.UpdatePreferencesRequest.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
-	15, // 53: hcmnext.chat.v1.UpdatePreferencesResponse.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
-	5,  // 54: hcmnext.chat.v1.GetPreferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	15, // 55: hcmnext.chat.v1.GetPreferencesResponse.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
-	5,  // 56: hcmnext.chat.v1.AddReactionRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	12, // 57: hcmnext.chat.v1.AddReactionRequest.reaction:type_name -> hcmnext.chat.v1.Reaction
-	12, // 58: hcmnext.chat.v1.AddReactionResponse.reaction:type_name -> hcmnext.chat.v1.Reaction
-	5,  // 59: hcmnext.chat.v1.RemoveReactionRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	5,  // 60: hcmnext.chat.v1.ListReactionsRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	12, // 61: hcmnext.chat.v1.ListReactionsResponse.reactions:type_name -> hcmnext.chat.v1.Reaction
-	5,  // 62: hcmnext.chat.v1.PinPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	13, // 63: hcmnext.chat.v1.PinPostRequest.pin:type_name -> hcmnext.chat.v1.Pin
-	13, // 64: hcmnext.chat.v1.PinPostResponse.pin:type_name -> hcmnext.chat.v1.Pin
-	5,  // 65: hcmnext.chat.v1.UnpinPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	5,  // 66: hcmnext.chat.v1.ListPinsRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	13, // 67: hcmnext.chat.v1.ListPinsResponse.pins:type_name -> hcmnext.chat.v1.Pin
-	6,  // 68: hcmnext.chat.v1.ReferenceCandidate.reference:type_name -> hcmnext.chat.v1.Reference
-	5,  // 69: hcmnext.chat.v1.ResolveReferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	3,  // 70: hcmnext.chat.v1.ResolveReferencesRequest.kind:type_name -> hcmnext.chat.v1.ReferenceKind
-	62, // 71: hcmnext.chat.v1.ResolveReferencesResponse.candidates:type_name -> hcmnext.chat.v1.ReferenceCandidate
-	5,  // 72: hcmnext.chat.v1.CreateShareLinkRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	65, // 73: hcmnext.chat.v1.CreateShareLinkResponse.link:type_name -> hcmnext.chat.v1.ConversationLink
-	5,  // 74: hcmnext.chat.v1.ResolveShareLinkRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	8,  // 75: hcmnext.chat.v1.ResolveShareLinkResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
-	11, // 76: hcmnext.chat.v1.ResolveShareLinkResponse.post:type_name -> hcmnext.chat.v1.Post
-	5,  // 77: hcmnext.chat.v1.ForwardPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	7,  // 78: hcmnext.chat.v1.ForwardPostRequest.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
-	11, // 79: hcmnext.chat.v1.ForwardPostResponse.post:type_name -> hcmnext.chat.v1.Post
-	4,  // 80: hcmnext.chat.v1.ConversationEvent.kind:type_name -> hcmnext.chat.v1.ConversationEventKind
-	11, // 81: hcmnext.chat.v1.ConversationEvent.post:type_name -> hcmnext.chat.v1.Post
-	10, // 82: hcmnext.chat.v1.ConversationEvent.membership:type_name -> hcmnext.chat.v1.Membership
-	8,  // 83: hcmnext.chat.v1.ConversationEvent.conversation:type_name -> hcmnext.chat.v1.Conversation
-	12, // 84: hcmnext.chat.v1.ConversationEvent.reaction:type_name -> hcmnext.chat.v1.Reaction
-	13, // 85: hcmnext.chat.v1.ConversationEvent.pin:type_name -> hcmnext.chat.v1.Pin
-	76, // 86: hcmnext.chat.v1.EphemeralDelivery.created_at:type_name -> google.protobuf.Timestamp
-	76, // 87: hcmnext.chat.v1.EphemeralDelivery.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 88: hcmnext.chat.v1.WatchConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
-	72, // 89: hcmnext.chat.v1.WatchConversationResponse.event:type_name -> hcmnext.chat.v1.ConversationEvent
-	73, // 90: hcmnext.chat.v1.WatchConversationResponse.ephemeral_delivery:type_name -> hcmnext.chat.v1.EphemeralDelivery
-	91, // [91:91] is the sub-list for method output_type
-	91, // [91:91] is the sub-list for method input_type
-	91, // [91:91] is the sub-list for extension type_name
-	91, // [91:91] is the sub-list for extension extendee
-	0,  // [0:91] is the sub-list for field type_name
+	78, // 2: hcmnext.chat.v1.Conversation.last_activity_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: hcmnext.chat.v1.Conversation.peer:type_name -> hcmnext.chat.v1.Identity
+	10, // 4: hcmnext.chat.v1.Identity.agent_icon:type_name -> hcmnext.chat.v1.AgentIcon
+	1,  // 5: hcmnext.chat.v1.Membership.role:type_name -> hcmnext.chat.v1.MembershipRole
+	78, // 6: hcmnext.chat.v1.Membership.joined_at:type_name -> google.protobuf.Timestamp
+	78, // 7: hcmnext.chat.v1.Membership.left_at:type_name -> google.protobuf.Timestamp
+	2,  // 8: hcmnext.chat.v1.Membership.history_visibility:type_name -> hcmnext.chat.v1.ReadHistoryFrom
+	78, // 9: hcmnext.chat.v1.Post.created_at:type_name -> google.protobuf.Timestamp
+	6,  // 10: hcmnext.chat.v1.Post.references:type_name -> hcmnext.chat.v1.Reference
+	7,  // 11: hcmnext.chat.v1.Post.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
+	9,  // 12: hcmnext.chat.v1.Post.author:type_name -> hcmnext.chat.v1.Identity
+	78, // 13: hcmnext.chat.v1.Reaction.created_at:type_name -> google.protobuf.Timestamp
+	78, // 14: hcmnext.chat.v1.Pin.created_at:type_name -> google.protobuf.Timestamp
+	13, // 15: hcmnext.chat.v1.Pin.post:type_name -> hcmnext.chat.v1.Post
+	5,  // 16: hcmnext.chat.v1.CreateConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	0,  // 17: hcmnext.chat.v1.CreateConversationRequest.kind:type_name -> hcmnext.chat.v1.ConversationKind
+	11, // 18: hcmnext.chat.v1.CreateConversationRequest.members:type_name -> hcmnext.chat.v1.MemberRef
+	8,  // 19: hcmnext.chat.v1.CreateConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
+	5,  // 20: hcmnext.chat.v1.ListConversationsRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	8,  // 21: hcmnext.chat.v1.ListConversationsResponse.conversations:type_name -> hcmnext.chat.v1.Conversation
+	5,  // 22: hcmnext.chat.v1.GetConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	8,  // 23: hcmnext.chat.v1.GetConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
+	5,  // 24: hcmnext.chat.v1.UpdateConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	8,  // 25: hcmnext.chat.v1.UpdateConversationRequest.conversation:type_name -> hcmnext.chat.v1.Conversation
+	8,  // 26: hcmnext.chat.v1.UpdateConversationResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
+	5,  // 27: hcmnext.chat.v1.ListMembershipsRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	12, // 28: hcmnext.chat.v1.ListMembershipsResponse.memberships:type_name -> hcmnext.chat.v1.Membership
+	5,  // 29: hcmnext.chat.v1.AddMembershipRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	12, // 30: hcmnext.chat.v1.AddMembershipRequest.membership:type_name -> hcmnext.chat.v1.Membership
+	12, // 31: hcmnext.chat.v1.AddMembershipResponse.membership:type_name -> hcmnext.chat.v1.Membership
+	5,  // 32: hcmnext.chat.v1.RemoveMembershipRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	12, // 33: hcmnext.chat.v1.RemoveMembershipResponse.membership:type_name -> hcmnext.chat.v1.Membership
+	5,  // 34: hcmnext.chat.v1.SendPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	6,  // 35: hcmnext.chat.v1.SendPostRequest.references:type_name -> hcmnext.chat.v1.Reference
+	7,  // 36: hcmnext.chat.v1.SendPostRequest.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
+	13, // 37: hcmnext.chat.v1.SendPostResponse.post:type_name -> hcmnext.chat.v1.Post
+	5,  // 38: hcmnext.chat.v1.ListPostsRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	13, // 39: hcmnext.chat.v1.ListPostsResponse.posts:type_name -> hcmnext.chat.v1.Post
+	5,  // 40: hcmnext.chat.v1.EditPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	13, // 41: hcmnext.chat.v1.EditPostRequest.post:type_name -> hcmnext.chat.v1.Post
+	13, // 42: hcmnext.chat.v1.EditPostResponse.post:type_name -> hcmnext.chat.v1.Post
+	5,  // 43: hcmnext.chat.v1.DeletePostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	13, // 44: hcmnext.chat.v1.DeletePostResponse.post:type_name -> hcmnext.chat.v1.Post
+	5,  // 45: hcmnext.chat.v1.SearchRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	13, // 46: hcmnext.chat.v1.SearchResult.post:type_name -> hcmnext.chat.v1.Post
+	41, // 47: hcmnext.chat.v1.SearchResponse.results:type_name -> hcmnext.chat.v1.SearchResult
+	42, // 48: hcmnext.chat.v1.SearchResponse.channels:type_name -> hcmnext.chat.v1.ChannelSearchResult
+	5,  // 49: hcmnext.chat.v1.UpdateReadStateRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	16, // 50: hcmnext.chat.v1.UpdateReadStateRequest.state:type_name -> hcmnext.chat.v1.ReadState
+	16, // 51: hcmnext.chat.v1.UpdateReadStateResponse.state:type_name -> hcmnext.chat.v1.ReadState
+	5,  // 52: hcmnext.chat.v1.GetReadStateRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	16, // 53: hcmnext.chat.v1.GetReadStateResponse.state:type_name -> hcmnext.chat.v1.ReadState
+	5,  // 54: hcmnext.chat.v1.UpdatePreferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	17, // 55: hcmnext.chat.v1.UpdatePreferencesRequest.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
+	17, // 56: hcmnext.chat.v1.UpdatePreferencesResponse.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
+	5,  // 57: hcmnext.chat.v1.GetPreferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	17, // 58: hcmnext.chat.v1.GetPreferencesResponse.preferences:type_name -> hcmnext.chat.v1.NotificationPreferences
+	5,  // 59: hcmnext.chat.v1.AddReactionRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	14, // 60: hcmnext.chat.v1.AddReactionRequest.reaction:type_name -> hcmnext.chat.v1.Reaction
+	14, // 61: hcmnext.chat.v1.AddReactionResponse.reaction:type_name -> hcmnext.chat.v1.Reaction
+	5,  // 62: hcmnext.chat.v1.RemoveReactionRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	5,  // 63: hcmnext.chat.v1.ListReactionsRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	14, // 64: hcmnext.chat.v1.ListReactionsResponse.reactions:type_name -> hcmnext.chat.v1.Reaction
+	5,  // 65: hcmnext.chat.v1.PinPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	15, // 66: hcmnext.chat.v1.PinPostRequest.pin:type_name -> hcmnext.chat.v1.Pin
+	15, // 67: hcmnext.chat.v1.PinPostResponse.pin:type_name -> hcmnext.chat.v1.Pin
+	5,  // 68: hcmnext.chat.v1.UnpinPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	5,  // 69: hcmnext.chat.v1.ListPinsRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	15, // 70: hcmnext.chat.v1.ListPinsResponse.pins:type_name -> hcmnext.chat.v1.Pin
+	6,  // 71: hcmnext.chat.v1.ReferenceCandidate.reference:type_name -> hcmnext.chat.v1.Reference
+	5,  // 72: hcmnext.chat.v1.ResolveReferencesRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	3,  // 73: hcmnext.chat.v1.ResolveReferencesRequest.kind:type_name -> hcmnext.chat.v1.ReferenceKind
+	64, // 74: hcmnext.chat.v1.ResolveReferencesResponse.candidates:type_name -> hcmnext.chat.v1.ReferenceCandidate
+	5,  // 75: hcmnext.chat.v1.CreateShareLinkRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	67, // 76: hcmnext.chat.v1.CreateShareLinkResponse.link:type_name -> hcmnext.chat.v1.ConversationLink
+	5,  // 77: hcmnext.chat.v1.ResolveShareLinkRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	8,  // 78: hcmnext.chat.v1.ResolveShareLinkResponse.conversation:type_name -> hcmnext.chat.v1.Conversation
+	13, // 79: hcmnext.chat.v1.ResolveShareLinkResponse.post:type_name -> hcmnext.chat.v1.Post
+	5,  // 80: hcmnext.chat.v1.ForwardPostRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	7,  // 81: hcmnext.chat.v1.ForwardPostRequest.source_attribution:type_name -> hcmnext.chat.v1.SourceAttribution
+	13, // 82: hcmnext.chat.v1.ForwardPostResponse.post:type_name -> hcmnext.chat.v1.Post
+	4,  // 83: hcmnext.chat.v1.ConversationEvent.kind:type_name -> hcmnext.chat.v1.ConversationEventKind
+	13, // 84: hcmnext.chat.v1.ConversationEvent.post:type_name -> hcmnext.chat.v1.Post
+	12, // 85: hcmnext.chat.v1.ConversationEvent.membership:type_name -> hcmnext.chat.v1.Membership
+	8,  // 86: hcmnext.chat.v1.ConversationEvent.conversation:type_name -> hcmnext.chat.v1.Conversation
+	14, // 87: hcmnext.chat.v1.ConversationEvent.reaction:type_name -> hcmnext.chat.v1.Reaction
+	15, // 88: hcmnext.chat.v1.ConversationEvent.pin:type_name -> hcmnext.chat.v1.Pin
+	78, // 89: hcmnext.chat.v1.EphemeralDelivery.created_at:type_name -> google.protobuf.Timestamp
+	78, // 90: hcmnext.chat.v1.EphemeralDelivery.expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 91: hcmnext.chat.v1.WatchConversationRequest.principal:type_name -> hcmnext.chat.v1.Principal
+	74, // 92: hcmnext.chat.v1.WatchConversationResponse.event:type_name -> hcmnext.chat.v1.ConversationEvent
+	75, // 93: hcmnext.chat.v1.WatchConversationResponse.ephemeral_delivery:type_name -> hcmnext.chat.v1.EphemeralDelivery
+	94, // [94:94] is the sub-list for method output_type
+	94, // [94:94] is the sub-list for method input_type
+	94, // [94:94] is the sub-list for extension type_name
+	94, // [94:94] is the sub-list for extension extendee
+	0,  // [0:94] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_chat_v1_chat_proto_init() }
@@ -5706,7 +5994,7 @@ func file_hcmnext_chat_v1_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_chat_v1_chat_proto_rawDesc), len(file_hcmnext_chat_v1_chat_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   71,
+			NumMessages:   73,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

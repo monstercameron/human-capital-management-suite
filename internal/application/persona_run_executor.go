@@ -218,7 +218,7 @@ func (e *personaAdmittedRunExecutor) Start(ctx context.Context, admission agentr
 func personaRunStoredFailure(run runstate.Run) error {
 	kind := ErrPersonaRunOutputRejected
 	switch run.TerminalCode {
-	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID":
+	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
 		kind = ErrPersonaRunExecutorUnavailable
 	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
@@ -229,6 +229,10 @@ func personaRunStoredFailure(run runstate.Run) error {
 }
 
 func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agentrun.Record, run runstate.Run) error {
+	// AGENTUX-076: the run verifies its authority in full when it is claimed and
+	// again before its answer is written, and carries that verification across
+	// the bookkeeping boundaries between (agentux076_overhead.go).
+	ctx = agentUX076WithRun(ctx)
 	now := e.now().UTC()
 	done := agentUXSpeedStage(ctx, "claim")
 	claimed, err := e.qualityStateChange(ctx, run, func() (runstate.Run, error) {
@@ -273,7 +277,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	// Documents a search returned to this run; the ones the sealed answer
 	// cites are listed as its sources at delivery.
 	var searchedDocuments []personaQualitySearchedDocument
-	searchRan := false
+	searchRan, searchFoundNothing := false, false
 	modelResult, claimed, err := e.executeQualityModel(ctx, claimed, work.Request, admission)
 	done()
 	if err != nil {
@@ -303,7 +307,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 			return e.fail(ctx, claimed, "MODEL_RESULT_INVALID", digestErr)
 		}
 		done = agentUXSpeedStage(ctx, "checkpoint_model_proposal")
-		claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, 1, work.Request.StepID, modelDigest, e.now().UTC())
+		claimed, err = e.qualityCheckpoint(agentUX076CarryBoundary(ctx), claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, 1, work.Request.StepID, modelDigest, e.now().UTC())
 		done()
 		if err != nil {
 			return fmt.Errorf("%w: record proposal result: %v", ErrPersonaRunExecutorUnavailable, err)
@@ -316,8 +320,10 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		effectID, idemKey := personaRunToolEffectIdentity(claimed.ID, work.Request.StepID, proposal.ID)
 		beforeEffect := claimed
 		done = agentUXSpeedStage(ctx, "begin_effect")
+		// A document search only reads; it leans on the claim's verification.
+		carried := agentUX076CarryBoundary(ctx)
 		claimed, err = e.qualityStateChange(ctx, claimed, func() (runstate.Run, error) {
-			return e.state.BeginEffect(ctx, claimed.ID, e.workerID, effectID, idemKey, argsDigest, claimed.Fence, claimed.Version, e.now().UTC())
+			return e.state.BeginEffect(carried, claimed.ID, e.workerID, effectID, idemKey, argsDigest, claimed.Fence, claimed.Version, e.now().UTC())
 		})
 		done()
 		if err != nil {
@@ -355,7 +361,9 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 			switch code := personaQualitySearchFailure(toolOutput); code {
 			case "":
 			case "NO_RESULTS":
-				noMatches = true
+				// An answer after a search that found nothing makes no claim about
+				// a document, so it is not marked as one that came from none.
+				noMatches, searchFoundNothing = true, true
 			default:
 				return e.fail(ctx, claimed, code, nil)
 			}
@@ -364,7 +372,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		continuation, workErr := e.work.BuildPersonaRunModelWork(ctx, admission, claimed)
 		done()
 		if workErr != nil {
-			return e.fail(ctx, claimed, "CONTEXT_UNAVAILABLE", workErr)
+			return e.fail(ctx, claimed, personaRunModelWorkFailureCode(workErr), workErr)
 		}
 		if continuation.Request.Task.TenantID != claimed.TenantID || continuation.Request.Task.TaskID != claimed.ID || continuation.Request.Task.AgentID != claimed.AgentDigest || continuation.Request.ToolResultClass == "" {
 			return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", ErrPersonaRunOutputRejected)
@@ -419,7 +427,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	}
 	noteStep(personaStepWriting, "")
 	done = agentUXSpeedStage(ctx, "checkpoint_model_result")
-	claimed, err = e.qualityCheckpoint(ctx, claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, modelAttempt, work.Request.StepID, resultDigest, e.now().UTC())
+	claimed, err = e.qualityCheckpoint(agentUX076CarryBoundary(ctx), claimed.ID, e.workerID, claimed.Fence, claimed.Version, runstate.PhaseModelCall, modelAttempt, work.Request.StepID, resultDigest, e.now().UTC())
 	done()
 	if err != nil {
 		return fmt.Errorf("%w: record model result: %v", ErrPersonaRunExecutorUnavailable, err)
@@ -451,6 +459,9 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 			modelResult.Result.Text = composed
 		}
 	}
+	// The answer is about to be sealed and written: the one verification that is
+	// never carried (AGENTUX-076).
+	agentUX076InvalidateRun(ctx)
 	persisted, err := e.output.ValidateAndPersistPersonaOutput(ctx, admission, claimed, modelResult.Result)
 	done()
 	if err != nil {
@@ -467,7 +478,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		return fmt.Errorf("%w: checkpoint validated result: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	done = agentUXSpeedStage(ctx, "delivery")
-	extra := personaDeliveryExtra{General: work.General, SaidSo: saidNotFromDocuments, Searched: searchRan}
+	extra := personaDeliveryExtra{General: work.General, SaidSo: saidNotFromDocuments, Searched: searchRan && !searchFoundNothing}
 	if work.HasFacts {
 		extra.Named = personaFactsNamedDocuments(modelResult.Result.Text, work.Facts.Documents)
 	}
@@ -571,15 +582,21 @@ func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run,
 		code = "DELIVERY_AUDIENCE_DENIED"
 	}
 	retryable := chatcore.AgentAnswerFailureFor("en-US", "", code).Retryable
-	_, err := e.qualityStateChange(ctx, run, func() (runstate.Run, error) {
-		return e.state.FailWithRefusal(ctx, run.ID, e.workerID, code, retryable, refusal, run.Fence, run.Version, e.now().UTC())
+	// A run very often fails because its own context ended (its deadline passed or
+	// it was cancelled). The final state is still written, under a short bound of
+	// its own: a run left RUNNING shows the person a spinner until the lease runs
+	// out and recovery finds it.
+	persistCtx, cancelPersist := context.WithTimeout(ctx, personaRunFailurePersistTimeout)
+	defer cancelPersist()
+	_, err := e.qualityStateChange(persistCtx, run, func() (runstate.Run, error) {
+		return e.state.FailWithRefusal(persistCtx, run.ID, e.workerID, code, retryable, refusal, run.Fence, run.Version, e.now().UTC())
 	})
 	if err != nil {
 		return fmt.Errorf("%w: terminal failure %s could not be persisted", ErrPersonaRunExecutorUnavailable, code)
 	}
 	kind := ErrPersonaRunOutputRejected
 	switch code {
-	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID":
+	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
 		kind = ErrPersonaRunExecutorUnavailable
 	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
@@ -587,6 +604,12 @@ func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run,
 		kind = ErrPersonaRunDeliveryFailure
 	}
 	slog.WarnContext(ctx, "hcmnext.persona_run_failed", "run_id", run.ID, "code", code, "gate", refusal.Gate, "owner", refusal.Owner, "location", refusal.Location)
+	// A lapsed or invalid model route is the one cause named in the log without the
+	// debug switch: it is policy state, not business data, and an operator needs it
+	// to know which agent to renew.
+	if errors.Is(cause, errPersonaModelRouteUnavailable) || errors.Is(cause, agentmodel.ErrNoEligibleModel) {
+		slog.WarnContext(ctx, "hcmnext.persona_model_route_unavailable", "run_id", run.ID, "tenant_id", run.TenantID, "agent_id", run.AgentID, "agent_version", run.AgentVersion, "cause", cause.Error())
+	}
 	// Details may contain business data and are deliberately not exposed unless
 	// a local diagnostic session explicitly opts in.
 	if cause != nil && os.Getenv("HCMNEXT_AGENT_DEBUG_CAUSES") == "1" {
@@ -600,7 +623,7 @@ func personaRunFailureRefusal(code string, cause error) runstate.FailureRefusal 
 	switch code {
 	case "CONTEXT_UNAVAILABLE":
 		gate = runstate.FailureGateAuthority
-	case "MODEL_BINDING_INVALID":
+	case "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
 		gate = runstate.FailureGateModelRoute
 	case "MODEL_UNAVAILABLE":
 		gate = runstate.FailureGateModelCall

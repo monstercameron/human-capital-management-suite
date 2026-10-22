@@ -163,9 +163,14 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// UXBLIND blind-test lanes (scroll/loading, top bar, brand, personal colour mode) re-pin: whole-document digest, structural checks above unchanged.
 	// Agent UI adds scoped shell CSS and publishes the new setup/operations
 	// destinations; stable chrome otherwise retains the checks above.
-	const want = "e022baf92e70235c2e95d8211619676c15f17855878c2c82d894417d07eb6ab7"
+	// 2026-10-02 (W7) re-pin: the pinned e022baf9... did not reproduce at the
+	// parent commit 8a8673502 either, nor on amd64 or with GoWebComponents
+	// v5.0.5. The stable shell document rendered at the parent and in the
+	// current tree is byte-identical (checked by rendering both), so none of
+	// today's changes touch it; the pin was stale before them.
+	const want = "8ff85d524af9de98ab9bf540a0088076867cfec7af7bd91a4d13e031b8513020"
 	if got != want {
-		t.Fatalf("stable shell golden digest = %s, want %s", got, want)
+		t.Fatalf("stable shell golden digest = %s, want %s; the document is in %s", got, want, goldenReviewCopy(t, "web037-shell", doc))
 	}
 }
 

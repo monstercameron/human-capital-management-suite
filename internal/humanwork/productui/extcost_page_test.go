@@ -16,7 +16,7 @@ func extcostPageFixture(locale string) ExtcostPageProps {
 	for _, v := range [][2]string{{"day", "2026-10-01"}, {"provider", "OpenAI"}, {"feature", "answers"}, {"purpose", "answers"}, {"agent", "agent-id"}, {"workflow", "workflow-id"}, {"person", "person-id"}} {
 		groups = append(groups, extcost.Group{Kind: v[0], Name: v[1], Currency: "USD", CostMicros: 123456, Calls: 1})
 	}
-	return ExtcostPageProps{View: view, Allowed: true, Report: extcost.Report{Lines: []extcost.Line{line}, Groups: groups, Budgets: []extcost.BudgetStatus{{Budget: extcost.Budget{Tenant: "tenant-a", Scope: extcost.Scope{Kind: "tenant", ID: "tenant-a", Period: "month"}, Currency: "USD", LimitMicros: 150000, WarningBasisPoints: 8000}, SpentMicros: 123456, Warning: true}}, Statistics: []extcost.Statistic{{Workflow: "workflow-id", Currency: "USD", Runs: 1, MedianMicros: 123456, P95Micros: 123456}}}, Names: map[string]string{"agent:agent-id": "Support helper", "workflow:workflow-id": "Leave approval", "person:person-id": "Curtis Bell"}}
+	return ExtcostPageProps{Locale: view.Locale, Allowed: true, Report: extcost.Report{Lines: []extcost.Line{line}, Groups: groups, Budgets: []extcost.BudgetStatus{{Budget: extcost.Budget{Tenant: "tenant-a", Scope: extcost.Scope{Kind: "tenant", ID: "tenant-a", Period: "month"}, Currency: "USD", LimitMicros: 150000, WarningBasisPoints: 8000}, SpentMicros: 123456, Warning: true}}, Statistics: []extcost.Statistic{{Workflow: "workflow-id", Currency: "USD", Runs: 1, MedianMicros: 123456, P95Micros: 123456}}}, Names: map[string]string{"agent:agent-id": "Support helper", "workflow:workflow-id": "Leave approval", "person:person-id": "Curtis Bell"}}
 }
 func extcostMarkup(t *testing.T, p ExtcostPageProps) string {
 	t.Helper()
@@ -44,7 +44,7 @@ func TestTodo_EXTCOST_006(t *testing.T) {
 	if m.Definition.Route != ExtcostPagePath || m.Definition.ParentNav != PageAdmin || m.Access.Audience != PageAudienceDenied {
 		t.Fatal("admin module access/route")
 	}
-	if _, err := ui.RenderToString(m.Render.Render(p.View)); err != nil {
+	if _, err := ui.RenderToString(m.Render.Render(extcostView(p))); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -53,7 +53,7 @@ func TestTodo_EXTCOST_006_Browser(t *testing.T) {
 		t.Run(locale, func(t *testing.T) {
 			p := extcostPageFixture(locale)
 			for _, kind := range []string{"tenant", "feature", "agent", "workflow", "run", "node", "step"} {
-				if extcostText(p.View.Locale, kind) == "" {
+				if extcostText(p.Locale, kind) == "" {
 					t.Fatal("budget scope has no localized label", kind)
 				}
 			}
@@ -85,7 +85,7 @@ func TestTodo_EXTCOST_006_Browser(t *testing.T) {
 			}
 			p.Report.ReconciledAt = map[string]time.Time{"attempt": p.Report.Lines[0].At}
 			scoped := extcostMarkup(t, p)
-			if !strings.Contains(scoped, extcostText(p.View.Locale, "reconciled")) || strings.Contains(scoped, extcostText(p.View.Locale, "unreconciled")) {
+			if !strings.Contains(scoped, extcostText(p.Locale, "reconciled")) || strings.Contains(scoped, extcostText(p.Locale, "unreconciled")) {
 				t.Fatal("scoped last-reconciled status missing")
 			}
 			p.Report.Truncated = true
@@ -94,11 +94,11 @@ func TestTodo_EXTCOST_006_Browser(t *testing.T) {
 			p.Report.Reconciliations = []extcost.Reconciliation{{Provider: "OpenAI", Operation: "model.invoke", Currency: "USD", Day: extcost.PeriodStart(p.Report.Lines[0].At, "day"), At: p.Report.Lines[0].At}}
 			markup := extcostMarkup(t, p)
 			for _, key := range []string{"estimated", "reconciled", "finding", "truncated"} {
-				if !strings.Contains(markup, extcostText(p.View.Locale, key)) {
+				if !strings.Contains(markup, extcostText(p.Locale, key)) {
 					t.Fatal("copy missing", key)
 				}
 			}
-			amount := extcostAmount(p.View.Locale, 123456, "USD")
+			amount := extcostAmount(p.Locale, 123456, "USD")
 			if !strings.Contains(markup, amount) {
 				t.Fatal("localized currency not rendered")
 			}
@@ -144,8 +144,8 @@ func TestTodo_EXTCOST_006_Security(t *testing.T) {
 	if !strings.Contains(markup, "Refresh usage") {
 		t.Fatal("loading has no next action")
 	}
-	renderer := ExtcostPageRenderer{Project: func(v View) ExtcostPageProps { out := extcostPageFixture("en-US"); out.View = v; return out }}
-	if _, err := ui.RenderToString(renderer.Render(p.View)); err != nil {
+	renderer := ExtcostPageRenderer{Project: func(v View) ExtcostPageProps { out := extcostPageFixture("en-US"); out.Locale = v.Locale; return out }}
+	if _, err := ui.RenderToString(renderer.Render(extcostView(p))); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -155,7 +155,7 @@ func TestTodo_EXTCOST_006_Pending(t *testing.T) {
 		p := extcostPageFixture(tag)
 		p.Report = extcost.Report{Pending: []extcost.Reservation{{Call: extcost.Call{Provider: "OpenAI", Key: "pending-attempt"}, MaximumMicros: 123456, Currency: "USD", State: "sent"}}}
 		markup := extcostMarkup(t, p)
-		if !strings.Contains(markup, extcostText(p.View.Locale, "pending")) || !strings.Contains(markup, extcostText(p.View.Locale, "pending_help")) || strings.Contains(markup, extcostText(p.View.Locale, "empty")) {
+		if !strings.Contains(markup, extcostText(p.Locale, "pending")) || !strings.Contains(markup, extcostText(p.Locale, "pending_help")) || strings.Contains(markup, extcostText(p.Locale, "empty")) {
 			t.Fatal("pending call presented as zero/empty", tag)
 		}
 		if strings.Contains(markup, "??") {
@@ -164,7 +164,7 @@ func TestTodo_EXTCOST_006_Pending(t *testing.T) {
 		p = extcostPageFixture(tag)
 		p.Report.Lines[0].ScheduleVersion = ""
 		markup = extcostMarkup(t, p)
-		if !strings.Contains(markup, extcostText(p.View.Locale, "unpriced")) {
+		if !strings.Contains(markup, extcostText(p.Locale, "unpriced")) {
 			t.Fatal("unpriced shown as zero", tag)
 		}
 	}
@@ -174,4 +174,10 @@ func TestTodo_EXTCOST_006_Pending(t *testing.T) {
 	if !strings.Contains(extcostText(ResolveProductLocale("ar"), "pending"), "اتصالات") {
 		t.Fatal("Arabic pending copy corrupted")
 	}
+}
+
+// extcostView is the page view a renderer is handed for the props' locale: the
+// props carry the locale only, never the whole View.
+func extcostView(p ExtcostPageProps) View {
+	return ApplyLocale(NewView(ExtcostPageID, "tenant-a", "admin", ""), p.Locale)
 }

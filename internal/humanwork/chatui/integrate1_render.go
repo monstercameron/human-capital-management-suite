@@ -27,7 +27,7 @@ func integrate1MessageAvatar(m Model, msg Message, class string) ui.Node {
 		}
 		return agentDMAvatar(msg.Author, class+" agent-dm-avatar", agentIconFor(m, []string{msg.PersonaActor.AgentID, msg.PersonaActor.PersonaID}, msg.Author, value))
 	}
-	return personButton(m, msg.AuthorID, msg.Author, "person-avatar-button", personAvatar(m, msg.AuthorID, msg.Author, class))
+	return personButton(m, msg.AuthorID, msg.Author, "person-avatar-button", chatux047MessageAvatar(m, msg, class))
 }
 
 func integrate1InlineWidgets(m Model) ui.Node {

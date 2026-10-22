@@ -36,6 +36,7 @@ func chatmod005Refresh(cfg journeyclient.Config, reloadChat bool) {
 		return
 	}
 	next := chatui.ModerationStateFromSummary(summary)
+	next.Removals = chatux048Removals(ctx, http.DefaultClient, cfg, next)
 	ui.PostAsync(func() {
 		var previous chatui.ModerationState
 		chatBrowser.mutate(func(m *chatui.Model) {
@@ -48,7 +49,7 @@ func chatmod005Refresh(cfg journeyclient.Config, reloadChat bool) {
 		if reflect.DeepEqual(previous, next) || !(chatmod005Meaningful(previous) || chatmod005Meaningful(next)) {
 			return
 		}
-		if previous.Visible() == next.Visible() && reflect.DeepEqual(previous.Notices, next.Notices) && reflect.DeepEqual(previous.Removable, next.Removable) && reflect.DeepEqual(previous.Reviewable, next.Reviewable) {
+		if previous.Visible() == next.Visible() && reflect.DeepEqual(previous.Notices, next.Notices) && reflect.DeepEqual(previous.Removable, next.Removable) && reflect.DeepEqual(previous.Reviewable, next.Reviewable) && reflect.DeepEqual(previous.Removals, next.Removals) {
 			// Only the count changed: write it where it is shown.
 			if badge := js.Global().Get("document").Call("querySelector", "[data-moderation-count]"); badge.Truthy() {
 				text := strconv.Itoa(next.Attention())

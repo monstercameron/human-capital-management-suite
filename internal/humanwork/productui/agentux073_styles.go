@@ -8,7 +8,7 @@ package productui
 // narrow default measure. Joined to the platform sheet they are covered by its
 // hash. Every selector here is scoped to an agent page's own classes.
 func agentUX073Stylesheet() string {
-	return agentUXR7Stylesheet() + AgentAnnouncementsStyles + agentAnswerDocumentStyles() + agentUX073LayoutStyles + agentUX074LayoutStyles + agentUX039PickerStyles + agentUX042ProblemStyles + agentCost006Styles + AgentLoadingStyles
+	return agentUXR7Stylesheet() + AgentAnnouncementsStyles + agentAnswerDocumentStyles() + agentUX073LayoutStyles + agentUX074LayoutStyles + agentUX039PickerStyles + agentUX042ProblemStyles + agentCost006Styles + AgentLoadingStyles + agentAccessStyles + agentUX077Styles + agentUX077LoadingStyles + agentUX080Styles
 }
 
 // agentUX073LayoutStyles lays out Activity and Announcements: agents as rows,

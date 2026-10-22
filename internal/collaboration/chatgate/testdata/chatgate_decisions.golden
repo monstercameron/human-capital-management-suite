@@ -1,0 +1,29 @@
+Channel gates: decisions
+1. A gate is an additional requirement evaluated after the channel's existing eligibility policy, never instead of it.
+   Enforced by: Service.CanJoin asks the authority for eligibility first; ChatgateJoinAdapter runs after the membership policy.
+2. A gate is a versioned form with a semantic version. A major version requires members to answer again, a minor adds optional questions, a patch changes wording.
+   Enforced by: RequiredBump; Service.Publish refuses a smaller version.
+3. Admission modes are automatic, rule and review. Review is the default for private channels.
+   Enforced by: Service.Define defaults the mode from Policy.Private.
+4. Every field declares purpose, data class, who may see answers and retention. A gate may not ask for credentials, government identifiers or health, or what the tenant's policy names.
+   Enforced by: Registry.ValidateDefinition refuses with ErrDenied.
+5. Answers belong to the member, who can see, change and withdraw them. Withdrawing a required answer leaves the channel.
+   Enforced by: Service.Submit, Service.Withdraw, Service.MySubmission.
+6. Consumers read only the fields they declare, and every read is audited.
+   Enforced by: Service.read, SegmentState application and Service.RunAgent each append a ReadAudit.
+7. Answers passed to an agent are untrusted data, never instructions.
+   Enforced by: Service.agentRead places them in a quarantined block; Service.RunAgent refuses any reply key the task did not ask for.
+8. A gate never grants a role in the organization, never changes what a non-member can discover, and never hides a message from someone the channel's own policy lets read it unless the restricted-visibility rules are met.
+   Enforced by: ErrReservedLabel; Service.Get; ErrRestricted.
+9. A group is reported from a poll only with five or more voters (k = 5), and never so that one voter's choice can be subtracted out.
+   Enforced by: MinGroup; BreakDown.
+10. Restricted visibility is off by default, needs addressing, and exists only in private channels. The audience is the segment's members when the message is sent, frozen with it.
+   Enforced by: Service.SetAudienceLevels; ResolveAudience; ErrRestricted.
+11. A person may address content only to segments they are in; a manager may address any. Nobody learns who is in a segment by addressing it.
+   Enforced by: ResolveAudience.
+12. An agent reads answers only through its own grant, for the purposes the grant names, for questions that name the agent consumer. It never admits or declines anybody.
+   Enforced by: Service.GrantAgent; Service.agentRead; no call changes a decision.
+13. A person is limited to five submissions a minute, a channel to 120, and a person declined three times in a day waits for the next day.
+   Enforced by: MaxSubmissionsPerPersonPerMinute, MaxSubmissionsPerChannelPerMinute, MaxDeclinesPerDay; ErrLimited.
+14. Adding a gate never removes anyone. Current members are asked only if the administrator chooses "ask"; only an administrator's confirmed list is removed, after the date.
+   Enforced by: Service.CanJoin (members are not locked out); Service.RemoveUnanswered.

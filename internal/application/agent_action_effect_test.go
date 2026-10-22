@@ -119,17 +119,38 @@ func runAgentActionEffect(t *testing.T, revoke bool) {
 	if err := promoux015Unchanged(before, h.effects()); err != nil {
 		t.Fatalf("HCM changed before effective date: %v", err)
 	}
+	var assignmentsBefore int
+	if err := h.pool.QueryRow(context.Background(), `SELECT count(*) FROM assignment`).Scan(&assignmentsBefore); err != nil {
+		t.Fatal(err)
+	}
 	if revoke {
 		authority.refused = true
 	}
 	fired, err := h.scheduler(h.afterEffectiveDate()).Tick(context.Background())
 	if revoke {
-		if err := promoux015Unchanged(before, h.effects()); err != nil {
-			t.Fatalf("revoked agent run wrote HCM effect: %v", err)
+		// The refusal at the effect boundary writes no HCM change: no commit receipt
+		// and no new assignment row. It ends the workflow in its repair plan, which
+		// records its own outcome (PROMOTION_REPAIR_REQUIRED) and no other, and the
+		// agent reports the repair state rather than success.
+		if after := h.effects(); after.commitReceipts != before.commitReceipts {
+			t.Fatalf("revoked agent run committed an HCM write: %+v -> %+v", before, after)
+		}
+		var assignmentsAfter, otherOutcomes int
+		if err := h.pool.QueryRow(context.Background(), `SELECT count(*) FROM assignment`).Scan(&assignmentsAfter); err != nil {
+			t.Fatal(err)
+		}
+		if assignmentsAfter != assignmentsBefore {
+			t.Fatalf("revoked agent run wrote an assignment row: %d -> %d", assignmentsBefore, assignmentsAfter)
+		}
+		if err := h.pool.QueryRow(context.Background(), `SELECT count(*) FROM ledger_event WHERE schema_ref ILIKE '%PromotionOutcome%' AND convert_from(payload, 'UTF8') NOT LIKE '%"terminal_code":"PROMOTION_REPAIR_REQUIRED"%'`).Scan(&otherOutcomes); err != nil {
+			t.Fatal(err)
+		}
+		if otherOutcomes != 0 {
+			t.Fatalf("revoked agent run recorded %d promotion outcomes other than the repair plan", otherOutcomes)
 		}
 		state, err := service.Observe(ctx, draft.IntentID)
-		if err != nil || state.State == "observed" {
-			t.Fatalf("revoked action claimed observed success: %+v %v", state, err)
+		if err != nil || state.State != "needs repair" {
+			t.Fatalf("revoked action did not report its repair state: %+v %v", state, err)
 		}
 		return
 	}

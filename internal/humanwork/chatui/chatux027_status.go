@@ -8,9 +8,17 @@ import (
 // chatux027StatusActions is the form's button row: Confirm, waiting until a
 // status is chosen, and, inside the panel's row, Cancel.
 func chatux027StatusActions(m Model, props ChannelStatusPanelProps, choice string) ui.Node {
-	confirm := html.Button(html.Props{Class: "button small", Type: "submit", Disabled: choice == "", Text: chatstateText(m, "confirm")})
+	// A destructive status needs its own confirmation: a ticked box (CHATUX-041).
+	ack, needed, given := chatux041StatusAck(m, props, choice)
+	confirm := html.Button(html.Props{Class: "button small", Type: "submit", Disabled: choice == "" || (needed && !given), Text: chatstateText(m, "confirm")})
 	if props.Section == nil {
+		if ack != nil {
+			return html.Div(html.Props{}, ack, confirm)
+		}
 		return confirm
+	}
+	if ack != nil {
+		return html.Div(html.Props{Class: "manage-sec-ack"}, ack, chatux027Actions(confirm, chatux027CancelButton(m, chatux027ManageScope(m), "status")))
 	}
 	return chatux027Actions(confirm, chatux027CancelButton(m, chatux027ManageScope(m), "status"))
 }

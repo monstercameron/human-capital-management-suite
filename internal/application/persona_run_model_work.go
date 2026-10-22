@@ -62,6 +62,9 @@ type PersonaRunModelWorkSourceConfig struct {
 	Now        func() time.Time
 	Remaining  PersonaRunModelRemainingBudgetSource
 	Documents  agentdocref.Resolver
+	// ReaderLanguage reads the language a person reads Chat in, for the agent
+	// that answers them (CHATLANG-005). Nil adds nothing to a request.
+	ReaderLanguage func(context.Context, string, string) string
 }
 
 // PersonaRunModelRemainingBudgetSource narrows a model step to capacity left in
@@ -85,6 +88,8 @@ type DatabasePersonaRunModelWorkSource struct {
 	now        func() time.Time
 	remaining  PersonaRunModelRemainingBudgetSource
 	documents  agentdocref.Resolver
+	// readerLanguage is cfg.ReaderLanguage.
+	readerLanguage func(context.Context, string, string) string
 }
 
 // NewDatabasePersonaRunModelWorkSource requires all authority, thread and
@@ -93,7 +98,7 @@ func NewDatabasePersonaRunModelWorkSource(cfg PersonaRunModelWorkSourceConfig) (
 	if cfg.Personas == nil || cfg.Manifests == nil || cfg.Routes == nil || cfg.Budgets == nil || cfg.Threads == nil || cfg.Leases == nil || cfg.TenantUUID == nil || !required(cfg.Workload) || cfg.Now == nil {
 		return nil, errPersonaRunModelWork
 	}
-	return &DatabasePersonaRunModelWorkSource{personas: cfg.Personas, manifests: cfg.Manifests, routes: cfg.Routes, budgets: cfg.Budgets, threads: cfg.Threads, leases: cfg.Leases, tenantUUID: cfg.TenantUUID, workload: cfg.Workload, now: cfg.Now, remaining: cfg.Remaining, documents: cfg.Documents}, nil
+	return &DatabasePersonaRunModelWorkSource{personas: cfg.Personas, manifests: cfg.Manifests, routes: cfg.Routes, budgets: cfg.Budgets, threads: cfg.Threads, leases: cfg.Leases, tenantUUID: cfg.TenantUUID, workload: cfg.Workload, now: cfg.Now, remaining: cfg.Remaining, documents: cfg.Documents, readerLanguage: cfg.ReaderLanguage}, nil
 }
 
 var _ PersonaRunModelWorkSource = (*DatabasePersonaRunModelWorkSource)(nil)
@@ -200,8 +205,9 @@ func (s *DatabasePersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context
 		return PersonaRunModelWork{}, fmt.Errorf("%w: quarantine reference documents: %v", errPersonaRunModelWork, err)
 	}
 	classifyPersonaReferenceDocumentFields(&request, documentClass)
-	// AGENTUX-076: the agent's own facts and the documents it can read here.
-	facts, withFacts := personaAgentFactsFor(ctx, s.documents, admission, profile, true)
+	// AGENTUX-076: the agent's own facts and the documents it can read here. The
+	// first build reads them; the continuation seconds later takes the same read.
+	facts, withFacts := personaAgentFactsFor(ctx, s.documents, admission, profile, !cached)
 	if withFacts {
 		if err := insertPersonaAgentFacts(&request, facts, route); err != nil {
 			return PersonaRunModelWork{}, fmt.Errorf("%w: agent facts: %v", errPersonaRunModelWork, err)
@@ -278,23 +284,25 @@ func (s *DatabasePersonaRunModelWorkSource) resolveRoute(ctx context.Context, ad
 	ref := manifest.ModelPolicy
 	stored, err := currentPersonaAgentModelRoute(ctx, s.routes, tenantKey, admission.Request.LegalEntity, ref, admission.Request.Agent.Digest, s.now().UTC())
 	if err != nil || stored.TenantID != tenantKey || stored.LegalEntityID != admission.Request.LegalEntity || stored.PolicyID != ref.ID || stored.PolicyVersion != int64(ref.Version) || stored.PolicySchemaVersion != int64(ref.SchemaVersion) || stored.PolicyDigest != ref.Digest || stored.Revision <= 0 {
-		return PersonaRunModelRoute{}, fmt.Errorf("%w: current tenant model policy unavailable", errPersonaRunModelWork)
+		// The store's reason (none effective, expired, wrong digest) names the cause
+		// in the one log line the run writes; it carries policy facts, no content.
+		return PersonaRunModelRoute{}, fmt.Errorf("%w: current tenant model policy unavailable (%v): %w", errPersonaRunModelWork, err, errPersonaModelRouteUnavailable)
 	}
 	var policy PersonaRunModelRoute
 	if json.Unmarshal(stored.RoutePayload, &policy) != nil || strings.TrimSpace(policy.Purpose) == "" || policy.Route.TraceID == "" || policy.Route.Task.ID == "" || policy.Route.Pin.Primary == (agentmodel.ModelSelection{}) || len(policy.Route.Pin.Fallbacks) != 0 || policy.Route.BudgetRemainingMicros == 0 {
-		return PersonaRunModelRoute{}, fmt.Errorf("%w: tenant model policy payload is invalid or permits fallback", errPersonaRunModelWork)
+		return PersonaRunModelRoute{}, fmt.Errorf("%w: tenant model policy payload is invalid or permits fallback: %w", errPersonaRunModelWork, errPersonaModelRouteUnavailable)
 	}
 	if policy.Route.Pin.AgentVersionDigest != personaRunManifestDigest(manifest) || policy.Route.Task.AgentVersionDigest != personaRunManifestDigest(manifest) || policy.Route.Pin.SemanticsDigest == "" || policy.Route.Pin.OutputSchemaDigest != PersonaChatReplySchemaDigest || policy.Route.Task.OutputSchemaDigest != PersonaChatReplySchemaDigest || policy.Route.Pin.ToolSchemaDigest == "" ||
 		policy.Route.Task.ID != policy.Route.Pin.TaskProfileID || policy.Route.Task.Region == "" || policy.Route.Task.MaxLatency <= 0 || len(policy.Route.Task.DataClasses) == 0 ||
 		policy.Egress.ID != policy.Route.Pin.Primary.ProfileID || policy.Egress.Kind != agentegress.TargetModel || policy.Egress.Retention.Mode == "" || !slices.Contains(policy.Egress.AllowedRegions, policy.Route.Task.Region) || policy.Processing.Residency != policy.Route.Task.Region ||
 		policy.Processing.Retention == "" || policy.Processing.TrainingUse == agentmodel.UseUnspecified || policy.Processing.Logging == agentmodel.UseUnspecified ||
 		!containsString(policy.Route.Task.DataClasses, string(policy.ProfileClass)) || !containsString(policy.Route.Task.DataClasses, string(policy.InvokerClass)) || !containsString(policy.Route.Task.DataClasses, string(policy.ThreadClass)) {
-		return PersonaRunModelRoute{}, fmt.Errorf("%w: route policy does not satisfy model contract", errPersonaRunModelWork)
+		return PersonaRunModelRoute{}, fmt.Errorf("%w: route policy does not satisfy model contract: %w", errPersonaRunModelWork, errPersonaModelRouteUnavailable)
 	}
 	for _, class := range persona.DataClassesRead {
 		routeClass, known := personaDataClassRouteClass(class)
 		if !known || !personaRunContains(policy.Route.Task.DataClasses, routeClass) {
-			return PersonaRunModelRoute{}, fmt.Errorf("%w: route excludes persona data class %s", errPersonaRunModelWork, class)
+			return PersonaRunModelRoute{}, fmt.Errorf("%w: route excludes persona data class %s: %w", errPersonaRunModelWork, class, errPersonaModelRouteUnavailable)
 		}
 	}
 	ceiling := minUint(admission.Request.Budget.MaxCostMicros, budget.Budget.MaxCostMicros, uint64(manifest.Budget.MaxCostMicros))
@@ -363,6 +371,9 @@ func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Contex
 func (s *DatabasePersonaRunModelWorkSource) buildExecutorRequest(ctx context.Context, admission agentrun.Record, run runstate.Run, profile agentpersona.PersonaProfile, manifest agentmanifest.Manifest, route PersonaRunModelRoute, budget PersonaRunEffectivePolicy, goal string, history []string, refs []agentmodel.ContextReference) (AgentModelExecutorRequest, error) {
 	selection := route.Route.Pin.Primary
 	model := buildPersonaRunModelRequest(admission, run, profile, manifest, route, budget, goal, history, refs)
+	// CHATLANG-005: the agent is told the language its asker reads, right after
+	// its own instructions; the outbound verifier rebuilds the same message.
+	addPersonaReaderLanguage(ctx, s.readerLanguage, run.TenantID, admission.Request.Principal.InvokerID, &model)
 	task, err := NewTrustedModelTask(run.TenantID, run.ID, run.AgentDigest, s.workload)
 	if err != nil {
 		return AgentModelExecutorRequest{}, err

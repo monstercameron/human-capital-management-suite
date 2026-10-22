@@ -510,6 +510,10 @@ func personaChatInvocationRequest(cfg journeyclient.Config, invocation, action s
 }
 
 func sendPersonaChat(cfg journeyclient.Config, conversation, parent, body string, refs []chatui.ChatReference) {
+	// CHATGATE-014: a message for one group does not carry an agent mention.
+	if parent == "" && chatgateAudienceRefused() {
+		return
+	}
 	active := chatBrowser.config(cfg)
 	references, err := personaChatReferences(refs, active.Tenant, conversation)
 	if err != nil {

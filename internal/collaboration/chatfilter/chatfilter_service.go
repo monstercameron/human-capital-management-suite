@@ -22,12 +22,14 @@ type Enablement struct {
 	Action          string
 	Enabled         bool
 	DryRunUntil     time.Time
+	_               incomparable
 }
 type Record struct {
 	ID                       int64
 	Tenant, Channel, Subject string
 	At                       time.Time
 	Hit                      Hit
+	_                        incomparable
 }
 type Store interface {
 	Definitions(context.Context, string) ([]Definition, error)
@@ -311,8 +313,17 @@ func (s *Service) Evaluate(ctx context.Context, in Input, record bool) (Result, 
 	if err != nil {
 		return Result{}, err
 	}
+	// A message is one judgement per rule: the result lists every span for the
+	// author, but the record, the moderation queue item and the notice are made
+	// once, for the first span. Otherwise one message that repeats a word makes
+	// as many queue items as it has matches.
 	var records []Record
+	recorded := map[string]bool{}
 	for _, hit := range all.Hits {
+		if recorded[hit.RuleID] {
+			continue
+		}
+		recorded[hit.RuleID] = true
 		hit.DryRun = dry(hit.RuleID)
 		records = append(records, Record{Tenant: in.Tenant, Channel: in.Channel, Subject: in.Subject, At: at, Hit: hit})
 	}

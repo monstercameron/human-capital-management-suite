@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // CatalogInstallation is the durable placement fact stored for a persona.
@@ -19,6 +20,11 @@ type CatalogInstallation struct {
 	RevocationEpoch   int64
 	State             string
 	SuspensionReason  string
+	// RemovedBy and RemovedAt say who retired a placement and when; both are
+	// empty for a placement that is not retired, or was replaced or retired by
+	// the server rather than removed by a person (AGENTUX-037).
+	RemovedBy string
+	RemovedAt time.Time
 }
 
 // CatalogEntry combines one immutable persona version with its durable
@@ -68,7 +74,7 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 		l.to_state,l.profile_digest,l.review_digest,l.reviewer_id,l.evaluation_digest,l.evaluation_profile_digest,l.evaluation_suite_digest,
 		business_owner.principal_id,technical_steward.principal_id,
 		i.installation_id,i.persona_id,i.persona_version,i.conversation_id,i.conversation_class,
-		i.channel_policy,i.revision,i.revocation_epoch,i.state,i.suspension_reason
+		i.channel_policy,i.revision,i.revocation_epoch,i.state,i.suspension_reason,i.retired_by,i.retired_at
 	FROM persona_versions v
 	LEFT JOIN latest_lifecycle l ON l.persona_id=v.persona_id AND l.persona_version=v.version
 	LEFT JOIN persona_owners business_owner ON business_owner.tenant_id=v.tenant_id AND business_owner.persona_id=v.persona_id AND business_owner.owner_role='BUSINESS_OWNER'
@@ -97,12 +103,13 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 		var installVersion *int64
 		var revision, revocationEpoch *int64
 		var installState *InstallationState
-		var suspensionReason *string
+		var suspensionReason, retiredBy *string
+		var retiredAt *time.Time
 		if err := rows.Scan(&version.PersonaID, &version.Version, &version.AgentVersion, &version.Handle, &version.DisplayName,
 			&version.Profile, &version.ContentDigest, &version.CreatedAt, &lifecycle,
 			&profileDigest, &reviewDigest, &reviewerID, &evaluationDigest, &evaluationProfileDigest, &evaluationSuiteDigest, &owner, &steward,
 			&installID, &installPersona, &installVersion, &conversationID, &conversationClass,
-			&policyJSON, &revision, &revocationEpoch, &installState, &suspensionReason); err != nil {
+			&policyJSON, &revision, &revocationEpoch, &installState, &suspensionReason, &retiredBy, &retiredAt); err != nil {
 			return nil, fmt.Errorf("agentpersonastore: scan admin persona catalog: %w", err)
 		}
 		version.TenantID, version.CreatedAt = s.tenant, version.CreatedAt.UTC()
@@ -124,12 +131,17 @@ func (s *TenantStore) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
 			if strings.TrimSpace(*installID) == "" || installPersona == nil || *installPersona != version.PersonaID || installVersion == nil || *installVersion != version.Version || conversationID == nil || strings.TrimSpace(*conversationID) == "" || conversationClass == nil || !validConversationClass(*conversationClass) || !validChannelPolicy(policy) || revision == nil || *revision <= 0 || revocationEpoch == nil || *revocationEpoch <= 0 || installState == nil || !validInstallationState(string(*installState)) {
 				return nil, fmt.Errorf("%w: invalid installation catalog facts", ErrInvalid)
 			}
-			entries[index].Installations = append(entries[index].Installations, CatalogInstallation{
+			installation := CatalogInstallation{
 				ID: *installID, PersonaID: *installPersona, PersonaVersion: *installVersion,
 				ConversationID: *conversationID, ConversationClass: *conversationClass,
 				ChannelPolicy: policy, Revision: *revision, RevocationEpoch: *revocationEpoch,
 				State: string(*installState), SuspensionReason: nonnilCatalogString(suspensionReason),
-			})
+				RemovedBy: nonnilCatalogString(retiredBy),
+			}
+			if retiredAt != nil {
+				installation.RemovedAt = retiredAt.UTC()
+			}
+			entries[index].Installations = append(entries[index].Installations, installation)
 		}
 	}
 	if err := rows.Err(); err != nil {

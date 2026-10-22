@@ -126,12 +126,16 @@ func relations(ctx context.Context, conn *pgx.Conn) ([]Relation, error) {
 // IndexCosts removes one index only inside a rolled-back transaction in the
 // disposable database. It measures marginal insert executor cost, not causal
 // committed-send throughput; WAL, caches and constraints remain confounders.
-func IndexCosts(ctx context.Context, conn *pgx.Conn, repeats int) (Percentiles, []IndexCost, error) {
+func IndexCosts(ctx context.Context, database *Database, repeats int) (Percentiles, []IndexCost, error) {
+	return indexCosts(ctx, database.conn, repeats)
+}
+
+func indexCosts(ctx context.Context, conn *pgx.Conn, repeats int) (Percentiles, []IndexCost, error) {
 	if e := guardConnection(ctx, conn); e != nil {
 		return Percentiles{}, nil, e
 	}
 	q := Query{SQL: `INSERT INTO chat_post(id,tenant_id,conversation_id,author_id,author_home_tenant_id,sequence,body,references_json) VALUES('index-probe','t000','c000000','reader','t000',9000000000,'Payroll review onboarding benefits policy','[{"Kind":"PERSON_MENTION","TenantID":"t000","ID":"reader"}]') RETURNING id`}
-	base := Measure(ctx, conn, q, channelName(0), repeats)
+	base := measure(ctx, conn, q, channelName(0), repeats)
 	if base.Error != "" {
 		return base.Timing, nil, fmt.Errorf("index baseline: %s", base.Error)
 	}
@@ -160,7 +164,7 @@ func IndexCosts(ctx context.Context, conn *pgx.Conn, repeats int) (Percentiles, 
 	var out []IndexCost
 	for _, idx := range indexes {
 		probe := indexProbe(idx.table, q)
-		baseline := Measure(ctx, conn, probe, channelName(0), repeats)
+		baseline := measure(ctx, conn, probe, channelName(0), repeats)
 		if baseline.Error != "" {
 			return base.Timing, nil, fmt.Errorf("%s index baseline: %s", idx.table, baseline.Error)
 		}
@@ -250,7 +254,7 @@ func Run(ctx context.Context, c Config, sizes []int64) (Report, error) {
 		if c.Resume {
 			withDatabase = WithResumedDatabase
 		}
-		e = withDatabase(ctx, c, func(conn *pgx.Conn) error {
+		e = withDatabase(ctx, c, func(conn *Database) error {
 			if err := Migrate(ctx, c); err != nil {
 				return err
 			}
@@ -299,26 +303,26 @@ func Run(ctx context.Context, c Config, sizes []int64) (Report, error) {
 			if err = resetMaintenanceLimits(ctx, conn); err != nil {
 				return err
 			}
-			if _, err = conn.Exec(ctx, "SELECT pg_stat_force_next_flush()"); err != nil {
+			if err = conn.Exec(ctx, "SELECT pg_stat_force_next_flush()"); err != nil {
 				return err
 			}
-			s.AllIndexes, err = indexSizes(ctx, conn)
+			s.AllIndexes, err = indexSizes(ctx, conn.conn)
 			if err != nil {
 				return err
 			}
-			s.Relations, err = relations(ctx, conn)
+			s.Relations, err = relations(ctx, conn.conn)
 			if err != nil {
 				return err
 			}
 			began = time.Now()
 			stage = "vacuum"
 			fmt.Printf("%d posts: vacuum\n", size)
-			if _, err = conn.Exec(ctx, "VACUUM (ANALYZE)"); err != nil {
+			if err = conn.Exec(ctx, "VACUUM (ANALYZE)"); err != nil {
 				return err
 			}
 			s.VacuumMS = float64(time.Since(began).Microseconds()) / 1000
 			stage = "post-vacuum statistics"
-			s.AfterVacuum, err = relations(ctx, conn)
+			s.AfterVacuum, err = relations(ctx, conn.conn)
 			if err != nil {
 				return err
 			}
@@ -337,9 +341,8 @@ func Run(ctx context.Context, c Config, sizes []int64) (Report, error) {
 	return report, nil
 }
 
-func resetMaintenanceLimits(ctx context.Context, conn *pgx.Conn) error {
-	_, err := conn.Exec(ctx, "SELECT set_config('statement_timeout','0',false),set_config('lock_timeout','0',false)")
-	return err
+func resetMaintenanceLimits(ctx context.Context, database *Database) error {
+	return database.Exec(ctx, "SELECT set_config('statement_timeout','0',false),set_config('lock_timeout','0',false)")
 }
 func classify(r *Report) {
 	if len(r.Sizes) == 0 {

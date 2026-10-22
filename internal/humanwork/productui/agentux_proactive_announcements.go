@@ -103,6 +103,7 @@ func renderAgentAnnouncementRow(locale LocaleContext, row AgentAnnouncementRow) 
 			next = at.Format("2006-01-02 15:04 MST")
 		}
 	}
+	noFuturePost := next == ""
 	if next == "" {
 		next = agentAnnouncementText(locale, "no_future")
 	} else {
@@ -133,6 +134,15 @@ func renderAgentAnnouncementRow(locale LocaleContext, row AgentAnnouncementRow) 
 		schedule = append(schedule, html.Tag("bdi", html.Props{}, ui.Text(cadence)), ui.Text(" · "))
 	}
 	schedule = append(schedule, ui.Text(next))
+	if once := strings.EqualFold(row.Editor.Cadence, "NOW") || strings.EqualFold(row.Editor.Cadence, "ONCE"); once && noFuturePost && row.State != "PAUSED" {
+		// A one-time announcement says what it is and where it stands, rather
+		// than "Once · No future post", which reads as a fault (AGENTUX-077).
+		standing := agentUX077Text(locale, "already_done")
+		if row.ResultCode != "" && row.ResultCode != "POSTED" {
+			standing = agentAnnouncementText(locale, "not_posted")
+		}
+		schedule = []ui.Node{ui.Text(agentUX077Text(locale, "posts_once") + " · " + standing)}
+	}
 	last := []ui.Node{}
 	if lastRun != "" {
 		last = append(last, html.Time(html.Props{Raw: map[string]any{"datetime": row.LastRunAt}}, ui.Text(lastRun)), ui.Text(" · "))
@@ -361,7 +371,9 @@ func announcementRowHeading(locale LocaleContext, row AgentAnnouncementRow) stri
 // announcementRowActions lists the buttons of a record. Nothing can post or be
 // edited for an agent that is no longer in the conversation, so only Delete stays.
 func announcementRowActions(locale LocaleContext, row AgentAnnouncementRow, stateAction, stateLabel, postAction, postLabel string) []ui.Node {
-	deleteButton := html.Button(html.Props{Type: "button", Class: "button secondary compact agent-announcement-delete-action", Raw: map[string]any{"data-announcement-action": "confirm-delete"}}, ui.Text(agentAnnouncementText(locale, "delete")))
+	// Delete is the one action that cannot be undone, so it wears the danger
+	// style and sits at the far end of the row, apart from the everyday ones.
+	deleteButton := html.Button(html.Props{Type: "button", Class: "button danger compact agent-announcement-delete-action", Raw: map[string]any{"data-announcement-action": "confirm-delete"}}, ui.Text(agentAnnouncementText(locale, "delete")))
 	if row.Retired {
 		return []ui.Node{deleteButton}
 	}

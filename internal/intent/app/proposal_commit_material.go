@@ -108,7 +108,9 @@ func proposalReservationFor(rev intent.ProposalRevision) (promotionbudget.Propos
 		}
 	}
 	for _, s := range rev.ProposedState {
-		if s.FieldPath == PlacementFieldPrefix+people.FieldOrgUnit.String() {
+		// The projection spells the path "assignment.org_unit"; a proposal recorded
+		// while it prefixed placement paths twice is still read.
+		if s.FieldPath == people.FieldOrgUnit.String() || s.FieldPath == PlacementFieldPrefix+people.FieldOrgUnit.String() {
 			orgUnit = s.CanonicalText
 		}
 	}

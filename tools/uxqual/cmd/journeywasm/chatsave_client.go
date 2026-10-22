@@ -23,6 +23,7 @@ type chatsaveCommand struct {
 	Note           *string    `json:"note,omitempty"`
 	SetDue         bool       `json:"set_due,omitempty"`
 	DueAt          *time.Time `json:"due_at,omitempty"`
+	_              incomparable
 }
 
 type chatsaveError string

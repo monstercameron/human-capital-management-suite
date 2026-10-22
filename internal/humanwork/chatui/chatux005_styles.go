@@ -17,15 +17,15 @@ const ChatUX005Styles = `
 .details-about-created{margin:6px 0 0;font-size:.8125rem}
 .details-about-status{display:flex;align-items:center;gap:8px;margin-block-start:6px;font-size:.8125rem}
 .details-manage{padding:0}
-.details-group-toggle{font-size:.8125rem;font-weight:600;color:var(--muted);padding-block:12px}
+
 .details-group-body{padding-block:0 8px}
 .details-group-body[hidden]{display:none}
 .details-group-body>.details-section:first-child{border-top:0}
 .details-group-body .details-group{border-top:1px solid var(--line)}
-.details-group-body .details-group-toggle{padding-block:8px}
+
 .chat-details .agent-summary{display:flex;flex-direction:column;gap:8px;margin-inline-start:8px;padding:4px 0 8px;padding-inline-start:12px;border-inline-start:1px solid var(--hcm-color-border);font-size:.8125rem;line-height:1.45}
 .chat-details .agent-summary :is(p,ul,ol,li,span,a,h4,h5,strong,button){font-size:.8125rem;line-height:1.45}
 .chat-details .agent-summary :is(p,ul){margin:0}
 .chat-details .agent-summary ul{padding-inline-start:16px;list-style:disc}
-.chat-details .agent-summary :is(h4,h5,.agent-summary-label){margin:0 0 2px;font-size:.75rem;font-weight:500;color:var(--hcm-color-text-muted)}
+.chat-details .agent-summary :is(h4,h5),.chat-details .agent-summary .agent-summary-label{margin:0 0 2px;font-size:.75rem;font-weight:500;color:var(--hcm-color-text-muted)}
 `

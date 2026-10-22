@@ -23,7 +23,7 @@ const ChatremoveStyles = `
 .chatremove-reasons{border:0;padding:0;margin:0}.chatremove-reasons legend{font-weight:650;padding:0;margin-block-end:.25rem}
 .chatremove-reason{display:flex;align-items:center;gap:.5rem;min-block-size:44px}.chatremove .chatremove-reason input[type=radio]{inline-size:24px;block-size:24px;min-block-size:24px;flex-shrink:0;padding:0;accent-color:var(--hcm-color-brand-primary)}.chatremove-reason label{flex:1;padding-block:.5rem;cursor:pointer}
 .chatremove-quote{margin:0;display:grid;gap:.25rem}.chatremove-quote figcaption{font-weight:650}
-.chatremove blockquote.chatremove-target{border-inline-start-color:var(--hcm-color-brand-primary);background:var(--hcm-color-brand-soft)}
+
 .chatremove .chatremove-several{margin-block-start:1rem;border-block-start:1px solid var(--hcm-color-border);padding-block-start:.5rem}.chatremove-several>summary{min-block-size:44px;display:flex;align-items:center;cursor:pointer}
 .chatremove .chatremove-link{border:0;background:transparent;color:var(--hcm-color-brand-primary);text-decoration:underline;min-block-size:44px;padding-inline:.25rem}
 .chatremove-tombstone .chatremove-appeal{border:0;padding:0;margin:0;display:inline}.chatremove-own-reason{margin:.25rem 0;color:var(--hcm-color-text)}
@@ -41,7 +41,7 @@ const ChatremoveStyles = `
 .chatmod005-muted{color:var(--hcm-color-text-muted);margin:0;font-size:.875rem}.chatmod005-empty{padding-block:32px;text-align:center}.chatmod005-empty p{margin:0 0 4px}
 .chatmod005-message .message-actions,.chatmod005-message .message-stats{display:none}.chatmod005-message .message{padding-inline:0}
 .chatremove .chatmod005-context{border:0;padding:0;margin:0}.chatmod005-context>summary{min-block-size:44px;display:flex;align-items:center;cursor:pointer;color:var(--hcm-color-brand-primary)}.chatmod005-context .chatmod005-message{border-inline-start:3px solid var(--hcm-color-border);padding-inline-start:8px;margin-block:4px}
-.chatmod005-actions{display:flex;flex-wrap:wrap;gap:8px}.chatremove .chatmod005-action{min-block-size:44px;padding:8px 14px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface);color:var(--hcm-color-text);font:inherit;cursor:pointer}.chatremove .chatmod005-action.primary{background:var(--hcm-color-brand-primary);color:var(--hcm-color-on-brand);border-color:var(--hcm-color-brand-primary)}.chatmod005-action:disabled{opacity:.6;cursor:default}
+.chatmod005-actions{display:flex;flex-wrap:wrap;gap:8px}.chatremove .chatmod005-action{min-block-size:44px;padding:8px 14px;border-radius:var(--hcm-radius-control);font:inherit;cursor:pointer}.chatremove .chatmod005-action.primary{background:var(--hcm-color-brand-primary);color:var(--hcm-color-on-brand);border-color:var(--hcm-color-brand-primary)}.chatmod005-action:disabled{opacity:.6;cursor:default}
 .chatmod005-error{color:var(--hcm-color-danger);margin:0}.chatmod005-nomatch{padding-block:16px}
 .chatremove .chatmod005-message button{min-block-size:0;min-inline-size:0;padding:0;border:0;background:transparent;color:inherit;text-align:start;justify-content:flex-start;white-space:normal}.chatremove .chatmod005-message .person-avatar-button{flex:none}.chatremove .chatmod005-message .message-author{font-weight:650;white-space:nowrap}.chatmod005-message .message-meta{flex-wrap:wrap}
 .chatremove .chatremove-reasons{border:0;padding:0;margin:0;gap:0}.chatremove-reason{min-block-size:40px}.chatremove-reason label{padding-block:.25rem}

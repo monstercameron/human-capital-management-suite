@@ -6,9 +6,9 @@ package chatui
 // over the older composer rules, which it relies on only for the buttons' look.
 //
 // The breakpoints are the viewport's: the formatting row shows from 800 px up
-// until the viewer chooses (data-format-row says "shown" or "hidden"), and the
-// Enter hint shows from 600 px up. On a coarse pointer every control is at
-// least 44 px.
+// while an automatic draft has content, unless the viewer chose "hidden";
+// "shown" also keeps it visible for an empty draft. The Enter hint shows from
+// 600 px up. On a coarse pointer every control is at least 44 px.
 const ChatComposerToolsStyles = `.chat-workspace .chat-composer .composer-toolbar{flex-wrap:nowrap;gap:4px}` +
 	`.chat-workspace .chat-composer .composer-tools{position:relative;flex:0 1 auto;flex-wrap:nowrap!important;align-items:center;gap:2px;min-width:0}` +
 	`@container chatmain (max-width:560px){.chat-workspace .chat-composer .composer-tools{flex-wrap:wrap!important}}` +
@@ -33,7 +33,7 @@ const ChatComposerToolsStyles = `.chat-workspace .chat-composer .composer-toolba
 	// The formatting row sits between the text and the tool row.
 	`.chat-workspace .chat-composer .composer-format-row{display:none;align-items:center;flex:none;min-width:0;padding:2px 2px 0}` +
 	`.chat-workspace .chat-composer[data-format-row="shown"] .composer-format-row{display:flex}` +
-	`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}}` +
+	`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}.chat-workspace .chat-composer[data-format-row="auto"][data-draft-empty="true"] .composer-format-row{display:none}}` +
 	`.chat-workspace .composer-format-row .format-tools{display:flex;flex-wrap:wrap;gap:2px;margin:0;padding:0;border:0}` +
 	`.chat-workspace .composer-format-row .format-inline,.chat-workspace .thread-composer .format-inline{display:flex;align-items:center;gap:2px}` +
 	// The Enter hint: muted, at the right, from 600 px up. It is shown whole or

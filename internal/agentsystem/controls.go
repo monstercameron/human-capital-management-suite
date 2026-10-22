@@ -52,7 +52,10 @@ func (r *Runner) taskPolicyAt(ctx context.Context, task agentrun.AgentTask, user
 	case agentrun.StatePaused:
 		policy := TaskActionPolicy{Resume: true, Cancel: true}
 		for _, budget := range r.p.cfg.Budget.Snapshot().Tasks {
-			if budget.ID == task.ID && r.p.cfg.Budget.ExtensionEnabled() && budget.Paused != "" && budget.Paused != agentbudget.PauseLoopDetected && budget.Paused != agentbudget.PauseRetryLimit {
+			// Offered only when the ledger would accept it: a task paused at a shared
+			// ceiling, or one already extended past the policy's ceiling, is not.
+			if budget.ID == task.ID && r.p.cfg.Budget.ExtensionEnabled() && budget.Paused != "" && budget.Paused != agentbudget.PauseLoopDetected && budget.Paused != agentbudget.PauseRetryLimit &&
+				r.p.cfg.Budget.ExtensionAllowance(task.ID) != (agentbudget.Limits{}) {
 				policy.ExtendBudget = true
 			}
 		}

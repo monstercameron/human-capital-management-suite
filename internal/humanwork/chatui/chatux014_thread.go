@@ -55,7 +55,7 @@ func chatux014ThreadTools(m Model, h handlers, disabled bool) []ui.Node {
 	id := "thread-composer"
 	var hint ui.Node
 	if composerHintVisible(m, h.local) {
-		hint = html.Span(html.Props{ID: "thread-composer-help", Class: "composer-help kbd-hint", Text: m.t(KeyComposeHint)})
+		hint = html.Span(html.Props{ID: "thread-composer-help", Class: "composer-help kbd-hint"}, chatux043Hint(m.Locale, m.t(KeyComposeHint))...)
 	}
 	// CHATUX-032: the paperclip and the "Also send" choice are part of the one
 	// tool row, not rows of their own.

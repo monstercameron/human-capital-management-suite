@@ -13,6 +13,10 @@ func (c composedChat) bindAgentSourceAccess(documents *documenthubstore.Store) b
 		return false
 	}
 	c.core.SetAgentSourceAccess(AgentUXAnswerSourceAccess{Documents: documents})
+	if c.gateAuthority != nil {
+		// An acknowledgement answer of a gate is checked against the same hub.
+		c.gateAuthority.Documents = AgentUXAnswerSourceAccess{Documents: documents}
+	}
 	// A reader's live view of an answer comes through the served stream, which
 	// does not run on the core service: give it the same projection.
 	if stream, ok := c.service.(*streamingChatService); ok {

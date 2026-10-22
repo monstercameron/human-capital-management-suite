@@ -33,8 +33,8 @@ func TestAgentUXPage5_ComposerHierarchyAndCopy(t *testing.T) {
 				t.Fatalf("%s Agents composer missing %q: %s", localeID, want, markup)
 			}
 		}
-		if help, actions := strings.Index(markup, locale.Text("agents.actions_help")), strings.Index(markup, `data-agent-action="quick-answer"`); help < 0 || actions < 0 || help > actions {
-			t.Fatalf("%s action explanation is not before the controls: %s", localeID, markup)
+		if help, actions := strings.Index(markup, agentUX077Text(locale, "ask_hint")), strings.Index(markup, `data-agent-action="quick-answer"`); help < 0 || actions < 0 || help < actions {
+			t.Fatalf("%s action explanation is not under its control: %s", localeID, markup)
 		}
 	}
 	withAgent := renderAgentUXPage5(t, "ar", AgentSnapshot{Availability: AgentsAvailable, StartAvailable: true, Agents: []AgentSummary{{ID: "policy", Name: "Policy Helper", Description: "Answers policy questions."}}}, false)

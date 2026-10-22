@@ -91,6 +91,9 @@ type PersonaRuntimeToolsConfig struct {
 	Journal       PersonaRuntimeToolJournal
 	Documents     PersonaRuntimeDocumentVersionSource
 	Now           func() time.Time
+	// Lister is the agent's document reach for the list_documents tool
+	// (AGENTUX-076). Without it the tool is not offered.
+	Lister PersonaReadableDocumentLister
 }
 
 // PersonaRuntimeTools projects only the currently authorized immutable skill
@@ -149,9 +152,14 @@ func (e *PersonaRuntimeTools) authorize(ctx context.Context, record agentrun.Rec
 		return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
 	}
 	bindForegroundGrant(&request, grant)
-	allowed, err := e.cfg.Policy.IsBoundT0Run(ctx, request)
-	if err != nil || !allowed {
-		return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+	// The authority check above is the same verification, T0 policy included,
+	// for this same invocation (AGENTUX-076): the policy is not run a second time
+	// in the same boundary, and only then.
+	if !agentUX076ToolPolicyCovered(ctx, e.cfg.Policy, record.Request) {
+		allowed, err := e.cfg.Policy.IsBoundT0Run(ctx, request)
+		if err != nil || !allowed {
+			return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+		}
 	}
 	if pins, ok := agentUXSpeedToolPins(ctx, request.InvocationID); ok {
 		for _, pin := range pins {
@@ -180,7 +188,7 @@ func (e *PersonaRuntimeTools) authorize(ctx context.Context, record agentrun.Rec
 }
 
 func (e *PersonaRuntimeTools) ToolSchemas(ctx context.Context, record agentrun.Record, run runstate.Run) ([]agentmodel.ToolSchema, error) {
-	_, pin, err := e.authorize(ctx, record, run)
+	identity, pin, err := e.authorize(ctx, record, run)
 	if err != nil {
 		return nil, err
 	}
@@ -189,12 +197,20 @@ func (e *PersonaRuntimeTools) ToolSchemas(ctx context.Context, record agentrun.R
 		schemas = append(schemas, agentmodel.ToolSchema{Name: personaDocumentSearchTool, Description: "Search official policy document placements in this conversation readable by the invoker and current installation. Returns deployed policy text with exact version, placement and content-digest citations.", InputSchema: bytes.Clone(personaDocumentSearchSchema)})
 	}
 	// The workspace skill is a second pinned read-only tool; a persona without
-	// that pin gets exactly the schemas it had before.
-	workspace, err := e.WorkspaceToolSchemas(ctx, record, run)
+	// that pin gets exactly the schemas it had before. The run was authorized
+	// just above, so the pin is read without authorizing it again (AGENTUX-076).
+	workspacePin, err := e.workspacePinAuthorized(ctx, record, run, identity)
 	if err != nil {
 		return nil, err
 	}
-	return append(schemas, workspace...), nil
+	if workspacePin.ID != "" {
+		schemas = append(schemas, workspaceDocumentToolSchema())
+	}
+	// AGENTUX-076: an agent that reads documents can also be asked which ones.
+	if (pin.ID != "" || workspacePin.ID != "") && !isNilPersonaOutputPort(e.cfg.Lister) {
+		schemas = append(schemas, listDocumentsToolSchema())
+	}
+	return schemas, nil
 }
 
 func (e *PersonaRuntimeTools) search(ctx context.Context, identity PersonaRunT0ToolInvocation, arguments []byte) ([]byte, error) {
@@ -227,6 +243,9 @@ func (e *PersonaRuntimeTools) search(ctx context.Context, identity PersonaRunT0T
 func (e *PersonaRuntimeTools) Execute(ctx context.Context, record agentrun.Record, run runstate.Run, proposal agentmodel.ToolProposal) ([]byte, string, string, error) {
 	if proposal.Name == personaWorkspaceSearchTool {
 		return e.ExecuteWorkspaceTool(ctx, record, run, proposal)
+	}
+	if proposal.Name == personaListDocumentsTool {
+		return e.executeListDocuments(ctx, record, run, proposal)
 	}
 	ctx = WithPersonaBackgroundAdmission(ctx, record)
 	if proposal.Name != personaDocumentSearchTool || proposal.ID == "" || len(proposal.ID) > 512 || strings.TrimSpace(proposal.ID) != proposal.ID {
@@ -277,6 +296,9 @@ func (e *PersonaRuntimeTools) classify(ctx context.Context, identity PersonaRunT
 }
 
 func (e *PersonaRuntimeTools) RecheckPersonaRuntimeToolResult(ctx context.Context, r agentpersonastore.ToolResultRecord) error {
+	if e != nil && ctx != nil && r.ToolName == personaListDocumentsTool {
+		return e.recheckListDocuments(ctx, r)
+	}
 	if e != nil && ctx != nil && r.ToolName == personaWorkspaceSearchTool {
 		if r.TenantID.Validate() != nil || r.ToolCallID == "" || r.InvokerID == "" || r.ConversationID == "" || r.AgentID == "" {
 			return personaRuntimeToolDeniedHere()
@@ -321,6 +343,10 @@ func (e *PersonaRuntimeTools) ReadPersonaRunToolGrounding(ctx context.Context, r
 	var grounding []agentsecurity.Datum
 	workspaceRows := false
 	for _, r := range rows {
+		if r.ToolName == personaListDocumentsTool {
+			// A list of titles is not content a sentence can cite (AGENTUX-076).
+			continue
+		}
 		if r.ToolName == personaWorkspaceSearchTool {
 			// Workspace results are sealed and verified by their own owner below;
 			// they are never read as conversation placements.

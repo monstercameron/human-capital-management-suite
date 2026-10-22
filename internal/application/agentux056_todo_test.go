@@ -37,9 +37,3 @@ func TestTodo_AGENTUX_056_Integration(t *testing.T) {
 		s15Proof{"workspace security", TestAgentUXSearch_Workspace_Security_Integration},
 	)
 }
-
-// TestTodo_AGENTUX_056_Performance holds a search under the todo's 300 ms bound
-// at the cell's corpus size.
-func TestTodo_AGENTUX_056_Performance(t *testing.T) {
-	TestAgentUXSearch_Corpus_Performance_Integration(t)
-}

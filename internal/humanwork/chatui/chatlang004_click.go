@@ -91,6 +91,10 @@ func chatlangClick(m Model, local localStore, action, id, extra string) bool {
 			m.Callbacks.OpenMenu("")
 		}
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.openFixer(id) })
+	case "chatlang-reword-edit", "chatlang-reword-send":
+		chattoneRewordClick(m, local, action, id)
+	case "chatlang-report-open", "chatlang-report-cancel", "chatlang-report-send", "chatlang-notice-show", "chatlang-notice-ok":
+		chatlangW10Click(m, local, action, id)
 	case "chatlang-fix-cancel":
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.openFixer("") })
 	case "chatlang-correct":

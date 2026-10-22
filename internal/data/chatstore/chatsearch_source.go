@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatsearch"
@@ -90,7 +91,7 @@ const chatsearchRooms = `SELECT c.id FROM chat_conversation c JOIN chat_membersh
 const chatsearchPosts = `WITH visible AS NOT MATERIALIZED (
  SELECT p.* FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$2 AND m.member_id=$3 AND m.state='active' AND m.left_at IS NULL
  JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id
- WHERE p.tenant_id=$1 AND p.conversation_id=ANY($4) AND ($5='' OR $6::bool OR p.id=$7) AND NOT p.tombstoned AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))
+ WHERE p.tenant_id=$1 AND p.conversation_id=ANY($4) AND ($5='' OR $6::bool OR p.id=$7) AND NOT p.tombstoned AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))` + chatgateAudienceFilter3 + `
 ), catalog AS (`
 
 // chatsearchRowSkipped names, for a developer cell that opts in with
@@ -132,48 +133,46 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 		return nil, chatsearch.ErrInvalid
 	}
 	var out []chatsearch.Row
+	// No database connection is held while the policy authority or a rendering
+	// is asked. Both read the same small pool: a search whose sources each kept a
+	// connection while waiting for one more used every connection and then waited
+	// for its deadline, so every source came back unavailable together.
+	var candidates []string
 	err := s.RunTenantTx(ctx, q.Actor.TenantID, func(tx dbport.Tx) error {
 		rooms, err := tx.Query(ctx, chatsearchRooms, q.Actor.TenantID, q.Actor.HomeTenantID, q.Actor.PersonID)
 		if err != nil {
 			return err
 		}
-		var candidates []string
+		defer rooms.Close()
 		for rooms.Next() {
 			var room string
 			if err := rooms.Scan(&room); err != nil {
-				rooms.Close()
 				return err
 			}
 			candidates = append(candidates, room)
 		}
-		err = rooms.Err()
-		rooms.Close()
-		if err != nil {
-			return err
-		}
-		allowed := []string{}
+		return rooms.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	{
+		wanted := candidates[:0:0]
 		for _, room := range candidates {
-			if q.Filters.Conversation != "" && q.Filters.Conversation != room {
-				continue
+			if q.Filters.Conversation == "" || q.Filters.Conversation == room {
+				wanted = append(wanted, room)
 			}
-			ok, e := authority(ctx, q.Actor, chatsearch.Row{Kind: kind, TenantID: q.Actor.TenantID, Target: chatsearch.Target{ConversationID: room}})
-			if e != nil {
-				if ctx.Err() != nil {
-					return e
-				}
-				chatsearchRowSkipped(kind, e)
-				continue
-			}
-			if ok {
-				allowed = append(allowed, room)
-			}
+		}
+		allowed, err := chatsearchAllowedRooms(ctx, kind, q.Actor, wanted, authority)
+		if err != nil {
+			return nil, err
 		}
 		if len(allowed) == 0 {
-			return nil
+			return nil, nil
 		}
 		body, err := chatsearchCatalog(kind)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		// Candidate windows are chronological, never text-ranked or counted.
 		// Refill after authorization so denied rows cannot hide later matches.
@@ -227,22 +226,23 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 		var renderIDs []string
 		if words != nil && (kind == chatsearch.Message || kind == chatsearch.Thread) {
 			renderIDs = []string{}
-			found, e := tx.Query(ctx, `SELECT post_id FROM chatrender_rendering WHERE tenant_id=$1 AND rendering->>'text' ILIKE ALL($2::text[]) LIMIT 1000`, q.Actor.TenantID, words)
-			if e != nil {
-				return e
-			}
-			for found.Next() {
-				var post string
-				if e := found.Scan(&post); e != nil {
-					found.Close()
+			e := s.RunTenantTx(ctx, q.Actor.TenantID, func(tx dbport.Tx) error {
+				found, e := tx.Query(ctx, chatsearchRenderingIDs, q.Actor.TenantID, words, chatsearchLongestPattern(words))
+				if e != nil {
 					return e
 				}
-				renderIDs = append(renderIDs, post)
-			}
-			e = found.Err()
-			found.Close()
+				defer found.Close()
+				for found.Next() {
+					var post string
+					if e := found.Scan(&post); e != nil {
+						return e
+					}
+					renderIDs = append(renderIDs, post)
+				}
+				return found.Err()
+			})
 			if e != nil {
-				return e
+				return nil, e
 			}
 		}
 		for {
@@ -250,22 +250,31 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 			if q.OpenIDs != nil {
 				args = append(args, q.OpenIDs, q.OpenMessageIDs)
 			}
-			rows, e := tx.Query(ctx, query, args...)
-			if e != nil {
-				return e
-			}
-			read := 0
-			for rows.Next() {
-				read++
-				var payload []byte
-				if e := rows.Scan(&payload); e != nil {
-					rows.Close()
+			// One window is read and the connection is given back before any row
+			// is judged.
+			var payloads [][]byte
+			e := s.RunTenantTx(ctx, q.Actor.TenantID, func(tx dbport.Tx) error {
+				rows, e := tx.Query(ctx, query, args...)
+				if e != nil {
 					return e
 				}
+				defer rows.Close()
+				for rows.Next() {
+					var payload []byte
+					if e := rows.Scan(&payload); e != nil {
+						return e
+					}
+					payloads = append(payloads, payload)
+				}
+				return rows.Err()
+			})
+			if e != nil {
+				return nil, e
+			}
+			for _, payload := range payloads {
 				var row chatsearch.Row
 				if e := json.Unmarshal(payload, &row); e != nil {
-					rows.Close()
-					return e
+					return nil, e
 				}
 				at := row.At
 				scanAt = &at
@@ -278,8 +287,7 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 					// A row whose access cannot be settled is withheld; it
 					// must not take every other row of this kind down with it.
 					if ctx.Err() != nil {
-						rows.Close()
-						return e
+						return nil, e
 					}
 					chatsearchRowSkipped(kind, e)
 					continue
@@ -294,8 +302,7 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 						// masked message must never fall back to its original),
 						// so this one row is withheld and the rest answer.
 						if ctx.Err() != nil {
-							rows.Close()
-							return e
+							return nil, e
 						}
 						chatsearchRowSkipped(kind, e)
 						continue
@@ -304,23 +311,78 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 				if chatsearch.Match(row, q) {
 					out = append(out, row)
 					if id == "" && len(out) > limit {
-						rows.Close()
-						return nil
+						return out, nil
 					}
 				}
 			}
-			e = rows.Err()
-			rows.Close()
-			if e != nil {
-				return e
-			}
-			if read < window || id != "" {
-				return nil
+			if len(payloads) < window || id != "" {
+				return out, nil
 			}
 		}
+	}
+}
 
-	})
-	return out, err
+// chatsearchRenderingIDs finds the posts whose stored rendering (a translation)
+// holds the typed words. The longest word is matched first, by itself, so the
+// trigram index on the rendering text can answer it; every word is then checked.
+const chatsearchRenderingIDs = `SELECT post_id FROM chatrender_rendering WHERE tenant_id=$1 AND ($3::text IS NULL OR rendering->>'text' ILIKE $3::text) AND rendering->>'text' ILIKE ALL($2::text[]) LIMIT 1000`
+
+// chatsearchLongestPattern is the longest of the ILIKE patterns, the one word
+// worth asking an index about; nil when there are none.
+func chatsearchLongestPattern(patterns []string) *string {
+	var longest *string
+	for i := range patterns {
+		if longest == nil || len(patterns[i]) > len(*longest) {
+			longest = &patterns[i]
+		}
+	}
+	return longest
+}
+
+// chatsearchAllowedRooms asks the policy authority about each room the reader
+// belongs to, a few at a time, and keeps the answer order. A room whose access
+// cannot be settled is left out, as one row is: it must not take the rest down.
+func chatsearchAllowedRooms(ctx context.Context, kind chatsearch.Kind, actor chatsearch.Actor, rooms []string, authority ChatSearchAuthority) ([]string, error) {
+	const parallel = 8
+	type answer struct {
+		ok  bool
+		err error
+	}
+	answers := make([]answer, len(rooms))
+	var wg sync.WaitGroup
+	slots := make(chan struct{}, parallel)
+	for i, room := range rooms {
+		slots <- struct{}{}
+		wg.Add(1)
+		go func(i int, room string) {
+			defer func() {
+				<-slots
+				wg.Done()
+			}()
+			defer func() {
+				if recover() != nil {
+					answers[i] = answer{err: chatsearch.ErrSourceUnavailable}
+				}
+			}()
+			ok, err := authority(ctx, actor, chatsearch.Row{Kind: kind, TenantID: actor.TenantID, Target: chatsearch.Target{ConversationID: room}})
+			answers[i] = answer{ok, err}
+		}(i, room)
+	}
+	wg.Wait()
+	allowed := []string{}
+	for i, room := range rooms {
+		if err := answers[i].err; err != nil {
+			if ctx.Err() != nil {
+				return nil, err
+			}
+			chatsearchRowSkipped(kind, err)
+			continue
+		}
+		if answers[i].ok {
+			allowed = append(allowed, room)
+		}
+	}
+	return allowed, nil
 }
 
 const chatsearchPostPayload = `jsonb_build_object('Kind',%s,'ID',p.id,'TenantID',p.tenant_id,'Text',p.body,'AuthorID',p.author_id,'At',p.created_at,
@@ -328,7 +390,8 @@ const chatsearchPostPayload = `jsonb_build_object('Kind',%s,'ID',p.id,'TenantID'
  'InThread',p.parent_id<>'','HasLink',p.body~'https?://','HasFile',EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='MEDIA'),
  'HasReactions',EXISTS(SELECT 1 FROM chat_reaction r WHERE r.tenant_id=p.tenant_id AND r.post_id=p.id),
  'MentionsMe',EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='PERSON_MENTION' AND r->>'TenantID'=$2 AND r->>'ID'=$3),
- 'ByAgent',EXISTS(SELECT 1 FROM chat_app_installation i WHERE i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.app_id=p.author_id))`
+ 'ByAgent',EXISTS(SELECT 1 FROM chat_app_installation i WHERE i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.app_id=p.author_id),
+ 'Language',COALESCE((SELECT v.source_language FROM chat_post_revision v WHERE v.tenant_id=p.tenant_id AND v.post_id=p.id AND v.revision=p.revision),''))`
 
 func chatsearchCatalog(kind chatsearch.Kind) (string, error) {
 	post := func(label string) string { return strings.Replace(chatsearchPostPayload, "%s", "'"+label+"'", 1) }

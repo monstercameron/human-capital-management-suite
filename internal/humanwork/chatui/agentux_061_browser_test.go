@@ -35,10 +35,17 @@ func TestTodo_AGENTUX_061_Browser(t *testing.T) {
 				PersonaActivityReady: true,
 			}
 			page := agentux062Page(t, m)
-			for _, leftover := range []string{"agent-reply-pending", "chatbug040-reserve", "chat-skeleton", "is-loading"} {
+			for _, leftover := range []string{"agent-reply-pending", "chatbug040-reserve", "is-loading"} {
 				if strings.Contains(page, leftover) {
 					t.Errorf("a settled conversation keeps %s", leftover)
 				}
+			}
+			// Other surfaces still reading (Saved, the language list) draw the
+			// shared loading frame (CHATUX-037), whose rows are .chat-skeleton
+			// .chatux037-bar; a skeleton outside it would be a placeholder of the
+			// conversation itself.
+			if loose := strings.Count(page, "chat-skeleton") - strings.Count(page, "chat-skeleton chatux037-bar"); loose != 0 {
+				t.Errorf("a settled conversation keeps %d chat-skeleton placeholders outside the shared loading frame", loose)
 			}
 			if n := strings.Count(page, `agent-badge`); n < 3 {
 				t.Errorf("only %d agent badges for three agent rows and a header", n)

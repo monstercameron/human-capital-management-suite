@@ -579,6 +579,7 @@ type View struct {
 	ProjectDetail             *projectui.DetailModel
 	ProjectDetailState        ProjectProjectionState
 	DocumentsReady            bool
+	DocumentsLoadFailed       bool
 	DocumentQuery             string
 	DocumentCollection        string
 	DocumentPageToken         string

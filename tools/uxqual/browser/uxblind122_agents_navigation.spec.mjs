@@ -25,7 +25,9 @@ test("[UXBLIND-122] Chat -> Agents -> task keeps URL and selected detail in sync
   await page.waitForURL(/\/workspace\/app\//);
   await page.waitForFunction(
     () =>
-      performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 30000, polling: 50 },
   );
@@ -37,7 +39,7 @@ test("[UXBLIND-122] Chat -> Agents -> task keeps URL and selected detail in sync
   await page
     .waitForFunction(
       () =>
-        performance
+        window.performance
           .getEntriesByType("mark")
           .some((mark) => mark.name === "hcm:hydrated"),
       null,
@@ -47,7 +49,7 @@ test("[UXBLIND-122] Chat -> Agents -> task keeps URL and selected detail in sync
   await page
     .waitForFunction(
       () =>
-        performance
+        window.performance
           .getEntriesByType("mark")
           .some((mark) => mark.name === "hcm:load-done"),
       null,
@@ -55,7 +57,7 @@ test("[UXBLIND-122] Chat -> Agents -> task keeps URL and selected detail in sync
     )
     .catch(() => {});
   const bootMarks = await page.evaluate(() =>
-    performance
+    window.performance
       .getEntriesByType("mark")
       .map((mark) => mark.name)
       .filter((name) => name.startsWith("hcm:")),
@@ -78,7 +80,7 @@ test("[UXBLIND-122] Chat -> Agents -> task keeps URL and selected detail in sync
     ),
     contentType: "application/json",
   });
-  console.log(
+  globalThis.console.log(
     "[UXBLIND-122 boot]",
     JSON.stringify({
       bootMarks,

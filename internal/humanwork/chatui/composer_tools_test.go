@@ -91,19 +91,26 @@ func TestTodo_CHATUX_004(t *testing.T) {
 		t.Fatalf("formatting row missing or incomplete: %d rows", len(rows))
 	}
 	for _, c := range []struct{ saved, local, attr, pressed string }{
-		{"", "", "auto", "true"}, // viewportAtLeast is true outside the browser
+		{"", "", "auto", "false"}, // auto keeps an empty draft compact (CHATUX-050)
 		{"hidden", "", "hidden", "false"},
 		{"shown", "", "shown", "true"},
 		{"shown", "hidden", "hidden", "false"},
 		{"hidden", "shown", "shown", "true"},
-		{"bogus", "", "auto", "true"},
+		{"bogus", "", "auto", "false"},
 	} {
 		model := composerToolsModel("en-US", false)
 		model.ComposerFormatRow = c.saved
 		out := composerToolsMarkup(t, model, localUI{formatRow: c.local})
-		if !strings.Contains(out, `data-format-row="`+c.attr+`"`) || !strings.Contains(out, `aria-pressed="`+c.pressed+`"`) {
+		if !strings.Contains(out, `data-format-row="`+c.attr+`"`) || !strings.Contains(out, `data-draft-empty="true"`) || !strings.Contains(out, `aria-pressed="`+c.pressed+`"`) {
 			t.Fatalf("saved=%q local=%q: want format-row %s pressed %s", c.saved, c.local, c.attr, c.pressed)
 		}
+	}
+	// Automatic formatting follows placeholder semantics: whitespace is draft
+	// content, just as it is for CSS :placeholder-shown.
+	autoText := composerToolsModel("en-US", false)
+	autoText.Draft = " "
+	if got := composerToolsMarkup(t, autoText, localUI{}); !strings.Contains(got, `data-format-row="auto"`) || !strings.Contains(got, `aria-pressed="true"`) {
+		t.Fatal("automatic formatting is not visible when the draft contains whitespace")
 	}
 
 	// The hint teaches Enter and Shift+Enter, then goes after three sends on this
@@ -219,13 +226,30 @@ func TestComposerFormatChooseKeepsTheChoiceAndTellsTheClient(t *testing.T) {
 	m := composerToolsModel("en-US", false)
 	m.Callbacks.SetComposerFormatRow = func(shown bool) { told = append(told, shown) }
 	local := localStore{box: &localUI{}}
-	composerFormatChoose(m, local) // automatic is shown here, so the first press hides
-	if local.get().formatRow != composerFormatHidden || len(told) != 1 || told[0] {
+	if composerFormatVisible(m, local.get()) {
+		t.Fatal("automatic empty draft should start with its formatting row hidden")
+	}
+	composerFormatChoose(m, local) // the first press reveals an automatically hidden empty row
+	if local.get().formatRow != composerFormatShown || len(told) != 1 || !told[0] {
 		t.Fatalf("first press: %q %v", local.get().formatRow, told)
 	}
 	composerFormatChoose(m, local)
-	if local.get().formatRow != composerFormatShown || len(told) != 2 || !told[1] {
+	if local.get().formatRow != composerFormatHidden || len(told) != 2 || told[1] {
 		t.Fatalf("second press: %q %v", local.get().formatRow, told)
+	}
+
+	// With text, automatic mode opens from 800 px and the first press hides it.
+	typed := composerToolsModel("en-US", false)
+	typed.Draft = "hello"
+	typed.Callbacks.SetComposerFormatRow = func(shown bool) { told = append(told, shown) }
+	local = localStore{box: &localUI{}}
+	told = nil
+	if !composerFormatVisible(typed, local.get()) {
+		t.Fatal("automatic formatting should show once the draft has content")
+	}
+	composerFormatChoose(typed, local)
+	if local.get().formatRow != composerFormatHidden || len(told) != 1 || told[0] {
+		t.Fatalf("typed draft first press: %q %v", local.get().formatRow, told)
 	}
 }
 
@@ -280,12 +304,14 @@ func TestTodo_CHATUX_011_Browser(t *testing.T) {
 	}
 }
 
-// TestTodo_CHATUX_004_Styles pins the breakpoints: formatting row from 800 px,
-// the hint from 600 px, and the viewer's choice over both.
+// TestTodo_CHATUX_004_Styles pins automatic formatting from 800 px when the
+// draft has content (CHATUX-050 keeps an empty draft compact), the hint from
+// 600 px, and the viewer's explicit choice over both.
 func TestTodo_CHATUX_004_Styles(t *testing.T) {
 	for _, want := range []string{
 		`.chat-composer[data-format-row="shown"] .composer-format-row{display:flex}`,
-		`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}}`,
+		`@media(min-width:800px){.chat-workspace .chat-composer[data-format-row="auto"] .composer-format-row{display:flex}.chat-workspace .chat-composer[data-format-row="auto"][data-draft-empty="true"] .composer-format-row{display:none}}`,
+		`.chat-composer[data-format-row="auto"][data-draft-empty="true"] .composer-format-row{display:none}`,
 		`.composer-format-row{display:none`,
 		`@media(min-width:600px){.chat-workspace .chat-composer .composer-toolbar .composer-help{display:flex;flex-wrap:wrap`,
 		`.composer-toolbar .composer-help::before{content:"";flex:none;inline-size:0;block-size:1.5em}`,

@@ -59,6 +59,10 @@ func chatLayerWidth(kind string, viewportWidth float64) float64 {
 		want = 400
 	case chatComposerAddKind:
 		want = 340
+	case "writing-style":
+		// The Rewrite menu and the panel that shows its result: a name, a line
+		// of description and a shortcut per row need no more.
+		want = 320
 	case "gif":
 		want = 420
 	case "rail-menu":

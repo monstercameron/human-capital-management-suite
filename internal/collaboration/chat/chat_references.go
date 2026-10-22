@@ -311,6 +311,7 @@ func (s *Service) ReadAuthorizedReference(ctx context.Context, p Principal, tena
 	if err != nil || post.Deleted || !s.postVisibleTo(ctx, p, c, post) {
 		return Conversation{}, nil, ErrNotFound
 	}
+	post = s.projectConversationReferences(ctx, p, []Post{post})[0]
 	return c, &post, nil
 }
 
@@ -342,6 +343,9 @@ func (s *Service) ResolveConversationLink(ctx context.Context, p Principal, toke
 	if err != nil || post.Deleted || !s.postVisibleTo(ctx, p, c, post) {
 		return Conversation{}, nil, ErrNotFound
 	}
+	// A link shows the post to whoever opens it, so it shows what they may read:
+	// the rewrite stand-in and the filters' mask, as in every other read.
+	post = s.projectConversationReferences(ctx, p, []Post{post})[0]
 	return c, &post, nil
 }
 
@@ -376,6 +380,11 @@ func (s *Service) ForwardPost(ctx context.Context, r ForwardPostRequest) (Post, 
 	if r.PostRevision != 0 && post.Revision != r.PostRevision {
 		return Post{}, ErrConflict
 	}
+	// A forward copies the stored body under the forwarder's name; a reader who
+	// may not read the message as written cannot hand it on.
+	if !s.readerMayReadAsWritten(ctx, r.Principal, post) {
+		return Post{}, ErrPermissionDenied
+	}
 	dstTenant := r.DestinationTenantID
 	if dstTenant == "" {
 		dstTenant = r.Principal.TenantID
@@ -395,12 +404,19 @@ func (s *Service) ForwardPost(ctx context.Context, r ForwardPostRequest) (Post, 
 		return Post{}, ErrPermissionDenied
 	}
 	attr := SourceAttribution{TenantID: post.TenantID, ConversationID: post.ConversationID, PostID: post.ID, PostRevision: post.Revision, OriginalAuthorID: post.AuthorID}
-	return s.sendPost(ctx, SendPostRequest{Principal: r.Principal, TenantID: dstTenant, ConversationID: dst.ID, Body: post.Body, IdempotencyKey: r.IdempotencyKey, SourceAttribution: &attr}, true)
+	// What is copied is what the forwarder reads: a word the source channel
+	// masks must not reappear, unmasked, in a place with no such rule.
+	seen := []Post{post}
+	s.maskByContentPolicy(ctx, r.Principal, seen)
+	return s.sendPost(ctx, SendPostRequest{Principal: r.Principal, TenantID: dstTenant, ConversationID: dst.ID, Body: seen[0].Body, IdempotencyKey: r.IdempotencyKey, SourceAttribution: &attr}, true)
 }
 
 // postVisibleTo applies history visibility after conversation authorization.
 // Knowing a post ID or holding a valid locator never bypasses FROM_JOIN/NONE.
 func (s *Service) postVisibleTo(ctx context.Context, p Principal, c Conversation, post Post) bool {
+	if !s.postAudienceAllows(ctx, p, post) {
+		return false
+	}
 	m, err := s.store.GetMembership(ctx, c.TenantID, c.ID, p.TenantID, p.SubjectID)
 	if err != nil {
 		return c.Kind == PublicChannel

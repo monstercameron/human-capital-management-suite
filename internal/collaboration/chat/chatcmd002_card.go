@@ -7,6 +7,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatgate"
 )
 
 const Chatcmd002BodyMarker = "\n<hcm-message-card-v1>\n"
@@ -20,6 +22,11 @@ type Chatcmd002Card struct {
 	Todo       *Chatcmd002Todo `json:"todo,omitempty"`
 	ClosedAt   *time.Time      `json:"closed_at,omitempty"`
 	Interacted bool            `json:"interacted,omitempty"`
+	// Audience names the segments of the channel's gate the card is for
+	// (CHATGATE-010): only they may vote or tick, the others see who it is for.
+	// A poll addressed to segments is anonymous, so a manager never reads one
+	// person's choice.
+	Audience []string `json:"audience,omitempty"`
 }
 type Chatcmd002Poll struct {
 	Options    []ChannelPollOption `json:"options"`
@@ -49,10 +56,16 @@ type Chatcmd002View struct {
 	CanManage bool `json:"can_manage"`
 	// CanAddOption says the reader may add an option to this poll: the poll lets
 	// members add them, or the reader wrote it, and it is open and has room.
-	CanAddOption   bool                         `json:"can_add_option,omitempty"`
-	CanTick        map[string]bool              `json:"can_tick,omitempty"`
-	ResultsVisible bool                         `json:"results_visible"`
-	Voters         map[string][]Chatcmd002Voter `json:"voters,omitempty"`
+	CanAddOption   bool            `json:"can_add_option,omitempty"`
+	CanTick        map[string]bool `json:"can_tick,omitempty"`
+	ResultsVisible bool            `json:"results_visible"`
+	// BySegment is the result of a card addressed to segments, broken down by
+	// segment with groups under five voters left out (CHATGATE-010).
+	BySegment *chatgate.Breakdown `json:"by_segment,omitempty"`
+	// NotInAudience says the card is addressed to segments and the reader is in
+	// none of them: they read it and cannot vote or tick.
+	NotInAudience bool                         `json:"not_in_audience,omitempty"`
+	Voters        map[string][]Chatcmd002Voter `json:"voters,omitempty"`
 	// Revision is the post revision this view was read at.
 	Revision uint64 `json:"revision,omitempty"`
 	// Notice is set by the client only: why the reader's last press on this
@@ -64,6 +77,7 @@ type Chatcmd002View struct {
 type Chatcmd002Voter struct {
 	HomeTenantID string `json:"home_tenant_id"`
 	SubjectID    string `json:"subject_id"`
+	_            incomparable
 }
 
 // Closed reports whether the card takes no more votes or ticks at now: its
@@ -96,6 +110,18 @@ func chatcmd002Text(text string, max int) bool {
 func (c Chatcmd002Card) Validate() error {
 	if !chatcmd002Text(c.Title, 240) {
 		return ErrInvalidArgument
+	}
+	if len(c.Audience) > 0 {
+		seen := map[string]bool{}
+		for _, name := range c.Audience {
+			if !chatcmd002Text(name, 60) || seen[name] || len(c.Audience) > 10 {
+				return ErrInvalidArgument
+			}
+			seen[name] = true
+		}
+		if c.Kind == "poll" && (c.Poll == nil || !c.Poll.Anonymous) {
+			return ErrInvalidArgument
+		}
 	}
 	switch c.Kind {
 	case "poll":
@@ -190,6 +216,7 @@ type Chatcmd003Draft struct {
 type Chatcmd003Change struct {
 	Before, After string
 	Kind          string `json:",omitempty"`
+	_             incomparable
 }
 
 func Chatcmd003ParsePoll(raw string, now time.Time, resolveDate func(string, time.Time) (time.Time, error)) (Chatcmd003Draft, error) {

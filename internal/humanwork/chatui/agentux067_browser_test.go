@@ -2,17 +2,14 @@ package chatui_test
 
 import "testing"
 
-// TestTodo_AGENTUX_067_Browser reads the cards an agent offers under a message:
-// the private card only its person sees ("Add to my tasks"), and the public card
-// of the channel to-do list, in each language, at each width and in each theme.
+// TestTodo_AGENTUX_067_Browser checks the Task Catcher card's private and public
+// offers, localized copy and action states.
 func TestTodo_AGENTUX_067_Browser(t *testing.T) {
-	TestAgentUXAmbient_Cards_Browser(t)
-	TestAgentUXAmbient_Cards_Security(t)
+	runAgentUXAmbientCardsBrowser(t, "TASK")
 }
 
-// TestTodo_AGENTUX_068_Browser reads the reminder cards: offered once in the
-// channel, set, needing a time and for a source message that changed.
+// TestTodo_AGENTUX_068_Browser checks Reminder's private and public offers,
+// missing-time/source-change prompts, and the scheduled reminder actions.
 func TestTodo_AGENTUX_068_Browser(t *testing.T) {
-	TestAgentUXAmbient_Cards_Browser(t)
-	TestAgentUXAmbient_Cards_Security(t)
+	runAgentUXAmbientCardsBrowser(t, "REMINDER")
 }

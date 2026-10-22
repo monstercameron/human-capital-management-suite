@@ -1,6 +1,10 @@
 package application
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/agenteval"
+)
 
 // TestTodo_AGENTUX_067 covers Task Catcher: the starter, the decision of where a
 // noticed task belongs (the person's own list, the channel's list, or a person
@@ -41,8 +45,8 @@ func TestTodo_AGENTUX_067_Integration(t *testing.T) {
 	)
 }
 
-// TestTodo_AGENTUX_067_Golden is the labelled suite of messages with their
-// expected scope and owner; a private commitment is never offered publicly.
+// TestTodo_AGENTUX_067_Golden evaluates only Task Catcher's labelled messages
+// against their expected kind, scope and owner.
 func TestTodo_AGENTUX_067_Golden(t *testing.T) {
-	TestAgentUXAmbient_LabelledSuites_Golden(t)
+	runAgentUXAmbientGolden(t, "task-catcher", agenteval.TaskCatcherAmbientSuite())
 }

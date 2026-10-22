@@ -149,7 +149,7 @@ func TestAgentUXR5Setup_NoStarterHasARealNextStep(t *testing.T) {
 		}
 	}
 	unnamed := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), nil, ""))
-	if !strings.Contains(unnamed, "this build ships with none") || !strings.Contains(unnamed, "choose Edit on its card") || strings.Contains(unnamed, "Ask the person") || strings.Contains(unnamed, "<a ") {
+	if !strings.Contains(unnamed, "You can edit any agent below") || !strings.Contains(unnamed, "choose Edit on its card") || strings.Contains(unnamed, "Ask the person") || strings.Contains(unnamed, "<a ") {
 		t.Fatalf("unnamed installer guidance is wrong: %s", unnamed)
 	}
 	named := personaAdminRender(t, personaAdminNoStarterNotice(ResolveProductLocale("en-US"), []PersonaAdminTarget{{ID: "ir-admin", Label: "Alex Morgan", Role: "platform_administrator"}}, "someone-else"))

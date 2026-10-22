@@ -147,7 +147,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 		_, id, _ := eventAction(e)
 		def, ok := ModDefinitionByID(props.Definitions, id)
 		next := domValue("modadmin-act-" + modSafeID(id))
-		if ok && def.Product && (next == "block" || next == "mask" || next == "flag") {
+		if ok && def.Product && modContains(ModBuiltinActions, next) {
 			switchRequest(ModActionRequest(def, channel, props.Workspace, next))
 		}
 	})
@@ -427,6 +427,13 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 		hint = t("b_hint") + " " + t("b_hint_ws")
 	}
 	section := []ui.Node{html.H4(html.Props{Text: t("b_title")}), html.P(html.Props{Class: "chatmod-hint", Text: hint})}
+	if !props.Workspace {
+		// A channel's grid has two columns: what the workspace sets, read only, and
+		// this channel's own switch (CHATUX-041).
+		section = append(section, html.Div(html.Props{Class: "chatmod-cols", Aria: map[string]string{"hidden": "true"}},
+			html.Span(html.Props{Text: laneText(m, chatux041Copy, chatux041KeyColWorkspace)}),
+			html.Span(html.Props{Text: laneText(m, chatux041Copy, chatux041KeyColChannel)})))
+	}
 	row := 0
 	for _, language := range lists.Languages {
 		headingID := "modadmin-g-" + language
@@ -439,7 +446,7 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 			more := []ui.Node{}
 			if state.On {
 				var options []ui.Node
-				for _, key := range []string{"block", "mask", "flag"} {
+				for _, key := range ModBuiltinActions {
 					options = append(options, html.Option(html.Props{Value: key, Text: t("act_" + key), Selected: key == state.Action}))
 				}
 				selectID := "modadmin-act-" + modSafeID(d.ID)
@@ -455,10 +462,18 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 				more = append(more, html.Button(html.Props{Type: "button", Class: "chatmod-link", Text: t("reset"), OnClick: h.reset, Disabled: props.Busy || props.Switch == nil,
 					Aria: map[string]string{"label": t("reset") + ": " + name}, Data: map[string]string{"action": "modadmin-reset", "id": d.ID}}))
 			}
+			main := []ui.Node{html.Span(html.Props{ID: "modadmin-n-" + n, Class: "chatmod-name", Dir: "auto", Text: name})}
+			if !props.Workspace {
+				// The workspace's setting, read only; the switch beside it is this channel's.
+				workspace := t("off")
+				if state.WorkspaceOn {
+					workspace = t("on")
+				}
+				main = append(main, html.Span(html.Props{Class: "chatmod-default", Text: workspace}))
+			}
+			main = append(main, modSwitchButton(m, state.On, props.Busy || props.Switch == nil, d.ID, "modadmin-n-"+n+" "+headingID, "modadmin-s-"+n, h.toggle))
 			items = append(items, html.Li(html.Props{Class: "chatmod-row"},
-				html.Div(html.Props{Class: "chatmod-row-main"},
-					html.Span(html.Props{ID: "modadmin-n-" + n, Class: "chatmod-name", Dir: "auto", Text: name}),
-					modSwitchButton(m, state.On, props.Busy || props.Switch == nil, d.ID, "modadmin-n-"+n+" "+headingID, "modadmin-s-"+n, h.toggle)),
+				html.Div(html.Props{Class: "chatmod-row-main"}, main...),
 				html.Span(html.Props{ID: "modadmin-s-" + n, Class: "chatmod-state", Text: t(ModStatusKey(state, props.Workspace))}),
 				html.Div(html.Props{Class: "chatmod-row-more"}, more...)))
 		}
@@ -743,6 +758,8 @@ func modOutcomeNodes(m Model, outcome ModOutcome, dry bool) []ui.Node {
 		nodes = append(nodes, html.P(html.Props{Class: "chatmod-outcome"}, ui.Text(t("o_mask")+" "), RenderFilterMaskedText(m, ModExcerpt(outcome.Masked))))
 	case "flag":
 		nodes = append(nodes, html.P(html.Props{Class: "chatmod-outcome", Text: t("o_flag")}))
+	case "reword":
+		nodes = append(nodes, html.P(html.Props{Class: "chatmod-outcome", Text: t("o_reword")}))
 	case "notify":
 		nodes = append(nodes, html.P(html.Props{Class: "chatmod-outcome", Dir: "auto", Text: modadminFormat(t("o_notify"), "target", outcome.Target)}))
 	default:

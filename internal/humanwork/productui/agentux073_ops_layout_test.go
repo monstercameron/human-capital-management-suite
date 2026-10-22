@@ -87,7 +87,7 @@ func TestTodo_AGENTUX_073(t *testing.T) {
 	if strings.Contains(announcements, "<style") {
 		t.Fatal("Announcements emits a style element the content security policy refuses")
 	}
-	order := []string{`<h3 dir="auto">Assistant · general</h3>`, "Set by Walt Brennan", `class="agent-announcement-instruction"`, `<dl class="agent-announcement-facts">`, "<dt>Schedule</dt>", "Every Thursday at 09:00 (America/New_York)", "Next post: Oct 8, 2026, 9:00 AM", "<dt>Last result</dt>", "Posted. Open the message.", `<details class="agent-announcement-history"`, `class="agent-announcement-row-actions"`, `data-announcement-action="pause"`, `data-announcement-action="post"`, `data-announcement-action="edit"`, `agent-announcement-delete-action`}
+	order := []string{`<h3 dir="auto">Assistant · general</h3>`, "Set by Walt Brennan", `class="agent-announcement-instruction"`, `<dl class="agent-announcement-facts">`, "<dt>Schedule</dt>", "Every Thursday at 09:00 (America/New_York)", "Next post: Oct 8, 2026, 9:00 AM", "<dt>Last result</dt>", "Posted. Open the message.", `<details class="agent-announcement-history agent-operations-technical"`, `class="agent-announcement-row-actions"`, `data-announcement-action="pause"`, `data-announcement-action="post"`, `data-announcement-action="edit"`, `agent-announcement-delete-action`}
 	at := 0
 	for _, want := range order {
 		next := strings.Index(announcements[at:], want)

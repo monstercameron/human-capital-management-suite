@@ -28,32 +28,26 @@ func chatSeedOfficeZone(tenant string) *time.Location {
 	return time.FixedZone(name, offset)
 }
 
-// chatSeedWorkday lays a moment of the seeded timeline onto office hours. The
-// seeder schedules posts evenly across fourteen whole days, which put messages
-// at 2:46 AM and 11:04 PM for an office that is closed then. Each local day is
-// squeezed into 08:00 to 18:00 in proportion, so the mapping never reorders two
-// moments: the day's earlier posts stay earlier, and the next day starts after
-// the last of the one before.
-func chatSeedWorkday(at time.Time, office *time.Location) time.Time {
-	local := at.In(office)
-	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, office)
-	fraction := float64(local.Sub(midnight)) / float64(24*time.Hour)
-	span := chatSeedWorkdayEnd - chatSeedWorkdayStart
-	return midnight.Add(chatSeedWorkdayStart + time.Duration(fraction*float64(span))).UTC()
-}
-
-// chatSeedReplyTime carries a reply that would land after closing to the next
-// morning, keeping the overflow, so a long thread never runs into the night.
+// chatSeedReplyTime carries a moment that would land outside office hours into
+// them: after closing it goes to the next morning, keeping the overflow, so a
+// long exchange never runs into the night, and a weekend goes to Monday. The
+// chat history itself is placed on a chatSeedTimeline; this is for the
+// moderation story, which lays single moments after one another.
 func chatSeedReplyTime(at time.Time, office *time.Location) time.Time {
 	local := at.In(office)
 	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, office)
 	sinceMidnight := local.Sub(midnight)
 	switch {
 	case sinceMidnight < chatSeedWorkdayStart:
-		return midnight.Add(chatSeedWorkdayStart + sinceMidnight/8).UTC()
+		local = midnight.Add(chatSeedWorkdayStart + sinceMidnight/8)
 	case sinceMidnight >= chatSeedWorkdayEnd:
 		next := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, office)
-		return next.Add(chatSeedWorkdayStart + (sinceMidnight - chatSeedWorkdayEnd)).UTC()
+		local = next.Add(chatSeedWorkdayStart + (sinceMidnight - chatSeedWorkdayEnd))
 	}
-	return at
+	for chatSeedIsWeekend(local, office) {
+		today := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, office)
+		tomorrow := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, office)
+		local = tomorrow.Add(local.Sub(today))
+	}
+	return local.UTC()
 }

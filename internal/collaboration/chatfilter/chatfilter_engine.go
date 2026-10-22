@@ -49,6 +49,7 @@ type Hit struct {
 	RuleID, RuleName, Version, Action, Digest, Masked, Target string
 	Span                                                      Span
 	DryRun                                                    bool
+	_                                                         incomparable
 }
 type Result struct {
 	Action, Masked string
@@ -77,6 +78,7 @@ type Action struct {
 	Schema                               string
 	Rank                                 int
 	Block, Mask, Deliver, RequiresTarget bool
+	_                                    incomparable
 }
 type Registry struct {
 	kinds   map[string]Kind

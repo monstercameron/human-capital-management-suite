@@ -55,6 +55,9 @@ type PersonaRuntimeModelOwnerDependencies struct {
 	// Documents re-resolves an agent's referenced documents for the outbound
 	// verifier with the same resolver the run path uses.
 	Documents agentdocref.Resolver
+	// ReaderLanguage is the same cached read of an asker's reading language the
+	// run's model work uses (CHATLANG-005), so the verifier rebuilds its message.
+	ReaderLanguage func(context.Context, string, string) string
 }
 
 type personaRuntimeCompositionInput struct {
@@ -173,8 +176,12 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		// AGENTUX-076: runs carry the agent's facts and the documents it can read.
 		EnablePersonaAgentFacts(documentResolver, WorkspaceDocumentDirectory{DB: in.Pool, TenantUUID: tenantUUID})
 	}
+	// CHATLANG-005: the agent is told the language its asker reads. The model work
+	// and the outbound verifier share one cached read, so the verifier rebuilds the
+	// message the work sent. Without a renderings surface the read answers "".
+	readerLanguage := CachedPersonaReaderLanguage(in.ChatRuntime.renderings.ReadingLanguageOf)
 	if in.ModelFactory != nil {
-		modelConfig, err = in.ModelFactory(PersonaRuntimeModelOwnerDependencies{Documents: documentResolver, AgentStore: in.AgentDatabase.store, Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Threads: current, Authority: current, TenantUUID: tenantUUID, Now: now, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, ToolSources: toolSources, ChatClasses: current})
+		modelConfig, err = in.ModelFactory(PersonaRuntimeModelOwnerDependencies{Documents: documentResolver, AgentStore: in.AgentDatabase.store, Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Threads: current, Authority: current, TenantUUID: tenantUUID, Now: now, ToolJournal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, ToolSources: toolSources, ChatClasses: current, ReaderLanguage: readerLanguage})
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +205,7 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		return nil, errPersonaInvocationProductionComposition
 	}
 	model, err := NewPersonaRunModelPorts(modelConfig.Gateway, PersonaRunModelWorkSourceConfig{Personas: personas, Manifests: manifestReaders, Routes: in.AgentDatabase.store, Budgets: budgets,
-		Threads: current, Leases: modelConfig.Leases, TenantUUID: tenantUUID, Workload: modelConfig.Workload, Now: now, Remaining: remaining, Documents: documentResolver})
+		Threads: current, Leases: modelConfig.Leases, TenantUUID: tenantUUID, Workload: modelConfig.Workload, Now: now, Remaining: remaining, Documents: documentResolver, ReaderLanguage: readerLanguage})
 	if err != nil {
 		return nil, err
 	}
@@ -232,8 +239,10 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 	config := &PersonaInvocationProductionConfig{AgentStore: in.AgentDatabase.store, TenantUUID: tenantUUID, Authority: authority, Grants: issuer, T0Skills: t0,
 		Run:   PersonaRunStarterConfig{Builder: builder, Authority: current, Model: model.Model, Work: model.Work, Output: output, Reply: reply, WorkerID: modelConfig.WorkerID, LeaseTTL: modelConfig.LeaseTTL, Now: now},
 		Fence: fence, Leases: &personaRuntimeSecurityLeases{store: in.AgentDatabase.store, switchBoard: switchBoard, tenantUUID: tenantUUID, now: now}}
+	// AGENTUX-076: the list_documents tool reads the same reach the facts block does.
+	factsLister, _ := personaAgentFactsLister(documentResolver)
 	tools, err := NewPersonaRuntimeTools(PersonaRuntimeToolsConfig{Authority: current, Policy: t0, Gateway: in.Personas.capabilityGateway,
-		Journal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, Documents: DatabasePersonaRuntimeDocumentVersions{Store: in.Documents.store}, Now: now})
+		Journal: DatabasePersonaRuntimeToolJournal{Store: in.AgentDatabase.personas}, Documents: DatabasePersonaRuntimeDocumentVersions{Store: in.Documents.store}, Now: now, Lister: factsLister})
 	if err != nil {
 		return nil, err
 	}

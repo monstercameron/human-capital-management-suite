@@ -16,7 +16,11 @@ func TestTodo_CHATUX_036(t *testing.T) {
 	if got := s11Value(t, env, "color", body); got != "var(--ink)" {
 		t.Errorf("a link in a message is %q, want the ink colour", got)
 	}
-	secondary := func(sel string) bool { return strings.HasSuffix(sel, ".button.secondary") && s11Without(sel, ":", "[") }
+	// Conversation details is the one exception: its secondary buttons are accent
+	// text, in one style (CHATUX-041).
+	secondary := func(sel string) bool {
+		return strings.HasSuffix(sel, ".button.secondary") && s11Without(sel, ":", "[") && !strings.Contains(sel, ".chat-details")
+	}
 	if got := s11Value(t, env, "color", secondary); got != "var(--ink)" {
 		t.Errorf("a secondary button is %q, want the ink colour", got)
 	}

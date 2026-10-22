@@ -39,7 +39,7 @@ type handlers struct {
 	todoPolicyMode, todoPolicyMember                         ui.Handler
 	todoNewMode, todoNewMember                               ui.Handler
 	teamPurposeSubmit, projectDetailsSubmit, milestoneSubmit ui.Handler
-	roleChange                                               ui.Handler
+	roleChange, detailsInput                                 ui.Handler
 	pollCreate, pollInput                                    ui.Handler
 	pickInput, pickKey                                       ui.Handler
 	createName, purposeKey                                   ui.Handler
@@ -411,7 +411,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				requestAgentDocumentAccess(m)
 				return
 			}
-			if chatux026HandleAction(e, m, local) || chatux003HandleAction(e, m, local.get(), mention) {
+			if chatbug092HandleAction(e, local) || chatux026HandleAction(e, m, local) || chatux003HandleAction(e, m, local.get(), mention) {
 				return
 			}
 			switch action, id, _ := eventAction(e); action {
@@ -841,6 +841,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		composerKey:    ui.UseEvent(func(e ui.KeyboardEvent) { composerKey(e, "chat-composer", send) }),
 		composerInput: ui.UseEvent(func(e ui.InputEvent) {
 			setComposerSendReady("chat-composer", e.GetValue())
+			syncComposerFormatControl(m, local.get(), e.GetValue())
 			mention.ReconcilePersonas("chat-composer", e.GetValue())
 			drafts.set(m.SelectedID, e.GetValue())
 			if m.Callbacks.DraftChanged != nil {
@@ -1129,7 +1130,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				m.Callbacks.SetChannelProjectDetails(strings.TrimSpace(domValue("channel-project-title")), strings.TrimSpace(domValue("channel-project-summary")))
 			}
 		}),
-		roleChange: ui.UseEvent(func(e ui.ChangeEvent) { chatux027RoleChange(e, m) }),
+		roleChange:   ui.UseEvent(func(e ui.ChangeEvent) { chatux027RoleChange(e, m) }),
+		detailsInput: ui.UseEvent(func(e ui.InputEvent) { chatux041Input(e, m, local) }),
 		milestoneSubmit: ui.UseEvent(func(e ui.FormEvent) {
 			e.PreventDefault()
 			if m.Callbacks.AddChannelProjectMilestone != nil && !m.ChannelWidgetsPending {
@@ -1483,6 +1485,8 @@ func (m Model) act(action, id string) {
 		if cb.ToggleSidebar != nil {
 			cb.ToggleSidebar(false)
 		}
+	case "open-workspace-menu":
+		openWorkspaceMenu()
 	case "details":
 		// C-4: the side column shows the open thread over Details
 		// (sideColumn), so opening Details while a thread is open must close
@@ -1917,6 +1921,7 @@ func rail(m Model, h handlers) ui.Node {
 	chatside001InstallDrag(m.Callbacks.MoveConversationSection)
 	chatside001InstallTouch(m.Callbacks.OpenRailMenu)
 	head := html.Div(html.Props{Class: "rail-head"},
+		chatux038WorkspaceMenu(m),
 		html.Div(html.Props{Class: "rail-title-group"},
 			html.H2(html.Props{Class: "rail-title", Text: m.t(KeyRailTitle)}), chatux002QuietMoon(m)),
 		html.Div(html.Props{Class: "rail-head-actions"},
@@ -1961,6 +1966,9 @@ func rail(m Model, h handlers) ui.Node {
 	if len(sections) == 0 {
 		list = append(list, html.WithKey(railEmpty(m), "empty"))
 	}
+	// Archived is the last section of the list, in the flow of the list's own
+	// scroll, so no band can sit over a row (CHATBUG-092).
+	list = append(list, chatbug092ArchivedSection(m, h))
 	list = append(list, chatux007Jump(m, chatux007Down))
 	return html.Nav(html.Props{Class: "chat-rail chat-sidebar", Role: "navigation", Aria: map[string]string{"label": m.t(KeyNav)}},
 		head, search,
@@ -1968,8 +1976,10 @@ func rail(m Model, h handlers) ui.Node {
 		// away with it (CHATUX-020).
 		html.Div(html.Props{Class: "rail-fixed"}, chatsaveSidebar(m), chatmod005Sidebar(m)),
 		html.Div(html.Props{Class: "rail-scroll"}, list...),
-		chatux020RailMenu(m, h),
-		integrate2ArchivedChannels(m),
+		// The row menu comes and goes, so it is keyed: positionally the next
+		// sibling took over the menu's element when the menu closed, and with it
+		// the menu's fixed position (CHATBUG-092).
+		html.WithKey(chatux020RailMenu(m, h), "rail-menu"),
 		paneHandle(m, "rail"),
 	)
 }
@@ -2042,17 +2052,16 @@ func railRow(m Model, c Conversation) ui.Node {
 	// A direct row whose name has not arrived yet while the agent list is being
 	// read waits with an empty name: it is never called "Conversation" for a
 	// moment and then renamed, and an agent is never shown as an unnamed room.
-	holding := label == "" && c.Kind == DirectMessage && m.AgentRailPending
-	if label == "" && !holding {
-		label = m.t(KeyConversation)
-	}
+	// CHATUX-047: a name that is not known yet is the shared loading bar, never
+	// the word "Conversation".
+	holding := label == ""
 	// C-13: a title attribute lets a reader see the full name of a row this
 	// column's width still truncates.
-	nameClass := "chat-row-name"
+	nameNode := html.Span(html.Props{Class: "chat-row-name", Text: label, Title: label})
 	if holding {
-		nameClass += " agent-name-pending"
+		nameNode = html.Span(html.Props{Class: "chat-row-name chatux047-name-slot", Aria: map[string]string{"hidden": "true"}}, chatux047NameBar("row"))
 	}
-	children := []ui.Node{kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Span(html.Props{Class: nameClass, Text: label, Title: label})}
+	children := []ui.Node{kindGlyph(m, c, m.t(kindKey(c.Kind))), nameNode}
 	if c.Agent {
 		children = append(children, AgentBadgeLabel(m.Locale))
 	}
@@ -2092,7 +2101,7 @@ func kindGlyph(m Model, c Conversation, kindLabel string) ui.Node {
 		if c.Agent {
 			return agentDMAvatar(displayName(m, c), "avatar tiny agent-dm-avatar", conversationAgentIcon(m, c))
 		}
-		if m.AgentRailPending {
+		if m.AgentRailPending && !chatux038Person(m, c) {
 			// Whether this is a person or an agent is not known yet; a letter
 			// would be wrong for an agent, so the slot waits.
 			return agentDMAvatar(displayName(m, c), "avatar tiny agent-dm-avatar")
@@ -2152,7 +2161,7 @@ func conversationHeaderAvatar(m Model, c Conversation) ui.Node {
 		if c.Agent {
 			return agentDMAvatar(displayName(m, c), "large-avatar header-avatar agent-dm-avatar", conversationAgentIcon(m, c))
 		}
-		if m.AgentRailPending {
+		if m.AgentRailPending && !chatux038Person(m, c) {
 			return agentDMAvatar(displayName(m, c), "large-avatar header-avatar agent-dm-avatar")
 		}
 		return personAvatar(m, m.PeerIDs[c.ID], displayName(m, c), "large-avatar header-avatar")
@@ -2215,9 +2224,8 @@ func timeline(m Model, h handlers) ui.Node {
 	if title == "" && c.Agent {
 		title = agentConversationName(m, c)
 	}
-	if title == "" {
-		title = m.t(KeyConversation)
-	}
+	// CHATUX-047: a title that is not known yet is the shared loading bar (the
+	// heading helpers draw it for ""), never the word "Conversation".
 	kindLabel := m.t(kindKey(c.Kind))
 	if c.Kind == PublicChannel {
 		kindLabel = agentUXChat4Text(m, "chat.channel.public_short")
@@ -2259,9 +2267,9 @@ func timeline(m Model, h handlers) ui.Node {
 		// its member count ("Direct message · 2 members" reads as noise), and
 		// the name belongs in the document heading, not a plain span.
 		titleBlock = html.Div(html.Props{Class: "conversation-title"},
-			personButton(m, peer, title, "person-avatar-button", conversationHeaderAvatar(m, c)),
+			chatux047HeaderAvatar(m, peer, title, c),
 			html.Div(html.Props{Class: "conversation-heading"},
-				html.H1(html.Props{Class: "conversation-person-heading"}, personButton(m, peer, title, "conversation-person-name", ui.Text(title))),
+				chatux047PersonHeading(m, peer, title),
 				html.P(html.Props{Class: "conversation-topic", Text: directMessageSubtitle(m, c, peer)}),
 			),
 		)
@@ -2736,10 +2744,6 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	if msg.Reacted {
 		reactAction, reactLabel, reactIcon = "unreact", m.t(KeyRemoveReaction), "smile-filled"
 	}
-	pinAction, pinLabel, pinIcon := "pin", m.t(KeyPin), "pin"
-	if msg.Pinned {
-		pinAction, pinLabel, pinIcon = "unpin", m.t(KeyUnpin), "pin-filled"
-	}
 	canReact := m.Callbacks.React != nil || m.Callbacks.ReactWith != nil || m.Callbacks.OpenPicker != nil
 	if m.Callbacks.OpenPicker != nil || m.Callbacks.ReactWith != nil {
 		// With a picker the toolbar's smile opens it; the chips below carry
@@ -2747,25 +2751,9 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 		reactAction, reactLabel, reactIcon = "react-pick", m.t(KeyReact), "smile"
 	}
 	menuOpen := m.MenuID == msg.ID
-	actions := []ui.Node{}
-	// One-click reactions ahead of the tools, the way Slack's hover bar leads
-	// with the emoji people use most.
-	for _, emoji := range chatEmojiQuickReactions() {
-		label := m.tf(KeyReactWith, map[string]string{"emoji": emoji})
-		actions = append(actions, html.Button(html.Props{Class: "message-action quick-react", Type: "button", Disabled: m.Callbacks.ReactWith == nil,
-			Data: map[string]string{"action": "react-with", "id": msg.ID, "emoji": emoji}, Aria: map[string]string{"label": label}, Title: label, Text: emoji}))
-	}
 	threadAvailable := m.Callbacks.OpenThread != nil && !m.selected().Agent
-	actions = append(actions, chatsaveAction(m, msg, false))
-	if listen := chatListenAction(m, msg, false); listen != nil {
-		actions = append(actions, listen)
-	}
-	actions = append(actions,
-		actionButton("message-action", "reply", msg.ID, m.t(KeyReply), !threadAvailable, icon("reply")),
-		html.Button(html.Props{Class: "message-action", Type: "button", Disabled: !canReact, Data: map[string]string{"action": reactAction, "id": msg.ID}, Aria: map[string]string{"label": reactLabel, "pressed": boolString(msg.Reacted && reactAction != "react-pick"), "expanded": boolString(m.PickerID == msg.ID)}, Title: reactLabel}, icon(reactIcon)),
-		html.Button(html.Props{Class: "message-action", Type: "button", Disabled: m.Callbacks.Pin == nil, Data: map[string]string{"action": pinAction, "id": msg.ID}, Aria: map[string]string{"label": pinLabel, "pressed": boolString(msg.Pinned)}, Title: pinLabel}, icon(pinIcon)),
-		html.Button(html.Props{Class: "message-action", Type: "button", Hidden: m.Callbacks.OpenMenu == nil, Disabled: m.Callbacks.OpenMenu == nil, Data: map[string]string{"action": "menu", "id": msg.ID}, Aria: map[string]string{"label": m.t(KeyMore), "haspopup": "menu", "expanded": boolString(menuOpen)}, Title: m.t(KeyMore)}, icon("more")),
-	)
+	// CHATUX-042: the bar holds four actions; the rest is in the More menu.
+	actions := chatux042MessageBar(m, msg, chatux042React{action: reactAction, label: reactLabel, glyph: reactIcon, enabled: canReact}, threadAvailable, menuOpen)
 	var menu ui.Node
 	if menuOpen {
 		items := chatMessageMenuItems(m, msg)
@@ -2823,7 +2811,10 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	if msg.ForwardedAuthor != "" {
 		meta = append(meta, html.Span(html.Props{Class: "message-badge", Text: m.tf(KeyForwardedFrom, map[string]string{"name": msg.ForwardedAuthor})}))
 	}
-	lead := ui.Node(personButton(m, msg.AuthorID, msg.Author, "person-avatar-button", personAvatar(m, msg.AuthorID, msg.Author, "avatar")))
+	if tag := chatgate014Tag(m, msg); tag != nil {
+		meta = append(meta, tag)
+	}
+	lead := ui.Node(personButton(m, msg.AuthorID, msg.Author, "person-avatar-button", chatux047MessageAvatar(m, msg, "avatar")))
 	if msg.PersonaActor != nil && msg.PersonaActor.valid() {
 		lead = integrate1MessageAvatar(m, msg, "avatar")
 	}
@@ -2871,7 +2862,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	}
 	children := []ui.Node{
 		lead,
-		html.Div(html.Props{Class: "message-content"}, contentChildren...),
+		html.Div(html.Props{Class: chatux042MessageContentClass(msg)}, contentChildren...),
 	}
 	if chatRowActionsVisible(h.local, msg.ID) || menuOpen || m.PickerID == msg.ID {
 		children = append(children, html.Div(html.Props{Class: "message-actions", Role: "toolbar", Aria: map[string]string{"label": m.t(KeyMessageActions)}}, actions...))
@@ -2882,7 +2873,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	if msg.ID == m.FocusMessageID {
 		class += " search-target"
 	}
-	return html.Article(html.Props{Class: class, Data: map[string]string{"message-id": msg.ID}, Raw: map[string]any{"tabindex": "0"}}, children...)
+	return html.Article(html.Props{Class: class, Data: map[string]string{"message-id": msg.ID}, Aria: chattoneW10Aria(m, msg), Raw: map[string]any{"tabindex": "0"}}, children...)
 }
 
 func copyContentsMenuItem(m Model, msg Message) ui.Node {
@@ -2974,7 +2965,7 @@ func linkEmbeds(m Model, body string) []ui.Node {
 		} else if state == "unavailable" {
 			content = append(content, html.Span(html.Props{Text: m.t(KeyEmbedUnavailable)}))
 		} else {
-			content = append(content, html.Span(html.Props{Text: m.t(KeyEmbedLoading)}))
+			content = append(content, ChatLoadingFrame(LoadingFrame{Locale: m.Locale, Shape: LoadingShapeSection, Rows: 1, Status: m.t(KeyEmbedLoading)}))
 		}
 		key := locator.Token
 		if locator.LegacyPost != "" {
@@ -3023,7 +3014,7 @@ func composer(m Model, h handlers) ui.Node {
 		fieldAria["describedby"] = "composer-help"
 	}
 	fieldAria = modAuthorDescribe(m, h.local, ModAuthorKeyComposer(m.SelectedID), "chatmod002-blocked", fieldAria)
-	return html.Form(html.Props{Class: "chat-composer", Data: map[string]string{"send-capable": boolString((m.Callbacks.SendMessage != nil || m.Callbacks.SendMessageWithReferences != nil) && !disabled && m.Chatattach001.Ready()), "format-row": composerFormatState(m, h.local), "outside-mentions": itoa(len(h.mentionOutside))}, OnSubmit: h.composerSubmit, Aria: map[string]string{"label": m.t(KeyComposeRegion)}},
+	return html.Form(html.Props{Class: "chat-composer", Data: map[string]string{"send-capable": boolString((m.Callbacks.SendMessage != nil || m.Callbacks.SendMessageWithReferences != nil) && !disabled && m.Chatattach001.Ready()), "format-row": composerFormatState(m, h.local), "draft-empty": boolString(m.Draft == ""), "outside-mentions": itoa(len(h.mentionOutside))}, OnSubmit: h.composerSubmit, Aria: map[string]string{"label": m.t(KeyComposeRegion)}},
 		html.Label(html.Props{Class: "sr-only", For: id}, ui.Text(m.t(KeyMessage))),
 		mentionMenu(m, h.mentionView, id),
 		docSuggestMenu(m, h.local.docSuggest, id),
@@ -3031,6 +3022,7 @@ func composer(m Model, h handlers) ui.Node {
 		composerCommandMenuView(m, h.local.commandMenu, id, h.local.seq),
 		composerNotice(h.local.composerNotice),
 		chatcmd003PreviewFor(m, h.local.chatcmd003, id),
+		chattoneChipSlot(m, id),
 		html.Div(html.Props{Class: "composer-draft"}, composerAgentToken(h.composerAgentName),
 			html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: agentReplyDirection(m.Locale), Data: map[string]string{"chat-value": m.Draft, "draft-scope": m.SelectedID, "agent-indent": itoa((len([]rune(h.composerAgentName)) + 2) * 8)}, Disabled: disabled,
 				OnInput: h.composerInput, OnKeyDown: h.composerKey,
@@ -3040,6 +3032,7 @@ func composer(m Model, h handlers) ui.Node {
 		chatbug071OutsideNote(m, h.mentionOutside, id),
 		agentux070Row(m, h.local, h.composerRefs),
 		chatlangComposerLine(m),
+		chatgate014Composer(m, disabled),
 		chatattach001Drafts(m),
 		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewDraftEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
 		composerFormatRow(m, id, disabled),
@@ -3373,6 +3366,7 @@ func threadPane(m Model, h handlers) ui.Node {
 		mentionMenu(m, h.mentionView, "thread-composer"),
 		emojiCompletionMenu(m, h.local.emojiCompletion, "thread-composer"),
 		composerCommandMenuView(m, h.local.commandMenu, "thread-composer", h.local.seq),
+		chattoneChipSlot(m, "thread-composer"),
 		html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": m.ThreadDrafts[m.ThreadParentID]}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
 			Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil))))}),
 		modAuthorLine(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply"),

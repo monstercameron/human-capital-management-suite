@@ -239,6 +239,7 @@ migrationfiles:
   - 00726_agent_specialist_admission_binding.sql
   - 00727_worker_onboarding_snapshot.sql
   - 00730_agent_schedule_source.sql
+  - 00731_revoke_update_on_sealed_tables.sql
 entities:
   - entityref: ApprovalBinding/v1
     key: approval_binding

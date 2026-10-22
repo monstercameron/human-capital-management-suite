@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. Planned writes belong to the intent engine,
+// which the browser client must not carry.
+
 package compensation
 
 import (

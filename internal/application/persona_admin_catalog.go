@@ -74,19 +74,23 @@ type PersonaCatalogVersionReader interface {
 
 // PersonaCatalogInstallation is a tenant-scoped placement projection.
 type PersonaCatalogInstallation struct {
-	ID                 string
-	PersonaID          string
-	PersonaVersion     uint32
-	ConversationID     string
-	Conversation       string
-	Kind               string
-	Audience           string
-	ReplyPlacement     string
-	Active             bool
-	State              string
-	SuspensionReason   string
-	SuspensionMessage  string
-	RestartAvailable   bool
+	ID                string
+	PersonaID         string
+	PersonaVersion    uint32
+	ConversationID    string
+	Conversation      string
+	Kind              string
+	Audience          string
+	ReplyPlacement    string
+	Active            bool
+	State             string
+	SuspensionReason  string
+	SuspensionMessage string
+	RestartAvailable  bool
+	// RemovedBy and RemovedAt name who removed a retired placement and when
+	// (AGENTUX-037); empty for a placement nobody removed.
+	RemovedBy          string
+	RemovedAt          time.Time
 	ChannelClass       string
 	ConversationKind   string
 	MaxTier            agentskills.SideEffectTier
@@ -225,6 +229,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			installs = nil
 		}
 	}
+	removedPlacements := installs
 	installs = personaCatalogVisibleInstallations(installs)
 	for i := range installs {
 		installs[i] = ProjectPersonaCatalogInstallationRuntime(ctx, tenant, installs[i], s.Runtime)
@@ -409,6 +414,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			}
 			persona.Installations = append(persona.Installations, installation)
 		}
+		persona.RemovedPlacements = s.removedPlacements(ctx, tenant, persona.ID, removedPlacements, users, conversations)
 		out.Personas = append(out.Personas, persona)
 	}
 	if s.Targets != nil && s.Installations != nil && s.Skills != nil && s.Grants != nil && len(users) > 0 && len(conversations) > 0 {

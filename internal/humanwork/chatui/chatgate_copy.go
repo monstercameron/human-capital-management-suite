@@ -13,6 +13,11 @@ func GateText(locale, key string) string {
 	if _, ok := chatgateCopy[locale]; !ok {
 		locale = "en-US"
 	}
+	if words, ok := chatgateSegmentCopy[locale]; ok {
+		if value, ok := words[key]; ok {
+			return chatbug039Text(key, value, chatgateSegmentCopy["en-US"][key])
+		}
+	}
 	if extras, ok := chatgateExtraCopy[locale]; ok {
 		if value, ok := extras[key]; ok {
 			return chatbug039Text(key, value, chatgateExtraCopy["en-US"][key])

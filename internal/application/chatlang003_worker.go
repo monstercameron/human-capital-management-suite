@@ -113,6 +113,13 @@ func (p *ChatlangProducer) usage(ctx context.Context, in chatrender.Rendering, r
 
 // Produce implements chatrender.Producer for the translated kind.
 func (p *ChatlangProducer) Produce(ctx context.Context, in chatrender.Rendering) (chatrender.Rendering, error) {
+	started := time.Now()
+	out, err := p.produce(ctx, in)
+	p.recordPair(ctx, in, out, err, time.Since(started))
+	return out, err
+}
+
+func (p *ChatlangProducer) produce(ctx context.Context, in chatrender.Rendering) (chatrender.Rendering, error) {
 	if p == nil || p.Engine == nil || p.Store == nil || p.Screen == nil || p.perm == nil {
 		return chatrender.Rendering{}, chatrender.ErrUnavailable
 	}
@@ -132,6 +139,11 @@ func (p *ChatlangProducer) Produce(ctx context.Context, in chatrender.Rendering)
 		return chatrender.Rendering{}, err
 	}
 	original := chatui.AuthoredReaderText(facts.Body)
+	// After rewording, the reworded text is what is translated, so a reader who
+	// may not see the original is not given it in another language either.
+	if chatrenderKindsInclude(in.Kinds, chatrender.Reword) && in.Text != "" {
+		original = in.Text
+	}
 	workspace, err := p.Store.ChatlangWorkspace(ctx, in.Tenant)
 	if err != nil {
 		return chatrender.Rendering{}, err
@@ -256,18 +268,23 @@ func (a ChatlangAuthority) AuthorizeRenderingJob(ctx context.Context, job chatre
 	if err != nil {
 		return err
 	}
-	reason, err := a.Governance.Permit(ctx, r.Tenant, facts.Conversation, chatrender.Language(r.Language))
-	if err != nil {
-		return err
-	}
-	if reason != chatlang.Allowed {
-		a.perm.mark(r, string(reason))
-		return fmt.Errorf("%w: %s", chatrender.ErrDenied, reason)
-	}
-	// CHATLANG-006: a pair the quality gate withholds is not translated.
-	if a.Governance.PairDecision(r.SourceLanguage, r.Language) == chatlang.GateWithhold {
-		a.perm.mark(r, "quality gate")
-		return fmt.Errorf("%w: quality gate", chatrender.ErrDenied)
+	// A job that only rewords (CHATTONE) is not a translation: the workspace's and
+	// the channel's translation switches and the pair's quality gate do not apply
+	// to it, the reword settings were applied when the job was asked for.
+	if chatlangJobTranslates(r) {
+		reason, err := a.Governance.Permit(ctx, r.Tenant, facts.Conversation, chatrender.Language(r.Language))
+		if err != nil {
+			return err
+		}
+		if reason != chatlang.Allowed {
+			a.perm.mark(r, string(reason))
+			return fmt.Errorf("%w: %s", chatrender.ErrDenied, reason)
+		}
+		// CHATLANG-006: a pair the quality gate withholds is not translated.
+		if a.Governance.PairDecision(r.SourceLanguage, r.Language) == chatlang.GateWithhold {
+			a.perm.mark(r, "quality gate")
+			return fmt.Errorf("%w: quality gate", chatrender.ErrDenied)
+		}
 	}
 	clean, err := a.Screen.Clean(ctx, facts, chatui.AuthoredReaderText(facts.Body))
 	if err != nil {
@@ -295,13 +312,17 @@ func (l ChatlangUsageLedger) ReserveRendering(ctx context.Context, job chatrende
 	if l.Governance == nil || r.Message == "" {
 		return "", chatrender.ErrInvalid
 	}
-	spent, limit, err := l.Governance.Budget(ctx, r.Tenant)
-	if err != nil {
-		return "", err
-	}
-	if spent >= limit {
-		l.perm.mark(r, "monthly limit reached")
-		return "", chatlang.ErrBudget
+	// The monthly limit is the translation budget; a reword-only job is held by
+	// the platform's own model budget instead.
+	if chatlangJobTranslates(r) {
+		spent, limit, err := l.Governance.Budget(ctx, r.Tenant)
+		if err != nil {
+			return "", err
+		}
+		if spent >= limit {
+			l.perm.mark(r, "monthly limit reached")
+			return "", chatlang.ErrBudget
+		}
 	}
 	return "chatlang:" + r.Tenant + ":" + r.Message + ":" + strconv.FormatUint(r.Revision, 10) + ":" + r.Language + ":" + uuid.NewString(), nil
 }
@@ -320,6 +341,9 @@ type ChatlangRuntime struct {
 	Poll        time.Duration
 	Concurrency int
 	Logger      interface{ Error(string, ...any) }
+	// Startup, when set, runs once in the background as the workers start (the
+	// quality gate, when asked for).
+	Startup func(context.Context)
 }
 
 // NewChatlangRuntime puts the worker together over the chat store, the
@@ -370,6 +394,9 @@ func (r *ChatlangRuntime) Run(ctx context.Context) error {
 	poll := r.Poll
 	if poll <= 0 {
 		poll = 100 * time.Millisecond
+	}
+	if r.Startup != nil {
+		go r.Startup(ctx)
 	}
 	var wg sync.WaitGroup
 	for _, tenant := range r.Tenants {

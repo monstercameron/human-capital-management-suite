@@ -30,7 +30,7 @@ import (
 func chatscaleEligible(alias string) string {
 	return ` p.tenant_id=$1 AND p.conversation_id=` + alias + `.conversation_id AND NOT p.tombstoned
  AND NOT (p.author_home_tenant_id=$2 AND p.author_id=$3)
- AND (` + alias + `.history_visibility='FULL_HISTORY' OR (` + alias + `.history_visibility='FROM_JOIN' AND p.created_at>=` + alias + `.joined_at))`
+ AND (` + alias + `.history_visibility='FULL_HISTORY' OR (` + alias + `.history_visibility='FROM_JOIN' AND p.created_at>=` + alias + `.joined_at))` + chatgateCountAudience
 }
 
 const chatscaleMentionsMe = `jsonb_build_array(jsonb_build_object('Kind','PERSON_MENTION','TenantID',$2::text,'ID',$3::text))`

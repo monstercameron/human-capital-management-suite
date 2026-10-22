@@ -322,7 +322,7 @@ func TestTodo_WEB_033_Integration(t *testing.T) {
 	productResponse := httptest.NewRecorder()
 	h.serveProduct(productResponse, productRequest)
 	// CHATBUG-014: the served document links its stylesheet at its own address.
-	if productResponse.Code != http.StatusOK || productResponse.Header().Get("Content-Security-Policy") != productContentSecurityPolicyForStyleAsset("cell.test", defaultServedStylesheet().name, false) {
+	if productResponse.Code != http.StatusOK || productResponse.Header().Get("Content-Security-Policy") != productContentSecurityPolicyForStyleAssets("cell.test", []string{defaultServedStylesheet().name, chatStylesheet().name}, false) {
 		t.Fatalf("product response status/CSP = %d/%q", productResponse.Code, productResponse.Header().Get("Content-Security-Policy"))
 	}
 

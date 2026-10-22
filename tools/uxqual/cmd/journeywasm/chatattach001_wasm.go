@@ -401,6 +401,10 @@ func (b *chatattach001Bridge) send(scope, body string, mentions []chatui.ChatRef
 	if !b.current() || chatBrowser.selectedID() != room {
 		return
 	}
+	// CHATGATE-014: a message for one group does not carry files.
+	if parent == "" && chatgateAudienceRefused() {
+		return
+	}
 	refs, identity, ok := b.state.begin(scope, b.cfg.Tenant, body, mentions)
 	if !ok {
 		return

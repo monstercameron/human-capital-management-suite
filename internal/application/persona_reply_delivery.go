@@ -147,7 +147,7 @@ func (d *PersonaReplyDelivery) deliverPublic(ctx context.Context, request Person
 	}
 	decision.Body = renderPersonaReplyWithAgentDocuments(decision.Body, identity.TenantID, identity.ConversationID, d.outputPolicy, announcementPublicSourceTitles(request.Output, request.Documents), nil, request.CitationDetails...)
 	if request.NotFromDocuments && decision.Body != "" {
-		decision.Body += "\n\n" + chat.UngroundedNote
+		decision.Body += "\n" + chat.UngroundedMark()
 	}
 	if decision.Body == "" {
 		personaReplyFallbackNote(ctx, "rendered_body_empty", "")

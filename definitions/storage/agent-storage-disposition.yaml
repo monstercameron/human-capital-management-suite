@@ -51,7 +51,11 @@ sources:
   - internal/data/agentstore/migrations/00044_agentux_demo_effects.sql
   - internal/data/agentstore/migrations/00045_agentux_demo_sources.sql
   - internal/data/agentstore/migrations/00046_agentux_demo_project_grant.sql
+  - internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+  - internal/data/agentstore/migrations/00048_persona_invocation_attempts.sql
   - internal/data/agentstore/migrations/00049_agentux_reaction_setting.sql
+  - internal/data/agentstore/migrations/00050_persona_invocation_mention_limit.sql
+  - internal/data/agentstore/migrations/00051_agentux078_server_has_no_model_failure.sql
 
 defaults:
   plane: AGENT_DATA
@@ -819,3 +823,63 @@ tables:
     owner_package: internal/data/agentinvocationstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: agent_spend_limits
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+    owner_package: internal/data/agentcoststore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_run_costs
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+    owner_package: internal/data/agentcoststore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_spend_limit_audit
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+    owner_package: internal/data/agentcoststore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_connection_drafts
+    plane: AGENT_DATA
+    data_role: CONTROL
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: OPERATIONAL
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+    owner_package: internal/data/agentconsolestore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: agent_connection_console_audit
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
+    owner_package: internal/data/agentconsolestore
+    tenant_scoping_column: tenant_id
+    append_only: true

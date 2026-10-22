@@ -791,8 +791,9 @@ func TestTodo_CHATBUG_036_Browser(t *testing.T) {
 		{"general", "dialog", `^Chat preferences$`, true},
 		{"general", "region", `^Quiet hours$`, true},
 		{"general", "switch", `^Pause notifications overnight$`, true},
-		{"general", "region", `^Reading language$`, true},
-		{"general", "button", `^Change$`, true},
+		{"general", "region", `^Reading languages$`, true},
+		{"general", "combobox", `^Reading language$`, true}, // CHATUX-031: a select that saves on change replaced the Change button
+		{"general", "button", `^Change$`, false},
 		{"general", "button", `^New conversation$`, true},
 		{"general", "button", `^Open conversations$`, true},
 		{"general", "button", `^Public channel general$`, true},

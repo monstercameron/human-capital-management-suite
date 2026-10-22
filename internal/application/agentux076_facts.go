@@ -239,7 +239,7 @@ func personaAgentFactsFor(ctx context.Context, resolver agentdocref.Resolver, ad
 func personaAgentFactsText(profile agentpersona.PersonaProfile, placed, workspace, general bool) string {
 	var b strings.Builder
 	line := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
-	line("Facts about you, from your published profile. Answer questions about yourself (who you are, what you can do, who looks after you, what you will not do) and about which documents you can read from these facts and from the document list that follows. Do not search documents to answer them.")
+	line("Facts about you, from your published profile. Questions about yourself (who you are, what you can do, who looks after you, what you will not do) and about which documents you can read in this conversation are answered from these facts and from the document list that follows, in the language of the question. For those questions never call a search tool, and ignore any earlier instruction to search first: a keyword search of the question's own words finds nothing useful. Name the documents you list by their exact titles.")
 	line("Your name: %s", oneLine(profile.DisplayName))
 	if purpose := oneLine(profile.Purpose); purpose != "" {
 		line("Your purpose: %s", purpose)

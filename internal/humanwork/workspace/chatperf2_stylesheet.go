@@ -30,8 +30,11 @@ import (
 // refused, and inline style elements are still refused outright.
 
 const (
-	productStylesheetAssetPrefix = "product-"
-	productStylesheetAssetSuffix = ".css"
+	productStylesheetAssetPrefix = productui.ControlStylesheetAssetPrefix
+	productStylesheetAssetSuffix = productui.StylesheetAssetSuffix
+	// chatStylesheetAssetPrefix starts the name of Chat's own sheet, which only
+	// a Chat page links (see chatStylesheet).
+	chatStylesheetAssetPrefix = productui.ChatStylesheetAssetPrefix
 	// productStylesheetCacheLimit bounds the customer sheets one process
 	// keeps. A sheet that has been dropped is built again from the viewer's
 	// stored theme when it is asked for.
@@ -53,10 +56,14 @@ type servedStylesheet struct {
 }
 
 func newServedStylesheet(body string) *servedStylesheet {
+	return newServedStylesheetWithPrefix(productStylesheetAssetPrefix, body)
+}
+
+func newServedStylesheetWithPrefix(prefix, body string) *servedStylesheet {
 	sum := sha256.Sum256([]byte(body))
 	digest := hex.EncodeToString(sum[:])
 	return &servedStylesheet{
-		name:      productStylesheetAssetPrefix + digest + productStylesheetAssetSuffix,
+		name:      prefix + digest + productStylesheetAssetSuffix,
 		body:      body,
 		integrity: "sha256-" + base64.StdEncoding.EncodeToString(sum[:]),
 		etag:      `"` + digest + `"`,
@@ -87,6 +94,13 @@ func (s *servedStylesheet) linkElement() string {
 	return `<link rel="stylesheet" href="` + PathAssetPrefix + s.name + `" integrity="` + s.integrity + `">`
 }
 
+// metaElement is the head element of a document that does not link the sheet:
+// it names the address and integrity value so the client can load it later
+// (productui.ChatStylesheetMetaName).
+func (s *servedStylesheet) metaElement() string {
+	return `<meta name="` + productui.ChatStylesheetMetaName + `" content="` + PathAssetPrefix + s.name + `" data-integrity="` + s.integrity + `">`
+}
+
 // inlineElement is the head element of a document that carries the sheet
 // itself, for a host the policy cannot name an address on.
 func (s *servedStylesheet) inlineElement() string {
@@ -96,10 +110,19 @@ func (s *servedStylesheet) inlineElement() string {
 // productStylesheetAssetName reports whether name has the form of a product
 // stylesheet address: the prefix, 64 lower-case hex digits, the suffix.
 func productStylesheetAssetName(name string) bool {
-	if !strings.HasPrefix(name, productStylesheetAssetPrefix) || !strings.HasSuffix(name, productStylesheetAssetSuffix) {
+	return stylesheetAssetNameWithPrefix(name, productStylesheetAssetPrefix)
+}
+
+// chatStylesheetAssetName is productStylesheetAssetName for Chat's sheet.
+func chatStylesheetAssetName(name string) bool {
+	return stylesheetAssetNameWithPrefix(name, chatStylesheetAssetPrefix)
+}
+
+func stylesheetAssetNameWithPrefix(name, prefix string) bool {
+	if !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, productStylesheetAssetSuffix) {
 		return false
 	}
-	digest := name[len(productStylesheetAssetPrefix) : len(name)-len(productStylesheetAssetSuffix)]
+	digest := name[len(prefix) : len(name)-len(productStylesheetAssetSuffix)]
 	if len(digest) != hex.EncodedLen(sha256.Size) {
 		return false
 	}
@@ -115,6 +138,15 @@ func productStylesheetAssetName(name string) bool {
 // own. It is the same for the life of the process.
 var defaultServedStylesheet = sync.OnceValue(func() *servedStylesheet {
 	return newServedStylesheet(productStylesheet())
+})
+
+// chatStylesheet is Chat's rules as a sheet of their own. They do not depend on
+// the tenant's theme, so every tenant is served the same one. A document links
+// it only on a Chat page; every other document names its address (a meta
+// element and the content security policy) so the client can load it on the
+// way into Chat.
+var chatStylesheet = sync.OnceValue(func() *servedStylesheet {
+	return newServedStylesheetWithPrefix(chatStylesheetAssetPrefix, productui.ChatStylesheet())
 })
 
 // productStylesheets holds the customer sheets a handler has built. The zero
@@ -171,6 +203,9 @@ func (c *productStylesheets) forTheme(theme productui.CustomerTheme) (*servedSty
 // named returns the held sheet served under name, or nil.
 func (c *productStylesheets) named(name string) *servedStylesheet {
 	if sheet := defaultServedStylesheet(); sheet.name == name {
+		return sheet
+	}
+	if sheet := chatStylesheet(); sheet.name == name {
 		return sheet
 	}
 	c.mu.Lock()
@@ -244,16 +279,25 @@ func (h *Handler) serveProductStylesheet(w http.ResponseWriter, r *http.Request,
 	_, _ = w.Write(body)
 }
 
-// productDocumentStyle chooses how a workspace document carries its sheet and
-// returns the head element with the policy that admits exactly that. The
-// sheet is linked whenever the policy can name its address. A host the policy
-// cannot express (see sanitizeHostAuthority) keeps the inline sheet and its
-// hash, as before.
-func productDocumentStyle(host string, sheet *servedStylesheet, allowGiphy bool) (element, policy string) {
+// productDocumentStyle chooses how a workspace document carries its sheets and
+// returns the head elements with the policy that admits exactly those. The
+// control sheet is linked whenever the policy can name its address; Chat's
+// sheet is linked on a Chat page and only named (a meta element, and the same
+// address in the policy) on every other page, so the client can load it before
+// it first paints Chat. A host the policy cannot express (see
+// sanitizeHostAuthority) keeps both sheets inline, each with its hash.
+func productDocumentStyle(host string, sheet *servedStylesheet, page productui.PageID, allowGiphy bool) (element, policy string) {
+	chat := chatStylesheet()
 	if sanitizeHostAuthority(host) == "" {
-		return sheet.inlineElement(), productContentSecurityPolicyForHashAndGiphy(host, sheet.integrity, allowGiphy)
+		return sheet.inlineElement() + chat.inlineElement(), productContentSecurityPolicyForHashesAndGiphy(host, []string{sheet.integrity, chat.integrity}, allowGiphy)
 	}
-	return sheet.linkElement(), productContentSecurityPolicyForStyleAsset(host, sheet.name, allowGiphy)
+	element = sheet.linkElement()
+	if productui.PageNeedsChatStylesheet(page) {
+		element += chat.linkElement()
+	} else {
+		element += chat.metaElement()
+	}
+	return element, productContentSecurityPolicyForStyleAssets(host, []string{sheet.name, chat.name}, allowGiphy)
 }
 
 // cspStyleAssetSource is the one stylesheet address a linking document admits:
@@ -261,7 +305,7 @@ func productDocumentStyle(host string, sheet *servedStylesheet, allowGiphy bool)
 // trailing slash matches only that path, so no other stylesheet on the origin
 // is admitted. An omitted scheme follows the document's own.
 func cspStyleAssetSource(rawHost, name string) string {
-	if !productStylesheetAssetName(name) {
+	if !productStylesheetAssetName(name) && !chatStylesheetAssetName(name) {
 		return ""
 	}
 	authority := sanitizeHostAuthority(rawHost)

@@ -110,7 +110,7 @@ func chatlang004Watch(ctx context.Context, cfg journeyclient.Config, room string
 			shown[msg.ID] = true
 		}
 		var ids []string
-		for _, id := range chatlang004Unsettled(m.ReaderSelections) {
+		for _, id := range readerUnsettled(m.ReaderSelections) {
 			if shown[id] {
 				ids = append(ids, id)
 			}
@@ -155,6 +155,6 @@ func chatlang004Watch(ctx context.Context, cfg journeyclient.Config, room string
 				chatStreamRender.Schedule()
 			}
 		})
-		return tries >= 12 || len(chatlang004Unsettled(answered)) == 0
+		return tries >= 12 || len(readerUnsettled(answered)) == 0
 	})
 }

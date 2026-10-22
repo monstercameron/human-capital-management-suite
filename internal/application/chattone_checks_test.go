@@ -173,6 +173,19 @@ func TestTodo_CHATTONE_004_MeaningGuard(t *testing.T) {
 		{"short drafts are not judged on topic", "Fix it now", "Please fix it now", true},
 		{"german negation", "Nein, das Budget wird nicht freigegeben", "Das Budget wird freigegeben", false},
 		{"german kept", "Nein, das Budget wird nicht freigegeben", "Nein, das Budget wird derzeit nicht freigegeben", true},
+		// A future tense on what the writer already said of the same subject is
+		// grammar; the same word on something the writer asked of someone else is a
+		// promise the writer did not make.
+		{"tense only", "Send me the ticket number by 17:00 or I escalate to the director", "Send me the ticket number by 17:00, or I will escalate to the director.", true},
+		{"tense only, contraction", "Send me the ticket number by 17:00 or I escalate to the director", "Send me the ticket number by 17:00, or I'll escalate to the director.", true},
+		{"a request is not made a promise", "Fix the broken deploy pipeline today", "I will fix the broken deploy pipeline today", false},
+		// A "No," said beside a clause that carries its own negation may go; the
+		// clause's own negation may not, and a draft that says no is never
+		// answered by a rewrite that does not.
+		{"repeated no", "No, no voy a aprobar los 2.500 euros hasta que Finanzas responda", "No voy a aprobar los 2.500 euros hasta que Finanzas responda.", true},
+		{"german aside dropped", "Der Termin bleibt, und nein, ich verschiebe ihn nicht", "Der Termin bleibt bestehen, und ich verschiebe ihn nicht.", true},
+		{"the only no is not dropped", "No, send the schedule review today", "Send the schedule review today", false},
+		{"a negation is not added", "Das Deployment ist schon wieder kaputt", "Das Deployment funktioniert erneut nicht", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			answer, err := guard.Check(context.Background(), chatrewrite.MeaningQuestion{Identity: chatrewrite.Identity{Tenant: "t", Person: "p", Conversation: "c"}, Original: tc.original, Rewrite: tc.rewrite, Question: chatrewrite.PreservationQuestion})

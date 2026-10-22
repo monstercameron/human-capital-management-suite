@@ -259,6 +259,15 @@ func pinResizedChatLists(doc js.Value) {
 			anchor := list.Call("getAttribute", "data-chat-thread-anchor")
 			if anchor.Type() == js.TypeString && anchor.String() != "" && (list.Get("__chatThreadAnchor").Type() != js.TypeString || list.Get("__chatThreadAnchor").String() != anchor.String()) {
 				list.Set("__chatThreadAnchor", anchor)
+				// CHATUX-051: a thread opens on its parent, not on its newest reply.
+				// The reader is held at the top until they scroll or send a reply.
+				if list.Get("classList").Call("contains", "thread-scroll").Truthy() {
+					list.Set("scrollTop", 0)
+					list.Set("__chatScrollTop", 0)
+					list.Set("__chatNearBottom", false)
+					list.Set("__chatScrollAwayIntent", true)
+					continue
+				}
 				list.Set("__chatScrollAwayIntent", false)
 			}
 		}

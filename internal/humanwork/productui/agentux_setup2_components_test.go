@@ -194,7 +194,7 @@ func TestAgentUXSetup2_AccessCheckHeaderEditAndResponsiveStyles(t *testing.T) {
 	snapshot.Preview = PersonaAdminPreview{Subject: "Walt Brennan", Conversation: "general", EffectiveSkills: []PersonaAdminSkill{{ID: "persona.chat_reply"}}, DerivedData: []string{"POLICY_DOCUMENT"}, ReplyPlacement: "private", Audience: "employees"}
 	markup := personaAdminRender(t, PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, State: PersonaAdminReady, Snapshot: snapshot, Client: &personaAdminTestClient{}}))
 	for _, want := range []string{
-		`href="/workspace/app/admin">Admin</a>`, `aria-current="page" class="muted">Agents</span>`, "conversations (channels and direct messages)", "Each card shows what the agent can do and how close it is to being available.", "Test what an agent can do for someone", "Pick a person and a conversation", `data-persona-preview-check="true"`, ">Check</button>",
+		`href="/workspace/app/admin">Admin</a>`, `aria-current="page">Agent setup</span>`, "conversations (channels and direct messages)", "Each card shows what the agent can do, who can use it and where it is in use.", "Test what an agent can do for someone", "Pick a person and a conversation", `data-persona-preview-check="true"`, ">Check</button>",
 		`In <bdi dir="ltr">#general</bdi>, for Walt Brennan, Policy Helper can read: Policy documents. It can: reply in the conversation.`, `data-persona-editor-toggle="persona-admin-version-policy-helper"`, "Creates version 5 as a draft. Version 4 stays live until you publish.", `popovertarget="persona-admin-more-policy-helper"`, "Version history", "Setup", "Operations", "Ask it a question",
 	} {
 		if !strings.Contains(markup, want) {

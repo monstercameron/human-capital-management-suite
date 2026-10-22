@@ -135,7 +135,7 @@ func chatStreamError(err error) error {
 		return fmt.Errorf("chat stream cursor: %w: %w", chatcore.ErrInvalidArgument, err)
 	case errors.Is(err, chatstream.ErrUnauthorized), errors.Is(err, chatstream.ErrRevoked):
 		return fmt.Errorf("chat stream authority: %w: %w", chatcore.ErrPermissionDenied, err)
-	case errors.Is(err, chatadmission.ErrOverloaded), errors.Is(err, chatstream.ErrBackpressure), errors.Is(err, chatstream.ErrClosed):
+	case errors.Is(err, chatadmission.ErrOverloaded), errors.Is(err, chatstream.ErrBackpressure), errors.Is(err, chatstream.ErrClosed), errors.Is(err, chatstream.ErrAuthorityUnavailable):
 		return fmt.Errorf("chat stream capacity: %w: %w", chatcore.ErrUnavailable, err)
 	case errors.Is(err, chatstream.ErrInvalidConfig):
 		return fmt.Errorf("chat stream configuration: %w: %w", ErrChatStreamingDisabled, err)
@@ -254,14 +254,23 @@ func (a chatServiceStreamAuthorizer) Authorize(ctx context.Context, access chats
 	}
 	principal := chatcore.Principal{TenantID: home, SubjectID: access.SubjectID}
 	if _, err := a.service.GetConversation(ctx, chatcore.GetConversationRequest{Principal: principal, TenantID: access.TenantID, ConversationID: access.ConversationID}); err != nil {
-		return err
+		if chatAuthorityDenial(err) {
+			return err
+		}
+		return chatAuthorityError(err)
 	}
 	epoch, err := chatMembershipEpoch(ctx, a.service, a.membership, access.TenantID, access.ConversationID, principal)
-	if err != nil || epoch != access.MembershipEpoch {
+	if err != nil {
+		return chatAuthorityError(err)
+	}
+	if epoch != access.MembershipEpoch {
 		return chatcore.ErrPermissionDenied
 	}
 	routeEpoch, err := chatRouteEpoch(ctx, a.service, access.TenantID, access.ConversationID)
-	if err != nil || routeEpoch != access.RouteEpoch {
+	if err != nil {
+		return chatAuthorityError(err)
+	}
+	if routeEpoch != access.RouteEpoch {
 		return chatcore.ErrPermissionDenied
 	}
 	return nil
@@ -280,7 +289,10 @@ func chatMembershipEpoch(ctx context.Context, service chatcore.ConversationServi
 	}
 	if resolver != nil {
 		member, err := resolver.GetMembership(ctx, tenantID, conversationID, principal.TenantID, principal.SubjectID)
-		if err != nil || member.LeftAt != nil {
+		if err != nil {
+			return 0, chatAuthorityError(err)
+		}
+		if member.LeftAt != nil {
 			return 0, chatcore.ErrPermissionDenied
 		}
 		return member.Revision, nil
@@ -322,6 +334,8 @@ type streamingChatService struct {
 	// only when no projector is bound: the projector (the core service) masks
 	// as part of its own projection (CHATMOD-002).
 	masker chatWatchMasker
+	// identities names the people and agents a listing carries (CHATUX-047).
+	identities chatIdentitySource
 }
 
 // chatWatchMasker is the reader's masked view of one live watch event.
@@ -556,7 +570,20 @@ func (s *streamingChatService) ReadAuthorizedReference(ctx context.Context, p ch
 	if !ok {
 		return chatcore.Conversation{}, nil, chatcore.ErrUnavailable
 	}
-	return reader.ReadAuthorizedReference(ctx, p, tenant, conversation, post)
+	room, found, err := reader.ReadAuthorizedReference(ctx, p, tenant, conversation, post)
+	if err != nil || found == nil {
+		return room, found, err
+	}
+	// What leaves the service shows a post as the reader may read it (a project
+	// link's preview, for one). Chat's own rendering policy reads the stored body
+	// below this layer, on the routed service.
+	if hider, ok := s.masker.(interface {
+		HideUnreadableOriginal(context.Context, chatcore.Principal, chatcore.Post) chatcore.Post
+	}); ok {
+		shown := hider.HideUnreadableOriginal(ctx, p, *found)
+		found = &shown
+	}
+	return room, found, nil
 }
 
 func (s *streamingChatService) ForwardPost(ctx context.Context, r chatcore.ForwardPostRequest) (chatcore.Post, error) {
@@ -603,7 +630,7 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 	}
 	epoch, err := chatMembershipEpoch(ctx, s.ConversationService, s.membership, req.TenantID, req.ConversationID, req.Principal)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, chatStreamError(err)
 	}
 	routeEpoch, err := chatRouteEpoch(ctx, s.ConversationService, req.TenantID, req.ConversationID)
 	if err != nil {

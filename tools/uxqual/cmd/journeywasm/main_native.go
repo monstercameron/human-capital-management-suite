@@ -170,19 +170,74 @@ func build(outDir string, stdout io.Writer) error {
 		return fmt.Errorf("creating a directory for the fetch-only overlay: %w", err)
 	}
 	defer os.RemoveAll(overlayDir)
+	fetchOnlyPath := ""
 	switch overlay, overlayErr := writeFetchOnlyOverlay(goBin, overlayDir); {
 	case overlayErr == nil:
-		args = append(args, "-overlay="+overlay)
+		fetchOnlyPath = overlay
 	case errors.Is(overlayErr, errFetchOnlyUnavailable):
 		fmt.Fprintf(stdout, "journeywasm: building without the fetch-only net/http, the module will carry the TLS stack: %v\n", overlayErr)
 	default:
 		return overlayErr
 	}
-	cmd := exec.Command(goBin, append(args, "-o", wasmPath, wasmPackage)...)
-	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	// The build's own diagnostics are the useful part of a failure, so they
-	// are carried into the error rather than discarded.
-	output, err := cmd.CombinedOutput()
+	// The stand-in crypto/tls and crypto/x509 (clientnotls_overlay.go) go into
+	// the same overlay, because the go command takes only one.
+	overlayPath := fetchOnlyPath
+	standIns, standErr := clientNoTLSReplacements(goBin, overlayDir)
+	switch {
+	case standErr == nil:
+		overlayPath = filepath.Join(overlayDir, "client-overlay.json")
+		if fetchOnlyPath != "" {
+			body, err := os.ReadFile(fetchOnlyPath)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(overlayPath, body, 0o644); err != nil {
+				return err
+			}
+		}
+		if err := mergeOverlay(overlayPath, standIns); err != nil {
+			return err
+		}
+	case errors.Is(standErr, errClientNoTLSUnavailable):
+		fmt.Fprintf(stdout, "journeywasm: building without the stand-in crypto/tls, the module will carry the TLS stack: %v\n", standErr)
+	default:
+		return standErr
+	}
+	// The compact product catalog (catalogcompact_overlay.go) goes into it too.
+	catalog, catalogStats, catalogErr := compactCatalogReplacements(goBin, overlayDir)
+	switch {
+	case catalogErr == nil:
+		if overlayPath == "" {
+			overlayPath = filepath.Join(overlayDir, "client-overlay.json")
+		}
+		if err := mergeOverlay(overlayPath, catalog); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "journeywasm: %d text tables (%d entries) in %d files built in compact form\n", catalogStats.literals, catalogStats.entries, catalogStats.files)
+	case errors.Is(catalogErr, errCatalogCompactUnavailable):
+		fmt.Fprintf(stdout, "journeywasm: building with the product catalog as written, the module will carry its tables: %v\n", catalogErr)
+	default:
+		return catalogErr
+	}
+	compile := func(overlay string) ([]byte, error) {
+		buildArgs := args
+		if overlay != "" {
+			buildArgs = append(append([]string{}, args...), "-overlay="+overlay)
+		}
+		cmd := exec.Command(goBin, append(buildArgs, "-o", wasmPath, wasmPackage)...)
+		cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
+		// The build's own diagnostics are the useful part of a failure, so they
+		// are carried into the error rather than discarded.
+		return cmd.CombinedOutput()
+	}
+	output, err := compile(overlayPath)
+	if err != nil && (standErr == nil || catalogErr == nil) {
+		// A newer gRPC or x/net can name something the stand-ins lack, and an
+		// edit to the catalog's file can break the compact form. That is a
+		// larger bundle, not a broken build: say why and build without them.
+		fmt.Fprintf(stdout, "journeywasm: the build with the client overlays did not compile, building without them:\n%s\n", output)
+		output, err = compile(fetchOnlyPath)
+	}
 	if err != nil {
 		if len(output) > 0 {
 			return fmt.Errorf("building %s for js/wasm: %w\n%s", wasmPackage, err, output)

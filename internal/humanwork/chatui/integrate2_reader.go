@@ -7,6 +7,11 @@ type ReaderSelection struct {
 	Revision  uint64               `json:"revision"`
 	Rendering chatrender.Rendering `json:"rendering"`
 	Mark      chatrender.Mark      `json:"mark"`
+	// OthersSee is sent only for the caller's own message, when it is reworded for
+	// others (CHATTONE-002). Inaccurate says the translation shown is of a language
+	// pair that passed only the lower quality mark (CHATLANG-006).
+	OthersSee  *ReaderOthersSee `json:"others_see,omitempty"`
+	Inaccurate bool             `json:"inaccurate,omitempty"`
 }
 
 // ReaderRendering carries admitted policy without changing the authored body.

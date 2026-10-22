@@ -166,8 +166,8 @@ func TestTodo_AGENTUX_074_SetupNeverTellsAnAdministratorToAskOne(t *testing.T) {
 	}
 	english := ResolveProductLocale("en-US")
 	nobody := personaAdminRender(t, personaAdminNoStarterNotice(english, nil, "ir-001-walt-brennan"))
-	if strings.Contains(nobody, "Ask the person who manages") || strings.Contains(nobody, "Ask your") || !strings.Contains(nobody, "this build ships with none") || !strings.Contains(nobody, "choose Edit on its card") {
-		t.Fatalf("with nobody to name, the notice must say plainly that no template ships: %s", nobody)
+	if strings.Contains(nobody, "Ask the person who manages") || strings.Contains(nobody, "Ask your") || !strings.Contains(nobody, "You can edit any agent below") || !strings.Contains(nobody, "choose Edit on its card") {
+		t.Fatalf("with nobody to name, the notice must say what an administrator can do here: %s", nobody)
 	}
 	// Someone else looks after the installation: they are named, with a way to
 	// reach them.

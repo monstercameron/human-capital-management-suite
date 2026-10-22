@@ -237,7 +237,7 @@ func Chatbug039SurfacesForTest(t *testing.T, catalog Model) map[string]string {
 		add("language settings", RenderingSettings(RenderingSettingsModel{Locale: m.Locale}))
 		add("writing style toolbar", RenderChattoneToolbar(ChattoneToolbarProps{Locale: m.Locale, Enabled: true, Styles: chatrewrite.DefaultStyles(), Draft: "Please check this policy"}))
 		add("voice player", RenderVoicePlayer(VoicePlayerProps{Locale: m.Locale, ID: "voice", URL: "/media/voice", DurationMS: 1000}))
-		add("writing style preview", RenderChattonePreview(ChattonePreviewProps{Locale: m.Locale, Original: "Original", Rewritten: "Reviewed", ShowChanges: true}))
+		add("writing style preview", RenderChattonePreview(ChattonePreviewProps{Locale: m.Locale, Original: "Original", Rewritten: "Reviewed", StyleName: ChattoneText(m.Locale, "professional"), Edited: true}))
 		add("voice composer", RenderVoiceComposer(VoiceComposerProps{Locale: m.Locale, ConversationID: m.SelectedID, Enabled: true}))
 		add("language status", RenderingLanguageStatusIndicator(m.Locale, map[string]int{"en": 2, "de": 1}, false, false))
 		add("language view", RenderingView(m.Locale, chatrender.Rendering{Text: "Reviewed translation"}, chatrender.Mark{State: "ready", Kinds: []chatrender.Kind{chatrender.Translate}, SourceLanguage: "en", CanShowOriginal: true}, ui.Handler{}, ui.Handler{}))

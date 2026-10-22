@@ -140,6 +140,8 @@ func (g *AgentModelGateway) Dispatch(ctx context.Context, req AgentModelGatewayR
 		}
 	}
 	ctx = context.WithValue(ctx, openAIModelDispatchContextKey{}, openAIModelDispatchBinding{tenant: req.TenantID, runID: req.Dispatch.Outbound.TaskID, stepID: req.Route.TraceID})
+	// AGENTUX-076: the field checks of this one request share what they check against.
+	ctx = withOpenAIModelDispatchMemo(ctx)
 	route, err := g.router.Route(ctx, req.Route)
 	if err != nil {
 		return AgentModelGatewayResult{}, err
@@ -204,6 +206,9 @@ func (g *AgentModelGateway) Dispatch(ctx context.Context, req AgentModelGatewayR
 		}
 		usage := agentbudget.Usage{Steps: 1, Tokens: dispatched.Model.Usage.TotalTokens, SpendMicros: dispatched.Model.Usage.CostMicros, WallClock: time.Since(started)}
 		if err := reservation.Settle(usage); err != nil {
+			// A refused settlement (usage above what was reserved) leaves the
+			// reservation open; release it so the capacity is not held until restart.
+			_ = reservation.Fail()
 			return AgentModelGatewayResult{}, fmt.Errorf("%w: %w", agentmodel.ErrBudgetFailed, err)
 		}
 	} else if err := reservation.Fail(); err != nil {

@@ -18,7 +18,13 @@ defaults:
     owner_todos: [AGENTP-003, AGENTP-005, AGENTP-008, AGENTP-009]
     mode: ON_BEHALF_OF
     principal: INVOKER
-    authority_intersection: [persona_version_skill_pins, installation_grant, channel_policy_ceiling, invoker_current_authority]
+    authority_intersection:
+      [
+        persona_version_skill_pins,
+        installation_grant,
+        channel_policy_ceiling,
+        invoker_current_authority,
+      ]
     authority_decided_per_call_by: AGENT2-005
     prohibited_authorities: [author, owner, installer, administrator, persona]
     sponsored_mode_from_mention: false
@@ -27,7 +33,15 @@ defaults:
     owner_todos: [AGENTP-002, AGENTP-008]
     accepted_triggers: [server_resolved_handle, slash_command]
     trigger_post_must_be: NEW_POST_AUTHORED_BY_INVOKER
-    rejected_triggers: [quoted_text, forwarded_text, edited_text, bot_post, agent_post, persona_to_persona_mention]
+    rejected_triggers:
+      [
+        quoted_text,
+        forwarded_text,
+        edited_text,
+        bot_post,
+        agent_post,
+        persona_to_persona_mention,
+      ]
     implicit_persona_routing: false
     agent_discovery: false
     discovery_scope_ref: AGENT-050
@@ -42,13 +56,18 @@ defaults:
     quarantined_extraction_todo: AGENT2-015
   - id: audience_floor
     owner_todos: [AGENTP-012, AGENTP-013]
-    shared_post_requires: [EVERY_SOURCE_RECORD_FIELD_READABLE_BY_AUDIENCE, EVERY_DATA_CLASS_ALLOWED_BY_CHANNEL_POLICY]
+    shared_post_requires:
+      [
+        EVERY_SOURCE_RECORD_FIELD_READABLE_BY_AUDIENCE,
+        EVERY_DATA_CLASS_ALLOWED_BY_CHANNEL_POLICY,
+      ]
     check_timing: COMMIT
     audience_population:
       public_channel: CHAT-010_ELIGIBILITY_POPULATION
       private_channel_or_group_dm: CURRENT_MEMBERS
       guests_and_external_members: ALWAYS_INCLUDED
-    failure_delivery: [NEUTRAL_THREAD_RECEIPT, INVOKER_EPHEMERAL_RESULT, INVOKER_1_TO_1_PERSONA_DM_COPY]
+    failure_delivery:
+      [NEUTRAL_THREAD_RECEIPT, INVOKER_EPHEMERAL_RESULT, INVOKER_1_TO_1_PERSONA_DM_COPY]
     persona_1_to_1_dm: ALWAYS_PRIVATE
     channel_policy_may_force_private: true
     invoker_may_share_private_result: true
@@ -80,7 +99,8 @@ defaults:
     required_owners: [BUSINESS_OWNER, TECHNICAL_STEWARD]
     lifecycle: [DRAFT, IN_REVIEW, PUBLISHED, SUSPENDED, RETIRED]
     publish_requires: [REVIEWER_OTHER_THAN_AUTHOR, PASSING_PERSONA_EVALUATION]
-    material_change_new_version_fields: [skills, tier_ceiling, audience, channel_classes]
+    material_change_new_version_fields:
+      [skills, tier_ceiling, audience, channel_classes]
     material_change_requires: RE_REVIEW
     owner_departure_suspends_after: 14d
     reassignment_cancels_suspension: true
@@ -104,7 +124,8 @@ defaults:
   - id: stop
     owner_todos: [AGENTP-017, AGENTP-018]
     revocation_epoch_todo: AGENT2-020
-    suspension_sources: [persona_version, persona, installation, tenant_agent_kill_switch]
+    suspension_sources:
+      [persona_version, persona, installation, tenant_agent_kill_switch]
     affected_grants_epoch_bumped: true
     execution_stops: BEFORE_NEXT_STEP
     suspended_mention: UNAVAILABLE_WITHOUT_RUN
@@ -118,7 +139,19 @@ defaults:
     acting_for_label: INVOKER
   - id: audit
     owner_todos: [AGENTP-018]
-    actor_chain: [invoker, persona_id_and_version, installation, conversation, invoking_post, invocation, task, plan_revision, step, skill_call]
+    actor_chain:
+      [
+        invoker,
+        persona_id_and_version,
+        installation,
+        conversation,
+        invoking_post,
+        invocation,
+        task,
+        plan_revision,
+        step,
+        skill_call,
+      ]
     context_post_evidence: [post_id, content_digest]
   - id: output_safety
     owner_todos: [AGENTP-010, AGENTP-011, AGENTP-022]
@@ -136,4 +169,3 @@ defaults:
       group_dm_tiers: [T0, T1, T2]
       t3_persona_surface: ONE_TO_ONE_DM_ONLY
       t4_persona_enabled: false
-

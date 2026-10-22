@@ -47,18 +47,21 @@ func agentAdminStatus(locale LocaleContext, state AgentAccessLoadState, detail s
 	if state == AgentAccessStateLoading {
 		return agentAccessContainer(embedded, html.Props{Class: "agent-admin-access-page", Raw: map[string]any{"data-agent-access-state": string(state), "role": "status", "aria-live": "polite"}}, agentAccessHeading(embedded, html.Props{}, agentAdminText(locale, "title")), AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3, Status: agentAdminText(locale, "loading")}))
 	}
-	return agentAccessContainer(embedded, html.Props{Class: "agent-admin-access-page", Raw: map[string]any{"data-agent-access-state": string(state)}}, ui.CreateElement(EmptyState, EmptyStateProps{Title: agentAdminText(locale, "unavailable_title"), Description: detail, Role: "status"}),
-		html.Div(html.Props{Class: "action-row"}, html.Button(html.Props{Class: "button primary", Type: "button", Raw: map[string]any{"data-agent-admin-action": "retry"}}, ui.Text(agentAdminFormText(locale, "try_again")))))
+	// A failed read is the shared loading placeholder with Try again after a few
+	// seconds, not an inline error; the reason is announced, not printed.
+	return agentAccessContainer(embedded, html.Props{Class: "agent-admin-access-page", Raw: map[string]any{"data-agent-access-state": string(state)}},
+		agentAccessHeading(embedded, html.Props{}, agentAdminText(locale, "title")),
+		AgentLoadingFrame(AgentLoadingProps{Locale: locale, Shape: AgentLoadingRows, Rows: 3, Status: agentAdminText(locale, "unavailable_title") + ". " + detail, RetryRaw: map[string]any{"data-agent-admin-action": "retry"}}))
 }
 
 func agentConnectionRevisionCard(props AgentAdminAccessPageProps, revision AgentConnectionRevision) ui.Node {
 	locale := props.Locale
 	revisionID := "agent-revision-" + safeAgentDOMToken(revision.ID)
 	children := []ui.Node{
-		html.Div(html.Props{Class: "agent-admin-revision-heading"}, html.Div(html.Props{}, html.H3(html.Props{ID: revisionID + "-title"}, ui.Text(revision.Provider)), html.Small(html.Props{Class: "muted"}, ui.Text(agentAdminText(locale, "revision")+" "+revision.Revision))), html.Span(html.Props{Class: "status"}, ui.Text(revision.Status))),
+		html.Div(html.Props{Class: "agent-admin-revision-heading"}, html.Div(html.Props{}, html.H3(html.Props{ID: revisionID + "-title"}, ui.Text(revision.Provider)), html.Small(html.Props{Class: "muted"}, ui.Text(agentAdminText(locale, "revision")+" "+revision.Revision))), html.Span(html.Props{Class: "status", Raw: map[string]any{"data-revision-status": revision.Status}}, ui.Text(agentRevisionStatusLabel(locale, revision.Status)))),
 	}
 	if mode := strings.TrimSpace(revision.CredentialMode); mode != "" {
-		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(agentAdminText(locale, "credential_mode")+": "+mode)))
+		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(agentAdminText(locale, "credential_mode")+": "+agentCredentialModeLabel(locale, mode))))
 	}
 	if revision.MCPSnapshotID != "" {
 		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(agentAdminText(locale, "mcp_snapshot")+": "+revision.MCPSnapshotID)))
@@ -79,8 +82,8 @@ func agentConnectionRevisionCard(props AgentAdminAccessPageProps, revision Agent
 	actions := make([]ui.Node, 0, 3)
 	if props.Client != nil {
 		actions = append(actions,
-			html.Button(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-admin-action": "copy", "data-revision-id": revision.ID}, OnClick: ui.UseEvent(func(ui.MouseEvent) { _ = props.Client.CreateConnectionRevision(revision) })}, ui.Text(agentAdminText(locale, "create_revision"))),
-			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: revision.MCPSnapshotID == "", Raw: map[string]any{"data-agent-admin-action": "import", "data-connection-id": agentRevisionConnection(revision.ID), "data-snapshot-id": revision.MCPSnapshotID}, OnClick: ui.UseEvent(func(ui.MouseEvent) { _ = props.Client.ImportMCPSnapshot(revision.ID, revision.MCPSnapshotID) })}, ui.Text(agentAdminText(locale, "import_snapshot"))),
+			agentRunButton(html.Props{Class: "button secondary", Type: "button", Raw: map[string]any{"data-agent-admin-action": "copy", "data-revision-id": revision.ID}}, agentAdminText(locale, "create_revision"), func() { _ = props.Client.CreateConnectionRevision(revision) }),
+			agentRunButton(html.Props{Class: "button secondary", Type: "button", Disabled: revision.MCPSnapshotID == "", Raw: map[string]any{"data-agent-admin-action": "import", "data-connection-id": agentRevisionConnection(revision.ID), "data-snapshot-id": revision.MCPSnapshotID}}, agentAdminText(locale, "import_snapshot"), func() { _ = props.Client.ImportMCPSnapshot(revision.ID, revision.MCPSnapshotID) }),
 		)
 		actions = append(actions, agentAdminLifecycleActions(props, revision, needsSecondAdmin)...)
 	} else {
@@ -104,7 +107,7 @@ func agentAdminGrantNode(locale LocaleContext, grant AgentAdminSkillGrant, revis
 		detail = strings.Join(scopes, ", ")
 	}
 	tier := strings.ToUpper(strings.TrimSpace(grant.Tier))
-	badges := []ui.Node{html.Span(html.Props{Class: "status agent-skill-tier", Raw: map[string]any{"data-skill-tier": tier}}, ui.Text(tier))}
+	badges := []ui.Node{html.Span(html.Props{Class: "status agent-skill-tier", Raw: map[string]any{"data-skill-tier": tier}}, ui.Text(agentTierLabel(locale, tier)))}
 	if grant.RequiresSecondAdmin || agentTierNeedsApproval(grant.Tier) {
 		badges = append(badges, html.Span(html.Props{Class: "status warning", Raw: map[string]any{"data-approval-required": "true"}}, ui.Text(agentAdminText(locale, "approval_required"))))
 	}

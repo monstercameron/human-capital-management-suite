@@ -71,9 +71,9 @@ func agentDemoConfig(values *bootstrap.Values) application.LocalAgentDemoConfig 
 func runAgentDemoCommand(ctx context.Context, config application.LocalAgentDemoConfig, out io.Writer) error {
 	summary, err := application.PrepareLocalAgentDemo(ctx, config)
 	if err != nil {
-		if summary.WorkspaceIndex.Unavailable != "" {
-			fmt.Fprintf(out, "Preparation incomplete.%s Warning: %s\n", formatWorkspaceAccess(summary.WorkspaceIndex), summary.WorkspaceIndex.Unavailable)
-		}
+		// Say what was done before the failure: it is the only way to see the state
+		// the database was left in, and a rerun continues from it.
+		fmt.Fprintf(out, "Preparation incomplete: %v.\nDone before the failure: %s\n", err, formatAgentDemoSummary(summary))
 		return err
 	}
 	_, err = fmt.Fprintln(out, formatAgentDemoSummary(summary))
@@ -83,7 +83,7 @@ func runAgentDemoCommand(ctx context.Context, config application.LocalAgentDemoC
 func formatAgentDemoSummary(summary application.LocalAgentDemoSummary) string {
 	change := "already prepared; no changes"
 	if summary.Changed() {
-		change = fmt.Sprintf("evaluation=%t publication=%t installations=%d installations_refreshed=%d duplicates_retired=%d model_route=%t run_policy=%t provider_deployment=%t chat_repair=%t policy_document_placements=%d holiday_guide_placements=%d documents_shared_with_workspace=%d skill_grants=%d", summary.EvaluationRecorded, summary.Published, summary.InstallationsCreated, summary.InstallationsRefreshed, summary.DuplicateInstallationsRetired, summary.ModelRouteCreated, summary.RunPolicyCreated, summary.ProviderDeploymentCreated, summary.ChatConversationRepaired, summary.PolicyDocumentPlacements, summary.HolidayDocumentPlacements, summary.WorkspaceDocumentsShared, summary.SkillGrantsCreated)
+		change = fmt.Sprintf("evaluation=%t publication=%t installations=%d installations_refreshed=%d duplicates_retired=%d model_route=%t run_policy=%t provider_deployment=%t chat_repair=%t policy_document_placements=%d holiday_guide_placements=%d documents_shared_with_workspace=%d skill_grants=%d ambient_installations=%d support_alert_memberships=%d general_history_posts=%d support_emails_seeded=%d", summary.EvaluationRecorded, summary.Published, summary.InstallationsCreated, summary.InstallationsRefreshed, summary.DuplicateInstallationsRetired, summary.ModelRouteCreated, summary.RunPolicyCreated, summary.ProviderDeploymentCreated, summary.ChatConversationRepaired, summary.PolicyDocumentPlacements, summary.HolidayDocumentPlacements, summary.WorkspaceDocumentsShared, summary.SkillGrantsCreated, summary.Placements.AmbientInstallations, summary.Placements.SupportAlertMemberships, summary.Placements.GeneralHistoryPosts, summary.Placements.SupportEmailsSeeded)
 	}
 	receipt := fmt.Sprintf("Policy Helper v%d: %s. Assistant v%d: %s. %s. Documents: Paid time off policy; 2026 holiday guide.", summary.Version, summary.State, summary.AssistantVersion, summary.AssistantState, change)
 	receipt += fmt.Sprintf(" Agent icons set: %d.", summary.IconsSet)
@@ -99,6 +99,8 @@ func formatAgentDemoSummary(summary application.LocalAgentDemoSummary) string {
 	for _, starter := range summary.Starters {
 		if starter.State != "PREPARED" {
 			receipt += fmt.Sprintf(" %s: not prepared (%s).", starter.Name, starter.Reason)
+		} else if starter.Name != "Policy Helper" && starter.Name != "Assistant" && starter.Version > 0 {
+			receipt += fmt.Sprintf(" %s v%d: prepared.", starter.Name, starter.Version)
 		}
 	}
 	index := summary.WorkspaceIndex

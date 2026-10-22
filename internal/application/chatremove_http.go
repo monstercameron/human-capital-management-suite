@@ -201,6 +201,18 @@ func (h ChatModerationHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err = h.Permissions.CanReportMessage(r.Context(), p, p.TenantID, input.ConversationID, input.PostID); err != nil {
 			break
 		}
+		// Reporting again what is already reported and undecided adds nothing
+		// for a moderator to read, so it is accepted without a second item.
+		if open, ok := h.Permissions.(chatremoveOpenReports); ok {
+			var again bool
+			if again, err = open.HasOpenReport(r.Context(), p, p.TenantID, input.ConversationID, input.PostID); err != nil {
+				break
+			}
+			if again {
+				result = map[string]bool{"reported": true}
+				break
+			}
+		}
 		reason := input.ReasonCode
 		if input.Note != "" {
 			reason += " — " + input.Note

@@ -3,6 +3,8 @@ package productui
 import (
 	"strings"
 	"testing"
+
+	xhtml "golang.org/x/net/html"
 )
 
 // finalThemeCoverageLayer renders the terminal cascade boundary exactly as
@@ -69,6 +71,75 @@ func TestEveryProductionPageFamilyConsumesSemanticThemeTokens(t *testing.T) {
 	} {
 		if !strings.Contains(finalThemeCoverageLayer(), token) {
 			t.Errorf("cross-component theme semantic %q is missing", token)
+		}
+	}
+}
+
+func TestDarkThemeMapsHCMColorsUsedByChatSettingsAndSearch(t *testing.T) {
+	view := testView(PageChatSettings)
+	view.Appearance = CustomerTheme{ColorMode: "dark", Palette: "plum", Shape: "rounded", Density: "comfortable", Glyphs: "rounded-line", Typeface: "system", Navigation: "light", Motion: "standard"}
+	controlCSS, err := ControlStylesheetForCustomerTheme(view.Appearance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chatCSS := ChatStylesheet()
+	darkDeclarations := cssDeclarations(controlCSS, `:root[data-hcm-color-mode="dark"]`)
+	if darkDeclarations == "" {
+		t.Fatalf("production control stylesheet has no dark root declaration block: %s", controlCSS)
+	}
+	for _, want := range []string{
+		"--hcm-color-text:var(--ink);",
+		"--hcm-color-text-muted:var(--muted);",
+		"--hcm-color-surface:var(--surface);",
+		"--hcm-color-canvas:var(--canvas);",
+		"--hcm-color-border:var(--line);",
+	} {
+		if !strings.Contains(darkDeclarations, want) {
+			t.Errorf("dark root theme mappings lack %q: %s", want, darkDeclarations)
+		}
+	}
+
+	document, err := Render(view)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := xhtml.Parse(strings.NewReader(document))
+	if err != nil {
+		t.Fatal(err)
+	}
+	htmlEl := firstElement(root, "html")
+	if htmlEl == nil || attr(htmlEl, "data-hcm-color-mode") != "dark" {
+		t.Fatalf("Chat settings document did not render the requested dark theme: %s", document)
+	}
+	settingsPages := findElementsByClassContains(root, "chat-settings-page")
+	if len(settingsPages) != 1 {
+		t.Fatalf("Chat settings page wrapper is missing: %s", document)
+	}
+	settings := settingsPages[0]
+	for _, class := range []string{"chatmapadmin", "chatvoiceadmin"} {
+		panels := findElementsByClassContains(settings, class)
+		if len(panels) != 1 || !strings.Contains(" "+attr(panels[0], "class")+" ", " chatlangadmin ") {
+			t.Errorf("dark Chat settings page is missing the themed .chatlangadmin.%s panel", class)
+		}
+	}
+
+	if !PageNeedsChatStylesheet(PageChatSettings) || !strings.Contains(ChatStylesheetElement(PageChatSettings), ChatStylesheetAsset().Href) {
+		t.Error("Chat settings page is not linked to the production Chat stylesheet")
+	}
+	panelDeclarations := cssDeclarations(chatCSS, ".chatlangadmin")
+	for _, want := range []string{
+		"color:var(--hcm-color-text)",
+		"background:var(--hcm-color-surface)",
+		"border:1px solid var(--hcm-color-border)",
+	} {
+		if !strings.Contains(panelDeclarations, want) {
+			t.Errorf("Chat stylesheet's .chatlangadmin rule does not consume %q: %s", want, panelDeclarations)
+		}
+	}
+	searchDeclarations := cssDeclarations(chatCSS, "#chatsearch-results")
+	for _, want := range []string{"color:var(--hcm-color-text)", "background:var(--hcm-color-surface)"} {
+		if !strings.Contains(searchDeclarations, want) {
+			t.Errorf("Chat stylesheet's #chatsearch-results rule does not consume %q: %s", want, searchDeclarations)
 		}
 	}
 }

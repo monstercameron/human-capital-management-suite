@@ -9,12 +9,16 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
 
 type agentReplySource struct {
 	Title    string
 	Href     string
 	Readable bool
+	// Language is the language the document is written in, when the line says
+	// (chatlang005_source.go).
+	Language string
 }
 
 type agentReplyEnvelope struct {
@@ -33,6 +37,18 @@ type agentQuestionContext struct {
 }
 
 func parseAgentReplyEnvelope(body string) agentReplyEnvelope {
+	// AGENTUX-076: the mark for an answer no document backs is written after the
+	// sources; it is read before them and kept last on the answer's text, where
+	// the body's renderer turns it into the line in the reader's language.
+	clean, notFromDocuments := chat.SplitUngrounded(body)
+	envelope := parseAgentReplyEnvelopeText(clean)
+	if notFromDocuments {
+		envelope.Body = strings.TrimSpace(envelope.Body + "\n" + chat.UngroundedMark())
+	}
+	return envelope
+}
+
+func parseAgentReplyEnvelopeText(body string) agentReplyEnvelope {
 	envelope := agentReplyEnvelope{Body: strings.TrimSpace(body)}
 	const contextMarker = "\n\n[chat-agent-question-context:"
 	if start := strings.LastIndex(envelope.Body, contextMarker); start >= 0 && strings.HasSuffix(envelope.Body, ")") {
@@ -102,7 +118,8 @@ func parseAgentReplyEnvelope(body string) agentReplyEnvelope {
 		if line == "" {
 			continue
 		}
-		source := agentReplySource{Title: line}
+		line, language := agentSourceSplitLanguage(line)
+		source := agentReplySource{Title: line, Language: language}
 		denied := strings.HasSuffix(line, " <!--chat.agent.source.readable:false-->")
 		line = strings.TrimSpace(strings.SplitN(line, " <!--chat.agent.source.readable:", 2)[0])
 		source.Title = line
@@ -199,7 +216,7 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 	if len(envelope.Sources) > 0 {
 		items := make([]ui.Node, 0, len(envelope.Sources))
 		for _, source := range envelope.Sources {
-			content := ui.Node(html.Span(html.Props{Class: "agent-reply-source-text"}, agentux061SourceLabel(source.Title, false)...))
+			content := ui.Node(html.Span(html.Props{Class: "agent-reply-source-text"}, append(agentux061SourceLabel(source.Title, false), agentSourceLanguageNodes(model.Locale, source.Language)...)...))
 			if source.Href != "" {
 				href := source.Href
 				open := ui.UseEvent(func(event ui.Event) {
@@ -208,7 +225,7 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 						model.Callbacks.Navigate(href)
 					}
 				})
-				content = html.A(html.Props{Href: href, Class: "agent-reply-source-link", Dir: "auto", OnClick: open}, agentux061SourceLabel(source.Title, true)...)
+				content = html.A(html.Props{Href: href, Class: "agent-reply-source-link", Dir: "auto", OnClick: open}, append(agentux061SourceLabel(source.Title, true), agentSourceLanguageNodes(model.Locale, source.Language)...)...)
 			}
 			// CHATUX-003: each source is a compact chip. One the reader may open is a
 			// link; one they may not is a muted chip with a lock and a tooltip.
@@ -257,4 +274,4 @@ func renderAgentQuestionContext(model Model, envelope agentReplyEnvelope, timeLa
 	return html.Aside(html.Props{Class: "agent-question-context", Aria: map[string]string{"label": prefix + " " + conversation}}, children...)
 }
 
-const AgentDMSourcesStyles = `.agent-reply-sources{margin-block:.65rem 0;padding-block-start:.55rem;border-block-start:1px solid var(--line)}.agent-reply-sources h4{margin:0 0 .3rem;font-size:.78rem;color:var(--muted)}.agent-reply-sources ul{margin:0;padding-inline-start:1.2rem}.agent-reply-source-link,.agent-reply-backlink{color:var(--accent);overflow-wrap:anywhere}.agent-reply-backlink{display:inline-flex;margin-block-start:.55rem}.agent-dm-avatar{background:var(--soft);color:var(--accent);border:1px solid var(--line)}.agent-identity-line{display:inline-flex;align-items:center;gap:.45rem;min-width:0}`
+const AgentDMSourcesStyles = `.agent-reply-sources{margin-block:.65rem 0;padding-block-start:.55rem;border-block-start:1px solid var(--line)}.agent-reply-sources h4{margin:0 0 .3rem;font-size:.78rem;color:var(--muted)}.agent-reply-sources ul{margin:0;padding-inline-start:1.2rem}.agent-reply-source-link,.agent-reply-backlink{color:var(--accent);overflow-wrap:anywhere}.agent-dm-avatar{background:var(--soft);color:var(--accent);border:1px solid var(--line)}.agent-identity-line{display:inline-flex;align-items:center;gap:.45rem;min-width:0}`

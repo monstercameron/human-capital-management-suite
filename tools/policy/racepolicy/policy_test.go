@@ -26,10 +26,10 @@ func Do() {
 // the live repository's own ever-changing file set (see
 // TestTodo_TOOL_012_Golden for the live-repository snapshot).
 func TestTodo_TOOL_012(t *testing.T) {
-	t.Run("RED: a concurrent package whose only test file is gated behind a nonstandard build tag is a violation", func(t *testing.T) {
+	t.Run("RED: a concurrent package whose only test is excluded by !race is a violation", func(t *testing.T) {
 		root := t.TempDir()
 		writeFile(t, root, "pkga/a.go", concurrentSource)
-		writeFile(t, root, "pkga/a_test.go", `//go:build race
+		writeFile(t, root, "pkga/a_test.go", `//go:build !race
 
 package pkga
 
@@ -45,7 +45,7 @@ func TestDo(t *testing.T) { Do() }
 			t.Fatalf("Findings = %+v, want exactly one concurrent package declared", report.Findings)
 		}
 		if !report.Findings[0].Violation() {
-			t.Fatalf("Findings[0] = %+v, want a violation: a //go:build race test file never resolves under any real `go test` invocation, racing or not", report.Findings[0])
+			t.Fatalf("Findings[0] = %+v, want a violation: a //go:build !race test file is excluded from the CI race context", report.Findings[0])
 		}
 		violations := report.Violations()
 		if len(violations) != 1 || violations[0].Package.ImportPath != "example.com/mod/pkga" {
@@ -53,9 +53,29 @@ func TestDo(t *testing.T) { Do() }
 		}
 	})
 
-	t.Run("RED: a concurrent package with no test file at all is a violation", func(t *testing.T) {
+	t.Run("GREEN: a race-tagged test resolves in the CI race context", func(t *testing.T) {
 		root := t.TempDir()
 		writeFile(t, root, "pkga/a.go", concurrentSource)
+		writeFile(t, root, "pkga/a_test.go", `//go:build race
+
+package pkga
+
+import "testing"
+
+func TestDo(t *testing.T) { Do() }
+`)
+		report, err := racepolicy.Evaluate(root, "example.com/mod")
+		if err != nil {
+			t.Fatalf("Evaluate: %v", err)
+		}
+		if len(report.Findings) != 1 || report.Findings[0].Violation() {
+			t.Fatalf("Findings = %+v, want one package with a Linux-raceable test", report.Findings)
+		}
+	})
+
+	t.Run("RED: a concurrent package with no test file at all is a violation", func(t *testing.T) {
+		root := t.TempDir()
+		writeFile(t, root, "pkga/worker_linux.go", concurrentSource)
 
 		report, err := racepolicy.Evaluate(root, "example.com/mod")
 		if err != nil {

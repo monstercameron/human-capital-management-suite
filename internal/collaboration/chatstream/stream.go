@@ -251,6 +251,9 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 	}
 	a := Access{TenantID: req.TenantID, HomeTenantID: req.HomeTenantID, SubjectID: req.SubjectID, ConversationID: req.ConversationID, MembershipEpoch: req.MembershipEpoch, RouteEpoch: req.RouteEpoch}
 	if err := s.h.config.Authorizer.Authorize(ctx, a); err != nil {
+		if authorityUnavailable(err) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("%w: %v", ErrUnauthorized, err)
 	}
 	// Replay must leave the queue room for live events. Clamping to QueueSize
@@ -281,6 +284,9 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 			continue
 		}
 		if err := s.h.authorizeEvent(ctx, a, event); err != nil {
+			if authorityUnavailable(err) {
+				return nil, err
+			}
 			return nil, fmt.Errorf("%w: replay sequence %d", ErrUnauthorized, event.Sequence)
 		}
 		sub.last = event.Sequence
@@ -314,6 +320,11 @@ func (s *Stream) Watch(ctx context.Context, req WatchRequest) (*Subscription, er
 				return
 			case <-ticker.C:
 				if err := sub.h.config.Authorizer.Authorize(sub.watchCtx, sub.access); err != nil {
+					if authorityUnavailable(err) {
+						// Undecided is not revoked; the next tick asks again, and no
+						// event is delivered while the answer is missing.
+						continue
+					}
 					sub.close(ErrRevoked)
 					return
 				}
@@ -419,8 +430,7 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 			return event, nil
 		}
 		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
-			s.close(ErrRevoked)
-			return Event{}, ErrRevoked
+			return Event{}, s.refuse(err)
 		}
 		s.recordConsumed(event)
 		return event, nil
@@ -432,8 +442,7 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 			return event, nil
 		}
 		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
-			s.close(ErrRevoked)
-			return Event{}, ErrRevoked
+			return Event{}, s.refuse(err)
 		}
 		s.recordConsumed(event)
 		return event, nil
@@ -468,7 +477,7 @@ func (s *Subscription) deliver(_ context.Context, event Event) {
 		}
 	}
 	if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
-		s.close(ErrRevoked)
+		s.refuse(err)
 		return
 	}
 	s.mu.Lock()

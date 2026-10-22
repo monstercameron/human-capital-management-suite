@@ -8,8 +8,9 @@ import (
 )
 
 // Browser state is a presentation hint, never a snapshot of product truth.
-// The browser may retain the HistoryRouter's bounded forward watermark and a
-// small chat destination frequency list for this viewer's current session.
+// The browser may retain the HistoryRouter's bounded forward watermark, a
+// small chat destination frequency list, and the dismissal of one closed Chat
+// notice, for this viewer's current session.
 // Preferences, workflow state, authorization and transactions remain owned
 // by the server and are deliberately outside this contract.
 const (
@@ -178,16 +179,35 @@ func ValidateHistoryStorageEntry(key, value string) error {
 }
 
 // ValidateBrowserStorageWrite is intentionally stricter than a generic
-// browser-storage helper: this product has only bounded history and chat
-// frequency presentation records. Any other key that resembles business,
-// identity, authorization, workflow, transaction or credential state is
-// refused with the same stable authority error used by policy tests.
+// browser-storage helper: this product has only bounded history, chat
+// frequency and dismissed-notice presentation records. Any other key that
+// resembles business, identity, authorization, workflow, transaction or
+// credential state is refused with the same stable authority error used by
+// policy tests.
 func ValidateBrowserStorageWrite(key, value string) error {
 	if strings.HasPrefix(key, ChatVisitsStorageKeyPrefix) {
 		if ChatVisitsStorageKey(strings.TrimPrefix(key, ChatVisitsStorageKeyPrefix)) == "" {
 			return ErrBrowserStateAuthority
 		}
 		if _, ok := DecodeChatVisits(value); !ok {
+			return ErrBrowserStateValue
+		}
+		return nil
+	}
+	if strings.HasPrefix(key, ChatNoticesStorageKeyPrefix) {
+		if ChatNoticesStorageKey(strings.TrimPrefix(key, ChatNoticesStorageKeyPrefix)) == "" {
+			return ErrBrowserStateAuthority
+		}
+		if _, ok := DecodeChatNotices(value); !ok {
+			return ErrBrowserStateValue
+		}
+		return nil
+	}
+	if strings.HasPrefix(key, ChatFirstReadStorageKeyPrefix) {
+		if ChatFirstReadStorageKey(strings.TrimPrefix(key, ChatFirstReadStorageKeyPrefix)) == "" {
+			return ErrBrowserStateAuthority
+		}
+		if _, ok := DecodeChatFirstRead(value); !ok {
 			return ErrBrowserStateValue
 		}
 		return nil
@@ -201,11 +221,23 @@ func ValidateBrowserStorageWrite(key, value string) error {
 	return nil
 }
 
-// ValidateBrowserStorageRead limits reads to the same two presentation-only
+// ValidateBrowserStorageRead limits reads to the same three presentation-only
 // records the browser adapter is permitted to retain.
 func ValidateBrowserStorageRead(key string) error {
 	if strings.HasPrefix(key, ChatVisitsStorageKeyPrefix) {
 		if ChatVisitsStorageKey(strings.TrimPrefix(key, ChatVisitsStorageKeyPrefix)) == "" {
+			return ErrBrowserStateAuthority
+		}
+		return nil
+	}
+	if strings.HasPrefix(key, ChatNoticesStorageKeyPrefix) {
+		if ChatNoticesStorageKey(strings.TrimPrefix(key, ChatNoticesStorageKeyPrefix)) == "" {
+			return ErrBrowserStateAuthority
+		}
+		return nil
+	}
+	if strings.HasPrefix(key, ChatFirstReadStorageKeyPrefix) {
+		if ChatFirstReadStorageKey(strings.TrimPrefix(key, ChatFirstReadStorageKeyPrefix)) == "" {
 			return ErrBrowserStateAuthority
 		}
 		return nil

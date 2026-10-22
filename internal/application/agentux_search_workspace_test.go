@@ -165,7 +165,9 @@ func TestAgentUXSearch_KeywordFallback_Integration(t *testing.T) {
 	}
 }
 
-func TestAgentUXSearch_Corpus_Performance_Integration(t *testing.T) {
+// TestTodo_AGENTUX_056_Performance exercises the indexed search over the
+// todo's measured cell corpus and keeps the search under its 300 ms bound.
+func TestTodo_AGENTUX_056_Performance(t *testing.T) {
 	ctx, s, call, _ := agentUXSearchFixture(t)
 	for i := 0; i < 663; i++ {
 		agentUXSearchDocument(t, ctx, s, call.TenantID.String(), fmt.Sprintf("Policy %03d", i), true)

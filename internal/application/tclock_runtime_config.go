@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/timestore"
 	clockdomain "github.com/monstercameron/human-capital-management-suite/internal/domains/clock"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
@@ -196,22 +196,17 @@ func validClockSchema(schema string) bool {
 }
 
 func sameDatabaseCredential(a, b string) bool {
-	ca, ea := pgconn.ParseConfig(a)
-	cb, eb := pgconn.ParseConfig(b)
-	if ea != nil || eb != nil {
-		return strings.TrimSpace(a) == strings.TrimSpace(b)
-	}
-	return ca.User == cb.User
+	return pgxadapter.SameLoginRole(a, b)
 }
 
 func validateClockDatabaseURLs(timeURL, coreURL string) error {
 	if strings.TrimSpace(timeURL) == "" || strings.TrimSpace(coreURL) == "" {
 		return errors.New("clock runtime: time and core database URLs are required")
 	}
-	if _, err := pgconn.ParseConfig(timeURL); err != nil {
+	if _, err := pgxadapter.ParseDSNMetadata(timeURL); err != nil {
 		return fmt.Errorf("clock runtime: invalid time database URL: %w", err)
 	}
-	if _, err := pgconn.ParseConfig(coreURL); err != nil {
+	if _, err := pgxadapter.ParseDSNMetadata(coreURL); err != nil {
 		return fmt.Errorf("clock runtime: invalid core database URL: %w", err)
 	}
 	if sameDatabaseCredential(timeURL, coreURL) {

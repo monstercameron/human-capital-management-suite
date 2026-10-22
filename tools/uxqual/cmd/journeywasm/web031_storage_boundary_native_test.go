@@ -31,7 +31,7 @@ var web031StorageAdapterRules = []web031StorageAdapterRule{
 		allowedMethods:    []string{"getItem", "setItem"},
 	},
 	{
-		relativePath:      "cmd/timeclock/wasm/tclock_storage_wasm.go",
+		relativePath:      "tools/uxqual/cmd/timeclockwasm/tclock_storage_wasm.go",
 		allowedProperties: []string{"localStorage", "indexedDB"},
 		allowedMethods:    []string{"getItem", "setItem"},
 	},
@@ -70,7 +70,7 @@ func TestTodo_WEB_031_Conformance(t *testing.T) {
 
 func TestTodo_WEB_031_SourceGate(t *testing.T) {
 	const approvedRelative = "tools/uxqual/cmd/journeywasm/browser_history_wasm.go"
-	const clockApprovedRelative = "cmd/timeclock/wasm/tclock_storage_wasm.go"
+	const clockApprovedRelative = "tools/uxqual/cmd/timeclockwasm/tclock_storage_wasm.go"
 	const approvedSource = `package main
 func approved(global, storage sourceGateJSValue) {
 	browserProperty(global, "session" + "Storage")

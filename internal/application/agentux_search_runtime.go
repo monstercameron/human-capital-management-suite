@@ -26,6 +26,15 @@ func (e *PersonaRuntimeTools) workspacePin(ctx context.Context, record agentrun.
 	if err != nil {
 		return identity, agentskills.SkillPin{}, err
 	}
+	pin, err := e.workspacePinAuthorized(ctx, record, run, identity)
+	return identity, pin, err
+}
+
+// workspacePinAuthorized is workspacePin for a caller that has just authorized
+// the same run: the identity it passes is the one authorize returned, so the
+// authority is not verified a second time (AGENTUX-076).
+func (e *PersonaRuntimeTools) workspacePinAuthorized(ctx context.Context, record agentrun.Record, run runstate.Run, identity PersonaRunT0ToolInvocation) (agentskills.SkillPin, error) {
+	var err error
 	var pins []agentskills.SkillPin
 	if e.cfg.Policy == nil {
 		pins, err = e.cfg.Pins.ResolvePersonaRuntimeToolPins(ctx, record, run)
@@ -33,34 +42,40 @@ func (e *PersonaRuntimeTools) workspacePin(ctx context.Context, record agentrun.
 		request := personaRunInvocation(record.Request)
 		store, storeErr := e.cfg.Policy.grantStores.ForTenant(ctx, values.TenantId(identity.TenantID))
 		if storeErr != nil || isNilPersonaOutputPort(store) {
-			return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+			return agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
 		}
 		grant, grantErr := store.Get(record.Request.Principal.DelegatedCredentialRef)
 		if grantErr != nil {
-			return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+			return agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
 		}
 		bindForegroundGrant(&request, grant)
 		if !sameScopes(request.Skills[personaWorkspaceSearchSkillID], []string{personaPolicySearchScope}) {
-			return identity, agentskills.SkillPin{}, nil
+			return agentskills.SkillPin{}, nil
 		}
-		var digest string
-		pins, digest, _, err = e.cfg.Policy.currentPins(ctx, request)
-		if digest != record.Request.Persona.Digest {
-			return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+		// The pins this run's authority check already read are the pins of this
+		// run's persona version; they are not read again (AGENTUX-076).
+		if cached, ok := agentUXSpeedToolPins(ctx, request.InvocationID); ok {
+			pins = cached
+		} else {
+			var digest string
+			pins, digest, _, err = e.cfg.Policy.currentPins(ctx, request)
+			if digest != record.Request.Persona.Digest {
+				return agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+			}
 		}
 	}
 	if err != nil {
-		return identity, agentskills.SkillPin{}, err
+		return agentskills.SkillPin{}, err
 	}
 	for _, pin := range pins {
 		if pin.ID == personaWorkspaceSearchSkillID {
 			if !personaWorkspacePinHasSearchOperation(e.cfg.Catalog, pin) {
-				return identity, agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
+				return agentskills.SkillPin{}, personaRuntimeToolDeniedHere()
 			}
-			return identity, pin, nil
+			return pin, nil
 		}
 	}
-	return identity, agentskills.SkillPin{}, nil
+	return agentskills.SkillPin{}, nil
 }
 
 // WorkspaceToolSchemas is appended by the served tool projection after its

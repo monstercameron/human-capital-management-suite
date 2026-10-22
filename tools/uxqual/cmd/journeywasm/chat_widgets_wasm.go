@@ -66,6 +66,10 @@ func loadChannelWidgetsOnce(cfg journeyclient.Config, room string, quiet bool) b
 	active := chatBrowser.config(cfg)
 	generation := chatBrowser.currentGeneration()
 	if !quiet {
+		// CHATGATE-014: the channel's gate labels (Conversation details) and what the
+		// writer may address (the composer) are read with its widgets, once per open.
+		go chatgateRefreshLabels(cfg, room)
+		go chatgateRefreshAudience(cfg, room)
 		chatBrowser.mutate(func(m *chatui.Model) {
 			if m.SelectedID == room {
 				m.ChannelWidgetsLoading = true

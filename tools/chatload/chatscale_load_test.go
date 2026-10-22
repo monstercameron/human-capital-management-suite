@@ -204,7 +204,7 @@ func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 	c := testConfig(t)
 	ctx := context.Background()
 	sentinel := errors.New("callback failure")
-	e := WithDatabase(ctx, c, func(conn *pgx.Conn) error {
+	e := WithDatabase(ctx, c, func(conn *Database) error {
 		if e := Migrate(ctx, c); e != nil {
 			return e
 		}
@@ -261,7 +261,7 @@ func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 		}
 		resume := c
 		resume.Seed++
-		if e := WithResumedDatabase(ctx, resume, func(*pgx.Conn) error { t.Fatal("adopted a mismatched resume database"); return nil }); e == nil {
+		if e := WithResumedDatabase(ctx, resume, func(*Database) error { t.Fatal("adopted a mismatched resume database"); return nil }); e == nil {
 			t.Fatal("accepted wrong resume ownership")
 		}
 		worker, e := pgx.ConnectConfig(ctx, databaseConfig(c))
@@ -318,13 +318,13 @@ func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 		if base.Samples != 2 || len(indexes) < 5 {
 			t.Fatalf("missing index evidence %v %+v", base, indexes)
 		}
-		if _, e = conn.Exec(ctx, "SET statement_timeout='1ms'"); e != nil {
+		if e = conn.Exec(ctx, "SET statement_timeout='1ms'"); e != nil {
 			return e
 		}
 		if e = resetMaintenanceLimits(ctx, conn); e != nil {
 			return e
 		}
-		if _, e = conn.Exec(ctx, "SELECT pg_sleep(0.02)"); e != nil {
+		if e = conn.Exec(ctx, "SELECT pg_sleep(0.02)"); e != nil {
 			return e
 		}
 		for _, i := range indexes {
@@ -332,7 +332,7 @@ func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 				t.Fatalf("index failure %+v", i)
 			}
 		}
-		r, e := relations(ctx, conn)
+		r, e := relations(ctx, conn.conn)
 		if e != nil {
 			return e
 		}

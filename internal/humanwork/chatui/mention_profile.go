@@ -30,8 +30,8 @@ func personaProfileCard(locale string, persona ResolvedPersonaMention) ui.Node {
 		direction = "rtl"
 	}
 	rows := []ui.Node{
-		html.P(html.Props{Class: "mention-profile-purpose"}, html.Strong(html.Props{Text: personaMentionText(locale, "purpose") + ": "}), ui.Text(personaProfileFact(persona.Purpose, locale))),
-		html.P(html.Props{Class: "mention-profile-owner"}, html.Strong(html.Props{Text: personaMentionText(locale, "owner") + ": "}), ui.Text(personaProfileFact(persona.Owner, locale))),
+		html.P(html.Props{Class: "mention-profile-purpose"}, html.Strong(html.Props{Text: personaMentionText(locale, "purpose") + ": "}), chatux043Fact(locale, personaProfileFact(persona.Purpose, locale))),
+		html.P(html.Props{Class: "mention-profile-owner"}, html.Strong(html.Props{Text: personaMentionText(locale, "owner") + ": "}), chatux043Fact(locale, personaProfileFact(persona.Owner, locale))),
 		agentp019Version(locale, persona, true),
 		agentp019Access(locale),
 		agentp019Skills(locale, persona),
@@ -68,9 +68,22 @@ func personaSkillRows(locale string, skills []PersonaMentionSkill) []string {
 		if name == "" {
 			continue
 		}
+		// The shipped skills are said as plain sentences, with the tier in
+		// brackets after (CHATUX-041).
 		tier := strings.TrimSpace(skill.Tier)
+		if sentence := chatux041SkillSentence(locale, skill.Name); sentence != "" {
+			if tier != "" {
+				sentence += chatux041TierSuffix(locale, personaTierLabel(locale, tier))
+			}
+			rows = append(rows, sentence)
+			continue
+		}
+		// CHATUX-043: a skill that has no sentence of its own is the server's
+		// English text; the sentence and the tier are each an isolate, so its
+		// full stop stays at its own end beside an Arabic tier.
+		name = chatux043Isolate(locale, name)
 		if tier != "" {
-			name += " — " + personaTierLabel(locale, tier)
+			name += " — " + chatux043Isolate(locale, personaTierLabel(locale, tier))
 		}
 		rows = append(rows, name)
 	}

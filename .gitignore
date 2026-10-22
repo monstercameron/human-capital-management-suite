@@ -85,6 +85,8 @@ blob-report/
 *.jpg
 *.jpeg
 *.webp
+!internal/data/demoworkforce/brand/ironridge-logo.png
+!internal/data/demoworkforce/brand/ironridge-logo-proxy.jpg
 
 # Workspace persona photos are development-seed fixtures, never embedded app assets.
 internal/humanwork/workspace/assets/person-*.png

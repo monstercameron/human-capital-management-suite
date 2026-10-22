@@ -69,10 +69,16 @@ func chatux009LoadingBody(m Model) []ui.Node {
 			html.Span(html.Props{Class: "chat-skeleton chatux009-skel-avatar"}),
 			html.Div(html.Props{Class: "chatux009-skel-lines"}, lines...)))
 	}
+	// The line says it is still loading and, with the shared Try again, offers
+	// to ask again (CHATUX-037); the button is as hidden as the line until then.
+	slow := []ui.Node{html.Span(html.Props{Text: chatux009Text(m, chatux009StillLoadingKey)})}
+	if m.Callbacks.Retry != nil {
+		slow = append(slow, html.Button(html.Props{Type: "button", Class: "chatux037-retry", Data: map[string]string{"action": "retry"}, Text: ChatLoadingText(m.Locale, "retry")}))
+	}
 	return []ui.Node{html.Div(html.Props{Class: "chatux009-skeleton", Role: "status", Aria: map[string]string{"busy": "true"}},
 		html.Span(html.Props{Class: "sr-only", Text: m.t(KeyLoading)}),
 		html.Div(html.Props{Class: "chatux009-skel-rows", Aria: map[string]string{"hidden": "true"}}, rows...),
-		html.P(html.Props{Class: "chatux009-slow", Text: chatux009Text(m, chatux009StillLoadingKey)}))}
+		html.Div(html.Props{Class: "chatux009-slow"}, slow...))}
 }
 
 // ChatUX009Styles holds the skeleton and the five-second line. The shimmer and
@@ -87,5 +93,5 @@ const ChatUX009Styles = `.chatux009-skeleton{display:grid;align-content:start;ga
 	`.chatux009-skel-name{inline-size:min(32%,140px)}` +
 	`.chatux009-skel-line{inline-size:min(88%,520px)}` +
 	`.chatux009-skel-line.short{inline-size:min(54%,320px)}` +
-	`.chatux009-slow{margin:0;color:var(--muted);font-size:.875rem;visibility:hidden}` +
+	`.chatux009-slow{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0;color:var(--muted);font-size:.875rem;visibility:hidden}` +
 	`:root[` + ChatSlowLoadAttribute + `] .chat-workspace .chatux009-slow{visibility:visible}`

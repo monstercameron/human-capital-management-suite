@@ -27,7 +27,13 @@ func renderAnnouncementAttempts(locale LocaleContext, attempts []AgentAnnounceme
 		}
 		entries = append(entries, html.Li(html.Props{}, html.Time(html.Props{Raw: map[string]any{"datetime": attempt.At}, Text: label}), ui.Text(" · "), outcome))
 	}
-	return html.Details(html.Props{Class: "agent-announcement-history"}, html.Summary(html.Props{Text: labels[agentRPLocaleIndex(locale)]}), html.Ul(html.Props{}, entries...))
+	// The shared disclosure: the chevron and its turn are the ones Activity's run
+	// details and the technical sections use, not the browser's own marker.
+	chevron := "›"
+	if locale.Resolved == "ar" {
+		chevron = "‹"
+	}
+	return html.Details(html.Props{Class: "agent-announcement-history agent-operations-technical"}, html.Summary(html.Props{Text: labels[agentRPLocaleIndex(locale)], Raw: map[string]any{"data-chevron": chevron}}), html.Ul(html.Props{}, entries...))
 }
 
 func localizeAnnouncementFailure(locale LocaleContext, reason string) string {

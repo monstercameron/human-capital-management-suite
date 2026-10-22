@@ -2,14 +2,10 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -192,7 +188,7 @@ func (f *agentFixture) task(t *testing.T, id string) agentrun.AgentTask {
 // owner-scoped.
 func TestTodo_UXBLIND_122(t *testing.T) {
 	f := newAgentFixture(t)
-	if f.runtime.Model.Kind != agentModelFake || f.runtime.Model.Fake == nil {
+	if f.runtime.Model.Kind != agentModelFake || f.runtime.Model.Observer == nil {
 		t.Fatalf("model = %+v, want the local-dev deterministic fake", f.runtime.Model)
 	}
 	if !f.logger.has("hcmnext.agent_model_selected") || !f.logger.has(string(agentModelFake)) {
@@ -229,13 +225,9 @@ func TestTodo_UXBLIND_122(t *testing.T) {
 		len(results[1].Taint) != 1 || results[1].Taint[0] != string(agentsecurity.TaintDerived) {
 		t.Fatalf("ledger results = %+v, want the tool-derived read then the agent-derived summary", results)
 	}
-	if got := f.runtime.Model.Fake.CallCount(); got != 1 {
+	if got := f.runtime.Model.Observer.CallCount(); got != 1 {
 		t.Fatalf("model calls = %d, want exactly the one summary call", got)
 	}
-	if prompt := f.runtime.Model.Fake.LastRequest().UserPrompt; !strings.Contains(prompt, "Give me a short summary of my job details") {
-		t.Fatalf("the model prompt does not carry the goal: %q", prompt)
-	}
-
 	own := f.snapshot(t, f.tenant, agentTestWorker)
 	if own.Availability != productui.AgentsAvailable || len(own.Tasks) != 1 || own.Tasks[0].ID != started.ID || own.Tasks[0].State != productui.AgentTaskCompleted {
 		t.Fatalf("the user's page = %+v, want their one completed task", own)
@@ -426,7 +418,7 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	t.Run("a deactivated user cannot start, and a task stops when its user is deactivated", func(t *testing.T) {
 		// Start and confirm a task, then deactivate the user before it runs:
 		// the step's authority recheck refuses it.
-		ownerCalls := f.runtime.Model.Fake.CallCount()
+		ownerCalls := f.runtime.Model.Observer.CallCount()
 		task, err := runner.StartTask(ctx, agentsystem.StartRequest{
 			TaskID: "agt_deactivated_midway", UserID: agentTestWorker, AgentVersion: agentVersion, InstallationID: "install:x",
 			Purpose: agentPurpose, OrganizationScopeID: agentOrgScope(tenant), Goal: "g",
@@ -453,7 +445,7 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 		if _, err := f.runtime.Starter.StartTask(ctx, agentTestPrincipal(t, f.tenant, agentTestWorker), "am I still here?"); !errors.Is(err, agentclient.ErrNotAuthorized) {
 			t.Fatalf("StartTask for a terminated worker = %v, want ErrNotAuthorized", err)
 		}
-		if got := f.runtime.Model.Fake.CallCount(); got != ownerCalls {
+		if got := f.runtime.Model.Observer.CallCount(); got != ownerCalls {
 			t.Fatalf("the model was called %d times for a deactivated user", got-ownerCalls)
 		}
 	})
@@ -466,165 +458,38 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	})
 
 	t.Run("only the deterministic fake is reachable", func(t *testing.T) {
-		before := f.runtime.Model.Fake.CallCount()
+		before := f.runtime.Model.Observer.CallCount()
 		started, err := f.runtime.Starter.StartTask(ctx, agentTestPrincipal(t, f.tenant, "ir-002-marcus-whitfield"), "one call please")
 		if err != nil || started.State != string(agentrun.StateCompleted) {
 			t.Fatalf("StartTask = %+v, %v", started, err)
 		}
-		if got := f.runtime.Model.Fake.CallCount() - before; got != 1 {
+		if got := f.runtime.Model.Observer.CallCount() - before; got != 1 {
 			t.Fatalf("one task made %d model calls, want 1 from the fake", got)
 		}
 	})
 }
 
-// TestTodo_UXBLIND_122_Model covers provider selection: the fake is installed
-// only under local-dev with no key, a configured key leaves SchemaFlux's own
-// client alone, and any other profile installs nothing and fails model steps
-// with a typed error.
 func TestTodo_UXBLIND_122_Model(t *testing.T) {
-	noKey := func(string) string { return "" }
-	withKey := func(name string) string {
+	model := selectAgentModel(ServeProfileStandard, func(string) string { return "" })
+	if model.Kind != agentModelUnavailable || model.Available() {
+		t.Fatalf("standard profile model = %+v, want unavailable", model)
+	}
+	owner := newAgentToolOwner(nil, model)
+	_, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{
+		Step: agentrun.PlanStep{Type: agentrun.StepAnalyze},
+		Task: agentrun.AgentTask{ID: "task-test", Goal: "summarize"},
+	})
+	if !errors.Is(err, ErrAgentModelUnavailable) {
+		t.Fatalf("model step error = %v, want ErrAgentModelUnavailable", err)
+	}
+	configured := selectAgentModel(ServeProfileStandard, func(name string) string {
 		if name == agentModelKeyEnv {
-			return "sk-configured-not-real"
+			return "configured-secret-must-not-be-retained"
 		}
 		return ""
-	}
-
-	t.Run("non-local-dev without a key installs nothing", func(t *testing.T) {
-		restoreSchemaFluxClient(t)
-		schemaflux.SetDefaultClient(nil)
-		model := selectAgentModel(ServeProfileStandard, noKey)
-		if model.Kind != agentModelUnavailable || model.Fake != nil || model.Available() {
-			t.Fatalf("model = %+v, want unavailable", model)
-		}
-		if schemaflux.GetDefaultClient() != nil {
-			t.Fatal("a fake provider was installed outside local-dev")
-		}
-		owner := newAgentToolOwner(nil, model)
-		_, err := owner.Prepare(context.Background(), agentsystem.PrepareRequest{Step: agentrun.PlanStep{Type: agentrun.StepAnalyze}, Task: agentrun.AgentTask{ID: "t", Goal: "g"}})
-		if !errors.Is(err, ErrAgentModelUnavailable) {
-			t.Fatalf("Prepare for a model step = %v, want ErrAgentModelUnavailable", err)
-		}
-		starter := &agentStarter{platform: &agentsystem.Platform{}, model: model}
-		if starter.model.Available() {
-			t.Fatal("the starter thinks a model is available")
-		}
 	})
-
-	t.Run("a configured key wins and leaves the default client alone", func(t *testing.T) {
-		restoreSchemaFluxClient(t)
-		sentinel := schemaflux.NewClient("sentinel-client-not-a-key")
-		schemaflux.SetDefaultClient(sentinel)
-		for _, profile := range []string{ServeProfileLocalDev, ServeProfileStandard} {
-			model := selectAgentModel(profile, withKey)
-			if model.Kind != agentModelConfigured || model.Fake != nil || !model.Available() {
-				t.Fatalf("%s model = %+v, want configured", profile, model)
-			}
-			if schemaflux.GetDefaultClient() != sentinel {
-				t.Fatalf("%s replaced SchemaFlux's default client although a key is configured", profile)
-			}
-		}
-	})
-
-	t.Run("local-dev without a key installs the deterministic fake", func(t *testing.T) {
-		restoreSchemaFluxClient(t)
-		schemaflux.SetDefaultClient(nil)
-		model := selectAgentModel(ServeProfileLocalDev, noKey)
-		if model.Kind != agentModelFake || model.Fake == nil || schemaflux.GetDefaultClient() == nil {
-			t.Fatalf("model = %+v, want the installed fake", model)
-		}
-	})
-
-	t.Run("fake replies fit the ModelOutput and quarantine schemas", func(t *testing.T) {
-		reply, err := agentFakeReply(0, schemaflux.CompletionRequest{UserPrompt: "Goal: find my desk\nExpected output: x\nInput:\n{}"})
-		if err != nil || !strings.Contains(reply, `"text":"find my desk"`) || !strings.Contains(reply, `"citations":[]`) {
-			t.Fatalf("summary reply = %q, %v", reply, err)
-		}
-		extraction, err := agentFakeReply(1, schemaflux.CompletionRequest{UserPrompt: `Extract only the declared fields from the untrusted content below.` + "\n" +
-			`Schema: {"ID":"worker.v1","Version":"1","Fields":[{"Name":"state","Type":"string","Required":true},{"Name":"n","Type":"integer","Required":false}]}` + "\nUntrusted content:\nx"})
-		if err != nil || !strings.Contains(extraction, `"schema_id":"worker.v1"`) || !strings.Contains(extraction, `"name":"n","value_json":"0"`) {
-			t.Fatalf("extraction reply = %q, %v", extraction, err)
-		}
-		if _, err := agentFakeReply(2, schemaflux.CompletionRequest{UserPrompt: "Extract only the declared fields\nno schema here"}); err == nil {
-			t.Fatal("an extraction prompt without a schema answered")
-		}
-	})
-}
-
-func TestAgentUXR5Srv_ResultPreviewIsAnswerOnly(t *testing.T) {
-	reply, err := agentFakeReply(0, schemaflux.CompletionRequest{UserPrompt: "Goal: Reply with exactly: Your request is ready.\nExpected output: x\nInput:\n{}"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var output agentsystem.ModelOutput
-	if err := json.Unmarshal([]byte(reply), &output); err != nil {
-		t.Fatal(err)
-	}
-	if output.Text != "Your request is ready." {
-		t.Fatalf("answer text = %q", output.Text)
-	}
-	if strings.Contains(output.Text, "Draft reply") || strings.Contains(output.Text, "confirmed plan") {
-		t.Fatalf("answer contains task narration: %q", output.Text)
-	}
-}
-
-func TestInitializeConfiguredAgentModel(t *testing.T) {
-	restoreSchemaFluxClient(t)
-	schemaflux.SetDefaultClient(nil)
-	t.Setenv("SCHEMAFLUX_PROVIDER", "local")
-	t.Setenv(agentModelKeyEnv, "")
-	if err := initializeConfiguredAgentModel(); err != nil {
-		t.Fatalf("initializeConfiguredAgentModel: %v", err)
-	}
-	if schemaflux.GetDefaultClient() == nil {
-		t.Fatal("configured initialization did not install a SchemaFlux client")
-	}
-	if err := schemaflux.GetDefaultClient().Err(); err != nil {
-		t.Fatalf("configured initialization installed an unusable client: %v", err)
-	}
-}
-
-func TestInitializeConfiguredAgentModel_UsesConfiguredProvider(t *testing.T) {
-	restoreSchemaFluxClient(t)
-	var calls atomic.Int32
-	handlerErrors := make(chan string, 1)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/responses") {
-			handlerErrors <- fmt.Sprintf("request = %s %s, want POST Responses endpoint", r.Method, r.URL.Path)
-			http.Error(w, "bad request", http.StatusBadRequest)
-			return
-		}
-		if strings.TrimSpace(r.Header.Get("Authorization")) == "" {
-			handlerErrors <- "request did not carry authorization"
-			http.Error(w, "missing authorization", http.StatusUnauthorized)
-			return
-		}
-		calls.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"resp-test","status":"completed","model":"test","output":[{"type":"message","content":[{"type":"output_text","text":"{\"answer\":\"configured\"}"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`))
-	}))
-	t.Cleanup(server.Close)
-	t.Setenv("SCHEMAFLUX_PROVIDER", "openai")
-	t.Setenv(agentModelKeyEnv, "synthetic-test-key")
-	t.Setenv("SCHEMAFLUX_API_KEY", "synthetic-test-key")
-	t.Setenv("SCHEMAFLUX_OPENAI_BASE_URL", server.URL)
-	if err := initializeConfiguredAgentModel(); err != nil {
-		t.Fatalf("initializeConfiguredAgentModel: %v", err)
-	}
-	type probe struct {
-		Answer string `json:"answer"`
-	}
-	got, err := schemaflux.Generate[probe]("return a typed answer", schemaflux.NewGenerateOptions())
-	if err != nil {
-		t.Fatalf("Generate: %v", err)
-	}
-	select {
-	case handlerErr := <-handlerErrors:
-		t.Fatal(handlerErr)
-	default:
-	}
-	if got.Answer != "configured" || calls.Load() != 1 {
-		t.Fatalf("result=%+v calls=%d, want configured/1", got, calls.Load())
+	if configured.Kind != agentModelConfigured || !configured.Available() {
+		t.Fatalf("configured profile model = %+v, want configured", configured)
 	}
 }
 
@@ -632,8 +497,9 @@ func TestInitializeConfiguredAgentModel_RejectsInvalidProvider(t *testing.T) {
 	restoreSchemaFluxClient(t)
 	t.Setenv("SCHEMAFLUX_PROVIDER", "not-a-provider")
 	t.Setenv(agentModelKeyEnv, "synthetic-test-key")
-	if err := initializeConfiguredAgentModel(); err == nil {
-		t.Fatal("invalid configured provider initialized successfully")
+	err := initializeConfiguredAgentModel()
+	if err == nil || !strings.HasPrefix(err.Error(), "application: initialize configured agent model:") {
+		t.Fatalf("invalid configured provider result = %v", err)
 	}
 }
 

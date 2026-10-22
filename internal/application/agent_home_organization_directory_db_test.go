@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -182,31 +183,85 @@ func TestTodo_AGENT2_029_ProvisionRefusesSourceOwnershipChange(t *testing.T) {
 }
 
 // TestTodo_AGENT2_029_Race covers concurrent readers and, on a real store, two
-// sources asserting the first fact for one member at the same time.
+// sources asserting the first fact for one member at the same time. The test
+// owns the goroutine launches so worker failures can be collected and asserted
+// on the main test goroutine.
 func TestTodo_AGENT2_029_Race(t *testing.T) {
-	t.Run("concurrent reads stay deterministic", homeOrganizationConcurrentReads)
-	t.Run("concurrent provision admits one source", homeOrganizationConcurrentProvisionAndRead)
-}
-
-func homeOrganizationConcurrentReads(t *testing.T) {
 	const workers = 16
 	var wg sync.WaitGroup
-	errs := make(chan error, workers)
+	readErrors := make(chan error, workers)
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
-		go func() {
+		go func(worker int) {
 			defer wg.Done()
 			d := homeOrganizationReader([]any{"org-a"})
 			got, err := d.CurrentHomeOrganization(context.Background(), values.TenantId("tenant-a"), "worker-1")
-			if err != nil || got != "org-a" {
-				errs <- errors.New("concurrent home-organization read was not deterministic")
+			if err != nil {
+				readErrors <- fmt.Errorf("reader %d: %w", worker, err)
+			} else if got != "org-a" {
+				readErrors <- fmt.Errorf("reader %d got %q, want org-a", worker, got)
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
-	close(errs)
-	for err := range errs {
-		t.Fatal(err)
+	close(readErrors)
+	for err := range readErrors {
+		t.Error(err)
+	}
+
+	// Set up the isolated real-store contention case in the main test goroutine
+	// so workers only perform the concurrent operation and return its error.
+	db := pgtest.New(t)
+	tenantID := uuid.New()
+	tenantKey := values.TenantId("home-org-race")
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-local',$3,'ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantID, string(tenantKey), string(tenantKey))
+	when := time.Now().UTC().Add(-time.Minute)
+	type provisionResult struct {
+		source string
+		err    error
+	}
+	results := make(chan provisionResult, 2)
+	ready := make(chan struct{}, 2)
+	start := make(chan struct{})
+	type provisionJob struct {
+		source    string
+		directory *AgentHomeOrganizationDirectoryDB
+	}
+	jobs := make([]provisionJob, 0, 2)
+	for _, source := range []string{"workforce-plan:v1", "other-source:v1"} {
+		conn := appRoleConnForPopulation(t, db)
+		directory := NewAgentHomeOrganizationDirectoryDB(conn, func(values.TenantId) uuid.UUID { return tenantID })
+		jobs = append(jobs, provisionJob{source: source, directory: directory})
+	}
+	for _, job := range jobs {
+		go func(source string, directory *AgentHomeOrganizationDirectoryDB) {
+			ready <- struct{}{}
+			<-start
+			err := directory.ProvisionHomeOrganization(context.Background(), tenantKey, "worker-1", "org-a", source, 1, when)
+			results <- provisionResult{source: source, err: err}
+		}(job.source, job.directory)
+	}
+	<-ready
+	<-ready
+	close(start)
+	succeeded, refused := 0, 0
+	for range 2 {
+		result := <-results
+		if result.err == nil {
+			succeeded++
+		} else if errors.Is(result.err, ErrAgentHomeOrganizationUnavailable) {
+			refused++
+		} else {
+			t.Errorf("source %s concurrent provision: %v", result.source, result.err)
+		}
+	}
+	if succeeded != 1 || refused != 1 {
+		t.Errorf("concurrent provision outcomes = succeeded %d, refused %d; want one of each", succeeded, refused)
+	}
+	reader := NewAgentHomeOrganizationDirectoryDB(appRoleConnForPopulation(t, db), func(values.TenantId) uuid.UUID { return tenantID })
+	got, err := reader.CurrentHomeOrganization(context.Background(), tenantKey, "worker-1")
+	if err != nil || got != "org-a" {
+		t.Errorf("current home organization = %q, %v; want org-a", got, err)
 	}
 }
 
@@ -315,39 +370,5 @@ func TestTodo_AGENT2_029_Integration_QueryCarriesTenantAndSubject(t *testing.T) 
 	queryArgs := tx.args[1]
 	if len(queryArgs) != 2 || queryArgs[0] != tenantID || queryArgs[1] != "worker-1" {
 		t.Fatalf("scoped query args = %#v, want tenant UUID and subject", queryArgs)
-	}
-}
-
-func homeOrganizationConcurrentProvisionAndRead(t *testing.T) {
-	db := pgtest.New(t)
-	tenantID := uuid.New()
-	tenantKey := values.TenantId("home-org-race")
-	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-local',$3,'ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, tenantID, string(tenantKey), string(tenantKey))
-	when := time.Now().UTC().Add(-time.Minute)
-	results := make(chan error, 2)
-	for _, source := range []string{"workforce-plan:v1", "other-source:v1"} {
-		go func(source string) {
-			conn := appRoleConnForPopulation(t, db)
-			d := NewAgentHomeOrganizationDirectoryDB(conn, func(values.TenantId) uuid.UUID { return tenantID })
-			results <- d.ProvisionHomeOrganization(context.Background(), tenantKey, "worker-1", "org-a", source, 1, when)
-		}(source)
-	}
-	succeeded, refused := 0, 0
-	for range 2 {
-		if err := <-results; err == nil {
-			succeeded++
-		} else if errors.Is(err, ErrAgentHomeOrganizationUnavailable) {
-			refused++
-		} else {
-			t.Fatalf("concurrent provision: %v", err)
-		}
-	}
-	if succeeded != 1 || refused != 1 {
-		t.Fatalf("concurrent provision outcomes = succeeded %d, refused %d; want one of each", succeeded, refused)
-	}
-	reader := NewAgentHomeOrganizationDirectoryDB(appRoleConnForPopulation(t, db), func(values.TenantId) uuid.UUID { return tenantID })
-	got, err := reader.CurrentHomeOrganization(context.Background(), tenantKey, "worker-1")
-	if err != nil || got != "org-a" {
-		t.Fatalf("current home organization = %q, %v; want org-a", got, err)
 	}
 }

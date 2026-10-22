@@ -11,7 +11,7 @@ const ChannelStatusStyles = `
 .chatstate-section button{padding:.5rem 1rem;cursor:pointer}
 .chatstate-section summary{padding:.6rem;cursor:pointer}
 .chatstate-section :focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}
-.chatstate-effects{padding-inline-start:1.2rem}
+
 .chatstate-directory-row{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;min-inline-size:0;margin-block:.5rem}.chatstate-directory-row strong{overflow-wrap:anywhere;max-inline-size:100%}
 @media(max-width:390px){.chatstate-section dl{grid-template-columns:minmax(0,1fr)}.chatstate-section{padding:.75rem}}
 @media(prefers-reduced-motion:reduce){.chatstate-section *{animation:none;transition:none}}

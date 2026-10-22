@@ -27,6 +27,7 @@ type ChatmapRequest struct {
 	LiveIntervalSeconds int
 	Policy              ChatmapPolicyWire
 	Reason              string
+	_                   incomparable
 }
 
 // ChatmapPolicyWire is the settings answer and the settings form's request.

@@ -139,11 +139,14 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 	policy := integrate2RenderingPolicy{Store: store, Chat: routed, Personas: input.PersonaReferences, Filter: &chat.FilterContentPolicy{Filters: filters, Conversations: adapter, AuthorIdentity: chatFilterIdentity{facts: facts, now: now, personas: input.PersonaReferences}}}
 	languages := &ChatlangGovernance{Store: store, Admins: administrators, Now: now}
 	policy.Languages = languages
-	policy.Reword = &ChattoneRewordPolicy{Store: store}
+	policy.Reword = &ChattoneRewordPolicy{Store: store, Direct: store.ConversationIsDirect}
 	if filters != nil {
 		policy.Reword.Filters = filters
 	}
-	surface := &ChatRenderingSurface{Store: store, Policy: policy, Languages: languages}
+	surface := &ChatRenderingSurface{Store: store, Policy: policy, Languages: languages, Reword: policy.Reword}
+	// Where members may not view messages as written, no read of a post hands them
+	// the original (chattone_y2_reader.go).
+	core.SetReaderBodyProjector(chattoneReaderProjector{Policy: policy.Reword, Renderings: surface})
 	rowAuthority := integrate2SearchRowAuthority(routed)
 	rendering := func(ctx context.Context, a chatsearch.Actor, row chatsearch.Row) (string, error) {
 		if row.Kind != chatsearch.Message && row.Kind != chatsearch.Thread && row.Kind != chatsearch.Pin && row.Kind != chatsearch.AgentAnswer {
@@ -177,6 +180,7 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 		// composition that supplies one keeps it.
 		if own := newChatgateAuthority(facts, routed, adapter, repository, now); own != nil {
 			gateAuthority, gateDirectory = own, own
+			result.gateAuthority = own
 		}
 	}
 	if !isNilPersonaOutputPort(gateAuthority) {
@@ -185,7 +189,11 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 		routes, _ := routed.(interface {
 			ChatWriteContext(context.Context, string, string) (context.Context, error)
 		})
-		result.gates = integrate2GateSurface{ChatgateSurface: &ChatgateApplication{Clock: now, Service: gates, Directory: gateDirectory, Summaries: repository}, Routes: routes, Filter: policy.Filter}
+		// CHATGATE-010 and 011: Chat's message and card paths ask the gate about segments.
+		segments := chatgateSegmentPort{state: repository, authority: gateAuthority}
+		core.SetSegmentAudience(segments)
+		result.segments = segments
+		result.gates = integrate2GateSurface{ChatgateSurface: &ChatgateApplication{Clock: now, Service: gates, Directory: gateDirectory, Summaries: repository, Consumers: gates, Restricted: store}, Routes: routes, Filter: policy.Filter}
 	}
 	return result, nil
 }

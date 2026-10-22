@@ -133,11 +133,15 @@ func (g *Gate) dayOf(at time.Time) (string, time.Time) {
 // by a tenant administrator, so an alarmed administrator can stop spend but
 // never allow more. Every change is audited.
 func (g *Gate) Set(actor string, next Limit) error {
-	if strings.TrimSpace(next.TenantID) == "" || strings.TrimSpace(next.AgentID) == "" || next.MaxRuns < 0 || next.MaxSpendMicros < 0 {
+	if strings.TrimSpace(next.TenantID) == "" || strings.TrimSpace(next.AgentID) == "" || next.MaxRuns < 0 || next.MaxSpendMicros < 0 ||
+		next.MaxRuns > MaxRunsPerDay || next.MaxSpendMicros > MaxSpendMicrosPerDay {
 		return ErrInvalid
 	}
 	removing := next.MaxRuns == 0 && next.MaxSpendMicros == 0
-	owner := g.owners.IsOwner(next.TenantID, next.AgentID, actor)
+	owner, err := isOwner(g.owners, next.TenantID, next.AgentID, actor)
+	if err != nil {
+		return err
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if err := g.hydrateLocked(next.TenantID); err != nil {
@@ -192,7 +196,11 @@ func lowers(before, next Limit) bool {
 // Limits lists an agent's limits to an owner of it, or to a tenant administrator, who
 // needs to see a limit to tighten it.
 func (g *Gate) Limits(tenant, agentID, actor string) ([]Limit, error) {
-	if !g.owners.IsOwner(tenant, agentID, actor) && !g.owners.IsAdmin(tenant, actor) {
+	owner, err := isOwner(g.owners, tenant, agentID, actor)
+	if err != nil {
+		return nil, err
+	}
+	if !owner && !g.owners.IsAdmin(tenant, actor) {
 		return nil, ErrDenied
 	}
 	g.mu.Lock()
@@ -212,7 +220,11 @@ func (g *Gate) Limits(tenant, agentID, actor string) ([]Limit, error) {
 
 // AuditTrail lists the limit changes of an agent, oldest first, to an owner.
 func (g *Gate) AuditTrail(tenant, agentID, actor string) ([]AuditEvent, error) {
-	if !g.owners.IsOwner(tenant, agentID, actor) {
+	owner, err := isOwner(g.owners, tenant, agentID, actor)
+	if err != nil {
+		return nil, err
+	}
+	if !owner {
 		return nil, ErrDenied
 	}
 	if g.store != nil {
@@ -280,7 +292,7 @@ func reachedSentence(subject Subject, conversation bool, resets time.Time, zone 
 	if conversation && strings.TrimSpace(subject.ConversationLabel) != "" {
 		where = " for " + subject.ConversationLabel
 	}
-	return fmt.Sprintf("%s reached today's limit%s. It resets at %s.", name, where, resets.In(zone).Format("15:04"))
+	return fmt.Sprintf("%s reached today's limit%s. It resets at %s.", name, where, resets.In(zone).Format("15:04 MST"))
 }
 
 // Record adds a finished call to today's usage under the agent's limit and the

@@ -290,6 +290,9 @@ func (s *agentServedAssembly) TickTenant(ctx context.Context, tenant string) err
 	if s != nil && s.AnnouncementWorker != nil {
 		announcementErr = errors.Join(announcementErr, s.AnnouncementWorker.TickTenant(ctx, tenant))
 	}
+	if s != nil && s.agentUX.AmbientWorker != nil {
+		announcementErr = errors.Join(announcementErr, s.agentUX.AmbientWorker.TickTenant(ctx, tenant))
+	}
 	if s == nil || s.Common == nil || s.Schedules == nil || s.Worker == nil {
 		return announcementErr
 	}

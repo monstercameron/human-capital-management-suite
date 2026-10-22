@@ -63,31 +63,48 @@ type localAgentDemoPreparation struct {
 	now                time.Time
 }
 
+// prepare is Policy Helper's and Assistant's entry: each is described by its
+// seed, and the shared preparation below does the rest.
 func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localAgentDemoSeed, policyProfile agentpersona.PersonaProfile) (localAgentDemoPreparedAgent, string, error) {
+	starter, ok := agenttemplate.PersonaStarterFor(seed.starterID, 1)
+	if !ok {
+		return localAgentDemoPreparedAgent{}, "", ErrLocalDevPersonaChatBootstrap
+	}
+	spec := localAgentDemoStarterSpec{starter: starter, direct: true, plan: localAgentDemoStarterPlan{PersonaID: seed.personaID}}
+	if seed.personaID == localAgentDemoAssistantPersonaID {
+		if LocalPersonaOpenAIPolicySelection().EvaluationSuites[localAgentDemoAssistantSuiteID].Version >= 3 {
+			spec.starter = AssistantWorkspaceStarter()
+		}
+		spec.plan = localAgentDemoAssistantPlan(spec.starter)
+		spec.grantSkills = true
+		spec.manifest = func(ctx context.Context, agents *agentstore.Store, tenant uuid.UUID) (agentmanifest.Manifest, error) {
+			return ensureLocalAgentDemoAssistantManifest(ctx, agents, tenant, spec.starter)
+		}
+	}
+	return p.prepareSpec(adminCtx, spec, policyProfile)
+}
+
+// prepareSpec reviews, evaluates (with the recorded deterministic evaluator, never
+// a paid model), publishes and places one starter's agent. Every step leaves an
+// agent that is already in the wanted state alone, so a second run changes nothing.
+func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec localAgentDemoStarterSpec, policyProfile agentpersona.PersonaProfile) (localAgentDemoPreparedAgent, string, error) {
 	ctx := adminCtx
 	config, core, agents, personas, evaluations := p.config, p.core, p.agents, p.personas, p.evaluations
 	mapper, key, material, now := p.mapper, p.key, p.material, p.now
 	chat, repairStore, chatService, roleAccess := p.chat, p.repairStore, p.chatService, p.roleAccess
 	publicConversation, adminPrincipal := p.publicConversation, p.admin
 	var out localAgentDemoPreparedAgent
-	starter, ok := agenttemplate.PersonaStarterFor(seed.starterID, 1)
-	if !ok {
-		return out, "", ErrLocalDevPersonaChatBootstrap
-	}
-	if seed.personaID == localAgentDemoAssistantPersonaID && LocalPersonaOpenAIPolicySelection().EvaluationSuites[localAgentDemoAssistantSuiteID].Version >= 3 {
-		starter = AssistantWorkspaceStarter()
-	}
 	scoped, err := personas.Scoped(values.TenantId(config.Tenant))
 	if err != nil {
 		return out, "", err
 	}
-	row, state, err := latestPersonaVersion(ctx, scoped, seed.personaID, "")
-	if (err == nil || errors.Is(err, agentpersonastore.ErrNotFound)) && seed.personaID == localAgentDemoAssistantPersonaID {
-		manifest, manifestErr := ensureLocalAgentDemoAssistantManifest(ctx, agents, mapper(values.TenantId(config.Tenant)), starter)
+	row, state, err := latestPersonaVersion(ctx, scoped, spec.plan.PersonaID, "")
+	if (err == nil || errors.Is(err, agentpersonastore.ErrNotFound)) && spec.manifest != nil {
+		manifest, manifestErr := spec.manifest(ctx, agents, mapper(values.TenantId(config.Tenant)))
 		if manifestErr != nil {
 			return out, "", manifestErr
 		}
-		row, state, err = ensureLocalAgentDemoAssistantVersion(ctx, scoped, starter, manifest, policyProfile, now)
+		row, state, err = ensureStarterVersion(ctx, scoped, spec.starter, manifest, spec.plan, policyProfile, now)
 	}
 	if err != nil {
 		return out, "", err
@@ -105,7 +122,7 @@ func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localA
 	if err != nil || sealed.Digest != row.ContentDigest {
 		return out, "", ErrPersonaDraftInvalid
 	}
-	if seed.personaID == localAgentDemoAssistantPersonaID {
+	if spec.grantSkills {
 		// CHATLIVE-001: a version that pins a skill its predecessor did not is
 		// listed in no conversation until that skill is granted.
 		if out.skillGrantsCreated, err = ensureLocalAgentDemoSkillGrants(ctx, core, mapper, row.TenantID, profile, now); err != nil {
@@ -159,12 +176,24 @@ func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localA
 	}
 	runID := localAgentDemoEvaluationRunID(row)
 	evidence, evidenceErr := scoped.ResolvePublicationEvidence(ctx, row.PersonaID, row.Version)
+	if state == agentpersonastore.StatePublished && !settled && (evidenceErr != nil || evidence.EvaluationRunID == "") {
+		// The published version's runtime has lapsed (its model route lasted as
+		// long as its evaluation) and the review and evaluation behind it are no
+		// longer current, so it cannot be provisioned again as it stands. Carry
+		// the agent across: the next version, identical but for its number,
+		// goes through review, the recorded evaluation, publication and
+		// reinstallation like any new version, and the old one stays as history.
+		if err := renewPublishedPersonaVersion(ctx, scoped, row, profile, now); err != nil {
+			return out, "", err
+		}
+		return p.prepareSpec(adminCtx, spec, policyProfile)
+	}
 	if settled {
 		// Nothing to record for a settled published version.
 	} else if evidenceErr != nil || evidence.EvaluationRunID == "" {
 		issuer := &PersonaEvaluationIssuer{Versions: personaAdminInstallationVersions{store: personas}, Recorder: &PersonaEvaluationEvidenceService{store: personas}, TenantID: row.TenantID, SuiteID: suite.ID, SuiteDigest: agenteval.PersonaSuiteDigest(suite), KeyID: localAgentDemoEvaluationKeyID, PrivateKey: key, ModelDigest: modelDigest, Now: func() time.Time { return now }, FreshFor: localAgentDemoFreshFor, NewRunID: func() string { return runID }}
 		if _, issueErr := issuer.Issue(ctx, report); issueErr != nil && !errors.Is(issueErr, agentpersonastore.ErrConflict) {
-			return out, "", fmt.Errorf("record Assistant evaluation: %w", issueErr)
+			return out, "", fmt.Errorf("record %s evaluation: %w", row.DisplayName, issueErr)
 		} else {
 			out.evaluationRecorded = issueErr == nil
 		}
@@ -177,13 +206,36 @@ func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localA
 	if err := ensureLocalAgentDemoRoleVisibility(ctx, roleAccess, row.TenantID, profile.Audience); err != nil {
 		return out, "", err
 	}
-	directConversation, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdmin, profile.Handle, profile.DisplayName)
-	if err != nil {
-		return out, "", err
+	directConversation := ""
+	if spec.direct {
+		direct, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdmin, profile.Handle, profile.DisplayName)
+		if err != nil {
+			return out, "", err
+		}
+		directConversation = direct
+		out.chatConversationRepaired = repaired
+		if err := provisionLocalAgentDemoDirectPolicy(ctx, chat, profile.Handle, directConversation); err != nil {
+			return out, "", err
+		}
 	}
-	out.chatConversationRepaired = repaired
-	if err := provisionLocalAgentDemoDirectPolicy(ctx, chat, profile.Handle, directConversation); err != nil {
-		return out, "", err
+	// A starter placed in named rooms is installed there, each under the ceiling
+	// the room already has; the default placement is #general and the direct
+	// conversation.
+	targets := []string{publicConversation, directConversation}
+	if spec.unplaced {
+		targets = nil
+	} else if len(spec.rooms) > 0 {
+		targets = targets[:0]
+		for _, room := range spec.rooms {
+			conversation := localDevPersonaDemoConversationID(config.Tenant, room)
+			if _, err := ProvisionLocalDevPersonaChatPolicy(ctx, chat, config.Profile, config.Tenant, conversation, room); err != nil {
+				return out, "", fmt.Errorf("provision %s for %s: %w", room, row.DisplayName, err)
+			}
+			if err := ensureLocalAgentDemoRoomManager(ctx, chat, config.Tenant, conversation, localAgentDemoAdmin); err != nil {
+				return out, "", fmt.Errorf("make the administrator a manager of %s to install %s: %w", room, row.DisplayName, err)
+			}
+			targets = append(targets, conversation)
+		}
 	}
 	builder := agentDemoProfileBuilder{manifest: manifest}
 	authorizer := localAgentDemoAuthorizer{tenant: row.TenantID, subject: localAgentDemoAdmin, persona: row.PersonaID}
@@ -205,7 +257,7 @@ func (p localAgentDemoPreparation) prepare(adminCtx context.Context, seed localA
 			return out, "", err
 		}
 	}
-	for _, conversation := range []string{publicConversation, directConversation} {
+	for _, conversation := range targets {
 		retired, retireErr := scoped.RetireSuspendedDuplicateInstallations(ctx, row.PersonaID, conversation)
 		if retireErr != nil {
 			return out, "", retireErr
@@ -275,96 +327,17 @@ func ensureLocalAgentDemoAssistantManifest(ctx context.Context, agents *agentsto
 		// evaluated against; the selection now names v3.
 		manifest.EvaluationRefs = []agentmanifest.Reference{LocalPersonaOpenAIPolicyRecords()[3].Reference}
 	}
-	var revision uint64
-	if current, currentRevision, err := agents.CurrentManifest(ctx, tenant, manifest.ID); err == nil {
-		manifest.Version = current.Version
-		if samePersonaStarterManifest(current, manifest) {
-			return current, nil
-		}
-		manifest.Version = current.Version + 1
-		revision = currentRevision
-	} else if !errors.Is(err, agentstore.ErrNotFound) {
-		return agentmanifest.Manifest{}, err
-	}
-	digest, err := agents.SaveInstructionContent(ctx, tenant, instructions)
-	if err != nil || digest != manifest.InstructionsDigest {
-		return agentmanifest.Manifest{}, ErrLocalDevPersonaChatBootstrap
-	}
-	if _, err := agents.SaveManifest(ctx, tenant, manifest, revision); err != nil && !errors.Is(err, agentstore.ErrConflict) {
-		return agentmanifest.Manifest{}, err
-	}
-	current, _, err := agents.CurrentManifest(ctx, tenant, manifest.ID)
-	if err != nil || !samePersonaStarterManifest(current, manifest) {
-		return agentmanifest.Manifest{}, ErrLocalDevPersonaChatBootstrap
-	}
-	return current, nil
+	return ensureStarterManifest(ctx, agents, tenant, manifest, instructions)
 }
 
 func ensureLocalAgentDemoAssistantVersion(ctx context.Context, scoped *agentpersonastore.TenantStore, starter agenttemplate.PersonaStarter, manifest agentmanifest.Manifest, policy agentpersona.PersonaProfile, now time.Time) (agentpersonastore.PersonaVersion, agentpersonastore.LifecycleState, error) {
-	if row, state, err := latestPersonaVersion(ctx, scoped, localAgentDemoAssistantPersonaID, ""); err == nil {
-		var current agentpersona.PersonaProfile
-		if json.Unmarshal(row.Profile, &current) != nil || current.PersonaID != localAgentDemoAssistantPersonaID || current.Handle != localAgentDemoAssistantAgentID || current.Manifest.ID != manifest.ID || current.EvalSuiteRef != starter.EvaluationSuite {
-			return agentpersonastore.PersonaVersion{}, "", ErrPersonaDraftInvalid
-		}
-		digest, digestErr := manifest.Digest()
-		if digestErr != nil {
-			return agentpersonastore.PersonaVersion{}, "", digestErr
-		}
-		if current.Manifest.Digest == digest && uint64(current.Manifest.Version) == manifest.Version {
-			return row, state, nil
-		}
-		if state != agentpersonastore.StatePublished {
-			return agentpersonastore.PersonaVersion{}, "", fmt.Errorf("Assistant version %d must finish review before another upgrade", row.Version)
-		}
-		upgraded := personaStarterProfile(starter, PersonaStarterDraftRequest{PersonaID: current.PersonaID, AvatarRef: current.AvatarRef, OrganizationScopes: current.Audience.OrganizationScopes, BusinessOwnerID: current.Owner, TechnicalStewardID: current.Steward}, manifest, personaStarterInstructions(starter))
-		upgraded.Version = current.Version + 1
-		upgraded.Audience = current.Audience
-		upgraded.DataClassesRead = current.DataClassesRead
-		upgraded.EvalLimits = current.EvalLimits
-		upgraded.AlwaysPrivate = current.AlwaysPrivate
-		upgraded.TierCeiling = current.TierCeiling
-		upgraded.ConversationKinds = current.ConversationKinds
-		upgraded.ChannelClasses = current.ChannelClasses
-		upgraded.AllowedPlacementClasses = current.AllowedPlacementClasses
-		upgraded.ConversationTierCeilings = current.ConversationTierCeilings
-		sealed, err := agentpersona.Seal(upgraded)
-		if err != nil {
-			return agentpersonastore.PersonaVersion{}, "", err
-		}
-		raw, _ := json.Marshal(sealed.Profile)
-		next := row
-		next.Version = int64(upgraded.Version)
-		next.AgentVersion = fmt.Sprintf("%s@%d", manifest.ID, manifest.Version)
-		next.Profile = raw
-		next.ContentDigest = sealed.Digest
-		next.CreatedAt = now
-		if err := scoped.PutVersion(ctx, next); err != nil {
-			return agentpersonastore.PersonaVersion{}, "", err
-		}
-		if err := scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: next.TenantID, EventID: "assistant-workspace-upgrade-" + uuid.NewString(), PersonaID: next.PersonaID, PersonaVersion: next.Version, To: agentpersonastore.StateDraft, Reason: "Assistant workspace search upgrade", ActorID: localAgentDemoAdmin, OccurredAt: now}); err != nil {
-			return agentpersonastore.PersonaVersion{}, "", err
-		}
-		return next, agentpersonastore.StateDraft, nil
-	} else if !errors.Is(err, agentpersonastore.ErrNotFound) {
-		return agentpersonastore.PersonaVersion{}, "", err
-	}
-	profile := personaStarterProfile(starter, PersonaStarterDraftRequest{PersonaID: localAgentDemoAssistantPersonaID, AvatarRef: "avatar:assistant", OrganizationScopes: append([]string(nil), policy.Audience.OrganizationScopes...), BusinessOwnerID: policy.Owner, TechnicalStewardID: policy.Steward}, manifest, personaStarterInstructions(starter))
-	profile.Audience = agentpersona.Audience{Roles: append([]string(nil), policy.Audience.Roles...), Populations: append([]string(nil), policy.Audience.Populations...), OrganizationScopes: append([]string(nil), policy.Audience.OrganizationScopes...)}
-	profile.DataClassesRead = append([]string(nil), policy.DataClassesRead...)
-	profile.EvalLimits = policy.EvalLimits
-	profile.TierCeiling = agentskills.TierT0
-	sealed, err := agentpersona.Seal(profile)
-	if err != nil {
-		return agentpersonastore.PersonaVersion{}, "", err
-	}
-	raw, _ := json.Marshal(sealed.Profile)
-	row := agentpersonastore.PersonaVersion{TenantID: values.TenantId(localAgentDemoTenant), PersonaID: profile.PersonaID, Version: int64(profile.Version), AgentVersion: fmt.Sprintf("%s@%d", profile.Manifest.ID, profile.Manifest.Version), Handle: profile.Handle, DisplayName: profile.DisplayName, Profile: raw, ContentDigest: sealed.Digest, CreatedAt: now}
-	owner := agentpersonastore.PersonaOwner{TenantID: row.TenantID, PersonaID: row.PersonaID, Role: agentpersonastore.BusinessOwner, PrincipalID: profile.Owner}
-	steward := agentpersonastore.PersonaOwner{TenantID: row.TenantID, PersonaID: row.PersonaID, Role: agentpersonastore.TechnicalSteward, PrincipalID: profile.Steward}
-	if err := scoped.CreateDraft(ctx, row, owner, steward, localAgentDemoAdmin, now); err != nil {
-		return agentpersonastore.PersonaVersion{}, "", err
-	}
-	return row, agentpersonastore.StateDraft, nil
+	return ensureStarterVersion(ctx, scoped, starter, manifest, localAgentDemoAssistantPlan(starter), policy, now)
+}
+
+// localAgentDemoAssistantPlan is what Assistant's versions are built from: its
+// own instructions, avatar and the T0 ceiling, and the label of its upgrades.
+func localAgentDemoAssistantPlan(starter agenttemplate.PersonaStarter) localAgentDemoStarterPlan {
+	return localAgentDemoStarterPlan{PersonaID: localAgentDemoAssistantPersonaID, Avatar: "avatar:assistant", Instructions: personaStarterInstructions(starter), Tier: agentskills.TierT0, UpgradeEvent: "assistant-workspace-upgrade", UpgradeReason: "Assistant workspace search upgrade"}
 }
 
 func issueLocalAgentDemoAssistantReview(ctx context.Context, config LocalAgentDemoConfig, agents *agentstore.Store, mapper func(values.TenantId) uuid.UUID, scoped *agentpersonastore.TenantStore, policyProfile agentpersona.PersonaProfile, row agentpersonastore.PersonaVersion, now time.Time) error {

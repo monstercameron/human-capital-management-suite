@@ -1,11 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
 	"mime"
 )
 
@@ -26,17 +21,20 @@ func chatPreviewDimensions(data []byte, contentType string) (decodedBytes int64,
 	if err != nil || (mediaType != "image/png" && mediaType != "image/jpeg" && mediaType != "image/gif") {
 		return 0, false
 	}
-	config, format, err := image.DecodeConfig(bytes.NewReader(data))
-	if err != nil || config.Width <= 0 || config.Height <= 0 ||
-		(mediaType == "image/png" && format != "png") ||
-		(mediaType == "image/jpeg" && format != "jpeg") ||
-		(mediaType == "image/gif" && format != "gif") {
+	// The size comes from the image's own header (chat_media_header.go): the
+	// standard decoders it replaces were linked into the browser module only for
+	// this one call.
+	config, ok := chatImageHeaderOf(data)
+	if !ok ||
+		(mediaType == "image/png" && config.format != "png") ||
+		(mediaType == "image/jpeg" && config.format != "jpeg") ||
+		(mediaType == "image/gif" && config.format != "gif") {
 		return 0, false
 	}
 	// Divide before multiplying so even forged, extreme dimensions cannot
 	// overflow the calculation used by the cache and preview gate.
 	const maxPixels = chatPreviewMaxDecodedBytes / 4
-	width, height := int64(config.Width), int64(config.Height)
+	width, height := int64(config.width), int64(config.height)
 	if width > maxPixels/height {
 		return 0, false
 	}

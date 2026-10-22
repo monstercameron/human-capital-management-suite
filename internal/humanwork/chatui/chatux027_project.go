@@ -91,12 +91,12 @@ func chatux027ProjectBody(m Model, h handlers, parts *channelWidgetParts) ui.Nod
 	form := html.Form(html.Props{Class: "channel-widget-form manage-sec-form", OnSubmit: h.projectDetailsSubmit},
 		html.Div(html.Props{},
 			html.Label(html.Props{For: "channel-project-title", Text: m.t(KeyProjectTitle)}),
-			html.Input(html.Props{ID: "channel-project-title", Class: "chat-input", Type: "text", MaxLength: 160, Data: map[string]string{"chat-value": m.ChannelProject.Title}, Disabled: disabled})),
+			html.Input(html.Props{ID: "channel-project-title", Class: "chat-input", Type: "text", MaxLength: 160, OnInput: h.detailsInput, Data: map[string]string{"chat-value": m.ChannelProject.Title, "action": chatux041InputAction, "id": "project"}, Disabled: disabled})),
 		html.Div(html.Props{},
 			html.Label(html.Props{For: "channel-project-summary", Text: m.t(KeyProjectSummary)}),
-			html.Input(html.Props{ID: "channel-project-summary", Class: "chat-input", Type: "text", MaxLength: 500, Data: map[string]string{"chat-value": m.ChannelProject.Summary}, Disabled: disabled})),
+			html.Input(html.Props{ID: "channel-project-summary", Class: "chat-input", Type: "text", MaxLength: 500, OnInput: h.detailsInput, Data: map[string]string{"chat-value": m.ChannelProject.Summary, "action": chatux041InputAction, "id": "project"}, Disabled: disabled})),
 		chatux027Actions(
-			html.Button(html.Props{Class: "button small", Type: "submit", Disabled: disabled || m.Callbacks.SetChannelProjectDetails == nil, Text: m.t(KeyWidgetSave)}),
+			html.Button(html.Props{Class: "button small", Type: "submit", Disabled: disabled || m.Callbacks.SetChannelProjectDetails == nil || !chatux041Dirty(m, h, "project"), Text: m.t(KeyWidgetSave)}),
 			chatux027CancelButton(m, chatux027ManageScope(m), "project")))
 	return html.Div(html.Props{},
 		html.Div(html.Props{Class: "manage-sec-toolbar"}, chatux027Help(m.t(KeyProjectNote)), parts.ProjectPin),
@@ -117,14 +117,14 @@ func chatux027MilestoneAdder(m Model, h handlers, parts *channelWidgetParts) ui.
 	if open {
 		version := m.SelectedID + ":" + strconv.FormatUint(m.ChannelProject.Revision, 10)
 		fields = html.Form(html.Props{Class: "channel-widget-form manage-sec-form", OnSubmit: h.milestoneSubmit},
-			html.Div(html.Props{}, html.Label(html.Props{For: "channel-milestone-new", Text: m.t(KeyMilestone)}), html.Input(html.Props{ID: "channel-milestone-new", Class: "chat-input", Type: "text", MaxLength: 200, Disabled: disabled})),
+			html.Div(html.Props{}, html.Label(html.Props{For: "channel-milestone-new", Text: m.t(KeyMilestone)}), html.Input(html.Props{ID: "channel-milestone-new", Class: "chat-input", Type: "text", MaxLength: 200, OnInput: h.detailsInput, Data: map[string]string{"action": chatux041InputAction, "id": "milestone"}, Disabled: disabled})),
 			html.Div(html.Props{}, html.Label(html.Props{For: "channel-milestone-new-status", Text: m.t(KeyMilestoneStatus)}),
 				html.Select(html.Props{ID: "channel-milestone-new-status", Class: "chat-input", Data: map[string]string{"chat-select-value": "PLANNED", "chat-select-version": version, "chat-select-editable": "true"}, Disabled: disabled}, widgetStatusOptions(m, "PLANNED")...)),
 			html.Div(html.Props{}, html.Label(html.Props{For: "channel-milestone-new-owner", Text: m.t(KeyMilestoneOwner)}),
 				html.Select(html.Props{ID: "channel-milestone-new-owner", Class: "chat-input", Data: map[string]string{"chat-select-value": "__none__", "chat-select-version": version, "chat-select-editable": "true"}, Disabled: disabled}, widgetOwnerOptions(m, "", "")...)),
 			html.Div(html.Props{}, html.Label(html.Props{For: "channel-milestone-new-date", Text: m.t(KeyMilestoneDue)}), html.Input(html.Props{ID: "channel-milestone-new-date", Class: "chat-input", Type: "date", Disabled: disabled})),
 			chatux027Actions(
-				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: disabled || m.Callbacks.AddChannelProjectMilestone == nil, Text: m.t(KeyWidgetAdd)}),
+				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: disabled || m.Callbacks.AddChannelProjectMilestone == nil || !chatux041Dirty(m, h, "milestone"), Text: m.t(KeyWidgetAdd)}),
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Text: m.t(KeyCancel),
 					Data: map[string]string{"action": "manage-section", "id": "milestone", "extra": scope + ":1"}})))
 	}

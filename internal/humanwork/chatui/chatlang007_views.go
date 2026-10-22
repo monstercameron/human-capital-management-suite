@@ -108,6 +108,8 @@ func TranslationWorkspaceForm(m TranslationAdminModel, text func(string) string)
 		html.P(html.Props{ID: "chatlangadmin-status", Role: "status", Aria: map[string]string{"live": "polite"}, Text: problem}),
 		html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatlangadmin": "workspace"}, OnChange: m.SaveWorkspace, OnSubmit: m.SaveWorkspace, Aria: map[string]string{"labelledby": "chatlangadmin-workspace-title"}}, fields...),
 		translationGlossary(m, t),
+		translationMonitoring(m, t),
+		translationReports(m, t),
 	}
 	return html.Section(html.Props{Class: "chatlangadmin chatlangadmin-page", Dir: direction(m.Locale)}, sections...)
 }
@@ -128,6 +130,9 @@ func translationGlossary(m TranslationAdminModel, t func(string) string) ui.Node
 			html.Button(html.Props{Type: "button", Class: "button secondary", Text: t("remove"), Data: map[string]string{"term": term.ID}, OnClick: m.RemoveTerm, Disabled: m.Loading || m.RemoveTerm.Value() == nil, Aria: map[string]string{"label": t("remove") + ": " + term.Source}})))
 	}
 	glossary := []ui.Node{html.H3(html.Props{ID: "chatlangadmin-glossary-title", Text: t("glossary")}), html.P(html.Props{Class: "field-hint", Text: t("glossary_hint")})}
+	if owners := translationGlossaryOwners(m, t); owners != nil {
+		glossary = append(glossary, owners)
+	}
 	if len(list) == 0 {
 		glossary = append(glossary, html.P(html.Props{Text: t("glossary_empty")}))
 	} else {
@@ -204,7 +209,10 @@ func translationChannelRow(m TranslationAdminModel, text func(string) string, se
 	}
 	form := html.Form(html.Props{Class: "chatlangadmin-channel-form", Dir: direction(m.Locale), Data: map[string]string{"chatlangadmin": "channel"}, OnChange: m.SaveChannel, OnSubmit: m.SaveChannel},
 		html.Label(html.Props{For: "chatlangadmin-channel-switch", Text: t("channel_switch")}),
-		html.Select(html.Props{ID: "chatlangadmin-channel-switch", Class: "chat-input", Name: "translation", Disabled: m.Loading}, options...),
+		html.Select(html.Props{ID: "chatlangadmin-channel-switch", Class: "chat-input", Name: "translation", Disabled: m.Loading,
+			// The control shows what the row's summary says, even when the browser
+			// reuses an option node from another channel (CHATUX-041).
+			Data: map[string]string{"chat-select-value": current, "chat-select-version": current, "chat-select-editable": "true"}}, options...),
 		html.Label(html.Props{Class: "chatlangadmin-check", For: "chatlangadmin-channel-barred"},
 			html.Input(html.Props{ID: "chatlangadmin-channel-barred", Name: "barred", Type: "checkbox", Checked: d.Channel.External == chatlang.ExternalBarred, Disabled: m.Loading}),
 			html.Span(html.Props{Text: t("never_outside")})),
@@ -242,7 +250,7 @@ func translationSettingsEntry(m Model, c Conversation) ui.Node {
 // TranslationAdminPageStyles is the administration page's own sheet. The chat
 // stylesheet is scoped to the chat workspace, which the page is not inside, so
 // the page asks for the translation rules itself.
-const TranslationAdminPageStyles = ChatlangAdminStyles + ChatlangPageStyles
+const TranslationAdminPageStyles = ChatlangAdminStyles + ChatlangPageStyles + ChatlangMonitorStyles
 
 // ChatlangPageStyles finishes the page's settings: each setting is a block with
 // its "Saved" beside it, and the heading and the hints read at the page's size.

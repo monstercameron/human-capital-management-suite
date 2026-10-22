@@ -1,3 +1,9 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. Build reads the workflow engine's compiled
+// plan and live inspector view, which the browser client never has; it receives
+// the resulting View (model.go) instead.
+
 package workflowview
 
 import (

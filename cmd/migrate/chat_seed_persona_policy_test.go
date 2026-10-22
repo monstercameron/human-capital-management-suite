@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/demoworkforce"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/app/pgstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
 func TestTodo_AGENTP_007_LocalDemoBootstrapIntegration(t *testing.T) {
@@ -53,12 +54,29 @@ func TestTodo_AGENTP_007_LocalDemoBootstrapIntegration(t *testing.T) {
 	if err := db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_post p JOIN chat_conversation c ON c.tenant_id=p.tenant_id AND c.id=p.conversation_id WHERE p.tenant_id=$1 AND c.kind=$2`, tenant, chat.PublicChannel).Scan(&publicPosts); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_persona_source_classification WHERE tenant_id=$1`, tenant).Scan(&classifiedPosts); err != nil {
+	if err := db.SQL.QueryRowContext(ctx, `SELECT count(*) FROM chat_persona_source_classification c
+		JOIN chat_post p ON p.tenant_id=c.tenant_id AND p.conversation_id=c.conversation_id AND p.id=c.post_id
+		JOIN chat_conversation conv ON conv.tenant_id=p.tenant_id AND conv.id=p.conversation_id
+		WHERE c.tenant_id=$1 AND conv.kind=$2`, tenant, chat.PublicChannel).Scan(&classifiedPosts); err != nil {
 		t.Fatal(err)
 	}
 	if publicPosts == 0 || classifiedPosts != publicPosts {
 		t.Fatalf("public posts=%d classified=%d", publicPosts, classifiedPosts)
 	}
+	assertClass := func(room string, scenario moderationScenario, want dlp.DataClass) {
+		t.Helper()
+		var got string
+		query := `SELECT c.data_class FROM chat_post p JOIN chat_persona_source_classification c ON c.tenant_id=p.tenant_id AND c.conversation_id=p.conversation_id AND c.post_id=p.id WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND p.body=$3`
+		if err := db.SQL.QueryRowContext(ctx, query, tenant, chatSeedConversationID(tenant, room), scenario.Body).Scan(&got); err != nil {
+			t.Fatalf("classification for %s: %v", scenario.Key, err)
+		}
+		if got != string(want) {
+			t.Fatalf("classification for %s=%s want=%s", scenario.Key, got, want)
+		}
+	}
+	assertClass("people-ops", modHarassment, dlp.ClassInternal)
+	assertClass("general", modRemoved, dlp.ClassPII)
+	assertClass("leadership-private", modPrivate, dlp.ClassCompensation)
 	if _, err = provisionChatSeedPersonaPolicies(ctx, store, tenant, chatSeedRoomsForTenant("small", tenant, func() []string {
 		out := make([]string, len(employees))
 		for i := range employees {
@@ -92,5 +110,62 @@ func TestTodo_AGENTP_007_LocalDemoCorpusClassificationSecurity(t *testing.T) {
 	source.in = in
 	if source.IsKnownSyntheticPersonaPost(context.Background(), post) {
 		t.Fatal("private corpus was admitted as public")
+	}
+}
+
+func TestTodo_AGENTP_007_ModerationSourceValidation(t *testing.T) {
+	const tenant = "ironridge-demo"
+	employees, err := chatSeedWorkforce(tenant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	people := make([]string, len(employees))
+	for i := range employees {
+		people[i] = employees[i].Row.WorkerKey
+	}
+	adminIndex := adminIndexForTenant(tenant, people)
+	if adminIndex < 0 {
+		t.Fatal("demo administrator missing")
+	}
+	admin := people[adminIndex]
+	for _, scenario := range []moderationScenario{modHarassment, modPrivate} {
+		t.Run(scenario.Key, func(t *testing.T) {
+			var room roomSpec
+			for _, candidate := range chatSeedRoomsForTenant("full", tenant, people) {
+				if candidate.Key == scenario.Room {
+					room = candidate
+					break
+				}
+			}
+			if room.Key == "" {
+				t.Fatal("moderation room missing")
+			}
+			source := chatSeedModerationPersonaPostSource{tenant: tenant, people: people, admin: admin, scenario: scenario, id: "seeded-post"}
+			post := chat.Post{ID: "seeded-post", TenantID: tenant, ConversationID: chatSeedConversationID(tenant, scenario.Room), AuthorID: chatSeedModerationMember(room, people, admin, scenario.Slot), AuthorHomeTenantID: tenant, Body: scenario.Body}
+			if !source.IsKnownSyntheticPersonaPost(context.Background(), post) {
+				t.Fatal("exact public/private moderation fixture was refused")
+			}
+			for _, change := range []func(*chat.Post){
+				func(p *chat.Post) { p.ID = "other-post" },
+				func(p *chat.Post) { p.TenantID = "other-tenant" },
+				func(p *chat.Post) { p.ConversationID = "other-room" },
+				func(p *chat.Post) { p.AuthorID = admin },
+				func(p *chat.Post) { p.AuthorHomeTenantID = "other-tenant" },
+				func(p *chat.Post) { p.Body += " altered" },
+				func(p *chat.Post) { p.ParentID = "unexpected-parent" },
+				func(p *chat.Post) { p.Deleted = true },
+			} {
+				altered := post
+				change(&altered)
+				if source.IsKnownSyntheticPersonaPost(context.Background(), altered) {
+					t.Fatalf("altered moderation fixture was classified: %+v", altered)
+				}
+			}
+			wrongScenario := source
+			wrongScenario.scenario.Body += " altered"
+			if wrongScenario.IsKnownSyntheticPersonaPost(context.Background(), post) {
+				t.Fatal("altered scenario definition was accepted")
+			}
+		})
 	}
 }

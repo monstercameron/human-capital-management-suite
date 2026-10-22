@@ -96,5 +96,5 @@ func agentux070Format(m Model, key string, values map[string]string) string {
 // chatUX070Styles lays the switch and its line in one quiet row under the draft.
 const chatUX070Styles = `.composer-private-answer{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:0;padding:2px 8px 4px;font-size:.75rem;color:var(--muted)}` +
 	`.composer-private-switch{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:transparent;color:inherit;font:inherit;cursor:pointer}` +
-	`.composer-private-switch[aria-checked="true"]{border-color:var(--accent);background:var(--soft);color:var(--text)}` +
+	`.composer-private-switch[aria-checked="true"]{border-color:var(--accent);background:var(--soft);color:var(--ink)}` +
 	`.composer-private-line{min-width:0;overflow-wrap:anywhere}`

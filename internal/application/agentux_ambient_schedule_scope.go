@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/scheduled"
 )
@@ -32,3 +33,9 @@ func (s agentUXAmbientScheduleOutbox) Pending(ctx context.Context, tenant string
 	}
 	return result, nil
 }
+
+// agentUXAmbientScheduleOwned reports whether a schedule belongs to a reminder
+// somebody set from a message. Those share the announcements' trigger store and
+// outbox but are planned, delivered and retired only by the ambient agents'
+// workload; the announcement worker leaves them alone (AGENTUX-068).
+func agentUXAmbientScheduleOwned(id string) bool { return strings.HasPrefix(id, "ambient-") }

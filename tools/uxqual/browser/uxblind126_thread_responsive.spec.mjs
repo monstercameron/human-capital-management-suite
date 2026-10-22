@@ -54,7 +54,7 @@ async function readThreadGeometry(page) {
         .filter((child) => {
           const box = child.getBoundingClientRect();
           return (
-            getComputedStyle(child).display !== "none" &&
+            window.getComputedStyle(child).display !== "none" &&
             box.width > 0 &&
             box.height > 0
           );
@@ -65,7 +65,7 @@ async function readThreadGeometry(page) {
         return element
           ? {
               ...rect(element),
-              lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+              lineHeight: parseFloat(window.getComputedStyle(element).lineHeight),
             }
           : null;
       })(),

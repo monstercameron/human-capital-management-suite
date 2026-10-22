@@ -208,6 +208,13 @@ func TestAppendCommitMaterialCarriesThePayAndPinnedManager(t *testing.T) {
 	if hold.ProposalRevisionID.String() != revision.ProposalRevisionID {
 		t.Fatalf("hold proposal = %s, want %s", hold.ProposalRevisionID, revision.ProposalRevisionID)
 	}
+	// The projection now spells the placement path "assignment.org_unit"; the hold
+	// is the same whichever spelling the revision was recorded with.
+	single := revision
+	single.ProposedState = append(append([]intent.StateAssertion{}, spec.ProposedState...), intent.StateAssertion{Subject: primary, FieldPath: "assignment.org_unit", CanonicalText: "people-ops"})
+	if again, ok, err := proposalReservationFor(single); err != nil || !ok || again.OrgUnit != "people-ops" || again.Amount != hold.Amount {
+		t.Fatalf("proposalReservationFor with the single-prefixed path = %+v, %t, %v", again, ok, err)
+	}
 	if _, ok, _ := proposalReservationFor(intent.ProposalRevision{ProposalRevisionID: uuid.NewString(), EffectiveTime: effective}); ok {
 		t.Fatal("a revision with no pay write implied a budget hold")
 	}

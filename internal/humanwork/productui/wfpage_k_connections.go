@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. The documents package it reads is the
+// server's document store, which the browser client must not carry.
+
 package productui
 
 import (

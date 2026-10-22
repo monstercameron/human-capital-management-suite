@@ -60,6 +60,13 @@ var iconPaths = map[string]string{
 	"language":    "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2c2.8 2.8 4 6.2 4 10s-1.2 7.2-4 10c-2.8-2.8-4-6.2-4-10s1.2-7.2 4-10z",
 	"hash":        "M9 4L7 20M17 4l-2 16M4 9h16M3 15h16",
 	"section-new": "M3 7h7l2 2h9v10H3zM12 12v4M10 14h4",
+	// CHATUX-040: the row and section menus give every item a glyph.
+	"unread":       "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+	"logout":       "M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M16 8l4 4-4 4M20 12H9",
+	"section-move": "M3 7h7l2 2h9v10H3zM9 14h6M13 12l2 2-2 2",
+	// The Rewrite control's glyph: a large and a small sparkle, unlike the pencil
+	// the row uses for editing a message.
+	"sparkles": "M10 4l1.8 5.2L17 11l-5.2 1.8L10 18l-1.8-5.2L3 11l5.2-1.8L10 4zM18 3v4M16 5h4M18 16v4M16 18h4",
 }
 
 // iconSVGAttrs and iconPathAttrs are built once and only read: the renderer

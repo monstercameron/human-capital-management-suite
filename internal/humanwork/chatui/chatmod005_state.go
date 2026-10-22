@@ -2,6 +2,7 @@ package chatui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
@@ -26,12 +27,17 @@ type ModerationState struct {
 	// was open (chatmod004_restored.go). It is the page's own knowledge, not
 	// the summary's, so a new summary keeps it.
 	Restored map[string]bool
+	// Removals holds what the moderation record says about removed messages,
+	// by post id, for a person who may review them (chatux048_removed.go).
+	Removals map[string]ModerationRemoval
 }
 
 // ModerationOwnNotice is a removal notice about the viewer's own message.
 type ModerationOwnNotice struct {
 	ConversationID, PostID, Reason, HostTenantID string
 	CanAppeal                                    bool
+	// At is when the removal happened, zero when the notice does not say.
+	At time.Time
 }
 
 // ModerationStateFromSummary turns the server's summary into the page's state.
@@ -51,7 +57,7 @@ func ModerationStateFromSummary(s chat.ModerationSummary) ModerationState {
 		if _, seen := out.Notices[n.PostID]; seen {
 			continue
 		}
-		out.Notices[n.PostID] = ModerationOwnNotice{ConversationID: n.ConversationID, PostID: n.PostID, Reason: n.Reason, HostTenantID: n.TenantID, CanAppeal: n.CanAppeal && n.Outcome == "remove"}
+		out.Notices[n.PostID] = ModerationOwnNotice{ConversationID: n.ConversationID, PostID: n.PostID, Reason: n.Reason, HostTenantID: n.TenantID, CanAppeal: n.CanAppeal && n.Outcome == "remove", At: n.At}
 	}
 	return out
 }

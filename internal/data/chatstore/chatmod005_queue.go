@@ -40,6 +40,19 @@ func moderationItemDetail(ctx context.Context, tx dbport.Tx, p chat.Principal, t
 			return x, false, e
 		}
 	}
+	if x.Kind == "removal" {
+		// The removal record keeps who took the message down and who put it
+		// back, each with their own time. The last decision is not the removal:
+		// after a restore it names the restorer.
+		var restoredBy *string
+		var restoredAt *time.Time
+		if e := tx.QueryRow(ctx, `SELECT actor_id,restored_by,restored_at FROM chat_admin_removal WHERE tenant_id=$1 AND conversation_id=$2 AND post_id=$3`, t, x.ConversationID, x.PostID).Scan(&x.RemovedBy, &restoredBy, &restoredAt); e != nil && !errors.Is(e, dbport.ErrNoRows) {
+			return x, false, e
+		}
+		if restoredBy != nil && restoredAt != nil {
+			x.RestoredBy, x.RestoredAt = *restoredBy, *restoredAt
+		}
+	}
 	if x.PostID == "" {
 		// A hit that no message could be matched to still shows which rule matched.
 		if query != "" && !moderationMatches(x, query) {

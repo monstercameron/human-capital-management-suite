@@ -32,7 +32,7 @@ func chatux027Status(m Model, h handlers) ui.Node {
 	if !ok {
 		return nil
 	}
-	return ChannelStatusPanel(ChannelStatusPanelProps{Model: m, View: view, Change: m.ChangeChannelStatus, Retry: m.RetryChannelStatus, Now: time.Now(),
+	return ChannelStatusPanel(ChannelStatusPanelProps{Model: m, View: view, Change: m.ChangeChannelStatus, Retry: m.RetryChannelStatus, Now: time.Now(), Dirty: h.local.detailGroups, Input: h.detailsInput,
 		Section: chatux027Wrap(m, h, chatux027ManageScope(m), "status", "manage-status")})
 }
 
@@ -43,9 +43,10 @@ func chatux027Roles(m Model, h handlers, parts *channelWidgetParts) ui.Node {
 		return nil
 	}
 	scope := chatux027ManageScope(m)
+	// How many labels are set, not how many people there are (CHATUX-041).
 	var value ui.Node
 	if parts.RoleCount > 0 {
-		value = ui.Text(m.n(parts.RoleCount))
+		value = ui.Text(chatux041RolesValue(m))
 	}
 	open := chatux027IsOpen(h.local, scope, "roles", false)
 	return chatux027Section(m, sectionSpec{ID: "roles", Group: scope, Class: "manage-wrapped", Label: m.t(KeyTeamRoles), Value: value, Open: open,
@@ -97,7 +98,9 @@ func chatux027Filters(m Model, h handlers, c Conversation) []ui.Node {
 		open := chatux027IsOpen(h.local, scope, "workspace-filters", false)
 		var body ui.Node
 		if open {
-			body = html.Div(html.Props{Dir: direction(m.Locale)}, m.WorkspaceFilterSettings())
+			// The row says whose switches these are: the channel's own row above holds
+			// this channel's, these are every channel's (CHATUX-041).
+			body = html.Div(html.Props{Dir: direction(m.Locale)}, chatux027Help(laneText(m, chatux041Copy, chatux041KeyWorkspaceScope)), m.WorkspaceFilterSettings())
 		} else {
 			body = html.Div(html.Props{})
 		}

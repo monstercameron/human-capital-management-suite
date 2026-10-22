@@ -50,7 +50,7 @@ func TestTodo_LIB_008_Golden(t *testing.T) {
 	if !class.Found || !class.Exact {
 		t.Fatalf("dependency-roles.yaml has no exact row for %s", gooseImportPath)
 	}
-	want := []string{"migrations", "cmd", "internal/data/pgtest", "internal/data/schema"}
+	want := []string{"migrations", "cmd", "internal/data/pgtest", "internal/data/schema", "internal/data/agentstore", "internal/data/agentpersonastore/migrations", "tools/chatload"}
 	if strings.Join(class.Row.AllowedImportRoots, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("goose allowed_import_roots = %v, want %v", class.Row.AllowedImportRoots, want)
 	}
@@ -110,6 +110,9 @@ func TestGooseBackendQualification(t *testing.T) {
 			{"cmd/migrate may import goose", roles.Module + "/cmd/migrate", false},
 			{"pgtest may import goose to migrate ephemeral databases", roles.Module + "/internal/data/pgtest", false},
 			{"schema tooling may import goose to inspect migration history", roles.Module + "/internal/data/schema", false},
+			{"agent store owns its migration runner", roles.Module + "/internal/data/agentstore", false},
+			{"agent personastore owns its migration files", roles.Module + "/internal/data/agentpersonastore/migrations", false},
+			{"chat load tool applies its test schema", roles.Module + "/tools/chatload", false},
 			{"a domain package may not import goose", roles.Module + "/internal/domains/people", true},
 			{"an unrelated data package may not import goose directly", roles.Module + "/internal/data/ledger", true},
 		}
@@ -204,8 +207,8 @@ func TestTodo_LIB_008_Fault(t *testing.T) {
 }
 
 // TestTodo_LIB_008_Conformance confirms the goose row itself is complete
-// and its allowed roots are exactly the production runner plus the two
-// narrowly reviewed test/schema mechanics roots.
+// and its allowed roots are exactly the production migration runners plus
+// the narrowly scoped schema and chatload tooling roots.
 func TestTodo_LIB_008_Conformance(t *testing.T) {
 	_, roles := loadFirewallConfigAndRoles(t)
 	class := roles.Classify(gooseImportPath)
@@ -216,10 +219,13 @@ func TestTodo_LIB_008_Conformance(t *testing.T) {
 		t.Errorf("goose manifest row is missing fields: %v", missing)
 	}
 	want := map[string]bool{
-		"migrations":           true,
-		"cmd":                  true,
-		"internal/data/pgtest": true,
-		"internal/data/schema": true,
+		"migrations":               true,
+		"cmd":                      true,
+		"internal/data/pgtest":     true,
+		"internal/data/schema":     true,
+		"internal/data/agentstore": true,
+		"internal/data/agentpersonastore/migrations": true,
+		"tools/chatload": true,
 	}
 	if len(class.Row.AllowedImportRoots) != len(want) {
 		t.Fatalf("goose allowed_import_roots = %v, want exactly %v", class.Row.AllowedImportRoots, want)

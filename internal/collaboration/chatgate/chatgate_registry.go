@@ -43,6 +43,15 @@ func NewRegistry() *Registry {
 			return Control{Type: id, Name: names[locale], Options: f.Options}
 		}})
 	}
+	// The two consumers the product ships (CHATGATE-009, CHATGATE-012). A
+	// question names one in its visibility to feed it; the page lists them by
+	// these names beside the question.
+	for _, c := range []Consumer{
+		{ID: ConsumerSegments, Version: "1.0.0", Kinds: segmentKinds, Effect: "role labels and segments", Permission: "admin", Names: map[string]string{"en-US": "Role labels and segments", "de-DE": "Rollenbezeichnungen und Gruppen", "ar": "تسميات الأدوار والمجموعات"}},
+		{ID: ConsumerAgent, Version: "1.0.0", Kinds: []string{"short_text", "long_text", "single_choice", "multiple_choice", "boolean", "date", "team", "location"}, Effect: "agent welcome, triage and routing", Permission: "admin", Names: map[string]string{"en-US": "An agent in the channel", "de-DE": "Ein Agent im Kanal", "ar": "وكيل في القناة"}},
+	} {
+		_ = r.RegisterConsumer(c)
+	}
 	return r
 }
 func (r *Registry) RegisterKind(k Kind) error {

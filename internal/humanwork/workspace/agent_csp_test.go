@@ -11,7 +11,7 @@ import (
 
 func TestTodo_AGENTP_018_ProductAgentRoutesCSP(t *testing.T) {
 	connect := web033ParseCSP(t, ProductContentSecurityPolicy("localhost:8290"))["connect-src"]
-	for _, path := range []string{"/workspace/persona-admin/", personachat.Path, personachat.Path + "/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/"} {
+	for _, path := range []string{"/workspace/persona-admin/", personachat.Path, personachat.Path + "/", "/api/agent-controls", "/api/agent-controls/", "/api/agents/", "/api/agent-access/", "/api/agent-cost/", "/api/agent-tasks/"} {
 		if !web033HasToken(connect, "localhost:8290"+path) {
 			t.Errorf("product client route missing from CSP: %s", path)
 		}
@@ -43,6 +43,9 @@ func TestTodo_AGENTUX_004_Security(t *testing.T) {
 		host + "/api/agent-controls",
 		host + "/api/agent-controls/",
 		host + "/api/agents/",
+		host + "/api/agent-access/",
+		host + "/api/agent-cost/",
+		host + "/api/agent-tasks/",
 		host + "/api/chat/",
 		host + "/api/chat-writing-style",
 		host + "/api/chat-writing-style/",

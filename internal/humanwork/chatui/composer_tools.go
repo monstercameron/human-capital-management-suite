@@ -145,7 +145,7 @@ func composerMentionButton(m Model, target string, disabled bool) ui.Node {
 
 // composerFormatState is how the formatting row is set: what the viewer chose
 // this session, else what they chose before, else automatic (shown from
-// composerFormatDefaultWidth up).
+// composerFormatDefaultWidth when the draft has content).
 func composerFormatState(m Model, local localUI) string {
 	for _, choice := range []string{local.formatRow, m.ComposerFormatRow} {
 		if choice == composerFormatShown || choice == composerFormatHidden {
@@ -155,15 +155,22 @@ func composerFormatState(m Model, local localUI) string {
 	return composerFormatAuto
 }
 
-// composerFormatVisible is whether the formatting row is on screen.
+// composerFormatVisible is whether the formatting row is on screen. Automatic
+// visibility follows the field value: an empty draft keeps the desktop
+// composer compact, while any entered text restores the row. Do not trim the
+// draft; CSS :placeholder-shown also treats whitespace as entered content.
 func composerFormatVisible(m Model, local localUI) bool {
+	return composerFormatVisibleForDraft(m, local, m.Draft)
+}
+
+func composerFormatVisibleForDraft(m Model, local localUI, draft string) bool {
 	switch composerFormatState(m, local) {
 	case composerFormatShown:
 		return true
 	case composerFormatHidden:
 		return false
 	}
-	return viewportAtLeast(composerFormatDefaultWidth)
+	return draft != "" && viewportAtLeast(composerFormatDefaultWidth)
 }
 
 // composerFormatOpenFor is whether the formatting row of the composer target
@@ -258,11 +265,13 @@ func composerAddChoose(m Model, local localStore, kind string) {
 // the local state; the callback, where the client has one, keeps it for the
 // viewer.
 func composerFormatChoose(m Model, local localStore) {
+	draft := composerDraftValue(m)
 	next := composerFormatShown
-	if composerFormatVisible(m, local.get()) {
+	if composerFormatVisibleForDraft(m, local.get(), draft) {
 		next = composerFormatHidden
 	}
 	local.update(func(u *localUI) { u.formatRow = next })
+	syncComposerFormatControl(m, local.get(), draft)
 	if m.Callbacks.SetComposerFormatRow != nil {
 		m.Callbacks.SetComposerFormatRow(next == composerFormatShown)
 	}
@@ -319,7 +328,7 @@ func composerHintVisible(_ Model, local localUI) bool {
 func composerToolRow(m Model, h handlers, id string, disabled, canSend bool) ui.Node {
 	var hint ui.Node
 	if composerHintVisible(m, h.local) {
-		hint = html.Span(html.Props{ID: "composer-help", Class: "composer-help kbd-hint", Text: m.t(KeyComposeHint)})
+		hint = html.Span(html.Props{ID: "composer-help", Class: "composer-help kbd-hint"}, chatux043Hint(m.Locale, m.t(KeyComposeHint))...)
 	}
 	return html.Div(html.Props{Class: "composer-toolbar"},
 		html.Div(html.Props{Class: "composer-tools"},

@@ -14,6 +14,7 @@ type CrewPin struct {
 	Position LocationPosition
 	Paused   bool
 	Site     bool
+	_        incomparable
 }
 
 // RenderCrewMap draws every pin on one schematic picture from the product's own

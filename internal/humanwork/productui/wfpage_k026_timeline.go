@@ -1,3 +1,9 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. It reads the workflow inspector's types, whose
+// package brings the runtime, ledger and outbox with it; the browser client
+// never draws this view.
+
 package productui
 
 import (

@@ -8,6 +8,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
@@ -22,6 +23,15 @@ var markdownParser = goldmark.New(goldmark.WithExtensions(extension.Table, exten
 // markdownMessageBody renders the supported Markdown profile as typed nodes.
 // Raw HTML and image syntax never become active HTML or remote requests.
 func markdownMessageBody(m Model, body string) []ui.Node {
+	// AGENTUX-076: a body that still carries the mark for an answer no document
+	// backs says so in the reader's language, under the answer.
+	if _, notFromDocuments := chat.SplitUngrounded(body); notFromDocuments {
+		return append(markdownMessageBodyPlain(m, body), agentux076NotFromDocuments(m))
+	}
+	return markdownMessageBodyPlain(m, body)
+}
+
+func markdownMessageBodyPlain(m Model, body string) []ui.Node {
 	// CHATBUG-089: whatever body reaches here, the system's comments are not text.
 	body = chatStripInternalMarkers(body)
 	if len(body) > 64*1024 {
@@ -144,6 +154,9 @@ func markdownNode(m Model, node ast.Node, source []byte) []ui.Node {
 				props.Raw = map[string]any{"start": n.Start}
 			}
 			return []ui.Node{html.Ol(props, children()...)}
+		}
+		if chatux031SourceList(n, source) {
+			return []ui.Node{chatux031SourceChips(m, n, source)}
 		}
 		return []ui.Node{html.Ul(html.Props{}, children()...)}
 	case *ast.ListItem:

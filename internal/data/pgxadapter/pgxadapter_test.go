@@ -30,6 +30,34 @@ func TestNewPoolInvalidURL(t *testing.T) {
 	}
 }
 
+func TestDSNMetadataAndIsolationComparisons(t *testing.T) {
+	metadata, err := ParseDSNMetadata("host=db.example port=5432 dbname=agents user=agent")
+	if err != nil {
+		t.Fatalf("ParseDSNMetadata(keyword DSN): %v", err)
+	}
+	if metadata.Host != "db.example" || metadata.Port != 5432 || metadata.Database != "agents" || metadata.User != "agent" {
+		t.Fatalf("keyword DSN metadata=%+v", metadata)
+	}
+	if !SameDatabaseIdentity("postgres://agent:a@DB.example:5432/agents?sslmode=require", "postgres://review:b@db.example:5432/agents?sslmode=disable") {
+		t.Fatal("same host, port, and database with different credentials were not recognized")
+	}
+	if !SameDatabaseIdentity(" postgres://agent:a@db.example:5432/agents ", "postgres://review:b@db.example:5432/agents") {
+		t.Fatal("surrounding whitespace changed logical database comparison")
+	}
+	if SameDatabaseIdentity("postgres://agent@db.example:5432/agents", "postgres://agent@db.example:5432/core") {
+		t.Fatal("different databases were treated as one logical database")
+	}
+	if !SameLoginRole("postgres://agent:first@db.example/agents", "postgres://agent:second@db.example/core") {
+		t.Fatal("same login with different passwords or databases was not recognized")
+	}
+	if !SameDatabaseIdentity("invalid-dsn", " invalid-dsn ") || SameDatabaseIdentity("invalid-dsn", "other-invalid-dsn") {
+		t.Fatal("malformed DSNs did not use trimmed exact fallback")
+	}
+	if !SameLoginRole("invalid-dsn", " invalid-dsn ") || SameLoginRole("invalid-dsn", "other-invalid-dsn") {
+		t.Fatal("malformed DSN role comparison did not use trimmed exact fallback")
+	}
+}
+
 func TestConnectRuntimeParams(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()

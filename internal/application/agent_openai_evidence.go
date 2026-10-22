@@ -38,8 +38,11 @@ type PersonaOpenAIModelOwnerConfig struct {
 	ToolSources PersonaRuntimeToolSourceValidator
 	ChatClasses PersonaPublicChatDisclosureClassificationSource
 	Documents   agentdocref.Resolver
-	TenantUUID  func(values.TenantId) uuid.UUID
-	Now         func() time.Time
+	// ReaderLanguage is the read the run's model work makes of the asker's
+	// reading language (CHATLANG-005); the verifier rebuilds the same message.
+	ReaderLanguage func(context.Context, string, string) string
+	TenantUUID     func(values.TenantId) uuid.UUID
+	Now            func() time.Time
 }
 
 // PersonaOpenAIModelEvidence verifies source classifications and durably
@@ -119,28 +122,40 @@ func (e *PersonaOpenAIModelEvidence) VerifySourceClassification(ctx context.Cont
 	if !ok || binding.tenant != source.Tenant || (!slices.Contains(source.Provenance, "persona-run:"+binding.runID) && !slices.Contains(source.Provenance, "persona-run:"+binding.stepID)) {
 		return ErrAgentModelGatewayTenant
 	}
-	record, err := e.admission(ctx, binding)
-	if err != nil {
-		return err
+	// AGENTUX-076: what the fields of one request are checked against is built
+	// once for the request (agentux076_dispatch_memo.go).
+	memo := openAIModelDispatchMemoFrom(ctx)
+	record, route, authoritativeDocumentFields, built := memo.get(binding)
+	if built {
+		ctx = WithPersonaBackgroundAdmission(ctx, record)
+	} else {
+		var err error
+		record, err = e.admission(ctx, binding)
+		if err != nil {
+			return err
+		}
+		ctx = WithPersonaBackgroundAdmission(ctx, record)
+		work := &DatabasePersonaRunModelWorkSource{personas: e.cfg.Personas, manifests: e.cfg.Manifests}
+		profile, manifest, err := work.resolveProfileAndManifest(ctx, record)
+		if err != nil {
+			return err
+		}
+		ref := manifest.ModelPolicy
+		stored, err := currentPersonaAgentModelRoute(ctx, e.cfg.Routes, e.cfg.TenantUUID(values.TenantId(binding.tenant)), record.Request.LegalEntity, ref, record.Request.Agent.Digest, e.cfg.Now().UTC())
+		if err != nil {
+			return err
+		}
+		if stored.TenantID != e.cfg.TenantUUID(values.TenantId(binding.tenant)) || stored.LegalEntityID != record.Request.LegalEntity || stored.PolicyID != ref.ID || stored.PolicyVersion != int64(ref.Version) || stored.PolicySchemaVersion != int64(ref.SchemaVersion) || stored.PolicyDigest != ref.Digest || stored.Revision <= 0 || json.Unmarshal(stored.RoutePayload, &route) != nil {
+			return ErrAgentModelGatewayPin
+		}
+		authoritativeDocumentFields, err = personaAuthoritativeDocumentFieldsFor(ctx, e.cfg.Documents, e.cfg.Threads, record, profile, manifest, route, e.cfg.ReaderLanguage)
+		if err != nil {
+			return fmt.Errorf("%w: re-resolve reference documents: %v", ErrAgentModelGatewayPin, err)
+		}
+		memo.put(binding, record, route, authoritativeDocumentFields)
 	}
-	ctx = WithPersonaBackgroundAdmission(ctx, record)
-	work := &DatabasePersonaRunModelWorkSource{personas: e.cfg.Personas, manifests: e.cfg.Manifests}
-	profile, manifest, err := work.resolveProfileAndManifest(ctx, record)
-	if err != nil {
-		return err
-	}
-	ref := manifest.ModelPolicy
-	stored, err := currentPersonaAgentModelRoute(ctx, e.cfg.Routes, e.cfg.TenantUUID(values.TenantId(binding.tenant)), record.Request.LegalEntity, ref, record.Request.Agent.Digest, e.cfg.Now().UTC())
-	if err != nil {
-		return err
-	}
-	var route PersonaRunModelRoute
-	if stored.TenantID != e.cfg.TenantUUID(values.TenantId(binding.tenant)) || stored.LegalEntityID != record.Request.LegalEntity || stored.PolicyID != ref.ID || stored.PolicyVersion != int64(ref.Version) || stored.PolicySchemaVersion != int64(ref.SchemaVersion) || stored.PolicyDigest != ref.Digest || stored.Revision <= 0 || json.Unmarshal(stored.RoutePayload, &route) != nil || route.Purpose != source.Purpose {
+	if route.Purpose != source.Purpose {
 		return ErrAgentModelGatewayPin
-	}
-	authoritativeDocumentFields, err := personaAuthoritativeDocumentFields(ctx, e.cfg.Documents, e.cfg.Threads, record, profile, manifest, route)
-	if err != nil {
-		return fmt.Errorf("%w: re-resolve reference documents: %v", ErrAgentModelGatewayPin, err)
 	}
 	var allowed bool
 	switch source.SourceClass {

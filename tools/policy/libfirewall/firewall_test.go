@@ -190,7 +190,7 @@ func TestTodo_LIB_002_Golden(t *testing.T) {
 		ImportedPath: "github.com/jackc/pgx/v5",
 		Module:       "github.com/jackc/pgx/v5",
 		Role:         depmanifest.RoleInfrastructureMechanic,
-		AllowedRoots: []string{"cmd/hcmnext", "cmd/migrate", "internal/data", "internal/ledger", "internal/platform/bootstrap", "migrations"},
+		AllowedRoots: []string{"cmd/hcmnext", "cmd/migrate", "internal/data", "internal/ledger", "internal/platform/bootstrap", "migrations", "tools/chatload", "tools/policy/migrationci/cmd/migrationci"},
 	}
 	if v.Importer != want.Importer || v.ImportedPath != want.ImportedPath || v.Module != want.Module || v.Role != want.Role {
 		t.Errorf("violation = %+v, want %+v", *v, want)

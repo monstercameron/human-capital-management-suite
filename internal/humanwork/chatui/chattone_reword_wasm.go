@@ -93,6 +93,11 @@ func chattoneRewordLoad(conversation string, done func(ChattoneRewordState, erro
 func chattoneRewordSend(path string, body map[string]any, done func(ChattoneRewordState, error)) {
 	go func() {
 		view, err := chattoneRewordCall(context.Background(), http.MethodPost, chattoneRewordPath+path, body)
+		if err == nil {
+			// The open conversation reads again, so the person's choice (or the
+			// administrator's) takes effect without a reload (CHATTONE-003).
+			chatlangReadingChanged()
+		}
 		done(view, err)
 	}()
 }

@@ -69,6 +69,20 @@ func isProductPath(path string) bool {
 	return path == strings.TrimSpace(path) && strings.HasPrefix(path, productPathPrefix)
 }
 
+const workflowStartClientDeepLinkPattern = "/workspace/app/workflows/start/*"
+
+// registerProductPageRoute keeps page authorization at the same boundary for
+// a page's canonical path and its owned deep-link paths. Workflow starts use
+// one trailing wildcard so the page loader can validate the full escaped path
+// with productclient.ParseState; the router's single-parameter matcher rejects
+// encoded separators before the loader can apply that shared validation.
+func registerProductPageRoute(productRouter *router.Router, page productui.PageID, route string, component func(router.Attrs) *router.Element, options router.Options) {
+	productRouter.Register(route, component, options)
+	if page == productui.PageWorkflowStart {
+		productRouter.Register(workflowStartClientDeepLinkPattern, component, options)
+	}
+}
+
 func startProduct(ctx context.Context, cfg journeyclient.Config, service journeyclient.Service, conn grpc.ClientConnInterface) error {
 	configureChatBrowser(conn, cfg)
 	// CHATUX-009: on Chat's address the conversation list is asked for now, before
@@ -318,7 +332,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, WorkflowStarts: projectWorkflowStarts(cfg.WorkflowStarts), WorkflowStartFavorites: cfg.WorkflowStartFavorites, WorkflowStartRecent: cfg.WorkflowStartRecent, Agents: projectAgents(cfg.Agents), Clock: projectClock(cfg.Clock), EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, WorkflowStarts: projectWorkflowStarts(cfg.WorkflowStarts), WorkflowStartFavorites: cfg.WorkflowStartFavorites, WorkflowStartRecent: cfg.WorkflowStartRecent, WorkflowStartWorkflowID: cfg.WorkflowStartWorkflowID, Agents: projectAgents(cfg.Agents), Clock: projectClock(cfg.Clock), EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
 	preferences := newServerPreferenceController(ctx, service)
 	workflowAuthoring := newWorkflowAuthoringController(ctx, liveService)
 	// No Apply here. Both controllers start from defaults, and the document
@@ -388,11 +402,18 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		searchDebounce.Schedule(href)
 	}
 	docsReplaceRoute = func(href string) { productHistory.Replace(productRouter.NavigateReplace, href) }
+	// Chat's rules are a sheet of their own, linked only by a Chat page; a
+	// navigation into Chat from another page waits for it (chatsheet_gate.go).
+	chatSheet := newChatSheetGateFromDocument()
+	// A Back or Forward arrival at Chat is held from the router the same way.
+	holdChatSheetHistoryArrivals(chatSheet)
 	navigateProduct := func(href string) {
 		searchDebounce.Cancel()
 		searchPush = false
-		productScroll.BeginSoftwareNavigation()
-		productHistory.Navigate(productRouter.Navigate, href)
+		chatSheet.Navigate(href, func() {
+			productScroll.BeginSoftwareNavigation()
+			productHistory.Navigate(productRouter.Navigate, href)
+		})
 	}
 	projectCreateActionsReady = bindProjectCreateForms(cfg, projectService, navigateProduct, productRouter.Revalidate)
 	projectMoveActionsReady := bindProjectStatusMoves(cfg, projectService, productRouter.Revalidate)
@@ -401,7 +422,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	replaceProduct := func(href string) {
 		searchDebounce.Cancel()
 		searchPush = false
-		productHistory.Replace(productRouter.NavigateReplace, href)
+		chatSheet.Navigate(href, func() { productHistory.Replace(productRouter.NavigateReplace, href) })
 	}
 	bindProductLinkFallback(navigateProduct)
 	// Menu filtering is local component state. Debounce only its shareable URL
@@ -436,7 +457,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			detailOnly = true
 		}
 		definition := definition
-		productRouter.Register(definition.Route, productRouteComponent, router.Options{
+		routeOptions := router.Options{
 			// The router writes this before the route renders; name the company
 			// rather than the product so the tab never flashes the suite name.
 			Title: productui.DocumentTitle(definition.Title, productui.DefaultCustomerTheme(), tenantLabel),
@@ -447,6 +468,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					return nil, errors.New(productui.ResolveProductLocale(routeContext.Query.Get("locale")).Text("journey.error_denied_detail"))
 				}
 				navigationDebounce.Cancel()
+				if productui.PageNeedsChatStylesheet(definition.ID) {
+					// A way into Chat that did not pass through navigateProduct
+					// (history, a link the router took) still resolves Chat only
+					// once its rules are in the page.
+					chatSheet.Wait(loadCtx.Done())
+				}
 				persistPresentation := productHistory != nil && productHistory.ClaimSoftwareNavigation(routeContext.Path, routeContext.Query.Encode())
 				// A route change discards an unsaved preview and reapplies the last
 				// customer selection before the next component tree is mounted.
@@ -1228,7 +1255,8 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				setActiveProductLayout(view, showHeading)
 				return productui.LoadingProxy(productui.LoadingProxyProps{Page: view.Page, Locale: view.Locale})
 			},
-		})
+		}
+		registerProductPageRoute(productRouter, definition.ID, definition.Route, productRouteComponent, routeOptions)
 	}
 	bootMark(bootPhaseHydrateStart)
 	if err := hydrateProductRouter(productRouter); err != nil {

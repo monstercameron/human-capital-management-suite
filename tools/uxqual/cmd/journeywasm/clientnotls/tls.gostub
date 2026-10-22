@@ -1,0 +1,269 @@
+// Package tls is the browser client's stand-in for crypto/tls.
+//
+// It is compiled in place of the toolchain's package by the client build
+// (clientnotls_overlay.go) and carries only the names that net/http, gRPC's
+// credentials and golang.org/x/net/http2 mention. A browser page never opens a
+// TLS connection: every request goes through the browser's fetch, which
+// speaks TLS itself. Anything that would start a handshake, dial or listen
+// panics with a message that names the call, so a code path that ever reached
+// one would stop at the first instruction instead of misbehaving quietly.
+package tls
+
+import (
+	"context"
+	"crypto"
+	"crypto/x509"
+	"io"
+	"net"
+	"time"
+)
+
+const notAvailable = "hcm-next browser client: crypto/tls is not part of this build (the browser negotiates TLS itself); called "
+
+func unavailable(call string) { panic(notAvailable + call) }
+
+// TLS protocol versions.
+const (
+	VersionTLS10 = 0x0301
+	VersionTLS11 = 0x0302
+	VersionTLS12 = 0x0303
+	VersionTLS13 = 0x0304
+)
+
+// Cipher suite identifiers that the importers name.
+const (
+	TLS_RSA_WITH_AES_128_CBC_SHA            uint16 = 0x002f
+	TLS_RSA_WITH_AES_256_CBC_SHA            uint16 = 0x0035
+	TLS_RSA_WITH_AES_128_GCM_SHA256         uint16 = 0x009c
+	TLS_RSA_WITH_AES_256_GCM_SHA384         uint16 = 0x009d
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA    uint16 = 0xc009
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA    uint16 = 0xc00a
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      uint16 = 0xc013
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      uint16 = 0xc014
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 uint16 = 0xc02b
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256   uint16 = 0xc02f
+)
+
+// ClientAuthType says how a server asks for client certificates.
+type ClientAuthType int
+
+// The client authentication policies.
+const (
+	NoClientCert ClientAuthType = iota
+	RequestClientCert
+	RequireAnyClientCert
+	VerifyClientCertIfGiven
+	RequireAndVerifyClientCert
+)
+
+// CurveID names an elliptic curve or key exchange group.
+type CurveID uint16
+
+// RenegotiationSupport says when a client accepts renegotiation.
+type RenegotiationSupport int
+
+// CipherSuite describes a cipher suite.
+type CipherSuite struct {
+	ID                uint16
+	Name              string
+	SupportedVersions []uint16
+	Insecure          bool
+}
+
+// CipherSuites lists nothing: no suite can be negotiated here.
+func CipherSuites() []*CipherSuite { return nil }
+
+// InsecureCipherSuites lists nothing: no suite can be negotiated here.
+func InsecureCipherSuites() []*CipherSuite { return nil }
+
+// Certificate is a certificate chain and its private key.
+type Certificate struct {
+	Certificate [][]byte
+	PrivateKey  crypto.PrivateKey
+	Leaf        *x509.Certificate
+}
+
+// CertificateRequestInfo is what a server asks of a client certificate.
+type CertificateRequestInfo struct {
+	AcceptableCAs    [][]byte
+	SignatureSchemes []uint16
+	Version          uint16
+}
+
+// ClientHelloInfo is what a client offers a server.
+type ClientHelloInfo struct {
+	ServerName        string
+	SupportedProtos   []string
+	SupportedVersions []uint16
+	CipherSuites      []uint16
+}
+
+// ConnectionState describes an established connection.
+type ConnectionState struct {
+	Version                     uint16
+	HandshakeComplete           bool
+	DidResume                   bool
+	CipherSuite                 uint16
+	NegotiatedProtocol          string
+	NegotiatedProtocolIsMutual  bool
+	ServerName                  string
+	PeerCertificates            []*x509.Certificate
+	VerifiedChains              [][]*x509.Certificate
+	SignedCertificateTimestamps [][]byte
+	OCSPResponse                []byte
+}
+
+// ExportKeyingMaterial is not available without a connection.
+func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
+	unavailable("ConnectionState.ExportKeyingMaterial")
+	return nil, nil
+}
+
+// Config holds the settings a TLS connection would use.
+type Config struct {
+	Rand                     io.Reader
+	Time                     func() time.Time
+	Certificates             []Certificate
+	GetCertificate           func(*ClientHelloInfo) (*Certificate, error)
+	GetClientCertificate     func(*CertificateRequestInfo) (*Certificate, error)
+	GetConfigForClient       func(*ClientHelloInfo) (*Config, error)
+	VerifyPeerCertificate    func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+	VerifyConnection         func(ConnectionState) error
+	RootCAs                  *x509.CertPool
+	NextProtos               []string
+	ServerName               string
+	ClientAuth               ClientAuthType
+	ClientCAs                *x509.CertPool
+	InsecureSkipVerify       bool
+	CipherSuites             []uint16
+	PreferServerCipherSuites bool
+	SessionTicketsDisabled   bool
+	MinVersion               uint16
+	MaxVersion               uint16
+	CurvePreferences         []CurveID
+	Renegotiation            RenegotiationSupport
+	KeyLogWriter             io.Writer
+}
+
+// Clone returns a copy of c, or nil for a nil Config.
+func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	return &clone
+}
+
+// RecordHeaderError is what a TLS reader reports for bytes that are not TLS.
+type RecordHeaderError struct {
+	Msg          string
+	RecordHeader [5]byte
+	Conn         net.Conn
+}
+
+func (e RecordHeaderError) Error() string { return "tls: " + e.Msg }
+
+// Conn is a TLS connection. This build can never make one.
+type Conn struct{}
+
+// Handshake is not available.
+func (c *Conn) Handshake() error { unavailable("Conn.Handshake"); return nil }
+
+// HandshakeContext is not available.
+func (c *Conn) HandshakeContext(ctx context.Context) error {
+	unavailable("Conn.HandshakeContext")
+	return nil
+}
+
+// ConnectionState is not available.
+func (c *Conn) ConnectionState() ConnectionState {
+	unavailable("Conn.ConnectionState")
+	return ConnectionState{}
+}
+
+// NetConn is not available.
+func (c *Conn) NetConn() net.Conn { unavailable("Conn.NetConn"); return nil }
+
+// CloseWrite is not available.
+func (c *Conn) CloseWrite() error { unavailable("Conn.CloseWrite"); return nil }
+
+// VerifyHostname is not available.
+func (c *Conn) VerifyHostname(host string) error { unavailable("Conn.VerifyHostname"); return nil }
+
+// Read is not available.
+func (c *Conn) Read(b []byte) (int, error) { unavailable("Conn.Read"); return 0, nil }
+
+// Write is not available.
+func (c *Conn) Write(b []byte) (int, error) { unavailable("Conn.Write"); return 0, nil }
+
+// Close is not available.
+func (c *Conn) Close() error { unavailable("Conn.Close"); return nil }
+
+// LocalAddr is not available.
+func (c *Conn) LocalAddr() net.Addr { unavailable("Conn.LocalAddr"); return nil }
+
+// RemoteAddr is not available.
+func (c *Conn) RemoteAddr() net.Addr { unavailable("Conn.RemoteAddr"); return nil }
+
+// SetDeadline is not available.
+func (c *Conn) SetDeadline(t time.Time) error { unavailable("Conn.SetDeadline"); return nil }
+
+// SetReadDeadline is not available.
+func (c *Conn) SetReadDeadline(t time.Time) error { unavailable("Conn.SetReadDeadline"); return nil }
+
+// SetWriteDeadline is not available.
+func (c *Conn) SetWriteDeadline(t time.Time) error { unavailable("Conn.SetWriteDeadline"); return nil }
+
+// Dialer dials TLS connections.
+type Dialer struct {
+	NetDialer *net.Dialer
+	Config    *Config
+}
+
+// Dial is not available.
+func (d *Dialer) Dial(network, addr string) (net.Conn, error) {
+	unavailable("Dialer.Dial")
+	return nil, nil
+}
+
+// DialContext is not available.
+func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	unavailable("Dialer.DialContext")
+	return nil, nil
+}
+
+// Dial is not available.
+func Dial(network, addr string, config *Config) (*Conn, error) {
+	unavailable("Dial")
+	return nil, nil
+}
+
+// DialWithDialer is not available.
+func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*Conn, error) {
+	unavailable("DialWithDialer")
+	return nil, nil
+}
+
+// Client is not available.
+func Client(conn net.Conn, config *Config) *Conn { unavailable("Client"); return nil }
+
+// Server is not available.
+func Server(conn net.Conn, config *Config) *Conn { unavailable("Server"); return nil }
+
+// NewListener is not available.
+func NewListener(inner net.Listener, config *Config) net.Listener {
+	unavailable("NewListener")
+	return nil
+}
+
+// Listen is not available.
+func Listen(network, laddr string, config *Config) (net.Listener, error) {
+	unavailable("Listen")
+	return nil, nil
+}
+
+// LoadX509KeyPair is not available.
+func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+	unavailable("LoadX509KeyPair")
+	return Certificate{}, nil
+}

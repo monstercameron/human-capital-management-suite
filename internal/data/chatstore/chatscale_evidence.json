@@ -89,26 +89,42 @@
       "open hot channel": [0.141, 0.109],
       "page back, middle of hot channel": [0.087, 0.094],
       "thread read": [0.092, 0.088],
-      "unread, per-channel bounded scan, caught-up channel (rows scanned 14,947 then 149,437)": [11.186, 110.54],
+      "unread, per-channel bounded scan, caught-up channel (rows scanned 14,947 then 149,437)": [
+        11.186, 110.54
+      ],
       "sidebar counts, every row cached": [1.844, 1.896],
       "sidebar counts, ten busy channels sent to since": [14.543, 71.039],
-      "sidebar counts, nothing cached (first open; 2 samples at 1,000,000)": [109.5, 1349.17],
-      "search, rare term, one channel (rows scanned 102 then 50,933 for 51 returned)": [0.28, 526.74],
+      "sidebar counts, nothing cached (first open; 2 samples at 1,000,000)": [
+        109.5, 1349.17
+      ],
+      "search, rare term, one channel (rows scanned 102 then 50,933 for 51 returned)": [
+        0.28, 526.74
+      ],
       "pins in a channel": [0.682, 1.866]
     },
     "send_loop_100_sends_ms": {
-      "100,000 posts": {"p50": 3.664, "p95": 17.12, "max": 79.659},
-      "1,000,000 posts": {"p50": 2.134, "p95": 5.493, "max": 12.984}
+      "100,000 posts": { "p50": 3.664, "p95": 17.12, "max": 79.659 },
+      "1,000,000 posts": { "p50": 2.134, "p95": 5.493, "max": 12.984 }
     },
     "candidate_run_1m_median_ms_as_is_then_sidebar_delta_then_partition": {
-      "sidebar counts, ten busy channels took three sends each": [99.488, 32.679, 115.061],
+      "sidebar counts, ten busy channels took three sends each": [
+        99.488, 32.679, 115.061
+      ],
       "sidebar counts, nothing cached (first open)": [1200.257, 1233.38, 1329.777],
-      "sidebar counts, nothing cached, display cap 100 not 5000": [131.422, 143.411, 164.987],
+      "sidebar counts, nothing cached, display cap 100 not 5000": [
+        131.422, 143.411, 164.987
+      ],
       "unread, rebuild one channel (served path), caught up": [6.005, 5.264, 7.19],
-      "unread, legacy per-channel scan (oracle), caught up": [124.971, 128.999, 199.648],
+      "unread, legacy per-channel scan (oracle), caught up": [
+        124.971, 128.999, 199.648
+      ],
       "search, rare term, one channel, as written": [731.234, 771.403, 852.885],
-      "search, rare term, one channel, rewritten so the channel test is not indexable": [3.605, 3.822, 4.132],
-      "search, common term, one channel, rewritten so the channel test is not indexable": [90.348, 102.772, 974.158]
+      "search, rare term, one channel, rewritten so the channel test is not indexable": [
+        3.605, 3.822, 4.132
+      ],
+      "search, common term, one channel, rewritten so the channel test is not indexable": [
+        90.348, 102.772, 974.158
+      ]
     },
     "candidate_run_send_loop_100_sends_p50_p95_ms": {
       "as is": [2.633, 6.615],

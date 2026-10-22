@@ -26,11 +26,12 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 		LauncherActions: []workspace.LauncherActionConfig{{
 			ID: "promote-worker", Availability: "available", Priority: 3,
 		}},
-		WorkflowStarts:       []workspace.WorkflowStartConfig{{WorkflowID: "hire", Name: "New hire", Availability: "available"}},
-		PersonaAdminSnapshot: &productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper"}}},
-		Purpose:              "promotion_review",
-		JourneysPath:         workspace.PathJourney,
-		GiphyAPIKey:          "giphy-public-client-key",
+		WorkflowStarts:          []workspace.WorkflowStartConfig{{WorkflowID: "hire", Name: "New hire", Availability: "available"}},
+		WorkflowStartWorkflowID: "hire",
+		PersonaAdminSnapshot:    &productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper"}}},
+		Purpose:                 "promotion_review",
+		JourneysPath:            workspace.PathJourney,
+		GiphyAPIKey:             "giphy-public-client-key",
 	})
 	if err != nil {
 		t.Fatalf("marshalling the shell's own config: %v", err)
@@ -60,6 +61,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	}
 	if len(cfg.WorkflowStarts) != 1 || cfg.WorkflowStarts[0].WorkflowID != "hire" || cfg.WorkflowStarts[0].Availability != "available" {
 		t.Errorf("WorkflowStarts = %+v", cfg.WorkflowStarts)
+	}
+	if cfg.WorkflowStartWorkflowID != "hire" {
+		t.Errorf("WorkflowStartWorkflowID = %q, want hire", cfg.WorkflowStartWorkflowID)
 	}
 	if cfg.Purpose != "promotion_review" {
 		t.Errorf("Purpose = %q", cfg.Purpose)

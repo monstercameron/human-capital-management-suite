@@ -69,7 +69,8 @@ func TestTodo_CHATBUG_088_DirectoryArrival(t *testing.T) {
 		rest := page[at:]
 		return rest[strings.Index(rest, ">")+1 : strings.Index(rest, "</strong>")]
 	}
-	if got := authorLine(model); got != "…" {
+	// CHATUX-047: the shared loading bar stands in for the name, not a mark.
+	if got := authorLine(model); !strings.Contains(got, "chat-skeleton chatux037-bar") || strings.Contains(got, "…") {
 		t.Fatalf("before the directory the author line is %q", got)
 	}
 	payload := personaChatDirectory{Personas: []personaChatProfile{}, PostActors: []personaChatPostActor{{PostID: "announced", PersonaID: "hcmnext.local.persona.assistant", AgentID: "assistant", PersonaVersion: "2", Display: "Assistant"}}}

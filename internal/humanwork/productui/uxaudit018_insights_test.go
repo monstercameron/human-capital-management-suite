@@ -1,10 +1,12 @@
 package productui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	xhtml "golang.org/x/net/html"
 )
 
 // TestTodo_UXAUDIT_018 proves that the production surface is a bounded
@@ -32,8 +34,84 @@ func TestTodo_UXAUDIT_018(t *testing.T) {
 	if !strings.Contains(Stylesheet(), `.insights-grid{display:grid;gap:18px;grid-template-columns:minmax(0,1fr);}`) || strings.Contains(doc, `class="insights-grid" style=`) {
 		t.Fatal("insights must use a stylesheet-owned full-width track, not an inline layout override")
 	}
-	if strings.Contains(doc, "attrition") || strings.Contains(doc, "trend") || strings.Contains(doc, "workforce analytics") {
+	unsupported, err := insightsContainsUnsupportedAnalyticsText(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unsupported {
 		t.Fatal("workflow summary fabricated unsupported analytics")
+	}
+}
+
+func insightsContainsUnsupportedAnalyticsText(markup string) (bool, error) {
+	root, err := xhtml.Parse(strings.NewReader(markup))
+	if err != nil {
+		return false, err
+	}
+	var insights *xhtml.Node
+	var findInsights func(*xhtml.Node)
+	findInsights = func(node *xhtml.Node) {
+		if insights != nil {
+			return
+		}
+		if node.Type == xhtml.ElementNode {
+			for _, class := range strings.Fields(attr(node, "class")) {
+				if class == "insights-grid" {
+					insights = node
+					return
+				}
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			findInsights(child)
+		}
+	}
+	findInsights(root)
+	if insights == nil {
+		return false, fmt.Errorf("Insights section was not found")
+	}
+	var visibleText strings.Builder
+	var collectText func(*xhtml.Node)
+	collectText = func(node *xhtml.Node) {
+		if node.Type == xhtml.ElementNode && (node.Data == "style" || node.Data == "script") {
+			return
+		}
+		if node.Type == xhtml.TextNode {
+			visibleText.WriteString(node.Data)
+			visibleText.WriteByte(' ')
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			collectText(child)
+		}
+	}
+	collectText(insights)
+	text := strings.ToLower(strings.Join(strings.Fields(visibleText.String()), " "))
+	for _, forbidden := range []string{"attrition", "trend", "workforce analytics"} {
+		if strings.Contains(text, forbidden) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func TestTodo_UXAUDIT_018_Regression_ForbiddenTermsAreScopedToVisibleInsightsText(t *testing.T) {
+	markup := `<style>.chatrender-trend{display:grid}</style><main><section class="insights-grid"><p>Current workflow summary.</p></section></main>`
+	unsupported, err := insightsContainsUnsupportedAnalyticsText(markup)
+	if err != nil || unsupported {
+		t.Fatalf("CSS selector was treated as Insights copy: unsupported=%v err=%v", unsupported, err)
+	}
+	markup = `<style>.chatrender-personal{display:grid}</style><main><section class="insights-grid"><p>Historical trend</p></section></main>`
+	unsupported, err = insightsContainsUnsupportedAnalyticsText(markup)
+	if err != nil || !unsupported {
+		t.Fatalf("visible unsupported Insights copy was not rejected: unsupported=%v err=%v", unsupported, err)
+	}
+	markup = `<main><section class="insights-grid"><p>Historical TREND</p></section></main>`
+	unsupported, err = insightsContainsUnsupportedAnalyticsText(markup)
+	if err != nil || !unsupported {
+		t.Fatalf("case variation of visible unsupported copy was not rejected: unsupported=%v err=%v", unsupported, err)
+	}
+	if _, err = insightsContainsUnsupportedAnalyticsText(`<main><p>No Insights section</p></main>`); err == nil {
+		t.Fatal("missing Insights section was treated as a passing scan")
 	}
 }
 

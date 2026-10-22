@@ -2,6 +2,7 @@ package chatstore
 
 import (
 	"context"
+	"errors"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 )
@@ -10,6 +11,10 @@ func (s *ModeratedAdapter) projectModerationEvent(ctx context.Context, event cha
 	if event.Event.Post != nil {
 		p := event.Event.Post
 		current, err := s.GetPost(ctx, p.TenantID, p.ConversationID, p.ID)
+		if errors.Is(err, chat.ErrNotFound) {
+			// The outbox outlives a purged post. There is nothing left to show.
+			return event, false, nil
+		}
 		if err != nil {
 			return chat.WatchEvent{}, false, err
 		}
@@ -28,6 +33,9 @@ func (s *ModeratedAdapter) projectModerationEvent(ctx context.Context, event cha
 	}
 	if id != "" {
 		p, err := s.GetPost(ctx, t, cid, id)
+		if errors.Is(err, chat.ErrNotFound) {
+			return event, false, nil
+		}
 		if err != nil {
 			return chat.WatchEvent{}, false, err
 		}

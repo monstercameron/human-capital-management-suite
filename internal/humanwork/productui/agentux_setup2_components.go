@@ -24,12 +24,10 @@ func personaAdminPageLinks(locale LocaleContext) ui.Node {
 	return AgentPageNavigation(View{Page: PagePersonaAdmin, Locale: locale}, AgentPageSetup)
 }
 
+// personaAdminBreadcrumb is the trail on Agent setup: Admin, then the page's own
+// name (AGENTUX-077). Agent operations names itself the same way.
 func personaAdminBreadcrumb(locale LocaleContext) ui.Node {
-	return html.Div(html.Props{Class: "persona-admin-breadcrumb"},
-		html.A(html.Props{Href: Path(PageAdmin)}, ui.Text(personaAdminText(locale, "breadcrumb_admin"))),
-		html.Span(html.Props{Aria: map[string]string{"hidden": "true"}}, ui.Text(personaAdminPathSeparator)),
-		html.Span(html.Props{Class: "muted", Aria: map[string]string{"current": "page"}}, ui.Text(personaAdminText(locale, "breadcrumb_agents"))),
-	)
+	return agentUX077Breadcrumb(locale, personaAdminText(locale, "title"))
 }
 
 func personaAdminHeaderActions(locale LocaleContext, client PersonaAdminClient, persona PersonaAdminPersona, snapshot PersonaAdminSnapshot) ui.Node {
@@ -246,6 +244,7 @@ func personaAdminPlacements(locale LocaleContext, persona PersonaAdminPersona, s
 	return html.Section(html.Props{Class: "persona-admin-placements", Aria: map[string]string{"label": personaAdminText(locale, "where_installed")}},
 		html.Div(html.Props{Class: "persona-admin-subhead"}, html.H4(html.Props{}, ui.Text(personaAdminText(locale, "where_installed"))), add),
 		content,
+		personaAdminRemovedPlacements(locale, persona),
 	)
 }
 

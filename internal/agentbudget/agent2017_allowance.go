@@ -17,5 +17,10 @@ func (l *Ledger) ExtensionAllowance(taskID string) Limits {
 	if !ok {
 		return Limits{}
 	}
-	return minLimits(l.policy.ExtensionPolicy.MaxAdditional, l.policy.TenantMonthly.sub(task.spec.Limit))
+	// AcceptExtensionCAS refuses a task that is not paused at its own ceiling, so
+	// nothing is offered for one that is paused for another reason or not paused.
+	if task.paused == nil || task.paused.Scope != ScopeTask || !isTaskCeilingReason(task.paused.Reason) {
+		return Limits{}
+	}
+	return l.extensionAllowanceLocked(task)
 }

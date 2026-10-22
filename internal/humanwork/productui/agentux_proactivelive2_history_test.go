@@ -15,7 +15,7 @@ func TestAgentUXProactiveLive_History_Browser(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if strings.Count(markup, `class="agent-announcement-row"`) != 1 || strings.Count(markup, `<li>`) != 3 || !strings.Contains(markup, `<details class="agent-announcement-history"`) || !strings.Contains(markup, `href="/workspace/app/chat?conversation=general&amp;message=posted"`) {
+		if strings.Count(markup, `class="agent-announcement-row"`) != 1 || strings.Count(markup, `<li>`) != 3 || !strings.Contains(markup, `<details class="agent-announcement-history agent-operations-technical"`) || !strings.Contains(markup, `href="/workspace/app/chat?conversation=general&amp;message=posted"`) {
 			t.Fatalf("%s split attempts into definitions: %s", language, markup)
 		}
 		title := [3]string{"View posting history", "Veröffentlichungsverlauf anzeigen", "عرض سجل النشر"}[agentRPLocaleIndex(locale)]

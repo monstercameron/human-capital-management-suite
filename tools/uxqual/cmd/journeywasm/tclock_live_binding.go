@@ -68,6 +68,7 @@ type clockActionWire struct {
 	WorkflowAttempt     int
 	WorkflowVersion     int64
 	Status              clockSelfStatusWire
+	_                   incomparable
 }
 
 type clockSelfStatusWire struct {
@@ -77,6 +78,7 @@ type clockSelfStatusWire struct {
 	LastEventLabel string
 	StatusCode     string
 	Revision       uint64
+	_              incomparable
 }
 
 func (b *clockLiveBinding) rpcContext(ctx context.Context) context.Context {

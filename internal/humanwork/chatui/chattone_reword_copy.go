@@ -25,7 +25,7 @@ var chattoneRewordCopy = map[string][3]string{
 	"off_help":     {"Members read every message as it was written.", "Mitglieder lesen jede Nachricht, wie sie geschrieben wurde.", "يقرأ الأعضاء كل رسالة كما كُتبت."},
 	"offered_help": {"A reworded version is made for heated messages; each member chooses which to read.", "Für aufgeheizte Nachrichten wird eine umformulierte Fassung erstellt; jedes Mitglied wählt, welche es liest.", "تُنشأ نسخة معدّلة للرسائل المتوترة، ويختار كل عضو ما يقرؤه."},
 	"on_help":      {"Heated messages are shown reworded by default; members who may read the original can switch.", "Aufgeheizte Nachrichten werden standardmäßig umformuliert angezeigt; Mitglieder mit Zugriff auf das Original können wechseln.", "تُعرض الرسائل المتوترة معدّلة افتراضيًا، ويمكن للأعضاء المسموح لهم بقراءة الأصل التبديل."},
-	"view":         {"Members may view messages as written", "Mitglieder dürfen Nachrichten wie geschrieben ansehen", "يمكن للأعضاء عرض الرسائل كما كُتبت"},
+	"view":         {"Members may read messages as written", "Mitglieder dürfen Nachrichten wie geschrieben lesen", "يمكن للأعضاء قراءة الرسائل كما كُتبت"},
 	"yes":          {"Yes", "Ja", "نعم"},
 	"no":           {"No", "Nein", "لا"},
 	"yes_help":     {"Members can show the original of a reworded message.", "Mitglieder können das Original einer umformulierten Nachricht anzeigen.", "يمكن للأعضاء عرض الأصل لرسالة معدّلة."},

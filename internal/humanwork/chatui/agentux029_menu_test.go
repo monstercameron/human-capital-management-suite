@@ -131,7 +131,9 @@ func TestTodo_AGENTUX_029_Browser(t *testing.T) {
 		if strings.Contains(markup, "⟦") {
 			t.Errorf("%s: the menu prints a copy key: %s", locale, markup)
 		}
-		if !strings.Contains(markup, ">"+want+"<") || !strings.Contains(markup, `aria-live="polite"`) || !strings.Contains(markup, `role="status"`) {
+		// CHATUX-037: the menu draws the shared loading frame, which announces the
+		// line once as a polite status (role=status) and marks the region busy.
+		if !strings.Contains(markup, `<span class="sr-only" role="status">`+want+"</span>") || !strings.Contains(markup, `aria-busy="true"`) || strings.Contains(markup, "assertive") {
 			t.Errorf("%s: want the quiet status line %q: %s", locale, want, markup)
 		}
 	}

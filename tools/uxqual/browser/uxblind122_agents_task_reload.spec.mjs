@@ -15,13 +15,15 @@ async function signIn(page) {
 async function waitForHydration(page) {
   await page.waitForFunction(
     () =>
-      performance.getEntriesByType("mark").some((mark) => mark.name === "hcm:hydrated"),
+      window.performance
+        .getEntriesByType("mark")
+        .some((mark) => mark.name === "hcm:hydrated"),
     null,
     { timeout: 30000, polling: 50 },
   );
   await page.waitForFunction(
     () =>
-      performance
+      window.performance
         .getEntriesByType("mark")
         .some((mark) => mark.name === "hcm:load-done"),
     null,
@@ -78,7 +80,10 @@ test("[UXBLIND-122] completed task selection survives reload and a cold task dee
   expect(taskTitle, "the synthetic completed task must have a title").toBeTruthy();
 
   const openTask = taskRow.getByRole("link", { name: "Open task", exact: true });
-  const deepLink = new URL(await openTask.getAttribute("href"), page.url()).toString();
+  const deepLink = new globalThis.URL(
+    await openTask.getAttribute("href"),
+    page.url(),
+  ).toString();
   await openTask.click();
   await expectCompletedTask(page, taskID, taskTitle);
 

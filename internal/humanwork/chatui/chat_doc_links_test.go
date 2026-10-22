@@ -79,7 +79,7 @@ func TestDocPreviewEmbedsRenderLoadingReadyAndRestrictedStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, "Q4 Plan") || !strings.Contains(markup, "Priya Shah") || !strings.Contains(markup, "Quarterly headcount plan.") {
+	if !strings.Contains(markup, "Q4 Plan") || !strings.Contains(markup, "Policy document · 2026-09-01") || !strings.Contains(markup, "Quarterly headcount plan.") {
 		t.Fatalf("ready card missing owner/title/snippet: %s", markup)
 	}
 	restricted := docPreviewEmbeds(Model{EmbedOrigin: "https://hcm.example", DocPreviews: map[string]DocPreview{"locked-1": {ID: "locked-1", State: "ready", Readable: false}}, Text: func(string) string { return "" }}, "doc:locked-1")

@@ -61,7 +61,10 @@ func TestTodo_CHATBUG_022(t *testing.T) {
 
 	waiting := chatbug022Render(t, "en-US", chatui.ChatSearchView{Query: "holiday", Loading: true, Response: answer})
 	for _, control := range strings.Split(waiting, "<button")[1:] {
-		if strings.Contains(control, `data-chatsearch-action="retry"`) && !strings.Contains(control[:strings.Index(control, ">")], "disabled") {
+		// The one live retry is the loading frame's "Try again" (CHATUX-037),
+		// which the frame keeps hidden until the read has taken eight seconds.
+		opening := control[:strings.Index(control, ">")]
+		if strings.Contains(opening, `data-chatsearch-action="retry"`) && !strings.Contains(opening, "disabled") && !strings.Contains(opening, `class="chatux037-retry"`) {
 			t.Errorf("the retry is live while a search is waiting: %s", control)
 		}
 	}

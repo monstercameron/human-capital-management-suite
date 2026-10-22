@@ -98,8 +98,11 @@ type Submission struct {
 	ID, Person, Version, Status, Reason, Reviewer string
 	Revision                                      uint64
 	SubmittedAt                                   time.Time
-	Fields                                        []Field
-	Digest                                        string
+	// DecidedAt is when the submission was admitted or declined: the metrics an
+	// administrator reads time the queue from it.
+	DecidedAt time.Time
+	Fields    []Field
+	Digest    string
 }
 type Answer struct {
 	SubmissionID, Person, FieldID string
@@ -116,6 +119,9 @@ type ReadAudit struct {
 type Event struct {
 	ID, Kind, Conversation, Tenant, Person, SubmissionID, Version string
 	At                                                            time.Time
+	// Source names what started the event when it was not a person's own action
+	// ("GATE_SUBMISSION" for an agent run).
+	Source string
 }
 type Receipt struct {
 	Fingerprint string
@@ -130,6 +136,12 @@ type State struct {
 	Audits      []ReadAudit
 	Events      []Event
 	Overrides   []AdmissionOverride
+	// Segments, Agents and Ops belong to the consumers of answers (CHATGATE-009,
+	// 012 and 013). They are plain data in the same state, so a gate that uses
+	// none of them stores nothing more than before.
+	Segments SegmentState
+	Agents   []AgentGrant
+	Ops      Ops
 }
 type AdmissionOverride struct {
 	Person, Administrator, Version, Reason string

@@ -5,8 +5,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"golang.org/x/text/cases"
-	"golang.org/x/text/unicode/norm"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // Facts about one folded character, decided from the ORIGINAL character so a
@@ -171,8 +170,7 @@ func confusable(r rune) rune {
 
 func fold(s string) folded {
 	f := folded{text: make([]rune, 0, len(s)), flags: make([]uint8, 0, len(s)), starts: make([]int, 0, len(s)), ends: make([]int, 0, len(s))}
-	var caser cases.Caser
-	haveCaser := false
+	var caser values.CaseFolder
 	for pos := 0; pos < len(s); {
 		original, width := utf8.DecodeRuneInString(s[pos:])
 		start, end := pos, pos+width
@@ -212,7 +210,7 @@ func fold(s string) folded {
 		case isApostrophe(original):
 			f.apostrophe(s, start, end)
 		default:
-			f.pushComplex(original, start, end, &caser, &haveCaser)
+			f.pushComplex(original, start, end, &caser)
 		}
 	}
 	for i, fl := range f.flags {
@@ -223,10 +221,10 @@ func fold(s string) folded {
 	return f
 }
 
-func (f *folded) pushComplex(original rune, start, end int, caser *cases.Caser, have *bool) {
+func (f *folded) pushComplex(original rune, start, end int, caser *values.CaseFolder) {
 	var buf [8]rune
 	out := buf[:0]
-	for _, r := range norm.NFKD.String(string(original)) {
+	for _, r := range values.NFKD(string(original)) {
 		if unicode.Is(unicode.M, r) {
 			continue
 		}
@@ -234,10 +232,7 @@ func (f *folded) pushComplex(original rune, start, end int, caser *cases.Caser, 
 			out = append(out, confusable(r))
 			continue
 		}
-		if !*have {
-			*caser, *have = cases.Fold(), true
-		}
-		for _, c := range caser.String(string(r)) {
+		for _, c := range caser.Fold(string(r)) {
 			if !unicode.Is(unicode.M, c) {
 				out = append(out, confusable(c))
 			}

@@ -93,12 +93,67 @@ func TestTodo_UXBLIND_089_Browser(t *testing.T) {
 		t.Fatalf("cold-content budget %s exceeds the 3 s the todo requires", ColdContentBudget)
 	}
 	for name, phases := range map[string][]string{"LOADER_PHASES": ColdStartLoaderPhases(), "CLIENT_PHASES": ColdStartClientPhases()} {
-		want := `const ` + name + ` = ["` + strings.Join(phases, `", "`) + `"];`
-		if !strings.Contains(spec, want) {
-			t.Errorf("live spec %s differs from the Go declaration; want %s", name, want)
+		if !jsStringArrayDeclarationMatches(spec, name, phases) {
+			t.Errorf("live spec %s differs from the Go declaration; want ordered phases %s", name, strings.Join(phases, ", "))
 		}
 	}
 	if !strings.Contains(spec, "browser.newContext()") {
 		t.Error("the live spec does not start from an empty cache")
+	}
+}
+
+func jsStringArrayDeclarationMatches(source, name string, values []string) bool {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = `"` + regexp.QuoteMeta(value) + `"`
+	}
+	pattern := `const\s+` + regexp.QuoteMeta(name) + `\s*=\s*\[\s*` + strings.Join(quoted, `\s*,\s*`) + `\s*,?\s*\]\s*;`
+	return regexp.MustCompile(pattern).MatchString(source)
+}
+
+func TestUXBLIND089PhaseDeclarationMatchesFormattedArray(t *testing.T) {
+	want := []string{"go-main", "dial", "hydrate-start"}
+	tests := []struct {
+		name   string
+		source string
+		match  bool
+	}{
+		{
+			name:   "single-line array",
+			source: `const CLIENT_PHASES = ["go-main", "dial", "hydrate-start"];`,
+			match:  true,
+		},
+		{
+			name: "Prettier multiline array with trailing comma",
+			source: `const CLIENT_PHASES = [
+  "go-main",
+  "dial",
+  "hydrate-start",
+];`,
+			match: true,
+		},
+		{
+			name:   "missing phase",
+			source: `const CLIENT_PHASES = ["go-main", "dial"];`,
+		},
+		{
+			name:   "reordered phases",
+			source: `const CLIENT_PHASES = ["dial", "go-main", "hydrate-start"];`,
+		},
+		{
+			name:   "duplicate phase",
+			source: `const CLIENT_PHASES = ["go-main", "dial", "dial"];`,
+		},
+		{
+			name:   "whitespace inside phase name",
+			source: `const CLIENT_PHASES = ["go-main", "di al", "hydrate-start"];`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := jsStringArrayDeclarationMatches(tt.source, "CLIENT_PHASES", want); got != tt.match {
+				t.Errorf("jsStringArrayDeclarationMatches() = %t, want %t", got, tt.match)
+			}
+		})
 	}
 }

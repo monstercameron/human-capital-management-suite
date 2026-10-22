@@ -40,10 +40,13 @@ import (
 //   - what a gate may ask: questions up to the INTERNAL class; a channel that
 //     is not public starts in review mode.
 //
-// An acknowledgement question names a document, and Chat has no port to the
-// document hub here, so such an answer is refused rather than accepted
-// unchecked. Consumers of answers (role labels, segments, polls, agents) are
-// not composed, and their permissions are refused.
+// An acknowledgement question names a document at a pinned version. Its answer
+// is accepted when the document hub, bound once the document runtime exists
+// (Documents), lets the person read that exact version; with no hub bound it is
+// refused rather than accepted unchecked. The consumers of answers (role labels
+// and segments, polls, agents) are written in the gate service and ask for no
+// permission of their own: building them is the administrator's, and an agent's
+// run is the administrator's too ("agent_run").
 
 // chatgatePerson is one person of the people directory as a gate needs them.
 type chatgatePerson struct {
@@ -117,7 +120,12 @@ type ChatgateAuthority struct {
 	Purposes interface {
 		GatePurpose(context.Context, chatgate.Scope) (string, error)
 	}
-	Now func() time.Time
+	// Documents is the document hub's access check, bound once the document
+	// runtime exists (bindAgentSourceAccess). An acknowledgement answer is
+	// accepted only when the person may read the exact version the question pins;
+	// without it such an answer is refused.
+	Documents chat.AgentSourceAccess
+	Now       func() time.Time
 }
 
 // newChatgateAuthority builds the authority, or nil when the product has no
@@ -232,7 +240,7 @@ func (a *ChatgateAuthority) Check(ctx context.Context, actor chatgate.Actor, sco
 			return nil
 		}
 		return chatgate.ErrDenied
-	case "admin", "export", "retention":
+	case "admin", "export", "retention", "agent_run":
 		if a.administers(ctx, actor, scope) {
 			return nil
 		}
@@ -290,8 +298,7 @@ func (a *ChatgateAuthority) Facts(ctx context.Context, actor chatgate.Actor, sco
 // who works here, a team or a location somebody is in.
 func (a *ChatgateAuthority) Reference(ctx context.Context, actor chatgate.Actor, scope chatgate.Scope, field chatgate.Field, value json.RawMessage) error {
 	if field.Kind == "acknowledgement" {
-		// The document cannot be checked from here (see the file comment).
-		return chatgate.FieldError{Field: field.ID, Cause: chatgate.ErrDenied}
+		return a.acknowledgement(ctx, actor, scope, field)
 	}
 	var named string
 	if json.Unmarshal(value, &named) != nil {
@@ -325,6 +332,22 @@ func (a *ChatgateAuthority) Reference(ctx context.Context, actor chatgate.Actor,
 		}
 	}
 	return chatgate.FieldError{Field: field.ID, Cause: chatgate.ErrInvalid}
+}
+
+// acknowledgement accepts an acknowledgement of a document at the version the
+// question pins when the document hub lets this person read that version. The
+// pinned version is the one acknowledged: the hub's answer must name it. With no
+// hub bound, or any doubt, the answer is refused (CHATGATE-005).
+func (a *ChatgateAuthority) acknowledgement(ctx context.Context, actor chatgate.Actor, scope chatgate.Scope, field chatgate.Field) error {
+	refused := chatgate.FieldError{Field: field.ID, Cause: chatgate.ErrDenied}
+	if a.Documents == nil || strings.TrimSpace(field.DocumentID) == "" || strings.TrimSpace(field.DocumentVersion) == "" {
+		return refused
+	}
+	source, err := a.Documents.ResolveAgentDocumentSource(ctx, chat.Principal{TenantID: actor.Tenant, SubjectID: actor.Person}, scope.Tenant, scope.Conversation, chat.AgentDocumentSource{DocumentID: field.DocumentID, VersionID: field.DocumentVersion})
+	if err != nil || !source.Readable || source.DocumentID != field.DocumentID || source.VersionID != field.DocumentVersion {
+		return refused
+	}
+	return nil
 }
 
 // GateDirectory is what the gate pages show beside a gate: the people, teams

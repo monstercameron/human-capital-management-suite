@@ -76,9 +76,10 @@ type Config struct {
 	FeaturePermissions []FeaturePermission `json:"feature_permissions"`
 	LauncherActions    []LauncherAction    `json:"launcher_actions,omitempty"`
 	// WorkflowStarts mirrors the server-authorized workflow start catalog.
-	WorkflowStarts         []WorkflowStart `json:"workflow_starts,omitempty"`
-	WorkflowStartFavorites []string        `json:"workflow_start_favorites,omitempty"`
-	WorkflowStartRecent    []string        `json:"workflow_start_recent,omitempty"`
+	WorkflowStarts          []WorkflowStart `json:"workflow_starts,omitempty"`
+	WorkflowStartFavorites  []string        `json:"workflow_start_favorites,omitempty"`
+	WorkflowStartRecent     []string        `json:"workflow_start_recent,omitempty"`
+	WorkflowStartWorkflowID string          `json:"workflow_start_workflow_id,omitempty"`
 	// Agents mirrors the server's agents availability projection.
 	Agents *Agents `json:"agents,omitempty"`
 	// Clock mirrors the server's time clock availability projection.

@@ -119,7 +119,9 @@ func TestTodo_REV_101_05(t *testing.T) {
 		}
 		for _, tc := range []struct{ importer, imported string }{
 			{mod + "/internal/collaboration/chatmedia", "golang.org/x/image/draw"},
+			{mod + "/internal/data/brandassetstore", "golang.org/x/image/webp"},
 			{mod + "/internal/humanwork/docsexport", "golang.org/x/image/font/sfnt"},
+			{mod + "/internal/humanwork/workspace", "golang.org/x/image/webp"},
 			{mod + "/internal/humanwork/chatui", "github.com/yuin/goldmark/ast"},
 			{mod + "/internal/humanwork/productui", "github.com/yuin/goldmark/ast"},
 			{mod + "/internal/data/projection/wire", "google.golang.org/protobuf/proto"},
@@ -128,8 +130,15 @@ func TestTodo_REV_101_05(t *testing.T) {
 			{mod + "/internal/data/siemstore", "google.golang.org/protobuf/types/known/wrapperspb"},
 			{mod + "/internal/application", "google.golang.org/protobuf/types/known/timestamppb"},
 			{mod + "/internal/intent/app", "google.golang.org/protobuf/types/known/timestamppb"},
+			{mod + "/tools/uxqual/projectclient", "google.golang.org/protobuf/proto"},
 			{mod + "/internal/data/documenthubstore", "gopkg.in/yaml.v3"},
 			{mod + "/internal/platform/processroles", "gopkg.in/yaml.v3"},
+			{mod + "/internal/transport/timeclock", "gopkg.in/yaml.v3"},
+			{mod + "/tools/chatload", "github.com/jackc/pgx/v5"},
+			{mod + "/tools/policy/migrationci/cmd/migrationci", "github.com/jackc/pgx/v5"},
+			{mod + "/internal/data/agentstore", "github.com/pressly/goose/v3"},
+			{mod + "/internal/data/agentpersonastore/migrations", "github.com/pressly/goose/v3"},
+			{mod + "/tools/chatload", "github.com/pressly/goose/v3"},
 			{mod + "/internal/experience/journeycss", "github.com/monstercameron/GoWebComponents/v5/css"},
 			{mod + "/internal/experience/tokens", "github.com/monstercameron/GoWebComponents/v5/css"},
 			{mod + "/internal/humanwork/docsdiagram", "github.com/monstercameron/GoWebComponents/v5/ui"},
@@ -218,7 +227,9 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 	want := map[string][]string{
 		"golang.org/x/image": {
 			"internal/collaboration/chatmedia",
+			"internal/data/brandassetstore",
 			"internal/humanwork/docsexport",
+			"internal/humanwork/workspace",
 		},
 		"github.com/yuin/goldmark": {
 			"internal/humanwork/chatui",
@@ -237,10 +248,14 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/intent/app",
 			"internal/intent/protomap",
 			"internal/engines/wire",
+			"internal/timeclockapp",
 			"tools/gen",
 			"tools/uxqual/journeyclient",
 			"tools/uxqual/cmd/journeywasm",
 			"tools/uxqual/productclient",
+			"tools/clockpartner",
+			"tools/timeclockkit",
+			"tools/uxqual/projectclient",
 			"tools/quality/bufprotovalidatekit",
 		},
 		"gopkg.in/yaml.v3": {
@@ -250,6 +265,17 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/data/documenthubstore",
 			"internal/platform/telemetry",
 			"internal/transport/eastwest",
+			"internal/transport/timeclock",
+		},
+		"github.com/jackc/pgx/v5": {
+			"internal/data",
+			"internal/ledger",
+			"migrations",
+			"internal/platform/bootstrap",
+			"cmd/hcmnext",
+			"cmd/migrate",
+			"tools/chatload",
+			"tools/policy/migrationci/cmd/migrationci",
 		},
 		"github.com/google/uuid": {
 			"internal/kernel",
@@ -277,7 +303,10 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/transport",
 			"internal/collaboration/chat",
 			"internal/collaboration/chatroutingadapter",
+			"tools/agenteval",
 			"tools/uxqual/journeyclient",
+			"tools/uxqual/cmd/journeywasm",
+			"tools/uxqual/productclient",
 			"tools/planning/lineageconformance",
 			"cmd",
 			"test",
@@ -292,15 +321,22 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/i18n",
 			"tools/uxqual/forms",
 		},
+		"golang.org/x/mod": {
+			"tools",
+			"internal/workflow/semanticversion",
+		},
 		"github.com/monstercameron/GoWebComponents/v5": {
 			"tools/uxqual",
 			"internal/experience/journeycss",
 			"internal/experience/tokens",
+			"internal/humanwork/agenticon",
 			"internal/humanwork/productui",
+			"internal/humanwork/projectui",
 			"internal/humanwork/uicomponents",
 			"internal/humanwork/workspace",
 			"internal/humanwork/chatui",
 			"internal/humanwork/docsdiagram",
+			"internal/timeclockapp",
 		},
 		"go.opentelemetry.io/otel/trace": {
 			"internal/platform/telemetry/otel",
@@ -317,11 +353,13 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 
 	got := map[string][]string{
 		"golang.org/x/image":                           byPath["golang.org/x/image"],
+		"github.com/jackc/pgx/v5":                      byPath["github.com/jackc/pgx/v5"],
 		"github.com/yuin/goldmark":                     byPath["github.com/yuin/goldmark"],
 		"google.golang.org/protobuf":                   byPath["google.golang.org/protobuf"],
 		"gopkg.in/yaml.v3":                             byPath["gopkg.in/yaml.v3"],
 		"github.com/google/uuid":                       byPath["github.com/google/uuid"],
 		"golang.org/x/text":                            byPath["golang.org/x/text"],
+		"golang.org/x/mod":                             byPath["golang.org/x/mod"],
 		"github.com/monstercameron/GoWebComponents/v5": byPath["github.com/monstercameron/GoWebComponents/v5"],
 		"go.opentelemetry.io/otel/trace":               byPath["go.opentelemetry.io/otel/trace"],
 		"family:go.opentelemetry.io/":                  familyOTel,
@@ -330,5 +368,80 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 		if strings.Join(got[path], "\n") != strings.Join(roots, "\n") {
 			t.Errorf("allowed_import_roots for %s = %v, want %v", path, got[path], roots)
 		}
+	}
+}
+
+// TestTodo_REV_101_05_XModIsMechanicsOnly pins the SemVer implementation
+// seam: HCM's grammar and next-patch policy stay in the workflow leaf, while
+// unrelated domain packages cannot import the mechanics library.
+func TestTodo_REV_101_05_XModIsMechanicsOnly(t *testing.T) {
+	m := loadRoleManifest(t)
+	const modulePath = "golang.org/x/mod"
+	var role string
+	for _, row := range m.Modules {
+		if row.Path == modulePath {
+			role = row.Role
+			break
+		}
+	}
+	if role != "INFRASTRUCTURE_MECHANIC" {
+		t.Fatalf("%s role = %q, want INFRASTRUCTURE_MECHANIC", modulePath, role)
+	}
+
+	mod := m.Module
+	for _, tc := range []struct {
+		name, importer string
+		allowed        bool
+	}{
+		{"workflow semantic-version leaf", mod + "/internal/workflow/semanticversion", true},
+		{"unrelated domain", mod + "/internal/domains/people", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := libfirewall.CheckImport(m, tc.importer, modulePath+"/semver")
+			if (got == nil) != tc.allowed {
+				t.Errorf("CheckImport(%q, %q) = %+v, allowed = %t", tc.importer, modulePath+"/semver", got, tc.allowed)
+			}
+		})
+	}
+}
+
+// TestTodo_REV_101_05_ClientMechanicsRootsAreNarrow proves the reviewed
+// client roots can use their wire, renderer, or UUID mechanics while an
+// unrelated domain remains outside all three dependency boundaries.
+func TestTodo_REV_101_05_ClientMechanicsRootsAreNarrow(t *testing.T) {
+	m := loadRoleManifest(t)
+	mod := m.Module
+
+	allowed := []struct {
+		name, importer, imported string
+	}{
+		{"agent icon renderer", mod + "/internal/humanwork/agenticon", "github.com/monstercameron/GoWebComponents/v5/html"},
+		{"kiosk renderer", mod + "/internal/timeclockapp", "github.com/monstercameron/GoWebComponents/v5/ui"},
+		{"agent evaluation provision IDs", mod + "/tools/agenteval", "github.com/google/uuid"},
+		{"browser journey idempotency keys", mod + "/tools/uxqual/cmd/journeywasm", "github.com/google/uuid"},
+		{"product client response IDs", mod + "/tools/uxqual/productclient", "github.com/google/uuid"},
+		{"kiosk public device client", mod + "/internal/timeclockapp", "google.golang.org/protobuf/encoding/protojson"},
+		{"clock partner simulator", mod + "/tools/clockpartner", "google.golang.org/protobuf/types/known/timestamppb"},
+		{"clock partner SDK", mod + "/tools/timeclockkit", "google.golang.org/protobuf/reflect/protoreflect"},
+	}
+	for _, tc := range allowed {
+		t.Run(tc.name, func(t *testing.T) {
+			if v := libfirewall.CheckImport(m, tc.importer, tc.imported); v != nil {
+				t.Errorf("CheckImport(%q, %q) = %+v, want no violation", tc.importer, tc.imported, v)
+			}
+		})
+	}
+
+	for _, imported := range []string{
+		"github.com/monstercameron/GoWebComponents/v5/ui",
+		"github.com/google/uuid",
+		"google.golang.org/protobuf/proto",
+	} {
+		t.Run(imported, func(t *testing.T) {
+			importer := mod + "/internal/domains/people"
+			if v := libfirewall.CheckImport(m, importer, imported); v == nil {
+				t.Errorf("CheckImport(%q, %q) = nil, want domain-boundary violation", importer, imported)
+			}
+		})
 	}
 }

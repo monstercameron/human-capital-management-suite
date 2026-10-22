@@ -235,9 +235,106 @@ func TestTodo_CHATUX_011_Cascade(t *testing.T) {
 			t.Errorf("%+v: the channel header is %q, want one row", env, got)
 		}
 	}
-	// A wider window keeps the roomier field.
-	if got := s11Value(t, s11Env{width: 1440}, "min-height|min-block-size", field(idle)); got != "60px" {
-		t.Errorf("1440px: the field's minimum is %q", got)
+}
+
+// TestTodo_CHATUX_050_Cascade: the empty desktop composer fits one line plus
+// its tool row (CHATUX-050's roughly 77 px target), and coarse-pointer controls
+// retain 44 px targets. CHATUX-050 supersedes the older desktop 60 px field
+// minimum; CHATUX-011's phone growth and one-row requirements remain above.
+func TestTodo_CHATUX_050_Cascade(t *testing.T) {
+	container := func(sel string) bool {
+		core := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(sel, ":not(:focus-within)", ""), ":has(.composer-input:placeholder-shown)", ""), `[data-draft-empty="true"]`, ""))
+		return core == ".chat-composer" || core == ".chat-workspace .chat-composer" || core == ".chat-workspace form.chat-composer"
+	}
+	autoEmptyFormatRow := func(sel string) bool {
+		return strings.HasSuffix(sel, ".composer-format-row") && strings.Contains(sel, `.chat-composer[data-format-row="auto"][data-draft-empty="true"]`)
+	}
+	field := func(sel string) bool {
+		return strings.HasSuffix(sel, ".composer-draft .composer-input") && strings.Contains(sel, "form.chat-composer") && s11Without(sel, "thread-composer")
+	}
+	toolbar := func(sel string) bool {
+		return strings.HasSuffix(sel, ".composer-toolbar") && strings.Contains(sel, "form.chat-composer") && s11Without(sel, "thread-composer")
+	}
+	send := func(sel string) bool {
+		return strings.HasSuffix(sel, ".send-button") && strings.Contains(sel, "form.chat-composer") && s11Without(sel, "thread-composer")
+	}
+	visibleTool := func(class string) func(string) bool {
+		return func(sel string) bool {
+			return strings.Contains(sel, ".chat-composer") &&
+				s11Without(sel, "thread-composer", ".chatvoice-tool", ".chatmap-control", ".composer-format-row", ".format-tools") &&
+				(strings.Contains(sel, ".tool-button") || strings.Contains(sel, "."+class))
+		}
+	}
+
+	fine := s11Env{width: 1440}
+	fieldSize := s11Value(t, fine, "min-height|min-block-size", field)
+	toolbarSize := s11Value(t, fine, "min-height|min-block-size", toolbar)
+	padding := strings.Fields(s11Value(t, fine, "padding", container))
+	border := s11Atoi(s11Value(t, fine, "border", container))
+	if len(padding) < 1 || fieldSize == "" || toolbarSize == "" || border == 0 {
+		t.Fatalf("desktop composer box inputs are missing: field=%q toolbar=%q padding=%v border=%d", fieldSize, toolbarSize, padding, border)
+	}
+	if padding[0] != "4px" {
+		t.Errorf("1440px fine pointer: empty unfocused composer padding is %q, want the 4 px override", padding[0])
+	}
+	if got := s11Value(t, fine, "display", autoEmptyFormatRow); got != "none" {
+		t.Errorf("1440px fine pointer: automatic empty formatting row is %q, want hidden to keep CHATUX-050's one-line composer", got)
+	}
+	// The shared box-sizing rule makes the two minimum block sizes include their
+	// own padding; add the form's vertical padding and border to get its total.
+	total := s11Atoi(fieldSize) + s11Atoi(toolbarSize) + 2*s11Atoi(padding[0]) + 2*border
+	if total < 56 || total > 80 {
+		t.Errorf("1440px fine pointer: empty composer is %d px, want 56–80 px", total)
+	}
+
+	coarse := s11Env{width: 1440, coarse: true}
+	coarseToolbar := s11Atoi(s11Value(t, coarse, "min-height|min-block-size", toolbar))
+	coarseSend := s11Atoi(s11Value(t, coarse, "min-height|min-block-size", send))
+	// Voice and location keep hidden, zero-size opener buttons in the DOM so
+	// their panels can return focus to them. They are not touch targets. For
+	// visible tools, compute the used dimensions from the base size and the
+	// winning min/max constraints instead of treating min-height alone as the
+	// hit area.
+	toolHeight := func(env s11Env, class string) int {
+		match := visibleTool(class)
+		height := s11Atoi(s11Value(t, env, "height|block-size", match))
+		minHeight := s11Atoi(s11Value(t, env, "min-height|min-block-size", match))
+		maxHeight := s11Value(t, env, "max-height|max-block-size", match)
+		if max := s11Atoi(maxHeight); max > 0 && height > max {
+			height = max
+		}
+		if minHeight > height {
+			height = minHeight
+		}
+		return height
+	}
+	toolWidth := func(env s11Env, class string) int {
+		match := visibleTool(class)
+		width := s11Atoi(s11Value(t, env, "width|inline-size", match))
+		minWidth := s11Atoi(s11Value(t, env, "min-width|min-inline-size", match))
+		maxWidth := s11Value(t, env, "max-width|max-inline-size", match)
+		if max := s11Atoi(maxWidth); max > 0 && width > max {
+			width = max
+		}
+		if minWidth > width {
+			width = minWidth
+		}
+		return width
+	}
+	if coarseToolbar != 46 {
+		t.Errorf("1440px coarse pointer: toolbar minimum is %d px, want 46 px", coarseToolbar)
+	}
+	if coarseSend < 44 {
+		t.Errorf("1440px coarse pointer: Send target is %d px high, want at least 44 px", coarseSend)
+	}
+	for _, class := range []string{"composer-add-trigger", "composer-mention-button", "emoji-trigger", "giphy-trigger", "composer-format-toggle"} {
+		if got := s11Value(t, coarse, "min-height|min-block-size", visibleTool(class)); got != "44px" {
+			t.Errorf("1440px coarse pointer: visible .%s winning minimum is %q, want the class-specific 44px target rule", class, got)
+		}
+		width, height := toolWidth(coarse, class), toolHeight(coarse, class)
+		if width < 44 || height < 44 {
+			t.Errorf("1440px coarse pointer: visible .%s target is %d×%d px after min/max constraints, want each dimension at least 44 px", class, width, height)
+		}
 	}
 }
 

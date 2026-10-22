@@ -25,8 +25,11 @@ type DocReference struct {
 // server never sends them for a document the viewer cannot open.
 type DocPreview struct {
 	ID, Title, Owner, UpdatedAt, Snippet string
-	Readable                             bool
-	State                                string // loading, ready, unavailable
+	// Collection is the library collection the document sits in; the card's
+	// source line names it (empty until the preview service sends one).
+	Collection string
+	Readable   bool
+	State      string // loading, ready, unavailable
 }
 
 // CHATBUG-014: each is searched for only in text that holds one of the fixed
@@ -241,12 +244,10 @@ func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
 		if !titleAbove || preview.Title == "" {
 			content = append(content, ui.Text(" "), html.Strong(html.Props{Class: "chat-embed-source", Text: preview.Title}))
 		}
-		byline := preview.Owner
-		if preview.UpdatedAt != "" {
-			byline = strings.TrimSpace(byline + " · " + preview.UpdatedAt)
-		}
-		if byline != "" {
-			content = append(content, ui.Text(" "), html.Span(html.Props{Class: "chat-embed-byline", Text: byline}))
+		// CHATUX-031 (W3): the byline is the document's source line; the owner,
+		// which in a thread read as the person who asked, is only its tooltip.
+		if byline := chatux031DocSourceLine(m, preview); byline != "" {
+			content = append(content, ui.Text(" "), html.Span(html.Props{Class: "chat-embed-byline", Title: strings.TrimSpace(preview.Owner), Text: byline}))
 		}
 		if preview.Snippet != "" {
 			var inCard ui.Node

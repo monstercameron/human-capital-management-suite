@@ -88,14 +88,13 @@ func (s *personaDurableInvocationFailureSink) RecordPersonaInvocationPostFailure
 	if !ok || s.store == nil || post.ID == "" || post.TenantID != p.Tenant().String() || post.AuthorID != p.Subject() || post.ConversationID == "" || post.Deleted || post.Revision != 1 {
 		return
 	}
-	code, retryable := personaPostFailureClassification(cause)
 	thread := post.ParentID
 	if thread == "" {
 		thread = post.ID
 	}
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	err := s.store.RecordPostFailure(writeCtx, agentinvocationstore.PostFailure{TenantID: post.TenantID, InvokerID: p.Subject(), ConversationID: post.ConversationID, ThreadID: thread, PostID: post.ID, Code: code, Retryable: retryable})
+	err := s.store.RecordPostFailure(writeCtx, personaPostFailureOutcome(agentinvocationstore.PostFailure{TenantID: post.TenantID, InvokerID: p.Subject(), ConversationID: post.ConversationID, ThreadID: thread, PostID: post.ID}, cause, time.Now()))
 	if err != nil {
 		s.RecordPersonaInvocationFailure(ctx, post.ID, err)
 	}
@@ -114,10 +113,12 @@ func personaPostFailureClassification(err error) (string, bool) {
 		return code, retryable
 	}
 	switch {
+	case isPersonaMentionLimit(err):
+		return agentinvocationstore.MentionLimitCode, false
 	case errors.Is(err, ErrPersonaRunDailyLimit):
 		return "DAILY_LIMIT_REACHED", false
 	case errors.Is(err, errPersonaModelNotConfigured):
-		return "SERVER_HAS_NO_MODEL", false
+		return agentinvocationstore.NoModelCode, false
 	case errors.Is(err, ErrPersonaRunModelFailure):
 		return "MODEL_UNAVAILABLE", true
 	case errors.Is(err, ErrPersonaRunOutputRejected):

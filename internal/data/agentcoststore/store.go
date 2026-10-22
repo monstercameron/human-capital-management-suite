@@ -216,8 +216,15 @@ func (s *Store) RunsSince(tenant string, since time.Time) ([]agentcost.Run, erro
 // IsBusinessOwner reports whether the principal is the agent's business owner.
 // The spend limits of an agent are the owner's to raise.
 func (s *Store) IsBusinessOwner(tenant, agentID, principalID string) bool {
+	found, err := s.CheckBusinessOwner(tenant, agentID, principalID)
+	return err == nil && found
+}
+
+// CheckBusinessOwner is IsBusinessOwner that also says when the database could
+// not answer, so a failed read is not taken for "not the owner".
+func (s *Store) CheckBusinessOwner(tenant, agentID, principalID string) (bool, error) {
 	if strings.TrimSpace(agentID) == "" || strings.TrimSpace(principalID) == "" {
-		return false
+		return false, nil
 	}
 	found := false
 	err := s.run(tenant, func(ctx context.Context, tx dbport.Tx, id uuid.UUID) error {
@@ -228,7 +235,7 @@ func (s *Store) IsBusinessOwner(tenant, agentID, principalID string) bool {
 		found = n > 0
 		return nil
 	})
-	return err == nil && found
+	return found, err
 }
 
 // OwnedAgent is one agent a person is the business owner of.

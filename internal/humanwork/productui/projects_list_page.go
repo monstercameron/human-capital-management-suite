@@ -469,7 +469,7 @@ const projectListStylesheet = `
 .project-list-head,.project-list-row{display:grid;grid-template-columns:minmax(0,1fr) 9rem 5rem 12rem;align-items:center;column-gap:var(--hcm-space-3);padding-inline:var(--hcm-space-3)}
 .project-list-head{min-block-size:2.5rem;border-block-end:1px solid var(--line);background:color-mix(in srgb,var(--ink) 2.5%,var(--surface))}
 .project-list-headcell{display:flex;min-inline-size:0}
-.project-list-headcell.project-list-num{justify-content:flex-end}
+
 .project-sort{display:inline-flex;align-items:center;gap:.3rem;min-block-size:2rem;margin-inline:-.4rem;padding-inline:.4rem;border:0;border-radius:var(--hcm-radius-control);background:transparent;color:var(--muted);font:inherit;font-size:var(--hcm-font-size-small);font-weight:600;cursor:pointer}
 .project-sort:hover{background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink)}
 .project-sort[data-active="true"]{color:var(--ink)}
@@ -477,7 +477,7 @@ const projectListStylesheet = `
 .project-sort-indicator{color:var(--accent);font-weight:700}
 .project-list{list-style:none;margin:0;padding:0}
 .project-list>li{max-inline-size:none;margin:0}
-.project-list-no-tasks .project-list-head,.project-list-no-tasks .project-list-row{grid-template-columns:minmax(0,1fr) 9rem 12rem}
+
 .project-list .project-page-status{font-size:var(--hcm-font-size-small)}
 .project-list>li+li{border-block-start:1px solid var(--line)}
 .project-list-row{min-block-size:3.5rem;padding-block:.6rem;color:var(--ink);text-decoration:none}
@@ -487,7 +487,7 @@ const projectListStylesheet = `
 .project-list-title{display:grid;gap:.1rem}
 .project-list-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .project-list-description{color:var(--muted);font-size:var(--hcm-font-size-small);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.project-list-num{text-align:end;font-variant-numeric:tabular-nums}
+
 .project-list-owner{display:inline-flex;align-items:center;gap:.45rem;min-inline-size:0}
 .project-list-owner>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .project-list-muted{color:var(--muted)}

@@ -153,7 +153,10 @@ func (l *Ledger) ReportFor(owners Owners, tenant, viewer string, now time.Time, 
 		}
 		ok, known := owned[run.AgentID]
 		if !known {
-			ok = owners.IsOwner(tenant, run.AgentID, viewer)
+			var err error
+			if ok, err = isOwner(owners, tenant, run.AgentID, viewer); err != nil {
+				return Report{}, err
+			}
 			owned[run.AgentID] = ok
 		}
 		if ok {

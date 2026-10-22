@@ -225,6 +225,9 @@ func spec(command string, rest []string) bootstrap.Spec {
 	if command == agentDemoCommand {
 		return agentDemoSpec(rest)
 	}
+	if command == agentDemoCleanupCommand {
+		return agentDemoCleanupSpec(rest)
+	}
 	return bootstrap.Spec{
 		Role:         bootstrap.RoleMigrate,
 		Args:         rest,
@@ -262,7 +265,7 @@ func spec(command string, rest []string) bootstrap.Spec {
 					}
 
 					if action := chatSubcommand(command); action != "" || command == chatCommandPrefix {
-						if action == "seed" {
+						if action == "seed" || action == "seed-moderation" {
 							// The seeder needs the store's own pooled adapter,
 							// not the database/sql handle Goose migrates with.
 							store, storeErr := chatstore.New(ctx, chatstore.Config{DSN: deps.Values.String(fieldChatDatabaseURL)})
@@ -289,6 +292,11 @@ func spec(command string, rest []string) bootstrap.Spec {
 							}
 							if routesErr = routes.Migrate(ctx); routesErr != nil {
 								return routesErr
+							}
+							if action == "seed-moderation" {
+								// Adds the moderation history to rooms that already
+								// exist; it never resets or reseeds them.
+								return runChatSeedModerationCommand(ctx, store, routes, chatSeedOptions{Tenant: deps.Values.String(fieldTenant)}, os.Stdout)
 							}
 							reset, resetErr := deps.Values.Bool(fieldChatSeedReset)
 							if resetErr != nil {

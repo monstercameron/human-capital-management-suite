@@ -41,34 +41,38 @@ func TestAgentUXAmbient_Audience_Security(t *testing.T) {
 }
 
 func TestAgentUXAmbient_LabelledSuites_Golden(t *testing.T) {
-	for agent, cases := range map[string][]agenteval.AmbientCase{"task-catcher": agenteval.TaskCatcherAmbientSuite(), "reminder": agenteval.ReminderAmbientSuite()} {
-		correct := 0
-		for _, c := range cases {
-			m := AgentUXAmbientMessage{Author: "author", Body: c.Text, Mentions: c.Mentions}
-			p := AgentUXAmbientFixtureProposal(m, agent)
-			if p.Kind == "" && c.Kind == "" {
-				correct++
-				continue
-			}
-			a := AgentUXAmbientAudienceFor(m, p, []AgentUXAmbientMember{{ID: "author"}, {ID: "luis", Name: "Luis"}, {ID: "priya", Name: "Priya"}})
-			if c.Scope == "PRIVATE" && p.Kind != "" && a.Scope != "PRIVATE" {
-				t.Fatalf("private commitment leaked: %s", c.Text)
-			}
-			match := p.Kind == c.Kind && a.Scope == c.Scope && a.Person == c.Person
-			if c.Kind == "REMINDER" {
-				got := AgentUXAmbientUnderstandTime(p, "America/New_York", time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))
-				match = match && p.Date == c.Date && p.Clock == c.Clock && got.Lead == c.Lead && got.Ask == ""
-			}
-			if match {
-				correct++
-			} else {
-				t.Logf("label mismatch: %q proposal=%+v audience=%+v", c.Text, p, a)
-			}
+	runAgentUXAmbientGolden(t, "task-catcher", agenteval.TaskCatcherAmbientSuite())
+	runAgentUXAmbientGolden(t, "reminder", agenteval.ReminderAmbientSuite())
+}
+
+func runAgentUXAmbientGolden(t *testing.T, agent string, cases []agenteval.AmbientCase) {
+	t.Helper()
+	correct := 0
+	for _, c := range cases {
+		m := AgentUXAmbientMessage{Author: "author", Body: c.Text, Mentions: c.Mentions}
+		p := AgentUXAmbientFixtureProposal(m, agent)
+		if p.Kind == "" && c.Kind == "" {
+			correct++
+			continue
 		}
-		t.Logf("%s labelled suite: %d/%d (%.1f%%)", agent, correct, len(cases), 100*float64(correct)/float64(len(cases)))
-		if correct < 36 {
-			t.Fatalf("%s below 90%%", agent)
+		a := AgentUXAmbientAudienceFor(m, p, []AgentUXAmbientMember{{ID: "author"}, {ID: "luis", Name: "Luis"}, {ID: "priya", Name: "Priya"}})
+		if c.Scope == "PRIVATE" && p.Kind != "" && a.Scope != "PRIVATE" {
+			t.Fatalf("%s private commitment leaked: %s", agent, c.Text)
 		}
+		match := p.Kind == c.Kind && a.Scope == c.Scope && a.Person == c.Person
+		if c.Kind == "REMINDER" {
+			got := AgentUXAmbientUnderstandTime(p, "America/New_York", time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))
+			match = match && p.Date == c.Date && p.Clock == c.Clock && got.Lead == c.Lead && got.Ask == ""
+		}
+		if match {
+			correct++
+		} else {
+			t.Logf("label mismatch: %q proposal=%+v audience=%+v", c.Text, p, a)
+		}
+	}
+	t.Logf("%s labelled suite: %d/%d (%.1f%%)", agent, correct, len(cases), 100*float64(correct)/float64(len(cases)))
+	if len(cases) != 40 || correct < 36 {
+		t.Fatalf("%s labelled suite: expected 40 cases and at least 36 matches; got %d/%d", agent, correct, len(cases))
 	}
 }
 

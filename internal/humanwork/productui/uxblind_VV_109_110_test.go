@@ -10,6 +10,8 @@ import (
 )
 
 func TestTodo_UXBLIND_109(t *testing.T) {
+	// Publication status is not evidence that a workflow is selected for new
+	// promotions; the named-configuration clause remains unproven by this view.
 	markup, err := ui.RenderToString(WorkflowDesignerPage(WorkflowDesignerPageProps{
 		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
 		Catalog: []WorkflowCatalogItem{
@@ -29,13 +31,17 @@ func TestTodo_UXBLIND_109(t *testing.T) {
 	for _, want := range []string{
 		`id="workflow-list-published-heading">`,
 		`id="workflow-list-drafts-heading">`,
-		`New promotions run on Promotion approval`,
+		`Select a workflow to inspect its latest published path.`,
 		`Show reference workflows`,
 		`Ironridge field work order`,
+		`Promotion approval`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("workflow list missing %q:\n%s", want, markup)
 		}
+	}
+	if strings.Contains(markup, "New promotions run on") {
+		t.Fatal("catalog inferred a promotion configuration from publication status alone")
 	}
 	for _, tc := range []struct {
 		id, label, count string

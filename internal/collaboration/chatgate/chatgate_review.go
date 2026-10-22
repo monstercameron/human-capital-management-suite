@@ -55,6 +55,8 @@ func (s *Service) ReviewMany(ctx context.Context, c Command, decisions []ReviewD
 					return nil, e
 				}
 			}
+			sub.DecidedAt = s.now()
+			s.applySegments(tx, c, sub.Person, true)
 			s.event(tx.State(), c, sub.Status, sub.Person, sub.ID, sub.Version)
 		}
 		return "reviewed", nil

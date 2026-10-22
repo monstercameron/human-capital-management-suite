@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -69,7 +68,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	locale := chatremoveLocale(r)
 	p := chat.Principal{TenantID: principal.Tenant().String(), SubjectID: principal.Subject()}
 	if h.HTTP.Service == nil || h.HTTP.Service.Store == nil {
-		h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
+		h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}, 503)
 		return
 	}
 	query := r.URL.Query()
@@ -117,7 +116,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 		if h.Directory != nil {
 			names, e := h.Directory.ModerationNames(r.Context(), p, p.TenantID, []string{post.AuthorID})
 			if e != nil {
-				h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
+				h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}, 503)
 				return
 			}
 			target.AuthorName = names[post.AuthorID]
@@ -128,7 +127,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 			dialog.Choices = h.chatmod004Choices(r.Context(), p, post)
 			dialog.TimeZone = chatremoveZone(query.Get("tz"))
 		}
-		h.render(w, chatui.ModerationDialog(dialog), 200)
+		h.renderDialog(w, dialog, 200)
 		return
 	}
 	// A person who holds no moderation permission sees their notices alone; the
@@ -146,7 +145,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if canAssign {
 		noQueue = false
 		if query.Get("tab") == "permissions" {
-			h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "permissions", OpenCount: summary.Open, CanAssign: true, Permissions: &permissions, TimeZone: zone}), 200)
+			h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "permissions", OpenCount: summary.Open, CanAssign: true, Permissions: &permissions, TimeZone: zone}, 200)
 			return
 		}
 	}
@@ -159,7 +158,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 		}
 		items, err = h.HTTP.Service.Queue(r.Context(), p, p.TenantID, queueQuery)
 		if err != nil {
-			h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
+			h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}, 503)
 			return
 		}
 	}
@@ -179,7 +178,7 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	}
 	notices, err := h.HTTP.Service.Store.ModerationNotices(r.Context(), p, host)
 	if err != nil {
-		h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
+		h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}, 503)
 		return
 	}
 	names := map[string]string{}
@@ -190,24 +189,39 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 			if item.DecidedBy != "" {
 				ids = append(ids, item.DecidedBy)
 			}
+			if item.RemovedBy != "" {
+				ids = append(ids, item.RemovedBy)
+			}
+			if item.RestoredBy != "" {
+				ids = append(ids, item.RestoredBy)
+			}
 			if item.ReporterID != "" {
 				ids = append(ids, item.ReporterID)
 			}
 		}
 		names, err = h.Directory.ModerationNames(r.Context(), p, p.TenantID, ids)
 		if err != nil {
-			h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}), 503)
+			h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateError}, 503)
 			return
 		}
 	}
 	if len(notices) > 20 {
 		notices = notices[:20]
 	}
-	h.render(w, chatui.ModerationPage(chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Items: items, Notices: notices, Names: names, Query: query.Get("query"), NoQueue: noQueue, Tab: tab, OpenCount: summary.Open, ResolvedCount: resolvedCount, ResolvedKnown: resolvedKnown, TimeZone: zone, CanAssign: canAssign}), 200)
+	h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Items: items, Notices: notices, Names: names, Query: query.Get("query"), NoQueue: noQueue, Tab: tab, OpenCount: summary.Open, ResolvedCount: resolvedCount, ResolvedKnown: resolvedKnown, TimeZone: zone, CanAssign: canAssign}, 200)
 }
 
-func (ChatModerationPageHTTP) render(w http.ResponseWriter, node ui.Node, status int) {
-	markup, err := ui.RenderToString(node)
+func (h ChatModerationPageHTTP) renderPage(w http.ResponseWriter, model chatui.ModerationPageModel, status int) {
+	markup, err := chatui.RenderModerationPageHTML(model)
+	h.renderHTML(w, markup, err, status)
+}
+
+func (h ChatModerationPageHTTP) renderDialog(w http.ResponseWriter, model chatui.ModerationDialogModel, status int) {
+	markup, err := chatui.RenderModerationDialogHTML(model)
+	h.renderHTML(w, markup, err, status)
+}
+
+func (ChatModerationPageHTTP) renderHTML(w http.ResponseWriter, markup string, err error, status int) {
 	if err != nil {
 		http.Error(w, "unavailable", 503)
 		return

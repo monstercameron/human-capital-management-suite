@@ -39,9 +39,13 @@ func chatux031ReadingRow(m RenderingSettingsModel, options []ui.Node, saved bool
 		html.Label(html.Props{Class: "chat-prefs-title", For: "chatrender-reading", Text: title}),
 		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Class: "chatux031-select", Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
 	}
+	// The slot is always drawn and a fixed width, so the select does not move
+	// when the tick appears.
+	var tick []ui.Node
 	if saved {
-		children = append(children, html.Span(html.Props{Class: "chatux031-tick", Aria: map[string]string{"hidden": "true"}, Text: "✓"}))
+		tick = append(tick, html.Span(html.Props{Class: "chatux031-tick", Text: "✓"}))
 	}
+	children = append(children, html.Span(html.Props{Class: "chatux031-end", Aria: map[string]string{"hidden": "true"}}, tick...))
 	return html.Div(html.Props{Class: "chat-prefs-head chatux031-row"}, children...)
 }
 

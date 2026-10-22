@@ -111,6 +111,7 @@ type PersonaAdminPersona struct {
 	AudienceRoles          []PersonaAdminTarget
 	Organizations          []PersonaAdminTarget
 	Installations          []PersonaAdminInstallation
+	RemovedPlacements      []PersonaAdminRemovedPlacement
 	Limits                 PersonaAdminLimits
 	ReviewRequired         bool
 	ReviewApproved         bool
@@ -1093,7 +1094,7 @@ func personaAdminText(locale LocaleContext, key string) string {
 		"eyebrow": {"Admin / Agents", "Administration / Agenten", "المسؤول / الوكلاء"}, "title": {"Agent setup", "Agenten einrichten", "إعداد الوكلاء"},
 		"description":     {"Decide who each agent is, what it may read and do, and which conversations (channels and direct messages) people can use it in.", "Legen Sie fest, wer jeder Agent ist, was er lesen und tun darf und in welchen Unterhaltungen (Kanälen und Direktnachrichten) Menschen ihn verwenden können.", "حدّد هوية كل وكيل وما يمكنه قراءته وفعله وفي أي محادثات (قنوات ورسائل مباشرة) يمكن للأشخاص استخدامه."},
 		"agent_explainer": {"An agent is an assistant people can ask on the Agents page or @mention in Chat. It only ever acts with the access of the person asking.", "Ein Agent ist ein Assistent, den Menschen auf der Seite „Agenten“ fragen oder im Chat mit @ erwähnen können. Er handelt immer nur mit dem Zugriff der fragenden Person.", "الوكيل مساعد يمكن للأشخاص سؤاله في صفحة الوكلاء أو الإشارة إليه بعلامة @ في المحادثة. ولا يتصرف إلا بصلاحيات الشخص السائل."},
-		"catalog_title":   {"Agents", "Agenten", "الوكلاء"}, "catalog_detail": {"Each card shows what the agent can do and how close it is to being available.", "Jede Karte zeigt, was der Agent tun kann und wie nah er an der Verfügbarkeit ist.", "توضح كل بطاقة ما يمكن للوكيل فعله ومدى قربه من أن يصبح متاحاً."},
+		"catalog_title":   {"Agents", "Agenten", "الوكلاء"}, "catalog_detail": {"Each card shows what the agent can do, who can use it and where it is in use.", "Jede Karte zeigt, was der Agent tun kann, wer ihn verwenden darf und wo er im Einsatz ist.", "توضح كل بطاقة ما يمكن للوكيل فعله ومن يمكنه استخدامه وأين يُستخدم."},
 		"page_links": {"Agent pages", "Agentenseiten", "صفحات الوكلاء"}, "setup_link": {"Setup", "Einrichtung", "الإعداد"}, "operations_link": {"Operations", "Betrieb", "العمليات"}, "ask_agents_link": {"Ask", "Fragen", "اسأل"}, "ask_this_agent": {"Ask this agent", "Diesen Agenten fragen", "اسأل هذا الوكيل"},
 		"breadcrumb": {"Breadcrumb", "Brotkrümelnavigation", "مسار التنقل"}, "breadcrumb_admin": {"Admin", "Administration", "المسؤول"}, "breadcrumb_agents": {"Agents", "Agenten", "الوكلاء"},
 		"new_agent": {"New agent", "Neuer Agent", "وكيل جديد"}, "new_agent_no_template": {"New agents start from a reviewed template. No template is installed in this workspace yet. Ask your platform administrator to add one.", "Neue Agenten beginnen mit einer geprüften Vorlage. In diesem Arbeitsbereich ist noch keine Vorlage installiert. Bitten Sie Ihre Plattformadministration, eine hinzuzufügen.", "تبدأ الوكلاء الجدد من قالب تمت مراجعته. لا يوجد قالب مثبت في مساحة العمل هذه بعد. اطلب من مسؤول المنصة إضافة قالب."},

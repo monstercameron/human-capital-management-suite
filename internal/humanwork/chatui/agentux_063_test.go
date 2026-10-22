@@ -111,6 +111,11 @@ func TestTodo_AGENTUX_063(t *testing.T) {
 				continue
 			}
 			stripped := regexp.MustCompile(`var\([^)]*\)`).ReplaceAllString(value, "")
+			// The one allowed literal: CHATUX-037's slow line stays hidden for
+			// eight seconds and is then flipped visible in a millisecond. That
+			// is a wait and a visibility step, not a transition, so no motion
+			// token applies; any other literal still fails.
+			stripped = strings.ReplaceAll(stripped, chatux037RevealWait, "")
 			if duration.MatchString(stripped) {
 				t.Errorf("%s{%s:%s} writes a literal duration, use --hcm-motion-fast or --hcm-motion-base", strings.TrimSpace(rule[0]), name, value)
 			}
@@ -278,3 +283,7 @@ func TestTodo_AGENTUX_063_Performance(t *testing.T) {
 		t.Error("hover or focus state does not decide which row shows actions")
 	}
 }
+
+// chatux037RevealWait is the animation timing of the slow loading line, the only
+// duration literal Chat's styles may carry.
+const chatux037RevealWait = " 1ms linear 8s"

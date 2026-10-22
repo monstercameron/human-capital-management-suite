@@ -48,7 +48,7 @@ func chatux001Heading(m Model, title string, enabled bool) ui.Node {
 		return html.H1(html.Props{Text: title})
 	}
 	return html.H1(html.Props{},
-		html.Button(html.Props{Class: "conversation-name-button", Type: "button", Disabled: m.Callbacks.ToggleDetails == nil, Title: m.t(KeyDetails), Data: map[string]string{"action": "header-details"}, Text: title}))
+		html.Button(html.Props{Class: "conversation-name-button", Type: "button", Disabled: m.Callbacks.ToggleDetails == nil, Title: m.t(KeyDetails), Data: map[string]string{"action": "header-details"}}, chatux047Title(title)))
 }
 
 // chatux001PinnedCount is how many pinned messages the pinned list will show.

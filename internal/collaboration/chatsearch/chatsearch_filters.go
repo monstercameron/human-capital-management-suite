@@ -6,7 +6,7 @@ import (
 )
 
 type Filters struct {
-	Conversation, Person                                           string
+	Conversation, Person, Language                                 string
 	Kind                                                           Kind
 	Before, After, On                                              string
 	File, Link, Reactions, Threads, MentionsMe, Agent, Mine, Voice bool
@@ -50,6 +50,9 @@ func Tokens(text string) ([]string, error) {
 }
 func Parse(query string) (Parsed, error) {
 	var p Parsed
+	if strings.ContainsRune(query, 0) {
+		return p, ErrInvalid
+	}
 	tokens, err := Tokens(query)
 	if err != nil {
 		return p, err
@@ -74,6 +77,9 @@ func Parse(query string) (Parsed, error) {
 			}
 		case "kind":
 			f.Kind = Kind(value)
+		case "lang", "language":
+			// "Written in": the language a message was written in (CHATLANG-005).
+			f.Language = strings.ToLower(value)
 		case "before":
 			f.Before = value
 		case "after":
@@ -114,7 +120,9 @@ func Parse(query string) (Parsed, error) {
 			words = append(words, token)
 			continue
 		}
-		if value == "" {
+		// "in:#" and "from:@" name nothing; letting them through would show a
+		// chip while the search ran in every room and for every author.
+		if value == "" || f.Conversation == "" && strings.EqualFold(key, "in") || f.Person == "" && !f.Agent && strings.EqualFold(key, "from") {
 			return p, ErrInvalid
 		}
 		p.Filters, err = Combine(p.Filters, f)
@@ -127,7 +135,7 @@ func Parse(query string) (Parsed, error) {
 	return p, nil
 }
 func Combine(a, b Filters) (Filters, error) {
-	pairs := [][2]*string{{&a.Conversation, &b.Conversation}, {&a.Person, &b.Person}, {&a.Before, &b.Before}, {&a.After, &b.After}, {&a.On, &b.On}}
+	pairs := [][2]*string{{&a.Conversation, &b.Conversation}, {&a.Person, &b.Person}, {&a.Language, &b.Language}, {&a.Before, &b.Before}, {&a.After, &b.After}, {&a.On, &b.On}}
 	for _, p := range pairs {
 		if *p[0] != "" && *p[1] != "" && *p[0] != *p[1] {
 			return Filters{}, ErrInvalid
@@ -150,6 +158,11 @@ func Combine(a, b Filters) (Filters, error) {
 	a.Agent = a.Agent || b.Agent
 	a.Mine = a.Mine || b.Mine
 	a.Voice = a.Voice || b.Voice
+	// A language is a short tag of letters; anything else fails closed instead of
+	// matching nothing quietly.
+	if a.Language != "" && !validLanguageTag(a.Language) {
+		return Filters{}, ErrInvalid
+	}
 	for _, v := range []string{a.Before, a.After, a.On} {
 		if v != "" {
 			if _, err := time.Parse("2006-01-02", v); err != nil {
@@ -162,8 +175,23 @@ func Combine(a, b Filters) (Filters, error) {
 	}
 	return a, nil
 }
+func validLanguageTag(tag string) bool {
+	if len(tag) < 2 || len(tag) > 3 {
+		return false
+	}
+	for _, r := range tag {
+		if r < 'a' || r > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
 func Match(row Row, q Request) bool {
 	f := q.Filters
+	if f.Language != "" && row.Language != f.Language {
+		return false
+	}
 	if f.Conversation != "" && row.Target.ConversationID != f.Conversation || f.Person != "" && row.AuthorID != f.Person || f.Kind != "" && row.Kind != f.Kind || f.File && !row.HasFile || f.Link && !row.HasLink || f.Reactions && !row.HasReactions || f.Threads && !row.InThread || f.MentionsMe && !row.MentionsMe || f.Agent && !row.ByAgent || f.Mine && row.OwnerID != q.Actor.PersonID && row.AuthorID != q.Actor.PersonID || f.Voice && !row.HasVoice {
 		return false
 	}

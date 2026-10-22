@@ -89,6 +89,7 @@ func TestTodo_CHATMOD_002(t *testing.T) {
 		}{
 			{"héllo damn", len("héllo "), len("héllo damn")},
 			{"\uff44\uff41\uff4d\uff4e now", 0, len("\uff44\uff41\uff4d\uff4e")},
+			{"x Scheiße!", len("x "), len("x Scheiße")},
 			{"日本語 damn!", len("日本語 "), len("日本語 damn")},
 			{"damn\u200b\u200d!", 0, len("damn\u200b\u200d")},
 			{"dam\u0301n\u0308 ok", 0, len("dam\u0301n\u0308")},

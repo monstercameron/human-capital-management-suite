@@ -398,7 +398,6 @@ func (p *promotionStepPorts) evaluateRevalidation(ctx context.Context, req execu
 	if err != nil {
 		return revalidation{}, err
 	}
-	println("S3DIAG revalidation", string(out.requirement), fmt.Sprint(out.sourced))
 	out.digest = digestOf(append([]string{"govern-003.revalidation/v1", string(out.requirement), fmt.Sprintf("confirmed=%t", out.confirmed)}, out.sourced...)...)
 	return out, nil
 }

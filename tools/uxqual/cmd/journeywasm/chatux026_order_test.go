@@ -3,6 +3,7 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 // order they arrive in, the page ends on the same card, and while only the
 // stream's copy is here the card says nothing about who can see the answer.
 func TestTodo_CHATUX_026_ArrivalOrder(t *testing.T) {
-	now := time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Truncate(time.Second)
 	cfg := journeyclient.Config{Tenant: "northwind", Subject: "avery", Locale: "en-US"}
 	ref := chatui.ChatReference{Kind: "AGENT_MENTION", ID: "policy-helper", TenantID: "northwind", Display: "Policy Helper", ConversationID: "general"}
 	answer := personaChatAnswer{ID: "answer", ThreadID: "question", Body: "Carry over up to 40 hours.", CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(23 * time.Hour), InvocationID: "run", SharedPostID: "copy"}
@@ -63,11 +64,15 @@ func TestTodo_CHATUX_026_ArrivalOrder(t *testing.T) {
 		return state
 	}
 	// cardOf is the answer card's markup: the one article of the answer.
+	answerCard := regexp.MustCompile(`<article class="[^"]*\bchat-ephemeral\b`)
 	cardOf := func(markup string) string {
-		start := strings.Index(markup, `<article class="chat-ephemeral`)
-		if start < 0 {
+		// CHATUX-042 puts the component and variant classes in front of the
+		// surface's own, so the card is found by its class, not by where it starts.
+		found := answerCard.FindStringIndex(markup)
+		if found == nil {
 			return ""
 		}
+		start := found[0]
 		end := strings.Index(markup[start:], "</article>")
 		if end < 0 {
 			return ""

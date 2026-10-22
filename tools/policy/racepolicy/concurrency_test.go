@@ -79,8 +79,124 @@ func Do() {
 	if err != nil {
 		t.Fatalf("FindConcurrentPackages: %v", err)
 	}
-	if len(got) != 1 || got[0].Reasons[0] != "starts a goroutine" {
+	if len(got) != 1 || len(got[0].Reasons) != 1 || got[0].Reasons[0] != "starts a goroutine" {
 		t.Fatalf("FindConcurrentPackages = %+v, want one package flagged for starting a goroutine", got)
+	}
+}
+
+func TestFindConcurrentPackages_UsesLinuxRaceBuildContext(t *testing.T) {
+	t.Run("JS/WASM-only concurrency is not a Linux race candidate", func(t *testing.T) {
+		root := t.TempDir()
+		writeFile(t, root, "pkga/main_native.go", `//go:build !js || !wasm
+
+package pkga
+
+func main() {}
+`)
+		writeFile(t, root, "pkga/clock_storage_wasm.go", `//go:build js && wasm
+
+package pkga
+
+func start() { go func() {}() }
+`)
+		writeFile(t, root, "pkga/clock_storage_wasm_test.go", `//go:build js && wasm
+
+package pkga
+
+import "testing"
+
+func TestStart(t *testing.T) { start() }
+`)
+		got, err := racepolicy.FindConcurrentPackages(root, "example.com/mod")
+		if err != nil {
+			t.Fatalf("FindConcurrentPackages: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("FindConcurrentPackages = %+v, want no Linux race candidate for JS/WASM-only concurrency", got)
+		}
+	})
+
+	t.Run("Linux filename and cgo constraints select CI production files", func(t *testing.T) {
+		root := t.TempDir()
+		writeFile(t, root, "pkga/worker_linux.go", `package pkga
+
+func start() { go func() {}() }
+`)
+		writeFile(t, root, "pkga/storage_linux.go", `//go:build linux && cgo
+
+package pkga
+
+import "sync"
+
+var storeMu sync.Mutex
+`)
+		writeFile(t, root, "pkga/worker_windows.go", `package pkga
+
+import "sync/atomic"
+
+var windowsOnly atomic.Int64
+`)
+		got, err := racepolicy.FindConcurrentPackages(root, "example.com/mod")
+		if err != nil {
+			t.Fatalf("FindConcurrentPackages: %v", err)
+		}
+		if len(got) != 1 {
+			t.Fatalf("FindConcurrentPackages returned %d packages, want one Linux package: %+v", len(got), got)
+		}
+		want := []string{"imports sync", "starts a goroutine"}
+		if len(got[0].Reasons) != len(want) || got[0].Reasons[0] != want[0] || got[0].Reasons[1] != want[1] {
+			t.Fatalf("Reasons = %v, want %v (Linux+cgo source included, Windows source excluded)", got[0].Reasons, want)
+		}
+	})
+
+	t.Run("amd64 v1 tools tag is used instead of host architecture tags", func(t *testing.T) {
+		root := t.TempDir()
+		writeFile(t, root, "pkga/feature_v1.go", `//go:build amd64.v1
+
+package pkga
+
+import "sync"
+
+var amd64Mu sync.Mutex
+`)
+		writeFile(t, root, "pkga/feature_foreign.go", `//go:build arm64.v8.0
+
+package pkga
+
+import "sync/atomic"
+
+var arm64Counter atomic.Int64
+`)
+		got, err := racepolicy.FindConcurrentPackages(root, "example.com/mod")
+		if err != nil {
+			t.Fatalf("FindConcurrentPackages: %v", err)
+		}
+		if len(got) != 1 || len(got[0].Reasons) != 1 || got[0].Reasons[0] != "imports sync" {
+			t.Fatalf("FindConcurrentPackages = %+v, want only amd64.v1 source selected by Linux CI", got)
+		}
+	})
+}
+
+func TestFindConcurrentPackages_IncludesRaceTaggedTests(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "pkga/a.go", `package pkga
+
+func Do() {}
+`)
+	writeFile(t, root, "pkga/a_test.go", `//go:build race
+
+package pkga
+
+import "testing"
+
+func TestDo(t *testing.T) { go Do() }
+`)
+	got, err := racepolicy.FindConcurrentPackages(root, "example.com/mod")
+	if err != nil {
+		t.Fatalf("FindConcurrentPackages: %v", err)
+	}
+	if len(got) != 1 || len(got[0].Reasons) != 1 || got[0].Reasons[0] != "starts a goroutine" {
+		t.Fatalf("FindConcurrentPackages = %+v, want a package declared by its race-tagged test", got)
 	}
 }
 

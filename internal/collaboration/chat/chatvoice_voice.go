@@ -122,6 +122,7 @@ type TranscriptSegment struct {
 	StartMS, EndMS int64
 	Text           string
 	Confidence     float64
+	_              incomparable
 }
 type VoiceTranscript struct {
 	State                    TranscriptState
@@ -172,6 +173,7 @@ func (t VoiceTranscript) Validate(durationMS int64) error {
 type TranscriptionRequest struct {
 	TenantID, ConversationID, PostID, ArtifactID string
 	DurationMS                                   int64
+	_                                            incomparable
 }
 type Transcriber interface {
 	Transcribe(context.Context, TranscriptionRequest) (VoiceTranscript, error)

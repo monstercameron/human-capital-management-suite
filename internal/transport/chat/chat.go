@@ -340,6 +340,7 @@ func (s *server) ListConversations(c context.Context, r *chatv1.ListConversation
 	for _, x := range v.Conversations {
 		o.Conversations = append(o.Conversations, conversation(x))
 	}
+	s.namePeers(c, p, v.Conversations, o.Conversations)
 	return o, nil
 }
 func (s *server) GetConversation(c context.Context, r *chatv1.GetConversationRequest) (*chatv1.GetConversationResponse, error) {
@@ -351,7 +352,9 @@ func (s *server) GetConversation(c context.Context, r *chatv1.GetConversationReq
 	if e != nil {
 		return nil, callErr(e)
 	}
-	return &chatv1.GetConversationResponse{Conversation: conversation(v)}, nil
+	o := &chatv1.GetConversationResponse{Conversation: conversation(v)}
+	s.namePeers(c, p, []chatcore.Conversation{v}, []*chatv1.Conversation{o.Conversation})
+	return o, nil
 }
 func (s *server) UpdateConversation(c context.Context, r *chatv1.UpdateConversationRequest) (*chatv1.UpdateConversationResponse, error) {
 	p, e := s.prep(c, r.GetPrincipal())
@@ -413,7 +416,7 @@ func (s *server) SendPost(c context.Context, r *chatv1.SendPostRequest) (*chatv1
 		return nil, serverDerived("source_attribution",
 			"attribution is derived server-side from the source post; use ForwardPost")
 	}
-	base := chatcore.SendPostRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), Body: r.GetBody(), ParentID: r.GetParentId(), IdempotencyKey: r.GetIdempotencyKey(), References: referencesIn(r.GetReferences())}
+	base := chatcore.SendPostRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), Body: r.GetBody(), ParentID: r.GetParentId(), IdempotencyKey: r.GetIdempotencyKey(), References: referencesIn(r.GetReferences()), Audience: audienceIn(r)}
 	var v chatcore.Post
 	if len(r.GetReferences()) > 0 {
 		refSvc, ok := s.deps.Service.(chatcore.ReferenceService)
@@ -427,7 +430,9 @@ func (s *server) SendPost(c context.Context, r *chatv1.SendPostRequest) (*chatv1
 	if e != nil {
 		return nil, callErr(e)
 	}
-	return &chatv1.SendPostResponse{Post: post(v)}, nil
+	sent := post(v)
+	s.markAudiences(c, p, r.GetTenantId(), []*chatv1.Post{sent})
+	return &chatv1.SendPostResponse{Post: sent}, nil
 }
 func (s *server) ListPosts(c context.Context, r *chatv1.ListPostsRequest) (*chatv1.ListPostsResponse, error) {
 	p, e := s.prep(c, r.GetPrincipal())
@@ -442,6 +447,8 @@ func (s *server) ListPosts(c context.Context, r *chatv1.ListPostsRequest) (*chat
 	for _, x := range v.Posts {
 		o.Posts = append(o.Posts, post(x))
 	}
+	s.nameAuthors(c, p, r.GetTenantId(), o.Posts)
+	s.markAudiences(c, p, r.GetTenantId(), o.Posts)
 	return o, nil
 }
 func (s *server) EditPost(c context.Context, r *chatv1.EditPostRequest) (*chatv1.EditPostResponse, error) {
@@ -677,6 +684,12 @@ func (s *server) run(c context.Context, r *chatv1.WatchConversationRequest, send
 				return terminalErr(fail)
 			}
 			response := &chatv1.WatchConversationResponse{Event: event(e.Event), ResumeCursor: e.ResumeCursor}
+			if live := response.GetEvent().GetPost(); live != nil {
+				if caller, perr := principal(c); perr == nil {
+					s.nameAuthors(c, caller, r.GetTenantId(), []*chatv1.Post{live})
+					s.markAudiences(c, caller, r.GetTenantId(), []*chatv1.Post{live})
+				}
+			}
 			if e.EphemeralDelivery != nil {
 				response.EphemeralDelivery = ephemeralDelivery(*e.EphemeralDelivery)
 			}

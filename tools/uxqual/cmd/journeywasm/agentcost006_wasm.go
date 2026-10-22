@@ -60,7 +60,6 @@ func renderAgentCost(mount js.Value) {
 	locale := agentMountLocale(mount)
 	nodes := []ui.Node{productui.AgentCostPanel(productui.AgentCostPanelProps{
 		I18nProps: productui.I18nProps{Locale: locale}, State: surface.state, Report: surface.report,
-		OnRetry: func() {},
 	})}
 	// Each owned agent's limits card is a placeholder the spend surface fills,
 	// the same one the Agent setup page uses.
@@ -254,7 +253,14 @@ func handleAgentSpendClick(event js.Value) {
 	agentAccessBrowser.Lock()
 	agentAccessBrowser.spend.failed = false
 	agentAccessBrowser.Unlock()
-	button.Set("disabled", true)
+	// Every card that drew the failure goes back to its loading line, so a read
+	// that fails again draws a fresh placeholder with a Try again that works.
+	mounts := js.Global().Get("document").Call("querySelectorAll", "[data-agent-spend-mount][data-spend-drawn=failed]")
+	for i := 0; i < mounts.Length(); i++ {
+		failed := mounts.Index(i)
+		renderAgentMarkup(failed, productui.AgentSpendLimitsLoading(agentMountLocale(failed)))
+		failed.Call("removeAttribute", "data-spend-drawn")
+	}
 	findAgentSpendMounts()
 }
 

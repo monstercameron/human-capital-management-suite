@@ -23,9 +23,24 @@ type ReaderMasker interface {
 // about. A reader never receives a possibly listed term because a lookup failed.
 const maskedPlaceholder = "[removed word]"
 
-// maskReaderBodies applies the content policy's mask to every post in place.
-// The slice must be a copy the caller owns.
-func (s *Service) maskReaderBodies(ctx context.Context, reader Principal, posts []Post) {
+// maskReaderBodies applies the content policy's mask to every post in place, and
+// puts a stand-in for every post this reader may not read as written (see
+// ReaderBodyProjector). It reports which posts were replaced. The slice must be
+// a copy the caller owns.
+func (s *Service) maskReaderBodies(ctx context.Context, reader Principal, posts []Post) []bool {
+	// Decided on the stored bodies, before any mask changes them.
+	hidden := s.projectReaderBodies(ctx, reader, posts)
+	s.maskByContentPolicy(ctx, reader, posts)
+	replaced := make([]bool, len(posts))
+	for i := range hidden {
+		if hidden[i].Replaced {
+			posts[i].Body, replaced[i] = hidden[i].Text, true
+		}
+	}
+	return replaced
+}
+
+func (s *Service) maskByContentPolicy(ctx context.Context, reader Principal, posts []Post) {
 	masker, ok := s.contentPolicy.(ReaderMasker)
 	if !ok || len(posts) == 0 {
 		return

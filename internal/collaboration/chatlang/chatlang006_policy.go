@@ -51,6 +51,7 @@ type Workspace struct {
 type Channel struct {
 	Translation Switch   `json:"translation"`
 	External    External `json:"external"`
+	_           incomparable
 }
 
 // Reason names why a translation was not allowed. It is a stable code, never

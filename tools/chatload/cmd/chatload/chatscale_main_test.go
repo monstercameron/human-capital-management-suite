@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/tools/chatload"
 )
@@ -34,7 +33,7 @@ func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 	_ = pgtest.NewEmpty(t)
 	commandArgs(t, "-status", "-channels", "300", "-tenants", "1")
 	c := chatload.Config{DSN: os.Getenv("HCMNEXT_TEST_DATABASE_URL"), Database: chatload.TestPrefix + fmt.Sprintf("command_%d", time.Now().UnixNano()), Seed: 1, Posts: 5, Tenants: 1, Channels: 300, Batch: 5, Repeats: 2, Concurrency: 1, Operations: 8}
-	e := chatload.WithDatabase(context.Background(), c, func(*pgx.Conn) error {
+	e := chatload.WithDatabase(context.Background(), c, func(*chatload.Database) error {
 		r, w, e := os.Pipe()
 		if e != nil {
 			return e

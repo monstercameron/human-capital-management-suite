@@ -54,6 +54,10 @@ type ChattoneRewordPolicy struct {
 	Filters interface {
 		Evaluate(ctx context.Context, in chatfilter.Input, record bool) (chatfilter.Result, error)
 	}
+	// Direct, when set, says whether a conversation is a direct or group message.
+	// Such a conversation is never reworded for its reader: the producer refuses
+	// it, so the policy must not ask for it.
+	Direct func(ctx context.Context, tenant, conversation string) (bool, error)
 }
 
 var errChattoneRewordNotComposed = errors.New("application: reword settings are not composed")
@@ -113,6 +117,13 @@ func (p ChattoneRewordPolicy) Apply(ctx context.Context, tenant, channel, author
 	if setting.Mode == chatstore.RewordModeOff {
 		return nil
 	}
+	// A message its writer sent "as written" (where members may read so) is not
+	// reworded for anyone.
+	if exempt, err := p.exempt(ctx, tenant, policy.Original.Message, policy.Original.Revision); err != nil {
+		return err
+	} else if exempt {
+		return nil
+	}
 	// A message the word lists pass is still reworded where one of the
 	// workspace's filters says "reword" about it (the filter action).
 	if heat != chatrewrite.HeatHeated {
@@ -121,6 +132,18 @@ func (p ChattoneRewordPolicy) Apply(ctx context.Context, tenant, channel, author
 			return err
 		}
 		if !hit {
+			return nil
+		}
+	}
+	// A direct or group conversation is never reworded for its reader, whatever the
+	// workspace's setting says: nothing is asked for, so the reader is neither made
+	// to wait for a rendering that will not come nor kept from the message.
+	if p.Direct != nil {
+		direct, err := p.Direct(ctx, tenant, channel)
+		if err != nil {
+			return err
+		}
+		if direct {
 			return nil
 		}
 	}

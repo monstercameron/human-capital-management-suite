@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// CHATBUG-014: server-side only. Exports are produced by the server, so the
+// export package stays out of the browser client.
+
 package productui
 
 import (

@@ -35,12 +35,12 @@ func TestTodo_CHATUX_017(t *testing.T) {
 	text := chatbug030Text(chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishHasClass(n, "agent-summary") })[0])
 	for _, want := range []string{
 		"Answer Ironridge policy questions with citations to current policy documents.",
-		"Owner:", "Walt Brennan",
-		"What it can read", "Policy documents you can open",
-		"What it will never do", "Read anything you cannot open yourself", "Do anything it was not set up to do", "Change any record",
+		"Owner", "Walt Brennan",
+		"Reads", "Policy documents you can open",
+		"Never", "Read anything you cannot open yourself", "Do anything it was not set up to do", "Change any record",
 		"Its answers are posted under your question when everyone here can open the sources; otherwise only you see them.",
 		// AGENTP-019: the version, the access it acts with and its skills, by tier in words.
-		"Version: 6", "Acts with your current access.", "Search deployed tenant policy documents the requesting user and this installation may read.", "Read only",
+		"Version", "6", "Acts with your current access.", "Searches policy documents you can open (read only)", "Writes the agent's reply in a private chat (read only)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("the summary does not say %q: %q", want, text)
@@ -65,12 +65,12 @@ func TestTodo_CHATUX_017(t *testing.T) {
 	}
 	// An owner nobody can name is left out, never shown as an identifier; a team written in words is shown.
 	m.Members = m.Members[:1]
-	if unnamed := chatPolishMarkup(t, chatux017AgentSummary(m, m.ResolvedPersonaMentions[0]), 1440, "light"); strings.Contains(unnamed, "ir-001") || strings.Contains(unnamed, "Owner:") {
+	if unnamed := chatPolishMarkup(t, chatux017AgentSummary(m, m.ResolvedPersonaMentions[0]), 1440, "light"); strings.Contains(unnamed, "ir-001") || strings.Contains(unnamed, ">Owner<") {
 		t.Fatal("an owner with no known name is shown")
 	}
 	team := m.ResolvedPersonaMentions[0]
 	team.Owner = "People Operations"
-	if written := chatPolishMarkup(t, chatux017AgentSummary(m, team), 1440, "light"); !strings.Contains(written, "Owner: People Operations") {
+	if written := chatPolishMarkup(t, chatux017AgentSummary(m, team), 1440, "light"); !strings.Contains(written, ">Owner<") || !strings.Contains(written, "People Operations") {
 		t.Fatal("a team written in words is not shown")
 	}
 	// The setup page is linked as "Details", for those who may open it.
@@ -92,7 +92,7 @@ func TestTodo_CHATUX_017(t *testing.T) {
 	for _, locale := range []string{"de-DE", "ar"} {
 		localized := chatux017General(locale)
 		page := chatPolishMarkup(t, chatux017AgentSummary(localized, localized.ResolvedPersonaMentions[0]), 390, "light")
-		if strings.Contains(page, "What it can read") || strings.Contains(page, "Owner:") || strings.Contains(page, "⟦") {
+		if strings.Contains(page, "What it can read") || strings.Contains(page, ">Owner<") || strings.Contains(page, "Can do") || strings.Contains(page, "⟦") {
 			t.Fatalf("%s: the summary is not translated", locale)
 		}
 	}
@@ -108,7 +108,7 @@ func TestTodo_CHATUX_017_Browser(t *testing.T) {
 		t.Fatalf("%d agent rows in Conversation details", len(rows))
 	}
 	row := chatbug030Text(rows[0])
-	if !strings.Contains(row, "Policy documents you can open") || strings.Contains(row, "ir-001-walt-brennan") || strings.Contains(row, "sealed output admission") || !strings.Contains(row, "Version: 6") {
+	if !strings.Contains(row, "Policy documents you can open") || strings.Contains(row, "ir-001-walt-brennan") || strings.Contains(row, "sealed output admission") || !strings.Contains(row, "Version") {
 		t.Fatalf("the agent's row in details reads like a system record: %q", row)
 	}
 	if asks := chatPolishNodesIn(rows[0], func(n *xhtml.Node) bool { return chatPolishHasClass(n, "persona-member-ask") }); len(asks) != 1 || asks[0].Parent != rows[0] {

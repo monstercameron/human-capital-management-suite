@@ -299,7 +299,7 @@ func TestTodo_CHAT_035_SendDoesNotSubmitBlankOrCrossConversationDraft(t *testing
 func TestTodo_CHAT_031_DetailsAndConversationVariants(t *testing.T) {
 	m := Model{State: StateReady, Locale: "ar", Direction: "rtl", ShowDetails: true, SelectedID: "g", Conversations: []Conversation{{ID: "g", Name: "Team", Kind: GroupChat}, {ID: "p", Name: "Private", Kind: PrivateChannel}, {ID: "d", Name: "Ari", Kind: DirectMessage}}, Members: []Member{{Name: "Ari Chen", Online: true}, {Name: "Sam Lee", Subtitle: "Payroll"}}, Messages: []Message{{ID: "x", Author: "Sam Lee", Body: "Pinned", Edited: true, Pinned: true, Reactions: 2, Replies: 1, Chips: []ReactionChip{{Emoji: "👍", Count: 2, Mine: true}}}}}
 	markup := render(t, m)
-	for _, want := range []string{`dir="rtl"`, "Members", "Ari Chen", "Online", "Payroll", "edited", "Pinned", "👍", "1 reply", "Channels", "Direct messages", "details-notify"} {
+	for _, want := range []string{`dir="rtl"`, "Members", "Ari Chen", "Online", "Payroll", "edited", "Pinned", "👍", "رد واحد", "Channels", "Direct messages", "details-notify"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("details render missing %q", want)
 		}

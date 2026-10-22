@@ -285,11 +285,21 @@ type GovernedPersonaAdminInstallation struct {
 
 func (a GovernedPersonaAdminInstallation) AuthorizePersonaInstallation(ctx context.Context, actor PersonaAdminCommandActor, request agentpersonastore.PersonaInstallation) (agentpersonastore.PersonaInstallation, error) {
 	if ctx == nil || a.Placement == nil || a.Versions == nil || a.Profiles == nil || !personaAdminActorBound(ctx, actor) || request.TenantID != actor.Tenant || request.InstallerID != actor.Subject {
-		return agentpersonastore.PersonaInstallation{}, ErrPersonaAdminLifecycleUnavailable
+		var missing []string
+		for name, absent := range map[string]bool{"placement source": a.Placement == nil, "version reader": a.Versions == nil, "profile builder": a.Profiles == nil, "signed-in installer bound to the command": ctx == nil || !personaAdminActorBound(ctx, actor), "installation for this tenant and installer": request.TenantID != actor.Tenant || request.InstallerID != actor.Subject} {
+			if absent {
+				missing = append(missing, name)
+			}
+		}
+		slices.Sort(missing)
+		return agentpersonastore.PersonaInstallation{}, fmt.Errorf("%w: installation is missing %s", ErrPersonaAdminLifecycleUnavailable, strings.Join(missing, ", "))
 	}
 	facts, err := a.Placement.ResolvePersonaAdminPlacement(ctx, actor, request.ConversationID)
-	if err != nil || facts.Revision == 0 || facts.Tenant != actor.Tenant || facts.ConversationID != request.ConversationID || facts.ManagerID != actor.Subject || facts.ExternalMembers || facts.CrossCompanyMembers || facts.Class == agentpersonastore.ConversationExternal || facts.Class == agentpersonastore.ConversationCrossCompany || !slices.Contains(facts.Policy.AllowedChannelClasses, facts.Class) || facts.Policy.AllowExternalMembers || facts.Policy.AllowCrossCompanyMembers {
-		return agentpersonastore.PersonaInstallation{}, ErrPersonaAdminLifecycleUnavailable
+	if err != nil {
+		return agentpersonastore.PersonaInstallation{}, err
+	}
+	if facts.Revision == 0 || facts.Tenant != actor.Tenant || facts.ConversationID != request.ConversationID || facts.ManagerID != actor.Subject || facts.ExternalMembers || facts.CrossCompanyMembers || facts.Class == agentpersonastore.ConversationExternal || facts.Class == agentpersonastore.ConversationCrossCompany || !slices.Contains(facts.Policy.AllowedChannelClasses, facts.Class) || facts.Policy.AllowExternalMembers || facts.Policy.AllowCrossCompanyMembers {
+		return agentpersonastore.PersonaInstallation{}, fmt.Errorf("%w: conversation %s is not an internal room this agent may be placed in (external or cross-company members, or its policy does not allow its class %s)", ErrPersonaAdminLifecycleUnavailable, request.ConversationID, facts.Class)
 	}
 	row, err := a.Versions.GetVersion(ctx, actor.Tenant, request.PersonaID, request.PersonaVersion)
 	if err != nil || row.TenantID != actor.Tenant || row.PersonaID != request.PersonaID || row.Version != request.PersonaVersion {

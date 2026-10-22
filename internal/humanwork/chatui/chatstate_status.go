@@ -123,6 +123,10 @@ type ChannelStatusPanelProps struct {
 	// Section, when set, is the panel's row (CHATUX-027): the status draws its
 	// form and notes as the content of that row instead of a row of its own.
 	Section sectionWrap
+	// Dirty is the panel's form flags and Input the handler that sets them: a
+	// destructive status asks for a ticked box before Confirm is live (CHATUX-041).
+	Dirty map[string]bool
+	Input ui.Handler
 }
 
 // channelStatusPanel is the Status row of Manage channel: the current state at

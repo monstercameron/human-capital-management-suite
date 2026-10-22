@@ -334,7 +334,7 @@ func (s *server) caller(ctx context.Context) (string, string, error) {
 		return "", "", envelope.New(envelope.CodePermissionDenied, "document.human_required", "a human principal is required")
 	}
 	if s.service == nil {
-		return "", "", envelope.New(envelope.CodeUnavailable, "document.service.unavailable", "document service is not configured")
+		return "", "", envelope.New(envelope.CodeUnavailable, "document.service.not_configured", "document service is not configured")
 	}
 	return p.Tenant().String(), p.Subject(), nil
 }
