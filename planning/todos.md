@@ -32277,7 +32277,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** conversation creation with policy as one chat service operation.
   - **Refs:** `internal/application/persona_dm_provision.go`, `internal/data/chatstore/conversation_audience_policy.go`, `internal/application/persona_private_chat_authorizer.go`, `internal/application/persona_reply_delivery.go`.
 
-- [ ] `AGENTDOC-008` **[PHASE_3][SOL_HIGH] Let an administrator write an agent's instructions and reference documents inside them.**
+- [x] `AGENTDOC-008` **[PHASE_3][SOL_HIGH] Let an administrator write an agent's instructions and reference documents inside them.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTDOC_008` passed in `internal/agentdocref`, `internal/agentpersona`, `internal/application`, `internal/humanwork/productui`, `internal/humanwork/workspace`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-002`, `AGENTDOC-003`, `AGENTDOC-005`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=the references exist but the instructions that would say how to use them are a read-only starter text, so "follow the travel policy" cannot be written`.
   - **TEST:** `TestTodo_AGENTDOC_008`.
@@ -32287,7 +32288,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** token parse and render in `internal/agentdocref`.
   - **Refs:** `internal/agentdocref`, `internal/application/persona_admin_draft.go`, `internal/application/persona_run_model_work.go`, `internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/agentdoc_ui_picker.go`.
 
-- [ ] `AGENTUX-039` **[PHASE_3][TERRA] Edit an agent in place, and keep the document picker working when one document is unreadable.**
+- [x] `AGENTUX-039` **[PHASE_3][TERRA] Edit an agent in place, and keep the document picker working when one document is unreadable.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_039` passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-013`, `AGENTDOC-005`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=the editor was cut off by the navigation at common window widths and its document search failed for every query`.
   - **TEST:** `TestTodo_AGENTUX_039`.
@@ -32319,7 +32321,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one function decides both whether the navigation shows the link and whether the route admits it.
   - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/agentux_ops_feature_access_test.go`, `internal/experience/roleaccess/roleaccess.go`.
 
-- [ ] `AGENTUX-042` **[PHASE_3][TERRA] Lay out the "no access" and "could not load" pages inside the workspace shell.**
+- [x] `AGENTUX-042` **[PHASE_3][TERRA] Lay out the "no access" and "could not load" pages inside the workspace shell.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_042` passed in `internal/humanwork/workspace`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-010`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a refused person lands on a page with no navigation and the message pushed to the bottom of an empty screen`.
   - **TEST:** `TestTodo_AGENTUX_042`.
@@ -32384,7 +32387,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the preparation command and the publish step call one provisioning implementation.
   - **Refs:** `internal/application/persona_admin_lifecycle_executor.go`, `internal/application/agentux_runtime_prepare.go`, `internal/application/persona_run_principal_resolver.go`, `internal/application/agent_restore_installations.go`, `internal/data/agentpersonastore/persona_agent_principal.go`.
 
-- [ ] `AGENTUX-048` **[PHASE_3][SOL_HIGH] Let an agent post first: announcements written from documents, posted publicly, once or on a schedule.**
+- [x] `AGENTUX-048` **[PHASE_3][SOL_HIGH] Let an agent post first: announcements written from documents, posted publicly, once or on a schedule.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_048` passed in `internal/application`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-047`, `AGENTDOC-008`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=agents only answer when asked and every document-grounded answer is private, so an agent cannot tell employees about the upcoming holidays from the 2026 holiday guide`.
   - **TEST:** `TestTodo_AGENTUX_048`.
@@ -32394,7 +32398,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one audience rule shared by mention answers and announcements.
   - **Refs:** `internal/application/agent_schedule_service.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/transport/agentcontrols/http.go`.
 
-- [ ] `AGENTUX-049` **[PHASE_3][SOL_HIGH] Offer a general-purpose agent in Chat and a template for new agents.**
+- [x] `AGENTUX-049` **[PHASE_3][SOL_HIGH] Offer a general-purpose agent in Chat and a template for new agents.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_049` (+Browser) passed in `internal/application`, `internal/humanwork/productui`, `cmd/migrate`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-047`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=the only agent in Chat answers policy questions, the General agent exists only on the Agents page, and "New agent" is a dead end because no template is installed`.
   - **TEST:** `TestTodo_AGENTUX_049`.
@@ -32404,7 +32409,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the preparation command iterates a list of agents instead of naming one.
   - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/agenteval`, `cmd/migrate/agentux_demo.go`.
 
-- [ ] `AGENTUX-050` **[PHASE_3][TERRA] Make the staged rollout readable and stop the emoji picker from taking over a sentence.**
+- [x] `AGENTUX-050` **[PHASE_3][TERRA] Make the staged rollout readable and stop the emoji picker from taking over a sentence.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_050` passed in `internal/humanwork/chatui`, `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-041`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=moving a conversation to a new version takes four presses named in internal terms behind browser confirm dialogs, and a colon in a question stops the message being sent`.
   - **TEST:** `TestTodo_AGENTUX_050`.
@@ -32414,7 +32420,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/agent_rollout_portable_wasm.go`, `internal/humanwork/productui/agent_rollout*.go`, `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`.
 
-- [ ] `AGENTUX-051` **[PHASE_3][SOL_HIGH] Link every answer source to its document and say why an agent could not answer.**
+- [x] `AGENTUX-051` **[PHASE_3][SOL_HIGH] Link every answer source to its document and say why an agent could not answer.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_051` passed in `internal/application`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-032`, `AGENTDOC-008`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a source that cannot be opened is not a citation, and "couldn't answer just now" tells the person nothing they can act on`.
   - **TEST:** `TestTodo_AGENTUX_051`.
@@ -35529,7 +35536,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `tools/uxqual/cmd/journeywasm/chat_state.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/productui`.
 
-- [ ] `CHATBUG-100` **[PHASE_3][SOL_HIGH] Chat preferences: the voice block never finishes loading, and an empty state contradicts the setting beside it.**
+- [x] `CHATBUG-100` **[PHASE_3][SOL_HIGH] Chat preferences: the voice block never finishes loading, and an empty state contradicts the setting beside it.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATBUG_100` (+Integration, +Browser) passed in `internal/humanwork/chatui`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 04dad7cf4). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-048`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("do a deep visual inspection and focus hard on bugs and issues"); WHY=a settings popover with a section that never loads reads as broken`.
   - **TEST:** `TestTodo_CHATBUG_100`.

@@ -3076,7 +3076,8 @@
     "refactor": "token parse and render in `internal/agentdocref`",
     "refs": "`internal/agentdocref`, `internal/application/persona_admin_draft.go`, `internal/application/persona_run_model_work.go`, `internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/agentdoc_ui_picker.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTDOC_008` passed in `internal/agentdocref`, `internal/agentpersona`, `internal/application`, `internal/humanwork/productui`, `internal/humanwork/workspace`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTP-001",
@@ -4724,7 +4725,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/productui/persona_admin_version_editor.go`, `internal/humanwork/productui/persona_admin_styles.go`, `tools/uxqual/cmd/journeywasm/agentdoc_ui_picker.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_039` passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-040",
@@ -4790,7 +4792,8 @@
     "refactor": "the problem page uses the shared page frame",
     "refs": "`internal/humanwork/workspace/product_shell.go`, `internal/humanwork/workspace/agentux_polish_ops_problem_copy.go`, `internal/humanwork/productui/shell.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_042` passed in `internal/humanwork/workspace`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-043",
@@ -4928,7 +4931,8 @@
     "refactor": "one audience rule shared by mention answers and announcements",
     "refs": "`internal/application/agent_schedule_service.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/transport/agentcontrols/http.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_048` passed in `internal/application`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-049",
@@ -4951,7 +4955,8 @@
     "refactor": "the preparation command iterates a list of agents instead of naming one",
     "refs": "`internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/agenteval`, `cmd/migrate/agentux_demo.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_049` (+Browser) passed in `internal/application`, `internal/humanwork/productui`, `cmd/migrate`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-050",
@@ -4972,7 +4977,8 @@
     "refactor": "none",
     "refs": "`tools/uxqual/cmd/journeywasm/agent_rollout_portable_wasm.go`, `internal/humanwork/productui/agent_rollout*.go`, `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_050` passed in `internal/humanwork/chatui`, `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-051",
@@ -4997,7 +5003,8 @@
     "refactor": "one table maps failure class to sentence, next step and whether retry is offered",
     "refs": "`internal/application/persona_reply_output_renderer.go`, `internal/application/persona_run_executor.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/persona_progress.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_051` passed in `internal/application`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-052",
@@ -14569,7 +14576,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chatvoice*`, `tools/uxqual/cmd/journeywasm`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATBUG_100` (+Integration, +Browser) passed in `internal/humanwork/chatui`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 04dad7cf4). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATCALL-001",
