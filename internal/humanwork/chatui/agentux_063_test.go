@@ -287,3 +287,129 @@ func TestTodo_AGENTUX_063_Performance(t *testing.T) {
 // chatux037RevealWait is the animation timing of the slow loading line, the only
 // duration literal Chat's styles may carry.
 const chatux037RevealWait = " 1ms linear 8s"
+
+// TestAgentUX063_DraftPreview: the composer's Preview toggle shows the draft
+// as formatted text in the draft's own slot, so Bold's ** markers read as
+// bold before anything is sent. The toolbar carries no "Markdown" word
+// (CHATBUG-003), so the preview is the formatting's explanation.
+func TestAgentUX063_DraftPreview(t *testing.T) {
+	draft := "**bold** and [guide](https://example.org/guide)"
+	previewModel := func() Model {
+		m := chat4Fixture("en-US", "sent", false)
+		m.Draft = draft
+		m.Callbacks.SendMessage = func(string, string) {}
+		return m
+	}
+	// Editing: the field holds the draft and the toggle is off.
+	edit := renderNode(t, composer(previewModel(), handlers{}))
+	if !strings.Contains(edit, "<textarea") || !strings.Contains(edit, `data-action="composer-preview-toggle"`) || !strings.Contains(edit, `aria-pressed="false"`) {
+		t.Fatalf("the composer has no Preview toggle, or it starts on: %s", edit)
+	}
+	if strings.Contains(edit, "composer-preview-body") {
+		t.Fatalf("the preview is drawn while editing: %s", edit)
+	}
+	// Preview: the same slot shows the draft formatted, with no field and no
+	// dangling label for one.
+	preview := renderNode(t, composer(previewModel(), handlers{local: localUI{composerPreview: true}}))
+	if agentux063HasExactAttr(preview, `id="chat-composer"`) {
+		t.Fatalf("the field is still drawn under the preview: %s", preview)
+	}
+	for _, want := range []string{`class="composer-draft"`, "composer-preview-body", "<strong>bold</strong>", `href="https://example.org/guide"`, `aria-pressed="true"`} {
+		if !strings.Contains(preview, want) {
+			t.Fatalf("the preview is missing %q: %s", want, preview)
+		}
+	}
+	if strings.Contains(preview, "**bold**") || agentux063HasExactAttr(preview, `for="chat-composer"`) {
+		t.Fatalf("raw marks or a label for a missing field: %s", preview)
+	}
+	// The thread's reply field previews the same way from its own draft.
+	thread := previewModel()
+	thread.ShowThread, thread.ThreadParentID = true, "root"
+	thread.ThreadDrafts = map[string]string{"root": draft}
+	thread.Callbacks.ReplyInThread = func(string, string) {}
+	threadPreview := renderNode(t, threadPane(thread, handlers{local: localUI{threadComposerPreview: true}}))
+	if agentux063HasExactAttr(threadPreview, `id="thread-composer"`) || !strings.Contains(threadPreview, "<strong>bold</strong>") {
+		t.Fatalf("the thread reply does not preview: %s", threadPreview)
+	}
+	// The toggle and the preview are named in every language.
+	for _, locale := range []string{"en-US", "de-DE", "ar"} {
+		m := previewModel()
+		m.Locale = locale
+		markup := renderNode(t, composer(m, handlers{local: localUI{composerPreview: true}}))
+		label, tip := composerText(m, keyComposerPreview), composerText(m, keyComposerPreviewTip)
+		if label == "" || label == keyComposerPreview || tip == "" || tip == keyComposerPreviewTip || !strings.Contains(markup, label) {
+			t.Fatalf("%s: the Preview toggle is unnamed: %s", locale, markup)
+		}
+	}
+}
+
+// agentux063HasExactAttr is whether the markup carries the attribute with
+// exactly that value. The attribute name is matched on a word boundary
+// (data-id="chat-composer" is not id="chat-composer") and the value must not
+// continue into a longer id ("chat-composer-commands").
+func agentux063HasExactAttr(markup, attr string) bool {
+	needle := " " + attr
+	for rest := markup; ; {
+		index := strings.Index(rest, needle)
+		if index < 0 {
+			return false
+		}
+		rest = rest[index+len(needle):]
+		if rest == "" || rest[0] != '-' {
+			return true
+		}
+	}
+}
+
+// TestAgentUX063_HoverTint: a message row takes one shared hover tint in every
+// conversation kind — the rule names the row, never the kind of room it sits
+// in — and no kind-scoped rule repaints it.
+func TestAgentUX063_HoverTint(t *testing.T) {
+	const shared = ".message:hover,.message:focus-visible,.message:has(:focus-visible),.chat-ephemeral:hover{background:color-mix(in srgb,var(--hcm-color-text) 4%,transparent)}"
+	if !strings.Contains(Stylesheet, shared) {
+		t.Fatal("the shared message-row hover tint is gone")
+	}
+	// The shared rule wins the cascade wherever it applies, so the tint a row
+	// takes is the shared one and nothing else paints over it.
+	for _, selector := range []string{".message:hover", ".message:focus-visible", ".message:has(:focus-visible)", ".chat-ephemeral:hover"} {
+		if got := chatbugCascadeValue(Stylesheet, selector, "background"); got != "color-mix(in srgb,var(--hcm-color-text) 4%,transparent)" {
+			t.Errorf("%s paints %q, want the shared tint", selector, got)
+		}
+	}
+	// And no other rule paints the row itself on hover or focus — not from a
+	// conversation-kind ancestor, not from anywhere: the subject of every
+	// row-tint rule is the bare row. Rules that paint the row's children (the
+	// action bar) or its siblings (action buttons) are not the row's tint.
+	for _, rule := range agentux058Rules(Stylesheet) {
+		selector, body := rule[0], rule[1]
+		if (!strings.Contains(selector, ":hover") && !strings.Contains(selector, ":focus-visible")) || !strings.Contains(body, "background") {
+			continue
+		}
+		for _, part := range strings.Split(selector, ",") {
+			subject := strings.TrimSpace(part)
+			for _, combinator := range []string{" ", ">", "+", "~"} {
+				if index := strings.LastIndex(subject, combinator); index >= 0 {
+					subject = strings.TrimSpace(subject[index+1:])
+				}
+			}
+			row, _, _ := strings.Cut(subject, ":")
+			if row != ".message" && row != ".chat-ephemeral" {
+				continue
+			}
+			switch strings.TrimSpace(part) {
+			case ".message:hover", ".message:focus-visible", ".message:has(:focus-visible)", ".chat-ephemeral:hover":
+			default:
+				t.Errorf("a second hover tint repaints message rows: %s{%s}", strings.TrimSpace(part), body)
+			}
+		}
+	}
+	// A channel row and an agent-conversation row are the same element for the
+	// tint: the rule reaches both through the shared class.
+	channel := renderNode(t, message(chat4Fixture("en-US", "answered", false), handlers{}, Message{ID: "m", AuthorID: "walt", Body: "hi"}, false))
+	direct := renderNode(t, message(chat4Fixture("en-US", "answered", true), handlers{}, Message{ID: "m", AuthorID: "walt", Body: "hi"}, false))
+	for name, markup := range map[string]string{"channel": channel, "agent conversation": direct} {
+		if !strings.Contains(markup, `class="message`) && !strings.Contains(markup, ` message `) && !strings.Contains(markup, `message `) {
+			t.Errorf("%s: the row does not carry the shared message class: %s", name, markup)
+		}
+	}
+}

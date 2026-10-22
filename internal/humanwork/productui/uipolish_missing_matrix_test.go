@@ -308,7 +308,13 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// row-end margin at every width. Verified the rendered Home document
 	// carries exactly that delta: the one container rule shortened by those
 	// 64 characters, zero other bytes changed.
-	const want = "bb1d31b260275e5d2448317955a54ca47b30bd4fd464e01aec4c20e6ad9262de"
+	// 2026-10-22 (AGENTUX-063) re-pin: the composer's Preview toggle joins the
+	// pressed-toggle rule, and the preview slot scrolls like the field it
+	// replaces while an empty preview shows the placeholder muted. Verified
+	// against the Home document rendered at the parent commit: base plus
+	// exactly those three fragments is the new document byte for byte, zero
+	// markup changed (Home does not render the composer).
+	const want = "26d7ee7256c4c0f8599909dffaa646582d4c1e2e264916123f19556d7a192342"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

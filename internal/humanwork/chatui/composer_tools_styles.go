@@ -22,7 +22,11 @@ const ChatComposerToolsStyles = `.chat-workspace .chat-composer .composer-toolba
 	`.chat-workspace .composer-add-text{display:flex;flex-direction:column;gap:1px;min-width:0}` +
 	`.chat-workspace .composer-add-name{color:var(--ink);font-size:.875rem;font-weight:600}` +
 	`.chat-workspace .composer-add-note{color:var(--muted);font-size:.75rem;line-height:1.3}` +
-	`.chat-workspace .composer-add-trigger[aria-expanded="true"],.chat-workspace .composer-format-toggle[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--ink)}` +
+	`.chat-workspace .composer-add-trigger[aria-expanded="true"],.chat-workspace .composer-format-toggle[aria-pressed="true"],.chat-workspace .composer-preview-toggle[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--ink)}` +
+	// The formatted preview (AGENTUX-063) scrolls like the field it replaces;
+	// an empty preview shows the field's placeholder, muted like one.
+	`.chat-workspace .composer-preview{overflow-y:auto}` +
+	`.chat-workspace .composer-preview-placeholder{color:var(--muted)}` +
 	`.chat-workspace .composer-glyph{font-size:.875rem;font-weight:700;line-height:1;letter-spacing:0;pointer-events:none}.chat-workspace .composer-mention-button .composer-glyph{font-size:1rem}` +
 	// Voice message and Location are opened from the Add menu. Their own buttons
 	// stay in the page as the openers their panels anchor to and return focus to,

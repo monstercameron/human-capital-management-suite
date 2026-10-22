@@ -190,6 +190,38 @@ func composerFormatToggle(m Model, target string, disabled bool, local localUI) 
 		html.Span(html.Props{Class: "composer-glyph", Dir: "ltr", Aria: map[string]string{"hidden": "true"}, Text: "Aa"}))
 }
 
+// composerPreviewOn is whether the composer target names shows its draft as
+// formatted text instead of the field (AGENTUX-063).
+func composerPreviewOn(local localUI, target string) bool {
+	if target == threadComposerID {
+		return local.threadComposerPreview
+	}
+	return local.composerPreview
+}
+
+// composerPreviewToggle is the Preview button, beside the Aa button. There is
+// nothing to preview in an empty draft, so it is disabled until text is typed.
+func composerPreviewToggle(m Model, target, draft string, disabled bool, local localUI) ui.Node {
+	return html.Button(html.Props{Class: "tool-button composer-preview-toggle", Type: "button", Disabled: disabled || draft == "", Title: composerText(m, keyComposerPreviewTip),
+		Data: map[string]string{"action": "composer-preview-toggle", "id": target},
+		Aria: map[string]string{"label": composerText(m, keyComposerPreview), "pressed": boolString(composerPreviewOn(local, target))}},
+		icon("eye"))
+}
+
+// composerPreviewBody shows the draft as formatted text in the field's own
+// slot: the same box classes, so the composer keeps its shape, with the
+// message renderer for the words. An empty draft shows the placeholder the
+// field would have shown.
+func composerPreviewBody(m Model, draft, placeholder string) ui.Node {
+	props := html.Props{Class: "composer-input composer-preview", Dir: agentReplyDirection(m.Locale), Role: "region", Aria: map[string]string{"label": composerText(m, keyComposerPreview)}}
+	if draft == "" {
+		return html.Div(props, html.Span(html.Props{Class: "composer-preview-placeholder", Text: placeholder}))
+	}
+	// The inner div carries the message-body class so tables, strike-through
+	// and the other extensions draw exactly as they will when sent.
+	return html.Div(props, html.Div(html.Props{Class: "message-body composer-preview-body"}, markdownMessageBody(m, draft)...))
+}
+
 // composerFormatRow is the formatting row. It is always in the tree; the
 // composer's data-format-row attribute and the styles decide whether it shows.
 func composerFormatRow(m Model, target string, disabled bool) ui.Node {
@@ -225,6 +257,13 @@ func composerToolsClick(e ui.MouseEvent, m Model, local localStore) bool {
 			return true
 		}
 		composerFormatChoose(m, local)
+		return true
+	case "composer-preview-toggle":
+		if id == threadComposerID {
+			local.update(func(u *localUI) { u.threadComposerPreview = !u.threadComposerPreview })
+			return true
+		}
+		local.update(func(u *localUI) { u.composerPreview = !u.composerPreview })
 		return true
 	}
 	return false
@@ -337,6 +376,7 @@ func composerToolRow(m Model, h handlers, id string, disabled, canSend bool) ui.
 			chatEmojiComposerPicker(m, h.local, id, disabled),
 			giphyPickerControl(m, id, disabled),
 			composerFormatToggle(m, id, disabled, h.local),
+			composerPreviewToggle(m, id, m.Draft, disabled, h.local),
 			chattoneToolbar(m, id, disabled),
 			chatvoiceComposer(m, disabled),
 			chatmapComposerControl(m, id, disabled),

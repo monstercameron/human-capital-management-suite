@@ -45,6 +45,11 @@ type localUI struct {
 	// threadFormatRow is the same choice for the thread's reply field, which
 	// opens closed whatever the viewer chose for the channel composer.
 	threadFormatRow string
+	// composerPreview shows the main composer's draft as formatted text in the
+	// field's own slot; threadComposerPreview does the same for the thread's
+	// reply field (AGENTUX-063). Typing or sending clears either: preview never
+	// traps an empty or edited draft.
+	composerPreview, threadComposerPreview bool
 	// sentCount is how many messages the viewer has sent from the composer this
 	// page session; the Enter hint goes after three (composerHintVisible).
 	sentCount       int

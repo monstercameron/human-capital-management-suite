@@ -18,6 +18,8 @@ const (
 	keyComposerMention        = "chat.composer.mention"
 	keyComposerFormat         = "chat.composer.format"
 	keyComposerFormatTip      = "chat.composer.format_tip"
+	keyComposerPreview        = "chat.composer.preview"
+	keyComposerPreviewTip     = "chat.composer.preview_tip"
 	keyComposerCommands       = "chat.composer.commands"
 	keyComposerCommandGiphy   = "chat.composer.command_giphy"
 	keyComposerCommandPlace   = "chat.composer.command_location"
@@ -41,6 +43,8 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerMention:        "Mention someone",
 		keyComposerFormat:         "Formatting",
 		keyComposerFormatTip:      "Show or hide formatting",
+		keyComposerPreview:        "Preview",
+		keyComposerPreviewTip:     "Show the draft as formatted text",
 		keyComposerCommands:       "Commands",
 		keyComposerCommandGiphy:   "Search for a GIF and post it",
 		keyComposerCommandPlace:   "Share your location",
@@ -62,6 +66,8 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerMention:        "Jemanden erwähnen",
 		keyComposerFormat:         "Formatierung",
 		keyComposerFormatTip:      "Formatierung ein- oder ausblenden",
+		keyComposerPreview:        "Vorschau",
+		keyComposerPreviewTip:     "Den Entwurf als formatierten Text anzeigen",
 		keyComposerCommands:       "Befehle",
 		keyComposerCommandGiphy:   "Ein GIF suchen und senden",
 		keyComposerCommandPlace:   "Den eigenen Standort teilen",
@@ -83,6 +89,8 @@ var composerToolsCopy = map[string]map[string]string{
 		keyComposerMention:        "الإشارة إلى شخص",
 		keyComposerFormat:         "التنسيق",
 		keyComposerFormatTip:      "إظهار التنسيق أو إخفاؤه",
+		keyComposerPreview:        "معاينة",
+		keyComposerPreviewTip:     "عرض المسودة كنص منسق",
 		keyComposerCommands:       "الأوامر",
 		keyComposerCommandGiphy:   "ابحث عن صورة GIF وانشرها",
 		keyComposerCommandPlace:   "شارك موقعك",

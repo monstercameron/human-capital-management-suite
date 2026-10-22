@@ -68,6 +68,7 @@ func chatux014ThreadTools(m Model, h handlers, disabled bool) []ui.Node {
 				chatEmojiComposerPicker(m, h.local, id, disabled),
 				giphyPickerControl(m, id, disabled),
 				composerFormatToggle(m, id, disabled, h.local),
+				composerPreviewToggle(m, id, m.ThreadDrafts[m.ThreadParentID], disabled, h.local),
 				chattoneToolbar(m, id, disabled),
 			),
 			hint,

@@ -60,6 +60,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 	act := func(action, id string) { m.act(action, id) }
 	threadSend := func() {
 		body := domValue("thread-composer")
+		if body == "" {
+			// A send from the formatted preview has no field to read: the
+			// model holds the same draft the preview shows.
+			body = m.ThreadDrafts[m.ThreadParentID]
+		}
 		if chatcmd003Send(m, local, "thread-composer", body) {
 			return
 		}
@@ -73,7 +78,12 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if text != body {
 			// A line that began with "//" is sent with one slash.
 			setDOMValue("thread-composer", text)
+			if m.Callbacks.ThreadDraftChanged != nil {
+				m.Callbacks.ThreadDraftChanged(m.ThreadParentID, text)
+			}
 		}
+		// A sent reply leaves no preview behind.
+		local.update(func(u *localUI) { u.threadComposerPreview = false })
 		replyInThread(m, mention)
 	}
 	closeDrawer := func() {
@@ -177,6 +187,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			return
 		}
 		raw := domValue("chat-composer")
+		if raw == "" {
+			// A send from the formatted preview has no field to read: the
+			// model holds the same draft the preview shows.
+			raw = m.Draft
+		}
 		refs := mention.PersonaReferences("chat-composer", m.SelectedID, raw)
 		body, refs, ok := composerSendPayload(raw, m.Draft, refs)
 		if !ok {
@@ -228,6 +243,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			u.commandMenu = composerCommandMenu{}
 			u.sentCount++
 			u.privateAnswer = false
+			// A sent draft leaves no preview behind.
+			u.composerPreview = false
 		})
 		mention.RemovePersonas("chat-composer", m.SelectedID)
 		setDOMValue("chat-composer", "")
@@ -858,6 +875,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			if local.get().composerNotice != "" {
 				local.update(func(u *localUI) { u.composerNotice = "" })
 			}
+			if local.get().composerPreview {
+				// Typing means editing: a keystroke leaves the formatted
+				// preview, so it can never trap an edited draft.
+				local.update(func(u *localUI) { u.composerPreview = false })
+			}
 		}),
 		searchInput: ui.UseEvent(func(e ui.InputEvent) {
 			if m.Callbacks.Search != nil {
@@ -1171,6 +1193,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			if m.Callbacks.ThreadDraftChanged != nil {
 				m.Callbacks.ThreadDraftChanged(m.ThreadParentID, e.GetValue())
 			}
+			if local.get().threadComposerPreview {
+				local.update(func(u *localUI) { u.threadComposerPreview = false })
+			}
 		}),
 		threadKey: ui.UseEvent(func(e ui.KeyboardEvent) { composerKey(e, "thread-composer", threadSend) }),
 	}
@@ -1182,11 +1207,15 @@ func replyInThread(m Model, mention mentionStore) {
 	if chatattach001ReplyWithFiles(m, mention) {
 		return
 	}
-	body := emojiShortcodesInText(strings.TrimSpace(domValue("thread-composer")))
+	raw := domValue("thread-composer")
+	if raw == "" {
+		// A send from the formatted preview has no field to read.
+		raw = m.ThreadDrafts[m.ThreadParentID]
+	}
+	body := emojiShortcodesInText(strings.TrimSpace(raw))
 	if body == "" || m.ThreadParentID == "" {
 		return
 	}
-	raw := domValue("thread-composer")
 	refs := mention.PersonaReferences("thread-composer", m.SelectedID, raw)
 	if len(refs) > 0 {
 		if m.Callbacks.ReplyInThreadWithReferences == nil {
@@ -3027,8 +3056,20 @@ func composer(m Model, h handlers) ui.Node {
 		fieldAria["describedby"] = "composer-help"
 	}
 	fieldAria = modAuthorDescribe(m, h.local, ModAuthorKeyComposer(m.SelectedID), "chatmod002-blocked", fieldAria)
+	// Preview swaps the field for the draft as formatted text, in the same
+	// slot; the field's label goes with the field, and the preview names
+	// itself (AGENTUX-063).
+	var fieldLabel ui.Node
+	field := ui.Node(html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: agentReplyDirection(m.Locale), Data: map[string]string{"chat-value": m.Draft, "draft-scope": m.SelectedID, "agent-indent": itoa((len([]rune(h.composerAgentName)) + 2) * 8)}, Disabled: disabled,
+		OnInput: h.composerInput, OnKeyDown: h.composerKey,
+		Aria: commandMenuFieldAria(h.local.commandMenu, id, emojiCompletionFieldAria(h.local.emojiCompletion, id, docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, fieldAria))))}))
+	if composerPreviewOn(h.local, id) {
+		field = composerPreviewBody(m, m.Draft, placeholder)
+	} else {
+		fieldLabel = html.Label(html.Props{Class: "sr-only", For: id}, ui.Text(m.t(KeyMessage)))
+	}
 	return html.Form(html.Props{Class: "chat-composer", Data: map[string]string{"send-capable": boolString((m.Callbacks.SendMessage != nil || m.Callbacks.SendMessageWithReferences != nil) && !disabled && m.Chatattach001.Ready()), "format-row": composerFormatState(m, h.local), "draft-empty": boolString(m.Draft == ""), "outside-mentions": itoa(len(h.mentionOutside))}, OnSubmit: h.composerSubmit, Aria: map[string]string{"label": m.t(KeyComposeRegion)}},
-		html.Label(html.Props{Class: "sr-only", For: id}, ui.Text(m.t(KeyMessage))),
+		fieldLabel,
 		mentionMenu(m, h.mentionView, id),
 		docSuggestMenu(m, h.local.docSuggest, id),
 		emojiCompletionMenu(m, h.local.emojiCompletion, id),
@@ -3036,10 +3077,7 @@ func composer(m Model, h handlers) ui.Node {
 		composerNotice(h.local.composerNotice),
 		chatcmd003PreviewFor(m, h.local.chatcmd003, id),
 		chattoneChipSlot(m, id),
-		html.Div(html.Props{Class: "composer-draft"}, composerAgentToken(h.composerAgentName),
-			html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: agentReplyDirection(m.Locale), Data: map[string]string{"chat-value": m.Draft, "draft-scope": m.SelectedID, "agent-indent": itoa((len([]rune(h.composerAgentName)) + 2) * 8)}, Disabled: disabled,
-				OnInput: h.composerInput, OnKeyDown: h.composerKey,
-				Aria: commandMenuFieldAria(h.local.commandMenu, id, emojiCompletionFieldAria(h.local.emojiCompletion, id, docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, fieldAria))))})),
+		html.Div(html.Props{Class: "composer-draft"}, composerAgentToken(h.composerAgentName), field),
 		modAuthorLine(m, h.local, ModAuthorKeyComposer(m.SelectedID), "chatmod002-blocked"),
 		chatComposerHint(m, h),
 		chatbug071OutsideNote(m, h.mentionOutside, id),
@@ -3373,15 +3411,22 @@ func threadPane(m Model, h handlers) ui.Node {
 	heading := items[0]
 	body := html.Div(html.Props{Class: "thread-scroll", Data: map[string]string{"chat-thread-anchor": m.SelectedID + ":" + m.ThreadParentID}}, items[1:]...)
 	canReply := (m.Callbacks.ReplyInThread != nil || (m.Callbacks.ReplyInThreadWithReferences != nil && len(personaMentionCandidates(m, "")) > 0)) && m.ThreadParentID != ""
+	var replyLabel ui.Node
+	replyField := ui.Node(html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": m.ThreadDrafts[m.ThreadParentID]}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
+		Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil))))}))
+	if composerPreviewOn(h.local, threadComposerID) {
+		replyField = composerPreviewBody(m, m.ThreadDrafts[m.ThreadParentID], agentThreadPlaceholder(m))
+	} else {
+		replyLabel = html.Label(html.Props{Class: "sr-only", For: "thread-composer"}, ui.Text(m.t(KeyReplySend)))
+	}
 	composer := html.Form(html.Props{Class: "thread-composer", Data: map[string]string{"send-capable": boolString(canReply), "format-row": chatux032ThreadFormatState(h.local)}, OnSubmit: h.threadSubmit, Aria: map[string]string{"label": m.t(KeyReplySend)}}, append([]ui.Node{
 		chatcmd003PreviewFor(m, h.local.chatcmd003, "thread-composer"),
-		html.Label(html.Props{Class: "sr-only", For: "thread-composer"}, ui.Text(m.t(KeyReplySend))),
+		replyLabel,
 		mentionMenu(m, h.mentionView, "thread-composer"),
 		emojiCompletionMenu(m, h.local.emojiCompletion, "thread-composer"),
 		composerCommandMenuView(m, h.local.commandMenu, "thread-composer", h.local.seq),
 		chattoneChipSlot(m, "thread-composer"),
-		html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": m.ThreadDrafts[m.ThreadParentID]}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
-			Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil))))}),
+		replyField,
 		modAuthorLine(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply"),
 		composerAgentReplyHint(h.threadReplyHint),
 		chatbug071OutsideNote(m, h.mentionOutside, "thread-composer"),
