@@ -4395,7 +4395,8 @@
     "refactor": "one served-composition test harness shared with `AGENTUX-005` and `AGENTUX-021`",
     "refs": "`internal/application/persona_chat_invocation.go`, `internal/application/persona_run_executor.go`, `internal/application/persona_run_model_work.go`, `internal/application/persona_runtime_composition.go`, `internal/agentgate`, `internal/agentmodel/schemaflux_adapter.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_025` (+3 regression, +separated-roles integration, +4 composites; `TestTodo_AGENTUX_021` migrated) passed in `internal/application` (commit cc13e6ee2). Note: formal dep AGENT-033 open; matrix green without it. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-026",
@@ -4417,7 +4418,8 @@
     "refactor": "one invocation-state projection shared by the stream event and the list read",
     "refs": "`internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/agentp011_ephemeral.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/application/persona_reply_delivery.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_026` (+Browser; +PrivateDeliveryWritesNoDurablePublicReceipt in application) passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application` (commit 83c665224). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-027",
@@ -4439,7 +4441,8 @@
     "refactor": "none",
     "refs": "`internal/application/persona_reply_delivery.go`, `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/productui/i18n.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_027` (+audit pin, +catalog) passed in `internal/application`, `internal/humanwork/chatui`, `internal/humanwork/productui` (commit 683c2f204). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-028",
@@ -4461,7 +4464,8 @@
     "refactor": "a per-run verified snapshot passed to helpers within one boundary",
     "refs": "`internal/application/persona_run_executor.go`, `internal/application/persona_run_tenant_runtime.go`, `internal/application/persona_foreground_run_authority.go`, `internal/agentsystem/runstate`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_028` passed in `internal/application`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-029",
@@ -4552,7 +4556,8 @@
     "refactor": "one cited-documents value passed from tool grounding to delivery",
     "refs": "`internal/application/persona_runtime_tool_documents.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/chatui`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_032` passed in `internal/humanwork/chatui`, `internal/application`, `internal/collaboration/chat`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-033",
@@ -4573,7 +4578,8 @@
     "refactor": "none",
     "refs": "`internal/application/persona_audience_source.go`, `internal/application/persona_admin_sources.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_033` passed in `internal/application`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-034",
@@ -4596,7 +4602,8 @@
     "refactor": "one placed-document count reader shared by Agent setup and Agent operations",
     "refs": "`internal/data/documenthubstore/placement.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/agentux_runtime_demo_documents.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_034` passed in `internal/application`, `internal/humanwork/productui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-035",
@@ -4668,7 +4675,8 @@
     "refactor": "one effective-policy reader used by search scope, audience floor and authority resolution",
     "refs": "`internal/application/agentux_dmpath_policy.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/data/agentpersonastore`, `internal/application/persona_admin_commands.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_037` passed in `internal/application`, `internal/humanwork/productui`, `internal/data/agentpersonastore` (commit a5b9001bf; stale reason fixed per AGENTUX-070 contract). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-038",
@@ -4692,7 +4700,8 @@
     "refactor": "conversation creation with policy as one chat service operation",
     "refs": "`internal/application/persona_dm_provision.go`, `internal/data/chatstore/conversation_audience_policy.go`, `internal/application/persona_private_chat_authorizer.go`, `internal/application/persona_reply_delivery.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_038` passed in `internal/application`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-039",
@@ -14515,7 +14524,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux035_styles.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/render.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATBUG_098` (+Integration, +Browser 3 locales x 3 widths x 5 states) passed in `internal/humanwork/chatui` (commit 5d5f0e926); Playwright spec written, not executed (no live browser). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATBUG-099",

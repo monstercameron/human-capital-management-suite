@@ -32123,7 +32123,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/loading_components.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`, `internal/humanwork/chatui/copy.go`.
 
-- [ ] `AGENTUX-025` **[PHASE_3][SOL_HIGH] Carry an agent mention from the post to a delivered answer on a served cell.**
+- [x] `AGENTUX-025` **[PHASE_3][SOL_HIGH] Carry an agent mention from the post to a delivered answer on a served cell.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_025` (+3 regression, +separated-roles integration, +4 composites; `TestTodo_AGENTUX_021` migrated) passed in `internal/application` (commit cc13e6ee2). Note: formal dep AGENT-033 open; matrix green without it. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-005`, `AGENTUX-021`, `AGENTDOC-004`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=every unit of the mention path passed its tests while the composed path failed at seventeen consecutive gates on a real cell`.
   - **TEST:** `TestTodo_AGENTUX_025`.
@@ -32133,7 +32134,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one served-composition test harness shared with `AGENTUX-005` and `AGENTUX-021`.
   - **Refs:** `internal/application/persona_chat_invocation.go`, `internal/application/persona_run_executor.go`, `internal/application/persona_run_model_work.go`, `internal/application/persona_runtime_composition.go`, `internal/agentgate`, `internal/agentmodel/schemaflux_adapter.go`.
 
-- [ ] `AGENTUX-026` **[PHASE_3][SOL_HIGH] Show the asker that the agent is working, then its answer or its failure, where the question was asked.**
+- [x] `AGENTUX-026` **[PHASE_3][SOL_HIGH] Show the asker that the agent is working, then its answer or its failure, where the question was asked.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_026` (+Browser; +PrivateDeliveryWritesNoDurablePublicReceipt in application) passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application` (commit 83c665224). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-025`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a mention that shows nothing for half a minute and then answers somewhere else reads as a broken feature`.
   - **TEST:** `TestTodo_AGENTUX_026`.
@@ -32143,7 +32145,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one invocation-state projection shared by the stream event and the list read.
   - **Refs:** `internal/humanwork/chatui/persona_progress.go`, `internal/humanwork/chatui/agentp011_ephemeral.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/application/persona_reply_delivery.go`.
 
-- [ ] `AGENTUX-027` **[GATE_C][SOL_HIGH] Leave no public trace of a private agent answer.**
+- [x] `AGENTUX-027` **[GATE_C][SOL_HIGH] Leave no public trace of a private agent answer.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_027` (+audit pin, +catalog) passed in `internal/application`, `internal/humanwork/chatui`, `internal/humanwork/productui` (commit 683c2f204). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-026`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=a receipt posted to the whole channel under the asker's name both misattributes authorship and discloses that a private answer exists`.
   - **TEST:** `TestTodo_AGENTUX_027`.
@@ -32153,7 +32156,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_reply_delivery.go`, `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/productui/i18n.go`.
 
-- [ ] `AGENTUX-028` **[PHASE_3][SOL_HIGH] Answer a mention in the model's time plus three seconds.**
+- [x] `AGENTUX-028` **[PHASE_3][SOL_HIGH] Answer a mention in the model's time plus three seconds.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_028` passed in `internal/application`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-025`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=thirty-one seconds of server overhead on a five second answer makes the agent slower than opening the document`.
   - **TEST:** `TestTodo_AGENTUX_028`.
@@ -32196,7 +32200,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/collaboration/chat/ephemeral.go`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `AGENTUX-032` **[PHASE_3][SOL_HIGH] List the documents an answer used, as links the reader may open.**
+- [x] `AGENTUX-032` **[PHASE_3][SOL_HIGH] List the documents an answer used, as links the reader may open.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_032` passed in `internal/humanwork/chatui`, `internal/application`, `internal/collaboration/chat`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-004`, `AGENTUX-031`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=an agent that says "the policy states" without a link asks to be trusted instead of checked`.
   - **TEST:** `TestTodo_AGENTUX_032`.
@@ -32206,7 +32211,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one cited-documents value passed from tool grounding to delivery.
   - **Refs:** `internal/application/persona_runtime_tool_documents.go`, `internal/application/persona_reply_delivery.go`, `internal/humanwork/chatui`.
 
-- [ ] `AGENTUX-033` **[PHASE_3][TERRA] Treat an agent identity as an agent in member and audience projections.**
+- [x] `AGENTUX-033` **[PHASE_3][TERRA] Treat an agent identity as an agent in member and audience projections.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_033` passed in `internal/application`, `tools/uxqual/cmd/journeywasm`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-021`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS; DIRECT=none; WHY=looking an agent up in the human directory fails on every page load and floods the log`.
   - **TEST:** `TestTodo_AGENTUX_033`.
@@ -32216,7 +32222,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_audience_source.go`, `internal/application/persona_admin_sources.go`.
 
-- [ ] `AGENTUX-034` **[PHASE_3][SOL_HIGH] Show an administrator which documents an agent can read in each conversation, and let them place one.**
+- [x] `AGENTUX-034` **[PHASE_3][SOL_HIGH] Show an administrator which documents an agent can read in each conversation, and let them place one.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_034` passed in `internal/application`, `internal/humanwork/productui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-002`, `AGENTUX-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.OPERATIONS; DIRECT=none; WHY=an agent with nothing placed in a conversation answers every question with "nothing found" and nothing on the setup page says why`.
   - **TEST:** `TestTodo_AGENTUX_034`.
@@ -32248,7 +32255,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one refusal type carrying sentinel, gate name and location.
   - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_runtime_tools.go`, `internal/application/agentux_ops2_projections.go`.
 
-- [ ] `AGENTUX-037` **[GATE_C][SOL_HIGH] Apply a conversation's current agent policy to live installations, and let an administrator remove and re-add an agent.**
+- [x] `AGENTUX-037` **[GATE_C][SOL_HIGH] Apply a conversation's current agent policy to live installations, and let an administrator remove and re-add an agent.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_037` passed in `internal/application`, `internal/humanwork/productui`, `internal/data/agentpersonastore` (commit a5b9001bf; stale reason fixed per AGENTUX-070 contract). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-025`, `AGENTP-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.EXPERIENCE; DIRECT=none; WHY=an installation keeps the policy copied when it was added, so narrowing a conversation's policy later does not narrow the agent already working there`.
   - **TEST:** `TestTodo_AGENTUX_037`.
@@ -32258,7 +32266,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one effective-policy reader used by search scope, audience floor and authority resolution.
   - **Refs:** `internal/application/agentux_dmpath_policy.go`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_runtime_audience_floor.go`, `internal/data/agentpersonastore`, `internal/application/persona_admin_commands.go`.
 
-- [ ] `AGENTUX-038` **[PHASE_3][SOL_HIGH] Answer a question asked in a person's direct conversation with an agent, once.**
+- [x] `AGENTUX-038` **[PHASE_3][SOL_HIGH] Answer a question asked in a person's direct conversation with an agent, once.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_038` passed in `internal/application`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-025`, `AGENTUX-030`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=private answers are delivered to that conversation, so it is where a person asks the follow-up, and it refused every question`.
   - **TEST:** `TestTodo_AGENTUX_038`.
@@ -35499,7 +35508,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux008_thread.go`, `internal/humanwork/chatui/chatux033_phone.go`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `CHATBUG-098` **[PHASE_3][SOL_HIGH] The Archived footer: mid-list after a search, an overlay when opened, and visible through a popover.**
+- [x] `CHATBUG-098` **[PHASE_3][SOL_HIGH] The Archived footer: mid-list after a search, an overlay when opened, and visible through a popover.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATBUG_098` (+Integration, +Browser 3 locales x 3 widths x 5 states) passed in `internal/humanwork/chatui` (commit 5d5f0e926); Playwright spec written, not executed (no live browser). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATBUG-092`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("do a deep visual inspection and focus hard on bugs and issues"); WHY=the sidebar loses rows behind a band that should sit at the bottom`.
   - **TEST:** `TestTodo_CHATBUG_098`.
