@@ -14448,7 +14448,8 @@
     "refactor": "none",
     "refs": "`tools/uxqual/cmd/journeywasm/chat_media_dimensions.go`, `internal/transport/chat`, `internal/humanwork/workspace/csp.go`, `internal/humanwork/chatui`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATBUG_095` (+ThreadRoot, +Browser) passed in `internal/humanwork/chatui`; (+StoredDimensions) in `internal/collaboration/chatmedia`; (+ReferenceDimensions) in `internal/collaboration/chat` + journeywasm; (+ProbeRetry) in journeywasm; (+Integration) in `internal/transport/chatmedia`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 660baadd9). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATBUG-096",

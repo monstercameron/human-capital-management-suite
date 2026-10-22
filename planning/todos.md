@@ -35468,7 +35468,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/copy.go`, `internal/humanwork/chatui/chatbug091_saved.go`, `internal/humanwork/chatui/chatbug090_menu.go`, `internal/humanwork/chatui/chatux027_manage.go`.
 
-- [ ] `CHATBUG-095` **[PHASE_3][SOL_HIGH] No image or GIF attachment ever loads.**
+- [x] `CHATBUG-095` **[PHASE_3][SOL_HIGH] No image or GIF attachment ever loads.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATBUG_095` (+ThreadRoot, +Browser) passed in `internal/humanwork/chatui`; (+StoredDimensions) in `internal/collaboration/chatmedia`; (+ReferenceDimensions) in `internal/collaboration/chat` + journeywasm; (+ProbeRetry) in journeywasm; (+Integration) in `internal/transport/chatmedia`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 660baadd9). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATATTACH-001`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("do a deep visual inspection and focus hard on bugs and issues"); WHY=every picture in the demo is a grey tile`.
   - **TEST:** `TestTodo_CHATBUG_095`.
