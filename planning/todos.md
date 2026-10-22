@@ -33162,6 +33162,7 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **Refs:** `internal/collaboration/chat/service.go` (`PinPost`), `internal/data/chatstore/migrations` (`chat_personal_sidebar`), `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`.
 
 - [ ] `CHATSCALE-001` **[DESIGN][SOL_HIGH] Measure Chat's tables at volume before changing them.**
+  - **Evidence (partial, 2026-10-21):** harness repaired (commit f67099543); `TestTodo_CHATSCALE_001*` pass at 50K/2M-post fixtures only; 500M-post target + 1/10/100/500M percentile series NOT run (see `internal/data/chatstore/chatscale_evidence.json`); todo stays open.
   - **Depends:** none.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.OPERATIONS,BI.COLLABORATION; DIRECT=owner request 2026-10-01 ("perf optimizing the tables for large volumes of messaging"); WHY=the tables have only ever held a seeded review cell; which query fails first at volume is not known`.
   - **TEST:** `TestTodo_CHATSCALE_001`.
@@ -33173,6 +33174,7 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **Refs:** `internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/recipient_state.go`, `internal/data/queryplans`, `cmd/migrate/chat_seed_corpus.go`.
 
 - [ ] `CHATSCALE-002` **[PHASE_3][SOL_HIGH] Partition and index message tables so cost follows the channel, not the table.**
+  - **Evidence (partial, 2026-10-21):** `TestTodo_CHATSCALE_002*` pass; migrations proven in isolated schemas only, not applied to review DB; todo stays open.
   - **Depends:** `CHATSCALE-001`, `DATA-017`.
   - **INTENT CONTEXT:** `ROLE=DATA; SETS=BI.OPERATIONS,BI.COLLABORATION,BI.TENANT; DIRECT=owner request 2026-10-01; WHY=every read a person makes is "this channel, near this point"; the storage should be shaped the same way`.
   - **TEST:** `TestTodo_CHATSCALE_002`.
@@ -33183,6 +33185,7 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **Refs:** `CHATSCALE-001` report, `internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/tenant_isolation_test.go`, `internal/data/ledger/partition`.
 
 - [ ] `CHATSCALE-003` **[PHASE_3][SOL_HIGH] Make unread counts, the sidebar and delivery independent of how much history exists.**
+  - **Evidence (partial, 2026-10-21):** `TestTodo_CHATSCALE_003*` pass incl. MigrationRoundTrip fix (commit d3613e057); ops-view slow-query/table-growth figures + full-target report re-run NOT done; todo stays open.
   - **Depends:** `CHATSCALE-002`.
   - **INTENT CONTEXT:** `ROLE=DATA; SETS=BI.OPERATIONS,BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=the page a person opens most is the sidebar, and it is computed from the largest table`.
   - **TEST:** `TestTodo_CHATSCALE_003`.
@@ -33343,7 +33346,8 @@ This section holds two owner requests of 2026-10-01. First, an optional "redirec
   - **REFACTOR:** the mask of `CHATMOD-002` becomes a rendering kind produced without a model.
   - **Refs:** `internal/collaboration/chat/contracts.go`, `internal/data/chatstore/migrations` (`chat_post`, `chat_post_revision`, `chat_preference`), `internal/data/chatstore/store.go`, `internal/collaboration/chat/thread_snapshot.go`, section 98 (`DURABLE-002`).
 
-- [ ] `CHATTONE-001` **[DESIGN][SOL_HIGH] Record the decisions for reworded messages.**
+- [x] `CHATTONE-001` **[DESIGN][SOL_HIGH] Record the decisions for reworded messages.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATTONE_001` (+Record, +Golden, +LocalMeaning) passed in `internal/collaboration/chatrewrite`; 10-decision record; RED was undefined RewordDecisions. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATMOD-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a redirection mode where the llm rewrites the message in a neutral or positive way but allows the writer to be as angry as they want ... but it's an option"); WHY=software that changes what a colleague appears to have said needs its limits written down before it is built`.
   - **TEST:** `TestTodo_CHATTONE_001`.
@@ -34278,7 +34282,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** the panel reuses the conversation's message-body renderer and the shared panel heading; the old item markup and its styles are deleted.
   - **Refs:** `internal/humanwork/chatui/chatsave_view.go`, `internal/humanwork/chatui/chatsave_styles.go`, `internal/humanwork/chatui/chatbug034_saved.go`, `tools/uxqual/cmd/journeywasm/chatsave_browser_wasm.go`, `internal/application/chatsave_http.go`.
 
-- [ ] `CHATATTACH-001` **[PHASE_3][SOL_HIGH] Attach a file to a message from the composer.**
+- [x] `CHATATTACH-001` **[PHASE_3][SOL_HIGH] Attach a file to a message from the composer.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATATTACH_001` (+Security, +QuarantineCleanup, +Integration, +FilesOnly, +Browser, +Thread, +Accessibility, +Availability, +Retry) passed in `internal/collaboration/chatmedia`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-004`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01 ("refine the ui/ux and ux flow and placement to make this easier and faster to use"); WHY=a new employee looks for a paperclip; messages in the history carry attachments but nobody can add one`.
   - **TEST:** `TestTodo_CHATATTACH_001`.
@@ -34743,7 +34748,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/edit_focus_js.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/keys_js.go`, `internal/humanwork/chatui/chatmsglist_styles.go`.
 
-- [ ] `CHATBUG-074` **[PHASE_3][SOL_HIGH] To-do list: Enter does not add a task, and every task carries a two-line permission row.**
+- [x] `CHATBUG-074` **[PHASE_3][SOL_HIGH] To-do list: Enter does not add a task, and every task carries a two-line permission row.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATBUG_074` (+Poll, +Browser) passed in `internal/humanwork/chatui`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATBUG-057`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=adding three tasks takes three trips to a button, and the list is mostly permission text`.
   - **TEST:** `TestTodo_CHATBUG_074`.
@@ -34829,7 +34835,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/chatux007_unread.go`, `internal/humanwork/chatui/drafts.go`, `internal/humanwork/chatui/chatux002_prefs.go`, `internal/humanwork/chatui/timezone.go`.
 
-- [ ] `CHATUX-021` **[PHASE_3][SOL_HIGH] Conversation details: the purpose editor, status form and person view each take an extra step or mislead.**
+- [x] `CHATUX-021` **[PHASE_3][SOL_HIGH] Conversation details: the purpose editor, status form and person view each take an extra step or mislead.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_021` passed in `internal/humanwork/chatui`, `internal/collaboration/chat`, `tools/uxqual/cmd/journeywasm`, `internal/transport/chat`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-019`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=the panel people use to manage a channel has several places where the next step is unclear`.
   - **TEST:** `TestTodo_CHATUX_021`.
@@ -34861,7 +34868,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatmsglist_styles.go`, `internal/humanwork/chatui/styles_composer.go`, `internal/humanwork/chatui/styles.go`.
 
-- [ ] `CHATUX-024` **[PHASE_3][SOL_HIGH] An empty conversation with an agent says "follow-up" and offers nothing to start from.**
+- [x] `CHATUX-024` **[PHASE_3][SOL_HIGH] An empty conversation with an agent says "follow-up" and offers nothing to start from.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_024` passed in `internal/agentpersona`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-016`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("visually inspect the chat edge to edge and every interaction, and generate a list of todos for broken/failing ui, ui layout or ux, test everything"); WHY=a person opening an agent for the first time is not told what it is for or what to ask`.
   - **TEST:** `TestTodo_CHATUX_024`.
@@ -34969,7 +34977,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatemoji_colon.go`, `internal/humanwork/chatui/emoji_text.go`, `internal/humanwork/chatui/focus_field_js.go`, `internal/humanwork/chatui/composer_tools.go`.
 
-- [ ] `CHATUX-026` **[PHASE_3][SOL_HIGH] Sharing a private agent answer happens on one press, lands in the thread, and the card still says "Only visible to you".**
+- [x] `CHATUX-026` **[PHASE_3][SOL_HIGH] Sharing a private agent answer happens on one press, lands in the thread, and the card still says "Only visible to you".**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_026` passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATBUG-067`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("spend 5 minutes investigating the UI for new ui/ux/ui layout issues, make sure the chat and all its features are beautiful and easy to use"); WHY=making a private answer public is the one agent action a person cannot take back, and the card then contradicts itself`.
   - **TEST:** `TestTodo_CHATUX_026`.

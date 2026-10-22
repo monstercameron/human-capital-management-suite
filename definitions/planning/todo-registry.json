@@ -12387,7 +12387,8 @@
     "refactor": "none",
     "refs": "`internal/collaboration/chatmedia`, `internal/humanwork/chatui/composer_tools.go`, `tools/uxqual/cmd/journeywasm/chat_media.go`, `internal/application/serve.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATATTACH_001` (+Security, +QuarantineCleanup, +Integration, +FilesOnly, +Browser, +Thread, +Accessibility, +Availability, +Retry) passed in `internal/collaboration/chatmedia`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATBUG-001",
@@ -13979,7 +13980,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/channel_widgets.go`, `internal/humanwork/chatui/channel_tray.go`, `internal/humanwork/chatui/channel_poll.go`, `internal/humanwork/chatui/todo_focus_js.go`, `tools/uxqual/cmd/journeywasm/chat_todo_wasm.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATBUG_074` (+Poll, +Browser) passed in `internal/humanwork/chatui`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATBUG-075",
@@ -15795,7 +15797,8 @@
     "refactor": "none",
     "refs": "`internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/recipient_state.go`, `internal/data/queryplans`, `cmd/migrate/chat_seed_corpus.go`",
     "retired": false,
-    "done": false
+    "done": false,
+    "evidence": "harness repaired (commit f67099543); `TestTodo_CHATSCALE_001*` pass at 50K/2M-post fixtures only; 500M-post target + 1/10/100/500M percentile series NOT run (see `internal/data/chatstore/chatscale_evidence.json`); todo stays open"
   },
   {
     "id": "CHATSCALE-002",
@@ -15821,7 +15824,8 @@
     "refactor": "partition policy is operational metadata declared once beside the ledger's, not scattered in migrations",
     "refs": "`CHATSCALE-001` report, `internal/data/chatstore/migrations`, `internal/data/chatstore/store.go`, `internal/data/chatstore/tenant_isolation_test.go`, `internal/data/ledger/partition`",
     "retired": false,
-    "done": false
+    "done": false,
+    "evidence": "`TestTodo_CHATSCALE_002*` pass; migrations proven in isolated schemas only, not applied to review DB; todo stays open"
   },
   {
     "id": "CHATSCALE-003",
@@ -15845,7 +15849,8 @@
     "refactor": "the bounded scan remains as the rebuild path and the test oracle",
     "refs": "`internal/data/chatstore/recipient_state.go`, `internal/data/chatstore/agentux_chat2_unread_test.go`, `internal/data/chatstore/event_stream.go`, `internal/data/chatstore/migrations/00008_chat_sequence_and_outbox_retention.sql`",
     "retired": false,
-    "done": false
+    "done": false,
+    "evidence": "`TestTodo_CHATSCALE_003*` pass incl. MigrationRoundTrip fix (commit d3613e057); ops-view slow-query/table-growth figures + full-target report re-run NOT done; todo stays open"
   },
   {
     "id": "CHATSEARCH-001",
@@ -16079,7 +16084,8 @@
     "refactor": "none",
     "refs": "section 99 (`CHATMOD-001`, `CHATMOD-003`), `internal/collaboration/chat/content_policy.go`, `internal/data/chatstore/record_hold.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATTONE_001` (+Record, +Golden, +LocalMeaning) passed in `internal/collaboration/chatrewrite`; 10-decision record; RED was undefined RewordDecisions. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATTONE-002",
@@ -16670,7 +16676,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatstate_status.go`, `internal/humanwork/chatui/integration_curl.go`, `internal/humanwork/chatui/mention_profile.go`, `internal/humanwork/chatui/chatux001_header.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_021` passed in `internal/humanwork/chatui`, `internal/collaboration/chat`, `tools/uxqual/cmd/journeywasm`, `internal/transport/chat`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-022",
@@ -16735,7 +16742,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/agentux_chat5_composer.go`, `internal/humanwork/chatui/agentux_chat4_composer.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/composer_tools.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_024` passed in `internal/agentpersona`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-025",
@@ -16777,7 +16785,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux003_share.go`, `internal/humanwork/chatui/chatux003_card.go`, `internal/application/agentux070_share.go`, `tools/uxqual/cmd/journeywasm/chatbug067_share.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_026` passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-027",
