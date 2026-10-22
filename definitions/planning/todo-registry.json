@@ -5389,7 +5389,8 @@
     "refactor": "the public or private decision is one function shared with `AGENTUX-068`",
     "refs": "`internal/application/chat_channel_todo.go`, `internal/collaboration/chat/channel_extensions.go`, `internal/collaboration/chat/ephemeral.go`, `internal/application/workqueue_writes.go`, `internal/agenteval`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_067` (+Security, +Integration, +Golden, +Served_Offers, +Served_NoModel) passed in `internal/application`; (+Browser, +CardsInTimeline) in chatui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-068",
@@ -5415,7 +5416,8 @@
     "refactor": "reminders are announcements with a message source: one scheduler, one delivery path",
     "refs": "`internal/application/agentux_proactive_schedule.go`, `internal/application/agentux_proactive_announcement.go`, `internal/collaboration/chat/ephemeral.go`, `internal/agenteval`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_068` (+Security, +Integration, +Golden, +Property, +Served_SetReminder, +Served_Zone) passed in `internal/application`; (+Browser) in chatui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-069",

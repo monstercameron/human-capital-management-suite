@@ -32596,7 +32596,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one candidate pipeline shared by every message-triggered agent.
   - **Refs:** `internal/application/persona_chat_invocation.go`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/application/agentdoc_runtime_model.go`, `internal/agentskills`.
 
-- [ ] `AGENTUX-067` **[PHASE_3][SOL_HIGH] A to-do agent that notices tasks in conversation and puts each where it belongs: the person's own list or the channel's.**
+- [x] `AGENTUX-067` **[PHASE_3][SOL_HIGH] A to-do agent that notices tasks in conversation and puts each where it belongs: the person's own list or the channel's.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_067` (+Security, +Integration, +Golden, +Served_Offers, +Served_NoModel) passed in `internal/application`; (+Browser, +CardsInTimeline) in chatui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-066`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=commitments made in chat are lost in chat`.
   - **TEST:** `TestTodo_AGENTUX_067`.
@@ -32606,7 +32607,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the public or private decision is one function shared with `AGENTUX-068`.
   - **Refs:** `internal/application/chat_channel_todo.go`, `internal/collaboration/chat/channel_extensions.go`, `internal/collaboration/chat/ephemeral.go`, `internal/application/workqueue_writes.go`, `internal/agenteval`.
 
-- [ ] `AGENTUX-068` **[PHASE_3][SOL_HIGH] A reminder agent that notices dates and deadlines in conversation and reminds the right audience at the right time.**
+- [x] `AGENTUX-068` **[PHASE_3][SOL_HIGH] A reminder agent that notices dates and deadlines in conversation and reminds the right audience at the right time.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_068` (+Security, +Integration, +Golden, +Property, +Served_SetReminder, +Served_Zone) passed in `internal/application`; (+Browser) in chatui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-066`, `AGENTUX-048`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.COLLABORATION,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01; WHY=a deadline announced on Monday is forgotten by Friday`.
   - **TEST:** `TestTodo_AGENTUX_068`.
