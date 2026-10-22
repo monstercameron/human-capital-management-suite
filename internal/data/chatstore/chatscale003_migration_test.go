@@ -83,7 +83,9 @@ func TestTodo_CHATSCALE_003_Integration_MigrationRoundTrip(t *testing.T) {
 	if got := indexes(); got["chat_post_history"] || !got["chatscale_system_lines"] || !got["chatscale_mention_posts"] || !got["chat_post_touched"] {
 		t.Fatalf("indexes after up: %v", got)
 	}
-	if _, err := p.Down(ctx); err != nil {
+	// Roll back only migration 00046: later migrations stay applied, as they
+	// do in production when this one is reverted on its own.
+	if _, err := p.ApplyVersion(ctx, 46, false); err != nil {
 		t.Fatalf("down: %v", err)
 	}
 	if got := indexes(); !got["chat_post_history"] || got["chatscale_system_lines"] || got["chatscale_mention_posts"] || !got["chat_post_touched"] {
@@ -95,7 +97,7 @@ func TestTodo_CHATSCALE_003_Integration_MigrationRoundTrip(t *testing.T) {
 	if n := read("after down"); n != 3 {
 		t.Fatalf("unread after down=%d want 3", n)
 	}
-	if _, err := p.Up(ctx); err != nil {
+	if _, err := p.ApplyVersion(ctx, 46, true); err != nil {
 		t.Fatalf("up again: %v", err)
 	}
 	if got := indexes(); got["chat_post_history"] || !got["chatscale_system_lines"] || !got["chatscale_mention_posts"] {
