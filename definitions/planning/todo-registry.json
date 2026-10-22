@@ -4247,7 +4247,8 @@
     "refactor": "shared status pill, shared content measure and shared empty-state component across the agent surfaces",
     "refs": "`internal/humanwork/productui`, `internal/humanwork/chatui`, `internal/humanwork/workspace/product_shell.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_019` (+Browser) passed in `internal/humanwork/productui`, `internal/humanwork/chatui`, `internal/humanwork/workspace`; `TestTodo_UIPOLISH_012_Golden` passes at commit df3fca177 (live-tree mismatch is sibling WIP collateral); F8/F15/F40 fixed, 29 findings pinned. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-020",
@@ -5591,7 +5592,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agentux_proactive_announcements.go`, `internal/humanwork/productui/agentux_ops_page.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_077` (+Browser) passed in `internal/humanwork/productui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-078",
@@ -5656,7 +5658,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/workspace/csp.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agent2018_page.go`, `tools/uxqual/cmd/journeywasm/agentaccess_service.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_080` (+Browser) passed in `internal/humanwork/productui`, `internal/humanwork/workspace`; added missing BROWSER matrix test. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-081",
@@ -14376,7 +14379,8 @@
     "refactor": "none",
     "refs": "`internal/data/chatstore`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatux035_styles.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATBUG_092` (+Browser) passed in `internal/humanwork/chatui`; `TestTodo_CHATBUG_092_Integration` passed in `internal/data/chatstore`; new tests added (footer-after-rows, stylesheet scan, tree check). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATBUG-093",
@@ -16874,7 +16878,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux027_manage.go`, `internal/humanwork/chatui/chatux005_details.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_030` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-031",
@@ -16895,7 +16900,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatrender_personal.go`, `internal/humanwork/chatui/chatbug058_reading.go`, `internal/humanwork/chatui/chatemoji_view.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_031` (+Browser, +DocSourceLine) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-032",
@@ -16937,7 +16943,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui`, `internal/humanwork/workspace`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_033` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-034",
@@ -16979,7 +16986,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_035` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-036",
@@ -17043,7 +17051,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux033_phone.go`, `internal/humanwork/chatui/chat_doc_links.go`, `internal/humanwork/productui/chat_page.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_038` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-039",
@@ -17106,7 +17115,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux027_manage.go`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/chatux030_details.go`, `internal/humanwork/chatui/chatmod003_panel.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_041` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-042",
@@ -17149,7 +17159,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux035_bidi.go`, `internal/humanwork/chatui/mention_profile.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_043` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-044",
@@ -17192,7 +17203,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux033_phone.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/chat_page.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_045` (+Browser) passed in `internal/humanwork/chatui`; `TestTodo_CHATUX_045_Integration` passed in `internal/humanwork/productui`; matrix tests added for 6 pre-existing clauses. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-046",
@@ -17235,7 +17247,8 @@
     "refactor": "none",
     "refs": "`internal/transport/chat`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `tools/uxqual/cmd/journeywasm`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_047` (+UnknownNameIsTheBar, +DirectoryOnlyRefines, +ListDoesNotWaitWhenNamed) passed in `tools/uxqual/cmd/journeywasm`; Browser leg passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-048",
@@ -17256,7 +17269,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chattone_w10_admin.go`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatmod_removed_row.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_048` (+Browser, +Removals) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-049",

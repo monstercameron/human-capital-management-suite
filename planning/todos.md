@@ -32056,7 +32056,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one vocabulary file shared by the four surfaces.
   - **Refs:** `internal/humanwork/productui/agentux_personas_vocabulary.go`, `internal/humanwork/productui/i18n.go`, `internal/humanwork/chatui/copy.go`.
 
-- [ ] `AGENTUX-019` **[PHASE_3][TERRA] Close the adversarial review round 1 findings on the agent surfaces.**
+- [x] `AGENTUX-019` **[PHASE_3][TERRA] Close the adversarial review round 1 findings on the agent surfaces.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_019` (+Browser) passed in `internal/humanwork/productui`, `internal/humanwork/chatui`, `internal/humanwork/workspace`; `TestTodo_UIPOLISH_012_Golden` passes at commit df3fca177 (live-tree mismatch is sibling WIP collateral); F8/F15/F40 fixed, 29 findings pinned. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-001`, `AGENTUX-002`, `AGENTUX-003`, `AGENTUX-007`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=an independent critic scored the agent surfaces 5.5 for interface, 5.0 for clarity and 4.5 for flow against a bar of 9`.
   - **TEST:** `TestTodo_AGENTUX_019`.
@@ -35106,7 +35107,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui`.
 
-- [ ] `CHATUX-030` **[PHASE_3][SOL_HIGH] Conversation details says things that are unclear, wrong or developer-facing.**
+- [x] `CHATUX-030` **[PHASE_3][SOL_HIGH] Conversation details says things that are unclear, wrong or developer-facing.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_030` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-027`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=a channel manager cannot trust or understand the panel`.
   - **TEST:** `TestTodo_CHATUX_030`.
@@ -35116,7 +35118,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatdetails.go`, `internal/humanwork/chatui/chatux027_manage.go`, `internal/humanwork/chatui/chatux005_details.go`.
 
-- [ ] `CHATUX-031` **[PHASE_3][SOL_HIGH] Chat preferences is a heavy popover with a confusing language form.**
+- [x] `CHATUX-031` **[PHASE_3][SOL_HIGH] Chat preferences is a heavy popover with a confusing language form.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_031` (+Browser, +DocSourceLine) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-027`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the one place a person sets how Chat behaves for them reads as a debug form`.
   - **TEST:** `TestTodo_CHATUX_031`.
@@ -35136,7 +35139,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui`.
 
-- [ ] `CHATUX-033` **[PHASE_3][SOL_HIGH] Phone: two header bars, a bare composer and 28 px targets.**
+- [x] `CHATUX-033` **[PHASE_3][SOL_HIGH] Phone: two header bars, a bare composer and 28 px targets.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_033` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-011`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=on a phone a sixth of the screen is chrome and the composer cannot attach, mention or add an emoji`.
   - **TEST:** `TestTodo_CHATUX_033`.
@@ -35156,7 +35160,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui`.
 
-- [ ] `CHATUX-035` **[PHASE_3][SOL_HIGH] Right-to-left: mixed-direction content, numerals and plural forms.**
+- [x] `CHATUX-035` **[PHASE_3][SOL_HIGH] Right-to-left: mixed-direction content, numerals and plural forms.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_035` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATBUG-060`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=an Arabic reader sees English blocks pinned to the wrong edge and two numeral systems side by side`.
   - **TEST:** `TestTodo_CHATUX_035`.
@@ -35208,7 +35213,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_run_executor.go`, `internal/application/persona_chat_invocation.go`, `internal/collaboration/chat/agentux075_reaction.go`, `internal/collaboration/chat/agentux_answer_failures.go`.
 
-- [ ] `CHATUX-038` **[PHASE_3][SOL_HIGH] Phone, round two: crushed document cards, a second bar on the list, hover that sticks on touch.**
+- [x] `CHATUX-038` **[PHASE_3][SOL_HIGH] Phone, round two: crushed document cards, a second bar on the list, hover that sticks on touch.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_038` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-033`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=a direct conversation on a phone is unreadable where a document is linked`.
   - **TEST:** `TestTodo_CHATUX_038`.
@@ -35238,7 +35244,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatbug090_menu.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/chatbug091_saved.go`, `internal/humanwork/chatui/chatsave002_view.go`.
 
-- [ ] `CHATUX-041` **[PHASE_3][SOL_HIGH] Conversation details, round three: buttons in three styles, doubled filter grids, jargon in agent rows.**
+- [x] `CHATUX-041` **[PHASE_3][SOL_HIGH] Conversation details, round three: buttons in three styles, doubled filter grids, jargon in agent rows.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_041` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-030`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the panel is consistent now but still says things twice and in words nobody uses`.
   - **TEST:** `TestTodo_CHATUX_041`.
@@ -35259,7 +35266,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux003_card.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/message_menu.go`.
 
-- [ ] `AGENTUX-077` **[PHASE_3][SOL_HIGH] Agents pages: run-together sub-navigation, wrong breadcrumb, card inside card.**
+- [x] `AGENTUX-077` **[PHASE_3][SOL_HIGH] Agents pages: run-together sub-navigation, wrong breadcrumb, card inside card.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_077` (+Browser) passed in `internal/humanwork/productui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-073`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the first thing on the Agents page is two links with no space between them`.
   - **TEST:** `TestTodo_AGENTUX_077`.
@@ -35269,7 +35277,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agentux_proactive_announcements.go`, `internal/humanwork/productui/agentux_ops_page.go`.
 
-- [ ] `CHATUX-043` **[PHASE_3][SOL_HIGH] Arabic: punctuation lands at the wrong end, and a block and its list sit on opposite sides.**
+- [x] `CHATUX-043` **[PHASE_3][SOL_HIGH] Arabic: punctuation lands at the wrong end, and a block and its list sit on opposite sides.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_043` (+Browser) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-035`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=mixed Arabic and English lines read as scrambled`.
   - **TEST:** `TestTodo_CHATUX_043`.
@@ -35329,7 +35338,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `cmd/migrate`, `internal/data/chatstore/chat_seed*.go`, `internal/data/demoworkforce`.
 
-- [ ] `CHATBUG-092` **[PHASE_3][SOL_HIGH] A restored removal credits the restorer for the removal, and "Archived" sits over a row after a menu opens.**
+- [x] `CHATBUG-092` **[PHASE_3][SOL_HIGH] A restored removal credits the restorer for the removal, and "Archived" sits over a row after a menu opens.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATBUG_092` (+Browser) passed in `internal/humanwork/chatui`; `TestTodo_CHATBUG_092_Integration` passed in `internal/data/chatstore`; new tests added (footer-after-rows, stylesheet scan, tree check). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATMOD-005`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("complete each and every chat, agent and adjacent todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the moderation record names the wrong person`.
   - **TEST:** `TestTodo_CHATBUG_092`.
@@ -35339,7 +35349,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/data/chatstore`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatux035_styles.go`.
 
-- [ ] `CHATUX-045` **[PHASE_3][SOL_HIGH] Tablet and phone leftovers: Saved squeezes the composer, a direct conversation is titled "P.", the Agents tabs overflow.**
+- [x] `CHATUX-045` **[PHASE_3][SOL_HIGH] Tablet and phone leftovers: Saved squeezes the composer, a direct conversation is titled "P.", the Agents tabs overflow.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_045` (+Browser) passed in `internal/humanwork/chatui`; `TestTodo_CHATUX_045_Integration` passed in `internal/humanwork/productui`; matrix tests added for 6 pre-existing clauses. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-038`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("complete each and every chat, agent and adjacent todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the 768 px and 390 px layouts still break in five places`.
   - **TEST:** `TestTodo_CHATUX_045`.
@@ -35399,7 +35410,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/chatlang*`, `internal/data/chatstore`, `tools/uxqual/cmd/journeywasm/chatlang004_reads.go`, `internal/collaboration/chatrender`.
 
-- [ ] `AGENTUX-080` **[PHASE_3][SOL_HIGH] Agents pages: three of their reads are refused by the page security policy, and the first screen speaks to builders.**
+- [x] `AGENTUX-080` **[PHASE_3][SOL_HIGH] Agents pages: three of their reads are refused by the page security policy, and the first screen speaks to builders.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_080` (+Browser) passed in `internal/humanwork/productui`, `internal/humanwork/workspace`; added missing BROWSER matrix test. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-077`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the owner opens Agent setup and the first card says its limits could not be read`.
   - **TEST:** `TestTodo_AGENTUX_080`.
@@ -35409,7 +35421,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/workspace/csp.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agent2018_page.go`, `tools/uxqual/cmd/journeywasm/agentaccess_service.go`.
 
-- [ ] `CHATUX-047` **[PHASE_3][SOL_HIGH] Names and avatars arrive late: an agent's author line reads "..." and direct-message rows show an empty tile.**
+- [x] `CHATUX-047` **[PHASE_3][SOL_HIGH] Names and avatars arrive late: an agent's author line reads "..." and direct-message rows show an empty tile.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_047` (+UnknownNameIsTheBar, +DirectoryOnlyRefines, +ListDoesNotWaitWhenNamed) passed in `tools/uxqual/cmd/journeywasm`; Browser leg passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-038`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=for several seconds the page says nobody wrote the message`.
   - **TEST:** `TestTodo_CHATUX_047`.
@@ -35419,7 +35432,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/chat`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_reply_row.go`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `CHATUX-048` **[PHASE_3][SOL_HIGH] Chat preferences: the administrator block is unstyled, and Moderation makes Remove the primary button.**
+- [x] `CHATUX-048` **[PHASE_3][SOL_HIGH] Chat preferences: the administrator block is unstyled, and Moderation makes Remove the primary button.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_048` (+Browser, +Removals) passed in `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-031`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the two places an administrator acts look unfinished, and the destructive choice looks like the default`.
   - **TEST:** `TestTodo_CHATUX_048`.
