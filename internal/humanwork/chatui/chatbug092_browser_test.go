@@ -58,8 +58,8 @@ func TestTodo_CHATBUG_092_Browser(t *testing.T) {
 						t.Errorf("%s: a conversation row is inside Archived", name)
 					}
 				}
-				if w7Inside(archived, func(n *xhtml.Node) bool { return w7Class(n, "rail-row-menu") }) {
-					t.Errorf("%s: Archived moved into the open row menu", name)
+				if len(w7All(archived, func(n *xhtml.Node) bool { return w7Class(n, "rail-row-menu") })) != 0 {
+					t.Errorf("%s: the open row menu is drawn inside Archived", name)
 				}
 			}
 		}
