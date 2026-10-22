@@ -32461,7 +32461,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** skills with side effects declare their effect, limit and idempotency key in one manifest shape.
   - **Refs:** `internal/data/inboundmsg`, `internal/application/projectservice`, `internal/domains/projectboard`, `internal/agentskills`, `internal/application/persona_run_executor.go`.
 
-- [ ] `AGENTUX-055` **[PHASE_3][SOL_HIGH] Refine the Agents page and the agent settings pages for the people who use each one.**
+- [x] `AGENTUX-055` **[PHASE_3][SOL_HIGH] Refine the Agents page and the agent settings pages for the people who use each one.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_055` (+Browser, +CardHeader, +Accessibility) passed in `internal/humanwork/productui`. Caveat: hostile-review-scores process clause (9+ on captures, 3 languages x 4 widths) has no artifact and was not repeated (no live browser server). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-046`, `AGENTUX-048`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=an employee, an agent owner and a platform administrator see the same vocabulary and density; round 4 scored the pages 6.4, 5.9 and 5.6`.
   - **TEST:** `TestTodo_AGENTUX_055`.
