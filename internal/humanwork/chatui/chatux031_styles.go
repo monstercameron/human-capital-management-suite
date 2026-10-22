@@ -30,7 +30,7 @@ const ChatUX031Styles = `.chat-workspace .chatux002-layer[data-chat-layer="chat-
 	`.chat-workspace .chatrender-personal .chatrender-settings select.chatux031-select{inline-size:auto;min-block-size:36px;block-size:36px}` +
 	`.chat-workspace .chatux031-row{gap:8px}` +
 	`.chat-workspace .chatux031-select{flex:0 1 auto;margin-inline-start:auto;max-inline-size:60%;min-inline-size:0;box-sizing:border-box;padding:0 8px;border:1px solid var(--hcm-color-control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font-size:.875rem}` +
-	`@container(max-width:250px){.chat-workspace .chat-prefs-head .chat-prefs-title{flex:1 0 100%}.chat-workspace .chat-prefs-head>.chatux031-select{margin-inline-start:0}}` +
+	`@container(max-width:250px){.chat-workspace .chat-prefs-head .chat-prefs-title{flex:1 0 100%}}` +
 	`.chat-workspace .chatux031-end{flex:none;display:inline-flex;align-items:center;justify-content:center;inline-size:16px}` +
 	`.chat-workspace .chatux031-tick{font-size:.875rem;font-weight:700;line-height:1;color:var(--ink);animation:chatux031-tick calc(var(--hcm-motion-slow)*8) ease forwards}` +
 	`@keyframes chatux031-tick{0%,83%{opacity:1}100%{opacity:0}}` +

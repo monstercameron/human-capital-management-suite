@@ -33,6 +33,7 @@ func RenderingText(locale, key string) string {
 		"languages_loading": {"Loading conversation languages…", "Gesprächssprachen werden geladen…", "جارٍ تحميل لغات المحادثة…"},
 		"languages_error":   {"Languages could not be loaded. Reload Chat to retry.", "Sprachen konnten nicht geladen werden. Laden Sie Chat erneut.", "تعذر تحميل اللغات. أعد تحميل المحادثة للمحاولة مجددًا."},
 		"empty":             {"No reading languages shared yet. Set your reading language.", "Noch keine Lesesprachen geteilt. Legen Sie Ihre Lesesprache fest.", "لم تُشارك لغات القراءة بعد. عيّن لغة القراءة."},
+		"empty_set":         {"No reading languages shared yet. Your reading language is {language}.", "Noch keine Lesesprachen geteilt. Ihre Lesesprache ist {language}.", "لم تُشارك لغات القراءة بعد. لغة القراءة الخاصة بك هي {language}."},
 		"en":                {"English", "Englisch", "الإنجليزية"}, "de": {"German", "Deutsch", "الألمانية"},
 		"fr": {"French", "Französisch", "الفرنسية"}, "es": {"Spanish", "Spanisch", "الإسبانية"},
 		"pt": {"Portuguese", "Portugiesisch", "البرتغالية"}, "ar": {"Arabic", "Arabisch", "العربية"},

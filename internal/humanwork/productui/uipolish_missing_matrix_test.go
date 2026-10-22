@@ -303,7 +303,12 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// document carries exactly that delta: the extended rule and the two
 	// badge rules present, the old name-only rule absent, zero other lines
 	// changed.
-	const want = "2bf363e54f8201263e2b40ed6a7ed428d6931ecfba939d9112cee3528bdfe278"
+	// 2026-10-22 (CHATBUG-100) re-pin: the narrow-panel override that parked
+	// the reading select at the line start is gone, so the select keeps its
+	// row-end margin at every width. Verified the rendered Home document
+	// carries exactly that delta: the one container rule shortened by those
+	// 64 characters, zero other bytes changed.
+	const want = "bb1d31b260275e5d2448317955a54ca47b30bd4fd464e01aec4c20e6ad9262de"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

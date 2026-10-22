@@ -2,10 +2,17 @@ package chatui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
+
+// voiceSettingsReadBound is the longest a voice settings read may run before
+// the row fails it into the retry state (CHATBUG-100). It sits past the
+// request's own timeout as a backstop for transports that do not enforce one,
+// so a read that never answers still ends within its bound.
+const voiceSettingsReadBound = 10 * time.Second
 
 // Voice switches (CHATVOICE-002 and -005). Three switches decide whether a
 // voice message may be sent: the workspace's, the channel's and the person's.

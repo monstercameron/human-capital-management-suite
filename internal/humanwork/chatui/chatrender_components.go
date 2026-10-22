@@ -106,6 +106,14 @@ func RenderingLanguageIndicator(locale string, counts map[string]int) ui.Node {
 	return RenderingLanguageStatusIndicator(locale, counts, false, false)
 }
 func RenderingLanguageStatusIndicator(locale string, counts map[string]int, loading, failed bool) ui.Node {
+	return RenderingLanguageStatusIndicatorWithReading(locale, counts, loading, failed, "")
+}
+
+// RenderingLanguageStatusIndicatorWithReading is the languages line with the
+// reader's own setting in hand. When no conversation languages are shared but
+// the setting beside it names one, the line reflects the setting instead of
+// asking for it (CHATBUG-100).
+func RenderingLanguageStatusIndicatorWithReading(locale string, counts map[string]int, loading, failed bool, reading string) ui.Node {
 	children := []ui.Node{html.H3(html.Props{Text: RenderingText(locale, "languages")})}
 	if loading || failed {
 		key := "languages_loading"
@@ -128,7 +136,11 @@ func RenderingLanguageStatusIndicator(locale string, counts map[string]int, load
 	}
 	sort.Strings(languages)
 	if len(languages) == 0 {
-		children = append(children, html.P(html.Props{Text: RenderingText(locale, "empty")}))
+		empty := RenderingText(locale, "empty")
+		if reading != "" {
+			empty = strings.ReplaceAll(RenderingText(locale, "empty_set"), "{language}", RenderingText(locale, reading))
+		}
+		children = append(children, html.P(html.Props{Text: empty}))
 	}
 	for _, lang := range languages {
 		children = append(children, html.Span(html.Props{Class: "chatrender-language-count", Text: RenderingText(locale, lang) + ": " + chatCount(locale, counts[lang])}))

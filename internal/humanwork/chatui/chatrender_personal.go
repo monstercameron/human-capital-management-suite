@@ -112,7 +112,7 @@ func renderingPersonalPanel(props renderingPersonalProps) ui.Node {
 	current := chatbug045ReadingCurrent(state.Get())
 	var indicator ui.Node
 	if props.Conversation != "" && !current.LanguagesFailed {
-		indicator = RenderingLanguageStatusIndicator(props.Locale, current.Counts, current.LanguagesLoading, current.LanguagesFailed)
+		indicator = RenderingLanguageStatusIndicatorWithReading(props.Locale, current.Counts, current.LanguagesLoading, current.LanguagesFailed, current.Preference.ReadingLanguage)
 	}
 	return renderingPersonalView(props, current, submit, toggle, indicator)
 }

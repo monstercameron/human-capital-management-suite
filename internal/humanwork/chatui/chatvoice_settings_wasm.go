@@ -17,15 +17,42 @@ import (
 
 var errVoiceSettingsInput = errors.New("chatui: voice settings need a signed-in page")
 
+// errVoiceSettingsTimeout ends a read the transport never answered. The row
+// fails into its retry state through the normal error path (CHATBUG-100).
+var errVoiceSettingsTimeout = errors.New("chatui: voice settings read timed out")
+
 // voiceSettingsCall asks the voice settings routes with the same admitted
 // session credential as Chat. It answers the status so a row can tell a refusal
 // from a failure, and returns a cancel for the effect.
 func voiceSettingsCall(action string, body any, done func(VoiceSettingsData, int, error)) func() {
 	ctx, cancel := context.WithCancel(context.Background())
+	answered := make(chan struct{})
+	// The request's own timeout is the first bound; this timer is the second,
+	// for transports that never answer at all. Exactly one side answers.
+	var timerFn js.Func
+	timerFn = js.FuncOf(func(js.Value, []js.Value) any {
+		defer timerFn.Release()
+		select {
+		case <-answered:
+		default:
+			close(answered)
+			cancel()
+			done(VoiceSettingsData{}, 0, errVoiceSettingsTimeout)
+		}
+		return nil
+	})
+	timer := js.Global().Call("setTimeout", timerFn, int64(voiceSettingsReadBound/time.Millisecond))
 	go func() {
 		data, status, err := voiceSettingsRequest(ctx, action, body)
-		if ctx.Err() == nil {
-			done(data, status, err)
+		select {
+		case <-answered:
+		default:
+			close(answered)
+			js.Global().Call("clearTimeout", timer)
+			timerFn.Release()
+			if ctx.Err() == nil {
+				done(data, status, err)
+			}
 		}
 	}()
 	return cancel
