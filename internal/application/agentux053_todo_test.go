@@ -13,6 +13,7 @@ func TestTodo_AGENTUX_053(t *testing.T) {
 		s15Proof{"people source", TestAgentUXDemo_PeopleSource},
 		s15Proof{"document source is unchanged", TestAgentUXDemo_DocumentSource},
 		s15Proof{"general cleanup archives the test questions", TestAgentUXDemo_GeneralCleanup},
+		s15Proof{"general history seeds the demo channel", TestTodo_AGENTUX_053_GeneralHistory_Integration},
 		s15Proof{"seed inputs", TestAgentUXDemo_SeedInputs},
 	)
 }
