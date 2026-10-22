@@ -4347,7 +4347,8 @@
     "refactor": "a least-privilege test harness shared by the agent and chat stores",
     "refs": "`internal/data/agentstore/migrations`, `internal/data/chatstore/migrations`, `internal/application/agentux_runtime_prepare.go`, `internal/data/pgtest`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_023` (+Golden, +Security, +Integration, +Fault, +Recovery) passed in `internal/application`; `TestTodo_AGENTUX_005_RepairUnroutedDirectConversation` passed in `internal/data/chatstore`; named least-privilege roles + migrations 00052/00050 (commit 5584b71bc). Note: unrelated `TestAgentUXProactive_ServiceSecurityFence` red in agentstore (empty-password test credential at pool open; pre-existing/environmental, untouched by this todo). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-024",
@@ -4368,7 +4369,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/productui/loading_components.go`, `tools/uxqual/cmd/journeywasm/product_wasm.go`, `internal/humanwork/chatui/copy.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_024` (+Browser, 9/9 subtests) passed in `internal/humanwork/productui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-025",

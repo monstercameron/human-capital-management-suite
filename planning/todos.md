@@ -32101,7 +32101,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one staged snapshot builder with a per-stage result type.
   - **Refs:** `internal/application/persona_admin_sources.go`, `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
 
-- [ ] `AGENTUX-023` **[PHASE_3][SOL_HIGH] Name the database authority that writes a persona run policy and repairs chat state.**
+- [x] `AGENTUX-023` **[PHASE_3][SOL_HIGH] Name the database authority that writes a persona run policy and repairs chat state.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_023` (+Golden, +Security, +Integration, +Fault, +Recovery) passed in `internal/application`; `TestTodo_AGENTUX_005_RepairUnroutedDirectConversation` passed in `internal/data/chatstore`; named least-privilege roles + migrations 00052/00050 (commit 5584b71bc). Note: unrelated `TestAgentUXProactive_ServiceSecurityFence` red in agentstore (empty-password test credential at pool open; pre-existing/environmental, untouched by this todo). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-005`, `AGENT-008`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.SECURITY,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=two steps of making an agent available can only be done by a database owner today, and no role or command owns them`.
   - **TEST:** `TestTodo_AGENTUX_023`.
@@ -32111,7 +32112,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** a least-privilege test harness shared by the agent and chat stores.
   - **Refs:** `internal/data/agentstore/migrations`, `internal/data/chatstore/migrations`, `internal/application/agentux_runtime_prepare.go`, `internal/data/pgtest`.
 
-- [ ] `AGENTUX-024` **[PHASE_3][LUNA] Apply the viewer's locale and direction to the Chat loading state.**
+- [x] `AGENTUX-024` **[PHASE_3][LUNA] Apply the viewer's locale and direction to the Chat loading state.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_024` (+Browser, 9/9 subtests) passed in `internal/humanwork/productui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-019`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=an Arabic or German user sees an English, left-to-right Chat until the first conversation loads`.
   - **TEST:** `TestTodo_AGENTUX_024`.
