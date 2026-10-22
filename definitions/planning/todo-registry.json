@@ -5027,7 +5027,8 @@
     "refactor": "none",
     "refs": "`internal/application/persona_run_executor.go`, `internal/agentmodel/schemaflux_adapter.go`, `internal/collaboration/chat`, `internal/humanwork/chatui/render.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_052` (+Security, +Integration, +7 policy/switch/visibility tests) passed in `internal/application`; Browser in chatui; GatesCommit in chat; RoundTrip in chatstore; ChatSettingsPage in productui (commit bcac5dbe0). Full-suite reds CHAT_004/AGENT2_017/WEB_098 reproduced on pre-change base (pre-existing). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-053",
@@ -5051,7 +5052,8 @@
     "refactor": "the announcement run accepts a source provider (documents, or a people query) instead of documents only",
     "refs": "`internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_proactive_*.go`, `internal/data/demoworkforce`, `cmd/migrate/chat_seed.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_053` (+Security, +Integration, +GeneralHistory, +ServedBirthdayPreference, +CleanupCommand, +PreparationNeverDeletes) passed in `internal/application`; Browser in chatui (commit 80a265e0d). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-054",
@@ -5076,7 +5078,8 @@
     "refactor": "skills with side effects declare their effect, limit and idempotency key in one manifest shape",
     "refs": "`internal/data/inboundmsg`, `internal/application/projectservice`, `internal/domains/projectboard`, `internal/agentskills`, `internal/application/persona_run_executor.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_054` (+Security, +Integration, +Fault) passed in `internal/application`; Browser (new) in chatui (commit 79ca0e2de). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-055",
@@ -5125,7 +5128,8 @@
     "refactor": "one searcher with a scope parameter (conversation placements, workspace-public) instead of two",
     "refs": "`internal/data/documenthubstore/embeddings.go`, `internal/application/documentembed`, `internal/application/persona_policy_document_searcher.go`, `internal/application/persona_run_t0_tools.go`, `internal/transport/document/document.go`, `internal/application/agentux_runtime_prepare.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_056` (+Security, +Integration, +Performance) passed in `internal/application`; Browser in productui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-057",
@@ -5213,7 +5217,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/application/agentux_run_cited_documents.go`, `internal/agentmodel/schemaflux_adapter.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_060` (+Browser) passed in `internal/agentmodel`, `internal/humanwork/chatui`; (+Integration) in `internal/application`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-061",
@@ -5236,7 +5241,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/productui/agentux_ops_page.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_061` (+Browser, +Accessibility, +Performance) passed in `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-062",
@@ -5258,7 +5264,8 @@
     "refactor": "one anchored-layer helper for Chat popovers",
     "refs": "`internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/styles.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_062` (+Browser, +Accessibility) passed in `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-063",
@@ -5281,7 +5288,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_chat4_styles.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_063` (+Browser, +Accessibility, +Performance, +DraftPreview, +HoverTint) passed in `internal/humanwork/chatui`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 45d42be1a). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-064",
@@ -5701,7 +5709,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/mention_profile.go`, `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agent2018_page.go`, `tools/uxqual/cmd/journeywasm/agentcost006_wasm.go`, `internal/application/agentux049_starter_specs.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_081` (+MentionCandidates, +StarterKindsDeclared, +Integration) passed in `internal/application`; (+Activity, +EditWiring, +CheckboxLines, +Browser) in productui; (+AgentProfile, +Browser) in chatui; (+RetryWiring) in journeywasm (commit 3ea9fc0d2). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-082",

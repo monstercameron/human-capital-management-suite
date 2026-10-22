@@ -32431,7 +32431,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one table maps failure class to sentence, next step and whether retry is offered.
   - **Refs:** `internal/application/persona_reply_output_renderer.go`, `internal/application/persona_run_executor.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `internal/humanwork/chatui/persona_progress.go`.
 
-- [ ] `AGENTUX-052` **[PHASE_3][SOL_HIGH] Let an agent react to the message it answers with a fitting emoji.**
+- [x] `AGENTUX-052` **[PHASE_3][SOL_HIGH] Let an agent react to the message it answers with a fitting emoji.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_052` (+Security, +Integration, +7 policy/switch/visibility tests) passed in `internal/application`; Browser in chatui; GatesCommit in chat; RoundTrip in chatstore; ChatSettingsPage in productui (commit bcac5dbe0). Full-suite reds CHAT_004/AGENT2_017/WEB_098 reproduced on pre-change base (pre-existing). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-051`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=an agent that only returns paragraphs feels like a form; a small contextual reaction makes it feel present`.
   - **TEST:** `TestTodo_AGENTUX_052`.
@@ -32441,7 +32442,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/application/persona_run_executor.go`, `internal/agentmodel/schemaflux_adapter.go`, `internal/collaboration/chat`, `internal/humanwork/chatui/render.go`.
 
-- [ ] `AGENTUX-053` **[PHASE_3][SOL_HIGH] A birthday agent that congratulates people in public, and a #general that shows what agents do.**
+- [x] `AGENTUX-053` **[PHASE_3][SOL_HIGH] A birthday agent that congratulates people in public, and a #general that shows what agents do.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_053` (+Security, +Integration, +GeneralHistory, +ServedBirthdayPreference, +CleanupCommand, +PreparationNeverDeletes) passed in `internal/application`; Browser in chatui (commit 80a265e0d). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-048`, `AGENTUX-049`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=the demo workspace shows one policy agent and a wall of failed test questions`.
   - **TEST:** `TestTodo_AGENTUX_053`.
@@ -32451,7 +32453,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the announcement run accepts a source provider (documents, or a people query) instead of documents only.
   - **Refs:** `internal/application/agentux_runtime_prepare.go`, `internal/application/agentux_proactive_*.go`, `internal/data/demoworkforce`, `cmd/migrate/chat_seed.go`.
 
-- [ ] `AGENTUX-054` **[PHASE_3][SOL_HIGH] A customer-service agent that turns customer email into a support ticket and tells the incident channel.**
+- [x] `AGENTUX-054` **[PHASE_3][SOL_HIGH] A customer-service agent that turns customer email into a support ticket and tells the incident channel.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_054` (+Security, +Integration, +Fault) passed in `internal/application`; Browser (new) in chatui (commit 79ca0e2de). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-048`, `AGENTUX-049`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=agents so far only read and answer; this one acts on outside input and changes work items, the hardest case for trust`.
   - **TEST:** `TestTodo_AGENTUX_054`.
@@ -32472,7 +32475,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agentux_ops_page.go`, `.artifacts/lanes/agent-ui/critic`.
 
-- [ ] `AGENTUX-056` **[PHASE_3][SOL_HIGH] Let the general-purpose agent search every workspace-public document by meaning.**
+- [x] `AGENTUX-056` **[PHASE_3][SOL_HIGH] Let the general-purpose agent search every workspace-public document by meaning.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_056` (+Security, +Integration, +Performance) passed in `internal/application`; Browser in productui; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-049`, `AGENTUX-048`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY; DIRECT=owner request 2026-10-01; WHY=an agent that only knows the documents placed in one conversation cannot answer "what are our top policies"; the hub already has a semantic index nobody uses`.
   - **TEST:** `TestTodo_AGENTUX_056`.
@@ -32515,7 +32519,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/transport/personachat/http.go`, `internal/application/agentux_r5srv_persona_actions.go`, `internal/application/agent_served_assembly.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `AGENTUX-060` **[PHASE_3][SOL_HIGH] Make retry, the answer card and the composer hints say one true thing at a time.**
+- [x] `AGENTUX-060` **[PHASE_3][SOL_HIGH] Make retry, the answer card and the composer hints say one true thing at a time.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_060` (+Browser) passed in `internal/agentmodel`, `internal/humanwork/chatui`; (+Integration) in `internal/application`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-051`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=hands-on QA 2026-10-01; WHY=the answer experience repeats itself, cites what it did not use and hides what retry is doing`.
   - **TEST:** `TestTodo_AGENTUX_060`.
@@ -32525,7 +32530,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/agentux_reply_row.go`, `internal/humanwork/chatui/persona_progress.go`, `internal/application/agentux_run_cited_documents.go`, `internal/agentmodel/schemaflux_adapter.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `AGENTUX-061` **[PHASE_3][TERRA] Finish the Chat details found in hands-on QA: placeholders that never resolve, phone and right-to-left, names for assistive technology, request churn.**
+- [x] `AGENTUX-061` **[PHASE_3][TERRA] Finish the Chat details found in hands-on QA: placeholders that never resolve, phone and right-to-left, names for assistive technology, request churn.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_061` (+Browser, +Accessibility, +Performance) passed in `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-058`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01; WHY=small defects that together read as unfinished`.
   - **TEST:** `TestTodo_AGENTUX_061`.
@@ -32535,7 +32541,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/render.go`, `internal/humanwork/chatui/agentux_dm_sources.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`, `internal/humanwork/productui/agentux_ops_page.go`.
 
-- [ ] `AGENTUX-062` **[PHASE_3][SOL_HIGH] Chat panels and pickers must float over the conversation, never push or cover it, and every one must close with Escape.**
+- [x] `AGENTUX-062` **[PHASE_3][SOL_HIGH] Chat panels and pickers must float over the conversation, never push or cover it, and every one must close with Escape.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_062` (+Browser, +Accessibility) passed in `internal/humanwork/chatui`; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-058`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01 (control-by-control pass); WHY=opening a small control rearranges the whole conversation`.
   - **TEST:** `TestTodo_AGENTUX_062`.
@@ -32545,7 +32552,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one anchored-layer helper for Chat popovers.
   - **Refs:** `internal/humanwork/chatui/render.go`, `tools/uxqual/cmd/journeywasm/chat_wasm.go`, `internal/humanwork/chatui/styles.go`.
 
-- [ ] `AGENTUX-063` **[PHASE_3][TERRA] Give every Chat control the same interaction feedback and a name, and keep the page light.**
+- [x] `AGENTUX-063` **[PHASE_3][TERRA] Give every Chat control the same interaction feedback and a name, and keep the page light.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_063` (+Browser, +Accessibility, +Performance, +DraftPreview, +HoverTint) passed in `internal/humanwork/chatui`; FULL chatui green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit 45d42be1a). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-058`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=hands-on QA 2026-10-01 (control, style and transition inventory); WHY=some controls respond with motion and some snap, some have names and some do not, and one channel renders 1318 controls`.
   - **TEST:** `TestTodo_AGENTUX_063`.
@@ -35548,7 +35556,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chatvoice*`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `AGENTUX-081` **[PHASE_3][SOL_HIGH] An agent opens the person panel, non-answering agents are offered in Ask, and three Agents-page states never resolve.**
+- [x] `AGENTUX-081` **[PHASE_3][SOL_HIGH] An agent opens the person panel, non-answering agents are offered in Ask, and three Agents-page states never resolve.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_081` (+MentionCandidates, +StarterKindsDeclared, +Integration) passed in `internal/application`; (+Activity, +EditWiring, +CheckboxLines, +Browser) in productui; (+AgentProfile, +Browser) in chatui; (+RetryWiring) in journeywasm (commit 3ea9fc0d2). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-080`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-02 ("do a deep visual inspection and focus hard on bugs and issues"); WHY=the agent surfaces contradict what the agents are`.
   - **TEST:** `TestTodo_AGENTUX_081`.
