@@ -729,7 +729,7 @@ var englishCopy = map[string]string{
 	KeyThreadIn:                 "Thread · {name}",
 	KeyBrowseCount:              "{n} channels",
 	KeyMentionTitle:             "People in this conversation",
-	KeyMentionNone:              "No one matches “{query}”",
+	KeyMentionNone:              "No one matches “{query}”. Try a different spelling.",
 	KeyMentionNotMember:         "Not in this conversation",
 	KeyMentionMenu:              "Mention someone",
 	KeyMentionAgents:            "Agents",

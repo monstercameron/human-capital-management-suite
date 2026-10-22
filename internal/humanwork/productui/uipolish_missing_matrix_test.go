@@ -280,7 +280,14 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// 2026-10-02 (Z4) re-pin after the chat lanes' stylesheet edits (the saved
 	// tick's duration from the motion tokens, the open-row and bidi rules, the
 	// agents page grid); the markup outside the stylesheet did not change.
-	const want = "ddf4b7d4f92b2c906d3db545a8b8fd4aafdc4ba4f6412d6f43b6612c8db65689"
+	// 2026-10-22 (AGENTUX-019 F15) re-pin: the access-page, spend-limit and
+	// announcement editor inputs moved from the canvas token to the surface
+	// token with explicit :disabled canvas rules. Verified the rendered Home
+	// document carries exactly that delta: the three old rules are absent,
+	// the three new rules and three disabled rules are present once each,
+	// and the Home document contains no badge markup, no mention-empty
+	// markup and none of the reworded mention copy.
+	const want = "d71903962b741184c4ecc23cc6cb2fe3faf07ab349f3598ca919646f2d83d55e"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

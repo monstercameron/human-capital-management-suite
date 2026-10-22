@@ -26,7 +26,8 @@ const agentAccessStyles = `
 .agent-access-actions,.agent-admin-actions,.agent-admin-access-page .action-row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--hcm-space-2,.5rem)}
 .agent-admin-access-page .field,.agent-admin-grant-form .field{display:grid;gap:.25rem;max-inline-size:34rem}
 .agent-admin-access-page .field label{font-weight:600}
-.agent-admin-access-page :is(input:not([type=checkbox]):not([type=radio]),select,textarea){inline-size:100%;box-sizing:border-box;font:inherit;padding:.5rem .625rem;border:1px solid var(--hcm-color-control-border,var(--hcm-color-border));border-radius:var(--hcm-radius-control);background:var(--hcm-color-canvas);color:var(--hcm-color-text)}
+.agent-admin-access-page :is(input:not([type=checkbox]):not([type=radio]),select,textarea){inline-size:100%;box-sizing:border-box;font:inherit;padding:.5rem .625rem;border:1px solid var(--hcm-color-control-border,var(--hcm-color-border));border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface);color:var(--hcm-color-text)}
+.agent-admin-access-page :is(input:not([type=checkbox]):not([type=radio]),select,textarea):disabled{background:var(--hcm-color-canvas)}
 .agent-admin-access-page .agent-admin-tier select{inline-size:auto}
 .agent-admin-form,.agent-admin-grant-form,.agent-admin-import-form{display:grid;gap:var(--hcm-space-3,.75rem)}
 .agent-admin-form h3,.agent-admin-form p,.agent-admin-revision h4,.agent-admin-revision p{margin:0}
@@ -40,7 +41,8 @@ const agentAccessStyles = `
 .agent-cost-table th:not(:first-child):last-child,.agent-cost-table th.numeric,.agent-cost-table td.numeric{text-align:end}
 .agent-spend-limits{border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-surface)}
 .agent-spend-limits :is(h3,p){margin:0}
-.agent-spend-limits input{inline-size:100%;box-sizing:border-box;font:inherit;padding:.5rem .625rem;border:1px solid var(--hcm-color-control-border,var(--hcm-color-border));border-radius:var(--hcm-radius-control);background:var(--hcm-color-canvas);color:var(--hcm-color-text)}
+.agent-spend-limits input{inline-size:100%;box-sizing:border-box;font:inherit;padding:.5rem .625rem;border:1px solid var(--hcm-color-control-border,var(--hcm-color-border));border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface);color:var(--hcm-color-text)}
+.agent-spend-limits input:disabled{background:var(--hcm-color-canvas)}
 .agent-spend-mount{display:grid;gap:var(--hcm-space-3,.75rem)}
 @media(max-width:600px){.agent-access-connection,.agent-admin-revision,.agent-admin-form,.agent-delegations,.agent-cost-panel,.agent-spend-limits{padding:var(--hcm-space-3,.75rem)}.agent-admin-actions .button,.agent-access-actions .button{flex:1 1 100%}}
 `

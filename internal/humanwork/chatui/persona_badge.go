@@ -57,17 +57,23 @@ func PersonaBadgeLocalized(locale string, actor *PersonaActor) ui.Node {
 	if !actor.valid() {
 		return html.Span(html.Props{Class: "agent-badge unavailable", Aria: map[string]string{"label": unavailable}, Text: unavailable})
 	}
+	attributionNode := ui.Text(attribution)
 	if strings.TrimSpace(actor.InvokerHandle) != "" {
 		attribution = actor.attribution()
 		switch {
 		case strings.HasPrefix(strings.ToLower(locale), "de"):
 			attribution = "handelt für @" + strings.TrimSpace(actor.InvokerHandle)
 		case strings.HasPrefix(strings.ToLower(locale), "ar"):
-			attribution = "يعمل نيابة عن @" + strings.TrimSpace(actor.InvokerHandle)
+			handle := "@" + strings.TrimSpace(actor.InvokerHandle)
+			attribution = "يعمل نيابة عن " + handle
+			// A Latin handle inside Arabic copy breaks the preposition join,
+			// so it is isolated for its own direction (AGENTUX-019 F40). The
+			// accessible name keeps the composed sentence.
+			attributionNode = ui.Fragment(ui.Text("يعمل نيابة عن "), html.Tag("bdi", html.Props{Dir: "ltr", Text: handle}))
 		}
 	}
 	return html.Span(html.Props{Class: "agent-badge", Data: map[string]string{"persona-id": actor.PersonaID, "agent-id": actor.AgentID}, Aria: map[string]string{"label": badge + "; " + attribution}},
-		html.Strong(html.Props{Text: badge}), html.Span(html.Props{Class: "agent-attribution", Dir: "auto", Text: attribution}))
+		html.Strong(html.Props{Text: badge}), html.Span(html.Props{Class: "agent-attribution", Dir: "auto"}, attributionNode))
 }
 
 func personaMessageBadge(model Model, actor *PersonaActor) ui.Node {
@@ -90,7 +96,11 @@ func personaMessageBadge(model Model, actor *PersonaActor) ui.Node {
 	}
 	children := []ui.Node{html.Strong(html.Props{Text: badge})}
 	if name != "" {
-		children = append(children, html.Span(html.Props{Class: "agent-attribution", Dir: "auto", Text: forWord + " " + name}))
+		attribution := ui.Node(ui.Text(forWord + " " + name))
+		if strings.HasPrefix(strings.ToLower(model.Locale), "ar") {
+			attribution = ui.Fragment(ui.Text(forWord+" "), html.Tag("bdi", html.Props{Dir: "ltr", Text: name}))
+		}
+		children = append(children, html.Span(html.Props{Class: "agent-attribution", Dir: "auto"}, attribution))
 	}
 	return html.Span(html.Props{Class: "agent-badge", Data: map[string]string{"persona-id": actor.PersonaID, "agent-id": actor.AgentID}}, children...)
 }
