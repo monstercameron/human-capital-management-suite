@@ -448,7 +448,11 @@ type MediaDirectory interface {
 type MediaFacts struct {
 	ContentType string
 	ByteSize    uint64
-	Admitted    bool
+	// Width and Height are the picture's stored pixel dimensions. Zero on
+	// every non-image kind and on an image admitted before dimensions were
+	// recorded; zero facts mean unknown, never a mismatch.
+	Width, Height uint32
+	Admitted      bool
 }
 
 // SetMediaDirectory installs the media authority used to validate media
@@ -478,6 +482,15 @@ func (s *Service) validateMediaReference(ctx context.Context, tenant, conversati
 		return ErrInvalidArgument
 	}
 	if ref.ByteSize != 0 && ref.ByteSize != facts.ByteSize {
+		return ErrInvalidArgument
+	}
+	// Dimensions are checked from the facts' side: a reference always carries
+	// what the uploader saw, but only facts recorded at upload can confirm
+	// them. An older artifact's zero facts stay silent.
+	if facts.Width != 0 && ref.Width != facts.Width {
+		return ErrInvalidArgument
+	}
+	if facts.Height != 0 && ref.Height != facts.Height {
 		return ErrInvalidArgument
 	}
 	return nil

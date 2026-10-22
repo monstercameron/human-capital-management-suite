@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	stddraw "image/draw"
+	_ "image/gif"
 	"image/jpeg"
 	"image/png"
 
@@ -81,6 +82,37 @@ func imageRenditions(content []byte, mediaType MediaType) (map[string]Rendition,
 		result[variant.name] = Rendition{MediaType: renditionType, Content: encoded.Bytes(), Width: width, Height: height}
 	}
 	return result, nil
+}
+
+// imageDimensions reads a picture's own pixel dimensions from its header,
+// without decoding pixels. It covers GIF as well as the static kinds: an
+// animation keeps its stored footprint even though it is never re-encoded.
+// A header that cannot be read, or dimensions past the decode bound, report
+// not-ok rather than zero dimensions a caller could mistake for measured.
+func imageDimensions(content []byte, mediaType MediaType) (width, height int, ok bool) {
+	config, format, err := image.DecodeConfig(bytes.NewReader(content))
+	if err != nil || config.Width <= 0 || config.Height <= 0 || config.Width > maxImageEdge || config.Height > maxImageEdge || int64(config.Width)*int64(config.Height) > maxImagePixels {
+		return 0, 0, false
+	}
+	switch mediaType {
+	case MediaPNG:
+		ok = format == "png"
+	case MediaJPEG:
+		ok = format == "jpeg"
+	case MediaBMP:
+		ok = format == "bmp"
+	case MediaGIF:
+		ok = format == "gif"
+	}
+	if !ok {
+		return 0, 0, false
+	}
+	if mediaType == MediaJPEG {
+		if orientation := jpegEXIFOrientation(content); orientation >= 5 {
+			return config.Height, config.Width, true
+		}
+	}
+	return config.Width, config.Height, true
 }
 
 func imageFormatMatches(format string, mediaType MediaType) bool {

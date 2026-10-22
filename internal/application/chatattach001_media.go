@@ -239,7 +239,7 @@ func (d chatattach001Directory) MediaArtifact(ctx context.Context, tenant, conve
 	if err != nil {
 		return chat.MediaFacts{}, err
 	}
-	return chat.MediaFacts{ContentType: string(ref.MediaType), ByteSize: uint64(ref.Size), Admitted: ref.State == chatmedia.StateAdmitted}, nil
+	return chat.MediaFacts{ContentType: string(ref.MediaType), ByteSize: uint64(ref.Size), Width: uint32(max(ref.Width, 0)), Height: uint32(max(ref.Height, 0)), Admitted: ref.State == chatmedia.StateAdmitted}, nil
 }
 
 func chatattach001AttachmentTypes(next func(context.Context, chat.ContentInput) ([]string, error)) func(context.Context, chat.ContentInput) ([]string, error) {

@@ -296,7 +296,14 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// became a text tag. Verified the rendered Home document carries exactly
 	// that delta: each new rule present, each old rule absent, zero
 	// brand-primary/danger/currentColor focus rings left.
-	const want = "2beba4c2a06914f7d6897e3a2b7bc12e4e28504e13ffcaafb3722b3dfe50c445"
+	// 2026-10-22 (CHATBUG-095) re-pin: the attachment fallback name rule now
+	// also covers the fallback size line, and the GIF badge hides while the
+	// tile's image has no source or the tile carries no image, so the badge
+	// never covers loading or fallback text. Verified the rendered Home
+	// document carries exactly that delta: the extended rule and the two
+	// badge rules present, the old name-only rule absent, zero other lines
+	// changed.
+	const want = "2bf363e54f8201263e2b40ed6a7ed428d6931ecfba939d9112cee3528bdfe278"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

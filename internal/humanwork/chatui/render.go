@@ -3844,14 +3844,27 @@ func attachments(m Model, msg Message) ui.Node {
 					loading = append(loading, html.Span(html.Props{Class: "attachment-loading-name", Dir: "auto", Text: a.Name}))
 					fallback = append(fallback, html.Span(html.Props{Class: "attachment-fallback-name", Dir: "auto", Text: a.Name}))
 				}
+				// CHATBUG-095: the bounded load ends in the file name, size
+				// and Download, so a tile that cannot show its picture still
+				// says what it is.
+				if a.Bytes > 0 {
+					fallback = append(fallback, html.Span(html.Props{Class: "attachment-fallback-size", Text: humanBytes(a.Bytes)}))
+				}
 				loading = append(loading, html.Span(html.Props{Class: "attachment-loading-state", Text: m.t(KeyAttachmentLoading)}))
 				children = append(children, html.Div(html.Props{Class: "attachment-loading", Aria: map[string]string{"hidden": "true"}}, loading...))
 				children = append(children, html.Div(html.Props{Class: "attachment-pending attachment-fallback", Role: "status"},
 					append(fallback, html.Button(html.Props{Class: "attachment-download", Type: "button", Disabled: m.Callbacks.DownloadAttachment == nil, Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)}))...))
 			} else if a.PreviewUnavailable || a.URL != "" {
-				children = append(children, html.Div(html.Props{Class: "attachment-pending", Role: "status"},
-					html.Span(html.Props{Text: m.t(KeyAttachmentUnavailable)}),
-					html.Button(html.Props{Class: "attachment-download", Type: "button", Disabled: m.Callbacks.DownloadAttachment == nil, Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)})))
+				// CHATBUG-095: same terminal content as the failed tile.
+				pending := []ui.Node{html.Span(html.Props{Text: m.t(KeyAttachmentUnavailable)})}
+				if a.Name != "" {
+					pending = append(pending, html.Span(html.Props{Class: "attachment-fallback-name", Dir: "auto", Text: a.Name}))
+				}
+				if a.Bytes > 0 {
+					pending = append(pending, html.Span(html.Props{Class: "attachment-fallback-size", Text: humanBytes(a.Bytes)}))
+				}
+				pending = append(pending, html.Button(html.Props{Class: "attachment-download", Type: "button", Disabled: m.Callbacks.DownloadAttachment == nil, Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)}))
+				children = append(children, html.Div(html.Props{Class: "attachment-pending", Role: "status"}, pending...))
 			} else {
 				children = append(children, html.Div(html.Props{Class: "attachment-pending image-loading-skeleton", Role: "status", Aria: map[string]string{"label": m.t(KeyAttachmentLoading), "live": "polite"}}, icon("attach")))
 			}

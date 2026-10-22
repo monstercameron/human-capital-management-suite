@@ -10,7 +10,9 @@ const ChatMsgListStyles = `
 .attachment-loading .chat-icon{flex:none}
 .attachment-loading-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--hcm-color-text)}
 .attachment-loading-state{font-size:.75rem}
-.attachment-fallback-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}
+.attachment-fallback-name,.attachment-fallback-size{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}
+.attachment-image:not(.failed):has(>.attachment-image-open img:not([src])) .attachment-badge{display:none}
+.attachment-image:not(:has(>.attachment-image-open img)) .attachment-badge{display:none}
 .attachment-image.failed.measured[data-frame-width],.attachment-image.failed.unmeasured{width:min(100%,240px);height:auto;min-height:148px;aspect-ratio:auto}
 .attachment-image.failed .attachment-pending{height:auto;min-height:148px;padding:28px 12px 12px;box-sizing:border-box}
 .attachment-image.failed .attachment-badge{inset-block-end:auto;inset-block-start:6px}

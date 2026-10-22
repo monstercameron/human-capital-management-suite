@@ -61,6 +61,19 @@ func chatattach001ScopeParts(scope string) (room, parent string) {
 // uploads (application.ChatAttachmentsAvailabilityPath).
 const chatattach001AvailabilityRoute = "/v1/chat/media/attachments/availability"
 
+// chatattach001ProbeRetries is the one second chance an availability probe
+// gets when its request never completed (CHATBUG-095): an abort on load
+// reports status zero, and uploads must not stay hidden behind it.
+const chatattach001ProbeRetries = 1
+
+// chatattach001ProbeRetry reports whether an availability probe that ended
+// with status deserves another attempt. Only a request that never completed
+// retries, and only within the retry budget; a real answer, yes or no,
+// stands.
+func chatattach001ProbeRetry(status, attempt int) bool {
+	return status == 0 && attempt < chatattach001ProbeRetries
+}
+
 // chatattach001Available reads the server's answer. Anything but a plain yes
 // is a no: a server that does not know the question, an error, a refusal.
 func chatattach001Available(status int, body string) bool {
@@ -215,6 +228,24 @@ func (s *chatattach001State) complete(room, key, artifact, contentType string, s
 	return chatattach001Dropped
 }
 
+// setDims keeps the upload answer's stored picture dimensions on a draft.
+// begin sends them with the reference, so the post carries the footprint
+// its tile renders before the bytes arrive (CHATBUG-095).
+func (s *chatattach001State) setDims(room, key string, width, height int) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.room(room)
+	for i := range r.files {
+		if r.files[i].Key == key {
+			r.files[i].Width, r.files[i].Height = width, height
+			return
+		}
+	}
+}
+
 // retry puts a failed upload back to uploading and reports whether there was
 // one to retry.
 func (s *chatattach001State) retry(room, key string) bool {
@@ -331,7 +362,7 @@ func (s *chatattach001State) begin(scope, tenant, body string, mentions []chatui
 		if f.Uploading || f.ID == "" {
 			return nil, "", false
 		}
-		refs = append(refs, &chatv1.Reference{Kind: chatv1.ReferenceKind_REFERENCE_KIND_MEDIA, Id: f.ID, TenantId: tenant, ConversationId: room, Display: f.Name, ContentType: f.ContentType, ByteSize: uint64(f.Bytes)})
+		refs = append(refs, &chatv1.Reference{Kind: chatv1.ReferenceKind_REFERENCE_KIND_MEDIA, Id: f.ID, TenantId: tenant, ConversationId: room, Display: f.Name, ContentType: f.ContentType, ByteSize: uint64(f.Bytes), Width: uint32(max(f.Width, 0)), Height: uint32(max(f.Height, 0))})
 	}
 	r.sending = true
 	identity, _ := json.Marshal(refs)

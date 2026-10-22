@@ -88,17 +88,34 @@ func (b *chatattach001Bridge) choose(picker string) {
 // askAvailability asks the server once whether it takes uploads. Any answer
 // but a plain yes leaves the page as it starts: with no way to attach a file.
 func (b *chatattach001Bridge) askAvailability() {
+	b.askAvailabilityAttempt(0)
+}
+
+func (b *chatattach001Bridge) askAvailabilityAttempt(attempt int) {
 	xhr := js.Global().Get("XMLHttpRequest").New()
 	var done js.Func
 	done = js.FuncOf(func(js.Value, []js.Value) any {
 		defer done.Release()
 		xhr.Set("onloadend", js.Null())
-		if b.disposed {
+		if b.disposed || !b.current() {
 			return nil
 		}
-		if chatattach001Available(xhr.Get("status").Int(), xhr.Get("responseText").String()) {
+		status := xhr.Get("status").Int()
+		if chatattach001Available(status, xhr.Get("responseText").String()) {
 			b.state.setAvailable(true)
 			chatStreamRender.Schedule()
+			return nil
+		}
+		if chatattach001ProbeRetry(status, attempt) {
+			var retry js.Func
+			retry = js.FuncOf(func(js.Value, []js.Value) any {
+				defer retry.Release()
+				if !b.disposed && b.current() && !b.state.takes() {
+					b.askAvailabilityAttempt(attempt + 1)
+				}
+				return nil
+			})
+			js.Global().Call("setTimeout", retry, 2000)
 		}
 		return nil
 	})
@@ -321,6 +338,7 @@ func (b *chatattach001Bridge) start(room, key string, file js.Value, name, previ
 				ArtifactID, TenantID, ConversationID, MediaType string
 				Size                                            int64
 				State                                           string
+				Width, Height                                   int
 			}
 			status := xhr.Get("status").Int()
 			if status >= 200 && status < 300 {
@@ -330,6 +348,7 @@ func (b *chatattach001Bridge) start(room, key string, file js.Value, name, previ
 			}
 			switch b.state.complete(room, key, ref.ArtifactID, ref.MediaType, ref.Size, status) {
 			case chatattach001Uploaded:
+				b.state.setDims(room, key, ref.Width, ref.Height)
 				delete(b.kept, key)
 			case chatattach001Dropped:
 				delete(b.kept, key)

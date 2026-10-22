@@ -60,6 +60,11 @@ type Reference struct {
 	State                                ArtifactState
 	Transcript                           string
 	AltText                              string
+	// Width and Height are the picture's own pixel dimensions, recorded at
+	// upload for images (CHATBUG-095). Zero on every other kind and on an
+	// image whose header could not be read; a tile then keeps the neutral
+	// footprint instead of the stored one.
+	Width, Height int
 }
 type UploadRequest struct {
 	TenantID, ConversationID, PrincipalID, Filename, DeclaredType, EvidenceID string
@@ -218,6 +223,14 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 	if sniff(req.Content) != mt {
 		return Reference{}, ErrUnsupported
 	}
+	// The stored footprint travels with the reference from here: a header
+	// that cannot be read leaves zero dimensions rather than refusing an
+	// upload the scanner may still admit.
+	var width, height int
+	switch mt {
+	case MediaPNG, MediaJPEG, MediaBMP, MediaGIF:
+		width, height, _ = imageDimensions(req.Content, mt)
+	}
 	if mt == MediaMP3 || mt == MediaWAV {
 		if strings.TrimSpace(req.Transcript) == "" && strings.TrimSpace(req.AltText) == "" {
 			return Reference{}, fmt.Errorf("%w: audio needs a transcript or text alternative", ErrInvalid)
@@ -243,7 +256,7 @@ func (s *Service) Upload(ctx context.Context, req UploadRequest) (Reference, err
 			return Reference{}, ErrBusy
 		}
 	}
-	ref := Reference{ArtifactID: id, TenantID: req.TenantID, ConversationID: req.ConversationID, MediaType: mt, Size: int64(len(req.Content)), State: StateQuarantined, Transcript: req.Transcript, AltText: req.AltText}
+	ref := Reference{ArtifactID: id, TenantID: req.TenantID, ConversationID: req.ConversationID, MediaType: mt, Size: int64(len(req.Content)), State: StateQuarantined, Transcript: req.Transcript, AltText: req.AltText, Width: width, Height: height}
 	if err := s.store.Quarantine(ctx, Artifact{Reference: ref, Content: append([]byte(nil), req.Content...), Reason: "awaiting scanner verdict"}); err != nil {
 		return Reference{}, err
 	}

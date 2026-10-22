@@ -96,7 +96,7 @@ func (d ChatMediaDirectory) MediaArtifact(ctx context.Context, tenantID, convers
 	if err != nil {
 		return chatcore.MediaFacts{}, err
 	}
-	return chatcore.MediaFacts{ContentType: string(ref.MediaType), ByteSize: uint64(ref.Size), Admitted: true}, nil
+	return chatcore.MediaFacts{ContentType: string(ref.MediaType), ByteSize: uint64(ref.Size), Width: uint32(max(ref.Width, 0)), Height: uint32(max(ref.Height, 0)), Admitted: true}, nil
 }
 
 func trustedMediaPrincipal(r *http.Request) (tenant, conversation, principal string, ok bool) {
