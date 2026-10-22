@@ -3050,7 +3050,8 @@
     "refactor": "reuse the persona chat and task conformance harnesses",
     "refs": "`test/workflow`, `internal/application`, `AGENTDOC-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTDOC_007` (+Conformance, +Security, +Browser) passed in `internal/application`; new handoff test over real doc-hub + persona stores (pin/review/seal/revoke/republish proven). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTDOC-008",
@@ -15997,7 +15998,8 @@
     "refactor": "none",
     "refs": "`cmd/migrate`, `internal/data/chatstore/chat_seed*.go`, `internal/data/demoworkforce`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATSEED_003` (+PurgeCoversEveryChatTable, +PurgeRemovesEveryDependentRow) passed in `internal/data/chatstore`; (+Integration) passed in `cmd/migrate`; `TestTodo_CHATSEED_003_Browser` (new, seed-receipt pin) passed in `cmd/migrate`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATSIDE-001",

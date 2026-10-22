@@ -31847,7 +31847,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one picker component for the composer and the persona editor.
   - **Refs:** `internal/humanwork/productui/agents_page.go`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record.
 
-- [ ] `AGENTDOC-007` **[CONFORMANCE][SOL_HIGH] Prove document-referenced instructions end to end.**
+- [x] `AGENTDOC-007` **[CONFORMANCE][SOL_HIGH] Prove document-referenced instructions end to end.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTDOC_007` (+Conformance, +Security, +Browser) passed in `internal/application`; new handoff test over real doc-hub + persona stores (pin/review/seal/revoke/republish proven). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-003`, `AGENTDOC-005`, `AGENTDOC-006`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.INTELLIGENCE,BI.DOCUMENTS,BI.SECURITY; DIRECT=none; WHY=one journey proves the references are honoured, cited and never widen access`.
   - **TEST:** `TestTodo_AGENTDOC_007`.
@@ -35328,7 +35329,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/data/chatstore`, `internal/collaboration/chat`, `internal/humanwork/chatui/chatux005_details.go`, `internal/humanwork/chatui/styles_composer.go`.
 
-- [ ] `CHATSEED-003` **[PHASE_3][SOL_HIGH] Chat seed with reset fails, and seeded message times ignore office hours.**
+- [x] `CHATSEED-003` **[PHASE_3][SOL_HIGH] Chat seed with reset fails, and seeded message times ignore office hours.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATSEED_003` (+PurgeCoversEveryChatTable, +PurgeRemovesEveryDependentRow) passed in `internal/data/chatstore`; (+Integration) passed in `cmd/migrate`; `TestTodo_CHATSEED_003_Browser` (new, seed-receipt pin) passed in `cmd/migrate`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATSEED-002`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("complete each and every chat, agent and adjacent todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=the demo cannot be rebuilt from scratch, which is the only way to fix its message times`.
   - **TEST:** `TestTodo_CHATSEED_003`.
