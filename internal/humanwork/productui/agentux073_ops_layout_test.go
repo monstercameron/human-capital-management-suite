@@ -13,7 +13,11 @@ func agentUX073Snapshot() AgentControlsSnapshot {
 	return AgentControlsSnapshot{
 		Available: true, UpdatedAt: "2026-10-02T02:05:00Z", AllowedCommands: []string{"SUSPEND", "PUBLISH"},
 		Agents: []PersonaAdminPersona{
-			{ID: "assistant", Name: "Assistant", Version: "3", Lifecycle: PersonaPublished, Icon: star},
+			// AGENTUX-081: the Assistant row keeps the Answering state because
+			// this fixture agent is placed and working right now.
+			{ID: "assistant", Name: "Assistant", Version: "3", Lifecycle: PersonaPublished, Icon: star,
+				Installations: []PersonaAdminInstallation{{InstallationID: "i1", ConversationID: "general", Conversation: "general", Kind: "channel"}},
+				RecentRuns:    []AgentControlRun{{ID: "run-live", AgentID: "assistant", State: "running"}}},
 			{ID: "policy-helper", Name: "Policy Helper", Version: "6", Lifecycle: PersonaSuspended},
 			{ID: "draft-agent", Name: "Draft Agent", Version: "1", Lifecycle: PersonaDraft},
 		},

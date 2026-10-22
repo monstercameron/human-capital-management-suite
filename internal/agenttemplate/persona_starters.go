@@ -18,6 +18,39 @@ func PersonaStarterPin(starter PersonaStarter) Pin {
 	return Pin{ID: starter.ID, Version: starter.Version, TemplateSchemaVersion: 1, Digest: "sha256:" + hex.EncodeToString(digest[:])}
 }
 
+// PersonaStarterKind names what an agent is for. Ask, the mention list and
+// /ask offer only agents of a kind that answers questions (AGENTUX-081). The
+// kind is a routing declaration resolved from the starter catalog at
+// projection time; it is not part of the sealed starter bytes, so declaring
+// it changes no provenance digest.
+type PersonaStarterKind string
+
+const (
+	// PersonaStarterKindAnswer is a conversational agent: it answers questions.
+	PersonaStarterKindAnswer PersonaStarterKind = "answer"
+	// PersonaStarterKindAnnounce posts scheduled announcements; it never takes
+	// a question (Birthday Buddy).
+	PersonaStarterKindAnnounce PersonaStarterKind = "announce"
+	// PersonaStarterKindAmbient watches messages and proposes work; it never
+	// takes a question (Task Catcher, Reminder).
+	PersonaStarterKindAmbient PersonaStarterKind = "ambient"
+	// PersonaStarterKindInbox acts on its inbox and project, not on a
+	// conversation (Support Desk).
+	PersonaStarterKindInbox PersonaStarterKind = "inbox"
+)
+
+// AnswersQuestions reports whether an agent of this kind takes questions. An
+// unset kind answers: only a declared non-answering kind removes an agent
+// from Ask, so tenant-authored agents without a starter stay offered.
+func (k PersonaStarterKind) AnswersQuestions() bool {
+	switch k {
+	case "", PersonaStarterKindAnswer:
+		return true
+	default:
+		return false
+	}
+}
+
 // PersonaStarter is a versioned platform persona template. It describes the
 // reviewed shape an owner may start from; it is not a published persona and
 // carries no tenant grants.
@@ -27,6 +60,7 @@ type PersonaStarter struct {
 	Handle                string
 	DisplayName           string
 	Purpose               string
+	Kind                  PersonaStarterKind `json:"-"`
 	Status                string
 	OwnerNeeded           bool
 	OwnerRequired         bool
@@ -91,7 +125,7 @@ func PersonaStarterFor(id string, version uint32) (PersonaStarter, bool) {
 func starterBase(id, handle, displayName, purpose, suite string) PersonaStarter {
 	return PersonaStarter{
 		ID: id, Version: 1, Handle: handle, DisplayName: displayName,
-		Purpose: purpose, Status: personaStarterDraft, OwnerNeeded: true,
+		Purpose: purpose, Kind: PersonaStarterKindAnswer, Status: personaStarterDraft, OwnerNeeded: true,
 		OwnerRequired: true, Published: false, AutoInstall: false,
 		DefaultGrants: []string{}, EvaluationSuite: suite,
 		Provenance: PersonaStarterProvenance{

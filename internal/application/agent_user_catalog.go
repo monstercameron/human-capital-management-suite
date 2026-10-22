@@ -73,6 +73,12 @@ func (c *AgentUserCatalog) List(ctx context.Context, principal *trust.Principal)
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "invalid_profile")
 			continue
 		}
+		// AGENTUX-081: "Who should answer?" offers only agents of a kind that
+		// answers questions, decided from the agent's declared starter kind.
+		if !agentUX081PersonaAnswersQuestions(profile) {
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "kind_not_answering")
+			continue
+		}
 		if _, ok := seen[profile.PersonaID]; ok {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "duplicate_persona")
 			continue

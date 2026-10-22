@@ -19,9 +19,13 @@ func agentUX073ServedControls() productui.AgentControlsSnapshot {
 }
 
 func agentUX073SetupSnapshot() productui.PersonaAdminSnapshot {
+	// AGENTUX-081: both agents are placed and working, so their rows keep the
+	// Answering state this test pins.
+	placed := []productui.PersonaAdminInstallation{{InstallationID: "i1", ConversationID: "general", Conversation: "general", Kind: "channel"}}
+	working := []productui.AgentControlRun{{ID: "run-live", State: "running"}}
 	return productui.PersonaAdminSnapshot{Available: true, CommandPermissionsAvailable: true, AllowedCommands: []string{"SUSPEND", "PUBLISH"}, Personas: []productui.PersonaAdminPersona{
-		{ID: "assistant", Name: "Assistant", Version: "2", Lifecycle: productui.PersonaPublished, Icon: agentIconFixture(agenticon.Input{Name: "Assistant"})},
-		{ID: "policy-helper", Name: "Policy Helper", Version: "6", Lifecycle: productui.PersonaPublished, Icon: agentIconFixture(agenticon.Input{Name: "Policy Helper"})},
+		{ID: "assistant", Name: "Assistant", Version: "2", Lifecycle: productui.PersonaPublished, Icon: agentIconFixture(agenticon.Input{Name: "Assistant"}), Installations: placed, RecentRuns: working},
+		{ID: "policy-helper", Name: "Policy Helper", Version: "6", Lifecycle: productui.PersonaPublished, Icon: agentIconFixture(agenticon.Input{Name: "Policy Helper"}), Installations: placed, RecentRuns: working},
 	}}
 }
 

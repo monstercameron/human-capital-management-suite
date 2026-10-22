@@ -15,6 +15,8 @@ func agentUX073Text(locale LocaleContext, key string, replacements ...string) st
 		"agent_version":      {"Version {version}", "Version {version}", "الإصدار {version}"},
 		"state_answering":    {"Answering", "Antwortet", "يجيب"},
 		"state_paused":       {"Paused", "Pausiert", "متوقف مؤقتًا"},
+		"state_ready":        {"Ready", "Bereit", "جاهز"},
+		"state_unplaced":     {"Not placed", "Nicht platziert", "غير موضوع"},
 		"filter_agent":       {"Agent", "Agent", "الوكيل"},
 		"failed_after":       {"Failed after {duration}", "Nach {duration} fehlgeschlagen", "فشل بعد {duration}"},
 		"agents_unavailable": {"The list of agents could not be loaded here.", "Die Liste der Agenten konnte hier nicht geladen werden.", "تعذر تحميل قائمة الوكلاء هنا."},
@@ -48,10 +50,7 @@ func agentUX073AgentRows(locale LocaleContext, snapshot AgentControlsSnapshot) u
 		if persona.Lifecycle != PersonaPublished && persona.Lifecycle != PersonaSuspended {
 			continue
 		}
-		state, tone := agentUX073Text(locale, "state_answering"), "success"
-		if persona.Lifecycle == PersonaSuspended {
-			state, tone = agentUX073Text(locale, "state_paused"), "warning"
-		}
+		state, tone := agentUX081ActivityState(locale, persona, snapshot.Runs)
 		identity := []ui.Node{html.Strong(html.Props{Dir: "auto"}, ui.Text(persona.Name))}
 		if version := strings.TrimSpace(persona.Version); version != "" {
 			identity = append(identity, html.Small(html.Props{}, ui.Text(agentUX073Text(locale, "agent_version", "{version}", personaAdminLocalizedNumber(locale, version)))))

@@ -94,6 +94,11 @@ func (s *productionPersonaChatReferenceSource) candidateForProfile(ctx context.C
 	if version.Verify() != nil || profile.PersonaID == "" || profile.Version == 0 || strings.TrimSpace(profile.DisplayName) == "" {
 		return chat.Reference{}, false
 	}
+	// AGENTUX-081: the mention list (and /ask, which offers the same agents)
+	// lists only agents of a kind that answers questions.
+	if !agentUX081PersonaAnswersQuestions(profile) {
+		return chat.Reference{}, false
+	}
 	identity, ok := byPersona[profile.PersonaID]
 	if !ok || identity.TenantID != tenant || !identity.Active || identity.PersonaID != profile.PersonaID || identity.ReferenceID == "" {
 		return chat.Reference{}, false

@@ -12,6 +12,7 @@ func TestAgentUXDemo_StarterManifest_Security(t *testing.T) {
 	for _, starter := range []agenttemplate.PersonaStarter{AgentUXDemoBirthdayStarter(), agentuxDemoStarterBase("support_desk", "support-desk", "Support Desk", "Turns customer emails into support tickets and tells the incident channel.", "AGENTUX-054.support-desk", "AGENTUX-054")} {
 		if starter.Handle == "support-desk" {
 			starter.TierCeiling = "T3"
+			starter.Kind = agenttemplate.PersonaStarterKindInbox
 			starter.SkillPins = append(starter.SkillPins, fixture.grant.TicketPin, fixture.grant.AlertPin)
 		}
 		manifest, err := AgentUXDemoManifest(starter)

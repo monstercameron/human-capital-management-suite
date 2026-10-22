@@ -12,6 +12,7 @@ func AgentUXDemoBirthdayStarter() agenttemplate.PersonaStarter {
 	policy, _ := agenttemplate.PersonaStarterFor("hcmnext.persona_template.policy_helper", 1)
 	starter := agentuxDemoStarterBase("birthday_buddy", "birthday-buddy", "Birthday Buddy", "Wishes people a happy birthday in the channel on the day.", "AGENTUX-053.birthday-buddy", "AGENTUX-053")
 	starter.TierCeiling = "T0"
+	starter.Kind = agenttemplate.PersonaStarterKindAnnounce
 	for _, pin := range policy.SkillPins {
 		if pin.ID == personaChatReplySkillID {
 			starter.SkillPins = append(starter.SkillPins, pin)
@@ -29,6 +30,7 @@ func AgentUXDemoSupportStarter(catalog *agentskills.Registry) (agenttemplate.Per
 	}
 	starter := agentuxDemoStarterBase("support_desk", "support-desk", "Support Desk", "Turns customer emails into support tickets and tells the incident channel.", "AGENTUX-054.support-desk", "AGENTUX-054")
 	starter.TierCeiling = "T3"
+	starter.Kind = agenttemplate.PersonaStarterKindInbox
 	for _, effect := range agentskills.SupportEffectSkills() {
 		if effect.Validate() != nil {
 			return agenttemplate.PersonaStarter{}, ErrPersonaDraftInvalid
@@ -71,6 +73,7 @@ func AgentUXDemoManifest(starter agenttemplate.PersonaStarter) (agentmanifest.Ma
 	if starter.ID == "hcmnext.persona_template.support_desk" {
 		expected = agentuxDemoStarterBase("support_desk", "support-desk", "Support Desk", "Turns customer emails into support tickets and tells the incident channel.", "AGENTUX-054.support-desk", "AGENTUX-054")
 		expected.TierCeiling = "T3"
+		expected.Kind = agenttemplate.PersonaStarterKindInbox
 		if len(starter.SkillPins) != 2 || starter.SkillPins[0].ID != agentskills.SupportCreateTicket || starter.SkillPins[1].ID != agentskills.SupportAlertChannel || starter.SkillPins[0].Version != 1 || starter.SkillPins[1].Version != 1 {
 			return agentmanifest.Manifest{}, ErrPersonaDraftInvalid
 		}

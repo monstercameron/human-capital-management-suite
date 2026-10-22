@@ -378,6 +378,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				return
 			} else if action == "agent-ask-here" {
 				selectChatAgent(m, mention, id)
+				// AGENTUX-081: Ask from the agent profile lands in the
+				// composer, so the dialog closes behind it.
+				local.update(func(u *localUI) { u.agentProfileID = "" })
 				return
 			}
 			if action, _, extra := eventAction(e); action == "emoji-completion-pick" {
@@ -1712,6 +1715,16 @@ func actionButton(class, action, id, label string, disabled bool, children ...ui
 }
 
 func personButton(m Model, id, name, class string, children ...ui.Node) ui.Node {
+	// AGENTUX-081: an agent's name opens the agent's own profile, never the
+	// person panel. Membership is by identity against the conversation's
+	// resolved agents, the same match the member list uses.
+	for _, agent := range m.ResolvedPersonaMentions {
+		if agent.Reference.ID != "" && agent.Reference.ID == id {
+			return html.Button(html.Props{Class: class, Type: "button", Disabled: id == "",
+				Data: map[string]string{"action": "agent-profile-open", "id": id},
+				Aria: map[string]string{"label": name + ", " + personaMentionText(m.Locale, "profile"), "haspopup": "dialog"}}, children...)
+		}
+	}
 	return html.Button(html.Props{Class: class, Type: "button", Disabled: id == "" || m.Callbacks.OpenPerson == nil,
 		Data: map[string]string{"action": "open-person", "id": id},
 		Aria: map[string]string{"label": m.tf(KeyViewPerson, map[string]string{"name": name})}}, children...)
