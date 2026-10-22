@@ -20,6 +20,12 @@ import (
 // agent pool after authenticating with the deployment-managed agent credential.
 const AppRole = "hcmnext_agent_app"
 
+// PolicyAuthorityRole is the non-login PostgreSQL role that inserts persona
+// run policy revisions (AGENTUX-023). The preparation and the production
+// provisioning select it as the session role instead of an owner
+// connection; the login behind the DSN only needs membership.
+const PolicyAuthorityRole = "hcmnext_agent_policy_authority"
+
 var (
 	ErrInvalidConfig    = errors.New("agentstore: invalid configuration")
 	ErrSharedDatabase   = errors.New("agent database must be independent from core, chat, and document databases")

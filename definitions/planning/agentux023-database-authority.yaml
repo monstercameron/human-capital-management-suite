@@ -1,0 +1,67 @@
+schema_version: 1
+decision_id: AGENTUX-023
+title: "Database authority for persona run policy and chat repair"
+status: DECIDED
+decision_date: "2026-10-22"
+owner: agent-platform
+refs:
+  - "planning/todos.md#AGENTUX-023"
+  - "planning/todos.md#AGENTUX-005"
+
+# The serving role holds only SELECT on persona_run_policy (migration 00015)
+# and no role was granted INSERT, so the local-dev preparation wrote policy
+# revisions over an owner connection. The chat serving path likewise could
+# not delete a malformed conversation, so the repair needed the chat
+# database owner's connection. Both privileged writes now run under named
+# least-privilege roles applied as the session role; the login behind the
+# DSN only needs membership, never ownership.
+run_policy_authority:
+  role: hcmnext_agent_policy_authority
+  login: NOLOGIN
+  membership: "deployment-managed policy-writer login"
+  grants:
+    - "SELECT ON persona_run_policy"
+    - "INSERT ON persona_run_policy"
+  denied:
+    - "UPDATE ON persona_run_policy"
+    - "DELETE ON persona_run_policy"
+  migration: "internal/data/agentstore/migrations/00052_persona_run_policy_authority.sql"
+  users:
+    - "local-dev preparation (ensureLocalAgentDemoRunPolicy)"
+    - "production provisioning (agentux_general_runtime_provisioner)"
+  session: "SET ROLE via the pool role parameter; verified by current_user"
+
+chat_repair_procedure:
+  name: chat-unrouted-repair
+  role: hcmnext_chat_repair
+  login: NOLOGIN
+  membership: "deployment-managed repair login"
+  entrypoint: "chatstore.Store.RepairUnroutedDirectConversation"
+  removal_function: "chat_repair_delete_conversation(text, text) SECURITY DEFINER"
+  reads:
+    - "SELECT ON chat_conversation"
+    - "SELECT ON chat_post"
+    - "SELECT ON chat_membership"
+    - "SELECT ON chat_public_audience_policy"
+    - "SELECT ON chat_channel_policy"
+    - "SELECT ON chat_share_grant"
+  lock_only:
+    - "UPDATE ON chat_conversation (SELECT FOR UPDATE row lock; the role issues no UPDATE statements)"
+  execute:
+    - "EXECUTE ON FUNCTION chat_repair_delete_conversation (removes the policy row then the conversation; constraint checks run as the function owner)"
+  denied:
+    - "INSERT, UPDATE and DELETE ON every table (removal happens only inside the function)"
+    - "any access outside the predicate tables and the function"
+  migration: "internal/data/chatstore/migrations/00050_chat_repair_role.sql"
+  users:
+    - "local-dev preparation (repairStore)"
+  session: "SET ROLE via chatstore.Config.Role; the serving store never sets it"
+  operator_steps:
+    - "confirm the conversation matches the repair predicate (kind DIRECT, empty name, ACTIVE, settings_revision 0, empty route shard, epoch 1, zero posts, exactly owner MANAGER + persona MEMBER, no other authority rows)"
+    - "run the preparation; it repairs, then recreates the pair through the routed service"
+    - "a second run reports repaired=false: the repair is idempotent"
+
+serving_roles:
+  agent_app: hcmnext_agent_app
+  agent_app_policy_access: "SELECT only; INSERT stays denied (SECURITY)"
+  chat_serving: "unchanged connection; never assumes the repair role"

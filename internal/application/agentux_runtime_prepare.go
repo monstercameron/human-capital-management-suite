@@ -274,15 +274,18 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	if _, err := ProvisionLocalDevPersonaChatPolicy(ctx, chat, config.Profile, config.Tenant, publicConversation, "general"); err != nil {
 		return summary, err
 	}
-	repairStore := chat
+	repairDSN := config.ChatDatabaseURL
 	if config.ChatOwnerDatabaseURL != "" {
-		owner, ownerErr := chatstore.New(ctx, chatstore.Config{DSN: config.ChatOwnerDatabaseURL})
-		if ownerErr != nil {
-			return summary, fmt.Errorf("open local chat owner store: %w", ownerErr)
-		}
-		defer owner.Close()
-		repairStore = owner
+		repairDSN = config.ChatOwnerDatabaseURL
 	}
+	// The repair always runs as the named repair role (AGENTUX-023), even
+	// when it shares the serving DSN in local development. A login without
+	// membership fails here instead of repairing as an owner.
+	repairStore, repairErr := chatstore.New(ctx, chatstore.Config{DSN: repairDSN, Role: chatstore.RepairRole})
+	if repairErr != nil {
+		return summary, fmt.Errorf("open local chat repair store: %w", repairErr)
+	}
+	defer repairStore.Close()
 	preparation := localAgentDemoPreparation{config: config, core: core, agents: agents, personas: personas, evaluations: evaluations, mapper: mapper, key: key, material: material, admin: principal, chat: chat, repairStore: repairStore, chatService: chatRuntime.service, roleAccess: roleAccess, publicConversation: publicConversation, now: now}
 	directConversation := ""
 	// The starters are one list (AGENTUX-049); one that has no seed yet is named
@@ -488,7 +491,10 @@ func ensureLocalAgentDemoRoleVisibility(ctx context.Context, store *roleaccessst
 }
 
 func ensureLocalAgentDemoRunPolicy(ctx context.Context, dsn string, tenant uuid.UUID, legalEntity string, now time.Time) (bool, error) {
-	pool, err := pgxadapter.NewPool(ctx, dsn, nil)
+	// The one statement the serving role may not run executes as the named
+	// policy authority role, never as the DSN login (AGENTUX-023). A login
+	// without membership fails here instead of writing as an owner.
+	pool, err := pgxadapter.NewPool(ctx, dsn, map[string]string{"role": agentstore.PolicyAuthorityRole})
 	if err != nil {
 		return false, err
 	}

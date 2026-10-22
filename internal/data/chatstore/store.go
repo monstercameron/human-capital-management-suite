@@ -54,7 +54,18 @@ const routeStateActive = "ACTIVE"
 type Config struct {
 	DSN, CoreDSN       string
 	MaxConns, MinConns int32
+	// Role, when set, is selected as the session role on every pooled
+	// connection. The repair procedure sets it to RepairRole; the serving
+	// store leaves it empty.
+	Role string
 }
+
+// RepairRole is the non-login PostgreSQL role for the chat-unrouted-repair
+// operator procedure (AGENTUX-023). It reads the repair predicate tables
+// and deletes only the malformed conversation and its persona channel
+// policy; the login behind the DSN only needs membership.
+const RepairRole = "hcmnext_chat_repair"
+
 type Store struct {
 	pool         *pgxadapter.Pool
 	trustedGuard TrustedContentGuard
@@ -153,7 +164,11 @@ func New(ctx context.Context, cfg Config) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := pgxadapter.NewPool(ctx, dsn, nil)
+	var runtimeParams map[string]string
+	if strings.TrimSpace(cfg.Role) != "" {
+		runtimeParams = map[string]string{"role": strings.TrimSpace(cfg.Role)}
+	}
+	p, err := pgxadapter.NewPool(ctx, dsn, runtimeParams)
 	if err != nil {
 		return nil, err
 	}
@@ -706,11 +721,12 @@ func (s *Store) RepairUnroutedDirectConversation(ctx context.Context, tenantID, 
 		if unexpectedAuthority != 0 {
 			return chat.ErrConflict
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM chat_persona_channel_policy WHERE tenant_id=$1 AND conversation_id=$2`, tenantID, conversationID); err != nil {
-			return err
-		}
-		deleted, err := tx.Exec(ctx, `DELETE FROM chat_conversation WHERE tenant_id=$1 AND id=$2`, tenantID, conversationID)
-		if err != nil {
+		// Removal runs in the SECURITY DEFINER repair function (AGENTUX-023):
+		// constraint checks on every table with a foreign key into the
+		// conversation run as the function owner, so the repair role needs
+		// no grants beyond its predicate reads, its row lock and EXECUTE.
+		var deleted int64
+		if err := tx.QueryRow(ctx, `SELECT chat_repair_delete_conversation($1,$2)`, tenantID, conversationID).Scan(&deleted); err != nil {
 			return err
 		}
 		if deleted != 1 {
