@@ -299,24 +299,14 @@ func TestTodo_AGENTUX_021_Integration(t *testing.T) {
 
 	pin := agentskills.SkillPin{ID: "skill.people.read", Version: 2, Digest: "digest-v2"}
 	persona := agentUserCatalogPersona(t, "people-coach", "People Coach", "agent.self_service", pin)
-	personaID := persona.Profile.PersonaID
-	profile, err := json.Marshal(persona.Profile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	policy, err := json.Marshal(agentpersonastore.ChannelPolicy{PlacementClass: "PRIVATE", MaxTier: "T0", AllowedDataClasses: []string{"WORKFORCE"}, AlwaysPrivate: true, AllowedChannelClasses: []agentpersonastore.ConversationClass{agentpersonastore.ConversationPrivate}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	db.Exec(t, `INSERT INTO persona_versions (tenant_id,persona_id,version,agent_version,handle,display_name,profile,content_digest,created_at) VALUES ($1,$2,1,'agent-v1','people-coach','People Coach',$3::jsonb,$4,now())`, tenantUUID, personaID, string(profile), persona.Digest)
-	db.Exec(t, `INSERT INTO persona_owners (tenant_id,persona_id,owner_role,principal_id,assigned_by,assigned_at) VALUES ($1,$2,'BUSINESS_OWNER','owner','admin',now())`, tenantUUID, personaID)
-	db.Exec(t, `INSERT INTO persona_lifecycle_events (tenant_id,event_id,persona_id,persona_version,from_state,to_state,reason,actor_id,occurred_at,profile_digest,review_digest,reviewer_id,evaluation_digest,evaluation_profile_digest,evaluation_suite_digest) VALUES ($1,'publish-v1',$2,1,'IN_REVIEW','PUBLISHED','reviewed','reviewer',now(),$3,'sha256:review','reviewer','sha256:run',$3,'sha256:suite')`, tenantUUID, personaID, persona.Digest)
-	for _, room := range []string{"general", "dm"} {
-		db.Exec(t, `INSERT INTO persona_installations (tenant_id,installation_id,persona_id,persona_version,conversation_id,conversation_class,installer_id,channel_policy,state,revision,revocation_epoch,created_at,updated_at) VALUES ($1,$2,$3,1,$4,'PRIVATE','admin',$5::jsonb,'ACTIVE',1,1,now(),now())`, tenantUUID, "install-"+room, personaID, room, string(policy))
-	}
-	if err := scoped.RegisterPersonaChatIdentity(ctx, agentReachAgent, personaID, time.Now().UTC()); err != nil {
-		t.Fatal(err)
-	}
+	privatePolicy := agentpersonastore.ChannelPolicy{PlacementClass: "PRIVATE", MaxTier: "T0", AllowedDataClasses: []string{"WORKFORCE"}, AlwaysPrivate: true, AllowedChannelClasses: []agentpersonastore.ConversationClass{agentpersonastore.ConversationPrivate}}
+	agentux025SeedPublishedPersona(t, db, tenantUUID, scoped, time.Now().UTC(), agentux025SeedConfig{
+		Persona: persona, AgentVersion: "agent-v1", Owner: "owner", AssignedBy: "admin", Handle: agentReachAgent,
+		Installations: []agentux025SeedInstallation{
+			{ID: "install-general", Conversation: "general", Class: "PRIVATE", Policy: privatePolicy},
+			{ID: "install-dm", Conversation: "dm", Class: "PRIVATE", Policy: privatePolicy},
+		},
+	})
 
 	directory := agentReachDirectory()
 	source := &DatabasePersonaAudienceSource{Chat: agentReachChat(), Installations: personaInstallationStore{store: personas}, Directory: directory}

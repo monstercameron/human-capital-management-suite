@@ -4,10 +4,16 @@ import "testing"
 
 // The four tests below are the named tests of AGENTUX-025. Each runs the
 // existing proofs of the mention path that cover its clause, under one name, so
-// the composed path is checked wherever the todo's tests are run. What they do
-// not cover is said in the lane report: there is not yet one regression test
-// per hand fix of the 2026-10-01 review cell, and no run of the path under
-// separated database roles.
+// the composed path is checked wherever the todo's tests are run. Every hand
+// fix of the 2026-10-01 review cell has its own regression test: most in the
+// AGENTUX_SPEED_R and AGENTUX_PATH_T series, the last three (mention-lease
+// acquisition, re-issued lease matching, delivered-reply recheck) in
+// agentux025_regression_test.go, and the served mention path runs under
+// separated database roles in
+// TestTodo_AGENTUX_025_Integration_SeparatedRoles. The AGENTUX-005 demo
+// preparation shares the same production wiring functions but keeps its
+// prep-specific setup: it tests the preparation itself, and it only runs
+// where HCMNEXT_TEST_DATABASE_URL names a shared PostgreSQL.
 
 // TestTodo_AGENTUX_025: a mention is carried from the committed post to one
 // delivered answer. The post is committed before the run starts, one post
@@ -24,6 +30,9 @@ func TestTodo_AGENTUX_025(t *testing.T) {
 		s15Proof{"the served assembly answers a mention and a direct question", TestTodo_AGENTUX_075_Integration},
 		s15Proof{"a direct conversation needs no typed mention", TestAgentUXR5Srv_DirectAgentInvocation},
 		s15Proof{"the current policy bounds the installed one", TestTodo_AGENTUX_025_EffectivePolicyIntersectsCurrentCeiling},
+		s15Proof{"a mention run acquires its resource lease from the request identity", TestTodo_AGENTUX_025_MentionRunAcquiresResourceLease},
+		s15Proof{"a re-issued security lease matches by its bindings, not its issue time", TestTodo_AGENTUX_025_ReissuedLeaseMatchesByBindings},
+		s15Proof{"the final checkpoint skips the audience its own reply had changed", TestTodo_AGENTUX_025_RecheckSkipsDeliveredReply},
 	)
 }
 
@@ -39,6 +48,7 @@ func TestTodo_AGENTUX_025_Integration(t *testing.T) {
 		s15Proof{"an instant model answers within the bound", TestTodo_AGENTUX_028_Integration},
 		s15Proof{"one stored answer in the direct conversation", TestTodo_AGENTUX_038_Integration},
 		s15Proof{"the direct conversation has its policies", TestTodo_AGENTUX_025_PersonaDMProvisionerCreatesAndRepairsPolicies},
+		s15Proof{"the served mention runs under separated database roles, search then answer", TestTodo_AGENTUX_025_Integration_SeparatedRoles},
 	)
 }
 
@@ -62,6 +72,9 @@ func TestTodo_AGENTUX_025_Fault(t *testing.T) {
 		s15Proof{"a failure is typed and carries no cause text", TestPersonaRunExecutor_FailureIsTypedWithoutLeakingCause},
 		s15Proof{"a terminal failure is not retried", TestPersonaRunExecutor_TerminalFailuresAreNotRetryable},
 		s15Proof{"an interrupted preparation", TestTodo_AGENTUX_005_Fault},
+		s15Proof{"a lease that cannot be acquired fails the model call", TestTodo_AGENTUX_025_MentionRunAcquiresResourceLease},
+		s15Proof{"rotated lease bindings are refused", TestTodo_AGENTUX_025_ReissuedLeaseMatchesByBindings},
+		s15Proof{"an undelivered checkpoint still refuses on changed authority", TestTodo_AGENTUX_025_RecheckSkipsDeliveredReply},
 	)
 }
 
