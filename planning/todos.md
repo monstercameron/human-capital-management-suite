@@ -31625,7 +31625,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** one audience evaluator shared with `AGENT-026` and chat sharing checks.
   - **Refs:** `internal/collaboration/chatrecipient`, `internal/collaboration/chatreferences`, `AGENTP-001` record.
 
-- [ ] `AGENTP-013` **[PHASE_3][SOL_HIGH] Let the invoker share a private persona result to the thread as their own confirmed post after a fresh audience check.**
+- [x] `AGENTP-013` **[PHASE_3][SOL_HIGH] Let the invoker share a private persona result to the thread as their own confirmed post after a fresh audience check.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTP_013` passed in `internal/agentdeliver`, `internal/collaboration/chatrecipient`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-012`, `AGENT2-006`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.PRIVACY,BI.SECURITY; DIRECT=none; WHY=people need to share useful answers with the room, but sharing is the invoker's own communication act and must not bypass the audience floor`.
   - **TEST:** `TestTodo_AGENTP_013`.
@@ -31635,7 +31636,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the `CHAT-030` sharing and disclosure checks.
   - **Refs:** `internal/humanwork/chatui`, `AGENTP-001` record.
 
-- [ ] `AGENTP-014` **[PHASE_3][SOL_HIGH] Render invoker-only, digest-bound confirmation and approval cards for T2 to T4 persona steps in chat.**
+- [x] `AGENTP-014` **[PHASE_3][SOL_HIGH] Render invoker-only, digest-bound confirmation and approval cards for T2 to T4 persona steps in chat.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTP_014` passed in `internal/agentapproval`, `internal/humanwork/chatui`, `internal/humanwork/productui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-011`, `AGENT2-006`, `CHAT-041`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.WORK,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=writes proposed in a room must be approved by the person the persona serves, on exactly what will happen, and nowhere else in the room`.
   - **TEST:** `TestTodo_AGENTP_014`.
@@ -31688,7 +31690,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** reuse the agent access admin components and effective-access preview panel.
   - **Refs:** `internal/humanwork/productui/agent_access_admin.go`, `tools/uxqual/cmd/journeywasm`, `AGENTP-001` record.
 
-- [ ] `AGENTP-019` **[PHASE_3][TERRA] Show only invocable personas in @mention autocomplete and a persona profile card with purpose, skills, data reach and where replies go.**
+- [x] `AGENTP-019` **[PHASE_3][TERRA] Show only invocable personas in @mention autocomplete and a persona profile card with purpose, skills, data reach and where replies go.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTP_019` + 7 surface/audience/governance variants passed in `internal/application`, `internal/humanwork/chatui`, `internal/humanwork/productui`, `internal/transport/personachat`, `tools/uxqual/personachat`, `internal/data/agentpersonastore`, `tools/uxqual/cmd/journeywasm`; stale sends assertion aligned to reattempt behavior (commit e93053ae). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-005`, `AGENTP-008`, `AGENTP-012`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=members need to find the right persona for a job and understand what it will do and who will see its answer before they mention it`.
   - **TEST:** `TestTodo_AGENTP_019`.
@@ -31741,7 +31744,8 @@ This section plans agent personas: administrator-defined agents built for one jo
   - **REFACTOR:** register the templates through `AGENT-013` template versioning.
   - **Refs:** [business intent catalog](specs/business-intent-catalog.md), `internal/agentskills/registry.go`, `AGENTP-001` record.
 
-- [ ] `AGENTP-024` **[CONFORMANCE][SOL_HIGH] Prove a Comp Analyst mention in a mixed-audience manager channel end to end.**
+- [x] `AGENTP-024` **[CONFORMANCE][SOL_HIGH] Prove a Comp Analyst mention in a mixed-audience manager channel end to end.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTP_024` passed in `tools/conformance/agentredteam` (full package green). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-012`, `AGENTP-013`, `AGENTP-014`, `AGENTP-017`, `AGENTP-019`, `AGENTP-020`, `AGENTP-023`.
   - **INTENT CONTEXT:** `ROLE=CONFORMANCE; SETS=BI.PEOPLE,BI.REWARDS,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=one real journey proves mention, authority intersection, audience floor, private delivery, sharing, approval and audit together`.
   - **TEST:** `TestTodo_AGENTP_024`.
@@ -31821,7 +31825,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** the same reference type and validator as `AGENTDOC-002`.
   - **Refs:** `schema/proto/hcmnext/agent/v1`, `internal/transport/agents`, `internal/agentrun`, `AGENTDOC-001` record.
 
-- [ ] `AGENTDOC-005` **[PHASE_3][TERRA] Let a persona administrator add reference documents next to the instructions.**
+- [x] `AGENTDOC-005` **[PHASE_3][TERRA] Let a persona administrator add reference documents next to the instructions.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTDOC_005` (+Browser, +Security, +ConfigurableRequestBounds, +2 journeywasm variants) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-002`, `AGENTP-018`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=the person who shapes a persona needs to pick its reference documents by title, see what is pinned and understand who will be able to read them`.
   - **TEST:** `TestTodo_AGENTDOC_005`.
@@ -31831,7 +31836,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** reuse the documentation hub suggest component used by chat document chips.
   - **Refs:** `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record.
 
-- [ ] `AGENTDOC-006` **[PHASE_3][TERRA] Let a user attach hub documents to an agent request from the Agents composer.**
+- [x] `AGENTDOC-006` **[PHASE_3][TERRA] Let a user attach hub documents to an agent request from the Agents composer.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTDOC_006` (+Browser, +ClientRequest) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-004`, `AGENT2-016`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.DOCUMENTS; DIRECT=none; WHY=a user should point an agent at the documents to work from without pasting them`.
   - **TEST:** `TestTodo_AGENTDOC_006`.
@@ -31884,7 +31890,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one humanizing vocabulary shared with the Agents page and chat persona cards.
   - **Refs:** `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`, `internal/humanwork/productui/agent_access_admin.go`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `AGENTUX-004` **[PHASE_3][SOL_HIGH] Let the chat page load the personas a user may mention.**
+- [x] `AGENTUX-004` **[PHASE_3][SOL_HIGH] Let the chat page load the personas a user may mention.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_004` (+Integration) passed in `internal/humanwork/productui`, `internal/humanwork/workspace`, `internal/transport/personachat`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-019`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.SECURITY,BI.INTELLIGENCE; DIRECT=none; WHY=persona mention autocomplete cannot work while the page's own content security policy blocks the lookup`.
   - **TEST:** `TestTodo_AGENTUX_004`.
@@ -31894,7 +31901,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** derive admitted paths from the transport package's route constants so a renamed route cannot drift from the policy.
   - **Refs:** `internal/humanwork/workspace/csp.go`, `internal/transport/personachat/contracts.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `AGENTUX-005` **[PHASE_3][SOL_HIGH] Compose persona invocation in the local-dev cell and provide one published, installed demo persona.**
+- [x] `AGENTUX-005` **[PHASE_3][SOL_HIGH] Compose persona invocation in the local-dev cell and provide one published, installed demo persona.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_005` (+Browser new, +Security, +Fault, +Recovery, +Audience, +DirectConversationPolicy, +ModelRoute) passed in `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTP-006`, `AGENTP-007`, `AGENTP-008`, `AGENTP-021`, `AGENTP-023`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.INTELLIGENCE,BI.EXPERIENCE,BI.SECURITY; DIRECT=none; WHY=the agent experience cannot be reviewed or demonstrated while no persona can be invoked from the browser`.
   - **TEST:** `TestTodo_AGENTUX_005`.
@@ -31959,7 +31967,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one refusal component for every workspace page.
   - **Refs:** `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/registry.go`, `internal/humanwork/productui/agentux_ops_page.go`.
 
-- [ ] `AGENTUX-011` **[PHASE_3][TERRA] Make the agent task detail explain what happened and offer the next step.**
+- [x] `AGENTUX-011` **[PHASE_3][TERRA] Make the agent task detail explain what happened and offer the next step.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_011` (+Browser, +RetryPolicyAndStepTiming, +PlanConfirmation, +DefaultTaskTab, +SharedChatTaskSteps, +PollingStopConditions) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-001`, `AGENTUX-008`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a user who opens a task wants the answer or the reason it failed and what to do, in their words`.
   - **TEST:** `TestTodo_AGENTUX_011`.
@@ -32013,7 +32022,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** share the agent naming with the Personas page vocabulary.
   - **Refs:** `internal/humanwork/productui/agentux_ops_page.go`, `internal/humanwork/productui/agent_controls_page.go`, `internal/humanwork/productui/agent_rollout_portable.go`, `tools/uxqual/cmd/journeywasm`.
 
-- [ ] `AGENTUX-016` **[PHASE_3][SOL_HIGH] Do not read the user's worker record for a request that needs no data.**
+- [x] `AGENTUX-016` **[PHASE_3][SOL_HIGH] Do not read the user's worker record for a request that needs no data.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_016` (+Golden, +Integration, +PlannerDefaultsToNoData, +Security) passed in `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENT2-010`, `AGENT2-021`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.PRIVACY,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=minimum-necessary reading applies to an agent's own plan: a general question must not cause a personnel record read`.
   - **TEST:** `TestTodo_AGENTUX_016`.
@@ -32023,7 +32033,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** derive plan steps from declared data needs rather than a fixed two-step template.
   - **Refs:** `internal/agentsystem`, `internal/application/agent_platform_starter.go`, `internal/agentrun`.
 
-- [ ] `AGENTUX-017` **[PHASE_3][LUNA] Give the agent task detail a readable heading and one step layout.**
+- [x] `AGENTUX-017` **[PHASE_3][LUNA] Give the agent task detail a readable heading and one step layout.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_017` (+Browser) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-011`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE; DIRECT=none; WHY=a three-line truncated headline and orphaned step numbers make a finished answer hard to read`.
   - **TEST:** `TestTodo_AGENTUX_017`.
@@ -32055,7 +32066,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** shared status pill, shared content measure and shared empty-state component across the agent surfaces.
   - **Refs:** `internal/humanwork/productui`, `internal/humanwork/chatui`, `internal/humanwork/workspace/product_shell.go`.
 
-- [ ] `AGENTUX-020` **[PHASE_3][SOL_HIGH] Group agent tasks by their real state and open every listed task.**
+- [x] `AGENTUX-020` **[PHASE_3][SOL_HIGH] Group agent tasks by their real state and open every listed task.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_020` (+Integration) passed in `internal/humanwork/productui`, `internal/application`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-008`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE; DIRECT=none; WHY=a task list that files completed answers under Failed and cannot open a listed task makes every result doubtful`.
   - **TEST:** `TestTodo_AGENTUX_020`.
@@ -32065,7 +32077,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one state mapping from stored state to group, shared by server projection and page.
   - **Refs:** `internal/transport/agents`, `internal/agentrun`, `tools/uxqual/journeyclient/uxblind_122_agents.go`, `internal/humanwork/productui/agents_page.go`.
 
-- [ ] `AGENTUX-021` **[PHASE_3][SOL_HIGH] Offer a published, placed agent on the Agents page and in the mention menu, and never list it as a person.**
+- [x] `AGENTUX-021` **[PHASE_3][SOL_HIGH] Offer a published, placed agent on the Agents page and in the mention menu, and never list it as a person.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_021` (+Integration, +PlacementNames, +Security) passed in `internal/application`, `internal/humanwork/productui`, `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-005`, `AGENTUX-007`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.INTELLIGENCE,BI.SECURITY; DIRECT=none; WHY=publication and placement that do not make the agent reachable leave the whole feature invisible`.
   - **TEST:** `TestTodo_AGENTUX_021`.
@@ -32075,7 +32088,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one availability reader for the Agents page, the mention lookup and task admission.
   - **Refs:** `internal/application/agent_available_personas.go`, `internal/transport/personachat`, `internal/humanwork/chatui/mention.go`.
 
-- [ ] `AGENTUX-022` **[PHASE_3][SOL_HIGH] Keep Agent setup available when one part of its snapshot fails.**
+- [x] `AGENTUX-022` **[PHASE_3][SOL_HIGH] Keep Agent setup available when one part of its snapshot fails.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_022` (+Browser, new) passed in `internal/humanwork/productui`; `TestTodo_AGENTUX_022_Integration` passed in `internal/application`; added missing INTEGRATION + BROWSER pins. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-003`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.OPERATIONS,BI.INTELLIGENCE; DIRECT=none; WHY=the administration page went down twice in one evening because a single conversation or preview could not be resolved`.
   - **TEST:** `TestTodo_AGENTUX_022`.
@@ -33057,7 +33071,8 @@ This section holds the owner-requested research of 2026-10-01: every multi-step 
 
 This section holds the owner request of 2026-10-01: a way to censor language, a way to add custom filters, a way for administrators to delete messages, a way to change the status of a channel with that power gated by role, a way to save a message for later, and tables that stay fast at large message volumes. What exists today (read 2026-10-01): the chat service has a content policy port (`SetContentPolicy`) that nothing in the served composition sets; `DeletePost` is the author's alone and marks the row `tombstoned`; report and moderation-action tables exist in the record store and no page uses them; a conversation has a `lifecycle` column and the store only ever tests it for `ACTIVE`; pins are shared with the channel and there is nothing private to one person; `chat_post` is one unpartitioned table with a full-text index, and unread counts are a bounded scan. The same rules as sections 94 and 95 apply: every list and record added here is searchable under `CHATSEARCH-001`, every kind (filter, action, status) is a registry entry and not a switch statement, and every decision made about a person's message is explained to that person.
 
-- [ ] `CHATMOD-001` **[DESIGN][SOL_HIGH] Record the decisions for language filters, removal by administrators, and channel status.**
+- [x] `CHATMOD-001` **[DESIGN][SOL_HIGH] Record the decisions for language filters, removal by administrators, and channel status.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATMOD_001` passed in `internal/collaboration/chat`; new `chatmod001_decisions.go` + golden; RED was undefined ModerationDecisions. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATSEARCH-001`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a way to censor language on the chat ... custom filters ... admins to delete messages ... change the status of channels and rbac gate that"); WHY=moderation in a workplace product touches employment records, legal holds and trust; the choices must be made once and written down`.
   - **TEST:** `TestTodo_CHATMOD_001`.
@@ -33079,7 +33094,8 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **REFACTOR:** the composer's client-side hint uses the same compiled lists the server uses; the server remains the decision.
   - **Refs:** `internal/collaboration/chat/content_policy.go`, `internal/collaboration/chat/service.go`, `internal/application/chat_authority.go`, `internal/humanwork/chatui`.
 
-- [ ] `CHATMOD-003` **[PHASE_3][SOL_HIGH] Let administrators write their own filters, and make filter kinds and actions extensible.**
+- [x] `CHATMOD-003` **[PHASE_3][SOL_HIGH] Let administrators write their own filters, and make filter kinds and actions extensible.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATMOD_003` passed in `internal/collaboration/chatfilter`, `internal/collaboration/chat`, `internal/application`, `internal/data/chatstore`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATMOD-002`, `CHATGATE-008`.
   - **INTENT CONTEXT:** `ROLE=SUBSTRATE; SETS=BI.COLLABORATION,BI.SECURITY,BI.PRIVACY; DIRECT=owner request 2026-10-01 ("a way to add custom filters"); WHY=every workplace has its own words: project code names, client names, account-number shapes`.
   - **TEST:** `TestTodo_CHATMOD_003`.
@@ -33089,7 +33105,8 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **REFACTOR:** the built-in lists of `CHATMOD-002` become ordinary definitions of the word-list kind owned by the product.
   - **Refs:** `CHATMOD-002`, `internal/collaboration/chat/content_policy.go`, `internal/data/chatstore`, `internal/transport`.
 
-- [ ] `CHATMOD-004` **[PHASE_3][SOL_HIGH] Let an administrator remove a message, with a reason, a trace and a way back.**
+- [x] `CHATMOD-004` **[PHASE_3][SOL_HIGH] Let an administrator remove a message, with a reason, a trace and a way back.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATMOD_004` passed in `internal/collaboration/chat`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATMOD-001`.
   - **INTENT CONTEXT:** `ROLE=DOMAIN_SUPPORT; SETS=BI.COLLABORATION,BI.SECURITY,BI.REGULATORY; DIRECT=owner request 2026-10-01 ("a way for admins to delete messages"); WHY=today only the author can delete, so a harmful message stays until its author chooses otherwise`.
   - **TEST:** `TestTodo_CHATMOD_004`.
@@ -33099,7 +33116,8 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **REFACTOR:** the author's own delete and the administrator's removal share one tombstone presentation with different wording.
   - **Refs:** `internal/collaboration/chat/service.go` (`DeletePost`, `mutatePost`), `internal/data/chatstore/chat_026_tombstone_test.go`, `internal/data/chatrecordstore/store.go`, `internal/application/chat_audit.go`, `internal/humanwork/chatui`.
 
-- [ ] `CHATMOD-005` **[PHASE_3][SOL_HIGH] Give moderators one queue: reports, filter hits, removals and appeals.**
+- [x] `CHATMOD-005` **[PHASE_3][SOL_HIGH] Give moderators one queue: reports, filter hits, removals and appeals.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATMOD_005`, `TestTodo_CHATMOD_005_Integration`, `TestTodo_CHATMOD_005_Security` (+Served, +PermissionsPage) passed in `internal/collaboration/chat`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/data/chatrecordstore`, `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATMOD-003`, `CHATMOD-004`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.SECURITY,BI.EXPERIENCE; DIRECT=none; WHY=report and action tables exist with no page, so a report today goes nowhere a person looks`.
   - **TEST:** `TestTodo_CHATMOD_005`.
@@ -33121,7 +33139,8 @@ This section holds the owner request of 2026-10-01: a way to censor language, a 
   - **REFACTOR:** the existing `lifecycle` column carries the status; `ACTIVE` reads as Open.
   - **Refs:** `internal/collaboration/chat/contracts.go`, `internal/collaboration/chat/service.go` (`authorize`), `internal/collaboration/chat/group_lifecycle.go`, `internal/collaboration/chatpolicy`, `internal/data/chatstore/store.go`.
 
-- [ ] `CHATSTATE-002` **[PHASE_3][TERRA] Show a channel's status wherever the channel appears, and make changing it obvious and safe.**
+- [x] `CHATSTATE-002` **[PHASE_3][TERRA] Show a channel's status wherever the channel appears, and make changing it obvious and safe.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATSTATE_002` passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATSTATE-001`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner request 2026-10-01; WHY=a rule a person meets only as a failed send is a bad rule`.
   - **TEST:** `TestTodo_CHATSTATE_002`.

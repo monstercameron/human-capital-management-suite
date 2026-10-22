@@ -1642,7 +1642,7 @@
     "refs": "[Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [incident management](specs/incident-management.md)",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_039`, `TestTodo_AGENT_039_Conformance`, `TestTodo_AGENT_039_Golden`, `TestTodo_AGENT_039_Race`, `TestTodo_AGENT_039_Security` pass in `internal/agentsecurity` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agentsecurity\t3.867s; --- PASS: TestTodo_AGENT_039_Conformance (0.01s); --- PASS: TestTodo_AGENT_039_Golden (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The kill switch and evaluator are library types; their served use is through persona leases, suspension and the publication gate, which are tested under their own todos. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_039`, `TestTodo_AGENT_039_Conformance`, `TestTodo_AGENT_039_Golden`, `TestTodo_AGENT_039_Race`, `TestTodo_AGENT_039_Security` pass in `internal/agentsecurity` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/agentsecurity 3.867s; --- PASS: TestTodo_AGENT_039_Conformance (0.01s); --- PASS: TestTodo_AGENT_039_Golden (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The kill switch and evaluator are library types; their served use is through persona leases, suspension and the publication gate, which are tested under their own todos. CI remains the run evidence"
   },
   {
     "id": "AGENT-040",
@@ -1670,7 +1670,7 @@
     "refs": "[Agent plan](specs/customer-agent-creation-business-context-and-chat.md), [records](specs/records-management-and-disposition.md)",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_040`, `TestTodo_AGENT_040_Golden`, `TestTodo_AGENT_040_Integration`, `TestTodo_AGENT_040_Recovery`, `TestTodo_AGENT_040_Security` pass in `internal/agentsystem/memory`, `internal/agentsystem/memory, internal/data/agentmemorystore`, `internal/data/agentmemorystore` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agentsystem/memory\t0.966s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/agentmemorystore\t7.103s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agentsystem\t0.400s (TestTodo_AGENT_040_SecurityTaskMemoryCurrentAuthority, _SecurityKillSwitchVoidsApproval)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_040`, `TestTodo_AGENT_040_Golden`, `TestTodo_AGENT_040_Integration`, `TestTodo_AGENT_040_Recovery`, `TestTodo_AGENT_040_Security` pass in `internal/agentsystem/memory`, `internal/agentsystem/memory, internal/data/agentmemorystore`, `internal/data/agentmemorystore` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/agentsystem/memory 0.966s; ok github.com/monstercameron/human-capital-management-suite/internal/data/agentmemorystore 7.103s; ok github.com/monstercameron/human-capital-management-suite/internal/agentsystem 0.400s (TestTodo_AGENT_040_SecurityTaskMemoryCurrentAuthority, \\_SecurityKillSwitchVoidsApproval)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
   },
   {
     "id": "AGENT-041",
@@ -1776,7 +1776,7 @@
     "refs": "[Agent plan](specs/customer-agent-creation-business-context-and-chat.md)",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_044`, `TestTodo_AGENT_044_Fault`, `TestTodo_AGENT_044_Golden`, `TestTodo_AGENT_044_Integration`, `TestTodo_AGENT_044_Race`, `TestTodo_AGENT_044_Recovery`, `TestTodo_AGENT_044_Security` pass in `internal/agentsystem/rollout`, `internal/application`, `internal/data/agentpersonastore` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agentsystem/rollout\t0.607s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore\t31.915s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT_044`, `TestTodo_AGENT_044_Fault`, `TestTodo_AGENT_044_Golden`, `TestTodo_AGENT_044_Integration`, `TestTodo_AGENT_044_Race`, `TestTodo_AGENT_044_Recovery`, `TestTodo_AGENT_044_Security` pass in `internal/agentsystem/rollout`, `internal/application`, `internal/data/agentpersonastore` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/agentsystem/rollout 0.607s; ok github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore 31.915s; ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
   },
   {
     "id": "AGENT-045",
@@ -2690,7 +2690,7 @@
     "refs": "`internal/application/agent_directory_db.go`, `internal/application/agent_discovery_context.go`, `AGENT2-005`, `AGENTP-019`",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_027`, `TestTodo_AGENT2_027_Integration`, `TestTodo_AGENT2_027_Race`, `TestTodo_AGENT2_027_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s; --- PASS: TestTodo_AGENT2_027_Integration (20.25s); --- PASS: TestTodo_AGENT2_027_Security (7.14s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_027`, `TestTodo_AGENT2_027_Integration`, `TestTodo_AGENT2_027_Race`, `TestTodo_AGENT2_027_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s; --- PASS: TestTodo_AGENT2_027_Integration (20.25s); --- PASS: TestTodo_AGENT2_027_Security (7.14s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
   },
   {
     "id": "AGENT2-028",
@@ -2738,7 +2738,7 @@
     "refs": "`internal/application/persona_audience_directory_db.go`, `internal/application/agent_directory_db.go`, `UXBLIND-122`",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_029`, `TestTodo_AGENT2_029_Integration`, `TestTodo_AGENT2_029_Race`, `TestTodo_AGENT2_029_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s; --- PASS: TestTodo_AGENT2_029 (0.00s); --- PASS: TestTodo_AGENT2_029_Integration). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENT2_029`, `TestTodo_AGENT2_029_Integration`, `TestTodo_AGENT2_029_Race`, `TestTodo_AGENT2_029_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s; --- PASS: TestTodo_AGENT2_029 (0.00s); --- PASS: TestTodo_AGENT2_029_Integration). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
   },
   {
     "id": "AGENTCOST-001",
@@ -2953,7 +2953,7 @@
     "refs": "`internal/application`, `internal/agentsecurity`, [Documentation hub](specs/channel-documentation-hub.md), `AGENTDOC-001` record",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTDOC_003`, `TestTodo_AGENTDOC_003_Golden`, `TestTodo_AGENTDOC_003_Integration`, `TestTodo_AGENTDOC_003_Mutation`, `TestTodo_AGENTDOC_003_Property`, `TestTodo_AGENTDOC_003_Security` pass in `internal/application`, `internal/application, internal/agentdocref` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agentdocref\t0.579s; --- PASS: TestTodo_AGENTDOC_003 / _Golden / _Security / _Property / _Mutation / _Integration (4.05s) / _CitationsUseExistingGroundingPath / _MissingDocumentRuntimeProducesGenericOmission). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTDOC_003`, `TestTodo_AGENTDOC_003_Golden`, `TestTodo_AGENTDOC_003_Integration`, `TestTodo_AGENTDOC_003_Mutation`, `TestTodo_AGENTDOC_003_Property`, `TestTodo_AGENTDOC_003_Security` pass in `internal/application`, `internal/application, internal/agentdocref` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s; ok github.com/monstercameron/human-capital-management-suite/internal/agentdocref 0.579s; --- PASS: TestTodo_AGENTDOC_003 / \\_Golden / \\_Security / \\_Property / \\_Mutation / \\_Integration (4.05s) / \\_CitationsUseExistingGroundingPath / \\_MissingDocumentRuntimeProducesGenericOmission). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. CI remains the run evidence"
   },
   {
     "id": "AGENTDOC-004",
@@ -3001,7 +3001,8 @@
     "refactor": "reuse the documentation hub suggest component used by chat document chips",
     "refs": "`internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTDOC_005` (+Browser, +Security, +ConfigurableRequestBounds, +2 journeywasm variants) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTDOC-006",
@@ -3023,7 +3024,8 @@
     "refactor": "one picker component for the composer and the persona editor",
     "refs": "`internal/humanwork/productui/agents_page.go`, `tools/uxqual/cmd/journeywasm`, `AGENTDOC-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTDOC_006` (+Browser, +ClientRequest) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTDOC-007",
@@ -3428,7 +3430,8 @@
     "refactor": "reuse the `CHAT-030` sharing and disclosure checks",
     "refs": "`internal/humanwork/chatui`, `AGENTP-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTP_013` passed in `internal/agentdeliver`, `internal/collaboration/chatrecipient`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTP-014",
@@ -3455,7 +3458,8 @@
     "refactor": "chat cards are a rendering of `AGENT2-006` AgentActionApproval, not a second approval model",
     "refs": "`internal/collaboration/chatapps/chatapps.go`, `internal/agentsecurity/action_compiler.go`, `AGENTP-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTP_014` passed in `internal/agentapproval`, `internal/humanwork/chatui`, `internal/humanwork/productui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTP-015",
@@ -3588,7 +3592,8 @@
     "refactor": "reuse the existing mention menu and state store",
     "refs": "`internal/humanwork/chatui/mention.go`, `internal/humanwork/productui/agents_page.go`, `AGENTP-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTP_019` + 7 surface/audience/governance variants passed in `internal/application`, `internal/humanwork/chatui`, `internal/humanwork/productui`, `internal/transport/personachat`, `tools/uxqual/personachat`, `internal/data/agentpersonastore`, `tools/uxqual/cmd/journeywasm`; stale sends assertion aligned to reattempt behavior (commit e93053ae). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTP-020",
@@ -3698,7 +3703,7 @@
     "refs": "[business intent catalog](specs/business-intent-catalog.md), `internal/agentskills/registry.go`, `AGENTP-001` record",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_023`, `TestTodo_AGENTP_023_Golden`, `TestTodo_AGENTP_023_Security` pass in `internal/agenttemplate, tools/policy/agentpersonas` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/agenttemplate\t0.479s; ok  \tgithub.com/monstercameron/human-capital-management-suite/tools/policy/agentpersonas\t0.740s; ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s (TestTodo_AGENTP_023_* provisioning, draft builder, native schedule and compensation tests)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The dependency AGENT-013 (a production caller for the template registry) is still open. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_023`, `TestTodo_AGENTP_023_Golden`, `TestTodo_AGENTP_023_Security` pass in `internal/agenttemplate, tools/policy/agentpersonas` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/agenttemplate 0.479s; ok github.com/monstercameron/human-capital-management-suite/tools/policy/agentpersonas 0.740s; ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s (TestTodo*AGENTP_023*\\* provisioning, draft builder, native schedule and compensation tests)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The dependency AGENT-013 (a production caller for the template registry) is still open. CI remains the run evidence"
   },
   {
     "id": "AGENTP-024",
@@ -3728,7 +3733,8 @@
     "refactor": "publish the scenario as the reference example in the persona catalog onboarding",
     "refs": "`tools/uxqual/cmd/journeywasm`, `internal/humanwork/productui/chat_page.go`, `AGENTP-001` record",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTP_024` passed in `tools/conformance/agentredteam` (full package green). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTP-025",
@@ -3778,7 +3784,7 @@
     "refs": "`internal/application/persona_audience_source.go`, `internal/application/agent_directory_db.go`, `AGENTP-019`",
     "retired": false,
     "done": true,
-    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_026`, `TestTodo_AGENTP_026_Integration`, `TestTodo_AGENTP_026_Race`, `TestTodo_AGENTP_026_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok  \tgithub.com/monstercameron/human-capital-management-suite/internal/application\t183.717s; --- PASS: TestTodo_AGENTP_026 (0.00s); --- PASS: TestTodo_AGENTP_026_Security (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The browser half of the last clause is proved at render level; a real-browser run would need a paid model. CI remains the run evidence"
+    "evidence": "(`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment) `TestTodo_AGENTP_026`, `TestTodo_AGENTP_026_Integration`, `TestTodo_AGENTP_026_Race`, `TestTodo_AGENTP_026_Security` pass in `internal/application` (lane 12 audit, 2026-10-02: ok github.com/monstercameron/human-capital-management-suite/internal/application 183.717s; --- PASS: TestTodo_AGENTP_026 (0.00s); --- PASS: TestTodo_AGENTP_026_Security (0.00s)). Every GREEN clause was checked against the code in `.artifacts/lanes/agent-ui/audit-lane12.json`; not a page-visible change, so nothing was looked at in a browser. The browser half of the last clause is proved at render level; a real-browser run would need a paid model. CI remains the run evidence"
   },
   {
     "id": "AGENTUX-001",
@@ -3875,7 +3881,8 @@
     "refactor": "derive admitted paths from the transport package's route constants so a renamed route cannot drift from the policy",
     "refs": "`internal/humanwork/workspace/csp.go`, `internal/transport/personachat/contracts.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_004` (+Integration) passed in `internal/humanwork/productui`, `internal/humanwork/workspace`, `internal/transport/personachat`, `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-005",
@@ -3904,7 +3911,8 @@
     "refactor": "no persona-specific branch in the runtime; the preparation is data and lifecycle calls only",
     "refs": "`internal/application/serve.go`, `internal/application/persona_serve_wiring.go`, `internal/application/persona_runtime_composition.go`, `cmd/migrate`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_005` (+Browser new, +Security, +Fault, +Recovery, +Audience, +DirectConversationPolicy, +ModelRoute) passed in `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-006",
@@ -4027,7 +4035,7 @@
     "refs": "`internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/registry.go`, `internal/humanwork/productui/agentux_ops_page.go`",
     "retired": false,
     "done": true,
-    "evidence": "`TestTodo_AGENTUX_010`, `TestTodo_AGENTUX_010_Browser`, `TestTodo_AGENTUX_010_Security` exist and passed in `internal/humanwork/workspace` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence; issue #56 follow-up `TestProductProblemForbiddenFallbackIsPageSpecific` passes with `go test -count=1 -run TestProductProblemForbiddenFallbackIsPageSpecific ./internal/humanwork/workspace/` on Windows/arm64 Go 1.26.3; rendered retest is pending"
+    "evidence": "`TestTodo_AGENTUX_010`, `TestTodo_AGENTUX_010_Browser`, `TestTodo_AGENTUX_010_Security` exist and passed in `internal/humanwork/workspace` (`go test -count=1`, shared test PostgreSQL, windows/arm64 Go 1.26.3, no model key in the environment); the behaviour was looked at in the browser pane on the review server build of 2026-10-01/02. CI remains the run evidence. Follow-up for issue #56: `TestProductProblemForbiddenFallbackIsPageSpecific` passes with `go test -count=1 -run TestProductProblemForbiddenFallbackIsPageSpecific ./internal/humanwork/workspace/` on Windows/arm64 Go 1.26.3; rendered en-US/de-DE/ar retest passed against review PID 83808; issue closure remains pending"
   },
   {
     "id": "AGENTUX-011",
@@ -4049,7 +4057,8 @@
     "refactor": "share the step list with the chat task card",
     "refs": "`internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/persona_chat_task.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_011` (+Browser, +RetryPolicyAndStepTiming, +PlanConfirmation, +DefaultTaskTab, +SharedChatTaskSteps, +PollingStopConditions) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-012",
@@ -4168,7 +4177,8 @@
     "refactor": "derive plan steps from declared data needs rather than a fixed two-step template",
     "refs": "`internal/agentsystem`, `internal/application/agent_platform_starter.go`, `internal/agentrun`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_016` (+Golden, +Integration, +PlannerDefaultsToNoData, +Security) passed in `internal/application`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-017",
@@ -4189,7 +4199,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/productui/agents_page.go`, `internal/humanwork/productui/agents_styles.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_017` (+Browser) passed in `internal/humanwork/productui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-018",
@@ -4258,7 +4269,8 @@
     "refactor": "one state mapping from stored state to group, shared by server projection and page",
     "refs": "`internal/transport/agents`, `internal/agentrun`, `tools/uxqual/journeyclient/uxblind_122_agents.go`, `internal/humanwork/productui/agents_page.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_020` (+Integration) passed in `internal/humanwork/productui`, `internal/application`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-021",
@@ -4282,7 +4294,8 @@
     "refactor": "one availability reader for the Agents page, the mention lookup and task admission",
     "refs": "`internal/application/agent_available_personas.go`, `internal/transport/personachat`, `internal/humanwork/chatui/mention.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_021` (+Integration, +PlacementNames, +Security) passed in `internal/application`, `internal/humanwork/productui`, `internal/humanwork/chatui`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-022",
@@ -4305,7 +4318,8 @@
     "refactor": "one staged snapshot builder with a per-stage result type",
     "refs": "`internal/application/persona_admin_sources.go`, `internal/humanwork/workspace/product_shell.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_022` (+Browser, new) passed in `internal/humanwork/productui`; `TestTodo_AGENTUX_022_Integration` passed in `internal/application`; added missing INTEGRATION + BROWSER pins. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-023",
@@ -15582,7 +15596,8 @@
     "refactor": "none",
     "refs": "`internal/collaboration/chat/content_policy.go`, `internal/data/chatrecordstore/store.go`, `internal/data/chatstore/record_hold.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATMOD_001` passed in `internal/collaboration/chat`; new `chatmod001_decisions.go` + golden; RED was undefined ModerationDecisions. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATMOD-002",
@@ -15633,7 +15648,8 @@
     "refactor": "the built-in lists of `CHATMOD-002` become ordinary definitions of the word-list kind owned by the product",
     "refs": "`CHATMOD-002`, `internal/collaboration/chat/content_policy.go`, `internal/data/chatstore`, `internal/transport`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATMOD_003` passed in `internal/collaboration/chatfilter`, `internal/collaboration/chat`, `internal/application`, `internal/data/chatstore`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATMOD-004",
@@ -15657,7 +15673,8 @@
     "refactor": "the author's own delete and the administrator's removal share one tombstone presentation with different wording",
     "refs": "`internal/collaboration/chat/service.go` (`DeletePost`, `mutatePost`), `internal/data/chatstore/chat_026_tombstone_test.go`, `internal/data/chatrecordstore/store.go`, `internal/application/chat_audit.go`, `internal/humanwork/chatui`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATMOD_004` passed in `internal/collaboration/chat`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATMOD-005",
@@ -15681,7 +15698,8 @@
     "refactor": "none",
     "refs": "`internal/data/chatrecordstore/store.go`, `internal/humanwork/chatui/copy.go`, `internal/trust/authz`, `internal/humanwork/productui`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATMOD_005`, `TestTodo_CHATMOD_005_Integration`, `TestTodo_CHATMOD_005_Security` (+Served, +PermissionsPage) passed in `internal/collaboration/chat`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`, `internal/data/chatrecordstore`, `internal/application`, `internal/data/chatstore`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATRENDER-001",
@@ -16039,7 +16057,8 @@
     "refactor": "none",
     "refs": "`CHATSTATE-001`, `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATSTATE_002` passed in `internal/humanwork/chatui`, `tools/uxqual/cmd/journeywasm`. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATTONE-001",
@@ -62188,7 +62207,7 @@
       "PRIMARY": "TestTodo_UXBLIND_093",
       "REGRESSION": "TestTodo_UXBLIND_093_Regression"
     },
-    "red": "2026-09-28: after seeding the demo workforce in the PROMOUX-015 harness, TestTodo_PROMOUX_015, _Recovery and _Mutation fail with 'find the open await_payroll_confirmation wait: no rows in result set' — the path proposal → execute → both approvals → effective-date wait → provider confirmation now runs further than before and the payroll-confirmation signal subscription is not open when expected",
+    "red": "2026-09-28: after seeding the demo workforce in the PROMOUX-015 harness, TestTodo_PROMOUX_015, \\_Recovery and \\_Mutation fail with 'find the open await_payroll_confirmation wait: no rows in result set' — the path proposal → execute → both approvals → effective-date wait → provider confirmation now runs further than before and the payroll-confirmation signal subscription is not open when expected",
     "green": "The payroll-confirmation wait is opened deterministically after the effective-date step (or the test waits on the documented readiness signal); the three tests pass without timing sleeps",
     "refactor": "fix the shared cause, not the page",
     "refs": "`internal/application`, `internal/workflow`",
@@ -62652,7 +62671,7 @@
       "PRIMARY": "TestTodo_UXBLIND_115",
       "SECURITY": "TestTodo_UXBLIND_115_Security"
     },
-    "red": "Scan 2026-09-28 22:10 (server :8180, Walt Brennan, Ironridge, 800x732 dark): /workspace/app/workflows/history is titled 'Work History' under a 'My Work' breadcrumb (it reuses page.history.* keys); My Work shows two 'Work History' entries; the filter bar is unstyled inline text with labels running into inputs ('Search workflow historySearch history Workflow'); the table's last column is clipped ('Particip'); '1 Record' appears above and below the table; the legacy /workspace/app/history page is a dead-end card that says history moved",
+    "red": "Scan 2026-09-28 22:10 (server :8180, Walt Brennan, Ironridge, 800x732 dark): /workspace/app/workflows/history is titled 'Work History' under a 'My Work' breadcrumb (it reuses page.history.\\* keys); My Work shows two 'Work History' entries; the filter bar is unstyled inline text with labels running into inputs ('Search workflow historySearch history Workflow'); the table's last column is clipped ('Particip'); '1 Record' appears above and below the table; the legacy /workspace/app/history page is a dead-end card that says history moved",
     "green": "The page uses its own label/title/subtitle keys ('Workflow history', under Workflows); only one history entry appears in the nav; filters are a labelled responsive grid using the shared form field components; the table uses the shared DataTable with horizontal scroll and no clipped headers; the record count appears once; the legacy route redirects (303) to the canonical page with filters preserved",
     "refactor": "reuse the shared filter-bar and DataTable components",
     "refs": "`internal/humanwork/productui`",
