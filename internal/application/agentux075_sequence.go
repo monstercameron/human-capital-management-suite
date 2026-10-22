@@ -132,6 +132,9 @@ type servedPersonaQuestionReactor struct {
 	switches personaReactionSwitch
 	// chooser, when set, may pick the outcome reaction of an answered question.
 	chooser personaOutcomeEmojiChooser
+	// visibility, when set, withholds the chooser's pick from a private
+	// answer in a channel. Unset (older tests) keeps the legacy behavior.
+	visibility personaAnswerVisibility
 }
 
 // servedAgentQuestionReactions finds the chat service that can store an agent's
@@ -157,11 +160,19 @@ func servedAgentQuestionReactions(served *streamingChatService) chatcore.AgentQu
 	return nil
 }
 
-func newServedPersonaQuestionReactor(chat chatcore.AgentQuestionReactionCommitter, switches personaReactionSwitch) personaQuestionReactor {
+func newServedPersonaQuestionReactor(chat chatcore.AgentQuestionReactionCommitter, switches personaReactionSwitch, visibility personaAnswerVisibility) personaQuestionReactor {
 	if isNilPersonaOutputPort(chat) {
 		return nil
 	}
-	return servedPersonaQuestionReactor{chat: chat, switches: switches}
+	return servedPersonaQuestionReactor{chat: chat, switches: switches, chooser: personaOutcomeEmojiTable{}, visibility: visibility}
+}
+
+// personaAnswerVisibility reports whether an answered question's answer went
+// private. The reactor consults it before letting the chooser pick: a
+// private answer in a channel keeps ✅ so the reaction cannot reveal the
+// answer's topic (AGENTUX-052).
+type personaAnswerVisibility interface {
+	AnswerWasPrivate(ctx context.Context, asker chatcore.Principal, tenant, conversation, questionID, agentSubject string) (bool, error)
 }
 
 func (r servedPersonaQuestionReactor) ReactToQuestion(ctx context.Context, post chatcore.Post, asker chatcore.Principal, agentSubject string) {
@@ -182,7 +193,8 @@ func (r servedPersonaQuestionReactor) ReactToQuestion(ctx context.Context, post 
 
 // ReactToOutcome swaps the agent's first reaction for the one that fits the
 // outcome. The model's choice, when a chooser is set, counts only for an
-// answered question and only from the closed set.
+// answered question and only from the closed set, and never for a private
+// answer in a channel: that keeps ✅ (AGENTUX-052).
 func (r servedPersonaQuestionReactor) ReactToOutcome(ctx context.Context, post chatcore.Post, asker chatcore.Principal, agentSubject, outcomeEmoji string) {
 	if r.chat == nil || strings.TrimSpace(agentSubject) == "" || outcomeEmoji == "" {
 		return
@@ -190,7 +202,7 @@ func (r servedPersonaQuestionReactor) ReactToOutcome(ctx context.Context, post c
 	if r.switches != nil && !r.switches.AgentReactionsEnabled(ctx, post.TenantID, post.ConversationID, agentSubject) {
 		return
 	}
-	if r.chooser != nil && outcomeEmoji == chatcore.AgentOutcomeAnswered() {
+	if r.chooser != nil && outcomeEmoji == chatcore.AgentOutcomeAnswered() && !r.privateAnswer(ctx, post, asker, agentSubject) {
 		if chosen, ok := r.chooser.ChooseOutcomeEmoji(ctx, post.Body, chatcore.AgentQuestionReactionEmoji()); ok && chatcore.ValidAgentQuestionReactionEmoji(chosen) {
 			outcomeEmoji = chosen
 		}
@@ -203,6 +215,65 @@ func (r servedPersonaQuestionReactor) ReactToOutcome(ctx context.Context, post c
 		slog.WarnContext(ctx, "hcmnext.agent_outcome_reaction_failed", "post_id", post.ID, "conversation_id", post.ConversationID, "agent", agentSubject, "error", err.Error())
 	}
 }
+
+// privateAnswer reports whether the chooser must stand down for this answer:
+// a private answer in a channel keeps ✅. When the read itself fails, the
+// answer is treated as private: a missed contextual pick only keeps ✅, while
+// a leaked topic cannot be taken back. Without a visibility reader the chooser
+// applies as before; the served reactor always wires one, so that case is only
+// the older tests'.
+func (r servedPersonaQuestionReactor) privateAnswer(ctx context.Context, post chatcore.Post, asker chatcore.Principal, agentSubject string) bool {
+	if r.visibility == nil {
+		return false
+	}
+	private, err := r.visibility.AnswerWasPrivate(ctx, asker, post.TenantID, post.ConversationID, post.ID, agentSubject)
+	return err != nil || private
+}
+
+// servedAnswerVisibility reads delivery visibility from durable chat: an
+// answer is private when the agent posted no thread reply to the question in
+// a conversation that is not the asker's direct one. The run committed its
+// delivery before the outcome reaction runs, so the read is exact, not a
+// race.
+type servedAnswerVisibility struct {
+	chat chatcore.ConversationService
+}
+
+func newServedAnswerVisibility(chat chatcore.ConversationService) personaAnswerVisibility {
+	if isNilPersonaOutputPort(chat) {
+		return nil
+	}
+	return servedAnswerVisibility{chat: chat}
+}
+
+func (v servedAnswerVisibility) AnswerWasPrivate(ctx context.Context, asker chatcore.Principal, tenant, conversation, questionID, agentSubject string) (bool, error) {
+	conversationRecord, err := v.chat.GetConversation(ctx, chatcore.GetConversationRequest{Principal: asker, TenantID: tenant, ConversationID: conversation})
+	if err != nil {
+		return true, err
+	}
+	if conversationRecord.Kind == chatcore.Direct {
+		return false, nil
+	}
+	var before uint64
+	for page := 0; page < 3; page++ {
+		listed, err := v.chat.ListPosts(ctx, chatcore.ListPostsRequest{Principal: asker, TenantID: tenant, ConversationID: conversation, Descending: true, BeforeSequence: before, Page: chatcore.Page{PageSize: 50}})
+		if err != nil {
+			return true, err
+		}
+		if len(listed.Posts) == 0 {
+			return true, nil
+		}
+		for _, post := range listed.Posts {
+			if post.ParentID == questionID && post.AuthorID == agentSubject {
+				return false, nil
+			}
+		}
+		before = listed.Posts[len(listed.Posts)-1].Sequence
+	}
+	return true, nil
+}
+
+var _ personaAnswerVisibility = servedAnswerVisibility{}
 
 // reactToOutcome replaces the first reaction once the run is over, for every
 // agent the question was put to. err is the run's outcome: nil when it answered.
@@ -262,7 +333,7 @@ func bindPersonaModelUnavailable(served *streamingChatService, personas *persona
 	if err != nil {
 		return err
 	}
-	wiring, err := newPersonaModelUnavailableInvocation(ports.chat, ports.directory, ports.references, failures, newServedPersonaQuestionReactor(servedAgentQuestionReactions(served), storedReactionSwitchFor(database, ports.references)))
+	wiring, err := newPersonaModelUnavailableInvocation(ports.chat, ports.directory, ports.references, failures, newServedPersonaQuestionReactor(servedAgentQuestionReactions(served), storedReactionSwitchFor(database, ports.references), newServedAnswerVisibility(served)))
 	if err != nil {
 		return err
 	}

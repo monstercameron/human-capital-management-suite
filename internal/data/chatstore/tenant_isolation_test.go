@@ -12,6 +12,7 @@ import (
 
 var chatTenantTables = []string{
 	"chat_admin_removal",
+	"chat_agent_reaction_policy",
 	"chat_app_event",
 	"chat_app_event_seen",
 	"chat_app_installation",

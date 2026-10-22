@@ -1,0 +1,137 @@
+//go:build js && wasm
+
+package chatui
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+	"syscall/js"
+	"time"
+)
+
+var errAgentReactionSettingsInput = errors.New("chatui: reaction settings need a signed-in page")
+
+// errAgentReactionSettingsTimeout ends a read the transport never answered.
+// The row fails into its retry state through the normal error path
+// (CHATBUG-100).
+var errAgentReactionSettingsTimeout = errors.New("chatui: reaction settings read timed out")
+
+// agentReactionSettingsCall asks the reaction settings routes with the same
+// admitted session credential as Chat. It answers the status so a row can tell
+// a refusal from a failure, and returns a cancel for the effect.
+func agentReactionSettingsCall(action string, body any, done func(AgentReactionSettingsData, int, error)) func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	answered := make(chan struct{})
+	// The request's own timeout is the first bound; this timer is the second,
+	// for transports that never answer at all. Exactly one side answers.
+	var timerFn js.Func
+	timerFn = js.FuncOf(func(js.Value, []js.Value) any {
+		defer timerFn.Release()
+		select {
+		case <-answered:
+		default:
+			close(answered)
+			cancel()
+			done(AgentReactionSettingsData{}, 0, errAgentReactionSettingsTimeout)
+		}
+		return nil
+	})
+	timer := js.Global().Call("setTimeout", timerFn, int64(agentReactionSettingsReadBound/time.Millisecond))
+	go func() {
+		data, status, err := agentReactionSettingsRequest(ctx, action, body)
+		select {
+		case <-answered:
+		default:
+			close(answered)
+			js.Global().Call("clearTimeout", timer)
+			timerFn.Release()
+			if ctx.Err() == nil {
+				done(data, status, err)
+			}
+		}
+	}()
+	return cancel
+}
+
+// agentReactionSettingsRequest asks once and, when the server refuses the
+// page's credential (a tab that outlived its session or the server's restart),
+// gets a fresh one and asks once more (CHATBUG-087).
+func agentReactionSettingsRequest(ctx context.Context, action string, body any) (AgentReactionSettingsData, int, error) {
+	data, status, err := agentReactionSettingsAttempt(ctx, action, body)
+	if status != http.StatusUnauthorized && !(status == http.StatusForbidden && action == "switch") {
+		return data, status, err
+	}
+	if _, refreshErr := chatSessionRefresh(ctx); refreshErr != nil {
+		return data, status, err
+	}
+	return agentReactionSettingsAttempt(ctx, action, body)
+}
+
+func agentReactionSettingsAttempt(ctx context.Context, action string, body any) (AgentReactionSettingsData, int, error) {
+	var data AgentReactionSettingsData
+	origin, err := url.Parse(js.Global().Get("location").Get("origin").String())
+	if err != nil || origin.Host == "" || (origin.Scheme != "http" && origin.Scheme != "https") || origin.User != nil {
+		return data, 0, errAgentReactionSettingsInput
+	}
+	bearer := ""
+	if island := js.Global().Get("document").Call("getElementById", "journey-config"); island.Truthy() {
+		var session struct {
+			Bearer string `json:"bearer"`
+		}
+		if json.Unmarshal([]byte(island.Get("textContent").String()), &session) == nil {
+			bearer = session.Bearer
+		}
+	}
+	if bearer == "" {
+		return data, 0, errAgentReactionSettingsInput
+	}
+	switch action {
+	case "settings", "policy", "switch":
+	default:
+		return data, 0, errAgentReactionSettingsInput
+	}
+	origin.Path, origin.RawQuery, origin.Fragment = "/api/chat/agent-reactions/"+action, "", ""
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		return data, 0, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, origin.String(), bytes.NewReader(encoded))
+	if err != nil {
+		return data, 0, err
+	}
+	request.Header.Set("Authorization", "Bearer "+bearer)
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := client.Do(request)
+	if err != nil {
+		return data, 0, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return data, response.StatusCode, errors.New("chatui: reaction settings answered " + strconv.Itoa(response.StatusCode))
+	}
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return data, response.StatusCode, err
+	}
+	if err = json.Unmarshal(raw, &data); err != nil {
+		return data, response.StatusCode, err
+	}
+	return data, response.StatusCode, nil
+}
+
+// agentReactionSettingsReset puts a switch back to the position the server
+// holds. A re-render with an unchanged answer leaves the control where the
+// person moved it.
+func agentReactionSettingsReset(id string, checked bool) {
+	if node := js.Global().Get("document").Call("getElementById", id); node.Truthy() {
+		node.Set("checked", checked)
+	}
+}

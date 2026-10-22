@@ -128,7 +128,8 @@ const (
 var seedPurgeKept = map[string]string{
 	"agentux_ambient_offer": keptNoForeignKey, "agentux_ambient_optout": keptNoForeignKey,
 	"agentux_ambient_read": keptAppendOnly, "agentux_ambient_task": keptNoForeignKey,
-	"chat_app_event": keptNoForeignKey, "chat_app_event_seen": keptPerPerson, "chat_app_installation": keptNoForeignKey,
+	"chat_agent_reaction_policy": keptSetting,
+	"chat_app_event":             keptNoForeignKey, "chat_app_event_seen": keptPerPerson, "chat_app_installation": keptNoForeignKey,
 	"chat_audit_event":       keptAppendOnly,
 	"chat_filter_enablement": keptSetting, "chat_filter_hit": keptAppendOnly,
 	"chat_filter_hit_review": keptAppendOnly, "chat_filter_version": keptAppendOnly,

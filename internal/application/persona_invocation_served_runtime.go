@@ -40,7 +40,7 @@ func composeServedPersonaInvocation(served *streamingChatService, personas *pers
 		config.Steps = personas.steps
 	}
 	if config.Reactions == nil {
-		config.Reactions = newServedPersonaQuestionReactor(servedAgentQuestionReactions(served), storedReactionSwitchFor(database, ports.references))
+		config.Reactions = newServedPersonaQuestionReactor(servedAgentQuestionReactions(served), storedReactionSwitchFor(database, ports.references), newServedAnswerVisibility(served))
 	}
 	if config.Limits == nil {
 		// Every served mention is admitted against the durable ceilings kept in

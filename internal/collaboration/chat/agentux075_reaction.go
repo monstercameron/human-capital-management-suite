@@ -29,8 +29,11 @@ type AgentQuestionReaction struct {
 }
 
 // Outcome reactions (AGENTUX-052): what the agent puts on the question once it
-// has finished, chosen from the outcome and never from what was asked, so a
-// public channel learns nothing about a private answer's topic.
+// has finished. The outcome class decides the default (✅/🤷/⚠️); an answered
+// question in a conversation where everyone may read the answer may instead
+// carry one contextual emoji from the closed set below. A private answer in
+// a channel never does: it keeps ✅ so no channel learns the answer's topic
+// from the reaction.
 
 // AgentOutcomeAnswered is the reaction to a question that was answered.
 func AgentOutcomeAnswered() string { return "✅" }
@@ -42,10 +45,18 @@ func AgentOutcomeCouldNotAnswer() string { return "🤷" }
 // AgentOutcomeFailed is the reaction when the run failed.
 func AgentOutcomeFailed() string { return string([]rune{0x26A0, 0xFE0F}) }
 
-// AgentQuestionReactionEmoji lists the emoji an agent may put on a question: one
-// per kind of question before it answers, and one per outcome after.
+// AgentQuestionReactionEmoji lists the emoji an agent may put on a question:
+// first reactions while it works, outcome reactions after, and the contextual
+// answers an answered question may carry. About forty, all work-safe; model
+// output can never add to this set (AGENTUX-052).
 func AgentQuestionReactionEmoji() []string {
-	return []string{"👀", "🔎", "🙏", "🙌", "🫡", "🛠️", "👋", AgentOutcomeAnswered(), AgentOutcomeCouldNotAnswer(), AgentOutcomeFailed()}
+	return []string{
+		"👀", "🔎", "🙏", "🙌", "🫡", "🛠️", "👋",
+		"🏖️", "🎂", "💸", "🎉", "📅", "📝", "📊", "📈", "💰", "💳", "🏦",
+		"⚖️", "🏥", "✈️", "🏠", "🎓", "💡", "🔧", "📚", "⏰", "🔔", "📧",
+		"🤝", "👍", "👏", "🎯", "🚀", "⭐", "🏆", "🍰",
+		AgentOutcomeAnswered(), AgentOutcomeCouldNotAnswer(), AgentOutcomeFailed(),
+	}
 }
 
 // ValidAgentQuestionReactionEmoji reports whether emoji is one of that set.
@@ -92,6 +103,11 @@ func (s *Service) CommitAgentQuestionReaction(ctx context.Context, r AgentQuesti
 	}
 	if post.AuthorID != r.Asker.SubjectID {
 		return Reaction{}, ErrPermissionDenied
+	}
+	// The workspace and conversation switches (AGENTUX-052): either one off
+	// refuses the reaction, so an administrator's quiet room stays quiet.
+	if policy, ok := s.store.(AgentReactionPolicyStore); ok && !agentReactionsEnabledByPolicy(ctx, policy, r.TenantID, r.ConversationID) {
+		return Reaction{}, ErrAgentReactionsDisabled
 	}
 	reaction := Reaction{
 		TenantID: r.TenantID, ConversationID: r.ConversationID, PostID: r.PostID,

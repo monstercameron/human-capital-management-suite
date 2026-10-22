@@ -27,5 +27,7 @@ func chatSettingsPage(view View) ui.Node {
 		Location: chatui.ChatmapWorkspaceSettingsPanel(view.Locale.Resolved),
 		// The workspace's voice message switch and the engine behind it (CHATVOICE-005).
 		Voice: chatui.VoiceWorkspaceSettingsPanel(view.Locale.Resolved),
+		// The workspace's agent reaction switch (AGENTUX-052).
+		Reactions: chatui.AgentReactionWorkspaceSettingsPanel(view.Locale.Resolved),
 	})
 }

@@ -16,6 +16,8 @@ type ChatSettingsPageProps struct {
 	Location ui.Node
 	// Voice is the workspace's voice message switch and engine (CHATVOICE-005).
 	Voice ui.Node
+	// Reactions is the workspace's agent reaction switch (AGENTUX-052).
+	Reactions ui.Node
 }
 
 func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
@@ -23,5 +25,5 @@ func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
 	if props.AgentReactions != nil {
 		reactions = ui.CreateElement(AgentAnswerReactionSettings, *props.AgentReactions)
 	}
-	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions, props.Translation, props.Location, props.Voice)
+	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions, props.Translation, props.Location, props.Voice, props.Reactions)
 }

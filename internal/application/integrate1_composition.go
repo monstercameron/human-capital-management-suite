@@ -42,5 +42,6 @@ func overlayIntegrate1Chat(next http.Handler, runtime composedChat, voice VoiceS
 	if runtime.moderationStore != nil {
 		voice.Transcripts = runtime.moderationStore
 	}
+	next = OverlayAgentReactions(next, agentReactionServiceFor(runtime), admission)
 	return OverlayChatVoice(next, voice, admission)
 }

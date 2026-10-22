@@ -315,7 +315,7 @@ func chatux005Manage(m Model, h handlers, c Conversation, parts *channelWidgetPa
 		}
 	}
 	addGroup(laneText(m, chatbug048Copy, keyChatbug048Channel), chatux027Status(m, h), chatux027Roles(m, h, parts), chatux027Project(m, h, parts))
-	addGroup(laneText(m, chatbug048Copy, keyChatbug048Rules), append(chatux027Filters(m, h, c), chatux027Translation(m, h, c), chatvoiceChannelRow(m, h, c))...)
+	addGroup(laneText(m, chatbug048Copy, keyChatbug048Rules), append(chatux027Filters(m, h, c), chatux027Translation(m, h, c), chatvoiceChannelRow(m, h, c), agentReactionChannelRow(m, h, c))...)
 	addGroup(laneText(m, chatbug048Copy, keyChatbug048Apps), chatux027Integrations(m, h, c))
 	// AGENTUX-070: whether agent answers here must be private.
 	addGroup(agentux070ChannelText(m, "group"), agentux070ChannelRow(m, h, c))
