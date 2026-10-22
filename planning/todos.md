@@ -35447,7 +35447,8 @@ Principles applied to every entry: the most frequent action on a surface is one 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/chatux031_prefs.go`, `internal/humanwork/chatui/chattone_w10_admin.go`, `internal/humanwork/chatui/chatmod003_panel.go`, `internal/humanwork/chatui/chatmod_removed_row.go`.
 
-- [ ] `CHATUX-049` **[PHASE_3][SOL_HIGH] One control vocabulary: close buttons, disabled buttons, focus rings, selects and the pencil icon each come in two or three forms.**
+- [x] `CHATUX-049` **[PHASE_3][SOL_HIGH] One control vocabulary: close buttons, disabled buttons, focus rings, selects and the pencil icon each come in two or three forms.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_CHATUX_049` (+Browser) passed in `internal/humanwork/chatui`; FULL chatui package green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit e0f93c94f); unified close/disabled/focus/select/pencil/mentions vocabulary. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `CHATUX-041`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.COLLABORATION,BI.EXPERIENCE; DIRECT=owner goal 2026-10-02 ("every minute computer use and visually check everything, if you find new bugs or issues log new todos"; "make sure the ux is perfect and the quality is 10/10"); WHY=small inconsistencies are what make the page read as unfinished`.
   - **TEST:** `TestTodo_CHATUX_049`.

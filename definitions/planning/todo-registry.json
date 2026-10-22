@@ -17295,7 +17295,8 @@
     "refactor": "none",
     "refs": "`internal/humanwork/chatui/styles.go`, `internal/humanwork/chatui/chatux032_styles.go`, `internal/humanwork/chatui/chatux020_sidebar.go`, `internal/humanwork/chatui/styles_composer.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_CHATUX_049` (+Browser) passed in `internal/humanwork/chatui`; FULL chatui package green; `TestTodo_UIPOLISH_012_Golden` re-pinned+green (commit e0f93c94f); unified close/disabled/focus/select/pencil/mentions vocabulary. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "CHATUX-050",
