@@ -32574,7 +32574,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** none.
   - **Refs:** `internal/humanwork/chatui/render.go`, `internal/application/agent_available_personas.go`, `tools/uxqual/cmd/journeywasm/persona_chat_wasm.go`.
 
-- [ ] `AGENTUX-065` **[PHASE_3][SOL_HIGH] Use semantic versions for documents, agents and gates.**
+- [x] `AGENTUX-065` **[PHASE_3][SOL_HIGH] Use semantic versions for documents, agents and gates.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_065` (+Integration, +Security) passed in `internal/application`; (+Property) in `internal/semver`; (+Browser) in productui; 23 `TestAgentUX065_*` passed across application/agentdocref/agentpersona/agentpersonastore/documenthubstore/productui; FULL productui green except pre-existing env WEB_098; AGENT_043 default-mode literal re-pinned PINNED->COMPATIBLE per GREEN (commit a55b4bbdb). (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTDOC-002`, `AGENTUX-046`.
   - **INTENT CONTEXT:** `ROLE=EXPOSURE; SETS=BI.EXPERIENCE,BI.DOCUMENTS,BI.INTELLIGENCE; DIRECT=owner request 2026-10-01 ("use semver"); WHY="version 1" and "Version 6" say that something changed and nothing about how much`.
   - **TEST:** `TestTodo_AGENTUX_065`.
@@ -32584,7 +32585,8 @@ This section holds the owner-requested agent experience work of 2026-09-30: the 
   - **REFACTOR:** one version value type and comparator shared by documents, agents and gates.
   - **Refs:** `internal/data/documenthubstore`, `internal/agentdocref`, `internal/agentpersona`, `internal/application/persona_reply_output_renderer.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`.
 
-- [ ] `AGENTUX-066` **[GATE_C][SOL_HIGH] Let an agent read every message in a conversation it is added to, visibly, cheaply and only there.**
+- [x] `AGENTUX-066` **[GATE_C][SOL_HIGH] Let an agent read every message in a conversation it is added to, visibly, cheaply and only there.**
+  - **Evidence (2026-10-21, test run):** `TestTodo_AGENTUX_066` (+Security, +Integration, +Performance, +Fault, +Served, +ServedAbsent) passed in `internal/application`; (+Browser, +GrantSwitch) in chatui; (+ReadsState) in journeywasm; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3).
   - **Depends:** `AGENTUX-048`, `AGENTUX-054`.
   - **INTENT CONTEXT:** `ROLE=GOVERNANCE; SETS=BI.INTELLIGENCE,BI.SECURITY,BI.COLLABORATION,BI.OPERATIONS; DIRECT=owner request 2026-10-01 ("they read each chat"); WHY=today an agent sees a conversation only when someone mentions it; an agent that notices things must read without being asked, which is the point where people stop trusting it unless the rules are plain`.
   - **TEST:** `TestTodo_AGENTUX_066`.

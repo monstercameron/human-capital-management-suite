@@ -5337,7 +5337,8 @@
     "refactor": "one version value type and comparator shared by documents, agents and gates",
     "refs": "`internal/data/documenthubstore`, `internal/agentdocref`, `internal/agentpersona`, `internal/application/persona_reply_output_renderer.go`, `internal/humanwork/productui/uxblind_P18_agent_persona_admin.go`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_065` (+Integration, +Security) passed in `internal/application`; (+Property) in `internal/semver`; (+Browser) in productui; 23 `TestAgentUX065_*` passed across application/agentdocref/agentpersona/agentpersonastore/documenthubstore/productui; FULL productui green except pre-existing env WEB_098; AGENT_043 default-mode literal re-pinned PINNED-\u003eCOMPATIBLE per GREEN (commit a55b4bbdb). (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-066",
@@ -5363,7 +5364,8 @@
     "refactor": "one candidate pipeline shared by every message-triggered agent",
     "refs": "`internal/application/persona_chat_invocation.go`, `internal/collaboration/chat`, `internal/data/chatstore`, `internal/application/agentdoc_runtime_model.go`, `internal/agentskills`",
     "retired": false,
-    "done": false
+    "done": true,
+    "evidence": "`TestTodo_AGENTUX_066` (+Security, +Integration, +Performance, +Fault, +Served, +ServedAbsent) passed in `internal/application`; (+Browser, +GrantSwitch) in chatui; (+ReadsState) in journeywasm; already green in-tree. (`go test -count=1`, windows/arm64 Go 1.26.3)"
   },
   {
     "id": "AGENTUX-067",
