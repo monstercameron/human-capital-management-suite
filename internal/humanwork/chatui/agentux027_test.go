@@ -10,6 +10,7 @@ import (
 //
 //	the private path writes no durable post in the channel ........ TestTodo_AGENTUX_027_Security (internal/application, real chat store)
 //	another member's projection, search, unread, threads .......... TestTodo_AGENTUX_027_Security; TestTodo_AGENTUX_027 and _Browser here
+//	the audit export holds no private answer ...................... TestTodo_AGENTUX_027_Security_AuditExportHoldsNoPrivateAnswer (ephemeral sends are not audited)
 //	no visible text uses the word "persona" ....................... TestTodo_AGENTUX_027 (every state of the card, three languages)
 //	a receipt stored before this change reads as a plain line ..... TestTodo_AGENTUX_027_Browser
 

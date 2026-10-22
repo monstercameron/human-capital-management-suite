@@ -3,8 +3,10 @@ package application
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 )
 
@@ -87,5 +89,24 @@ func TestTodo_AGENTUX_027_Security(t *testing.T) {
 		if strings.Contains(strings.ToLower(text), "persona") {
 			t.Fatalf("the answer uses the word persona: %s", text)
 		}
+	}
+}
+
+// A private answer leaves nothing in the audit trail either: the ephemeral
+// send that carries it is not audited, so the audit export's public view
+// cannot contain it. The durable copy lives in the asker's own conversation
+// with the agent, which the audit trail scopes by membership like any post.
+func TestTodo_AGENTUX_027_Security_AuditExportHoldsNoPrivateAnswer(t *testing.T) {
+	room := newAgentUX070Room(t, agentUX070Options{question: "@Policy Helper how many PTO hours carry over? Keep this private."})
+	repo := chatrecords.NewMemoryRepository()
+	audited := &auditedChatService{ConversationService: room.service, records: &chatrecords.Service{Repo: repo, Auth: ChatRecordAuthority{}}, atomicCore: true}
+	if _, err := audited.SendEphemeralPost(room.ctx, chat.SendEphemeralPostRequest{Principal: room.asker, TenantID: "tenant-a", ConversationID: room.channel, ThreadID: room.question.ID, Body: "Carry over up to 40 hours of unused PTO.", QuestionPostID: room.question.ID, ExpiresAt: room.now.Add(12 * time.Hour), IdempotencyKey: "agentux-027-audit-probe"}); err != nil {
+		t.Fatal(err)
+	}
+	if pending, dropped := audited.PendingAudits(); pending != 0 || dropped != 0 {
+		t.Fatalf("the ephemeral send queued audits: pending=%d dropped=%d", pending, dropped)
+	}
+	if events, err := repo.Events(room.ctx, "tenant-a"); err != nil || len(events) != 0 {
+		t.Fatalf("the audit trail holds the private answer: %+v %v", events, err)
 	}
 }
