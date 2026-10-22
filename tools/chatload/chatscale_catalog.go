@@ -45,28 +45,53 @@ func Inventory(root string) ([]Query, error) {
 		}
 		parsed = append(parsed, f)
 	}
-	for pass := 0; pass < 8; pass++ {
-		for _, f := range parsed {
-			for _, d := range f.Decls {
-				g, ok := d.(*ast.GenDecl)
-				if !ok {
-					continue
-				}
-				for _, s := range g.Specs {
-					v, ok := s.(*ast.ValueSpec)
+	// String constants from the collaboration package that the store's SQL
+	// fragments reference (chat.MembershipAddedMarker today). They are
+	// registered under their qualified name only, so they can never collide
+	// with the store's own globals; their call sites are not inventoried.
+	sharedFiles, err := filepath.Glob(filepath.Join(root, "internal/collaboration/chat/*.go"))
+	if err != nil {
+		return nil, err
+	}
+	shared := []*ast.File{}
+	for _, name := range sharedFiles {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, e := parser.ParseFile(fs, name, nil, 0)
+		if e != nil {
+			return nil, e
+		}
+		shared = append(shared, f)
+	}
+	scopes := []struct {
+		files  []*ast.File
+		prefix string
+	}{{parsed, ""}, {shared, "chat."}}
+	sweepGlobals := func() {
+		for _, scope := range scopes {
+			for _, f := range scope.files {
+				for _, d := range f.Decls {
+					g, ok := d.(*ast.GenDecl)
 					if !ok {
 						continue
 					}
-					for i, n := range v.Names {
-						if i < len(v.Values) {
-							globals[n.Name] = resolve(v.Values[i], globals)
-							if n.Name == "seedPurgeOrder" {
-								if composite, ok := v.Values[i].(*ast.CompositeLit); ok {
-									for _, element := range composite.Elts {
-										if row, ok := element.(*ast.CompositeLit); ok && len(row.Elts) == 2 {
-											a, b := resolve(row.Elts[0], globals), resolve(row.Elts[1], globals)
-											if len(a) == 1 && len(b) == 1 {
-												globals["seedPurgeOrder.rows"] = unique(append(globals["seedPurgeOrder.rows"], a[0]+"|"+b[0]))
+					for _, s := range g.Specs {
+						v, ok := s.(*ast.ValueSpec)
+						if !ok {
+							continue
+						}
+						for i, n := range v.Names {
+							if i < len(v.Values) {
+								globals[scope.prefix+n.Name] = resolve(v.Values[i], globals)
+								if scope.prefix == "" && n.Name == "seedPurgeOrder" {
+									if composite, ok := v.Values[i].(*ast.CompositeLit); ok {
+										for _, element := range composite.Elts {
+											if row, ok := element.(*ast.CompositeLit); ok && len(row.Elts) == 2 {
+												a, b := resolve(row.Elts[0], globals), resolve(row.Elts[1], globals)
+												if len(a) == 1 && len(b) == 1 {
+													globals["seedPurgeOrder.rows"] = unique(append(globals["seedPurgeOrder.rows"], a[0]+"|"+b[0]))
+												}
 											}
 										}
 									}
@@ -78,6 +103,9 @@ func Inventory(root string) ([]Query, error) {
 			}
 		}
 	}
+	for pass := 0; pass < 8; pass++ {
+		sweepGlobals()
+	}
 	for pass := 0; pass < 3; pass++ {
 		for _, f := range parsed {
 			for _, d := range f.Decls {
@@ -88,6 +116,17 @@ func Inventory(root string) ([]Query, error) {
 				local := map[string][]string{}
 				for k, v := range globals {
 					local[k] = v
+				}
+				// Bind parameters to placeholders so a string-building helper
+				// such as chatscaleEligible registers a template its callers fill.
+				if fn.Type.Params != nil {
+					i := 0
+					for _, field := range fn.Type.Params.List {
+						for _, n := range field.Names {
+							local[n.Name] = []string{fmt.Sprintf("@arg%d@", i)}
+							i++
+						}
+					}
 				}
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					a, ok := n.(*ast.AssignStmt)
@@ -118,6 +157,12 @@ func Inventory(root string) ([]Query, error) {
 				})
 			}
 		}
+	}
+	// A package-level query may call a string-building helper
+	// (chatscaleCachedSQL calls chatscaleEligible), whose template only exists
+	// after the return pass above; sweep once more so those queries resolve.
+	for pass := 0; pass < 2; pass++ {
+		sweepGlobals()
 	}
 	var out []Query
 	for _, f := range parsed {
@@ -300,6 +345,17 @@ func resolve(e ast.Expr, env map[string][]string) []string {
 		return out
 	case *ast.CallExpr:
 		if id, ok := x.Fun.(*ast.Ident); ok {
+			// chatscaleBypassCache turns a cached-read statement into its
+			// recount form. Its placeholder template would evaluate the
+			// replacement before the caller's statement is substituted, so
+			// evaluate it here against the caller's values instead.
+			if id.Name == "chatscaleBypassCache" && len(x.Args) == 1 {
+				var out []string
+				for _, s := range resolve(x.Args[0], env) {
+					out = append(out, strings.Replace(s, "AND s.history_revision=r.history_revision", "AND false AND s.history_revision=r.history_revision", 1))
+				}
+				return out
+			}
 			templates := env[id.Name]
 			if len(templates) == 0 {
 				templates = env[id.Name+"()"]
@@ -318,7 +374,15 @@ func resolve(e ast.Expr, env map[string][]string) []string {
 				}
 				templates = next
 			}
-			return templates
+			// A template with an unfilled placeholder is not SQL; dropping it
+			// keeps the call site unresolved rather than inventing a statement.
+			var filled []string
+			for _, t := range templates {
+				if !strings.Contains(t, "@arg") {
+					filled = append(filled, t)
+				}
+			}
+			return filled
 		}
 		if sel, ok := x.Fun.(*ast.SelectorExpr); ok && len(x.Args) > 0 {
 			switch sel.Sel.Name {
@@ -335,6 +399,12 @@ func resolve(e ast.Expr, env map[string][]string) []string {
 					return unique(out)
 				}
 			}
+		}
+	case *ast.SelectorExpr:
+		// A qualified package constant such as chat.MembershipAddedMarker,
+		// registered under its qualified name by the globals pass.
+		if id, ok := x.X.(*ast.Ident); ok {
+			return env[id.Name+"."+x.Sel.Name]
 		}
 	case *ast.SliceExpr:
 		if x.Low == nil {
@@ -396,6 +466,11 @@ func possibleSQL(sql string) bool {
 		return false
 	}
 	if strings.Contains(sql, "FOR UPDATE OF p,m") && !strings.Contains(sql, "chat_membership m") {
+		return false
+	}
+	// The level-0 compatibility rewrites apply to the rebuild query only; the
+	// cached sidebar query (which names head_sequence) never carries them.
+	if strings.Contains(sql, "head_sequence") && (strings.Contains(sql, "NULL::timestamptz AS last_activity_at") || strings.Contains(sql, "0 AS history_revision")) {
 		return false
 	}
 	seen := map[int]bool{}

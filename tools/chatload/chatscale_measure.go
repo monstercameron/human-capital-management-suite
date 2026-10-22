@@ -218,6 +218,9 @@ func arguments(ctx context.Context, conn *pgx.Conn, q Query, channel string) ([]
 				out[i] = []string{"payroll"}
 			}
 		}
+		if q.Function == "chatscaleReadCountsLimit" && expr == "limit" {
+			out[i] = int64(5000)
+		}
 		if q.Function == "GetConversation" && i == 1 {
 			out[i] = channel
 		}
@@ -384,7 +387,7 @@ func workloadQuery(qs []Query, name string) (Query, error) {
 	case "open_channel", "page_back":
 		return queryBy(qs, "ListPosts", "m.state='active'")
 	case "sidebar_300":
-		return queryBy(qs, "Counts", "WITH candidate")
+		return queryBy(qs, "chatscaleReadCountsLimit", "head_sequence")
 	case "search":
 		return queryBy(qs, "Search", "SELECT p.id")
 	case "thread_open":
@@ -392,7 +395,7 @@ func workloadQuery(qs []Query, name string) (Query, error) {
 	case "outbox_drain":
 		return queryBy(qs, "PendingOutboxAfter", "SELECT")
 	case "mark_read":
-		return queryBy(qs, "PutReadState", "INSERT")
+		return queryBy(qs, "putReadState", "INSERT INTO chat_cursor")
 	}
 	return Query{}, fmt.Errorf("unknown workload %s", name)
 }

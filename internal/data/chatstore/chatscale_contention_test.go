@@ -3,11 +3,11 @@ package chatstore
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 )
 
@@ -20,7 +20,7 @@ func TestTodo_CHATSCALE_001_Performance_Contention(t *testing.T) {
  SELECT $1,$2,$1,'chatscale-u-'||g FROM generate_series(1,1000) g ON CONFLICT DO NOTHING`, chatscaleTenant, chatscaleRoom); err != nil {
 		t.Fatal(err)
 	}
-	conn, err := pgxadapter.Connect(ctx, os.Getenv("HCMNEXT_TEST_DATABASE_URL"), map[string]string{"search_path": schema})
+	conn, err := pgxadapter.Connect(ctx, pgtest.ServerURL(), map[string]string{"search_path": schema})
 	if err != nil {
 		t.Fatal(err)
 	}

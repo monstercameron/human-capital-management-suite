@@ -123,3 +123,11 @@ var chatscaleCachedSQL = chatscaleReaders + `,
 func chatscaleBypassCache(sql string) string {
 	return strings.Replace(sql, "AND s.history_revision=r.history_revision", "AND false AND s.history_revision=r.history_revision", 1)
 }
+
+// ChatscaleCachedSQLForInventory exposes the served sidebar statement to the
+// load generator's inventory cross-check (tools/chatload), which must measure
+// the statement production issues, byte for byte.
+func ChatscaleCachedSQLForInventory() string { return chatscaleCachedSQL }
+
+// ChatscaleBypassCacheForInventory exposes the recount form for the same check.
+func ChatscaleBypassCacheForInventory(sql string) string { return chatscaleBypassCache(sql) }

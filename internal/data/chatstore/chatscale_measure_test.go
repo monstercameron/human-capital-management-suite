@@ -47,12 +47,8 @@ func chatscaleLiteral(t *testing.T, file, function, method string) string {
 			if !ok || selector.Sel.Name != method {
 				return true
 			}
-			literal, ok := call.Args[1].(*ast.BasicLit)
-			if !ok || literal.Kind != token.STRING {
-				return true
-			}
-			value, err := strconv.Unquote(literal.Value)
-			if err == nil && (strings.HasPrefix(strings.TrimSpace(value), "SELECT") || strings.HasPrefix(strings.TrimSpace(value), "WITH") || strings.HasPrefix(strings.TrimSpace(value), "DELETE")) {
+			value, ok := chatscaleConstString(call.Args[1])
+			if ok && (strings.HasPrefix(strings.TrimSpace(value), "SELECT") || strings.HasPrefix(strings.TrimSpace(value), "WITH") || strings.HasPrefix(strings.TrimSpace(value), "DELETE")) {
 				if query == "" {
 					query = value
 				}
@@ -64,6 +60,47 @@ func chatscaleLiteral(t *testing.T, file, function, method string) string {
 		t.Fatalf("no literal %s in %s.%s", method, file, function)
 	}
 	return query
+}
+
+// chatscaleConstString evaluates a production SQL expression: a string
+// literal, literals joined with +, or a named package constant such as the
+// audience filters. Production queries compose these fragments, so the
+// harness resolves the same expression rather than matching the first bare
+// literal (which may belong to a later query in the same function).
+func chatscaleConstString(e ast.Expr) (string, bool) {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		if v.Kind == token.STRING {
+			s, err := strconv.Unquote(v.Value)
+			return s, err == nil
+		}
+	case *ast.BinaryExpr:
+		if v.Op == token.ADD {
+			a, ok := chatscaleConstString(v.X)
+			b, ok2 := chatscaleConstString(v.Y)
+			return a + b, ok && ok2
+		}
+	case *ast.Ident:
+		switch v.Name {
+		case "chatgateAudienceFilter2":
+			return chatgateAudienceFilter2, true
+		case "chatgateAudienceFilter3":
+			return chatgateAudienceFilter3, true
+		case "chatgateAudienceFilter4":
+			return chatgateAudienceFilter4, true
+		case "chatgateAudienceNone":
+			return chatgateAudienceNone, true
+		case "chatgateOutboxAudience7":
+			return chatgateOutboxAudience7, true
+		case "chatgateOutboxAudienceNone":
+			return chatgateOutboxAudienceNone, true
+		case "OutboxKeyConversationID":
+			return OutboxKeyConversationID, true
+		case "OutboxKeyTargetID":
+			return OutboxKeyTargetID, true
+		}
+	}
+	return "", false
 }
 
 const chatscaleLegacyCounts = `WITH candidate AS (
@@ -95,7 +132,7 @@ func chatscaleEventSQL(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	values := map[string]string{"OutboxKeyConversationID": OutboxKeyConversationID, "OutboxKeyTargetID": OutboxKeyTargetID}
+	values := map[string]string{"OutboxKeyConversationID": OutboxKeyConversationID, "OutboxKeyTargetID": OutboxKeyTargetID, "chatgateOutboxAudienceNone": chatgateOutboxAudienceNone, "chatgateOutboxAudience7": chatgateOutboxAudience7}
 	var value func(ast.Expr) (string, bool)
 	value = func(e ast.Expr) (string, bool) {
 		switch v := e.(type) {
@@ -410,8 +447,11 @@ func TestTodo_CHATSCALE_001_Golden(t *testing.T) {
 		}
 	}
 	got := listPostsBackward[strings.Index(listPostsBackward, " FROM "):]
-	want := ` FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$3 AND m.member_id=$4 AND m.state='active' WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at)) AND p.sequence<$5 ORDER BY p.sequence DESC LIMIT $6`
+	want := ` FROM chat_post p JOIN chat_membership m ON m.tenant_id=p.tenant_id AND m.conversation_id=p.conversation_id AND m.home_tenant_id=$3 AND m.member_id=$4 AND m.state='active' WHERE p.tenant_id=$1 AND p.conversation_id=$2 AND (m.history_visibility='FULL_HISTORY' OR (m.history_visibility='FROM_JOIN' AND p.created_at>=m.joined_at))` + chatgateAudienceFilter4 + ` AND p.sequence<$5 ORDER BY p.sequence DESC LIMIT $6`
 	if got != want {
 		t.Fatalf("history boundary SQL golden changed:\n%q\nwant:\n%q", got, want)
+	}
+	if !strings.Contains(got, "chat_post_audience") {
+		t.Fatal("history read lost its restricted-audience clause")
 	}
 }

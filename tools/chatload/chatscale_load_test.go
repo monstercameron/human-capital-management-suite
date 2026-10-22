@@ -15,17 +15,40 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgtest"
 )
 
 func TestMain(m *testing.M) { pgtest.RunMain(m) }
+
+// sharedPostgresDSN is the guarded load-generator target. The environment may
+// point HCMNEXT_TEST_DATABASE_URL at the shared server; otherwise the default
+// names it, and database-backed tests skip when nothing answers there.
+func sharedPostgresDSN() string {
+	if dsn := os.Getenv("HCMNEXT_TEST_DATABASE_URL"); dsn != "" {
+		return dsn
+	}
+	return "postgres://postgres@127.0.0.1:18540/postgres?sslmode=disable"
+}
+
+func requireSharedPostgres(t *testing.T, dsn string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	conn, err := pgx.Connect(ctx, dsn)
+	if err != nil {
+		t.Skipf("no shared test PostgreSQL at the guarded address: %v", err)
+	}
+	_ = conn.Close(context.Background())
+}
+
 func testConfig(t *testing.T) Config {
 	t.Helper()
 	root, e := filepath.Abs("../..")
 	if e != nil {
 		t.Fatal(e)
 	}
-	return Config{DSN: os.Getenv("HCMNEXT_TEST_DATABASE_URL"), Root: root, Database: TestPrefix + "integration", Seed: 42, Posts: 1000, Tenants: 1, Channels: 300, Batch: 73, Repeats: 2, Concurrency: 2, Operations: 16}
+	return Config{DSN: sharedPostgresDSN(), Root: root, Database: TestPrefix + "integration", Seed: 42, Posts: 1000, Tenants: 1, Channels: 300, Batch: 73, Repeats: 2, Concurrency: 2, Operations: 16}
 }
 func TestTodo_CHATSCALE_001(t *testing.T) {
 	c := testConfig(t)
@@ -170,6 +193,31 @@ func TestTodo_CHATSCALE_001(t *testing.T) {
 			t.Fatalf("lost source provenance: %+v", q)
 		}
 	}
+	t.Run("sidebar_counts_match_production", func(t *testing.T) {
+		// The workload's sidebar query must be the store's served statement,
+		// byte for byte, in both its cached and recount forms: a resolved
+		// near-miss would measure a query production never issues.
+		matched := 0
+		for _, q := range qs {
+			if q.Function != "chatscaleReadCountsLimit" || !strings.Contains(q.SQL, "head_sequence") {
+				continue
+			}
+			matched++
+			if q.SQL != chatstore.ChatscaleCachedSQLForInventory() && q.SQL != chatstore.ChatscaleBypassCacheForInventory(chatstore.ChatscaleCachedSQLForInventory()) {
+				t.Fatalf("variant %d differs from the served statement", matched)
+			}
+		}
+		if matched != 2 {
+			t.Fatalf("matched=%d want 2 (cached + recount)", matched)
+		}
+		q, e := workloadQuery(qs, "sidebar_300")
+		if e != nil {
+			t.Fatal(e)
+		}
+		if q.SQL != chatstore.ChatscaleCachedSQLForInventory() && q.SQL != chatstore.ChatscaleBypassCacheForInventory(chatstore.ChatscaleCachedSQLForInventory()) {
+			t.Fatal("the workload's sidebar query is not a served statement")
+		}
+	})
 }
 func TestTodo_CHATSCALE_001_Golden(t *testing.T) {
 	got, e := json.Marshal(percentiles([]float64{9, 1, 5, 2, 3}))
@@ -200,8 +248,11 @@ func TestTodo_CHATSCALE_001_Golden(t *testing.T) {
 func TestTodo_CHATSCALE_001_Performance(t *testing.T) {
 	// pgtest acquires the shared server without starting a process; the load
 	// generator itself requires a separate guarded database, not a schema.
+	// Without a shared server this lane skips: the embedded server takes a
+	// random port, which the guarded address below never names.
 	_ = pgtest.NewEmpty(t)
 	c := testConfig(t)
+	requireSharedPostgres(t, c.DSN)
 	ctx := context.Background()
 	sentinel := errors.New("callback failure")
 	e := WithDatabase(ctx, c, func(conn *Database) error {

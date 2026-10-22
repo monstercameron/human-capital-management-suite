@@ -289,8 +289,16 @@ func chatscaleSidebarBudget(t *testing.T, s *Store) {
 		}
 		var walk func(chatscaleNode) error
 		walk = func(n chatscaleNode) error {
-			if n.Relation == "chat_post" && n.Loops > 0 {
-				return fmt.Errorf("warm sidebar reads chat history: %s", raw)
+			// The cached read probes the post indexes for what arrived after
+			// the cached head (CHATSCALE-003 delta); warm, that probe must
+			// return no history row and never scan the table.
+			if n.Relation == "chat_post" {
+				if n.Kind == "Seq Scan" {
+					return fmt.Errorf("warm sidebar sequentially scans chat history: %s", raw)
+				}
+				if n.Rows*n.Loops > 0 {
+					return fmt.Errorf("warm sidebar reads %v history rows: %s", n.Rows*n.Loops, raw)
+				}
 			}
 			for _, c := range n.Children {
 				if err := walk(c); err != nil {
