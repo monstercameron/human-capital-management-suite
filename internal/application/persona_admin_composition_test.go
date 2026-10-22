@@ -20,6 +20,7 @@ type personaAdminCompositionStore struct {
 	evidence    agentpersonastore.PublicationEvidence
 	evidenceErr error
 	review      *agentpersonastore.VerifiedReview
+	labels      map[int64]string
 }
 
 func (s *personaAdminCompositionStore) ForTenant(_ context.Context, tenant values.TenantId) (PersonaAdminCatalogTenant, error) {
@@ -27,7 +28,7 @@ func (s *personaAdminCompositionStore) ForTenant(_ context.Context, tenant value
 	if s.err != nil {
 		return nil, s.err
 	}
-	return personaAdminCompositionTenant{entries: s.entries, evidence: s.evidence, evidenceErr: s.evidenceErr, review: s.review}, nil
+	return personaAdminCompositionTenant{entries: s.entries, evidence: s.evidence, evidenceErr: s.evidenceErr, review: s.review, labels: s.labels}, nil
 }
 
 type personaAdminCompositionTenant struct {
@@ -35,6 +36,14 @@ type personaAdminCompositionTenant struct {
 	evidence    agentpersonastore.PublicationEvidence
 	evidenceErr error
 	review      *agentpersonastore.VerifiedReview
+	labels      map[int64]string
+}
+
+func (s personaAdminCompositionTenant) PublishedLabel(_ context.Context, _ string, version int64) (string, error) {
+	if label, ok := s.labels[version]; ok {
+		return label, nil
+	}
+	return "", agentpersonastore.ErrNotFound
 }
 
 func (s personaAdminCompositionTenant) ResolveCurrentReview(context.Context, string, int64) (agentpersonastore.VerifiedReview, error) {

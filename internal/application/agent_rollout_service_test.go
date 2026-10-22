@@ -25,6 +25,14 @@ type versionRolloutFake struct {
 	evidence      agentpersonastore.PublicationEvidence
 	failure       error
 	writes        int
+	labels        map[int64]string
+}
+
+func (f *versionRolloutFake) PublishedLabel(_ context.Context, _ string, version int64) (string, error) {
+	if label, ok := f.labels[version]; ok {
+		return label, nil
+	}
+	return "", agentpersonastore.ErrNotFound
 }
 
 func (f *versionRolloutFake) ForRolloutTenant(context.Context, values.TenantId) (AgentVersionRolloutTenant, error) {

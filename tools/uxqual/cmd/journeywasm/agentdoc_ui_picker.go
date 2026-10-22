@@ -58,9 +58,11 @@ func searchPersonaAdminDocuments(ctx context.Context, client documentv1.Document
 			continue
 		}
 		published := uint64(0)
+		publishedLabel := ""
 		for index, version := range versions.GetVersions() {
 			if version.GetIsCurrent() {
 				published = uint64(index + 1)
+				publishedLabel = version.GetSemanticVersion()
 				break
 			}
 		}
@@ -82,7 +84,7 @@ func searchPersonaAdminDocuments(ctx context.Context, client documentv1.Document
 			}
 			updated = prefix + " " + productui.ChatDocDateLabel(locale, at.AsTime(), now)
 		}
-		items = append(items, productui.AgentDocumentSuggestion{DocumentID: document.GetDocumentId(), Title: document.GetTitle(), Location: location, Updated: updated, PublishedVersion: published})
+		items = append(items, productui.AgentDocumentSuggestion{DocumentID: document.GetDocumentId(), Title: document.GetTitle(), Location: location, Updated: updated, PublishedVersion: published, PublishedLabel: publishedLabel})
 	}
 	return items, nil
 }

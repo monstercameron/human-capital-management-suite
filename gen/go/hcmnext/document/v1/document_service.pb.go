@@ -4672,15 +4672,18 @@ func (x *ListDocumentVersionsRequest) GetDocumentId() string {
 // store can name the version's author; is_current marks the version the
 // document currently resolves to.
 type DocumentVersionSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	AuthorId      string                 `protobuf:"bytes,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
-	IsCurrent     bool                   `protobuf:"varint,5,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
-	Redacted      bool                   `protobuf:"varint,6,opt,name=redacted,proto3" json:"redacted,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	VersionId string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Title     string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AuthorId  string                 `protobuf:"bytes,4,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	IsCurrent bool                   `protobuf:"varint,5,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	Redacted  bool                   `protobuf:"varint,6,opt,name=redacted,proto3" json:"redacted,omitempty"`
+	// semantic_version is the version's sealed publication label, empty
+	// until first deployed (AGENTUX-065).
+	SemanticVersion string `protobuf:"bytes,7,opt,name=semantic_version,json=semanticVersion,proto3" json:"semantic_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DocumentVersionSummary) Reset() {
@@ -4753,6 +4756,13 @@ func (x *DocumentVersionSummary) GetRedacted() bool {
 		return x.Redacted
 	}
 	return false
+}
+
+func (x *DocumentVersionSummary) GetSemanticVersion() string {
+	if x != nil {
+		return x.SemanticVersion
+	}
+	return ""
 }
 
 type ListDocumentVersionsResponse struct {
@@ -5383,7 +5393,7 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\tbacklinks\x18\x01 \x03(\v2%.hcmnext.document.v1.DocumentBacklinkR\tbacklinks\">\n" +
 	"\x1bListDocumentVersionsRequest\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
-	"documentId\"\xe0\x01\n" +
+	"documentId\"\x8b\x02\n" +
 	"\x16DocumentVersionSummary\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x14\n" +
@@ -5393,7 +5403,8 @@ const file_hcmnext_document_v1_document_service_proto_rawDesc = "" +
 	"\tauthor_id\x18\x04 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +
 	"is_current\x18\x05 \x01(\bR\tisCurrent\x12\x1a\n" +
-	"\bredacted\x18\x06 \x01(\bR\bredacted\"g\n" +
+	"\bredacted\x18\x06 \x01(\bR\bredacted\x12)\n" +
+	"\x10semantic_version\x18\a \x01(\tR\x0fsemanticVersion\"g\n" +
 	"\x1cListDocumentVersionsResponse\x12G\n" +
 	"\bversions\x18\x01 \x03(\v2+.hcmnext.document.v1.DocumentVersionSummaryR\bversions\"R\n" +
 	"\x17WithdrawDocumentRequest\x12\x1f\n" +

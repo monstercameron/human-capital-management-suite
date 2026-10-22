@@ -119,7 +119,7 @@ func resolvePersonaAdminDocumentReferences(ctx context.Context, reader PersonaAd
 	ids := make([]string, len(refs))
 	for i, ref := range refs {
 		ids[i] = ref.DocumentID
-		out[i] = productui.PersonaAdminDocumentReference{DocumentID: ref.DocumentID, VersionMode: string(ref.VersionMode), PinnedVersion: ref.PinnedVersion, SectionAnchor: ref.SectionAnchor, Label: ref.Label}
+		out[i] = productui.PersonaAdminDocumentReference{DocumentID: ref.DocumentID, VersionMode: string(ref.VersionMode), PinnedVersion: ref.PinnedVersion, PinnedLabel: ref.PinnedLabel, CompatibleBase: ref.CompatibleBase, SectionAnchor: ref.SectionAnchor, Label: ref.Label}
 	}
 	if len(refs) == 0 || reader == nil {
 		return out, nil

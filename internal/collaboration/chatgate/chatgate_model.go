@@ -6,10 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 var (
@@ -24,35 +23,18 @@ var (
 
 const APIVersion = "hcmnext.chat.v1.ChannelGateService"
 
-type Version struct{ Major, Minor, Patch uint32 }
+// Version is the shared semantic version: gates parse and compare with the
+// same value documents and agents label with (AGENTUX-065).
+type Version = semver.Version
 
-func (v Version) String() string { return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch) }
+// ParseVersion reads a plain triple. It accepts the display's leading "v",
+// which the gate itself never stores.
 func ParseVersion(s string) (Version, error) {
-	p := strings.Split(s, ".")
-	if len(p) != 3 {
+	v, err := semver.Parse(s)
+	if err != nil {
 		return Version{}, ErrInvalid
 	}
-	var n [3]uint32
-	for i, x := range p {
-		u, e := strconv.ParseUint(x, 10, 32)
-		if e != nil || strconv.FormatUint(u, 10) != x {
-			return Version{}, ErrInvalid
-		}
-		n[i] = uint32(u)
-	}
-	if n[0] == 0 {
-		return Version{}, ErrInvalid
-	}
-	return Version{n[0], n[1], n[2]}, nil
-}
-func (v Version) Less(w Version) bool {
-	if v.Major != w.Major {
-		return v.Major < w.Major
-	}
-	if v.Minor != w.Minor {
-		return v.Minor < w.Minor
-	}
-	return v.Patch < w.Patch
+	return v, nil
 }
 
 type Visibility struct {

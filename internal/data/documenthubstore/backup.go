@@ -26,6 +26,7 @@ var (
 type SnapshotVersion struct {
 	ID, ParentID, CreatorID, Title, Locale, Classification string
 	Markdown, Hash, Renderer, ChangeNote, Status           string
+	SemanticVersion                                        string
 	CreatedAt                                              time.Time
 }
 
@@ -86,7 +87,7 @@ func (s *Store) SnapshotDocument(ctx context.Context, tenantID, docID, actorID s
 			return ErrDenied
 		}
 		out = SnapshotBundle{DocumentID: docID, OwnerID: owner, Home: home, Lifecycle: lifecycle, Ceiling: ceiling, RecordsPolicy: series}
-		rows, err := tx.Query(ctx, `SELECT id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,status,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 ORDER BY created_at, id`,
+		rows, err := tx.Query(ctx, `SELECT id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,status,semantic_version,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 ORDER BY created_at, id`,
 			tenantID, docID)
 		if err != nil {
 			return err
@@ -94,7 +95,7 @@ func (s *Store) SnapshotDocument(ctx context.Context, tenantID, docID, actorID s
 		for rows.Next() {
 			var v SnapshotVersion
 			if err := rows.Scan(&v.ID, &v.ParentID, &v.CreatorID, &v.Title, &v.Locale, &v.Classification,
-				&v.Markdown, &v.Hash, &v.Renderer, &v.ChangeNote, &v.Status, &v.CreatedAt); err != nil {
+				&v.Markdown, &v.Hash, &v.Renderer, &v.ChangeNote, &v.Status, &v.SemanticVersion, &v.CreatedAt); err != nil {
 				rows.Close()
 				return err
 			}
@@ -208,9 +209,9 @@ func (s *Store) RestoreDocument(ctx context.Context, tenantID string, snap Snaps
 			return err
 		}
 		for _, v := range snap.Versions {
-			if _, err := tx.Exec(ctx, `INSERT INTO document_version(id,tenant_id,document_id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+			if _, err := tx.Exec(ctx, `INSERT INTO document_version(id,tenant_id,document_id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,status,semantic_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 				v.ID, tenantID, snap.DocumentID, v.ParentID, v.CreatorID, v.Title, v.Locale, v.Classification,
-				v.Markdown, v.Hash, v.Renderer, v.ChangeNote, v.Status); err != nil {
+				v.Markdown, v.Hash, v.Renderer, v.ChangeNote, v.Status, v.SemanticVersion); err != nil {
 				return err
 			}
 			out.Versions++

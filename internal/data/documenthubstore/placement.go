@@ -12,6 +12,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 // ErrPlacementInput is returned when a placement is missing its scope,
@@ -25,6 +27,9 @@ type PlaceInput struct {
 	DocumentID, VersionID, ScopeKind, ScopeID, ActorID, ExpectedLive string
 	CustodianID                                                      string
 	ReviewDueAt                                                      time.Time
+	// Bump is the author's plain choice for this publication (AGENTUX-065),
+	// passed through to Deploy; the zero value is a patch.
+	Bump semver.Bump
 }
 
 // PlaceDocument deploys a reviewed version into a team or channel scope as
@@ -41,6 +46,7 @@ func (s *Store) PlaceDocument(ctx context.Context, tenantID string, in PlaceInpu
 		DocumentID: in.DocumentID, VersionID: in.VersionID, ScopeKind: in.ScopeKind, ScopeID: in.ScopeID,
 		DeployerID: in.ActorID, ExpectedLive: in.ExpectedLive,
 		CustodianID: in.CustodianID, ReviewDueAt: in.ReviewDueAt,
+		Bump: in.Bump,
 	})
 }
 

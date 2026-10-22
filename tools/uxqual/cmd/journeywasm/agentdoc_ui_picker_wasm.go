@@ -275,6 +275,7 @@ func personaDocumentPickerRenderResults(picker js.Value, items []productui.Agent
 		option.Get("dataset").Set("agentdocLabel", labels[item.DocumentID])
 		option.Get("dataset").Set("agentdocUpdated", item.Updated)
 		option.Get("dataset").Set("agentdocVersion", strconv.FormatUint(item.PublishedVersion, 10))
+		option.Get("dataset").Set("agentdocPublishedLabel", item.PublishedLabel)
 		strong := document.Call("createElement", "strong")
 		strong.Set("textContent", item.Title)
 		strong.Set("dir", "auto")
@@ -461,11 +462,20 @@ func personaDocumentPickerAdd(picker, option js.Value) {
 	row.Get("dataset").Set("documentTitle", documentTitle)
 	row.Get("dataset").Set("documentLocation", domDataset(option, "agentdocLocation"))
 	mode := domDataset(picker, "agentdocDefaultMode")
-	if mode != string(agentdocref.ModeLatestPublished) {
+	label := domDataset(option, "agentdocPublishedLabel")
+	switch mode {
+	case string(agentdocref.ModeCompatible), string(agentdocref.ModePinnedLabel):
+		if label == "" {
+			mode = string(agentdocref.ModePinned)
+		}
+	case string(agentdocref.ModeLatestPublished):
+	default:
 		mode = string(agentdocref.ModePinned)
 	}
 	row.Get("dataset").Set("versionMode", mode)
 	row.Get("dataset").Set("pinnedVersion", domDataset(option, "agentdocVersion"))
+	row.Get("dataset").Set("pinnedLabel", label)
+	row.Get("dataset").Set("compatibleBase", label)
 	row.Get("dataset").Set("sectionAnchor", "")
 	row.Get("dataset").Set("readable", "true")
 	link := document.Call("createElement", "a")
@@ -473,21 +483,33 @@ func personaDocumentPickerAdd(picker, option js.Value) {
 	link.Set("target", "_blank")
 	link.Set("rel", "noopener noreferrer")
 	link.Set("textContent", documentLabel)
+	sequence := domDataset(option, "agentdocVersion")
+	exact := agentdocref.Reference{VersionMode: agentdocref.ModePinnedLabel, PinnedLabel: label}.VersionSelector()
+	line := agentdocref.Reference{VersionMode: agentdocref.ModeCompatible, CompatibleBase: label}.VersionSelector()
+	optionText := map[string]string{
+		string(agentdocref.ModeCompatible):      strings.ReplaceAll(domDataset(picker, "agentdocCompatible"), "{version}", line),
+		string(agentdocref.ModePinnedLabel):     strings.ReplaceAll(domDataset(picker, "agentdocExact"), "{version}", exact),
+		string(agentdocref.ModePinned):          strings.ReplaceAll(domDataset(picker, "agentdocPinned"), "{version}", sequence),
+		string(agentdocref.ModeLatestPublished): domDataset(picker, "agentdocLatest"),
+	}
 	versionControl := document.Call("createElement", "select")
 	if domDataset(picker, "agentdocLockedMode") == "true" {
 		versionControl = document.Call("createElement", "span")
 		versionControl.Set("className", "muted")
 		versionControl.Get("dataset").Set("agentdocModeLocked", "true")
-		versionControl.Set("textContent", map[bool]string{true: domDataset(picker, "agentdocLatest"), false: strings.ReplaceAll(domDataset(picker, "agentdocPinned"), "{version}", domDataset(option, "agentdocVersion"))}[mode == string(agentdocref.ModeLatestPublished)])
+		locked := optionText[mode]
+		if locked == "" {
+			locked = optionText[string(agentdocref.ModeLatestPublished)]
+		}
+		versionControl.Set("textContent", locked)
 	} else {
 		versionControl.Get("dataset").Set("agentdocMode", "true")
-		pinned := document.Call("createElement", "option")
-		pinned.Set("value", "PINNED")
-		pinned.Set("textContent", strings.ReplaceAll(domDataset(picker, "agentdocPinned"), "{version}", domDataset(option, "agentdocVersion")))
-		latest := document.Call("createElement", "option")
-		latest.Set("value", "LATEST_PUBLISHED")
-		latest.Set("textContent", domDataset(picker, "agentdocLatest"))
-		versionControl.Call("append", pinned, latest)
+		for _, value := range []string{string(agentdocref.ModeCompatible), string(agentdocref.ModePinnedLabel), string(agentdocref.ModePinned), string(agentdocref.ModeLatestPublished)} {
+			item := document.Call("createElement", "option")
+			item.Set("value", value)
+			item.Set("textContent", optionText[value])
+			versionControl.Call("append", item)
+		}
 		versionControl.Set("value", mode)
 	}
 	remove := document.Call("createElement", "button")
@@ -624,10 +646,16 @@ func personaDocumentReferencesFromForm(form js.Value) []agentdocref.Reference {
 			mode = selectNode.Get("value").String()
 		}
 		pinned, _ := strconv.ParseUint(domDataset(row, "pinnedVersion"), 10, 64)
-		if mode == string(agentdocref.ModeLatestPublished) {
+		var pinnedLabel, base string
+		switch mode {
+		case string(agentdocref.ModePinnedLabel):
+			pinnedLabel, pinned = domDataset(row, "pinnedLabel"), 0
+		case string(agentdocref.ModeCompatible):
+			base, pinned = domDataset(row, "compatibleBase"), 0
+		case string(agentdocref.ModeLatestPublished):
 			pinned = 0
 		}
-		refs = append(refs, agentdocref.Reference{DocumentID: domDataset(row, "documentId"), VersionMode: agentdocref.VersionMode(mode), PinnedVersion: pinned, SectionAnchor: domDataset(row, "sectionAnchor"), Label: domDataset(row, "documentLabel")})
+		refs = append(refs, agentdocref.Reference{DocumentID: domDataset(row, "documentId"), VersionMode: agentdocref.VersionMode(mode), PinnedVersion: pinned, PinnedLabel: pinnedLabel, CompatibleBase: base, SectionAnchor: domDataset(row, "sectionAnchor"), Label: domDataset(row, "documentLabel")})
 	}
 	return refs
 }

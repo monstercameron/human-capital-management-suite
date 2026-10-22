@@ -648,6 +648,9 @@ message DocumentVersionSummary {
   string author_id = 4;
   bool is_current = 5;
   bool redacted = 6;
+  // semantic_version is the version's sealed publication label, empty
+  // until first deployed (AGENTUX-065).
+  string semantic_version = 7;
 }
 
 message ListDocumentVersionsResponse {

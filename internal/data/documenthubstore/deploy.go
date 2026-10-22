@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 // ErrNoApprovedReview is returned when no approved review binds the version
@@ -33,6 +34,10 @@ type DeployInput struct {
 	DocumentID, VersionID, ScopeKind, ScopeID, DeployerID, ExpectedLive string
 	CustodianID                                                         string
 	ReviewDueAt                                                         time.Time
+	// Bump is the author's plain choice for this publication (AGENTUX-065):
+	// the next label is computed from it, never typed. The zero value is a
+	// patch; a version that already carries a label keeps it.
+	Bump semver.Bump
 }
 
 // Deploy publishes one reviewed version to one scope.
@@ -49,6 +54,38 @@ func (s *Store) Deploy(ctx context.Context, tenantID string, in DeployInput) (De
 		version, err := loadVersion(ctx, tx, tenantID, in.DocumentID, in.VersionID)
 		if err != nil {
 			return err
+		}
+		// The publication labels its version once (AGENTUX-065): the author's
+		// bump choice names the next label from the document's greatest
+		// labelled version, or 1.0.0 for a first publication. A version that
+		// already carries a label — a redeploy to another scope, or a row the
+		// migration labelled — keeps it; the guarded-update trigger enforces
+		// the same rule underneath.
+		label := version.SemanticVersion
+		if label == "" {
+			greatest := semver.Version{}
+			labels, err := tx.Query(ctx, `SELECT semantic_version FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND semantic_version<>''`, tenantID, in.DocumentID)
+			if err != nil {
+				return err
+			}
+			for labels.Next() {
+				var candidate string
+				if err := labels.Scan(&candidate); err != nil {
+					labels.Close()
+					return err
+				}
+				if parsed, err := semver.Parse(candidate); err == nil && greatest.Less(parsed) {
+					greatest = parsed
+				}
+			}
+			labels.Close()
+			if err := labels.Err(); err != nil {
+				return err
+			}
+			label = greatest.Next(in.Bump).String()
+			if _, err := tx.Exec(ctx, `UPDATE document_version SET semantic_version=$1 WHERE tenant_id=$2 AND id=$3 AND semantic_version=''`, label, tenantID, in.VersionID); err != nil {
+				return err
+			}
 		}
 		if err := authorizeTx(ctx, tx, tenantID, in.DocumentID, "person", in.DeployerID, ActionDeploy); err != nil {
 			return err
@@ -73,15 +110,16 @@ func (s *Store) Deploy(ctx context.Context, tenantID string, in DeployInput) (De
 			return ErrStalePointer
 		}
 		deployment := Deployment{
-			ID:          "docd-" + uuid.NewString(),
-			DocumentID:  in.DocumentID,
-			VersionID:   in.VersionID,
-			ScopeKind:   in.ScopeKind,
-			ScopeID:     in.ScopeID,
-			DeployerID:  in.DeployerID,
-			CustodianID: in.CustodianID,
-			EffectiveAt: version.CreatedAt,
-			ReviewDueAt: in.ReviewDueAt,
+			ID:              "docd-" + uuid.NewString(),
+			DocumentID:      in.DocumentID,
+			VersionID:       in.VersionID,
+			ScopeKind:       in.ScopeKind,
+			ScopeID:         in.ScopeID,
+			DeployerID:      in.DeployerID,
+			CustodianID:     in.CustodianID,
+			EffectiveAt:     version.CreatedAt,
+			ReviewDueAt:     in.ReviewDueAt,
+			SemanticVersion: label,
 		}
 		var reviewDue any
 		if !in.ReviewDueAt.IsZero() {
@@ -137,7 +175,7 @@ func deploymentEventPayload(tenantID string, d Deployment, priorDeployment, revi
 	raw, err := json.Marshal(map[string]string{
 		"deployer_id": d.DeployerID, "deployment_id": d.ID, "document_id": d.DocumentID,
 		"prior_deployment_id": priorDeployment, "review_id": reviewID,
-		"scope_id": d.ScopeID, "scope_kind": d.ScopeKind,
+		"scope_id": d.ScopeID, "scope_kind": d.ScopeKind, "semantic_version": d.SemanticVersion,
 		"tenant_id": tenantID, "version_hash": versionHash, "version_id": d.VersionID,
 	})
 	if err != nil {

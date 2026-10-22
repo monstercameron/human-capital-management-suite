@@ -12,7 +12,7 @@ import (
 func agentUX073Text(locale LocaleContext, key string, replacements ...string) string {
 	copy := map[string][3]string{
 		"agents":             {"Agents", "Agenten", "الوكلاء"},
-		"agent_version":      {"Version {version}", "Version {version}", "الإصدار {version}"},
+		"agent_version":      {"{version}", "{version}", "{version}"},
 		"state_answering":    {"Answering", "Antwortet", "يجيب"},
 		"state_paused":       {"Paused", "Pausiert", "متوقف مؤقتًا"},
 		"state_ready":        {"Ready", "Bereit", "جاهز"},
@@ -53,7 +53,7 @@ func agentUX073AgentRows(locale LocaleContext, snapshot AgentControlsSnapshot) u
 		state, tone := agentUX081ActivityState(locale, persona, snapshot.Runs)
 		identity := []ui.Node{html.Strong(html.Props{Dir: "auto"}, ui.Text(persona.Name))}
 		if version := strings.TrimSpace(persona.Version); version != "" {
-			identity = append(identity, html.Small(html.Props{}, ui.Text(agentUX073Text(locale, "agent_version", "{version}", personaAdminLocalizedNumber(locale, version)))))
+			identity = append(identity, html.Small(html.Props{}, ui.Text(agentUX073Text(locale, "agent_version", "{version}", personaAdminVersionToken(locale, persona.VersionLabel, version)))))
 		}
 		rows = append(rows, html.Li(html.Props{Class: "agent-owner-pause-row", Raw: map[string]any{"data-persona-id": persona.ID}},
 			html.Span(html.Props{Class: "agent-activity-icon", Aria: map[string]string{"hidden": "true"}}, agentUX074Icon(persona.Icon, persona.ID, siblings)),

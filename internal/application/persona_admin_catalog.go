@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agenteval"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
@@ -47,9 +48,12 @@ func personaCatalogStage(stage string, err error) error {
 
 // PersonaCatalogVersion is the immutable profile and trusted lifecycle/review projection read for one tenant.
 type PersonaCatalogVersion struct {
-	Icon               agenticon.Value
-	IconRevision       int64
-	Profile            agentpersona.PersonaVersion
+	Icon         agenticon.Value
+	IconRevision int64
+	Profile      agentpersona.PersonaVersion
+	// Label is the version's sealed semantic label, empty for a draft or
+	// a version that predates labels (AGENTUX-065).
+	Label              string
 	Lifecycle          agentpersona.LifecycleState
 	Owner              string
 	Steward            string
@@ -254,6 +258,15 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			return out, personaCatalogStage("history", err)
 		}
 	}
+	previews := map[string]productui.PersonaPublishPreview{}
+	if reader, ok := s.Versions.(interface {
+		ListPersonaPublishPreviews(context.Context, values.TenantId) (map[string]productui.PersonaPublishPreview, error)
+	}); ok {
+		previews, err = reader.ListPersonaPublishPreviews(ctx, tenant)
+		if err != nil {
+			return out, personaCatalogStage("previews", err)
+		}
+	}
 	seenPersonas := make(map[string]struct{}, len(versions))
 	for _, v := range versions {
 		if v.Profile.Verify() != nil || v.Profile.Profile.PersonaID == "" || v.Profile.Profile.Version == 0 || !validLifecycle(v.Lifecycle) {
@@ -278,7 +291,15 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			}
 		}
 		persona.Icon, persona.IconRevision = v.Icon, v.IconRevision
+		persona.VersionLabel = v.Label
+		persona.PublishPreview = previews[persona.ID]
 		persona.VersionHistory = history[persona.ID]
+		versionLabels := make(map[string]string, len(persona.VersionHistory))
+		for _, row := range persona.VersionHistory {
+			if row.VersionLabel != "" {
+				versionLabels[row.Version] = row.VersionLabel
+			}
+		}
 		for i := range persona.VersionHistory {
 			row := &persona.VersionHistory[i]
 			resolved, resolveErr := resolvePersonaAdminDocumentReferences(ctx, s.Documents, string(tenant), p.Subject(), row.DocumentReferences)
@@ -345,6 +366,12 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		if err != nil {
 			out.DocumentsState.Unavailable = true
 			persona.DocumentReferences = nil
+		} else if lineReader, ok := s.Documents.(interface {
+			ResolveDocumentLineLabels(context.Context, string, string, []agentdocref.Reference) (map[string]DocumentLineLabels, error)
+		}); ok {
+			if lines, lineErr := lineReader.ResolveDocumentLineLabels(ctx, string(tenant), p.Subject(), profile.DocumentReferences); lineErr == nil {
+				persona.DocumentNotices = personaDocumentDriftNotices(persona.DocumentReferences, lines)
+			}
 		}
 		persona.ChannelClasses = personaCatalogChannelClasses(profile.ChannelClasses)
 		if starter, ok := personaCatalogStarter(profile); ok {
@@ -383,6 +410,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		// version 4's conversations disappear from the page.
 		if liveVersion := personaCatalogLiveVersion(installs, persona.ID); liveVersion != 0 && liveVersion != profile.Version {
 			persona.LiveVersion = fmt.Sprint(liveVersion)
+			persona.LiveVersionLabel = versionLabels[persona.LiveVersion]
 		}
 		for _, in := range installs {
 			if in.PersonaID != persona.ID || !validPersonaCatalogInstallation(in) {
@@ -398,6 +426,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 				conversation = target.PlacementLabel
 			}
 			installation := productui.PersonaAdminInstallation{InstallationID: in.ID, Version: fmt.Sprint(in.PersonaVersion), ConversationID: in.ConversationID, Conversation: conversation, Kind: target.Kind, Audience: in.Audience, ReplyPlacement: in.ReplyPlacement}
+			installation.VersionLabel = versionLabels[installation.Version]
 			if in.State == string(agentpersonastore.InstallationSuspended) {
 				// A stopped placement is listed, with its reason, so the
 				// administrator sees why the agent left the conversation.
@@ -803,6 +832,9 @@ func (r personaAdminCatalogVersions) ListPersonaAdminVersionHistory(ctx context.
 		return nil, err
 	}
 	out := map[string][]productui.PersonaAdminVersionHistory{}
+	labelSource, canReadLabel := scoped.(interface {
+		PublishedLabel(context.Context, string, int64) (string, error)
+	})
 	for _, entry := range entries {
 		profile, err := decodeAvailableProfile(entry.Version)
 		if err != nil {
@@ -811,6 +843,11 @@ func (r personaAdminCatalogVersions) ListPersonaAdminVersionHistory(ctx context.
 		projected := productui.PersonaAdminPersona{}
 		applyAgentDocGuidanceProjection(&projected, profile.Profile)
 		row := productui.PersonaAdminVersionHistory{Version: fmt.Sprint(entry.Version.Version), Lifecycle: productui.PersonaAdminLifecycle(entry.Lifecycle), Instructions: profile.Profile.Instructions, Guidance: projected.Guidance, DocumentReferences: profile.Profile.DocumentReferences}
+		if canReadLabel {
+			if label, labelErr := labelSource.PublishedLabel(ctx, entry.Version.PersonaID, entry.Version.Version); labelErr == nil {
+				row.VersionLabel = label
+			}
+		}
 		for _, in := range entry.Installations {
 			if in.State == string(agentpersonastore.InstallationActive) {
 				row.ConversationCount++

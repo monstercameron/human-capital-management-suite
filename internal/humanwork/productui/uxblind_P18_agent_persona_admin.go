@@ -9,6 +9,7 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
@@ -45,9 +46,31 @@ type PersonaAdminSkill struct {
 	DataClasses []string
 }
 
+// PersonaPublishPreview is the computed publish choice: Required names the
+// smallest choice the change allows ("patch", "minor" or "major"), Greatest
+// is the label it advances past (empty for a first publication), and Patch,
+// Minor and Major are the labels each choice would seal (AGENTUX-065).
+type PersonaPublishPreview struct {
+	Available           bool
+	Required            string
+	Greatest            string
+	Patch, Minor, Major string
+}
+
+// PersonaDocumentDriftNotice tells the owner one referenced document moved
+// to a newer major line than the agent reads (AGENTUX-065).
+type PersonaDocumentDriftNotice struct {
+	DocumentID      string
+	Title           string
+	Reading, Latest string
+}
+
 type PersonaAdminInstallation struct {
 	InstallationID string
 	Version        string
+	// VersionLabel is the placement version's sealed semantic label, empty
+	// when the version predates labels (AGENTUX-065).
+	VersionLabel   string
 	ConversationID string
 	Conversation   string
 	Kind           string
@@ -101,9 +124,21 @@ type PersonaAdminPersona struct {
 	StewardInitials  string
 	StewardAvatarURL string
 	Version          string
+	// VersionLabel is the version's sealed semantic label, empty for a
+	// draft or a version that predates labels (AGENTUX-065).
+	VersionLabel string
 	// LiveVersion is the currently published version when Version names a
 	// newer draft or reviewed version.
-	LiveVersion            string
+	LiveVersion string
+	// LiveVersionLabel seals the live version's semantic label.
+	LiveVersionLabel string
+	// PublishPreview is the publish the author is about to make: the
+	// smallest choice the change allows and the label each choice would
+	// seal (AGENTUX-065).
+	PublishPreview PersonaPublishPreview
+	// DocumentNotices names referenced documents that moved to a newer
+	// major line than the agent reads (AGENTUX-065).
+	DocumentNotices        []PersonaDocumentDriftNotice
 	Skills                 []PersonaAdminSkill
 	DerivedData            []string
 	ChannelClasses         []string
@@ -525,6 +560,7 @@ func personaAdminCard(locale LocaleContext, client PersonaAdminClient, persona P
 		integrate1AgentIconControls(locale, persona),
 		personaAdminInstructionsSection(locale, persona),
 		personaAdminDocumentReferences(locale, persona.ID, persona.DocumentReferences),
+		personaAdminDocumentNotices(locale, persona),
 		personaAdminTechnicalDetails(locale, persona),
 	)
 }
@@ -566,7 +602,15 @@ func personaAdminDocumentReferences(locale LocaleContext, personaID string, refe
 			title = strings.TrimSpace(reference.Label)
 		}
 		mode := agentDocumentPickerText(locale, "latest")
-		if reference.VersionMode != "LATEST_PUBLISHED" {
+		switch reference.VersionMode {
+		case string(agentdocref.ModePinnedLabel):
+			exact := agentdocref.Reference{VersionMode: agentdocref.ModePinnedLabel, PinnedLabel: reference.PinnedLabel}.VersionSelector()
+			mode = strings.ReplaceAll(agentDocumentPickerText(locale, "pinned_label"), "{version}", exact)
+		case string(agentdocref.ModeCompatible):
+			line := agentdocref.Reference{VersionMode: agentdocref.ModeCompatible, CompatibleBase: reference.CompatibleBase}.VersionSelector()
+			mode = strings.ReplaceAll(agentDocumentPickerText(locale, "compatible"), "{version}", line)
+		case string(agentdocref.ModeLatestPublished):
+		default:
 			mode = strings.ReplaceAll(agentDocumentPickerText(locale, "pinned"), "{version}", personaAdminLocalizedNumber(locale, strconv.FormatUint(reference.PinnedVersion, 10)))
 		}
 		label := ui.Node(html.Strong(html.Props{Dir: "auto"}, ui.Text(title)))
@@ -743,6 +787,11 @@ func personaAdminLifecycleActions(locale LocaleContext, client PersonaAdminClien
 	} else if persona.ReviewApproved && persona.EvaluationRef != "" && persona.Lifecycle != PersonaPublished && persona.Lifecycle != PersonaSuspended && persona.Lifecycle != PersonaRetired {
 		allowed := personaAdminCommandAllowed(snapshot, "PUBLISH")
 		primary = append(primary, personaAdminAction(locale, persona, "PUBLISH", "publish", "publish_permission", allowed, true, false))
+		if allowed {
+			if choice := personaAdminPublishChoice(locale, persona); choice != nil {
+				primary = append(primary, choice)
+			}
+		}
 	}
 
 	result := []ui.Node{html.Div(html.Props{Class: "persona-admin-primary-actions"}, primary...)}
@@ -1110,6 +1159,8 @@ func personaAdminText(locale LocaleContext, key string) string {
 		"owner":                 {"Business owner", "Fachverantwortliche Person", "المالك المسؤول"}, "steward": {"Technical contact", "Technischer Kontakt", "جهة الاتصال التقنية"}, "skills": {"What it can do", "Was er tun kann", "ما يمكنه فعله"}, "limits": {"Usage limits", "Nutzungsgrenzen", "حدود الاستخدام"}, "version": {"Version", "Version", "الإصدار"},
 		"review_required": {"An independent reviewer must approve this version.", "Eine unabhängige prüfende Person muss diese Version genehmigen.", "يجب أن يوافق مراجع مستقل على هذا الإصدار."}, "review_approved": {"Approved by an independent reviewer.", "Von einer unabhängigen prüfenden Person genehmigt.", "وافق مراجع مستقل على الإصدار."}, "review_not_required": {"No publication review is recorded yet.", "Noch keine Veröffentlichungsprüfung erfasst.", "لم تُسجل مراجعة للنشر بعد."}, "reviewer": {"Reviewer", "Prüfende Person", "المراجع"}, "evaluation_required": {"Evaluation is required before publication.", "Vor der Veröffentlichung ist eine Evaluierung erforderlich.", "يلزم التقييم قبل النشر."}, "review_detail_unavailable": {"Review evidence is not available.", "Prüfnachweise sind nicht verfügbar.", "أدلة المراجعة غير متاحة."},
 		"request_review": {"Request review", "Prüfung anfordern", "طلب المراجعة"}, "approve": {"Approve version", "Version genehmigen", "الموافقة على الإصدار"}, "reject": {"Reject version", "Version ablehnen", "رفض الإصدار"}, "publish": {"Publish version {version}", "Version {version} veröffentlichen", "نشر الإصدار {version}"}, "rollback": {"Rollback", "Rollback", "تراجع"}, "suspend": {"Suspend", "Aussetzen", "إيقاف"}, "retire": {"Retire", "Stilllegen", "إحالة للتقاعد"},
+		"publish_choice_heading": {"Publish as", "Veröffentlichen als", "انشر كـ"}, "publish_choice_patch": {"Fixes wording", "Korrigiert Formulierungen", "يصحح الصياغة"}, "publish_choice_minor": {"Adds or clarifies", "Ergänzt oder präzisiert", "يضيف أو يوضح"}, "publish_choice_major": {"Changes what it says or does", "Ändert Verhalten oder Aussagen", "يغير ما يقوله أو يفعله"}, "publish_choice_first": {"First publication", "Erstveröffentlichung", "النشر الأول"}, "publish_choice_too_small": {"too small for this change", "zu klein für diese Änderung", "أصغر من أن يناسب هذا التغيير"},
+		"document_drift": {"{title} changed to {latest}; this agent still reads {reading}.", "{title} hat sich zu {latest} geändert; dieser Agent liest noch {reading}.", "تغيّر {title} إلى {latest}؛ وما زال هذا الوكيل يقرأ {reading}."}, "review_and_update": {"Review and update", "Prüfen und aktualisieren", "راجع وحدّث"},
 		"actions_unavailable": {"Actions are unavailable while the agent service is disconnected.", "Aktionen sind nicht verfügbar, solange der Agentendienst getrennt ist.", "الإجراءات غير متاحة أثناء انقطاع خدمة الوكلاء."},
 		"preview_title":       {"Test what an agent can do for someone", "Testen, was ein Agent für eine Person tun kann", "اختبار ما يمكن للوكيل فعله لشخص"}, "preview_detail": {"Pick a person and a conversation to see what the selected agent could read and do for them there.", "Wählen Sie eine Person und eine Unterhaltung, um zu sehen, was der ausgewählte Agent dort für sie lesen und tun könnte.", "اختر شخصاً ومحادثة لمعرفة ما يمكن للوكيل المحدد قراءته وفعله له هناك."}, "choose_persona": {"Agent", "Agent", "الوكيل"}, "choose_user": {"Person", "Person", "الشخص"}, "choose_conversation": {"Conversation", "Unterhaltung", "المحادثة"}, "preview_check": {"Check", "Prüfen", "تحقق"},
 		"no_limits": {"No limits set", "Keine Grenzen festgelegt", "لم يتم تحديد حدود"}, "set_limit": {"Set a limit", "Limit festlegen", "تعيين حد"}, "none_set": {"None set", "Keine festgelegt", "لم يتم التحديد"}, "unknown_person": {"Unknown person", "Unbekannte Person", "شخص غير معروف"},

@@ -102,6 +102,7 @@ func TestTodo_HUB_009_Golden(t *testing.T) {
 	payload, err := deploymentEventPayload("tenant-a", Deployment{
 		ID: "docd-fixed", DocumentID: "doc-fixed", VersionID: "docv-fixed",
 		ScopeKind: "placement", ScopeID: "chan-A", DeployerID: "u-deployer",
+		SemanticVersion: "1.1.0",
 	}, "docd-prior", "docr-fixed", "9e1e2a8ea86d8c8dcfa4b4a1a0b8e1e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5")
 	if err != nil {
 		t.Fatal(err)

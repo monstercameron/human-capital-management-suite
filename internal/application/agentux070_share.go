@@ -202,7 +202,7 @@ func NewPersonaAnswerShareGate(floor *PersonaRuntimeAudienceFloor, hub *document
 		if strings.TrimSpace(content) == "" {
 			return AgentAnnouncementResolvedDocument{}, ErrAgentAnnouncementDenied
 		}
-		return AgentAnnouncementResolvedDocument{DocumentID: source.DocumentID, Version: id, Title: version.Title, Digest: personaRunT0ToolOutputDigest([]byte(content)), SectionAnchor: source.Anchor}, nil
+		return AgentAnnouncementResolvedDocument{DocumentID: source.DocumentID, Version: id, Title: version.Title, Digest: personaRunT0ToolOutputDigest([]byte(content)), VersionLabel: version.SemanticVersion, SectionAnchor: source.Anchor}, nil
 	}
 	return gate
 }

@@ -31,8 +31,8 @@ func personaAdminVersionEditor(locale LocaleContext, client PersonaAdminClient, 
 	next := personaAdminNextVersion(persona.Version)
 	explanation := strings.NewReplacer(
 		"{next}", personaAdminLocalizedNumber(locale, next),
-		"{current}", personaAdminLocalizedNumber(locale, persona.Version),
-		"{live}", personaAdminLocalizedNumber(locale, personaAdminLiveVersionValue(persona)),
+		"{current}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(persona.VersionLabel, persona.Version)),
+		"{live}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(personaAdminLiveVersionLabel(persona), personaAdminLiveVersionValue(persona))),
 	).Replace(personaAdminVersionText(locale, explanationKey))
 	children := []ui.Node{
 		html.H4(html.Props{Class: "persona-admin-version-title"}, ui.Text(strings.ReplaceAll(personaAdminVersionText(locale, "title"), "{agent}", persona.Name))),
@@ -130,7 +130,7 @@ func personaAdminVersionInstructions(locale LocaleContext, persona PersonaAdminP
 func personaAdminReferenceDocumentsSlot(locale LocaleContext, persona PersonaAdminPersona, available bool) ui.Node {
 	return html.Div(html.Props{Class: "persona-admin-reference-documents-slot"}, AgentDocumentReferencePicker(locale, AgentDocumentReferencePickerModel{
 		ID: "persona-reference-" + safeAgentDOMToken(persona.ID), Available: available, State: AgentDocumentPickerIdle,
-		DefaultVersionMode: "PINNED", References: persona.DocumentReferences,
+		DefaultVersionMode: "COMPATIBLE", References: persona.DocumentReferences,
 	}))
 }
 

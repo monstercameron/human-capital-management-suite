@@ -36,8 +36,11 @@ func classificationRank(classification string) int {
 // and its classification.
 type HistoryEntry struct {
 	VersionID, Classification, Title, Hash string
-	CreatedAt                              time.Time
-	Redacted                               bool
+	// SemanticVersion is the version's sealed publication label, empty
+	// until first deployed and withheld from redacted entries (AGENTUX-065).
+	SemanticVersion string
+	CreatedAt       time.Time
+	Redacted        bool
 }
 
 // ReadHistory lists a document's versions oldest first for a reader
@@ -55,19 +58,19 @@ func (s *Store) ReadHistory(ctx context.Context, tenantID, docID, readerKind, re
 		if err := authorizeTx(ctx, tx, tenantID, docID, readerKind, readerID, ActionHistory); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT id,classification,title,content_hash,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 ORDER BY created_at, id`,
+		rows, err := tx.Query(ctx, `SELECT id,classification,title,content_hash,semantic_version,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 ORDER BY created_at, id`,
 			tenantID, docID)
 		if err != nil {
 			return err
 		}
 		type row struct {
-			id, classification, title, hash string
-			at                              time.Time
+			id, classification, title, hash, label string
+			at                                     time.Time
 		}
 		var versions []row
 		for rows.Next() {
 			var r row
-			if err := rows.Scan(&r.id, &r.classification, &r.title, &r.hash, &r.at); err != nil {
+			if err := rows.Scan(&r.id, &r.classification, &r.title, &r.hash, &r.label, &r.at); err != nil {
 				rows.Close()
 				return err
 			}
@@ -87,7 +90,7 @@ func (s *Store) ReadHistory(ctx context.Context, tenantID, docID, readerKind, re
 				out = append(out, HistoryEntry{VersionID: r.id, Classification: r.classification, Redacted: true})
 				continue
 			}
-			out = append(out, HistoryEntry{VersionID: r.id, Classification: r.classification, Title: r.title, Hash: r.hash, CreatedAt: r.at})
+			out = append(out, HistoryEntry{VersionID: r.id, Classification: r.classification, Title: r.title, Hash: r.hash, SemanticVersion: r.label, CreatedAt: r.at})
 		}
 		return nil
 	})

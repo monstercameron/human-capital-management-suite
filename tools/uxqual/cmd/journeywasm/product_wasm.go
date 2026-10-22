@@ -930,6 +930,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 								}
 								summary := productui.DocumentVersionSummary{
 									VersionID: row.GetVersionId(), Title: row.GetTitle(), AuthorID: row.GetAuthorId(),
+									Version:   row.GetSemanticVersion(),
 									IsCurrent: row.GetIsCurrent(), Redacted: row.GetRedacted(),
 								}
 								if at := row.GetCreatedAt(); at != nil {

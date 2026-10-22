@@ -10,7 +10,12 @@ type PersonaAdminDocumentReference struct {
 	DocumentID    string `json:"document_id"`
 	VersionMode   string `json:"version_mode"`
 	PinnedVersion uint64 `json:"pinned_version,omitempty"`
-	SectionAnchor string `json:"section_anchor,omitempty"`
-	Label         string `json:"label"`
-	Readable      bool   `json:"readable"`
+	// PinnedLabel names the exact label a PINNED_LABEL reference follows;
+	// CompatibleBase is the oldest label a COMPATIBLE reference accepts
+	// (AGENTUX-065).
+	PinnedLabel    string `json:"pinned_label,omitempty"`
+	CompatibleBase string `json:"compatible_base,omitempty"`
+	SectionAnchor  string `json:"section_anchor,omitempty"`
+	Label          string `json:"label"`
+	Readable       bool   `json:"readable"`
 }

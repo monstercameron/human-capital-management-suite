@@ -16,9 +16,12 @@ type Invoker struct {
 type ResolvedDocument struct {
 	Reference Reference `json:"reference"`
 	Version   uint64    `json:"version"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Truncated bool      `json:"truncated"`
+	// VersionLabel is the resolved version's sealed semantic label, empty
+	// when the version predates labels.
+	VersionLabel string `json:"version_label"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	Truncated    bool   `json:"truncated"`
 }
 type Omission struct {
 	Label  string `json:"label"`

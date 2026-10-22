@@ -210,12 +210,21 @@ func installPersonaAdminCommandHandlersOnce() {
 			}
 			reason = typed
 		}
-		personaAdminSubmitCommand(productui.PersonaAdminCommandRequest{
+		request := productui.PersonaAdminCommandRequest{
 			Action:    domDataset(button, "personaCommand"),
 			PersonaID: domDataset(card, "personaId"),
 			Decision:  decision,
 			Reason:    reason,
-		})
+		}
+		if request.Action == "PUBLISH" {
+			if picked := card.Call("querySelector", `input[name="version_bump"]:checked`); picked.Truthy() {
+				if value := picked.Get("value"); value.Type() == js.TypeString && value.String() != "" {
+					bump := value.String()
+					request.VersionBump = &bump
+				}
+			}
+		}
+		personaAdminSubmitCommand(request)
 		return nil
 	})
 	document.Call("addEventListener", "click", click, true)

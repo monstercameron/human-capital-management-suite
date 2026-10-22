@@ -16,12 +16,18 @@ var agentux050Done = map[string]string{
 
 // agentRolloutStageFor is the status sentence under the rollout's buttons.
 func agentRolloutStageFor(locale LocaleContext, stage string, version int64) string {
+	return agentRolloutStageForLabel(locale, stage, version, "")
+}
+
+// agentRolloutStageForLabel names the sealed label when the target version
+// carries one, else the sequence (AGENTUX-065).
+func agentRolloutStageForLabel(locale LocaleContext, stage string, version int64, label string) string {
 	if strings.EqualFold(stage, "COMPLETE") && version > 0 {
 		text := agentux050Done[locale.Resolved]
 		if text == "" {
 			text = agentux050Done["en-US"]
 		}
-		return strings.ReplaceAll(text, "{version}", locale.FormatNumber(fmt.Sprint(version), 0))
+		return strings.ReplaceAll(text, "{version}", locale.FormatNumber(personaAdminVersionNumber(label, fmt.Sprint(version)), 0))
 	}
 	return agentRolloutStage(locale, stage)
 }

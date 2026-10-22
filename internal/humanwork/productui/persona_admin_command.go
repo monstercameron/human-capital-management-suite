@@ -37,6 +37,11 @@ type PersonaAdminCommandRequest struct {
 	// ReactToQuestions is the owner's choice carried by SET_REACTIONS: whether the
 	// agent reacts to the questions it is asked with an emoji (AGENTUX-075).
 	ReactToQuestions *bool `json:"react_to_questions,omitempty"`
+	// VersionBump is the author's plain publish choice carried by PUBLISH:
+	// "patch" (Fixes wording), "minor" (Adds or clarifies) or "major"
+	// (Changes what it says or does). Absent means the bump the change
+	// requires (AGENTUX-065).
+	VersionBump *string `json:"version_bump,omitempty"`
 }
 
 // PersonaAdminEvaluationResult is the safe command receipt shown after an

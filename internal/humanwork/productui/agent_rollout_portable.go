@@ -38,6 +38,7 @@ type AgentRolloutPersona struct{ ID, Name string }
 type AgentRolloutVersion struct {
 	PersonaID             string
 	Version               int64
+	VersionLabel          string
 	PublishedAt           string
 	Current               bool
 	Digest, ProfileDigest string
@@ -45,6 +46,7 @@ type AgentRolloutVersion struct {
 type AgentRolloutInstallation struct {
 	ID, PersonaID, ConversationID, Name, Status, ConversationKind string
 	Version, Revision                                             int64
+	VersionLabel                                                  string
 	MemberCount                                                   uint32
 	Visible                                                       bool
 	UpdateBlocked                                                 bool
@@ -57,8 +59,11 @@ type AgentRolloutCandidate struct {
 type AgentRolloutPlan struct {
 	ID, Digest, ProfileDigest string
 	Version                   int64
-	Candidates                []AgentRolloutCandidate
-	CanaryCount               int
+	// VersionLabel is the target version's sealed semantic label, looked
+	// up from the catalog beside the sealed plan (AGENTUX-065).
+	VersionLabel string
+	Candidates   []AgentRolloutCandidate
+	CanaryCount  int
 }
 type AgentRolloutProgress struct {
 	Revision          int64
@@ -251,9 +256,9 @@ func agentRolloutPreviewForm(locale LocaleContext, snapshot AgentRolloutSnapshot
 	rollbackOptions := []ui.Node{}
 	reviewedOptions := []ui.Node{}
 	for _, v := range orderedVersions {
-		label := strings.ReplaceAll(agentRPText(locale, "version_option"), "{version}", locale.FormatNumber(fmt.Sprint(v.Version), 0))
+		label := strings.ReplaceAll(agentRPText(locale, "version_option"), "{version}", personaAdminVersionToken(locale, v.VersionLabel, fmt.Sprint(v.Version)))
 		if v.Version == agentRolloutCurrentVersion(snapshot, v.PersonaID) {
-			label = strings.ReplaceAll(agentRPText(locale, "version_option_current"), "{version}", locale.FormatNumber(fmt.Sprint(v.Version), 0))
+			label = strings.ReplaceAll(agentRPText(locale, "version_option_current"), "{version}", personaAdminVersionToken(locale, v.VersionLabel, fmt.Sprint(v.Version)))
 		}
 		label = strings.ReplaceAll(label, "{date}", agentRolloutFormatDate(locale, v.PublishedAt))
 		option := html.Option(html.Props{Hidden: v.PersonaID != defaultPersona, Value: fmt.Sprint(v.Version), Selected: v.PersonaID == defaultPersona && v.Version == defaultVersion, Raw: map[string]any{"data-persona-id": v.PersonaID, "data-digest": v.Digest, "data-profile-digest": v.ProfileDigest, "data-current": v.Current}}, ui.Text(label))
@@ -294,9 +299,9 @@ func agentRolloutPreviewForm(locale LocaleContext, snapshot AgentRolloutSnapshot
 		html.Div(html.Props{Class: "persona-admin-editor-field"}, html.Label(html.Props{For: "agent-rollout-version"}, ui.Text(agentRPText(locale, "target_version"))), html.Select(html.Props{ID: "agent-rollout-version", Name: "target_version"}, versionOptions...)),
 	}
 	if allCurrent {
-		fields = append(fields, html.P(html.Props{Class: "agent-rollout-current-note", Role: "status"}, ui.Text(agentUXR7Text(locale, "all_current", "{version}", personaAdminLocalizedNumber(locale, fmt.Sprint(defaultVersion)), "{count}", locale.FormatNumber(fmt.Sprint(agentRolloutPersonaCount(snapshot, defaultPersona)), 0)))))
+		fields = append(fields, html.P(html.Props{Class: "agent-rollout-current-note", Role: "status"}, ui.Text(agentUXR7Text(locale, "all_current", "{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(agentRolloutVersionLabel(snapshot, defaultPersona, defaultVersion), fmt.Sprint(defaultVersion))), "{count}", locale.FormatNumber(fmt.Sprint(agentRolloutPersonaCount(snapshot, defaultPersona)), 0)))))
 	} else if current := agentRolloutCurrentVersion(snapshot, defaultPersona); current > defaultVersion {
-		fields = append(fields, html.P(html.Props{Class: "agent-rollout-rollback-note", Role: "status"}, ui.Text(agentUXR7Text(locale, "rollback_note", "{current}", personaAdminLocalizedNumber(locale, fmt.Sprint(current)), "{target}", personaAdminLocalizedNumber(locale, fmt.Sprint(defaultVersion))))))
+		fields = append(fields, html.P(html.Props{Class: "agent-rollout-rollback-note", Role: "status"}, ui.Text(agentUXR7Text(locale, "rollback_note", "{current}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(agentRolloutVersionLabel(snapshot, defaultPersona, current), fmt.Sprint(current))), "{target}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(agentRolloutVersionLabel(snapshot, defaultPersona, defaultVersion), fmt.Sprint(defaultVersion)))))))
 	}
 	work := []ui.Node{
 		html.P(html.Props{ID: "agent-rollout-preview-help", Class: "muted"}, ui.Text(agentRPText(locale, "preview_help"))),
@@ -374,6 +379,17 @@ func agentRolloutConversationNodes(locale LocaleContext, snapshot AgentRolloutSn
 	default:
 		return []ui.Node{ui.Text(agentRolloutConversationLabel(locale, snapshot, installation, ordinal))}
 	}
+}
+
+// agentRolloutVersionLabel reads one catalog version's sealed label,
+// empty when the version is unlabelled or absent (AGENTUX-065).
+func agentRolloutVersionLabel(snapshot AgentRolloutSnapshot, personaID string, version int64) string {
+	for _, v := range snapshot.Versions {
+		if v.PersonaID == personaID && v.Version == version {
+			return v.VersionLabel
+		}
+	}
+	return ""
 }
 
 func agentRolloutPersonaName(snapshot AgentRolloutSnapshot, personaID string) string {
@@ -485,7 +501,7 @@ func agentRolloutPlan(locale LocaleContext, plan AgentRolloutPlan, snapshot Agen
 				label = agentRolloutConversationLabel(locale, snapshot, in, i)
 			}
 		}
-		rows = append(rows, html.Li(html.Props{Class: "agent-rollout-candidate", Raw: map[string]any{"data-installation-id": c.InstallationID, "data-policy-digest": c.PolicyDigest}}, html.Tag("bdi", html.Props{Dir: "auto"}, ui.Text(label)), ui.Text(personaAdminInlineSeparator+agentUXR7Text(locale, "version")+" "+personaAdminLocalizedNumber(locale, fmt.Sprint(plan.Version)))))
+		rows = append(rows, html.Li(html.Props{Class: "agent-rollout-candidate", Raw: map[string]any{"data-installation-id": c.InstallationID, "data-policy-digest": c.PolicyDigest}}, html.Tag("bdi", html.Props{Dir: "auto"}, ui.Text(label)), ui.Text(personaAdminInlineSeparator+personaAdminVersionToken(locale, plan.VersionLabel, fmt.Sprint(plan.Version)))))
 	}
 	children = append(children, html.Ul(html.Props{}, rows...))
 	actions := []ui.Node{}
@@ -510,7 +526,7 @@ func agentRolloutPlan(locale LocaleContext, plan AgentRolloutPlan, snapshot Agen
 	}
 	children = append(children, html.Div(html.Props{Class: "agent-rollout-actions"}, actions...))
 	if snapshot.Progress != nil {
-		children = append(children, html.P(html.Props{ID: "agent-rollout-progress", Role: "status", Aria: map[string]string{"live": "polite"}}, ui.Text(agentRolloutStageFor(locale, snapshot.Progress.Stage, plan.Version))))
+		children = append(children, html.P(html.Props{ID: "agent-rollout-progress", Role: "status", Aria: map[string]string{"live": "polite"}}, ui.Text(agentRolloutStageForLabel(locale, snapshot.Progress.Stage, plan.Version, plan.VersionLabel))))
 	}
 	return html.Section(html.Props{ID: "agent-rollout-plan", Class: "agent-rollout-plan"}, children...)
 }
@@ -728,7 +744,7 @@ func agentRPText(locale LocaleContext, key string) string {
 		return [3]string{"Choose which of the selected conversations are updated first.", "Wählen Sie aus, welche der ausgewählten Unterhaltungen zuerst aktualisiert werden.", "اختر أي المحادثات المحددة سيتم تحديثها أولاً."}[agentRPLocaleIndex(locale)]
 	}
 	if key == "version_option_current" {
-		return [3]string{"Version {version} (current) · published {date}", "Version {version} (aktuell) · veröffentlicht {date}", "الإصدار {version} (الحالي) · نُشر في {date}"}[agentRPLocaleIndex(locale)]
+		return [3]string{"{version} (current) · published {date}", "{version} (aktuell) · veröffentlicht {date}", "{version} (الحالي) · نُشر في {date}"}[agentRPLocaleIndex(locale)]
 	}
 	if key == "private_non_member" || key == "conversation_hidden" {
 		return [3]string{"Private conversation · {count} members · you are not a member", "Private Unterhaltung · {count} Mitglieder · Sie sind kein Mitglied", "محادثة خاصة · {count} أعضاء · أنت لست عضوًا"}[agentRPLocaleIndex(locale)]
@@ -772,7 +788,7 @@ func agentRPText(locale LocaleContext, key string) string {
 		"preview":                  {"Preview rollout", "Rollout vorschauen", "معاينة تغيير الإصدار"},
 		"preview_submit_help":      {"Shows what would change. Nothing is updated until you confirm.", "Zeigt, was sich ändern würde. Nichts wird aktualisiert, bis Sie bestätigen.", "يعرض ما سيتغير. لن يتم تحديث أي شيء حتى تؤكد."},
 		"all_current":              {"All conversations already run version {version}.", "Alle Unterhaltungen verwenden bereits Version {version}.", "تستخدم جميع المحادثات الإصدار {version} بالفعل."},
-		"version_option":           {"Version {version} · published {date}", "Version {version} · veröffentlicht {date}", "الإصدار {version} · نُشر في {date}"},
+		"version_option":           {"{version} · published {date}", "{version} · veröffentlicht {date}", "{version} · نُشر في {date}"},
 		"version_current":          {" · current", " · aktuell", " · الحالي"},
 		"conversation_hidden":      {"A conversation you cannot see", "Eine Unterhaltung, die Sie nicht sehen können", "محادثة لا يمكنك رؤيتها"},
 		"direct_conversation":      {"Direct conversation with {name}", "Direkte Unterhaltung mit {name}", "محادثة مباشرة مع {name}"},

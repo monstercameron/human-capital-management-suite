@@ -455,9 +455,11 @@ func TestTodo_AGENT_043_Conformance(t *testing.T) {
 		}
 	}
 	// The policy choices themselves are the stored values, not their labels.
+	// AGENTUX-065 moved the instruction-reference default from PINNED to
+	// COMPATIBLE; the locale-invariance assertion below is unchanged.
 	for _, localeID := range []string{"en-US", "de-DE", "ar"} {
 		setup := agentMatrixSurfaces(t, localeID, true)["Agent setup"]
-		for _, value := range []string{`name="allowed_channels" type="checkbox" value="PRIVATE"`, `name="allowed_channels" type="checkbox" value="PUBLIC"`, `data-agentdoc-default-mode="PINNED"`, `data-persona-admin-command-form="UNINSTALL"`, `data-persona-admin-command-form="REINSTALL"`} {
+		for _, value := range []string{`name="allowed_channels" type="checkbox" value="PRIVATE"`, `name="allowed_channels" type="checkbox" value="PUBLIC"`, `data-agentdoc-default-mode="COMPATIBLE"`, `data-persona-admin-command-form="UNINSTALL"`, `data-persona-admin-command-form="REINSTALL"`} {
 			if !strings.Contains(setup, value) {
 				t.Errorf("Agent setup in %s does not carry the policy value %s", localeID, value)
 			}

@@ -12,6 +12,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsecurity"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 // AgentAnnouncementHubAuthority keeps source identity and read decisions in
@@ -126,6 +127,58 @@ func (a AgentAnnouncementHubAuthority) AuthorizeDocumentRead(ctx context.Context
 		return ErrAgentAnnouncementDenied
 	}
 	return nil
+}
+
+// versionIDByLabel resolves an exact label pin to its version, failing
+// closed when the anchor is not a label (AGENTUX-065).
+func (a AgentAnnouncementHubAuthority) versionIDByLabel(ctx context.Context, tenant, document, label string) (string, string, error) {
+	parsed, err := semver.Parse(label)
+	if err != nil {
+		return "", "", ErrAgentAnnouncementDenied
+	}
+	var id string
+	err = a.Store.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT id FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND semantic_version=$3 ORDER BY created_at,id LIMIT 1`, tenant, document, parsed.String()).Scan(&id)
+	})
+	if err != nil {
+		return "", "", err
+	}
+	return id, parsed.String(), nil
+}
+
+// compatibleVersionID resolves a caret line to its newest compatible
+// published version (AGENTUX-065). Candidates are published, unretired
+// versions only; checkVersion re-verifies the winner below.
+func (a AgentAnnouncementHubAuthority) compatibleVersionID(ctx context.Context, tenant, document, base string) (string, string, error) {
+	floor, err := semver.Parse(base)
+	if err != nil {
+		return "", "", ErrAgentAnnouncementDenied
+	}
+	var candidates []caretCandidate
+	err = a.Store.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT v.id,v.semantic_version FROM document_version v WHERE v.tenant_id=$1 AND v.document_id=$2 AND v.status<>'retired' AND v.semantic_version<>'' AND EXISTS (SELECT 1 FROM document_deployment d WHERE d.tenant_id=v.tenant_id AND d.document_id=v.document_id AND d.version_id=v.id)`, tenant, document)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var candidate caretCandidate
+			if err := rows.Scan(&candidate.id, &candidate.raw); err != nil {
+				return err
+			}
+			candidates = append(candidates, candidate)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return "", "", err
+	}
+	best, ok := bestCaretCandidate(floor, candidates)
+	if !ok {
+		return "", "", ErrAgentAnnouncementDenied
+	}
+	label, _ := semver.Parse(best.raw)
+	return best.id, label.String(), nil
 }
 
 func (a AgentAnnouncementHubAuthority) versionID(ctx context.Context, tenant, document, version string) (string, error) {

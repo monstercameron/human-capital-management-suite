@@ -86,8 +86,8 @@ func renderPersonaReplyWithAgentDocuments(body, tenantID, conversationID string,
 			}
 			details = append(details, agentDocumentMarkdownText(sectionTitle))
 		}
-		if document.Version != 0 {
-			details = append(details, displayVersion(document.Version))
+		if document.VersionLabel != "" || document.Version != 0 {
+			details = append(details, displayVersionLabel(document.VersionLabel, document.Version))
 		}
 		if len(details) > 0 {
 			label += " · " + strings.Join(details, " · ")

@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/documenthubstore"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 
 type agentDocumentVersion struct {
 	number  uint64
+	label   string
 	title   string
 	content string
 }
@@ -29,6 +31,8 @@ type agentDocumentVersion struct {
 type agentDocumentReadSource interface {
 	LatestPublished(context.Context, agentdocref.Invoker, string) (agentDocumentVersion, error)
 	PinnedPublished(context.Context, agentdocref.Invoker, string, uint64) (agentDocumentVersion, error)
+	PinnedLabelPublished(context.Context, agentdocref.Invoker, string, string) (agentDocumentVersion, error)
+	CompatiblePublished(context.Context, agentdocref.Invoker, string, string) (agentDocumentVersion, error)
 }
 
 type agentDocumentResolver struct {
@@ -86,7 +90,7 @@ func (r *agentDocumentResolver) Resolve(ctx context.Context, invoker agentdocref
 				continue
 			}
 		}
-		resolved = append(resolved, agentdocref.ResolvedDocument{Reference: ref, Version: version.number, Title: version.title, Content: content})
+		resolved = append(resolved, agentdocref.ResolvedDocument{Reference: ref, Version: version.number, VersionLabel: version.label, Title: version.title, Content: content})
 	}
 	budgeted := agentdocref.ApplyBudget(resolved, agentdocref.MaxContentCharacters)
 	for i := len(budgeted); i < len(resolved); i++ {
@@ -99,10 +103,16 @@ func (r *agentDocumentResolver) Resolve(ctx context.Context, invoker agentdocref
 }
 
 func (r *agentDocumentResolver) read(ctx context.Context, invoker agentdocref.Invoker, ref agentdocref.Reference) (agentDocumentVersion, error) {
-	if ref.VersionMode == agentdocref.ModePinned {
+	switch ref.VersionMode {
+	case agentdocref.ModePinned:
 		return r.source.PinnedPublished(ctx, invoker, ref.DocumentID, ref.PinnedVersion)
+	case agentdocref.ModePinnedLabel:
+		return r.source.PinnedLabelPublished(ctx, invoker, ref.DocumentID, ref.PinnedLabel)
+	case agentdocref.ModeCompatible:
+		return r.source.CompatiblePublished(ctx, invoker, ref.DocumentID, ref.CompatibleBase)
+	default:
+		return r.source.LatestPublished(ctx, invoker, ref.DocumentID)
 	}
-	return r.source.LatestPublished(ctx, invoker, ref.DocumentID)
 }
 
 type documentHubAgentDocumentReader struct {
@@ -124,7 +134,7 @@ func (r documentHubAgentDocumentReader) LatestPublished(ctx context.Context, inv
 	if err != nil {
 		return agentDocumentVersion{}, err
 	}
-	return r.readVersion(ctx, invoker, documentID, deployment.VersionID, number)
+	return r.readVersion(ctx, invoker, documentID, deployment.VersionID, number, "")
 }
 
 func (r documentHubAgentDocumentReader) PinnedPublished(ctx context.Context, invoker agentdocref.Invoker, documentID string, number uint64) (agentDocumentVersion, error) {
@@ -148,7 +158,102 @@ func (r documentHubAgentDocumentReader) PinnedPublished(ctx context.Context, inv
 	if !published || strings.EqualFold(status, "retired") {
 		return agentDocumentVersion{}, errAgentDocumentUnpublished
 	}
-	return r.readVersion(ctx, invoker, documentID, versionID, number)
+	return r.readVersion(ctx, invoker, documentID, versionID, number, "")
+}
+
+// PinnedLabelPublished resolves the one published version sealed under an
+// exact label. Readability is the document's, as for every other mode.
+func (r documentHubAgentDocumentReader) PinnedLabelPublished(ctx context.Context, invoker agentdocref.Invoker, documentID, label string) (agentDocumentVersion, error) {
+	parsed, err := semver.Parse(label)
+	if err != nil {
+		return agentDocumentVersion{}, errAgentDocumentNotFound
+	}
+	if err := r.authorize(ctx, invoker, documentID); err != nil {
+		return agentDocumentVersion{}, err
+	}
+	var versionID, status string
+	var published bool
+	var number uint64
+	err = r.store.RunTenantTx(ctx, invoker.TenantID, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT ordered.id, ordered.status, ordered.number,
+			EXISTS (SELECT 1 FROM document_deployment d WHERE d.tenant_id=$1 AND d.document_id=$2 AND d.version_id=ordered.id)
+			FROM (SELECT id,status,semantic_version,row_number() OVER (ORDER BY created_at,id) AS number FROM document_version WHERE tenant_id=$1 AND document_id=$2) ordered
+			WHERE ordered.semantic_version=$3 ORDER BY ordered.number LIMIT 1`, invoker.TenantID, documentID, parsed.String()).Scan(&versionID, &status, &number, &published)
+	})
+	if errors.Is(err, dbport.ErrNoRows) {
+		return agentDocumentVersion{}, errAgentDocumentNotFound
+	}
+	if err != nil {
+		return agentDocumentVersion{}, err
+	}
+	if !published || strings.EqualFold(status, "retired") {
+		return agentDocumentVersion{}, errAgentDocumentUnpublished
+	}
+	return r.readVersion(ctx, invoker, documentID, versionID, number, parsed.String())
+}
+
+// CompatiblePublished resolves the newest published version a caret base
+// accepts: corrections are followed, a rewrite stops the line. Candidates
+// are published, unretired versions only; readability stays the document's.
+func (r documentHubAgentDocumentReader) CompatiblePublished(ctx context.Context, invoker agentdocref.Invoker, documentID, base string) (agentDocumentVersion, error) {
+	floor, err := semver.Parse(base)
+	if err != nil {
+		return agentDocumentVersion{}, errAgentDocumentNotFound
+	}
+	if err := r.authorize(ctx, invoker, documentID); err != nil {
+		return agentDocumentVersion{}, err
+	}
+	var candidates []caretCandidate
+	err = r.store.RunTenantTx(ctx, invoker.TenantID, func(tx dbport.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT ordered.id, ordered.number, ordered.semantic_version
+			FROM (SELECT id,semantic_version,row_number() OVER (ORDER BY created_at,id) AS number FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND status<>'retired' AND semantic_version<>'') ordered
+			WHERE EXISTS (SELECT 1 FROM document_deployment d WHERE d.tenant_id=$1 AND d.document_id=$2 AND d.version_id=ordered.id)`, invoker.TenantID, documentID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var candidate caretCandidate
+			if err := rows.Scan(&candidate.id, &candidate.number, &candidate.raw); err != nil {
+				return err
+			}
+			candidates = append(candidates, candidate)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return agentDocumentVersion{}, err
+	}
+	best, ok := bestCaretCandidate(floor, candidates)
+	if !ok {
+		return agentDocumentVersion{}, errAgentDocumentUnpublished
+	}
+	label, _ := semver.Parse(best.raw)
+	return r.readVersion(ctx, invoker, documentID, best.id, best.number, label.String())
+}
+
+// caretCandidate is one published labelled version a caret line may follow.
+type caretCandidate struct {
+	id     string
+	number uint64
+	raw    string
+}
+
+// bestCaretCandidate returns the newest candidate a caret base accepts.
+func bestCaretCandidate(floor semver.Version, candidates []caretCandidate) (caretCandidate, bool) {
+	var best caretCandidate
+	var bestLabel semver.Version
+	found := false
+	for _, candidate := range candidates {
+		label, err := semver.Parse(candidate.raw)
+		if err != nil || !label.SatisfiesCaret(floor) {
+			continue
+		}
+		if !found || bestLabel.Less(label) {
+			best, bestLabel, found = candidate, label, true
+		}
+	}
+	return best, found
 }
 
 func (r documentHubAgentDocumentReader) authorize(ctx context.Context, invoker agentdocref.Invoker, documentID string) error {
@@ -177,7 +282,7 @@ func (r documentHubAgentDocumentReader) versionNumber(ctx context.Context, tenan
 	return number, err
 }
 
-func (r documentHubAgentDocumentReader) readVersion(ctx context.Context, invoker agentdocref.Invoker, documentID, versionID string, number uint64) (agentDocumentVersion, error) {
+func (r documentHubAgentDocumentReader) readVersion(ctx context.Context, invoker agentdocref.Invoker, documentID, versionID string, number uint64, label string) (agentDocumentVersion, error) {
 	version, err := r.store.ReadVersion(ctx, invoker.TenantID, documentID, versionID, "person", invoker.SubjectID)
 	if errors.Is(err, documenthubstore.ErrDenied) {
 		return agentDocumentVersion{}, errAgentDocumentNotFound
@@ -188,7 +293,24 @@ func (r documentHubAgentDocumentReader) readVersion(ctx context.Context, invoker
 	if version.DocumentID != documentID || version.ID != versionID || number == 0 || strings.TrimSpace(version.Markdown) == "" {
 		return agentDocumentVersion{}, errAgentDocumentNotFound
 	}
-	return agentDocumentVersion{number: number, title: version.Title, content: version.Markdown}, nil
+	if label == "" {
+		label, err = r.versionLabel(ctx, invoker.TenantID, documentID, versionID)
+		if err != nil {
+			return agentDocumentVersion{}, err
+		}
+	}
+	return agentDocumentVersion{number: number, label: label, title: version.Title, content: version.Markdown}, nil
+}
+
+func (r documentHubAgentDocumentReader) versionLabel(ctx context.Context, tenantID, documentID, versionID string) (string, error) {
+	var label string
+	err := r.store.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT semantic_version FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND id=$3`, tenantID, documentID, versionID).Scan(&label)
+	})
+	if errors.Is(err, dbport.ErrNoRows) {
+		return "", errAgentDocumentNotFound
+	}
+	return label, err
 }
 
 func agentDocumentSection(markdown, anchor string) string {

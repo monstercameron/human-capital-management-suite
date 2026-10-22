@@ -54,7 +54,7 @@ func personaAdminVersionStatus(locale LocaleContext, persona PersonaAdminPersona
 		return nil
 	}
 	template := personaAdminText(locale, "live_and_draft")
-	return html.P(html.Props{Class: "persona-admin-version-status", Role: "status"}, ui.Text(strings.NewReplacer("{live}", personaAdminLocalizedNumber(locale, live), "{draft}", personaAdminLocalizedNumber(locale, persona.Version)).Replace(template)))
+	return html.P(html.Props{Class: "persona-admin-version-status", Role: "status"}, ui.Text(strings.NewReplacer("{live}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(personaAdminLiveVersionLabel(persona), live)), "{draft}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(persona.VersionLabel, persona.Version))).Replace(template)))
 }
 
 func personaAdminLiveVersionValue(persona PersonaAdminPersona) string {
@@ -82,7 +82,7 @@ func personaAdminMoreActionsPanel(locale LocaleContext, client PersonaAdminClien
 		}
 	}
 	if version := personaAdminRollbackVersion(persona); version != "" {
-		actions = append(actions, html.Div(html.Props{Class: "persona-admin-action-row"}, html.A(html.Props{Class: "button secondary", Href: personaAdminRollbackHref(persona.ID, version)}, ui.Text(agentUXR7Text(locale, "rollback", "{version}", personaAdminLocalizedNumber(locale, version)))), html.Small(html.Props{Class: "muted"}, ui.Text(agentUXR7Text(locale, "rollback_help")))))
+		actions = append(actions, html.Div(html.Props{Class: "persona-admin-action-row"}, html.A(html.Props{Class: "button secondary", Href: personaAdminRollbackHref(persona.ID, version)}, ui.Text(agentUXR7Text(locale, "rollback", "{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(personaAdminHistoryVersionLabel(persona, version), version))))), html.Small(html.Props{Class: "muted"}, ui.Text(agentUXR7Text(locale, "rollback_help")))))
 	}
 	canRetire := personaAdminCommandAllowed(snapshot, "RETIRE")
 	if canRetire {
@@ -257,7 +257,7 @@ func personaAdminPlacementRow(locale LocaleContext, persona PersonaAdminPersona,
 		if installation.Stopped {
 			version = agentUX047Text(locale, "stopped_version")
 		}
-		detail += personaAdminCompactSeparator + strings.ReplaceAll(version, "{version}", personaAdminLocalizedNumber(locale, installation.Version))
+		detail += personaAdminCompactSeparator + strings.ReplaceAll(version, "{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(installation.VersionLabel, installation.Version)))
 	}
 	placementSummary := []ui.Node{
 		html.A(html.Props{Class: "persona-admin-conversation-link", Href: personaAdminConversationHref(installation.ConversationID), Dir: "auto", Raw: map[string]any{"lang": "und"}}, html.Tag("bdi", html.Props{Dir: "ltr"}, ui.Text(conversationName))),
@@ -436,7 +436,7 @@ func personaAdminNextStep(locale LocaleContext, persona PersonaAdminPersona) ui.
 	if strings.TrimSpace(reviewer) == "" {
 		reviewer = personaAdminText(locale, "independent_reviewer")
 	}
-	text := strings.NewReplacer("{version}", personaAdminLocalizedNumber(locale, persona.Version), "{live}", personaAdminLocalizedNumber(locale, personaAdminLiveVersionValue(persona)), "{reviewer}", reviewer).Replace(personaAdminText(locale, key))
+	text := strings.NewReplacer("{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(persona.VersionLabel, persona.Version)), "{live}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(personaAdminLiveVersionLabel(persona), personaAdminLiveVersionValue(persona))), "{reviewer}", reviewer).Replace(personaAdminText(locale, key))
 	return html.P(html.Props{Class: "persona-admin-next-step", Role: "status", Raw: map[string]any{"data-persona-next-step": key}}, ui.Text(text))
 }
 

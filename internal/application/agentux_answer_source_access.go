@@ -99,7 +99,7 @@ func (a AgentUXAnswerSourceAccess) ResolveAgentDocumentSource(ctx context.Contex
 			break
 		}
 	}
-	source.Title += " · " + displayVersion(sequence)
+	source.Title += " · " + displayVersionLabel(version.SemanticVersion, sequence)
 	query := url.Values{"document": {source.DocumentID}, "version": {source.VersionID}}
 	target := url.URL{Path: "/workspace/app/docs", RawQuery: query.Encode(), Fragment: source.SectionAnchor}
 	source.Href, source.Readable = target.String(), true

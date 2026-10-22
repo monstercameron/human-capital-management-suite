@@ -24,6 +24,7 @@ type personaAdminLifecycleTenantFake struct {
 	publishErr     error
 	createdVersion agentpersonastore.PersonaVersion
 	createdActor   string
+	labels         map[int64]string
 }
 
 func (f *personaAdminLifecycleTenantFake) ListVersions(_ context.Context, personaID string) ([]agentpersonastore.PersonaVersion, error) {
@@ -64,6 +65,12 @@ func (f *personaAdminLifecycleTenantFake) Publish(_ context.Context, event agent
 	f.states[event.PersonaVersion] = event.To
 	f.published, f.evidence = event, evidence
 	return nil
+}
+func (f *personaAdminLifecycleTenantFake) PublishedLabel(_ context.Context, _ string, version int64) (string, error) {
+	if label, ok := f.labels[version]; ok {
+		return label, nil
+	}
+	return "", agentpersonastore.ErrNotFound
 }
 func (*personaAdminLifecycleTenantFake) Install(context.Context, agentpersonastore.PersonaInstallation) error {
 	return nil

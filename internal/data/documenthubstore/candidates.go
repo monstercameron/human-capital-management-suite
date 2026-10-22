@@ -176,8 +176,8 @@ func versionTip(ctx context.Context, tx dbport.Tx, tenantID, docID string) (*Ver
 
 func loadVersion(ctx context.Context, tx dbport.Tx, tenantID, docID, id string) (Version, error) {
 	var v Version
-	err := tx.QueryRow(ctx, `SELECT id,document_id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND id=$3`,
-		tenantID, docID, id).Scan(&v.ID, &v.DocumentID, &v.ParentID, &v.CreatorID, &v.Title, &v.Locale, &v.Classification, &v.Markdown, &v.Hash, &v.Renderer, &v.ChangeNote, &v.CreatedAt)
+	err := tx.QueryRow(ctx, `SELECT id,document_id,parent_id,creator_id,title,locale,classification,normalized_markdown,content_hash,renderer_profile,change_note,semantic_version,created_at FROM document_version WHERE tenant_id=$1 AND document_id=$2 AND id=$3`,
+		tenantID, docID, id).Scan(&v.ID, &v.DocumentID, &v.ParentID, &v.CreatorID, &v.Title, &v.Locale, &v.Classification, &v.Markdown, &v.Hash, &v.Renderer, &v.ChangeNote, &v.SemanticVersion, &v.CreatedAt)
 	if err != nil {
 		return Version{}, ErrUnknownBase
 	}

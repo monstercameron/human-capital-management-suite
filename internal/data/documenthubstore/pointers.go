@@ -25,6 +25,8 @@ type Deployment struct {
 	CustodianID                    string
 	EffectiveAt                    time.Time
 	ReviewDueAt                    time.Time
+	// SemanticVersion is the published version's sealed label (AGENTUX-065).
+	SemanticVersion string
 }
 
 // IsOfficialPlacement reports whether a resolved deployment carries the

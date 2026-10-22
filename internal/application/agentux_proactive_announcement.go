@@ -361,7 +361,10 @@ func (s *AgentAnnouncementService) Delete(ctx context.Context, actor AgentAnnoun
 
 type AgentAnnouncementResolvedDocument struct {
 	DocumentID, Version, Title, Content, Digest string
-	SectionAnchor                               string
+	// VersionLabel is the resolved version's sealed semantic label, empty
+	// when the version predates labels (AGENTUX-065).
+	VersionLabel  string
+	SectionAnchor string
 }
 
 type AgentAnnouncementRunRequest struct {

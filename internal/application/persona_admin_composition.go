@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 // ErrPersonaCatalogLifecycleUnavailable identifies the deliberately read-only
@@ -146,6 +148,9 @@ func (r personaAdminCatalogVersions) ListPersonaCatalogVersions(ctx context.Cont
 	reviewSource, canReadReview := scoped.(interface {
 		ResolveCurrentReview(context.Context, string, int64) (agentpersonastore.VerifiedReview, error)
 	})
+	labelSource, canReadLabel := scoped.(interface {
+		PublishedLabel(context.Context, string, int64) (string, error)
+	})
 	out := make([]PersonaCatalogVersion, 0, len(entries))
 	indices := make(map[string]int, len(entries))
 	for _, entry := range entries {
@@ -160,6 +165,11 @@ func (r personaAdminCatalogVersions) ListPersonaCatalogVersions(ctx context.Cont
 			return nil, fmt.Errorf("%w: steward mismatch for persona %q", ErrPersonaCatalogDenied, entry.Version.PersonaID)
 		}
 		version := PersonaCatalogVersion{Profile: profile, Lifecycle: agentpersona.LifecycleState(entry.Lifecycle), Owner: entry.BusinessOwner, Steward: entry.Steward, ReviewRequired: true}
+		if canReadLabel {
+			if label, labelErr := labelSource.PublishedLabel(ctx, entry.Version.PersonaID, entry.Version.Version); labelErr == nil {
+				version.Label = label
+			}
+		}
 		if canReadReview && entry.Lifecycle != agentpersonastore.StateDraft {
 			if review, readErr := reviewSource.ResolveCurrentReview(ctx, entry.Version.PersonaID, entry.Version.Version); readErr == nil {
 				version.Reviewer = review.ReviewerID
@@ -243,6 +253,85 @@ func catalogPlacementKinds(value agentpersonastore.ConversationClass) (agentpers
 	default:
 		return "", "", false
 	}
+}
+
+// ListPersonaPublishPreviews previews the publish each persona's current
+// version is about to make: the smallest choice the change allows and the
+// label each choice would seal (AGENTUX-065). Personas with nothing to
+// publish, or whose change cannot be measured, carry no preview.
+func (v personaAdminCatalogVersions) ListPersonaPublishPreviews(ctx context.Context, tenant values.TenantId) (map[string]productui.PersonaPublishPreview, error) {
+	out := map[string]productui.PersonaPublishPreview{}
+	entries, err := listPersonaAdminCatalog(ctx, v.store, tenant)
+	if err != nil {
+		return nil, err
+	}
+	scoped, err := v.store.ForTenant(ctx, tenant)
+	if err != nil {
+		return nil, err
+	}
+	labelSource, canReadLabel := scoped.(interface {
+		PublishedLabel(context.Context, string, int64) (string, error)
+	})
+	byPersona := map[string][]agentpersonastore.CatalogEntry{}
+	for _, entry := range entries {
+		byPersona[entry.Version.PersonaID] = append(byPersona[entry.Version.PersonaID], entry)
+	}
+	for personaID, versions := range byPersona {
+		var current *agentpersonastore.CatalogEntry
+		for i, entry := range versions {
+			if current == nil || entry.Version.Version > current.Version.Version {
+				current = &versions[i]
+			}
+		}
+		if current == nil || (current.Lifecycle != agentpersonastore.StateDraft && current.Lifecycle != agentpersonastore.StateInReview) {
+			continue
+		}
+		var next agentpersona.PersonaProfile
+		if err := json.Unmarshal(current.Version.Profile, &next); err != nil {
+			continue
+		}
+		labels := map[int64]string{}
+		if canReadLabel {
+			for _, entry := range versions {
+				if label, labelErr := labelSource.PublishedLabel(ctx, personaID, entry.Version.Version); labelErr == nil {
+					labels[entry.Version.Version] = label
+				}
+			}
+		}
+		var greatest *semver.Version
+		var baseline *agentpersonastore.CatalogEntry
+		for i, entry := range versions {
+			raw, ok := labels[entry.Version.Version]
+			if !ok {
+				continue
+			}
+			parsed, err := semver.Parse(raw)
+			if err != nil {
+				continue
+			}
+			if greatest == nil || greatest.Less(parsed) || (greatest.Compare(parsed) == 0 && baseline != nil && entry.Version.Version > baseline.Version.Version) {
+				greatest, baseline = &parsed, &versions[i]
+			}
+		}
+		preview := productui.PersonaPublishPreview{Available: true, Required: "patch"}
+		if greatest == nil {
+			first := semver.FirstVersion().String()
+			preview.Patch, preview.Minor, preview.Major = first, first, first
+			out[personaID] = preview
+			continue
+		}
+		var prev agentpersona.PersonaProfile
+		if baseline == nil || json.Unmarshal(baseline.Version.Profile, &prev) != nil {
+			continue
+		}
+		preview.Required = bumpChoiceName(agentpersona.RequiredBump(prev, next))
+		preview.Greatest = greatest.String()
+		preview.Patch = greatest.Next(semver.BumpPatch).String()
+		preview.Minor = greatest.Next(semver.BumpMinor).String()
+		preview.Major = greatest.Next(semver.BumpMajor).String()
+		out[personaID] = preview
+	}
+	return out, nil
 }
 
 func listPersonaAdminCatalog(ctx context.Context, store PersonaAdminCatalogStore, tenant values.TenantId) ([]agentpersonastore.CatalogEntry, error) {

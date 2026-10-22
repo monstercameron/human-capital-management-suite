@@ -7,13 +7,20 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 )
 
 type VersionMode string
 
 const (
-	ModePinned           VersionMode = "PINNED"
-	ModeLatestPublished  VersionMode = "LATEST_PUBLISHED"
+	ModePinned          VersionMode = "PINNED"
+	ModeLatestPublished VersionMode = "LATEST_PUBLISHED"
+	// ModePinnedLabel pins one exact semantic label (AGENTUX-065).
+	ModePinnedLabel VersionMode = "PINNED_LABEL"
+	// ModeCompatible follows compatible versions from a base label
+	// (AGENTUX-065): corrections are followed, rewrites stop the line.
+	ModeCompatible       VersionMode = "COMPATIBLE"
 	MaxPersonaReferences             = 8
 	MaxRequestReferences             = 5
 	MaxContentCharacters             = 48000
@@ -24,8 +31,31 @@ type Reference struct {
 	DocumentID    string      `json:"document_id"`
 	VersionMode   VersionMode `json:"version_mode"`
 	PinnedVersion uint64      `json:"pinned_version,omitempty"`
-	SectionAnchor string      `json:"section_anchor,omitempty"`
-	Label         string      `json:"label"`
+	// PinnedLabel is the exact label a PINNED_LABEL reference names.
+	PinnedLabel string `json:"pinned_label,omitempty"`
+	// CompatibleBase is the oldest label a COMPATIBLE reference accepts.
+	CompatibleBase string `json:"compatible_base,omitempty"`
+	SectionAnchor  string `json:"section_anchor,omitempty"`
+	Label          string `json:"label"`
+}
+
+// VersionSelector renders which versions the reference follows: =1.2.0 for
+// an exact pin, ^1 for a compatible line, #2 for a sequence pin, latest
+// for the newest publication.
+func (r Reference) VersionSelector() string {
+	switch r.VersionMode {
+	case ModePinnedLabel:
+		return "=" + r.PinnedLabel
+	case ModeCompatible:
+		if base, err := semver.Parse(r.CompatibleBase); err == nil && base.Minor == 0 && base.Patch == 0 {
+			return fmt.Sprintf("^%d", base.Major)
+		}
+		return "^" + r.CompatibleBase
+	case ModePinned:
+		return fmt.Sprintf("#%d", r.PinnedVersion)
+	default:
+		return "latest"
+	}
 }
 
 var (
@@ -34,6 +64,10 @@ var (
 	ErrInvalidVersionMode      = errors.New("invalid agent document reference version mode")
 	ErrPinnedVersionRequired   = errors.New("agent document reference pinned version required")
 	ErrUnexpectedPinnedVersion = errors.New("agent document reference pinned version is only valid in PINNED mode")
+	ErrPinnedLabelRequired     = errors.New("agent document reference pinned label required")
+	ErrCompatibleBaseRequired  = errors.New("agent document reference compatible base required")
+	ErrUnexpectedVersionLabel  = errors.New("agent document reference version label is only valid in its own mode")
+	ErrInvalidVersionLabel     = errors.New("agent document reference version label is not a semantic version")
 	ErrInvalidSectionAnchor    = errors.New("invalid agent document reference section anchor")
 	ErrEmptyLabel              = errors.New("agent document reference label is required")
 	ErrLabelTooLong            = errors.New("agent document reference label is too long")
@@ -53,14 +87,34 @@ func Validate(refs []Reference, limit int) error {
 		if !validDocumentID(ref.DocumentID) {
 			return ErrInvalidDocumentID
 		}
-		if ref.VersionMode != ModePinned && ref.VersionMode != ModeLatestPublished {
+		if ref.VersionMode != ModePinned && ref.VersionMode != ModeLatestPublished && ref.VersionMode != ModePinnedLabel && ref.VersionMode != ModeCompatible {
 			return ErrInvalidVersionMode
 		}
 		if ref.VersionMode == ModePinned && ref.PinnedVersion == 0 {
 			return ErrPinnedVersionRequired
 		}
-		if ref.VersionMode == ModeLatestPublished && ref.PinnedVersion != 0 {
+		if ref.VersionMode != ModePinned && ref.PinnedVersion != 0 {
 			return ErrUnexpectedPinnedVersion
+		}
+		if ref.VersionMode == ModePinnedLabel {
+			if ref.PinnedLabel == "" {
+				return ErrPinnedLabelRequired
+			}
+			if _, err := semver.Parse(ref.PinnedLabel); err != nil {
+				return ErrInvalidVersionLabel
+			}
+		} else if ref.PinnedLabel != "" {
+			return ErrUnexpectedVersionLabel
+		}
+		if ref.VersionMode == ModeCompatible {
+			if ref.CompatibleBase == "" {
+				return ErrCompatibleBaseRequired
+			}
+			if _, err := semver.Parse(ref.CompatibleBase); err != nil {
+				return ErrInvalidVersionLabel
+			}
+		} else if ref.CompatibleBase != "" {
+			return ErrUnexpectedVersionLabel
 		}
 		if ref.SectionAnchor != "" && !validSectionAnchor(ref.SectionAnchor) {
 			return ErrInvalidSectionAnchor

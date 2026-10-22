@@ -25,7 +25,11 @@ type Version struct {
 	ID, DocumentID, ParentID, CreatorID  string
 	Title, Locale, Classification        string
 	Markdown, Hash, Renderer, ChangeNote string
-	CreatedAt                            time.Time
+	// SemanticVersion is the sealed publication label (AGENTUX-065): empty
+	// until the version is first deployed, computed from the author's bump
+	// choice then, and never changed after.
+	SemanticVersion string
+	CreatedAt       time.Time
 }
 
 // NormalizeMarkdown canonicalizes line endings to LF. It never trims,

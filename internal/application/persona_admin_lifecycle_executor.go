@@ -12,12 +12,16 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
 var (
 	ErrPersonaAdminLifecycleUnavailable = errors.New("application: persona admin lifecycle dependency unavailable")
 	ErrPersonaAdminRuntimeUnavailable   = errors.New("This version cannot be published yet: it has no runtime identity. Ask the person who manages this installation.")
+	// ErrPersonaAdminVersionBumpTooSmall refuses an author's publish choice
+	// smaller than the bump the change requires (AGENTUX-065).
+	ErrPersonaAdminVersionBumpTooSmall = errors.New("application: persona version choice is smaller than the change requires")
 )
 
 // PersonaAdminLifecycleTenant exposes the durable operations used by the
@@ -29,6 +33,9 @@ type PersonaAdminLifecycleTenant interface {
 	ListLifecycle(context.Context, string, int64) ([]agentpersonastore.LifecycleEvent, error)
 	AppendLifecycle(context.Context, agentpersonastore.LifecycleEvent) error
 	Publish(context.Context, agentpersonastore.LifecycleEvent, agentpersonastore.PublicationEvidence) error
+	// PublishedLabel returns the sealed semantic label of one published
+	// version (AGENTUX-065).
+	PublishedLabel(context.Context, string, int64) (string, error)
 	Install(context.Context, agentpersonastore.PersonaInstallation) error
 	RetireActiveInstallation(context.Context, string, string, string, string) (agentpersonastore.PersonaInstallation, bool, error)
 	ReplaceActiveInstallation(context.Context, agentpersonastore.PersonaInstallation) (agentpersonastore.PersonaInstallation, bool, error)
@@ -373,6 +380,14 @@ func (e *PersonaAdminLifecycleExecutor) publish(ctx context.Context, actor Perso
 	if err != nil || validated.Digest != version.ContentDigest || validated.Profile.PersonaID != command.PersonaID || int64(validated.Profile.Version) != version.Version {
 		return ErrPersonaDraftInvalid
 	}
+	choice, choiceSet := semver.BumpPatch, false
+	if command.VersionBump != nil {
+		choice, choiceSet = *command.VersionBump, true
+	}
+	label, err := resolvePersonaPublishLabel(ctx, tenant, command.PersonaID, validated.Profile, choice, choiceSet)
+	if err != nil {
+		return err
+	}
 	evidence := agentpersonastore.PublicationEvidence{ReviewID: command.ReviewID, EvaluationRunID: command.EvaluationRunID}
 	if evidence.ReviewID == "" || evidence.EvaluationRunID == "" {
 		evidence, err = e.Evidence.ResolvePersonaPublicationEvidence(ctx, actor.Tenant, command.PersonaID, version.Version)
@@ -390,7 +405,7 @@ func (e *PersonaAdminLifecycleExecutor) publish(ctx context.Context, actor Perso
 	if err != nil {
 		return err
 	}
-	event := agentpersonastore.LifecycleEvent{TenantID: actor.Tenant, EventID: eventID, PersonaID: command.PersonaID, PersonaVersion: version.Version, From: state, To: agentpersonastore.StatePublished, Reason: "Reviewed persona published", ActorID: actor.Subject, OccurredAt: now}
+	event := agentpersonastore.LifecycleEvent{TenantID: actor.Tenant, EventID: eventID, PersonaID: command.PersonaID, PersonaVersion: version.Version, From: state, To: agentpersonastore.StatePublished, Reason: "Reviewed persona published", ActorID: actor.Subject, OccurredAt: now, SemanticVersion: label}
 	if state != agentpersonastore.StatePublished {
 		if err := tenant.Publish(ctx, event, evidence); err != nil {
 			return err

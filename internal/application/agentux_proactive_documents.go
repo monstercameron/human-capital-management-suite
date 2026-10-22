@@ -124,7 +124,7 @@ func (r AgentAnnouncementReferenceResolver) ResolveAnnouncementDocuments(ctx con
 		if doc.Truncated {
 			return nil, ErrAgentAnnouncementDenied
 		}
-		out = append(out, AgentAnnouncementResolvedDocument{DocumentID: doc.Reference.DocumentID, Version: strconv.FormatUint(doc.Version, 10), Title: doc.Title, Content: doc.Content, Digest: personaRunT0ToolOutputDigest([]byte(doc.Content)), SectionAnchor: doc.Reference.SectionAnchor})
+		out = append(out, AgentAnnouncementResolvedDocument{DocumentID: doc.Reference.DocumentID, Version: strconv.FormatUint(doc.Version, 10), Title: doc.Title, Content: doc.Content, Digest: personaRunT0ToolOutputDigest([]byte(doc.Content)), VersionLabel: doc.VersionLabel, SectionAnchor: doc.Reference.SectionAnchor})
 	}
 	return out, nil
 }
@@ -151,8 +151,12 @@ func (r AgentAnnouncementReferenceResolver) resolveDocument(ctx context.Context,
 	}
 	var versionID string
 	var number uint64
+	var label string
 	var err error
-	if ref.VersionMode == agentdocref.ModeLatestPublished {
+	reader := documentHubAgentDocumentReader{store: r.Hub}
+	authority := AgentAnnouncementHubAuthority{Store: r.Hub}
+	switch ref.VersionMode {
+	case agentdocref.ModeLatestPublished:
 		deployment, err := r.Hub.CurrentPlacement(ctx, tenant, ref.DocumentID, "placement", identity.ConversationID)
 		if err != nil || !deployment.IsOfficialPlacement() {
 			deployment, err = r.Hub.ResolveDeployment(ctx, tenant, ref.DocumentID, "default", "")
@@ -161,13 +165,31 @@ func (r AgentAnnouncementReferenceResolver) resolveDocument(ctx context.Context,
 			return agentdocref.ResolvedDocument{}, err
 		}
 		versionID = deployment.VersionID
-		number, err = (documentHubAgentDocumentReader{store: r.Hub}).versionNumber(ctx, tenant, ref.DocumentID, versionID)
+		number, err = reader.versionNumber(ctx, tenant, ref.DocumentID, versionID)
 		if err != nil {
 			return agentdocref.ResolvedDocument{}, err
 		}
-	} else {
+	case agentdocref.ModePinnedLabel:
+		versionID, label, err = authority.versionIDByLabel(ctx, tenant, ref.DocumentID, ref.PinnedLabel)
+		if err != nil {
+			return agentdocref.ResolvedDocument{}, err
+		}
+		number, err = reader.versionNumber(ctx, tenant, ref.DocumentID, versionID)
+		if err != nil {
+			return agentdocref.ResolvedDocument{}, err
+		}
+	case agentdocref.ModeCompatible:
+		versionID, label, err = authority.compatibleVersionID(ctx, tenant, ref.DocumentID, ref.CompatibleBase)
+		if err != nil {
+			return agentdocref.ResolvedDocument{}, err
+		}
+		number, err = reader.versionNumber(ctx, tenant, ref.DocumentID, versionID)
+		if err != nil {
+			return agentdocref.ResolvedDocument{}, err
+		}
+	default:
 		number = ref.PinnedVersion
-		versionID, err = (AgentAnnouncementHubAuthority{Store: r.Hub}).versionID(ctx, tenant, ref.DocumentID, strconv.FormatUint(number, 10))
+		versionID, err = authority.versionID(ctx, tenant, ref.DocumentID, strconv.FormatUint(number, 10))
 		if err != nil {
 			return agentdocref.ResolvedDocument{}, err
 		}
@@ -187,5 +209,11 @@ func (r AgentAnnouncementReferenceResolver) resolveDocument(ctx context.Context,
 	if err != nil || !valid {
 		return agentdocref.ResolvedDocument{}, errors.Join(ErrAgentAnnouncementDenied, err)
 	}
-	return agentdocref.ResolvedDocument{Reference: ref, Version: number, Title: version.Title, Content: content}, nil
+	if label == "" {
+		label, err = reader.versionLabel(ctx, tenant, ref.DocumentID, versionID)
+		if err != nil {
+			return agentdocref.ResolvedDocument{}, err
+		}
+	}
+	return agentdocref.ResolvedDocument{Reference: ref, Version: number, VersionLabel: label, Title: version.Title, Content: content}, nil
 }

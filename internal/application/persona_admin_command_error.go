@@ -16,6 +16,9 @@ const (
 	// A version that cannot be given what it needs to run is refused at
 	// publish with its own code, so the page can say so in words.
 	personaAdminCodeRuntimeUnavailable = "runtime_unavailable"
+	// A publish choice smaller than the change requires is refused with
+	// its own code, so the page can name the smallest choice that fits.
+	personaAdminCodeVersionBumpTooSmall = "version_bump_too_small"
 )
 
 // PersonaAdminCommandError exposes a stable, non-sensitive code to the
@@ -65,6 +68,8 @@ func classifyPersonaAdminCommandError(err error) error {
 		return personaAdminCommandError(personaAdminCodeEvaluationUnavailable, err)
 	case errors.Is(err, ErrPersonaAdminRuntimeUnavailable):
 		return personaAdminCommandError(personaAdminCodeRuntimeUnavailable, err)
+	case errors.Is(err, ErrPersonaAdminVersionBumpTooSmall):
+		return personaAdminCommandError(personaAdminCodeVersionBumpTooSmall, err)
 	case errors.Is(err, ErrPersonaDraftInvalid), errors.Is(err, ErrPersonaReviewInvalid), errors.Is(err, agentpersonastore.ErrInvalid):
 		return personaAdminCommandError(personaAdminCodeInvalid, err)
 	case errors.Is(err, ErrPersonaDraftDenied), errors.Is(err, ErrPersonaReviewDenied):

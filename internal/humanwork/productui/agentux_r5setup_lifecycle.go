@@ -23,17 +23,19 @@ const (
 // personaAdminLifecyclePresentation is the single mapping used by the card
 // badge, lifecycle sentence, step label, and lifecycle-block heading.
 type personaAdminLifecyclePresentation struct {
-	Phase          personaAdminLifecyclePhase
-	Step           int
-	CompletedSteps int
-	StepLabel      string
-	NextStepLabel  string
-	Heading        string
-	Badge          string
-	SentenceKey    string
-	LiveVersion    string
-	Placement      string
-	PlacementVer   string
+	Phase             personaAdminLifecyclePhase
+	Step              int
+	CompletedSteps    int
+	StepLabel         string
+	NextStepLabel     string
+	Heading           string
+	Badge             string
+	SentenceKey       string
+	LiveVersion       string
+	LiveVersionLabel  string
+	Placement         string
+	PlacementVer      string
+	PlacementVerLabel string
 }
 
 func personaAdminLifecycleState(locale LocaleContext, persona PersonaAdminPersona) personaAdminLifecyclePresentation {
@@ -72,7 +74,8 @@ func personaAdminLifecycleState(locale LocaleContext, persona PersonaAdminPerson
 	}[phase]
 
 	live := personaAdminLiveVersionValue(persona)
-	placement, placementVersion := personaAdminOutdatedPlacement(locale, persona)
+	liveLabel := personaAdminLiveVersionLabel(persona)
+	placement, placementVersion, placementLabel := personaAdminOutdatedPlacement(locale, persona)
 	sentence := keys.sentence
 	if phase == personaAdminPhasePublished {
 		switch {
@@ -93,26 +96,26 @@ func personaAdminLifecycleState(locale LocaleContext, persona PersonaAdminPerson
 		Phase: phase, Step: keys.step, CompletedSteps: keys.complete,
 		StepLabel: personaAdminR5Text(locale, keys.label), NextStepLabel: personaAdminR5Text(locale, keys.next),
 		Heading: personaAdminR5Text(locale, keys.heading), Badge: personaAdminR5Text(locale, keys.label),
-		SentenceKey: sentence, LiveVersion: live, Placement: placement, PlacementVer: placementVersion,
+		SentenceKey: sentence, LiveVersion: live, LiveVersionLabel: liveLabel, Placement: placement, PlacementVer: placementVersion, PlacementVerLabel: placementLabel,
 	}
 }
 
-func personaAdminOutdatedPlacement(locale LocaleContext, persona PersonaAdminPersona) (string, string) {
+func personaAdminOutdatedPlacement(locale LocaleContext, persona PersonaAdminPersona) (string, string, string) {
 	for _, installation := range persona.Installations {
 		version := strings.TrimSpace(installation.Version)
 		if version != "" && version != strings.TrimSpace(persona.Version) {
-			return personaAdminPlacementName(locale, installation), version
+			return personaAdminPlacementName(locale, installation), version, installation.VersionLabel
 		}
 	}
-	return "", ""
+	return "", "", ""
 }
 
 func personaAdminLifecycleSentence(locale LocaleContext, persona PersonaAdminPersona, state personaAdminLifecyclePresentation) ui.Node {
 	values := strings.NewReplacer(
-		"{version}", personaAdminLocalizedNumber(locale, persona.Version),
-		"{live}", personaAdminLocalizedNumber(locale, state.LiveVersion),
+		"{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(persona.VersionLabel, persona.Version)),
+		"{live}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(state.LiveVersionLabel, state.LiveVersion)),
 		"{placement}", state.Placement,
-		"{placement_version}", personaAdminLocalizedNumber(locale, state.PlacementVer),
+		"{placement_version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(state.PlacementVerLabel, state.PlacementVer)),
 	)
 	if state.SentenceKey == "sentence_published_outdated" {
 		prefix := values.Replace(personaAdminR5Text(locale, "sentence_published_outdated_prefix"))
@@ -124,7 +127,7 @@ func personaAdminLifecycleSentence(locale LocaleContext, persona PersonaAdminPer
 	}
 	raw := map[string]any{"data-lifecycle-sentence": state.SentenceKey}
 	if state.Phase == personaAdminPhaseDraft && state.LiveVersion != "" {
-		raw["data-live-draft-summary"] = strings.NewReplacer("{live}", personaAdminLocalizedNumber(locale, state.LiveVersion), "{draft}", personaAdminLocalizedNumber(locale, persona.Version)).Replace(personaAdminText(locale, "live_and_draft"))
+		raw["data-live-draft-summary"] = strings.NewReplacer("{live}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(state.LiveVersionLabel, state.LiveVersion)), "{draft}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(persona.VersionLabel, persona.Version))).Replace(personaAdminText(locale, "live_and_draft"))
 	}
 	return html.P(html.Props{Class: "persona-admin-version-status", Role: "status", Raw: raw}, ui.Text(values.Replace(personaAdminR5Text(locale, state.SentenceKey))))
 }
@@ -132,10 +135,10 @@ func personaAdminLifecycleSentence(locale LocaleContext, persona PersonaAdminPer
 func personaAdminLifecycleBadges(locale LocaleContext, persona PersonaAdminPersona, state personaAdminLifecyclePresentation) ui.Node {
 	badges := make([]ui.Node, 0, 2)
 	if state.LiveVersion != "" && state.LiveVersion != strings.TrimSpace(persona.Version) {
-		label := strings.ReplaceAll(personaAdminR5Text(locale, "live_badge"), "{version}", personaAdminLocalizedNumber(locale, state.LiveVersion))
+		label := strings.ReplaceAll(personaAdminR5Text(locale, "live_badge"), "{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(state.LiveVersionLabel, state.LiveVersion)))
 		badges = append(badges, html.Span(html.Props{Class: "status persona-admin-status", Raw: map[string]any{"data-status-tone": "published", "data-lifecycle-badge": "live"}}, ui.Text(label)))
 	}
-	label := strings.NewReplacer("{version}", personaAdminLocalizedNumber(locale, persona.Version), "{phase}", state.Badge).Replace(personaAdminR5Text(locale, "version_badge"))
+	label := strings.NewReplacer("{version}", personaAdminVersionToken(locale, persona.VersionLabel, persona.Version), "{phase}", state.Badge).Replace(personaAdminR5Text(locale, "version_badge"))
 	tone := "neutral"
 	if state.Phase == personaAdminPhasePublished && persona.Lifecycle != PersonaSuspended && len(badges) == 0 {
 		tone = "published"
@@ -200,7 +203,7 @@ func personaAdminR5Text(locale LocaleContext, key string) string {
 		"heading_ready_publication":           {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
 		"heading_published":                   {"Published", "Veröffentlicht", "منشور"},
 		"live_badge":                          {"Live · version {version}", "Aktiv · Version {version}", "مباشر · الإصدار {version}"},
-		"version_badge":                       {"Version {version} · {phase}", "Version {version} · {phase}", "الإصدار {version} · {phase}"},
+		"version_badge":                       {"{version} · {phase}", "{version} · {phase}", "{version} · {phase}"},
 		"sentence_draft":                      {"People are using version {live}. Version {version} is a draft.", "Personen verwenden Version {live}. Version {version} ist ein Entwurf.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} مسودة."},
 		"sentence_waiting_review":             {"People are using version {live}. Version {version} is waiting for review.", "Personen verwenden Version {live}. Version {version} wartet auf Prüfung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار المراجعة."},
 		"sentence_ready_evaluation":           {"People are using version {live}. Version {version} is waiting for evaluation.", "Personen verwenden Version {live}. Version {version} wartet auf die Evaluierung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار التقييم."},

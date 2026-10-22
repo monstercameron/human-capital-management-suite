@@ -545,9 +545,9 @@ func editAnnouncementForm(mount js.Value, row productui.AgentAnnouncementRow) {
 	}
 	var refs []productui.PersonaAdminDocumentReference
 	for _, doc := range value.Documents {
-		refs = append(refs, productui.PersonaAdminDocumentReference{DocumentID: doc.DocumentID, Label: doc.Label, Title: doc.Label, VersionMode: string(doc.VersionMode), PinnedVersion: doc.PinnedVersion, SectionAnchor: doc.SectionAnchor, Readable: true})
+		refs = append(refs, productui.PersonaAdminDocumentReference{DocumentID: doc.DocumentID, Label: doc.Label, Title: doc.Label, VersionMode: string(doc.VersionMode), PinnedVersion: doc.PinnedVersion, PinnedLabel: doc.PinnedLabel, CompatibleBase: doc.CompatibleBase, SectionAnchor: doc.SectionAnchor, Readable: true})
 	}
-	markup, err := ui.RenderToString(productui.AgentDocumentReferencePicker(productui.ResolveProductLocale(domAttribute(mount, "data-locale")), productui.AgentDocumentReferencePickerModel{ID: "announcement-documents", Available: true, ReferenceLimit: 5, DefaultVersionMode: "LATEST_PUBLISHED", References: refs}))
+	markup, err := ui.RenderToString(productui.AgentDocumentReferencePicker(productui.ResolveProductLocale(domAttribute(mount, "data-locale")), productui.AgentDocumentReferencePickerModel{ID: "announcement-documents", Available: true, ReferenceLimit: 5, DefaultVersionMode: "COMPATIBLE", References: refs}))
 	if err == nil {
 		form.Call("querySelector", "[data-agentdoc-picker]").Set("outerHTML", markup)
 	}

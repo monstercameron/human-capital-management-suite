@@ -21,6 +21,7 @@ type AgentVersionRolloutCatalogVersion struct {
 	PersonaID       string `json:"persona_id"`
 	Name            string `json:"name"`
 	Version         int64  `json:"version"`
+	VersionLabel    string `json:"version_label,omitempty"`
 	ProfileDigest   string `json:"profile_digest"`
 	ManifestID      string `json:"manifest_id"`
 	ManifestVersion uint64 `json:"manifest_version"`
@@ -32,6 +33,7 @@ type AgentVersionRolloutCatalogInstallation struct {
 	PersonaID      string                          `json:"persona_id"`
 	ConversationID string                          `json:"conversation_id"`
 	Version        int64                           `json:"version"`
+	VersionLabel   string                          `json:"version_label,omitempty"`
 	Revision       int64                           `json:"revision"`
 	Policy         agentpersonastore.ChannelPolicy `json:"policy"`
 	Name           string                          `json:"name,omitempty"`
@@ -62,6 +64,19 @@ func (s *AgentVersionRolloutService) catalog(ctx context.Context, store AgentVer
 		return AgentVersionRolloutReceipt{}, err
 	}
 	catalog := &AgentVersionRolloutCatalog{Versions: []AgentVersionRolloutCatalogVersion{}, Installations: []AgentVersionRolloutCatalogInstallation{}}
+	labelSource, canReadLabel := store.(interface {
+		PublishedLabel(context.Context, string, int64) (string, error)
+	})
+	publishedLabel := func(personaID string, version int64) string {
+		if !canReadLabel {
+			return ""
+		}
+		label, err := labelSource.PublishedLabel(ctx, personaID, version)
+		if err != nil {
+			return ""
+		}
+		return label
+	}
 	personas := map[string]bool{}
 	for _, row := range published {
 		if row.TenantID != actor.Tenant {
@@ -74,7 +89,7 @@ func (s *AgentVersionRolloutService) catalog(ctx context.Context, store AgentVer
 		if json.Unmarshal(row.Profile, &p) != nil {
 			return AgentVersionRolloutReceipt{}, ErrPersonaDraftInvalid
 		}
-		catalog.Versions = append(catalog.Versions, AgentVersionRolloutCatalogVersion{PersonaID: row.PersonaID, Name: row.DisplayName, Version: row.Version, ProfileDigest: row.ContentDigest, ManifestID: p.Manifest.ID, ManifestVersion: uint64(p.Manifest.Version), PublishedAt: row.CreatedAt.UTC().Format("2006-01-02")})
+		catalog.Versions = append(catalog.Versions, AgentVersionRolloutCatalogVersion{PersonaID: row.PersonaID, Name: row.DisplayName, Version: row.Version, VersionLabel: publishedLabel(row.PersonaID, row.Version), ProfileDigest: row.ContentDigest, ManifestID: p.Manifest.ID, ManifestVersion: uint64(p.Manifest.Version), PublishedAt: row.CreatedAt.UTC().Format("2006-01-02")})
 		personas[row.PersonaID] = true
 	}
 	ids := make([]string, 0, len(personas))
@@ -97,7 +112,7 @@ func (s *AgentVersionRolloutService) catalog(ctx context.Context, store AgentVer
 				continue
 			}
 			conversation := s.rolloutConversation(ctx, reader, actor, in.ConversationID)
-			catalog.Installations = append(catalog.Installations, AgentVersionRolloutCatalogInstallation{ID: in.InstallationID, PersonaID: in.PersonaID, ConversationID: in.ConversationID, Version: in.PersonaVersion, Revision: in.Revision, Policy: in.ChannelPolicy, Name: conversation.Name, Kind: conversation.Kind, MemberCount: conversation.MemberCount, Visible: conversation.Visible})
+			catalog.Installations = append(catalog.Installations, AgentVersionRolloutCatalogInstallation{ID: in.InstallationID, PersonaID: in.PersonaID, ConversationID: in.ConversationID, Version: in.PersonaVersion, VersionLabel: publishedLabel(in.PersonaID, in.PersonaVersion), Revision: in.Revision, Policy: in.ChannelPolicy, Name: conversation.Name, Kind: conversation.Kind, MemberCount: conversation.MemberCount, Visible: conversation.Visible})
 		}
 	}
 	for index := range catalog.Versions {

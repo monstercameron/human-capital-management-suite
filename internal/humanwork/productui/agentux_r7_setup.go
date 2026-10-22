@@ -13,7 +13,10 @@ import (
 )
 
 type PersonaAdminVersionHistory struct {
-	Version                                          string
+	Version string
+	// VersionLabel is the row version's sealed semantic label, empty for
+	// a draft or a version that predates labels (AGENTUX-065).
+	VersionLabel                                     string
 	Lifecycle                                        PersonaAdminLifecycle
 	PublishedAt, PublishedBy, Instructions, Guidance string
 	ReviewApprovedAt, EvaluationPassedAt             string
@@ -79,7 +82,7 @@ func personaAdminRollbackBefore(persona PersonaAdminPersona, failedVersion strin
 func personaAdminVersionHistory(locale LocaleContext, persona PersonaAdminPersona) ui.Node {
 	history := append([]PersonaAdminVersionHistory(nil), persona.VersionHistory...)
 	if len(history) == 0 {
-		history = append(history, PersonaAdminVersionHistory{Version: persona.Version, Lifecycle: persona.Lifecycle, PublishedAt: persona.PublishedAt, Instructions: persona.Instructions, Guidance: persona.Guidance, Documents: persona.DocumentReferences, ConversationCount: len(persona.Installations)})
+		history = append(history, PersonaAdminVersionHistory{Version: persona.Version, VersionLabel: persona.VersionLabel, Lifecycle: persona.Lifecycle, PublishedAt: persona.PublishedAt, Instructions: persona.Instructions, Guidance: persona.Guidance, Documents: persona.DocumentReferences, ConversationCount: len(persona.Installations)})
 	}
 	sort.SliceStable(history, func(i, j int) bool {
 		a, _ := strconv.Atoi(history[i].Version)
@@ -111,9 +114,9 @@ func personaAdminVersionHistory(locale LocaleContext, persona PersonaAdminPerson
 		version, _ := strconv.Atoi(row.Version)
 		current, _ := strconv.Atoi(persona.Version)
 		if row.Lifecycle == PersonaPublished && version > 0 && version < current {
-			actions = append(actions, html.A(html.Props{Href: personaAdminRollbackHref(persona.ID, row.Version)}, ui.Text(agentUXR7Text(locale, "rollback", "{version}", personaAdminLocalizedNumber(locale, row.Version)))))
+			actions = append(actions, html.A(html.Props{Href: personaAdminRollbackHref(persona.ID, row.Version)}, ui.Text(agentUXR7Text(locale, "rollback", "{version}", personaAdminLocalizedNumber(locale, personaAdminVersionNumber(row.VersionLabel, row.Version))))))
 		}
-		rows = append(rows, html.Tr(html.Props{}, html.Td(html.Props{}, ui.Text(personaAdminLocalizedNumber(locale, row.Version)), html.Div(html.Props{Class: "persona-admin-version-actions"}, actions...)), html.Td(html.Props{}, ui.Text(personaAdminText(locale, "lifecycle_"+strings.ToLower(string(row.Lifecycle))))), html.Td(html.Props{}, html.Time(html.Props{Title: row.PublishedAt, Raw: map[string]any{"datetime": row.PublishedAt}}, ui.Text(at))), html.Td(html.Props{}, ui.Text(by)), html.Td(html.Props{}, ui.Text(locale.FormatNumber(strconv.Itoa(row.ConversationCount), 0)))))
+		rows = append(rows, html.Tr(html.Props{}, html.Td(html.Props{}, ui.Text(personaAdminVersionCell(locale, row.VersionLabel, row.Version)), html.Div(html.Props{Class: "persona-admin-version-actions"}, actions...)), html.Td(html.Props{}, ui.Text(personaAdminText(locale, "lifecycle_"+strings.ToLower(string(row.Lifecycle))))), html.Td(html.Props{}, html.Time(html.Props{Title: row.PublishedAt, Raw: map[string]any{"datetime": row.PublishedAt}}, ui.Text(at))), html.Td(html.Props{}, ui.Text(by)), html.Td(html.Props{}, ui.Text(locale.FormatNumber(strconv.Itoa(row.ConversationCount), 0)))))
 	}
 	return html.Details(html.Props{Class: "persona-admin-technical"}, html.Summary(html.Props{}, ui.Text(agentUXR7Text(locale, "history"))), html.Div(html.Props{Class: "agent-version-table-wrap"}, html.Table(html.Props{Class: "persona-admin-version-history"}, html.Thead(html.Props{}, html.Tr(html.Props{}, head...)), html.Tbody(html.Props{}, rows...))))
 }

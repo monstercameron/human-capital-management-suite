@@ -25,18 +25,21 @@ const (
 )
 
 // AgentDocumentSuggestion is an authorized documentation-hub search result.
-// PublishedVersion is the one-based current published version at search time.
+// PublishedVersion is the one-based current published version at search time;
+// PublishedLabel is its sealed semantic label, empty when unlabelled.
 type AgentDocumentSuggestion struct {
 	DocumentID       string
 	Title            string
 	Location         string
 	Updated          string
 	PublishedVersion uint64
+	PublishedLabel   string
 }
 
 // AgentDocumentReferencePickerModel is shared by the persona editor and the
-// Agents composer. Persona references use the default PINNED mode; a request
-// picker can set DefaultVersionMode to LATEST_PUBLISHED.
+// Agents composer. References default to the PINNED mode; pickers for agent
+// instructions and announcements set DefaultVersionMode to COMPATIBLE, and a
+// picker can also choose PINNED_LABEL or LATEST_PUBLISHED.
 type AgentDocumentReferencePickerModel struct {
 	ID                 string
 	Available          bool
@@ -83,13 +86,13 @@ func AgentDocumentReferencePicker(locale LocaleContext, model AgentDocumentRefer
 	statusID := id + "-status"
 	rows := make([]ui.Node, 0, len(model.References))
 	for index, ref := range model.References {
-		rows = append(rows, agentDocumentReferenceRow(locale, id, index, ref, model.LockedVersionMode))
+		rows = append(rows, agentDocumentReferenceRow(locale, id, index, ref, model.LockedVersionMode, mode))
 	}
 	results := make([]ui.Node, 0, len(model.Suggestions))
 	for index, suggestion := range model.Suggestions {
 		results = append(results, html.Li(html.Props{ID: id + "-option-" + strconv.Itoa(index), Class: "agentdoc-picker-option", Role: "option", Raw: map[string]any{
 			"data-agentdoc-option": suggestion.DocumentID, "data-agentdoc-title": suggestion.Title, "data-agentdoc-location": suggestion.Location,
-			"data-agentdoc-updated": suggestion.Updated, "data-agentdoc-version": suggestion.PublishedVersion, "aria-selected": "false",
+			"data-agentdoc-updated": suggestion.Updated, "data-agentdoc-version": suggestion.PublishedVersion, "data-agentdoc-published-label": suggestion.PublishedLabel, "aria-selected": "false",
 		}}, html.Strong(html.Props{Dir: "auto"}, ui.Text(suggestion.Title)), html.Small(html.Props{Class: "muted"}, ui.Text(agentDocumentSuggestionDetail(suggestion)))))
 	}
 	status := agentDocumentPickerStateText(locale, state, model.ErrorDocument)
@@ -118,6 +121,7 @@ func AgentDocumentReferencePicker(locale LocaleContext, model AgentDocumentRefer
 		"data-agentdoc-failed-unavailable": agentDocumentPickerText(locale, "failed_unavailable"), "data-agentdoc-limit": agentDocumentPickerLimitText(locale, limit),
 		"data-agentdoc-retry":  agentDocumentPickerText(locale, "retry"),
 		"data-agentdoc-remove": agentDocumentPickerText(locale, "remove"), "data-agentdoc-pinned": agentDocumentPickerText(locale, "pinned"),
+		"data-agentdoc-exact": agentDocumentPickerText(locale, "pinned_label"), "data-agentdoc-compatible": agentDocumentPickerText(locale, "compatible"),
 		"data-agentdoc-latest": agentDocumentPickerText(locale, "latest"), "data-agentdoc-unreadable": agentDocumentPickerText(locale, "unreadable"),
 		"data-agentdoc-document-unreadable": agentDocumentPickerText(locale, "document_unreadable"),
 		"data-agentdoc-count-template":      agentDocumentPickerText(locale, "count"),
@@ -136,7 +140,7 @@ func AgentDocumentReferencePicker(locale LocaleContext, model AgentDocumentRefer
 	)
 }
 
-func agentDocumentReferenceRow(locale LocaleContext, pickerID string, index int, ref PersonaAdminDocumentReference, lockedMode bool) ui.Node {
+func agentDocumentReferenceRow(locale LocaleContext, pickerID string, index int, ref PersonaAdminDocumentReference, lockedMode bool, defaultMode string) ui.Node {
 	title := strings.TrimSpace(ref.Title)
 	if title == "" {
 		title = strings.TrimSpace(ref.Label)
@@ -153,16 +157,28 @@ func agentDocumentReferenceRow(locale LocaleContext, pickerID string, index int,
 			html.Button(html.Props{Class: "button secondary compact", Type: "button", Raw: map[string]any{"data-agentdoc-remove": "true", "aria-label": agentDocumentPickerText(locale, "remove") + " " + title}}, ui.Text(agentDocumentPickerText(locale, "remove"))),
 		)
 	}
-	selectedPinned := ref.VersionMode != string(agentdocref.ModeLatestPublished)
 	pinnedVersion := locale.FormatNumber(strconv.FormatUint(ref.PinnedVersion, 10), 0)
-	versionControl := ui.Node(html.Select(html.Props{ID: rowID + "-mode", Raw: map[string]any{"data-agentdoc-mode": "true"}},
-		html.Option(html.Props{Value: string(agentdocref.ModePinned), Selected: selectedPinned}, ui.Text(strings.ReplaceAll(agentDocumentPickerText(locale, "pinned"), "{version}", pinnedVersion))),
-		html.Option(html.Props{Value: string(agentdocref.ModeLatestPublished), Selected: !selectedPinned}, ui.Text(agentDocumentPickerText(locale, "latest"))),
-	))
+	exact := agentdocref.Reference{VersionMode: agentdocref.ModePinnedLabel, PinnedLabel: ref.PinnedLabel}.VersionSelector()
+	line := agentdocref.Reference{VersionMode: agentdocref.ModeCompatible, CompatibleBase: ref.CompatibleBase}.VersionSelector()
+	options := []struct {
+		mode, text string
+	}{
+		{string(agentdocref.ModeCompatible), strings.ReplaceAll(agentDocumentPickerText(locale, "compatible"), "{version}", line)},
+		{string(agentdocref.ModePinnedLabel), strings.ReplaceAll(agentDocumentPickerText(locale, "pinned_label"), "{version}", exact)},
+		{string(agentdocref.ModePinned), strings.ReplaceAll(agentDocumentPickerText(locale, "pinned"), "{version}", pinnedVersion)},
+		{string(agentdocref.ModeLatestPublished), agentDocumentPickerText(locale, "latest")},
+	}
+	nodes := make([]ui.Node, 0, len(options))
+	for _, option := range options {
+		nodes = append(nodes, html.Option(html.Props{Value: option.mode, Selected: ref.VersionMode == option.mode || (ref.VersionMode == "" && option.mode == defaultMode)}, ui.Text(option.text)))
+	}
+	versionControl := ui.Node(html.Select(html.Props{ID: rowID + "-mode", Raw: map[string]any{"data-agentdoc-mode": "true"}}, nodes...))
 	if lockedMode {
 		label := agentDocumentPickerText(locale, "latest")
-		if selectedPinned {
-			label = strings.ReplaceAll(agentDocumentPickerText(locale, "pinned"), "{version}", pinnedVersion)
+		for _, option := range options {
+			if ref.VersionMode == option.mode {
+				label = option.text
+			}
 		}
 		versionControl = html.Span(html.Props{Class: "muted", Raw: map[string]any{"data-agentdoc-mode-locked": "true"}}, ui.Text(label))
 	}
@@ -179,7 +195,7 @@ func agentDocumentReferenceRow(locale LocaleContext, pickerID string, index int,
 }
 
 func agentDocumentReferenceData(ref PersonaAdminDocumentReference) map[string]any {
-	return map[string]any{"data-agentdoc-reference": "true", "data-document-id": ref.DocumentID, "data-document-label": ref.Label, "data-document-title": ref.Title, "data-document-location": ref.Location, "data-version-mode": ref.VersionMode, "data-pinned-version": ref.PinnedVersion, "data-section-anchor": ref.SectionAnchor, "data-readable": strconv.FormatBool(ref.Readable)}
+	return map[string]any{"data-agentdoc-reference": "true", "data-document-id": ref.DocumentID, "data-document-label": ref.Label, "data-document-title": ref.Title, "data-document-location": ref.Location, "data-version-mode": ref.VersionMode, "data-pinned-version": ref.PinnedVersion, "data-pinned-label": ref.PinnedLabel, "data-compatible-base": ref.CompatibleBase, "data-section-anchor": ref.SectionAnchor, "data-readable": strconv.FormatBool(ref.Readable)}
 }
 
 func agentDocumentPickerRetry(locale LocaleContext, state AgentDocumentPickerState) ui.Node {
@@ -232,6 +248,8 @@ func agentDocumentPickerText(locale LocaleContext, key string) string {
 		"retry":               {"Try again", "Erneut versuchen", "حاول مرة أخرى"},
 		"remove":              {"Remove", "Entfernen", "إزالة"},
 		"pinned":              {"Pinned to version {version}", "An Version {version} angeheftet", "مثبّت بالإصدار {version}"},
+		"pinned_label":        {"Pinned to {version}", "An {version} angeheftet", "مثبّت بـ{version}"},
+		"compatible":          {"Follow {version} and its corrections", "Folgt {version} mit Korrekturen", "يتبع {version} وتصحيحاته"},
 		"latest":              {"Always latest published", "Immer die neueste veröffentlichte Version", "أحدث إصدار منشور دائماً"},
 		"version_choice":      {"Version choice for", "Versionsauswahl für", "اختيار الإصدار لـ"},
 		"unreadable":          {"Cannot be read by you", "Für Sie nicht lesbar", "لا يمكنك قراءته"},

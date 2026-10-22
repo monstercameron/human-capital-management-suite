@@ -142,6 +142,9 @@ type LifecycleEvent struct {
 	EvaluationDigest        string
 	EvaluationProfileDigest string
 	EvaluationSuiteDigest   string
+	// SemanticVersion seals the publication label on a publish event
+	// (AGENTUX-065). Only publish events carry one.
+	SemanticVersion string
 }
 
 // PublicationEvidence is resolved from trusted review and evaluation
@@ -558,6 +561,7 @@ func (s *TenantStore) AppendLifecycle(ctx context.Context, event LifecycleEvent)
 	if event.To == StatePublished {
 		return fmt.Errorf("%w: use Publish with trusted review and evaluation authorities", ErrPublicationEvidenceRequired)
 	}
+	event.SemanticVersion = ""
 	return s.appendLifecycle(ctx, event, nil)
 }
 
@@ -613,6 +617,11 @@ func (s *TenantStore) Publish(ctx context.Context, event LifecycleEvent, evidenc
 		if evaluation.RunID != evidence.EvaluationRunID || evaluation.TenantID != string(s.tenant) || evaluation.PersonaID != event.PersonaID || evaluation.PersonaVersion != event.PersonaVersion || evaluation.ProfileDigest != version.ContentDigest || strings.TrimSpace(evaluation.SuiteDigest) == "" || strings.TrimSpace(evaluation.RunDigest) == "" || !evaluation.Passed || !evaluation.Fresh {
 			return fmt.Errorf("%w: evaluation does not prove a fresh passing run for this version", ErrPublicationEvidenceRequired)
 		}
+		label, err := resolvePublicationLabelTx(ctx, tx, s.tenantID, event.PersonaID, event.PersonaVersion, version.Profile, event.SemanticVersion)
+		if err != nil {
+			return err
+		}
+		persisted.SemanticVersion = label
 		persisted.ActorID = review.ReviewerID
 		persisted.ProfileDigest = version.ContentDigest
 		persisted.ReviewDigest = review.ReviewDigest
@@ -661,10 +670,10 @@ func (s *TenantStore) appendLifecycle(ctx context.Context, event LifecycleEvent,
 		at = time.Now().UTC()
 	}
 	n, err := tx.Exec(ctx, `INSERT INTO persona_lifecycle_events
-		(tenant_id,event_id,persona_id,persona_version,from_state,to_state,reason,actor_id,occurred_at,profile_digest,review_digest,reviewer_id,evaluation_digest,evaluation_profile_digest,evaluation_suite_digest)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) ON CONFLICT DO NOTHING`,
+		(tenant_id,event_id,persona_id,persona_version,from_state,to_state,reason,actor_id,occurred_at,profile_digest,review_digest,reviewer_id,evaluation_digest,evaluation_profile_digest,evaluation_suite_digest,semantic_version)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT DO NOTHING`,
 		s.tenantID, event.EventID, event.PersonaID, event.PersonaVersion, event.From, event.To, event.Reason, event.ActorID, at,
-		event.ProfileDigest, event.ReviewDigest, event.ReviewerID, event.EvaluationDigest, event.EvaluationProfileDigest, event.EvaluationSuiteDigest)
+		event.ProfileDigest, event.ReviewDigest, event.ReviewerID, event.EvaluationDigest, event.EvaluationProfileDigest, event.EvaluationSuiteDigest, event.SemanticVersion)
 	if err != nil {
 		return fmt.Errorf("agentpersonastore: append lifecycle: %w", err)
 	}
@@ -703,7 +712,7 @@ func (s *TenantStore) ListLifecycle(ctx context.Context, personaID string, versi
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	rows, err := tx.Query(ctx, `SELECT event_sequence,event_id,persona_id,persona_version,from_state,to_state,reason,actor_id,occurred_at,profile_digest,review_digest,reviewer_id,evaluation_digest,evaluation_profile_digest,evaluation_suite_digest
+	rows, err := tx.Query(ctx, `SELECT event_sequence,event_id,persona_id,persona_version,from_state,to_state,reason,actor_id,occurred_at,profile_digest,review_digest,reviewer_id,evaluation_digest,evaluation_profile_digest,evaluation_suite_digest,semantic_version
 		FROM persona_lifecycle_events WHERE tenant_id=$1 AND persona_id=$2 AND persona_version=$3 ORDER BY event_sequence`, s.tenantID, personaID, version)
 	if err != nil {
 		return nil, err
@@ -712,7 +721,7 @@ func (s *TenantStore) ListLifecycle(ctx context.Context, personaID string, versi
 	var out []LifecycleEvent
 	for rows.Next() {
 		var item LifecycleEvent
-		if err := rows.Scan(&item.Sequence, &item.EventID, &item.PersonaID, &item.PersonaVersion, &item.From, &item.To, &item.Reason, &item.ActorID, &item.OccurredAt, &item.ProfileDigest, &item.ReviewDigest, &item.ReviewerID, &item.EvaluationDigest, &item.EvaluationProfileDigest, &item.EvaluationSuiteDigest); err != nil {
+		if err := rows.Scan(&item.Sequence, &item.EventID, &item.PersonaID, &item.PersonaVersion, &item.From, &item.To, &item.Reason, &item.ActorID, &item.OccurredAt, &item.ProfileDigest, &item.ReviewDigest, &item.ReviewerID, &item.EvaluationDigest, &item.EvaluationProfileDigest, &item.EvaluationSuiteDigest, &item.SemanticVersion); err != nil {
 			return nil, fmt.Errorf("agentpersonastore: scan lifecycle: %w", err)
 		}
 		item.TenantID, item.OccurredAt = s.tenant, item.OccurredAt.UTC()

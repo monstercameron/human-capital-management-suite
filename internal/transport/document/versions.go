@@ -19,8 +19,11 @@ import (
 // document currently resolves to.
 type DocumentVersionSummary struct {
 	VersionID, Title, AuthorID string
-	CreatedAt                  time.Time
-	IsCurrent, Redacted        bool
+	// SemanticVersion is the version's sealed publication label, empty
+	// until first deployed (AGENTUX-065).
+	SemanticVersion     string
+	CreatedAt           time.Time
+	IsCurrent, Redacted bool
 }
 
 // VersionsService is the optional version-history port. A composition
@@ -49,7 +52,7 @@ func (s *server) ListDocumentVersions(ctx context.Context, req *documentv1.ListD
 	for _, row := range rows {
 		v := &documentv1.DocumentVersionSummary{
 			VersionId: row.VersionID, Title: row.Title, AuthorId: row.AuthorID,
-			IsCurrent: row.IsCurrent, Redacted: row.Redacted,
+			IsCurrent: row.IsCurrent, Redacted: row.Redacted, SemanticVersion: row.SemanticVersion,
 		}
 		if !row.CreatedAt.IsZero() {
 			v.CreatedAt = timestamppb.New(row.CreatedAt)

@@ -11,6 +11,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/semver"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
@@ -57,6 +58,9 @@ type PersonaAdminCommand struct {
 	Reason             string
 	// ReactToQuestions is the choice SET_REACTIONS stores.
 	ReactToQuestions *bool
+	// VersionBump is the author's plain choice PUBLISH seals into a label.
+	// A nil choice publishes under the bump the change requires (AGENTUX-065).
+	VersionBump *semver.Bump
 }
 
 // PersonaAdminCommandActor is derived only from the authenticated request.
@@ -271,7 +275,7 @@ func (f *PersonaAdminCommandFactory) ExecutePersonaAdminCommand(ctx context.Cont
 		}
 	case PersonaAdminCreateVersion:
 		channels, ok := personaAdminChannelClasses(request.AllowedChannels)
-		if !ok || len(request.OrganizationScopes) > 0 || request.AvatarRef != "" || request.ManifestID != "" || request.ReviewID != "" || request.EvaluationRunID != "" || request.Decision != "" || request.Reason != "" || request.ConversationID != "" {
+		if !ok || len(request.OrganizationScopes) > 0 || request.AvatarRef != "" || request.ManifestID != "" || request.ReviewID != "" || request.EvaluationRunID != "" || request.Decision != "" || request.Reason != "" || request.ConversationID != "" || request.VersionBump != nil {
 			return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
 		}
 		command.StarterVersionEdit = &PersonaStarterVersionRequest{StarterID: request.StarterID, StarterVersion: request.StarterVersion, Handle: request.Handle, DisplayName: request.DisplayName, Purpose: request.Purpose, Guidance: clonePersonaAdminGuidance(request.Instructions), ChannelClasses: channels, BusinessOwnerID: request.BusinessOwnerID, TechnicalStewardID: request.TechnicalStewardID}
@@ -285,7 +289,18 @@ func (f *PersonaAdminCommandFactory) ExecutePersonaAdminCommand(ctx context.Cont
 		command.Installation = agentpersonastore.PersonaInstallation{PersonaID: request.PersonaID, ConversationID: request.ConversationID}
 	case PersonaAdminRunEvaluation, PersonaAdminRequestReview, PersonaAdminReview, PersonaAdminPublish, PersonaAdminRollback, PersonaAdminSuspend, PersonaAdminRetire:
 		isReview := command.Action == PersonaAdminRequestReview || command.Action == PersonaAdminReview
-		if !personaAdminLifecycleRequestHasSupportedFields(request) || request.ConversationID != "" || (!isReview && request.Decision != "") || (command.Action != PersonaAdminPublish && (request.ReviewID != "" || request.EvaluationRunID != "")) || (isReview && request.Reason != "") || (command.Action == PersonaAdminRunEvaluation && request.Reason != "") {
+		supported := request
+		if command.Action == PersonaAdminPublish {
+			supported = personaAdminWithoutVersionBump(request)
+			if request.VersionBump != nil {
+				bump, ok := personaAdminVersionBump(*request.VersionBump)
+				if !ok {
+					return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
+				}
+				command.VersionBump = &bump
+			}
+		}
+		if !personaAdminLifecycleRequestHasSupportedFields(supported) || request.ConversationID != "" || (!isReview && request.Decision != "") || (command.Action != PersonaAdminPublish && (request.ReviewID != "" || request.EvaluationRunID != "")) || (isReview && request.Reason != "") || (command.Action == PersonaAdminRunEvaluation && request.Reason != "") {
 			return personaAdminCommandError(personaAdminCodeInvalid, ErrPersonaAdminCommandUnavailable)
 		}
 	case PersonaAdminSetReactions:
@@ -321,11 +336,32 @@ func (c personaAdminCommandClient) CreatePersonaDraft(ctx context.Context, reque
 }
 
 func personaAdminRequestHasSupportedFields(request productui.PersonaAdminCommandRequest) bool {
-	return request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && len(request.AllowedChannels) == 0 && request.ConversationID == "" && request.ReviewID == "" && request.EvaluationRunID == "" && request.Decision == "" && request.Reason == ""
+	return request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && len(request.AllowedChannels) == 0 && request.ConversationID == "" && request.ReviewID == "" && request.EvaluationRunID == "" && request.Decision == "" && request.Reason == "" && request.VersionBump == nil
 }
 
 func personaAdminLifecycleRequestHasSupportedFields(request productui.PersonaAdminCommandRequest) bool {
-	return request.StarterID == "" && request.StarterVersion == 0 && request.AvatarRef == "" && len(request.OrganizationScopes) == 0 && request.ManifestID == "" && request.BusinessOwnerID == "" && request.TechnicalStewardID == "" && request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && request.Instructions == nil && len(request.AllowedChannels) == 0 && request.ReactToQuestions == nil
+	return request.StarterID == "" && request.StarterVersion == 0 && request.AvatarRef == "" && len(request.OrganizationScopes) == 0 && request.ManifestID == "" && request.BusinessOwnerID == "" && request.TechnicalStewardID == "" && request.Handle == "" && request.DisplayName == "" && request.Purpose == "" && request.Instructions == nil && len(request.AllowedChannels) == 0 && request.ReactToQuestions == nil && request.VersionBump == nil
+}
+
+// personaAdminWithoutVersionBump clears the publish-only bump choice so the
+// shared lifecycle guard sees the request every other action must send.
+func personaAdminWithoutVersionBump(request productui.PersonaAdminCommandRequest) productui.PersonaAdminCommandRequest {
+	request.VersionBump = nil
+	return request
+}
+
+// personaAdminVersionBump parses the author's plain publish choice.
+func personaAdminVersionBump(choice string) (semver.Bump, bool) {
+	switch choice {
+	case "patch":
+		return semver.BumpPatch, true
+	case "minor":
+		return semver.BumpMinor, true
+	case "major":
+		return semver.BumpMajor, true
+	default:
+		return semver.BumpPatch, false
+	}
 }
 
 func personaAdminGuidance(value *string) string {

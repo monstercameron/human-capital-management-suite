@@ -202,7 +202,7 @@ func announcementResolvedReferences(documents []AgentAnnouncementResolvedDocumen
 	out := make([]agentdocref.ResolvedDocument, 0, len(documents))
 	for _, doc := range documents {
 		number, _ := strconv.ParseUint(doc.Version, 10, 64)
-		out = append(out, agentdocref.ResolvedDocument{Reference: agentdocref.Reference{DocumentID: doc.DocumentID, VersionMode: agentdocref.ModePinned, PinnedVersion: number, SectionAnchor: doc.SectionAnchor, Label: doc.Title}, Version: number, Title: doc.Title, Content: doc.Content})
+		out = append(out, agentdocref.ResolvedDocument{Reference: agentdocref.Reference{DocumentID: doc.DocumentID, VersionMode: agentdocref.ModePinned, PinnedVersion: number, SectionAnchor: doc.SectionAnchor, Label: doc.Title}, Version: number, VersionLabel: doc.VersionLabel, Title: doc.Title, Content: doc.Content})
 	}
 	return out
 }

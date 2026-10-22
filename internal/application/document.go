@@ -314,7 +314,7 @@ func (s documentService) ListDocumentVersions(ctx context.Context, tenantID, act
 	out := make([]transportdocument.DocumentVersionSummary, 0, len(entries))
 	for i, entry := range entries {
 		out = append(out, transportdocument.DocumentVersionSummary{
-			VersionID: entry.VersionID, Title: entry.Title, CreatedAt: entry.CreatedAt,
+			VersionID: entry.VersionID, Title: entry.Title, SemanticVersion: entry.SemanticVersion, CreatedAt: entry.CreatedAt,
 			IsCurrent: i == len(entries)-1, Redacted: entry.Redacted,
 		})
 	}

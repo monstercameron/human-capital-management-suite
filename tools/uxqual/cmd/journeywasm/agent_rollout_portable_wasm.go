@@ -25,6 +25,7 @@ type rolloutCatalogReply struct {
 			PersonaID       string `json:"persona_id"`
 			Name            string `json:"name"`
 			Version         int64  `json:"version"`
+			VersionLabel    string `json:"version_label"`
 			ProfileDigest   string `json:"profile_digest"`
 			ManifestID      string `json:"manifest_id"`
 			ManifestVersion uint64 `json:"manifest_version"`
@@ -36,6 +37,7 @@ type rolloutCatalogReply struct {
 			PersonaID      string `json:"persona_id"`
 			ConversationID string `json:"conversation_id"`
 			Version        int64  `json:"version"`
+			VersionLabel   string `json:"version_label"`
 			Revision       int64  `json:"revision"`
 			Name           string `json:"name"`
 			Kind           string `json:"kind"`
@@ -511,7 +513,7 @@ func fetchRolloutCatalog(mount js.Value) {
 			s.Personas = append(s.Personas, productui.AgentRolloutPersona{ID: v.PersonaID, Name: v.Name})
 			seenPersonas[v.PersonaID] = true
 		}
-		s.Versions = append(s.Versions, productui.AgentRolloutVersion{PersonaID: v.PersonaID, Version: v.Version, PublishedAt: v.PublishedAt, Current: v.Current, Digest: v.ProfileDigest, ProfileDigest: v.ProfileDigest})
+		s.Versions = append(s.Versions, productui.AgentRolloutVersion{PersonaID: v.PersonaID, Version: v.Version, VersionLabel: v.VersionLabel, PublishedAt: v.PublishedAt, Current: v.Current, Digest: v.ProfileDigest, ProfileDigest: v.ProfileDigest})
 	}
 	for i := range s.Portable.Manifests {
 		manifest := &s.Portable.Manifests[i]
@@ -526,7 +528,7 @@ func fetchRolloutCatalog(mount js.Value) {
 	}
 	s.NotListedCount = reply.Catalog.NotListedCount
 	for _, i := range reply.Catalog.Installations {
-		s.Installations = append(s.Installations, productui.AgentRolloutInstallation{ID: i.ID, PersonaID: i.PersonaID, ConversationID: i.ConversationID, Name: i.Name, ConversationKind: i.Kind, MemberCount: i.MemberCount, Visible: i.Visible, Version: i.Version, Revision: i.Revision, UpdateBlocked: i.UpdateBlocked, CanaryEligible: true})
+		s.Installations = append(s.Installations, productui.AgentRolloutInstallation{ID: i.ID, PersonaID: i.PersonaID, ConversationID: i.ConversationID, Name: i.Name, ConversationKind: i.Kind, MemberCount: i.MemberCount, Visible: i.Visible, Version: i.Version, VersionLabel: i.VersionLabel, Revision: i.Revision, UpdateBlocked: i.UpdateBlocked, CanaryEligible: true})
 	}
 	rolloutPortableBrowser.Lock()
 	if rolloutPortableBrowser.config.Bearer != cfg.Bearer {
@@ -664,6 +666,12 @@ func handleRolloutSubmit(event js.Value) {
 			if err == nil {
 				s.PersonaID = persona
 				s.Active = &productui.AgentRolloutPlan{ID: out.Plan.ID, Digest: out.Plan.Digest, Version: out.Plan.Version, ProfileDigest: out.Plan.ProfileDigest, CanaryCount: out.Plan.CanaryCount}
+				for _, v := range s.Versions {
+					if v.PersonaID == persona && v.Version == out.Plan.Version {
+						s.Active.VersionLabel = v.VersionLabel
+						break
+					}
+				}
 				for _, c := range out.Plan.Candidates {
 					s.Active.Candidates = append(s.Active.Candidates, productui.AgentRolloutCandidate{InstallationID: c.InstallationID, ConversationID: c.ConversationID, Version: c.Version, Revision: c.Revision, RevocationEpoch: c.RevocationEpoch, AuthorityRevision: c.AuthorityRevision, PolicyDigest: c.PolicyDigest})
 				}

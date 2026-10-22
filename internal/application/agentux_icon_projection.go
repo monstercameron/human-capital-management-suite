@@ -34,6 +34,22 @@ func (r AgentIconCatalogVersions) ListPersonaAdminVersionHistory(ctx context.Con
 	return nil, nil
 }
 
+func (r AgentIconCatalogVersions) ListPersonaPublishPreviews(ctx context.Context, tenant values.TenantId) (map[string]productui.PersonaPublishPreview, error) {
+	if ctx == nil {
+		return nil, ErrPersonaCatalogDenied
+	}
+	p, ok := trust.FromContext(ctx)
+	if !ok || p == nil || p.Tenant() != tenant || p.SubjectKind() != trust.SubjectKindHuman {
+		return nil, ErrPersonaCatalogDenied
+	}
+	if reader, ok := r.Base.(interface {
+		ListPersonaPublishPreviews(context.Context, values.TenantId) (map[string]productui.PersonaPublishPreview, error)
+	}); ok {
+		return reader.ListPersonaPublishPreviews(ctx, tenant)
+	}
+	return nil, nil
+}
+
 func (r AgentIconCatalogVersions) ListPersonaCatalogVersions(ctx context.Context, tenant values.TenantId) ([]PersonaCatalogVersion, error) {
 	if ctx == nil || r.Base == nil || r.Store == nil {
 		return nil, ErrPersonaCatalogDenied

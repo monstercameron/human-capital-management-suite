@@ -30,13 +30,17 @@ const (
 )
 
 type agentDocumentReadFake struct {
-	latest         map[string]agentDocumentVersion
-	pinned         map[string]map[uint64]agentDocumentVersion
-	readable       map[string]bool
-	lastInvoker    agentdocref.Invoker
-	latestCalls    int
-	pinnedCalls    int
-	infrastructure error
+	latest          map[string]agentDocumentVersion
+	pinned          map[string]map[uint64]agentDocumentVersion
+	labelPinned     map[string]map[string]agentDocumentVersion
+	compatible      map[string]agentDocumentVersion
+	readable        map[string]bool
+	lastInvoker     agentdocref.Invoker
+	latestCalls     int
+	pinnedCalls     int
+	labelCalls      int
+	compatibleCalls int
+	infrastructure  error
 }
 
 type agentDocumentRuntimeDelegateFake struct{}
@@ -85,6 +89,39 @@ func (f *agentDocumentReadFake) PinnedPublished(_ context.Context, invoker agent
 		return agentDocumentVersion{}, errAgentDocumentNotFound
 	}
 	version, ok := f.pinned[documentID][number]
+	if !ok {
+		return agentDocumentVersion{}, errAgentDocumentUnpublished
+	}
+	return version, nil
+}
+
+func (f *agentDocumentReadFake) PinnedLabelPublished(_ context.Context, invoker agentdocref.Invoker, documentID, label string) (agentDocumentVersion, error) {
+	f.lastInvoker = invoker
+	f.labelCalls++
+	if f.infrastructure != nil {
+		return agentDocumentVersion{}, f.infrastructure
+	}
+	if !f.readable[invoker.SubjectID+"\x00"+documentID] {
+		return agentDocumentVersion{}, errAgentDocumentNotFound
+	}
+	version, ok := f.labelPinned[documentID][label]
+	if !ok {
+		return agentDocumentVersion{}, errAgentDocumentUnpublished
+	}
+	return version, nil
+}
+
+func (f *agentDocumentReadFake) CompatiblePublished(_ context.Context, invoker agentdocref.Invoker, documentID, base string) (agentDocumentVersion, error) {
+	f.lastInvoker = invoker
+	f.compatibleCalls++
+	if f.infrastructure != nil {
+		return agentDocumentVersion{}, f.infrastructure
+	}
+	if !f.readable[invoker.SubjectID+"\x00"+documentID] {
+		return agentDocumentVersion{}, errAgentDocumentNotFound
+	}
+	_ = base
+	version, ok := f.compatible[documentID]
 	if !ok {
 		return agentDocumentVersion{}, errAgentDocumentUnpublished
 	}
