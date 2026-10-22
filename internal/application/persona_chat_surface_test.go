@@ -333,8 +333,8 @@ func TestTodo_AGENTP_019_SurfaceHTTPAdmissionIgnoresForgedScope(t *testing.T) {
 			}
 		})
 	}
-	if len(room.sends) != 2 || room.sends[0].ParentID != "post-a" || room.sends[0].Principal.SubjectID != "user-a" {
-		t.Fatalf("browser guard effect calls=%+v", room.sends)
+	if len(room.sends) != 0 || len(room.reattempts) != 2 || room.reattempts[0].post.ID != "post-a" || room.reattempts[0].post.AuthorID != "user-a" {
+		t.Fatalf("browser guard effect calls=%+v reattempts=%+v", room.sends, room.reattempts)
 	}
 	request := httptest.NewRequest("GET", personachat.Path+"?conversation_id=channel-a", nil)
 	request.AddCookie(&http.Cookie{Name: "hcmnext_session", Value: validToken})
