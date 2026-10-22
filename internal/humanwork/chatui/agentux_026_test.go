@@ -24,9 +24,10 @@ func TestTodo_AGENTUX_026(t *testing.T) {
 	asked := time.Date(2026, 10, 1, 11, 59, 0, 0, time.UTC)
 	working := agentUXReplyModel("en-US")
 
-	// Working: one row, the agent named, one live region.
+	// Working: one row, the agent named and at work, elapsed time from
+	// admission, one live region.
 	row := agentUX026Rows(t, working)
-	if strings.Count(row, `data-agent-reply-state=`) != 1 || !strings.Contains(row, `data-agent-reply-state="working"`) || !strings.Contains(row, "Policy Helper") || strings.Count(row, `aria-live="polite"`) != 1 {
+	if strings.Count(row, `data-agent-reply-state=`) != 1 || !strings.Contains(row, `data-agent-reply-state="working"`) || !strings.Contains(row, "Policy Helper") || !strings.Contains(row, "is working on this") || !strings.Contains(row, "0:12") || strings.Count(row, `aria-live="polite"`) != 1 {
 		t.Fatalf("the working row: %s", row)
 	}
 
@@ -56,7 +57,10 @@ func TestTodo_AGENTUX_026(t *testing.T) {
 	failed.PersonaInvocations[0].Projection.Progress = nil
 	failed.PersonaInvocations[0].Projection.Failure = &PersonaProgressFailure{InvocationID: "invocation", InvokerID: "alice", Code: "MODEL_UNAVAILABLE", Message: "upstream 503 from provider", Retryable: true}
 	row = agentUX026Rows(t, failed)
-	if strings.Count(row, `data-agent-reply-state=`) != 1 || !strings.Contains(row, `data-agent-reply-state="failed"`) || !strings.Contains(row, "Policy Helper could not answer because the service had a problem.") || !strings.Contains(row, `data-agent-action="retry"`) || strings.Contains(row, "upstream 503") {
+	// The retry reads "Ask again", not "Try again": the row is tied to the
+	// invocation, and "Try again" is reserved for retries with no invocation
+	// behind them.
+	if strings.Count(row, `data-agent-reply-state=`) != 1 || !strings.Contains(row, `data-agent-reply-state="failed"`) || !strings.Contains(row, "Policy Helper could not answer because the service had a problem.") || !strings.Contains(row, `data-agent-action="retry"`) || !strings.Contains(row, "Ask again") || strings.Contains(row, "upstream 503") || strings.Count(row, `aria-live="polite"`) != 1 {
 		t.Fatalf("the failed row: %s", row)
 	}
 
