@@ -93,14 +93,18 @@ func (p *LocalDemoHomeOrganizationProvisioner) Provision(ctx context.Context, te
 		if existing && current != organization {
 			return LocalDemoHomeOrganizationProvisionSummary{}, fmt.Errorf("%w: subject %s has home organization %q, plan requires %q", ErrLocalDemoHomeOrganizationProvisioning, subject, current, organization)
 		}
+		if existing {
+			// The current fact already matches the plan exactly. Do not
+			// rewrite it: the directory treats a rewrite with a fresh
+			// effective time as a non-advancing revision and rejects it,
+			// which would fail every restart after the first boot.
+			summary.Existing++
+			continue
+		}
 		if err := p.Directory.ProvisionHomeOrganization(ctx, tenantKey, subject, organization, localDemoHomeOrganizationSource, localDemoHomeOrganizationRevision, at); err != nil {
 			return LocalDemoHomeOrganizationProvisionSummary{}, fmt.Errorf("%w: subject %s: %v", ErrLocalDemoHomeOrganizationProvisioning, subject, err)
 		}
-		if existing {
-			summary.Existing++
-		} else {
-			summary.Created++
-		}
+		summary.Created++
 	}
 	return summary, nil
 }
