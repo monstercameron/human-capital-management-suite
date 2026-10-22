@@ -22,6 +22,11 @@ func TestTodo_CHATBUG_092_Integration(t *testing.T) {
 				return err
 			}
 		}
+		// The room is private: the restorer must be a member to act there,
+		// like any moderator who did not take the original action.
+		if _, err := tx.Exec(ctx, `INSERT INTO chat_membership(tenant_id,conversation_id,home_tenant_id,member_id,role,state,history_visibility,joined_at) VALUES($1,$2,$1,$3,'member','active','FULL_HISTORY',now()) ON CONFLICT DO NOTHING`, remover.TenantID, post.ConversationID, restorer.SubjectID); err != nil {
+			return err
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
