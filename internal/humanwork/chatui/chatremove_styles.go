@@ -11,7 +11,7 @@ const ChatremoveStyles = `
 .chatremove button,.chatremove a {min-block-size:44px;display:inline-flex;align-items:center;justify-content:center;padding:.5rem .75rem;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);color:var(--hcm-color-text);background:var(--hcm-color-surface);white-space:normal;text-align:start;text-decoration:none}
 .chatremove .primary {background:var(--hcm-color-brand-primary);color:var(--hcm-color-on-brand)}
 .chatremove button:disabled {opacity:.6;cursor:default}
-.chatremove :focus-visible {outline:2px solid var(--hcm-color-brand-primary);outline-offset:3px}
+.chatremove :focus-visible {outline:2px solid var(--hcm-color-focus);outline-offset:3px}
 .chatremove-actions {display:flex;flex-wrap:wrap;gap:.5rem}
 .chatremove-choice {display:flex;align-items:center;gap:.5rem}
 .chatremove blockquote {margin:0;padding:.75rem;border-inline-start:3px solid var(--hcm-color-border);white-space:pre-wrap}

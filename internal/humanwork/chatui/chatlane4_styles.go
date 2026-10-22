@@ -37,7 +37,7 @@ const chatbug077Styles = `.chat-workspace .chatsearch-view .chatsearch-result{di
 // column (its own 8px of padding and -8px of margin on each side), which puts
 // the end of its text on the composer's right edge.
 const chatux023Styles = `.chat-workspace{--chat-column:960px;--chat-measure:calc(var(--chat-column) - 66px)}` +
-	`.chat-workspace .message-list .message{max-width:calc(var(--chat-column) + 16px)}` +
+	`.chat-workspace .message-list .message{max-width:var(--chat-column)}` +
 	`.chat-workspace .message-list .day-divider,.chat-workspace .message-list .unread-divider{max-width:var(--chat-column)}` +
 	`.chat-workspace .message-body,.chat-workspace .agent-reply-answer{max-width:var(--chat-measure)}` +
 	`.chat-workspace .channel-tray{box-sizing:border-box;width:100%;max-width:calc(var(--chat-column) + 40px)}` +

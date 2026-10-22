@@ -7,7 +7,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 )
 
-// TestTodo_CHATUX_020_Browser: the sidebar's row menu, draft pencil and collapsed
+// TestTodo_CHATUX_020_Browser: the sidebar's row menu, Draft tag and collapsed
 // section with the product's own catalog in each language: the menu's words,
 // the heading over the notification choices, and no copy key.
 func TestTodo_CHATUX_020_Browser(t *testing.T) {

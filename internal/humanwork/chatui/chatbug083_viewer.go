@@ -31,7 +31,7 @@ const ChatBug083Styles = `
 .chat-image-viewer-prev{inset-inline-start:6px}
 .chat-image-viewer-next{inset-inline-end:6px}
 .chat-image-viewer[dir="rtl"] .chat-image-viewer-step{scale:-1 1}
-.chat-image-viewer-tools>button:focus-visible,.chat-image-viewer-step:focus-visible{outline:3px solid var(--hcm-color-brand-primary);outline-offset:2px}
+.chat-image-viewer-tools>button:focus-visible,.chat-image-viewer-step:focus-visible{outline:3px solid var(--hcm-color-focus);outline-offset:2px}
 @media(max-width:720px){
 .chat-image-viewer{padding:64px 8px 72px}
 .chat-image-viewer-caption{max-inline-size:calc(100% - 76px)}

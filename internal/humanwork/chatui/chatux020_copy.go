@@ -9,6 +9,7 @@ const (
 	keyChatux020Leave         = "chat.ux020.leave"
 	keyChatux020LeaveConfirm  = "chat.ux020.leave_confirm"
 	keyChatux020Draft         = "chat.ux020.draft"
+	keyChatux020DraftTag      = "chat.ux020.draft_tag"
 	keyChatux020Reorder       = "chat.ux020.reorder"
 )
 
@@ -20,6 +21,7 @@ var chatux020Copy = map[string]map[string]string{
 		keyChatux020Leave:         "Leave channel",
 		keyChatux020LeaveConfirm:  "Leave {name}? Press again to confirm",
 		keyChatux020Draft:         "Unsent draft",
+		keyChatux020DraftTag:      "Draft",
 		keyChatux020Reorder:       "Reorder",
 	},
 	"de-DE": {
@@ -29,6 +31,7 @@ var chatux020Copy = map[string]map[string]string{
 		keyChatux020Leave:         "Kanal verlassen",
 		keyChatux020LeaveConfirm:  "{name} verlassen? Zum Bestätigen erneut drücken",
 		keyChatux020Draft:         "Nicht gesendeter Entwurf",
+		keyChatux020DraftTag:      "Entwurf",
 		keyChatux020Reorder:       "Neu anordnen",
 	},
 	"ar": {
@@ -38,6 +41,7 @@ var chatux020Copy = map[string]map[string]string{
 		keyChatux020Leave:         "مغادرة القناة",
 		keyChatux020LeaveConfirm:  "مغادرة {name}؟ اضغط مرة أخرى للتأكيد",
 		keyChatux020Draft:         "مسودة غير مرسلة",
+		keyChatux020DraftTag:      "مسودة",
 		keyChatux020Reorder:       "إعادة الترتيب",
 	},
 }

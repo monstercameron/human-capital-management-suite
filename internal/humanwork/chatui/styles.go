@@ -187,7 +187,7 @@ const Stylesheet = chatcmd002Styles + `.chat-workspace{--chat-rail:256px;--chat-
 	// further down.
 	`.channel-intro{scroll-margin-top:12px}` +
 	`.load-older{align-self:center;margin:6px auto 4px}` +
-	`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px -8px 0;border-radius:var(--hcm-radius-control)}` +
+	`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px 0 0;border-radius:var(--hcm-radius-control)}` +
 	`.message.continued{margin-top:0;padding-top:2px;padding-bottom:2px}` +
 	`.message:hover,.message:has(:focus-visible){background:color-mix(in srgb,var(--ink) 5%,transparent)}` +
 	`.message.pinned{box-shadow:inset 3px 0 0 var(--hcm-color-warning)}` +
@@ -253,7 +253,7 @@ const Stylesheet = chatcmd002Styles + `.chat-workspace{--chat-rail:256px;--chat-
 	`.message-attachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}` +
 	`.attachment-image{position:relative;margin:0;max-width:min(100%,360px);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);overflow:hidden;background:var(--canvas)}` +
 	`.attachment-image-open{display:block;width:100%;height:100%;max-width:100%;padding:0;border:0;background:transparent;cursor:zoom-in}` +
-	`.attachment-image-open:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}` +
+	`.attachment-image-open:focus-visible{outline:3px solid var(--hcm-color-focus);outline-offset:-3px}` +
 	// Round 3 C-4: alt text stays for screen readers but is never painted
 	// over the tile while a thumbnail is pending or broken, and a src-less
 	// <img> (fetch not started yet) is hidden so Chrome draws no broken glyph.
@@ -491,7 +491,7 @@ const Stylesheet = chatcmd002Styles + `.chat-workspace{--chat-rail:256px;--chat-
 	// -- results are lifted above the drawer instead, the way the finding's
 	// second option suggests ("show results inside the drawer").
 	`.chat-workspace[data-sidebar-open="true"] .chat-search-results{position:fixed;inset:0;z-index:1201;background:var(--surface);padding-top:calc(20px + env(safe-area-inset-top,0px))}` +
-	`.chat-row,.rail-link{height:40px}.icon-button{width:40px;height:40px}.channel-todo-trigger{height:40px}.conversation-header{padding:0 8px 0 8px}.conversation-header.empty{height:52px;border-bottom:1px solid var(--line);padding:0 8px}.message{padding:6px 12px;margin-inline:-12px}.message-list{padding-inline:12px}.chat-composer{margin:4px 12px 12px}` +
+	`.chat-row,.rail-link{height:40px}.icon-button{width:40px;height:40px}.channel-todo-trigger{height:40px}.conversation-header{padding:0 8px 0 8px}.conversation-header.empty{height:52px;border-bottom:1px solid var(--line);padding:0 8px}.message{padding:6px 12px;margin-inline:0}.message-list{padding-inline:12px}.chat-composer{margin:4px 12px 12px}` +
 	`.message-actions{position:absolute;top:2px;inset-inline-end:8px;display:flex;opacity:1;border:0;box-shadow:none;background:transparent;padding:0;justify-content:flex-end}.message-actions .message-action:not([data-action="menu"]){display:none}.message:has(:focus-visible) .message-actions{background:var(--surface)}.message:has(:focus-visible) .message-actions .message-action{display:inline-flex}.message-meta{padding-inline-end:44px}.message-action{width:40px;height:40px}.gutter-time{display:none}.message.continued{grid-template-columns:minmax(0,1fr);padding-inline-start:58px}.send-button{height:44px;padding:0 16px}.composer-toolbar{padding:4px 8px 8px}.tool-button{width:40px;height:40px}.message:hover{background:transparent}.message:has(:focus-visible){background:color-mix(in srgb,var(--ink) 5%,transparent)}.send-button{margin-inline-start:auto}` +
 	`.chat-side{width:100%}.chat-notice{margin-inline:12px}}` +
 	// Keep the active conversation title on its own row at phone widths. The

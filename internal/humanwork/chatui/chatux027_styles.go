@@ -28,7 +28,7 @@ const ChatUX027Styles = `
 .manage-sec-static>.manage-sec-row{cursor:default}
 button.manage-sec-row:hover{background:var(--soft)}
 .manage-sec-row[aria-expanded=true],.manage-sec-row[aria-expanded=true]:hover{background:transparent}
-button.manage-sec-row:focus-visible{outline:2px solid var(--hcm-color-brand-primary);outline-offset:-2px}
+button.manage-sec-row:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:-2px}
 .chat-details .details-manage>.details-group>.manage-sec-row{min-block-size:40px;padding:0;font-weight:600;color:var(--hcm-color-text-muted)}
 .chat-details .details-manage>.details-group>.manage-sec-row:hover{background:transparent;color:var(--hcm-color-text)}
 .details-manage .manage-sec-plain{padding-block-end:8px}

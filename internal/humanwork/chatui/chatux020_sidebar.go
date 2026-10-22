@@ -18,14 +18,16 @@ func chatux020ShownCollapsed(m Model, c Conversation) bool {
 	return c.ID == m.SelectedID || c.Unread > 0 || c.Mentions > 0
 }
 
-// chatux020DraftMark is the pencil on a row whose conversation holds an unsent
-// draft. The open conversation is not marked: its draft is in the box beside it.
+// chatux020DraftMark is the Draft tag on a row whose conversation holds an
+// unsent draft. The open conversation is not marked: its draft is in the box
+// beside it. CHATUX-049: the pencil is for editing only, so the mark is text,
+// with the longer sentence kept as its accessible name.
 func chatux020DraftMark(m Model, c Conversation) ui.Node {
 	if c.ID == m.SelectedID || !m.railDrafts[c.ID] {
 		return nil
 	}
 	label := laneText(m, chatux020Copy, keyChatux020Draft)
-	return html.Span(html.Props{Class: "chat-row-draft", Role: "img", Aria: map[string]string{"label": label}, Title: label}, icon("edit"))
+	return html.Span(html.Props{Class: "chat-row-draft", Aria: map[string]string{"label": label}, Title: label}, ui.Text(laneText(m, chatux020Copy, keyChatux020DraftTag)))
 }
 
 // chatux020Drafts is the set of conversations holding text the person has not

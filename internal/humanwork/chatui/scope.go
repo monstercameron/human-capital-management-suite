@@ -29,7 +29,7 @@ func ScopedStylesheet() string {
 		`.chat-image-viewer-download{inset-inline-start:var(--hcm-space-3);bottom:var(--hcm-space-3)}` +
 		`.chat-image-viewer-zoom{top:var(--hcm-space-2);inset-inline-start:var(--hcm-space-3);min-width:44px;min-height:44px}` +
 		`.chat-image-viewer-download:disabled,.chat-image-viewer-zoom:disabled{cursor:wait;opacity:.65}` +
-		`.chat-image-viewer-download:focus-visible,.chat-image-viewer-zoom:focus-visible,.chat-image-viewer-close:focus-visible{outline:3px solid var(--accent);outline-offset:2px}` +
+		`.chat-image-viewer-download:focus-visible,.chat-image-viewer-zoom:focus-visible,.chat-image-viewer-close:focus-visible{outline:3px solid var(--hcm-color-focus);outline-offset:2px}` +
 		`.chat-image-viewer-close{position:absolute;top:var(--hcm-space-2);inset-inline-end:var(--hcm-space-3);width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--ink);font:32px/1 sans-serif;box-shadow:var(--hcm-shadow-raised);cursor:pointer}` +
 		`@media(prefers-reduced-motion:reduce){.chat-image-viewer-full,.chat-image-viewer-original{transition:none!important}}` +
 		ChatBug083Styles

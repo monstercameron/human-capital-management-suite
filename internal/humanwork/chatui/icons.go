@@ -9,7 +9,7 @@ import (
 // shell's navigation icons (1.8 stroke, round caps) so chat controls read as
 // part of the same suite rather than a bolted-on widget.
 var iconPaths = map[string]string{
-	"compose":       "M4 20h4l10-10-4-4L4 16v4zM13 7l4 4",
+	"compose":       "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z",
 	"plus":          "M12 5v14M5 12h14",
 	"more":          "M5 12h.01M12 12h.01M19 12h.01",
 	"more-vertical": "M12 5h.01M12 12h.01M12 19h.01",

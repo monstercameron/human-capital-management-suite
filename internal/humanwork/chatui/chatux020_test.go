@@ -52,8 +52,9 @@ func TestTodo_CHATUX_020(t *testing.T) {
 func TestTodo_CHATUX_020_DraftMark(t *testing.T) {
 	m := chatux020Model()
 	m.railDrafts = map[string]bool{"sales": true, "general": true}
-	if got := renderNode(t, railRow(m, m.Conversations[3])); !strings.Contains(got, "chat-row-draft") || !strings.Contains(got, `aria-label="Unsent draft"`) || !strings.Contains(got, "icon-edit") {
-		t.Errorf("a row with a draft has no pencil: %s", got)
+	// CHATUX-049: the mark is the Draft text tag, not the pencil.
+	if got := renderNode(t, railRow(m, m.Conversations[3])); !strings.Contains(got, "chat-row-draft") || !strings.Contains(got, `aria-label="Unsent draft"`) || !strings.Contains(got, ">Draft<") || strings.Contains(got, "icon-edit") {
+		t.Errorf("a row with a draft has no Draft tag: %s", got)
 	}
 	// The open conversation's draft is in the box beside it: no mark there.
 	if got := renderNode(t, railRow(m, m.Conversations[0])); strings.Contains(got, "chat-row-draft") {

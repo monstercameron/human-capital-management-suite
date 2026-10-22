@@ -287,7 +287,16 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// the three new rules and three disabled rules are present once each,
 	// and the Home document contains no badge markup, no mention-empty
 	// markup and none of the reworded mention copy.
-	const want = "d71903962b741184c4ecc23cc6cb2fe3faf07ab349f3598ca919646f2d83d55e"
+	// 2026-10-22 (CHATUX-049) re-pin: every chat focus ring moved to the
+	// focus token (filter, language admin, map sheet/card, live banner,
+	// removal, render settings, section rows, danger action, saved views,
+	// image viewer tools/steps, attachment opener), message rows lost their
+	// negative inline margins and cap at the column so a hovered row shares
+	// the composer's edges, the removed row follows, and the row draft mark
+	// became a text tag. Verified the rendered Home document carries exactly
+	// that delta: each new rule present, each old rule absent, zero
+	// brand-primary/danger/currentColor focus rings left.
+	const want = "2beba4c2a06914f7d6897e3a2b7bc12e4e28504e13ffcaafb3722b3dfe50c445"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

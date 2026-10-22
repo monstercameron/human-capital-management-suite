@@ -6,18 +6,20 @@ import (
 )
 
 // TestTodo_CHATUX_023 checks the one measure of a wide conversation without a
-// browser: the rules that set it exist, and the right edges they produce for the
-// text, the day dividers and the composer are the same pixel.
+// browser: the rules that set it exist, and the message box, the day dividers
+// and the composer share both edges. CHATUX-049 refined this: the box shares
+// the composer's edges, so the text sits one padding inside the shared right
+// edge instead of on it.
 func TestTodo_CHATUX_023(t *testing.T) {
 	sheet := Stylesheet
 	for _, want := range []string{
 		// What the arithmetic below starts from.
 		`.message-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:8px 20px`,
-		`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px -8px 0`,
+		`.message{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;padding:4px 8px;margin:10px 0 0`,
 		`.chat-composer{position:relative;flex:none;min-width:0;margin:4px 20px 20px`,
 		// The measure and who uses it.
 		`--chat-column:960px`,
-		`.chat-workspace .message-list .message{max-width:calc(var(--chat-column) + 16px)}`,
+		`.chat-workspace .message-list .message{max-width:var(--chat-column)}`,
 		`.chat-workspace .message-list .day-divider,.chat-workspace .message-list .unread-divider{max-width:var(--chat-column)}`,
 		`.chat-workspace .channel-tray{box-sizing:border-box;width:100%;max-width:calc(var(--chat-column) + 40px)}`,
 		`.chat-workspace .chat-composer{box-sizing:border-box;width:min(calc(100% - 40px),var(--chat-column));margin-inline:20px auto}`,
@@ -27,20 +29,20 @@ func TestTodo_CHATUX_023(t *testing.T) {
 			t.Fatalf("the stylesheet lacks %q", want)
 		}
 	}
-	// A 1920 px window: the list's text starts at the list padding, the
-	// message box is 16px wider than the column (8px padding and -8px margin a
-	// side), and the composer is the column wide from the same left edge.
-	const column, listPadding, messagePadding, messageMargin, composerMargin = 960, 20, 8, -8, 20
+	// A 1920 px window: the message box is the column wide from the list
+	// padding, exactly the composer's box, and the day dividers match; the
+	// text sits one padding inside that shared right edge.
+	const column, listPadding, messagePadding, messageMargin, composerMargin = 960, 20, 8, 0, 20
 	messageBoxLeft := listPadding + messageMargin
-	messageBoxRight := messageBoxLeft + column + 2*messagePadding
+	messageBoxRight := messageBoxLeft + column
 	textRight := messageBoxRight - messagePadding
 	dividerRight := listPadding + column
 	composerRight := composerMargin + column
-	if textRight != composerRight || dividerRight != composerRight {
-		t.Fatalf("right edges differ: text %d, day divider %d, composer %d", textRight, dividerRight, composerRight)
+	if messageBoxLeft != composerMargin || messageBoxRight != composerRight || dividerRight != composerRight {
+		t.Fatalf("box edges differ: message [%d,%d], day divider %d, composer %d", messageBoxLeft, messageBoxRight, dividerRight, composerRight)
 	}
-	if listPadding != composerMargin {
-		t.Fatalf("the left edges differ: %d and %d", listPadding, composerMargin)
+	if textRight != composerRight-messagePadding {
+		t.Fatalf("the text is not one padding inside the shared edge: %d", textRight)
 	}
 	// The text measure plus the avatar column and its gap fills the column.
 	if !strings.Contains(sheet, `--chat-measure:calc(var(--chat-column) - 66px)`) || !strings.Contains(sheet, `grid-template-columns:56px minmax(0,1fr)`) {
