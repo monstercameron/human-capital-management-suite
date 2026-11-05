@@ -90,8 +90,8 @@ func newPromoUXServer(t *testing.T) *promoUXServer {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promo-ux-execution-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promo-ux-finance",
 		ExecutionManagerApprover: "principal:promo-ux-manager",
-		WorkflowPlan:             application.WorkflowPlanExecute, Scheduler: true,
-		TimerTzdbVersion: application.DefaultTimerTzdbVersion, TimerCalendarVersion: application.DefaultTimerCalendarVersion,
+		Scheduler:                true,
+		TimerTzdbVersion:         application.DefaultTimerTzdbVersion, TimerCalendarVersion: application.DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("validate promo UX config: %v", err)

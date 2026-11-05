@@ -100,9 +100,9 @@ func promoexec002Compose(t *testing.T) *promoexec002Cell {
 	if err != nil {
 		t.Fatalf("ServeConfigFromValues: %v", err)
 	}
-	if !cfg.ExecutionAuthority || cfg.WorkflowPlan != application.WorkflowPlanExecute || !cfg.Scheduler {
-		t.Fatalf("standard defaults = authority %t plan %q scheduler %t, want the engine on",
-			cfg.ExecutionAuthority, cfg.WorkflowPlan, cfg.Scheduler)
+	if !cfg.ExecutionAuthority || !cfg.Scheduler {
+		t.Fatalf("standard defaults = authority %t scheduler %t, want the engine on",
+			cfg.ExecutionAuthority, cfg.Scheduler)
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("served tunnel configuration: %v", err)

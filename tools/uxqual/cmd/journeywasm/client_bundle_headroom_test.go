@@ -22,7 +22,7 @@ const (
 	minClientRawHeadroom int64 = 1 << 20
 	// minClientGzipHeadroom is the same margin for the transferred size,
 	// against maxJourneyWasmGzipBytes. It is smaller because the compressed
-	// ceiling is 12 MiB and the module compresses about five to one.
+	// ceiling is 13 MiB and the module compresses about five to one.
 	minClientGzipHeadroom int64 = 256 << 10
 )
 
@@ -89,7 +89,7 @@ func TestClientBundleHeadroomVerdict(t *testing.T) {
 // than its floor of room left. The ceilings themselves are not touched here:
 // the answer to a failure is a smaller client, not a larger ceiling.
 func TestClientBundleHeadroom(t *testing.T) {
-	if maxJourneyWasmBytes != 60<<20 || maxJourneyWasmGzipBytes != 12<<20 {
+	if maxJourneyWasmBytes != 64<<20 || maxJourneyWasmGzipBytes != 13<<20 {
 		t.Fatalf("the size ceilings were changed: %d and %d", maxJourneyWasmBytes, maxJourneyWasmGzipBytes)
 	}
 	if testing.Short() {

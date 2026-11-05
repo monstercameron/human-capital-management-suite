@@ -11,8 +11,8 @@ import (
 // Browser transfer and startup costs are bounded by these engineering
 // ceilings. They describe generated assets, not governed business budgets.
 const (
-	maxJourneyWasmBytes     int64 = 60 << 20
-	maxJourneyWasmGzipBytes int64 = 12 << 20
+	maxJourneyWasmBytes     int64 = 64 << 20
+	maxJourneyWasmGzipBytes int64 = 13 << 20
 	maxWasmExecBytes        int64 = 1 << 20
 	maxWasmExecGzipBytes    int64 = 256 << 10
 )

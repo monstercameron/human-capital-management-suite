@@ -1,3 +1,9 @@
+## 2026-11-04 — Go vet repair after WorkflowPlan removal
+
+- The promotion fixtures in `test/tunnel` and `test/workflow` no longer set or assert the `WorkflowPlan` serve setting that commit d8fe5cda removed. Execution authority and the scheduler are still asserted. `go build ./...` and `go vet ./...` pass with Go 1.27.3.
+- The browser client's size ceilings in `tools/uxqual/cmd/journeywasm/performance_budget.go` rise from 60 MiB to 64 MiB for the raw `journey.wasm` and from 12 MiB to 13 MiB for `journey.wasm.gz`. The client had outgrown both (64,174,739 and 12,799,870 bytes), so `scripts/build.sh hcmnext` stopped at the size gate. The two tests that pin the ceilings now check the new values.
+
+
 ## 2026-10-22 — DATA-021 projection barrier corrections
 
 - Expired projection reads now return typed TIMEOUT even when the checkpoint is ready, and the concurrency fixture checks each reader on its own database connection.

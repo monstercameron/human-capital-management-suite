@@ -169,8 +169,8 @@ func TestTodo_PROMO_009_Integration(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promo009-execution-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: financeApprover,
 		ExecutionManagerApprover: managerApprover,
-		WorkflowPlan:             application.WorkflowPlanExecute, TimerTzdbVersion: application.DefaultTimerTzdbVersion,
-		TimerCalendarVersion: application.DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         application.DefaultTimerTzdbVersion,
+		TimerCalendarVersion:     application.DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("promotion integration configuration: %v", err)
