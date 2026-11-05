@@ -32,6 +32,10 @@ const (
 	RetentionPermanent   = "PERMANENT"
 	RetentionOperational = "OPERATIONAL"
 	RetentionRebuildable = "REBUILDABLE"
+	// RetentionTestEvidence is test-run evidence with a fixed time to live
+	// (WF-TEST-002): written only under purpose workflow.test, unreadable
+	// once expired, purged with no tombstone and no history.
+	RetentionTestEvidence = "TEST_EVIDENCE"
 )
 
 // EncryptionClass values a table's encryption_class may take.
@@ -57,9 +61,10 @@ const (
 )
 
 var validRetentionClasses = map[string]bool{
-	RetentionPermanent:   true,
-	RetentionOperational: true,
-	RetentionRebuildable: true,
+	RetentionPermanent:    true,
+	RetentionOperational:  true,
+	RetentionRebuildable:  true,
+	RetentionTestEvidence: true,
 }
 
 var validEncryptionClasses = map[string]bool{

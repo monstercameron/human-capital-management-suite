@@ -187,7 +187,7 @@ func TestPilotCoverageRejectsImpliedOrMissing(t *testing.T) {
 
 	t.Run("real corpus: every compiled-in capability and intent is covered or an accepted, time-boxed boundary", func(t *testing.T) {
 		root := filepath.Join("..", "..", "..")
-		content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+		content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 		if err != nil {
 			t.Fatalf("read todos.md: %v", err)
 		}
@@ -253,7 +253,7 @@ func TestPilotCoverageRejectsImpliedOrMissing(t *testing.T) {
 
 	t.Run("generated definitions/planning/capability-coverage.yaml matches the real corpus (regenerate with HCMNEXT_UPDATE_GOLDEN=1)", func(t *testing.T) {
 		root := filepath.Join("..", "..", "..")
-		content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+		content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 		if err != nil {
 			t.Fatalf("read todos.md: %v", err)
 		}

@@ -54,7 +54,9 @@ func TestSharedGraphIsTheExecuteGraph(t *testing.T) {
 	if simulated.Digest() != wantSim.Digest() {
 		t.Fatalf("shared-graph simulation digest = %q, want %q", simulated.Digest(), wantSim.Digest())
 	}
-	if !simulated.Effects.ZeroEffect {
-		t.Fatalf("shared-graph simulation effects = %+v, want zero effects", simulated.Effects)
+	// Since WF-TEST-001 the shared projection retains the two authored
+	// writes for the recording simulator instead of relabelling them.
+	if simulated.Effects.ZeroEffect {
+		t.Fatalf("shared-graph simulation effects = %+v, want the retained writes", simulated.Effects)
 	}
 }

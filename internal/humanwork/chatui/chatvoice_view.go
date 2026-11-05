@@ -146,5 +146,5 @@ func chatvoiceAttachment(m Model, msg Message, a Attachment) ui.Node {
 }
 
 func voiceMicrophone() ui.Node {
-	return html.Tag("svg", html.Props{Class: "chat-icon", Raw: map[string]any{"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-3 6v1a6 6 0 0 0 12 0v-1M12 18v4m-4 0h8"}}))
+	return voiceGlyph("M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5zm-3 6v1a6 6 0 0 0 12 0v-1M12 18v4m-4 0h8", false)
 }

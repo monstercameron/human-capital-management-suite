@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
@@ -74,6 +75,61 @@ func applyWorkflowStartPreferences(entries []WorkflowStartConfig, user preferenc
 // page and journey creation must both be granted. Without a durable role
 // store the signed-role compatibility policy applies and the page route
 // gate has already admitted the viewer.
+// workflowStartRecentProjectionLimit bounds the served newest-first recent
+// projection to the page's ten; rendering bounds again, so the two agree.
+const workflowStartRecentProjectionLimit = 10
+
+// workflowFavoriteIDs projects the viewer's starred workflow ids in
+// preference order. Unknown, blank and duplicate ids drop here;
+// availability stays enforced at render, fail-closed.
+func workflowFavoriteIDs(user preferences.User) []string {
+	var result []string
+	seen := make(map[string]bool, len(user.FavoritePages))
+	for _, value := range user.FavoritePages {
+		if !strings.HasPrefix(value, workflowStartFavoritePrefix) {
+			continue
+		}
+		id := strings.TrimSpace(strings.TrimPrefix(value, workflowStartFavoritePrefix))
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		result = append(result, id)
+	}
+	return result
+}
+
+// workflowRecentIDs projects the viewer's last distinct starts, newest
+// first. Ties (legacy count values predate last-use sequences) break by id
+// so the projection stays deterministic.
+func workflowRecentIDs(user preferences.User) []string {
+	type rankedUse struct {
+		id   string
+		rank int64
+	}
+	ranked := make([]rankedUse, 0, len(user.WorkflowUses))
+	for id, rank := range user.WorkflowUses {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		ranked = append(ranked, rankedUse{id: id, rank: rank})
+	}
+	sort.Slice(ranked, func(i, j int) bool {
+		if ranked[i].rank != ranked[j].rank {
+			return ranked[i].rank > ranked[j].rank
+		}
+		return ranked[i].id < ranked[j].id
+	})
+	result := make([]string, 0, min(len(ranked), workflowStartRecentProjectionLimit))
+	for _, item := range ranked {
+		if len(result) == workflowStartRecentProjectionLimit {
+			break
+		}
+		result = append(result, item.id)
+	}
+	return result
+}
+
 func workflowStartAuthority(access productAccess) bool {
 	if !access.configured {
 		return true

@@ -25,6 +25,9 @@ const allowedTryCatchFiles = new Set([
   // Planning design demo and its test harness; not application code.
   "planning/design/demo/workspace.js",
   "planning/design/demo/workspace.test.cjs",
+  // Vendored Chat walk script (CHATBUG-036 test fixture): page-automation
+  // harness, not application code.
+  "internal/humanwork/chatui/testdata/chat-inspect.mjs",
   // Playwright browser specs: test harness code whose try blocks release
   // browser contexts or attach page state to a failed expectation.
   "tools/uxqual/browser/uxblind057_popovers.spec.mjs",
@@ -41,6 +44,9 @@ const allowedTryCatchFiles = new Set([
 ]);
 
 const allowedProcessEnvFiles = new Set([
+  // Vendored Chat walk script (CHATBUG-036 test fixture): reads its target
+  // URL from the environment like the live script it pins.
+  "internal/humanwork/chatui/testdata/chat-inspect.mjs",
   "tools/uxqual/browser/playwright.config.mjs",
   "tools/uxqual/persona_admin_browser/playwright.config.mjs",
   "src/api/dependencies.ts",

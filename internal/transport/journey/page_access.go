@@ -15,19 +15,27 @@ import (
 // the product shell. Page IDs and actions are supplied by the handler, never
 // by wire input. Missing permission data denies rather than falling back to
 // credential roles.
+//
+// Handlers that run more than one gate build one [requestAuth] and call its
+// method instead, so the RPC loads the snapshot once; this wrapper keeps the
+// single-gate callers - and the contract tests - on the same implementation.
 func (s *server) requirePageAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, action string) error {
-	featureID := "actions"
-	if action == roleaccess.ActionView {
-		featureID = "content"
-	}
-	return s.requireFeatureAction(ctx, principal, inv, pageID, featureID, action)
+	return s.authorize(principal, inv.RequestID()).requirePageAction(ctx, pageID, action)
 }
 
-// registryFeatureDeclared reports whether the product registry declares
-// featureID on pageID. The registry is the only authority for which
-// page/feature pairs exist: rows for an undeclared pair grant nothing, so a
-// page is judged at feature level exactly when its registry entry declares
-// the feature, never based on which rows a tenant happens to hold.
+// FeatureRegistry reports whether the product registry declares featureID on
+// pageID. The registry is the only authority for which page/feature pairs
+// exist: rows for an undeclared pair grant nothing, so a page is judged at
+// feature level exactly when its registry entry declares the feature, never
+// based on which rows a tenant happens to hold.
+//
+// It is a port so the gate does not hard-wire where the catalog lives: the
+// composition injects it through [Dependencies.Features], and a nil port
+// reads the product registry, which is what every deployment serves today.
+type FeatureRegistry func(pageID, featureID string) bool
+
+// registryFeatureDeclared is the product-registry FeatureRegistry: the
+// default behind a nil [Dependencies.Features].
 func registryFeatureDeclared(pageID, featureID string) bool {
 	for _, definition := range productui.FeatureDefinitionsForPage(productui.PageID(strings.ToLower(strings.TrimSpace(pageID)))) {
 		if strings.EqualFold(string(definition.ID), strings.TrimSpace(featureID)) {
@@ -44,30 +52,14 @@ func registryFeatureDeclared(pageID, featureID string) bool {
 // fallback; bootstrap seeds every tenant's default page and feature rows so
 // legitimate grants keep working.
 func (s *server) requireFeatureAction(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, pageID, featureID, action string) error {
-	if s.deps.RoleAccess == nil {
-		return featureAccessDenied(principal, inv)
-	}
-	if !registryFeatureDeclared(pageID, featureID) {
-		return featureAccessDenied(principal, inv)
-	}
-	snapshot, err := s.deps.RoleAccess.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
-	if err != nil {
-		return roleAccessError(err, principal, inv.RequestID(), "authorize_page_action")
-	}
-	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
-	permissions := roleaccess.EffectivePagePermissions(snapshot, roles)
-	features := roleaccess.EffectiveFeaturePermissions(snapshot, roles)
-	if roleaccess.CanFeatureAction(permissions, features, pageID, featureID, action) {
-		return nil
-	}
-	return featureAccessDenied(principal, inv)
+	return s.authorize(principal, inv.RequestID()).requireFeatureAction(ctx, pageID, featureID, action)
 }
 
 // featureAccessDenied refuses a page/feature action with no grant behind it,
 // including the fail-closed answer for an unconfigured role-access store.
-func featureAccessDenied(principal *trust.Principal, inv *transport.Invocation) error {
+func featureAccessDenied(principal *trust.Principal, requestID string) error {
 	return envelope.New(envelope.CodePermissionDenied, "journey.feature_action.denied", "the assigned role does not permit this action on the page feature").
-		WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
+		WithCorrelation(requestID).WithEvidence(evidence(principal))
 }
 
 type featureAccessRequest struct {
@@ -90,15 +82,5 @@ func (request featureAccessRequest) resolveAction() string {
 // requireAnyFeatureView supports records legitimately reachable from more
 // than one product surface without weakening either surface's page boundary.
 func (s *server) requireAnyFeatureView(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, requests ...featureAccessRequest) error {
-	var first error
-	for _, request := range requests {
-		err := s.requireFeatureAction(ctx, principal, inv, request.pageID, request.featureID, request.resolveAction())
-		if err == nil {
-			return nil
-		}
-		if first == nil {
-			first = err
-		}
-	}
-	return first
+	return s.authorize(principal, inv.RequestID()).requireAnyFeatureView(ctx, requests...)
 }

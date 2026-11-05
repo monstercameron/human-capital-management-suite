@@ -16,6 +16,7 @@ import (
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	chatcore "github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatblocked"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatshared"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"google.golang.org/grpc"
@@ -66,9 +67,12 @@ const (
 // that forges a principal gets the same answer whichever surface it forges it
 // on.
 const (
-	reasonCallerSelectedAuthority = "trusted_context.caller_selected_authority"
+	// reasonCallerSelectedAuthority and ruleTrustedRequestBoundary are the
+	// shared trusted-context refusal's coordinates, restated here because
+	// the contract tests pin them on this package.
+	reasonCallerSelectedAuthority = chatshared.ReasonCallerSelectedAuthority
 	reasonInvalidArgument         = "chat.invalid_argument"
-	ruleTrustedRequestBoundary    = "trusted_request_boundary.server_derived_field"
+	ruleTrustedRequestBoundary    = chatshared.RuleTrustedRequestBoundary
 	ruleBodyBound                 = "chat.post_body_bound"
 	ruleChannelName               = "chat.channel_name_rule"
 	ruleCursorConflict            = "chat.cursor_conflict"
@@ -98,98 +102,88 @@ func NewHandler(deps Dependencies, opts ...connect.HandlerOption) http.Handler {
 	mux := http.NewServeMux()
 	// Connect is the HTTP projection of the same generated RPC methods. The
 	// handlers call the gRPC implementation directly, preserving outcomes.
-	registerUnary(mux, opts, chatv1.ConversationService_CreateConversation_FullMethodName, func(c context.Context, r *chatv1.CreateConversationRequest) (*chatv1.CreateConversationResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_CreateConversation_FullMethodName, func(c context.Context, r *chatv1.CreateConversationRequest) (*chatv1.CreateConversationResponse, error) {
 		return s.CreateConversation(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ListConversations_FullMethodName, func(c context.Context, r *chatv1.ListConversationsRequest) (*chatv1.ListConversationsResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ListConversations_FullMethodName, func(c context.Context, r *chatv1.ListConversationsRequest) (*chatv1.ListConversationsResponse, error) {
 		return s.ListConversations(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_GetConversation_FullMethodName, func(c context.Context, r *chatv1.GetConversationRequest) (*chatv1.GetConversationResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_GetConversation_FullMethodName, func(c context.Context, r *chatv1.GetConversationRequest) (*chatv1.GetConversationResponse, error) {
 		return s.GetConversation(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_UpdateConversation_FullMethodName, func(c context.Context, r *chatv1.UpdateConversationRequest) (*chatv1.UpdateConversationResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_UpdateConversation_FullMethodName, func(c context.Context, r *chatv1.UpdateConversationRequest) (*chatv1.UpdateConversationResponse, error) {
 		return s.UpdateConversation(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ListMemberships_FullMethodName, func(c context.Context, r *chatv1.ListMembershipsRequest) (*chatv1.ListMembershipsResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ListMemberships_FullMethodName, func(c context.Context, r *chatv1.ListMembershipsRequest) (*chatv1.ListMembershipsResponse, error) {
 		return s.ListMemberships(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_AddMembership_FullMethodName, func(c context.Context, r *chatv1.AddMembershipRequest) (*chatv1.AddMembershipResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_AddMembership_FullMethodName, func(c context.Context, r *chatv1.AddMembershipRequest) (*chatv1.AddMembershipResponse, error) {
 		return s.AddMembership(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_RemoveMembership_FullMethodName, func(c context.Context, r *chatv1.RemoveMembershipRequest) (*chatv1.RemoveMembershipResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_RemoveMembership_FullMethodName, func(c context.Context, r *chatv1.RemoveMembershipRequest) (*chatv1.RemoveMembershipResponse, error) {
 		return s.RemoveMembership(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_SendPost_FullMethodName, func(c context.Context, r *chatv1.SendPostRequest) (*chatv1.SendPostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_SendPost_FullMethodName, func(c context.Context, r *chatv1.SendPostRequest) (*chatv1.SendPostResponse, error) {
 		return s.SendPost(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ListPosts_FullMethodName, func(c context.Context, r *chatv1.ListPostsRequest) (*chatv1.ListPostsResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ListPosts_FullMethodName, func(c context.Context, r *chatv1.ListPostsRequest) (*chatv1.ListPostsResponse, error) {
 		return s.ListPosts(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_EditPost_FullMethodName, func(c context.Context, r *chatv1.EditPostRequest) (*chatv1.EditPostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_EditPost_FullMethodName, func(c context.Context, r *chatv1.EditPostRequest) (*chatv1.EditPostResponse, error) {
 		return s.EditPost(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_DeletePost_FullMethodName, func(c context.Context, r *chatv1.DeletePostRequest) (*chatv1.DeletePostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_DeletePost_FullMethodName, func(c context.Context, r *chatv1.DeletePostRequest) (*chatv1.DeletePostResponse, error) {
 		return s.DeletePost(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_Search_FullMethodName, func(c context.Context, r *chatv1.SearchRequest) (*chatv1.SearchResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_Search_FullMethodName, func(c context.Context, r *chatv1.SearchRequest) (*chatv1.SearchResponse, error) {
 		return s.Search(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_GetReadState_FullMethodName, func(c context.Context, r *chatv1.GetReadStateRequest) (*chatv1.GetReadStateResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_GetReadState_FullMethodName, func(c context.Context, r *chatv1.GetReadStateRequest) (*chatv1.GetReadStateResponse, error) {
 		return s.GetReadState(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_UpdateReadState_FullMethodName, func(c context.Context, r *chatv1.UpdateReadStateRequest) (*chatv1.UpdateReadStateResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_UpdateReadState_FullMethodName, func(c context.Context, r *chatv1.UpdateReadStateRequest) (*chatv1.UpdateReadStateResponse, error) {
 		return s.UpdateReadState(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_GetPreferences_FullMethodName, func(c context.Context, r *chatv1.GetPreferencesRequest) (*chatv1.GetPreferencesResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_GetPreferences_FullMethodName, func(c context.Context, r *chatv1.GetPreferencesRequest) (*chatv1.GetPreferencesResponse, error) {
 		return s.GetPreferences(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_UpdatePreferences_FullMethodName, func(c context.Context, r *chatv1.UpdatePreferencesRequest) (*chatv1.UpdatePreferencesResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_UpdatePreferences_FullMethodName, func(c context.Context, r *chatv1.UpdatePreferencesRequest) (*chatv1.UpdatePreferencesResponse, error) {
 		return s.UpdatePreferences(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_AddReaction_FullMethodName, func(c context.Context, r *chatv1.AddReactionRequest) (*chatv1.AddReactionResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_AddReaction_FullMethodName, func(c context.Context, r *chatv1.AddReactionRequest) (*chatv1.AddReactionResponse, error) {
 		return s.AddReaction(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_RemoveReaction_FullMethodName, func(c context.Context, r *chatv1.RemoveReactionRequest) (*chatv1.RemoveReactionResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_RemoveReaction_FullMethodName, func(c context.Context, r *chatv1.RemoveReactionRequest) (*chatv1.RemoveReactionResponse, error) {
 		return s.RemoveReaction(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ListReactions_FullMethodName, func(c context.Context, r *chatv1.ListReactionsRequest) (*chatv1.ListReactionsResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ListReactions_FullMethodName, func(c context.Context, r *chatv1.ListReactionsRequest) (*chatv1.ListReactionsResponse, error) {
 		return s.ListReactions(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_PinPost_FullMethodName, func(c context.Context, r *chatv1.PinPostRequest) (*chatv1.PinPostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_PinPost_FullMethodName, func(c context.Context, r *chatv1.PinPostRequest) (*chatv1.PinPostResponse, error) {
 		return s.PinPost(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_UnpinPost_FullMethodName, func(c context.Context, r *chatv1.UnpinPostRequest) (*chatv1.UnpinPostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_UnpinPost_FullMethodName, func(c context.Context, r *chatv1.UnpinPostRequest) (*chatv1.UnpinPostResponse, error) {
 		return s.UnpinPost(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ListPins_FullMethodName, func(c context.Context, r *chatv1.ListPinsRequest) (*chatv1.ListPinsResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ListPins_FullMethodName, func(c context.Context, r *chatv1.ListPinsRequest) (*chatv1.ListPinsResponse, error) {
 		return s.ListPins(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ResolveReferences_FullMethodName, func(c context.Context, r *chatv1.ResolveReferencesRequest) (*chatv1.ResolveReferencesResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ResolveReferences_FullMethodName, func(c context.Context, r *chatv1.ResolveReferencesRequest) (*chatv1.ResolveReferencesResponse, error) {
 		return s.ResolveReferences(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_CreateShareLink_FullMethodName, func(c context.Context, r *chatv1.CreateShareLinkRequest) (*chatv1.CreateShareLinkResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_CreateShareLink_FullMethodName, func(c context.Context, r *chatv1.CreateShareLinkRequest) (*chatv1.CreateShareLinkResponse, error) {
 		return s.CreateShareLink(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ResolveShareLink_FullMethodName, func(c context.Context, r *chatv1.ResolveShareLinkRequest) (*chatv1.ResolveShareLinkResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ResolveShareLink_FullMethodName, func(c context.Context, r *chatv1.ResolveShareLinkRequest) (*chatv1.ResolveShareLinkResponse, error) {
 		return s.ResolveShareLink(c, r)
 	})
-	registerUnary(mux, opts, chatv1.ConversationService_ForwardPost_FullMethodName, func(c context.Context, r *chatv1.ForwardPostRequest) (*chatv1.ForwardPostResponse, error) {
+	chatshared.RegisterUnary(mux, opts, chatv1.ConversationService_ForwardPost_FullMethodName, func(c context.Context, r *chatv1.ForwardPostRequest) (*chatv1.ForwardPostResponse, error) {
 		return s.ForwardPost(c, r)
 	})
 	mux.Handle(chatv1.ConversationService_WatchConversation_FullMethodName, connect.NewServerStreamHandlerSimple(chatv1.ConversationService_WatchConversation_FullMethodName, func(c context.Context, r *chatv1.WatchConversationRequest, stream *connect.ServerStream[chatv1.WatchConversationResponse]) error {
 		return s.stream(c, r, stream.Send)
 	}, opts...))
 	return mux
-}
-
-func registerUnary[Req, Res any](mux *http.ServeMux, opts []connect.HandlerOption, proc string, fn func(context.Context, *Req) (*Res, error)) {
-	mux.Handle(proc, connect.NewUnaryHandler(proc, func(c context.Context, r *connect.Request[Req]) (*connect.Response[Res], error) {
-		v, err := fn(c, r.Msg)
-		if err != nil {
-			return nil, err
-		}
-		return connect.NewResponse(v), nil
-	}, opts...))
 }
 
 func trusted(ctx context.Context) (*trust.Principal, error) {
@@ -265,15 +259,6 @@ func callErr(err error) error {
 	return owned
 }
 
-// serverDerived refuses a caller-supplied value for a field the server owns.
-// Refusing rather than overwriting is the point: a client that believes it is
-// posting as somebody else has to be told it is wrong, not quietly corrected.
-func serverDerived(field, what string) error {
-	return envelope.New(envelope.CodeInvalidArgument, reasonCallerSelectedAuthority,
-		"the request may not select trusted context").
-		WithViolation(field, what, ruleTrustedRequestBoundary)
-}
-
 // prep resolves the authenticated principal and refuses a request that tried
 // to name one itself.
 func (s *server) prep(ctx context.Context, supplied *chatv1.Principal) (chatcore.Principal, error) {
@@ -285,7 +270,7 @@ func (s *server) prep(ctx context.Context, supplied *chatv1.Principal) (chatcore
 		return chatcore.Principal{}, envelope.New(envelope.CodeUnavailable, "chat.service.unavailable", "chat service is not configured")
 	}
 	if supplied != nil {
-		return chatcore.Principal{}, serverDerived("principal",
+		return chatcore.Principal{}, chatshared.ServerDerived("principal",
 			"the acting principal is derived server-side from the verified credential")
 	}
 	return p, nil
@@ -413,7 +398,7 @@ func (s *server) SendPost(c context.Context, r *chatv1.SendPostRequest) (*chatv1
 		return nil, e
 	}
 	if r.GetSourceAttribution() != nil {
-		return nil, serverDerived("source_attribution",
+		return nil, chatshared.ServerDerived("source_attribution",
 			"attribution is derived server-side from the source post; use ForwardPost")
 	}
 	base := chatcore.SendPostRequest{Principal: p, TenantID: r.GetTenantId(), ConversationID: r.GetConversationId(), Body: r.GetBody(), ParentID: r.GetParentId(), IdempotencyKey: r.GetIdempotencyKey(), References: referencesIn(r.GetReferences()), Audience: audienceIn(r)}
@@ -454,6 +439,9 @@ func (s *server) ListPosts(c context.Context, r *chatv1.ListPostsRequest) (*chat
 func (s *server) EditPost(c context.Context, r *chatv1.EditPostRequest) (*chatv1.EditPostResponse, error) {
 	p, e := s.prep(c, r.GetPrincipal())
 	if e != nil {
+		return nil, e
+	}
+	if e := checkBody(r.GetBody()); e != nil {
 		return nil, e
 	}
 	x := r.GetPost()
@@ -848,7 +836,7 @@ func (s *server) ForwardPost(c context.Context, r *chatv1.ForwardPostRequest) (*
 		return nil, callErr(chatcore.ErrUnavailable)
 	}
 	if r.GetSourceAttribution() != nil {
-		return nil, serverDerived("source_attribution",
+		return nil, chatshared.ServerDerived("source_attribution",
 			"attribution is derived server-side from the source post")
 	}
 	v, e := refSvc.ForwardPost(c, chatcore.ForwardPostRequest{Principal: p, SourceTenantID: r.GetSourceTenantId(), SourceConversationID: r.GetSourceConversationId(), SourcePostID: r.GetSourcePostId(), DestinationTenantID: r.GetDestinationTenantId(), DestinationConversationID: r.GetDestinationConversationId(), IdempotencyKey: r.GetIdempotencyKey()})

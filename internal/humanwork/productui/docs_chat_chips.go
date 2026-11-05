@@ -294,62 +294,68 @@ func docsMessageCard(view View, msg DocumentChatMessageReference) ui.Node {
 			productIcon("chat", "docs-chat-icon"), ui.Text(docsChatText(locale, "jump_to_message"))))
 }
 
-var docsChatCopy = map[string]map[string]string{
-	"en-US": {
-		"members": "{count} members", "member_one": "1 member",
-		"open_channel":        "Open channel #{name}, {members}",
-		"locked_channel":      "Private channel",
-		"locked_hint":         "You are not a member of this channel",
-		"view_person":         "View {name}'s details",
-		"quoted_message":      "Chat message from {name}",
-		"message_unavailable": "This message isn't available to you — it may have been deleted or moved.",
-		"message_deleted":     "This message was deleted.",
-		"open_locked_channel": "Open #{name}",
-		"jump_to_message":     "Jump to message",
-		"suggest_people":      "People", "suggest_channels": "Channels", "suggest_docs": "Documents",
-		"suggest_empty":   "No matches",
-		"suggest_loading": "Searching…",
-		"suggest_members": "{count} members",
-	},
-	"de-DE": {
-		"members": "{count} Mitglieder", "member_one": "1 Mitglied",
-		"open_channel":        "Kanal #{name} öffnen, {members}",
-		"locked_channel":      "Privater Kanal",
-		"locked_hint":         "Sie sind kein Mitglied dieses Kanals",
-		"view_person":         "Details zu {name} anzeigen",
-		"quoted_message":      "Chatnachricht von {name}",
-		"message_unavailable": "Diese Nachricht ist für Sie nicht verfügbar – sie wurde möglicherweise gelöscht oder verschoben.",
-		"message_deleted":     "Diese Nachricht wurde gelöscht.",
-		"open_locked_channel": "#{name} öffnen",
-		"jump_to_message":     "Zur Nachricht springen",
-		"suggest_people":      "Personen", "suggest_channels": "Kanäle", "suggest_docs": "Dokumente",
-		"suggest_empty":   "Keine Treffer",
-		"suggest_loading": "Suche läuft…",
-		"suggest_members": "{count} Mitglieder",
-	},
-	"ar": {
-		"members": "{count} أعضاء", "member_one": "عضو واحد",
-		"open_channel":        "فتح القناة #{name}، {members}",
-		"locked_channel":      "قناة خاصة",
-		"locked_hint":         "لست عضوًا في هذه القناة",
-		"view_person":         "عرض تفاصيل {name}",
-		"quoted_message":      "رسالة دردشة من {name}",
-		"message_unavailable": "هذه الرسالة غير متاحة لك — ربما تم حذفها أو نقلها.",
-		"message_deleted":     "تم حذف هذه الرسالة.",
-		"open_locked_channel": "فتح #{name}",
-		"jump_to_message":     "الانتقال إلى الرسالة",
-		"suggest_people":      "الأشخاص", "suggest_channels": "القنوات", "suggest_docs": "المستندات",
-		"suggest_empty":   "لا توجد نتائج",
-		"suggest_loading": "جارٍ البحث…",
-		"suggest_members": "{count} أعضاء",
-	},
+var docsChatCopy = newLazyValue(buildDocsChatCopy)
+
+// buildDocsChatCopy answers the chat reference chips' vocabulary. It is built
+// on first use: a cold load of any other page must not pay for it (UXBLIND-089).
+func buildDocsChatCopy() map[string]map[string]string {
+	return map[string]map[string]string{
+		"en-US": {
+			"members": "{count} members", "member_one": "1 member",
+			"open_channel":        "Open channel #{name}, {members}",
+			"locked_channel":      "Private channel",
+			"locked_hint":         "You are not a member of this channel",
+			"view_person":         "View {name}'s details",
+			"quoted_message":      "Chat message from {name}",
+			"message_unavailable": "This message isn't available to you — it may have been deleted or moved.",
+			"message_deleted":     "This message was deleted.",
+			"open_locked_channel": "Open #{name}",
+			"jump_to_message":     "Jump to message",
+			"suggest_people":      "People", "suggest_channels": "Channels", "suggest_docs": "Documents",
+			"suggest_empty":   "No matches",
+			"suggest_loading": "Searching…",
+			"suggest_members": "{count} members",
+		},
+		"de-DE": {
+			"members": "{count} Mitglieder", "member_one": "1 Mitglied",
+			"open_channel":        "Kanal #{name} öffnen, {members}",
+			"locked_channel":      "Privater Kanal",
+			"locked_hint":         "Sie sind kein Mitglied dieses Kanals",
+			"view_person":         "Details zu {name} anzeigen",
+			"quoted_message":      "Chatnachricht von {name}",
+			"message_unavailable": "Diese Nachricht ist für Sie nicht verfügbar – sie wurde möglicherweise gelöscht oder verschoben.",
+			"message_deleted":     "Diese Nachricht wurde gelöscht.",
+			"open_locked_channel": "#{name} öffnen",
+			"jump_to_message":     "Zur Nachricht springen",
+			"suggest_people":      "Personen", "suggest_channels": "Kanäle", "suggest_docs": "Dokumente",
+			"suggest_empty":   "Keine Treffer",
+			"suggest_loading": "Suche läuft…",
+			"suggest_members": "{count} Mitglieder",
+		},
+		"ar": {
+			"members": "{count} أعضاء", "member_one": "عضو واحد",
+			"open_channel":        "فتح القناة #{name}، {members}",
+			"locked_channel":      "قناة خاصة",
+			"locked_hint":         "لست عضوًا في هذه القناة",
+			"view_person":         "عرض تفاصيل {name}",
+			"quoted_message":      "رسالة دردشة من {name}",
+			"message_unavailable": "هذه الرسالة غير متاحة لك — ربما تم حذفها أو نقلها.",
+			"message_deleted":     "تم حذف هذه الرسالة.",
+			"open_locked_channel": "فتح #{name}",
+			"jump_to_message":     "الانتقال إلى الرسالة",
+			"suggest_people":      "الأشخاص", "suggest_channels": "القنوات", "suggest_docs": "المستندات",
+			"suggest_empty":   "لا توجد نتائج",
+			"suggest_loading": "جارٍ البحث…",
+			"suggest_members": "{count} أعضاء",
+		},
+	}
 }
 
 func docsChatText(locale, key string) string {
-	if copy, ok := docsChatCopy[locale]; ok && copy[key] != "" {
+	if copy, ok := docsChatCopy.Get()[locale]; ok && copy[key] != "" {
 		return copy[key]
 	}
-	return docsChatCopy["en-US"][key]
+	return docsChatCopy.Get()["en-US"][key]
 }
 
 // docsChatRefsStylesheet styles the chips, the quoted message card and the

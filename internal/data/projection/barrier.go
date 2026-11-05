@@ -90,11 +90,11 @@ func Check(ctx context.Context, q dbport.Querier, req ReadRequirement) (BarrierR
 	} else if cp.LastAppliedSequence < req.MinimumSequence {
 		result.Status = BarrierStale
 	}
-	if result.Status == BarrierReady {
-		return result, nil
-	}
 	if !time.Now().UTC().Before(req.Deadline.UTC()) {
 		result.Status = BarrierTimeout
+	}
+	if result.Status == BarrierReady {
+		return result, nil
 	}
 	err = BarrierError{Status: result.Status, Required: req.MinimumSequence, Current: cp.LastAppliedSequence, SourceHead: sourceHead, RetryAfter: 100 * time.Millisecond}
 	return result, err

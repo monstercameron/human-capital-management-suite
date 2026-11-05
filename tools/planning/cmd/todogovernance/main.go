@@ -21,7 +21,7 @@ func main() {
 
 func run(args []string, out io.Writer) int {
 	fs := flag.NewFlagSet("todogovernance", flag.ContinueOnError)
-	markdownPath := fs.String("markdown", filepath.Join("planning", "todos.md"), "path to the todos markdown file")
+	markdownPath := fs.String("markdown", filepath.Join("planning", "archive", "todos-2026-10-22.md"), "path to the todos markdown file")
 	registryPath := fs.String("registry", filepath.Join("definitions", "planning", "todo-registry.json"), "path to the compiled todo registry JSON")
 	catalogPath := fs.String("catalog", filepath.Join("planning", "specs", "business-intent-catalog.md"), "path to the BusinessIntent catalog")
 	if err := fs.Parse(args); err != nil {

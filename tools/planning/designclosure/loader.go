@@ -64,12 +64,12 @@ func LoadSnapshot(root string) (Snapshot, []string, error) {
 		})
 	}
 
-	_, records, parseErrs, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "todos.md"))
+	_, records, parseErrs, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		return Snapshot{}, nil, err
 	}
 	if len(parseErrs) > 0 {
-		return Snapshot{}, nil, fmt.Errorf("planning/todos.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
+		return Snapshot{}, nil, fmt.Errorf("planning/archive/todos-2026-10-22.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
 	}
 	for _, rec := range records {
 		evidenceText := strings.Join(rec.EvidenceLines, "\n")

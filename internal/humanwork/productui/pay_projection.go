@@ -23,6 +23,7 @@ const (
 // PayValueProjection preserves the domain's field-level authorization and
 // Presence result. Value is rendered only for ALLOW + VALUE.
 type PayValueProjection struct {
+	_            incomparable
 	Included     bool
 	Access       string
 	Presence     string
@@ -33,6 +34,7 @@ type PayValueProjection struct {
 // PaySummaryProjection carries only the employee-safe fields returned by the
 // governed compensation read. It has no subject selector or authority input.
 type PaySummaryProjection struct {
+	_                 incomparable
 	State             PayReadState
 	Amount            PayValueProjection
 	Currency          PayValueProjection
@@ -91,6 +93,7 @@ func PaySummaryFromCompensationRead(result compensation.Result, readErr error) P
 // PayStatementRow is the minimal, already-authorized statement projection.
 // The page cannot request a worker or widen the statement field set.
 type PayStatementRow struct {
+	_            incomparable
 	StatementRef string
 	Period       string
 	PayDate      string

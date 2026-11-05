@@ -15,6 +15,7 @@ var (
 	ErrInvalid      = errors.New("chat rewrite: invalid request")
 	ErrDisabled     = errors.New("chat rewrite: controls disabled")
 	ErrUnavailable  = errors.New("chat rewrite: unavailable")
+	ErrStalled      = errors.New("chat rewrite: model did not answer twice")
 	ErrPreservation = errors.New("chat rewrite: preservation failed")
 	ErrPolicy       = errors.New("chat rewrite: content policy refused")
 	ErrLimit        = errors.New("chat rewrite: daily limit reached")

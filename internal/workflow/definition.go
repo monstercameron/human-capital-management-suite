@@ -35,13 +35,15 @@ type SourceKind string
 
 // The declared mapping source kinds. There is no ambient source: a node reads
 // the workflow input, a declared predecessor's declared output, a declared
-// context path or a literal constant, and nothing else.
+// context path, the variable revision current at its attempt, a governed
+// parameter or a literal constant, and nothing else.
 const (
 	SourceWorkflowInput SourceKind = "WORKFLOW_INPUT"
 	SourceNodeOutput    SourceKind = "NODE_OUTPUT"
 	SourceContext       SourceKind = "CONTEXT"
 	SourceConstant      SourceKind = "CONSTANT"
 	SourceParameter     SourceKind = "PARAMETER"
+	SourceVariable      SourceKind = "VARIABLE"
 )
 
 // ParameterBindingMode declares when a workflow reads a tenant parameter.
@@ -98,12 +100,14 @@ type Source struct {
 	NodeID string `json:"node_id,omitempty"`
 	// ContextKind names the context artifact when Kind is CONTEXT.
 	ContextKind string `json:"context_kind,omitempty"`
+	// VariableName names the workflow variable when Kind is VARIABLE.
+	VariableName string `json:"variable_name,omitempty"`
 	// Path is the field path within the producing surface. The wildcard "*"
 	// is rejected: a node binds declared typed fields, never a whole
 	// unrestricted result.
 	Path string `json:"path,omitempty"`
-	// Type is the declared type for CONTEXT and CONSTANT sources, whose types
-	// are not derivable from another node's declaration.
+	// Type is the declared type for CONTEXT, CONSTANT and VARIABLE sources,
+	// whose types are not derivable from another node's declaration.
 	Type ValueType `json:"type,omitempty"`
 	// Constant carries the canonical text of a CONSTANT source.
 	Constant string `json:"constant,omitempty"`
@@ -118,6 +122,10 @@ type Source struct {
 type Mapping struct {
 	Target string `json:"target"`
 	Source Source `json:"source"`
+	// DeclassificationRef names the reviewed declassification excepting this
+	// mapping from the restricted-flow check (WF-DATA-004). Blank means no
+	// exception: the source label must fit the destination cap.
+	DeclassificationRef string `json:"declassification_ref,omitempty"`
 }
 
 // ContextRequirement declares the minimum-necessary context a node reads. A
@@ -309,16 +317,49 @@ const (
 	WaitWakeAtInstant       WaitWakeKind = "AT_INSTANT"
 	WaitWakeAtLocalDate     WaitWakeKind = "AT_LOCAL_DATE"
 	WaitWakeAtLocalDateTime WaitWakeKind = "AT_LOCAL_DATETIME"
+	WaitWakeAtTimeExpr      WaitWakeKind = "AT_TIME_EXPR"
 )
 
 // Valid reports whether k names a declared wake-condition kind.
 func (k WaitWakeKind) Valid() bool {
 	switch k {
-	case WaitWakeAtInstant, WaitWakeAtLocalDate, WaitWakeAtLocalDateTime:
+	case WaitWakeAtInstant, WaitWakeAtLocalDate, WaitWakeAtLocalDateTime, WaitWakeAtTimeExpr:
 		return true
 	default:
 		return false
 	}
+}
+
+// TimeExprSpec is the wire form of one values.TimeExpr deadline expression:
+// an anchor mapping into run data plus a business-day, calendar-day or
+// duration offset. Zone and calendar halves are required unless the owning
+// spec inherits them from node-level fields (WAIT does; SIGNAL declares
+// them here). Step packages translate this into the typed value through
+// their FromCompiled; this package only proves its shape.
+type TimeExprSpec struct {
+	AnchorPath    string `json:"anchor_path"`
+	OffsetKind    string `json:"offset_kind"`
+	OffsetDays    int    `json:"offset_days,omitempty"`
+	OffsetSeconds int64  `json:"offset_seconds,omitempty"`
+
+	CalendarRef     string `json:"calendar_ref,omitempty"`
+	CalendarVersion string `json:"calendar_version,omitempty"`
+	ZoneID          string `json:"zone_id,omitempty"`
+	ZoneTzdbVersion string `json:"zone_tzdb_version,omitempty"`
+	LocalTime       string `json:"local_time,omitempty"`
+	Disambiguation  string `json:"disambiguation,omitempty"`
+
+	StatuteRulePack string `json:"statute_rule_pack,omitempty"`
+	StatuteRelease  string `json:"statute_release,omitempty"`
+	Statute         string `json:"statute,omitempty"`
+}
+
+// DeadlineDefaultSpec is the wire form of one values.DeadlineDefault: the
+// schema a non-response payload conforms to and its canonical JSON bytes.
+// The deadline route's output digest is the default's digest.
+type DeadlineDefaultSpec struct {
+	Schema        string `json:"schema"`
+	CanonicalJSON string `json:"canonical_json"`
 }
 
 // WaitSpec configures a WAIT node: a durable suspension until a time or
@@ -375,6 +416,12 @@ type WaitSpec struct {
 	// PIN, RECALCULATE or REVIEW_REQUIRED
 	// (internal/kernel/values.ReferenceUpdatePolicy).
 	ReferenceUpdatePolicy string `json:"reference_update_policy"`
+
+	// TimeExpr, set only when WakeKind is AT_TIME_EXPR, is the deadline
+	// expression the wake instant resolves from. Its zone and calendar
+	// halves stay empty: a WAIT wake inherits the node-level ZoneID and
+	// CalendarRef above, so the pinned identity lives in exactly one place.
+	TimeExpr *TimeExprSpec `json:"time_expr,omitempty"`
 }
 
 // SignalOrdering names how a SIGNAL node expects successive signals on the
@@ -431,8 +478,17 @@ type SignalSpec struct {
 	Ordering SignalOrdering `json:"ordering"`
 	// CloseAfterSeconds, when non-zero, is the duration after the node is
 	// entered at which the subscription closes and a later signal is late.
-	// Zero means the subscription never closes on its own.
+	// Zero means the subscription never closes on its own. It is mutually
+	// exclusive with CloseTimeExpr.
 	CloseAfterSeconds uint64 `json:"close_after_seconds,omitempty"`
+	// CloseTimeExpr, when set, is the deadline expression the subscription
+	// close instant resolves from. It carries its own zone and calendar
+	// halves and is mutually exclusive with CloseAfterSeconds.
+	CloseTimeExpr *TimeExprSpec `json:"close_time_expr,omitempty"`
+	// TimeoutDefault, when set, is the declared non-response payload the
+	// TIMED_OUT route completes with. The route output digest is the
+	// default payload digest rather than a refusal record.
+	TimeoutDefault *DeadlineDefaultSpec `json:"timeout_default,omitempty"`
 }
 
 // RuntimeStatus is the workflow instance's own status. It sits beside the

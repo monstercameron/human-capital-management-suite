@@ -490,7 +490,7 @@ var englishCopy = map[string]string{
 	KeyMenuDeveloperSection:           "Developer",
 	KeyMenuDeveloperSectionHint:       "Visible to this conversation's owner only.",
 	KeyIntegrationsTitle:              "Integrations",
-	KeyIntegrationsHint:               "Let an installed app read and post here. An admin creates the app token.",
+	KeyIntegrationsHint:               "An installed app can read and post here with its app token.",
 	KeyCopyConversationAPICurlSuccess: "API curl copied",
 	KeyCopyConversationAPICurlFailure: "Could not copy the API curl. Check clipboard access and try again.",
 	KeyCopyConversationSuccess:        "Conversation link copied",

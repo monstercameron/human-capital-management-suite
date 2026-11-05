@@ -18,6 +18,7 @@ const (
 // WorkflowHistoryRun is the display-safe run projection used by the page and
 // export. It deliberately contains no raw principal or tenant identifiers.
 type WorkflowHistoryRun struct {
+	_            incomparable
 	ID           string
 	Workflow     string
 	Version      string

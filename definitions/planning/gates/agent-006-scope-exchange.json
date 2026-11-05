@@ -1,0 +1,186 @@
+{
+  "todo_id": "AGENT-006",
+  "version": "1",
+  "status": "PROPOSED",
+  "scope_decision": "SEPARATE_PILOT",
+  "first_cohort": "UNSELECTED: one existing HCM design-partner tenant, at most 50 pilot users with a named executive sponsor; tenant name and sponsor require commercial approval",
+  "served_provider": "Anthropic behind the SchemaFlux model gateway",
+  "deferred_providers": [
+    "OpenAI: deferred for the pilot; re-run provider selection on eval evidence before adding a second provider, never add one silently",
+    "Approved private model endpoints: deferred for the pilot; same reselection criterion"
+  ],
+  "admitted_jobs": [
+    {
+      "name": "Answer HR policy questions in the asker's own chat DM",
+      "tier_ceiling": "T1",
+      "governance": "Runs ON_BEHALF_OF with the asker's current authority; reads governed records (T0) and answers only inside the asker's DM (T1); anything it proposes beyond the answer compiles through internal/agentsecurity/action_compiler.go into an attributed draft, and deterministic gateways perform all subsequent governance"
+    },
+    {
+      "name": "Draft announcements privately for the user's review",
+      "tier_ceiling": "T1",
+      "governance": "Draft visible only to the user; posting the draft anywhere needs a separate per-task T2 destination confirmation; drafts compile through internal/agentsecurity/action_compiler.go with exact arguments, sources and model versions"
+    },
+    {
+      "name": "Report workflow status the asker may already read",
+      "tier_ceiling": "T0",
+      "governance": "Read-only over workflows the asker is authorized to read; never starts, advances, approves or decides a workflow; every lookup compiles through internal/agentsecurity/action_compiler.go as a read with stated sources"
+    },
+    {
+      "name": "Post a user-confirmed update to named channel destinations",
+      "tier_ceiling": "T2",
+      "governance": "Per-task confirmation of every destination before posting; destinations fixed at confirmation time; content compiles through internal/agentsecurity/action_compiler.go with exact arguments and sources"
+    }
+  ],
+  "excluded_tiers": ["T3", "T4"],
+  "schedule_slice": "User-owned schedules on the pilot tenant only, at most one daily digest schedule per pilot user; autonomous channel, event and business schedules stay read-only and draft-only (T0/T1) in the pilot and never post",
+  "workflow_slice": "Read-only status reporting over workflows the asker may already read; no invocation, advancement, approval, or decision-target role for the agent anywhere in the pilot",
+  "displaced_work": [
+    {
+      "workstream": "First-pilot support coverage for agent answers",
+      "disposition": "funded from the pilot tenant's existing support rotation; no Phase 1 engineering capacity is charged to this pilot proposal",
+      "owner": "Support owner (individual unassigned)"
+    },
+    {
+      "workstream": "Autonomous channel participation",
+      "disposition": "deferred: SPONSORED runs stay T0/T1 in the pilot and post nothing until G-AGENT-OBO is green; candidate exchange only, with effort not estimated or accepted",
+      "owner": "Domain owner (individual unassigned)"
+    }
+  ],
+  "spend_ceiling": "Tenant-set cost envelope: at most 200 runs and $40 per pilot user per day, $2,000 total pilot spend; enforced by the budget ledger before a call is made; owner notified at 80 percent; new agent work pauses when reached",
+  "stop_criteria": [
+    "Immediately disable agent work on any confirmed approval bypass, authority expansion beyond the asker's own, or cross-tenant disclosure, and preserve incident evidence.",
+    "Pause new agent work if the spend ceiling is reached, if a workflow or chat SLO under the gate breaches for 15 consecutive minutes, or if eval quality misses its target for two consecutive daily reviews; restore only after owner review and a clean observation window.",
+    "Roll back pilot activation if provider, gateway or budget-ledger failure leaves answers ungoverned, or if the support rotation cannot cover the pilot queue.",
+    "A tenant sponsor may request exit; revoke agent access, preserve required records, and complete the documented tenant exit before closing the pilot."
+  ],
+  "owners": [
+    {
+      "role": "Domain owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own the agent pilot problem, scope, adoption measures and product stop decision"
+    },
+    {
+      "role": "Support owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own pilot support hours, escalation route, incident ownership and the tenant exit runbook"
+    },
+    {
+      "role": "Agent platform engineering owner",
+      "status": "ROLE_NAMED_PERSON_UNASSIGNED",
+      "responsibility": "own the gateway, compiler and budget-ledger path, capacity, SLO evidence, on-call and rollback"
+    }
+  ],
+  "reviewers": [
+    {
+      "role": "Security and Privacy reviewers",
+      "responsibility": "approve identity mode, authorization, delegation, data handling, retention and revocation evidence"
+    },
+    {
+      "role": "HR compliance reviewers",
+      "responsibility": "approve employee-monitoring posture, works-council obligations and disciplinary-conversation handling"
+    },
+    {
+      "role": "Operations reviewers",
+      "responsibility": "approve tenant participation, cost envelope, incident route and release/stop authority"
+    }
+  ],
+  "adopted_run_modes": ["ON_BEHALF_OF", "SPONSORED"],
+  "adopted_tiers": ["T0", "T1", "T2", "T3", "T4"],
+  "adopted_approval_defaults": [
+    {
+      "tiers": ["T0", "T1"],
+      "rule": "run inside the user-confirmed plan without a prompt"
+    },
+    {
+      "tiers": ["T2"],
+      "rule": "per-task confirmation of every destination is required"
+    },
+    {
+      "tiers": ["T3", "T4"],
+      "rule": "the user approves the exact digest per action or per listed batch"
+    }
+  ],
+  "adopted_gate": {
+    "id": "G-AGENT-OBO",
+    "required_todos": ["AGENT2-023", "AGENT2-024", "AGENT2-025"],
+    "tenant_opt_in": true,
+    "t3_default": "DISABLED_PER_TENANT",
+    "t4_first_release": "DISABLED_EXCEPT_ALLOWLISTED_REVERSIBLE_OPERATIONS",
+    "shadow_period": "T3 steps render as drafts only"
+  },
+  "phase1_position": "Autonomous execution stays deferred in Phase 1: every T3 or T4 effect would be the signed-in user's own approved submission, and the pilot admits no T3 or T4 job at all; the two G-AGENT-OBO pushes (unattended T0/T1 work for days, batched exact-digest approval) ship only behind the gate with tenant opt-in",
+  "slo_gate": {
+    "workflow_slos": [
+      {
+        "name": "workflow wake-up under agent load",
+        "target": "Candidate: wake-up p95 remains <= 5 seconds for due P0/P1 timers during pilot agent load, and the workflow-only regression stays within the budget CHAT-001 proposes. The thresholds are proposals requiring workflow-owner and Operations approval."
+      }
+    ],
+    "chat_slos": [
+      {
+        "name": "interactive chat reads unaffected",
+        "target": "Candidate: p95 <= 500 ms for in-boundary reads at pilot peak, as CHAT-001 proposes; agent answers never jump the read queue. Requires product and Operations approval."
+      },
+      {
+        "name": "authorization revocation for agent answers",
+        "target": "Candidate hard ceiling: the agent stops answering a removed user within 60 seconds of committed membership or identity revocation, matching the CHAT-001 revocation posture. Requires Security and Privacy approval."
+      }
+    ],
+    "status": "PENDING",
+    "required_signer_roles": [
+      "Domain owner",
+      "Workflow owner",
+      "Messaging Platform engineering and operations owner"
+    ],
+    "signers": []
+  },
+  "design_only_evidence": [
+    {
+      "path": "planning/todos.md",
+      "claim": "AGENT-001 through AGENT-005 prove design-stage security components, not a served agent product."
+    },
+    {
+      "path": "internal/agentsecurity/action_compiler.go",
+      "claim": "The AGENT-005 compiler turns validated agent output into an attributed draft; deterministic gateways perform all subsequent governance and execution. Design-stage and unserved."
+    },
+    {
+      "path": "definitions/planning/agent-obo-decisions.yaml",
+      "claim": "The AGENT2-001 run modes, tiers, approval defaults and G-AGENT-OBO gate are adopted as this record's release position. A decision record, not served enforcement."
+    }
+  ],
+  "served_capability": "Nothing served yet: no agent answers, schedules or posts run for any tenant until this scope decision is approved, G-AGENT-OBO is green and the pilot cohort is activated; the pilot then serves only the admitted T0 to T2 jobs above",
+  "execution_plan_ref": "planning/execution-plan.md",
+  "source_evidence": [
+    {
+      "path": "planning/todos.md#AGENT-006",
+      "claim": "AGENT-006 requires a versioned scope decision naming cohort, provider, jobs, slices, displaced work, spend ceiling, stop criteria and reviewers, adopting the AGENT2-001 position."
+    },
+    {
+      "path": "planning/specs/customer-agent-creation-business-context-and-chat.md",
+      "claim": "OpenAI, Anthropic and approved private model endpoints supply inference behind adapters; this record serves one and defers the rest for the pilot."
+    },
+    {
+      "path": "definitions/planning/agent-obo-decisions.yaml",
+      "claim": "AGENT2-001 fixes the run modes, side-effect tiers, approval defaults and the G-AGENT-OBO gate this record adopts verbatim."
+    },
+    {
+      "path": "definitions/planning/gates/chat-001-scope-exchange.json",
+      "claim": "CHAT-001 holds chat scope as a separate Gate C commitment; this record claims no chat-release scope and mirrors its SLO posture."
+    },
+    {
+      "path": "planning/execution-plan.md",
+      "claim": "The execution plan holds the release decision; this artifact is its evidence, not a second authority."
+    }
+  ],
+  "approval": {
+    "status": "PENDING",
+    "required_roles": [
+      "Domain owner",
+      "Support owner",
+      "Security and Privacy reviewers",
+      "Operations reviewers"
+    ],
+    "signers": []
+  },
+  "canonical_digest": "sha256:c843e295f4ead60735fd29b0b7dade53d4a260d0e10eb28fad1a8717b2d06025"
+}

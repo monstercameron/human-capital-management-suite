@@ -181,14 +181,15 @@ func (w *recordingCredentialWriter) calls() int {
 
 // --- spy journal / ledger used to prove no bypass is possible -------------
 
-// spyConnectorJournal wraps a real journal and counts how many times Lease
-// and DispatchWithCredential are actually invoked, so a SECURITY test can
-// prove the provider path was never reached rather than merely that the
-// final error looked right.
+// spyConnectorJournal wraps a real journal and counts how many times Lease,
+// AdmitPrivacyDispatch and DispatchWithCredential are actually invoked, so
+// a SECURITY test can prove the provider path was never reached rather
+// than merely that the final error looked right.
 type spyConnectorJournal struct {
 	real          connectorJournal
 	leaseErr      error
 	leaseCalls    int
+	admitCalls    int
 	dispatchCalls int
 }
 
@@ -202,6 +203,11 @@ func (s *spyConnectorJournal) Lease(ctx context.Context, req operation.LeaseRequ
 		return operation.Lease{}, s.leaseErr
 	}
 	return s.real.Lease(ctx, req)
+}
+
+func (s *spyConnectorJournal) AdmitPrivacyDispatch(ctx context.Context, lease operation.Lease, grant operation.PrivacyGrant) (operation.Operation, error) {
+	s.admitCalls++
+	return s.real.AdmitPrivacyDispatch(ctx, lease, grant)
 }
 
 func (s *spyConnectorJournal) DispatchWithCredential(ctx context.Context, req operation.CredentialDispatchRequest, authorizer operation.MachineLeaseAuthorizer) (operation.DispatchResult, error) {
@@ -222,10 +228,10 @@ func (refusingLedger) TryReserve(time.Time, operation.ScheduleCandidate) (bool, 
 }
 func (refusingLedger) Release(uuid.UUID, string) bool { return false }
 
-func newConnectorRole(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer *recordingCredentialWriter, authorizer operation.MachineLeaseAuthorizer, workerID string) connectorRole {
+func newConnectorRole(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer *recordingCredentialWriter, authorizer operation.MachineLeaseAuthorizer, workerID string, privacy connectorPrivacyAuthority) connectorRole {
 	return connectorRole{
 		logger: discardLogger(), journal: journal, ledger: ledger, credentials: credentials,
-		revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
+		privacy: privacy, revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
 		authorizer: authorizer, credentialOperation: custody.Encrypt, workerID: workerID, leaseFor: time.Minute,
 		now: func() time.Time { return connectorTestNow },
 	}
@@ -255,7 +261,7 @@ func TestTodo_SVC_008(t *testing.T) {
 	credSource := &recordingCredentialSource{manager: manager, ttl: time.Minute}
 	writer := &recordingCredentialWriter{}
 	ledger := ampleLedger()
-	role := newConnectorRole(j, ledger, credSource, writer, manager, "worker-1")
+	role := newConnectorRole(j, ledger, credSource, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 	attempted, err := role.dispatchQueued(context.Background(), "tenant-connector")
 	if err != nil || attempted != 1 {
@@ -312,7 +318,7 @@ func TestTodo_SVC_008_Security(t *testing.T) {
 		credSource := &recordingCredentialSource{manager: manager, ttl: time.Minute}
 		writer := &recordingCredentialWriter{}
 		spy := &spyConnectorJournal{real: j, leaseErr: operation.ErrLeaseFenced}
-		role := newConnectorRole(spy, ampleLedger(), credSource, writer, manager, "worker-1")
+		role := newConnectorRole(spy, ampleLedger(), credSource, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		_, err := role.dispatchOperation(context.Background(), op, connectorTestNow)
 		if !errors.Is(err, operation.ErrLeaseFenced) {
@@ -332,7 +338,7 @@ func TestTodo_SVC_008_Security(t *testing.T) {
 		writer := &recordingCredentialWriter{}
 		spy := &spyConnectorJournal{real: j}
 		refusing := &recordingCredentialSource{manager: manager, ttl: time.Minute, err: errors.New("no credential available")}
-		role := newConnectorRole(spy, ampleLedger(), refusing, writer, manager, "worker-1")
+		role := newConnectorRole(spy, ampleLedger(), refusing, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		_, err := role.dispatchOperation(context.Background(), op, connectorTestNow)
 		if err == nil {
@@ -360,7 +366,7 @@ func TestTodo_SVC_008_Security(t *testing.T) {
 		credSource := &recordingCredentialSource{manager: manager, ttl: time.Minute}
 		writer := &recordingCredentialWriter{}
 		spy := &spyConnectorJournal{real: j}
-		role := newConnectorRole(spy, refusingLedger{}, credSource, writer, manager, "worker-1")
+		role := newConnectorRole(spy, refusingLedger{}, credSource, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		_, err := role.dispatchOperation(context.Background(), op, connectorTestNow)
 		if !errors.Is(err, ErrConnectorDeferred) {
@@ -388,7 +394,7 @@ func TestTodo_SVC_008_Security(t *testing.T) {
 			OperationID: uuid.New(), TenantID: "tenant-connector", ConnectionID: "payroll-connection",
 			ExternalResourceKey: "worker:ghost", DestinationRef: "connector.example", UpdatedAt: connectorTestNow,
 		}
-		role := newConnectorRole(j, ampleLedger(), credSource, writer, manager, "worker-1")
+		role := newConnectorRole(j, ampleLedger(), credSource, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		_, err := role.dispatchOperation(context.Background(), ghost, connectorTestNow)
 		if !errors.Is(err, operation.ErrNotFound) {
@@ -408,7 +414,7 @@ func TestTodo_SVC_008_Security(t *testing.T) {
 		manager := newConnectorMachineManager(t, connectorTestNow)
 		wrong := mintConnectorCredential(t, manager, "tenant-connector", "other.example", time.Minute)
 		writer := &recordingCredentialWriter{}
-		role := newConnectorRole(j, ampleLedger(), fixedCredentialSource{credential: wrong}, writer, manager, "worker-1")
+		role := newConnectorRole(j, ampleLedger(), fixedCredentialSource{credential: wrong}, writer, manager, "worker-1", connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		_, err := role.dispatchOperation(context.Background(), op, connectorTestNow)
 		var rejected *operation.CredentialRejection
@@ -440,6 +446,7 @@ func TestTodo_SVC_008_Race(t *testing.T) {
 	manager := newConnectorMachineManager(t, connectorTestNow)
 	credSource := &recordingCredentialSource{manager: manager, ttl: time.Minute, delay: 30 * time.Millisecond}
 	writer := &recordingCredentialWriter{}
+	privacy := connectorPrivacyAuthorityFor(t, "connector.example", false)
 
 	const workers = 8
 	results := make([]error, workers)
@@ -451,7 +458,7 @@ func TestTodo_SVC_008_Race(t *testing.T) {
 			defer wg.Done()
 			// Each racer gets its own ledger with ample capacity, isolating
 			// the race to the journal's fencing rather than fair scheduling.
-			role := newConnectorRole(j, ampleLedger(), credSource, writer, manager, fmt.Sprintf("worker-%d", i))
+			role := newConnectorRole(j, ampleLedger(), credSource, writer, manager, fmt.Sprintf("worker-%d", i), privacy)
 			<-start
 			_, err := role.dispatchOperation(context.Background(), op, connectorTestNow)
 			results[i] = err

@@ -4,23 +4,31 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// benefitsEnrollPage is the route adapter for benefit
-// enrollment. The governed benefits service is not
-// published to this UI yet, so the surface keeps the
-// journeys fallback contract: an honest empty state with
-// a recovery link that enrolls nothing — enrollment truth
-// stays server authority. The live enrollment composition
-// replaces this body once the governed service publishes;
-// until then the UI will not simulate one.
+// benefitsEnrollPage is the route adapter for benefit enrollment. It
+// resolves the server-authorized projection through the benefits domain and
+// shapes the electable options for the enrollment feature component; the
+// submitted choice is validated against that same resolution before it
+// reaches the server adapter.
 func benefitsEnrollPage(view View) ui.Node {
-	return ui.CreateElement(EmptyState, EmptyStateProps{
-		Title:       view.Locale.Text("benefits_enroll.unavailable_title"),
-		Description: view.Locale.Text("benefits_enroll.unavailable_detail"),
-		Role:        "status",
-		Action: &ActionLinkProps{
-			Label: view.Locale.Text("benefits_enroll.return_home"), Href: statefulHref(view, PageHome),
-			Class:    "button primary",
-			Navigate: view.Navigate,
-		},
-	})
+	projection := view.Benefits
+	if projection.Elect == nil {
+		return benefitsUnavailable(view, "benefits_enroll")
+	}
+	switch projection.State {
+	case BenefitsReadNoRecord:
+		return benefitsStateFallback(view, "benefits_enroll", "no_plans")
+	case BenefitsReadError:
+		return benefitsStateFallback(view, "benefits_enroll", "read_error")
+	case BenefitsReadReady:
+	default:
+		return benefitsUnavailable(view, "benefits_enroll")
+	}
+	options, err := ResolveBenefitOptions(projection.Options)
+	if err != nil {
+		return benefitsStateFallback(view, "benefits_enroll", "read_error")
+	}
+	if electable := benefitElectableOptions(options); len(electable) > 0 {
+		return benefitEnrollForm(view, projection, options, electable)
+	}
+	return benefitsStateFallback(view, "benefits_enroll", "no_plans")
 }

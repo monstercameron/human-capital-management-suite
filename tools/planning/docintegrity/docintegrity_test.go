@@ -44,9 +44,11 @@ func TestCheckMarkdownReportsMojibakeAndBrokenAnchor(t *testing.T) {
 
 func TestCheckDetectsDuplicateIDsAndStaleIndex(t *testing.T) {
 	d := t.TempDir()
-	_ = os.Mkdir(filepath.Join(d, "planning"), 0755)
+	if err := os.MkdirAll(filepath.Join(d, "planning", "archive"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	todos := "## Work\n- [ ] `X-001` **[P0][LUNA] One.**\n- [ ] `X-001` **[P0][LUNA] Two.**\n"
-	if err := os.WriteFile(filepath.Join(d, "planning", "todos.md"), []byte(todos), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(d, "planning", "archive", "todos-2026-10-22.md"), []byte(todos), 0644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(d, "planning", "todo-headings.txt"), []byte("stale\n"), 0644); err != nil {

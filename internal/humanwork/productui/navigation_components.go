@@ -460,8 +460,13 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 	})
 	useDrawerFocusTrap("workspace-navigation", "nav-drawer-trigger", props.Open)
 
+	// UXBLIND-065: an open drawer is an expanded surface even when the
+	// desktop rail is collapsed. There is no hover on touch, so an
+	// icons-only overlay leaves destinations indistinguishable; the drawer
+	// always renders its labels, filter and submenus.
+	collapsed := props.Collapsed && !props.Open
 	class := "sidebar"
-	if props.Collapsed {
+	if collapsed {
 		class += " collapsed"
 	}
 	backdropClass := "nav-drawer-backdrop"
@@ -489,14 +494,14 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 			Raw:  map[string]any{"title": closeLabel}, OnClick: closeDrawer,
 		}, productIcon("close", "nav-drawer-close-glyph")))
 	}
-	if !props.Collapsed {
+	if !collapsed {
 		children = append(children, ui.CreateElement(MenuFilter, props.Filter))
 	}
 	menu := make([]ui.Node, 0, len(props.Favorites)+len(props.Items)+2)
 	// The icon-only rail has no section labels, so a favourite listed ahead of the
 	// full list would read as the same destination twice (CHATBUG-080): it is
 	// listed once, in the full list, and keeps its place there.
-	if len(props.Favorites) > 0 && !props.Collapsed {
+	if len(props.Favorites) > 0 && !collapsed {
 		menu = append(menu, html.WithKey(html.Li(html.Props{Class: "nav-section-label"}, ui.Text(props.Text("nav.favorites"))), "label:favorites"))
 		for _, item := range props.Favorites {
 			menu = append(menu, html.WithKey(ui.CreateElement(NavigationItem, item), "favorite:"+string(item.Page)))
@@ -506,7 +511,7 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 		}
 	}
 	for _, item := range props.Items {
-		if props.Collapsed && len(item.Children) > 0 {
+		if collapsed && len(item.Children) > 0 {
 			item.Children = nil
 		}
 		menu = append(menu, html.WithKey(ui.CreateElement(NavigationItem, item), "item:"+string(item.Page)+":"+item.Label))

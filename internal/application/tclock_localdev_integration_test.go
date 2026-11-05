@@ -86,8 +86,8 @@ func uxblind123Compose(t *testing.T, workforce bool) *uxblind123Harness {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:uxblind123-clock",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
-		WorkflowPlan:            WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:        DefaultTimerTzdbVersion,
+		TimerCalendarVersion:    DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)

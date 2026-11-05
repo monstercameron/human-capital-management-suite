@@ -2,6 +2,8 @@ package workflowcontrol
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -58,8 +60,10 @@ func TestTodo_WF_RUN_010_OperatorCancel(t *testing.T) {
 		t.Fatalf("instance = %+v", inst)
 	}
 	if recs := f.cancellationDecisions(id); len(recs) != 1 || recs[0].Decision != workflow.CompensationRequired ||
-		len(recs[0].CompensationRefs) != 1 || !strings.HasSuffix(recs[0].CompensationRefs[0], "compensation.promotion.reverse@1") {
+		len(recs[0].CompensationRefs) != 1 {
 		t.Fatalf("obligation = %+v", recs)
+	} else if compensation := decodeCompensationRef(t, recs[0].CompensationRefs[0]); compensation != "compensation.promotion.reverse@1" {
+		t.Fatalf("obligation compensation = %q, want %q (refs %+v)", compensation, "compensation.promotion.reverse@1", recs[0].CompensationRefs)
 	}
 
 	// A parent whose child already committed an irreversible effect.
@@ -81,6 +85,33 @@ func TestTodo_WF_RUN_010_OperatorCancel(t *testing.T) {
 	if recs := f.cancellationDecisions(parent); len(recs) != 1 || recs[0].Decision != workflow.CannotCancel {
 		t.Fatalf("a TOO_LATE refusal must be committed: %+v", recs)
 	}
+}
+
+// decodeCompensationRef unpacks the pinned wf-compensation:v1 envelope the
+// governed decision records: a base64url JSON payload carrying the judged
+// effect coordinates and the published compensation reference.
+func decodeCompensationRef(t *testing.T, ref string) string {
+	t.Helper()
+	const prefix = "wf-compensation:v1:"
+	encoded, ok := strings.CutPrefix(ref, prefix)
+	if !ok {
+		t.Fatalf("compensation ref %q does not carry the %q envelope", ref, prefix)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("compensation ref payload is not base64url: %v", err)
+	}
+	var payload struct {
+		EffectID     string `json:"effect_id"`
+		Compensation string `json:"compensation"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil || payload.EffectID == "" || payload.Compensation == "" {
+		t.Fatalf("compensation ref payload %q is not the pinned envelope: %v", raw, err)
+	}
+	if payload.EffectID != "execute_promotion#1" {
+		t.Fatalf("compensation effect = %q, want %q", payload.EffectID, "execute_promotion#1")
+	}
+	return payload.Compensation
 }
 
 // TestTodo_WF_RUN_010_OperatorCancelRace proves concurrent operator cancels

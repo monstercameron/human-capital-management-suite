@@ -75,6 +75,31 @@ type Service struct {
 	RenameWorkflowDraft          func(context.Context, *workflowv1.RenameWorkflowDraftRequest) (*workflowv1.RenameWorkflowDraftResponse, error)
 	NavigateWorkflowDraftHistory func(context.Context, *workflowv1.NavigateWorkflowDraftHistoryRequest) (*workflowv1.NavigateWorkflowDraftHistoryResponse, error)
 	ApplyWorkflowTemplateOverlay func(context.Context, *workflowv1.ApplyWorkflowTemplateOverlayRequest) (*workflowv1.ApplyWorkflowTemplateOverlayResponse, error)
+	// ObserveRead, when non-nil, hears each bootstrap projection read
+	// ("journeys", "workers", "preferences") when it finishes: its own
+	// name, latency and error. The loader's budget marks the cold-load
+	// window's edges (UXBLIND-089); this splits the window's inside so the
+	// next run ranks the reads instead of guessing. It is called once per
+	// read from that read's goroutine and must be safe for concurrent use.
+	ObserveRead func(ReadObservation)
+}
+
+// ReadObservation reports one finished bootstrap projection read.
+type ReadObservation struct {
+	// Name is "journeys", "workers" or "preferences".
+	Name string
+	// Duration is the read's own latency, from call to answer.
+	Duration time.Duration
+	// Err is the read's failure, or nil.
+	Err error
+}
+
+// observeRead reports one finished read, or nothing when no observer is set.
+func observeRead(observer func(ReadObservation), name string, start time.Time, err error) {
+	if observer == nil {
+		return
+	}
+	observer(ReadObservation{Name: name, Duration: time.Since(start), Err: err})
 }
 
 // Session contains display facts from the server-admitted configuration
@@ -109,7 +134,9 @@ type Session struct {
 	// Clock is the server's workspace-level time clock availability
 	// (UXBLIND-123). A composed session without one fails closed: the clock is
 	// reported as not running here.
-	Clock                 *productui.ClockAvailabilityProjection
+	Clock *productui.ClockAvailabilityProjection
+	// ConfigurationCenter is the server-owned configuration center projection. Nil keeps the route in its honest unavailable state.
+	ConfigurationCenter   *productui.ConfigurationCenterProjection
 	EnforceRoleVisibility bool
 	LogoutHref            string
 	// TenantName is the company's own display name when the server supplied
@@ -133,6 +160,19 @@ type State struct {
 	WorkflowStartWorkflowID string
 }
 
+// WorkflowStartOpenedUse reports the workflow id the live client records
+// as used when the resolved route opens a workflow start deep link.
+// Recording on open follows the promotion precedent (a draft opened is a
+// use); run submission will narrow this to submitted runs when WFPAGE-021
+// lands. Any other route records nothing.
+func WorkflowStartOpenedUse(page productui.PageID, workflowStartID string) (string, bool) {
+	id := strings.TrimSpace(workflowStartID)
+	if page != productui.PageWorkflowStart || id == "" {
+		return "", false
+	}
+	return id, true
+}
+
 // LoadingView builds the non-authoritative shell shown while Load is waiting
 // for the cell. It shares the resolved view's humanized session labels and
 // address state without manufacturing any business records or counts.
@@ -154,6 +194,7 @@ func LoadingView(session Session, state State) productui.View {
 	view.WorkflowStartFavorites = append([]string(nil), session.WorkflowStartFavorites...)
 	view.WorkflowStartRecent = append([]string(nil), session.WorkflowStartRecent...)
 	view.WorkflowStartWorkflowID = session.WorkflowStartWorkflowID
+	view.ConfigurationCenter = session.ConfigurationCenter
 	if session.Agents != nil {
 		view = productui.ApplyAgentsAvailability(view, *session.Agents)
 	} else if session.EnforceRoleVisibility {
@@ -739,10 +780,12 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		reads.Add(1)
 		go func() {
 			defer reads.Done()
+			start := time.Now()
 			journeysResponse, journeysErr = service.ListJourneys(ctx, &journeyv1.ListJourneysRequest{})
 			if journeysErr != nil {
 				journeysErr = fmt.Errorf("list journeys: %w", journeysErr)
 			}
+			observeRead(service.ObserveRead, "journeys", start, journeysErr)
 		}()
 	}
 	if !requirements.workers {
@@ -753,20 +796,24 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 		reads.Add(1)
 		go func() {
 			defer reads.Done()
+			start := time.Now()
 			workersResponse, workersErr = service.ListWorkers(ctx, &journeyv1.ListWorkersRequest{})
 			if workersErr != nil {
 				workersErr = fmt.Errorf("list workers: %w", workersErr)
 			}
+			observeRead(service.ObserveRead, "workers", start, workersErr)
 		}()
 	}
 	if service.GetPreferences != nil {
 		reads.Add(1)
 		go func() {
 			defer reads.Done()
+			start := time.Now()
 			preferencesResponse, preferencesErr = service.GetPreferences(ctx, &journeyv1.GetProductPreferencesRequest{})
 			if preferencesErr != nil {
 				preferencesErr = fmt.Errorf("load product preferences: %w", preferencesErr)
 			}
+			observeRead(service.ObserveRead, "preferences", start, preferencesErr)
 		}()
 	}
 	if state.Page == productui.PageWorkerIDs {

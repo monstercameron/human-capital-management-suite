@@ -121,7 +121,7 @@ func RenderAgentControls(locale LocaleContext, snapshot AgentControlsSnapshot, m
 			facts = append(facts, html.P(html.Props{}, html.Strong(html.Props{}, ui.Text(text("since")+": ")), ui.Text(agentOperationsFormatInstant(locale, run.Since))))
 		}
 		facts = append(facts,
-			html.Details(html.Props{Class: "agent-operations-technical"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(text("technical"))), agentOpsRecentRunDetails(locale, run)),
+			html.Details(html.Props{Class: "agent-operations-technical"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": agentDisclosureChevron(locale)}}, ui.Text(text("technical"))), agentOpsRecentRunDetails(locale, run)),
 			agentControlActions(locale, "run", run.ID, displayName, run.Revision, run.Actions),
 		)
 		children = append(children, html.Article(html.Props{Class: "card persona-admin-card agent-running-card", Raw: map[string]any{"data-control-run": run.ID}}, append([]ui.Node{html.H4(html.Props{}, ui.Text(displayName))}, facts...)...))
@@ -224,7 +224,7 @@ func agentControlNameVersion(locale LocaleContext, name, version string) string 
 
 func agentControlTechnicalDetails(locale LocaleContext, id string, keys, values []string) ui.Node {
 	return html.Details(html.Props{Class: "agent-operations-technical", Raw: map[string]any{"data-control-record": id}},
-		html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(agentControlsText(locale, "technical"))),
+		html.Summary(html.Props{Raw: map[string]any{"data-chevron": agentDisclosureChevron(locale)}}, ui.Text(agentControlsText(locale, "technical"))),
 
 		agentControlsFacts(locale, keys, values),
 	)

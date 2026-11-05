@@ -85,6 +85,7 @@ type PanelProps struct {
 // description slot when its text is temporarily empty. Trailing stays a
 // separate slot for counts or page-specific actions.
 type SectionHeadingProps struct {
+	_               incomparable
 	ID              string
 	Title           string
 	Description     string
@@ -96,6 +97,7 @@ type SectionHeadingProps struct {
 
 // EmptyStateProps standardizes honest empty and unavailable states.
 type EmptyStateProps struct {
+	_           incomparable
 	Title       string
 	Description string
 	Badge       string

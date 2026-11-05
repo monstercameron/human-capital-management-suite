@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -46,17 +45,11 @@ func voiceSpeak(ctx context.Context, client *http.Client, cfg journeyclient.Conf
 }
 
 func voiceSpeakTimed(ctx context.Context, client *http.Client, cfg journeyclient.Config, input voiceSpeakInput) (voiceSpeech, error) {
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem == tunnelUnusable || cfg.Bearer == "" {
 		return voiceSpeech{}, chat.ErrVoiceUnavailable
 	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	if problem == tunnelBadScheme {
 		return voiceSpeech{}, chat.ErrInvalidArgument
 	}
 	endpoint.Path, endpoint.RawPath, endpoint.RawQuery, endpoint.Fragment = "/api/chat/voice/speak", "", "", ""

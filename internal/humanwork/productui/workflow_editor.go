@@ -26,19 +26,38 @@ type WorkflowEditorProps struct {
 	OnInsert     func(WorkflowPaletteItem)
 	// OnInsertAfter adds a step and then points the named result at it. The
 	// change's ToNodeID is left empty for the host to fill with the new step.
-	OnInsertAfter  func(WorkflowPaletteItem, WorkflowOutcomeChange)
-	OnCreate       func(WorkflowDraftCreateRequest)
-	CreateRequest  WorkflowDraftCreateRequest
-	OnRename       func(string)
-	OnDelete       func()
-	OnUpdateNode   func(WorkflowNodeParameterChange)
-	OnSetOutcome   func(WorkflowOutcomeChange)
-	OnClearOutcome func(WorkflowOutcomeChange)
-	OnSetOutcomes  func([]WorkflowOutcomeChange)
-	OnBindInput    func(WorkflowInputBindingChange)
-	OnRemoveNode   func(string)
-	OnOverlay      func(WorkflowTemplateOverlayChange)
-	OnHistory      func(string)
+	OnInsertAfter func(WorkflowPaletteItem, WorkflowOutcomeChange)
+	OnCreate      func(WorkflowDraftCreateRequest)
+	CreateRequest WorkflowDraftCreateRequest
+	OnRename      func(string)
+	OnDelete      func()
+	// OnReleaseTest, OnReleaseSubmit and OnReleasePublish run the release
+	// steps the host authorized for this viewer and draft. A nil step
+	// renders as unavailable with its reason rather than as a dead
+	// control (UXBLIND-034).
+	OnReleaseTest    func()
+	OnReleaseSubmit  func()
+	OnReleasePublish func()
+	OnUpdateNode     func(WorkflowNodeParameterChange)
+	OnSetOutcome     func(WorkflowOutcomeChange)
+	OnClearOutcome   func(WorkflowOutcomeChange)
+	OnSetOutcomes    func([]WorkflowOutcomeChange)
+	OnBindInput      func(WorkflowInputBindingChange)
+	OnRemoveNode     func(string)
+	OnOverlay        func(WorkflowTemplateOverlayChange)
+	OnHistory        func(string)
+}
+
+// releaseActionsFor adapts the host's release commands to the release
+// panel. Save adapts the draft-create command with its pending request;
+// a nil host command stays nil so the panel explains the gap.
+func releaseActionsFor(props WorkflowEditorProps) workflowReleaseActions {
+	release := workflowReleaseActions{test: props.OnReleaseTest, submit: props.OnReleaseSubmit, publish: props.OnReleasePublish}
+	if props.OnCreate != nil {
+		onCreate, request := props.OnCreate, props.CreateRequest
+		release.save = func() { onCreate(request) }
+	}
+	return release
 }
 
 // workflowSelection remembers which step the author picked and which
@@ -139,7 +158,7 @@ func WorkflowEditor(props WorkflowEditorProps) ui.Node {
 			I18nProps: props.I18nProps, Draft: draft, Problems: problems, Status: props.Status, CatalogHref: props.CatalogHref,
 			Navigate: props.Navigate, OnRename: props.OnRename, OnDelete: props.OnDelete, OnCreate: props.OnCreate, CreateRequest: props.CreateRequest, OnHistory: props.OnHistory, OnSelect: choose,
 		}),
-		workflowReleasePanel(props.I18nProps, draft, problems, props.OnCreate),
+		workflowReleasePanel(props.I18nProps, draft, problems, releaseActionsFor(props)),
 		html.Div(html.Props{Class: "workflow-editor-panes"},
 			ui.CreateElement(WorkflowPalette, WorkflowPaletteProps{
 				I18nProps: props.I18nProps, Items: library, OnInsert: insert,

@@ -33,6 +33,7 @@ type DocsProjectTaskReference struct {
 // An empty TaskID describes the project's board; its Title is the project
 // name and Status stays empty.
 type DocsProjectTaskPreview struct {
+	_          incomparable
 	ProjectID  string
 	TaskID     string
 	Title      string

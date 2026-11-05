@@ -95,7 +95,7 @@ func agentux070ChannelText(m Model, key string) string {
 		"value.public":  {"Visible to the channel", "Für den Kanal sichtbar", "مرئية للقناة"},
 		"value.private": {"Must be private", "Müssen privat sein", "يجب أن تكون خاصة"},
 		"switch":        {"Agent answers here must be private", "Antworten von Agenten hier müssen privat sein", "يجب أن تكون إجابات الوكلاء هنا خاصة"},
-		"help":          {"When this is on, an agent's answer here is shown only to the person who asked, whatever the agent or the question says. When it is off, answers are shown to the channel unless the agent, the question or the sources keep them private.", "Wenn dies aktiv ist, sieht nur die fragende Person die Antwort eines Agenten hier, unabhängig vom Agenten oder von der Frage. Wenn nicht, sehen alle im Kanal die Antworten, sofern Agent, Frage oder Quellen sie nicht privat halten.", "عند تفعيل هذا الخيار، تظهر إجابة الوكيل هنا لمن طرح السؤال فقط، مهما كان الوكيل أو السؤال. وعند إيقافه تظهر الإجابات للقناة ما لم يبقها الوكيل أو السؤال أو المصادر خاصة."},
+		"help":          {"When this is on, every agent answer here is shown only to the person who asked.", "Wenn dies aktiv ist, sieht nur die fragende Person die Antworten der Agenten hier.", "عند تفعيل هذا الخيار، تظهر إجابات الوكلاء هنا لمن طرح السؤال فقط."},
 		"saving":        {"Saving…", "Wird gespeichert…", "جارٍ الحفظ…"},
 		"failed":        {"Could not save this setting. Try again.", "Diese Einstellung konnte nicht gespeichert werden. Versuchen Sie es erneut.", "تعذر حفظ هذا الإعداد. حاول مرة أخرى."},
 	}

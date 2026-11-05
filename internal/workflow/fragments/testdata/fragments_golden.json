@@ -1,0 +1,710 @@
+[
+  {
+    "id": "team_notice.release",
+    "type": "SIGNAL",
+    "input_schema": {
+      "schema_id": "hcmnext.fragments.signal.input",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+    },
+    "output_schema": {
+      "schema_id": "hcmnext.fragments.signal.result",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+    },
+    "inputs": [
+      {
+        "path": "worker_id",
+        "type": {
+          "kind": "STRING",
+          "brand": "WorkerID"
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "path": "release_ref",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "input_mappings": [
+      {
+        "target": "worker_id",
+        "source": {
+          "kind": "WORKFLOW_INPUT",
+          "path": "worker_id",
+          "type": {
+            "kind": "STRING",
+            "brand": "WorkerID"
+          }
+        }
+      }
+    ],
+    "signal": {
+      "event_type": "team_notice.release",
+      "correlation_key_expression": "worker_id",
+      "expected_schema_ref": {
+        "schema_id": "hcmnext.fragments.signal.team_notice.release",
+        "version": 1,
+        "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+      },
+      "accepted_sources": [
+        "release-api"
+      ],
+      "ordering": "NONE"
+    },
+    "declared_effect": "PURE",
+    "governance": {
+      "purpose": "EXT015_FIXTURE",
+      "classification": "CONFIDENTIAL_HR",
+      "required_decisions": [
+        "AUTHZ",
+        "LEGAL",
+        "PURPOSE",
+        "RISK"
+      ],
+      "revalidation_boundary": "PRE_EFFECT",
+      "data_access_manifest_ref": "dam/ext015"
+    },
+    "metadata": {
+      "hcmnext.fragment": "team_notice",
+      "hcmnext.fragment.role": "release"
+    }
+  },
+  {
+    "id": "team_notice.send",
+    "type": "CAPABILITY",
+    "input_schema": {
+      "schema_id": "hcmnext.messaging.send.request/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "output_schema": {
+      "schema_id": "hcmnext.messaging.send.response/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "inputs": [
+      {
+        "path": "audience_expression",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "audience_resolution_policy",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "classification",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "content_ref",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "correlation_id",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "delivery_requirement",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "expires_at",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "notice_key",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "organization_scope",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "parameters_ref",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "purpose",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "reply_mode",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "template_ref",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "tenant_id",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "urgency",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "path": "message_id",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "digest",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "input_mappings": [
+      {
+        "target": "audience_expression",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "team:eng"
+        }
+      },
+      {
+        "target": "audience_resolution_policy",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "frozen"
+        }
+      },
+      {
+        "target": "classification",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "INTERNAL"
+        }
+      },
+      {
+        "target": "content_ref",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          }
+        }
+      },
+      {
+        "target": "correlation_id",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "corr-1"
+        }
+      },
+      {
+        "target": "delivery_requirement",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "DELIVERED"
+        }
+      },
+      {
+        "target": "expires_at",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "2000000000"
+        }
+      },
+      {
+        "target": "notice_key",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "n-1"
+        }
+      },
+      {
+        "target": "organization_scope",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "acme/eng"
+        }
+      },
+      {
+        "target": "parameters_ref",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "params:1"
+        }
+      },
+      {
+        "target": "purpose",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "NOTICE"
+        }
+      },
+      {
+        "target": "reply_mode",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "NOT_ALLOWED"
+        }
+      },
+      {
+        "target": "template_ref",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "team_notice/v3"
+        }
+      },
+      {
+        "target": "tenant_id",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "acme"
+        }
+      },
+      {
+        "target": "urgency",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "normal"
+        }
+      }
+    ],
+    "capability": {
+      "id": "hcmnext.messaging.send",
+      "version": 1,
+      "operation_mode": "EXECUTE",
+      "authority_scopes": [
+        "scope:messaging.send"
+      ],
+      "idempotency_key_mapping": "notice_key",
+      "effect_binding": "messaging.notice.dispatch"
+    },
+    "declared_effect": "EXTERNAL_MUTATION",
+    "effect_role": "DOWNSTREAM_EFFECT",
+    "mode_overlay": {
+      "simulate_effect": "READ_ONLY"
+    },
+    "failure_route": "end",
+    "governance": {
+      "purpose": "EXT015_FIXTURE",
+      "classification": "CONFIDENTIAL_HR",
+      "required_decisions": [
+        "AUTHZ",
+        "LEGAL",
+        "PURPOSE",
+        "RISK"
+      ],
+      "revalidation_boundary": "PRE_EFFECT",
+      "data_access_manifest_ref": "dam/ext015"
+    },
+    "metadata": {
+      "hcmnext.fragment": "team_notice",
+      "hcmnext.fragment.role": "send"
+    }
+  },
+  {
+    "id": "offer_letter.render",
+    "type": "CAPABILITY",
+    "input_schema": {
+      "schema_id": "hcmnext.documents.render.request/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "output_schema": {
+      "schema_id": "hcmnext.documents.render.response/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "inputs": [
+      {
+        "path": "template_id",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "template_version",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "bindings_json",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "path": "artifact_digest",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "content",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "input_mappings": [
+      {
+        "target": "template_id",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "team_letter"
+        }
+      },
+      {
+        "target": "template_version",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "3"
+        }
+      },
+      {
+        "target": "bindings_json",
+        "source": {
+          "kind": "WORKFLOW_INPUT",
+          "path": "bindings_json",
+          "type": {
+            "kind": "STRING"
+          }
+        }
+      }
+    ],
+    "capability": {
+      "id": "hcmnext.documents.render",
+      "version": 1,
+      "operation_mode": "EXECUTE",
+      "authority_scopes": [
+        "scope:documents.read",
+        "scope:documents.write"
+      ]
+    },
+    "declared_effect": "READ_ONLY",
+    "governance": {
+      "purpose": "EXT015_FIXTURE",
+      "classification": "CONFIDENTIAL_HR",
+      "required_decisions": [
+        "AUTHZ",
+        "LEGAL",
+        "PURPOSE",
+        "RISK"
+      ],
+      "revalidation_boundary": "PRE_EFFECT",
+      "data_access_manifest_ref": "dam/ext015"
+    },
+    "metadata": {
+      "hcmnext.fragment": "offer_letter",
+      "hcmnext.fragment.role": "render"
+    }
+  },
+  {
+    "id": "offer_letter.sign",
+    "type": "CAPABILITY",
+    "input_schema": {
+      "schema_id": "hcmnext.documents.request_signature.request/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "output_schema": {
+      "schema_id": "hcmnext.documents.request_signature.response/v1",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.capabilities.v1.CapabilityDefinition"
+    },
+    "inputs": [
+      {
+        "path": "assurance",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "ceremony_key",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "expires_in_seconds",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "artifact_hash",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "signer_id",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "path": "ceremony_id",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "state",
+        "type": {
+          "kind": "STRING"
+        }
+      },
+      {
+        "path": "digest",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "input_mappings": [
+      {
+        "target": "assurance",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "ENHANCED"
+        }
+      },
+      {
+        "target": "ceremony_key",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "k-1"
+        }
+      },
+      {
+        "target": "expires_in_seconds",
+        "source": {
+          "kind": "CONSTANT",
+          "type": {
+            "kind": "STRING"
+          },
+          "constant": "3600"
+        }
+      },
+      {
+        "target": "artifact_hash",
+        "source": {
+          "kind": "NODE_OUTPUT",
+          "node_id": "offer_letter.render",
+          "path": "artifact_digest",
+          "type": {
+            "kind": "STRING"
+          }
+        }
+      },
+      {
+        "target": "signer_id",
+        "source": {
+          "kind": "WORKFLOW_INPUT",
+          "path": "signer_id",
+          "type": {
+            "kind": "STRING"
+          }
+        }
+      }
+    ],
+    "capability": {
+      "id": "hcmnext.documents.request_signature",
+      "version": 1,
+      "operation_mode": "EXECUTE",
+      "authority_scopes": [
+        "scope:documents.read",
+        "scope:documents.write"
+      ],
+      "idempotency_key_mapping": "ceremony_key",
+      "effect_binding": "documents.signature.request"
+    },
+    "declared_effect": "INTERNAL_MUTATION",
+    "effect_role": "AUTHORITATIVE_CORE",
+    "mode_overlay": {
+      "simulate_effect": "READ_ONLY"
+    },
+    "governance": {
+      "purpose": "EXT015_FIXTURE",
+      "classification": "CONFIDENTIAL_HR",
+      "required_decisions": [
+        "AUTHZ",
+        "LEGAL",
+        "PURPOSE",
+        "RISK"
+      ],
+      "revalidation_boundary": "PRE_EFFECT",
+      "data_access_manifest_ref": "dam/ext015"
+    },
+    "metadata": {
+      "hcmnext.fragment": "offer_letter",
+      "hcmnext.fragment.role": "sign"
+    }
+  },
+  {
+    "id": "offer_letter.signed",
+    "type": "SIGNAL",
+    "input_schema": {
+      "schema_id": "hcmnext.fragments.signal.input",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+    },
+    "output_schema": {
+      "schema_id": "hcmnext.fragments.signal.result",
+      "version": 1,
+      "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+    },
+    "inputs": [
+      {
+        "path": "worker_id",
+        "type": {
+          "kind": "STRING",
+          "brand": "WorkerID"
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "path": "ceremony_id",
+        "type": {
+          "kind": "STRING"
+        }
+      }
+    ],
+    "input_mappings": [
+      {
+        "target": "worker_id",
+        "source": {
+          "kind": "WORKFLOW_INPUT",
+          "path": "worker_id",
+          "type": {
+            "kind": "STRING",
+            "brand": "WorkerID"
+          }
+        }
+      }
+    ],
+    "signal": {
+      "event_type": "documents.signature.signed",
+      "correlation_key_expression": "worker_id",
+      "expected_schema_ref": {
+        "schema_id": "hcmnext.fragments.signal.documents.signature.signed",
+        "version": 1,
+        "protobuf_full_name": "hcmnext.fragments.v1.Envelope"
+      },
+      "accepted_sources": [
+        "documents"
+      ],
+      "ordering": "NONE"
+    },
+    "declared_effect": "PURE",
+    "governance": {
+      "purpose": "EXT015_FIXTURE",
+      "classification": "CONFIDENTIAL_HR",
+      "required_decisions": [
+        "AUTHZ",
+        "LEGAL",
+        "PURPOSE",
+        "RISK"
+      ],
+      "revalidation_boundary": "PRE_EFFECT",
+      "data_access_manifest_ref": "dam/ext015"
+    },
+    "metadata": {
+      "hcmnext.fragment": "offer_letter",
+      "hcmnext.fragment.role": "signed"
+    }
+  }
+]

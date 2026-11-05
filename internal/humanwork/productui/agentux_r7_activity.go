@@ -135,13 +135,15 @@ func agentRunLocation(locale LocaleContext, run AgentControlRun) ui.Node {
 
 func agentRunOutcome(locale LocaleContext, run AgentControlRun) ui.Node {
 	tone := "neutral"
-	if run.State == "FAILED" {
+	// Run states arrive in mixed case; the streak detector and the state
+	// label both match case-insensitively, and so does the tone.
+	if strings.EqualFold(run.State, "FAILED") {
 		tone = "danger"
-	} else if run.State == "COMPLETED" {
+	} else if strings.EqualFold(run.State, "COMPLETED") {
 		tone = "success"
 	}
 	children := []ui.Node{html.Span(html.Props{Class: "status agent-run-outcome", Raw: map[string]any{"data-tone": tone}}, ui.Text(agentControlLocalizedState(locale, run.State)))}
-	if run.State == "FAILED" {
+	if strings.EqualFold(run.State, "FAILED") {
 		reason, _ := agentOpsFailureCopy(locale, run.FailureGate)
 		if reason == "" {
 			reason, _ = agentOpsFailureCopy(locale, run.Failure)
@@ -210,14 +212,14 @@ func RenderAgentRunHistory(locale LocaleContext, runs []AgentControlRun, filter 
 	for _, run := range page.Runs {
 		name := agentControlNameVersion(locale, agentControlDisplayName(locale, "run", run.Name, run.ID), personaAdminLocalizedNumber(locale, run.Version))
 		at := agentOperationsFormatInstant(locale, run.Started)
-		rows = append(rows, html.Tr(html.Props{Raw: map[string]any{"data-control-run": run.ID}}, html.Td(html.Props{}, html.Time(html.Props{Title: run.Started, Raw: map[string]any{"datetime": run.Started}}, ui.Text(at))), html.Td(html.Props{}, html.Details(html.Props{Class: "agent-run-details"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(name)), agentOpsRecentRunDetails(locale, run))), html.Td(html.Props{}, html.Tag("bdi", html.Props{}, ui.Text(run.RequestedBy))), html.Td(html.Props{}, agentRunLocation(locale, run)), html.Td(html.Props{}, ui.Text(agentUX073RunDuration(locale, run))), html.Td(html.Props{}, agentRunOutcome(locale, run))))
+		rows = append(rows, html.Tr(html.Props{Raw: map[string]any{"data-control-run": run.ID}}, html.Td(html.Props{}, html.Time(html.Props{Title: run.Started, Raw: map[string]any{"datetime": run.Started}}, ui.Text(at))), html.Td(html.Props{}, html.Details(html.Props{Class: "agent-run-details"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": agentDisclosureChevron(locale)}}, ui.Text(name)), agentOpsRecentRunDetails(locale, run))), html.Td(html.Props{}, html.Tag("bdi", html.Props{}, ui.Text(run.RequestedBy))), html.Td(html.Props{}, agentRunLocation(locale, run)), html.Td(html.Props{}, ui.Text(agentUX073RunDuration(locale, run))), html.Td(html.Props{}, agentRunOutcome(locale, run))))
 		cards = append(cards, agentUXR7RecentRunCard(locale, run))
 	}
 	nodes := []ui.Node{html.H3(html.Props{Class: "agent-operations-recent-title"}, ui.Text(agentUXR7Text(locale, "recent", "{count}", locale.FormatNumber(strconv.Itoa(page.Total), 0)))), html.Div(html.Props{Class: "agent-history-filters"}, fields...)}
 	if page.Total == 0 {
 		nodes = append(nodes, html.P(html.Props{Role: "status"}, ui.Text(agentUXR7Text(locale, "no_runs_match"))))
 	}
-	nodes = append(nodes, html.Div(html.Props{Class: "agent-history-desktop"}, html.Table(html.Props{Class: "agent-history-table"}, html.Thead(html.Props{}, html.Tr(html.Props{}, head...)), html.Tbody(html.Props{}, rows...))), html.Div(html.Props{Class: "agent-history-mobile"}, cards...), html.Nav(html.Props{Class: "agent-history-pagination", Aria: map[string]string{"label": agentUXR7Text(locale, "recent", "{count}", fmt.Sprint(page.Total))}}, html.Button(html.Props{Type: "button", Class: "button secondary", Disabled: page.Page <= 1, Raw: map[string]any{"data-agent-history-page": page.Page - 1}}, ui.Text(agentUXR7Text(locale, "previous"))), html.Span(html.Props{Role: "status"}, ui.Text(agentUXR7Text(locale, "page", "{page}", locale.FormatNumber(fmt.Sprint(page.Page), 0), "{total}", locale.FormatNumber(fmt.Sprint(page.Pages), 0)))), html.Button(html.Props{Type: "button", Class: "button secondary", Disabled: page.Page >= page.Pages, Raw: map[string]any{"data-agent-history-page": page.Page + 1}}, ui.Text(agentUXR7Text(locale, "next")))))
+	nodes = append(nodes, html.Div(html.Props{Class: "agent-history-desktop"}, html.Table(html.Props{Class: "agent-history-table"}, html.Thead(html.Props{}, html.Tr(html.Props{}, head...)), html.Tbody(html.Props{}, rows...))), html.Div(html.Props{Class: "agent-history-mobile"}, cards...), html.Nav(html.Props{Class: "agent-history-pagination", Aria: map[string]string{"label": agentUXR7Text(locale, "recent", "{count}", locale.FormatNumber(strconv.Itoa(page.Total), 0))}}, html.Button(html.Props{Type: "button", Class: "button secondary", Disabled: page.Page <= 1, Raw: map[string]any{"data-agent-history-page": page.Page - 1}}, ui.Text(agentUXR7Text(locale, "previous"))), html.Span(html.Props{Role: "status"}, ui.Text(agentUXR7Text(locale, "page", "{page}", locale.FormatNumber(fmt.Sprint(page.Page), 0), "{total}", locale.FormatNumber(fmt.Sprint(page.Pages), 0)))), html.Button(html.Props{Type: "button", Class: "button secondary", Disabled: page.Page >= page.Pages, Raw: map[string]any{"data-agent-history-page": page.Page + 1}}, ui.Text(agentUXR7Text(locale, "next")))))
 	return html.Section(html.Props{ID: "agent-run-history", Class: "agent-run-history", Raw: map[string]any{"data-history-page": page.Page}}, nodes...)
 }
 
@@ -231,7 +233,7 @@ func agentUXR7RecentRunCard(locale LocaleContext, run AgentControlRun) ui.Node {
 		agentOpsRunFact(agentControlsText(locale, "duration"), agentUX073RunDuration(locale, run)),
 		agentRunOutcome(locale, run),
 	}
-	if run.State == "FAILED" {
+	if strings.EqualFold(run.State, "FAILED") {
 		_, next := agentOpsFailureCopy(locale, run.FailureGate)
 		if next == "" {
 			_, next = agentOpsFailureCopy(locale, run.Failure)
@@ -240,7 +242,7 @@ func agentUXR7RecentRunCard(locale LocaleContext, run AgentControlRun) ui.Node {
 			children = append(children, html.P(html.Props{}, ui.Text(next)))
 		}
 	}
-	children = append(children, html.Details(html.Props{Class: "agent-operations-technical"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": "›"}}, ui.Text(agentControlsText(locale, "technical"))), agentOpsRecentRunDetails(locale, run)))
+	children = append(children, html.Details(html.Props{Class: "agent-operations-technical"}, html.Summary(html.Props{Raw: map[string]any{"data-chevron": agentDisclosureChevron(locale)}}, ui.Text(agentControlsText(locale, "technical"))), agentOpsRecentRunDetails(locale, run)))
 	return html.Article(html.Props{Class: "card persona-admin-card agent-operations-run agent-operations-run-finished", Raw: map[string]any{"data-control-run": run.ID}}, children...)
 }
 

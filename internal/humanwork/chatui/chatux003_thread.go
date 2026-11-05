@@ -24,7 +24,7 @@ func chatux003ThreadAgentReply(m Model, h handlers, msg Message) ([]ui.Node, boo
 	if feedback := renderAgentFeedback(m, h.local, msg.ID); feedback != nil {
 		content = append(content, feedback)
 	}
-	content = append(content, chatlangExtras(m, h, msg)...)
+	content = append(content, chatlangExtrasThread(m, h, msg)...)
 	content = append(content, integrate2MessageLocations(m, msg)...)
 	// The Sources row is the reference for an agent's documents: no second
 	// preview card for a title the answer links.

@@ -88,7 +88,7 @@ func AppearancePage(props AppearancePageProps) ui.Node {
 			appearanceScopeGuidance(props.I18nProps),
 		),
 		appearanceSectionNavigation(props.I18nProps),
-		html.Form(html.Props{Class: "appearance-form", OnSubmit: preventFormSubmit(props.OnSave, &draft), Raw: map[string]any{"data-unsaved-protection": "true", "data-unsaved-form": "appearance", "data-unsaved": fmt.Sprint(dirty), "data-unsaved-message": props.Text("appearance.preview_unsaved")}},
+		html.Form(html.Props{Class: "appearance-form", OnSubmit: preventFormSubmit(props.OnSave, &draft), Raw: map[string]any{"data-unsaved-protection": "true", "data-unsaved-form": "appearance", "data-unsaved": fmt.Sprint(dirty), "data-unsaved-message": props.Text("appearance.leave_unsaved")}},
 			html.Fieldset(html.Props{Class: "appearance-edit-boundary", Disabled: !props.Editable},
 				html.Div(html.Props{Class: "appearance-controls"},
 					appearanceBrandSignature(props.I18nProps, appearanceBrandEditorTheme(draft, props.PreviewTenant), props.PreviewTenant, func(value string) {

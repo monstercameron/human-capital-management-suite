@@ -81,7 +81,7 @@ var chatbug059Data = []string{
 // does, so the same word on the German page is not a leak.
 var chatbug059SharedGerman = map[string]bool{
 	"Agent": true, "Hindi": true, "Emoji": true, "Code": true, "Link": true, "Apps": true, "Details": true,
-	"Filter": true, "Name": true, "Thread": true, "Moderation": true, "Person": true, "Status": true, "Version:": true,
+	"Filter": true, "Name": true, "Thread": true, "Moderation": true, "Person": true, "Status": true, "Version:": true, "Optional": true,
 }
 
 // chatbug059Token matches what is not a sentence in any language: a slash

@@ -60,8 +60,7 @@
 // asserts (carried through as evidence, never verified here) and stays
 // required; -execution-authority-approver names who the workflow's
 // approval WorkItem is routed to. -execution-authority=false opts back
-// out to the refusing cell (then -scheduler must also be false), and
-// -workflow-plan=prototype simulates promotions without effects.
+// out to the refusing cell (then -scheduler must also be false).
 //
 // Process lifecycle is not this command's business and is not implemented
 // here: configuration precedence, the build banner, signal handling, the

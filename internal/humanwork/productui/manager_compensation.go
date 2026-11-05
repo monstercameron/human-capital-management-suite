@@ -38,6 +38,7 @@ type ManagerCompensationProjection struct {
 }
 
 type ManagerCompensationRange struct {
+	_        incomparable
 	Minimum  string
 	Maximum  string
 	Currency string
@@ -53,6 +54,7 @@ type ManagerCompensationRow struct {
 }
 
 type ManagerCompensationComponent struct {
+	_         incomparable
 	Kind      string
 	Amount    string
 	Currency  string

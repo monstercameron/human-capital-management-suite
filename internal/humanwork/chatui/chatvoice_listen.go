@@ -121,7 +121,7 @@ func chatListenThreadHost(m Model) ui.Node {
 }
 
 func listenSpeaker() ui.Node {
-	return html.Tag("svg", html.Props{Class: "chat-icon", Raw: map[string]any{"viewBox": "0 0 24 24", "width": "20", "height": "20", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": "M4 9v6h4l5 4V5L8 9H4zm12 0a4 4 0 0 1 0 6m2.5-9a8 8 0 0 1 0 12"}}))
+	return voiceGlyph("M4 9v6h4l5 4V5L8 9H4zm12 0a4 4 0 0 1 0 6m2.5-9a8 8 0 0 1 0 12", true)
 }
 
 // ListenPlayerProps names the message the player row belongs to.

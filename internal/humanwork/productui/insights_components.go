@@ -42,6 +42,7 @@ type BarChartProps struct {
 // summary visible. A metric without its period, freshness, and source is too
 // easy to mistake for a complete workforce report.
 type InsightsEvidenceProps struct {
+	_                incomparable
 	TimeRange        string
 	Freshness        string
 	Lineage          string

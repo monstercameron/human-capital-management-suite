@@ -30,6 +30,13 @@ func computeContinuationDigest(c Continuation) string {
 		String("node_id", c.NodeID).
 		String("proposal_revision_id", c.ProposalRevisionID)
 	writeReference(w, c.ProposalDigest).Count("requirements", len(c.Requirements))
+	// The default encodes only when declared, so a continuation without
+	// one keeps its historical digest byte for byte.
+	if c.DeadlineDefault.Schema != "" {
+		w.
+			String("deadline_default.schema", c.DeadlineDefault.Schema).
+			String("deadline_default.payload", c.DeadlineDefault.CanonicalJSON)
+	}
 	for _, req := range c.Requirements {
 		w.String("requirement.id", req.RequirementID).
 			Int("requirement.revision", int64(req.RequirementRevision)).
@@ -62,6 +69,9 @@ func computeResolutionDigest(r Resolution) string {
 		SortedStrings("work_item_refs", items).
 		Value("resolved_at", r.ResolvedAt).
 		String("reason", r.Reason)
+	if r.DefaultOutputDigest != "" {
+		w.String("default_output_digest", r.DefaultOutputDigest)
+	}
 	raw, err := w.Bytes()
 	if err != nil {
 		return ""

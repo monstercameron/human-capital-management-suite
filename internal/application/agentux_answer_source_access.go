@@ -16,14 +16,17 @@ import (
 // live access checks. It is installed on the chat service at assembly time.
 type AgentUXAnswerSourceAccess struct{ Documents *documenthubstore.Store }
 
+// agentUXAnswerLegacyVersionPattern matches the legacy numeric version pin of a
+// cited title. It is compiled once: resolution runs once per cited source.
+var agentUXAnswerLegacyVersionPattern = regexp.MustCompile(` \(version ([0-9]+)(?:,.*)?\)$`)
+
 func (a AgentUXAnswerSourceAccess) ResolveAgentDocumentSource(ctx context.Context, reader chat.Principal, tenant, conversation string, source chat.AgentDocumentSource) (chat.AgentDocumentSource, error) {
 	if a.Documents == nil || reader.TenantID != tenant || reader.SubjectID == "" {
 		return source, chat.ErrPermissionDenied
 	}
 	baseTitle := strings.TrimSpace(strings.SplitN(source.Title, " · ", 2)[0])
-	legacy := regexp.MustCompile(` \(version ([0-9]+)(?:,.*)?\)$`)
-	legacyParts := legacy.FindStringSubmatch(baseTitle)
-	baseTitle = legacy.ReplaceAllString(baseTitle, "")
+	legacyParts := agentUXAnswerLegacyVersionPattern.FindStringSubmatch(baseTitle)
+	baseTitle = agentUXAnswerLegacyVersionPattern.ReplaceAllString(baseTitle, "")
 	if source.DocumentID == "" {
 		placements, err := a.Documents.ListReadableOfficialPlacementDocuments(ctx, tenant, conversation, "person", reader.SubjectID)
 		if err != nil {

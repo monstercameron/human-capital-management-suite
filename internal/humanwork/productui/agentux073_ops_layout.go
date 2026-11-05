@@ -17,6 +17,7 @@ func agentUX073Text(locale LocaleContext, key string, replacements ...string) st
 		"state_paused":       {"Paused", "Pausiert", "متوقف مؤقتًا"},
 		"state_ready":        {"Ready", "Bereit", "جاهز"},
 		"state_unplaced":     {"Not placed", "Nicht platziert", "غير موضوع"},
+		"state_stopped":      {"Stopped", "Angehalten", "متوقف"},
 		"filter_agent":       {"Agent", "Agent", "الوكيل"},
 		"failed_after":       {"Failed after {duration}", "Nach {duration} fehlgeschlagen", "فشل بعد {duration}"},
 		"agents_unavailable": {"The list of agents could not be loaded here.", "Die Liste der Agenten konnte hier nicht geladen werden.", "تعذر تحميل قائمة الوكلاء هنا."},
@@ -55,8 +56,11 @@ func agentUX073AgentRows(locale LocaleContext, snapshot AgentControlsSnapshot) u
 		if version := strings.TrimSpace(persona.Version); version != "" {
 			identity = append(identity, html.Small(html.Props{}, ui.Text(agentUX073Text(locale, "agent_version", "{version}", personaAdminVersionToken(locale, persona.VersionLabel, version)))))
 		}
+		if validity := agentUX082ActivityValidity(locale, persona); validity != nil {
+			identity = append(identity, validity)
+		}
 		rows = append(rows, html.Li(html.Props{Class: "agent-owner-pause-row", Raw: map[string]any{"data-persona-id": persona.ID}},
-			html.Span(html.Props{Class: "agent-activity-icon", Aria: map[string]string{"hidden": "true"}}, agentUX074Icon(persona.Icon, persona.ID, siblings)),
+			html.Span(html.Props{Class: "agent-activity-icon", Aria: map[string]string{"hidden": "true"}}, agentUX074IconImage(persona.Icon, persona.IconImageURL, persona.ID, siblings)),
 			html.Div(html.Props{Class: "agent-activity-identity"}, identity...),
 			html.Span(html.Props{Class: "status agent-activity-state", Raw: map[string]any{"data-tone": tone}}, ui.Text(state)),
 			personaAdminPauseButton(locale, persona, PersonaAdminSnapshot{CommandPermissionsAvailable: true, AllowedCommands: snapshot.AllowedCommands}),

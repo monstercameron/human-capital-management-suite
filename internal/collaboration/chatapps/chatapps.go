@@ -541,20 +541,6 @@ func (s *Service) Deliver(ctx context.Context, e Event) error {
 		return recorder.AppendOnce(ctx, e, s.now())
 	}
 	return ErrDenied
-	/*seen, err := s.Repo.Seen(ctx, e.ID)
-	if err != nil {
-		return err
-	}
-	if seen {
-		return ErrReplay
-	}
-	if err = s.Repo.AppendEvent(ctx, e); err != nil {
-		return err
-	}
-	// A durable implementation should make this mark and the append one
-	// transaction. Keeping the mark after append preserves at-least-once
-	// recovery if an adapter cannot provide that transaction.
-	return s.Repo.MarkSeen(ctx, e.ID, s.now())*/
 }
 
 type Cursor struct {

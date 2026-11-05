@@ -23,15 +23,7 @@ func (s *server) roleAccessStore(principal *trust.Principal, requestID string) (
 // administration decision reads, failing closed when the store is missing
 // or unreadable.
 func (s *server) roleSnapshot(ctx context.Context, principal *trust.Principal, requestID string) (roleaccess.Snapshot, error) {
-	store, err := s.roleAccessStore(principal, requestID)
-	if err != nil {
-		return roleaccess.Snapshot{}, err
-	}
-	snapshot, err := store.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
-	if err != nil {
-		return roleaccess.Snapshot{}, roleAccessError(err, principal, requestID, "load")
-	}
-	return snapshot, nil
+	return s.authorize(principal, requestID).roleSnapshot(ctx)
 }
 
 // snapshotAdministers reports whether roles may administer roles: the
@@ -61,17 +53,6 @@ func snapshotAdministers(snapshot roleaccess.Snapshot, roles []string) bool {
 
 func roleRequiredError(principal *trust.Principal, requestID string) error {
 	return envelope.New(envelope.CodePermissionDenied, "journey.role_access.role_required", "role administration requires the stored roles administration grant").WithCorrelation(requestID).WithEvidence(evidence(principal))
-}
-
-func (s *server) requireRoleAdministrator(ctx context.Context, principal *trust.Principal, requestID string) error {
-	snapshot, err := s.roleSnapshot(ctx, principal, requestID)
-	if err != nil {
-		return err
-	}
-	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
-		return roleRequiredError(principal, requestID)
-	}
-	return nil
 }
 
 // isSelfRoleChange reports whether workerRef names the caller. A principal
@@ -228,7 +209,8 @@ func (s *server) GetRoleAccess(ctx context.Context, _ *journeyv1.GetRoleAccessRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	auth := s.authorize(principal, inv.RequestID())
+	snapshot, err := auth.roleSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +219,7 @@ func (s *server) GetRoleAccess(ctx context.Context, _ *journeyv1.GetRoleAccessRe
 	if err := s.requireSnapshotServedCall(snapshot, principal, inv, "GetRoleAccess"); err != nil {
 		return nil, err
 	}
-	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
+	if !snapshotAdministers(snapshot, auth.roles(ctx)) {
 		return nil, roleRequiredError(principal, inv.RequestID())
 	}
 	response := &journeyv1.GetRoleAccessResponse{}
@@ -268,7 +250,8 @@ func (s *server) SaveAccessRole(ctx context.Context, req *journeyv1.SaveAccessRo
 	if req.GetRole().GetVersion() > 0 {
 		action = roleaccess.ActionUpdate
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "roles", action); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "roles", action); err != nil {
 		return nil, err
 	}
 	if req.GetRole() == nil {
@@ -276,11 +259,11 @@ func (s *server) SaveAccessRole(ctx context.Context, req *journeyv1.SaveAccessRo
 	}
 	requested := fromAccessRole(req.GetRole())
 	requested.Reason = req.GetReason()
-	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	snapshot, err := auth.roleSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !snapshotAdministers(snapshot, s.effectiveRoles(ctx, principal)) {
+	if !snapshotAdministers(snapshot, auth.roles(ctx)) {
 		return nil, roleRequiredError(principal, inv.RequestID())
 	}
 	// Deactivating the last grant-bearing role locks every principal out
@@ -305,10 +288,11 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "roles", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "roles", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
+	if err := auth.requireRoleAdministrator(ctx); err != nil {
 		return nil, err
 	}
 	if req.GetAssignment() == nil {
@@ -327,9 +311,8 @@ func (s *server) SaveWorkerRoleAssignment(ctx context.Context, req *journeyv1.Sa
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "save_assignment")
 	}
-	// The subject's durable assignment just changed: drop the cached role
-	// set so the next check resolves the new one.
-	s.roleResolver().Invalidate(principal.Tenant(), assignment.WorkerRef)
+	// Every RPC reads the durable snapshot fresh, so there is no cached role
+	// set to invalidate: the next check resolves the new assignment.
 	return &journeyv1.SaveWorkerRoleAssignmentResponse{Assignment: toWorkerRoleAssignment(assignment)}, nil
 }
 
@@ -338,10 +321,11 @@ func (s *server) SaveRoleOrganizationVisibility(ctx context.Context, req *journe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "organization-visibility", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "organization-visibility", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
+	if err := auth.requireRoleAdministrator(ctx); err != nil {
 		return nil, err
 	}
 	if req.GetPolicy() == nil {
@@ -365,7 +349,8 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "roles", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "roles", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	if req.GetPermission() == nil {
@@ -373,11 +358,11 @@ func (s *server) SaveRolePagePermission(ctx context.Context, req *journeyv1.Save
 	}
 	requested := fromRolePagePermission(req.GetPermission())
 	requested.Reason = req.GetReason()
-	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	snapshot, err := auth.roleSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	callerRoles := s.effectiveRoles(ctx, principal)
+	callerRoles := auth.roles(ctx)
 	if !snapshotAdministers(snapshot, callerRoles) {
 		return nil, roleRequiredError(principal, inv.RequestID())
 	}
@@ -403,7 +388,8 @@ func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.S
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "roles", "feature_access", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "roles", "feature_access", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	if req.GetPermission() == nil {
@@ -411,11 +397,11 @@ func (s *server) SaveRoleFeaturePermission(ctx context.Context, req *journeyv1.S
 	}
 	requested := fromRoleFeaturePermission(req.GetPermission())
 	requested.Reason = req.GetReason()
-	snapshot, err := s.roleSnapshot(ctx, principal, inv.RequestID())
+	snapshot, err := auth.roleSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	callerRoles := s.effectiveRoles(ctx, principal)
+	callerRoles := auth.roles(ctx)
 	if !snapshotAdministers(snapshot, callerRoles) {
 		return nil, roleRequiredError(principal, inv.RequestID())
 	}

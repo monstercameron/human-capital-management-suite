@@ -21,6 +21,7 @@ var docsJourneyID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~-]{0,127}$`)
 // in-progress workflow (a promotion journey). Authorized stays false when
 // the journey service refused, did not find, or failed to read it.
 type DocsJourneyPreview struct {
+	_          incomparable
 	IntentID   string
 	Authorized bool
 	Workflow   string `json:",omitempty"`

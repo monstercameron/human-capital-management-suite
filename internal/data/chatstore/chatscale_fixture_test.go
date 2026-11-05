@@ -12,11 +12,16 @@ import (
 
 var chatscaleLarge = flag.Bool("chatscale.large", false, "seed two million chat posts instead of 50,000")
 
+var chatscalePosts = flag.Int("chatscale.posts", 0, "seed exactly this many chat posts (a multiple of 1,000); overrides chatscale.large and enables multi-volume percentile series")
+
 const chatscaleTenant = "chatscale-tenant"
 const chatscaleReader = "chatscale-reader"
 const chatscaleRoom = "chatscale-c-000"
 
 func chatscaleSize() int {
+	if *chatscalePosts > 0 {
+		return *chatscalePosts
+	}
 	if *chatscaleLarge {
 		return 2000000
 	}

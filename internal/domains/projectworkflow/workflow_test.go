@@ -178,6 +178,33 @@ func TestTodo_PM_011(t *testing.T) {
 	if got := Validate(c); !hasCode(got, "INVALID_CLASSIFICATION") {
 		t.Fatalf("unbounded classification accepted: %#v", got)
 	}
+
+	c = workflowFixture()
+	for i := 0; i < 22; i++ {
+		c.Fields = append(c.Fields, Field{ID: "field-" + string(rune('a'+i)), Name: "Extra", Type: FieldText, Classification: "INTERNAL"})
+	}
+	c.Fields = append(c.Fields, Field{ID: "old-1", Name: "Old", Type: FieldText, Classification: "INTERNAL", Retired: true}, Field{ID: "old-2", Name: "Older", Type: FieldText, Classification: "INTERNAL", Retired: true})
+	if got := Validate(c); hasCode(got, "LIMIT_ACTIVE_FIELDS") {
+		t.Fatalf("25 active fields with retired extras rejected: %#v", got)
+	}
+	c.Fields = append(c.Fields, Field{ID: "one-too-many", Name: "Extra", Type: FieldText, Classification: "INTERNAL"})
+	if got := Validate(c); !hasCode(got, "LIMIT_ACTIVE_FIELDS") {
+		t.Fatalf("26th active field accepted: %#v", got)
+	}
+
+	c = workflowFixture()
+	options := make([]string, 0, 101)
+	for i := 0; i < 101; i++ {
+		options = append(options, "option-"+string(rune('a'+i/26))+string(rune('a'+i%26)))
+	}
+	c.Fields[1].Validation.Options = options
+	if got := Validate(c); !hasCode(got, "INVALID_ENUM_OPTIONS") {
+		t.Fatalf("101 enum options accepted: %#v", got)
+	}
+	c.Fields[1].Validation.Options = options[:100]
+	if got := Validate(c); hasCode(got, "INVALID_ENUM_OPTIONS") {
+		t.Fatalf("100 enum options rejected: %#v", got)
+	}
 }
 
 func FuzzTodo_PM_011(f *testing.F) {

@@ -49,7 +49,7 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		FieldMigrate, FieldWorkspace, FieldDevBrowserLogin, FieldOTelExporter,
 		FieldOTelEndpoint, FieldExecutionAuthority, FieldExecutionAuthorityDigest,
 		FieldExecutionAuthorityRole, FieldExecutionApprover, FieldExecutionManagerApprover, FieldExecutionFinancePartner,
-		FieldWorkflowPlan, FieldLegalEvidenceIssuerKeys,
+		FieldLegalEvidenceIssuerKeys,
 		FieldExecutionRetry, FieldExecutionRetryVersion, FieldExecutionRetryMaxAttempts,
 		FieldExecutionRetryResolutionAttempts, FieldPublicOrigin, FieldLocalDevNow,
 		FieldParameterEnvironment,
@@ -106,8 +106,8 @@ func TestServeConfigFieldsDeclareEveryConfigurationTheRoleReads(t *testing.T) {
 		t.Errorf("-%s defaults to %q, want true: promotions run through the execution engine unless opted out",
 			FieldExecutionAuthority, declared[FieldExecutionAuthority].Default)
 	}
-	if declared[FieldWorkflowPlan].Default != WorkflowPlanExecute {
-		t.Errorf("-%s defaults to %q, want %q", FieldWorkflowPlan, declared[FieldWorkflowPlan].Default, WorkflowPlanExecute)
+	if _, ok := declared["workflow-plan"]; ok {
+		t.Error("the -workflow-plan flag was removed by WF-EXT-008; the served cell always runs the execute plan")
 	}
 	if declared[FieldScheduler].Default != "true" {
 		t.Errorf("-%s defaults to %q, want true: the execute plan's durable WAITs need the dispatcher",
@@ -172,7 +172,6 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		"-execution-authority-role=promo_op", "-execution-authority-approver=principal:approver",
 		"-execution-authority-manager-approver=principal:manager-approver",
 		"-timer-tzdb-version=2026b", "-timer-calendar-version=2026.2", "-health-addr=127.0.0.1:9",
-		"-workflow-plan=execute",
 		"-execution-retry=true", "-execution-retry-version=retry-v1",
 		"-execution-retry-max-attempts=3", "-execution-retry-resolution-attempts=4",
 		"-legal-evidence-issuer-keys=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -199,8 +198,8 @@ func TestServeConfigFromValuesResolvesEveryFieldOnce(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:abc",
 		ExecutionAuthorityRole: "promo_op", ExecutionApprover: "principal:approver",
 		ExecutionManagerApprover: "principal:manager-approver",
-		WorkflowPlan:             WorkflowPlanExecute, Scheduler: true,
-		ExecutionRetry: true, ExecutionRetryVersion: "retry-v1",
+		Scheduler:                true,
+		ExecutionRetry:           true, ExecutionRetryVersion: "retry-v1",
 		ExecutionRetryMaxAttempts: 3, ExecutionRetryResolutionAttempts: 4,
 		LegalEvidenceIssuerKeys: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 		TimerTzdbVersion:        "2026b", TimerCalendarVersion: "2026.2", HealthAddr: "127.0.0.1:9",
@@ -360,7 +359,7 @@ func TestLocalDevProfileAppliesFastSafeDefaultsAndKeepsExplicitOverrides(t *test
 	if !cfg.Migrate {
 		t.Fatal("explicit -migrate=true did not override the profile default")
 	}
-	if !cfg.DevBrowserLogin || !cfg.ExecutionAuthority || !cfg.Scheduler || cfg.WorkflowPlan != WorkflowPlanExecute {
+	if !cfg.DevBrowserLogin || !cfg.ExecutionAuthority || !cfg.Scheduler {
 		t.Fatalf("local profile runtime defaults = %+v", cfg)
 	}
 	// PROMOUX-015: the demo tenant's finance approvals route to its Finance
@@ -533,7 +532,13 @@ func TestServeConfigValidateRejectsAConfigurationAListenerMustNotStartOn(t *test
 			c.ExecutionAuthorityDigest = "d"
 			c.ExecutionAuthorityRole = "r"
 		}, FieldExecutionApprover},
-		{"unknown workflow plan", func(c *ServeConfig) { c.WorkflowPlan = "other" }, FieldWorkflowPlan},
+		{"manager approver equals the finance approver", func(c *ServeConfig) {
+			c.ExecutionAuthority = true
+			c.ExecutionAuthorityDigest = "d"
+			c.ExecutionAuthorityRole = "r"
+			c.ExecutionApprover = "a"
+			c.ExecutionManagerApprover = "a"
+		}, FieldExecutionManagerApprover},
 		{"scheduler without tenant", func(c *ServeConfig) {
 			c.Scheduler = true
 			c.ExecutionAuthority = true
@@ -633,9 +638,6 @@ func TestServeConfigDefaultsComposeTheExecutingCell(t *testing.T) {
 	}
 	if cfg.OTelExporter != OTelExporterNone {
 		t.Errorf("default exporter = %q, want %q", cfg.OTelExporter, OTelExporterNone)
-	}
-	if cfg.WorkflowPlan != WorkflowPlanExecute {
-		t.Errorf("default workflow plan = %q, want %q", cfg.WorkflowPlan, WorkflowPlanExecute)
 	}
 	if cfg.Issuer != DefaultIssuer || cfg.Audience != DefaultAudience {
 		t.Errorf("default issuer/audience = %q/%q, want %q/%q",

@@ -91,7 +91,7 @@ func chatux024Examples(m Model, c Conversation) []string {
 func chatux024EmptyAgent(m Model, c Conversation) []ui.Node {
 	name := displayName(m, c)
 	children := []ui.Node{
-		agentDMAvatar(name, "avatar agent-dm-avatar chatux024-avatar", conversationAgentIcon(m, c)),
+		agentAvatar(name, "avatar agent-dm-avatar chatux024-avatar", conversationAgentIconImage(m, c), conversationAgentIcon(m, c)),
 		html.H2(html.Props{Text: strings.ReplaceAll(chatux024Text(m.Locale, "ask"), "{name}", name)}),
 	}
 	if purpose := agentConversationPurpose(m, c); purpose != "" {

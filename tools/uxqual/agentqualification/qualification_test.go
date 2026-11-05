@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func qualificationPlan(t *testing.T) (SignedPlan, map[string]ed25519.PublicKey) {
+func qualificationPlan(t testing.TB) (SignedPlan, map[string]ed25519.PublicKey) {
 	t.Helper()
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

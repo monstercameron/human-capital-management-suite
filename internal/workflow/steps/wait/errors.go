@@ -12,7 +12,7 @@ var (
 	ErrNoWakeCondition = errors.New("wait: no wake condition declared")
 	// ErrConflictingWakeCondition says a CompiledWaitNode declared both a
 	// fixed instant and a local-date wake condition; exactly one is legal.
-	ErrConflictingWakeCondition = errors.New("wait: instant and local-date wake conditions are mutually exclusive")
+	ErrConflictingWakeCondition = errors.New("wait: wake conditions are mutually exclusive; exactly one is legal")
 	// ErrInvalidRequirement says Resolve was called with a TimerRequirement
 	// with a missing or mismatched content digest.
 	ErrInvalidRequirement = errors.New("wait: requirement content digest is missing or invalid")
@@ -34,4 +34,10 @@ var (
 	// ErrAdvanceBackwards says a development clock request attempted to move
 	// backwards, which could make a wait appear to complete inconsistently.
 	ErrAdvanceBackwards = errors.New("wait: local-dev advance cannot move backwards")
+
+	// ErrTimeExprAnchorRequired says a time-expression wake was resolved
+	// without its per-instance anchor. ComputeTimerRequirementAtAnchor is
+	// the anchored form; the anchor-free ComputeTimerRequirement refuses
+	// AT_TIME_EXPR nodes with this error.
+	ErrTimeExprAnchorRequired = errors.New("wait: a time-expression wake requires a per-instance anchor")
 )

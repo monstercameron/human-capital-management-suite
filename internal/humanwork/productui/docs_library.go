@@ -34,6 +34,7 @@ type DocumentFolder struct {
 // DocumentAccessEntry is one row of a document's access list. Only the owner
 // or a manager receives it.
 type DocumentAccessEntry struct {
+	_                               incomparable
 	SubjectID, Name, PhotoURL, Role string
 	Removable                       bool
 }
@@ -52,6 +53,7 @@ func NormalizeDocumentPerPage(size int) int {
 // the list builds its link from one of these so filters compose instead of
 // resetting one another.
 type docsLibraryRoute struct {
+	_                                            incomparable
 	Query, Collection, Folder, Sort, Owner, Mode string
 	Page, PerPage                                int
 }

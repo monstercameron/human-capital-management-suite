@@ -5,14 +5,15 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// CHATSAVE-002. The two glyphs the shared icon set does not hold, drawn in its
+// CHATSAVE-002. The glyph the shared icon set does not hold, drawn in its
 // hand (24 units, 1.8 stroke, round caps). The rest of the panel uses icon().
+// The panel's bell used to live here too; the shared set holds it now, so a
+// bell falls through to icon() like every other shared name.
 var chatsave002Paths = map[string]string{
 	"bookmark": "M6 3h12v18l-6-4-6 4V3z",
-	"bell":     "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
 }
 
-// chatsave002Icon is a glyph of the panel; a name outside this file's two falls
+// chatsave002Icon is a glyph of the panel; a name outside this file falls
 // to the shared set. A filled bookmark is the saved state.
 func chatsave002Icon(name string, filled bool) ui.Node {
 	d, ok := chatsave002Paths[name]

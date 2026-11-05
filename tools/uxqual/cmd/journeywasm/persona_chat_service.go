@@ -111,6 +111,7 @@ type personaChatReference struct {
 type personaChatProfile struct {
 	Icon          agenticon.Value      `json:"icon"`
 	IconRevision  int64                `json:"icon_revision"`
+	IconImageURL  string               `json:"icon_image_url"`
 	Reference     personaChatReference `json:"reference"`
 	Handle        string               `json:"handle"`
 	Initials      string               `json:"initials"`
@@ -133,6 +134,7 @@ type personaChatProfile struct {
 type personaChatPostActor struct {
 	Icon           agenticon.Value `json:"icon"`
 	IconRevision   int64           `json:"icon_revision"`
+	IconImageURL   string          `json:"icon_image_url"`
 	PostID         string          `json:"post_id"`
 	PersonaID      string          `json:"persona_id"`
 	PersonaVersion string          `json:"persona_version"`
@@ -171,7 +173,7 @@ func applyPersonaDirectoryResult(model *chatui.Model, payload personaChatDirecto
 	model.AgentCounts = chatux001WithAgentCount(model.AgentCounts, conversation, chatui.ConversationAgentCount(*model))
 	for _, persona := range model.ResolvedPersonaMentions {
 		if persona.Reference.ConversationID == conversation {
-			applyAgentDirectConversation(model, conversation, persona.Reference.ID, persona.Reference.Display, agentDirectIdentity{Icon: persona.Icon, Revision: persona.IconRevision, Purpose: persona.Purpose})
+			applyAgentDirectConversation(model, conversation, persona.Reference.ID, persona.Reference.Display, agentDirectIdentity{Icon: persona.Icon, Revision: persona.IconRevision, Purpose: persona.Purpose, ImageURL: persona.IconImageURL})
 			break
 		}
 	}
@@ -197,7 +199,7 @@ func personaChatActorProjection(actors []personaChatPostActor) map[string]chatui
 		if actor.PostID == "" || actor.PersonaID == "" || actor.AgentID == "" || strings.TrimSpace(actor.Display) == "" {
 			continue
 		}
-		out[actor.PostID] = chatui.PersonaPostActor{Display: actor.Display, Actor: chatui.PersonaActor{PersonaID: actor.PersonaID, PersonaVersion: actor.PersonaVersion, AgentID: actor.AgentID, InvokerHandle: actor.InvokerHandle, Trusted: true, Icon: actor.Icon, IconRevision: actor.IconRevision}}
+		out[actor.PostID] = chatui.PersonaPostActor{Display: actor.Display, Actor: chatui.PersonaActor{PersonaID: actor.PersonaID, PersonaVersion: actor.PersonaVersion, AgentID: actor.AgentID, InvokerHandle: actor.InvokerHandle, Trusted: true, Icon: actor.Icon, IconRevision: actor.IconRevision, IconImageURL: actor.IconImageURL}}
 	}
 	return out
 }
@@ -312,7 +314,7 @@ func personaChatProfiles(profiles []personaChatProfile, cfg journeyclient.Config
 		if placement == "private" {
 			placement = chatui.PersonaReplyPrivateAudience
 		}
-		candidate := chatui.ResolvedPersonaMention{Icon: profile.Icon, IconRevision: profile.IconRevision, Reference: chatui.ChatReference{Kind: ref.Kind, TenantID: ref.TenantID, ID: ref.ID, Display: ref.Display, ConversationID: ref.ConversationID}, Handle: profile.Handle, Initials: profile.Initials, AvatarURL: profile.AvatarURL, Purpose: profile.Purpose, DocumentScope: profile.DocumentScope, Examples: profile.Examples, Owner: profile.Owner, Version: profile.Version, DataClasses: profile.DataClasses, CannotDo: profile.CannotDo, ReplyPlacement: placement}
+		candidate := chatui.ResolvedPersonaMention{Icon: profile.Icon, IconRevision: profile.IconRevision, IconImageURL: profile.IconImageURL, Reference: chatui.ChatReference{Kind: ref.Kind, TenantID: ref.TenantID, ID: ref.ID, Display: ref.Display, ConversationID: ref.ConversationID}, Handle: profile.Handle, Initials: profile.Initials, AvatarURL: profile.AvatarURL, Purpose: profile.Purpose, DocumentScope: profile.DocumentScope, Examples: profile.Examples, Owner: profile.Owner, Version: profile.Version, DataClasses: profile.DataClasses, CannotDo: profile.CannotDo, ReplyPlacement: placement}
 		for _, skill := range profile.Skills {
 			candidate.Skills = append(candidate.Skills, chatui.PersonaMentionSkill{Name: skill.Name, Tier: skill.Tier})
 		}

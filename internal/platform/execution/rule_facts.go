@@ -45,10 +45,14 @@ func composeCurrencyGuard(cfg PromotionExecutionConfig, steps *promotionStepPort
 // the threshold node, or that carry no standing approval, resolve RULE-004
 // to silence and keep the WF-RUN-029 verdict exactly.
 func servedCurrencyGuard(steps *promotionStepPorts) *execute.CurrencyGuard {
+	var parameters ThresholdParameterReader
+	if steps != nil {
+		parameters = steps.thresholdParameters
+	}
 	return &execute.CurrencyGuard{
 		Proposal: app.DurableProposalFacts{},
 		Approval: app.DurableProposalFacts{},
-		Rules:    &ServedRuleFacts{Thresholds: steps, Approval: app.DurableProposalFacts{}},
+		Rules:    &ServedRuleFacts{Thresholds: steps, Approval: app.DurableProposalFacts{}, ThresholdParameters: parameters},
 	}
 }
 
@@ -68,6 +72,10 @@ type ServedRuleFacts struct {
 	// Approval reads the standing approval decisions. Nil is a composition
 	// mistake, reported loudly rather than read as no approval.
 	Approval runtime.ApprovalFacts
+	// ThresholdParameters resolves the tenant's published promotion
+	// thresholds (REV-010-02). Nil answers the reference table, exactly
+	// as before.
+	ThresholdParameters ThresholdParameterReader
 }
 
 // ruleInputDeriver is the one governed read the served facts need.
@@ -139,6 +147,14 @@ func (s *ServedRuleFacts) Lookup(ctx context.Context, ex runtime.Executor, tenan
 			return execute.RuleApproval{}, err
 		}
 	}
+	var thresholds rules.TenantThresholdResolution
+	if s.ThresholdParameters != nil {
+		resolved, err := s.ThresholdParameters.ResolveThresholds(ctx, string(rev.Tenant))
+		if err != nil {
+			return execute.RuleApproval{}, err
+		}
+		thresholds = resolved
+	}
 	return execute.RuleApproval{
 		Resolved: true,
 		Approved: rules.ApprovedPlan{
@@ -147,7 +163,8 @@ func (s *ServedRuleFacts) Lookup(ctx context.Context, ex runtime.Executor, tenan
 			TableID: record.TableID, TableVersion: record.TableVersion, TableDigest: record.TableDigest,
 			ApprovalDigest: approvalDigest,
 		},
-		Current: current,
+		Current:    current,
+		Thresholds: thresholds,
 	}, nil
 }
 

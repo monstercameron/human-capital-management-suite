@@ -12,6 +12,7 @@ const (
 )
 
 type docsFolderNameFieldProps struct {
+	_                     incomparable
 	ID, Seed, Placeholder string
 	OnInput               ui.Handler
 }

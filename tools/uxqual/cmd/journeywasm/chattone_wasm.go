@@ -33,6 +33,7 @@ type chattoneBrowserController struct {
 	rooms                              map[string]*chattoneRoomState
 	previews                           map[string]*chattonePreview
 	mounts                             map[string]js.Value
+	slow                               map[string]*chattoneSlowWatcher
 	session                            chattoneSession
 }
 
@@ -47,7 +48,12 @@ func disposeChattoneBrowser() {
 	c.rooms = nil
 	c.previews = nil
 	c.mounts = nil
+	retired := c.slow
+	c.slow = nil
 	c.Unlock()
+	for _, watcher := range retired {
+		watcher.Cancel()
+	}
 	if !bound {
 		return
 	}
@@ -72,6 +78,7 @@ func configureChattoneBrowser(cfg journeyclient.Config) {
 	c.rooms = make(map[string]*chattoneRoomState)
 	c.previews = make(map[string]*chattonePreview)
 	c.mounts = make(map[string]js.Value)
+	c.slow = make(map[string]*chattoneSlowWatcher)
 	c.session = chattoneSession{}
 	bind := !c.bound
 	c.bound = true
@@ -247,7 +254,10 @@ func chattonePaint(mount js.Value) {
 		chatui.CloseWritingStyleComposer(mount.Call("querySelector", "[data-chattone-action=toggle]"), false)
 	}
 	if busy {
-		chattoneStatus(mount, "working")
+		c.Lock()
+		status := chattoneBusyStatus(preview)
+		c.Unlock()
+		chattoneStatus(mount, status)
 	}
 	chattonePaintPreview(mount)
 }
@@ -490,10 +500,40 @@ func chattoneRewrite(mount js.Value, style string) {
 	}
 	serial, ok := p.Begin(typed)
 	epoch, cfg := c.epoch, c.cfg
+	var slow, previous *chattoneSlowWatcher
+	if ok {
+		slow = newChattoneSlowWatcher(browserDebounceScheduler)
+		previous = c.slow[scope]
+		c.slow[scope] = slow
+	}
 	c.Unlock()
 	if !ok {
 		return
 	}
+	if previous != nil {
+		previous.Cancel()
+	}
+	// A rewrite still running five seconds on escalates the status line to the
+	// taking-longer notice. The fire returns to the UI goroutine and applies
+	// the same epoch, scope and serial guards as the completion below, so a
+	// late fire never overwrites a newer rewrite's status.
+	target := domAttribute(mount, "data-target")
+	slow.Begin(func() {
+		ui.PostAsync(func() {
+			current := chattoneMountFor(target)
+			if !current.Truthy() || chattoneScope(current) != scope {
+				return
+			}
+			c.Lock()
+			if c.epoch != epoch || !p.MarkSlow(serial) {
+				c.Unlock()
+				return
+			}
+			status := chattoneBusyStatus(p)
+			c.Unlock()
+			chattoneStatus(current, status)
+		})
+	})
 	chattonePaint(mount)
 	chattoneFocus(mount)
 	go func() {
@@ -501,6 +541,10 @@ func chattoneRewrite(mount js.Value, style string) {
 		defer cancel()
 		reply, err := chattoneRequest(ctx, http.DefaultClient, personaChatHTTPConfig(cfg), "rewrite", chattoneDraftRequest{room, typed, style})
 		ui.PostAsync(func() {
+			// The rewrite is over on every path below; its notice must not fire
+			// after this. Cancelling our own handle is safe even when a newer
+			// rewrite has armed its own watcher since.
+			slow.Cancel()
 			current := chattoneMountFor(domAttribute(mount, "data-target"))
 			if !current.Truthy() || chattoneScope(current) != scope {
 				c.Lock()

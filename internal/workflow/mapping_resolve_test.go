@@ -5,10 +5,11 @@ import "testing"
 // fakeMappingSource is a minimal, in-memory [MappingSource] for exercising
 // [ResolveMappings] without a SIMULATE run or a durable artifact store.
 type fakeMappingSource struct {
-	inputs  map[string]TypedValue
-	ran     map[string]bool
-	outputs map[string]map[string]TypedValue
-	context map[string]map[string]TypedValue
+	inputs    map[string]TypedValue
+	ran       map[string]bool
+	outputs   map[string]map[string]TypedValue
+	context   map[string]map[string]TypedValue
+	variables map[string]map[string]string
 }
 
 func (f fakeMappingSource) WorkflowInput(path string) (TypedValue, bool) {
@@ -27,6 +28,11 @@ func (f fakeMappingSource) NodeOutput(nodeID, path string) (TypedValue, bool, bo
 func (f fakeMappingSource) Context(kind, path string) (TypedValue, bool) {
 	v, ok := f.context[kind][path]
 	return v, ok
+}
+
+func (f fakeMappingSource) Variable(name, path string) (string, bool) {
+	raw, ok := f.variables[name][path]
+	return raw, ok
 }
 
 func stringType() ValueType { return ValueType{Kind: KindString} }
@@ -109,6 +115,28 @@ func TestResolveMappings_ContextMissing(t *testing.T) {
 	}}
 	_, err := ResolveMappings(node, fakeMappingSource{})
 	assertMappingCode(t, err, CodeUnresolvedContext)
+}
+
+func TestResolveMappings_Variable(t *testing.T) {
+	node := CompiledNode{ID: "n1", Mappings: []CompiledMapping{
+		{Target: "grade", TargetType: stringType(), SourceKind: SourceVariable, SourceVariable: "proposal", SourcePath: "grade", SourceType: stringType()},
+	}}
+	src := fakeMappingSource{variables: map[string]map[string]string{"proposal": {"grade": `"L5"`}}}
+	got, err := ResolveMappings(node, src)
+	if err != nil {
+		t.Fatalf("ResolveMappings: %v", err)
+	}
+	if got["grade"].Text != "L5" {
+		t.Fatalf("resolved grade = %+v, want L5", got["grade"])
+	}
+}
+
+func TestResolveMappings_VariableMissing(t *testing.T) {
+	node := CompiledNode{ID: "n1", Mappings: []CompiledMapping{
+		{Target: "grade", TargetType: stringType(), SourceKind: SourceVariable, SourceVariable: "proposal", SourcePath: "grade", SourceType: stringType()},
+	}}
+	_, err := ResolveMappings(node, fakeMappingSource{})
+	assertMappingCode(t, err, CodeUnresolvedVariable)
 }
 
 func TestResolveMappings_Constant(t *testing.T) {

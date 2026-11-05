@@ -28,6 +28,34 @@ func TestTodo_PM_069(t *testing.T) {
 	if decision := project.Authorize("host", "owner", SurfaceProject, time.Unix(200, 0)); !decision.Allowed || decision.Reason != "host_owner" {
 		t.Fatalf("host owner decision = %+v", decision)
 	}
+	oneSided := CrossCompanyRequest{ProjectID: "project-1", HostTenant: "host", HostOwner: "owner", GuestTenant: "guest", HostAccepted: true, Classification: 2, EgressClasses: []string{"INTERNAL"}, AdmittedAt: time.Unix(100, 0), ExpiresAt: time.Unix(1000, 0)}
+	if _, err := AdmitCrossCompany(oneSided); err == nil {
+		t.Fatal("one-sided admission accepted")
+	}
+	sameTenant := oneSided
+	sameTenant.GuestTenant = "host"
+	sameTenant.GuestAccepted = true
+	if _, err := AdmitCrossCompany(sameTenant); err == nil {
+		t.Fatal("same-tenant admission accepted")
+	}
+	noEgress := oneSided
+	noEgress.GuestAccepted = true
+	noEgress.EgressClasses = nil
+	if _, err := AdmitCrossCompany(noEgress); err == nil {
+		t.Fatal("admission without egress agreement accepted")
+	}
+	if _, err := project.Grant("guest-user", "guest", "guest-intruder", ExternalViewer, time.Unix(200, 0), time.Unix(800, 0)); err == nil {
+		t.Fatal("non-owner grant accepted")
+	}
+	if _, err := project.Grant("owner", "guest", "guest-late", ExternalViewer, time.Unix(200, 0), time.Unix(1001, 0)); err == nil {
+		t.Fatal("grant beyond admission expiry accepted")
+	}
+	if _, err := project.Revoke("guest-user", time.Unix(300, 0), "takeover"); err == nil {
+		t.Fatal("guest revocation accepted")
+	}
+	if _, err := project.Revoke("owner", time.Unix(300, 0), "  "); err == nil {
+		t.Fatal("revocation without reason accepted")
+	}
 }
 
 func TestTodo_PM_069_Conformance(t *testing.T) {
@@ -41,6 +69,10 @@ func TestTodo_PM_069_Conformance(t *testing.T) {
 	expired := project.Authorize("guest", "guest-user", SurfaceTask, time.Unix(1000, 0))
 	if expired.Allowed || expired.Reason != "expired" {
 		t.Fatalf("expired delegation = %+v", expired)
+	}
+	lapsed := project.Authorize("guest", "guest-user", SurfaceTask, time.Unix(950, 0))
+	if lapsed.Allowed || lapsed.Reason != "no_active_delegation" {
+		t.Fatalf("lapsed grant inside live admission = %+v", lapsed)
 	}
 }
 

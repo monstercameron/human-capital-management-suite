@@ -4,23 +4,27 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// benefitsComparePage is the route adapter for
-// benefit-plan comparison. The governed benefits service
-// is not published to this UI yet, so the surface keeps
-// the journeys fallback contract: an honest empty state
-// with a recovery link that compares nothing — plan truth
-// stays server authority. The live comparison composition
-// replaces this body once the governed service publishes;
-// until then the UI will not simulate one.
+// benefitsComparePage is the route adapter for benefit-plan comparison. It
+// resolves the server-authorized projection through the benefits domain and
+// shapes it for the comparison feature component; an empty catalogue or a
+// domain read failure keeps an honest empty state.
 func benefitsComparePage(view View) ui.Node {
-	return ui.CreateElement(EmptyState, EmptyStateProps{
-		Title:       view.Locale.Text("benefits_compare.unavailable_title"),
-		Description: view.Locale.Text("benefits_compare.unavailable_detail"),
-		Role:        "status",
-		Action: &ActionLinkProps{
-			Label: view.Locale.Text("benefits_compare.return_home"), Href: statefulHref(view, PageHome),
-			Class:    "button primary",
-			Navigate: view.Navigate,
-		},
-	})
+	projection := view.Benefits
+	switch projection.State {
+	case BenefitsReadNoRecord:
+		return benefitsStateFallback(view, "benefits_compare", "no_plans")
+	case BenefitsReadError:
+		return benefitsStateFallback(view, "benefits_compare", "read_error")
+	case BenefitsReadReady:
+	default:
+		return benefitsUnavailable(view, "benefits_compare")
+	}
+	options, err := ResolveBenefitOptions(projection.Options)
+	if err != nil {
+		return benefitsStateFallback(view, "benefits_compare", "read_error")
+	}
+	if len(options) == 0 {
+		return benefitsStateFallback(view, "benefits_compare", "no_plans")
+	}
+	return benefitsCompareContent(view, options)
 }

@@ -63,12 +63,20 @@ func (s StepState) Valid() bool {
 	}
 }
 
-// TemplateItem is one ordered step of a reusable procedure.
+// TemplateItem is one ordered step of a reusable procedure. AssigneeRole,
+// DueInDays and DocVersionID are assignment intent the instantiation call
+// resolves into a concrete owner, date and authorized link; GovernedBy names
+// the owning HCM workflow ("" when the checklist itself owns the step) whose
+// completion the instance must cite before a governed item counts as done.
 type TemplateItem struct {
-	Kind     ItemKind
-	Title    string
-	Detail   string
-	Required bool
+	Kind         ItemKind
+	Title        string
+	Detail       string
+	Required     bool
+	AssigneeRole string
+	DueInDays    int
+	DocVersionID string
+	GovernedBy   string
 }
 
 // ChecklistTemplate is a reusable repeatable procedure: onboarding,
@@ -117,29 +125,45 @@ func (t ChecklistTemplate) Validate() error {
 		if !semanticKey(item.Title) {
 			return refuse(CodeInvalidRecord, id, "item %d title is required", i)
 		}
+		if item.DueInDays < 0 {
+			return refuse(CodeInvalidRecord, id, "item %d due offset %d days is in the past", i, item.DueInDays)
+		}
 	}
 	return nil
 }
 
-// ChecklistInput names a fresh instantiation.
+// ChecklistInput names a fresh instantiation. Assignees resolves owners by
+// 1-based position; positions without an entry keep the template's
+// AssigneeRole so ownership is never silently dropped.
 type ChecklistInput struct {
 	ChecklistID uuid.UUID
 	Title       string
 	CreatedAt   time.Time
+	Assignees   map[int]string
 }
 
-// ChecklistItem is one live step of an instantiated procedure.
+// ChecklistItem is one live step of an instantiated procedure. Assignee and
+// DueAt are the resolved owner and date; Documents holds only links whose
+// authorized viewer set the serving layer already checked; GovernedBy names
+// the owning HCM workflow and DelegatedRef cites that workflow's completed
+// work item once it finishes the step.
 type ChecklistItem struct {
-	ItemID      uuid.UUID
-	ChecklistID uuid.UUID
-	Position    int
-	Kind        ItemKind
-	Title       string
-	Detail      string
-	Required    bool
-	State       StepState
-	CompletedBy string
-	CompletedAt *time.Time
+	ItemID       uuid.UUID
+	ChecklistID  uuid.UUID
+	Position     int
+	Kind         ItemKind
+	Title        string
+	Detail       string
+	Required     bool
+	State        StepState
+	CompletedBy  string
+	CompletedAt  *time.Time
+	Assignee     string
+	DueAt        *time.Time
+	DocVersionID string
+	Documents    []AuthorizedDocumentLink
+	GovernedBy   string
+	DelegatedRef string
 }
 
 // Checklist is one person's live copy of a template: fresh ids, every item
@@ -179,15 +203,28 @@ func (t ChecklistTemplate) Instantiate(in ChecklistInput) (Checklist, error) {
 		CreatedAt:   in.CreatedAt,
 	}
 	for i, item := range t.Items {
+		assignee := item.AssigneeRole
+		if named, ok := in.Assignees[i+1]; ok && semanticKey(named) {
+			assignee = named
+		}
+		var due *time.Time
+		if item.DueInDays > 0 {
+			stamp := in.CreatedAt.AddDate(0, 0, item.DueInDays)
+			due = &stamp
+		}
 		out.Items = append(out.Items, ChecklistItem{
-			ItemID:      uuid.New(),
-			ChecklistID: id,
-			Position:    i + 1,
-			Kind:        item.Kind,
-			Title:       item.Title,
-			Detail:      item.Detail,
-			Required:    item.Required,
-			State:       StepStateOpen,
+			ItemID:       uuid.New(),
+			ChecklistID:  id,
+			Position:     i + 1,
+			Kind:         item.Kind,
+			Title:        item.Title,
+			Detail:       item.Detail,
+			Required:     item.Required,
+			State:        StepStateOpen,
+			Assignee:     assignee,
+			DueAt:        due,
+			DocVersionID: item.DocVersionID,
+			GovernedBy:   item.GovernedBy,
 		})
 	}
 	return out, nil
@@ -231,6 +268,9 @@ func (c Checklist) Validate() error {
 			return refuse(CodeInvalidRecord, id, "item %d state %q is not declared", i, string(item.State))
 		}
 		done := item.State == StepStateDone
+		if item.Required && item.State == StepStateSkipped {
+			return refuse(CodeInvalidRecord, id, "item %d is required and cannot be skipped", i)
+		}
 		complete := item.CompletedBy != "" && item.CompletedAt != nil
 		partial := item.CompletedBy != "" || item.CompletedAt != nil
 		if partial && !complete {
@@ -238,6 +278,28 @@ func (c Checklist) Validate() error {
 		}
 		if complete != done {
 			return refuse(CodeInvalidRecord, id, "item %d completion is present iff state is done", i)
+		}
+		if item.DueAt != nil && item.DueAt.IsZero() {
+			return refuse(CodeInvalidRecord, id, "item %d due date is present but zero", i)
+		}
+		for _, link := range item.Documents {
+			if link.TenantID != c.TenantID {
+				return refuse(CodeInvalidRecord, id, "item %d links a document from another tenant", i)
+			}
+			if !semanticKey(link.DocumentVersionID) || !semanticKey(link.DocumentDigest) || len(link.AuthorizedViewerIDs) == 0 {
+				return refuse(CodeInvalidRecord, id, "item %d carries an incomplete document link", i)
+			}
+		}
+		governed := item.GovernedBy != ""
+		delegated := item.DelegatedRef != ""
+		if delegated && !governed {
+			return refuse(CodeInvalidRecord, id, "item %d cites an owning workflow it does not name", i)
+		}
+		if governed && done && !delegated {
+			return refuse(CodeInvalidRecord, id, "item %d is governed by %q and done without its owning workflow", i, item.GovernedBy)
+		}
+		if governed && !done && delegated {
+			return refuse(CodeInvalidRecord, id, "item %d is not done yet cites owning-workflow evidence", i)
 		}
 	}
 	return nil
@@ -253,7 +315,9 @@ func (c *Checklist) find(itemID uuid.UUID) (*ChecklistItem, error) {
 }
 
 // CompleteItem marks an open item done. Completing a non-open item or an
-// anonymous completion is refused and mutates nothing.
+// anonymous completion is refused and mutates nothing, as is completing a
+// governed item: only its owning workflow finishes it, through
+// CompleteGovernedItem with that workflow's own completed item as evidence.
 func (c *Checklist) CompleteItem(itemID uuid.UUID, actor string, at time.Time) error {
 	item, err := c.find(itemID)
 	if err != nil {
@@ -261,6 +325,9 @@ func (c *Checklist) CompleteItem(itemID uuid.UUID, actor string, at time.Time) e
 	}
 	if item.State != StepStateOpen {
 		return refuse(CodeIllegalTransition, c.ChecklistID.String(), "item %s is %q, only an open item completes", itemID, string(item.State))
+	}
+	if item.GovernedBy != "" {
+		return refuse(CodeIllegalTransition, c.ChecklistID.String(), "item %s is governed by %q and completes only through its owning workflow", itemID, item.GovernedBy)
 	}
 	if !semanticKey(actor) {
 		return refuse(CodeInvalidRecord, c.ChecklistID.String(), "a completion must name its actor")
@@ -272,6 +339,38 @@ func (c *Checklist) CompleteItem(itemID uuid.UUID, actor string, at time.Time) e
 	item.CompletedBy = actor
 	stamp := at
 	item.CompletedAt = &stamp
+	return nil
+}
+
+// CompleteGovernedItem records the owning workflow's finish of a governed
+// item. owningWorkItemID is that workflow's own completed work item: without
+// it the checklist would mark a real HCM obligation complete on its own
+// word, which is exactly what SMB-003's RED clause forbids.
+func (c *Checklist) CompleteGovernedItem(itemID uuid.UUID, actor string, at time.Time, owningWorkItemID string) error {
+	item, err := c.find(itemID)
+	if err != nil {
+		return err
+	}
+	if item.State != StepStateOpen {
+		return refuse(CodeIllegalTransition, c.ChecklistID.String(), "item %s is %q, only an open item completes", itemID, string(item.State))
+	}
+	if item.GovernedBy == "" {
+		return refuse(CodeIllegalTransition, c.ChecklistID.String(), "item %s is not governed; complete it directly", itemID)
+	}
+	if !semanticKey(actor) {
+		return refuse(CodeInvalidRecord, c.ChecklistID.String(), "a completion must name its actor")
+	}
+	if at.IsZero() {
+		return refuse(CodeInvalidRecord, c.ChecklistID.String(), "a completion must carry its timestamp")
+	}
+	if !semanticKey(owningWorkItemID) {
+		return refuse(CodeInvalidRecord, c.ChecklistID.String(), "a governed completion must cite its owning workflow's completed item")
+	}
+	item.State = StepStateDone
+	item.CompletedBy = actor
+	stamp := at
+	item.CompletedAt = &stamp
+	item.DelegatedRef = owningWorkItemID
 	return nil
 }
 
@@ -314,5 +413,6 @@ func (c *Checklist) ReopenItem(itemID uuid.UUID, at time.Time) error {
 	item.State = StepStateOpen
 	item.CompletedBy = ""
 	item.CompletedAt = nil
+	item.DelegatedRef = ""
 	return nil
 }

@@ -14,6 +14,7 @@ import (
 // TaskCount/TaskKnown carry the raw count so sorting never parses the
 // locale-formatted Tasks text.
 type projectListRow struct {
+	_                                        incomparable
 	ID, Name, Description, Status, StatusKey string
 	Owner, OwnerPhoto, Tasks, Href, Search   string
 	TaskCount                                int

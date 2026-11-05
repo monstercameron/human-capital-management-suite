@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/intent/draftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/conformance"
@@ -24,6 +26,10 @@ type ServedAlignmentSurface struct {
 	CheckNoninterference  func([]conformance.SurfaceProjection, []values.EntityRef) error
 	AssertAllParity       func(conformance.QueryEnvelope, []values.EntityRef) error
 	AuthorizeInvalidation func(authz.RepositoryScope, values.Instant, string, uint64, []values.EntityRef) (conformance.Invalidation, error)
+	EncodeRestartEnvelope func(conformance.QueryEnvelope) ([]byte, error)
+	DecodeRestartEnvelope func([]byte) (conformance.QueryEnvelope, error)
+	RestartDigest         func([]byte) string
+	NewMemoryDraftStore   func(time.Duration) draftstore.Port
 }
 
 // NewServedAlignmentSurface returns the alignment contracts reachable from a
@@ -40,6 +46,10 @@ func NewServedAlignmentSurface() ServedAlignmentSurface {
 		CheckNoninterference:  conformance.CheckNoninterference,
 		AssertAllParity:       conformance.AssertAllParity,
 		AuthorizeInvalidation: conformance.AuthorizeInvalidation,
+		EncodeRestartEnvelope: conformance.EncodeEnvelope,
+		DecodeRestartEnvelope: conformance.DecodeEnvelope,
+		RestartDigest:         conformance.RestartDigest,
+		NewMemoryDraftStore:   func(ttl time.Duration) draftstore.Port { return draftstore.NewMemory(ttl) },
 	}
 }
 

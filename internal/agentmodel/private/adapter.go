@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -218,18 +217,16 @@ func validateRequestTerms(reg Registration, req agentmodel.ModelRequest) error {
 }
 
 func validRegistration(r Registration) bool {
-	u, err := url.Parse(r.EndpointURL)
+	_, endpointErr := agentmodel.NormalizeAPIEndpoint(r.EndpointURL, "")
 	return strings.TrimSpace(r.ID) != "" && strings.TrimSpace(r.Profile) != "" && strings.TrimSpace(r.NetworkPathRef) != "" &&
 		strings.TrimSpace(r.ServiceIdentity) != "" && strings.TrimSpace(r.Identity.ProviderID) != "" && strings.TrimSpace(r.Identity.ModelID) != "" && strings.TrimSpace(r.Identity.Version) != "" &&
 		strings.TrimSpace(r.Region) != "" && len(r.DataClasses) > 0 && strings.TrimSpace(r.Retention) != "" && validUse(r.TrainingUse) && validUse(r.Logging) &&
-		validPath(r.HealthPath) && validPath(r.InferencePath) && validCapabilities(r.Capabilities) && err == nil && u.Host != "" && u.User == nil && u.RawQuery == "" && u.Fragment == "" &&
-		(u.Scheme == "https" || u.Scheme == "http" && loopback(u.Hostname()))
+		validPath(r.HealthPath) && validPath(r.InferencePath) && validCapabilities(r.Capabilities) && endpointErr == nil
 }
 
 func validPath(path string) bool {
 	return path != "" && strings.HasPrefix(path, "/") && !strings.Contains(path, "..") && !strings.Contains(path, "?") && !strings.Contains(path, "#")
 }
-func loopback(host string) bool { ip := net.ParseIP(host); return ip != nil && ip.IsLoopback() }
 func validUse(v agentmodel.ProcessingUse) bool {
 	return v == agentmodel.UseAllowed || v == agentmodel.UseDenied
 }

@@ -29,6 +29,7 @@ type handlers struct {
 	editInput, editSubmit, createSubmit, kindPick            ui.Handler
 	addMembersSubmit                                         ui.Handler
 	threadSubmit, threadKey, threadInput                     ui.Handler
+	previewKey, threadPreviewKey                             ui.Handler
 	browseFilter                                             ui.Handler
 	shareFilter                                              ui.Handler
 	memberFilter                                             ui.Handler
@@ -288,11 +289,13 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		options, _ := mentionOptionsForState(m, state.Query, target, state.ShowAllPeople)
 		emoji := local.get().emojiCompletion
 		doc := local.get().docSuggest
+		channel := local.get().channelSuggest
 		action := composerKeyAction(composerKeyState{
 			Draft: value, Shift: shiftHeld(e), Composing: composerIsComposing(e),
 			MentionOpen: state.Open, MentionHighlighted: state.Active >= 0 && state.Active < len(options), MentionLoading: mentionPeopleLoading(m) && !m.MembersFailed,
 			EmojiOpen: emoji.Open && emoji.Target == target, EmojiHighlighted: emoji.Active >= 0 && emoji.Active < len(emojiCompletionItems(emoji.Query)),
 			DocumentOpen: doc.Open && doc.Target == target, DocumentHighlighted: doc.Active >= 0 && doc.Active < len(doc.Items),
+			ChannelOpen: channel.Open && channel.Target == target, ChannelHighlighted: channel.Active >= 0 && channel.Active < len(channelSuggest(m, channel.Query)),
 		}, e.GetKey())
 		switch action {
 		case composerPickMention:
@@ -310,6 +313,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			e.StopPropagation()
 			docSuggestPick(local, doc.Active)
 			return
+		case composerPickChannel:
+			e.PreventDefault()
+			e.StopPropagation()
+			channelSuggestPick(m, local, channel.Active)
+			return
 		case composerHold:
 			e.PreventDefault()
 			e.StopPropagation()
@@ -318,7 +326,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			e.PreventDefault()
 			e.StopPropagation()
 			mention.Set(mentionState{})
-			local.update(func(u *localUI) { u.emojiCompletion = emojiCompletion{Active: -1}; u.docSuggest = docSuggestState{} })
+			local.update(func(u *localUI) {
+				u.emojiCompletion = emojiCompletion{Active: -1}
+				u.docSuggest = docSuggestState{}
+				u.channelSuggest = channelSuggestState{Active: -1}
+			})
 			if action == composerSend {
 				submit()
 			}
@@ -327,7 +339,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if composerIsComposing(e) || shiftHeld(e) {
 			return
 		}
-		if emojiCompletionKey(local, e.GetKey(), target) || docSuggestKey(local, e.GetKey(), target) {
+		if emojiCompletionKey(local, e.GetKey(), target) || docSuggestKey(local, e.GetKey(), target) || channelSuggestKey(m, local, e.GetKey(), target) {
 			e.PreventDefault()
 			e.StopPropagation()
 			return
@@ -403,6 +415,12 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			if action, _, extra := eventAction(e); action == "emoji-completion-pick" {
 				if index, err := strconv.Atoi(extra); err == nil {
 					emojiCompletionPick(local, index)
+				}
+				return
+			}
+			if action, _, extra := eventAction(e); action == "channel-suggest-pick" {
+				if index, err := strconv.Atoi(extra); err == nil {
+					channelSuggestPick(m, local, index)
 				}
 				return
 			}
@@ -859,6 +877,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		}),
 		composerSubmit: ui.UseEvent(func(e ui.FormEvent) { e.PreventDefault(); send() }),
 		composerKey:    ui.UseEvent(func(e ui.KeyboardEvent) { composerKey(e, "chat-composer", send) }),
+		previewKey:     ui.UseEvent(func(e ui.KeyboardEvent) { chatcmd003Key(e, m, local, "chat-composer") }),
 		composerInput: ui.UseEvent(func(e ui.InputEvent) {
 			setComposerSendReady("chat-composer", e.GetValue())
 			syncComposerFormatControl(m, local.get(), e.GetValue())
@@ -870,6 +889,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			mentionTrack("chat-composer")
 			docSuggestTrack(m, local, "chat-composer")
 			emojiCompletionTyped(e, local, "chat-composer")
+			channelSuggestTyped(e, m, local, "chat-composer")
 			commandMenuTrack(m, local, "chat-composer")
 			modAuthorTyped(m, local, ModAuthorKeyComposer(m.SelectedID), e.GetValue())
 			if local.get().composerNotice != "" {
@@ -939,16 +959,21 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			if name == "" {
 				name = strings.TrimSpace(m.NewName)
 			}
-			if name == "" && createKindOf(m, local.get()) == DirectMessage {
-				for _, p := range local.get().picked {
+			st := local.get()
+			kind := createKindOf(m, st)
+			if name == "" && kind == DirectMessage {
+				for _, p := range st.picked {
 					name = p.Name
 				}
+			}
+			if name == "" && kind == GroupChat {
+				// CHATBUG-099: a group needs only its people; a blank name is
+				// composed from them, never channel-normalised.
+				name = createGroupName("", st.picked)
 			}
 			if name == "" {
 				return
 			}
-			st := local.get()
-			kind := createKindOf(m, st)
 			name, ok := createNameForSubmit(local, kind, name)
 			if !ok {
 				return
@@ -956,6 +981,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			members := strings.Split(pickedIDs(st.picked), ",")
 			if len(st.picked) == 0 {
 				members = splitMembers(st.pickQuery)
+			}
+			if kind == GroupChat && len(members) < 2 {
+				return
 			}
 			m.Callbacks.CreateConversation(kind, name, members)
 		}),
@@ -1188,6 +1216,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			mention.ReconcilePersonas("thread-composer", e.GetValue())
 			mentionTrack("thread-composer")
 			emojiCompletionTyped(e, local, "thread-composer")
+			channelSuggestTyped(e, m, local, "thread-composer")
 			commandMenuTrack(m, local, "thread-composer")
 			modAuthorTyped(m, local, ModAuthorKeyReply(m.ThreadParentID), e.GetValue())
 			if m.Callbacks.ThreadDraftChanged != nil {
@@ -1197,7 +1226,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				local.update(func(u *localUI) { u.threadComposerPreview = false })
 			}
 		}),
-		threadKey: ui.UseEvent(func(e ui.KeyboardEvent) { composerKey(e, "thread-composer", threadSend) }),
+		threadKey:        ui.UseEvent(func(e ui.KeyboardEvent) { composerKey(e, "thread-composer", threadSend) }),
+		threadPreviewKey: ui.UseEvent(func(e ui.KeyboardEvent) { chatcmd003Key(e, m, local, "thread-composer") }),
 	}
 }
 
@@ -1898,6 +1928,7 @@ func Workspace(model Model) ui.Node {
 		chatsavePanel(model),
 		ui.CreateElement(chatEmojiLayers, emojiLayersProps{Model: model}),
 		chatSearchLayer(model, h),
+		chatbug099Announcer(model),
 		skipLink(model),
 		html.Div(html.Props{Class: "chat-layout", Aria: map[string]string{"hidden": boolString(model.SharePostID != "")}}, rail(model, h), timeline(model, h), sideColumn(model, h)),
 	}
@@ -2141,7 +2172,7 @@ func kindGlyph(m Model, c Conversation, kindLabel string) ui.Node {
 	switch c.Kind {
 	case DirectMessage:
 		if c.Agent {
-			return agentDMAvatar(displayName(m, c), "avatar tiny agent-dm-avatar", conversationAgentIcon(m, c))
+			return agentAvatar(displayName(m, c), "avatar tiny agent-dm-avatar", conversationAgentIconImage(m, c), conversationAgentIcon(m, c))
 		}
 		if m.AgentRailPending && !chatux038Person(m, c) {
 			// Whether this is a person or an agent is not known yet; a letter
@@ -2171,6 +2202,25 @@ func agentDMAvatar(name, class string, identity ...agenticon.Value) ui.Node {
 	return html.Span(html.Props{Class: class, Aria: map[string]string{"hidden": "true"}}, agenticon.Node(value))
 }
 
+// agentAvatar draws the agent's own picture: its uploaded image when the model
+// carries one, over its generated icon so a failed image still leaves the
+// agent recognisable. Like every agent icon it is decoration beside the name
+// and the Agent badge, hidden from assistive technology.
+func agentAvatar(name, class, imageURL string, identity ...agenticon.Value) ui.Node {
+	value := agenticon.Value{}
+	if len(identity) > 0 {
+		value = identity[0]
+	}
+	if !value.Valid() {
+		return agentDMAvatar(name, class, identity...)
+	}
+	children := []ui.Node{agenticon.Node(value)}
+	if url := strings.TrimSpace(imageURL); url != "" {
+		children = append(children, html.Img(html.Props{Class: "chat-avatar-photo", Src: url, Loading: "lazy", Width: "64", Height: "64", OnError: chatPhotoErrorHandler(), OnLoad: chatPhotoLoadHandler(), Raw: map[string]any{"alt": "", "decoding": "async"}}))
+	}
+	return html.Span(html.Props{Class: class, Aria: map[string]string{"hidden": "true"}}, children...)
+}
+
 // personAvatar keeps the initials in the fixed-size slot beneath the image.
 // A failed image therefore leaves the person's initials visible in place.
 func personAvatar(m Model, id, name, class string) ui.Node {
@@ -2188,7 +2238,7 @@ func personAvatarWithPhoto(name, class, photoURL string) ui.Node {
 func conversationAvatar(m Model, c Conversation) ui.Node {
 	if c.Kind == DirectMessage {
 		if c.Agent {
-			return agentDMAvatar(displayName(m, c), "large-avatar agent-dm-avatar", conversationAgentIcon(m, c))
+			return agentAvatar(displayName(m, c), "large-avatar agent-dm-avatar", conversationAgentIconImage(m, c), conversationAgentIcon(m, c))
 		}
 		return personAvatar(m, m.PeerIDs[c.ID], displayName(m, c), "large-avatar")
 	}
@@ -2201,7 +2251,7 @@ func conversationAvatar(m Model, c Conversation) ui.Node {
 func conversationHeaderAvatar(m Model, c Conversation) ui.Node {
 	if c.Kind == DirectMessage {
 		if c.Agent {
-			return agentDMAvatar(displayName(m, c), "large-avatar header-avatar agent-dm-avatar", conversationAgentIcon(m, c))
+			return agentAvatar(displayName(m, c), "large-avatar header-avatar agent-dm-avatar", conversationAgentIconImage(m, c), conversationAgentIcon(m, c))
 		}
 		if m.AgentRailPending && !chatux038Person(m, c) {
 			return agentDMAvatar(displayName(m, c), "large-avatar header-avatar agent-dm-avatar")
@@ -3062,7 +3112,7 @@ func composer(m Model, h handlers) ui.Node {
 	var fieldLabel ui.Node
 	field := ui.Node(html.Textarea(html.Props{ID: id, Class: "composer-input", Name: "message", Placeholder: placeholder, Rows: 3, Dir: agentReplyDirection(m.Locale), Data: map[string]string{"chat-value": m.Draft, "draft-scope": m.SelectedID, "agent-indent": itoa((len([]rune(h.composerAgentName)) + 2) * 8)}, Disabled: disabled,
 		OnInput: h.composerInput, OnKeyDown: h.composerKey,
-		Aria: commandMenuFieldAria(h.local.commandMenu, id, emojiCompletionFieldAria(h.local.emojiCompletion, id, docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, fieldAria))))}))
+		Aria: commandMenuFieldAria(h.local.commandMenu, id, emojiCompletionFieldAria(h.local.emojiCompletion, id, channelSuggestFieldAria(m, h.local.channelSuggest, id, docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, fieldAria)))))}))
 	if composerPreviewOn(h.local, id) {
 		field = composerPreviewBody(m, m.Draft, placeholder)
 	} else {
@@ -3073,9 +3123,10 @@ func composer(m Model, h handlers) ui.Node {
 		mentionMenu(m, h.mentionView, id),
 		docSuggestMenu(m, h.local.docSuggest, id),
 		emojiCompletionMenu(m, h.local.emojiCompletion, id),
+		channelSuggestMenu(m, h.local.channelSuggest, id),
 		composerCommandMenuView(m, h.local.commandMenu, id, h.local.seq),
 		composerNotice(h.local.composerNotice),
-		chatcmd003PreviewFor(m, h.local.chatcmd003, id),
+		chatcmd003PreviewFor(m, h.local.chatcmd003, id, h.previewKey),
 		chattoneChipSlot(m, id),
 		html.Div(html.Props{Class: "composer-draft"}, composerAgentToken(h.composerAgentName), field),
 		modAuthorLine(m, h.local, ModAuthorKeyComposer(m.SelectedID), "chatmod002-blocked"),
@@ -3336,7 +3387,7 @@ func threadPane(m Model, h handlers) ui.Node {
 		rootChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, root.AuthorID, root.Author, "message-author person-name", ui.Text(root.Author)), html.Time(html.Props{Class: "message-time", Text: chatux025ThreadStamp(m, *root)}),
 			html.Button(html.Props{Class: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), chatcmd002ProjectedBody(m, *root, html.Div(chatlangBodyProps(m, *root, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, body)...))}
 		rootChildren = append(rootChildren, chatbug073EditedMark(m, *root))
-		rootChildren = append(rootChildren, chatlangExtras(m, h, *root)...)
+		rootChildren = append(rootChildren, chatlangExtrasThread(m, h, *root)...)
 		rootChildren = append(rootChildren, integrate2MessageLocations(m, *root)...)
 		rootChildren = append(rootChildren, linkEmbeds(m, body)...)
 		if root.PersonaActor != nil {
@@ -3379,7 +3430,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			body := chatDisplayBody(ReaderMessageBody(m, msg))
 			content := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, msg.AuthorID, msg.Author, "message-author person-name", ui.Text(msg.Author)), html.Time(html.Props{Class: "message-time", Text: msg.TimeLabel})), chatcmd002ProjectedBody(m, msg, html.Div(chatlangBodyProps(m, msg, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, body)...))}
 			content = append(content, chatbug073EditedMark(m, msg))
-			content = append(content, chatlangExtras(m, h, msg)...)
+			content = append(content, chatlangExtrasThread(m, h, msg)...)
 			content = append(content, integrate2MessageLocations(m, msg)...)
 			content = append(content, linkEmbeds(m, body)...)
 			if msg.PersonaActor != nil {
@@ -3413,17 +3464,18 @@ func threadPane(m Model, h handlers) ui.Node {
 	canReply := (m.Callbacks.ReplyInThread != nil || (m.Callbacks.ReplyInThreadWithReferences != nil && len(personaMentionCandidates(m, "")) > 0)) && m.ThreadParentID != ""
 	var replyLabel ui.Node
 	replyField := ui.Node(html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": m.ThreadDrafts[m.ThreadParentID]}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
-		Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil))))}))
+		Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", channelSuggestFieldAria(m, h.local.channelSuggest, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil)))))}))
 	if composerPreviewOn(h.local, threadComposerID) {
 		replyField = composerPreviewBody(m, m.ThreadDrafts[m.ThreadParentID], agentThreadPlaceholder(m))
 	} else {
 		replyLabel = html.Label(html.Props{Class: "sr-only", For: "thread-composer"}, ui.Text(m.t(KeyReplySend)))
 	}
 	composer := html.Form(html.Props{Class: "thread-composer", Data: map[string]string{"send-capable": boolString(canReply), "format-row": chatux032ThreadFormatState(h.local)}, OnSubmit: h.threadSubmit, Aria: map[string]string{"label": m.t(KeyReplySend)}}, append([]ui.Node{
-		chatcmd003PreviewFor(m, h.local.chatcmd003, "thread-composer"),
+		chatcmd003PreviewFor(m, h.local.chatcmd003, "thread-composer", h.threadPreviewKey),
 		replyLabel,
 		mentionMenu(m, h.mentionView, "thread-composer"),
 		emojiCompletionMenu(m, h.local.emojiCompletion, "thread-composer"),
+		channelSuggestMenu(m, h.local.channelSuggest, "thread-composer"),
 		composerCommandMenuView(m, h.local.commandMenu, "thread-composer", h.local.seq),
 		chattoneChipSlot(m, "thread-composer"),
 		replyField,

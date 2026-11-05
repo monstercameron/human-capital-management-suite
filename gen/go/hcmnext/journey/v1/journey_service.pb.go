@@ -2009,6 +2009,10 @@ type JourneyDetail struct {
 	// Clients must not infer them from locally held role strings.
 	DiagnosticsAvailable bool `protobuf:"varint,13,opt,name=diagnostics_available,json=diagnosticsAvailable,proto3" json:"diagnostics_available,omitempty"`
 	CanDecide            bool `protobuf:"varint,14,opt,name=can_decide,json=canDecide,proto3" json:"can_decide,omitempty"`
+	// can_execute is true when the execution-authority gate admits this viewer
+	// to start this journey (UXBLIND-005). The client offers the start action
+	// only then; anything else is an offer the server would refuse.
+	CanExecute bool `protobuf:"varint,19,opt,name=can_execute,json=canExecute,proto3" json:"can_execute,omitempty"`
 	// notes are the journey's free-standing notes, oldest first.
 	Notes          []*JourneyNote                `protobuf:"bytes,15,rep,name=notes,proto3" json:"notes,omitempty"`
 	DurableRecords []*DurableRecordFamilyProfile `protobuf:"bytes,18,rep,name=durable_records,json=durableRecords,proto3" json:"durable_records,omitempty"`
@@ -2149,6 +2153,13 @@ func (x *JourneyDetail) GetDiagnosticsAvailable() bool {
 func (x *JourneyDetail) GetCanDecide() bool {
 	if x != nil {
 		return x.CanDecide
+	}
+	return false
+}
+
+func (x *JourneyDetail) GetCanExecute() bool {
+	if x != nil {
+		return x.CanExecute
 	}
 	return false
 }
@@ -9028,7 +9039,7 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\asection\x18\x02 \x01(\tR\asection\x12\x14\n" +
 	"\x05state\x18\x03 \x01(\tR\x05state\x12\x14\n" +
 	"\x05count\x18\x04 \x01(\x05R\x05count\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"\x84\b\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xa5\b\n" +
 	"\rJourneyDetail\x125\n" +
 	"\ajourney\x18\x01 \x01(\v2\x1b.hcmnext.journey.v1.JourneyR\ajourney\x127\n" +
 	"\bfindings\x18\x02 \x03(\v2\x1b.hcmnext.journey.v1.FindingR\bfindings\x12%\n" +
@@ -9046,7 +9057,9 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\rdetail_digest\x18\f \x01(\tR\fdetailDigest\x123\n" +
 	"\x15diagnostics_available\x18\r \x01(\bR\x14diagnosticsAvailable\x12\x1d\n" +
 	"\n" +
-	"can_decide\x18\x0e \x01(\bR\tcanDecide\x125\n" +
+	"can_decide\x18\x0e \x01(\bR\tcanDecide\x12\x1f\n" +
+	"\vcan_execute\x18\x13 \x01(\bR\n" +
+	"canExecute\x125\n" +
 	"\x05notes\x18\x0f \x03(\v2\x1f.hcmnext.journey.v1.JourneyNoteR\x05notes\x12W\n" +
 	"\x0fdurable_records\x18\x12 \x03(\v2..hcmnext.journey.v1.DurableRecordFamilyProfileR\x0edurableRecords\x12U\n" +
 	"\x10promotion_review\x18\x10 \x01(\v2*.hcmnext.journey.v1.JourneyPromotionReviewR\x0fpromotionReview\x12K\n" +

@@ -27,12 +27,14 @@ func agentUX022SnapshotFailure(err error) string {
 	return "load"
 }
 
+// agentUX022Copy is the copy agentUX022Text resolves (agentux_copy.go).
+var agentUX022Copy = map[string][3]string{
+	"load_failed": {"Agent setup could not be loaded just now. Nothing was changed.", "Die Agenteneinrichtung konnte gerade nicht geladen werden. Es wurde nichts geändert.", "تعذر تحميل إعداد الوكلاء الآن. لم يتغير شيء."},
+	"retry":       {"Try again", "Erneut versuchen", "حاول مرة أخرى"},
+}
+
 func agentUX022Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"load_failed": {"Agent setup could not be loaded just now. Nothing was changed.", "Die Agenteneinrichtung konnte gerade nicht geladen werden. Es wurde nichts geändert.", "تعذر تحميل إعداد الوكلاء الآن. لم يتغير شيء."},
-		"retry":       {"Try again", "Erneut versuchen", "حاول مرة أخرى"},
-	}
-	return copy[key][agentRPLocaleIndex(locale)]
+	return agentuxCopyText(agentUX022Copy, locale, key)
 }
 
 // agentUX022LoadFailed is the page for a read that failed: the frame and page

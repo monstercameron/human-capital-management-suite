@@ -1,3 +1,5 @@
+//go:build !(js && wasm)
+
 package productui
 
 import (
@@ -16,10 +18,13 @@ func TestIntegrate1AgentSetupIcons_Browser(t *testing.T) {
 				t.Logf("locale=%s width=%d theme=%s", language, width, theme)
 				persona := PersonaAdminPersona{ID: "policy", Name: "Policy Helper", Icon: icon, IconRevision: 7}
 				markup := personaAdminRender(t, integrate1AgentIconControls(locale, persona))
-				for _, action := range []string{"regenerate", "shuffle", "reset", "apply", "undo", "cancel"} {
+				for _, action := range []string{"regenerate", "shuffle", "reset", "apply", "undo", "cancel", "upload"} {
 					if !strings.Contains(markup, `data-agent-icon-action="`+action+`"`) || !strings.Contains(markup, Integrate1IconText(locale, action)) {
 						t.Fatal("missing localized control", action, markup)
 					}
+				}
+				if !strings.Contains(markup, `type="file"`) || !strings.Contains(markup, `accept="image/png,image/jpeg"`) || !strings.Contains(markup, `data-agent-icon-file="true"`) || !strings.Contains(markup, Integrate1IconText(locale, "choose")) {
+					t.Fatal("missing localized upload control", markup)
 				}
 				if !strings.Contains(markup, `data-agent-icon-revision="7"`) || !strings.Contains(markup, `role="status"`) || !strings.Contains(markup, `role="group"`) || !strings.Contains(markup, `hidden`) {
 					t.Fatal("preview/CAS contract missing", markup)

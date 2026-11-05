@@ -20,7 +20,7 @@ import (
 //   - The checked-in JSON equals a fresh generation
 func TestTodoRegistryMatchesMarkdown(t *testing.T) {
 	// Read the markdown file
-	markdownPath := filepath.Join("../../../planning/todos.md")
+	markdownPath := filepath.Join("../../../planning/archive/todos-2026-10-22.md")
 	content, err := os.ReadFile(markdownPath)
 	if err != nil {
 		t.Fatalf("failed to read todos.md: %v", err)

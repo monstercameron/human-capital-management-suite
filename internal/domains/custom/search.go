@@ -21,6 +21,16 @@ type SearchRequest struct {
 	Purpose               string
 	MinimumSequence       int64
 	RequiredSchemaVersion uint64
+	// Principal and Access apply the definition's record rules. Nil Access
+	// means no record filtering (field grants still apply). A non-nil Access
+	// with record rules filters before paging; without rules the platform
+	// policy alone decides each record.
+	Principal Principal
+	Access    *AccessDeps
+	// Limit pages the filtered result; zero means no paging. Offset skips
+	// that many filtered records. Negative values are rejected.
+	Limit  int
+	Offset int
 }
 
 // SearchRecord is the authorized semantic view of one projected record.
@@ -99,10 +109,15 @@ func (s *EventStore) Search(ctx context.Context, req SearchRequest) (SearchRepor
 		return SearchReport{}, fmt.Errorf("%w: required schema version %d, definition version %d", ErrInvalidMutation, req.RequiredSchemaVersion, req.Definition.Version)
 	}
 
+	if req.Limit < 0 || req.Offset < 0 {
+		return SearchReport{}, fmt.Errorf("%w: limit and offset must be non-negative", ErrInvalidMutation)
+	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	var sourceHead int64
 	views := make([]SearchRecord, 0)
+	var candidates []Event
 	for key, event := range s.records {
 		if !strings.HasPrefix(key, req.Tenant.String()+"\x00"+req.Definition.Kind+"\x00") || event.Retired {
 			continue
@@ -117,6 +132,29 @@ func (s *EventStore) Search(ctx context.Context, req SearchRequest) (SearchRepor
 		if !matchesQuery(event.Record.FieldValues, req.Query) {
 			continue
 		}
+		candidates = append(candidates, event)
+	}
+	// Record rules filter before paging: page boundaries are drawn over
+	// allowed records only, so a page can never shift an unreadable record
+	// into view.
+	allowed := map[string]bool{}
+	if req.Access != nil {
+		records := make([]CustomRecordRevision, 0, len(candidates))
+		for _, event := range candidates {
+			records = append(records, event.Record)
+		}
+		filtered, err := Filter(ctx, req.Definition, req.Principal, records, req.Access)
+		if err != nil {
+			return SearchReport{}, err
+		}
+		for _, record := range filtered {
+			allowed[record.ObjectID] = true
+		}
+	}
+	for _, event := range candidates {
+		if req.Access != nil && !allowed[event.ObjectID] {
+			continue
+		}
 		view := SearchRecord{ObjectID: event.ObjectID, Revision: event.Revision, DefinitionVersion: event.DefinitionVersion, Fields: make(map[string]TypedValue, len(fields))}
 		for _, field := range fields {
 			view.Fields[field] = event.Record.FieldValues[field]
@@ -128,8 +166,17 @@ func (s *EventStore) Search(ctx context.Context, req SearchRequest) (SearchRepor
 	if req.MinimumSequence > sourceHead {
 		return SearchReport{}, fmt.Errorf("%w: required sequence %d, source head %d", ErrProjectionStale, req.MinimumSequence, sourceHead)
 	}
+	total := len(views)
+	if req.Offset > total {
+		views = nil
+	} else {
+		views = views[req.Offset:]
+	}
+	if req.Limit > 0 && len(views) > req.Limit {
+		views = views[:req.Limit]
+	}
 	report := SearchReport{Tenant: req.Tenant, Kind: req.Definition.Kind, SchemaVersion: req.Definition.Version,
-		SourceHead: sourceHead, ProjectionSequence: sourceHead, Records: views, Count: len(views)}
+		SourceHead: sourceHead, ProjectionSequence: sourceHead, Records: views, Count: total}
 	report.Digest = digestReport(report)
 	return cloneSearchReport(report), nil
 }

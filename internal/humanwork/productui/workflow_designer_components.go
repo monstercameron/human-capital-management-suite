@@ -56,6 +56,7 @@ type WorkflowDesignerPageProps struct {
 // transport request. A new workflow uses no base; a replacement pins the
 // immutable publication it supersedes and names its own release version.
 type WorkflowDraftCreateRequest struct {
+	_                 incomparable
 	Template          *WorkflowPaletteItem
 	WorkflowID        string
 	Name              string
@@ -81,6 +82,7 @@ type WorkflowDraftView struct {
 }
 
 type WorkflowDraftSemanticChange struct {
+	_                                                incomparable
 	Kind, Operation, SubjectID, Field, Before, After string
 }
 
@@ -108,6 +110,7 @@ type WorkflowNodeParameter struct {
 	Options                []string
 }
 type WorkflowTemplateOverlay struct {
+	_                                        incomparable
 	Operation, TargetNodeID, EntryID, Reason string
 	EntryVersion                             uint32
 }
@@ -116,9 +119,13 @@ type WorkflowNodeParameterChange struct {
 	Values map[string]string
 }
 type WorkflowOutcomeChange struct{ FromNodeID, RouteKey, ToNodeID string }
-type WorkflowInputBindingChange struct{ TargetNodeID, TargetPath, SourceNodeID, SourcePath string }
+type WorkflowInputBindingChange struct {
+	_                                                  incomparable
+	TargetNodeID, TargetPath, SourceNodeID, SourcePath string
+}
 type WorkflowNodeMove struct{ NodeID, Direction string }
 type WorkflowTemplateOverlayChange struct {
+	_                                        incomparable
 	Operation, TargetNodeID, EntryID, Reason string
 	EntryVersion                             uint32
 }

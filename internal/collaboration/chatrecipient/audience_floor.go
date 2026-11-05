@@ -21,7 +21,8 @@ type AudiencePrincipal struct {
 // AudienceSnapshot is an authoritative, versioned view taken for one delivery
 // decision. Complete attests that current membership was fully enumerated;
 // EligibilityComplete additionally attests that public-channel joiners were
-// fully enumerated, including guests and external members.
+// fully enumerated, including guests and external members. Surface is set
+// for workflow-case and hub-document audiences and zero for chat audiences.
 type AudienceSnapshot struct {
 	TenantID                 string
 	ConversationID           string
@@ -31,6 +32,7 @@ type AudienceSnapshot struct {
 	Complete                 bool
 	EligibilityComplete      bool
 	GuestAndExternalComplete bool
+	Surface                  SurfaceRef
 }
 
 // Disclosure identifies one independently reauthorized part of a persona
@@ -55,8 +57,11 @@ type AudienceFloorAuthority interface {
 
 // AudienceFloorRequest describes one candidate persona delivery. It carries
 // no caller-selected recipient list: recipients come only from Authority.
+// Exactly one of Conversation and Surface is set: a chat delivery names its
+// channel, a workflow-case or hub-document delivery names its surface.
 type AudienceFloorRequest struct {
 	Conversation  chat.Conversation
+	Surface       *SurfaceRef
 	AlwaysPrivate bool
 	Disclosures   []Disclosure
 }
@@ -95,18 +100,26 @@ type AudienceFloorDecision struct {
 
 // EvaluateAudienceFloor re-resolves the audience and checks each disclosure
 // for every current reader and, on public channels, every eligible future
-// joiner. Call it from the public commit boundary and require the committer to
-// reject if the returned snapshot revision is no longer current. Any missing,
-// malformed, stale, or failed authority routes privately.
+// joiner. A surface request is decided by the same evaluator with the
+// surface's current readers as the audience. Call it from the public commit
+// boundary and require the committer to reject if the returned snapshot
+// revision is no longer current. Any missing, malformed, stale, or failed
+// authority routes privately.
 func EvaluateAudienceFloor(ctx context.Context, request AudienceFloorRequest, authority AudienceFloorAuthority) AudienceFloorDecision {
 	private := AudienceFloorDecision{Route: RoutePrivate, Reason: AudienceFloorInvalid}
-	if ctx == nil || isNilAuthority(authority) || invalidConversation(request.Conversation) || len(request.Disclosures) == 0 {
+	if ctx == nil || isNilAuthority(authority) || len(request.Disclosures) == 0 {
 		return private
 	}
 	for _, disclosure := range request.Disclosures {
 		if !validDisclosure(disclosure) {
 			return private
 		}
+	}
+	if request.Surface != nil {
+		return evaluateSurfaceAudienceFloor(ctx, request, authority)
+	}
+	if invalidConversation(request.Conversation) {
+		return private
 	}
 	if request.AlwaysPrivate {
 		private.Reason = AudienceFloorAlwaysPrivate
@@ -127,23 +140,15 @@ func EvaluateAudienceFloor(ctx context.Context, request AudienceFloorRequest, au
 		private.Reason = AudienceFloorIncomplete
 		return private
 	}
-	classes := make(map[dlp.DataClass]struct{}, len(request.Disclosures))
-	for _, disclosure := range request.Disclosures {
-		classes[disclosure.DataClass] = struct{}{}
-	}
-	for class := range classes {
-		if err := authority.AllowDataClass(ctx, request.Conversation, class); err != nil {
-			private.Reason = AudienceFloorUnauthorized
-			return private
-		}
-	}
-	for _, recipient := range audience {
-		for _, disclosure := range request.Disclosures {
-			if err := authority.AuthorizeDisclosure(ctx, recipient, disclosure); err != nil {
-				private.Reason = AudienceFloorUnauthorized
-				return private
-			}
-		}
+	if reason := authorizeFloorDisclosures(ctx, request.Disclosures, audience,
+		func(ctx context.Context, class dlp.DataClass) error {
+			return authority.AllowDataClass(ctx, request.Conversation, class)
+		},
+		func(ctx context.Context, recipient AudiencePrincipal, disclosure Disclosure) error {
+			return authority.AuthorizeDisclosure(ctx, recipient, disclosure)
+		}); reason != "" {
+		private.Reason = reason
+		return private
 	}
 	return AudienceFloorDecision{Route: RoutePublic, Reason: AudienceFloorAllowed, SnapshotRevision: snapshot.Revision, AudienceSize: len(audience)}
 }

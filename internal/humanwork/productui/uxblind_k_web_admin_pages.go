@@ -11,6 +11,7 @@ import (
 // policy service. The page renders only values the service supplied; it never
 // derives a rule from a role, route, or browser input.
 type PolicyRuleProjection struct {
+	_          incomparable
 	ID         string
 	Effect     string
 	Subject    string
@@ -39,6 +40,7 @@ type PolicyStudioProjection struct {
 // configuration center. Href is already authorization-filtered; the browser
 // never manufactures an administrative destination.
 type ConfigurationSectionProjection struct {
+	_           incomparable
 	ID          string
 	Label       string
 	Description string

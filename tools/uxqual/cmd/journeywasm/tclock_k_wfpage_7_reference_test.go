@@ -5,6 +5,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -53,44 +54,24 @@ func wfpage034ProductPage() productui.WorkflowPageDefinition {
 	}
 }
 
-func wfpage034Definition() pagedef.WorkflowPageDefinition {
-	return pagedef.WorkflowPageDefinition{
-		Schema: pagedef.WorkflowPageSchema, SchemaVersion: pagedef.WorkflowPageSchemaVersion,
-		WorkflowKey: hireexec.WorkflowID, WorkflowVersion: hireexec.Version, PageVersion: 3, PageID: hireexec.WorkflowID + ".input",
-		Sections: []pagedef.WorkflowPageSection{{ID: "details", Label: "New hire details", Columns: 2}},
-		Widgets: []pagedef.WorkflowPageWidget{
-			{ID: "field.person", SectionID: "details", Column: 1, Kind: pagedef.WorkflowWidgetPersonPicker, Binding: "person", Type: "STRING#PersonID", Label: "Person", Required: true},
-			{ID: "field.position", SectionID: "details", Column: 2, Kind: pagedef.WorkflowWidgetPositionPicker, Binding: "position", Type: "STRING#PositionID", Label: "Position", Required: true},
-			{ID: "field.cost-centre", SectionID: "details", Column: 1, Kind: pagedef.WorkflowWidgetCostCentrePicker, Binding: "cost_centre", Type: "STRING#CostCentreID", Label: "Cost centre", Required: true},
-			{ID: "field.salary", SectionID: "details", Column: 2, Kind: pagedef.WorkflowWidgetMoney, Binding: "salary", Type: "MONEY", Label: "Salary", Required: true, Currency: "USD", PayBasis: "annual"},
-			{ID: "field.start-date", SectionID: "details", Column: 1, Kind: pagedef.WorkflowWidgetLocalDate, Binding: "start_date", Type: "LOCAL_DATE", Label: "Start date", Required: true, EffectiveDating: "earliest"},
-			{ID: "field.contact", SectionID: "details", Column: 2, Kind: pagedef.WorkflowWidgetText, Binding: "contact", Type: "STRING", Label: "Contact", Required: true},
-			{ID: "field.attachment", SectionID: "details", Column: 1, Kind: pagedef.WorkflowWidgetText, Binding: "attachment", Type: "STRING", Label: "Attachment"},
-		},
-		Rules: []pagedef.WorkflowPageRule{
-			{ID: "salary-band", Target: "salary", Message: "workflow.new_hire.salary_band", When: pagedef.WorkflowCondition{Path: "salary", Op: pagedef.RuleExists}},
-			{ID: "start-date", Target: "start_date", Message: "workflow.new_hire.start_date", When: pagedef.WorkflowCondition{Path: "start_date", Op: pagedef.RuleExists}},
-		},
-		ContentBlocks: []pagedef.WorkflowPageContentBlock{{ID: "guide", SectionID: "details", Kind: "checklist", TextKey: "workflow.new_hire.review"}},
-		LinkSlots:     []pagedef.WorkflowPageLinkSlot{{ID: "hiring-sop", SectionID: "details", DocumentRef: "document:hiring-sop@docv-7", Mode: "pinned"}},
-		Accessibility: pagedef.Accessibility{Landmarks: []string{"main", "form"}, LiveRegion: pagedef.LiveRegionPolite},
-		BrandTokens:   []string{"brand.color.primary", "brand.spacing.md", "brand.typography.body"},
+func wfpage034Bindings(page pagedef.WorkflowPageDefinition) []string {
+	bindings := make([]string, 0, len(page.Widgets))
+	for _, widget := range page.Widgets {
+		bindings = append(bindings, widget.Binding)
 	}
+	return bindings
 }
 
-func wfpage034ServerRules() (workflow.CompiledPageRule, workflow.CompiledPageRule, error) {
-	salary, err := workflow.CompilePageRule(workflow.PageRule{
-		Code: "SALARY_BAND", Message: "salary outside approved company band", Expression: `salary <= param("salary_band_max")`,
-		Inputs: map[string]workflow.ValueType{"salary": {Kind: workflow.KindMoney}}, Parameters: map[string]workflow.ValueType{"salary_band_max": {Kind: workflow.KindMoney}},
-	})
-	if err != nil {
-		return workflow.CompiledPageRule{}, workflow.CompiledPageRule{}, err
+func wfpage034BindingsEqual(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
 	}
-	start, err := workflow.CompilePageRule(workflow.PageRule{
-		Code: "START_DATE", Message: "start date must be on or after the company policy date", Expression: `start_date >= date("2026-10-01")`,
-		Inputs: map[string]workflow.ValueType{"start_date": {Kind: workflow.KindLocalDate}},
-	})
-	return salary, start, err
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTodo_WFPAGE_034(t *testing.T) {
@@ -103,9 +84,24 @@ func TestTodo_WFPAGE_034(t *testing.T) {
 		t.Fatalf("workflow search projection = %+v", starts)
 	}
 
-	page := wfpage034Definition()
+	page := pagedef.NewHireReferencePage()
+	if page.WorkflowKey != hireexec.WorkflowID || page.WorkflowVersion != hireexec.Version || page.PageID != hireexec.WorkflowID+".input" {
+		t.Fatalf("reference page drifted from the shipped workflow: key=%q version=%d page=%q", page.WorkflowKey, page.WorkflowVersion, page.PageID)
+	}
 	if violations := page.Validate(); len(violations) != 0 {
 		t.Fatalf("reference page is invalid: %v", violations)
+	}
+	if got, want := wfpage034Bindings(page), []string{"person", "position", "cost_centre", "salary", "start_date", "contact", "attachment"}; !wfpage034BindingsEqual(got, want) {
+		t.Fatalf("reference page controls = %v, want %v", got, want)
+	}
+	pinned := false
+	for _, slot := range page.LinkSlots {
+		if slot.ID == "hiring-sop" && slot.Mode == "pinned" && slot.DocumentRef == "document:hiring-sop@docv-7" {
+			pinned = true
+		}
+	}
+	if !pinned {
+		t.Fatalf("reference page has no pinned hiring SOP slot: %+v", page.LinkSlots)
 	}
 	productPage := wfpage034ProductPage()
 	values := map[string]string{"person": "person-1", "position": "position-1", "cost_centre": "CC-100", "salary": "120000", "start_date": "2026-09-01", "contact": "hr@example.test", "attachment": "offer.pdf"}
@@ -114,7 +110,15 @@ func TestTodo_WFPAGE_034(t *testing.T) {
 		t.Fatalf("unchecked reference page submission = %+v", validation)
 	}
 
-	salaryRule, startRule, err := wfpage034ServerRules()
+	companyRules := pagedef.NewHireCompanyRules()
+	if len(companyRules) != 2 || companyRules[0].Code != "SALARY_BAND" || companyRules[1].Code != "START_DATE" {
+		t.Fatalf("shipped company rules = %+v", companyRules)
+	}
+	salaryRule, err := workflow.CompilePageRule(companyRules[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	startRule, err := workflow.CompilePageRule(companyRules[1])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,9 +140,9 @@ func TestTodo_WFPAGE_034(t *testing.T) {
 	if _, err := draft.Save(productui.WorkflowPageDraft{Key: key, PageID: page.PageID, PageVersion: int64(page.PageVersion), Values: submission.Values}); err != nil {
 		t.Fatal(err)
 	}
-	run := productui.WorkflowHistoryRun{ID: "run-new-hire-1", Workflow: definition.Catalog.DisplayName, Version: "v2", Subject: "person-1", Stage: "COMPLETED", StatusGroup: productui.JourneyHomeGroupClosed, Href: "/workspace/app/workflows/history?run=run-new-hire-1&page_version=3"}
+	run := productui.WorkflowHistoryRun{ID: "run-new-hire-1", Workflow: definition.Catalog.DisplayName, Version: fmt.Sprintf("v%d", hireexec.Version), Subject: "person-1", Stage: "COMPLETED", StatusGroup: productui.JourneyHomeGroupClosed, Href: fmt.Sprintf("/workspace/app/workflows/history?run=run-new-hire-1&page_version=%d", page.PageVersion)}
 	history := productui.FilterWorkflowHistoryRuns([]productui.WorkflowHistoryRun{run}, productui.WorkflowRunHistoryFilter{Query: "new hire"})
-	if len(history) != 1 || !strings.Contains(history[0].Href, "page_version=3") || history[0].Version != "v2" {
+	if len(history) != 1 || !strings.Contains(history[0].Href, fmt.Sprintf("page_version=%d", pagedef.NewHireReferencePageVersion)) || history[0].Version != "v2" {
 		t.Fatalf("submitted run history = %+v", history)
 	}
 }
@@ -165,7 +169,7 @@ func TestTodo_WFPAGE_034_Browser(t *testing.T) {
 }
 
 func TestTodo_WFPAGE_034_Golden(t *testing.T) {
-	canonical := wfpage034Definition().Canonical()
+	canonical := pagedef.NewHireReferencePage().Canonical()
 	digest := sha256.Sum256(canonical)
 	if got, want := hex.EncodeToString(digest[:]), "968ea64018fff2855823c39775a4ecdf5b717ece804a8ab72dc9cb986d0c9c98"; got != want {
 		t.Fatalf("reference page canonical digest = %s, want %s; bytes=%s", got, want, canonical)
@@ -197,7 +201,7 @@ func TestTodo_WFPAGE_034_Integration(t *testing.T) {
 }
 
 func TestTodo_WFPAGE_034_Conformance(t *testing.T) {
-	page := wfpage034Definition()
+	page := pagedef.NewHireReferencePage()
 	registry := widgetreg.NewWorkflowInputRegistry()
 	for _, widget := range page.Widgets {
 		if _, ok := registry.Lookup(widget.Kind); !ok {

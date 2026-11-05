@@ -31,7 +31,7 @@ func (s *server) SearchKnowledge(ctx context.Context, req *journeyv1.SearchKnowl
 	}
 	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
 	if len(roles) == 0 {
-		return nil, featureAccessDenied(principal, inv)
+		return nil, featureAccessDenied(principal, inv.RequestID())
 	}
 	outcome, err := s.deps.Knowledge.SearchDetailed(ctx, app.KnowledgeSearchRequest{
 		TenantID: principal.Tenant().String(), Query: req.GetQuery(), Locale: req.GetLocale(),

@@ -62,6 +62,22 @@ func TestUXBLIND023StickyLastAndTypeahead(t *testing.T) {
 	}
 }
 
+// TestUXBLIND023DesktopWideTableScrollOwner is the stylesheet-level half of
+// the served-browser condition from the 2026-10-23 reopen finding: with the
+// supported optional People columns enabled, the directory table is wider
+// than its viewport at desktop widths, so the min-width:1081px rule must
+// keep the table viewport as the bounded horizontal scroll owner
+// (overflow-x:auto) while leaving vertical scrolling to the page
+// (max-height:none, overflow-y:visible). The native lane cannot launch a
+// browser, so this pins the rule the pointer-scroll path depends on.
+func TestUXBLIND023DesktopWideTableScrollOwner(t *testing.T) {
+	css := Stylesheet()
+	want := `@media (min-width:1081px){.people-directory .data-table-scroll{max-height:none;min-height:0;overflow-x:auto;overflow-y:visible;}`
+	if !strings.Contains(css, want) {
+		t.Fatalf("desktop wide-table scroll owner missing %q", want)
+	}
+}
+
 // TestTodo_UXBLIND_023_Browser is the component-level browser contract. The
 // repository's native lane tests do not launch a browser, so it pins the
 // responsive overflow and sticky-cell rules consumed at the three audited

@@ -8,7 +8,7 @@ import (
 func TestTodo_UXSCAN_005(t *testing.T) {
 	css := Stylesheet()
 	for _, want := range []string{
-		`@media (min-width:1081px){.people-directory .data-table-scroll{max-height:none;min-height:0;overflow:visible;}`,
+		`@media (min-width:1081px){.people-directory .data-table-scroll{max-height:none;min-height:0;overflow-x:auto;overflow-y:visible;}`,
 		`@media (min-width:1200px){.history-filter-controls{display:grid;grid-template-columns:`,
 	} {
 		if !strings.Contains(css, want) {

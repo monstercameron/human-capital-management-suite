@@ -207,7 +207,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			for _, kind := range v.Response.Unavailable {
 				names = append(names, chatsearchKind(locale, kind))
 			}
-			children = append(children, html.P(html.Props{Role: "status", Text: strings.ReplaceAll(t("missing"), "{kinds}", strings.Join(names, ", "))}))
+			// CHATBUG-096: the partial failure names its sources in one
+			// sentence with one Retry beside it, like the full failure above.
+			children = append(children, html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{Text: strings.ReplaceAll(t("missing"), "{kinds}", strings.Join(names, ", "))}), button("retry", t("retry"), "")))
 		}
 	}
 	// Recent searches are offered for an empty box; once there are words in it the

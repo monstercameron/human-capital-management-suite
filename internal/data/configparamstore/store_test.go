@@ -97,6 +97,53 @@ func TestTodo_WF_DATA_037_Integration(t *testing.T) {
 	}
 }
 
+func TestTodo_WF_DATA_042_DurableBudgets(t *testing.T) {
+	db := pgtest.New(t)
+	tenant := uuid.New()
+	db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-test','Config Param Budgets','ACTIVE',$3)`, tenant, "config-param-budget-"+tenant.String(), time.Now().UTC())
+	if _, err := db.Conn.Exec(context.Background(), `SET ROLE hcmnext_app`); err != nil {
+		t.Fatal(err)
+	}
+	store := New(db.Conn, func(key string) uuid.UUID {
+		if key == tenant.String() {
+			return tenant
+		}
+		return uuid.Nil
+	})
+	store.Limits = config.TenantValueLimits{MaxKeysPerTenant: 1, MaxValueBytes: 64}
+	typ := workflow.ValueType{Kind: workflow.KindString}
+	consumer := config.Consumer{Kind: config.ConsumerWorkflow, ID: "workflow.payroll"}
+	definitions := []config.ParameterDefinition{
+		{Key: "payroll.currency", Type: typ, Classification: "TENANT", Owner: "payroll", AllowedConsumers: []config.Consumer{consumer}},
+		{Key: "payroll.region", Type: typ, Classification: "TENANT", Owner: "payroll", AllowedConsumers: []config.Consumer{consumer}},
+	}
+	snapshot, err := config.NewSnapshotWithDefinitions("active", "v5", nil, definitions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := config.ParameterScopePath{{Kind: config.ScopeTenant, ID: tenant.String()}}
+	at := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	first := config.ParameterValueChange{Key: "payroll.currency", Scope: root[0], Environment: config.EnvironmentProduction, Value: "USD", ValueType: typ, Author: "a", Reason: "r", RecordedAt: at, Path: root}
+	if _, err := store.AppendParameterRevision(context.Background(), tenant.String(), snapshot, first); err != nil {
+		t.Fatalf("first key: %v", err)
+	}
+	second := first
+	second.Key, second.RecordedAt = "payroll.region", at.Add(time.Minute)
+	if _, err := store.AppendParameterRevision(context.Background(), tenant.String(), snapshot, second); !errors.Is(err, config.ErrParameterKeyBudgetExceeded) {
+		t.Fatalf("second key: got %v, want ErrParameterKeyBudgetExceeded", err)
+	}
+	big := first
+	big.Value, big.ExpectedRevision, big.RecordedAt = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", 1, at.Add(2*time.Minute)
+	if _, err := store.AppendParameterRevision(context.Background(), tenant.String(), snapshot, big); !errors.Is(err, config.ErrParameterValueTooLarge) {
+		t.Fatalf("oversized value: got %v, want ErrParameterValueTooLarge", err)
+	}
+	revision := first
+	revision.ExpectedRevision, revision.Value, revision.RecordedAt = 1, "EUR", at.Add(3*time.Minute)
+	if _, err := store.AppendParameterRevision(context.Background(), tenant.String(), snapshot, revision); err != nil {
+		t.Fatalf("new revision of the budgeted key: %v", err)
+	}
+}
+
 func TestTodo_WF_DATA_037_ConflictAndLocks(t *testing.T) {
 	db := pgtest.New(t)
 	tenant := uuid.New()

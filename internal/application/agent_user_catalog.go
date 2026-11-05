@@ -47,25 +47,46 @@ type agentPersonaCatalog interface {
 type AgentUserCatalog struct {
 	Personas AvailablePersonaReader
 	Skills   AgentSkillDiscoverer
+	// Purposes lists the discovery purposes pinned skills are unioned over.
+	// Empty means the chat purpose alone, the behavior before multi-skill
+	// agents.
+	Purposes []string
 }
 
 var _ agentPersonaCatalog = (*AgentUserCatalog)(nil)
 
-// List returns the signed-in user's currently installed, skill-authorized
-// personas. It fails closed on invalid profiles or discovery errors.
+// List returns the signed-in user's skill-authorized personas of a kind that
+// answers questions: what Ask, the mention list and /ask may offer. It fails
+// closed on invalid profiles or discovery errors.
 func (c *AgentUserCatalog) List(ctx context.Context, principal *trust.Principal) ([]productui.AgentSummary, error) {
+	answering, _, err := c.ListBoth(ctx, principal)
+	return answering, err
+}
+
+// ListPage returns the signed-in user's skill-authorized personas of every
+// kind: the Agents page roster with each agent's skills. Answering is
+// decided separately by List.
+func (c *AgentUserCatalog) ListPage(ctx context.Context, principal *trust.Principal) ([]productui.AgentSummary, error) {
+	_, roster, err := c.ListBoth(ctx, principal)
+	return roster, err
+}
+
+// ListBoth lists the installed personas once and projects both the answering
+// subset and the full page roster, so one snapshot costs one persona read.
+func (c *AgentUserCatalog) ListBoth(ctx context.Context, principal *trust.Principal) (answering []productui.AgentSummary, roster []productui.AgentSummary, err error) {
 	if c == nil || c.Personas == nil || c.Skills == nil || principal == nil || principal.SubjectKind() != trust.SubjectKindHuman {
-		return nil, errAgentUserCatalog
+		return nil, nil, errAgentUserCatalog
 	}
 	verified, ok := trust.FromContext(ctx)
 	if !ok || verified == nil || verified.Subject() != principal.Subject() || verified.Tenant() != principal.Tenant() {
-		return nil, errAgentUserCatalog
+		return nil, nil, errAgentUserCatalog
 	}
 	personas, err := c.Personas.ListAvailable(ctx, principal)
 	if err != nil {
-		return nil, fmt.Errorf("list installed personas: %w", err)
+		return nil, nil, fmt.Errorf("list installed personas: %w", err)
 	}
-	out := make([]productui.AgentSummary, 0, len(personas))
+	answering = make([]productui.AgentSummary, 0, len(personas))
+	roster = make([]productui.AgentSummary, 0, len(personas))
 	seen := make(map[string]struct{}, len(personas))
 	for _, persona := range personas {
 		profile := persona.Profile
@@ -75,16 +96,17 @@ func (c *AgentUserCatalog) List(ctx context.Context, principal *trust.Principal)
 		}
 		// AGENTUX-081: "Who should answer?" offers only agents of a kind that
 		// answers questions, decided from the agent's declared starter kind.
-		if !agentUX081PersonaAnswersQuestions(profile) {
+		// The page roster lists every kind.
+		answers := agentUX081PersonaAnswersQuestions(profile)
+		if !answers {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "kind_not_answering")
-			continue
 		}
 		if _, ok := seen[profile.PersonaID]; ok {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "duplicate_persona")
 			continue
 		}
 		seen[profile.PersonaID] = struct{}{}
-		discovered, err := c.Skills.Discover(ctx, principal, personaChatReplyPurpose)
+		discovered, err := discoverAgentSkillsForPurposes(ctx, c.Skills, principal, c.Purposes)
 		if err != nil {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "agent_catalog", "item_type", "persona", "item_id", profile.PersonaID, "reason", "skill_discovery_unavailable")
 			continue
@@ -107,9 +129,13 @@ func (c *AgentUserCatalog) List(ctx context.Context, principal *trust.Principal)
 			continue
 		}
 		slices.Sort(skillNames)
-		out = append(out, productui.AgentSummary{ID: profile.PersonaID, Name: profile.DisplayName, Description: profile.Purpose, Status: "Ready", Skills: skillNames})
+		summary := productui.AgentSummary{ID: profile.PersonaID, Name: profile.DisplayName, Description: profile.Purpose, Status: "Ready", Skills: skillNames}
+		if answers {
+			answering = append(answering, summary)
+		}
+		roster = append(roster, summary)
 	}
-	return out, nil
+	return answering, roster, nil
 }
 
 // GateAgentSkillDiscoverer adapts the gate-backed discovery function to the

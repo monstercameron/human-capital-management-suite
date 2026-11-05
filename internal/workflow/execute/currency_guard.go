@@ -48,6 +48,10 @@ type RuleApproval struct {
 	// the published table against. Both are read only when Resolved.
 	Approved rules.ApprovedPlan
 	Current  rules.PromotionApprovalInput
+	// Thresholds is the tenant's published threshold resolution the
+	// re-evaluation runs against (REV-010-02). The zero value answers
+	// the reference table.
+	Thresholds rules.TenantThresholdResolution
 }
 
 // RuleFacts resolves the decision-table approval record and current rule
@@ -184,7 +188,17 @@ func (g CurrencyGuard) Check(ctx context.Context, ex runtime.Executor, req Curre
 			return CurrencyVerdict{}, err
 		}
 		if ruleCtx.Resolved {
-			reevaluated, err := rules.ReevaluatePromotionApproval(rules.PromotionApprovalThresholdTable(), ruleCtx.Approved, ruleCtx.Current)
+			table := rules.PromotionApprovalThresholdTable()
+			if ruleCtx.Thresholds.Found {
+				table, err = rules.PromotionApprovalThresholdTableForTenant(rules.TenantThresholdScope{Tenant: string(rev.Tenant)}, ruleCtx.Thresholds)
+				if err != nil {
+					return CurrencyVerdict{
+						Blocked: true, Reason: ReasonCurrencyRuleInvalidated,
+						Explanation: []string{"rule re-evaluation refused: " + err.Error()},
+					}, nil
+				}
+			}
+			reevaluated, err := rules.ReevaluatePromotionApproval(table, ruleCtx.Approved, ruleCtx.Current)
 			if err != nil {
 				// A frozen record that no longer reproduces cannot
 				// honestly continue: block fail-closed under the same

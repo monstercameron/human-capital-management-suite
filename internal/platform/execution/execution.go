@@ -177,6 +177,13 @@ type PromotionExecutionConfig struct {
 	// continuation exactly as before. It is supplied, never read from the
 	// environment: a dataset revision is a deployment decision.
 	TimerDataset values.DatasetVersions
+	// ThresholdParameters resolves the tenant's published promotion
+	// approval thresholds (REV-010-02) for raise-threshold evaluation and
+	// RULE-004 re-evaluation. Nil means the reference 10%/20% table answers
+	// for every tenant, exactly as before; set it to a ConfigThresholdReader
+	// composed with the cell's catalog, store, and environment to serve
+	// per-tenant thresholds.
+	ThresholdParameters ThresholdParameterReader
 	// Versions is the durable compiled-version registry the shipped
 	// workflows are published into and activated through (WF-COMP-006,
 	// WF-RUN-035). A composition root serving traffic supplies
@@ -380,6 +387,7 @@ func NewPromotionExecution(cfg PromotionExecutionConfig) (*PromotionExecution, e
 	steps := &promotionStepPorts{
 		db: cfg.DB, cellID: cfg.CellID, authorityDigest: cfg.AuthorityDigest,
 		planDigest: selectedPlan.Digest(), clock: clock, receipts: cfg.ProviderReceipts,
+		thresholdParameters: cfg.ThresholdParameters,
 	}
 	if steps.cellID == "" {
 		steps.cellID = "cell-local"

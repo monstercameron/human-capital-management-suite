@@ -81,6 +81,9 @@ func (g *Gate) seedUsageLocked(key limitKey) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
+	if runs < 0 || micros < 0 {
+		return fmt.Errorf("%w: stored usage is negative", ErrUnavailable)
+	}
 	slot := g.used[dayKey{key, day}]
 	if slot == nil {
 		slot = &usage{}

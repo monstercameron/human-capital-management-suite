@@ -52,9 +52,31 @@ type workflowAgentRecovery struct {
 }
 
 func (e workflowAgentRecovery) Recover(ctx context.Context, tenant, id string) (runstate.Run, error) {
+	record, err := e.GetAdmission(ctx, tenant, id)
+	if err != nil || record.Decision != agentrun.DecisionAccepted {
+		if err == nil {
+			err = workflowbridge.ErrEvidence
+		}
+		return runstate.Run{}, err
+	}
 	run, err := e.GetRun(ctx, tenant, id)
+	if errors.Is(err, runstate.ErrNotFound) || errors.Is(err, agentrunstate.ErrNotFound) {
+		return e.execution.Start(ctx, record)
+	}
 	if err != nil {
 		return runstate.Run{}, err
+	}
+	// Mirror CommonAgentRuntime.Recover: the sweep relies on recovery to
+	// apply an elapsed admission deadline, not just to release leases.
+	if !run.ExpireRequested && !run.Deadline.After(e.now) &&
+		(run.State == runstate.StateReady || run.State == runstate.StateRunning || run.State == runstate.StateWaiting || run.State == runstate.StateReconciling) {
+		return e.execution.Expire(ctx, id, run.Version, e.now)
+	}
+	if run.State != runstate.StateRunning {
+		return run, nil
+	}
+	if run.Lease != nil && run.Lease.Until.After(e.now) {
+		return run, nil
 	}
 	return e.execution.Recover(ctx, id, run.Version, e.now)
 }

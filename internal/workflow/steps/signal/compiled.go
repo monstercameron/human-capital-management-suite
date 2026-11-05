@@ -26,8 +26,15 @@ type InstanceContext struct {
 	// [workflow.CompiledSignal.CloseAfterSeconds] and the node's entry
 	// instant computes this before calling [FromCompiled]; resolving it here
 	// would mean reading the clock, which this package's conformance
-	// forbids.
+	// forbids. It is mutually exclusive with a node close time expression.
 	ClosesAt values.Instant
+	// Anchor, Calendars and Dataset resolve a node close time expression.
+	// They are required exactly when the compiled node carries
+	// CloseTimeExpr and ignored otherwise. Anchor is the evaluated anchor
+	// path for this instance; Calendars is the pinned calendar dataset.
+	Anchor    values.Instant
+	Calendars values.CalendarDataset
+	Dataset   values.DatasetVersions
 }
 
 // FromCompiled builds a [SignalSubscription] from a compiled SIGNAL node and
@@ -62,8 +69,68 @@ func FromCompiled(node *workflow.CompiledNode, instanceCtx InstanceContext) (Sig
 		Ordering:           OrderingExpectation(s.Ordering),
 		ClosesAt:           instanceCtx.ClosesAt,
 	}
+	if s.CloseTimeExpr != nil {
+		if instanceCtx.ClosesAt.IsSet() {
+			return SignalSubscription{}, fmt.Errorf("signal: FromCompiled: node %q: a close time expression and a context close instant are mutually exclusive", node.ID)
+		}
+		expr, err := translateTimeExpr(s.CloseTimeExpr)
+		if err != nil {
+			return SignalSubscription{}, fmt.Errorf("signal: FromCompiled: node %q: %w", node.ID, err)
+		}
+		res, err := values.ResolveTimeExpr(expr, instanceCtx.Anchor, instanceCtx.Calendars, instanceCtx.Dataset)
+		if err != nil {
+			return SignalSubscription{}, fmt.Errorf("signal: FromCompiled: node %q: close time expression: %v", node.ID, err)
+		}
+		sub.ClosesAt = res.FireAt
+	}
+	if s.TimeoutDefault != nil {
+		sub.DeadlineDefault = values.DeadlineDefault{Schema: s.TimeoutDefault.Schema, CanonicalJSON: s.TimeoutDefault.CanonicalJSON}
+	}
 	if err := sub.Validate(); err != nil {
 		return SignalSubscription{}, fmt.Errorf("signal: FromCompiled: node %q: %w", node.ID, err)
 	}
 	return sub, nil
+}
+
+// translateTimeExpr builds the typed close expression from its wire form.
+// Zone and calendar come from the spec itself: unlike WAIT, a SIGNAL node
+// pins no zone or calendar at node level.
+func translateTimeExpr(spec *workflow.TimeExprSpec) (values.TimeExpr, error) {
+	kind, err := values.ParseTimeExprOffsetKind(spec.OffsetKind)
+	if err != nil {
+		return values.TimeExpr{}, fmt.Errorf("close_time_expr: %w", err)
+	}
+	expr := values.TimeExpr{
+		AnchorPath:    spec.AnchorPath,
+		OffsetKind:    kind,
+		OffsetDays:    spec.OffsetDays,
+		OffsetSeconds: spec.OffsetSeconds,
+		Calendar:      values.CalendarRef{Ref: spec.CalendarRef, Version: spec.CalendarVersion},
+		Zone:          values.ZoneRef{ID: spec.ZoneID, TzdbVersion: spec.ZoneTzdbVersion},
+	}
+	if spec.LocalTime != "" {
+		lt, err := values.ParseLocalTime(spec.LocalTime)
+		if err != nil {
+			return values.TimeExpr{}, fmt.Errorf("close_time_expr: local_time: %w", err)
+		}
+		expr.WakeLocalTime = lt
+	}
+	if spec.Disambiguation != "" {
+		disamb, err := values.ParseDisambiguation(spec.Disambiguation)
+		if err != nil {
+			return values.TimeExpr{}, fmt.Errorf("close_time_expr: disambiguation: %w", err)
+		}
+		expr.Disambiguation = disamb
+	}
+	if spec.StatuteRulePack != "" || spec.Statute != "" {
+		expr.Statute = &values.StatuteRef{
+			RulePack: spec.StatuteRulePack,
+			Release:  spec.StatuteRelease,
+			Statute:  spec.Statute,
+		}
+	}
+	if err := expr.Validate(); err != nil {
+		return values.TimeExpr{}, fmt.Errorf("close_time_expr: %w", err)
+	}
+	return expr, nil
 }

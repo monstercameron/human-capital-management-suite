@@ -152,6 +152,9 @@ func TestTodo_PM_045_Fault(t *testing.T) {
 	if got := service.Current(); got.Revision != before.Revision || len(got.Views) != len(before.Views) {
 		t.Fatalf("malformed output changed board: before=%+v after=%+v", before, got)
 	}
+	if _, hasDraft := service.Draft(); hasDraft {
+		t.Fatal("malformed output retained a draft")
+	}
 }
 
 func TestTodo_PM_045_Recovery(t *testing.T) {
@@ -261,6 +264,19 @@ func TestTodo_PM_047(t *testing.T) {
 	if err != nil || !result.Overridden || result.State.ActiveCount != 2 || len(result.State.Overrides) != 1 || result.State.Overrides[0].Reason != "incident coverage" {
 		t.Fatalf("authorized override = %+v err=%v", result, err)
 	}
+	denied, err := NewWIPController(WIPPolicy{Version: 1, Mode: WIPHard, Limit: 1, EligibleStatusIDs: []string{"doing"}}, []WIPTask{{ID: "doing-1", StatusID: "doing", Revision: 1}, {ID: "todo-1", StatusID: "todo", Revision: 1}}, WIPOverrideAuthorizerFunc(func(actor string) bool { return actor == "manager" }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := denied.Move(WIPMoveRequest{TaskID: "todo-1", FromStatusID: "todo", ToStatusID: "doing", ExpectedTaskRevision: 1, ExpectedPolicyVersion: 1, ActorID: "worker", OverrideReason: "please"}); !errors.Is(err, ErrWIPOverrideUnauthorized) {
+		t.Fatalf("unauthorized override = %v", err)
+	}
+	if _, err := denied.Move(WIPMoveRequest{TaskID: "todo-1", FromStatusID: "todo", ToStatusID: "doing", ExpectedTaskRevision: 1, ExpectedPolicyVersion: 1, ActorID: "manager", OverrideReason: "  "}); !errors.Is(err, ErrWIPOverrideReason) {
+		t.Fatalf("blank override reason = %v", err)
+	}
+	if state := denied.State(); state.ActiveCount != 1 || len(state.Overrides) != 0 {
+		t.Fatalf("denied overrides changed state: %+v", state)
+	}
 }
 
 func TestTodo_PM_047_Race(t *testing.T) {
@@ -307,5 +323,13 @@ func TestTodo_PM_047_Integration(t *testing.T) {
 	}
 	if err := controller.SetPolicy(1, WIPPolicy{Version: 2, Mode: WIPHard, Limit: 1, EligibleStatusIDs: []string{"doing"}}); !errors.Is(err, ErrWIPPolicyConflict) {
 		t.Fatalf("stale policy update = %v", err)
+	}
+	soft, err := NewWIPController(WIPPolicy{Version: 1, Mode: WIPAdvisory, Limit: 1, EligibleStatusIDs: []string{"doing"}}, []WIPTask{{ID: "doing-1", StatusID: "doing", Revision: 1}, {ID: "todo-1", StatusID: "todo", Revision: 1}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	over, err := soft.Move(WIPMoveRequest{TaskID: "todo-1", FromStatusID: "todo", ToStatusID: "doing", ExpectedTaskRevision: 1, ExpectedPolicyVersion: 1, ActorID: "worker"})
+	if err != nil || !over.Advisory || over.Overridden || over.State.ActiveCount != 2 || over.State.Remaining != -1 || len(over.State.Overrides) != 0 {
+		t.Fatalf("advisory over-limit move = %+v err=%v", over, err)
 	}
 }

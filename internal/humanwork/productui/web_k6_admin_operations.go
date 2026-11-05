@@ -14,6 +14,7 @@ import (
 // ready.
 
 type IntegrationOperationProjection struct {
+	_           incomparable
 	ID          string
 	Connector   string
 	Operation   string
@@ -60,6 +61,7 @@ type PrivacyTelemetryProjection struct {
 }
 
 type PerformanceBudgetProjection struct {
+	_        incomparable
 	ID       string
 	Name     string
 	Scope    string

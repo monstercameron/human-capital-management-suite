@@ -11,13 +11,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/agentdemo"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-const AgentUXDemoSupportSourceKind = "SUPPORT_EMAIL"
+// AgentUXDemoSupportSourceKind is the support executor's admission source kind.
+// It names agentrun's admitted kind so the two cannot drift apart (AGENTUX-079).
+const AgentUXDemoSupportSourceKind = string(agentrun.SourceSupportEmail)
 
 type AgentUXDemoInboxRepository interface {
 	Receive(context.Context, agentstore.SupportInboxMessage) (bool, error)

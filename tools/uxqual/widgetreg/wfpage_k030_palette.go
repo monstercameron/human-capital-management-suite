@@ -24,23 +24,25 @@ type WorkflowPagePaletteEntry struct {
 // WorkflowPageBindingRequest is the bounded edit surface for the binding
 // inspector. The refusal fields make accidental expansion of the page schema
 // explicit instead of silently accepting browser-provided workflow material.
+// The input classification is deliberately not part of the request:
+// BindPageWidget resolves it from trusted compiled metadata, so a
+// browser-supplied label can never widen the page ceiling.
 type WorkflowPageBindingRequest struct {
-	Plan           *workflow.CompiledWorkflow
-	PageID         string
-	SectionID      string
-	InputPath      string
-	Kind           pagedef.WorkflowWidgetKind
-	Classification string
-	Ceiling        string
-	Label          string
-	Help           string
-	Prefill        string
-	Default        string
-	ReadOnly       bool
-	NewInput       string
-	NewNode        string
-	Capability     string
-	FreeHTML       string
+	Plan       *workflow.CompiledWorkflow
+	PageID     string
+	SectionID  string
+	InputPath  string
+	Kind       pagedef.WorkflowWidgetKind
+	Ceiling    string
+	Label      string
+	Help       string
+	Prefill    string
+	Default    string
+	ReadOnly   bool
+	NewInput   string
+	NewNode    string
+	Capability string
+	FreeHTML   string
 }
 
 // WorkflowPageBinding is the inspector's immutable projection. Options are
@@ -70,6 +72,9 @@ func (r WorkflowInputRegistry) PagePalette(plan *workflow.CompiledWorkflow, clas
 			continue
 		}
 		for _, registration := range r.widgets {
+			if !paletteOffered(registration.Kind) {
+				continue
+			}
 			if !pageWidgetCompatible(plan, field.Path, registration.Kind) {
 				continue
 			}
@@ -90,8 +95,12 @@ func (r WorkflowInputRegistry) PagePalette(plan *workflow.CompiledWorkflow, clas
 
 // BindPageWidget validates an inspector edit against the same page-definition
 // mapping used by ValidateAgainst. A binding can point only at an existing
-// compiled input and a closed widget kind.
-func (r WorkflowInputRegistry) BindPageWidget(request WorkflowPageBindingRequest) (WorkflowPageBinding, error) {
+// compiled input and a closed widget kind. The input classification is
+// resolved from trusted compiled metadata, never from the request: the
+// request carries only the page-declared ceiling, so a mislabeled edit
+// cannot smuggle a restricted input under a public ceiling. Inputs
+// without a compiled classification fail closed.
+func (r WorkflowInputRegistry) BindPageWidget(request WorkflowPageBindingRequest, classifications map[string]string) (WorkflowPageBinding, error) {
 	if request.Plan == nil {
 		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: compiled workflow is required")
 	}
@@ -103,10 +112,13 @@ func (r WorkflowInputRegistry) BindPageWidget(request WorkflowPageBindingRequest
 	if !found {
 		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: binding %q is not a compiled workflow input", request.InputPath)
 	}
-	if rank := classificationRank(request.Classification); !rank.ok {
-		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: unknown input classification %q", request.Classification)
-	} else if ceiling := classificationRank(request.Ceiling); !ceiling.ok || rank.rank > ceiling.rank {
-		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: input classification %q exceeds page ceiling %q", request.Classification, request.Ceiling)
+	classification := strings.ToLower(strings.TrimSpace(classifications[field.Path]))
+	rank := classificationRank(classification)
+	if !rank.ok {
+		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: input %q has no compiled classification", request.InputPath)
+	}
+	if ceiling := classificationRank(request.Ceiling); !ceiling.ok || rank.rank > ceiling.rank {
+		return WorkflowPageBinding{}, fmt.Errorf("widgetreg: input %q classification %q exceeds page ceiling %q", request.InputPath, classification, request.Ceiling)
 	}
 	_, found = r.Lookup(request.Kind)
 	if !found || !pageWidgetCompatible(request.Plan, field.Path, request.Kind) {
@@ -139,6 +151,21 @@ func classificationRank(value string) classificationResult {
 		return classificationResult{rank: 4, ok: true}
 	default:
 		return classificationResult{}
+	}
+}
+
+// paletteOffered reports whether the palette may offer a kind directly. The
+// WFPAGE-014 kinds need declarations the binding request does not carry (an
+// accept list, an assurance level, a row template, an operator with inputs),
+// so offering them would mint widgets that fail page validation. They stay
+// renderable and submittable; they just are not one-click palette picks.
+func paletteOffered(kind pagedef.WorkflowWidgetKind) bool {
+	switch kind {
+	case pagedef.WorkflowWidgetAttachment, pagedef.WorkflowWidgetSignature,
+		pagedef.WorkflowWidgetRepeatingGroup, pagedef.WorkflowWidgetComputed:
+		return false
+	default:
+		return true
 	}
 }
 

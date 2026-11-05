@@ -29,6 +29,7 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 		WorkflowStarts:          []workspace.WorkflowStartConfig{{WorkflowID: "hire", Name: "New hire", Availability: "available"}},
 		WorkflowStartWorkflowID: "hire",
 		PersonaAdminSnapshot:    &productui.PersonaAdminSnapshot{Available: true, Personas: []productui.PersonaAdminPersona{{ID: "policy-helper", Name: "Policy Helper"}}},
+		ConfigurationCenter:     &productui.ConfigurationCenterProjection{Ready: true, Sections: []productui.ConfigurationSectionProjection{{ID: "appearance", Version: "v3"}}},
 		Purpose:                 "promotion_review",
 		JourneysPath:            workspace.PathJourney,
 		GiphyAPIKey:             "giphy-public-client-key",
@@ -76,6 +77,9 @@ func TestParseConfigReadsTheShellIsland(t *testing.T) {
 	}
 	if cfg.PersonaAdminSnapshot == nil || !cfg.PersonaAdminSnapshot.Available || len(cfg.PersonaAdminSnapshot.Personas) != 1 || cfg.PersonaAdminSnapshot.Personas[0].ID != "policy-helper" {
 		t.Fatalf("PersonaAdminSnapshot = %+v, want server projection", cfg.PersonaAdminSnapshot)
+	}
+	if cfg.ConfigurationCenter == nil || !cfg.ConfigurationCenter.Ready || len(cfg.ConfigurationCenter.Sections) != 1 || cfg.ConfigurationCenter.Sections[0].ID != "appearance" || cfg.ConfigurationCenter.Sections[0].Version != "v3" {
+		t.Fatalf("ConfigurationCenter = %+v, want server projection", cfg.ConfigurationCenter)
 	}
 }
 

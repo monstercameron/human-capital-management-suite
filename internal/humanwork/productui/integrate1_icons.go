@@ -45,6 +45,8 @@ func Integrate1IconText(locale LocaleContext, key string) string {
 		"failed":     {"Could not change the icon. Try again.", "Das Symbol konnte nicht geändert werden. Versuchen Sie es erneut.", "تعذر تغيير الأيقونة. حاول مرة أخرى."},
 		"changed":    {"Icon changed.", "Symbol geändert.", "تم تغيير الأيقونة."},
 		"cancel":     {"Cancel preview", "Vorschau abbrechen", "إلغاء المعاينة"},
+		"upload":     {"Upload image", "Bild hochladen", "رفع صورة"},
+		"choose":     {"Choose an image", "Bild auswählen", "اختيار صورة"},
 	}
 	index := 0
 	if locale.Resolved == "de-DE" {
@@ -61,6 +63,10 @@ func integrate1AgentIconControls(locale LocaleContext, persona PersonaAdminPerso
 		nodes = append(nodes, html.Button(html.Props{Type: "button", Class: "button secondary small", Text: Integrate1IconText(locale, action), Disabled: persona.IconRevision < 1, Data: map[string]string{"agent-icon-action": action}}))
 	}
 	nodes = append(nodes, html.Div(html.Props{Hidden: true, Data: map[string]string{"agent-icon-preview": "true"}, Role: "group", Aria: map[string]string{"label": Integrate1IconText(locale, "preview")}}, html.Span(html.Props{Data: map[string]string{"agent-icon-preview-image": "true"}}), html.Button(html.Props{Type: "button", Class: "button small", Text: Integrate1IconText(locale, "apply"), Data: map[string]string{"agent-icon-action": "apply"}}), html.Button(html.Props{Type: "button", Class: "button secondary small", Text: Integrate1IconText(locale, "cancel"), Data: map[string]string{"agent-icon-action": "cancel"}})))
-	nodes = append(nodes, html.Button(html.Props{Type: "button", Class: "button secondary small", Text: Integrate1IconText(locale, "undo"), Hidden: true, Data: map[string]string{"agent-icon-action": "undo"}}), html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite"}, Data: map[string]string{"agent-icon-status": "true"}}))
+	nodes = append(nodes, html.Button(html.Props{Type: "button", Class: "button secondary small", Text: Integrate1IconText(locale, "undo"), Hidden: true, Data: map[string]string{"agent-icon-action": "undo"}}),
+		html.Label(html.Props{Class: "button secondary small agent-icon-upload-label"}, ui.Text(Integrate1IconText(locale, "choose")),
+			html.Input(html.Props{Type: "file", Disabled: persona.IconRevision < 1, Raw: map[string]any{"accept": "image/png,image/jpeg", "data-agent-icon-file": "true", "aria-label": Integrate1IconText(locale, "choose")}})),
+		html.Button(html.Props{Type: "button", Class: "button secondary small", Text: Integrate1IconText(locale, "upload"), Disabled: persona.IconRevision < 1, Data: map[string]string{"agent-icon-action": "upload"}}),
+		html.P(html.Props{Role: "status", Aria: map[string]string{"live": "polite"}, Data: map[string]string{"agent-icon-status": "true"}}))
 	return html.Div(html.Props{Class: "persona-admin-actions", Data: map[string]string{"agent-icon-controls": persona.ID, "agent-icon-revision": strconv.FormatInt(persona.IconRevision, 10), "agent-icon-locale": locale.Resolved}}, nodes...)
 }

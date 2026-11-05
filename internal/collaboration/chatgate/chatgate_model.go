@@ -191,7 +191,7 @@ func RequiredBump(old, next Definition) Version {
 	switch level {
 	case 2:
 		if v.Major == ^uint32(0) {
-			return Version{^uint32(0), ^uint32(0), ^uint32(0)}
+			return Version{Major: ^uint32(0), Minor: ^uint32(0), Patch: ^uint32(0)}
 		}
 		v.Major++
 		v.Minor = 0
@@ -199,19 +199,19 @@ func RequiredBump(old, next Definition) Version {
 	case 1:
 		if v.Minor == ^uint32(0) {
 			if v.Major == ^uint32(0) {
-				return Version{^uint32(0), ^uint32(0), ^uint32(0)}
+				return Version{Major: ^uint32(0), Minor: ^uint32(0), Patch: ^uint32(0)}
 			}
-			return Version{v.Major + 1, 0, 0}
+			return Version{Major: v.Major + 1, Minor: 0, Patch: 0}
 		}
 		v.Minor++
 		v.Patch = 0
 	default:
 		if v.Patch == ^uint32(0) {
 			if v.Minor < ^uint32(0) {
-				return Version{v.Major, v.Minor + 1, 0}
+				return Version{Major: v.Major, Minor: v.Minor + 1, Patch: 0}
 			}
 			if v.Major < ^uint32(0) {
-				return Version{v.Major + 1, 0, 0}
+				return Version{Major: v.Major + 1, Minor: 0, Patch: 0}
 			}
 			return v
 		}

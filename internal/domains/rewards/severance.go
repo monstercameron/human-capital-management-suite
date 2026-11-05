@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/evidence"
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -13,9 +15,15 @@ import (
 //
 // The calculation is kernel-pure: it reads a declared plan and a declared
 // input and returns a typed result. It writes nothing, reserves nothing and
-// calls out to nothing. Registration of the capability contract against the
-// gateway (WF-EXT-005) is out of scope here; this file owns the arithmetic
-// the contract will invoke.
+// calls out to nothing; this file owns the arithmetic the registered
+// capability contract invokes.
+const (
+	// CalculateSeveranceIntentType is the catalog identifier.
+	CalculateSeveranceIntentType = "hcmnext.rewards.calculate_severance"
+	// CalculateSeveranceIntentVersion is the served contract version.
+	CalculateSeveranceIntentVersion = "v1"
+)
+
 var (
 	// ErrSeveranceInvalid is returned for an unusable plan or input.
 	ErrSeveranceInvalid = errors.New("rewards: severance plan or input is invalid")
@@ -108,10 +116,65 @@ func (in SeveranceInput) Validate() error {
 // deterministic, human-readable derivation of Amount from the plan and the
 // input; it carries no new inputs.
 type SeveranceResult struct {
+	IntentType    string
+	IntentVersion string
+
 	PlanVersion   string
 	CreditedWeeks values.Decimal
 	Amount        values.Money
 	Explanation   string
+
+	InputsDigest string
+	ResultDigest string
+	Effects      evidence.EffectCounters
+}
+
+// inputDigest returns the canonical digest of one severance evaluation's
+// inputs: the plan and the per-worker input that produced it. Two identical
+// evaluations produce the same digest in every process.
+func (r SeveranceResult) inputDigest(plan SeverancePlan, in SeveranceInput) (string, error) {
+	return canonicalbytes.New("hcmnext.domains.rewards.CalculateSeveranceInput", rewardsSchemaVer).
+		String("intent_type", CalculateSeveranceIntentType).
+		String("intent_version", CalculateSeveranceIntentVersion).
+		String("plan_version", plan.Version).
+		Value("weeks_per_year", plan.WeeksPerYear).
+		Value("min_weeks", plan.MinWeeks).
+		Value("max_weeks", plan.MaxWeeks).
+		String("currency", plan.Currency).
+		Int("money_scale", int64(plan.MoneyScale)).
+		String("money_rounding", plan.MoneyRounding.String()).
+		Value("weekly_pay", in.WeeklyPay).
+		Value("tenure_years", in.TenureYears).
+		Digest()
+}
+
+// canonicalBody encodes everything the result digest covers.
+func (r SeveranceResult) canonicalBody() ([]byte, error) {
+	return canonicalbytes.New("hcmnext.domains.rewards.SeveranceResult", rewardsSchemaVer).
+		String("intent_type", r.IntentType).
+		String("intent_version", r.IntentVersion).
+		String("plan_version", r.PlanVersion).
+		Value("credited_weeks", r.CreditedWeeks).
+		Value("amount", r.Amount).
+		String("explanation", r.Explanation).
+		Value("effects", r.Effects).
+		Bytes()
+}
+
+// Canonical returns the canonical byte encoding, or nil when incoherent.
+func (r SeveranceResult) Canonical() []byte {
+	body, err := r.canonicalBody()
+	if err != nil {
+		return nil
+	}
+	raw, err := canonicalbytes.New("hcmnext.domains.rewards.SeveranceResultEnvelope", rewardsSchemaVer).
+		Field("body", body).
+		String("inputs_digest", r.InputsDigest).
+		Bytes()
+	if err != nil {
+		return nil
+	}
+	return raw
 }
 
 // CalculateSeverance applies plan to in: raw weeks are tenure times the
@@ -168,12 +231,26 @@ func CalculateSeverance(plan SeverancePlan, in SeveranceInput) (SeveranceResult,
 		in.WeeklyPay.String(),
 		amount.String(),
 	)
-	return SeveranceResult{
+	result := SeveranceResult{
+		IntentType:    CalculateSeveranceIntentType,
+		IntentVersion: CalculateSeveranceIntentVersion,
 		PlanVersion:   plan.Version,
 		CreditedWeeks: credited,
 		Amount:        amount,
 		Explanation:   explanation,
-	}, nil
+		Effects:       evidence.ZeroEffects(),
+	}
+	inputsDigest, err := result.inputDigest(plan, in)
+	if err != nil {
+		return SeveranceResult{}, fmt.Errorf("%w: inputs digest: %w", ErrSeveranceInvalid, err)
+	}
+	result.InputsDigest = inputsDigest
+	body, err := result.canonicalBody()
+	if err != nil {
+		return SeveranceResult{}, fmt.Errorf("%w: result digest: %w", ErrSeveranceInvalid, err)
+	}
+	result.ResultDigest = canonicalbytes.Digest(body)
+	return result, nil
 }
 
 // mustSeveranceOne is the multiplicative identity at scale zero. It cannot

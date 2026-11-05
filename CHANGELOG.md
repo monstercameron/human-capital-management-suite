@@ -1,3 +1,31 @@
+## 2026-10-22 — DATA-021 projection barrier corrections
+
+- Expired projection reads now return typed TIMEOUT even when the checkpoint is ready, and the concurrency fixture checks each reader on its own database connection.
+
+## 2026-10-22 — CHATUX-046 client bundle headroom
+
+- The browser client regained its size headroom: non-comparable markers on 93 productui view records cut about 166KB of generated equality functions (raw room back to 1.13 MiB against the 1 MiB floor), the route loader holds history arrivals until the Chat stylesheet is applied, and 15 dead duplicate CSS rules plus doubled @keyframes blocks were removed from the served stylesheets. PRIMARY, INTEGRATION and BROWSER tests pin all three legs.
+
+## 2026-10-22 — AGENT2-017 agent task view
+
+- Task view now pins deep-link open, unknown-id silence, extend-budget/confirm controls, intent statuses, and detail isolation with durable render and transport tests.
+
+## 2026-10-22 — AGENTP-018 persona administration catalog
+
+- Persona catalog preview now clears stale data when an access check is denied or the session changes; the Personas administration page and its lifecycle controls are pinned with durable tests.
+
+## 2026-10-22 — UXBLIND-089 cold-load budget (partial)
+
+- Defer productui copy tables and the Docs Markdown parser to first use; UXBLIND-089 stays open on bundle bytes and server RPC latency.
+
+## 2026-10-22 — WFPAGE-034 New hire reference page
+
+- Publish the New hire workflow page as the shipped uxqual reference example with its salary-band and start-date company validations.
+
+## 2026-10-22 — AGENT2-017 repeated budget extension refusal
+
+- Classify a repeated task-view budget extension as unavailable after its allowance is consumed; the focused agent-system regression now requires `agentbudget.ErrExtensionUnavailable`. Verified with `go test -count=1 ./internal/agentsystem/ -run '^(TestTodo_AGENT2_017_ExtendBudgetByAllowance|TestTodo_AGENT2_012_ExtendBudgetRequiresPausedOwnerAndExplicitResume|TestTodo_AGENT2_012_ExtendBudgetHonorsTenantWakeGate)$'`.
+
 ## 2026-10-21 — UI validation corrections (#77)
 
 - UXAUDIT-018 now checks visible text in the Insights summary, so shared stylesheet selectors do not count as page copy; a regression still rejects unsupported visible wording. The stylesheet class inventory also ignores selectors inside `:not(...)`, with a focused regression for excluded classes. UXBLIND-031/109 expectations now match the published-workflow catalog guidance and do not infer a named promotion configuration from publication status. Focused UXAUDIT-018 and UXBLIND-031/070/109 rendered tests and the stylesheet-class regressions pass. No planning TODO changed; the named promotion configuration remains unproven.
@@ -3673,3 +3701,11 @@ operation` had no rate, quota, concurrency or throttle concept at all, and
 - #82 adjusts the preferences layout for narrow RTL rows. Its focused Go selector passes and the offline 16-case geometry matrix passes; live browser verification remains pending.
 - #83 moves provider selection behind the agentmodel boundary. `go test -count=1 ./internal/agentmodel` passes. The chatload API test is still blocked before test execution because its required shared PostgreSQL endpoint at 127.0.0.1:18540 is not configured; the existing seeded database was not reused.
 - #84 scopes seeded classification equality to public posts while separately checking private classification. #85 verifies the final document-index queue summary rather than an intermediate progress line. The focused migration selector passes (13.515s); no TODO closure or full-gate claim is made.
+
+## 2026-10-22 — Small-business expansion planning and reviewed issue backlog
+
+Adopted the HR/workflow-centered small-business expansion across 12 optional business subsystems and existing shared foundations. Published and read back 121 detailed feature issues (#3443–#3563), six independently reproduced reusable-implementation defects (#3437–#3442), and two appointment corrections in existing #654. Each feature names existing owners/source, API/data contracts, full UI/UX states, acceptance, dependency ordering, test requirements and adversarial refinement. New implementation TODOs remain unchecked; no feature implementation or production qualification is claimed.
+
+Six existing domain leads briefed exactly 32 gpt-6-luna researchers for bounded paired reviews. One accepted follow-up refinement was integrated into #3493 and #3544 for configured-IdP recovery and Contact-owned endpoint updates; valid same-principal grants remain subject to current authorization. The other scoped passes yielded no additional supported omission. All research coverage and verdicts are in definitions/planning/smb-luna-research.json.
+
+Verified: expansion dependency/source/approval validation reports zero errors and warnings; the regenerated TODO registry contains 3,203 TODOs; `go test -count=1 ./tools/planning/todoregistry/` passes. New GitHub issue bodies/titles/open state and the two refinement updates were read back exactly. Planning files were formatted. Runtime/browser coverage remains separate and partial; the visual audit is blocked on browser attachment. No commit or push was performed by this planning lane.

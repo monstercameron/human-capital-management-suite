@@ -184,7 +184,7 @@ func TestAgentUXR6Ops_PersonaRunDashboardProjectionIntegration(t *testing.T) {
 		t.Fatalf("stranger error = %v", err)
 	}
 	for _, rows := range [][]AgentOwnerRunProjection{ownerRows, invokerRows} {
-		if len(rows) != 1 || rows[0].View.TaskID != "run-a" || rows[0].RequestedBy != "Walt Brennan" || !agentRunStoppedResponding(rows[0].View.State, rows[0].Deadline, rows[0].LeaseUntil) {
+		if len(rows) != 1 || rows[0].View.TaskID != "run-a" || rows[0].RequestedBy != "Walt Brennan" || rows[0].View.CauseKind != "PERSONA_MENTION" || !agentRunStoppedResponding(rows[0].View.State, rows[0].Deadline, rows[0].LeaseUntil) {
 			t.Fatalf("projection rows = %+v", rows)
 		}
 	}

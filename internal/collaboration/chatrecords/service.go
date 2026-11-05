@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -217,5 +216,3 @@ func digestStrings(v []string) string {
 	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
-
-var _ = errors.Is

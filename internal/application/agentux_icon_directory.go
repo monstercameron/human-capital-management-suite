@@ -17,6 +17,15 @@ type AgentIconChatDirectory struct {
 	Store *agentpersonastore.Store
 }
 
+// agentIconImageURL is the same-origin address of an agent's uploaded image,
+// empty when the agent wears its generated icon.
+func agentIconImageURL(personaID string, icon agentpersonastore.PersonaIcon) string {
+	if !icon.HasImage {
+		return ""
+	}
+	return transport.AgentIconImageURL(personaID, icon.Revision)
+}
+
 func (s AgentIconChatDirectory) DirectoryAgentIcons(ctx context.Context, conversation string) (transport.AgentIconDirectory, error) {
 	if ctx == nil {
 		return transport.AgentIconDirectory{}, personachat.ErrUnauthenticated
@@ -50,14 +59,14 @@ func (s AgentIconChatDirectory) DirectoryAgentIcons(ctx context.Context, convers
 		if err != nil && !errors.Is(err, agentpersonastore.ErrNotFound) {
 			icon = agentpersonastore.PersonaIcon{}
 		}
-		out.Personas = append(out.Personas, transport.AgentIconMentionProfile{Profile: profile, Icon: icon.Value, IconRevision: icon.Revision})
+		out.Personas = append(out.Personas, transport.AgentIconMentionProfile{Profile: profile, Icon: icon.Value, IconRevision: icon.Revision, IconImageURL: agentIconImageURL(facts.PersonaID, icon)})
 	}
 	for _, actor := range directory.PostActors {
 		icon, err := scoped.GetIcon(ctx, actor.PersonaID)
 		if err != nil && !errors.Is(err, agentpersonastore.ErrNotFound) {
 			icon = agentpersonastore.PersonaIcon{}
 		}
-		out.PostActors = append(out.PostActors, transport.AgentIconPostActor{PostActor: actor, Icon: icon.Value, IconRevision: icon.Revision})
+		out.PostActors = append(out.PostActors, transport.AgentIconPostActor{PostActor: actor, Icon: icon.Value, IconRevision: icon.Revision, IconImageURL: agentIconImageURL(actor.PersonaID, icon)})
 	}
 	return out, nil
 }

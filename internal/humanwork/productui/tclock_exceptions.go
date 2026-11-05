@@ -16,6 +16,7 @@ type TimeExceptionFilter struct {
 
 // TimeExceptionRow is one attendance problem waiting for a supervisor.
 type TimeExceptionRow struct {
+	_         incomparable
 	ID        string
 	Worker    string
 	DateLabel string

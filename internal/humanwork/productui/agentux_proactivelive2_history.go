@@ -18,6 +18,8 @@ func renderAnnouncementAttempts(locale LocaleContext, attempts []AgentAnnounceme
 		if label == "" {
 			if at, err := time.Parse(time.RFC3339, attempt.At); err == nil {
 				label = at.Format("2006-01-02 15:04 MST")
+			} else {
+				label = attempt.At
 			}
 		}
 		result := AgentAnnouncementResultText(locale, attempt.ResultCode, attempt.Reason)
@@ -29,11 +31,7 @@ func renderAnnouncementAttempts(locale LocaleContext, attempts []AgentAnnounceme
 	}
 	// The shared disclosure: the chevron and its turn are the ones Activity's run
 	// details and the technical sections use, not the browser's own marker.
-	chevron := "›"
-	if locale.Resolved == "ar" {
-		chevron = "‹"
-	}
-	return html.Details(html.Props{Class: "agent-announcement-history agent-operations-technical"}, html.Summary(html.Props{Text: labels[agentRPLocaleIndex(locale)], Raw: map[string]any{"data-chevron": chevron}}), html.Ul(html.Props{}, entries...))
+	return html.Details(html.Props{Class: "agent-announcement-history agent-operations-technical"}, html.Summary(html.Props{Text: labels[agentRPLocaleIndex(locale)], Raw: map[string]any{"data-chevron": agentDisclosureChevron(locale)}}), html.Ul(html.Props{}, entries...))
 }
 
 func localizeAnnouncementFailure(locale LocaleContext, reason string) string {

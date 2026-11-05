@@ -88,9 +88,12 @@ func TicketFilters(list TicketList, copy Copy) ui.Node {
 			summary = append(summary, html.Span(html.Props{Class: "projectui-filter-count", Text: copy.FormatNumber(active)}))
 		}
 		summary = append(summary, html.Span(html.Props{Class: "projectui-tickets-chevron", Aria: map[string]string{"hidden": "true"}}))
-		filters = append(filters, html.Details(html.Props{Class: "projectui-tickets-filter", Data: map[string]string{"group": group.Key, "active": boolString(active > 0)}},
+		// UXBLIND-057: the shared shell popover controller owns dismissal for
+		// every menu, and it finds its menus through this marker. Without it
+		// Escape left the filter menu, its blocking overlay and focus behind.
+		filters = append(filters, html.Details(html.Props{Class: "projectui-tickets-filter", Data: map[string]string{"group": group.Key, "active": boolString(active > 0), "hcm-transient-popover": "tickets-filter"}},
 			html.Summary(html.Props{Class: "projectui-filter-chip", Aria: map[string]string{"haspopup": "menu"}}, summary...),
-			html.Div(html.Props{Class: "projectui-card-menu-panel projectui-tickets-panel", Role: "menu", Aria: map[string]string{"label": group.Label}}, items...),
+			html.Div(html.Props{Class: "projectui-card-menu-panel projectui-tickets-panel", Role: "menu", Aria: map[string]string{"label": group.Label}, Data: map[string]string{"hcm-popover-surface": "true"}}, items...),
 		))
 	}
 	if list.ActiveCount > 0 && list.ClearHref != "" {

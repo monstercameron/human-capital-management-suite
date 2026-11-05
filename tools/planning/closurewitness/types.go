@@ -258,7 +258,7 @@ const (
 	RegistryDisposition  = "internal/transport/manifest.BuildDefaultDispositionReport"
 	RegistryEndpoints    = "internal/transport/manifest.Build"
 	RegistryScenarios    = "tools/planning/scenariomatrix"
-	RegistryTodos        = "planning/todos.md"
+	RegistryTodos        = "planning/archive/todos-2026-10-22.md"
 	RegistryCoverage     = "definitions/planning/capability-coverage.yaml"
 	RegistryTestSources  = "cmd|gen|internal|test|tools *_test.go"
 	RegistryKnownDefects = "definitions/planning/known-defects.yaml"

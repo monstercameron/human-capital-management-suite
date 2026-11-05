@@ -284,6 +284,7 @@ type WorkItem struct {
 }
 
 type Person struct {
+	_        incomparable
 	ID       string
 	WorkerID string
 	// SubjectID is the principal subject the person signs in as; document
@@ -372,6 +373,7 @@ type Person struct {
 }
 
 type personNormalizedIndex struct {
+	_                        incomparable
 	ready                    bool
 	search, name, role, team string
 	manager, location        string
@@ -382,6 +384,7 @@ type personNormalizedIndex struct {
 // application principal. Principal remains the security identity; Viewer is
 // the authorized worker-facing profile used for account UI.
 type ViewerProfile struct {
+	_ incomparable
 	// PersonID is the authorized worker projection bound to the admitted
 	// principal. It is presentation identity, not action authority.
 	PersonID string
@@ -477,6 +480,7 @@ type RolePagePermission struct {
 // within a page. Page permission remains the outer boundary: a feature grant
 // never makes an otherwise denied page action available.
 type RoleFeaturePermission struct {
+	_       incomparable
 	Version int64
 	RoleID  string
 	Page    PageID
@@ -526,6 +530,11 @@ type View struct {
 	// callback receives only statement/period selection and user-entered
 	// category/reason; identity and tenant are always server-derived.
 	PayDiscrepancy PayDiscrepancyProjection
+	// Benefits is the request-scoped, server-authorized benefits read. The
+	// benefits pages evaluate its pinned domain facts with
+	// ResolveBenefitOptions and ResolveBenefitReconciliation; the zero value
+	// keeps the pages on their unavailable state.
+	Benefits BenefitsProjection
 	// ManagerCompensation is the authenticated manager's per-subject domain
 	// read projection and governed change-intent adapter.
 	ManagerCompensation *ManagerCompensationProjection
@@ -927,6 +936,7 @@ type View struct {
 // KnowledgeSearchResult is the authorized presentation projection returned
 // by the knowledge domain service.
 type KnowledgeSearchResult struct {
+	_         incomparable
 	ArticleID string
 	Revision  uint64
 	Locale    string

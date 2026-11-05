@@ -171,13 +171,13 @@ func runScopeExchange() error {
 }
 
 func readTodos(root string) ([]todoregistry.Todo, error) {
-	content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+	content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
-		return nil, fmt.Errorf("read planning/todos.md: %w", err)
+		return nil, fmt.Errorf("read planning/archive/todos-2026-10-22.md: %w", err)
 	}
 	todos, parseErrs := todoregistry.ParseTodos(string(content))
 	if len(parseErrs) > 0 {
-		return nil, fmt.Errorf("parse planning/todos.md: %v", parseErrs)
+		return nil, fmt.Errorf("parse planning/archive/todos-2026-10-22.md: %v", parseErrs)
 	}
 	return todos, nil
 }
@@ -270,9 +270,9 @@ func runAtomicity(root string) error {
 }
 
 func runEvidence(root string) error {
-	content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+	content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
-		return fmt.Errorf("read planning/todos.md: %w", err)
+		return fmt.Errorf("read planning/archive/todos-2026-10-22.md: %w", err)
 	}
 	knownGaps, err := evidence.LoadKnownGaps(filepath.Join(root, "definitions", "planning", "known-defects.yaml"))
 	if err != nil {
@@ -601,7 +601,7 @@ func runAuthorityGate(root string) error {
 // matrix drifts from the checked-in
 // definitions/planning/capability-coverage.yaml.
 func runCoverageMatrix(root string) error {
-	todosPath := filepath.Join(root, "planning", "todos.md")
+	todosPath := filepath.Join(root, "planning", "archive", "todos-2026-10-22.md")
 	content, err := os.ReadFile(todosPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", todosPath, err)
@@ -719,7 +719,7 @@ func runBoundaryTests(root string) error {
 // calculated by progress.SummarizeMarkdown and never inferred from a checked
 // Markdown box alone.
 func runProgress(root string) error {
-	path := filepath.Join(root, "planning", "todos.md")
+	path := filepath.Join(root, "planning", "archive", "todos-2026-10-22.md")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
@@ -738,7 +738,7 @@ func runProgress(root string) error {
 // just readTodos' parsed result so prose and malformed range diagnostics keep
 // their original line numbers.
 func runDependencyGraph(root string) error {
-	path := filepath.Join(root, "planning", "todos.md")
+	path := filepath.Join(root, "planning", "archive", "todos-2026-10-22.md")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
@@ -762,14 +762,14 @@ func runDependencyGraph(root string) error {
 // corpus that has not yet satisfied red-first evidence cannot be mistaken for
 // a passing command merely because the checker itself builds.
 func runTDDContract(root string) error {
-	path := filepath.Join(root, "planning", "todos.md")
+	path := filepath.Join(root, "planning", "archive", "todos-2026-10-22.md")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", path, err)
 	}
 	// Use a repository-relative slash path in diagnostics so the stable
 	// file/line contract does not vary between Windows and Unix runners.
-	findings, err := tddcontract.CheckMarkdown(string(content), "planning/todos.md")
+	findings, err := tddcontract.CheckMarkdown(string(content), "planning/archive/todos-2026-10-22.md")
 	if err != nil {
 		return fmt.Errorf("check TDD contract: %w", err)
 	}

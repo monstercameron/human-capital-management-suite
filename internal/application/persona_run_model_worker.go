@@ -194,7 +194,10 @@ func (s fencedPersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context.Co
 	})
 	done()
 	if err != nil {
-		return PersonaRunModelWork{}, fmt.Errorf("%w: fenced model-work resolution failed: %v", ErrPersonaRunExecutorUnavailable, err)
+		// The inner cause stays readable through the fence: a lapsed or
+		// invalid route must still end the run with its own code (lane R4,
+		// AGENTUX-082), not as a permission failure.
+		return PersonaRunModelWork{}, fmt.Errorf("%w: fenced model-work resolution failed: %w", ErrPersonaRunExecutorUnavailable, err)
 	}
 	return work, nil
 }

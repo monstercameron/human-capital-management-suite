@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/documents/intake"
 )
 
 // Required leave inputs: omitting any one fails the snapshot.
@@ -26,16 +29,18 @@ const (
 )
 
 // InputEntry binds one required input to its exact revision, watermark,
-// authority and times plus a typed restricted evidence reference. Entries
-// carry references only: evidence content stays in its compartment and
-// restricted bytes can never enter the snapshot because no entry has a
-// content field.
+// authority and times plus a governed evidence reference. The reference is
+// the DOC-INTAKE-001 pipeline's own intake.EvidenceRef, usable only while
+// its issuer binding holds and its artifact stays released: a bare string
+// cannot satisfy this field. Entries carry references only: evidence
+// content stays in its compartment and restricted bytes can never enter
+// the snapshot because no entry has a content field.
 type InputEntry struct {
 	Input       string
 	Revision    string
 	Watermark   string
 	Status      string
-	EvidenceRef string
+	EvidenceRef intake.EvidenceRef
 	Authority   string
 	Effective   string
 	Known       string
@@ -50,7 +55,12 @@ type LeaveInputSnapshot struct {
 func snapshotDigest(entries []InputEntry) string {
 	parts := []string{"leave-input-snapshot"}
 	for _, entry := range entries {
-		parts = append(parts, strings.Join([]string{entry.Input, entry.Revision, entry.Watermark, entry.Status, entry.EvidenceRef, entry.Authority, entry.Effective, entry.Known}, "\x01"))
+		ref := entry.EvidenceRef
+		parts = append(parts, strings.Join([]string{
+			entry.Input, entry.Revision, entry.Watermark, entry.Status,
+			ref.ID, ref.ArtifactID, ref.ArtifactDigest, ref.DerivativeDigest, ref.Purpose, ref.IssuedAt.UTC().Format(time.RFC3339Nano),
+			entry.Authority, entry.Effective, entry.Known,
+		}, "\x01"))
 	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return "sha256:" + hex.EncodeToString(sum[:])
@@ -67,7 +77,7 @@ func validStatus(status string) bool {
 
 // BuildSnapshot binds the required inputs into an immutable snapshot.
 // Missing inputs, hollow revisions, off-vocabulary statuses and evidence
-// references without a typed compartment prefix refuse.
+// references that are not usable governed DOC-INTAKE-001 issues refuse.
 func BuildSnapshot(entries []InputEntry) (LeaveInputSnapshot, error) {
 	if len(entries) != len(requiredLeaveInputs) {
 		return LeaveInputSnapshot{}, fmt.Errorf("leave: snapshot requires exactly %d inputs, got %d", len(requiredLeaveInputs), len(entries))
@@ -86,8 +96,8 @@ func BuildSnapshot(entries []InputEntry) (LeaveInputSnapshot, error) {
 		if !validStatus(entry.Status) {
 			return LeaveInputSnapshot{}, fmt.Errorf("leave: input %q status %q is not input truth", entry.Input, entry.Status)
 		}
-		if strings.TrimSpace(entry.EvidenceRef) == "" || !strings.Contains(entry.EvidenceRef, ":") {
-			return LeaveInputSnapshot{}, fmt.Errorf("leave: input %q needs a typed restricted evidence reference", entry.Input)
+		if err := entry.EvidenceRef.Check(); err != nil {
+			return LeaveInputSnapshot{}, fmt.Errorf("leave: input %q needs a usable governed evidence reference: %w", entry.Input, err)
 		}
 		if strings.TrimSpace(entry.Authority) == "" {
 			return LeaveInputSnapshot{}, fmt.Errorf("leave: input %q needs a source authority", entry.Input)

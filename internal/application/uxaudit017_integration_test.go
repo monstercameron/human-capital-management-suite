@@ -38,7 +38,7 @@ func uxaudit017Composed(t *testing.T, now *time.Time) (workspace.JourneyEngine, 
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:uxaudit017-integration-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:uxaudit017-integration-approver",
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		TimerTzdbVersion:     DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {

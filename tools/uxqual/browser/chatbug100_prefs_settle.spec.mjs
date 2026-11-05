@@ -34,11 +34,9 @@ test("every preferences block settles within its bound", async ({ page }) => {
   // Within fifteen seconds the voice row is a switch, the retry state, or
   // the one-line not-set-up note: never still loading.
   await expect
-    .poll(
-      async () =>
-        (await voice.locator('[aria-busy="true"]').count()) === 0,
-      { timeout: 15000 },
-    )
+    .poll(async () => (await voice.locator('[aria-busy="true"]').count()) === 0, {
+      timeout: 15000,
+    })
     .toBe(true);
   const settled = await voice.innerText();
   expect(settled.length).toBeGreaterThan(0);

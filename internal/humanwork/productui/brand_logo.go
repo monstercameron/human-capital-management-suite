@@ -12,6 +12,7 @@ import (
 // identity slot. The server supplies an already-governed same-origin asset;
 // the component never decides tenant identity or fetch policy.
 type BrandLogoProps struct {
+	_              incomparable
 	Name           string
 	AccessibleName string
 	Mark           string
@@ -43,6 +44,7 @@ type BrandAssetPickerProps struct {
 
 // BrandAssetOption is a server-registered, tenant-approved logo choice.
 type BrandAssetOption struct {
+	_            incomparable
 	Label        string
 	URL          string
 	Revision     int

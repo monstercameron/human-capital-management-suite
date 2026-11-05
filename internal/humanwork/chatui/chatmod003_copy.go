@@ -48,6 +48,8 @@ var modadminCopy = map[string][3]string{
 	"b_hint":          {"Ready-made lists, one set per language. Every list starts switched off.", "Fertige Listen, ein Satz pro Sprache. Jede Liste ist zunächst ausgeschaltet.", "قوائم جاهزة، مجموعة لكل لغة. تبدأ كل قائمة مطفأة."},
 	"b_hint_ch":       {"Switching a list here changes only this channel.", "Eine Änderung hier gilt nur für diesen Kanal.", "التغيير هنا يخص هذه القناة فقط."},
 	"b_hint_ws":       {"Switching a list here changes it for every channel that has not chosen its own setting.", "Eine Änderung hier gilt für alle Kanäle, die keine eigene Einstellung gewählt haben.", "التغيير هنا يسري على كل قناة لم تختر إعداداً خاصاً بها."},
+	"b_hint_diff":     {"Only the lists where this channel differs from the workspace. Switching a list here changes only this channel.", "Nur die Listen, bei denen dieser Kanal vom Arbeitsbereich abweicht. Eine Änderung hier gilt nur für diesen Kanal.", "القوائم التي تختلف فيها هذه القناة عن مساحة العمل فقط. التغيير هنا يخص هذه القناة فقط."},
+	"same_ws":         {"Same as workspace", "Wie im Arbeitsbereich", "مطابق لإعدادات مساحة العمل"},
 	"list_profanity":  {"Profanity", "Flüche", "الألفاظ النابية"},
 	"list_slurs":      {"Slurs", "Abwertende Ausdrücke", "الإهانات التمييزية"},
 	"list_harassment": {"Harassment", "Belästigung", "المضايقة"},

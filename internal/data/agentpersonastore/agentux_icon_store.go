@@ -18,6 +18,10 @@ var ErrIconDenied = errors.New("agentpersonastore: icon change denied")
 type PersonaIcon struct {
 	Value    agenticon.Value `json:"value"`
 	Revision int64           `json:"revision"`
+	// HasImage reports an owner-uploaded photo overlaid on the generated
+	// value; the bytes travel through GetIconImage, never this struct.
+	HasImage       bool   `json:"has_image"`
+	ImageMediaType string `json:"image_media_type,omitempty"`
 }
 
 // IconAdministrator checks a trusted current administrator grant. An HTTP
@@ -143,7 +147,7 @@ func (s *TenantStore) ensureIcon(ctx context.Context, tx dbport.Tx, version Pers
 		if _, err = tx.Exec(ctx, `UPDATE persona_icons SET icon=$3::jsonb,initial_icon=$3::jsonb,revision=revision+1 WHERE tenant_id=$1 AND persona_id=$2`, s.tenantID, version.PersonaID, string(next)); err != nil {
 			return false, err
 		}
-		return true, s.iconEvent(ctx, tx, version.PersonaID, revision+1, "regenerate", actor, at, raw, next)
+		return true, s.iconEvent(ctx, tx, version.PersonaID, revision+1, "regenerate", actor, at, raw, next, nil, nil)
 	}
 
 	if err != nil {
@@ -157,18 +161,18 @@ func (s *TenantStore) ensureIcon(ctx context.Context, tx dbport.Tx, version Pers
 	if _, err = tx.Exec(ctx, `INSERT INTO persona_icons(tenant_id,persona_id,icon,initial_icon,revision) VALUES($1,$2,$3::jsonb,$3::jsonb,1)`, s.tenantID, version.PersonaID, string(raw)); err != nil {
 		return false, err
 	}
-	if err = s.iconEvent(ctx, tx, version.PersonaID, 1, action, actor, at, nil, raw); err != nil {
+	if err = s.iconEvent(ctx, tx, version.PersonaID, 1, action, actor, at, nil, raw, nil, nil); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-func (s *TenantStore) iconEvent(ctx context.Context, tx dbport.Tx, id string, revision int64, action, actor string, at time.Time, previous, value []byte) error {
+func (s *TenantStore) iconEvent(ctx context.Context, tx dbport.Tx, id string, revision int64, action, actor string, at time.Time, previous, value, previousImage, image []byte) error {
 	var prior any
 	if previous != nil {
 		prior = string(previous)
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO persona_icon_events(tenant_id,persona_id,revision,action,actor_id,occurred_at,previous_icon,icon) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb)`, s.tenantID, id, revision, action, actor, at.UTC(), prior, string(value))
+	_, err := tx.Exec(ctx, `INSERT INTO persona_icon_events(tenant_id,persona_id,revision,action,actor_id,occurred_at,previous_icon,icon,previous_image,image) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10)`, s.tenantID, id, revision, action, actor, at.UTC(), prior, string(value), previousImage, image)
 	return err
 }
 
@@ -183,7 +187,8 @@ func (s *TenantStore) GetIcon(ctx context.Context, id string) (PersonaIcon, erro
 	defer tx.Rollback(ctx)
 	var raw []byte
 	var icon PersonaIcon
-	err = tx.QueryRow(ctx, `SELECT icon,revision FROM persona_icons WHERE tenant_id=$1 AND persona_id=$2`, s.tenantID, id).Scan(&raw, &icon.Revision)
+	var image []byte
+	err = tx.QueryRow(ctx, `SELECT icon,revision,image,COALESCE(image_media_type,'') FROM persona_icons WHERE tenant_id=$1 AND persona_id=$2`, s.tenantID, id).Scan(&raw, &icon.Revision, &image, &icon.ImageMediaType)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return PersonaIcon{}, ErrNotFound
 	}
@@ -192,6 +197,10 @@ func (s *TenantStore) GetIcon(ctx context.Context, id string) (PersonaIcon, erro
 	}
 	if json.Unmarshal(raw, &icon.Value) != nil || !icon.Value.Valid() {
 		return PersonaIcon{}, ErrInvalid
+	}
+	icon.HasImage = len(image) > 0
+	if !icon.HasImage {
+		icon.ImageMediaType = ""
 	}
 	return icon, commit(ctx, tx)
 }
@@ -252,6 +261,51 @@ func (s *TenantStore) PreviewIcon(ctx context.Context, id string, expected int64
 	return s.changeIcon(ctx, id, expected, action, actor, at, admins, true)
 }
 
+// iconWrite locks the workspace's icons, checks ownership or a trusted
+// administrator, and loads the current row for an owner-driven change.
+func (s *TenantStore) iconWrite(ctx context.Context, tx dbport.Tx, id string, expected int64, actor string, admins IconAdministrator) (raw, initial, currentImage []byte, current PersonaIcon, err error) {
+	owners, err := tx.Query(ctx, `SELECT principal_id FROM persona_owners WHERE tenant_id=$1 AND persona_id=$2 FOR UPDATE`, s.tenantID, id)
+	if err != nil {
+		return nil, nil, nil, PersonaIcon{}, err
+	}
+	owned := false
+	for owners.Next() {
+		var principal string
+		if err = owners.Scan(&principal); err != nil {
+			owners.Close()
+			return nil, nil, nil, PersonaIcon{}, err
+		}
+		owned = owned || principal == actor
+	}
+	err = owners.Err()
+	owners.Close()
+	if err != nil {
+		return nil, nil, nil, PersonaIcon{}, err
+	}
+	if !owned && (admins == nil || admins.AuthorizeAgentIconAdministrator(ctx, s.tenant, actor) != nil) {
+		return nil, nil, nil, PersonaIcon{}, ErrIconDenied
+	}
+	var media string
+	err = tx.QueryRow(ctx, `SELECT icon,initial_icon,revision,image,COALESCE(image_media_type,'') FROM persona_icons WHERE tenant_id=$1 AND persona_id=$2 FOR UPDATE`, s.tenantID, id).Scan(&raw, &initial, &current.Revision, &currentImage, &media)
+	if errors.Is(err, dbport.ErrNoRows) {
+		return nil, nil, nil, PersonaIcon{}, ErrNotFound
+	}
+	if err != nil {
+		return nil, nil, nil, PersonaIcon{}, err
+	}
+	if current.Revision != expected {
+		return nil, nil, nil, PersonaIcon{}, ErrConflict
+	}
+	if json.Unmarshal(raw, &current.Value) != nil || !current.Value.Valid() {
+		return nil, nil, nil, PersonaIcon{}, ErrInvalid
+	}
+	current.HasImage = len(currentImage) > 0
+	if current.HasImage {
+		current.ImageMediaType = media
+	}
+	return raw, initial, currentImage, current, nil
+}
+
 func (s *TenantStore) changeIcon(ctx context.Context, id string, expected int64, action, actor string, at time.Time, admins IconAdministrator, preview bool) (PersonaIcon, error) {
 	if s == nil || strings.TrimSpace(id) == "" || strings.TrimSpace(actor) == "" || expected < 1 || at.IsZero() {
 		return PersonaIcon{}, ErrInvalid
@@ -267,55 +321,33 @@ func (s *TenantStore) changeIcon(ctx context.Context, id string, expected int64,
 	if err = s.lockIcons(ctx, tx); err != nil {
 		return PersonaIcon{}, err
 	}
-	owners, err := tx.Query(ctx, `SELECT principal_id FROM persona_owners WHERE tenant_id=$1 AND persona_id=$2 FOR UPDATE`, s.tenantID, id)
+	raw, initial, currentImage, current, err := s.iconWrite(ctx, tx, id, expected, actor, admins)
 	if err != nil {
 		return PersonaIcon{}, err
-	}
-	owned := false
-	for owners.Next() {
-		var principal string
-		if err = owners.Scan(&principal); err != nil {
-			owners.Close()
-			return PersonaIcon{}, err
-		}
-		owned = owned || principal == actor
-	}
-	err = owners.Err()
-	owners.Close()
-	if err != nil {
-		return PersonaIcon{}, err
-	}
-	if !owned && (admins == nil || admins.AuthorizeAgentIconAdministrator(ctx, s.tenant, actor) != nil) {
-		return PersonaIcon{}, ErrIconDenied
-	}
-	var raw, initial []byte
-	var current PersonaIcon
-	err = tx.QueryRow(ctx, `SELECT icon,initial_icon,revision FROM persona_icons WHERE tenant_id=$1 AND persona_id=$2 FOR UPDATE`, s.tenantID, id).Scan(&raw, &initial, &current.Revision)
-	if errors.Is(err, dbport.ErrNoRows) {
-		return PersonaIcon{}, ErrNotFound
-	}
-	if err != nil {
-		return PersonaIcon{}, err
-	}
-	if current.Revision != expected {
-		return PersonaIcon{}, ErrConflict
-	}
-	if json.Unmarshal(raw, &current.Value) != nil || !current.Value.Valid() {
-		return PersonaIcon{}, ErrInvalid
 	}
 	value := current.Value
+	image := currentImage
+	media := current.ImageMediaType
 	switch action {
 	case "reset":
 		if json.Unmarshal(initial, &value) != nil || !value.Valid() {
 			return PersonaIcon{}, ErrInvalid
 		}
+		image, media = nil, ""
 	case "undo":
 		var previous []byte
-		if err = tx.QueryRow(ctx, `SELECT previous_icon FROM persona_icon_events WHERE tenant_id=$1 AND persona_id=$2 AND revision=$3`, s.tenantID, id, expected).Scan(&previous); err != nil {
+		var previousImage []byte
+		if err = tx.QueryRow(ctx, `SELECT previous_icon,previous_image FROM persona_icon_events WHERE tenant_id=$1 AND persona_id=$2 AND revision=$3`, s.tenantID, id, expected).Scan(&previous, &previousImage); err != nil {
 			return PersonaIcon{}, err
 		}
 		if json.Unmarshal(previous, &value) != nil || !value.Valid() {
 			return PersonaIcon{}, ErrConflict
+		}
+		image = previousImage
+		if len(image) == 0 {
+			media = ""
+		} else {
+			media = "image/jpeg"
 		}
 	default:
 		version, err := scanVersion(tx.QueryRow(ctx, `SELECT persona_id,version,agent_version,handle,display_name,profile,content_digest,created_at FROM persona_versions WHERE tenant_id=$1 AND persona_id=$2 ORDER BY version DESC LIMIT 1`, s.tenantID, id), s.tenant)
@@ -336,7 +368,7 @@ func (s *TenantStore) changeIcon(ctx context.Context, id string, expected int64,
 			return PersonaIcon{}, fmt.Errorf("%w: icon variations exhausted", ErrConflict)
 		}
 	}
-	result := PersonaIcon{Value: value, Revision: expected + 1}
+	result := PersonaIcon{Value: value, Revision: expected + 1, HasImage: len(image) > 0, ImageMediaType: media}
 	if preview {
 		result.Revision = expected
 		return result, nil
@@ -345,14 +377,14 @@ func (s *TenantStore) changeIcon(ctx context.Context, id string, expected int64,
 	if err != nil {
 		return PersonaIcon{}, err
 	}
-	n, err := tx.Exec(ctx, `UPDATE persona_icons SET icon=$3::jsonb,revision=revision+1 WHERE tenant_id=$1 AND persona_id=$2 AND revision=$4`, s.tenantID, id, string(next), expected)
+	n, err := tx.Exec(ctx, `UPDATE persona_icons SET icon=$3::jsonb,revision=revision+1,image=$5,image_media_type=NULLIF($6,'') WHERE tenant_id=$1 AND persona_id=$2 AND revision=$4`, s.tenantID, id, string(next), expected, image, media)
 	if err != nil {
 		return PersonaIcon{}, err
 	}
 	if n != 1 {
 		return PersonaIcon{}, ErrConflict
 	}
-	if err = s.iconEvent(ctx, tx, id, result.Revision, action, actor, at, raw, next); err != nil {
+	if err = s.iconEvent(ctx, tx, id, result.Revision, action, actor, at, raw, next, currentImage, image); err != nil {
 		return PersonaIcon{}, err
 	}
 	return result, commit(ctx, tx)

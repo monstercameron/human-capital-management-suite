@@ -14,6 +14,12 @@ import (
 
 var ErrAgentAnnouncementChannelLocked = errors.New("announcement channel is locked")
 
+// The reply rule runs once per announcement draft; its patterns are compiled once.
+var (
+	announcementReplyISODatePattern = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+	announcementReplyMonthPattern   = regexp.MustCompile(`(?i)\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b`)
+)
+
 type announcementRepairKey struct{}
 type announcementReplyRefusal struct{ rule string }
 
@@ -49,15 +55,14 @@ func announcementReplyRule(text, today, instruction string) string {
 	if err != nil {
 		return ""
 	}
-	for _, match := range regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`).FindAllString(normalized, -1) {
+	for _, match := range announcementReplyISODatePattern.FindAllString(normalized, -1) {
 		date, err := time.Parse(time.DateOnly, match)
 		if err == nil && date.Before(day) {
 			return "upcoming items must have dates on or after " + today + "; leave past dates out"
 		}
 	}
-	pattern := regexp.MustCompile(`(?i)\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b`)
 	months := "jan feb mar apr may jun jul aug sep oct nov dec"
-	for _, match := range pattern.FindAllStringSubmatch(normalized, -1) {
+	for _, match := range announcementReplyMonthPattern.FindAllStringSubmatch(normalized, -1) {
 		month := time.Month(strings.Index(months, strings.ToLower(match[1][:3]))/4 + 1)
 		dateDay, _ := strconv.Atoi(match[2])
 		year := day.Year()

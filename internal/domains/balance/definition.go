@@ -26,6 +26,10 @@ const (
 	PeriodCalendarYear PeriodKind = "CALENDAR_YEAR"
 	PeriodFiscalYear   PeriodKind = "FISCAL_YEAR"
 	PeriodLifetime     PeriodKind = "LIFETIME"
+	// PeriodRollingBackward is a lookback window ending at the evaluation
+	// instant (WF-CAP-005): the entitlement year rolls rather than resetting
+	// on a calendar boundary.
+	PeriodRollingBackward PeriodKind = "ROLLING_BACKWARD"
 )
 
 // RuleKind is used by each policy rule. NONE is explicit: an omitted rule is
@@ -119,7 +123,7 @@ func (d AccumulatorDefinition) Validate() error {
 		}
 	}
 	switch d.Period {
-	case PeriodPayPeriod, PeriodCalendarYear, PeriodFiscalYear, PeriodLifetime:
+	case PeriodPayPeriod, PeriodCalendarYear, PeriodFiscalYear, PeriodLifetime, PeriodRollingBackward:
 	default:
 		return invalid("period", "must be specified")
 	}

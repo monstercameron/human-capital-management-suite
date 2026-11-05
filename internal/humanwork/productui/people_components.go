@@ -26,6 +26,7 @@ type PeoplePageProps struct {
 // PeopleSummaryProps contains the two already-formatted directory summary
 // labels. Formatting them in the page adapter keeps this component reusable.
 type PeopleSummaryProps struct {
+	_           incomparable
 	Heading     string
 	Description string
 	CountLabel  string
@@ -147,6 +148,7 @@ type PeopleRowProps struct {
 // The destination owns authorization; this contract carries presentation and
 // routing data only.
 type PeopleQuickActionProps struct {
+	_               incomparable
 	Label           string
 	AccessibleLabel string
 	Href            string

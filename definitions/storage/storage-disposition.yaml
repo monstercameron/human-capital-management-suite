@@ -86,6 +86,16 @@ retention_classes:
       append-only table it can be fully reconstructed from; losing a
       REBUILDABLE table's rows is an availability incident, never a data-loss
       incident.
+  - name: TEST_EVIDENCE
+    description: >-
+      Test-run evidence with a fixed time to live (WF-TEST-002). Rows are
+      written only by test runs presenting purpose workflow.test, read back
+      nothing once expired, and are purged on expiry with no tombstone and
+      no history: test evidence must never become permanent history. No
+      table carries this class yet; the in-memory expiring store
+      (internal/workflow/simulate ExpiringEvidenceStore) is its first
+      governed holder, and any future physical table would register here
+      with the same purge contract.
 
 encryption_classes:
   - name: PLATFORM_MANAGED

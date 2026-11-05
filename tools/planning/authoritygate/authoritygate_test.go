@@ -167,7 +167,7 @@ func TestAuthorityGateRejectsIncompleteEvidence(t *testing.T) {
 
 	t.Run("real corpus: no unallowed authority-gate gaps", func(t *testing.T) {
 		root := filepath.Join("..", "..", "..")
-		content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+		content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 		if err != nil {
 			t.Fatalf("read todos.md: %v", err)
 		}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/documents/evidence"
 )
 
 func case004At() time.Time { return time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC) }
@@ -55,10 +57,16 @@ func case004Events() []PackageEvent {
 	}
 }
 
-func case004Artifacts() []ExportArtifact {
+func case004Artifacts(t *testing.T) []ExportArtifact {
+	t.Helper()
+	// Each artifact carries its own envelope covering only that artifact:
+	// a shared batch envelope would leak withheld items into scoped
+	// exports through the included artifacts.
+	first := rev024Envelope(t, evidence.EvidenceItem{ID: "ev-1", Kind: "document", Digest: "sha256:artifact-1", Sequence: 1})
+	second := rev024Envelope(t, evidence.EvidenceItem{ID: "ev-2", Kind: "document", Digest: "sha256:artifact-2", Sequence: 2})
 	return []ExportArtifact{
-		{EvidenceID: "ev-1", ArtifactDigest: "sha256:artifact-1", CompartmentID: "general", RetentionDecision: "retain:7y"},
-		{EvidenceID: "ev-2", ArtifactDigest: "sha256:artifact-2", CompartmentID: "investigation", RedactionNote: "witness name redacted", LegalHold: true, HoldRef: "hold-7", RetentionDecision: "retain:7y", CorrectionOf: "ev-2-v1"},
+		{EvidenceID: "ev-1", ArtifactDigest: "sha256:artifact-1", CompartmentID: "general", RetentionDecision: "retain:7y", Evidence: first},
+		{EvidenceID: "ev-2", ArtifactDigest: "sha256:artifact-2", CompartmentID: "investigation", RedactionNote: "witness name redacted", LegalHold: true, HoldRef: "hold-7", RetentionDecision: "retain:7y", CorrectionOf: "ev-2-v1", Evidence: second},
 	}
 }
 
@@ -115,7 +123,7 @@ func TestCaseAppealCreatesSuccessorProceedingAndVerifiableScopedEvidencePackage(
 	}
 
 	// Scoped export: authorized compartments only, full lineage, stable digest.
-	pkg, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(), case004Decisions())
+	pkg, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil {
 		t.Fatalf("ExportEvidence: %v", err)
 	}
@@ -136,13 +144,13 @@ func TestCaseAppealCreatesSuccessorProceedingAndVerifiableScopedEvidencePackage(
 	if pkg.Digest == "" {
 		t.Fatal("package has no digest")
 	}
-	again, err := ExportEvidence("case-004", []string{"investigation", "general"}, case004Events(), case004Artifacts(), case004Decisions())
+	again, err := ExportEvidence("case-004", []string{"investigation", "general"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil || again.Digest != pkg.Digest {
 		t.Fatalf("repeated export digest=%s err=%v, want %s", again.Digest, err, pkg.Digest)
 	}
 
 	// Viewer without investigation access sees no investigation artifact.
-	scoped, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(), case004Decisions())
+	scoped, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil {
 		t.Fatalf("scoped ExportEvidence: %v", err)
 	}
@@ -184,7 +192,7 @@ func TestTodo_CASE_004_Property(t *testing.T) {
 
 	events := case004Events()
 	shuffled := []PackageEvent{events[2], events[0], events[1]}
-	artifacts := case004Artifacts()
+	artifacts := case004Artifacts(t)
 	rshuffled := []ExportArtifact{artifacts[1], artifacts[0]}
 	first, err := ExportEvidence("case-004", []string{"general", "investigation"}, events, artifacts, case004Decisions())
 	if err != nil {
@@ -206,7 +214,7 @@ func TestTodo_CASE_004_Property(t *testing.T) {
 
 // TestTodo_CASE_004_Golden pins the canonical digest of one fixed package.
 func TestTodo_CASE_004_Golden(t *testing.T) {
-	pkg, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(), case004Decisions())
+	pkg, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,11 +298,11 @@ func TestTodo_CASE_004_Fault(t *testing.T) {
 	}
 
 	// Export that omits hold/correction lineage is refused with no package.
-	_, err = ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(), []string{"decision:board-1"})
+	_, err = ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(t), []string{"decision:board-1"})
 	if !errors.Is(err, ErrExportInvalid) {
 		t.Fatalf("lineage-free export err=%v, want ErrExportInvalid", err)
 	}
-	empty, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(), []string{"decision:board-1"})
+	empty, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(t), []string{"decision:board-1"})
 	if err == nil || empty.Digest != "" || empty.Artifacts != nil {
 		t.Fatalf("failed export produced effect: %+v %v", empty, err)
 	}
@@ -303,14 +311,14 @@ func TestTodo_CASE_004_Fault(t *testing.T) {
 // TestTodo_CASE_004_Security proves export is scoped and non-disclosing:
 // zero authorized compartments deny, and denials leak no case content.
 func TestTodo_CASE_004_Security(t *testing.T) {
-	_, err := ExportEvidence("case-004", nil, case004Events(), case004Artifacts(), case004Decisions())
+	_, err := ExportEvidence("case-004", nil, case004Events(), case004Artifacts(t), case004Decisions())
 	if !errors.Is(err, ErrCaseDenied) {
 		t.Fatalf("viewer-free export err=%v, want ErrCaseDenied", err)
 	}
 	if strings.Contains(err.Error(), "sha256:artifact") || strings.Contains(err.Error(), "ev-2") {
 		t.Fatalf("denial leaks content: %v", err)
 	}
-	pkg, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(), case004Decisions())
+	pkg, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,7 +352,8 @@ func TestTodo_CASE_004_Conformance(t *testing.T) {
 		rebuilt[i] = PackageEvent{Seq: uint64(i + 1), Kind: string(stream[i].State), Ref: stream[i].CaseID, At: at.Add(time.Duration(i) * time.Hour)}
 	}
 	allowed := []string{"general", "investigation"}
-	artifacts := []ExportArtifact{{EvidenceID: "ev-1", ArtifactDigest: "sha256:artifact-1", CompartmentID: "general", RetentionDecision: "retain:7y"}}
+	envelope := rev024Envelope(t, evidence.EvidenceItem{ID: "ev-1", Kind: "document", Digest: "sha256:artifact-1", Sequence: 1})
+	artifacts := []ExportArtifact{{EvidenceID: "ev-1", ArtifactDigest: "sha256:artifact-1", CompartmentID: "general", RetentionDecision: "retain:7y", Evidence: envelope}}
 	a, err := ExportEvidence("case-004", allowed, direct, artifacts, []string{"decision:board-1"})
 	if err != nil {
 		t.Fatal(err)
@@ -382,7 +391,7 @@ func TestTodo_CASE_004_Mutation(t *testing.T) {
 		t.Fatal("original-mutation mutant survives")
 	}
 	// Filter-drop mutant: unauthorized artifacts must stay excluded.
-	pkg, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(), case004Decisions())
+	pkg, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -392,12 +401,12 @@ func TestTodo_CASE_004_Mutation(t *testing.T) {
 		}
 	}
 	// Digest-instability mutant: repeats must match exactly.
-	again, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(), case004Decisions())
+	again, err := ExportEvidence("case-004", []string{"general"}, case004Events(), case004Artifacts(t), case004Decisions())
 	if err != nil || again.Digest != pkg.Digest {
 		t.Fatal("digest-instability mutant survives")
 	}
 	// Lineage-drop mutant: missing hold/correction refs must be refused.
-	if _, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(), nil); !errors.Is(err, ErrExportInvalid) {
+	if _, err := ExportEvidence("case-004", []string{"general", "investigation"}, case004Events(), case004Artifacts(t), nil); !errors.Is(err, ErrExportInvalid) {
 		t.Fatalf("lineage-drop mutant survives: %v", err)
 	}
 }

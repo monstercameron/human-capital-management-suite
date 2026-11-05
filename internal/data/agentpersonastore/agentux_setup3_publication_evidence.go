@@ -12,10 +12,15 @@ import (
 
 // PublicationEvidenceDetails is the human-readable identity and timing of the
 // exact review and evaluation pins retained by a publication event.
+// EvaluationExpiresAt is when the retained evaluation lapses; the model route
+// published from it lasts exactly that long, so the card reads the agent's
+// answers-until window from it (AGENTUX-082). It is zero only for rows that
+// predate retained expiries.
 type PublicationEvidenceDetails struct {
-	ReviewerID         string
-	ReviewApprovedAt   time.Time
-	EvaluationPassedAt time.Time
+	ReviewerID          string
+	ReviewApprovedAt    time.Time
+	EvaluationPassedAt  time.Time
+	EvaluationExpiresAt time.Time
 }
 
 // ReadPublicationEvidenceDetails reads retained evidence for an exact
@@ -31,7 +36,7 @@ func (s *TenantStore) ReadPublicationEvidenceDetails(ctx context.Context, person
 	}
 	defer tx.Rollback(ctx)
 	var details PublicationEvidenceDetails
-	err = tx.QueryRow(ctx, `SELECT lifecycle.reviewer_id,review.reviewed_at,evaluation.issued_at
+	err = tx.QueryRow(ctx, `SELECT lifecycle.reviewer_id,review.reviewed_at,evaluation.issued_at,evaluation.expires_at
 		FROM persona_lifecycle_events lifecycle
 		JOIN persona_versions version ON version.tenant_id=lifecycle.tenant_id
 		 AND version.persona_id=lifecycle.persona_id AND version.version=lifecycle.persona_version
@@ -47,7 +52,7 @@ func (s *TenantStore) ReadPublicationEvidenceDetails(ctx context.Context, person
 		WHERE lifecycle.tenant_id=$1 AND lifecycle.persona_id=$2 AND lifecycle.persona_version=$3
 		 AND lifecycle.to_state='PUBLISHED' AND lifecycle.profile_digest=version.content_digest
 		ORDER BY lifecycle.event_sequence DESC,review.reviewed_at DESC,evaluation.issued_at DESC LIMIT 1`, s.tenantID, personaID, version).Scan(
-		&details.ReviewerID, &details.ReviewApprovedAt, &details.EvaluationPassedAt)
+		&details.ReviewerID, &details.ReviewApprovedAt, &details.EvaluationPassedAt, &details.EvaluationExpiresAt)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return PublicationEvidenceDetails{}, ErrPublicationEvidenceRequired
 	}
@@ -59,6 +64,7 @@ func (s *TenantStore) ReadPublicationEvidenceDetails(ctx context.Context, person
 	}
 	details.ReviewApprovedAt = details.ReviewApprovedAt.UTC()
 	details.EvaluationPassedAt = details.EvaluationPassedAt.UTC()
+	details.EvaluationExpiresAt = details.EvaluationExpiresAt.UTC()
 	if err := commit(ctx, tx); err != nil {
 		return PublicationEvidenceDetails{}, err
 	}

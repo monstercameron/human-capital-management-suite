@@ -95,6 +95,10 @@ func chattoneW10Aria(m Model, msg Message) map[string]string {
 // text: the reader's mark and "Show as written" on a reworded message, and the
 // writer's "Others see:" under their own message.
 func chattoneExtras(m Model, h handlers, msg Message) []ui.Node {
+	return chattoneExtrasScoped(m, h, msg, "")
+}
+
+func chattoneExtrasScoped(m Model, h handlers, msg Message, prefix string) []ui.Node {
 	if m.EditingID == msg.ID {
 		return nil
 	}
@@ -112,7 +116,7 @@ func chattoneExtras(m Model, h handlers, msg Message) []ui.Node {
 	// A translated and reworded message keeps the combined mark of the
 	// translation view; this is the reword-only view.
 	if sel.Mark.State == "ready" && chattoneW10Has(sel.Mark.Kinds, chatrender.Reword) && !chattoneW10Has(sel.Mark.Kinds, chatrender.Translate) {
-		nodes = append(nodes, chattoneRewordedMark(m, h, msg, sel)...)
+		nodes = append(nodes, chattoneRewordedMark(m, h, msg, sel, prefix)...)
 	}
 	return nodes
 }
@@ -120,7 +124,7 @@ func chattoneExtras(m Model, h handlers, msg Message) []ui.Node {
 // chattoneRewordedMark is the quiet mark in words on a reworded message and,
 // where policy allows, "Show as written" on that message alone, which reveals
 // the original in place, marked as such, and "Show reworded" to return.
-func chattoneRewordedMark(m Model, h handlers, msg Message, sel ReaderSelection) []ui.Node {
+func chattoneRewordedMark(m Model, h handlers, msg Message, sel ReaderSelection, prefix string) []ui.Node {
 	shown := h.local.chatlang.originalShown(m.SelectedID, msg.ID)
 	parts := []ui.Node{html.Span(html.Props{Class: "chatlang-mark-text", Text: RenderingText(m.Locale, "reworded")})}
 	canWritten := sel.Mark.CanShowAsWritten && msg.Body != ""
@@ -131,7 +135,7 @@ func chattoneRewordedMark(m Model, h handlers, msg Message, sel ReaderSelection)
 		}
 		parts = append(parts, html.Button(html.Props{Class: "chatlang-mark-button", Type: "button",
 			Data: map[string]string{"action": "chatlang-original", "id": msg.ID},
-			Aria: map[string]string{"expanded": boolString(shown), "controls": "chatlang-original-" + msg.ID, "label": chattoneW10Name(m.Locale, aria, chatlangAuthor(msg))},
+			Aria: map[string]string{"expanded": boolString(shown), "controls": prefix + "chatlang-original-" + msg.ID, "label": chattoneW10Name(m.Locale, aria, chatlangAuthor(msg))},
 			Text: chattoneW10Text(m.Locale, label)}))
 	}
 	nodes := []ui.Node{html.Div(html.Props{Class: "chatlang-mark", Data: map[string]string{"chatlang-state": "reworded", "message-id": msg.ID}}, parts...)}
@@ -140,7 +144,7 @@ func chattoneRewordedMark(m Model, h handlers, msg Message, sel ReaderSelection)
 		if lang := chatlangKnownTag(sel.Mark.SourceLanguage); lang != "" {
 			textProps.Lang, textProps.Dir = lang, chatlangDir(lang)
 		}
-		nodes = append(nodes, html.Div(html.Props{ID: "chatlang-original-" + msg.ID, Class: "chatlang-original", Data: map[string]string{"chatlang-original": msg.ID}},
+		nodes = append(nodes, html.Div(html.Props{ID: prefix + "chatlang-original-" + msg.ID, Class: "chatlang-original", Data: map[string]string{"chatlang-original": msg.ID}},
 			html.Span(html.Props{Class: "chatlang-original-label", Text: chattoneW10Text(m.Locale, "as_written")}),
 			html.Div(textProps, markdownMessageBody(m, msg.Body)...)))
 	}

@@ -176,9 +176,6 @@ func declareLocaleStylesStyles() {
 		gwccss.BorderRight(gwccss.Px(3), gwccss.Var("accent")),
 		gwccss.Rounded(gwccss.RawLength("var(--radius) 0 0 var(--radius)")),
 	)
-	declareGlobal(".topbar,.app-shell.nav-collapsed .topbar",
-		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")))),
-	)
 	declareGlobal(".locale-popover",
 		mediaRule(gwccss.MaxW(760), gwccss.Right(gwccss.Zero), gwccss.Left(gwccss.RawLength("auto"))),
 	)

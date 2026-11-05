@@ -104,12 +104,8 @@ func (a *SchemaFluxAdapter) Invoke(ctx context.Context, req ModelRequest) (Model
 		err, reply = generateErr, generated.Value
 	}
 	result := provider.result
-	if result.Usage.TotalTokens > 0 {
-		cost, costErr := a.pricing.Cost(a.selection, result.Usage)
-		if costErr != nil {
-			return ModelResult{}, costErr
-		}
-		result.Usage.CostMicros = cost
+	if costErr := stampCost(a.pricing, a.selection, &result); costErr != nil {
+		return ModelResult{}, costErr
 	}
 	if err != nil {
 		if ctx.Err() != nil {

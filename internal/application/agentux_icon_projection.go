@@ -76,6 +76,7 @@ func (r AgentIconCatalogVersions) ListPersonaCatalogVersions(ctx context.Context
 			continue
 		}
 		out[i].Icon, out[i].IconRevision = icon.Value, icon.Revision
+		out[i].IconImageURL = agentIconImageURL(out[i].Profile.Profile.PersonaID, icon)
 	}
 	return out, nil
 }
@@ -112,6 +113,7 @@ func (r AgentIconProjection) Mention(ctx context.Context, tenant values.TenantId
 		return err
 	}
 	mention.Icon, mention.IconRevision = icon.Value, icon.Revision
+	mention.IconImageURL = agentIconImageURL(personaID, icon)
 	return nil
 }
 
@@ -124,6 +126,7 @@ func (r AgentIconProjection) Actor(ctx context.Context, tenant values.TenantId, 
 		return err
 	}
 	actor.Icon, actor.IconRevision = icon.Value, icon.Revision
+	actor.IconImageURL = agentIconImageURL(actor.PersonaID, icon)
 	return nil
 }
 
@@ -136,5 +139,6 @@ func (r AgentIconProjection) Agent(ctx context.Context, tenant values.TenantId, 
 		return err
 	}
 	agent.Icon, agent.IconRevision = icon.Value, icon.Revision
+	agent.IconImageURL = agentIconImageURL(personaID, icon)
 	return nil
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -79,17 +78,8 @@ type agentCostReply struct {
 }
 
 func agentAccessEndpoint(cfg journeyclient.Config, path string) (string, error) {
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
-		return "", errAgentAccessUnavailable
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" {
 		return "", errAgentAccessUnavailable
 	}
 	endpoint.Path, endpoint.RawQuery, endpoint.Fragment = path, "", ""

@@ -41,9 +41,9 @@ func parseStandardServe(t *testing.T, args ...string) ServeConfig {
 
 // TestTodo_PROMO_EXEC_001_DefaultComposition proves a cell composed from
 // parsed standard-profile defaults runs a promotion through the execution
-// engine: no -workflow-plan, -execution-authority or -scheduler flag is
-// passed, yet propose, execute, both approval decisions and the scheduler
-// tick close the run with exactly one terminal ledger fact.
+// engine: no -execution-authority or -scheduler flag is passed, yet
+// propose, execute, both approval decisions and the scheduler tick close
+// the run with exactly one terminal ledger fact.
 func TestTodo_PROMO_EXEC_001_DefaultComposition(t *testing.T) {
 	db := pgtest.New(t)
 	pool, err := pgxadapter.NewPool(context.Background(), db.URL, map[string]string{"search_path": db.Schema})
@@ -62,9 +62,9 @@ func TestTodo_PROMO_EXEC_001_DefaultComposition(t *testing.T) {
 		"-execution-authority-digest=sha256:promo-exec-001-default",
 		"-page-cursor-key="+integrationPageCursorKey,
 		"-migrate=false")
-	if !cfg.ExecutionAuthority || cfg.WorkflowPlan != WorkflowPlanExecute || !cfg.Scheduler {
-		t.Fatalf("standard defaults = authority %t plan %q scheduler %t, want the engine on",
-			cfg.ExecutionAuthority, cfg.WorkflowPlan, cfg.Scheduler)
+	if !cfg.ExecutionAuthority || !cfg.Scheduler {
+		t.Fatalf("standard defaults = authority %t scheduler %t, want the engine on",
+			cfg.ExecutionAuthority, cfg.Scheduler)
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("default configuration is not one a listener may start on: %v", err)

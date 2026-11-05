@@ -17,10 +17,6 @@ func (r *Runner) ExtendBudgetByAllowance(ctx context.Context, taskID, userID, re
 	if r == nil || r.p == nil || r.p.cfg.Budget == nil {
 		return agentbudget.ExtensionResult{}, fmt.Errorf("%w: budget ledger is required", ErrInvalid)
 	}
-	allowance := r.p.cfg.Budget.ExtensionAllowance(taskID)
-	if allowance == (agentbudget.Limits{}) {
-		return agentbudget.ExtensionResult{}, fmt.Errorf("%w: budget extensions are not permitted by policy", ErrDenied)
-	}
 	var revision uint64
 	for _, budget := range r.p.cfg.Budget.Snapshot().Tasks {
 		if budget.ID == taskID {
@@ -29,6 +25,14 @@ func (r *Runner) ExtendBudgetByAllowance(ctx context.Context, taskID, userID, re
 	}
 	if revision == 0 {
 		return agentbudget.ExtensionResult{}, fmt.Errorf("%w: task has no budget to extend", ErrDenied)
+	}
+	allowance := r.p.cfg.Budget.ExtensionAllowance(taskID)
+	if allowance == (agentbudget.Limits{}) {
+		// The task exists but nothing can be added: it was already extended,
+		// it rests at a shared ceiling, or the policy offers nothing. That is
+		// the ledger's own unavailable, so a repeated click answers conflict
+		// rather than denied.
+		return agentbudget.ExtensionResult{}, fmt.Errorf("%w: budget extension is not available for this task", agentbudget.ErrExtensionUnavailable)
 	}
 	return r.ExtendBudget(ctx, taskID, userID, requestID, revision, allowance, now)
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 )
 
@@ -38,14 +39,18 @@ func TestTodo_DATA_021(t *testing.T) {
 
 func TestTodo_DATA_021_Race(t *testing.T) {
 	db, tenant := newFixture(t)
-	req := projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: 0, Deadline: time.Now().UTC().Add(time.Second)}
 	errs := make([]error, 8)
+	conns := make([]dbport.Querier, len(errs))
+	for i := range conns {
+		conns[i] = db.NewConn(t)
+	}
+	req := projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: 0, Deadline: time.Now().UTC().Add(10 * time.Second)}
 	var wg sync.WaitGroup
 	for i := range errs {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			got, err := projection.Check(context.Background(), db.Conn, req)
+			got, err := projection.Check(context.Background(), conns[i], req)
 			if err != nil {
 				errs[i] = err
 			} else if got.Status != projection.BarrierReady {
@@ -69,9 +74,12 @@ func TestTodo_DATA_021_Fault(t *testing.T) {
 	if !errors.As(err, &barrierErr) || barrierErr.Status != projection.BarrierTimeout || got.Status != projection.BarrierTimeout {
 		t.Fatalf("expired barrier = %+v, %v", got, err)
 	}
+	runBarrierCheckStatusesAndTimeoutDiagnostics(t)
+	runBarrierCheckUnavailableAndReadFailures(t)
 }
 
 func TestTodo_DATA_021_Recovery(t *testing.T) {
+	runBarrierAwaitCancellationAndExpiration(t)
 	db, tenant := newFixture(t)
 	tx, err := db.Conn.Begin(context.Background())
 	if err != nil {
@@ -102,6 +110,7 @@ func TestTodo_DATA_021_Recovery(t *testing.T) {
 }
 
 func TestTodo_DATA_021_Mutation(t *testing.T) {
+	runBarrierErrorAndSetStatusOutcomes(t)
 	db, tenant := newFixture(t)
 	_, err := projection.Check(context.Background(), db.Conn, projection.ReadRequirement{Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey, MinimumSequence: -1, Deadline: time.Now().Add(time.Second)})
 	if err == nil {

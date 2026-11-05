@@ -25,7 +25,7 @@ and comparable rather than being inferred from prose:
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Human Work               | Identity, Governance, Organization/Relationship, Forms, Workflow, Messaging, Obligation Tracker                      | Tenant/org/case compartment, current assignee authority, field masks, delegation limits, separation of duties, task-output classification and retention    |
 | Master/Reference Data    | Schema Registry, Stewardship Human Work, Dependency Graph, Integration Crosswalks                                    | Steward capabilities separate propose/publish/merge; scope and classification per reference domain; no customer can mutate global data                     |
-| Schema Registry          | Protobuf source, SchemaFlux compiler, Dependency Graph, Config Publication, Conformance                              | Signed publication, owner approval, tenant-safe visibility, no schema may weaken field classification or AuthZ without explicit migration review           |
+| Schema Registry          | Protobuf source, admitted Go compiler, Dependency Graph, Config Publication, Conformance                             | Signed publication, owner approval, tenant-safe visibility, no schema may weaken field classification or AuthZ without explicit migration review           |
 | Knowledge/Content        | Content Ingress, Human Work, Translation, Artifact Plane, DLP, Search/RAG                                            | Author/reviewer separation, classification and audience filters before retrieval, source/tenant isolation, no unreviewed content in authoritative answers  |
 | SLA/Obligation           | Source authority, Calendar/Time, Relationship resolver, Human Work, Messaging                                        | Due items reveal only permitted subject fields; waiver/satisfaction are separate capabilities; legal obligations retain applicable evidence                |
 | Batch/Job                | Admission/priority, Workload Identity, Schema, Domain capabilities, Artifact/Checkpoint stores                       | Tenant/cell quotas, scoped service identity, partition field masks, bounded exports, no direct domain-table writes                                         |
@@ -53,7 +53,7 @@ and comparable rather than being inferred from prose:
 | Translation              | Knowledge/Content, Human Work, Locale datasets, Config Publication                                                   | Tenant/content scope, translator/reviewer roles, restricted legal content, no machine draft presented as certified                                         |
 | Geospatial Resolution    | Address/domain facts, approved providers, Boundary/tzdb datasets, Jurisdiction Resolver                              | Address minimization and provider eligibility, residence/work data classification, confidence visible, no automatic legal conclusion                       |
 | Fraud/Insider Detection  | Activity/Decision ledgers, Risk policy, Data Quality, Case Management                                                | Monitoring-purpose limitation, protected models/signals, need-to-know access, no autonomous adverse employment action, appeal and retention                |
-| Config Package Manager   | Registries, SchemaFlux, Dependency Graph, Config Publication, Conformance                                            | Signed packages, publisher/install authority separation, tenant/environment scope, secret references only, full install evidence                           |
+| Config Package Manager   | Registries, admitted Go compiler, Dependency Graph, Config Publication, Conformance                                  | Signed packages, publisher/install authority separation, tenant/environment scope, secret references only, full install evidence                           |
 | Config Dependency Graph  | All registries/publishers, Provenance, Control Publication                                                           | Publisher-authenticated edges, tenant/source ACLs, sensitive dependency redaction, completeness visible, graph cannot itself authorize effects             |
 | Conformance Harness      | Build provenance, fixtures, sandbox, all plane test APIs, Evidence                                                   | Synthetic/masked data only, non-production effects, signed result bundles, waiver authority and expiry, test secrets isolated                              |
 | Chaos Harness            | Reliability identity, sandbox/cell controls, SLO/Incident, Kill path                                                 | Explicit scope/approval, independent abort, production deny by default, tenant fencing, evidence and cleanup verification                                  |
@@ -99,7 +99,7 @@ IN_PROGRESS -> COMPLETED`, with `BLOCKED`, `EXPIRED`, `CANCELLED`, and
 ### Schema and Data Contract Registry
 
 - **Owner:** Schema Registry; source definitions are Protobuf plus explicitly
-  registered file/semantic schemas. SchemaFlux compiles and validates but is not
+  registered file/semantic schemas. The admitted Go compiler validates but is not
   a parallel authority.
 - **State:** `Schema`, `SchemaVersion`, `CompatibilityPolicy`, `ConsumerBinding`,
   `Migration`, `Deprecation`, `AdoptionReceipt`.
@@ -618,6 +618,27 @@ suite before implementation.
 
 Every implementation described here is Go. Protobuf defines APIs and events;
 grpcbridge is the approved transport adapter; GoWebComponents provides UI;
-SchemaFlux compiles structured schemas, mappings, rules, graphs, packages, and
-evidence manifests. There is no TypeScript, Node.js, npm, React, or Vite product
+The admitted deterministic Go compiler processes structured schemas, mappings,
+rules, graphs, packages, and evidence manifests. SchemaFlux remains subject to
+the qualification policy in the production frontend specification; its name
+does not grant production-generator admission. There is no TypeScript, Node.js, npm, React, or Vite product
 toolchain.
+
+<!-- SMB-EXPANSION-20261022:START -->
+
+## Small-business operational ownership extension
+
+The owner-authorized PHASE_3 / PHASE_4 [expansion plan](../small-business-platform-ideas.md) reuses these shared responsibilities. Its [per-ID contracts](../../definitions/planning/smb-expansion.json) specify the exact implementation deltas and adversarial findings. Existing Phase 1 release limits continue to apply to that release; they do not prohibit the separately planned later-phase domain extensions.
+
+- Organization/relationship owners add non-inheriting customer/supplier party roles; contact/address values and identity linkage are reused with purpose checks. Recruiting CRM and workforce hierarchy authority retain their existing meanings.
+- Existing work orders, templates, access, appointment/scheduling, human work, project recurrence and reservations coordinate business jobs. A task/board transition does not directly post stock, issue an invoice, release equipment or charge a customer.
+- Inventory owns quantity, movement, quarantine and consumable reservation semantics. Existing asset ownership remains the authority for physical custody, serviceability and retirement. A serialized item may link these records without merging their distinct lifecycles.
+- Procurement owns requisitions, purchase commitments, receipt inspection and three-way match evidence. Billing owns supplier payables/credits and customer receivables/adjustments. Suite subscription entitlements in `internal/commercial` remain separate. Settlement and accounting connectors own their existing execution/observation boundaries.
+- Approved financial facts use exact decimal/currency and pinned rules; issued records retain correction history. Tax and accounting mappings remain explicit, versioned and qualified; this expansion is not evidence of a universal tax engine or full general ledger.
+- Existing configuration, capability and page registries compose optional modules. Existing DataOps owns staging/dry-run/commit receipts; each domain import adapter invokes its authoritative commands. Opening stock is a movement, not a direct balance overwrite.
+- Existing connector operations, workload identities, destination leases and reconciliation carry device and accounting adapters. A local device connector is a scoped observation/transport boundary, not a business ledger or administrator tunnel. Ambiguous physical outcomes require reconciliation and do not justify automatic replay.
+- External access, notifications, search, reporting and exports enforce current object/field/company authority. Shared UI primitives preserve the global shell; new hubs expose only enabled, authorized operations.
+
+Every cross-domain handoff declares source identity/revision, purpose and authority, idempotent application, durable receipt, correction ownership and reconciliation. Dependencies order implementation; they do not force inventory/devices/accounting modules into a service-only company's runtime configuration. Failures prohibit authoritative business side effects while permitting sanitized, policy-approved security-denial telemetry.
+
+<!-- SMB-EXPANSION-20261022:END -->

@@ -26,6 +26,13 @@ type CompiledTaskNode struct {
 	FormDefinition      VersionedRef
 	AccessibilityPolicy VersionedRef
 	AccommodationPolicy VersionedRef
+
+	// Deadline, when its anchor path is set, is the time expression the
+	// claim-expiry instant resolves from through ResolveClaimExpiry.
+	Deadline values.TimeExpr
+	// DeadlineDefault, when its schema is set, is the declared
+	// non-response payload an EXPIRED resolution completes with.
+	DeadlineDefault values.DeadlineDefault
 }
 
 // Continuation is the durable condition for one parked TASK node.
@@ -134,5 +141,9 @@ type Resolution struct {
 	SubmissionDigest   string
 	ResolvedAt         values.Instant
 	Reason             string
-	Digest             string
+	// DefaultOutputDigest, when set, is the declared non-response payload
+	// digest an EXPIRED resolution completes with. ToNodeOutcome prefers it
+	// over Digest on the EXPIRED route.
+	DefaultOutputDigest string
+	Digest              string
 }

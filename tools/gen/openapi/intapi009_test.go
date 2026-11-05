@@ -10,7 +10,7 @@ import (
 func writeAlignmentFixture(t *testing.T, contract, generated, todos string) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, dir := range []string{"schema/openapi", "planning"} {
+	for _, dir := range []string{"schema/openapi", "planning", "planning/archive"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -63,7 +63,7 @@ paths:
 		{"missing todo extension fails", "openapi: 3.1.0\ninfo: {title: d, version: 0.0.1}\npaths:\n  /v1/widgets:\n    get:\n      x-hcmnext-status: SERVED\n      x-hcmnext-rpc: hcmnext.widgets.v1.WidgetService/GetWidget\n", alignmentTodos,
 			[]string{"GET /v1/widgets: operation names no x-hcmnext-todo backlog owner"}},
 		{"unknown todo fails", strings.Replace(aligned, "INTAPI-011", "INTAPI-999", 1), alignmentTodos,
-			[]string{"POST /v1/widgets: x-hcmnext-todo \"INTAPI-999\" names no backlog item in planning/todos.md"}},
+			[]string{"POST /v1/widgets: x-hcmnext-todo \"INTAPI-999\" names no backlog item in planning/archive/todos-2026-10-22.md"}},
 		{"served without rpc fails", strings.Replace(aligned, "      x-hcmnext-rpc: hcmnext.widgets.v1.WidgetService/GetWidget\n", "", 1), alignmentTodos,
 			[]string{"GET /v1/widgets: operation is SERVED but names no x-hcmnext-rpc backing call"}},
 		{"served rpc missing from generated fails", strings.Replace(aligned, "WidgetService/GetWidget", "WidgetService/ListWidgets", 1), alignmentTodos,

@@ -80,6 +80,18 @@ func TestThirdPartySemanticFirewall(t *testing.T) {
 			imported:   "github.com/jackc/pgx/v5",
 			wantModule: "github.com/jackc/pgx/v5",
 		},
+		{
+			name:       "workflow importing the mongo driver directly",
+			importer:   mod + "/internal/workflow/execute",
+			imported:   "go.mongodb.org/mongo-driver/mongo",
+			wantModule: "go.mongodb.org/mongo-driver",
+		},
+		{
+			name:       "a domain importing a mongo driver subpackage",
+			importer:   mod + "/internal/domains/people",
+			imported:   "go.mongodb.org/mongo-driver/bson",
+			wantModule: "go.mongodb.org/mongo-driver",
+		},
 
 		// Allowed: the manifest's own allowed_import_roots.
 		{
@@ -106,6 +118,11 @@ func TestThirdPartySemanticFirewall(t *testing.T) {
 			name:     "internal/transport importing grpc is allowed",
 			importer: mod + "/internal/transport/grpcserver",
 			imported: "google.golang.org/grpc",
+		},
+		{
+			name:     "the mongo adapter importing the driver is allowed",
+			importer: mod + "/internal/connectivity/mongo",
+			imported: "go.mongodb.org/mongo-driver/mongo",
 		},
 		{
 			name:     "an unclassified third-party module is LIB-001's concern, not this firewall's",

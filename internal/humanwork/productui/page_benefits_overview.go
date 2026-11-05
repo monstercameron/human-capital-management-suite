@@ -4,23 +4,28 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
 
-// benefitsOverviewPage is the route adapter for the
-// benefit-program overview. The governed benefits service
-// is not published to this UI yet, so the surface keeps
-// the journeys fallback contract: an honest empty state
-// with a recovery link that shows nothing — program truth
-// stays server authority. The live overview composition
-// replaces this body once the governed service publishes;
-// until then the UI will not simulate one.
+// benefitsOverviewPage is the route adapter for the benefit-program
+// overview. It resolves the server-authorized projection through the
+// benefits domain and shapes it for the overview feature component; a
+// subject with no eligible plans or a domain read failure keeps an honest
+// empty state.
 func benefitsOverviewPage(view View) ui.Node {
-	return ui.CreateElement(EmptyState, EmptyStateProps{
-		Title:       view.Locale.Text("benefits_overview.unavailable_title"),
-		Description: view.Locale.Text("benefits_overview.unavailable_detail"),
-		Role:        "status",
-		Action: &ActionLinkProps{
-			Label: view.Locale.Text("benefits_overview.return_home"), Href: statefulHref(view, PageHome),
-			Class:    "button primary",
-			Navigate: view.Navigate,
-		},
-	})
+	projection := view.Benefits
+	switch projection.State {
+	case BenefitsReadNoRecord:
+		return benefitsStateFallback(view, "benefits_overview", "no_plans")
+	case BenefitsReadError:
+		return benefitsStateFallback(view, "benefits_overview", "read_error")
+	case BenefitsReadReady:
+	default:
+		return benefitsUnavailable(view, "benefits_overview")
+	}
+	options, err := ResolveBenefitOptions(projection.Options)
+	if err != nil {
+		return benefitsStateFallback(view, "benefits_overview", "read_error")
+	}
+	if len(options) == 0 {
+		return benefitsStateFallback(view, "benefits_overview", "no_plans")
+	}
+	return benefitsOverviewContent(view, options)
 }

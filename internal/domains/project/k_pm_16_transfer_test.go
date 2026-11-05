@@ -44,6 +44,12 @@ func TestTodo_PM_061(t *testing.T) {
 	if _, err := quarantine.AdmitImport(map[string]BundleTask{"task-1": bundle.Tasks[0]}, nil, nil, 7, "importer"); !errors.Is(err, ErrImportConflict) {
 		t.Fatalf("import overwrite err=%v, want conflict", err)
 	}
+	if _, err := quarantine.AdmitImport(map[string]BundleTask{}, map[string]BundleComment{"comment-1": bundle.Comments[0]}, nil, 7, "importer"); !errors.Is(err, ErrImportConflict) {
+		t.Fatalf("comment overwrite err=%v, want conflict", err)
+	}
+	if _, err := quarantine.AdmitImport(map[string]BundleTask{}, map[string]BundleComment{}, map[string]BundleLink{}, 6, "importer"); !errors.Is(err, ErrImportQuarantined) {
+		t.Fatalf("config version mismatch err=%v, want quarantine", err)
+	}
 }
 
 func FuzzTodo_PM_061(f *testing.F) {
@@ -64,5 +70,18 @@ func TestTodo_PM_061_Security(t *testing.T) {
 	bundle.Links[0].Reference = projectlink.Reference{Kind: projectlink.DeployedDocument, ID: "doc-1"}
 	if _, err := QuarantineProjectImport(bundle, "tenant-1", "project-1"); !errors.Is(err, ErrInvalidProjectBundle) {
 		t.Fatalf("malformed private link err=%v", err)
+	}
+	full := pm16Bundle()
+	full.Comments = append(full.Comments, BundleComment{ID: "comment-secret", TaskID: "task-secret", Revision: 1, AuthorID: "bob", Body: "hidden"})
+	full.Links = append(full.Links, BundleLink{ID: "link-secret", TaskID: "task-secret", Revision: 1, Reference: projectlink.Reference{Kind: projectlink.ChatConversation, ID: "conversation-9"}})
+	exported, err := ExportProjectBundle(full, "viewer", pm16BundleAuth{tasks: map[string]bool{"task-1": true, "task-secret": false}, comments: map[string]bool{"comment-1": false, "comment-secret": true}, links: map[string]bool{"link-1": true, "link-secret": true}}, time.Unix(20, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exported.Bundle.Tasks) != 1 || len(exported.Bundle.Comments) != 0 || len(exported.Bundle.Links) != 1 {
+		t.Fatalf("export leaked unreadable or hidden-task rows: %+v", exported.Bundle)
+	}
+	if len(exported.Manifest.CommentIDs) != 0 || len(exported.Manifest.LinkIDs) != 1 || exported.Manifest.LinkIDs[0] != "link-1" {
+		t.Fatalf("export manifest leaked private IDs: %+v", exported.Manifest)
 	}
 }

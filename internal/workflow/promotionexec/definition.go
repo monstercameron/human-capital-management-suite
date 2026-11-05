@@ -216,6 +216,13 @@ func Definition() workflow.Definition {
 // provider-confirmation SIGNAL waits; without them the graph is the frozen
 // 1.0.0 shape ([DefinitionV1_0]).
 func promotionDefinition(definitionVersion uint32, providerWaits bool) workflow.Definition {
+	declaredModes := []workflow.ExecutionMode{workflow.ModeExecute}
+	if definitionVersion < Version {
+		// Frozen history: 1.0.0 and 1.1.0 keep the suppression-backed
+		// SIMULATE declaration they shipped with. Current graphs simulate
+		// through the recording simulator instead (WF-TEST-001).
+		declaredModes = []workflow.ExecutionMode{workflow.ModeExecute, workflow.ModeSimulate}
+	}
 	return workflow.Definition{
 		WorkflowID: WorkflowID,
 		Version:    definitionVersion,
@@ -231,7 +238,7 @@ func promotionDefinition(definitionVersion uint32, providerWaits bool) workflow.
 		TenantScope:       "acme",
 		OrganizationScope: organizationScope,
 		RiskClass:         "HIGH",
-		DeclaredModes:     []workflow.ExecutionMode{workflow.ModeExecute, workflow.ModeSimulate},
+		DeclaredModes:     declaredModes,
 		TerminalProfile:   workflow.TerminalProfileExecute,
 		StartNodeID:       NodeSnapshotWorker,
 		Inputs: []workflow.Field{
@@ -369,9 +376,9 @@ func promotionNodes(providerWaits bool, definitionVersion uint32) []workflow.Nod
 			Capability:    &workflow.CapabilityRef{ID: capExecute, Version: executeCapabilityVersion, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:people.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.core_commit"},
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
-			// The core commit simulates as a read. The compiler derives the
-			// SIMULATE projection from this overlay (WF-EXT-003).
-			ModeOverlay: &workflow.ModeOverlay{SimulateEffect: capability.EffectReadOnly},
+			// No SIMULATE mode overlay: the commit keeps its authored write
+			// effect in the SIMULATE projection and a recording simulator
+			// captures what it would have done (WF-TEST-001).
 		},
 		{
 			// The bounded automatic correction: when a downstream
@@ -391,9 +398,9 @@ func promotionNodes(providerWaits bool, definitionVersion uint32) []workflow.Nod
 			Capability:    &workflow.CapabilityRef{ID: capReleaseHold, Version: 1, OperationMode: workflow.ModeExecute, AuthorityScopes: []string{"scope:rewards.write"}, IdempotencyKeyMapping: "proposal_digest", EffectBinding: "promotion.compensation.hold_release"},
 			FailureRoute:  NodeEndRepairPlan,
 			Governance:    invocation([]string{ApprovalFinance, ApprovalManager}, workflow.RevalidatePreEffect),
-			// The hold release simulates as a read. The compiler derives the
-			// SIMULATE projection from this overlay (WF-EXT-003).
-			ModeOverlay: &workflow.ModeOverlay{SimulateEffect: capability.EffectReadOnly},
+			// No SIMULATE mode overlay: the hold release keeps its authored
+			// write effect in the SIMULATE projection for the recording
+			// simulator (WF-TEST-001).
 		},
 		{
 			// The acknowledgement gate: reconciliation may verify every
@@ -446,6 +453,16 @@ func promotionNodes(providerWaits bool, definitionVersion uint32) []workflow.Nod
 			providerWaitNode(NodeAwaitAccessConfirmation, "AccessConfirmation", "access_result_ref",
 				"hcmnext.events.access_change_result", "AccessChangeResultPayload", "hcmnext.integrations.iam"),
 		)
+	}
+	if definitionVersion < Version {
+		// Frozen history: 1.0.0 and 1.1.0 keep the SIMULATE relabelling
+		// overlays they shipped with, so their frozen projections reproduce
+		// byte for byte. The current graph dropped them (WF-TEST-001).
+		for i := range nodes {
+			if nodes[i].ID == NodeExecutePromotion || nodes[i].ID == NodeCompensateHold {
+				nodes[i].ModeOverlay = &workflow.ModeOverlay{SimulateEffect: capability.EffectReadOnly}
+			}
+		}
 	}
 	return nodes
 }
@@ -607,10 +624,11 @@ func Compile(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, er
 	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry})
 }
 
-// CompileSimulation compiles the zero-effect SIMULATE projection while
-// retaining the same graph and typed dataflow as the executable definition.
-// The compiler derives it from each write node's declared mode overlay
-// (WF-EXT-003).
+// CompileSimulation compiles the SIMULATE projection while retaining the same
+// graph and typed dataflow as the executable definition. Since WF-TEST-001
+// the two write nodes carry no relabelling overlay: they keep their authored
+// write effects in the projection and a recording simulator captures what
+// they would have done instead of executing them.
 func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWorkflow, error) {
 	def := Definition()
 	if len(definitions) == 1 {
@@ -620,7 +638,7 @@ func CompileSimulation(definitions ...workflow.Definition) (*workflow.CompiledWo
 	if err != nil {
 		return nil, err
 	}
-	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry, SimulateProjection: true})
+	return workflow.Compile(def, workflow.Options{Phase: workflow.PhaseP1B, Capabilities: registry, SimulateProjection: true, SimulateProjectionRetainWrites: true})
 }
 
 // NodeOrder returns the deterministic documented order used by the package's

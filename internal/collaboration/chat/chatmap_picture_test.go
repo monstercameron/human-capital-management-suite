@@ -64,3 +64,16 @@ func TestTodo_CHATMAP_003_Security(t *testing.T) {
 		t.Fatal("coarsening uncertainty not included")
 	}
 }
+
+func TestChatReview_MapSVGLabelDoesNotInterpretLocale(t *testing.T) {
+	place := chatmapPlace(time.Now())
+	const hostile = `en-US"><script>alert(1)</script>`
+	pic, err := (SchematicMap{}).Render(place, 16, MapSize{400, 200}, MapTheme{Locale: hostile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	svg := string(pic.Image)
+	if strings.Contains(svg, "<script") || !strings.Contains(svg, `aria-label="Map detail unavailable"`) || !strings.Contains(svg, ">Map detail unavailable</text>") {
+		t.Fatalf("unsupported locale leaked into the SVG label: %s", svg)
+	}
+}

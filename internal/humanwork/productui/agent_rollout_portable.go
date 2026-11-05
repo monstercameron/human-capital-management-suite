@@ -36,6 +36,7 @@ type AgentRolloutSnapshot struct {
 
 type AgentRolloutPersona struct{ ID, Name string }
 type AgentRolloutVersion struct {
+	_                     incomparable
 	PersonaID             string
 	Version               int64
 	VersionLabel          string
@@ -44,6 +45,7 @@ type AgentRolloutVersion struct {
 	Digest, ProfileDigest string
 }
 type AgentRolloutInstallation struct {
+	_                                                             incomparable
 	ID, PersonaID, ConversationID, Name, Status, ConversationKind string
 	Version, Revision                                             int64
 	VersionLabel                                                  string
@@ -84,6 +86,7 @@ type AgentPortableSnapshot struct {
 	Drafts       []AgentPortableReviewDraft `json:"drafts"`
 }
 type AgentPortableReviewDraft struct {
+	_            incomparable
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	Purpose      string `json:"purpose"`
@@ -94,6 +97,7 @@ type AgentPortableReviewDraft struct {
 	Version      uint64 `json:"version"`
 }
 type AgentPortableManifest struct {
+	_              incomparable
 	ID             string `json:"id"`
 	Version        string `json:"version"`
 	Name           string `json:"name"`
@@ -102,6 +106,7 @@ type AgentPortableManifest struct {
 	PersonaVersion string `json:"persona_version,omitempty"`
 }
 type AgentPortableDestination struct {
+	_        incomparable
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Kind     string `json:"kind"`

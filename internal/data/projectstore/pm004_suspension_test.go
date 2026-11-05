@@ -43,7 +43,9 @@ func TestTodo_PM_004_Integration(t *testing.T) {
 	}
 	var eventType, reason string
 	if err := s.RunTenantTx(ctx, "tenant-a", func(tx dbport.Tx) error {
-		return tx.QueryRow(ctx, `SELECT event_type,payload->>'reason' FROM project_activity WHERE tenant_id='tenant-a' AND project_id=$1 AND event_type='project.suspended'`, p.ID).Scan(&eventType, &reason)
+		// Activity payloads store the versioned outbox envelope, so the
+		// suspension reason lives under the nested value object.
+		return tx.QueryRow(ctx, `SELECT event_type,payload->'value'->>'reason' FROM project_activity WHERE tenant_id='tenant-a' AND project_id=$1 AND event_type='project.suspended'`, p.ID).Scan(&eventType, &reason)
 	}); err != nil {
 		t.Fatal(err)
 	}

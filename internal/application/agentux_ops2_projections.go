@@ -45,10 +45,13 @@ type AgentOwnerRunSource interface {
 
 // AgentControlIdentity is the readable identity for one exact bound agent
 // version. It is resolved only after the operational projection authorizes the
-// run for the current viewer.
+// run for the current viewer. EvalStatus is the publication-pinned evaluation
+// outcome for the version ("passed", "expired", or "" when unknown); it is a
+// display fact, never a gate.
 type AgentControlIdentity struct {
-	Name      string
-	OwnerName string
+	Name       string
+	OwnerName  string
+	EvalStatus string
 }
 
 type AgentControlIdentitySource interface {
@@ -150,7 +153,23 @@ func (s AgentPersonaControlIdentities) ResolveAgentControlIdentity(ctx context.C
 	if owner.ID != match.BusinessOwner || strings.TrimSpace(owner.Label) == "" {
 		return AgentControlIdentity{}, ErrPersonaCatalogDirectoryUnavailable
 	}
-	return AgentControlIdentity{Name: strings.TrimSpace(match.Version.DisplayName), OwnerName: strings.TrimSpace(owner.Label)}, nil
+	identity := AgentControlIdentity{Name: strings.TrimSpace(match.Version.DisplayName), OwnerName: strings.TrimSpace(owner.Label)}
+	details, err := store.ReadPublicationEvidenceDetails(ctx, agentID, match.Version.Version)
+	identity.EvalStatus = agent041EvalStatus(details, err, time.Now().UTC())
+	return identity, nil
+}
+
+// agent041EvalStatus reads the evaluation the publication event pinned for an
+// exact version. A failed or missing read leaves the status unknown; the
+// dashboard shows a dash and the publication gate stays authoritative.
+func agent041EvalStatus(details agentpersonastore.PublicationEvidenceDetails, err error, now time.Time) string {
+	if err != nil || details.EvaluationPassedAt.IsZero() {
+		return ""
+	}
+	if !details.EvaluationExpiresAt.IsZero() && !now.Before(details.EvaluationExpiresAt) {
+		return "expired"
+	}
+	return "passed"
 }
 
 func mergeAgentOwnerRunProjections(existing []AgentOwnerRunProjection, incoming []AgentOwnerRunProjection) []AgentOwnerRunProjection {
@@ -180,7 +199,7 @@ func projectAgentControlRun(projection AgentOwnerRunProjection, identity AgentCo
 			failureGate = "deadline"
 		}
 	}
-	row := productui.AgentControlRun{ID: view.TaskID, AgentID: view.AgentID, ConversationID: projection.ConversationID, ViewerDirect: projection.ViewerDirect, Name: identity.Name, Revision: view.Revision, Version: view.Version, Installation: view.InstallationID, State: state, Since: projection.UpdatedAt.UTC().Format(time.RFC3339), Started: projection.StartedAt.UTC().Format(time.RFC3339), Duration: duration.Round(time.Second).String(), RequestedBy: agentControlSubjectLabel(projection.RequestedBy), Location: projection.Location, Failure: view.FailureCode, FailureGate: failureGate, FailureOwner: projection.FailureOwner, FailurePlace: projection.FailureLocation, Spend: agentControlSpendLabel(view.SpendMicros), Actions: []string{}, Denials: []string{}, Citations: agentControlCitationMarkers(projection.CitationCount), Evals: []string{}}
+	row := productui.AgentControlRun{ID: view.TaskID, AgentID: view.AgentID, ConversationID: projection.ConversationID, ViewerDirect: projection.ViewerDirect, Name: identity.Name, Revision: view.Revision, Version: view.Version, Installation: view.InstallationID, State: state, Since: projection.UpdatedAt.UTC().Format(time.RFC3339), Started: projection.StartedAt.UTC().Format(time.RFC3339), Duration: duration.Round(time.Second).String(), RequestedBy: agentControlSubjectLabel(projection.RequestedBy), Location: projection.Location, Cause: agent041DisplayCause(view.CauseKind), Failure: view.FailureCode, FailureGate: failureGate, FailureOwner: projection.FailureOwner, FailurePlace: projection.FailureLocation, Spend: agentControlSpendLabel(view.SpendMicros), Actions: []string{}, Denials: []string{}, Citations: agentControlCitationMarkers(projection.CitationCount), Evals: agent041DisplayEvals(identity.EvalStatus), Incident: view.IncidentID}
 	if view.CanPause && state != "STOPPED_RESPONDING" {
 		row.Actions = append(row.Actions, "pause")
 	}
@@ -207,6 +226,29 @@ func agentControlSpendLabel(micros int64) string {
 		return fmt.Sprintf("$%.2f", float64(micros)/1e6)
 	default:
 		return fmt.Sprintf("$%.4f", float64(micros)/1e6)
+	}
+}
+
+// agent041DisplayCause passes through only the durable admission causes the
+// page can name. Anything else is withheld so a new or hostile code never
+// reaches the dashboard as raw text.
+func agent041DisplayCause(cause string) string {
+	switch strings.ToUpper(strings.TrimSpace(cause)) {
+	case "CHAT", "PERSONA_MENTION", "API", "EVENT", "SCHEDULE", "WORKFLOW":
+		return strings.ToUpper(strings.TrimSpace(cause))
+	default:
+		return ""
+	}
+}
+
+// agent041DisplayEvals carries the bound version's evaluation outcome as a
+// bounded status word. Unknown outcomes stay empty and the page shows a dash.
+func agent041DisplayEvals(status string) []string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "passed", "expired":
+		return []string{strings.ToLower(strings.TrimSpace(status))}
+	default:
+		return []string{}
 	}
 }
 

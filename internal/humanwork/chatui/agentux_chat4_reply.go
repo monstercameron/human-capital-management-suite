@@ -115,7 +115,7 @@ func agentProgressForPost(model Model, projection PersonaProgressProjection, pos
 	}
 	content := []ui.Node{html.Div(html.Props{Class: "message-meta"}, meta...)}
 	content = append(content, agentFailureContents(model, failure, projection.AgentName)...)
-	return html.Article(html.Props{Class: "message agent-direct-state", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"agent-reply-state": "failed"}}, agentDMAvatar(projection.AgentName, "avatar agent-dm-avatar", conversationAgentIcon(model, model.selected())), html.Div(html.Props{Class: "message-content"}, content...))
+	return html.Article(html.Props{Class: "message agent-direct-state", Dir: agentReplyDirection(model.Locale), Data: map[string]string{"agent-reply-state": "failed"}}, agentAvatar(projection.AgentName, "avatar agent-dm-avatar", conversationAgentIconImage(model, model.selected()), conversationAgentIcon(model, model.selected())), html.Div(html.Props{Class: "message-content"}, content...))
 }
 
 // agentChannelFailure is the failed card under a question in a channel

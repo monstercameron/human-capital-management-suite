@@ -44,6 +44,7 @@ const (
 // page. Labels and destinations are already scoped and localized by the
 // caller; the renderer never computes status, time, or authority.
 type ClockProjection struct {
+	_                 incomparable
 	State             ClockProjectionState
 	WorkerLabel       string
 	ScheduleLabel     string

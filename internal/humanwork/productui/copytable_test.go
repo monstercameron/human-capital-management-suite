@@ -67,12 +67,12 @@ func TestWorkflowEditorCopyDigests(t *testing.T) {
 		messages map[string]localize.Message
 		digest   string
 	}{
-		"en-US": {workflowEditorMessages(), "d2caec77a0b6602decd4a795edd1988c0022fc5f9f1ea3640925ad4c7c22276d"},
-		"de-DE": {workflowEditorTranslations("de-DE"), "553efa654a3f71ae2ef7eec98784155afe04a06bd53b94719e70a761ffc547fa"},
-		"ar":    {workflowEditorTranslations("ar"), "ae1fcd8fbcba72ecf7465542cc6a28abdc6cb9be0c619152a5fac61ae8170bba"},
+		"en-US": {workflowEditorMessages(), "24fefc61562bf7a77ddc6265b66d5d9a0448fbd0662bb40b6b23cb78930368ee"},
+		"de-DE": {workflowEditorTranslations("de-DE"), "f64f725883445eb4a3a3dc6ecc1ebb34f57fb3356e62457113172ae7fe2b59cf"},
+		"ar":    {workflowEditorTranslations("ar"), "77aac46d1073919a2070eebb8ef39d37fdeb3ad65d799020614fac728afb5b13"},
 	} {
-		if len(tc.messages) != 176 {
-			t.Fatalf("%s carries %d keys, want 176", name, len(tc.messages))
+		if len(tc.messages) != 177 {
+			t.Fatalf("%s carries %d keys, want 177", name, len(tc.messages))
 		}
 		if got := copyTableDigest(tc.messages); got != tc.digest {
 			t.Fatalf("%s copy digest = %s, want %s", name, got, tc.digest)

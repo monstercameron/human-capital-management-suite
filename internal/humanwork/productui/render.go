@@ -24,6 +24,7 @@ func renderDocument(view View, linked bool) (string, error) {
 		return "", fmt.Errorf("productui: appearance: %w", err)
 	}
 	stylesheet := Stylesheet()
+	customSheet := false
 	if linked {
 		stylesheet = ControlStylesheet()
 	}
@@ -37,10 +38,15 @@ func renderDocument(view View, linked bool) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("productui: appearance stylesheet: %w", err)
 		}
+		customSheet = true
 	}
 	styleElement := "<style>" + stylesheet + "</style>"
 	if linked {
-		styleElement = linkedStyleElements(stylesheet, view.Page)
+		if customSheet {
+			styleElement = linkedStyleElements(stylesheet, view.Page)
+		} else {
+			styleElement = linkedDefaultStyleElements(view.Page)
+		}
 	}
 	body, err := ui.RenderToString(Build(view))
 	if err != nil {

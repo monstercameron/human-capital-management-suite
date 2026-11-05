@@ -477,7 +477,9 @@ func TestTodo_WF_RUN_010_IntegrationFault(t *testing.T) {
 	}
 
 	other := f.instance(f.plan, []string{promotionexec.NodeApproveFinance})
-	simulation, err := promotionexec.CompileSimulation()
+	// Since WF-TEST-001 the current SIMULATE projection is the execute
+	// graph, so the frozen 1.0.0 projection stands in as the wrong plan.
+	simulation, err := promotionexec.CompileSimulationV1_0()
 	if err != nil {
 		t.Fatal(err)
 	}

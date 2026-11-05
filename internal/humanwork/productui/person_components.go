@@ -58,6 +58,7 @@ type PersonProfileCompositionProps struct {
 
 // PersonHeroProps contains only the identity facts shown by the hero.
 type PersonHeroProps struct {
+	_ incomparable
 	I18nProps
 	StatusLabel string
 	Initials    string

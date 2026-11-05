@@ -266,6 +266,8 @@ func chattoneWrite(w http.ResponseWriter, reply ChattoneReply, err error) {
 		status, code = http.StatusUnprocessableEntity, "preservation"
 	case errors.Is(err, chatrewrite.ErrPolicy):
 		status, code = http.StatusUnprocessableEntity, "policy"
+	case errors.Is(err, chatrewrite.ErrStalled):
+		status, code = http.StatusServiceUnavailable, "stalled"
 	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": code})

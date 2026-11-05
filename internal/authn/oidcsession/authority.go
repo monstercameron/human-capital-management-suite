@@ -274,7 +274,7 @@ func parseSubjectKind(v string) (trust.SubjectKind, bool) {
 	return trust.SubjectKindUnspecified, false
 }
 func parseAuthenticationMethod(v string) (trust.AuthenticationMethod, bool) {
-	for _, m := range []trust.AuthenticationMethod{trust.AuthenticationMethodBearerToken, trust.AuthenticationMethodMutualTLS} {
+	for _, m := range []trust.AuthenticationMethod{trust.AuthenticationMethodBearerToken, trust.AuthenticationMethodMutualTLS, trust.AuthenticationMethodOIDC} {
 		if m.String() == v {
 			return m, true
 		}

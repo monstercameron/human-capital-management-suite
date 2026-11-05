@@ -22,7 +22,6 @@ const chatbug042OffLook = `appearance:none;box-sizing:border-box;inline-size:38p
 // rectangle with an invisible thumb.
 const ChatBug042Styles = `:root .chat-workspace :is(.switch,.chatmod-switch-track){box-sizing:border-box;position:relative;flex:none;display:inline-block;inline-size:38px;min-inline-size:38px;block-size:22px;min-block-size:22px;padding:0;border:2px solid var(--hcm-color-text-muted);border-radius:999px;background:var(--hcm-color-surface)}` +
 	`:root .chat-workspace :is(.switch,.chatmod-switch-track)::after{content:"";position:absolute;inset-block-start:2px;inset-inline-start:2px;inline-size:14px;block-size:14px;border-radius:50%;background:var(--hcm-color-text-muted);box-shadow:none;transition:inset-inline-start var(--hcm-motion-fast) var(--hcm-motion-easing)}` +
-	`:root .chat-workspace :is(.switch:checked,.chatmod-switch[aria-checked="true"] .chatmod-switch-track){border-color:var(--accent);background:var(--accent)}` +
 	`:root .chat-workspace :is(.switch:checked,.chatmod-switch[aria-checked="true"] .chatmod-switch-track)::after{inset-inline-start:18px;background:var(--hcm-color-surface)}` +
 	`:root .chat-workspace .switch:disabled,:root .chat-workspace .chatmod-switch[disabled] .chatmod-switch-track{opacity:.6}` +
 	`:root .chat-workspace .switch:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +

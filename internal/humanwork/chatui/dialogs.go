@@ -30,6 +30,42 @@ func createKindOf(m Model, local localUI) ConversationKind {
 	return PublicChannel
 }
 
+// chatbug099GroupCopy is the reviewed group-dialog copy in the three product
+// languages: the name is optional and the people picker says how many.
+var chatbug099GroupCopy = map[string][3]string{
+	"name_placeholder": {"Optional", "Optional", "اختياري"},
+	"name_hint":        {"Leave blank to name the group after its people.", "Leer lassen, um die Gruppe nach ihren Mitgliedern zu benennen.", "اتركه فارغًا لتسمية المجموعة بأسماء أعضائها."},
+	"people":           {"Add two or more people", "Mindestens zwei Personen hinzufügen", "أضف شخصين أو أكثر"},
+}
+
+func chatbug099GroupText(m Model, key string) string {
+	values, ok := chatbug099GroupCopy[key]
+	if !ok {
+		return ""
+	}
+	return chatbug039Text("chatbug099."+key, values[chatbug039LocaleIndex(m.Locale)], values[0])
+}
+
+// createGroupName is the name a group submit sends: the typed name kept as
+// typed (no channel rule applies), or the picked people's names when the box
+// is blank, so a group needs only its people.
+func createGroupName(typed string, picked []mentionCandidate) string {
+	if name := strings.TrimSpace(typed); name != "" {
+		return name
+	}
+	names := make([]string, 0, len(picked))
+	for _, p := range picked {
+		if name := strings.TrimSpace(p.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	composed := strings.Join(names, ", ")
+	if len([]rune(composed)) > 200 {
+		composed = string([]rune(composed)[:200])
+	}
+	return composed
+}
+
 func createDialog(m Model, h handlers) ui.Node {
 	local := h.local
 	kind := createKindOf(m, local)
@@ -56,6 +92,7 @@ func createDialog(m Model, h handlers) ui.Node {
 		}
 		hint := ui.Node(nil)
 		describedBy := map[string]string{}
+		placeholder := m.t(KeyNamePlaceholder)
 		if channel {
 			hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint", Text: m.t(KeyChannelNameHint)})
 			describedBy["describedby"] = "new-chat-name-hint"
@@ -65,11 +102,18 @@ func createDialog(m Model, h handlers) ui.Node {
 				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint field-error", Role: "alert", Text: note})
 				describedBy["invalid"] = "true"
 			}
+		} else {
+			// CHATBUG-099: a group name is optional and never channel-shaped.
+			// Its hint carries its own id: the channel rule's hint id never
+			// appears on a group (CHATBUG-072).
+			placeholder = chatbug099GroupText(m, "name_placeholder")
+			hint = html.P(html.Props{ID: "new-group-name-hint", Class: "field-hint", Text: chatbug099GroupText(m, "name_hint")})
+			describedBy["describedby"] = "new-group-name-hint"
 		}
 		fields = append(fields, html.Div(html.Props{Class: "prefs-field create-name"},
 			html.Label(html.Props{For: "new-chat-name", Text: m.t(KeyName)}),
 			html.Div(html.Props{Class: "name-input"}, prefix,
-				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": m.NewName}, Required: true, AutoComplete: "off", AutoFocus: true, Placeholder: m.t(KeyNamePlaceholder), OnInput: h.createName, Aria: describedBy})),
+				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": m.NewName}, Required: channel, AutoComplete: "off", AutoFocus: true, Placeholder: placeholder, OnInput: h.createName, Aria: describedBy})),
 			hint))
 	}
 	fields = append(fields, memberPicker(m, h, kind),
@@ -81,7 +125,7 @@ func createDialog(m Model, h handlers) ui.Node {
 	if !channel {
 		submit = m.t(KeyStartConversation)
 	}
-	disabled := m.Callbacks.CreateConversation == nil || (kind == DirectMessage && len(local.picked) != 1) || (kind == GroupChat && len(local.picked) == 0)
+	disabled := m.Callbacks.CreateConversation == nil || (kind == DirectMessage && len(local.picked) != 1) || (kind == GroupChat && len(local.picked) < 2)
 	fields = append(fields, html.Div(html.Props{Class: "dialog-actions"},
 		html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.CloseCreate == nil, Data: map[string]string{"action": "close-create"}, Text: m.t(KeyCancel)}),
 		html.Button(html.Props{Class: "button", Type: "submit", Disabled: disabled, Text: submit})))
@@ -131,6 +175,10 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	label := m.t(KeyAddPeople)
 	if kind == PublicChannel || kind == PrivateChannel {
 		label = m.t(KeyMembersOptional)
+	}
+	if kind == GroupChat && !m.ShowAddMembers {
+		// CHATBUG-099: a group starts with two or more people.
+		label = chatbug099GroupText(m, "people")
 	}
 	if m.ShowAddMembers {
 		// C-4 (r4): the dialog title already says "Add people to #room", so

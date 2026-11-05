@@ -37,17 +37,33 @@ type AgentSnapshot struct {
 	StartAvailable         bool
 	StartUnavailableReason string
 	Agents                 []AgentSummary
-	Threads                []AgentThread
-	Tasks                  []AgentTask
-	SelectedTask           *AgentTask
-	TasksLoading           bool
-	TasksLoadFailed        bool
-	DocumentHubAvailable   bool
+	// Roster lists every skill-authorized agent of every kind with its
+	// skills; Agents stays the answering subset "Who should answer?"
+	// offers. A nil roster (older snapshots) falls back to Agents.
+	Roster               []AgentSummary
+	Threads              []AgentThread
+	Tasks                []AgentTask
+	SelectedTask         *AgentTask
+	TasksLoading         bool
+	TasksLoadFailed      bool
+	DocumentHubAvailable bool
+}
+
+// roster returns the sidebar's agent list: the full roster when the snapshot
+// carries one, otherwise the answering agents.
+func (s AgentSnapshot) roster() []AgentSummary {
+	if s.Roster != nil {
+		return s.Roster
+	}
+	return s.Agents
 }
 
 type AgentSummary struct {
 	Icon         agenticon.Value
 	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL string
 	ID           string
 	Name         string
 	Description  string
@@ -264,6 +280,7 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 	main = append(main, tagAgentTasks(view, locale, snapshot))
 	children = append(children, html.Div(html.Props{Class: "agents-layout"},
 		html.Section(html.Props{Class: "agents-main", Role: "region", Aria: map[string]string{"label": locale.Text("agents.workspace")}}, main...),
+		tagAgentsSidebar(locale, snapshot),
 	))
 	if !snapshot.StartAvailable {
 		for _, page := range []PageID{PageChatSettings, PageConfigurationCenter} {
@@ -284,20 +301,21 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 }
 
 func tagAgentsSidebar(locale LocaleContext, snapshot AgentSnapshot) ui.Node {
-	items := make([]ui.Node, 0, len(snapshot.Agents))
+	roster := snapshot.roster()
+	items := make([]ui.Node, 0, len(roster))
 	// An agent with no stored icon wears its own fallback, never a glyph another
 	// agent in this list has.
-	siblings := make([]string, 0, len(snapshot.Agents))
-	for _, agent := range snapshot.Agents {
+	siblings := make([]string, 0, len(roster))
+	for _, agent := range roster {
 		siblings = append(siblings, agent.ID)
 	}
-	for _, agent := range snapshot.Agents {
+	for _, agent := range roster {
 		label := agent.Name
 		if strings.TrimSpace(label) == "" {
 			label = agent.ID
 		}
 		items = append(items, html.Li(html.Props{Class: "agents-agent-item", Raw: map[string]any{"data-agent-id": agent.ID}},
-			agenticon.NodeFor(agent.Icon, agent.ID, siblings...), html.Strong(html.Props{}, ui.Text(label)),
+			agentUX074IconImage(agent.Icon, agent.IconImageURL, agent.ID, siblings), html.Strong(html.Props{}, ui.Text(label)),
 			html.Span(html.Props{Class: "agents-agent-status"}, ui.Text(agent.Status)),
 			html.P(html.Props{Class: "muted"}, ui.Text(agent.Description)),
 			agentSkills(locale, agent.Skills),

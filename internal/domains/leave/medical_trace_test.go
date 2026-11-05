@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/documents/intake"
 	wiredigest "github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -18,18 +19,20 @@ import (
 // LEAVE-015 RED: the canonical Medical Leave trace proof does not exist
 // yet. Everything below must fail to compile until medical_trace.go lands.
 
-func traceSnapshotEntries() []InputEntry {
+func traceSnapshotEntries(t *testing.T) []InputEntry {
+	t.Helper()
 	inputs := []string{
 		"worker", "employment", "assignment", "location", "manager",
 		"schedule", "calendar", "balances", "benefits",
 		"payroll-context", "legal-context", "evidence-usability",
 		"source-authority", "freshness", "effective-time", "known-time",
 	}
+	svc, _ := rev024MintService(t)
 	entries := make([]InputEntry, 0, len(inputs))
 	for _, in := range inputs {
 		entries = append(entries, InputEntry{
 			Input: in, Revision: "rev:" + in + ":1", Watermark: "tick:100",
-			Status: InputReady, EvidenceRef: "medical-compartment:" + in,
+			Status: InputReady, EvidenceRef: rev024Release(t, svc),
 			Authority: "hris", Effective: "2026-10-01", Known: "2026-09-16",
 		})
 	}
@@ -60,7 +63,7 @@ func traceFixture(t *testing.T) TraceInput {
 	return TraceInput{
 		Request:         traceRequest(t),
 		Context:         TrustedContext{TenantID: values.TenantId("tenant-a"), OrganizationScopeID: "org:1", PrincipalID: "principal:1"},
-		SnapshotEntries: traceSnapshotEntries(),
+		SnapshotEntries: traceSnapshotEntries(t),
 		Queries: []ProgramQuery{
 			{ProgramID: "fmla", Authority: AuthorityStatutory, Release: "fmla-2026.1", Rule: tenureRule{}, RequireFacts: []string{"service.months"}, Obligations: []string{"protect:job"}},
 		},
@@ -187,11 +190,11 @@ func TestTodo_LEAVE_015(t *testing.T) {
 	if err := trace.Verify(); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
-	// RED: raw medical bytes outside a typed compartment never enter.
+	// RED: an unissued evidence reference never enters the trace.
 	raw := traceFixture(t)
-	raw.SnapshotEntries[0].EvidenceRef = "raw-medical-bytes-no-compartment"
+	raw.SnapshotEntries[0].EvidenceRef = intake.EvidenceRef{}
 	if _, err := TraceMedicalLeave(raw, nil); err == nil {
-		t.Fatal("raw medical bytes entered the trace")
+		t.Fatal("unissued evidence entered the trace")
 	}
 	// RED: overlapping leave refuses at compile-start.
 	overlap := traceFixture(t)

@@ -11,67 +11,73 @@ import (
 
 // docsEditorCopy is the split editor's vocabulary. Keys the plain editor
 // already had (edit_save, edit_failed, title…) come from docsCopy.
-var docsEditorCopy = map[string]map[string]string{
-	"en-US": {
-		"editor_label": "Document editor", "editor_toolbar": "Formatting", "editor_view": "View",
-		"editor_view_split": "Split", "editor_view_source": "Markdown", "editor_view_rich": "Formatted",
-		"editor_source": "Markdown", "editor_rich": "Formatted", "editor_rich_label": "Formatted document",
-		"editor_source_help": "Markdown and formatted views stay in sync.", "editor_save_hint": "Ctrl+S saves.",
-		"editor_style": "Text style", "editor_paragraph": "Paragraph", "editor_h1": "Heading 1", "editor_h2": "Heading 2", "editor_h3": "Heading 3",
-		"editor_bold": "Bold (Ctrl+B)", "editor_italic": "Italic (Ctrl+I)", "editor_strike": "Strikethrough", "editor_code": "Inline code",
-		"editor_link": "Link (Ctrl+K)", "editor_ul": "Bulleted list", "editor_ol": "Numbered list", "editor_task": "Task list",
-		"editor_quote": "Quote", "editor_codeblock": "Code block", "editor_table": "Insert table", "editor_hr": "Horizontal rule",
-		"editor_undo": "Undo (Ctrl+Z)", "editor_redo": "Redo (Ctrl+Shift+Z)",
-		"editor_link_url": "Link address", "editor_link_apply": "Add link", "editor_link_cancel": "Cancel",
-		"editor_link_invalid": "Use a web address (https://…), a path starting with /, a #section or a doc: reference.",
-		"editor_table_column": "Column",
-		"editor_counts":       "{words} words · {chars} characters", "editor_counts_one": "1 word · {chars} characters",
-		"editor_dirty": "Unsaved changes", "editor_discard_prompt": "Discard your unsaved changes?", "editor_discard": "Discard changes", "editor_keep": "Keep editing",
-		"editor_required": "Add a title and some text before saving.",
-	},
-	"de-DE": {
-		"editor_label": "Dokumenteditor", "editor_toolbar": "Formatierung", "editor_view": "Ansicht",
-		"editor_view_split": "Geteilt", "editor_view_source": "Markdown", "editor_view_rich": "Formatiert",
-		"editor_source": "Markdown", "editor_rich": "Formatiert", "editor_rich_label": "Formatiertes Dokument",
-		"editor_source_help": "Markdown- und formatierte Ansicht bleiben synchron.", "editor_save_hint": "Strg+S speichert.",
-		"editor_style": "Textformat", "editor_paragraph": "Absatz", "editor_h1": "Überschrift 1", "editor_h2": "Überschrift 2", "editor_h3": "Überschrift 3",
-		"editor_bold": "Fett (Strg+B)", "editor_italic": "Kursiv (Strg+I)", "editor_strike": "Durchgestrichen", "editor_code": "Code im Text",
-		"editor_link": "Link (Strg+K)", "editor_ul": "Aufzählung", "editor_ol": "Nummerierte Liste", "editor_task": "Aufgabenliste",
-		"editor_quote": "Zitat", "editor_codeblock": "Codeblock", "editor_table": "Tabelle einfügen", "editor_hr": "Trennlinie",
-		"editor_undo": "Rückgängig (Strg+Z)", "editor_redo": "Wiederholen (Strg+Umschalt+Z)",
-		"editor_link_url": "Linkadresse", "editor_link_apply": "Link einfügen", "editor_link_cancel": "Abbrechen",
-		"editor_link_invalid": "Verwenden Sie eine Webadresse (https://…), einen Pfad mit /, einen #Abschnitt oder einen doc:-Verweis.",
-		"editor_table_column": "Spalte",
-		"editor_counts":       "{words} Wörter · {chars} Zeichen", "editor_counts_one": "1 Wort · {chars} Zeichen",
-		"editor_dirty": "Nicht gespeicherte Änderungen", "editor_discard_prompt": "Nicht gespeicherte Änderungen verwerfen?", "editor_discard": "Änderungen verwerfen", "editor_keep": "Weiter bearbeiten",
-		"editor_required": "Geben Sie vor dem Speichern einen Titel und etwas Text ein.",
-	},
-	"ar": {
-		"editor_label": "محرر المستند", "editor_toolbar": "التنسيق", "editor_view": "العرض",
-		"editor_view_split": "مقسّم", "editor_view_source": "Markdown", "editor_view_rich": "منسّق",
-		"editor_source": "Markdown", "editor_rich": "منسّق", "editor_rich_label": "المستند المنسّق",
-		"editor_source_help": "تبقى طريقة عرض Markdown والعرض المنسّق متزامنتين.", "editor_save_hint": "Ctrl+S للحفظ.",
-		"editor_style": "نمط النص", "editor_paragraph": "فقرة", "editor_h1": "عنوان 1", "editor_h2": "عنوان 2", "editor_h3": "عنوان 3",
-		"editor_bold": "غامق (Ctrl+B)", "editor_italic": "مائل (Ctrl+I)", "editor_strike": "يتوسطه خط", "editor_code": "رمز ضمن النص",
-		"editor_link": "رابط (Ctrl+K)", "editor_ul": "قائمة نقطية", "editor_ol": "قائمة مرقّمة", "editor_task": "قائمة مهام",
-		"editor_quote": "اقتباس", "editor_codeblock": "كتلة رمز", "editor_table": "إدراج جدول", "editor_hr": "خط فاصل",
-		"editor_undo": "تراجع (Ctrl+Z)", "editor_redo": "إعادة (Ctrl+Shift+Z)",
-		"editor_link_url": "عنوان الرابط", "editor_link_apply": "إضافة الرابط", "editor_link_cancel": "إلغاء",
-		"editor_link_invalid": "استخدم عنوان ويب (https://…) أو مسارًا يبدأ بـ / أو #قسمًا أو مرجع doc:.",
-		"editor_table_column": "عمود",
-		"editor_counts":       "{words} كلمة · {chars} حرفًا", "editor_counts_one": "كلمة واحدة · {chars} حرفًا",
-		"editor_dirty": "تغييرات غير محفوظة", "editor_discard_prompt": "هل تريد تجاهل التغييرات غير المحفوظة؟", "editor_discard": "تجاهل التغييرات", "editor_keep": "متابعة التحرير",
-		"editor_required": "أضف عنوانًا وبعض النص قبل الحفظ.",
-	},
+var docsEditorCopy = newLazyValue(buildDocsEditorCopy)
+
+// buildDocsEditorCopy answers the split editor's vocabulary. It is built on
+// first use: a cold load of any other page must not pay for it (UXBLIND-089).
+func buildDocsEditorCopy() map[string]map[string]string {
+	return map[string]map[string]string{
+		"en-US": {
+			"editor_label": "Document editor", "editor_toolbar": "Formatting", "editor_view": "View",
+			"editor_view_split": "Split", "editor_view_source": "Markdown", "editor_view_rich": "Formatted",
+			"editor_source": "Markdown", "editor_rich": "Formatted", "editor_rich_label": "Formatted document",
+			"editor_source_help": "Markdown and formatted views stay in sync.", "editor_save_hint": "Ctrl+S saves.",
+			"editor_style": "Text style", "editor_paragraph": "Paragraph", "editor_h1": "Heading 1", "editor_h2": "Heading 2", "editor_h3": "Heading 3",
+			"editor_bold": "Bold (Ctrl+B)", "editor_italic": "Italic (Ctrl+I)", "editor_strike": "Strikethrough", "editor_code": "Inline code",
+			"editor_link": "Link (Ctrl+K)", "editor_ul": "Bulleted list", "editor_ol": "Numbered list", "editor_task": "Task list",
+			"editor_quote": "Quote", "editor_codeblock": "Code block", "editor_table": "Insert table", "editor_hr": "Horizontal rule",
+			"editor_undo": "Undo (Ctrl+Z)", "editor_redo": "Redo (Ctrl+Shift+Z)",
+			"editor_link_url": "Link address", "editor_link_apply": "Add link", "editor_link_cancel": "Cancel",
+			"editor_link_invalid": "Use a web address (https://…), a path starting with /, a #section or a doc: reference.",
+			"editor_table_column": "Column",
+			"editor_counts":       "{words} words · {chars} characters", "editor_counts_one": "1 word · {chars} characters",
+			"editor_dirty": "Unsaved changes", "editor_discard_prompt": "Discard your unsaved changes?", "editor_discard": "Discard changes", "editor_keep": "Keep editing",
+			"editor_required": "Add a title and some text before saving.",
+		},
+		"de-DE": {
+			"editor_label": "Dokumenteditor", "editor_toolbar": "Formatierung", "editor_view": "Ansicht",
+			"editor_view_split": "Geteilt", "editor_view_source": "Markdown", "editor_view_rich": "Formatiert",
+			"editor_source": "Markdown", "editor_rich": "Formatiert", "editor_rich_label": "Formatiertes Dokument",
+			"editor_source_help": "Markdown- und formatierte Ansicht bleiben synchron.", "editor_save_hint": "Strg+S speichert.",
+			"editor_style": "Textformat", "editor_paragraph": "Absatz", "editor_h1": "Überschrift 1", "editor_h2": "Überschrift 2", "editor_h3": "Überschrift 3",
+			"editor_bold": "Fett (Strg+B)", "editor_italic": "Kursiv (Strg+I)", "editor_strike": "Durchgestrichen", "editor_code": "Code im Text",
+			"editor_link": "Link (Strg+K)", "editor_ul": "Aufzählung", "editor_ol": "Nummerierte Liste", "editor_task": "Aufgabenliste",
+			"editor_quote": "Zitat", "editor_codeblock": "Codeblock", "editor_table": "Tabelle einfügen", "editor_hr": "Trennlinie",
+			"editor_undo": "Rückgängig (Strg+Z)", "editor_redo": "Wiederholen (Strg+Umschalt+Z)",
+			"editor_link_url": "Linkadresse", "editor_link_apply": "Link einfügen", "editor_link_cancel": "Abbrechen",
+			"editor_link_invalid": "Verwenden Sie eine Webadresse (https://…), einen Pfad mit /, einen #Abschnitt oder einen doc:-Verweis.",
+			"editor_table_column": "Spalte",
+			"editor_counts":       "{words} Wörter · {chars} Zeichen", "editor_counts_one": "1 Wort · {chars} Zeichen",
+			"editor_dirty": "Nicht gespeicherte Änderungen", "editor_discard_prompt": "Nicht gespeicherte Änderungen verwerfen?", "editor_discard": "Änderungen verwerfen", "editor_keep": "Weiter bearbeiten",
+			"editor_required": "Geben Sie vor dem Speichern einen Titel und etwas Text ein.",
+		},
+		"ar": {
+			"editor_label": "محرر المستند", "editor_toolbar": "التنسيق", "editor_view": "العرض",
+			"editor_view_split": "مقسّم", "editor_view_source": "Markdown", "editor_view_rich": "منسّق",
+			"editor_source": "Markdown", "editor_rich": "منسّق", "editor_rich_label": "المستند المنسّق",
+			"editor_source_help": "تبقى طريقة عرض Markdown والعرض المنسّق متزامنتين.", "editor_save_hint": "Ctrl+S للحفظ.",
+			"editor_style": "نمط النص", "editor_paragraph": "فقرة", "editor_h1": "عنوان 1", "editor_h2": "عنوان 2", "editor_h3": "عنوان 3",
+			"editor_bold": "غامق (Ctrl+B)", "editor_italic": "مائل (Ctrl+I)", "editor_strike": "يتوسطه خط", "editor_code": "رمز ضمن النص",
+			"editor_link": "رابط (Ctrl+K)", "editor_ul": "قائمة نقطية", "editor_ol": "قائمة مرقّمة", "editor_task": "قائمة مهام",
+			"editor_quote": "اقتباس", "editor_codeblock": "كتلة رمز", "editor_table": "إدراج جدول", "editor_hr": "خط فاصل",
+			"editor_undo": "تراجع (Ctrl+Z)", "editor_redo": "إعادة (Ctrl+Shift+Z)",
+			"editor_link_url": "عنوان الرابط", "editor_link_apply": "إضافة الرابط", "editor_link_cancel": "إلغاء",
+			"editor_link_invalid": "استخدم عنوان ويب (https://…) أو مسارًا يبدأ بـ / أو #قسمًا أو مرجع doc:.",
+			"editor_table_column": "عمود",
+			"editor_counts":       "{words} كلمة · {chars} حرفًا", "editor_counts_one": "كلمة واحدة · {chars} حرفًا",
+			"editor_dirty": "تغييرات غير محفوظة", "editor_discard_prompt": "هل تريد تجاهل التغييرات غير المحفوظة؟", "editor_discard": "تجاهل التغييرات", "editor_keep": "متابعة التحرير",
+			"editor_required": "أضف عنوانًا وبعض النص قبل الحفظ.",
+		},
+	}
 }
 
 // docsEditorText reads the editor's own copy, then the Docs copy.
 func docsEditorText(locale, key string) string {
-	if copy, ok := docsEditorCopy[locale]; ok && copy[key] != "" {
+	if copy, ok := docsEditorCopy.Get()[locale]; ok && copy[key] != "" {
 		return copy[key]
 	}
 	if strings.HasPrefix(key, "editor_") {
-		if value := docsEditorCopy["en-US"][key]; value != "" {
+		if value := docsEditorCopy.Get()["en-US"][key]; value != "" {
 			return value
 		}
 	}

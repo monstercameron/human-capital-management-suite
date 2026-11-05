@@ -69,7 +69,7 @@ func TestTodo_CHATBUG_042(t *testing.T) {
 		"background:var(--hcm-color-surface)",
 		`:is(.switch:checked,.chatmod-switch[aria-checked="true"] .chatmod-switch-track){border-color:var(--accent);background:var(--accent)}`,
 	} {
-		if !strings.Contains(chatui.ChatBug042Styles, want) {
+		if !strings.Contains(sheet, want) {
 			t.Errorf("the switch rule does not hold %q", want)
 		}
 	}

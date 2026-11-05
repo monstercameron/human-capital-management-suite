@@ -685,7 +685,7 @@ func TestTodo_UXBLIND_122_Composition(t *testing.T) {
 		DevHMACKey: integrationSigningKey, PageCursorKey: integrationPageCursorKey,
 		Issuer: DefaultIssuer, Audience: DefaultAudience, Tenant: agentTestTenant, CellID: "cell-agent-composition",
 		MaxDeadline: 30 * time.Second, Migrate: false, Workspace: true, DevBrowserLogin: true, DevWorkforceBootstrap: true, Profile: ServeProfileLocalDev,
-		OTelExporter: OTelExporterNone, WorkflowPlan: WorkflowPlanExecute,
+		OTelExporter:     OTelExporterNone,
 		TimerTzdbVersion: DefaultTimerTzdbVersion, TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	logger := &agentTestLogger{}

@@ -17,6 +17,7 @@ import (
 // Presence reasons are deliberately never rendered; they can contain protected
 // authority or provenance details.
 type StatusProjection struct {
+	_           incomparable
 	Available   bool
 	Request     values.Presence[intentsv1.RequestState]
 	Execution   values.Presence[intentsv1.ExecutionState]

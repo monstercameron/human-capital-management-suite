@@ -128,6 +128,27 @@ func ControlStylesheet() string {
 	return controlStylesheet
 }
 
+var (
+	controlStylesheetAssetOnce sync.Once
+	controlStylesheetAsset     StylesheetAsset
+)
+
+// ControlStylesheetAsset is the address of ControlStylesheet. The bytes never
+// change, so the asset is named once instead of re-hashing the sheet on every
+// linked render.
+func ControlStylesheetAsset() StylesheetAsset {
+	controlStylesheetAssetOnce.Do(func() {
+		controlStylesheetAsset = NewStylesheetAsset(ControlStylesheetAssetPrefix, ControlStylesheet())
+	})
+	return controlStylesheetAsset
+}
+
+// linkedDefaultStyleElements is linkedStyleElements for the default control
+// sheet: the cached asset plus the Chat sheet's element.
+func linkedDefaultStyleElements(page PageID) string {
+	return ControlStylesheetAsset().LinkElement() + ChatStylesheetElement(page)
+}
+
 func controlStylesheetForTheme(theme Theme) string {
 	return theme.CSS() + platformHeadStyles + platformStyles + customAppearancePreviewStylesheet(theme) + platformDarkStyles
 }

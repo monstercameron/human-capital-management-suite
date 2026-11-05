@@ -50,7 +50,7 @@ func RenderChattoneToolbar(p ChattoneToolbarProps) ui.Node {
 	}
 	text := func(key string) string { return ChattoneText(p.Locale, key) }
 	data := map[string]string{"chattone": "toolbar", "target": p.Target, "conversation": p.Conversation, "locale": p.Locale, "scope": p.Scope, "ready": boolString(len(strings.Fields(p.Draft)) >= 3), "available": boolString(!p.Pending), "disabled": boolString(p.Disabled)}
-	for _, key := range []string{"working", "unavailable", "preservation", "policy", "limit", "invalid", "denied", "disabled", "edited", "notice", "suggested", "undo", "changes", "before", "after"} {
+	for _, key := range []string{"working", "slow", "unavailable", "preservation", "policy", "limit", "invalid", "denied", "disabled", "stalled", "edited", "notice", "suggested", "undo", "changes", "before", "after"} {
 		data["copy-"+key] = text(key)
 	}
 	return html.Div(html.Props{Class: "chattone", Data: data, Dir: agentReplyDirection(p.Locale), Hidden: p.Pending},

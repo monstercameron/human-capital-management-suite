@@ -70,6 +70,18 @@ pgx_leak_types:
 apd_leak_types:
   - github.com/cockroachdb/apd/v3.Decimal
 
+# WF-DATA-015: mongo-driver confined behind the tenant data-source adapter
+# boundary. Same pattern: the scan scope comes from dependency-roles.yaml's
+# mongo-driver row (allowed_import_roots: [internal/connectivity/mongo]);
+# this only names the concrete types that must never appear in an exported
+# signature, alias or field anywhere in the graph, even inside that root.
+mongo_leak_types:
+  - go.mongodb.org/mongo-driver/mongo.Client
+  - go.mongodb.org/mongo-driver/mongo.Database
+  - go.mongodb.org/mongo-driver/mongo.Collection
+  - go.mongodb.org/mongo-driver/mongo.Cursor
+  - go.mongodb.org/mongo-driver/mongo.SingleResult
+
 # LIB-007: OpenTelemetry confined to the owned adapters admitted by OBS-002.
 # dependency-roles.yaml's go.opentelemetry.io/ family_rule carries
 # allowed_import_roots: [internal/platform/telemetry/otel,

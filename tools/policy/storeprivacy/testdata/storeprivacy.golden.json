@@ -1,9 +1,33 @@
 {
   "version": 1,
-  "permanent_tables": 276,
-  "fields": 3285,
-  "digest": "sha256:7dd7807a9b37356e2b3a01f9fee56554e8ac245451a858fd8441f8009626a54f",
+  "permanent_tables": 324,
+  "fields": 3732,
+  "digest": "sha256:49b21909c67a25453c96f4a9e570dc2968fa6947c26127951a9be74be3026104",
   "roster": [
+    {
+      "table": "access_role_revision",
+      "field": "after_row",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/roleaccessstore",
+      "detail": "reviewed payload envelope: after-images of worker-linked RBAC grant rows; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "access_role_revision",
+      "field": "before_row",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/roleaccessstore",
+      "detail": "reviewed payload envelope: before-images of worker-linked RBAC grant rows; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "access_role_revision",
+      "field": "worker_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/roleaccessstore",
+      "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
     {
       "table": "accessreview_review_record",
       "field": "justification",
@@ -19,6 +43,142 @@
       "code": "PERSONAL_INLINE",
       "owner": "internal/data/balancestore",
       "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_audit_record",
+      "field": "entry",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentauditstore",
+      "detail": "reviewed payload envelope: agent-for-user audit events naming the user and action; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_budget_event",
+      "field": "pause_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentbudgetstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_connection_revision",
+      "field": "approval",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentconnectionstore",
+      "detail": "reviewed payload envelope: second-admin approval naming RequestedBy and ApprovedBy humans; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_connection_revision",
+      "field": "brokered_credential",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentconnectionstore",
+      "detail": "personal column: credential material; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_connection_revision",
+      "field": "credential_mode",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentconnectionstore",
+      "detail": "personal column: credential material; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_connection_revision",
+      "field": "grants",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentconnectionstore",
+      "detail": "reviewed payload envelope: grants naming the covered subject population; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_connection_revision",
+      "field": "revoked_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentconnectionstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_home_organization",
+      "field": "revocation_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_home_organization",
+      "field": "source_identity",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_home_organization",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_population",
+      "field": "membership_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: named member; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_population",
+      "field": "revocation_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_population",
+      "field": "source_identity",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_current_population",
+      "field": "subject_ref",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/application",
+      "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_delegation_grant",
+      "field": "authority",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentdelegationstore",
+      "detail": "reviewed payload envelope: delegation envelope naming Delegator and Delegate identities; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_delegation_grant",
+      "field": "revoked_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentdelegationstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "agent_skill_grant",
+      "field": "revoked_reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentskillgrantstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
     },
     {
       "table": "appointment_requirement",
@@ -133,6 +293,22 @@
       "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
     },
     {
+      "table": "brand_asset_revision",
+      "field": "original_bytes",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/brandassetstore",
+      "detail": "reviewed payload envelope: tenant-uploaded raster imagery, may depict identifiable people; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "brand_asset_revision",
+      "field": "proxy_bytes",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/brandassetstore",
+      "detail": "reviewed payload envelope: tenant-uploaded raster imagery, may depict identifiable people; stored inline, no payload-vault reference"
+    },
+    {
       "table": "capability_invocation_evidence",
       "field": "subject_ref",
       "location": "column",
@@ -221,6 +397,14 @@
       "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
     },
     {
+      "table": "configbundle_kill_switch",
+      "field": "applied_record",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/configbundlekill",
+      "detail": "reviewed payload envelope: applied switch record naming Operator and Approver with reason; stored inline, no payload-vault reference"
+    },
+    {
       "table": "contact_endpoint_revision",
       "field": "subject_ref",
       "location": "column",
@@ -245,12 +429,36 @@
       "detail": "personal column: subject-supplied values; stored inline, no payload-vault reference"
     },
     {
+      "table": "cycle_restatement",
+      "field": "canonical_body",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/balancestore",
+      "detail": "reviewed payload envelope: restatement over the affected population with impacts and approvals; stored inline, no payload-vault reference"
+    },
+    {
       "table": "data_subject_request_evidence",
       "field": "detail",
       "location": "payload",
       "code": "PERSONAL_INLINE",
       "owner": "internal/data/identityprivacystore",
       "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "dataops_diagnostic_artifact",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/dataopsartifactstore",
+      "detail": "reviewed payload envelope: diagnostic captures over import subject data (diff and repair evidence); stored inline, no payload-vault reference"
+    },
+    {
+      "table": "dataops_import_batch",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/dataopsstore",
+      "detail": "reviewed payload envelope: original import bytes carrying bulk subject data; stored inline, no payload-vault reference"
     },
     {
       "table": "definition_version",
@@ -485,6 +693,30 @@
       "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
     },
     {
+      "table": "integration_webhook_receipt",
+      "field": "parsed_receipt",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/webhookreceipts",
+      "detail": "reviewed payload envelope: parsed vendor event, unbounded external subject data; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "integration_webhook_receipt",
+      "field": "payload_bytes",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/webhookreceipts",
+      "detail": "reviewed payload envelope: raw vendor bytes, unbounded external subject data; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "intent_action_plan_binding",
+      "field": "binding_payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/intentcontrol",
+      "detail": "reviewed payload envelope: canonical action plan over the accepted subject-affecting action; stored inline, no payload-vault reference"
+    },
+    {
       "table": "intent_closure",
       "field": "closure_reason",
       "location": "column",
@@ -653,6 +885,14 @@
       "detail": "reviewed payload envelope: typed domain facts over workforce subjects; stored inline, no payload-vault reference"
     },
     {
+      "table": "ledger_invariant_scan_observation",
+      "field": "findings",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/opsmeta",
+      "detail": "personal column: free-text finding; stored inline, no payload-vault reference"
+    },
+    {
       "table": "ledger_payload_disposition",
       "field": "reason",
       "location": "column",
@@ -741,6 +981,14 @@
       "detail": "personal column: worker record; stored inline, no payload-vault reference"
     },
     {
+      "table": "page_retirement",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/pageledgerstore",
+      "detail": "reviewed payload envelope: retirement record embedding a free-text reason; stored inline, no payload-vault reference"
+    },
+    {
       "table": "partner_application",
       "field": "contact_ref",
       "location": "column",
@@ -821,14 +1069,6 @@
       "detail": "personal column: named participant; stored inline, no payload-vault reference"
     },
     {
-      "table": "performance_rating_case",
-      "field": "participant_id",
-      "location": "column",
-      "code": "PERSONAL_INLINE",
-      "owner": "internal/data/performancestore",
-      "detail": "personal column: named participant; stored inline, no payload-vault reference"
-    },
-    {
       "table": "performance_review",
       "field": "participant_id",
       "location": "column",
@@ -851,6 +1091,54 @@
       "code": "PERSONAL_INLINE",
       "owner": "internal/domains/people",
       "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_lifecycle_events",
+      "field": "persona_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: person record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_lifecycle_events",
+      "field": "persona_version",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: person record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_lifecycle_events",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_versions",
+      "field": "display_name",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: person name; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_versions",
+      "field": "persona_id",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: person record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "persona_versions",
+      "field": "profile",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/agentpersonastore",
+      "detail": "personal column: subject profile; stored inline, no payload-vault reference"
     },
     {
       "table": "position_occupancy",
@@ -941,14 +1229,6 @@
       "detail": "personal column: free-text detail; stored inline, no payload-vault reference"
     },
     {
-      "table": "record_copy_link",
-      "field": "exception_reason",
-      "location": "column",
-      "code": "PERSONAL_INLINE",
-      "owner": "internal/data/recordsmeta",
-      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
-    },
-    {
       "table": "rule_evaluation",
       "field": "input_snapshot",
       "location": "payload",
@@ -1005,12 +1285,28 @@
       "detail": "personal column: worker record; stored inline, no payload-vault reference"
     },
     {
+      "table": "schedopt_published_schedule_revision",
+      "field": "payload",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/schedulingstore",
+      "detail": "reviewed payload envelope: published workforce schedules naming who works when; stored inline, no payload-vault reference"
+    },
+    {
       "table": "search_projection_event",
       "field": "subject_ref",
       "location": "column",
       "code": "PERSONAL_INLINE",
       "owner": "internal/data/search",
       "detail": "personal column: named subject; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "security_siem_feed_event",
+      "field": "source_identity",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/siemstore",
+      "detail": "personal column: identity record; stored inline, no payload-vault reference"
     },
     {
       "table": "settlement_payment_instruction",
@@ -1115,6 +1411,14 @@
       "code": "PERSONAL_INLINE",
       "owner": "internal/data/taxprofilestore",
       "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "tenant_parameter_value_revision",
+      "field": "reason",
+      "location": "column",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/configparamstore",
+      "detail": "personal column: free-text rationale; stored inline, no payload-vault reference"
     },
     {
       "table": "tenant_provisioning_event",
@@ -1251,6 +1555,30 @@
       "code": "PERSONAL_INLINE",
       "owner": "internal/data/taxprofilestore",
       "detail": "personal column: worker record; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_compensation_event",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowcompensation",
+      "detail": "reviewed payload envelope: compensation operation snapshots over subject effects; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_compensation_operation_history",
+      "field": "payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowcompensation",
+      "detail": "reviewed payload envelope: compensation operation snapshots over subject effects; stored inline, no payload-vault reference"
+    },
+    {
+      "table": "workflow_compensation_operation_history",
+      "field": "prior_payload",
+      "location": "payload",
+      "code": "PERSONAL_INLINE",
+      "owner": "internal/data/workflowcompensation",
+      "detail": "reviewed payload envelope: prior compensation operation snapshots over subject effects; stored inline, no payload-vault reference"
     },
     {
       "table": "workflow_signal",

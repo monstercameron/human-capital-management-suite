@@ -19,7 +19,18 @@ func repoRoot(t *testing.T) string {
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
+
 	return filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(file))))
+}
+
+func countExpectedPlatformManaged(registry *storagedisposition.Registry, fieldLevel map[string]bool) int {
+	n := 0
+	for _, entry := range registry.Tables {
+		if !fieldLevel[entry.Table] {
+			n++
+		}
+	}
+	return n
 }
 
 func scanLive(t *testing.T) storeprivacy.Inventory {
@@ -57,15 +68,26 @@ func TestTodo_WF_REV_014(t *testing.T) {
 		t.Fatalf("table summaries = %d, want %d", len(inv.Tables), inv.PermanentTables)
 	}
 
-	// RED clause 1: no table uses field-level encryption.
+	// WF-REV-014: exactly the reviewed FIELD_LEVEL set; every other table PLATFORM_MANAGED.
 	registry, err := storagedisposition.Load(filepath.Join(repoRoot(t), storeprivacy.DefaultRegistryPath))
 	if err != nil {
 		t.Fatal(err)
 	}
+	fieldLevel := map[string]bool{
+		"pseudonym_escrow_record": true,
+		"form_draft":              true,
+	}
 	for _, entry := range registry.Tables {
-		if entry.EncryptionClass != storagedisposition.EncryptionPlatformManaged {
-			t.Fatalf("table %s uses %s, want every row PLATFORM_MANAGED (RED)", entry.Table, entry.EncryptionClass)
+		want := storagedisposition.EncryptionPlatformManaged
+		if fieldLevel[entry.Table] {
+			want = storagedisposition.EncryptionFieldLevel
 		}
+		if entry.EncryptionClass != want {
+			t.Fatalf("table %s uses %s, want %s", entry.Table, entry.EncryptionClass, want)
+		}
+	}
+	if len(registry.Tables) != len(fieldLevel)+countExpectedPlatformManaged(registry, fieldLevel) {
+		t.Fatalf("reviewed field-level set out of sync with registry")
 	}
 
 	// RED clause 2 + GREEN: the check fails on personal-inline fields.

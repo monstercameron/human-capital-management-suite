@@ -752,3 +752,7 @@ func (s wfext004FakeSource) NodeOutput(nodeID, path string) (workflow.TypedValue
 func (s wfext004FakeSource) Context(string, string) (workflow.TypedValue, bool) {
 	return workflow.TypedValue{}, false
 }
+
+func (s wfext004FakeSource) Variable(string, string) (string, bool) {
+	return "", false
+}

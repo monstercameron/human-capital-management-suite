@@ -30,7 +30,19 @@ type Continuation struct {
 	ProposalRevisionID string
 	ProposalDigest     digest.Reference
 	Requirements       []Requirement
-	Digest             string
+	// DeadlineDefault, when its schema is set, is the declared non-response
+	// payload EXPIRED resolutions complete with. Use WithDeadlineDefault so
+	// the digest stays minted over it.
+	DeadlineDefault values.DeadlineDefault
+	Digest          string
+}
+
+// WithDeadlineDefault returns a copy carrying the declared non-response
+// payload with a freshly minted digest.
+func (c Continuation) WithDeadlineDefault(d values.DeadlineDefault) Continuation {
+	c.DeadlineDefault = d
+	c.Digest = computeContinuationDigest(c)
+	return c
 }
 
 // EventKind names an explicit caller-supplied reason to resolve a continuation.
@@ -60,5 +72,9 @@ type Resolution struct {
 	WorkItemRefs       []string
 	ResolvedAt         values.Instant
 	Reason             string
-	Digest             string
+	// DefaultOutputDigest, when set, is the declared non-response payload
+	// digest an EXPIRED resolution completes with. ToNodeOutcome prefers it
+	// over Digest on the EXPIRED route.
+	DefaultOutputDigest string
+	Digest              string
 }

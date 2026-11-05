@@ -35,7 +35,8 @@ func publishPrototype(t *testing.T, store version.Store) (version.CompiledVersio
 	if err != nil {
 		t.Fatalf("CompileApproval: %v", err)
 	}
-	v, err := version.Publish(store, prototype.ApprovalDefinition(), plan, workflow.Options{Phase: workflow.PhaseP1B},
+	v, err := version.Publish(store, prototype.ApprovalDefinition(), plan,
+		workflow.Options{Phase: workflow.PhaseP1B, IRSchemaVersion: prototype.ApprovalIRSchemaV1},
 		version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: publisher, FixtureRefs: []string{fixtureRef}})
 	if err != nil {
 		t.Fatalf("Publish: %v", err)

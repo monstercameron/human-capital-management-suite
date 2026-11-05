@@ -13,6 +13,7 @@ import (
 // record the workflow editor may render. The browser never filters authority:
 // an entry absent from this slice is absent from markup and component state.
 type WorkflowPaletteItem struct {
+	_                                   incomparable
 	ID, Name, Kind, Domain, Description string
 	EffectClass, Reversal, Status       string
 	StepType                            string

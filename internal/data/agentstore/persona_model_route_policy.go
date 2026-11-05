@@ -115,6 +115,52 @@ func (s *Store) currentPersonaModelRoutePolicy(ctx context.Context, tenantID uui
 	return policy, nil
 }
 
+// LatestPersonaModelRouteDeployment returns the latest deployment for the
+// exact admitted manifest regardless of its window, so a caller that found no
+// current policy can tell a lapsed deployment (renew the agent) from one that
+// never existed. It reports NotFound when no deployment was ever published for
+// the manifest; window comparison stays with the caller and its clock.
+func (s *Store) LatestPersonaModelRouteDeployment(ctx context.Context, tenantID uuid.UUID, entity, policyID string, policyVersion, policySchemaVersion int64, agentVersionDigest string) (PersonaModelRoutePolicy, error) {
+	if s == nil || ctx == nil || tenantID == uuid.Nil || strings.TrimSpace(entity) == "" || strings.TrimSpace(entity) != entity ||
+		strings.TrimSpace(policyID) == "" || strings.TrimSpace(policyID) != policyID || policyVersion <= 0 || policySchemaVersion <= 0 || !validStoreDigest(agentVersionDigest) {
+		return PersonaModelRoutePolicy{}, fmt.Errorf("%w: tenant, entity, exact policy reference and manifest digest are required", ErrInvalidConfig)
+	}
+	var policy PersonaModelRoutePolicy
+	err := s.RunTenantTx(ctx, tenantID, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT policy_digest,revision,effective_from,effective_until,route_payload,route_payload_digest,policy_payload,agent_version_digest
+			FROM persona_model_route_deployment WHERE tenant_id=$1 AND legal_entity_id=$2 AND policy_id=$3 AND policy_version=$4 AND policy_schema_version=$5
+			AND agent_version_digest=$6 ORDER BY effective_from DESC LIMIT 1`,
+			tenantID, entity, policyID, policyVersion, policySchemaVersion, agentVersionDigest).Scan(
+			&policy.PolicyDigest, &policy.Revision, &policy.EffectiveFrom, &policy.EffectiveUntil, &policy.RoutePayload, &policy.RoutePayloadDigest, &policy.PolicyPayload, &policy.AgentVersionDigest)
+	})
+	if err != nil {
+		if errors.Is(err, dbport.ErrNoRows) {
+			return PersonaModelRoutePolicy{}, ErrPersonaModelRouteNotFound
+		}
+		return PersonaModelRoutePolicy{}, err
+	}
+	policy.TenantID, policy.LegalEntityID, policy.PolicyID, policy.PolicyVersion, policy.PolicySchemaVersion = tenantID, entity, policyID, policyVersion, policySchemaVersion
+	policy.EffectiveFrom = policy.EffectiveFrom.UTC()
+	if policy.EffectiveUntil != nil {
+		value := policy.EffectiveUntil.UTC()
+		policy.EffectiveUntil = &value
+	}
+	if policy.Revision <= 0 || len(policy.RoutePayload) == 0 || !jsonObject(policy.RoutePayload) {
+		return PersonaModelRoutePolicy{}, fmt.Errorf("%w: persisted route authority is inconsistent", ErrInvalidConfig)
+	}
+	route, routeDigest, routeErr := CanonicalPersonaModelRoutePayload(policy.RoutePayload)
+	semantic, semanticDigest, semanticErr := CanonicalPersonaModelRoutePayload(policy.PolicyPayload)
+	if routeErr != nil || semanticErr != nil || routeDigest != policy.RoutePayloadDigest || semanticDigest != policy.PolicyDigest {
+		return PersonaModelRoutePolicy{}, fmt.Errorf("%w: persisted route or semantic policy digest is inconsistent", ErrInvalidConfig)
+	}
+	policy.RoutePayload, policy.PolicyPayload = route, semantic
+	pinned, err := personaRouteManifestDigest(route)
+	if err != nil || pinned != agentVersionDigest || policy.AgentVersionDigest != agentVersionDigest || policy.EffectiveUntil == nil {
+		return PersonaModelRoutePolicy{}, fmt.Errorf("%w: persisted manifest deployment is inconsistent", ErrInvalidConfig)
+	}
+	return policy, nil
+}
+
 func validStoreDigest(value string) bool {
 	if len(value) != 71 || !strings.HasPrefix(value, "sha256:") {
 		return false

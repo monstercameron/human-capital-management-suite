@@ -168,7 +168,7 @@ func agentuxDemoSupportSetup(t *testing.T) (*AgentUXDemoSupportExecutor, *agentu
 	}
 	admission := agentrun.Record{ID: "support-run", Decision: agentrun.DecisionAccepted, RequestDigest: strings.Repeat("b", 64), Request: agentrun.Request{Source: agentrun.SourceIdentity{TenantID: "ironridge-demo", Kind: agentrun.SourceKind(AgentUXDemoSupportSourceKind), Key: strings.Repeat("c", 64), Ref: "email-1"}, Persona: &agentrun.PersonaRef{ID: AgentUXDemoSupportPersonaID, Version: "1"}, Principal: agentrun.PrincipalChain{Mode: agentrun.ModeSponsored, SponsorID: p.Subject()}, Audience: agentrun.AudienceScope{ID: "incident-review"}, CauseID: "email-1"}}
 	// This fixture begins at the executor port, after admission. Admission of
-	// SUPPORT_EMAIL still requires the shared source-kind registry change.
+	// SUPPORT_EMAIL is covered by TestAgentUX079_SupportEmailAdmitted.
 	run := runstate.Run{ID: admission.ID, AdmissionID: admission.ID, TenantID: "ironridge-demo", PrincipalMode: agentrun.ModeSponsored, ActorID: p.Subject(), RequestDigest: admission.RequestDigest, State: runstate.StateReady, Version: 1, Deadline: now.Add(time.Hour), CreatedAt: now, UpdatedAt: now}
 	if err := f.state.Create(context.Background(), run); err != nil {
 		t.Fatal(err)

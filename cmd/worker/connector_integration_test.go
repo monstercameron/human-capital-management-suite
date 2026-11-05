@@ -40,7 +40,7 @@ func connectorIntegrationPlanRequest(id uuid.UUID, tenant, destination string) o
 // migration is in scope for this todo) - production's build() constructs
 // one privately, with no seam to pre-seed it with fixture operations before
 // Run starts.
-func testConnectorBuild(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer operation.CredentialWriter, authorizer operation.MachineLeaseAuthorizer, tenants tenantLister) func(context.Context, bootstrap.Deps) (bootstrap.Runtime, error) {
+func testConnectorBuild(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer operation.CredentialWriter, authorizer operation.MachineLeaseAuthorizer, tenants tenantLister, privacy connectorPrivacyAuthority) func(context.Context, bootstrap.Deps) (bootstrap.Runtime, error) {
 	return func(_ context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) {
 		enabled, err := deps.Values.Bool("connector-role")
 		if err != nil {
@@ -58,7 +58,7 @@ func testConnectorBuild(journal connectorJournal, ledger connectorLedger, creden
 		}
 		role := connectorRole{
 			logger: deps.Logger, journal: journal, ledger: ledger, credentials: credentials,
-			revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
+			privacy: privacy, revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
 			authorizer: authorizer, credentialOperation: custody.Encrypt, workerID: deps.Identity, leaseFor: time.Minute,
 		}
 		return bootstrap.Runtime{Workloads: []bootstrap.Workload{{
@@ -100,7 +100,7 @@ func TestTodo_SVC_008_Integration(t *testing.T) {
 		s.Logger = discardLogger()
 		s.Stdout = io.Discard
 		s.Stderr = io.Discard
-		s.Build = testConnectorBuild(journal, ampleLedger(), credSource, writer, manager, fakeTenantLister{tenants: []uuid.UUID{tenant}})
+		s.Build = testConnectorBuild(journal, ampleLedger(), credSource, writer, manager, fakeTenantLister{tenants: []uuid.UUID{tenant}}, connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		runCtx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -159,7 +159,7 @@ func TestTodo_SVC_008_Integration(t *testing.T) {
 		s.Logger = discardLogger()
 		s.Stdout = io.Discard
 		s.Stderr = io.Discard
-		s.Build = testConnectorBuild(journal, ampleLedger(), credSource, writer, manager, fakeTenantLister{tenants: []uuid.UUID{tenant}})
+		s.Build = testConnectorBuild(journal, ampleLedger(), credSource, writer, manager, fakeTenantLister{tenants: []uuid.UUID{tenant}}, connectorPrivacyAuthorityFor(t, "connector.example", false))
 
 		runCtx, cancel := context.WithCancel(context.Background())
 		defer cancel()

@@ -103,6 +103,7 @@ func docsMenuNext(key string, current, count int) int {
 }
 
 type docsNoticeValue struct {
+	_    incomparable
 	text string
 	seq  int
 	// actionLabel, action and id describe an optional Undo-shaped control

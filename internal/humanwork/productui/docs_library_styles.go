@@ -294,7 +294,6 @@ func docsLibraryStylesheet() string {
 .docs-detail-actions[hidden],.docs-facts[hidden]{display:none}
 .docs-detail-header.is-editing{gap:0}
 .docs-detail-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--hcm-space-2);flex-wrap:wrap}
-.docs-detail-title-row h1{flex:1 1 20rem;min-width:0;margin:0;font-size:clamp(1.5rem,1.2rem + 1vw,2rem);line-height:1.2;overflow-wrap:anywhere}
 .docs-detail-actions{display:flex;align-items:center;gap:var(--hcm-space-1);flex-wrap:wrap}
 .docs-detail-more{width:2.5rem;height:2.5rem;border:1px solid var(--control-border)}
 .docs-facts{display:flex;flex-wrap:wrap;gap:var(--hcm-space-1) var(--hcm-space-4);margin:0}

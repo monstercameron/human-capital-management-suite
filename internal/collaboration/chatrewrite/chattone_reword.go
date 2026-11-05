@@ -49,7 +49,7 @@ var (
 func ScreenHeat(text string) Heat {
 	lower := " " + strings.ToLower(text) + " "
 	for _, phrase := range abusiveWords {
-		if strings.Contains(lower, phrase) {
+		if containsWholeWord(lower, phrase) {
 			return HeatAbusive
 		}
 	}

@@ -11,7 +11,7 @@ import (
 
 func integrate1IconRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, action string, input, output any) error {
 	switch action {
-	case "preview", "regenerate", "shuffle", "reset", "undo":
+	case "preview", "regenerate", "shuffle", "reset", "undo", "upload":
 	default:
 		return errPersonaChat
 	}

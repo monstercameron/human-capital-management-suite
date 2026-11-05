@@ -29,6 +29,9 @@ type AgentSummary struct {
 	Status       string          `json:"status,omitempty"`
 	Icon         agenticon.Value `json:"icon,omitzero"`
 	IconRevision int64           `json:"icon_revision,omitempty"`
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL string `json:"icon_image_url,omitempty"`
 }
 
 // AgentTask mirrors workspace.AgentTaskConfig.

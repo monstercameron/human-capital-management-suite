@@ -350,9 +350,13 @@ func (s *Service) Authorize(ctx context.Context, req AccessRequest, ttl time.Dur
 		return Grant{}, err
 	}
 	now := s.now()
-	g := Grant{Token: hex.EncodeToString(b), ArtifactID: req.ArtifactID, TenantID: req.TenantID, ConversationID: req.ConversationID, PrincipalID: req.PrincipalID, ExpiresAt: now.Add(ttl), Revision: 1}
+	g := Grant{Token: hex.EncodeToString(b), ArtifactID: req.ArtifactID, TenantID: req.TenantID, ConversationID: req.ConversationID, PrincipalID: req.PrincipalID, ExpiresAt: now.Add(ttl)}
 	s.mu.Lock()
 	s.expireLocked(now)
+	// The grant starts above the current revocation count, so a revocation
+	// retires the grants outstanding against it while a grant issued after
+	// it opens: revocation is an epoch, not a tombstone on the artifact.
+	g.Revision = s.revoked[req.ArtifactID].count + 1
 	s.grants[g.Token] = g
 	s.mu.Unlock()
 	return g, nil

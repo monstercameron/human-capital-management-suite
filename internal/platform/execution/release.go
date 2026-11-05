@@ -434,7 +434,9 @@ func (e shippedExecute) compileFixture(v version.CompiledVersion) error {
 }
 
 // graphFixture proves the executable plan holds exactly the documented node
-// set and that its zero-effect SIMULATE projection still compiles.
+// set and that its SIMULATE projection still compiles: a distinct
+// zero-effect twin for the frozen versions, and — since WF-TEST-001 removed
+// the Promotion relabelling — the execute graph itself for the current one.
 func (e shippedExecute) graphFixture(v version.CompiledVersion) error {
 	if err := e.compileFixture(v); err != nil {
 		return err
@@ -455,6 +457,12 @@ func (e shippedExecute) graphFixture(v version.CompiledVersion) error {
 	simulation, err := e.simulate()
 	if err != nil {
 		return fmt.Errorf("compile the SIMULATE projection: %w", err)
+	}
+	if e.semanticVersion == promotionexec.SemanticVersion {
+		if simulation.Digest() != plan.Digest() {
+			return fmt.Errorf("the SIMULATE projection digests to %s, want the execute graph %s: nothing may be relabelled", simulation.Digest(), plan.Digest())
+		}
+		return nil
 	}
 	if simulation.Digest() == plan.Digest() {
 		return fmt.Errorf("the SIMULATE projection digests to the EXECUTE plan")

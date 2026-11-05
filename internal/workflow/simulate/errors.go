@@ -69,6 +69,19 @@ const (
 	CodeReceiptInvalid = "RECEIPT_INVALID"
 	// CodeInvalidOptions reports an unusable Run configuration.
 	CodeInvalidOptions = "INVALID_OPTIONS"
+	// CodeRecordingRefused reports a recording profile that cannot record
+	// honestly: a contract without the zero effect ceiling, or no recorder
+	// to capture the would-be effects.
+	CodeRecordingRefused = "RECORDING_REFUSED"
+	// CodeCancelPointUnreached reports a WF-TEST-008 cancel whose node the
+	// walk never dispatched: the run completed (or failed) elsewhere, so
+	// there is no cancel to settle.
+	CodeCancelPointUnreached = "CANCEL_POINT_UNREACHED"
+	// CodeCancelPlanMismatch reports a cancel whose compiled unwind covers
+	// a different effect set than the run committed. It is defensive: the
+	// planner is asked per committed node, so the longest prefix is always
+	// the whole set, and anything else is a planner bug, not a receipt.
+	CodeCancelPlanMismatch = "CANCEL_PLAN_MISMATCH"
 )
 
 // Error is one typed refusal. It names the code, the node it happened at (when

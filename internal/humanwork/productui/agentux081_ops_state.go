@@ -11,6 +11,11 @@ func agentUX081ActivityState(locale LocaleContext, persona PersonaAdminPersona, 
 	if len(persona.Installations) == 0 {
 		return agentUX073Text(locale, "state_unplaced"), "warning"
 	}
+	// AGENTUX-082: a placed agent whose evidence lapsed is Stopped, never
+	// Answering or Ready: its answers are refused until it is renewed.
+	if persona.EvidenceExpired {
+		return agentUX073Text(locale, "state_stopped"), "warning"
+	}
 	for _, run := range persona.RecentRuns {
 		if !agentOpsRunFinished(run.State) {
 			return agentUX073Text(locale, "state_answering"), "success"

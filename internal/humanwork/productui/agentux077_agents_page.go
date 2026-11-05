@@ -13,18 +13,19 @@ import (
 // agentUX077Text is the copy this file adds, in the three languages the pages
 // carry. The explanation of each button is one short line, so the person reads
 // it with the button it is about.
+// agentUX077Copy is the copy agentUX077Text resolves (agentux_copy.go).
+var agentUX077Copy = map[string][3]string{
+	"ask_hint":     {"Get an answer here, usually within a minute.", "Die Antwort erscheint hier, meist innerhalb einer Minute.", "احصل على إجابة هنا، عادةً خلال دقيقة."},
+	"plan_hint":    {"See a plan to approve first. It then works in the background.", "Sie sehen zuerst einen Plan zur Freigabe. Danach läuft die Arbeit im Hintergrund.", "تعرض الخطة أولاً لتوافق عليها ثم يعمل في الخلفية."},
+	"posts_once":   {"Posts once", "Wird einmal veröffentlicht", "يُنشر مرة واحدة"},
+	"already_done": {"already posted", "bereits veröffentlicht", "تم النشر بالفعل"},
+}
+
 func agentUX077Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"ask_hint":     {"Get an answer here, usually within a minute.", "Die Antwort erscheint hier, meist innerhalb einer Minute.", "احصل على إجابة هنا، عادةً خلال دقيقة."},
-		"plan_hint":    {"See a plan to approve first. It then works in the background.", "Sie sehen zuerst einen Plan zur Freigabe. Danach läuft die Arbeit im Hintergrund.", "تعرض الخطة أولاً لتوافق عليها ثم يعمل في الخلفية."},
-		"posts_once":   {"Posts once", "Wird einmal veröffentlicht", "يُنشر مرة واحدة"},
-		"already_done": {"already posted", "bereits veröffentlicht", "تم النشر بالفعل"},
+	if text, ok := agentuxCopyLookup(agentUX077Copy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	return values[agentRPLocaleIndex(locale)]
+	return key
 }
 
 // agentUX077ComposerActions is the row of the two ways to start work. Each

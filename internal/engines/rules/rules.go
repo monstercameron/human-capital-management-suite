@@ -332,6 +332,10 @@ func (v Value) Cmp(o Value) (int, error) {
 type Column struct {
 	Name string
 	Kind Kind
+	// MaxClassification caps the tenant field classification this input accepts (WF-DATA-010).
+	// Blank is uncapped. It participates in the canonical encoding only when set,
+	// so existing tables keep their bytes.
+	MaxClassification TenantDataClassification
 }
 
 // Validate reports whether the column is well formed.
@@ -344,6 +348,9 @@ func (c Column) Validate() error {
 	}
 	if c.Kind == KindList {
 		return fmt.Errorf("%w: LIST is expression-only and cannot be a decision-table column", ErrColumnInvalid)
+	}
+	if c.MaxClassification != "" && !c.MaxClassification.Valid() {
+		return fmt.Errorf("%w: column %q maximum %q is not a declared lattice member", ErrColumnInvalid, c.Name, string(c.MaxClassification))
 	}
 	return nil
 }
@@ -772,10 +779,16 @@ func (t Table) Canonical() []byte {
 		Count("inputs", len(t.Inputs))
 	for _, c := range t.Inputs {
 		w.String("input.name", c.Name).String("input.kind", c.Kind.String())
+		if c.MaxClassification != "" {
+			w.String("input.max_classification", string(c.MaxClassification))
+		}
 	}
 	w.Count("outputs", len(t.Outputs))
 	for _, c := range t.Outputs {
 		w.String("output.name", c.Name).String("output.kind", c.Kind.String())
+		if c.MaxClassification != "" {
+			w.String("output.max_classification", string(c.MaxClassification))
+		}
 	}
 	w.Count("rows", len(t.Rows))
 	for _, row := range t.Rows {
@@ -819,9 +832,21 @@ func (t Table) Digest() (string, error) {
 // entry point a table publisher can call once at publish time, instead of
 // deferring the discovery of a malformed table to the first Evaluate call
 // against it - the ARCH-GO-009 counterpart to Evaluate.
+// Columns naming tenant paths are refused here; they compile through
+// CompileTenantTable with pins.
 func Compile(table Table) (Table, error) {
 	if err := table.Validate(); err != nil {
 		return Table{}, fmt.Errorf("rules: compile: %w", err)
+	}
+	for _, col := range table.Inputs {
+		if IsTenantPath(col.Name) {
+			return Table{}, fmt.Errorf("%w: input %q needs CompileTenantTable with pins", ErrTenantPath, col.Name)
+		}
+	}
+	for _, col := range table.Outputs {
+		if IsTenantPath(col.Name) {
+			return Table{}, fmt.Errorf("%w: output %q claims the reserved tenant namespace", ErrTenantPath, col.Name)
+		}
 	}
 	return table, nil
 }

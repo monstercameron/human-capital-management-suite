@@ -2,10 +2,12 @@ package projectstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"strings"
+	"reflect"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/project"
 )
@@ -100,9 +102,22 @@ func TestTodo_PM_005_Integration(t *testing.T) {
 	if actor != "owner-settings" || eventType != "project.settings_updated" {
 		t.Fatalf("settings audit actor/event = %q/%q", actor, eventType)
 	}
-	for _, value := range []string{`"old_name":"Launch"`, `"old_timezone":"UTC"`, `"new_name":"Launch Paris"`, `"new_timezone":"Europe/Paris"`} {
-		if !strings.Contains(string(payload), value) {
-			t.Fatalf("settings audit missing %s in %s", value, payload)
+	var envelope struct {
+		EventType   string         `json:"eventType"`
+		TenantID    string         `json:"tenantId"`
+		ProjectID   string         `json:"projectId"`
+		AggregateID string         `json:"aggregateId"`
+		Value       map[string]any `json:"value"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		t.Fatalf("settings audit payload is not JSON: %v in %s", err, payload)
+	}
+	if envelope.EventType != "project.settings_updated" || envelope.TenantID != p.TenantID || envelope.ProjectID != p.ID || envelope.AggregateID != p.ID {
+		t.Fatalf("settings audit envelope = %+v in %s", envelope, payload)
+	}
+	for key, want := range map[string]string{"old_name": "Launch", "old_timezone": "UTC", "new_name": "Launch Paris", "new_timezone": "Europe/Paris"} {
+		if envelope.Value[key] != want {
+			t.Fatalf("settings audit value[%s] = %v, want %q in %s", key, envelope.Value[key], want, payload)
 		}
 	}
 }
@@ -123,8 +138,28 @@ func TestTodo_PM_005_Golden(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	want := `{"name":"Launch Paris","new_name":"Launch Paris","new_timezone":"Europe/Paris","old_name":"Launch","old_timezone":"UTC","timezone":"Europe/Paris"}`
-	if string(payload) != want {
-		t.Fatalf("settings audit payload = %s, want %s", payload, want)
+	var envelope struct {
+		EventID        string         `json:"eventId"`
+		EventType      string         `json:"eventType"`
+		TenantID       string         `json:"tenantId"`
+		ProjectID      string         `json:"projectId"`
+		AggregateID    string         `json:"aggregateId"`
+		SchemaVersion  int            `json:"schemaVersion"`
+		Classification string         `json:"classification"`
+		SourceRevision int64          `json:"sourceRevision"`
+		Value          map[string]any `json:"value"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		t.Fatalf("settings audit payload is not JSON: %v in %s", err, payload)
+	}
+	wantValue := map[string]any{"name": "Launch Paris", "timezone": "Europe/Paris", "old_name": "Launch", "old_timezone": "UTC", "new_name": "Launch Paris", "new_timezone": "Europe/Paris"}
+	if !reflect.DeepEqual(envelope.Value, wantValue) {
+		t.Fatalf("settings audit value = %v, want %v", envelope.Value, wantValue)
+	}
+	if envelope.EventType != "project.settings_updated" || envelope.TenantID != p.TenantID || envelope.ProjectID != p.ID || envelope.AggregateID != p.ID || envelope.SchemaVersion != 1 || envelope.Classification != "INTERNAL" || envelope.SourceRevision != 2 {
+		t.Fatalf("settings audit envelope = %+v in %s", envelope, payload)
+	}
+	if _, err := uuid.Parse(envelope.EventID); err != nil {
+		t.Fatalf("settings audit eventId is not a UUID: %q in %s", envelope.EventID, payload)
 	}
 }

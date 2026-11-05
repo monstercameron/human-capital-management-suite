@@ -132,7 +132,7 @@ func TestIntegrationsSectionGatedToAdminOrOwner(t *testing.T) {
 	owner := base
 	owner.CurrentUser = "owner-1"
 	markup = render(t, owner)
-	for _, want := range []string{`integrations-section`, "Integrations", "Let an installed app read and post here", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy sample request for apps"} {
+	for _, want := range []string{`integrations-section`, "Integrations", "An installed app can read and post here with its app token", `data-action="copy-conversation-api-curl" data-id="room"`, "Copy sample request for apps"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("Integrations section (owner) missing %q", want)
 		}
@@ -348,7 +348,7 @@ func TestTodo_CHAT_031_ThreadAndCreateControlsExposeKeyboardNames(t *testing.T) 
 	createOpened, createClosed, threadClosed := 0, 0, 0
 	m := Model{State: StateReady, ShowCreate: true, ShowThread: true, SidebarOpen: true, ThreadParentID: "root", NewKind: GroupChat, SelectedID: "c", Conversations: []Conversation{{ID: "c", Name: "Channel"}}, Messages: []Message{{ID: "root", Author: "Ari", Body: "Root"}}, ThreadMessages: []Message{{ID: "reply", Author: "Sam", Body: "Reply"}}, Callbacks: Callbacks{OpenCreate: func() { createOpened++ }, CloseCreate: func() { createClosed++ }, CloseThread: func() { threadClosed++ }, ToggleSidebar: func(bool) {}}}
 	markup := render(t, m)
-	for _, want := range []string{"chat-dialog", "Conversation type", "Add people", "Thread", "Reply", "Close thread", "data-thread-open=\"true\"", "data-sidebar-open=\"true\"", "thread-root", "Root"} {
+	for _, want := range []string{"chat-dialog", "Conversation type", "Add two or more people", "Thread", "Reply", "Close thread", "data-thread-open=\"true\"", "data-sidebar-open=\"true\"", "thread-root", "Root"} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("interactive surface missing %q", want)
 		}

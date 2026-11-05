@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
@@ -25,17 +24,8 @@ type agentControlsReply struct {
 
 func agentControlsRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, action string, input any) (agentControlsReply, error) {
 	var reply agentControlsReply
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
-		return reply, errAgentControls
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" {
 		return reply, errAgentControls
 	}
 	method := http.MethodGet

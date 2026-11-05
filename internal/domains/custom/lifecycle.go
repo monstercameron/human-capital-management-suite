@@ -14,8 +14,9 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
-// Operation is the closed custom-object mutation vocabulary. Read is exposed
-// in the capability manifest but is not a mutation accepted by Commit.
+// Operation is the closed custom-object operation vocabulary. Read and query
+// are exposed in the capability surface but are not mutations accepted by
+// Commit.
 type Operation string
 
 const (
@@ -24,10 +25,11 @@ const (
 	OperationChange  Operation = "CHANGE"
 	OperationCorrect Operation = "CORRECT"
 	OperationRetire  Operation = "RETIRE"
+	OperationQuery   Operation = "QUERY"
 )
 
 func (o Operation) valid() bool {
-	return o == OperationCreate || o == OperationRead || o == OperationChange || o == OperationCorrect || o == OperationRetire
+	return o == OperationCreate || o == OperationRead || o == OperationChange || o == OperationCorrect || o == OperationRetire || o == OperationQuery
 }
 
 // Valid reports whether o belongs to the closed lifecycle vocabulary.
@@ -296,8 +298,8 @@ func validateMutation(req MutationRequest) error {
 	if req.Tenant == "" || req.ObjectID == "" || !req.Operation.valid() || req.Actor == "" || req.Purpose == "" || req.EvidenceDigest == "" {
 		return fmt.Errorf("%w: tenant, object, operation, actor, purpose and evidence are required", ErrInvalidMutation)
 	}
-	if req.Operation == OperationRead {
-		return fmt.Errorf("%w: read is not a mutation", ErrInvalidMutation)
+	if req.Operation == OperationRead || req.Operation == OperationQuery {
+		return fmt.Errorf("%w: read and query are not mutations", ErrInvalidMutation)
 	}
 	if err := req.Definition.Validate(); err != nil {
 		return err

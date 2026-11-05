@@ -5,14 +5,15 @@ package main
 // role drains internal/connectivity/operation's own journal: an operation
 // only ever leaves QUEUED/RETRYABLE through connectorRole.dispatchOperation,
 // the single funnel that reserves fair-scheduling capacity, claims a fenced
-// queue lease, binds a destination-scoped machine credential lease, and only
-// then calls the journal's own credentialed dispatch (which is the only path
-// that can reach a provider Writer). Every one of those four steps is
-// independently required: a failure at any one returns before the next
-// step runs, and an operation this role never listed out of the journal is
-// never reachable at all. Nothing here imports a specific connector
-// provider: provider packages remain adapters plugged in behind
-// operation.CredentialWriter and connectorCredentialSource.
+// queue lease, binds a destination-scoped machine credential lease, admits
+// the lease through the DLP egress gate, and only then calls the journal's
+// own credentialed dispatch (which is the only path that can reach a
+// provider Writer). Every one of those five steps is independently
+// required: a failure at any one returns before the next step runs, and an
+// operation this role never listed out of the journal is never reachable at
+// all. Nothing here imports a specific connector provider: provider
+// packages remain adapters plugged in behind operation.CredentialWriter
+// and connectorCredentialSource.
 
 import (
 	"context"
@@ -43,15 +44,17 @@ var ErrConnectorDeferred = errors.New("worker: connector operation deferred by f
 // connectorJournal is the narrow journal seam the connector role drives.
 // *operation.MemoryJournal satisfies it directly. List only surfaces
 // operations that already have a durable journal row; Lease is the only way
-// to obtain a fenced claim; DispatchWithCredential is the only way to reach
-// a provider, and it independently requires both a bound credential lease
-// and a MachineLeaseAuthorizer; Recover settles work a dead worker left
-// leased or sending, which List would otherwise skip forever. There is no
-// path from an operation this interface never listed or leased to a
-// provider call.
+// to obtain a fenced claim; AdmitPrivacyDispatch is the only way past the
+// DLP egress gate, and it records EGRESS_BLOCKED evidence on denial;
+// DispatchWithCredential is the only way to reach a provider, and it
+// independently requires both a bound credential lease and a
+// MachineLeaseAuthorizer; Recover settles work a dead worker left leased or
+// sending, which List would otherwise skip forever. There is no path from
+// an operation this interface never listed or leased to a provider call.
 type connectorJournal interface {
 	List(ctx context.Context, tenant string) ([]operation.Operation, error)
 	Lease(ctx context.Context, req operation.LeaseRequest) (operation.Lease, error)
+	AdmitPrivacyDispatch(ctx context.Context, lease operation.Lease, grant operation.PrivacyGrant) (operation.Operation, error)
 	DispatchWithCredential(ctx context.Context, req operation.CredentialDispatchRequest, authorizer operation.MachineLeaseAuthorizer) (operation.DispatchResult, error)
 	Recover(ctx context.Context, at time.Time) ([]operation.Operation, error)
 }
@@ -82,6 +85,18 @@ type connectorRevalidator interface {
 	RevalidateConnectorOperation(operation.Operation) operation.Revalidation
 }
 
+// connectorPrivacyAuthority resolves the current signed DLP/transfer policy
+// grant for one journaled operation immediately before dispatch. The grant
+// carries the planned binding, the current signed set, the live policy
+// evaluator and the dispatch-time observations; the journal's admission
+// step evaluates them through governance/privacy/dispatch against the exact
+// journaled payload bytes. operation.StaticPrivacyAuthority satisfies it
+// directly. Scope is enforced by the gate: a grant sealed for another
+// destination or purpose denies with EGRESS_BLOCKED.
+type connectorPrivacyAuthority interface {
+	ResolvePrivacyGrant(ctx context.Context, op operation.Operation) (operation.PrivacyGrant, error)
+}
+
 // connectorRole is the SVC-008 worker role: the only cmd/worker code
 // permitted to move a journaled connector operation out of QUEUED/RETRYABLE.
 type connectorRole struct {
@@ -89,6 +104,7 @@ type connectorRole struct {
 	journal             connectorJournal
 	ledger              connectorLedger
 	credentials         connectorCredentialSource
+	privacy             connectorPrivacyAuthority
 	revalidate          connectorRevalidator
 	writer              operation.CredentialWriter
 	authorizer          operation.MachineLeaseAuthorizer
@@ -109,7 +125,7 @@ func (r connectorRole) clock() time.Time {
 // It is checked before any governed step runs, so an incomplete role never
 // gets partial credit for the checks it happened to be able to perform.
 func (r connectorRole) configured() bool {
-	return r.journal != nil && r.ledger != nil && r.credentials != nil && r.writer != nil && r.authorizer != nil
+	return r.journal != nil && r.ledger != nil && r.credentials != nil && r.privacy != nil && r.writer != nil && r.authorizer != nil
 }
 
 // dispatchQueued lists tenant's journaled operations and attempts exactly
@@ -142,10 +158,12 @@ func (r connectorRole) dispatchQueued(ctx context.Context, tenant string) (int, 
 // dispatchOperation is the single funnel every governed step must pass
 // through, in this fixed order: (1) reserve fair-scheduling capacity, (2)
 // claim a fenced queue lease from the journal, (3) obtain a destination-bound
-// credential lease, (4) dispatch through the journal's own credentialed
-// path, which persists the attempt. A failure at any step returns
-// immediately, before the next step runs and before any provider call is
-// possible; the fair-scheduling reservation is always released.
+// credential lease, (4) admit the leased operation through the DLP egress
+// gate, which records EGRESS_BLOCKED evidence on denial, and (5) dispatch
+// through the journal's own credentialed path, which persists the attempt.
+// A failure at any step returns immediately, before the next step runs and
+// before any provider call is possible; the fair-scheduling reservation is
+// always released.
 func (r connectorRole) dispatchOperation(ctx context.Context, op operation.Operation, now time.Time) (operation.DispatchResult, error) {
 	if !r.configured() {
 		return operation.DispatchResult{}, ErrConnectorNotConfigured
@@ -168,6 +186,14 @@ func (r connectorRole) dispatchOperation(ctx context.Context, op operation.Opera
 
 	credential, err := r.credentials.LeaseCredential(ctx, op.TenantID, op.DestinationRef, r.credentialOperation)
 	if err != nil {
+		return operation.DispatchResult{}, err
+	}
+
+	grant, err := r.privacy.ResolvePrivacyGrant(ctx, op)
+	if err != nil {
+		return operation.DispatchResult{}, err
+	}
+	if _, err := r.journal.AdmitPrivacyDispatch(ctx, claim, grant); err != nil {
 		return operation.DispatchResult{}, err
 	}
 
@@ -222,20 +248,31 @@ func (unconfiguredMachineLeaseAuthorizer) Use(lease.MachineCredentialLease, stri
 	return lease.MachineEvidence{}, errors.New("worker: connector credential authorizer is not configured")
 }
 
+// unconfiguredPrivacyAuthority fails closed until a real signed DLP/transfer
+// policy snapshot source (operation.StaticPrivacyAuthority or equivalent) is
+// wired for this deployment. It is intentionally not a fake success: an
+// unconfigured authority must refuse the dispatch, never clear it.
+type unconfiguredPrivacyAuthority struct{}
+
+func (unconfiguredPrivacyAuthority) ResolvePrivacyGrant(context.Context, operation.Operation) (operation.PrivacyGrant, error) {
+	return operation.PrivacyGrant{}, errors.New("worker: connector privacy authority is not configured")
+}
+
 // connectorRoleFor builds the production connectorRole. The credential
-// source, provider writer and machine-lease authorizer are all
-// fail-closed stand-ins: no production destination-credential authority or
-// connector provider adapter exists yet for this role, so every dispatch
-// attempt refuses at the credential step until real integration wiring
-// supplies them. That keeps the role safe to enable today (it never leaks a
-// secret or reaches a provider) while still exercising the queue-claim and
-// fair-scheduling steps against the real journal and ledger.
+// source, privacy authority, provider writer and machine-lease authorizer
+// are all fail-closed stand-ins: no production destination-credential
+// authority, snapshot authority or connector provider adapter exists yet
+// for this role, so every dispatch attempt refuses at the credential step
+// until real integration wiring supplies them. That keeps the role safe to
+// enable today (it never leaks a secret or reaches a provider) while still
+// exercising the queue-claim and fair-scheduling steps against the real
+// journal and ledger.
 func connectorRoleFor(deps bootstrap.Deps, journal connectorJournal, ledger connectorLedger, workerID string, leaseFor time.Duration) connectorRole {
 	return connectorRole{
 		logger: deps.Logger, journal: journal, ledger: ledger,
 		credentials: unconfiguredConnectorCredentialSource{}, writer: unconfiguredConnectorWriter{},
-		authorizer: unconfiguredMachineLeaseAuthorizer{}, credentialOperation: custody.Encrypt,
-		workerID: workerID, leaseFor: leaseFor,
+		authorizer: unconfiguredMachineLeaseAuthorizer{}, privacy: unconfiguredPrivacyAuthority{},
+		credentialOperation: custody.Encrypt, workerID: workerID, leaseFor: leaseFor,
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 // WorkflowNotification is a safe, recipient-scoped server projection. It
 // deliberately contains neither compensation nor executable decision input.
 type WorkflowNotification struct {
+	_                                          incomparable
 	ID, JourneyID, WorkerName, Purpose, Status string
 	CreatedAt                                  time.Time
 	Read                                       bool

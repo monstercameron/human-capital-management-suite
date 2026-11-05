@@ -178,3 +178,26 @@ func TestTodo_WEB_074_Conformance(t *testing.T) {
 		t.Fatal("from-scratch publish onto a versioned page is accepted")
 	}
 }
+
+// Working-copy edits through the Record-return path must not reach the
+// log: NewPageDraft owns its search terms even when the base aliases
+// the stored revision backing array.
+func TestTodo_WEB_074_DraftOwnsSearchTerms(t *testing.T) {
+	var log PageRevisionLog
+	base, err := log.Record("home", PageDefinitionSnapshot{Page: "home", SearchTerms: []string{"start"}}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	draft := NewPageDraft(base)
+	draft.Snapshot.SearchTerms[0] = "MUTATED"
+	stored, ok := log.Revision("home", 1)
+	if !ok {
+		t.Fatal("recorded revision missing")
+	}
+	if !reflect.DeepEqual(stored.Snapshot.SearchTerms, []string{"start"}) {
+		t.Fatalf("working-copy edit reaches the log: %q", stored.Snapshot.SearchTerms)
+	}
+	if stored.Digest != base.Digest {
+		t.Fatalf("stored digest moved: %s vs %s", stored.Digest, base.Digest)
+	}
+}

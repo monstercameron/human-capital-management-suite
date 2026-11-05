@@ -10,9 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
@@ -62,33 +60,14 @@ func New(cfg Config) (*Adapter, error) {
 		cfg.Identity.ProviderID != "openai" || strings.TrimSpace(cfg.Identity.ModelID) == "" || strings.TrimSpace(cfg.Identity.Version) == "" {
 		return nil, ErrNotConfigured
 	}
-	base := strings.TrimRight(cfg.BaseURL, "/")
-	if base == "" {
-		base = defaultBaseURL
-	}
-	parsed, err := url.Parse(base)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
-		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && isLoopback(parsed.Hostname()))) {
+	base, err := agentmodel.NormalizeAPIEndpoint(cfg.BaseURL, defaultBaseURL)
+	if err != nil {
 		return nil, fmt.Errorf("%w: invalid API base URL", ErrNotConfigured)
 	}
-	client := cfg.HTTPClient
-	if client == nil {
-		client = &http.Client{}
-	} else {
-		copy := *client
-		client = &copy
-	}
-	// Credentials must never follow an API redirect to a different authority.
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &Adapter{
 		apiKey: cfg.APIKey, modelProfile: cfg.ModelProfile, identity: cfg.Identity,
-		endpoint: base + "/responses", client: client, preflightInputTokens: cfg.PreflightInputTokens,
+		endpoint: base + "/responses", client: agentmodel.NoRedirectClient(cfg.HTTPClient), preflightInputTokens: cfg.PreflightInputTokens,
 	}, nil
-}
-
-func isLoopback(host string) bool {
-	address := net.ParseIP(host)
-	return address != nil && address.IsLoopback()
 }
 
 // Capabilities reports only features this adapter can preserve.

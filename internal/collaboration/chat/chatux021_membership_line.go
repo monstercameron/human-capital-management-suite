@@ -21,6 +21,15 @@ func MembershipAddedBody(subjectID string) string {
 	return MembershipAddedMarker + strings.TrimSpace(subjectID)
 }
 
+// carriesMembershipMarker reports whether a body would read back as a system
+// line. The service refuses such bodies from callers, the way it refuses a
+// hand-typed card marker: only the service itself writes system lines, through
+// the store when somebody adds a person.
+func carriesMembershipMarker(body string) bool {
+	_, ok := ParseMembershipAdded(strings.TrimSpace(body))
+	return ok
+}
+
 // ParseMembershipAdded reports whether body is a membership system line, and
 // whom it added.
 func ParseMembershipAdded(body string) (subjectID string, ok bool) {

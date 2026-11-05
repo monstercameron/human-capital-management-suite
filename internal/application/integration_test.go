@@ -215,8 +215,8 @@ func TestTodo_PROMO_EXEC_SERVE_ExecutePlanJourneyOverPGTest(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:application-execute-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
 		ExecutionManagerApprover: managerApprover,
-		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         DefaultTimerTzdbVersion,
+		TimerCalendarVersion:     DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("execute-plan configuration: %v", err)

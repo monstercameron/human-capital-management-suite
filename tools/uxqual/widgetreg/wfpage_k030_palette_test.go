@@ -41,8 +41,10 @@ func TestTodo_WFPAGE_030(t *testing.T) {
 	}
 	bound, err := registry.BindPageWidget(WorkflowPageBindingRequest{
 		Plan: wfpageK030Plan(), PageID: "new-hire", SectionID: "identity", InputPath: "legal_name",
-		Kind: pagedef.WorkflowWidgetText, Classification: "internal", Ceiling: "confidential",
+		Kind: pagedef.WorkflowWidgetText, Ceiling: "confidential",
 		Label: "Legal name", Help: "Use the name on the identity document", Prefill: "person.legal_name", Default: "", ReadOnly: false,
+	}, map[string]string{
+		"legal_name": "internal", "headcount": "internal", "worker_id": "confidential", "restricted_note": "restricted",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -65,15 +67,19 @@ func TestTodo_WFPAGE_030_Browser(t *testing.T) {
 
 func TestTodo_WFPAGE_030_Security(t *testing.T) {
 	registry := NewWorkflowInputRegistry()
-	base := WorkflowPageBindingRequest{Plan: wfpageK030Plan(), PageID: "new-hire", SectionID: "identity", InputPath: "legal_name", Kind: pagedef.WorkflowWidgetText, Classification: "internal", Ceiling: "internal", Label: "Name"}
+	base := WorkflowPageBindingRequest{Plan: wfpageK030Plan(), PageID: "new-hire", SectionID: "identity", InputPath: "legal_name", Kind: pagedef.WorkflowWidgetText, Ceiling: "internal", Label: "Name"}
+	classifications := map[string]string{
+		"legal_name": "internal", "headcount": "internal", "worker_id": "confidential", "restricted_note": "restricted",
+	}
 	for _, mutation := range []struct {
 		name string
 		edit func(*WorkflowPageBindingRequest)
 	}{
 		{"unknown input", func(request *WorkflowPageBindingRequest) { request.InputPath = "not_compiled" }},
-		{"restricted input", func(request *WorkflowPageBindingRequest) {
+		{"restricted input", func(request *WorkflowPageBindingRequest) { request.InputPath = "restricted_note" }},
+		{"mislabeled restricted input", func(request *WorkflowPageBindingRequest) {
 			request.InputPath = "restricted_note"
-			request.Classification = "restricted"
+			request.Ceiling = "public"
 		}},
 		{"wrong widget", func(request *WorkflowPageBindingRequest) { request.Kind = pagedef.WorkflowWidgetInteger }},
 		{"new input", func(request *WorkflowPageBindingRequest) { request.NewInput = "salary" }},
@@ -84,11 +90,16 @@ func TestTodo_WFPAGE_030_Security(t *testing.T) {
 		t.Run(mutation.name, func(t *testing.T) {
 			request := base
 			mutation.edit(&request)
-			if _, err := registry.BindPageWidget(request); err == nil {
+			if _, err := registry.BindPageWidget(request, classifications); err == nil {
 				t.Fatal("forbidden edit was accepted")
 			} else if strings.Contains(err.Error(), "not_compiled") == false && mutation.name == "unknown input" {
 				t.Fatalf("unknown input error = %v", err)
 			}
 		})
+	}
+	// An input present in the plan but missing from compiled metadata fails
+	// closed rather than binding under a caller-chosen label.
+	if _, err := registry.BindPageWidget(base, map[string]string{"headcount": "internal"}); err == nil {
+		t.Fatal("input without a compiled classification was accepted")
 	}
 }

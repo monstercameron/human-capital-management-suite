@@ -64,7 +64,7 @@ func personaMemberRowShared(m Model, persona ResolvedPersonaMention, withAnswers
 		ids = append(ids, persona.Actor.AgentID)
 	}
 	label := chatPolishDisclosureLabel(html.Props{Class: "persona-member-label"},
-		agentDMAvatar(name, "avatar small agent-dm-avatar", agentIconFor(m, ids, name, persona.Icon)),
+		agentAvatar(name, "avatar small agent-dm-avatar", agentIconImageFor(m, ids, name, persona.IconImageURL), agentIconFor(m, ids, name, persona.Icon)),
 		html.Strong(html.Props{Class: "persona-member-name", Dir: "auto", Text: name}),
 		AgentBadgeLabel(m.Locale))
 	return html.Li(html.Props{Class: "member-row persona-member-row"}, append([]ui.Node{chatPolishDisclosure(html.Props{}, label, chatux017AgentSummaryWith(m, persona, withAnswers))}, after...)...)

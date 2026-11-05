@@ -21,6 +21,7 @@ const (
 // constraint finding. MessageKey is preferred because it keeps copy localized;
 // Message is an already-safe fallback supplied by the owning service.
 type ValidationIssue struct {
+	_          incomparable
 	FieldID    string
 	Code       string
 	MessageKey string

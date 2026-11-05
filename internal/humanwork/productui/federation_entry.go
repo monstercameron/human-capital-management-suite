@@ -14,6 +14,7 @@ import (
 // presentation renders what it is given and never authors issuers,
 // protocols, assurance levels, or destinations.
 type FederationEntry struct {
+	_         incomparable
 	Tenant    string
 	Issuer    string
 	Protocol  string
@@ -62,6 +63,14 @@ var credentialQueryKeys = map[string]struct{}{
 func validRecoveryHref(href string) bool {
 	href = strings.TrimSpace(href)
 	if href == "" {
+		return false
+	}
+	// Browsers treat backslash as a path separator (WHATWG URL relative
+	// slash state folds it to a slash for special schemes) while Go parses
+	// it as a literal path character, so a href like /\\evil.example would
+	// render as workspace-relative yet navigate cross-origin. Legitimate
+	// destinations never contain a raw backslash: fail closed on any.
+	if strings.Contains(href, "\\") {
 		return false
 	}
 	relative := strings.HasPrefix(href, "/") && !strings.HasPrefix(href, "//")

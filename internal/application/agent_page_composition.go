@@ -16,6 +16,12 @@ type AgentPageCompositionInput struct {
 	PersonaBackend AvailablePersonaBackend
 	Audience       CurrentPersonaAudienceResolver
 	Skills         AgentSkillDiscoverer
+	// SkillPurposes lists the discovery purposes pinned skills are unioned
+	// over. Empty means the chat purpose alone.
+	SkillPurposes []string
+	// Published, when set, also lists valid but unplaced published
+	// personas the installation tuples cannot reach.
+	Published AvailablePersonaPublishedBackend
 }
 
 // ComposeAgentPageClient builds the production Agents page client. It fails
@@ -27,7 +33,7 @@ func ComposeAgentPageClient(in AgentPageCompositionInput) productui.AgentClient 
 	if in.Runners == nil || in.PersonaBackend == nil || in.Audience == nil || in.Skills == nil {
 		return nil
 	}
-	personas := &TenantAvailablePersonaReader{Backend: in.PersonaBackend, Audience: in.Audience, Skills: in.Skills}
-	catalog := &AgentUserCatalog{Personas: personas, Skills: in.Skills}
+	personas := &TenantAvailablePersonaReader{Backend: in.PersonaBackend, Audience: in.Audience, Skills: in.Skills, Purposes: in.SkillPurposes, Published: in.Published}
+	catalog := &AgentUserCatalog{Personas: personas, Skills: in.Skills, Purposes: in.SkillPurposes}
 	return agentclient.NewWithControlsAndCatalog(in.Runners, in.Settings, in.Controller, catalog)
 }

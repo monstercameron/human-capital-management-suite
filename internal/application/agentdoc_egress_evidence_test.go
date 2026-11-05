@@ -263,7 +263,7 @@ func agentDocEgressFixture(t *testing.T, resolver agentdocref.Resolver, maliciou
 		documents = []agentdocref.ResolvedDocument{*maliciousDocument}
 	}
 	profile.Guidance = renderPersonaGuidanceDocumentTokens(profile, documents)
-	goal, history, references, err := (&DatabasePersonaRunModelWorkSource{threads: posts}).readThreadContext(ctx, record, profile)
+	goal, history, references, err := (&DatabasePersonaRunModelWorkSource{threads: posts, now: func() time.Time { return now }}).readThreadContext(ctx, record, profile, route.ThreadClass)
 	if err != nil {
 		t.Fatal(err)
 	}

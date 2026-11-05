@@ -449,6 +449,7 @@ func toDetail(d workspace.JourneyDetail, diagAuthorized bool) *journeyv1.Journey
 		Approver:             d.Approver,
 		DiagnosticsAvailable: d.DiagnosticsAvailable,
 		CanDecide:            d.CanDecide,
+		CanExecute:           d.CanExecute,
 	}
 	if d.Submission != nil {
 		submittedAt := timestamppb.New(d.Submission.SubmittedAt)

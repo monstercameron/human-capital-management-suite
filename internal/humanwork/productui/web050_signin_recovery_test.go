@@ -148,6 +148,7 @@ func TestTodo_WEB_050_Conformance(t *testing.T) {
 	for href, valid := range map[string]bool{
 		"https://idp.example/reset": true, "http://idp.example/reset": false,
 		"/workspace/login/start?tenant=x": true, "//evil.example": false,
+		"/\\evil.example/phish": false, "/\\\\/evil.example/phish": false,
 		"mailto:helpdesk@example.com": true, "javascript:alert(1)": false,
 		"mailto:helpdesk@example.com?token=leak":      false,
 		"https://idp.example/reset?access_token=leak": false,

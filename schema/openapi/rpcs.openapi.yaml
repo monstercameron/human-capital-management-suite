@@ -33,6 +33,13 @@ tags:
     description: 'OnboardingService is REV-036-01''s generated operator surface for the onboarding pipeline (internal/connectivity/onboarding). Unlike AdminService, which is READ_ONLY/PURE by charter, these methods advance a tenant-scoped onboarding run: they require the operator role and every transition is recorded on the run the application registry owns.'
     x-hcmnext-service: hcmnext.admin.v1.OnboardingService
     x-hcmnext-registered: false
+  - name: OperationsService
+    description: |-
+      OperationsService is the REV-087-01 operator diagnostics surface: a thin authenticated envelope over the pure operations packages. Every method requires the reserved operator role (refused PERMISSION_DENIED before any package runs) and delegates every decision to internal/operations/authorizedhealth, repairworkbench or productcorrelation; the transport layer only translates the wire shape and never re-implements a package check.
+
+      Unlike AdminService, which is read-only by constitution, this service carries one mutating RPC (SubmitRepairAction): the repair itself still flows through the governed operator gateway with JIT authority, dual control, simulation and idempotency, exactly as if the operator had called the workbench package directly.
+    x-hcmnext-service: hcmnext.admin.v1.OperationsService
+    x-hcmnext-registered: false
   - name: ChatExtensionsService
     x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
     x-hcmnext-registered: false
@@ -958,6 +965,138 @@ paths:
               schema:
                 $ref: '#/components/schemas/connect.Error'
       x-hcmnext-service: hcmnext.admin.v1.OnboardingService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.admin.v1.OperationsService/CorrelateProductTelemetry:
+    post:
+      tags:
+        - OperationsService
+      summary: CorrelateProductTelemetry reconstructs product-action timelines from raw surface events through...
+      description: CorrelateProductTelemetry reconstructs product-action timelines from raw surface events through internal/operations/productcorrelation.Correlate. Only allowlisted attribute keys survive and payload-shaped values are dropped with counts, never echoed.
+      operationId: OperationsService_CorrelateProductTelemetry
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.admin.v1.CorrelateProductTelemetryRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.admin.v1.CorrelateProductTelemetryResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.admin.v1.OperationsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.admin.v1.OperationsService/GetOperationsHealth:
+    post:
+      tags:
+        - OperationsService
+      summary: GetOperationsHealth projects caller-supplied freshness observations through...
+      description: GetOperationsHealth projects caller-supplied freshness observations through internal/operations/authorizedhealth.Project for the operator's own tenant. Observations are evidence about delivery health (counts, sequences, ages), never payloads.
+      operationId: OperationsService_GetOperationsHealth
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.admin.v1.GetOperationsHealthRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.admin.v1.GetOperationsHealthResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.admin.v1.OperationsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.admin.v1.OperationsService/OpenRepairWorkbench:
+    post:
+      tags:
+        - OperationsService
+      summary: OpenRepairWorkbench opens the bounded, tenant-scoped repair queue for one product slice through...
+      description: OpenRepairWorkbench opens the bounded, tenant-scoped repair queue for one product slice through internal/operations/repairworkbench.Open. Findings from other tenants or slices are omitted without a count.
+      operationId: OperationsService_OpenRepairWorkbench
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.admin.v1.OpenRepairWorkbenchRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.admin.v1.OpenRepairWorkbenchResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.admin.v1.OperationsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.admin.v1.OperationsService/SubmitRepairAction:
+    post:
+      tags:
+        - OperationsService
+      summary: SubmitRepairAction re-checks one repair against the operator's current view of the findings and forwards it to the...
+      description: SubmitRepairAction re-checks one repair against the operator's current view of the findings and forwards it to the governed operator gateway through internal/operations/repairworkbench.Submit. Only the finding kind's admitted actions are accepted; anything else is refused before the gateway runs. Unavailable until the composition root supplies a repairworkbench.Submitter.
+      operationId: OperationsService_SubmitRepairAction
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.admin.v1.SubmitRepairActionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.admin.v1.SubmitRepairActionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.admin.v1.OperationsService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
@@ -8939,6 +9078,71 @@ components:
           $ref: '#/components/schemas/hcmnext.admin.v1.RefValue'
         effectRefs:
           $ref: '#/components/schemas/hcmnext.admin.v1.RefListValue'
+    hcmnext.admin.v1.CorrelateProductTelemetryRequest:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.CorrelateProductTelemetryRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.TelemetryEventInput'
+    hcmnext.admin.v1.CorrelateProductTelemetryResponse:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.CorrelateProductTelemetryResponse`.
+      properties:
+        tenant:
+          type: string
+        timelines:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.CorrelationTimeline'
+        dropped:
+          type: object
+          additionalProperties:
+            type: string
+            format: int64
+          description: Map keyed by string (JSON object keys are strings).
+        digest:
+          type: string
+        evidenceRef:
+          $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.admin.v1.CorrelationStep:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.CorrelationStep`.
+      properties:
+        surface:
+          type: string
+        name:
+          type: string
+        at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        traceId:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map keyed by string (JSON object keys are strings).
+    hcmnext.admin.v1.CorrelationTimeline:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.CorrelationTimeline`.
+      properties:
+        correlationId:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.CorrelationStep'
+        surfaces:
+          type: array
+          items:
+            type: string
+        complete:
+          type: boolean
     hcmnext.admin.v1.DurableRecordFamilyProfile:
       type: object
       description: Protobuf message `hcmnext.admin.v1.DurableRecordFamilyProfile`.
@@ -9177,6 +9381,60 @@ components:
           type: string
         abortedReason:
           type: string
+    hcmnext.admin.v1.GetOperationsHealthRequest:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.GetOperationsHealthRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        projections:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.ProjectionObservationInput'
+        workflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.WorkflowObservationInput'
+        outbox:
+          $ref: '#/components/schemas/hcmnext.admin.v1.OutboxObservationInput'
+        reconciliation:
+          $ref: '#/components/schemas/hcmnext.admin.v1.ReconciliationObservationInput'
+    hcmnext.admin.v1.GetOperationsHealthResponse:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.GetOperationsHealthResponse`.
+      properties:
+        policyVersion:
+          type: string
+        purpose:
+          type: string
+        evidenceId:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        projections:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.ProjectionHealthView'
+        workflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.WorkflowHealthView'
+        outbox:
+          $ref: '#/components/schemas/hcmnext.admin.v1.OutboxHealthView'
+        reconciliation:
+          $ref: '#/components/schemas/hcmnext.admin.v1.ReconciliationHealthView'
+        state:
+          type: string
+        digest:
+          type: string
+        evidenceRef:
+          $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
     hcmnext.admin.v1.GetReleaseManifestRequest:
       type: object
       description: Protobuf message `hcmnext.admin.v1.GetReleaseManifestRequest`.
@@ -9803,6 +10061,150 @@ components:
           type: array
           items:
             type: string
+    hcmnext.admin.v1.OpenRepairWorkbenchRequest:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.OpenRepairWorkbenchRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        slice:
+          type: string
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.RepairFindingInput'
+    hcmnext.admin.v1.OpenRepairWorkbenchResponse:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.OpenRepairWorkbenchResponse`.
+      properties:
+        contractVersion:
+          type: string
+          format: int64
+        tenant:
+          type: string
+        slice:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.RepairWorkbenchItem'
+        truncated:
+          type: boolean
+        digest:
+          type: string
+        evidenceRef:
+          $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.admin.v1.OutboxHealthView:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.OutboxHealthView`.
+      properties:
+        schemaVersion:
+          type: string
+        pending:
+          type: string
+          format: int64
+        inFlight:
+          type: string
+          format: int64
+        failed:
+          type: string
+          format: int64
+        abandoned:
+          type: string
+          format: int64
+        oldestPendingAgeSeconds:
+          type: string
+          format: int64
+        freshness:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
+    hcmnext.admin.v1.OutboxObservationInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.OutboxObservationInput`.
+      properties:
+        schemaVersion:
+          type: string
+        pending:
+          type: string
+          format: int64
+        inFlight:
+          type: string
+          format: int64
+        failed:
+          type: string
+          format: int64
+        abandoned:
+          type: string
+          format: int64
+        oldestPendingAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        maxAgeSeconds:
+          type: string
+          format: int64
+        maxPendingAgeSeconds:
+          type: string
+          format: int64
+        status:
+          type: string
+    hcmnext.admin.v1.ProjectionHealthView:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.ProjectionHealthView`.
+      properties:
+        name:
+          type: string
+        schemaVersion:
+          type: string
+        definitionVersion:
+          type: string
+        sourceSequence:
+          type: string
+          format: int64
+        appliedSequence:
+          type: string
+          format: int64
+        lag:
+          type: string
+          format: int64
+        freshness:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
+    hcmnext.admin.v1.ProjectionObservationInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.ProjectionObservationInput`.
+      properties:
+        name:
+          type: string
+        schemaVersion:
+          type: string
+        definitionVersion:
+          type: string
+        sourceSequence:
+          type: string
+          format: int64
+        appliedSequence:
+          type: string
+          format: int64
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        maxAgeSeconds:
+          type: string
+          format: int64
+        status:
+          type: string
     hcmnext.admin.v1.PublishOnboardingManifestRequest:
       type: object
       description: Protobuf message `hcmnext.admin.v1.PublishOnboardingManifestRequest`.
@@ -9822,6 +10224,57 @@ components:
         runId:
           type: string
         manifestDigest:
+          type: string
+    hcmnext.admin.v1.ReconciliationHealthView:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.ReconciliationHealthView`.
+      properties:
+        schemaVersion:
+          type: string
+        pending:
+          type: string
+          format: int64
+        observing:
+          type: string
+          format: int64
+        mismatch:
+          type: string
+          format: int64
+        repairRequired:
+          type: string
+          format: int64
+        freshness:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
+    hcmnext.admin.v1.ReconciliationObservationInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.ReconciliationObservationInput`.
+      properties:
+        schemaVersion:
+          type: string
+        pending:
+          type: string
+          format: int64
+        observing:
+          type: string
+          format: int64
+        mismatch:
+          type: string
+          format: int64
+        repairRequired:
+          type: string
+          format: int64
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        maxAgeSeconds:
+          type: string
+          format: int64
+        status:
           type: string
     hcmnext.admin.v1.RefListValue:
       type: object
@@ -9847,6 +10300,53 @@ components:
           type: string
         gapKind:
           type: string
+    hcmnext.admin.v1.RepairFindingInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.RepairFindingInput`.
+      properties:
+        id:
+          type: string
+        slice:
+          type: string
+        tenant:
+          type: string
+        kind:
+          type: string
+        severity:
+          type: string
+        resource:
+          type: string
+        targetRefs:
+          type: array
+          items:
+            type: string
+        evidenceRef:
+          type: string
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.admin.v1.RepairWorkbenchItem:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.RepairWorkbenchItem`.
+      properties:
+        findingId:
+          type: string
+        kind:
+          type: string
+        severity:
+          type: string
+        resource:
+          type: string
+        targetCount:
+          type: string
+          format: int64
+        evidenceDigest:
+          type: string
+        actions:
+          type: array
+          items:
+            type: string
     hcmnext.admin.v1.ReportOnboardingReconciliationRequest:
       type: object
       description: Protobuf message `hcmnext.admin.v1.ReportOnboardingReconciliationRequest`.
@@ -10008,6 +10508,91 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/hcmnext.admin.v1.OnboardingObjectOutcome'
+    hcmnext.admin.v1.SubmitRepairActionRequest:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.SubmitRepairActionRequest`.
+      properties:
+        scope:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        slice:
+          type: string
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.admin.v1.RepairFindingInput'
+        findingId:
+          type: string
+        evidenceDigest:
+          type: string
+        kind:
+          type: string
+        idempotencyKey:
+          type: string
+        reason:
+          type: string
+        ticketRef:
+          type: string
+    hcmnext.admin.v1.SubmitRepairActionResponse:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.SubmitRepairActionResponse`.
+      properties:
+        intentInstanceId:
+          type: string
+        intentType:
+          type: string
+        kind:
+          type: string
+        tenant:
+          type: string
+        operator:
+          type: string
+        scopeResource:
+          type: string
+        scopeIds:
+          type: array
+          items:
+            type: string
+        idempotencyKey:
+          type: string
+        requestDigest:
+          type: string
+        reason:
+          type: string
+        ticketRef:
+          type: string
+        authorityKind:
+          type: string
+        authorityRef:
+          type: string
+        outcome:
+          type: string
+        effectRef:
+          type: string
+        evidenceRef:
+          $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.admin.v1.TelemetryEventInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.TelemetryEventInput`.
+      properties:
+        surface:
+          type: string
+        name:
+          type: string
+        tenant:
+          type: string
+        correlationId:
+          type: string
+        traceId:
+          type: string
+        at:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map keyed by string (JSON object keys are strings).
     hcmnext.admin.v1.TraceProfile:
       type: object
       description: Protobuf message `hcmnext.admin.v1.TraceProfile`.
@@ -10132,6 +10717,37 @@ components:
           minimum: 0
         compiledPlanHash:
           type: string
+    hcmnext.admin.v1.WorkflowHealthView:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.WorkflowHealthView`.
+      properties:
+        name:
+          type: string
+        schemaVersion:
+          type: string
+        definitionVersion:
+          type: string
+        activeRuns:
+          type: string
+          format: int64
+        failedRuns:
+          type: string
+          format: int64
+        blockedRuns:
+          type: string
+          format: int64
+        pendingWorkItems:
+          type: string
+          format: int64
+        overdueWorkItems:
+          type: string
+          format: int64
+        freshness:
+          type: string
+        state:
+          type: string
+        status:
+          type: string
     hcmnext.admin.v1.WorkflowInstanceProfile:
       type: object
       description: Protobuf message `hcmnext.admin.v1.WorkflowInstanceProfile`.
@@ -10178,6 +10794,40 @@ components:
           type: string
           format: date-time
           description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.admin.v1.WorkflowObservationInput:
+      type: object
+      description: Protobuf message `hcmnext.admin.v1.WorkflowObservationInput`.
+      properties:
+        name:
+          type: string
+        schemaVersion:
+          type: string
+        definitionVersion:
+          type: string
+        activeRuns:
+          type: string
+          format: int64
+        failedRuns:
+          type: string
+          format: int64
+        blockedRuns:
+          type: string
+          format: int64
+        pendingWorkItems:
+          type: string
+          format: int64
+        overdueWorkItems:
+          type: string
+          format: int64
+        observedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        maxAgeSeconds:
+          type: string
+          format: int64
+        status:
+          type: string
     hcmnext.capabilities.v1.CapabilityDefinition:
       type: object
       description: Protobuf message `hcmnext.capabilities.v1.CapabilityDefinition`.
@@ -11438,6 +12088,16 @@ components:
           type: string
         author:
           $ref: '#/components/schemas/hcmnext.chat.v1.Identity'
+        audienceSegments:
+          type: array
+          items:
+            type: string
+        audienceRestricted:
+          type: boolean
+        audiencePeople:
+          type: integer
+          format: uint32
+          minimum: 0
     hcmnext.chat.v1.Principal:
       type: object
       description: Protobuf message `hcmnext.chat.v1.Principal`.
@@ -11881,6 +12541,12 @@ components:
             $ref: '#/components/schemas/hcmnext.chat.v1.Reference'
         sourceAttribution:
           $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
+        audienceSegments:
+          type: array
+          items:
+            type: string
+        audienceRestricted:
+          type: boolean
     hcmnext.chat.v1.SendPostResponse:
       type: object
       description: Protobuf message `hcmnext.chat.v1.SendPostResponse`.
@@ -13581,6 +14247,8 @@ components:
           type: boolean
         redacted:
           type: boolean
+        semanticVersion:
+          type: string
     hcmnext.document.v1.GetDocumentBacklinksRequest:
       type: object
       description: Protobuf message `hcmnext.document.v1.GetDocumentBacklinksRequest`.
@@ -17335,6 +18003,8 @@ components:
         diagnosticsAvailable:
           type: boolean
         canDecide:
+          type: boolean
+        canExecute:
           type: boolean
         notes:
           type: array

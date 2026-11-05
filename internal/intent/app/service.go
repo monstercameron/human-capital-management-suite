@@ -33,6 +33,7 @@ import (
 	domainmobility "github.com/monstercameron/human-capital-management-suite/internal/domains/mobility"
 	paygldomain "github.com/monstercameron/human-capital-management-suite/internal/domains/paygl"
 	payinputdomain "github.com/monstercameron/human-capital-management-suite/internal/domains/payinput"
+	payrollcorrection "github.com/monstercameron/human-capital-management-suite/internal/domains/payroll/correction"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/people"
 	privacydsr "github.com/monstercameron/human-capital-management-suite/internal/domains/privacy/dsr"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/program"
@@ -48,6 +49,7 @@ import (
 	recoveryoutcome "github.com/monstercameron/human-capital-management-suite/internal/experience/outcome"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	flowexperience "github.com/monstercameron/human-capital-management-suite/internal/flow"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/authority"
 	"github.com/monstercameron/human-capital-management-suite/internal/governance/gateb"
 	privacygovernance "github.com/monstercameron/human-capital-management-suite/internal/governance/privacy"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
@@ -68,10 +70,14 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/authz"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust/confidentialactor"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/benefits"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/bulkack"
 	workflowjurisdiction "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/jurisdiction"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/learning"
 	workflowleave "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leave"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/mobility"
+	payrollconformance "github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/payroll"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/transfer"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/triage"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/parallel"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/runtime"
@@ -166,6 +172,15 @@ type Options struct {
 	// same envelope every other governed write already does, regardless of
 	// whether ProposalExecutor is also set.
 	ExecutionAuthority *ExecutionAuthority
+	// ExecutionAmendment is the bound P1B authority amendment every write
+	// an executed revision plans passes through before the driver runs
+	// (REV-059-01). Non-nil wraps ProposalExecutor in
+	// [AmendmentGatedExecutor]; nil leaves the executor unwrapped and the
+	// cell behaves exactly as before.
+	ExecutionAmendment *authority.Amendment
+	// ExecutionGrant is the partner transfer grant presented for the bound
+	// amendment's transfer checks. Meaningful only with ExecutionAmendment.
+	ExecutionGrant string
 	// ExecutionResolver and ExecutionVersions are the two composition-time
 	// values a wire ExecuteIntent request cannot itself supply (a
 	// runtime.StartRequest's Resolver and Versions are Go values, not wire
@@ -453,6 +468,12 @@ func NewIntentService(opts Options) (*IntentService, error) {
 	if svc.clock == nil {
 		svc.clock = func() values.Instant { return values.NewInstant(time.Now().UTC()) }
 	}
+	if opts.ExecutionAmendment != nil && svc.executor != nil {
+		clock := svc.clock
+		svc.executor = NewAmendmentGatedExecutor(svc.executor, opts.ExecutionAmendment, opts.ExecutionGrant, func() time.Time {
+			return clock().Time()
+		})
+	}
 	if svc.evidence == nil {
 		svc.evidence = NewMemoryEvidenceSink()
 	}
@@ -505,6 +526,8 @@ func validateConformanceServingContracts() error {
 		{"abuse", abuse.ValidateServingContract},
 		{"payroll-general-ledger", paygldomain.ValidateServingContract},
 		{"payroll-inputs", payinputdomain.ValidateServingContract},
+		{"payroll-correction", payrollcorrection.ValidateServingContract},
+		{"payroll-conformance", payrollconformance.ValidateServingContract},
 		{"eligibility", eligibility.ValidateServingContract},
 		{"readiness", readiness.ValidateServingContract},
 		{"mobility-domain", domainmobility.ValidateServingContract},
@@ -523,6 +546,9 @@ func validateConformanceServingContracts() error {
 		{"bulkack", bulkack.ValidateServingContract},
 		{"parallel", parallel.ValidateServingContract},
 		{"triage", triage.ValidateServingContract},
+		{"transfer", transfer.ValidateServingContract},
+		{"learning", learning.ValidateServingContract},
+		{"benefits", benefits.ValidateServingContract},
 		{"config-revalidation", configrevalidation.ValidateServingContract},
 		{"gateb-evidence", gateb.ValidateServingContract},
 		{"selected-jurisdiction", selectedjurisdiction.ValidateServingContract},
@@ -1368,6 +1394,9 @@ func (s *IntentService) simulateDetailedWithRelationships(
 	case call.PayBand != nil:
 		artifact, err := s.simulatePayBand(ctx, principal, purpose, inst, def, call)
 		return simulationResult{Artifact: artifact}, err
+	case call.Severance != nil:
+		artifact, err := s.simulateSeverance(ctx, principal, purpose, inst, def, call)
+		return simulationResult{Artifact: artifact}, err
 	case call.Drift != nil:
 		artifact, err := s.simulateDrift(ctx, principal, purpose, inst, def, call)
 		return simulationResult{Artifact: artifact}, err
@@ -1550,6 +1579,49 @@ func (s *IntentService) simulatePayBand(
 		[]evidence.ControlVersion{
 			{Name: "catalog", Version: result.CatalogVersion},
 			{Name: "rule_pack", Version: result.RulePackVersion},
+		},
+		result.InputsDigest, result.ResultDigest, result.Effects)
+	if receiptErr != nil {
+		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+			"the operation could not be completed").WithDiagnostic(receiptErr)
+	}
+	return &intentsv1.SimulationArtifact{
+		IntentId:          inst.IntentID,
+		Findings:          findingsProto(kernelResult, promotion.PreflightResult{}),
+		ZeroEffectReceipt: receiptProto(receipt, result.Effects),
+	}, nil
+}
+
+// simulateSeverance answers a calculate_severance intent.
+func (s *IntentService) simulateSeverance(
+	ctx context.Context,
+	principal *trust.Principal,
+	purpose string,
+	inst intent.Instance,
+	def intent.Definition,
+	call DomainCall,
+) (*intentsv1.SimulationArtifact, *envelope.Error) {
+	kernelResult, err := intent.Preflight(ctx, intent.PreflightRequest{
+		Instance: inst, Definition: def, Baseline: call.Baseline,
+	}, s.defs, nil)
+	if err != nil {
+		return nil, kernelRejection(err)
+	}
+	answer, _, ownedErr := s.invoke(ctx, principal, purpose, capabilityKeyFor(def.Ref), *call.Severance)
+	if ownedErr != nil {
+		return nil, ownedErr
+	}
+	result, ok := answer.(rewards.SeveranceResult)
+	if !ok {
+		return nil, envelope.New(envelope.CodeUnavailable, reasonDomainUnavailable,
+			"the operation could not be completed").
+			WithDiagnostic(fmt.Errorf("app: calculate_severance returned %T", answer))
+	}
+	receipt, receiptErr := evidence.NewZeroEffectReceipt(
+		result.IntentType, result.IntentVersion, evidence.ModeSimulate,
+		evidence.RequestStateSimulated,
+		[]evidence.ControlVersion{
+			{Name: "plan", Version: result.PlanVersion},
 		},
 		result.InputsDigest, result.ResultDigest, result.Effects)
 	if receiptErr != nil {

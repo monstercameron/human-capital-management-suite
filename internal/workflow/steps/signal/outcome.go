@@ -20,6 +20,9 @@ func (r Result) ToNodeOutcome(nodeID string) frontier.NodeOutcome {
 	case StatusAccepted, StatusDuplicateSameBytes:
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.OutcomeSucceeded}
 	case StatusRefusedLate:
+		if r.DefaultOutputDigest != "" {
+			return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.Outcome("TIMED_OUT"), OutputDigest: r.DefaultOutputDigest}
+		}
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.Outcome("TIMED_OUT")}
 	default:
 		return frontier.NodeOutcome{NodeID: nodeID, Failed: true, ErrorClass: string(r.Status)}

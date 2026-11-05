@@ -68,6 +68,7 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 		config.Subject = principal.Subject()
 		config.Roles = principal.Roles()
 		config.Purpose = principal.DefaultPurpose()
+		config.Session = resolveSessionLifecycle(principal, h.now())
 		h.applyCompanyBrand(&config)
 	}
 	// CHATBUG-014: what each step of this document cost is reported on the
@@ -111,6 +112,13 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 	// and the viewer's preferences are read together, and the preferences once.
 	reads := h.readProductPage(admitted.Context(), principal, access, config.Tenant, definition.ID, revisionScope, timing)
 	config.WorkflowStarts = reads.starts
+	if reads.preferencesLoaded {
+		// WFPAGE-004: the viewer's own saved ids ride the island so the
+		// start page, Home quick actions and the live client share one
+		// projection; availability stays enforced at render, fail-closed.
+		config.WorkflowStartFavorites = workflowFavoriteIDs(reads.preferences.User)
+		config.WorkflowStartRecent = workflowRecentIDs(reads.preferences.User)
+	}
 	config.Agents = reads.agents
 	if config.Agents != nil && config.Agents.Enabled {
 		access = projectAgentOperationsAccess(access)
@@ -246,6 +254,11 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if reads.preferencesLoaded {
+		// WEB-232: the configuration center projection rides the island so the
+		// live client renders governed areas from server truth.
+		config.ConfigurationCenter = resolveConfigurationCenter(locale, access, reads.preferences)
+	}
 	appearance = productui.NormalizeCustomerTheme(appearance)
 	if productui.ValidateCustomerTheme(appearance) != nil {
 		appearance = productui.DefaultCustomerTheme()
@@ -330,6 +343,7 @@ func (h *Handler) serveProductNotFound(w http.ResponseWriter, r *http.Request) {
 		config.Subject = principal.Subject()
 		config.Roles = principal.Roles()
 		config.Purpose = principal.DefaultPurpose()
+		config.Session = resolveSessionLifecycle(principal, h.now())
 		h.applyCompanyBrand(&config)
 	}
 	access, err := h.resolveProductAccess(admitted.Context(), principal)
@@ -736,13 +750,14 @@ func productShellView(config JourneyConfig, locale productui.LocaleContext, page
 	view.WorkflowStartWorkflowID = config.WorkflowStartWorkflowID
 	view.WorkflowStartFavorites = append([]string(nil), config.WorkflowStartFavorites...)
 	view.WorkflowStartRecent = append([]string(nil), config.WorkflowStartRecent...)
+	view.ConfigurationCenter = config.ConfigurationCenter
 	if config.Agents != nil {
 		view = productui.ApplyAgentsAvailability(view, ProductAgentsAvailability(config.Agents))
 	}
 	if config.Clock != nil {
 		view = productui.ApplyClockAvailability(view, ProductClockAvailability(config.Clock))
 	}
-	return productui.ApplyLocale(view, locale)
+	return applySessionLifecycle(productui.ApplyLocale(view, locale), config.Session, locale)
 }
 
 func productShellDocumentForRouteStateWithPreferencesNavigationAndOutlet(config JourneyConfig, bundleBuilt bool, locale productui.LocaleContext, page productui.PageID, menuQuery, nav string, theme productui.CustomerTheme, accessibilityPreferences productui.AccessibilityPreferences, stylesheet string, favoritePages []productui.PageID, navigationGroups map[productui.PageID]bool, outlet ui.Node) (string, error) {

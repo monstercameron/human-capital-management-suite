@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -422,9 +421,7 @@ func chattoneRewordServe(surface ChattoneSurface, w http.ResponseWriter, r *http
 		return ChattoneRewordView{}, chatrewrite.ErrUnavailable
 	}
 	decode := func(into any) error {
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10))
-		decoder.DisallowUnknownFields()
-		if decoder.Decode(into) != nil || decoder.Decode(new(any)) != io.EOF {
+		if decodeStrictJSONBody(w, r, 4<<10, into) != nil {
 			return chatrewrite.ErrInvalid
 		}
 		return nil

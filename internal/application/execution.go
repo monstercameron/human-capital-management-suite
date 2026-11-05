@@ -70,10 +70,13 @@ func composeExecutionAuthority(cellConfig *app.CellConfig, pool *pgxadapter.Pool
 	}
 	financePartners, managerApprovers := servedCompanyApprovers(cfg, pgstore.TenantID)
 	executionConfig := platformexecution.PromotionExecutionConfig{
-		DB:                         pool,
-		StartRetryFor:              startRetryFor,
-		Terminal:                   terminal,
-		Plan:                       platformexecution.PromotionPlan(cfg.WorkflowPlan),
+		DB:            pool,
+		StartRetryFor: startRetryFor,
+		Terminal:      terminal,
+		// WF-EXT-008 removed the -workflow-plan flag: the served cell always
+		// runs the execute plan. The prototype composition remains available
+		// to programmatic compositions through PromotionPlan.
+		Plan:                       platformexecution.PLAN_EXECUTE,
 		ApproverPrincipalID:        cfg.ExecutionApprover,
 		ManagerApproverPrincipalID: cfg.ExecutionManagerApprover,
 		FinancePartnerPrincipalID:  cfg.ExecutionFinancePartner,

@@ -180,10 +180,10 @@ func promotionIntentTypes() map[string]bool {
 }
 
 // ShippedRegistrations lists every executable workflow this composition can
-// serve: the prototype approval, the frozen execute 1.0.0, the current
-// execute graph, and the high-performer variant as a third registration
-// sharing the execute node set. The list is data: matching and pinning
-// happen in ComposeWorkflowRegistrations.
+// serve: the prototype approval, the frozen execute 1.0.0 and 1.1 graphs,
+// the current execute graph, and the high-performer variant sharing the
+// execute node set. The list is data: matching and pinning happen in
+// ComposeWorkflowRegistrations.
 func ShippedRegistrations() []WorkflowRegistration {
 	handlers := promotionCapabilityHandlers()
 	variantHandlers := make(map[string]StepHandler, len(handlers)+1)
@@ -263,7 +263,7 @@ type PinnedRegistration struct {
 
 // ComposeWorkflowRegistrations compiles every shipped registration and binds
 // one match predicate per registration. Under PLAN_EXECUTE one cell serves
-// all four: frozen-version continuations, variant continuations, new starts
+// all five: frozen-version continuations, variant continuations, new starts
 // and current-version continuations on the execute graphs, and prototype
 // continuations on the approval graph. Under PLAN_PROTOTYPE only the
 // approval registration serves, preserving the pre-execute behavior.

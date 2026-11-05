@@ -21,9 +21,7 @@ test("an agent name opens the agent profile, never the person panel", async ({
 }) => {
   await signIn(page);
   await page.goto("/workspace/app/chat?locale=en-US#channel=general");
-  const author = page.locator(
-    '.message-author[data-action="agent-profile-open"]',
-  );
+  const author = page.locator('.message-author[data-action="agent-profile-open"]');
   await expect(author.first()).toBeVisible({ timeout: 30000 });
   await author.first().click();
   const dialog = page.locator(".agent-profile-dialog");
@@ -48,7 +46,7 @@ test("Edit brings its form into view with focus in the first field", async ({
 }) => {
   await signIn(page);
   await page.goto("/workspace/app/admin/personas?locale=en-US");
-  const edit = page.locator('[data-persona-editor-toggle][aria-controls]');
+  const edit = page.locator("[data-persona-editor-toggle][aria-controls]");
   await expect(edit.first()).toBeVisible({ timeout: 30000 });
   await edit.first().click();
   const form = page.locator("form.persona-admin-version-editor:not([hidden])");

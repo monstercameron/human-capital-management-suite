@@ -3,6 +3,7 @@ package chatstore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrender"
@@ -125,6 +126,12 @@ func (s *Store) RevisionLanguage(ctx context.Context, scope RenderingScope, post
 	err := s.renderingTx(ctx, scope, post, func(tx dbport.Tx) error {
 		var b []byte
 		err := tx.QueryRow(ctx, `SELECT source_language,language_confidence,language_spans,language_corrected FROM chat_post_revision WHERE tenant_id=$1 AND post_id=$2 AND revision=$3`, scope.Tenant, post, revision).Scan(&d.Language, &d.Confidence, &b, &d.Corrected)
+		if errors.Is(err, dbport.ErrNoRows) {
+			// A post that predates detection keeps no revision row. The read
+			// path detects from the body instead (CHATBUG-094); a raw
+			// no-rows error here used to answer the reader 503.
+			return chat.ErrNotFound
+		}
 		if err != nil {
 			return err
 		}

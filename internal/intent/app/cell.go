@@ -36,6 +36,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/workerids"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/authority"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agentclient"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/journeyinvalidation"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
@@ -245,6 +246,15 @@ type CellConfig struct {
 	// before it will run Executor at all. Nil means this cell behaves
 	// byte-for-byte like the P1A cell of today.
 	ExecutionAuthority *ExecutionAuthority
+	// ExecutionAmendment is the bound P1B authority amendment every write
+	// an executed revision plans passes through before the driver runs
+	// (REV-059-01). Non-nil wraps Executor in [AmendmentGatedExecutor];
+	// nil leaves the executor unwrapped and the cell behaves exactly as
+	// before.
+	ExecutionAmendment *authority.Amendment
+	// ExecutionGrant is the partner transfer grant presented for the bound
+	// amendment's transfer checks. Meaningful only with ExecutionAmendment.
+	ExecutionGrant string
 	// BindPromotionSteps, when set, receives this cell's governed
 	// [PromotionStepServices] once the gateway exists (WF-RUN-034): the
 	// composition root hands them to the execution driver it composed before
@@ -691,6 +701,12 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 	if cfg.Now != nil {
 		gatewayOptions = append(gatewayOptions, capability.WithClock(cfg.Now))
 	}
+	// WF-RUN-039: overdue bypass obligations suspend the served
+	// capabilities in the governed workflow families. Nil without the
+	// execution database, which keeps today's unwired gateway.
+	if suspensions := composeCapabilitySuspensions(cfg.ExecutionDB, cfg.TenantUUID, cfg.Now); suspensions != nil {
+		gatewayOptions = append(gatewayOptions, capability.WithSuspensions(suspensions))
+	}
 	gateway := capability.NewGateway(caps, sink, gatewayOptions...)
 	controls := NewControls(defs, caps)
 
@@ -724,6 +740,8 @@ func NewCell(cfg CellConfig) (*Cell, error) {
 
 		ProposalExecutor:   cfg.Executor,
 		ExecutionAuthority: cfg.ExecutionAuthority,
+		ExecutionAmendment: cfg.ExecutionAmendment,
+		ExecutionGrant:     cfg.ExecutionGrant,
 		ExecutionResolver:  cfg.ExecutionResolver,
 		ExecutionVersions:  cfg.ExecutionVersions,
 		ExecutionCellID:    cfg.ExecutionCellID,

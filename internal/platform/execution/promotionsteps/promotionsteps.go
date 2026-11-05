@@ -766,6 +766,11 @@ func CompileApprovalRequirement(nodeID, approver string, decideBy time.Time) (hu
 // root can source the typed values from the preceding domain artifacts.
 type RulesThresholdPort struct {
 	Inputs func(context.Context, execute.StepRequest) (rules.PromotionApprovalInput, error)
+	// Thresholds resolves the tenant's published promotion thresholds
+	// (REV-010-02). Nil answers the reference table for every tenant; a
+	// resolution error fails the step closed rather than evaluating the
+	// wrong table.
+	Thresholds func(context.Context, execute.StepRequest) (rules.TenantThresholdResolution, error)
 }
 
 var _ ThresholdPort = RulesThresholdPort{}
@@ -782,6 +787,16 @@ func (p RulesThresholdPort) RaiseThreshold(ctx context.Context, req execute.Step
 		return ThresholdResult{}, err
 	}
 	table := rules.PromotionApprovalThresholdTable()
+	if p.Thresholds != nil {
+		resolution, err := p.Thresholds(ctx, req)
+		if err != nil {
+			return ThresholdResult{}, err
+		}
+		table, err = rules.PromotionApprovalThresholdTableForTenant(rules.TenantThresholdScope{Tenant: req.Context.Tenant}, resolution)
+		if err != nil {
+			return ThresholdResult{}, err
+		}
+	}
 	decision, err := rules.EvaluatePromotionApproval(table, in)
 	if err != nil {
 		return ThresholdResult{}, err

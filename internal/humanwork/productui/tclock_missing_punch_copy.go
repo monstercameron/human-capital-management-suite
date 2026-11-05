@@ -11,6 +11,7 @@ import (
 // may override these strings later, but the workflow remains usable while a
 // locale catalog is being composed.
 type missingPunchCopy struct {
+	_                                                                                                                                       incomparable
 	title, intro, unavailable, unavailableHelp, original, session, worker, event, proposed, proposedHelp, reason, reasonHelp                string
 	request, record, submit, sending, pending, emptyPending, review, approve, reject, decisionNote, decisionHelp, reopen, trace             string
 	periodClosed, required, receipt, submitted, reference, afterSubmit, approved, rejected, error, noteRequired, reopenRequired             string

@@ -119,7 +119,7 @@ func (s *ctxBlockingCredentialSource) LeaseCredential(ctx context.Context, _, _ 
 // testDurableConnectorBuild mirrors testConnectorBuild but takes the dispatch
 // lease duration as a parameter: the crash-window tests need sub-second
 // leases so an abandoned claim expires inside the test deadline.
-func testDurableConnectorBuild(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer operation.CredentialWriter, authorizer operation.MachineLeaseAuthorizer, tenants tenantLister, leaseFor time.Duration) func(context.Context, bootstrap.Deps) (bootstrap.Runtime, error) {
+func testDurableConnectorBuild(journal connectorJournal, ledger connectorLedger, credentials connectorCredentialSource, writer operation.CredentialWriter, authorizer operation.MachineLeaseAuthorizer, tenants tenantLister, leaseFor time.Duration, privacy connectorPrivacyAuthority) func(context.Context, bootstrap.Deps) (bootstrap.Runtime, error) {
 	return func(_ context.Context, deps bootstrap.Deps) (bootstrap.Runtime, error) {
 		enabled, err := deps.Values.Bool("connector-role")
 		if err != nil {
@@ -134,7 +134,7 @@ func testDurableConnectorBuild(journal connectorJournal, ledger connectorLedger,
 		}
 		role := connectorRole{
 			logger: deps.Logger, journal: journal, ledger: ledger, credentials: credentials,
-			revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
+			privacy: privacy, revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
 			authorizer: authorizer, credentialOperation: custody.Encrypt, workerID: deps.Identity, leaseFor: leaseFor,
 		}
 		return bootstrap.Runtime{Workloads: []bootstrap.Workload{{
@@ -374,6 +374,7 @@ func TestTodo_REV_013_01(t *testing.T) {
 		writer := &recordingCredentialWriter{}
 		role := connectorRole{
 			logger: discardLogger(), journal: journal, ledger: ampleLedger(), credentials: credSource,
+			privacy:    connectorPrivacyAuthorityFor(t, "connector.example", false),
 			revalidate: stubConnectorRevalidator{fn: confirmedConnectorRevalidation}, writer: writer,
 			authorizer: manager, credentialOperation: custody.Encrypt, workerID: "worker-1", leaseFor: time.Minute,
 		}
@@ -397,8 +398,8 @@ func TestTodo_REV_013_01(t *testing.T) {
 		}
 
 		// Every durable record exists independently of the adapter's memory.
-		if kinds := rev013TrailKinds(t, pool, tenant, id); !equalStrings(kinds, []string{"PLANNED", "QUEUED", "LEASED", "CREDENTIAL_BOUND", "SENDING", "ATTEMPT_RECORDED"}) {
-			t.Fatalf("durable trail after dispatch = %v, want the full six-event trail", kinds)
+		if kinds := rev013TrailKinds(t, pool, tenant, id); !equalStrings(kinds, []string{"PLANNED", "QUEUED", "LEASED", "PRIVACY_BOUND", "CREDENTIAL_BOUND", "SENDING", "ATTEMPT_RECORDED"}) {
+			t.Fatalf("durable trail after dispatch = %v, want the full seven-event trail", kinds)
 		}
 		rev013DigestChain(t, pool, tenant, id)
 		if state, fence := rev013BaseRow(t, pool, tenant, id); state != "PROVIDER_ACCEPTED" || fence < 1 {
@@ -493,6 +494,7 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 	blocker := &ctxBlockingCredentialSource{entered: make(chan struct{})}
 	tenants := fakeTenantLister{tenants: []uuid.UUID{tenant}}
 
+	privacy := connectorPrivacyAuthorityFor(t, "connector.example", false)
 	runWorker := func(parent context.Context, journal connectorJournal, credentials connectorCredentialSource) int {
 		s := spec([]string{"-database-url=postgres://ignored/db", "-poll-interval=25ms", "-connector-role=true"})
 		s.Getenv = func(string) (string, bool) { return "", false }
@@ -500,7 +502,7 @@ func TestTodo_REV_013_01_Integration(t *testing.T) {
 		s.Logger = discardLogger()
 		s.Stdout = io.Discard
 		s.Stderr = io.Discard
-		s.Build = testDurableConnectorBuild(journal, ampleLedger(), credentials, writer, manager, tenants, 300*time.Millisecond)
+		s.Build = testDurableConnectorBuild(journal, ampleLedger(), credentials, writer, manager, tenants, 300*time.Millisecond, privacy)
 		runCtx, cancel := context.WithCancel(parent)
 		defer cancel()
 		code := make(chan int, 1)

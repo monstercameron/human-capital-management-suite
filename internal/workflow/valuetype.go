@@ -10,6 +10,10 @@ import "fmt"
 type Kind string
 
 // The declared value kinds.
+//
+// DURATION, RATE and REFERENCE (WF-DATA-005) require plan IR schema
+// version 3; every earlier kind stays on its existing schema. RATE is an
+// exact decimal percentage, never a float.
 const (
 	KindString    Kind = "STRING"
 	KindInteger   Kind = "INTEGER"
@@ -21,6 +25,9 @@ const (
 	KindEnum      Kind = "ENUM"
 	KindMessage   Kind = "MESSAGE"
 	KindList      Kind = "LIST"
+	KindDuration  Kind = "DURATION"
+	KindRate      Kind = "RATE"
+	KindReference Kind = "REFERENCE"
 )
 
 // ValueType is one node's declared type for an input or output field. It is
@@ -37,11 +44,20 @@ type ValueType struct {
 	// is not assignable to a differently branded or unbranded target: a
 	// tenant-scoped opaque reference never substitutes for a bare string.
 	Brand string `json:"brand,omitempty"`
+	// Classification labels values of this type (WF-DATA-004). Blank is the
+	// legacy spelling of PUBLIC. It is a flow concern, not part of the type
+	// name, so String renders without it.
+	Classification DataClassification `json:"classification,omitempty"`
 	// EnumRef names the published enum, required when Kind is ENUM.
 	EnumRef string `json:"enum_ref,omitempty"`
 	// MessageRef names the published message schema, required when Kind is
 	// MESSAGE.
 	MessageRef string `json:"message_ref,omitempty"`
+	// ReferenceTarget names the target entity kind, required when Kind is
+	// REFERENCE: a registry entity kind, or a tenant custom kind spelled
+	// "custom:<kind>". Identity brands migrate here where they name
+	// entities.
+	ReferenceTarget string `json:"reference_target,omitempty"`
 	// Element is the element type, required when Kind is LIST.
 	Element *ValueType `json:"element,omitempty"`
 }
@@ -53,6 +69,8 @@ func (t ValueType) String() string {
 		s += "<" + t.EnumRef + ">"
 	case KindMessage:
 		s += "<" + t.MessageRef + ">"
+	case KindReference:
+		s += "<" + t.ReferenceTarget + ">"
 	case KindList:
 		if t.Element != nil {
 			s += "<" + t.Element.String() + ">"
@@ -73,7 +91,7 @@ func (t ValueType) String() string {
 // component every kind requires.
 func (t ValueType) Validate() error {
 	switch t.Kind {
-	case KindString, KindInteger, KindDecimal, KindBool, KindInstant, KindLocalDate, KindMoney:
+	case KindString, KindInteger, KindDecimal, KindBool, KindInstant, KindLocalDate, KindMoney, KindDuration, KindRate:
 	case KindEnum:
 		if t.EnumRef == "" {
 			return fmt.Errorf("ENUM requires enum_ref")
@@ -81,6 +99,10 @@ func (t ValueType) Validate() error {
 	case KindMessage:
 		if t.MessageRef == "" {
 			return fmt.Errorf("MESSAGE requires message_ref")
+		}
+	case KindReference:
+		if t.ReferenceTarget == "" {
+			return fmt.Errorf("REFERENCE requires reference_target")
 		}
 	case KindList:
 		if t.Element == nil {
@@ -93,6 +115,9 @@ func (t ValueType) Validate() error {
 		return fmt.Errorf("kind is required")
 	default:
 		return fmt.Errorf("unknown kind %q", string(t.Kind))
+	}
+	if t.Classification != "" && !t.Classification.Valid() {
+		return fmt.Errorf("classification %q is not a declared data classification", string(t.Classification))
 	}
 	return nil
 }
@@ -112,6 +137,9 @@ func (t ValueType) AssignableTo(want ValueType) error {
 	}
 	if t.Kind == KindMessage && t.MessageRef != want.MessageRef {
 		return fmt.Errorf("message %q is not assignable to %q", t.MessageRef, want.MessageRef)
+	}
+	if t.Kind == KindReference && t.ReferenceTarget != want.ReferenceTarget {
+		return fmt.Errorf("reference to %q is not assignable to %q", t.ReferenceTarget, want.ReferenceTarget)
 	}
 	if t.Kind == KindList {
 		if t.Element == nil || want.Element == nil {
@@ -142,6 +170,11 @@ func (t ValueType) clone() ValueType {
 type Field struct {
 	Path string    `json:"path"`
 	Type ValueType `json:"type"`
+	// MaxClassification caps what a node input accepts (WF-DATA-004): the
+	// highest classification that may flow into this field. Blank is the
+	// legacy uncapped input. An input's own type label never caps it; the
+	// cap must dominate that label when both are set.
+	MaxClassification DataClassification `json:"max_classification,omitempty"`
 	// Label and Description are immutable definition metadata. They are
 	// presentation hints only; the path and type remain the workflow's
 	// authority and are what the compiler validates.
@@ -164,7 +197,7 @@ func cloneFields(fields []Field) []Field {
 	}
 	out := make([]Field, len(fields))
 	for i, f := range fields {
-		out[i] = Field{Path: f.Path, Type: f.Type.clone(), Label: f.Label, Description: f.Description, Group: f.Group}
+		out[i] = Field{Path: f.Path, Type: f.Type.clone(), Label: f.Label, Description: f.Description, Group: f.Group, MaxClassification: f.MaxClassification}
 	}
 	return out
 }

@@ -755,6 +755,10 @@ message JourneyDetail {
   // Clients must not infer them from locally held role strings.
   bool diagnostics_available = 13;
   bool can_decide = 14;
+  // can_execute is true when the execution-authority gate admits this viewer
+  // to start this journey (UXBLIND-005). The client offers the start action
+  // only then; anything else is an offer the server would refuse.
+  bool can_execute = 19;
   // notes are the journey's free-standing notes, oldest first.
   repeated JourneyNote notes = 15;
   repeated DurableRecordFamilyProfile durable_records = 18;

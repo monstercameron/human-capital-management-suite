@@ -39,6 +39,14 @@ type localAgentDemoPreparedAgent struct {
 	installationsRefreshed     int
 	duplicateInstallationsGone int
 	skillGrantsCreated         int
+	// installationsSkipped counts active placements the preparation left
+	// alone because their conversation has no channel policy (a deleted
+	// conversation, a row from another cell's scaffolding): reinstalling
+	// them would mean inventing their ceiling (AGENTUX-082).
+	installationsSkipped int
+	// birthdaySchedule is what the run did about Birthday Buddy's daily
+	// schedule; only the birthday entry sets it (AGENTUX-079).
+	birthdaySchedule AgentUX079BirthdayScheduleReceipt
 }
 
 type localAgentDemoSeed struct {
@@ -237,6 +245,32 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 			targets = append(targets, conversation)
 		}
 	}
+	// AGENTUX-082: renewal keeps every placement, not just the spec's
+	// targets. A placement the agent already holds outside the targets (an
+	// extra room an owner added) is reinstalled at the new version with the
+	// rest; without this the first renewal on real data moved two of Policy
+	// Helper's four placements and left the others on the lapsed version. A
+	// placement whose conversation has no channel policy cannot be
+	// reinstalled without inventing its ceiling, so it is skipped and
+	// counted rather than failing the renewal.
+	if existing, err := scoped.ListVersionRolloutInstallations(ctx, row.PersonaID); err != nil {
+		return out, "", err
+	} else {
+		placed := make([]string, 0, len(existing))
+		for _, in := range existing {
+			if chat != nil {
+				if _, err := chat.CapturePersonaChannelPolicy(ctx, config.Tenant, in.ConversationID, ""); err != nil {
+					if errors.Is(err, dbport.ErrNoRows) || errors.Is(err, chatstore.ErrAudienceEligibilityUnavailable) {
+						out.installationsSkipped++
+						continue
+					}
+					return out, "", err
+				}
+			}
+			placed = append(placed, in.ConversationID)
+		}
+		targets = agentUX082UnionPlacementConversations(targets, placed)
+	}
 	builder := agentDemoProfileBuilder{manifest: manifest}
 	authorizer := localAgentDemoAuthorizer{tenant: row.TenantID, subject: localAgentDemoAdmin, persona: row.PersonaID}
 	install := GovernedPersonaAdminInstallation{Placement: NewPersonaPublicAudienceAuthority(chat), Versions: personaAdminInstallationVersions{store: personas}, Profiles: builder}
@@ -281,6 +315,21 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 			out.installationsRefreshed++
 		} else {
 			out.installationsCreated++
+		}
+	}
+	if spec.plan.PersonaID == AgentUXDemoBirthdayPersonaID {
+		// AGENTUX-079: Birthday Buddy's daily schedule, created paused and
+		// resumed once its model route exists. The installation the loop
+		// above ensured is the schedule's; without it the step fails loudly
+		// instead of filing a schedule that can never fire.
+		out.birthdaySchedule, err = prepareAgentUX079BirthdaySchedule(adminCtx, AgentUX079BirthdayScheduleWiring{
+			Agents: p.agents, Personas: p.personas, Core: p.core, Chat: p.chat,
+			TenantUUID: p.mapper, Tenant: config.Tenant, Admin: localAgentDemoAdmin,
+			Conversation: localDevPersonaDemoConversationID(config.Tenant, "general"),
+			Now:          func() time.Time { return p.now },
+		})
+		if err != nil {
+			return out, directConversation, err
 		}
 	}
 	return out, directConversation, nil

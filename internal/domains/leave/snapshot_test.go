@@ -5,22 +5,21 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/documents/intake"
 )
 
-func snapshotEntries() []InputEntry {
-	entries := make([]InputEntry, 0, len(requiredLeaveInputs))
-	for _, input := range requiredLeaveInputs {
-		entries = append(entries, InputEntry{
-			Input: input, Revision: "rev-7", Watermark: "wm-2026-09-01",
-			Status: InputReady, EvidenceRef: "evidence:" + input,
-			Authority: "source:" + input, Effective: "2026-09-01", Known: "2026-09-02",
-		})
-	}
-	return entries
+// snapshotEntries binds every required input to a governed reference from
+// a fresh pipeline service, so every call mints the same deterministic
+// identities.
+func snapshotEntries(t *testing.T) []InputEntry {
+	t.Helper()
+	svc, _ := rev024MintService(t)
+	return rev024Entries(t, svc)
 }
 
 func TestTodo_LEAVE_003(t *testing.T) {
-	snapshot, err := BuildSnapshot(snapshotEntries())
+	snapshot, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		t.Fatalf("BuildSnapshot: %v", err)
 	}
@@ -36,7 +35,7 @@ func TestTodo_LEAVE_003(t *testing.T) {
 	// RED: every omission or hollow binding refuses.
 	for _, input := range requiredLeaveInputs {
 		var kept []InputEntry
-		for _, entry := range snapshotEntries() {
+		for _, entry := range snapshotEntries(t) {
 			if entry.Input != input {
 				kept = append(kept, entry)
 			}
@@ -45,27 +44,27 @@ func TestTodo_LEAVE_003(t *testing.T) {
 			t.Fatalf("omitted input %q built", input)
 		}
 	}
-	hollow := snapshotEntries()
+	hollow := snapshotEntries(t)
 	hollow[0].Revision = ""
 	if _, err := BuildSnapshot(hollow); err == nil {
 		t.Fatal("hollow revision built")
 	}
-	untyped := snapshotEntries()
-	untyped[0].EvidenceRef = "bare-bytes"
-	if _, err := BuildSnapshot(untyped); err == nil {
-		t.Fatal("untyped evidence reference built")
+	unissued := snapshotEntries(t)
+	unissued[0].EvidenceRef = intake.EvidenceRef{}
+	if _, err := BuildSnapshot(unissued); err == nil {
+		t.Fatal("unissued evidence reference built")
 	}
-	unstamped := snapshotEntries()
+	unstamped := snapshotEntries(t)
 	unstamped[0].Effective = ""
 	if _, err := BuildSnapshot(unstamped); err == nil {
 		t.Fatal("unstamped input built")
 	}
-	dup := append(snapshotEntries(), snapshotEntries()[0])
+	dup := append(snapshotEntries(t), snapshotEntries(t)[0])
 	if _, err := BuildSnapshot(dup); err == nil {
 		t.Fatal("duplicate input built")
 	}
 	// Unsatisfied inputs keep their exact statuses.
-	partial := snapshotEntries()
+	partial := snapshotEntries(t)
 	partial[0].Status = InputPartial
 	partial[1].Status = InputStale
 	pending, err := BuildSnapshot(partial)
@@ -78,12 +77,12 @@ func TestTodo_LEAVE_003(t *testing.T) {
 }
 
 func TestTodo_LEAVE_003_Property(t *testing.T) {
-	first, err := BuildSnapshot(snapshotEntries())
+	first, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Deterministic across input orderings.
-	reversed := snapshotEntries()
+	reversed := snapshotEntries(t)
 	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
 		reversed[i], reversed[j] = reversed[j], reversed[i]
 	}
@@ -96,7 +95,7 @@ func TestTodo_LEAVE_003_Property(t *testing.T) {
 	}
 	// Satisfied holds exactly when every input is READY.
 	for _, status := range []string{InputPartial, InputStale, InputUnknown, InputDenied} {
-		variant := snapshotEntries()
+		variant := snapshotEntries(t)
 		variant[3].Status = status
 		built, err := BuildSnapshot(variant)
 		if err != nil {
@@ -109,13 +108,13 @@ func TestTodo_LEAVE_003_Property(t *testing.T) {
 			t.Fatalf("pending = %v", built.Pending())
 		}
 	}
-	if _, err := BuildSnapshot(snapshotEntries()); err != nil {
+	if _, err := BuildSnapshot(snapshotEntries(t)); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestTodo_LEAVE_003_Golden(t *testing.T) {
-	snapshot, err := BuildSnapshot(snapshotEntries())
+	snapshot, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +122,7 @@ func TestTodo_LEAVE_003_Golden(t *testing.T) {
 	lines = append(lines, "inputs="+strings.Join(requiredLeaveInputs, ","))
 	lines = append(lines, "satisfied=true")
 	for _, entry := range snapshot.Entries {
-		lines = append(lines, "input="+entry.Input+" rev="+entry.Revision+" status="+entry.Status+" ref="+entry.EvidenceRef)
+		lines = append(lines, "input="+entry.Input+" rev="+entry.Revision+" status="+entry.Status+" ref="+entry.EvidenceRef.ID)
 	}
 	lines = append(lines, "digest="+snapshot.Digest)
 	got := strings.Join(lines, "\n") + "\n"
@@ -147,12 +146,12 @@ func TestTodo_LEAVE_003_Golden(t *testing.T) {
 
 func TestTodo_LEAVE_003_Security(t *testing.T) {
 	// Restricted inputs enter as DENIED references, never as bytes: the
-	// entry type has no content field, so bytes cannot even be expressed.
-	restricted := snapshotEntries()
+	// entry carries a governed reference with no content field, so bytes
+	// cannot even be expressed, and denial never voids the reference.
+	restricted := snapshotEntries(t)
 	for i := range restricted {
 		if restricted[i].Input == "legal-context" {
 			restricted[i].Status = InputDenied
-			restricted[i].EvidenceRef = "restricted:legal-sealed"
 		}
 	}
 	snapshot, err := BuildSnapshot(restricted)
@@ -163,12 +162,17 @@ func TestTodo_LEAVE_003_Security(t *testing.T) {
 		t.Fatal("denied snapshot satisfied")
 	}
 	for _, entry := range snapshot.Entries {
-		if entry.Input == "legal-context" && entry.EvidenceRef != "restricted:legal-sealed" {
-			t.Fatalf("denied entry = %+v", entry)
+		if entry.Input == "legal-context" {
+			if entry.EvidenceRef.ID == "" {
+				t.Fatalf("denied entry lost its reference: %+v", entry)
+			}
+			if err := entry.EvidenceRef.Check(); err != nil {
+				t.Fatalf("denied entry reference unusable: %v", err)
+			}
 		}
 	}
 	// Off-vocabulary statuses never become input truth.
-	rogue := snapshotEntries()
+	rogue := snapshotEntries(t)
 	rogue[0].Status = "READY-ISH"
 	if _, err := BuildSnapshot(rogue); err == nil {
 		t.Fatal("off-vocabulary status built")
@@ -176,7 +180,7 @@ func TestTodo_LEAVE_003_Security(t *testing.T) {
 }
 
 func TestTodo_LEAVE_003_Conformance(t *testing.T) {
-	snapshot, err := BuildSnapshot(snapshotEntries())
+	snapshot, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,12 +199,12 @@ func TestTodo_LEAVE_003_Conformance(t *testing.T) {
 }
 
 func TestTodo_LEAVE_003_Mutation(t *testing.T) {
-	base, err := BuildSnapshot(snapshotEntries())
+	base, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Material input change changes the canonical digest.
-	changed := snapshotEntries()
+	changed := snapshotEntries(t)
 	changed[0].Revision = "rev-8"
 	rebuilt, err := BuildSnapshot(changed)
 	if err != nil {
@@ -210,7 +214,7 @@ func TestTodo_LEAVE_003_Mutation(t *testing.T) {
 		t.Fatal("revision mutation kept the snapshot digest")
 	}
 	// Status change changes the digest and flips satisfaction.
-	restaled := snapshotEntries()
+	restaled := snapshotEntries(t)
 	restaled[5].Status = InputStale
 	stale, err := BuildSnapshot(restaled)
 	if err != nil {

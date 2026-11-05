@@ -271,6 +271,12 @@ var nonPersonalTableColumns = map[string]string{
 	"government_authorization_profile.evidence": "authorization evidence package",
 	// Article audience scopes name roles and departments, not people.
 	"knowledge_article_revision.audience_scope": "article audience scope",
+	// WF-REV-014 re-audit (2026-10-23): numeric and boolean columns whose
+	// names match sensitive patterns but whose values carry no content.
+	"agent_budget_event.tokens":                       "token count, not authentication material",
+	"ledger_invariant_scan_observation.finding_count": "scan finding count, not finding content",
+	"agent_skill_grant.consent_required":              "consent policy flag, not consent content",
+	"dataops_import_batch.schema_candidate":           "schema identifier, not subject data",
 }
 
 // nonPersonalColumns are global column names (or table.column pairs) that
@@ -523,6 +529,44 @@ var payloadVerdicts = map[string]struct {
 	"job_definition.body":                {ClassNonPersonal, "job definition content, no subject data"},
 	"legal_rule_pack.body":               {ClassNonPersonal, "rule pack content, no subject data"},
 	"authorization_policy_snapshot.body": {ClassNonPersonal, "policy snapshot content, no subject data"},
+	// WF-REV-014 re-audit (2026-10-23): reviewed verdicts for the drift
+	// inventory. Each reason records what the envelope was reviewed to carry.
+	"access_role_revision.after_row":                        {ClassPersonal, "after-images of worker-linked RBAC grant rows"},
+	"access_role_revision.before_row":                       {ClassPersonal, "before-images of worker-linked RBAC grant rows"},
+	"activated_translation_catalog_revision.payload":        {ClassNonPersonal, "i18n product-copy catalog, no subject data"},
+	"agent_audit_record.entry":                              {ClassPersonal, "agent-for-user audit events naming the user and action"},
+	"agent_budget_extension_replay.additional":              {ClassNonPersonal, "budget quota numbers (Limits: steps, tokens, wall-clock, spend)"},
+	"agent_budget_extension_replay.additional_metadata":     {ClassNonPersonal, "replay ids, revisions and budget quota numbers"},
+	"agent_budget_extension_replay.result_limits":           {ClassNonPersonal, "budget quota numbers (Limits)"},
+	"agent_connection_revision.approval":                    {ClassPersonal, "second-admin approval naming RequestedBy and ApprovedBy humans"},
+	"agent_connection_revision.grants":                      {ClassPersonal, "grants naming the covered subject population"},
+	"agent_connection_revision.skills":                      {ClassNonPersonal, "skill and tool binding catalog metadata: ids, tiers, scope names, filter predicates"},
+	"agent_delegation_grant.authority":                      {ClassPersonal, "delegation envelope naming Delegator and Delegate identities"},
+	"agent_delegation_grant.skill_scopes":                   {ClassNonPersonal, "skill-to-scope-name map, configuration without subject content"},
+	"brand_asset_revision.original_bytes":                   {ClassPersonal, "tenant-uploaded raster imagery, may depict identifiable people"},
+	"brand_asset_revision.proxy_bytes":                      {ClassPersonal, "tenant-uploaded raster imagery, may depict identifiable people"},
+	"configbundle_kill_switch.applied_record":               {ClassPersonal, "applied switch record naming Operator and Approver with reason"},
+	"cycle_restatement.canonical_body":                      {ClassPersonal, "restatement over the affected population with impacts and approvals"},
+	"dataops_diagnostic_artifact.payload":                   {ClassPersonal, "diagnostic captures over import subject data (diff and repair evidence)"},
+	"dataops_import_batch.header":                           {ClassNonPersonal, "import column-name list, schema metadata without subject values"},
+	"dataops_import_batch.payload":                          {ClassPersonal, "original import bytes carrying bulk subject data"},
+	"industry_pack_activation.composition":                  {ClassNonPersonal, "pack module composition with commercial entitlement fingerprint"},
+	"industry_pack_publication.report":                      {ClassNonPersonal, "publication report with commercial entitlement fingerprint"},
+	"integration_webhook_receipt.parsed_receipt":            {ClassPersonal, "parsed vendor event, unbounded external subject data"},
+	"integration_webhook_receipt.payload_bytes":             {ClassPersonal, "raw vendor bytes, unbounded external subject data"},
+	"intelligence_metric_publication.metric_result":         {ClassNonPersonal, "aggregate calculation: numbers, counts, quality, digests"},
+	"intelligence_metric_publication.outcome_link":          {ClassNonPersonal, "opaque refs with methodology metadata, no subject content"},
+	"intent_action_plan_binding.binding_payload":            {ClassPersonal, "canonical action plan over the accepted subject-affecting action"},
+	"page_definition_revision.payload":                      {ClassNonPersonal, "page registry snapshot: nav metadata and product copy"},
+	"page_retirement.payload":                               {ClassPersonal, "retirement record embedding a free-text reason"},
+	"page_rollout.payload":                                  {ClassNonPersonal, "rollout record: versions, digests and organizational scopes"},
+	"page_rollout_event.payload":                            {ClassNonPersonal, "rollout and rollback event envelope over rollout records"},
+	"schedopt_published_schedule_revision.payload":          {ClassPersonal, "published workforce schedules naming who works when"},
+	"tenant_parameter_value_revision.value_type":            {ClassNonPersonal, "parameter type descriptor object, not the value"},
+	"workflow_compensation_event.payload":                   {ClassPersonal, "compensation operation snapshots over subject effects"},
+	"workflow_compensation_operation_history.payload":       {ClassPersonal, "compensation operation snapshots over subject effects"},
+	"workflow_compensation_operation_history.prior_payload": {ClassPersonal, "prior compensation operation snapshots over subject effects"},
+	"workflow_executable_payload.payload":                   {ClassNonPersonal, "decision-table and transform IR bodies, logic without subjects"},
 }
 
 // vaultRefs declares personal fields already moved to payload-vault

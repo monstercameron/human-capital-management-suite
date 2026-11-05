@@ -2,11 +2,40 @@ package projectstore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/projectworkflow"
 )
+
+func seedPM035Workflow(t *testing.T, s *Store, tenantID, projectID string) {
+	t.Helper()
+	config := projectworkflow.Config{
+		TaskTypes: []projectworkflow.TaskType{{ID: "task_default", Name: "Task", InitialStatus: "todo"}},
+		Statuses: []projectworkflow.Status{
+			{ID: "todo", Name: "To do", Category: projectworkflow.CategoryNotStarted, AllowedNextStatusIDs: []string{"doing"}},
+			{ID: "doing", Name: "In progress", Category: projectworkflow.CategoryActive, AllowedNextStatusIDs: []string{"done"}},
+			{ID: "done", Name: "Done", Category: projectworkflow.CategoryDone},
+		},
+		Transitions: []projectworkflow.Transition{{From: "todo", To: "doing"}, {From: "doing", To: "done"}},
+		Columns:     []projectworkflow.Column{{ID: "todo", Name: "To do", StatusIDs: []string{"todo"}}, {ID: "doing", Name: "In progress", StatusIDs: []string{"doing"}}, {ID: "done", Name: "Done", StatusIDs: []string{"done"}}},
+	}
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RunTenantTx(context.Background(), tenantID, func(tx dbport.Tx) error {
+		if _, err := tx.Exec(context.Background(), `INSERT INTO project_workflow_version(tenant_id,project_id,version,source_revision,config_json,digest,publisher_id) VALUES($1,$2,1,1,$3::jsonb,repeat('a',64),'owner')`, tenantID, projectID, configJSON); err != nil {
+			return err
+		}
+		_, err := tx.Exec(context.Background(), `INSERT INTO project_workflow_current(tenant_id,project_id,version) VALUES($1,$2,1)`, tenantID, projectID)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestTodo_PM_035(t *testing.T) {
 	store, _ := projectFixture(t)
@@ -15,7 +44,7 @@ func TestTodo_PM_035(t *testing.T) {
 	if err := store.CreateProject(ctx, project, "owner", "HUMAN", "pm035-project"); err != nil {
 		t.Fatal(err)
 	}
-	seedCurrentWorkflow(t, store, project.TenantID, project.ID, "owner", 1)
+	seedPM035Workflow(t, store, project.TenantID, project.ID)
 	task := TaskRecord{ID: "pm035-task", TenantID: project.TenantID, ProjectID: project.ID, Title: "Rebuild search", StatusID: "todo", TypeID: "task_default", Priority: "HIGH", Revision: 1}
 	if err := store.CreateTaskWithConfig(ctx, task, 1, "owner", "HUMAN", "pm035-task"); err != nil {
 		t.Fatal(err)

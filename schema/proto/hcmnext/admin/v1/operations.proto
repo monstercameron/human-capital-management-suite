@@ -1,0 +1,333 @@
+syntax = "proto3";
+
+package hcmnext.admin.v1;
+
+option go_package = "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1;adminv1";
+
+import "google/protobuf/timestamp.proto";
+import "hcmnext/common/v1/common.proto";
+
+// OperationsService is the REV-087-01 operator diagnostics surface: a thin
+// authenticated envelope over the pure operations packages. Every method
+// requires the reserved operator role (refused PERMISSION_DENIED before any
+// package runs) and delegates every decision to
+// internal/operations/authorizedhealth, repairworkbench or
+// productcorrelation; the transport layer only translates the wire shape
+// and never re-implements a package check.
+//
+// Unlike AdminService, which is read-only by constitution, this service
+// carries one mutating RPC (SubmitRepairAction): the repair itself still
+// flows through the governed operator gateway with JIT authority, dual
+// control, simulation and idempotency, exactly as if the operator had
+// called the workbench package directly.
+service OperationsService {
+  // GetOperationsHealth projects caller-supplied freshness observations
+  // through internal/operations/authorizedhealth.Project for the
+  // operator's own tenant. Observations are evidence about delivery
+  // health (counts, sequences, ages), never payloads.
+  rpc GetOperationsHealth(GetOperationsHealthRequest) returns (GetOperationsHealthResponse);
+
+  // OpenRepairWorkbench opens the bounded, tenant-scoped repair queue
+  // for one product slice through internal/operations/repairworkbench.Open.
+  // Findings from other tenants or slices are omitted without a count.
+  rpc OpenRepairWorkbench(OpenRepairWorkbenchRequest) returns (OpenRepairWorkbenchResponse);
+
+  // SubmitRepairAction re-checks one repair against the operator's current
+  // view of the findings and forwards it to the governed operator gateway
+  // through internal/operations/repairworkbench.Submit. Only the finding
+  // kind's admitted actions are accepted; anything else is refused before
+  // the gateway runs. Unavailable until the composition root supplies a
+  // repairworkbench.Submitter.
+  rpc SubmitRepairAction(SubmitRepairActionRequest) returns (SubmitRepairActionResponse);
+
+  // CorrelateProductTelemetry reconstructs product-action timelines from
+  // raw surface events through internal/operations/productcorrelation.Correlate.
+  // Only allowlisted attribute keys survive and payload-shaped values are
+  // dropped with counts, never echoed.
+  rpc CorrelateProductTelemetry(CorrelateProductTelemetryRequest) returns (CorrelateProductTelemetryResponse);
+}
+
+// ProjectionObservationInput is one
+// internal/operations/authorizedhealth.ProjectionObservation on the wire.
+message ProjectionObservationInput {
+  string name = 1;
+  string schema_version = 2;
+  string definition_version = 3;
+  int64 source_sequence = 4;
+  int64 applied_sequence = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  // max_age_seconds bounds the observation age.
+  int64 max_age_seconds = 7;
+  string status = 8;
+}
+
+// WorkflowObservationInput is one
+// internal/operations/authorizedhealth.WorkflowObservation on the wire. It
+// carries counts and state classes, never work-item payloads.
+message WorkflowObservationInput {
+  string name = 1;
+  string schema_version = 2;
+  string definition_version = 3;
+  int64 active_runs = 4;
+  int64 failed_runs = 5;
+  int64 blocked_runs = 6;
+  int64 pending_work_items = 7;
+  int64 overdue_work_items = 8;
+  google.protobuf.Timestamp observed_at = 9;
+  int64 max_age_seconds = 10;
+  string status = 11;
+}
+
+// OutboxObservationInput is one
+// internal/operations/authorizedhealth.OutboxObservation on the wire.
+message OutboxObservationInput {
+  string schema_version = 1;
+  int64 pending = 2;
+  int64 in_flight = 3;
+  int64 failed = 4;
+  int64 abandoned = 5;
+  google.protobuf.Timestamp oldest_pending_at = 6;
+  google.protobuf.Timestamp observed_at = 7;
+  int64 max_age_seconds = 8;
+  int64 max_pending_age_seconds = 9;
+  string status = 10;
+}
+
+// ReconciliationObservationInput is one
+// internal/operations/authorizedhealth.ReconciliationObservation on the wire.
+message ReconciliationObservationInput {
+  string schema_version = 1;
+  int64 pending = 2;
+  int64 observing = 3;
+  int64 mismatch = 4;
+  int64 repair_required = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  int64 max_age_seconds = 7;
+  string status = 8;
+}
+
+message GetOperationsHealthRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  repeated ProjectionObservationInput projections = 3;
+  repeated WorkflowObservationInput workflows = 4;
+  OutboxObservationInput outbox = 5;
+  ReconciliationObservationInput reconciliation = 6;
+}
+
+// ProjectionHealthView is one
+// internal/operations/authorizedhealth.ProjectionHealth on the wire.
+message ProjectionHealthView {
+  string name = 1;
+  string schema_version = 2;
+  string definition_version = 3;
+  int64 source_sequence = 4;
+  int64 applied_sequence = 5;
+  int64 lag = 6;
+  // freshness is one of CURRENT, STALE, UNKNOWN, UNAVAILABLE
+  // (internal/operations/authorizedhealth.Freshness).
+  string freshness = 7;
+  // state is one of HEALTHY, DEGRADED, UNKNOWN
+  // (internal/operations/authorizedhealth.State).
+  string state = 8;
+  string status = 9;
+}
+
+// WorkflowHealthView is one
+// internal/operations/authorizedhealth.WorkflowHealth on the wire.
+message WorkflowHealthView {
+  string name = 1;
+  string schema_version = 2;
+  string definition_version = 3;
+  int64 active_runs = 4;
+  int64 failed_runs = 5;
+  int64 blocked_runs = 6;
+  int64 pending_work_items = 7;
+  int64 overdue_work_items = 8;
+  string freshness = 9;
+  string state = 10;
+  string status = 11;
+}
+
+// OutboxHealthView is one
+// internal/operations/authorizedhealth.OutboxHealth on the wire.
+message OutboxHealthView {
+  string schema_version = 1;
+  int64 pending = 2;
+  int64 in_flight = 3;
+  int64 failed = 4;
+  int64 abandoned = 5;
+  // oldest_pending_age_seconds renders the oldest pending age.
+  int64 oldest_pending_age_seconds = 6;
+  string freshness = 7;
+  string state = 8;
+  string status = 9;
+}
+
+// ReconciliationHealthView is one
+// internal/operations/authorizedhealth.ReconciliationHealth on the wire.
+message ReconciliationHealthView {
+  string schema_version = 1;
+  int64 pending = 2;
+  int64 observing = 3;
+  int64 mismatch = 4;
+  int64 repair_required = 5;
+  string freshness = 6;
+  string state = 7;
+  string status = 8;
+}
+
+message GetOperationsHealthResponse {
+  string policy_version = 1;
+  string purpose = 2;
+  string evidence_id = 3;
+  google.protobuf.Timestamp observed_at = 4;
+  repeated ProjectionHealthView projections = 5;
+  repeated WorkflowHealthView workflows = 6;
+  OutboxHealthView outbox = 7;
+  ReconciliationHealthView reconciliation = 8;
+  string state = 9;
+  // digest is the view's stable identity
+  // (internal/operations/authorizedhealth.View.Digest).
+  string digest = 10;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 11;
+}
+
+// RepairFindingInput is one
+// internal/operations/repairworkbench.Finding on the wire. It carries
+// opaque references and an evidence digest, never a payload.
+message RepairFindingInput {
+  string id = 1;
+  string slice = 2;
+  string tenant = 3;
+  // kind is one of PROJECTION_STALE, OUTBOX_STUCK, WORKFLOW_STUCK,
+  // RECONCILIATION_MISMATCH
+  // (internal/operations/repairworkbench.FindingKind).
+  string kind = 4;
+  // severity is one of CRITICAL, MAJOR, MINOR
+  // (internal/operations/repairworkbench.Severity).
+  string severity = 5;
+  string resource = 6;
+  repeated string target_refs = 7;
+  string evidence_ref = 8;
+  google.protobuf.Timestamp observed_at = 9;
+}
+
+message OpenRepairWorkbenchRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string slice = 2;
+  repeated RepairFindingInput findings = 3;
+}
+
+// RepairWorkbenchItem is one
+// internal/operations/repairworkbench.Item on the wire.
+message RepairWorkbenchItem {
+  string finding_id = 1;
+  string kind = 2;
+  string severity = 3;
+  string resource = 4;
+  int64 target_count = 5;
+  string evidence_digest = 6;
+  // actions holds the finding kind's admitted operator action kinds
+  // (internal/intent/operator.Kind tokens).
+  repeated string actions = 7;
+}
+
+message OpenRepairWorkbenchResponse {
+  int64 contract_version = 1;
+  string tenant = 2;
+  string slice = 3;
+  repeated RepairWorkbenchItem items = 4;
+  bool truncated = 5;
+  // digest is the view's stable identity
+  // (internal/operations/repairworkbench.View.Digest).
+  string digest = 6;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 7;
+}
+
+message SubmitRepairActionRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  string slice = 2;
+  repeated RepairFindingInput findings = 3;
+  string finding_id = 4;
+  string evidence_digest = 5;
+  // kind is one internal/intent/operator.Kind token drawn from the finding
+  // kind's admitted actions.
+  string kind = 6;
+  string idempotency_key = 7;
+  string reason = 8;
+  string ticket_ref = 9;
+}
+
+message SubmitRepairActionResponse {
+  string intent_instance_id = 1;
+  string intent_type = 2;
+  string kind = 3;
+  string tenant = 4;
+  string operator = 5;
+  // scope_resource and scope_ids render the governed scope
+  // (internal/intent/operator.Scope).
+  string scope_resource = 6;
+  repeated string scope_ids = 7;
+  string idempotency_key = 8;
+  string request_digest = 9;
+  string reason = 10;
+  string ticket_ref = 11;
+  string authority_kind = 12;
+  string authority_ref = 13;
+  // outcome is one of PENDING, APPLIED, REPAIR_REQUIRED, DUPLICATE
+  // (internal/intent/operator.Outcome) and effect_ref names the applied
+  // effect when the gateway applied one.
+  string outcome = 14;
+  string effect_ref = 15;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 16;
+}
+
+// TelemetryEventInput is one
+// internal/operations/productcorrelation.Event on the wire.
+message TelemetryEventInput {
+  // surface is one of UI, INTENT, WORKFLOW, LEDGER
+  // (internal/operations/productcorrelation.Surface).
+  string surface = 1;
+  string name = 2;
+  string tenant = 3;
+  string correlation_id = 4;
+  string trace_id = 5;
+  google.protobuf.Timestamp at = 6;
+  map<string, string> attributes = 7;
+}
+
+message CorrelateProductTelemetryRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  repeated TelemetryEventInput events = 2;
+}
+
+// CorrelationStep is one
+// internal/operations/productcorrelation.Step on the wire.
+message CorrelationStep {
+  string surface = 1;
+  string name = 2;
+  google.protobuf.Timestamp at = 3;
+  string trace_id = 4;
+  map<string, string> attributes = 5;
+}
+
+// CorrelationTimeline is one
+// internal/operations/productcorrelation.Timeline on the wire.
+message CorrelationTimeline {
+  string correlation_id = 1;
+  repeated CorrelationStep steps = 2;
+  repeated string surfaces = 3;
+  bool complete = 4;
+}
+
+message CorrelateProductTelemetryResponse {
+  string tenant = 1;
+  repeated CorrelationTimeline timelines = 2;
+  // dropped counts sanitizer drops by reason, never echoing values.
+  map<string, int64> dropped = 3;
+  // digest is the report's stable identity
+  // (internal/operations/productcorrelation.Report.Digest).
+  string digest = 4;
+  hcmnext.common.v1.EvidenceRef evidence_ref = 5;
+}

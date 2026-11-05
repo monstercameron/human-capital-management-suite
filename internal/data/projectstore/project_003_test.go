@@ -103,8 +103,12 @@ func TestTodo_PM_009_Integration(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if moves != 1 || outbox != 2 {
-		t.Fatalf("move effects activity=%d outbox=%d, want 1 and 2", moves, outbox)
+	// Outbox rows: project.created + task.created from setup, plus exactly
+	// one task.moved from the committed move (replay and stale-conflict
+	// paths emit nothing). Every command emits one activity row and one
+	// outbox row; see the lifecycle 4-for-4 and PM-035 5-for-5 contracts.
+	if moves != 1 || outbox != 3 {
+		t.Fatalf("move effects activity=%d outbox=%d, want 1 and 3", moves, outbox)
 	}
 }
 

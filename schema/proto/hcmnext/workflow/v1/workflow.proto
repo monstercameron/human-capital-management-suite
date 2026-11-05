@@ -194,3 +194,393 @@ message NodeExecution {
   optional google.protobuf.Timestamp completed_at = 16;
   string trace_id = 17;
 }
+
+// WF-EXT-010: the lossless stored authoring form of one workflow.Definition.
+//
+// The runtime-facing messages above (WorkflowDefinition, NodeDefinition)
+// carry string references by design: they name artifacts, they do not embed
+// them. The Authored* messages below do the opposite: every field of the Go
+// definition struct is embedded verbatim, so editors, agents and tenants
+// author one canonical artifact rather than Go literals.
+//
+// Vocabulary notes:
+//   - Every Go string-typed field (StepType, ExecutionMode, Kind, ...) is a
+//     proto string, not an enum. Enums would need a bidirectional mapping
+//     table that can drift from the Go vocabulary; strings round-trip
+//     future values losslessly and the compiler (not the wire) validates
+//     them.
+//   - int64 carries Go int fields (precedence, quorum, offset days): exactly
+//     lossless on every platform Go supports.
+//   - Message presence distinguishes an absent spec pointer from a
+//     present-but-empty one; empty repeated/map fields normalize to nil on
+//     the way back into Go (see internal/workflow/authored_proto.go).
+//   - AuthoredWorkflowDefinition.layout and .canvas are editor canvas state.
+//     They are stored with the artifact but never mapped into the Go
+//     definition, so they can never reach the compiled plan or its digest.
+
+// AuthoredSchemaRef mirrors workflow.SchemaRef.
+message AuthoredSchemaRef {
+  string schema_id = 1;
+  uint32 version = 2;
+  string protobuf_full_name = 3;
+}
+
+// AuthoredVersionedRef mirrors workflow.VersionedRef.
+message AuthoredVersionedRef {
+  string id = 1;
+  string version = 2;
+}
+
+// AuthoredValueType mirrors workflow.ValueType, recursively.
+message AuthoredValueType {
+  string kind = 1;
+  bool nullable = 2;
+  string brand = 3;
+  string classification = 4;
+  string enum_ref = 5;
+  string message_ref = 6;
+  string reference_target = 7;
+  AuthoredValueType element = 8;
+}
+
+// AuthoredField mirrors workflow.Field.
+message AuthoredField {
+  string path = 1;
+  AuthoredValueType type = 2;
+  string max_classification = 3;
+  string label = 4;
+  string description = 5;
+  string group = 6;
+}
+
+// AuthoredSource mirrors workflow.Source.
+message AuthoredSource {
+  string kind = 1;
+  string node_id = 2;
+  string context_kind = 3;
+  string variable_name = 4;
+  string path = 5;
+  AuthoredValueType type = 6;
+  string constant = 7;
+  string parameter_key = 8;
+  string parameter_mode = 9;
+  uint64 max_age_seconds = 10;
+}
+
+// AuthoredMapping mirrors workflow.Mapping.
+message AuthoredMapping {
+  string target = 1;
+  AuthoredSource source = 2;
+  string declassification_ref = 3;
+}
+
+// AuthoredContextRequirement mirrors workflow.ContextRequirement.
+message AuthoredContextRequirement {
+  string kind = 1;
+  repeated string field_paths = 2;
+  string purpose = 3;
+  string maximum_classification = 4;
+  uint64 max_age_seconds = 5;
+  repeated string required_watermarks = 6;
+  bool pinned = 7;
+  string missing_behavior = 8;
+}
+
+// AuthoredCapabilityRef mirrors workflow.CapabilityRef.
+message AuthoredCapabilityRef {
+  string id = 1;
+  uint32 version = 2;
+  string operation_mode = 3;
+  repeated string authority_scopes = 4;
+  string idempotency_key_mapping = 5;
+  string effect_binding = 6;
+  repeated string expected_versions = 7;
+}
+
+// AuthoredDecisionRoute mirrors workflow.DecisionRoute.
+message AuthoredDecisionRoute {
+  string key = 1;
+  string predicate = 2;
+  int64 precedence = 3;
+}
+
+// AuthoredDecisionSpec mirrors workflow.DecisionSpec.
+message AuthoredDecisionSpec {
+  string evaluator_ref = 1;
+  uint32 evaluator_version = 2;
+  string rule_ref = 3;
+  string rule_version = 4;
+  string input_digest_profile = 5;
+  repeated AuthoredDecisionRoute routes = 6;
+  string default_route = 7;
+}
+
+// AuthoredTaintInput mirrors workflow.TaintInput.
+message AuthoredTaintInput {
+  string source = 1;
+  string level = 2;
+}
+
+// AuthoredTransformLookup mirrors workflow.TransformLookup.
+message AuthoredTransformLookup {
+  string ref = 1;
+  string snapshot_digest = 2;
+}
+
+// AuthoredTransformLimits mirrors workflow.TransformLimits.
+message AuthoredTransformLimits {
+  uint64 max_input_bytes = 1;
+  uint64 max_output_bytes = 2;
+  uint64 max_steps = 3;
+}
+
+// AuthoredTransformSpec mirrors workflow.TransformSpec.
+message AuthoredTransformSpec {
+  string transform_ref = 1;
+  uint32 version = 2;
+  AuthoredVersionedRef program_ref = 3;
+  string inline_code = 4;
+  bool uses_clock = 5;
+  bool uses_random = 6;
+  bool uses_network = 7;
+  repeated AuthoredTransformLookup lookups = 8;
+  string normalization_profile = 9;
+  repeated AuthoredTaintInput input_taint = 10;
+  string output_taint = 11;
+  string sanitizer_receipt_ref = 12;
+  AuthoredTransformLimits limits = 13;
+}
+
+// AuthoredObserveSpec mirrors workflow.ObserveSpec.
+message AuthoredObserveSpec {
+  string evidence_kind = 1;
+  string source_authority = 2;
+  repeated string expected_state_fields = 3;
+  repeated string required_watermarks = 4;
+  uint64 max_age_seconds = 5;
+  string comparison_profile = 6;
+  string retry_exhaustion_route = 7;
+}
+
+// AuthoredTimeExprSpec mirrors workflow.TimeExprSpec.
+message AuthoredTimeExprSpec {
+  string anchor_path = 1;
+  string offset_kind = 2;
+  int64 offset_days = 3;
+  int64 offset_seconds = 4;
+  string calendar_ref = 5;
+  string calendar_version = 6;
+  string zone_id = 7;
+  string zone_tzdb_version = 8;
+  string local_time = 9;
+  string disambiguation = 10;
+  string statute_rule_pack = 11;
+  string statute_release = 12;
+  string statute = 13;
+}
+
+// AuthoredDeadlineDefaultSpec mirrors workflow.DeadlineDefaultSpec.
+message AuthoredDeadlineDefaultSpec {
+  string schema = 1;
+  string canonical_json = 2;
+}
+
+// AuthoredWaitSpec mirrors workflow.WaitSpec.
+message AuthoredWaitSpec {
+  string wake_kind = 1;
+  string wake_instant = 2;
+  string wake_local_date = 3;
+  string wake_local_time = 4;
+  string disambiguation = 5;
+  string zone_id = 6;
+  string zone_tzdb_version = 7;
+  string calendar_ref = 8;
+  string calendar_version = 9;
+  string reference_update_policy = 10;
+  AuthoredTimeExprSpec time_expr = 11;
+}
+
+// AuthoredSignalSpec mirrors workflow.SignalSpec.
+message AuthoredSignalSpec {
+  string event_type = 1;
+  string correlation_key_expression = 2;
+  AuthoredSchemaRef expected_schema_ref = 3;
+  repeated string accepted_sources = 4;
+  string ordering = 5;
+  uint64 close_after_seconds = 6;
+  AuthoredTimeExprSpec close_time_expr = 7;
+  AuthoredDeadlineDefaultSpec timeout_default = 8;
+}
+
+// AuthoredEndSpec mirrors workflow.EndSpec.
+message AuthoredEndSpec {
+  string terminal_code = 1;
+  string runtime_status = 2;
+  map<string, string> completion_mapping = 3;
+  repeated string outstanding_obligation_refs = 4;
+  repeated string repair_refs = 5;
+  repeated string incident_refs = 6;
+  string commit_receipt_ref = 7;
+  bool approval_required = 8;
+  string approved_material_digest = 9;
+  bool closure_policy_permits_open_repair = 10;
+}
+
+// AuthoredNodeGovernance mirrors workflow.NodeGovernance.
+message AuthoredNodeGovernance {
+  string purpose = 1;
+  string classification = 2;
+  repeated string required_decisions = 3;
+  repeated string obligation_refs = 4;
+  repeated string approval_requirements = 5;
+  string revalidation_boundary = 6;
+  string data_access_manifest_ref = 7;
+  string output_validator_ref = 8;
+}
+
+// AuthoredRetryPolicy mirrors workflow.RetryPolicy.
+message AuthoredRetryPolicy {
+  uint32 max_attempts = 1;
+  string backoff_ref = 2;
+}
+
+// AuthoredModeOverlay mirrors workflow.ModeOverlay.
+message AuthoredModeOverlay {
+  string simulate_effect = 1;
+}
+
+// AuthoredApprovalRequirement mirrors workflow.ApprovalRequirement.
+message AuthoredApprovalRequirement {
+  string id = 1;
+  string resolver_expression = 2;
+  string scope = 3;
+  int64 quorum = 4;
+  bool separation_of_duties = 5;
+  string effective_as_of_policy = 6;
+}
+
+// AuthoredObligationRequirement mirrors workflow.ObligationRequirement.
+message AuthoredObligationRequirement {
+  string id = 1;
+  string authority = 2;
+  string insertion_point = 3;
+  string required_action = 4;
+  string responsible_party = 5;
+  string satisfaction_condition = 6;
+  string source_version = 7;
+  string reevaluation_policy = 8;
+  bool mandatory = 9;
+}
+
+// AuthoredCycleDeclaration mirrors workflow.CycleDeclaration.
+message AuthoredCycleDeclaration {
+  string entry_node_id = 1;
+  string guard_node_id = 2;
+  uint32 max_iterations = 3;
+}
+
+// AuthoredLimits mirrors workflow.Limits.
+message AuthoredLimits {
+  uint32 max_fan_out = 1;
+  uint32 max_depth = 2;
+  uint32 max_nodes = 3;
+  repeated AuthoredCycleDeclaration declared_cycles = 4;
+}
+
+// AuthoredEdge mirrors workflow.Edge.
+message AuthoredEdge {
+  string from = 1;
+  string to = 2;
+  string route_key = 3;
+}
+
+// AuthoredCatalogMetadata mirrors workflow.CatalogMetadata.
+message AuthoredCatalogMetadata {
+  string display_name = 1;
+  string category = 2;
+  string description = 3;
+  repeated string keywords = 4;
+  string icon = 5;
+  bool hidden = 6;
+}
+
+// AuthoredNodeDefinition mirrors workflow.Node field for field.
+message AuthoredNodeDefinition {
+  string id = 1;
+  string type = 2;
+  AuthoredSchemaRef input_schema = 3;
+  AuthoredSchemaRef output_schema = 4;
+  repeated AuthoredField inputs = 5;
+  repeated AuthoredField outputs = 6;
+  repeated AuthoredMapping input_mappings = 7;
+  repeated AuthoredContextRequirement required_context = 8;
+  AuthoredCapabilityRef capability = 9;
+  AuthoredDecisionSpec decision = 10;
+  AuthoredTransformSpec transform = 11;
+  AuthoredObserveSpec observe = 12;
+  AuthoredEndSpec end = 13;
+  AuthoredWaitSpec wait = 14;
+  AuthoredSignalSpec signal = 15;
+  string declared_effect = 16;
+  string effect_role = 17;
+  AuthoredVersionedRef resolver_ref = 18;
+  AuthoredVersionedRef timeout_policy = 19;
+  AuthoredVersionedRef compensation_ref = 20;
+  map<string, string> outcome_aliases = 21;
+  AuthoredModeOverlay mode_overlay = 22;
+  AuthoredRetryPolicy retry = 23;
+  string failure_route = 24;
+  bool safe_point_requested = 25;
+  AuthoredNodeGovernance governance = 26;
+  map<string, string> metadata = 27;
+}
+
+// AuthoredNodeLayout is editor canvas state for one node: position on the
+// canvas and presentation flags. It is stored with the artifact and never
+// mapped into the Go definition, so canvas edits can never change the
+// compiled plan or its digest.
+message AuthoredNodeLayout {
+  double x = 1;
+  double y = 2;
+  bool collapsed = 3;
+}
+
+// AuthoredCanvasLayout is editor canvas state for the whole graph.
+message AuthoredCanvasLayout {
+  double zoom = 1;
+  double center_x = 2;
+  double center_y = 3;
+}
+
+// AuthoredWorkflowDefinition is the lossless stored authoring form of one
+// workflow.Definition: every definition field is embedded verbatim.
+message AuthoredWorkflowDefinition {
+  string workflow_id = 1;
+  uint32 version = 2;
+  string name = 3;
+  AuthoredCatalogMetadata catalog = 4;
+  string intent_type = 5;
+  map<string, string> match_predicate = 6;
+  AuthoredSchemaRef input_schema = 7;
+  AuthoredSchemaRef output_schema = 8;
+  AuthoredSchemaRef variables_schema = 9;
+  repeated AuthoredField inputs = 10;
+  repeated AuthoredField outputs = 11;
+  string tenant_scope = 12;
+  string organization_scope = 13;
+  string risk_class = 14;
+  repeated string declared_modes = 15;
+  string terminal_profile = 16;
+  string start_node_id = 17;
+  repeated AuthoredNodeDefinition nodes = 18;
+  repeated AuthoredEdge edges = 19;
+  repeated AuthoredApprovalRequirement approval_requirements = 20;
+  repeated AuthoredObligationRequirement obligations = 21;
+  AuthoredLimits limits = 22;
+  string failure_policy_ref = 23;
+  string cancellation_policy_ref = 24;
+  string migration_policy_ref = 25;
+  string retention_policy_ref = 26;
+  map<string, AuthoredNodeLayout> layout = 27;
+  AuthoredCanvasLayout canvas = 28;
+}

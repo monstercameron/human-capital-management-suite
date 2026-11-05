@@ -28,8 +28,8 @@ func devVersionServeConfig(url string, devBrowserLogin bool, tenant string) Serv
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:dev-workflow-versions",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
-		WorkflowPlan:            WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:        DefaultTimerTzdbVersion,
+		TimerCalendarVersion:    DefaultTimerCalendarVersion,
 	}
 }
 

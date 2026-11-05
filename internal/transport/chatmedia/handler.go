@@ -248,10 +248,21 @@ func (h Handler) upload(w http.ResponseWriter, r *http.Request) {
 	h.writeRef(w, r, ref, tenant, conv, principal)
 }
 
+// errFieldTooLarge reports a non-file multipart field past its bound. The
+// caller refuses the upload: silently keeping the first MaxUploadFieldBytes
+// would store an accessibility text nobody wrote.
+var errFieldTooLarge = errors.New("chatmedia: multipart field exceeds its bound")
+
 // readField reads one bounded non-file multipart field.
 func readField(part *multipart.Part) (string, error) {
-	b, err := io.ReadAll(io.LimitReader(part, MaxUploadFieldBytes))
-	return string(b), err
+	b, err := io.ReadAll(io.LimitReader(part, MaxUploadFieldBytes+1))
+	if err != nil {
+		return "", err
+	}
+	if len(b) > MaxUploadFieldBytes {
+		return "", errFieldTooLarge
+	}
+	return string(b), nil
 }
 
 // writeRef encodes an artifact reference plus a freshly minted grant.

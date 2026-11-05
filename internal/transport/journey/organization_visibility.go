@@ -11,11 +11,20 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 )
 
-func (s *server) visibleWorkforce(ctx context.Context, principal *trust.Principal, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
+// isAdministratorRoleSet reports whether the resolved set holds an HCM
+// administration role. It reads the resolved set, never the credential.
+func isAdministratorRoleSet(roles []string) bool {
+	return roleaccess.HasAdministratorRole(roles)
+}
+
+// visibleWorkforce filters the governed listing over the caller's
+// already-resolved server-side role set, which the handler authorized the
+// call from, so the listing resolves it once per RPC instead of again per
+// helper.
+func (s *server) visibleWorkforce(ctx context.Context, principal *trust.Principal, roles []string, workers []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	// The administrator shortcut reads the server-side role set: a revoked
 	// administrator whose durable assignment no longer holds the role lists
 	// through policy like anyone else.
-	roles := s.effectiveRoles(ctx, principal)
 	if isAdministratorRoleSet(roles) {
 		return projectAuthorizedManagers(workers, workers), options, nil
 	}
@@ -41,8 +50,8 @@ const maxReportingDepth = 16
 // listing does not hold, and a reference naming no listed worker ends it.
 // withManagedReports adds, for a principal whose server-side role set holds
 // the manager role, every worker whose reporting line reaches that
-// principal. roles is the already-resolved set from [server.effectiveRoles],
-// never the credential.
+// principal. roles is the already-resolved server-side set, never the
+// credential.
 func withManagedReports(principal *trust.Principal, roles []string, all, visible []workspace.WorkerSummary, options workspace.WorkforceOptions) ([]workspace.WorkerSummary, workspace.WorkforceOptions, error) {
 	subject := strings.ToLower(strings.TrimSpace(principal.Subject()))
 	if !roleaccess.ContainsRole(roles, "manager") || subject == "" {

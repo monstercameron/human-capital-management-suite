@@ -152,6 +152,18 @@
     "The pin query selected a parallel nested-loop plan at volume despite LIMIT 200. The equivalent correlated visibility lookup avoids that startup cost; both forms are measured in chatscale_pins_report_large.json.",
     "Pool queuing dominates 1000 simultaneous send latencies even when individual send latency meets budget; the contention figures are evidence for the coordinated sequence/fence work."
   ],
+  "series_2026_10_22": {
+    "scope": "Fresh three-volume percentile series on one Windows arm64 dev machine (embedded PostgreSQL): 50,000, 1,000,000 and 2,000,000 posts, one tenant, 200 conversations, 2000 members, same skewed generator. Checked in as internal/data/chatstore/chatscale_series.json; per-volume reports under .artifacts/tmp/chatscale-series/report-{50k,1m,2m}.json (disposable). Harness change: -chatscale.posts=N overrides chatscaleSize (chatscale_fixture_test.go), so any multiple-of-1000 volume can be measured; defaults unchanged.",
+    "runs": [
+      "go test -count=1 ./internal/data/chatstore/ -run '^(TestTodo_CHATSCALE_001_Performance)$' -args '-chatscale.report=<abs>/report-50k.json' --- PASS (41.68s)",
+      "go test -count=1 ./internal/data/chatstore/ -run '^(TestTodo_CHATSCALE_001_Performance)$' -args '-chatscale.posts=1000000' '-chatscale.report=<abs>/report-1m.json' --- PASS (465.12s)",
+      "go test -count=1 ./internal/data/chatstore/ -run '^(TestTodo_CHATSCALE_001_Performance)$' -args '-chatscale.large' '-chatscale.report=<abs>/report-2m.json' --- PASS (763.66s)"
+    ],
+    "budgets_p95_ms": "50K: open 1.8, page-back 1.5, send 4.5, sidebar-300 13.4. 1M: 1.6, 1.1, 3.9, 7.9. 2M: 1.8, 1.7, 5.3, 11.5. All inside the 50/50/30/80 limits at every measured volume.",
+    "reading": "Served (after-phase) reads grow at most 2.2x from 50K to 2M posts (pins 0.66 to 1.44 ms p95); history first/deep page stay near 0.15 ms. Relation totals 0.20 GB at 50K, 3.87 GB at 1M, ~7.9 GB at 2M.",
+    "still_open": "1/10/100/500M series: 500M projects to ~2 TB against ~46 GB free and ~38 h seed extrapolations, 100M (~400 GB) also exceeds disk; 200 tenants / 100,000 channels unmeasured. Wall-clock budgets flake on a shared box (send p95 99 ms then 9.3/4.5 ms across identical 50K repeats). Review chat DB hcm_next_chat is at goose version 51 of 51 with all 00034-00038/00046 objects present but holds 0 posts, so no live 500M migration run exists. No operations-view surface exists anywhere in the repo for CHATSCALE-003's slow-query/table-growth figures.",
+    "also_verified_2026_10_22": "Full chatstore package: ok 619s, coverage 76.3%. All TestTodo_CHATSCALE_001/002/003 non-volume suites plus Contention, Indexes, 002_Performance, 003_Performance, 002_Performance_Pins pass (see lane report)."
+  },
   "verification": {
     "commands": [
       "go test -count=1 -timeout 60m \u0027-coverprofile=.artifacts/coverage/chatscale.out\u0027 -v ./internal/data/chatstore/ -skip \u0027TestTodo_CHATSCALE_(001_Performance|002_Performance|003_Performance)\u0027",

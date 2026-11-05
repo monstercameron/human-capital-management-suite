@@ -93,6 +93,17 @@ func newOpenAIAgentModelGatewayWithAdapter(cfg OpenAIAgentModelGatewayConfig, bu
 		if err != nil {
 			return nil, fmt.Errorf("application: OpenAI typed generation: %w", err)
 		}
+		// AGENTCOST-001: every composed adapter records one ledger line per
+		// call into the calling run's ledger; usage the priced result does
+		// not carry is estimated from the same schedule that priced the call.
+		pricing, version := cfg.Pricing, cfg.Pricing.Version
+		adapter = agentmodel.NewRecordingAdapter(adapter, nil, func(_ agentmodel.ModelIdentity, usage agentmodel.ModelUsage) (int64, bool) {
+			cost, err := pricing.Cost(selection, usage)
+			if err != nil {
+				return 0, false
+			}
+			return cost, false
+		}).WithScheduleVersion(version)
 		adapters[selection] = adapter
 	}
 	dispatcher, err := agentegress.NewProviderDispatcher(cfg.Egress, cfg.Leases, cfg.Sources, cfg.Terms)

@@ -28,14 +28,17 @@ import (
 
 const walkScriptPath = ".artifacts/lanes/agent-ui/chat-inspect.mjs"
 
-// walkScript reads the walk from the repository, or skips the test when the
-// checkout has no .artifacts directory (it is not tracked).
+// walkScript reads the walk from the repository: the live copy under
+// .artifacts when it exists, else the checked-in copy under testdata.
+// .artifacts is not tracked, so the vendored copy (CHATBUG-036) is what keeps
+// the walk pinned to the page; the test skips only when both are absent.
 func walkScript(t *testing.T) string {
 	t.Helper()
-	dir, err := os.Getwd()
+	start, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
+	dir := start
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			break
@@ -47,6 +50,9 @@ func walkScript(t *testing.T) string {
 		dir = parent
 	}
 	raw, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(walkScriptPath)))
+	if err != nil {
+		raw, err = os.ReadFile(filepath.Join(start, "testdata", "chat-inspect.mjs"))
+	}
 	if err != nil {
 		t.Skipf("the walk script is not in this checkout: %v", err)
 	}

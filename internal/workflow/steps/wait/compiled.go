@@ -76,6 +76,16 @@ func FromCompiled(node *workflow.CompiledNode) (CompiledWaitNode, error) {
 		}
 		out.Disambiguation = disamb
 
+	case workflow.WaitWakeAtTimeExpr:
+		if w.TimeExpr == nil {
+			return CompiledWaitNode{}, fmt.Errorf("wait: FromCompiled: node %q: AT_TIME_EXPR carries no time expression", node.ID)
+		}
+		expr, err := translateTimeExpr(w.TimeExpr, out.Zone, out.Calendar)
+		if err != nil {
+			return CompiledWaitNode{}, fmt.Errorf("wait: FromCompiled: node %q: %w", node.ID, err)
+		}
+		out.WakeTimeExpr = expr
+
 	default:
 		return CompiledWaitNode{}, fmt.Errorf("wait: FromCompiled: node %q: wake_kind %q is not declared", node.ID, w.WakeKind)
 	}
@@ -89,4 +99,46 @@ func FromCompiled(node *workflow.CompiledNode) (CompiledWaitNode, error) {
 	}
 
 	return out, nil
+}
+
+// translateTimeExpr builds this package”s typed time expression from its
+// wire form. Zone and calendar are the node-level halves a WAIT wake
+// inherits; the spec”s own halves stay empty by validation and are ignored
+// here. Shape validation stays downstream in CompiledWaitNode.Validate;
+// only wire parsing failures surface here.
+func translateTimeExpr(spec *workflow.TimeExprSpec, zone values.ZoneRef, cal values.CalendarRef) (values.TimeExpr, error) {
+	kind, err := values.ParseTimeExprOffsetKind(spec.OffsetKind)
+	if err != nil {
+		return values.TimeExpr{}, fmt.Errorf("time_expr: %w", err)
+	}
+	expr := values.TimeExpr{
+		AnchorPath:    spec.AnchorPath,
+		OffsetKind:    kind,
+		OffsetDays:    spec.OffsetDays,
+		OffsetSeconds: spec.OffsetSeconds,
+		Calendar:      cal,
+		Zone:          zone,
+	}
+	if spec.LocalTime != "" {
+		lt, err := values.ParseLocalTime(spec.LocalTime)
+		if err != nil {
+			return values.TimeExpr{}, fmt.Errorf("time_expr: local_time: %w", err)
+		}
+		expr.WakeLocalTime = lt
+	}
+	if spec.Disambiguation != "" {
+		disamb, err := values.ParseDisambiguation(spec.Disambiguation)
+		if err != nil {
+			return values.TimeExpr{}, fmt.Errorf("time_expr: disambiguation: %w", err)
+		}
+		expr.Disambiguation = disamb
+	}
+	if spec.StatuteRulePack != "" || spec.Statute != "" {
+		expr.Statute = &values.StatuteRef{
+			RulePack: spec.StatuteRulePack,
+			Release:  spec.StatuteRelease,
+			Statute:  spec.Statute,
+		}
+	}
+	return expr, nil
 }

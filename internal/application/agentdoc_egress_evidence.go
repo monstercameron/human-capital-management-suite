@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentegress"
@@ -44,7 +45,9 @@ func personaAuthoritativeDocumentFieldsFor(ctx context.Context, resolver agentdo
 		return nil, err
 	}
 	profile.Guidance = renderPersonaGuidanceDocumentTokens(profile, documents)
-	_, history, refs, err := (&DatabasePersonaRunModelWorkSource{threads: threads}).readThreadContext(ctx, admission, profile)
+	// The evidence rebuild carries no injected clock; envelope timestamps never
+	// leave the disclosure flow, so wall time is sufficient here.
+	_, history, refs, err := (&DatabasePersonaRunModelWorkSource{threads: threads, now: time.Now}).readThreadContext(ctx, admission, profile, route.ThreadClass)
 	if err != nil {
 		return nil, err
 	}

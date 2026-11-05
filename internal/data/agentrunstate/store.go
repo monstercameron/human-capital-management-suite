@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 )
@@ -76,7 +77,10 @@ func (s *TenantStore) Create(ctx context.Context, run runstate.Run) error {
 		if err != nil {
 			return fmt.Errorf("agentrunstate: create run: %w", err)
 		}
-		return insertCheckpoints(ctx, tx, s.tenantID, run.ID, run.Checkpoints)
+		if err := insertCheckpoints(ctx, tx, s.tenantID, run.ID, run.Checkpoints); err != nil {
+			return err
+		}
+		return insertModelCalls(ctx, tx, s.tenantID, run.ID, 0, run.Calls)
 	})
 }
 
@@ -114,7 +118,10 @@ func (s *TenantStore) Get(ctx context.Context, id string) (runstate.Run, error) 
 		if err := readCheckpoints(ctx, tx, s.tenantID, id, &run); err != nil {
 			return err
 		}
-		return readEffects(ctx, tx, s.tenantID, id, &run)
+		if err := readEffects(ctx, tx, s.tenantID, id, &run); err != nil {
+			return err
+		}
+		return readModelCalls(ctx, tx, s.tenantID, &run)
 	})
 	return run, err
 }
@@ -161,6 +168,18 @@ func (s *TenantStore) Save(ctx context.Context, run runstate.Run, expected uint6
 				return err
 			}
 		}
+		persisted.ID, persisted.TenantID, persisted.AgentID = run.ID, run.TenantID, run.AgentID
+		if err := readModelCalls(ctx, tx, s.tenantID, &persisted); err != nil {
+			return err
+		}
+		if len(run.Calls) < len(persisted.Calls) {
+			return fmt.Errorf("%w: call history truncated", ErrConflict)
+		}
+		for i, committed := range persisted.Calls {
+			if !sameModelCall(committed, run.Calls[i]) {
+				return fmt.Errorf("%w: committed call history changed", ErrConflict)
+			}
+		}
 		leaseOwner, leaseUntil := leaseValues(run.Lease)
 		n, err := tx.Exec(ctx, `UPDATE agent_run_execution SET state=$3,revision=$4,fence=$5,lease_owner=$6,lease_until=$7,
 			cancel_requested=$8,expire_requested=$9,failure_requested=$10,terminal_code=$11,updated_at=$12,retryable=$14,wait_kind=$15,wait_ref=$16,
@@ -174,6 +193,9 @@ func (s *TenantStore) Save(ctx context.Context, run runstate.Run, expected uint6
 			return ErrConflict
 		}
 		if err := insertCheckpoints(ctx, tx, s.tenantID, run.ID, run.Checkpoints[checkpointCount:]); err != nil {
+			return err
+		}
+		if err := insertModelCalls(ctx, tx, s.tenantID, run.ID, int64(len(persisted.Calls)), run.Calls[len(persisted.Calls):]); err != nil {
 			return err
 		}
 		return syncEffects(ctx, tx, s.tenantID, run.ID, run.Effects)
@@ -269,6 +291,57 @@ func readEffects(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, id string,
 		run.Effects = append(run.Effects, item)
 	}
 	return rows.Err()
+}
+
+func readModelCalls(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, run *runstate.Run) error {
+	rows, err := tx.Query(ctx, `SELECT sequence,trigger_kind,question_id,call_site,stage,kind,provider_id,model_id,model_version,
+		input_tokens,output_tokens,cached_input_tokens,cost_micros,cost_basis,latency_ms,started_at,prompt_digest,schedule_version
+		FROM agent_run_model_call WHERE tenant_id=$1 AND run_id=$2 ORDER BY sequence`, tenant, run.ID)
+	if err != nil {
+		return fmt.Errorf("agentrunstate: list model calls: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var line agentmodel.CallLine
+		var sequence int64
+		var stage, kind, basis string
+		if err := rows.Scan(&sequence, &line.TriggerKind, &line.QuestionID, &line.CallSite, &stage, &kind,
+			&line.ProviderID, &line.ModelID, &line.ModelVersion, &line.InputTokens, &line.OutputTokens, &line.CachedInputTokens,
+			&line.CostMicros, &basis, &line.LatencyMillis, &line.StartedAt, &line.PromptDigest, &line.ScheduleVersion); err != nil {
+			return err
+		}
+		line.TenantID, line.AgentID, line.RunID = run.TenantID, run.AgentID, run.ID
+		line.Stage, line.Kind, line.Basis = agentmodel.CallStage(stage), agentmodel.CallKind(kind), agentmodel.CostBasis(basis)
+		line.StartedAt = line.StartedAt.UTC()
+		run.Calls = append(run.Calls, line)
+	}
+	return rows.Err()
+}
+
+func insertModelCalls(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, runID string, committed int64, lines []agentmodel.CallLine) error {
+	for i, line := range lines {
+		_, err := tx.Exec(ctx, `INSERT INTO agent_run_model_call
+			(tenant_id,run_id,sequence,trigger_kind,question_id,call_site,stage,kind,provider_id,model_id,model_version,
+			input_tokens,output_tokens,cached_input_tokens,cost_micros,cost_basis,latency_ms,started_at,prompt_digest,schedule_version)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+			tenant, runID, committed+int64(i)+1, line.TriggerKind, line.QuestionID, line.CallSite,
+			string(line.Stage), string(line.Kind), line.ProviderID, line.ModelID, line.ModelVersion,
+			line.InputTokens, line.OutputTokens, line.CachedInputTokens, line.CostMicros, string(line.Basis),
+			line.LatencyMillis, line.StartedAt.UTC(), line.PromptDigest, line.ScheduleVersion)
+		if err != nil {
+			return fmt.Errorf("agentrunstate: append model call: %w", err)
+		}
+	}
+	return nil
+}
+
+func sameModelCall(committed, candidate agentmodel.CallLine) bool {
+	committed.StartedAt, candidate.StartedAt = committed.StartedAt.UTC(), candidate.StartedAt.UTC()
+	if !committed.StartedAt.Equal(candidate.StartedAt) {
+		return false
+	}
+	committed.StartedAt, candidate.StartedAt = time.Time{}, time.Time{}
+	return committed == candidate
 }
 
 func syncEffects(ctx context.Context, tx dbport.Tx, tenant uuid.UUID, id string, effects []runstate.Effect) error {

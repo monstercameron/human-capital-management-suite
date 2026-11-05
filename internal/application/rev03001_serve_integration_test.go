@@ -43,8 +43,8 @@ func TestTodo_REV_030_01_Integration(t *testing.T) {
 		Issuer: DefaultIssuer, Audience: DefaultAudience, Tenant: tenant, CellID: "cell-rev03001",
 		MaxDeadline: 30 * time.Second, Migrate: false, Workspace: false, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:rev03001-execution-authority",
-		ExecutionAuthorityRole: "promotion_operator", WorkflowPlan: WorkflowPlanPrototype,
-		TimerTzdbVersion: DefaultTimerTzdbVersion, TimerCalendarVersion: DefaultTimerCalendarVersion,
+		ExecutionAuthorityRole: "promotion_operator",
+		TimerTzdbVersion:       DefaultTimerTzdbVersion, TimerCalendarVersion: DefaultTimerCalendarVersion,
 		LegalEvidenceIssuerKeys: base64.StdEncoding.EncodeToString(ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize)).Public().(ed25519.PublicKey)),
 	}
 	composed, err := ComposeServe(context.Background(), ServeInput{Config: cfg, Pool: pool, Identity: "rev03001-served-integration"})

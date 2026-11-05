@@ -306,6 +306,78 @@ func TestTodo_REV_002_01_Golden(t *testing.T) {
 	}
 }
 
+// TestTodo_REV_002_02_ProofCLI is the REV-002-02 runtime-path primary: the
+// wedge CLI folds two real signed Gate A/B decision records through
+// DecideCommercialProof with SignatureValid fed by actual signature
+// verification. Two independently signed PROCEED records yield MARKET_PROOF;
+// one record, a replayed record or a tampered record never does.
+func TestTodo_REV_002_02_ProofCLI(t *testing.T) {
+	dir := t.TempDir()
+	keyA := testKeyFile(t)
+	keyB := testKeyFile(t)
+	recA := filepath.Join(dir, "gatea-decision.yaml")
+	recB := filepath.Join(dir, "gateb-decision.yaml")
+	if _, _, err := runWedge(t,
+		"-gate", "a", "-receipt", writeTemp(t, "ra.yaml", rev002GateAReceipt),
+		"-key", keyA, "-signer", "partner-acme", "-signed-at", "2026-09-19T12:00:00Z",
+		"-out", recA,
+	); err != nil {
+		t.Fatalf("gate A run failed: %v", err)
+	}
+	if _, _, err := runWedge(t,
+		"-gate", "b", "-receipt", writeTemp(t, "rb.yaml", rev002GateBReceipt),
+		"-key", keyB, "-signer", "partner-globex", "-signed-at", "2026-09-19T12:00:00Z",
+		"-now", "2026-09-19T12:00:00Z", "-out", recB,
+	); err != nil {
+		t.Fatalf("gate B run failed: %v", err)
+	}
+	const class = "promotion_compensation_cross_system_gap"
+
+	stdout, _, err := runWedge(t, "-proof", recA+","+recB, "-problem-class", class)
+	if err != nil {
+		t.Fatalf("two-partner proof run failed: %v\n%s", err, stdout)
+	}
+	if !strings.Contains(stdout, "verdict: MARKET_PROOF") {
+		t.Errorf("two-partner proof verdict missing MARKET_PROOF, stdout:\n%s", stdout)
+	}
+
+	stdout, _, err = runWedge(t, "-proof", recA, "-problem-class", class)
+	if err == nil {
+		t.Error("single-partner proof exited 0, want a non-market-proof failure")
+	}
+	if !strings.Contains(stdout, "verdict: SINGLE_CUSTOMER_ONLY") {
+		t.Errorf("single-partner proof verdict wrong, stdout:\n%s", stdout)
+	}
+
+	stdout, _, err = runWedge(t, "-proof", recA+","+recA, "-problem-class", class)
+	if err == nil {
+		t.Error("replayed-record proof exited 0, want a non-market-proof failure")
+	}
+	if !strings.Contains(stdout, "verdict: SINGLE_CUSTOMER_ONLY") {
+		t.Errorf("replayed record counted as a second customer, stdout:\n%s", stdout)
+	}
+
+	raw, err := os.ReadFile(recB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tamperedPath := filepath.Join(dir, "tampered.yaml")
+	if err := os.WriteFile(tamperedPath, []byte(tamperDigest(t, string(raw))), 0600); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, err = runWedge(t, "-proof", recA+","+tamperedPath, "-problem-class", class)
+	if err == nil {
+		t.Error("tampered-record proof exited 0, want a non-market-proof failure")
+	}
+	if strings.Contains(stdout, "verdict: MARKET_PROOF") {
+		t.Errorf("tampered record accepted toward market proof, stdout:\n%s", stdout)
+	}
+
+	if _, _, err := runWedge(t, "-proof", recA+","+recB); err == nil {
+		t.Error("proof run without -problem-class exited 0, want a usage failure")
+	}
+}
+
 // tamperDigest flips the first hex character of the evidence_digest line
 // so the persisted signature no longer matches the record digest.
 func tamperDigest(t *testing.T, record string) string {

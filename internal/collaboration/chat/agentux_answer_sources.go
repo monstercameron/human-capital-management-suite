@@ -86,9 +86,14 @@ func projectAgentSourcesWith(ctx context.Context, access AgentSourceAccess, read
 	return answer + prefix + strings.Join(lines, "\n")
 }
 
+// agentLegacyVersionSuffix strips the trailing " (version N...)" from a legacy
+// citation title. It is compiled once: the per-title citation pattern below it
+// cannot be, but this one can.
+var agentLegacyVersionSuffix = regexp.MustCompile(` \(version [0-9]+(?:,.*)?\)$`)
+
 func agentLegacyCitationSection(body, title string) string {
 	title = strings.TrimSpace(strings.SplitN(title, " · ", 2)[0])
-	title = regexp.MustCompile(` \(version [0-9]+(?:,.*)?\)$`).ReplaceAllString(title, "")
+	title = agentLegacyVersionSuffix.ReplaceAllString(title, "")
 	pattern := regexp.MustCompile(`\(` + regexp.QuoteMeta(title) + `, (?:version [0-9]+|v[0-9]+\.[0-9]+\.[0-9]+), ([^)]*)\)`)
 	if match := pattern.FindStringSubmatch(body); len(match) == 2 {
 		return strings.TrimSpace(strings.TrimSuffix(match[1], " section"))

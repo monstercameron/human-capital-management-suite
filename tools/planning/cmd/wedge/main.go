@@ -4,7 +4,9 @@
 // tools/planning/gateevidence, writes a signed
 // definitions/planning/gates/wedge-*.yaml decision record, and re-verifies
 // the record signature and digest on load. The -verify mode re-verifies a
-// previously written record without signing anything new.
+// previously written record without signing anything new. The -proof mode
+// folds signed decision records into a commercial-proof verdict (REV-002-02),
+// re-verifying every signature on the way in.
 package main
 
 import (
@@ -43,8 +45,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 	nowFlag := flags.String("now", "", "evaluation time RFC3339 for gate B (default signing time)")
 	out := flags.String("out", "", "output path for the signed decision record")
 	verifyPath := flags.String("verify", "", "verify a previously written decision record instead of deciding")
+	proofPaths := flags.String("proof", "", "comma-separated signed decision records to fold into a commercial-proof verdict (REV-002-02)")
+	problemClass := flags.String("problem-class", "", "qualified problem class shared by the -proof records")
 	if err := flags.Parse(args); err != nil {
 		return err
+	}
+	if *proofPaths != "" {
+		return commercialProof(*proofPaths, *problemClass, stdout)
 	}
 	if *gate != "a" && *gate != "b" {
 		return fmt.Errorf("-gate must be a or b")
@@ -271,6 +278,99 @@ func decideGateB(receiptPath, signer, stamp string, evalTime time.Time, priv ed2
 		fmt.Fprintln(stdout, partnerLine)
 	}
 	return nil
+}
+
+// commercialProof implements REV-002-02's runtime path: it loads signed Gate
+// A/B decision records, re-verifies each signature, and folds the verified
+// facts through wedge.DecideCommercialProof. SignatureValid always comes
+// from a live verification, never from the records' own claims. A verdict
+// other than MARKET_PROOF is a command failure so gates can invoke this
+// mode directly.
+func commercialProof(list, problemClass string, stdout io.Writer) error {
+	if strings.TrimSpace(problemClass) == "" {
+		return fmt.Errorf("-problem-class is required with -proof")
+	}
+	var paths []string
+	for _, p := range strings.Split(list, ",") {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			paths = append(paths, trimmed)
+		}
+	}
+	if len(paths) == 0 {
+		return fmt.Errorf("-proof names no decision records")
+	}
+	proofs := make([]wedge.PartnerProof, 0, len(paths))
+	for _, path := range paths {
+		proof, err := verifiedPartnerProof(path, problemClass)
+		if err != nil {
+			return err
+		}
+		proofs = append(proofs, proof)
+	}
+	verdict, reasons := wedge.DecideCommercialProof(proofs)
+	fmt.Fprint(stdout, wedge.RenderProofVerdict(verdict, reasons))
+	if verdict != wedge.ProofMarketProof {
+		return fmt.Errorf("commercial proof verdict: %s", verdict)
+	}
+	return nil
+}
+
+// verifiedPartnerProof loads one signed decision record and maps it to the
+// commercial-proof rule's input, verifying the signature on the way in. The
+// record's own gate field selects the matching verifier.
+func verifiedPartnerProof(path, problemClass string) (wedge.PartnerProof, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return wedge.PartnerProof{}, fmt.Errorf("reading decision record %s: %w", path, err)
+	}
+	var probe struct {
+		Gate string `json:"gate"`
+	}
+	if err := decodeYAML(raw, &probe); err != nil {
+		return wedge.PartnerProof{}, fmt.Errorf("decoding decision record %s: %w", path, err)
+	}
+	switch probe.Gate {
+	case "GATE_A":
+		var record gateevidence.GateADecisionRecord
+		if err := decodeYAML(raw, &record); err != nil {
+			return wedge.PartnerProof{}, fmt.Errorf("decoding gate A record %s: %w", path, err)
+		}
+		verified, err := gateevidence.VerifyGateADecision(record)
+		return wedge.PartnerProof{
+			ManifestDigest: record.Digest(),
+			KeyID:          proofKeyID(record.Signature, record.Signer),
+			Gate:           record.Gate,
+			Decision:       string(record.Decision),
+			ProblemClass:   problemClass,
+			SignatureValid: verified && err == nil,
+		}, nil
+	case "GATE_B":
+		var record gateevidence.GateBDecisionRecord
+		if err := decodeYAML(raw, &record); err != nil {
+			return wedge.PartnerProof{}, fmt.Errorf("decoding gate B record %s: %w", path, err)
+		}
+		verified, err := gateevidence.VerifyGateBDecision(record)
+		return wedge.PartnerProof{
+			ManifestDigest: record.Digest(),
+			KeyID:          proofKeyID(record.Signature, record.Signer),
+			Gate:           record.Gate,
+			Decision:       string(record.Decision),
+			ProblemClass:   problemClass,
+			SignatureValid: verified && err == nil,
+		}, nil
+	default:
+		return wedge.PartnerProof{}, fmt.Errorf("decision record %s names unknown gate %q", path, probe.Gate)
+	}
+}
+
+// proofKeyID identifies the signing partner by public key, falling back to
+// the recorded signer label only when the record carries no signature block
+// (in which case verification already failed and the proof is rejected).
+func proofKeyID(sig *gateevidence.Signature, signer string) string {
+	if sig != nil && sig.PublicKey != "" {
+		return sig.PublicKey
+	}
+	return signer
 }
 
 func verifyRecord(gate, path string, stdout, stderr io.Writer) error {

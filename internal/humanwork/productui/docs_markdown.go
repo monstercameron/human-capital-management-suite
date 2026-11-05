@@ -22,10 +22,31 @@ import (
 )
 
 // docsMarkdownParser reads the supported profile: CommonMark plus GFM tables,
-// strikethrough and task lists. It is built once; parsers are safe to reuse.
-var docsMarkdownParser = goldmark.New(goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList)).Parser()
+// strikethrough and task lists. It is built once, on first parse rather than
+// at package init: a cold load of any other page must not pay for the Docs
+// parser (UXBLIND-089). Parsers are safe to reuse, so one shared instance
+// still serves every render.
+var docsMarkdownParser parser.Parser = &lazyMarkdownParser{inner: newLazyValue(buildDocsMarkdownParser)}
 
-var _ parser.Parser = docsMarkdownParser
+// buildDocsMarkdownParser constructs the shared Markdown parser.
+func buildDocsMarkdownParser() parser.Parser {
+	return goldmark.New(goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList)).Parser()
+}
+
+// lazyMarkdownParser is a parser.Parser that builds its goldmark parser on
+// first use. It keeps the package-level parser's call sites unchanged while
+// moving construction off the cold-start path.
+type lazyMarkdownParser struct {
+	inner *lazyValue[parser.Parser]
+}
+
+func (p *lazyMarkdownParser) Parse(reader text.Reader, opts ...parser.ParseOption) ast.Node {
+	return p.inner.Get().Parse(reader, opts...)
+}
+
+func (p *lazyMarkdownParser) AddOptions(opts ...parser.Option) {
+	p.inner.Get().AddOptions(opts...)
+}
 
 // docsASTMarkdownNodes renders the supported Markdown profile as typed UI
 // nodes. Raw HTML and unsafe links never become active browser content.

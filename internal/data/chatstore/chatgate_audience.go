@@ -41,6 +41,10 @@ func writePostAudience(ctx context.Context, tx dbport.Tx, tenant, conversation, 
 	if !a.Restricted {
 		members = []string{}
 	}
+	// A restricted send whose gate resolved no members stores an empty
+	// audience (author-only) rather than NULL, which the NOT NULL column
+	// would reject and fail the whole send.
+	members = nonNil(members)
 	_, err := tx.Exec(ctx, `INSERT INTO chat_post_audience(tenant_id,conversation_id,post_id,author_id,segments,restricted,member_ids) VALUES($1,$2,$3,$4,$5,$6,$7)`, tenant, conversation, post, author, segments, a.Restricted, members)
 	return err
 }

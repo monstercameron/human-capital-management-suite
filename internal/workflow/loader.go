@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Load parses a workflow definition from its declarative document shape.
@@ -46,6 +49,31 @@ func Marshal(def Definition) ([]byte, error) {
 	b, err := json.MarshalIndent(def, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("workflow: marshal definition: %w", err)
+	}
+	return append(b, '\n'), nil
+}
+
+// LoadProtoJSON parses a workflow definition from the stored authoring form:
+// the protojson rendering of an AuthoredWorkflowDefinition (WF-EXT-010).
+// Like [Load] it is strict — an unknown field is an error, never a silent
+// omission — because protojson's default rejects unknown fields. Layout and
+// canvas state in the artifact do not enter the definition; see
+// [FromAuthoredProto].
+func LoadProtoJSON(data []byte) (Definition, error) {
+	var pb workflowv1.AuthoredWorkflowDefinition
+	if err := protojson.Unmarshal(data, &pb); err != nil {
+		return Definition{}, fmt.Errorf("workflow: load definition protojson: %w", err)
+	}
+	return FromAuthoredProto(&pb), nil
+}
+
+// MarshalProtoJSON renders a definition as its stored authoring form: the
+// protojson rendering of the AuthoredWorkflowDefinition mirror. It is the
+// artifact [LoadProtoJSON] accepts.
+func MarshalProtoJSON(def Definition) ([]byte, error) {
+	b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(ToAuthoredProto(def))
+	if err != nil {
+		return nil, fmt.Errorf("workflow: marshal definition protojson: %w", err)
 	}
 	return append(b, '\n'), nil
 }

@@ -77,8 +77,24 @@ func isAmbiguousLocalTime(err error) bool {
 // TimerReference.Validate rejects ReferenceUpdateUnspecified. A DST-ambiguous
 // or non-existent local wall-clock time under REJECT_GAP is different: it is
 // a legitimate business state, not a caller error, so it produces a minted
-// requirement with ReviewRequired set rather than an error.
+// requirement with ReviewRequired set rather than an error. A time-expression
+// wake is refused here for want of its anchor; use
+// ComputeTimerRequirementAtAnchor.
 func ComputeTimerRequirement(node CompiledWaitNode, dataset values.DatasetVersions) (TimerRequirement, error) {
+	return computeRequirement(node, dataset, values.Instant{}, node.resolver())
+}
+
+// ComputeTimerRequirementAtAnchor is ComputeTimerRequirement for a
+// time-expression wake: anchor is the evaluated AnchorPath instant for this
+// workflow instance and cals is the pinned calendar dataset. The anchor is
+// recorded in the requirement evidence so the fire-at instant stays
+// defensible per instance. For a fixed or wall-clock wake the anchor and
+// dataset are ignored and this is ComputeTimerRequirement.
+func ComputeTimerRequirementAtAnchor(node CompiledWaitNode, anchor values.Instant, cals values.CalendarDataset, dataset values.DatasetVersions) (TimerRequirement, error) {
+	return computeRequirement(node, dataset, anchor, node.resolverAtAnchor(anchor, cals))
+}
+
+func computeRequirement(node CompiledWaitNode, dataset values.DatasetVersions, anchor values.Instant, resolve values.TimerResolver) (TimerRequirement, error) {
 	if err := node.Validate(); err != nil {
 		return TimerRequirement{}, err
 	}
@@ -114,9 +130,21 @@ func ComputeTimerRequirement(node CompiledWaitNode, dataset values.DatasetVersio
 		evidence.Inputs["local_time"] = node.WakeLocalTime.String()
 		evidence.Inputs["disambiguation"] = node.Disambiguation.String()
 		evidence.Steps = append(evidence.Steps, "resolved the local date/time against the zone")
+	case WakeAtTimeExpr:
+		evidence.Inputs["anchor_path"] = node.WakeTimeExpr.AnchorPath
+		evidence.Inputs["offset_kind"] = string(node.WakeTimeExpr.OffsetKind)
+		evidence.Inputs["offset_days"] = fmt.Sprintf("%d", node.WakeTimeExpr.OffsetDays)
+		evidence.Inputs["offset_seconds"] = fmt.Sprintf("%d", node.WakeTimeExpr.OffsetSeconds)
+		if node.WakeTimeExpr.Statute != nil {
+			evidence.Inputs["statute"] = node.WakeTimeExpr.Statute.String()
+		}
+		if anchor.IsSet() {
+			evidence.Inputs["anchor"] = anchor.String()
+		}
+		evidence.Steps = append(evidence.Steps, "resolved the time expression against the instance anchor and pinned calendar")
 	}
 
-	fireAt, err := node.resolver()(dataset)
+	fireAt, err := resolve(dataset)
 	req := TimerRequirement{
 		WorkflowID:      node.WorkflowID,
 		WorkflowVersion: node.WorkflowVersion,

@@ -3,6 +3,7 @@ package productui
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -36,7 +37,9 @@ func TestSortedPeopleEveryColumnAndDirection(t *testing.T) {
 			if !slices.Equal(names, tc.want) {
 				t.Fatalf("names=%v want=%v", names, tc.want)
 			}
-			if !slices.Equal(people, original) {
+			// Person is not comparable (its equality function is cut from the
+			// browser module); a field-wise comparison asserts the same thing.
+			if !slices.EqualFunc(people, original, func(a, b Person) bool { return reflect.DeepEqual(a, b) }) {
 				t.Fatal("sorting mutated the service projection")
 			}
 		})

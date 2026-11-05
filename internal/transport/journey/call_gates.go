@@ -142,15 +142,7 @@ func gatesForServedCall(method string) ([]servedCallGate, bool) {
 // requireServedCall enforces the table's grants for method. It is how
 // handlers gate from the table instead of restating pairs per handler.
 func (s *server) requireServedCall(ctx context.Context, principal *trust.Principal, inv *transport.Invocation, method string) error {
-	gates, ok := gatesForServedCall(method)
-	if !ok {
-		return featureAccessDenied(principal, inv)
-	}
-	requests := make([]featureAccessRequest, 0, len(gates))
-	for _, gate := range gates {
-		requests = append(requests, featureAccessRequest{pageID: gate.pageID, featureID: gate.featureID, action: gate.action})
-	}
-	return s.requireAnyFeatureView(ctx, principal, inv, requests...)
+	return s.authorize(principal, inv.RequestID()).requireServedCall(ctx, method)
 }
 
 // requireSnapshotServedCall enforces the table's grants for method against
@@ -160,18 +152,19 @@ func (s *server) requireServedCall(ctx context.Context, principal *trust.Princip
 func (s *server) requireSnapshotServedCall(snapshot roleaccess.Snapshot, principal *trust.Principal, inv *transport.Invocation, method string) error {
 	gates, ok := gatesForServedCall(method)
 	if !ok {
-		return featureAccessDenied(principal, inv)
+		return featureAccessDenied(principal, inv.RequestID())
 	}
 	roles := roleaccess.AssignedRoles(snapshot, principal.Subject(), principal.Roles())
 	permissions := roleaccess.EffectivePagePermissions(snapshot, roles)
 	features := roleaccess.EffectiveFeaturePermissions(snapshot, roles)
+	registry := s.featureRegistry()
 	for _, gate := range gates {
-		if !registryFeatureDeclared(gate.pageID, gate.featureID) {
+		if !registry(gate.pageID, gate.featureID) {
 			continue
 		}
 		if roleaccess.CanFeatureAction(permissions, features, gate.pageID, gate.featureID, gate.action) {
 			return nil
 		}
 	}
-	return featureAccessDenied(principal, inv)
+	return featureAccessDenied(principal, inv.RequestID())
 }

@@ -53,14 +53,18 @@ type CustomObjectType struct {
 
 // CompiledSchema is the immutable SchemaFlux projection. Digest is stable
 // for semantically identical definitions regardless of field input order.
+// Descriptor is the generated protobuf full name under the tenant
+// namespace; the compiler emits it so a workflow schema reference can name
+// the type without a second schema format (WF-DATA-003).
 type CompiledSchema struct {
-	Name      string  `json:"name"`
-	Namespace string  `json:"namespace"`
-	Owner     string  `json:"owner"`
-	Version   uint32  `json:"version"`
-	Fields    []Field `json:"fields"`
-	Limits    Limits  `json:"limits"`
-	Digest    string  `json:"digest"`
+	Name       string  `json:"name"`
+	Namespace  string  `json:"namespace"`
+	Owner      string  `json:"owner"`
+	Version    uint32  `json:"version"`
+	Fields     []Field `json:"fields"`
+	Limits     Limits  `json:"limits"`
+	Digest     string  `json:"digest"`
+	Descriptor string  `json:"descriptor"`
 }
 
 var supportedTypes = map[string]struct{}{
@@ -140,7 +144,10 @@ func Compile(src CustomObjectType) (CompiledSchema, error) {
 	if err != nil {
 		return CompiledSchema{}, fmt.Errorf("marshal custom object: %w", err)
 	}
-	return CompiledSchema{src.Name, src.Namespace, src.Owner, src.Version, fields, Limits{MaxFields: max}, canonicalbytes.Digest(b)}, nil
+	// The name and namespace patterns admit only protobuf-legal
+	// identifiers, so the qualified descriptor is legal by construction.
+	// It is tenant-relative: the registry row binds it to its tenant.
+	return CompiledSchema{src.Name, src.Namespace, src.Owner, src.Version, fields, Limits{MaxFields: max}, canonicalbytes.Digest(b), src.Namespace + "." + src.Name}, nil
 }
 
 // CompileSchema is an explicit alias useful to callers that distinguish

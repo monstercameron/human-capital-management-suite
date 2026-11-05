@@ -1951,9 +1951,6 @@ func declareBaseStyles() {
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.FontSize(gwccss.Rem(0.75)),
 	)
-	declareGlobal(".topbar",
-		mediaRule(gwccss.MaxW(1190), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(210)), gwccss.MinMax(gwccss.TrackLen(gwccss.Px(180)), gwccss.Fr(1)), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")), gwccss.TrackLen(gwccss.RawLength("auto")))),
-	)
 	declareGlobal(".shell-grid",
 		mediaRule(gwccss.MaxW(1190), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(210)))),
 	)
@@ -2225,9 +2222,6 @@ func declareBaseStyles() {
 	declareGlobal(".home-grid,.side-stack,.insights-grid",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
 	)
-	declareGlobal(".people-columns",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.None),
-	)
 	declareGlobal(".people-row",
 		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1.2), gwccss.Fr(1))),
 	)
@@ -2251,9 +2245,6 @@ func declareBaseStyles() {
 	)
 	declareGlobal(".work-row",
 		mediaRule(gwccss.MaxW(420), gwccss.Raw("padding-inline", "14px")),
-	)
-	declareGlobal(".work-row>.avatar",
-		mediaRule(gwccss.MaxW(420), gwccss.Display.None),
 	)
 	declareGlobal(".row-end",
 		mediaRule(gwccss.MaxW(420), gwccss.MaxWidth(gwccss.Px(96))),

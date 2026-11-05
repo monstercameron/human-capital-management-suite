@@ -242,7 +242,7 @@ func JourneyStageGroup(stage string) string {
 }
 
 func journeyGlyph() ui.Node {
-	return html.Tag("svg", html.Props{Class: "chat-project-embed-glyph", Raw: map[string]any{"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": "M5 6h4v4H5zM15 14h4v4h-4zM7 10v3a2 2 0 0 0 2 2h6"}}))
+	return embedGlyph("M5 6h4v4H5zM15 14h4v4h-4zM7 10v3a2 2 0 0 0 2 2h6")
 }
 
 // journeyReferenceNavigate opens a shared journey in-app on a plain click.

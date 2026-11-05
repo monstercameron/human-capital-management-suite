@@ -165,6 +165,10 @@ type dataPlaneSource struct {
 	// "has not run" to a mapping, which is the conservative reading: no
 	// mapping may read an output a run cannot yet stand behind.
 	producedOutputs map[string][]runtime.TypedArtifactValue
+	// variables is the attempt-pinned variable view, present only when the
+	// resolved node reads a variable. The zero value serves every VARIABLE
+	// mapping as unresolved.
+	variables runtime.AttemptVariables
 }
 
 func (s dataPlaneSource) WorkflowInput(path string) (workflow.TypedValue, bool) {
@@ -202,12 +206,33 @@ func (s dataPlaneSource) Context(kind, path string) (workflow.TypedValue, bool) 
 	return workflow.TypedValue{}, false
 }
 
+// Variable reads the field's canonical JSON text from the variable revision
+// current when this attempt's inputs resolved.
+func (s dataPlaneSource) Variable(name, path string) (string, bool) {
+	return s.variables.Variable(name, path)
+}
+
+// nodeReadsVariables reports whether node's compiled mappings read any
+// workflow variable, so the driver loads the revision history only for
+// attempts that can observe it.
+func nodeReadsVariables(node workflow.CompiledNode) bool {
+	for _, m := range node.Mappings {
+		if m.SourceKind == workflow.SourceVariable {
+			return true
+		}
+	}
+	return false
+}
+
 // buildDataPlaneSource reads the durable rows one [workflow.ResolveMappings]
 // call needs, in one short read-only-by-convention transaction. hasInputs is
 // false, and every other field zero, for an instance that recorded neither a
 // workflow-input nor context document -- the caller skips resolution when
-// there is no durable document to resolve against.
-func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (dataPlaneSource, error) {
+// there is no durable document to resolve against. The variable revision
+// history loads only when needVariables says the resolved node reads one, and
+// pins at that read: the attempt's variable horizon is the head in force when
+// its inputs resolved.
+func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext, needVariables bool) (dataPlaneSource, error) {
 	tx, err := d.opts.DB.Begin(ctx)
 	if err != nil {
 		return dataPlaneSource{}, fmt.Errorf("workflow execute: begin data plane read: %w", err)
@@ -240,6 +265,15 @@ func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (data
 	if err != nil {
 		return dataPlaneSource{}, err
 	}
+
+	var variables runtime.AttemptVariables
+	if needVariables {
+		history, err := (runtime.Store{}).LoadVariableRevisions(ctx, tx, run.start.TenantID, run.instanceID)
+		if err != nil {
+			return dataPlaneSource{}, err
+		}
+		variables = history.PinAttempt()
+	}
 	produced := make(map[string][]runtime.TypedArtifactValue, len(outputs))
 	for _, o := range outputs {
 		ne, ok := latest[o.NodeID]
@@ -256,7 +290,7 @@ func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (data
 	for _, snapshot := range inputs.Contexts {
 		contexts[snapshot.Kind] = snapshot.Values
 	}
-	return dataPlaneSource{hasInputs: true, inputs: inputs, contexts: contexts, producedOutputs: produced}, nil
+	return dataPlaneSource{hasInputs: true, inputs: inputs, contexts: contexts, producedOutputs: produced, variables: variables}, nil
 }
 
 // resolveNodeInputs resolves node's compiled mappings against the instance's
@@ -265,7 +299,7 @@ func (d *Driver) buildDataPlaneSource(ctx context.Context, run runContext) (data
 // against and every StepRunner keeps building its own inputs, exactly as
 // before WF-EXT-004).
 func (d *Driver) resolveNodeInputs(ctx context.Context, run runContext, node workflow.CompiledNode) (map[string]workflow.TypedValue, error) {
-	src, err := d.buildDataPlaneSource(ctx, run)
+	src, err := d.buildDataPlaneSource(ctx, run, nodeReadsVariables(node))
 	if err != nil {
 		return nil, fmt.Errorf("workflow execute: load data plane for node %s: %w", node.ID, err)
 	}

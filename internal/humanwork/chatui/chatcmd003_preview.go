@@ -313,6 +313,16 @@ func chatcmd003Key(e ui.KeyboardEvent, m Model, local localStore, target string)
 	if e.GetKey() != "Escape" || composerIsComposing(e) {
 		return false
 	}
+	return chatcmd003CancelPreview(e, m, local, target)
+}
+
+// chatcmd003CancelPreview cancels target's open preview for this
+// conversation: the draft clears, the composer is left empty and focused,
+// and nothing else is touched. The preview slot's own key handler and the
+// composer's key handler both end here, so Escape advertises one behavior
+// wherever focus sits (UXBLIND-057). Only the active unposted draft for
+// target cancels; another composer's preview, or none, reports false.
+func chatcmd003CancelPreview(e ui.KeyboardEvent, m Model, local localStore, target string) bool {
 	state := chatcmd003Adopt(m, local, target)
 	if !state.Open || state.Target != target || state.Conversation != m.SelectedID {
 		return false
@@ -739,13 +749,16 @@ func chatcmd003PreviewView(m Model, state chatcmd003Preview) ui.Node {
 // chatcmd003PreviewFor is the preview's place in the composer named by target.
 // The place is in the page whether or not a preview is open: a child that
 // comes and goes moves the text field behind it in its parent's list, and the
-// field is then made again and loses its caret.
-func chatcmd003PreviewFor(m Model, state chatcmd003Preview, target string) ui.Node {
+// field is then made again and loses its caret. The slot carries the
+// composer's preview key handler so Escape from a focused preview control
+// cancels the same way Escape from the field does (UXBLIND-057); the handler
+// answers only to Escape, so ordinary control keys are untouched.
+func chatcmd003PreviewFor(m Model, state chatcmd003Preview, target string, onKey ui.Handler) ui.Node {
 	state = chatcmd003Effective(m, state, target)
 	if state.Target != target || !state.Open || state.Conversation != m.SelectedID {
 		return html.Div(html.Props{Class: "chatcmd003-slot"})
 	}
-	return html.Div(html.Props{Class: "chatcmd003-slot"}, chatcmd003PreviewView(m, state))
+	return html.Div(html.Props{Class: "chatcmd003-slot", OnKeyDown: onKey}, chatcmd003PreviewView(m, state))
 }
 
 // Chatcmd003RenderPreview exposes the same card preview to command producers.

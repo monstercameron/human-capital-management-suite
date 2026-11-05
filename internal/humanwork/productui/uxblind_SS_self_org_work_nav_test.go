@@ -118,8 +118,8 @@ func TestTodo_UXBLIND_103(t *testing.T) {
 	view := testView(PageOrganization)
 	view.OrganizationView = ""
 	view.People = []Person{
-		{ID: "chief", WorkerID: "chief-worker", Name: "Executive", Team: "Executive"},
-		{ID: "team", WorkerID: "team-worker", Name: "People Operations", Team: "People", ManagerID: "chief-worker"},
+		{ID: "chief", WorkerID: uxaudit004ID(301), Name: "Executive", Team: "Executive"},
+		{ID: "team", WorkerID: uxaudit004ID(302), Name: "People Operations", Team: "People", ManagerID: uxaudit004ID(301)},
 	}
 	doc, err := ui.RenderToString(organizationPage(view))
 	if err != nil {
@@ -132,6 +132,24 @@ func TestTodo_UXBLIND_103(t *testing.T) {
 	}
 	if strings.Contains(doc, `class="organization-search-summary"`) || strings.Contains(doc, `class="button primary"`) {
 		t.Fatalf("organization render retained redundant search controls or summary: %s", doc)
+	}
+	// Re-review secondary gap: Executive nests at the top with a report-count
+	// badge, and the summary facts row carries the scope counts.
+	treeAt := strings.Index(doc, `data-organization-view="tree"`)
+	if treeAt == -1 {
+		t.Fatalf("organization render has no tree region: %s", doc)
+	}
+	tree := doc[treeAt:]
+	executiveAt, reportAt := strings.Index(tree, "Executive"), strings.Index(tree, "People Operations")
+	if executiveAt == -1 || reportAt == -1 || executiveAt > reportAt {
+		t.Errorf("organization tree does not nest under Executive at the top: %s", tree)
+	}
+	if want := organizationCountLabel(view, "organization.reports_count", 1); !strings.Contains(doc, want) {
+		t.Errorf("organization tree missing the Executive report-count badge %q: %s", want, doc)
+	}
+	unitsFact := `<strong>2</strong><small>` + view.Locale.Text("organization.units") + `</small>`
+	if !strings.Contains(doc, unitsFact) {
+		t.Errorf("organization summary facts missing the 2-unit scope count %q: %s", unitsFact, doc)
 	}
 }
 

@@ -424,25 +424,32 @@ func personaMentionText(locale LocaleContext, key string) string {
 	if index := strings.IndexByte(language, '-'); index > 0 {
 		language = language[:index]
 	}
-	if copy, ok := personaMentionCopy[language]; ok {
+	if copy, ok := personaMentionCopy.Get()[language]; ok {
 		if value := strings.TrimSpace(copy[key]); value != "" {
 			return value
 		}
 	}
-	return personaMentionCopy["en"][key]
+	return personaMentionCopy.Get()["en"][key]
 }
 
-var personaMentionCopy = map[string]map[string]string{
-	"en": {
-		"menu": "Mention someone", "people": "People in this conversation", "agents": "Agents", "none": "No people or agents match this search.", "no_agents": "No agents are in this conversation yet. You can still ask on the Agents page.", "no_agent_matches": "No agents match this search.", "agents_page": "Agents page", "add_agent": "Add an agent to this conversation", "loading": "Loading agents…", "load_failed": "The agent list could not be loaded.", "retry": "Retry loading agents", "agent": "Agent", "identity_unavailable": "Agent identity unavailable", "acting_unavailable": "Acting for unavailable", "acting_for": "acting for", "view_profile": "View agent details", "profile": "Profile", "close_profile": "Close agent details", "purpose": "Purpose", "owner": "Owner", "version": "Version", "skills": "Skills", "data_reach": "Data this agent can reach", "acts_with_access": "Acts with your current access.", "cannot_do": "What it cannot do", "replies": "Replies go", "in_thread": "in this thread", "private_always": "privately because this conversation is always private", "private_audience": "privately because the audience floor will divert this answer", "unavailable": "Not provided", "none_listed": "No skills listed.",
-		"tier_t0": "Read only", "tier_t1": "Private draft", "tier_t2": "Communicate", "tier_t3": "Governed submission", "tier_t4": "External write",
-	},
-	"de": {
-		"menu": "Person erwähnen", "people": "Personen in dieser Unterhaltung", "agents": "Agenten", "none": "Keine passende Person oder kein passender Agent gefunden.", "no_agents": "In dieser Unterhaltung gibt es noch keine Agenten. Sie können trotzdem auf der Seite „Agenten“ fragen.", "no_agent_matches": "Keine Agenten passen zu dieser Suche.", "agents_page": "Seite „Agenten“", "add_agent": "Agent zu dieser Unterhaltung hinzufügen", "loading": "Agenten werden geladen…", "load_failed": "Die Agentenliste konnte nicht geladen werden.", "retry": "Agenten erneut laden", "agent": "Agent", "identity_unavailable": "Agentenidentität nicht verfügbar", "acting_unavailable": "Handelt für eine nicht verfügbare Person", "acting_for": "handelt für", "view_profile": "Agentendetails anzeigen", "profile": "Profil", "close_profile": "Agentendetails schließen", "purpose": "Zweck", "owner": "Besitzer", "version": "Version", "skills": "Fähigkeiten", "data_reach": "Daten, auf die dieser Agent zugreifen kann", "acts_with_access": "Handelt mit Ihrem aktuellen Zugriff.", "cannot_do": "Was er nicht kann", "replies": "Antworten gehen", "in_thread": "in diesen Thread", "private_always": "privat, weil diese Unterhaltung immer privat ist", "private_audience": "privat, weil die Zielgruppe diese Antwort nicht vollständig sehen darf", "unavailable": "Nicht angegeben", "none_listed": "Keine Fähigkeiten aufgeführt.",
-		"tier_t0": "Nur lesen", "tier_t1": "Privater Entwurf", "tier_t2": "Kommunizieren", "tier_t3": "Gesteuerte Einreichung", "tier_t4": "Externer Schreibzugriff",
-	},
-	"ar": {
-		"menu": "الإشارة إلى شخص", "people": "الأشخاص في هذه المحادثة", "agents": "الوكلاء", "none": "لا يوجد شخص أو وكيل يطابق هذا البحث.", "no_agents": "لا يوجد وكلاء في هذه المحادثة حتى الآن. لا يزال بإمكانك طرح سؤالك في صفحة الوكلاء.", "no_agent_matches": "لا يوجد وكلاء يطابقون هذا البحث.", "agents_page": "صفحة الوكلاء", "add_agent": "إضافة وكيل إلى هذه المحادثة", "loading": "جارٍ تحميل الوكلاء…", "load_failed": "تعذر تحميل قائمة الوكلاء.", "retry": "إعادة محاولة تحميل الوكلاء", "agent": "وكيل", "identity_unavailable": "هوية الوكيل غير متاحة", "acting_unavailable": "ينوب عن شخص غير متاح", "acting_for": "ينوب عن", "view_profile": "عرض تفاصيل الوكيل", "profile": "التفاصيل", "close_profile": "إغلاق تفاصيل الوكيل", "purpose": "الغرض", "owner": "المالك", "version": "الإصدار", "skills": "المهارات", "data_reach": "فئات البيانات التي يمكن لهذا الوكيل الوصول إليها", "acts_with_access": "يعمل الوكيل بصلاحياتك الحالية.", "cannot_do": "ما لا يستطيع فعله", "replies": "تذهب الردود", "in_thread": "إلى سلسلة المحادثة الحالية", "private_always": "بشكل خاص لأن هذه المحادثة خاصة دائماً", "private_audience": "بشكل خاص لأن نطاق الجمهور سيحوّل هذه الإجابة", "unavailable": "غير متوفر", "none_listed": "لا توجد مهارات مدرجة.",
-		"tier_t0": "قراءة فقط", "tier_t1": "مسودة خاصة", "tier_t2": "تواصل", "tier_t3": "إرسال خاضع للحوكمة", "tier_t4": "كتابة خارجية",
-	},
+var personaMentionCopy = newLazyValue(buildPersonaMentionCopy)
+
+// buildPersonaMentionCopy answers the persona mention menu's vocabulary. It is
+// built on first use: a cold load of any other page must not pay for it
+// (UXBLIND-089).
+func buildPersonaMentionCopy() map[string]map[string]string {
+	return map[string]map[string]string{
+		"en": {
+			"menu": "Mention someone", "people": "People in this conversation", "agents": "Agents", "none": "No people or agents match this search.", "no_agents": "No agents are in this conversation yet. You can still ask on the Agents page.", "no_agent_matches": "No agents match this search.", "agents_page": "Agents page", "add_agent": "Add an agent to this conversation", "loading": "Loading agents…", "load_failed": "The agent list could not be loaded.", "retry": "Retry loading agents", "agent": "Agent", "identity_unavailable": "Agent identity unavailable", "acting_unavailable": "Acting for unavailable", "acting_for": "acting for", "view_profile": "View agent details", "profile": "Profile", "close_profile": "Close agent details", "purpose": "Purpose", "owner": "Owner", "version": "Version", "skills": "Skills", "data_reach": "Data this agent can reach", "acts_with_access": "Acts with your current access.", "cannot_do": "What it cannot do", "replies": "Replies go", "in_thread": "in this thread", "private_always": "privately because this conversation is always private", "private_audience": "privately because the audience floor will divert this answer", "unavailable": "Not provided", "none_listed": "No skills listed.",
+			"tier_t0": "Read only", "tier_t1": "Private draft", "tier_t2": "Communicate", "tier_t3": "Governed submission", "tier_t4": "External write",
+		},
+		"de": {
+			"menu": "Person erwähnen", "people": "Personen in dieser Unterhaltung", "agents": "Agenten", "none": "Keine passende Person oder kein passender Agent gefunden.", "no_agents": "In dieser Unterhaltung gibt es noch keine Agenten. Sie können trotzdem auf der Seite „Agenten“ fragen.", "no_agent_matches": "Keine Agenten passen zu dieser Suche.", "agents_page": "Seite „Agenten“", "add_agent": "Agent zu dieser Unterhaltung hinzufügen", "loading": "Agenten werden geladen…", "load_failed": "Die Agentenliste konnte nicht geladen werden.", "retry": "Agenten erneut laden", "agent": "Agent", "identity_unavailable": "Agentenidentität nicht verfügbar", "acting_unavailable": "Handelt für eine nicht verfügbare Person", "acting_for": "handelt für", "view_profile": "Agentendetails anzeigen", "profile": "Profil", "close_profile": "Agentendetails schließen", "purpose": "Zweck", "owner": "Besitzer", "version": "Version", "skills": "Fähigkeiten", "data_reach": "Daten, auf die dieser Agent zugreifen kann", "acts_with_access": "Handelt mit Ihrem aktuellen Zugriff.", "cannot_do": "Was er nicht kann", "replies": "Antworten gehen", "in_thread": "in diesen Thread", "private_always": "privat, weil diese Unterhaltung immer privat ist", "private_audience": "privat, weil die Zielgruppe diese Antwort nicht vollständig sehen darf", "unavailable": "Nicht angegeben", "none_listed": "Keine Fähigkeiten aufgeführt.",
+			"tier_t0": "Nur lesen", "tier_t1": "Privater Entwurf", "tier_t2": "Kommunizieren", "tier_t3": "Gesteuerte Einreichung", "tier_t4": "Externer Schreibzugriff",
+		},
+		"ar": {
+			"menu": "الإشارة إلى شخص", "people": "الأشخاص في هذه المحادثة", "agents": "الوكلاء", "none": "لا يوجد شخص أو وكيل يطابق هذا البحث.", "no_agents": "لا يوجد وكلاء في هذه المحادثة حتى الآن. لا يزال بإمكانك طرح سؤالك في صفحة الوكلاء.", "no_agent_matches": "لا يوجد وكلاء يطابقون هذا البحث.", "agents_page": "صفحة الوكلاء", "add_agent": "إضافة وكيل إلى هذه المحادثة", "loading": "جارٍ تحميل الوكلاء…", "load_failed": "تعذر تحميل قائمة الوكلاء.", "retry": "إعادة محاولة تحميل الوكلاء", "agent": "وكيل", "identity_unavailable": "هوية الوكيل غير متاحة", "acting_unavailable": "ينوب عن شخص غير متاح", "acting_for": "ينوب عن", "view_profile": "عرض تفاصيل الوكيل", "profile": "التفاصيل", "close_profile": "إغلاق تفاصيل الوكيل", "purpose": "الغرض", "owner": "المالك", "version": "الإصدار", "skills": "المهارات", "data_reach": "فئات البيانات التي يمكن لهذا الوكيل الوصول إليها", "acts_with_access": "يعمل الوكيل بصلاحياتك الحالية.", "cannot_do": "ما لا يستطيع فعله", "replies": "تذهب الردود", "in_thread": "إلى سلسلة المحادثة الحالية", "private_always": "بشكل خاص لأن هذه المحادثة خاصة دائماً", "private_audience": "بشكل خاص لأن نطاق الجمهور سيحوّل هذه الإجابة", "unavailable": "غير متوفر", "none_listed": "لا توجد مهارات مدرجة.",
+			"tier_t0": "قراءة فقط", "tier_t1": "مسودة خاصة", "tier_t2": "تواصل", "tier_t3": "إرسال خاضع للحوكمة", "tier_t4": "كتابة خارجية",
+		},
+	}
 }

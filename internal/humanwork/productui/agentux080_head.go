@@ -11,15 +11,16 @@ import (
 // the intro line rather than a second tab strip that repeats the word "Ask".
 // Inside the access view the same slot holds a way back.
 
+// agentUX080Copy is the copy agentUX080Text resolves (agentux_copy.go).
+var agentUX080Copy = map[string][3]string{
+	"back_to_agents": {"Back to Agents", "Zurück zu Agenten", "العودة إلى الوكلاء"},
+}
+
 func agentUX080Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"back_to_agents": {"Back to Agents", "Zurück zu Agenten", "العودة إلى الوكلاء"},
+	if text, ok := agentuxCopyLookup(agentUX080Copy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	return values[agentRPLocaleIndex(locale)]
+	return key
 }
 
 // agentsIntroLine is the line under the page title on the Ask view: what the

@@ -207,64 +207,71 @@ func roleAccessPreviewScope(props roleAccessPreviewPanelProps, which, mode strin
 // roleAccessPreviewCopy is the preview's reviewed copy in the three product
 // locales. It lives beside the component so the shared catalog stays
 // untouched by this feature; unknown locales fall back to English.
-var roleAccessPreviewCopy = map[string]map[string]string{
-	"en": {
-		"title": "Access preview", "help": "See what this role reveals now and after your changes. Nothing is saved.",
-		"preview": "Preview access", "preview_again": "Preview again",
-		"loading": "Checking what this role would reveal…", "failed": "We couldn't load the access preview. Try again.",
-		"stale":   "You changed this draft after the preview. Preview again to update it.",
-		"current": "Current (saved)", "proposed": "Proposed (this draft)",
-		"units_count": "Organization units: {count}", "relative_units": "Each person sees their own unit. Units among people with this role: {count}",
-		"relative_empty": "Each person sees their own unit. Nobody has a saved assignment to this role yet.",
-		"no_units":       "No organization units",
-		"added":          "Newly visible:", "removed": "No longer visible:",
-		"explicit": "Role being changed", "inherited": "Other roles its people also hold", "holders": "People with this role saved",
-		"overridden": "Of those, also administrators (see every unit)", "none": "None",
-		"override_title":         "Administrator override",
-		"override_detail":        "People with this role see every organization unit. The visibility setting is saved but does not narrow their access.",
-		"override_scope":         "Every organization unit",
-		"override_summary":       "Everyone (administrator override)",
-		"override_editor_detail": "People with this role always see every worker. The saved visibility setting does not narrow administrators, so there is nothing to change here.",
-		"withheld":               "Everyone always sees their own record, and people managers also see their reporting line. People who get this role only from sign-in are not counted.",
-	},
-	"de": {
-		"title": "Zugriffsvorschau", "help": "Sehen Sie, was diese Rolle jetzt und nach Ihren Änderungen freigibt. Es wird nichts gespeichert.",
-		"preview": "Zugriff prüfen", "preview_again": "Erneut prüfen",
-		"loading": "Freigaben dieser Rolle werden geprüft…", "failed": "Die Zugriffsvorschau konnte nicht geladen werden. Versuchen Sie es erneut.",
-		"stale":   "Sie haben den Entwurf nach der Vorschau geändert. Prüfen Sie erneut, um sie zu aktualisieren.",
-		"current": "Aktuell (gespeichert)", "proposed": "Vorgeschlagen (dieser Entwurf)",
-		"units_count": "Organisationseinheiten: {count}", "relative_units": "Jede Person sieht ihre eigene Einheit. Einheiten der Personen mit dieser Rolle: {count}",
-		"relative_empty": "Jede Person sieht ihre eigene Einheit. Diese Rolle ist noch niemandem gespeichert zugewiesen.",
-		"no_units":       "Keine Organisationseinheiten",
-		"added":          "Neu sichtbar:", "removed": "Nicht mehr sichtbar:",
-		"explicit": "Geänderte Rolle", "inherited": "Weitere Rollen dieser Personen", "holders": "Personen mit gespeicherter Rolle",
-		"overridden": "Davon auch Administratoren (sehen alle Einheiten)", "none": "Keine",
-		"override_title":         "Administratorzugriff",
-		"override_detail":        "Personen mit dieser Rolle sehen alle Organisationseinheiten. Die Sichtbarkeitseinstellung wird gespeichert, schränkt ihren Zugriff aber nicht ein.",
-		"override_scope":         "Alle Organisationseinheiten",
-		"override_summary":       "Alle (Administratorzugriff)",
-		"override_editor_detail": "Personen mit dieser Rolle sehen immer alle Beschäftigten. Die gespeicherte Sichtbarkeitseinstellung schränkt Administratoren nicht ein, daher gibt es hier nichts zu ändern.",
-		"withheld":               "Jede Person sieht immer ihre eigene Akte, Führungskräfte zusätzlich ihre Berichtslinie. Personen, die diese Rolle nur über die Anmeldung erhalten, werden nicht gezählt.",
-	},
-	"ar": {
-		"title": "معاينة الوصول", "help": "اطّلع على ما يكشفه هذا الدور الآن وبعد تغييراتك. لا يُحفظ أي شيء.",
-		"preview": "معاينة الوصول", "preview_again": "المعاينة مرة أخرى",
-		"loading": "جارٍ التحقق مما سيكشفه هذا الدور…", "failed": "تعذّر تحميل معاينة الوصول. حاول مرة أخرى.",
-		"stale":   "غيّرت المسودة بعد المعاينة. عاين مرة أخرى لتحديثها.",
-		"current": "الحالي (محفوظ)", "proposed": "المقترح (هذه المسودة)",
-		"units_count": "الوحدات التنظيمية: {count}", "relative_units": "يرى كل شخص وحدته. وحدات أصحاب هذا الدور: {count}",
-		"relative_empty": "يرى كل شخص وحدته. لا يوجد إسناد محفوظ لهذا الدور بعد.",
-		"no_units":       "لا وحدات تنظيمية",
-		"added":          "مرئي حديثاً:", "removed": "لم يعد مرئياً:",
-		"explicit": "الدور الذي يتغير", "inherited": "أدوار أخرى يحملها أصحابه", "holders": "أشخاص لديهم هذا الدور محفوظاً",
-		"overridden": "منهم مسؤولون أيضاً (يرون كل الوحدات)", "none": "لا شيء",
-		"override_title":         "تجاوز المسؤول",
-		"override_detail":        "يرى أصحاب هذا الدور كل الوحدات التنظيمية. يُحفظ إعداد الرؤية لكنه لا يقيّد وصولهم.",
-		"override_scope":         "كل الوحدات التنظيمية",
-		"override_summary":       "الجميع (تجاوز المسؤول)",
-		"override_editor_detail": "يرى أصحاب هذا الدور جميع الموظفين دائماً. لا يقيّد إعداد الرؤية المحفوظ المسؤولين، لذا لا يوجد ما يمكن تغييره هنا.",
-		"withheld":               "يرى كل شخص سجله دائماً، ويرى المديرون أيضاً خط التقارير لديهم. لا يُحتسب من يحصل على هذا الدور من تسجيل الدخول فقط.",
-	},
+var roleAccessPreviewCopy = newLazyValue(buildRoleAccessPreviewCopy)
+
+// buildRoleAccessPreviewCopy answers the access preview's vocabulary. It is
+// built on first use: a cold load of any other page must not pay for it
+// (UXBLIND-089).
+func buildRoleAccessPreviewCopy() map[string]map[string]string {
+	return map[string]map[string]string{
+		"en": {
+			"title": "Access preview", "help": "See what this role reveals now and after your changes. Nothing is saved.",
+			"preview": "Preview access", "preview_again": "Preview again",
+			"loading": "Checking what this role would reveal…", "failed": "We couldn't load the access preview. Try again.",
+			"stale":   "You changed this draft after the preview. Preview again to update it.",
+			"current": "Current (saved)", "proposed": "Proposed (this draft)",
+			"units_count": "Organization units: {count}", "relative_units": "Each person sees their own unit. Units among people with this role: {count}",
+			"relative_empty": "Each person sees their own unit. Nobody has a saved assignment to this role yet.",
+			"no_units":       "No organization units",
+			"added":          "Newly visible:", "removed": "No longer visible:",
+			"explicit": "Role being changed", "inherited": "Other roles its people also hold", "holders": "People with this role saved",
+			"overridden": "Of those, also administrators (see every unit)", "none": "None",
+			"override_title":         "Administrator override",
+			"override_detail":        "People with this role see every organization unit. The visibility setting is saved but does not narrow their access.",
+			"override_scope":         "Every organization unit",
+			"override_summary":       "Everyone (administrator override)",
+			"override_editor_detail": "People with this role always see every worker. The saved visibility setting does not narrow administrators, so there is nothing to change here.",
+			"withheld":               "Everyone always sees their own record, and people managers also see their reporting line. People who get this role only from sign-in are not counted.",
+		},
+		"de": {
+			"title": "Zugriffsvorschau", "help": "Sehen Sie, was diese Rolle jetzt und nach Ihren Änderungen freigibt. Es wird nichts gespeichert.",
+			"preview": "Zugriff prüfen", "preview_again": "Erneut prüfen",
+			"loading": "Freigaben dieser Rolle werden geprüft…", "failed": "Die Zugriffsvorschau konnte nicht geladen werden. Versuchen Sie es erneut.",
+			"stale":   "Sie haben den Entwurf nach der Vorschau geändert. Prüfen Sie erneut, um sie zu aktualisieren.",
+			"current": "Aktuell (gespeichert)", "proposed": "Vorgeschlagen (dieser Entwurf)",
+			"units_count": "Organisationseinheiten: {count}", "relative_units": "Jede Person sieht ihre eigene Einheit. Einheiten der Personen mit dieser Rolle: {count}",
+			"relative_empty": "Jede Person sieht ihre eigene Einheit. Diese Rolle ist noch niemandem gespeichert zugewiesen.",
+			"no_units":       "Keine Organisationseinheiten",
+			"added":          "Neu sichtbar:", "removed": "Nicht mehr sichtbar:",
+			"explicit": "Geänderte Rolle", "inherited": "Weitere Rollen dieser Personen", "holders": "Personen mit gespeicherter Rolle",
+			"overridden": "Davon auch Administratoren (sehen alle Einheiten)", "none": "Keine",
+			"override_title":         "Administratorzugriff",
+			"override_detail":        "Personen mit dieser Rolle sehen alle Organisationseinheiten. Die Sichtbarkeitseinstellung wird gespeichert, schränkt ihren Zugriff aber nicht ein.",
+			"override_scope":         "Alle Organisationseinheiten",
+			"override_summary":       "Alle (Administratorzugriff)",
+			"override_editor_detail": "Personen mit dieser Rolle sehen immer alle Beschäftigten. Die gespeicherte Sichtbarkeitseinstellung schränkt Administratoren nicht ein, daher gibt es hier nichts zu ändern.",
+			"withheld":               "Jede Person sieht immer ihre eigene Akte, Führungskräfte zusätzlich ihre Berichtslinie. Personen, die diese Rolle nur über die Anmeldung erhalten, werden nicht gezählt.",
+		},
+		"ar": {
+			"title": "معاينة الوصول", "help": "اطّلع على ما يكشفه هذا الدور الآن وبعد تغييراتك. لا يُحفظ أي شيء.",
+			"preview": "معاينة الوصول", "preview_again": "المعاينة مرة أخرى",
+			"loading": "جارٍ التحقق مما سيكشفه هذا الدور…", "failed": "تعذّر تحميل معاينة الوصول. حاول مرة أخرى.",
+			"stale":   "غيّرت المسودة بعد المعاينة. عاين مرة أخرى لتحديثها.",
+			"current": "الحالي (محفوظ)", "proposed": "المقترح (هذه المسودة)",
+			"units_count": "الوحدات التنظيمية: {count}", "relative_units": "يرى كل شخص وحدته. وحدات أصحاب هذا الدور: {count}",
+			"relative_empty": "يرى كل شخص وحدته. لا يوجد إسناد محفوظ لهذا الدور بعد.",
+			"no_units":       "لا وحدات تنظيمية",
+			"added":          "مرئي حديثاً:", "removed": "لم يعد مرئياً:",
+			"explicit": "الدور الذي يتغير", "inherited": "أدوار أخرى يحملها أصحابه", "holders": "أشخاص لديهم هذا الدور محفوظاً",
+			"overridden": "منهم مسؤولون أيضاً (يرون كل الوحدات)", "none": "لا شيء",
+			"override_title":         "تجاوز المسؤول",
+			"override_detail":        "يرى أصحاب هذا الدور كل الوحدات التنظيمية. يُحفظ إعداد الرؤية لكنه لا يقيّد وصولهم.",
+			"override_scope":         "كل الوحدات التنظيمية",
+			"override_summary":       "الجميع (تجاوز المسؤول)",
+			"override_editor_detail": "يرى أصحاب هذا الدور جميع الموظفين دائماً. لا يقيّد إعداد الرؤية المحفوظ المسؤولين، لذا لا يوجد ما يمكن تغييره هنا.",
+			"withheld":               "يرى كل شخص سجله دائماً، ويرى المديرون أيضاً خط التقارير لديهم. لا يُحتسب من يحصل على هذا الدور من تسجيل الدخول فقط.",
+		},
+	}
 }
 
 func roleAccessPreviewText(locale LocaleContext, key string) string {
@@ -272,10 +279,10 @@ func roleAccessPreviewText(locale LocaleContext, key string) string {
 	if index := strings.IndexByte(language, '-'); index > 0 {
 		language = language[:index]
 	}
-	if value, ok := roleAccessPreviewCopy[language][key]; ok {
+	if value, ok := roleAccessPreviewCopy.Get()[language][key]; ok {
 		return value
 	}
-	return roleAccessPreviewCopy["en"][key]
+	return roleAccessPreviewCopy.Get()["en"][key]
 }
 
 func roleAccessPreviewStylesheet() string {

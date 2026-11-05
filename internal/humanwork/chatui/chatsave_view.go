@@ -72,7 +72,7 @@ func chatsaveAction(m Model, msg Message, menu bool) ui.Node {
 		labelClass = ""
 	}
 	return html.Button(html.Props{Class: class, Type: "button", Role: role, Title: copy.Save, Disabled: m.CurrentUser == "", Data: map[string]string{"saved-disabled": boolString(m.CurrentUser == ""), "saved-action": "save", "saved-post": msg.ID, "saved-conversation": m.SelectedID, "saved-host": host, "saved-label": copy.Save, "saved-mark": copy.Saved, "saved-remove": copy.Unsave}, Aria: map[string]string{"label": copy.Save, "pressed": "false", "keyshortcuts": "Alt+Shift+S"}},
-		html.Tag("svg", html.Props{Class: "chatsave-bookmark", Raw: map[string]any{"viewBox": "0 0 24 24", "width": "20", "height": "20", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": "M6 3h12v18l-6-4-6 4V3z"}})),
+		html.Tag("svg", html.Props{Class: "chatsave-bookmark", Raw: map[string]any{"viewBox": "0 0 24 24", "width": "20", "height": "20", "fill": "none", "stroke": "currentColor", "stroke-width": "1.8", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": chatsave002Paths["bookmark"]}})),
 		html.Span(html.Props{Class: labelClass, Text: copy.Save, Data: map[string]string{"saved-button-label": "true"}}))
 }
 

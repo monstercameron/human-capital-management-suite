@@ -95,6 +95,7 @@ type SettingsPageProps struct {
 }
 
 type ViewerProfileProps struct {
+	_            incomparable
 	SectionLabel string
 	Description  string
 	Name         string

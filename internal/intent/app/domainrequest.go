@@ -31,6 +31,13 @@ type PayBandInputs struct {
 	Amount values.Money
 }
 
+// SeveranceInputs is everything the severance capability needs: the
+// published plan it prices with and the declared per-worker query.
+type SeveranceInputs struct {
+	Plan  rewards.SeverancePlan
+	Query rewards.SeveranceInput
+}
+
 // decodeStruct reads the temporary dynamic request through the approved
 // Protobuf-to-intent mapping seam.
 func decodeStruct(wire []byte) (*protomap.Struct, error) { return protomap.DecodeStruct(wire) }

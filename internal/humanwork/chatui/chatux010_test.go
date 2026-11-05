@@ -78,7 +78,12 @@ func TestTodo_CHATUX_010(t *testing.T) {
 			t.Fatalf("%s: the box is labelled %v", locale, labels)
 		}
 		hints := chatPolishNodesIn(area, func(n *xhtml.Node) bool { return n.Data == "kbd" })
-		if len(hints) != 1 || chatbug030Text(hints[0]) != "Ctrl+K" {
+		// CHATUX-050: the key reads as printed on the reader's keyboard.
+		shortcut := "Ctrl+K"
+		if locale == "de-DE" {
+			shortcut = "Strg+K"
+		}
+		if len(hints) != 1 || chatbug030Text(hints[0]) != shortcut {
 			t.Fatalf("%s: the shortcut inside the box is %v", locale, hints)
 		}
 		// Typing words replaces the hint with the browser's clear control.

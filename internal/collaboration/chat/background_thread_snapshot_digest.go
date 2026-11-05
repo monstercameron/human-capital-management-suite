@@ -1,8 +1,6 @@
 package chat
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +35,5 @@ func BackgroundThreadSnapshotDigest(snapshot BackgroundThreadSnapshot) (string, 
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(raw)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+	return canonicalSnapshotDigest(raw), nil
 }

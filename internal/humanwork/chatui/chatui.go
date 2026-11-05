@@ -53,8 +53,11 @@ const (
 )
 
 type Conversation struct {
-	Icon                             agenticon.Value
-	IconRevision                     int64
+	Icon         agenticon.Value
+	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL                     string
 	ID, Name, Topic, Avatar, Preview string
 	OwnerID, HostTenantID            string
 	AgentID                          string
@@ -74,8 +77,11 @@ type Conversation struct {
 }
 
 type Member struct {
-	Icon                                     agenticon.Value
-	IconRevision                             int64
+	Icon         agenticon.Value
+	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL                             string
 	ID, HomeTenantID, Name, Subtitle, Avatar string
 	Online, Agent                            bool
 }

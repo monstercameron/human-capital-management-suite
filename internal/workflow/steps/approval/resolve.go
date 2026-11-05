@@ -73,6 +73,7 @@ func Resolve(c Continuation, items []workitem.WorkItem, decisions []intentapprov
 		if now.After(req.Expiry) {
 			resolved.Outcome = workflow.Outcome("EXPIRED")
 			resolved.Reason = "approval decision expired"
+			applyDeadlineDefault(&resolved, c)
 			return finish(resolved), nil
 		}
 		approvedPrincipals := map[string]bool{}
@@ -94,6 +95,7 @@ func Resolve(c Continuation, items []workitem.WorkItem, decisions []intentapprov
 			case workitem.StatusExpired:
 				resolved.Outcome = workflow.Outcome("EXPIRED")
 				resolved.Reason = "approval work item expired"
+				applyDeadlineDefault(&resolved, c)
 				return finish(resolved), nil
 			case workitem.StatusCompleted:
 				decision, ok := decisionByDigest[item.CompletedOutputDigest]
@@ -124,6 +126,7 @@ func Resolve(c Continuation, items []workitem.WorkItem, decisions []intentapprov
 			if now.After(req.DecideBy) {
 				resolved.Outcome = workflow.Outcome("EXPIRED")
 				resolved.Reason = "approval deadline passed before quorum"
+				applyDeadlineDefault(&resolved, c)
 				return finish(resolved), nil
 			}
 		}
@@ -170,6 +173,14 @@ func checkDecisionBinding(c Continuation, req Requirement, item workitem.WorkIte
 	return nil
 }
 
+// applyDeadlineDefault records the continuation's declared non-response
+// payload digest on an EXPIRED resolution when one is declared.
+func applyDeadlineDefault(r *Resolution, c Continuation) {
+	if c.DeadlineDefault.Schema != "" {
+		r.DefaultOutputDigest = c.DeadlineDefault.Digest()
+	}
+}
+
 func finish(r Resolution) Resolution {
 	sort.Strings(r.DecisionRefs)
 	sort.Strings(r.WorkItemRefs)
@@ -185,6 +196,9 @@ func (r Resolution) ToNodeOutcome(nodeID string) frontier.NodeOutcome {
 	}
 	switch r.Outcome {
 	case workflow.Outcome("APPROVED"), workflow.OutcomeRejected, workflow.Outcome("INVALIDATED"), workflow.Outcome("EXPIRED"), workflow.Outcome("CANCELLED"):
+		if r.Outcome == workflow.Outcome("EXPIRED") && r.DefaultOutputDigest != "" {
+			return frontier.NodeOutcome{NodeID: nodeID, Outcome: r.Outcome, OutputDigest: r.DefaultOutputDigest}
+		}
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: r.Outcome, OutputDigest: r.Digest}
 	default:
 		return frontier.NodeOutcome{NodeID: nodeID, Failed: true, ErrorClass: "UNKNOWN_APPROVAL_OUTCOME"}

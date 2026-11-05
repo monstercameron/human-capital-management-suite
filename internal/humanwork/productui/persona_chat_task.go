@@ -39,7 +39,7 @@ func agentTaskStepItems(locale LocaleContext, steps []AgentTaskStep) []ui.Node {
 			detail = locale.Text("agents.step_failed_generic")
 		}
 		children := []ui.Node{
-			html.Span(html.Props{Class: "agents-step-number"}, ui.Text(fmt.Sprintf("%d", index+1))),
+			html.Span(html.Props{Class: "agents-step-number"}, ui.Text(locale.FormatNumber(fmt.Sprint(index+1), 0))),
 			html.Strong(html.Props{}, ui.Text(name)),
 			html.Span(html.Props{Class: "status agents-task-status", Raw: map[string]any{"data-tone": agentStepTone(step.State)}}, ui.Text(agentStepStateLabel(locale, step.State))),
 		}

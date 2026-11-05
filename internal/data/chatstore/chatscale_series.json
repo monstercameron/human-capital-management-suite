@@ -1,0 +1,1387 @@
+{
+  "generated": "2026-10-22",
+  "todo": "CHATSCALE-001",
+  "volumes_posts": [50000, 1000000, 2000000],
+  "shape": "one tenant, 200 conversations, 2000 members; 60% of posts in eight rooms, 20% thread replies, 1/17 edits, 1/101 tombstones, 1/13 mentions, 1/19 attachments; same generator as TestTodo_CHATSCALE_001",
+  "method": "TestTodo_CHATSCALE_001_Performance per volume on one Windows arm64 dev machine with embedded PostgreSQL; 20 warm server-side executions after one warmup per read; budgets are separate client-observed wall-time samples from the same runs",
+  "metrics": [
+    {
+      "phase": "after",
+      "read": "conversation-events",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.153,
+          "p95_ms": 0.175,
+          "p99_ms": 0.19,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.084,
+          "p95_ms": 0.089,
+          "p99_ms": 0.1,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.141,
+          "p95_ms": 0.156,
+          "p99_ms": 0.18,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "conversation-list",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 1.81,
+          "p95_ms": 1.907,
+          "p99_ms": 1.976,
+          "rows_read_per_returned": 13,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.818,
+          "p95_ms": 1.632,
+          "p99_ms": 1.78,
+          "rows_read_per_returned": 13,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 1.562,
+          "p95_ms": 1.719,
+          "p99_ms": 2.349,
+          "rows_read_per_returned": 13,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "conversation-metadata",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.043,
+          "p95_ms": 0.051,
+          "p99_ms": 0.057,
+          "rows_read_per_returned": 11,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.018,
+          "p95_ms": 0.025,
+          "p99_ms": 0.029,
+          "rows_read_per_returned": 11,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.04,
+          "p95_ms": 0.061,
+          "p99_ms": 0.069,
+          "rows_read_per_returned": 11,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "deep-page",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.129,
+          "p95_ms": 0.136,
+          "p99_ms": 0.155,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.07,
+          "p95_ms": 0.076,
+          "p99_ms": 0.082,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.127,
+          "p95_ms": 0.203,
+          "p99_ms": 0.255,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "first-page",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.128,
+          "p95_ms": 0.147,
+          "p99_ms": 0.148,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.074,
+          "p95_ms": 0.092,
+          "p99_ms": 0.219,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.132,
+          "p95_ms": 0.157,
+          "p99_ms": 0.356,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "legacy-search",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 2.852,
+          "p95_ms": 2.996,
+          "p99_ms": 3.031,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 1.473,
+          "p95_ms": 1.495,
+          "p99_ms": 1.5,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 2.81,
+          "p95_ms": 3.237,
+          "p99_ms": 3.878,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "memberships",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.026,
+          "p95_ms": 0.03,
+          "p99_ms": 0.031,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.011,
+          "p95_ms": 0.017,
+          "p99_ms": 0.024,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.023,
+          "p95_ms": 0.028,
+          "p99_ms": 0.035,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "outbox-drain",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.322,
+          "p95_ms": 0.368,
+          "p99_ms": 0.402,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.177,
+          "p95_ms": 0.372,
+          "p99_ms": 0.437,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.313,
+          "p95_ms": 0.35,
+          "p99_ms": 0.459,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "outbox-retention",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 6.383,
+          "p95_ms": 6.383,
+          "p99_ms": 6.383,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 3.513,
+          "p95_ms": 3.513,
+          "p99_ms": 3.513,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 6.816,
+          "p95_ms": 6.816,
+          "p99_ms": 6.816,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "pins",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.64,
+          "p95_ms": 0.664,
+          "p99_ms": 0.69,
+          "rows_read_per_returned": 2,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.589,
+          "p95_ms": 0.629,
+          "p99_ms": 0.891,
+          "rows_read_per_returned": 2,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 1.266,
+          "p95_ms": 1.438,
+          "p99_ms": 1.466,
+          "rows_read_per_returned": 2,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "reactions",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.048,
+          "p95_ms": 0.053,
+          "p99_ms": 0.058,
+          "rows_read_per_returned": 3,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.022,
+          "p95_ms": 0.043,
+          "p99_ms": 0.077,
+          "rows_read_per_returned": 3,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.044,
+          "p95_ms": 0.063,
+          "p99_ms": 0.073,
+          "rows_read_per_returned": 3,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "saved-list",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.046,
+          "p95_ms": 0.052,
+          "p99_ms": 0.053,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.024,
+          "p95_ms": 0.025,
+          "p99_ms": 0.026,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.046,
+          "p95_ms": 0.056,
+          "p99_ms": 0.146,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "served-message-search",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 7.279,
+          "p95_ms": 7.279,
+          "p99_ms": 7.279,
+          "rows_read_per_returned": 74.1,
+          "samples": 1
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 2.154,
+          "p95_ms": 2.154,
+          "p99_ms": 2.154,
+          "rows_read_per_returned": 3.49,
+          "samples": 1
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 4.377,
+          "p95_ms": 4.377,
+          "p99_ms": 4.377,
+          "rows_read_per_returned": 3.52,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "served-thread-search",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 9.776,
+          "p95_ms": 9.776,
+          "p99_ms": 9.776,
+          "rows_read_per_returned": 80.54,
+          "samples": 1
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 3.147,
+          "p95_ms": 3.147,
+          "p99_ms": 3.147,
+          "rows_read_per_returned": 9.96,
+          "samples": 1
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 6.651,
+          "p95_ms": 6.651,
+          "p99_ms": 6.651,
+          "rows_read_per_returned": 9.96,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "thread",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.076,
+          "p95_ms": 0.096,
+          "p99_ms": 0.097,
+          "rows_read_per_returned": 2,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.032,
+          "p95_ms": 0.037,
+          "p99_ms": 0.04,
+          "rows_read_per_returned": 1.5,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.071,
+          "p95_ms": 0.102,
+          "p99_ms": 0.173,
+          "rows_read_per_returned": 1.5,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "read": "unread-and-mentions",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.768,
+          "p95_ms": 0.867,
+          "p99_ms": 0.871,
+          "rows_read_per_returned": 203,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.385,
+          "p95_ms": 0.546,
+          "p99_ms": 0.555,
+          "rows_read_per_returned": 203,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.772,
+          "p95_ms": 1.204,
+          "p99_ms": 2.241,
+          "rows_read_per_returned": 203,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "conversation-events",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 26.306,
+          "p95_ms": 26.603,
+          "p99_ms": 26.63,
+          "rows_read_per_returned": 350,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 777.227,
+          "p95_ms": 1314.121,
+          "p99_ms": 1446.427,
+          "rows_read_per_returned": 6999.99,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 1057.086,
+          "p95_ms": 1531.057,
+          "p99_ms": 1568.509,
+          "rows_read_per_returned": 14000.01,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "conversation-list",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 67.58,
+          "p95_ms": 70.764,
+          "p99_ms": 74.627,
+          "rows_read_per_returned": 1269.995,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 3291.29,
+          "p95_ms": 4819.689,
+          "p99_ms": 7056.405,
+          "rows_read_per_returned": 16311,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 5353.755,
+          "p95_ms": 6220.655,
+          "p99_ms": 6326.497,
+          "rows_read_per_returned": 32161.995,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "conversation-metadata",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 6.287,
+          "p95_ms": 6.577,
+          "p99_ms": 6.723,
+          "rows_read_per_returned": 19848,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 390.942,
+          "p95_ms": 804.848,
+          "p99_ms": 933.757,
+          "rows_read_per_returned": 396087,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 698.809,
+          "p95_ms": 820.392,
+          "p99_ms": 906.477,
+          "rows_read_per_returned": 792126,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "deep-page",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.131,
+          "p95_ms": 0.137,
+          "p99_ms": 0.139,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.172,
+          "p95_ms": 0.249,
+          "p99_ms": 0.249,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.131,
+          "p95_ms": 0.143,
+          "p99_ms": 0.157,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "first-page",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.134,
+          "p95_ms": 0.147,
+          "p99_ms": 0.155,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.142,
+          "p95_ms": 0.178,
+          "p99_ms": 0.458,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.133,
+          "p95_ms": 0.155,
+          "p99_ms": 0.167,
+          "rows_read_per_returned": 1.0196078431372548,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "legacy-search",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 2.77,
+          "p95_ms": 2.933,
+          "p99_ms": 3.008,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 2.783,
+          "p95_ms": 3.238,
+          "p99_ms": 3.547,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 3.066,
+          "p95_ms": 4.516,
+          "p99_ms": 5.843,
+          "rows_read_per_returned": 2.2549019607843137,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "memberships",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.025,
+          "p95_ms": 0.035,
+          "p99_ms": 0.04,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.047,
+          "p95_ms": 0.075,
+          "p99_ms": 0.099,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.034,
+          "p95_ms": 0.044,
+          "p99_ms": 0.048,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "outbox-drain",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 13.565,
+          "p95_ms": 14.266,
+          "p99_ms": 16.182,
+          "rows_read_per_returned": 81,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 177.726,
+          "p95_ms": 183.028,
+          "p99_ms": 185.056,
+          "rows_read_per_returned": 1601,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 371.138,
+          "p95_ms": 482.891,
+          "p99_ms": 496.045,
+          "rows_read_per_returned": 3201,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "outbox-retention",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 2032.7,
+          "p95_ms": 2032.7,
+          "p99_ms": 2032.7,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 24358.067,
+          "p95_ms": 24358.067,
+          "p99_ms": 24358.067,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 87336.406,
+          "p95_ms": 87336.406,
+          "p99_ms": 87336.406,
+          "rows_read_per_returned": 4.002,
+          "samples": 1
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "pins",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.686,
+          "p95_ms": 0.763,
+          "p99_ms": 0.819,
+          "rows_read_per_returned": 13.691666666666666,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 19.605,
+          "p95_ms": 24.417,
+          "p99_ms": 24.784,
+          "rows_read_per_returned": 171.46,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 44.036,
+          "p95_ms": 153.823,
+          "p99_ms": 157.109,
+          "rows_read_per_returned": 319.97,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "reactions",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 1.126,
+          "p95_ms": 1.163,
+          "p99_ms": 1.198,
+          "rows_read_per_returned": 7061,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 24.738,
+          "p95_ms": 82.669,
+          "p99_ms": 84.497,
+          "rows_read_per_returned": 141330,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 57.486,
+          "p95_ms": 73.407,
+          "p99_ms": 78.298,
+          "rows_read_per_returned": 282839,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "saved-list",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 0.049,
+          "p95_ms": 0.052,
+          "p99_ms": 0.058,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 0.047,
+          "p95_ms": 0.053,
+          "p99_ms": 0.056,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 0.054,
+          "p95_ms": 0.071,
+          "p99_ms": 0.105,
+          "rows_read_per_returned": 1,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "thread",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 1.662,
+          "p95_ms": 1.864,
+          "p99_ms": 2.031,
+          "rows_read_per_returned": 1876,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 220.188,
+          "p95_ms": 401.173,
+          "p99_ms": 458.297,
+          "rows_read_per_returned": 37500.5,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 547.792,
+          "p95_ms": 671.233,
+          "p99_ms": 858.541,
+          "rows_read_per_returned": 1000001,
+          "samples": 20
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "read": "unread-and-mentions",
+      "points": [
+        {
+          "posts": 50000,
+          "p50_ms": 7.541,
+          "p95_ms": 7.859,
+          "p99_ms": 7.977,
+          "rows_read_per_returned": 3798,
+          "samples": 20
+        },
+        {
+          "posts": 1000000,
+          "p50_ms": 32.167,
+          "p95_ms": 51.961,
+          "p99_ms": 53.08,
+          "rows_read_per_returned": 5098,
+          "samples": 20
+        },
+        {
+          "posts": 2000000,
+          "p50_ms": 23.039,
+          "p95_ms": 24.661,
+          "p99_ms": 24.861,
+          "rows_read_per_returned": 5098,
+          "samples": 20
+        }
+      ]
+    }
+  ],
+  "degradation_ranking_after_phase": [
+    {
+      "phase": "after",
+      "read": "pins",
+      "p95_ms_at_50k": 0.664,
+      "p95_ms_at_2m": 1.438,
+      "growth_factor": 2.17
+    },
+    {
+      "phase": "after",
+      "read": "deep-page",
+      "p95_ms_at_50k": 0.136,
+      "p95_ms_at_2m": 0.203,
+      "growth_factor": 1.49
+    },
+    {
+      "phase": "after",
+      "read": "unread-and-mentions",
+      "p95_ms_at_50k": 0.867,
+      "p95_ms_at_2m": 1.204,
+      "growth_factor": 1.39
+    },
+    {
+      "phase": "after",
+      "read": "conversation-metadata",
+      "p95_ms_at_50k": 0.051,
+      "p95_ms_at_2m": 0.061,
+      "growth_factor": 1.2
+    },
+    {
+      "phase": "after",
+      "read": "reactions",
+      "p95_ms_at_50k": 0.053,
+      "p95_ms_at_2m": 0.063,
+      "growth_factor": 1.19
+    },
+    {
+      "phase": "after",
+      "read": "legacy-search",
+      "p95_ms_at_50k": 2.996,
+      "p95_ms_at_2m": 3.237,
+      "growth_factor": 1.08
+    },
+    {
+      "phase": "after",
+      "read": "saved-list",
+      "p95_ms_at_50k": 0.052,
+      "p95_ms_at_2m": 0.056,
+      "growth_factor": 1.08
+    },
+    {
+      "phase": "after",
+      "read": "first-page",
+      "p95_ms_at_50k": 0.147,
+      "p95_ms_at_2m": 0.157,
+      "growth_factor": 1.07
+    },
+    {
+      "phase": "after",
+      "read": "outbox-retention",
+      "p95_ms_at_50k": 6.383,
+      "p95_ms_at_2m": 6.816,
+      "growth_factor": 1.07
+    },
+    {
+      "phase": "after",
+      "read": "thread",
+      "p95_ms_at_50k": 0.096,
+      "p95_ms_at_2m": 0.102,
+      "growth_factor": 1.06
+    },
+    {
+      "phase": "after",
+      "read": "outbox-drain",
+      "p95_ms_at_50k": 0.368,
+      "p95_ms_at_2m": 0.35,
+      "growth_factor": 0.95
+    },
+    {
+      "phase": "after",
+      "read": "memberships",
+      "p95_ms_at_50k": 0.03,
+      "p95_ms_at_2m": 0.028,
+      "growth_factor": 0.93
+    },
+    {
+      "phase": "after",
+      "read": "conversation-list",
+      "p95_ms_at_50k": 1.907,
+      "p95_ms_at_2m": 1.719,
+      "growth_factor": 0.9
+    },
+    {
+      "phase": "after",
+      "read": "conversation-events",
+      "p95_ms_at_50k": 0.175,
+      "p95_ms_at_2m": 0.156,
+      "growth_factor": 0.89
+    },
+    {
+      "phase": "after",
+      "read": "served-thread-search",
+      "p95_ms_at_50k": 9.776,
+      "p95_ms_at_2m": 6.651,
+      "growth_factor": 0.68
+    },
+    {
+      "phase": "after",
+      "read": "served-message-search",
+      "p95_ms_at_50k": 7.279,
+      "p95_ms_at_2m": 4.377,
+      "growth_factor": 0.6
+    }
+  ],
+  "relations": [
+    {
+      "table": "chat_conversation",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 188416,
+          "index_bytes": 188416,
+          "total_bytes": 409600,
+          "live_rows_estimate": 300,
+          "dead_rows_estimate": 415
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 229376,
+          "index_bytes": 204800,
+          "total_bytes": 475136,
+          "live_rows_estimate": 300,
+          "dead_rows_estimate": 12
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 1097728,
+          "index_bytes": 401408,
+          "total_bytes": 1540096,
+          "live_rows_estimate": 300,
+          "dead_rows_estimate": 25
+        }
+      ]
+    },
+    {
+      "table": "chat_cursor",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 32768,
+          "index_bytes": 49152,
+          "total_bytes": 114688,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 32768,
+          "index_bytes": 49152,
+          "total_bytes": 114688,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 6
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 32768,
+          "index_bytes": 49152,
+          "total_bytes": 114688,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 5
+        }
+      ]
+    },
+    {
+      "table": "chat_membership",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 344064,
+          "index_bytes": 753664,
+          "total_bytes": 1130496,
+          "live_rows_estimate": 2299,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 344064,
+          "index_bytes": 753664,
+          "total_bytes": 1138688,
+          "live_rows_estimate": 2299,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 344064,
+          "index_bytes": 753664,
+          "total_bytes": 1138688,
+          "live_rows_estimate": 2299,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_outbox",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 58466304,
+          "index_bytes": 9576448,
+          "total_bytes": 68083712,
+          "live_rows_estimate": 50021,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 1168744448,
+          "index_bytes": 189874176,
+          "total_bytes": 1358946304,
+          "live_rows_estimate": 1000066,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 2337562624,
+          "index_bytes": 379666432,
+          "total_bytes": 2717859840,
+          "live_rows_estimate": 2000053,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_outbox_receipt",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 2736128,
+          "index_bytes": 2924544,
+          "total_bytes": 5693440,
+          "live_rows_estimate": 40000,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 54616064,
+          "index_bytes": 57794560,
+          "total_bytes": 112459776,
+          "live_rows_estimate": 800000,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 109232128,
+          "index_bytes": 115548160,
+          "total_bytes": 224845824,
+          "live_rows_estimate": 1600000,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_pin",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 221184,
+          "index_bytes": 548864,
+          "total_bytes": 811008,
+          "live_rows_estimate": 1523,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 4505600,
+          "index_bytes": 10731520,
+          "total_bytes": 15278080,
+          "live_rows_estimate": 31894,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 9011200,
+          "index_bytes": 22568960,
+          "total_bytes": 31621120,
+          "live_rows_estimate": 63795,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_post",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 30441472,
+          "index_bytes": 57737216,
+          "total_bytes": 88219648,
+          "live_rows_estimate": 50021,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 611958784,
+          "index_bytes": 1080713216,
+          "total_bytes": 1692876800,
+          "live_rows_estimate": 1000115,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 1224712192,
+          "index_bytes": 2137808896,
+          "total_bytes": 3362889728,
+          "live_rows_estimate": 2000355,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_post_revision",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 26918912,
+          "index_bytes": 4653056,
+          "total_bytes": 31604736,
+          "live_rows_estimate": 52962,
+          "dead_rows_estimate": 5
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 538271744,
+          "index_bytes": 92143616,
+          "total_bytes": 630595584,
+          "live_rows_estimate": 1058727,
+          "dead_rows_estimate": 3
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 1079484416,
+          "index_bytes": 184238080,
+          "total_bytes": 1264050176,
+          "live_rows_estimate": 2117799,
+          "dead_rows_estimate": 1
+        }
+      ]
+    },
+    {
+      "table": "chat_reaction",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 892928,
+          "index_bytes": 1703936,
+          "total_bytes": 2637824,
+          "live_rows_estimate": 7059,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 17817600,
+          "index_bytes": 33775616,
+          "total_bytes": 51634176,
+          "live_rows_estimate": 141328,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 35651584,
+          "index_bytes": 67551232,
+          "total_bytes": 103251968,
+          "live_rows_estimate": 282838,
+          "dead_rows_estimate": 0
+        }
+      ]
+    },
+    {
+      "table": "chat_saved_item",
+      "points": [
+        {
+          "posts": 50000,
+          "heap_bytes": 40960,
+          "index_bytes": 122880,
+          "total_bytes": 196608,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 1000000,
+          "heap_bytes": 40960,
+          "index_bytes": 122880,
+          "total_bytes": 196608,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 0
+        },
+        {
+          "posts": 2000000,
+          "heap_bytes": 40960,
+          "index_bytes": 122880,
+          "total_bytes": 196608,
+          "live_rows_estimate": 200,
+          "dead_rows_estimate": 0
+        }
+      ]
+    }
+  ],
+  "relation_totals": [
+    {
+      "posts": 50000,
+      "total_bytes": 200466432
+    },
+    {
+      "posts": 1000000,
+      "total_bytes": 3865280512
+    },
+    {
+      "posts": 2000000,
+      "total_bytes": 7709089792
+    }
+  ],
+  "workload": [
+    {
+      "posts": 50000,
+      "elapsed_ms": 371.898,
+      "operations": 100,
+      "outbox_pruned": 500,
+      "outbox_prune_ms": 6.56
+    },
+    {
+      "posts": 1000000,
+      "elapsed_ms": 220.712,
+      "operations": 100,
+      "outbox_pruned": 500,
+      "outbox_prune_ms": 4.122
+    },
+    {
+      "posts": 2000000,
+      "elapsed_ms": 334.274,
+      "operations": 100,
+      "outbox_pruned": 500,
+      "outbox_prune_ms": 7.505
+    }
+  ],
+  "budgets_p95_ms": [
+    {
+      "posts": 50000,
+      "open_channel_p95_ms": 1.813,
+      "page_back_p95_ms": 1.537,
+      "send_p95_ms": 4.468,
+      "sidebar_300_p95_ms": 13.372
+    },
+    {
+      "posts": 1000000,
+      "open_channel_p95_ms": 1.571,
+      "page_back_p95_ms": 1.144,
+      "send_p95_ms": 3.933,
+      "sidebar_300_p95_ms": 7.858
+    },
+    {
+      "posts": 2000000,
+      "open_channel_p95_ms": 1.761,
+      "page_back_p95_ms": 1.65,
+      "send_p95_ms": 5.265,
+      "sidebar_300_p95_ms": 11.505
+    }
+  ],
+  "budget_limits_ms": {
+    "open_channel": 50,
+    "page_back": 50,
+    "send": 30,
+    "sidebar_300": 80
+  },
+  "limits": [
+    "Three volumes only (50K, 1M, 2M posts). The todo's 1/10/100/500M percentile series was not run: 2M posts occupy 7.9 GB, so 500M posts project to ~2 TB against ~46 GB free on this machine, and seeding alone extrapolates from 13 min at 2M to ~38 h before measurement; 100M (~400 GB) also exceeds disk.",
+    "One tenant and 200 conversations, not the todo's 200 tenants and 100,000 channels; tenant/channel scaling is not measured.",
+    "Wall-clock budget samples are noisy on a shared dev box: a 50K run measured send p95 at 99 ms, then 9.3 ms and 4.5 ms on repeats with no code change. The recorded budget rows are from the passing runs whose reports feed this series.",
+    "Single-observation plans (served search, retention) repeat one measurement in p50/p95/p99; see the per-volume reports' limits."
+  ]
+}

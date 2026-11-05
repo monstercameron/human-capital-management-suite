@@ -110,6 +110,12 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			return notificationv1.NewNotificationServiceClient(conn).MarkNotificationRead(chatRPCContext(ctx, cfg), request)
 		},
 	}
+	// UXBLIND-089: each bootstrap read marks its own completion, so the
+	// cold-load window's inside is ranked per read instead of guessed.
+	// bootMark keeps the first mark, so later navigations never move these.
+	liveService.ObserveRead = func(observation productclient.ReadObservation) {
+		bootMark("read-" + observation.Name)
+	}
 	// Docs uses the same authenticated gRPC connection as the rest of the
 	// workspace. A disabled document service reports UNAVAILABLE server-side.
 	documentService := documentv1.NewDocumentServiceClient(conn)
@@ -332,7 +338,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// journey experience itself (tools/uxqual/render/journey's
 	// principalChip), with a visually-hidden "Purpose: " explanation and
 	// its own sign-out exit action, mounted only on PageJourneys.
-	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, WorkflowStarts: projectWorkflowStarts(cfg.WorkflowStarts), WorkflowStartFavorites: cfg.WorkflowStartFavorites, WorkflowStartRecent: cfg.WorkflowStartRecent, WorkflowStartWorkflowID: cfg.WorkflowStartWorkflowID, Agents: projectAgents(cfg.Agents), Clock: projectClock(cfg.Clock), EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
+	session := productclient.Session{Tenant: cfg.Tenant, Principal: cfg.Subject, Roles: cfg.Roles, Permissions: pagePermissions, FeaturePermissions: featurePermissions, LauncherActions: launcherActions, WorkflowStarts: projectWorkflowStarts(cfg.WorkflowStarts), WorkflowStartFavorites: cfg.WorkflowStartFavorites, WorkflowStartRecent: cfg.WorkflowStartRecent, WorkflowStartWorkflowID: cfg.WorkflowStartWorkflowID, ConfigurationCenter: cfg.ConfigurationCenter, Agents: projectAgents(cfg.Agents), Clock: projectClock(cfg.Clock), EnforceRoleVisibility: true, LogoutHref: cfg.LogoutPath, TenantName: cfg.TenantName}
 	preferences := newServerPreferenceController(ctx, service)
 	workflowAuthoring := newWorkflowAuthoringController(ctx, liveService)
 	// No Apply here. Both controllers start from defaults, and the document
@@ -367,7 +373,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 	// move focus a second time.
 	productRouter.SetFocusManagement(false)
 	// REV-090-01: a failed region's Retry re-runs the same route read.
-	productRouteRetry = productRouter.Revalidate
+	// UXBLIND-089: guardBootRevalidate drops the revalidation when it
+	// lands before the first loader run has settled.
+	productRouteRetry = guardBootRevalidate(productRouter.Revalidate)
 	configurePersonaAdminBrowser(cfg, productRouter.Revalidate)
 	// The application shell is a persistent layout route. Leaf routes own only
 	// the outlet below /workspace/app, so navigation cannot temporarily unmount
@@ -464,6 +472,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			// A failed read never prints its error; see productRouteErrorComponent.
 			Error: productRouteErrorComponent,
 			Loader: func(loadCtx context.Context, routeContext router.RouteContext) (router.Attrs, error) {
+				// UXBLIND-089: every return settles the loader, so a retry
+				// after even a failed first run still revalidates.
+				defer productLoaderSettled.Store(true)
 				if detailOnly && strings.TrimSpace(routeContext.Query.Get("journey")) == "" {
 					return nil, errors.New(productui.ResolveProductLocale(routeContext.Query.Get("locale")).Text("journey.error_denied_detail"))
 				}
@@ -696,9 +707,16 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				if persistPresentation {
 					preferences.PersistView(view)
 				}
+				recordWorkflow, recordWorker := "", ""
 				if state.Page == productui.PageJourneys && state.Request.JourneyMode == "new" && state.Request.JourneyWorker != "" {
+					recordWorkflow, recordWorker = "promotion", state.Request.JourneyWorker
+				} else if id, ok := productclient.WorkflowStartOpenedUse(state.Page, state.WorkflowStartWorkflowID); ok {
+					// WFPAGE-004: opening a workflow start page records a use so Recent reflects the viewer's last starts.
+					recordWorkflow = id
+				}
+				if recordWorkflow != "" {
 					if persistPresentation {
-						preferences.RecordWorkflowUse("promotion", state.Request.JourneyWorker)
+						preferences.RecordWorkflowUse(recordWorkflow, recordWorker)
 					}
 				} else {
 					preferences.ResetWorkflowUseMarker()

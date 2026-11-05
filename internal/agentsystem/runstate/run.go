@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 )
 
@@ -131,6 +132,11 @@ type Run struct {
 	FailureLocation  string           `json:"failure_location,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
 	UpdatedAt        time.Time        `json:"updated_at"`
+	// Calls seals one per-call ledger line per model call beside the stage
+	// checkpoints (AGENTCOST-001): tokens in and out, cost and latency,
+	// classified by stage and kind. Identifiers and digests only, never
+	// prompts or answers. Append-only under the worker lease.
+	Calls []agentmodel.CallLine `json:"calls,omitempty"`
 }
 
 // FailureGate is the closed operational vocabulary for why a run stopped.
@@ -272,6 +278,37 @@ func (s *Service) Checkpoint(ctx context.Context, id, owner string, fence, expec
 		}
 		run.State, run.TerminalCode, run.Lease = StateCompleted, "DELIVERED", nil
 	}
+	if err := s.store.Save(ctx, run, prior); err != nil {
+		return Run{}, err
+	}
+	return run, nil
+}
+
+// RecordModelCalls seals per-call ledger lines under the current lease
+// (AGENTCOST-001). Lines are append-only: committed lines never change, and
+// every line must validate and belong to this run's tenant, agent and ID. The
+// seal rides on the lease alone, not a fresh authority recheck: the spend
+// already happened, and a lapsed grant must not lose its evidence.
+func (s *Service) RecordModelCalls(ctx context.Context, id, owner string, fence, expected uint64, calls []agentmodel.CallLine, now time.Time) (Run, error) {
+	run, err := s.currentLease(ctx, id, owner, fence, expected, now)
+	if err != nil {
+		return Run{}, err
+	}
+	if len(calls) == 0 {
+		return Run{}, fmt.Errorf("%w: call lines", ErrInvalid)
+	}
+	for _, line := range calls {
+		if err := line.Validate(); err != nil {
+			return Run{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+		}
+		if line.TenantID != run.TenantID || line.AgentID != run.AgentID || line.RunID != run.ID {
+			return Run{}, fmt.Errorf("%w: call line is not this run's", ErrInvalid)
+		}
+	}
+	prior := run.Version
+	run.Calls = append(run.Calls, calls...)
+	run.Version++
+	run.UpdatedAt = now.UTC()
 	if err := s.store.Save(ctx, run, prior); err != nil {
 		return Run{}, err
 	}
@@ -571,6 +608,7 @@ func (r *Run) append(checkpoint Checkpoint) {
 func cloneRun(r Run) Run {
 	r.Checkpoints = append([]Checkpoint(nil), r.Checkpoints...)
 	r.Effects = append([]Effect(nil), r.Effects...)
+	r.Calls = append([]agentmodel.CallLine(nil), r.Calls...)
 	if r.Lease != nil {
 		lease := *r.Lease
 		r.Lease = &lease

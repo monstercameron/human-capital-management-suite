@@ -8,12 +8,12 @@ import (
 
 // Paths to the real, checked-in corpus, relative to this package directory.
 const (
-	realMarkdownPath = "../../../planning/todos.md"
+	realMarkdownPath = "../../../planning/archive/todos-2026-10-22.md"
 	realRegistryPath = "../../../definitions/planning/todo-registry.json"
 	realCatalogPath  = "../../../planning/specs/business-intent-catalog.md"
 )
 
-// loadRealMarkdown parses the live planning/todos.md and fails the test if
+// loadRealMarkdown parses the live planning/archive/todos-2026-10-22.md and fails the test if
 // it cannot be read or if todoregistry reports structural parse errors
 // (which would themselves indicate a live-corpus regression, not a fixture
 // concern).
@@ -24,7 +24,7 @@ func loadRealMarkdown(t *testing.T) []Record {
 		t.Fatalf("load %s: %v", realMarkdownPath, err)
 	}
 	if len(parseErrs) != 0 {
-		t.Fatalf("planning/todos.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
+		t.Fatalf("planning/archive/todos-2026-10-22.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
 	}
 	return records
 }

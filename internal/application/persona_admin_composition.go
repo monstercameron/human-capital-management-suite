@@ -195,6 +195,7 @@ func (r personaAdminCatalogVersions) ListPersonaCatalogVersions(ctx context.Cont
 				version.ReviewApproved = true
 				version.ReviewApprovedAt = details.ReviewApprovedAt.Format("2006-01-02")
 				version.EvaluationPassedAt = details.EvaluationPassedAt.Format("2006-01-02")
+				version.EvaluationExpiresAt = details.EvaluationExpiresAt
 			}
 		}
 		if index, exists := indices[profile.Profile.PersonaID]; exists {

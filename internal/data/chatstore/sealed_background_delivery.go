@@ -133,7 +133,7 @@ func (s *SealedBackgroundPersonaDelivery) CommitSealedBackgroundPersonaReply(ctx
 	if err = routeFence(ctx, tx, i.TenantID, dm, 0, ""); err != nil {
 		return chat.EphemeralPost{}, err
 	}
-	post, err := insertSealedBackgroundDMPost(ctx, tx, i, dm, body, output.Digest())
+	post, err := s.store.insertSealedBackgroundDMPost(ctx, tx, i, dm, body, output.Digest())
 	if err != nil {
 		return chat.EphemeralPost{}, err
 	}
@@ -206,7 +206,12 @@ func resolveSealedBackgroundDM(ctx context.Context, tx dbport.Tx, i agentsecurit
 	return dm, nil
 }
 
-func insertSealedBackgroundDMPost(ctx context.Context, tx dbport.Tx, i agentsecurity.FinalOutputIdentity, dm, body, digest string) (chat.Post, error) {
+func (s *Store) insertSealedBackgroundDMPost(ctx context.Context, tx dbport.Tx, i agentsecurity.FinalOutputIdentity, dm, body, digest string) (chat.Post, error) {
+	// The DM copy is a server-owned write like a public answer, so it passes
+	// the installed trusted-content guard before anything is stored.
+	if err := s.guardTrustedContent(ctx, SendRequest{TenantID: i.TenantID, ConversationID: dm, AuthorID: i.PersonaID, Body: body, TrustedAuthor: true}); err != nil {
+		return chat.Post{}, err
+	}
 	key := "persona-output:" + i.OutputID
 	var seq, event, policy int64
 	if err := tx.QueryRow(ctx, `UPDATE chat_conversation SET event_sequence=event_sequence+1,post_sequence=post_sequence+1 WHERE tenant_id=$1 AND id=$2 RETURNING event_sequence,settings_revision,post_sequence`, i.TenantID, dm).Scan(&event, &policy, &seq); err != nil {

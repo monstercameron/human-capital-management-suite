@@ -194,11 +194,11 @@ type SafePoints interface {
 // kernel's baseline snapshot, the governed read that must run first, and the
 // one typed domain request the owning domain package consumes.
 //
-// Exactly one of Promotion, Compensation, PayBand, Drift, Repair and
-// Transaction is set, or none of them when Explain is itself the whole answer
-// (explain_worker_state). A union struct rather than an `any` keeps the set of
-// P1A domain calls enumerable: adding a ninth is a visible change here, not a
-// type switch someone forgets.
+// Exactly one of Promotion, Compensation, PayBand, Severance, Drift, Repair
+// and Transaction is set, or none of them when Explain is itself the whole
+// answer (explain_worker_state). A union struct rather than an `any` keeps
+// the set of P1A domain calls enumerable: adding a tenth is a visible change
+// here, not a type switch someone forgets.
 type DomainCall struct {
 	// Explain, when non-nil, is the governed worker read that runs before
 	// anything else. promotion.PreflightRequest accepts a baseline only as a
@@ -209,6 +209,7 @@ type DomainCall struct {
 	Promotion    *promotion.PreflightRequest
 	Compensation *rewards.SimulateCompensationInput
 	PayBand      *PayBandInputs
+	Severance    *SeveranceInputs
 
 	// Drift is the cross-system comparison detect_drift runs.
 	Drift *dataops.DetectDriftRequest

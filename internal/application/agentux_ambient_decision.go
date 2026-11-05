@@ -12,6 +12,13 @@ import (
 var ErrAgentUXAmbientDenied = errors.New("application: ambient action denied")
 var ErrAgentUXAmbientInvalid = errors.New("application: ambient input invalid")
 
+// The proposal screen runs once per read message; its patterns are compiled once.
+var (
+	agentUXAmbientISODatePattern = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
+	agentUXAmbientClock12Pattern = regexp.MustCompile(`\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b`)
+	agentUXAmbientClock24Pattern = regexp.MustCompile(`\b\d{2}:\d{2}\b`)
+)
+
 type AgentUXAmbientMember struct {
 	ID, Name, Zone, HomeTenant string
 }
@@ -259,7 +266,7 @@ func AgentUXAmbientFixtureProposal(m AgentUXAmbientMessage, agent string) AgentU
 			break
 		}
 	}
-	iso := regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`).FindString(text)
+	iso := agentUXAmbientISODatePattern.FindString(text)
 	if iso != "" {
 		p.Date = iso
 	}
@@ -281,14 +288,14 @@ func AgentUXAmbientFixtureProposal(m AgentUXAmbientMessage, agent string) AgentU
 		}
 		p.Title = strings.TrimSpace(strings.TrimSuffix(title, "?"))
 	}
-	clock := regexp.MustCompile(`\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b`).FindStringSubmatch(text)
+	clock := agentUXAmbientClock12Pattern.FindStringSubmatch(text)
 	if len(clock) > 0 {
 		parsed, err := time.Parse("3:04pm", clock[1]+":"+agentUXAmbientMinute(clock[2])+clock[3])
 		if err == nil {
 			p.Clock = parsed.Format("15:04")
 		}
 	} else {
-		p.Clock = regexp.MustCompile(`\b\d{2}:\d{2}\b`).FindString(text)
+		p.Clock = agentUXAmbientClock24Pattern.FindString(text)
 	}
 	return p
 }

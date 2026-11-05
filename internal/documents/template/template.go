@@ -127,6 +127,33 @@ func New(d Definition) (Template, error) {
 
 func (t Template) Digest() string { return t.SourceDigest }
 
+// Descriptor returns the generated protobuf full name for the template's
+// document type: the type lowered under the doc package (WF-DATA-003). It
+// is tenant-relative like every registry descriptor; the registry row
+// binds it to its tenant, and the template version and digest pin the
+// shape. A type that is not one protobuf identifier is refused rather
+// than mangled.
+func (d Definition) Descriptor() (string, error) {
+	if !validDocType(d.Type) {
+		return "", fmt.Errorf("%w: document type %q is not one identifier", ErrInvalid, d.Type)
+	}
+	return "doc." + strings.ToLower(d.Type), nil
+}
+
+func validDocType(t string) bool {
+	if t == "" {
+		return false
+	}
+	for i := 0; i < len(t); i++ {
+		c := t[i]
+		letter := c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z'
+		if c != '_' && !letter && (i == 0 || c < '0' || c > '9') {
+			return false
+		}
+	}
+	return true
+}
+
 func (t Template) Publish(p Publication) (Template, error) {
 	if err := t.Validate(); err != nil {
 		return Template{}, err

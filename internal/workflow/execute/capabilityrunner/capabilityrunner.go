@@ -146,6 +146,19 @@ type CapabilityCall struct {
 	At            time.Time
 }
 
+// InputTexts renders the call's typed inputs as canonical text by target
+// path. Tenant capability handlers decode runner calls through this shape:
+// well-known keys carry tenant, principal, object, idempotency key, actor,
+// purpose and evidence, while `field.<name>` carries record fields and
+// `filter.<name>` carries query filters.
+func (c CapabilityCall) InputTexts() map[string]string {
+	out := make(map[string]string, len(c.Inputs))
+	for key, value := range c.Inputs {
+		out[key] = value.Text
+	}
+	return out
+}
+
 // CapabilityAnswer is a handler's typed answer: which of the step type's
 // fixed outcomes it produced, the declared output fields, and a short,
 // deterministic statement of what it did.

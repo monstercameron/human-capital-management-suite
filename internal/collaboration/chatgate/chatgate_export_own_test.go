@@ -18,7 +18,7 @@ func TestTodo_CHATGATE_006_ExportOwnRow(t *testing.T) {
 		t.Fatal(e)
 	}
 	c.Key, c.ExpectedRevision = "publish-2", c.ExpectedRevision+1
-	if _, e := s.Publish(t.Context(), c, Version{1, 1, 0}); e != nil {
+	if _, e := s.Publish(t.Context(), c, Version{Major: 1, Minor: 1, Patch: 0}); e != nil {
 		t.Fatal(e)
 	}
 	c.ExpectedRevision++

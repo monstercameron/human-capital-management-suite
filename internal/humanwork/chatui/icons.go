@@ -67,6 +67,11 @@ var iconPaths = map[string]string{
 	// The Rewrite control's glyph: a large and a small sparkle, unlike the pencil
 	// the row uses for editing a message.
 	"sparkles": "M10 4l1.8 5.2L17 11l-5.2 1.8L10 18l-1.8-5.2L3 11l5.2-1.8L10 4zM18 3v4M16 5h4M18 16v4M16 18h4",
+	// CHATUX-050: the row menu's notification choices lead with a glyph like
+	// every other item. The bell is the saved panel's bell in this hand.
+	"bell":     "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
+	"bell-off": "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0M4 4l16 16",
+	"at-sign":  "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94",
 }
 
 // iconSVGAttrs and iconPathAttrs are built once and only read: the renderer

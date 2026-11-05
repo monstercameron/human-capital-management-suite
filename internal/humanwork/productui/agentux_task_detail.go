@@ -66,67 +66,58 @@ type AgentPlanChange struct {
 	Step   AgentTaskStep
 }
 
+// agentTaskDetailCopy is the copy agentTaskDetailText resolves (agentux_copy.go).
+var agentTaskDetailCopy = map[string][3]string{
+	"checkpoint." + AgentCheckpointPlanConfirmed:   {"You confirmed the plan", "Sie haben den Plan bestätigt", "أكّدتَ الخطة"},
+	"checkpoint." + AgentCheckpointStepFinished:    {"Finished: {step}", "Abgeschlossen: {step}", "اكتمل: {step}"},
+	"checkpoint." + AgentCheckpointWaitingApproval: {"Stopped to wait for your approval", "Angehalten, bis Sie zustimmen", "توقفت بانتظار موافقتك"},
+	"checkpoint." + AgentCheckpointWaitingReply:    {"Stopped to wait for your reply", "Angehalten, bis Sie antworten", "توقفت بانتظار ردّك"},
+	"checkpoint." + AgentCheckpointWaitingTimer:    {"Stopped to wait until a set time", "Angehalten bis zu einem festgelegten Zeitpunkt", "توقفت حتى وقت محدد"},
+	"checkpoint." + AgentCheckpointWaitingUpdate:   {"Stopped to wait for an update", "Angehalten, bis eine Aktualisierung eintrifft", "توقفت بانتظار تحديث"},
+	"checkpoint." + AgentCheckpointResumed:         {"Picked up again", "Wieder aufgenommen", "استؤنفت"},
+	"checkpoint." + AgentCheckpointPaused:          {"Paused", "Pausiert", "أُوقفت مؤقتًا"},
+
+	"artifact." + AgentArtifactDraft:    {"Private draft", "Privater Entwurf", "مسودة خاصة"},
+	"artifact." + AgentArtifactDocument: {"Document", "Dokument", "مستند"},
+	"artifact." + AgentArtifactReport:   {"Report", "Bericht", "تقرير"},
+	"artifact." + AgentArtifactResult:   {"Result", "Ergebnis", "نتيجة"},
+	"artifact.no_link":                  {"Kept with this task", "Bei dieser Aufgabe gespeichert", "محفوظ مع هذه المهمة"},
+
+	"intent." + AgentIntentDraft:            {"Draft, not sent", "Entwurf, nicht gesendet", "مسودة لم تُرسل"},
+	"intent." + AgentIntentAwaitingApproval: {"Waiting for your approval", "Wartet auf Ihre Zustimmung", "بانتظار موافقتك"},
+	"intent." + AgentIntentExecuting:        {"Being carried out", "Wird ausgeführt", "قيد التنفيذ"},
+	"intent." + AgentIntentObserved:         {"Done and checked", "Erledigt und geprüft", "تمّ وجرى التحقق"},
+	"intent." + AgentIntentNeedsRepair:      {"Needs review before it continues", "Muss geprüft werden, bevor es weitergeht", "يحتاج إلى مراجعة قبل المتابعة"},
+	"intent." + AgentIntentFailed:           {"Could not be completed", "Konnte nicht abgeschlossen werden", "تعذّر إكماله"},
+
+	"source." + AgentApprovalSourceRequest:     {"Your request", "Ihre Anfrage", "طلبك"},
+	"source." + AgentApprovalSourceRecords:     {"Records the agent read for you", "Daten, die der Agent für Sie gelesen hat", "سجلات قرأها الوكيل لك"},
+	"source." + AgentApprovalSourceEarlierStep: {"An earlier step of this task", "Ein früherer Schritt dieser Aufgabe", "خطوة سابقة من هذه المهمة"},
+	"source.document":                          {"Document: {name}", "Dokument: {name}", "مستند: {name}"},
+	"source.document_unnamed":                  {"A document", "Ein Dokument", "مستند"},
+	"source.none":                              {"No sources were recorded for this step.", "Für diesen Schritt wurden keine Quellen erfasst.", "لم تُسجَّل مصادر لهذه الخطوة."},
+
+	"taint.CANONICAL_FACT":               {"From company records", "Aus Unternehmensdaten", "من سجلات الشركة"},
+	"taint.HUMAN_ASSERTION":              {"Written by a person", "Von einer Person geschrieben", "كتبه شخص"},
+	"taint.USER_AUTHORED":                {"Written by you", "Von Ihnen geschrieben", "كتبتَه أنت"},
+	"taint.AGENT_DERIVED":                {"Written by the agent", "Vom Agenten geschrieben", "كتبه الوكيل"},
+	"taint.TOOL_DERIVED":                 {"Read by a tool", "Von einem Werkzeug gelesen", "قرأته أداة"},
+	"taint.EXTERNAL_UNTRUSTED":           {"From outside the company, not verified", "Von außerhalb des Unternehmens, nicht geprüft", "من خارج الشركة، غير موثَّق"},
+	"taint.UNTRUSTED_PEER":               {"From other people's messages, not verified", "Aus Nachrichten anderer Personen, nicht geprüft", "من رسائل أشخاص آخرين، غير موثَّق"},
+	"taint.UNTRUSTED_REFERENCE_DOCUMENT": {"From an attached document, not verified", "Aus einem angehängten Dokument, nicht geprüft", "من مستند مرفق، غير موثَّق"},
+
+	"plan.changes":                   {"What changed in this plan", "Was sich an diesem Plan geändert hat", "ما الذي تغيّر في هذه الخطة"},
+	"plan." + AgentPlanChangeAdded:   {"Added: {step}", "Hinzugefügt: {step}", "أُضيفت: {step}"},
+	"plan." + AgentPlanChangeRemoved: {"Removed: {step}", "Entfernt: {step}", "أُزيلت: {step}"},
+	"plan.confirm_note":              {"Review the changes, then start the plan to continue.", "Prüfen Sie die Änderungen und starten Sie dann den Plan, um fortzufahren.", "راجع التغييرات ثم ابدأ الخطة للمتابعة."},
+	"approval.digest":                {"Approval reference", "Zustimmungsreferenz", "مرجع الموافقة"},
+	"approval.digest_note":           {"Your approval covers exactly this step. If the step changes, you are asked again.", "Ihre Zustimmung gilt genau für diesen Schritt. Ändert er sich, werden Sie erneut gefragt.", "موافقتك تخص هذه الخطوة تحديدًا. إذا تغيّرت الخطوة فسيُطلب منك الموافقة مجددًا."},
+	"goal.heading":                   {"Your request", "Ihre Anfrage", "طلبك"},
+	"approval.content":               {"Where the content comes from", "Woher der Inhalt stammt", "مصدر المحتوى"},
+}
+
 func agentTaskDetailText(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"checkpoint." + AgentCheckpointPlanConfirmed:   {"You confirmed the plan", "Sie haben den Plan bestätigt", "أكّدتَ الخطة"},
-		"checkpoint." + AgentCheckpointStepFinished:    {"Finished: {step}", "Abgeschlossen: {step}", "اكتمل: {step}"},
-		"checkpoint." + AgentCheckpointWaitingApproval: {"Stopped to wait for your approval", "Angehalten, bis Sie zustimmen", "توقفت بانتظار موافقتك"},
-		"checkpoint." + AgentCheckpointWaitingReply:    {"Stopped to wait for your reply", "Angehalten, bis Sie antworten", "توقفت بانتظار ردّك"},
-		"checkpoint." + AgentCheckpointWaitingTimer:    {"Stopped to wait until a set time", "Angehalten bis zu einem festgelegten Zeitpunkt", "توقفت حتى وقت محدد"},
-		"checkpoint." + AgentCheckpointWaitingUpdate:   {"Stopped to wait for an update", "Angehalten, bis eine Aktualisierung eintrifft", "توقفت بانتظار تحديث"},
-		"checkpoint." + AgentCheckpointResumed:         {"Picked up again", "Wieder aufgenommen", "استؤنفت"},
-		"checkpoint." + AgentCheckpointPaused:          {"Paused", "Pausiert", "أُوقفت مؤقتًا"},
-
-		"artifact." + AgentArtifactDraft:    {"Private draft", "Privater Entwurf", "مسودة خاصة"},
-		"artifact." + AgentArtifactDocument: {"Document", "Dokument", "مستند"},
-		"artifact." + AgentArtifactReport:   {"Report", "Bericht", "تقرير"},
-		"artifact." + AgentArtifactResult:   {"Result", "Ergebnis", "نتيجة"},
-		"artifact.no_link":                  {"Kept with this task", "Bei dieser Aufgabe gespeichert", "محفوظ مع هذه المهمة"},
-
-		"intent." + AgentIntentDraft:            {"Draft, not sent", "Entwurf, nicht gesendet", "مسودة لم تُرسل"},
-		"intent." + AgentIntentAwaitingApproval: {"Waiting for your approval", "Wartet auf Ihre Zustimmung", "بانتظار موافقتك"},
-		"intent." + AgentIntentExecuting:        {"Being carried out", "Wird ausgeführt", "قيد التنفيذ"},
-		"intent." + AgentIntentObserved:         {"Done and checked", "Erledigt und geprüft", "تمّ وجرى التحقق"},
-		"intent." + AgentIntentNeedsRepair:      {"Needs review before it continues", "Muss geprüft werden, bevor es weitergeht", "يحتاج إلى مراجعة قبل المتابعة"},
-		"intent." + AgentIntentFailed:           {"Could not be completed", "Konnte nicht abgeschlossen werden", "تعذّر إكماله"},
-
-		"source." + AgentApprovalSourceRequest:     {"Your request", "Ihre Anfrage", "طلبك"},
-		"source." + AgentApprovalSourceRecords:     {"Records the agent read for you", "Daten, die der Agent für Sie gelesen hat", "سجلات قرأها الوكيل لك"},
-		"source." + AgentApprovalSourceEarlierStep: {"An earlier step of this task", "Ein früherer Schritt dieser Aufgabe", "خطوة سابقة من هذه المهمة"},
-		"source.document":                          {"Document: {name}", "Dokument: {name}", "مستند: {name}"},
-		"source.document_unnamed":                  {"A document", "Ein Dokument", "مستند"},
-		"source.none":                              {"No sources were recorded for this step.", "Für diesen Schritt wurden keine Quellen erfasst.", "لم تُسجَّل مصادر لهذه الخطوة."},
-
-		"taint.CANONICAL_FACT":               {"From company records", "Aus Unternehmensdaten", "من سجلات الشركة"},
-		"taint.HUMAN_ASSERTION":              {"Written by a person", "Von einer Person geschrieben", "كتبه شخص"},
-		"taint.USER_AUTHORED":                {"Written by you", "Von Ihnen geschrieben", "كتبتَه أنت"},
-		"taint.AGENT_DERIVED":                {"Written by the agent", "Vom Agenten geschrieben", "كتبه الوكيل"},
-		"taint.TOOL_DERIVED":                 {"Read by a tool", "Von einem Werkzeug gelesen", "قرأته أداة"},
-		"taint.EXTERNAL_UNTRUSTED":           {"From outside the company, not verified", "Von außerhalb des Unternehmens, nicht geprüft", "من خارج الشركة، غير موثَّق"},
-		"taint.UNTRUSTED_PEER":               {"From other people's messages, not verified", "Aus Nachrichten anderer Personen, nicht geprüft", "من رسائل أشخاص آخرين، غير موثَّق"},
-		"taint.UNTRUSTED_REFERENCE_DOCUMENT": {"From an attached document, not verified", "Aus einem angehängten Dokument, nicht geprüft", "من مستند مرفق، غير موثَّق"},
-
-		"plan.changes":                   {"What changed in this plan", "Was sich an diesem Plan geändert hat", "ما الذي تغيّر في هذه الخطة"},
-		"plan." + AgentPlanChangeAdded:   {"Added: {step}", "Hinzugefügt: {step}", "أُضيفت: {step}"},
-		"plan." + AgentPlanChangeRemoved: {"Removed: {step}", "Entfernt: {step}", "أُزيلت: {step}"},
-		"plan.confirm_note":              {"Review the changes, then start the plan to continue.", "Prüfen Sie die Änderungen und starten Sie dann den Plan, um fortzufahren.", "راجع التغييرات ثم ابدأ الخطة للمتابعة."},
-		"approval.digest":                {"Approval reference", "Zustimmungsreferenz", "مرجع الموافقة"},
-		"approval.digest_note":           {"Your approval covers exactly this step. If the step changes, you are asked again.", "Ihre Zustimmung gilt genau für diesen Schritt. Ändert er sich, werden Sie erneut gefragt.", "موافقتك تخص هذه الخطوة تحديدًا. إذا تغيّرت الخطوة فسيُطلب منك الموافقة مجددًا."},
-		"goal.heading":                   {"Your request", "Ihre Anfrage", "طلبك"},
-		"approval.content":               {"Where the content comes from", "Woher der Inhalt stammt", "مصدر المحتوى"},
-	}
-	values, ok := copy[key]
-	if !ok {
-		return ""
-	}
-	index := 0
-	switch locale.Resolved {
-	case "de-DE":
-		index = 1
-	case "ar":
-		index = 2
-	}
-	return values[index]
+	return agentuxCopyText(agentTaskDetailCopy, locale, key)
 }
 
 // agentTaskStepLabel names a step the way the plan list does.

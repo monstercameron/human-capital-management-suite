@@ -1,0 +1,93 @@
+# Decision models against the levers that need no new vendor (AGENTCOST-005)
+
+Costed from the AGENTCOST-001 seeded replay, scaled to a month at 500 people (x43). The cheapest call is the one not made: each lever below carries its expected monthly saving, its effect on quality and latency, its engineering cost and its risk, ranked by saving per unit of effort. Assumptions are stated per lever and every one is measurable from the ledger once the instrumentation runs in production.
+
+## Ranked levers
+
+### 1. Hosted Jev for decision points (AGENTCOST-003)
+
+- Monthly saving at 500 people: $0.143362 (143362 micros). Basis: seeded decision spend against the vendor-claimed $0.042 per million input tokens at ~150 tokens a call (7 micros); vendor-claimed, blocked on terms.
+- Quality: unmeasured: needs our suites in German, Arabic and English before any verdict.
+- Latency: 70-500 ms vendor-claimed, against seconds for generation-backed decisions.
+- Engineering cost (3 of 5): medium: a new adapter behind the flag plus procurement of terms.
+- Risk: high until terms exist: unknown retention, training use, regions and sub-processors.
+- Hosted: adopt only where it beats the in-deployment options after terms cover the classes and measured calibration passes; today that is nowhere.
+
+### 2. Provider prompt caching for the stable instruction prefix
+
+- Monthly saving at 500 people: $0.033411 (33411 micros). Basis: one third of answer input newly served from cache at $0.01 against $0.10 per million, at seeded answer input tokens.
+- Quality: unchanged: identical answers.
+- Latency: faster on cache hits.
+- Engineering cost (1 of 5): tiny: mark the stable prefix cacheable at the gateway.
+- Risk: low: verify the provider bills cache reads at the cached rate before counting it.
+
+### 3. Batch processing for evaluations and other work nobody is waiting on
+
+- Monthly saving at 500 people: $0.026638 (26638 micros). Basis: half price for evaluation calls moved to batch (assumption: provider batch discount).
+- Quality: unchanged: same model, later answers.
+- Latency: slower by design: hours, acceptable for nightly grades.
+- Engineering cost (1 of 5): small: route evaluation stages through the batch queue.
+- Risk: low: evaluations already tolerate delay; keep an interactive path for release gates.
+
+### 4. Trimming context: thread parent only, cited sections only
+
+- Monthly saving at 500 people: $0.044548 (44548 micros). Basis: 40 percent fewer answer input tokens (assumption) at the input rate, at seeded answer input tokens.
+- Quality: watch it: less context can mean thinner answers; the grounding suite must still pass.
+- Latency: faster: shorter prompts.
+- Engineering cost (2 of 5): small: retrieval returns parents and cited sections, the executor sends nothing else.
+- Risk: low: deterministic change, measured by the existing suites.
+
+### 5. Routing by difficulty to a smaller generation model
+
+- Monthly saving at 500 people: $0.062318 (62318 micros). Basis: 40 percent of answers simple enough for the small profile at one fifth the price (assumption, measurable from the routing suite).
+- Quality: gated: the router's mistakes cost answer quality, so route only above its threshold and measure.
+- Latency: faster for routed answers.
+- Engineering cost (3 of 5): medium: the model.profile decision point plus a small profile behind the route policy.
+- Risk: medium: a weak answer where a strong one was affordable; the abstain path bounds it.
+
+### 6. Caching identical decisions and answers where the sealed inputs are identical
+
+- Monthly saving at 500 people: $0.022768 (22768 micros). Basis: 15 percent of decision spend on repeated identical questions (assumption, countable from sealed digests).
+- Quality: unchanged: identical inputs, identical answers.
+- Latency: faster on hits.
+- Engineering cost (2 of 5): small: a digest-keyed cache beside the decision port with the run record as evidence.
+- Risk: low: cache only where every sealed input matches, including instruction and glossary versions.
+
+### 7. In-process screen: rules and the in-deployment embedding model before any paid call
+
+- Monthly saving at 500 people: $0.003741 (3741 micros). Basis: 60 percent of screening calls resolved with no model call (assumption, measurable per channel from the ledger), at seeded screening cost.
+- Quality: unchanged where rules abstain to the model; a missed screen is a missed task, so rules stay conservative.
+- Latency: faster: microseconds instead of a model round trip.
+- Engineering cost (2 of 5): small: word lists plus the existing embedding model behind the decision port's screen question.
+- Risk: low: the model remains the fallback, and every rule decision is sealed like a model one.
+
+### 8. Small classifier that runs inside the deployment
+
+- Monthly saving at 500 people: $0.005611 (5611 micros). Basis: standalone: 90 percent of screening cost removed at zero marginal call cost (assumption, gated on the suite); after the in-process screen it takes the remainder.
+- Quality: gated: must pass the ambient suites before enablement; below threshold it abstains to the model.
+- Latency: faster: milliseconds in-process.
+- Engineering cost (3 of 5): medium: train, evaluate and serve a small model per decision point, starting with screens.
+- Risk: medium: a second model to evaluate and monitor, but content never leaves the deployment so every data class applies.
+
+### 9. OpenAI Decisions API for decision points (AGENTCOST-004)
+
+- Monthly saving at 500 people: $0 (0 micros). Basis: unknown: no published price; carried at zero until the provider prices it.
+- Quality: unmeasured: model-reported confidence with third-party evidence of overconfidence.
+- Latency: about 150 ms reported.
+- Engineering cost (3 of 5): medium: a new adapter behind the flag.
+- Risk: high: preview contract not final, terms unconfirmed, US-only residency reported.
+- Hosted: revisit after general availability with price, per-option probabilities or a threshold story, and matching data terms.
+
+## Recommended order
+
+1. prompt-caching
+2. batch-evaluation
+3. context-trimming
+4. difficulty-routing
+5. decision-caching
+6. in-process-screen
+7. in-deployment-classifier
+8. jev-hosted
+9. decisions-api
+
+The hosted decision models appear only where they beat the in-deployment options. Today that is nowhere: Jev is blocked on vendor terms and unmeasured calibration, and the Decisions API has no price and no final contract. Both stay conditional while the seven shippable levers are worked in order; the in-process screen comes before the in-deployment classifier because the classifier then needs only the remainder.

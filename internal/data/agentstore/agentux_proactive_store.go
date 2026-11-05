@@ -27,7 +27,12 @@ const (
 	AnnouncementDeleted = "DELETED"
 	AnnouncementPosted  = "POSTED"
 	AnnouncementRefused = "REFUSED"
-	AnnouncementFailed  = "FAILED"
+	// AnnouncementBirthdayPersonaID is the one persona whose announcements
+	// carry no documents: Birthday Buddy reads birthdays, not files. It
+	// mirrors the agent_announcement_document_references_check constraint
+	// (migration 00045) and the application's birthday persona identity.
+	AnnouncementBirthdayPersonaID = "hcmnext.local.persona.birthday_buddy"
+	AnnouncementFailed            = "FAILED"
 )
 
 // Announcement is the tenant-scoped owner definition. SchedulerID points to
@@ -177,7 +182,9 @@ func validateAnnouncement(a Announcement) error {
 		a.CreatedAt.IsZero() || a.UpdatedAt.IsZero() || a.UpdatedAt.Before(a.CreatedAt) {
 		return ErrAnnouncementInvalid
 	}
-	if err := agentdocref.Validate(a.Documents, agentdocref.MaxRequestReferences); err != nil || len(a.Documents) == 0 {
+	if err := agentdocref.Validate(a.Documents, agentdocref.MaxRequestReferences); err != nil ||
+		len(a.Documents) == 0 && a.PersonaID != AnnouncementBirthdayPersonaID ||
+		len(a.Documents) != 0 && a.PersonaID == AnnouncementBirthdayPersonaID {
 		return errors.Join(ErrAnnouncementInvalid, err)
 	}
 	if !slices.Contains([]string{"NOW", "ONCE", "DAILY", "WEEKLY", "MONTHLY"}, a.Cadence) ||
@@ -215,7 +222,12 @@ func (s *AnnouncementStore) Create(ctx context.Context, a Announcement) error {
 	if s == nil || s.runner == nil || ctx == nil || validateAnnouncement(a) != nil || a.Revision != 1 {
 		return ErrAnnouncementInvalid
 	}
-	documents, _ := json.Marshal(a.Documents)
+	// An empty reference list is stored as an empty array, not null: the
+	// table's check constraint requires an array either way.
+	documents := []byte("[]")
+	if len(a.Documents) != 0 {
+		documents, _ = json.Marshal(a.Documents)
+	}
 	return s.runner.RunTenantTx(ctx, a.TenantID, func(tx dbport.Tx) error {
 		n, err := tx.Exec(ctx, `INSERT INTO agent_announcement
 			(tenant_id,announcement_id,installation_id,persona_id,conversation_id,instruction,document_references,cadence,weekdays,month_day,local_time,zone,state,owner_id,scheduler_id,revision,next_run_at,created_at,updated_at,tenant_key)
@@ -235,7 +247,10 @@ func (s *AnnouncementStore) Save(ctx context.Context, a Announcement, expected u
 	if s == nil || ctx == nil || validateAnnouncement(a) != nil || a.Revision != expected+1 || expected == 0 {
 		return ErrAnnouncementInvalid
 	}
-	documents, _ := json.Marshal(a.Documents)
+	documents := []byte("[]")
+	if len(a.Documents) != 0 {
+		documents, _ = json.Marshal(a.Documents)
+	}
 	return s.runner.RunTenantTx(ctx, a.TenantID, func(tx dbport.Tx) error {
 		n, err := tx.Exec(ctx, `UPDATE agent_announcement SET installation_id=$3,persona_id=$4,conversation_id=$5,instruction=$6,document_references=$7::jsonb,cadence=$8,weekdays=$9,month_day=$10,local_time=$11,zone=$12,state=$13,revision=$16,next_run_at=$17,updated_at=$18 WHERE tenant_id=$1 AND announcement_id=$2 AND revision=$19 AND owner_id=$14 AND scheduler_id=$15 AND tenant_key=$20`,
 			a.TenantID, a.ID, a.InstallationID, a.PersonaID, a.ConversationID, a.Instruction, string(documents), a.Cadence, append([]int16{}, a.Weekdays...), a.MonthDay, a.LocalTime, a.Zone, a.State, a.OwnerID, a.SchedulerID, a.Revision, a.NextRunAt, a.UpdatedAt.UTC(), expected, a.TenantKey)

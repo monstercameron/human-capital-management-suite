@@ -43,14 +43,17 @@ async function expectNoRowCovered(page, where) {
   expect(count).toBeGreaterThan(0);
   for (let i = 0; i < count; i++) {
     const row = rows.nth(i);
-    const inside = await row.evaluate((el, sectionEl) => {
-      let n = el;
-      while (n) {
-        if (n === sectionEl) return true;
-        n = n.parentElement;
-      }
-      return false;
-    }, await section.elementHandle());
+    const inside = await row.evaluate(
+      (el, sectionEl) => {
+        let n = el;
+        while (n) {
+          if (n === sectionEl) return true;
+          n = n.parentElement;
+        }
+        return false;
+      },
+      await section.elementHandle(),
+    );
     if (inside) continue;
     const box = await row.boundingBox();
     if (!box) continue;
@@ -77,13 +80,17 @@ test("opening search, a row menu, preferences and Archived covers no row", async
 
   // A row menu open on the first row.
   await page.locator(".rail-scroll .chat-rail-row .rail-row-more").first().click();
-  await expect(page.locator('.rail-row-menu[popover="manual"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('.rail-row-menu[popover="manual"]')).toBeVisible({
+    timeout: 10000,
+  });
   await expectNoRowCovered(page, "menu open");
   await page.keyboard.press("Escape");
 
   // Chat preferences open.
   await page.locator(".rail-prefs-control .chatux002-gear").click();
-  await expect(page.locator('[data-chat-layer="chat-prefs"]')).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('[data-chat-layer="chat-prefs"]')).toBeVisible({
+    timeout: 10000,
+  });
   await expectNoRowCovered(page, "preferences open");
   await page.keyboard.press("Escape");
 

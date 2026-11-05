@@ -1,0 +1,217 @@
+{
+  "privileged": true,
+  "handling": "Privileged workforce-action evidence: restrict to counsel and the decisional process. Ratios are exact; a flagged group needs review, not an automatic stop.",
+  "ranking": [
+    {
+      "member": {
+        "id": "m1",
+        "age": 45,
+        "groups": {
+          "sex": "M"
+        },
+        "scores": {
+          "performance": "9.0000/EXACT_REQUIRED",
+          "tenure": "5.0000/EXACT_REQUIRED"
+        },
+        "pay": "120000.0000/EXACT_REQUIRED",
+        "cohort": "IC3"
+      },
+      "score": "8.2000/EXACT_REQUIRED",
+      "breakdown": [
+        {
+          "criterion": "performance",
+          "score": "9.0000/EXACT_REQUIRED",
+          "weight": "0.8000/EXACT_REQUIRED",
+          "term": "7.2000/EXACT_REQUIRED"
+        },
+        {
+          "criterion": "tenure",
+          "score": "5.0000/EXACT_REQUIRED",
+          "weight": "0.2000/EXACT_REQUIRED",
+          "term": "1.0000/EXACT_REQUIRED"
+        }
+      ],
+      "rank": 1,
+      "selected": true
+    },
+    {
+      "member": {
+        "id": "m3",
+        "age": 52,
+        "groups": {
+          "sex": "F"
+        },
+        "scores": {
+          "performance": "7.0000/EXACT_REQUIRED",
+          "tenure": "9.0000/EXACT_REQUIRED"
+        },
+        "pay": "108000.0000/EXACT_REQUIRED",
+        "cohort": "IC3"
+      },
+      "score": "7.4000/EXACT_REQUIRED",
+      "breakdown": [
+        {
+          "criterion": "performance",
+          "score": "7.0000/EXACT_REQUIRED",
+          "weight": "0.8000/EXACT_REQUIRED",
+          "term": "5.6000/EXACT_REQUIRED"
+        },
+        {
+          "criterion": "tenure",
+          "score": "9.0000/EXACT_REQUIRED",
+          "weight": "0.2000/EXACT_REQUIRED",
+          "term": "1.8000/EXACT_REQUIRED"
+        }
+      ],
+      "rank": 2,
+      "selected": true
+    },
+    {
+      "member": {
+        "id": "m2",
+        "age": 38,
+        "groups": {
+          "sex": "F"
+        },
+        "scores": {
+          "performance": "8.0000/EXACT_REQUIRED",
+          "tenure": "4.0000/EXACT_REQUIRED"
+        },
+        "pay": "110000.0000/EXACT_REQUIRED",
+        "cohort": "IC3"
+      },
+      "score": "7.2000/EXACT_REQUIRED",
+      "breakdown": [
+        {
+          "criterion": "performance",
+          "score": "8.0000/EXACT_REQUIRED",
+          "weight": "0.8000/EXACT_REQUIRED",
+          "term": "6.4000/EXACT_REQUIRED"
+        },
+        {
+          "criterion": "tenure",
+          "score": "4.0000/EXACT_REQUIRED",
+          "weight": "0.2000/EXACT_REQUIRED",
+          "term": "0.8000/EXACT_REQUIRED"
+        }
+      ],
+      "rank": 3,
+      "selected": false
+    },
+    {
+      "member": {
+        "id": "m5",
+        "age": 61,
+        "groups": {
+          "sex": "F"
+        },
+        "scores": {
+          "performance": "5.0000/EXACT_REQUIRED",
+          "tenure": "12.0000/EXACT_REQUIRED"
+        },
+        "pay": "105000.0000/EXACT_REQUIRED",
+        "cohort": "IC3"
+      },
+      "score": "6.4000/EXACT_REQUIRED",
+      "breakdown": [
+        {
+          "criterion": "performance",
+          "score": "5.0000/EXACT_REQUIRED",
+          "weight": "0.8000/EXACT_REQUIRED",
+          "term": "4.0000/EXACT_REQUIRED"
+        },
+        {
+          "criterion": "tenure",
+          "score": "12.0000/EXACT_REQUIRED",
+          "weight": "0.2000/EXACT_REQUIRED",
+          "term": "2.4000/EXACT_REQUIRED"
+        }
+      ],
+      "rank": 4,
+      "selected": false
+    },
+    {
+      "member": {
+        "id": "m4",
+        "age": 29,
+        "groups": {
+          "sex": "M"
+        },
+        "scores": {
+          "performance": "6.0000/EXACT_REQUIRED",
+          "tenure": "1.0000/EXACT_REQUIRED"
+        },
+        "pay": "95000.0000/EXACT_REQUIRED",
+        "cohort": "IC3"
+      },
+      "score": "5.0000/EXACT_REQUIRED",
+      "breakdown": [
+        {
+          "criterion": "performance",
+          "score": "6.0000/EXACT_REQUIRED",
+          "weight": "0.8000/EXACT_REQUIRED",
+          "term": "4.8000/EXACT_REQUIRED"
+        },
+        {
+          "criterion": "tenure",
+          "score": "1.0000/EXACT_REQUIRED",
+          "weight": "0.2000/EXACT_REQUIRED",
+          "term": "0.2000/EXACT_REQUIRED"
+        }
+      ],
+      "rank": 5,
+      "selected": false
+    }
+  ],
+  "impact": {
+    "ratios": [
+      {
+        "dimension": "sex",
+        "group": "F",
+        "selected": 1,
+        "total": 3,
+        "rate": "1/3",
+        "ratio_to_max": "2/3",
+        "flagged": true
+      },
+      {
+        "dimension": "sex",
+        "group": "M",
+        "selected": 1,
+        "total": 2,
+        "rate": "1/2",
+        "ratio_to_max": "1",
+        "flagged": false
+      },
+      {
+        "dimension": "age_band",
+        "group": "40-plus",
+        "selected": 2,
+        "total": 3,
+        "rate": "2/3",
+        "ratio_to_max": "1",
+        "flagged": false
+      },
+      {
+        "dimension": "age_band",
+        "group": "under-40",
+        "selected": 0,
+        "total": 2,
+        "rate": "0",
+        "ratio_to_max": "0",
+        "flagged": true
+      }
+    ]
+  },
+  "equity": [
+    {
+      "cohort": "IC3",
+      "dimension": "sex",
+      "lower_group": "M",
+      "upper_group": "F",
+      "lower_mean": "107500",
+      "upper_mean": "323000/3",
+      "gap_ratio": "645/646"
+    }
+  ]
+}

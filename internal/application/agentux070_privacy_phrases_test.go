@@ -4,10 +4,12 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentinvoke"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
+	trustdlp "github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
 // TestTodo_AGENTUX_070_PrivacyPhrases asks, in each language, for the phrase
@@ -111,13 +113,14 @@ func TestTodo_AGENTUX_070_ModelIsNotToldWhereTheAnswerGoes(t *testing.T) {
 		{TenantID: "tenant-a", ConversationID: "room-a", ThreadID: "thread-a", ID: "prior", AuthorID: "alice", Body: "Use the handbook context, just for me."},
 		{TenantID: "tenant-a", ConversationID: "room-a", ThreadID: "thread-a", ID: "invoke", AuthorID: "alice", Body: "Wie viele Urlaubstage verfallen nicht? Bitte privat halten."},
 	}
-	source := &DatabasePersonaRunModelWorkSource{threads: personaRunModelThreadFake{posts: posts}}
-	admission := agentrun.Record{Request: agentrun.Request{
+	source := &DatabasePersonaRunModelWorkSource{threads: personaRunModelThreadFake{posts: posts}, now: time.Now}
+	admission := agentrun.Record{ID: "admission-a", Request: agentrun.Request{
 		Source:   agentrun.SourceIdentity{TenantID: "tenant-a", Ref: "invoke"},
-		Audience: agentrun.AudienceScope{ID: "room-a"}, Context: agentrun.ContextScope{ID: "thread-a"},
-		Principal: agentrun.PrincipalChain{InvokerID: "alice"},
-	}}
-	goal, history, refs, err := source.readThreadContext(context.Background(), admission, agentpersona.PersonaProfile{Instructions: "Answer policy questions", InstructionsDigest: "sha256:valid"})
+		Purpose:  "persona-mention",
+		Audience: agentrun.AudienceScope{ID: "room-a", SnapshotID: "aud-a", Digest: "sha256:aud"}, Context: agentrun.ContextScope{ID: "thread-a", SnapshotID: "ctx-a", Digest: "sha256:ctx"},
+		Principal: agentrun.PrincipalChain{InvokerID: "alice", DelegatedCredentialRef: "cred-a"},
+	}, Authority: agentrun.AuthoritySnapshot{GrantRef: "grant-a", PolicyDigest: "policy-17"}}
+	goal, history, refs, err := source.readThreadContext(context.Background(), admission, agentpersona.PersonaProfile{Instructions: "Answer policy questions", InstructionsDigest: "sha256:valid"}, trustdlp.ClassInternal)
 	if err != nil {
 		t.Fatal(err)
 	}

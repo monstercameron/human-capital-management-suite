@@ -226,6 +226,8 @@ func (f *CorpusInputs) Resolve(ctx context.Context, req ResolveRequest) (DomainC
 		return f.resolveCompensation(ctx, req, payload)
 	case rewards.EvaluatePayBandIntentType:
 		return f.resolvePayBand(ctx, req, payload)
+	case rewards.CalculateSeveranceIntentType:
+		return f.resolveSeverance(ctx, req, payload)
 	case dataops.DetectDriftIntentType:
 		return f.resolveDrift(ctx, req, payload)
 	case repair.CreateRepairPlanIntentType, repair.SimulateRepairIntentType:
@@ -770,6 +772,112 @@ func (f *CorpusInputs) resolvePayBand(ctx context.Context, req ResolveRequest, p
 		Baseline: baselineFor(inst, facts, subject, promotion.TargetPlacement{},
 			[]string{"employment_ref", "pay_band_ref", "amount"}),
 	}, nil
+}
+
+// resolveSeverance decodes a calculate_severance payload: the published plan
+// it prices with plus one week of pay and the tenure it prices. A severance
+// figure is a compensation disclosure, and it is gated as one.
+func (f *CorpusInputs) resolveSeverance(ctx context.Context, req ResolveRequest, payload *structValue) (DomainCall, error) {
+	inst := req.Instance
+	workerRef, err := str(payload, "worker_ref")
+	if err != nil {
+		return DomainCall{}, err
+	}
+	subject, ok := f.worker(ctx, inst.Tenant, workerRef)
+	if !ok {
+		return DomainCall{}, fmt.Errorf("app: worker_ref %q is not a resolvable worker reference", workerRef)
+	}
+	asOfDate, err := localDate(payload, "as_of")
+	if err != nil {
+		return DomainCall{}, err
+	}
+	if _, authErr := authorizeRead(req.Principal, req.Purpose, authorizationRequest{
+		Subject:       subject,
+		EvaluatedAt:   inst.CreatedAt,
+		Gate:          []authz.FieldID{authz.FieldBaseSalary},
+		Relationships: append(append([]authz.RelationshipFact{}, req.Relationships...), managerChainFacts(ctx, f.locate, req.Principal, subject)...),
+	}); authErr != nil {
+		return DomainCall{}, authErr
+	}
+	plan, err := severancePlan(payload)
+	if err != nil {
+		return DomainCall{}, err
+	}
+	payText, err := str(payload, "weekly_pay")
+	if err != nil {
+		return DomainCall{}, err
+	}
+	weeklyPay, err := fixtures.Money(payText, plan.Currency)
+	if err != nil {
+		return DomainCall{}, fmt.Errorf("app: weekly_pay: %w", err)
+	}
+	tenureText, err := str(payload, "tenure_years")
+	if err != nil {
+		return DomainCall{}, err
+	}
+	tenure, err := values.NewDecimal(tenureText, 4, values.RoundingHalfEven)
+	if err != nil {
+		return DomainCall{}, fmt.Errorf("app: tenure_years: %w", err)
+	}
+	coordinate, err := asOfFrom(inst, asOfDate, optionalStr(payload, "known_at"))
+	if err != nil {
+		return DomainCall{}, err
+	}
+	facts, err := f.read(ctx, inst.Tenant, subject, coordinate)
+	if err != nil {
+		return DomainCall{}, fmt.Errorf("app: governed worker read: %w", err)
+	}
+	return DomainCall{
+		Severance: &SeveranceInputs{
+			Plan:  plan,
+			Query: rewards.SeveranceInput{WeeklyPay: weeklyPay, TenureYears: tenure},
+		},
+		Baseline: baselineFor(inst, facts, subject, promotion.TargetPlacement{},
+			[]string{"employment_ref", "severance_plan_ref", "weekly_pay", "tenure_years"}),
+	}, nil
+}
+
+// severancePlan decodes the published plan a calculate_severance payload
+// prices with. The plan declares its own price, bounds and currency; the
+// money shape is the corpus contract, never a per-request invention.
+func severancePlan(payload *structValue) (rewards.SeverancePlan, error) {
+	raw, err := fieldsOf(payload, "plan")
+	if err != nil {
+		return rewards.SeverancePlan{}, err
+	}
+	version, err := str(raw, "version")
+	if err != nil {
+		return rewards.SeverancePlan{}, err
+	}
+	currency, err := str(raw, "currency")
+	if err != nil {
+		return rewards.SeverancePlan{}, err
+	}
+	factors := map[string]values.Decimal{}
+	for _, name := range []string{"weeks_per_year", "min_weeks", "max_weeks"} {
+		text, textErr := str(raw, name)
+		if textErr != nil {
+			return rewards.SeverancePlan{}, textErr
+		}
+		factor, factorErr := values.NewDecimal(text, 4, values.RoundingHalfEven)
+		if factorErr != nil {
+			return rewards.SeverancePlan{}, fmt.Errorf("app: plan.%s: %w", name, factorErr)
+		}
+		factors[name] = factor
+	}
+	plan := rewards.SeverancePlan{
+		Version:       version,
+		WeeksPerYear:  factors["weeks_per_year"],
+		MinWeeks:      factors["min_weeks"],
+		MaxWeeks:      factors["max_weeks"],
+		Currency:      currency,
+		MoneyScale:    int32(fixtures.MoneyScale),
+		MoneyRounding: fixtures.MoneyRounding,
+	}
+	if err := plan.Validate(); err != nil {
+		return rewards.SeverancePlan{}, fmt.Errorf("app: plan: %w", err)
+	}
+	return plan, nil
 }
 
 // unionPresentInputs merges two present-input lists into a sorted,

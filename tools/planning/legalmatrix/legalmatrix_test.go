@@ -323,12 +323,12 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("Getwd: %v", err)
 	}
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "planning", "todos.md")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, "planning", "archive", "todos-2026-10-22.md")); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			t.Fatalf("could not locate repository root (planning/todos.md) above %s", dir)
+			t.Fatalf("could not locate repository root (planning/archive/todos-2026-10-22.md) above %s", dir)
 		}
 		dir = parent
 	}

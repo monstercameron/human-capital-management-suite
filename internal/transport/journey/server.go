@@ -39,8 +39,13 @@ type Dependencies struct {
 	// forwarding, so the wire contract cannot select another user's record.
 	Preferences preferences.Store
 	RoleAccess  roleaccess.Store
-	WorkerIDs   workerids.Store
-	Knowledge   app.KnowledgeSearchService
+	// Features is the product feature registry the page gates judge
+	// declared pairs against. Nil reads the product registry, which is
+	// what every deployment serves today; a test injects a stub to gate
+	// without the UI catalog.
+	Features  FeatureRegistry
+	WorkerIDs workerids.Store
+	Knowledge app.KnowledgeSearchService
 	// Invalidations is the committed-transition hub
 	// WatchPromotionInvalidations subscribes to (REV-091-03). Nil answers
 	// that stream UNAVAILABLE.
@@ -105,6 +110,15 @@ func (d Dependencies) nowFunc() func() time.Time {
 	return time.Now
 }
 
+// featureRegistry returns the injected feature registry, or the product
+// registry behind a nil port.
+func (s *server) featureRegistry() FeatureRegistry {
+	if s.deps.Features != nil {
+		return s.deps.Features
+	}
+	return registryFeatureDeclared
+}
+
 // server adapts [Dependencies] to the generated
 // journeyv1.JourneyServiceServer interface. Every method is a thin forward:
 // [trustedContext] runs first, the request is converted to the port's plain
@@ -115,12 +129,6 @@ type server struct {
 	journeyv1.UnimplementedJourneyServiceServer
 
 	deps Dependencies
-
-	// roleMu guards roleCache, the server's short-TTL durable role cache
-	// (RBAC-RT-002). It lives on the server value that owns it, never in
-	// a package-level registry.
-	roleMu    sync.Mutex
-	roleCache *roleaccess.Resolver
 }
 
 // Register adds hcmnext.journey.v1.JourneyService to srv. srv must already
@@ -512,7 +520,8 @@ func (s *server) ListJourneys(ctx context.Context, req *journeyv1.ListJourneysRe
 	// and proposed pay. It backs the Journeys and My Work pages, so a caller
 	// who may view neither -- a self-service employee -- is refused rather
 	// than handed the tenant's promotions over the RPC the pages would hide.
-	if err := s.requireAnyFeatureView(ctx, principal, inv,
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireAnyFeatureView(ctx,
 		featureAccessRequest{pageID: "journeys", featureID: "journey_list"},
 		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
 	); err != nil {
@@ -527,7 +536,7 @@ func (s *server) ListJourneys(ctx context.Context, req *journeyv1.ListJourneysRe
 	if err != nil {
 		return nil, err
 	}
-	diagAuthorized := s.diagnosticsAuthorized(ctx, principal)
+	diagAuthorized := auth.diagnosticsAuthorized(ctx)
 	resp := &journeyv1.ListJourneysResponse{
 		Page:       &commonv1.PageResponse{NextCursor: nextCursor},
 		TotalCount: int32(total),
@@ -538,30 +547,47 @@ func (s *server) ListJourneys(ctx context.Context, req *journeyv1.ListJourneysRe
 	// UXLIVE-027: the one authorized population summary, over exactly the
 	// journeys above, so no page recounts or re-filters the collection.
 	resp.Population = toPopulation(workspace.SummarizeJourneys(summaries, s.deps.nowFunc()()))
+	// UXBLIND-089: the two inbox reads are independent (each opens its own
+	// transaction), so they run together and the cold-load window pays the
+	// slower one instead of the sum. The merge keeps the exact bytes the
+	// sequential read produced: approval notices first, then status notices,
+	// newest first, and any failure still serves no partial list.
+	var approval, status []workspace.WorkflowNotification
+	var approvalErr, statusErr error
+	var reads sync.WaitGroup
+	wantStatus := false
 	if reader, ok := eng.(workspace.WorkflowNotificationReader); ok {
-		notices, err := reader.WorkflowNotifications(ctx, summaries)
-		if err != nil {
-			resp.NotificationsUnavailable = true
-			return resp, nil
-		}
-		for _, notice := range notices {
-			resp.Notifications = append(resp.Notifications, &journeyv1.WorkflowNotification{
-				NotificationId: notice.ID, JourneyId: notice.JourneyID, WorkItemId: notice.WorkItemID,
-				WorkerName: notice.WorkerName, Purpose: notice.Purpose, Status: notice.Status,
-				CreatedAt: timestamppb.New(notice.CreatedAt), Read: notice.Read,
-			})
-		}
+		reads.Add(1)
+		go func() {
+			defer reads.Done()
+			approval, approvalErr = reader.WorkflowNotifications(ctx, summaries)
+		}()
+	}
+	if reader, ok := eng.(workspace.WorkflowStatusReader); ok {
+		wantStatus = true
+		reads.Add(1)
+		go func() {
+			defer reads.Done()
+			status, statusErr = reader.WorkflowStatusNotifications(ctx, summaries)
+		}()
+	}
+	reads.Wait()
+	if approvalErr != nil || statusErr != nil {
+		// One inbox serves both kinds; a partial list would read as complete.
+		resp.NotificationsUnavailable = true
+		return resp, nil
+	}
+	for _, notice := range approval {
+		resp.Notifications = append(resp.Notifications, &journeyv1.WorkflowNotification{
+			NotificationId: notice.ID, JourneyId: notice.JourneyID, WorkItemId: notice.WorkItemID,
+			WorkerName: notice.WorkerName, Purpose: notice.Purpose, Status: notice.Status,
+			CreatedAt: timestamppb.New(notice.CreatedAt), Read: notice.Read,
+		})
 	}
 	// WF-NOTIFY-001: status notices for requests the caller started. They share the
 	// message shape; a status notice has no work item.
-	if reader, ok := eng.(workspace.WorkflowStatusReader); ok && !resp.NotificationsUnavailable {
-		notices, err := reader.WorkflowStatusNotifications(ctx, summaries)
-		if err != nil {
-			// One inbox serves both kinds; a partial list would read as complete.
-			resp.Notifications, resp.NotificationsUnavailable = nil, true
-			return resp, nil
-		}
-		for _, notice := range notices {
+	if wantStatus {
+		for _, notice := range status {
 			resp.Notifications = append(resp.Notifications, &journeyv1.WorkflowNotification{
 				NotificationId: notice.ID, JourneyId: notice.JourneyID, WorkerName: notice.WorkerName,
 				Purpose: notice.Purpose, Status: notice.Status, CreatedAt: timestamppb.New(notice.CreatedAt), Read: notice.Read,
@@ -581,7 +607,8 @@ func (s *server) ProposeJourney(ctx context.Context, req *journeyv1.ProposeJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "promotion_request", roleaccess.ActionCreate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "journeys", "promotion_request", roleaccess.ActionCreate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "propose")
@@ -602,7 +629,7 @@ func (s *server) ProposeJourney(ctx context.Context, req *journeyv1.ProposeJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "propose")
 	}
-	return &journeyv1.ProposeJourneyResponse{Journey: toJourney(summary, s.diagnosticsAuthorized(ctx, principal))}, nil
+	return &journeyv1.ProposeJourneyResponse{Journey: toJourney(summary, auth.diagnosticsAuthorized(ctx))}, nil
 }
 
 // InspectJourney forwards to workspace.JourneyEngine.Inspect. READ_ONLY.
@@ -618,11 +645,12 @@ func (s *server) InspectJourney(ctx context.Context, req *journeyv1.InspectJourn
 	// side effect precedes authorization, and the engine still refuses
 	// subjects its own policy does not disclose to the caller while masking
 	// pay for redacted-only grants.
-	if err := s.requireAnyFeatureView(ctx, principal, inv,
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireAnyFeatureView(ctx,
 		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
 		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
 	); err != nil {
-		if !s.diagnosticsAuthorized(ctx, principal) {
+		if !auth.diagnosticsAuthorized(ctx) {
 			return nil, err
 		}
 	}
@@ -635,7 +663,7 @@ func (s *server) InspectJourney(ctx context.Context, req *journeyv1.InspectJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "inspect")
 	}
-	return &journeyv1.InspectJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+	return &journeyv1.InspectJourneyResponse{Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx))}, nil
 }
 
 // ExecuteJourney forwards to workspace.JourneyEngine.Execute, which runs
@@ -645,7 +673,8 @@ func (s *server) ExecuteJourney(ctx context.Context, req *journeyv1.ExecuteJourn
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "execute")
@@ -657,7 +686,7 @@ func (s *server) ExecuteJourney(ctx context.Context, req *journeyv1.ExecuteJourn
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "execute")
 	}
-	return &journeyv1.ExecuteJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+	return &journeyv1.ExecuteJourneyResponse{Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx))}, nil
 }
 
 // DecideJourney forwards to workspace.JourneyEngine.Decide, which claims and
@@ -668,7 +697,8 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "work", "approval_decision", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "work", "approval_decision", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "decide")
@@ -683,7 +713,7 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "decide")
 	}
-	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx))}, nil
 }
 
 // AcknowledgeJourney forwards to workspace.JourneyEngine.Acknowledge, which
@@ -697,7 +727,8 @@ func (s *server) AcknowledgeJourney(ctx context.Context, req *journeyv1.Acknowle
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "acknowledge")
@@ -712,7 +743,7 @@ func (s *server) AcknowledgeJourney(ctx context.Context, req *journeyv1.Acknowle
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "acknowledge")
 	}
-	return &journeyv1.AcknowledgeJourneyResponse{Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal))}, nil
+	return &journeyv1.AcknowledgeJourneyResponse{Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx))}, nil
 }
 
 // EditProposal forwards to workspace.JourneyEngine.EditProposal, which is
@@ -722,7 +753,8 @@ func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "promotion_request", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "journeys", "promotion_request", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "edit_proposal")
@@ -744,7 +776,7 @@ func (s *server) EditProposal(ctx context.Context, req *journeyv1.EditProposalRe
 		return nil, ownedError(err, principal, inv, "edit_proposal")
 	}
 	return &journeyv1.EditProposalResponse{
-		Journey:            toJourney(successor, s.diagnosticsAuthorized(ctx, principal)),
+		Journey:            toJourney(successor, auth.diagnosticsAuthorized(ctx)),
 		SupersededIntentId: superseded,
 	}, nil
 }
@@ -783,7 +815,8 @@ func (s *server) AddJourneyNote(ctx context.Context, req *journeyv1.AddJourneyNo
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireAnyFeatureView(ctx, principal, inv,
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireAnyFeatureView(ctx,
 		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
 		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
 	); err != nil {
@@ -805,7 +838,7 @@ func (s *server) AddJourneyNote(ctx context.Context, req *journeyv1.AddJourneyNo
 	}
 	return &journeyv1.AddJourneyNoteResponse{
 		Note:   toJourneyNote(note),
-		Detail: toDetail(detail, s.diagnosticsAuthorized(ctx, principal)),
+		Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx)),
 	}, nil
 }
 
@@ -814,7 +847,8 @@ func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "journeys", "journey_detail", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "request_intervention")
@@ -832,7 +866,7 @@ func (s *server) RequestJourneyIntervention(ctx context.Context, req *journeyv1.
 		return nil, ownedError(err, principal, inv, "request_intervention")
 	}
 	return &journeyv1.RequestJourneyInterventionResponse{
-		Journey:             toJourney(result.Journey, s.diagnosticsAuthorized(ctx, principal)),
+		Journey:             toJourney(result.Journey, auth.diagnosticsAuthorized(ctx)),
 		Outcome:             toInterventionOutcome(result.Outcome),
 		RetainedEvidenceRef: result.RetainedEvidenceRef,
 	}, nil
@@ -850,9 +884,10 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 	// record. Such a caller is served exactly its own row when its role may
 	// view the Myself employment profile, and nothing else: no other worker,
 	// no workforce options.
+	auth := s.authorize(principal, inv.RequestID())
 	selfOnly := false
-	if err := s.requireFeatureAction(ctx, principal, inv, "people", "directory", roleaccess.ActionView); err != nil {
-		if s.requireFeatureAction(ctx, principal, inv, "myself", "employment_profile", roleaccess.ActionView) != nil {
+	if err := auth.requireFeatureAction(ctx, "people", "directory", roleaccess.ActionView); err != nil {
+		if auth.requireFeatureAction(ctx, "myself", "employment_profile", roleaccess.ActionView) != nil {
 			return nil, err
 		}
 		selfOnly = true
@@ -874,17 +909,18 @@ func (s *server) ListWorkers(ctx context.Context, _ *journeyv1.ListWorkersReques
 			}
 		}
 		// The self-only caller is named and pictured like everyone else.
-		selfListed := s.authorizeWorkers(ctx, principal, workers, projectAuthorizedManagers(workers, own))
+		selfListed := s.authorizeWorkers(ctx, principal, auth.roles(ctx), workers, projectAuthorizedManagers(workers, own))
 		enrichDemoDirectory(principal.Tenant().String(), selfListed, false)
 		return &journeyv1.ListWorkersResponse{Workers: selfListed}, nil
 	}
 	// The complete listing stays available as the reporting-line source for
 	// per-subject field disclosure; visibleWorkforce only filters rows.
-	visible, options, err := s.visibleWorkforce(ctx, principal, workers, options)
+	roles := auth.roles(ctx)
+	visible, options, err := s.visibleWorkforce(ctx, principal, roles, workers, options)
 	if err != nil {
 		return nil, preferenceError(err, principal, inv.RequestID(), "load_organization_visibility")
 	}
-	listed := s.authorizeWorkers(ctx, principal, workers, visible)
+	listed := s.authorizeWorkers(ctx, principal, roles, workers, visible)
 	enrichDemoDirectory(principal.Tenant().String(), listed, false)
 	return &journeyv1.ListWorkersResponse{
 		Options: toWorkforceOptions(options),
@@ -925,7 +961,8 @@ func (s *server) CreateWorker(ctx context.Context, req *journeyv1.CreateWorkerRe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireFeatureAction(ctx, principal, inv, "people", "directory", roleaccess.ActionCreate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireFeatureAction(ctx, "people", "directory", roleaccess.ActionCreate); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "create_worker")
@@ -937,5 +974,5 @@ func (s *server) CreateWorker(ctx context.Context, req *journeyv1.CreateWorkerRe
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "create_worker")
 	}
-	return &journeyv1.CreateWorkerResponse{Worker: s.authorizeWorker(ctx, principal, worker)}, nil
+	return &journeyv1.CreateWorkerResponse{Worker: s.authorizeWorker(ctx, principal, auth.roles(ctx), worker)}, nil
 }

@@ -100,6 +100,29 @@ func TestTodo_PM_071_Security(t *testing.T) {
 	if _, err := service.Download(context.Background(), tampered, DownloadAttachmentRequest{TenantID: "tenant-a", ProjectID: "project-a", TaskID: "task-a", Principal: "user-a", At: now.Add(time.Minute)}); !errors.Is(err, ErrAttachmentSecurity) {
 		t.Fatalf("tampered download = %v", err)
 	}
+	oversize := attachmentRequest(now)
+	oversize.Bytes = make([]byte, 1025)
+	if _, err := service.Upload(context.Background(), oversize); !errors.Is(err, ErrAttachmentInvalid) {
+		t.Fatalf("oversize upload = %v", err)
+	}
+	badType := attachmentRequest(now)
+	badType.ContentType = "application/x-sh"
+	if _, err := service.Upload(context.Background(), badType); !errors.Is(err, ErrAttachmentInvalid) {
+		t.Fatalf("disallowed content type upload = %v", err)
+	}
+	auth.revoked = true
+	if _, err := service.Upload(context.Background(), attachmentRequest(now)); !errors.Is(err, ErrAttachmentUnauthorized) {
+		t.Fatalf("upload without task grant = %v", err)
+	}
+	auth.revoked = false
+	revoked := attachment
+	revoked.RevokedAt = now.Add(2 * time.Minute)
+	if _, err := service.Download(context.Background(), revoked, DownloadAttachmentRequest{TenantID: "tenant-a", ProjectID: "project-a", TaskID: "task-a", Principal: "user-a", At: now.Add(3 * time.Minute)}); !errors.Is(err, ErrAttachmentRevoked) {
+		t.Fatalf("revoked attachment download = %v", err)
+	}
+	if _, err := service.Download(context.Background(), attachment, DownloadAttachmentRequest{TenantID: "tenant-a", ProjectID: "project-a", TaskID: "task-a", Principal: "user-a", At: now.Add(25 * time.Hour)}); !errors.Is(err, ErrAttachmentExpired) {
+		t.Fatalf("post-retention download = %v", err)
+	}
 }
 
 func TestTodo_PM_071_Integration(t *testing.T) {

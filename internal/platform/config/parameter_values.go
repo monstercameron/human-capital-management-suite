@@ -113,9 +113,12 @@ type parameterValueKey struct {
 // ParameterValueStore is an append-only in-memory reference ledger. Its
 // state belongs to the store instance; callers can replace it with durable
 // storage without changing revision, scope, or resolution semantics.
+// Limits bounds the tenant footprint; the zero value means the platform
+// defaults.
 type ParameterValueStore struct {
 	mu        sync.RWMutex
 	revisions map[parameterValueKey][]ParameterValueRevision
+	Limits    TenantValueLimits
 }
 
 // NewParameterValueStore creates an empty value revision ledger.
@@ -134,12 +137,18 @@ func (s *ParameterValueStore) Append(snapshot Snapshot, change ParameterValueCha
 	if !found {
 		return ParameterValueRevision{}, fmt.Errorf("%w: definition %q is absent", ErrParameterValueInvalid, change.Key)
 	}
+	if err := CheckParameterValueSize(change.Value, s.Limits); err != nil {
+		return ParameterValueRevision{}, err
+	}
 	if err := validateParameterChange(change, definition); err != nil {
 		return ParameterValueRevision{}, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.checkAncestorLocksLocked(change); err != nil {
+		return ParameterValueRevision{}, err
+	}
+	if err := s.checkKeyBudgetLocked(change.Key); err != nil {
 		return ParameterValueRevision{}, err
 	}
 	key := keyFor(change.Key, change.Scope, change.Environment)
@@ -292,6 +301,23 @@ func (s *ParameterValueStore) Revisions(key string, scope ParameterScope, enviro
 	return out
 }
 
+// checkKeyBudgetLocked refuses a key the store has never seen once the
+// tenant already holds its budgeted distinct keys. New revisions of a
+// budgeted key always pass. Callers must hold s.mu.
+func (s *ParameterValueStore) checkKeyBudgetLocked(key string) error {
+	distinct := make(map[string]struct{})
+	for k := range s.revisions {
+		distinct[k.key] = struct{}{}
+	}
+	if _, seen := distinct[key]; seen {
+		return nil
+	}
+	if len(distinct) >= s.Limits.withDefaults().MaxKeysPerTenant {
+		return fmt.Errorf("%w: tenant already holds %d keys", ErrParameterKeyBudgetExceeded, len(distinct))
+	}
+	return nil
+}
+
 func (s *ParameterValueStore) checkAncestorLocksLocked(change ParameterValueChange) error {
 	for _, ancestor := range change.Path[:len(change.Path)-1] {
 		history := s.revisions[keyFor(change.Key, ancestor, change.Environment)]
@@ -321,7 +347,9 @@ func validateParameterChange(change ParameterValueChange, definition ParameterDe
 	if definition.SecretReference && !strings.HasPrefix(change.Value, CredentialRefPrefix) {
 		return fmt.Errorf("%w: secret parameters require an opaque credential reference", ErrParameterValueInvalid)
 	}
-	return nil
+	// Size is a platform budget, not a store option: every adapter runs
+	// this validation before opening writes.
+	return CheckParameterValueSize(change.Value, DefaultTenantValueLimits())
 }
 
 // ValidateParameterValueChange checks a revision against its active typed

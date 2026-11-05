@@ -351,7 +351,7 @@ func checkObserveStep(n *Node, rec *capability.Record, c *collector) {
 
 // checkWaitStep proves a WAIT node declares a complete, unambiguous wake
 // condition and the dataset identity a future timer must carry (WF-STEP-005):
-// the wake condition names either a fixed instant or a local date/time, a
+// the wake condition names a fixed instant, a local date/time or a time expression, a
 // local condition declares its DST disambiguation policy, and the zone,
 // calendar and reference-update policy are always present so a later replay
 // can defend the fire-at instant it produced.
@@ -370,6 +370,17 @@ func checkWaitStep(n *Node, c *collector) {
 		if w.WakeLocalDate != "" || w.WakeLocalTime != "" {
 			c.add(CodeInvalidDefinition, loc,
 				"a WAIT node names both a fixed instant and a local wake condition; exactly one is legal")
+		}
+	case WaitWakeAtTimeExpr:
+		if w.WakeInstant != "" || w.WakeLocalDate != "" || w.WakeLocalTime != "" {
+			c.add(CodeInvalidDefinition, loc,
+				"an AT_TIME_EXPR wake names a fixed instant or local wake condition alongside the expression; exactly one is legal")
+		}
+		if w.TimeExpr == nil {
+			c.add(CodeUnresolvedRef, Location{NodeID: n.ID, Field: "time_expr"},
+				"a WAIT node declares AT_TIME_EXPR but carries no time expression")
+		} else {
+			validTimeExprSpec(w.TimeExpr, true, n, "time_expr", c)
 		}
 	case WaitWakeAtLocalDate, WaitWakeAtLocalDateTime:
 		if w.WakeLocalDate == "" {
@@ -474,6 +485,64 @@ func checkSignalStep(n *Node, c *collector) {
 	} else if !s.Ordering.Valid() {
 		c.add(CodeInvalidDefinition, Location{NodeID: n.ID, Field: "ordering"},
 			"ordering %q is not a declared ordering expectation", string(s.Ordering))
+	}
+	if s.CloseTimeExpr != nil && s.CloseAfterSeconds != 0 {
+		c.add(CodeInvalidDefinition, Location{NodeID: n.ID, Field: "close_time_expr"},
+			"a SIGNAL node names both close_after_seconds and a close time expression; exactly one is legal")
+	}
+	if s.CloseTimeExpr != nil {
+		validTimeExprSpec(s.CloseTimeExpr, false, n, "close_time_expr", c)
+	}
+	if s.TimeoutDefault != nil {
+		if s.TimeoutDefault.Schema == "" || s.TimeoutDefault.CanonicalJSON == "" {
+			c.add(CodeUnresolvedRef, Location{NodeID: n.ID, Field: "timeout_default"},
+				"a SIGNAL timeout default names a schema and carries canonical payload bytes")
+		}
+	}
+}
+
+// validTimeExprSpec proves the shape of one TimeExprSpec without importing
+// the runtime value package: the anchor mapping, the offset kind and the
+// fields that kind requires. When inherit is true the expression must leave
+// its zone and calendar halves empty because the owning spec pins them at
+// node level; otherwise it must declare them itself. Typed parsing stays in
+// the step packages FromCompiled translators.
+func validTimeExprSpec(s *TimeExprSpec, inherit bool, n *Node, field string, c *collector) {
+	loc := Location{NodeID: n.ID, Field: field}
+	if s.AnchorPath == "" {
+		c.add(CodeUnresolvedRef, loc, "a time expression maps no anchor into run data")
+	}
+	switch s.OffsetKind {
+	case "BUSINESS_DAYS", "CALENDAR_DAYS":
+		if s.Disambiguation == "" {
+			c.add(CodeUnresolvedRef, loc, "a day-based time expression declares no DST disambiguation policy")
+		} else if !validDisambiguation(s.Disambiguation) {
+			c.add(CodeInvalidDefinition, loc,
+				"disambiguation %q is not a declared policy", s.Disambiguation)
+		}
+	case "DURATION":
+		if s.OffsetSeconds == 0 {
+			c.add(CodeInvalidDefinition, loc, "a duration time expression offsets by zero seconds")
+		}
+	default:
+		c.add(CodeInvalidDefinition, loc,
+			"offset kind %q is not a declared time-expression offset", s.OffsetKind)
+	}
+	if inherit {
+		if s.ZoneID != "" || s.ZoneTzdbVersion != "" || s.CalendarRef != "" || s.CalendarVersion != "" {
+			c.add(CodeInvalidDefinition, loc,
+				"a WAIT time expression pins its own zone or calendar; the node-level halves govern")
+		}
+	} else {
+		if s.ZoneID == "" || s.ZoneTzdbVersion == "" {
+			c.add(CodeUnresolvedRef, loc, "a time expression declares no zone and tzdb version")
+		}
+		if s.CalendarRef == "" || s.CalendarVersion == "" {
+			c.add(CodeUnresolvedRef, loc, "a time expression declares no business calendar and dataset version")
+		}
+	}
+	if (s.StatuteRulePack == "") != (s.Statute == "") {
+		c.add(CodeInvalidDefinition, loc, "a statute reference names both a rule pack and a statute")
 	}
 }
 

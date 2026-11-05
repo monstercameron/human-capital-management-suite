@@ -45,6 +45,10 @@ type subscriptionDigestView struct {
 	AcceptedSources    []string `json:"accepted_sources"`
 	Ordering           string   `json:"ordering"`
 	ClosesAt           string   `json:"closes_at"`
+	// The default halves omit when empty so a subscription without a
+	// declared default keeps its historical digest byte for byte.
+	DefaultSchema  string `json:"default_schema,omitempty"`
+	DefaultPayload string `json:"default_payload,omitempty"`
 }
 
 func computeSubscriptionDigest(s SignalSubscription) string {
@@ -59,6 +63,8 @@ func computeSubscriptionDigest(s SignalSubscription) string {
 		AcceptedSources:    s.sortedSources(),
 		Ordering:           string(s.Ordering),
 		ClosesAt:           s.ClosesAtText(),
+		DefaultSchema:      s.DeadlineDefault.Schema,
+		DefaultPayload:     s.DeadlineDefault.CanonicalJSON,
 	}
 	return canonicalDigest(subscriptionDigestProfile, view)
 }

@@ -32,6 +32,7 @@ import (
 // item, or an adapter that has not wired one yet -- and renders no
 // disposition block at all rather than a misleading default.
 type ApprovalDispositionProjection struct {
+	_                  incomparable
 	WaitingForRef      string
 	AssignedRef        string
 	AssignedIsGroup    bool

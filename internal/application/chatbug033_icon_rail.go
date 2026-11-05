@@ -107,7 +107,7 @@ func (s AgentIconChatDirectory) RailAgentIcons(ctx context.Context) (transport.A
 				if err != nil && !errors.Is(err, agentpersonastore.ErrNotFound) {
 					icon = agentpersonastore.PersonaIcon{}
 				}
-				out.Agents = append(out.Agents, transport.AgentIconRailEntry{ConversationID: room.ID, AgentID: candidate.ID, Name: profile.DisplayName, Purpose: strings.TrimSpace(profile.Purpose), Icon: icon.Value, IconRevision: icon.Revision})
+				out.Agents = append(out.Agents, transport.AgentIconRailEntry{ConversationID: room.ID, AgentID: candidate.ID, Name: profile.DisplayName, Purpose: strings.TrimSpace(profile.Purpose), Icon: icon.Value, IconRevision: icon.Revision, IconImageURL: agentIconImageURL(facts.PersonaID, icon)})
 				break
 			}
 			// A direct conversation is with one agent.

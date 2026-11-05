@@ -157,6 +157,8 @@ func intentAuthFields(typeID string) (gate, read []authz.FieldID) {
 		return []authz.FieldID{authz.FieldBaseSalary, authz.FieldBonusTarget}, nil
 	case rewards.EvaluatePayBandIntentType:
 		return []authz.FieldID{authz.FieldBaseSalary}, nil
+	case rewards.CalculateSeveranceIntentType:
+		return []authz.FieldID{authz.FieldBaseSalary}, nil
 	case dataops.DetectDriftIntentType,
 		repair.CreateRepairPlanIntentType,
 		repair.SimulateRepairIntentType:

@@ -12,8 +12,11 @@ import (
 // post. All fields come from the actor projection; the renderer never derives
 // persona status from a name, handle, or message text.
 type PersonaActor struct {
-	Icon           agenticon.Value
-	IconRevision   int64
+	Icon         agenticon.Value
+	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL   string
 	PersonaID      string
 	PersonaVersion string
 	AgentID        string

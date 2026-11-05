@@ -60,7 +60,11 @@ func newPoisonFixture(t *testing.T, key string) promotionFixture {
 	if !found {
 		t.Fatal("promotion definition has no payroll OBSERVE node")
 	}
-	plan, err := promotionexec.Compile(def)
+	// The frozen 1.0.0 graph compiles through its frozen v1 capability
+	// snapshot (IRSchemaVersion 1): the live registry publishes the
+	// promote_worker mutation only at v2, so the frozen v1 binding would
+	// resolve to the read-only bootstrap record there.
+	plan, err := promotionexec.CompileV1_0(def)
 	if err != nil {
 		t.Fatalf("compile poison plan: %v", err)
 	}

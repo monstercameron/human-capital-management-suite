@@ -18,7 +18,7 @@ const IntegrationContractPath = "schema/openapi/integration.openapi.yaml"
 
 // TodosPath is the backlog the contract's x-hcmnext-todo extensions name,
 // relative to the repository root.
-const TodosPath = "planning/todos.md"
+const TodosPath = "planning/archive/todos-2026-10-22.md"
 
 // IntegrationFinding is one place where the design contract drifted from
 // the served surface or the backlog: an operation without an owning todo,

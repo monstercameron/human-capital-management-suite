@@ -63,8 +63,11 @@ func TestTodo_CONF_008(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileSimulation: %v", err)
 	}
-	if plan.Phase != workflow.PhaseP1B || !plan.Effects.ZeroEffect {
-		t.Fatalf("simulation plan phase/effects = %s/%+v, want P1B and zero effect", plan.Phase, plan.Effects)
+	// Since WF-TEST-001 the projection retains the two authored promotion
+	// writes for the recording simulator; it is P1B but no longer
+	// zero-effect.
+	if plan.Phase != workflow.PhaseP1B || plan.Effects.ZeroEffect {
+		t.Fatalf("simulation plan phase/effects = %s/%+v, want P1B with the retained writes", plan.Phase, plan.Effects)
 	}
 	waitNode, ok := plan.Node(promotionexec.NodeWaitEffectiveDate)
 	if !ok || waitNode.Type != workflow.StepWait || waitNode.Wait == nil || waitNode.Wait.ZoneID != "America/New_York" || waitNode.Wait.ZoneTzdbVersion != "2026a" {

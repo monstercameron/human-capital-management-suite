@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -83,17 +82,8 @@ func agentuxDemoInboxRequest(ctx context.Context, client *http.Client, cfg journ
 	if ctx == nil || client == nil || strings.TrimSpace(cfg.Bearer) == "" {
 		return result, agentdemo.ErrUnavailable
 	}
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" {
-		return result, agentdemo.ErrUnavailable
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK {
 		return result, agentdemo.ErrUnavailable
 	}
 	endpoint.Path, endpoint.RawQuery, endpoint.Fragment = agentdemo.Path, "", ""

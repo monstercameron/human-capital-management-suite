@@ -426,26 +426,12 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 	// durable/replayed order visible when a slow-consumer close races delivery.
 	select {
 	case event := <-s.queue:
-		if event.Signal != "" {
-			return event, nil
-		}
-		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
-			return Event{}, s.refuse(err)
-		}
-		s.recordConsumed(event)
-		return event, nil
+		return s.consumeOne(event)
 	default:
 	}
 	select {
 	case event := <-s.queue:
-		if event.Signal != "" {
-			return event, nil
-		}
-		if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
-			return Event{}, s.refuse(err)
-		}
-		s.recordConsumed(event)
-		return event, nil
+		return s.consumeOne(event)
 	case <-s.done:
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -457,6 +443,21 @@ func (s *Subscription) Next(ctx context.Context) (Event, error) {
 		return Event{}, ctx.Err()
 	}
 }
+
+// consumeOne authorizes and records one event taken off the queue, whichever
+// select received it. A signal bypasses delivery: it carries no conversation
+// content and was admitted when it was published.
+func (s *Subscription) consumeOne(event Event) (Event, error) {
+	if event.Signal != "" {
+		return event, nil
+	}
+	if err := s.h.authorizeEvent(s.watchCtx, s.access, event); err != nil {
+		return Event{}, s.refuse(err)
+	}
+	s.recordConsumed(event)
+	return event, nil
+}
+
 func (s *Subscription) recordConsumed(event Event) {
 	s.mu.Lock()
 	s.cursor = s.h.encodeCursor(cursor{Version: 1, TenantID: s.access.TenantID, HomeTenantID: s.access.HomeTenantID, SubjectID: s.access.SubjectID, ConversationID: s.access.ConversationID, MembershipEpoch: s.access.MembershipEpoch, RouteEpoch: s.access.RouteEpoch, Sequence: event.Sequence, ExpiresAt: s.h.config.Clock().Add(s.h.config.CursorTTL).UnixNano()})

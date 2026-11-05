@@ -17,6 +17,8 @@ type Service struct {
 	Outbound Outbound
 	Ledger   Ledger
 	Now      func() time.Time
+	// CallTimeout bounds one model call; unset means the shared CallTimeout.
+	CallTimeout time.Duration
 }
 
 func (s *Service) now() time.Time {
@@ -24,6 +26,13 @@ func (s *Service) now() time.Time {
 		return s.Now()
 	}
 	return time.Now()
+}
+
+func (s *Service) callTimeout() time.Duration {
+	if s == nil || s.CallTimeout <= 0 {
+		return CallTimeout
+	}
+	return s.CallTimeout
 }
 func (s *Service) Rewrite(ctx context.Context, req Request) (string, error) {
 	if ctx == nil || !req.Identity.Valid() || strings.TrimSpace(req.Draft) == "" || len(req.Draft) > MaxDraftBytes || !utf8.ValidString(req.Draft) {
@@ -107,9 +116,14 @@ func (s *Service) run(ctx context.Context, req Request, instruction string) (str
 		}
 		if callErr != nil {
 			// A spent budget is the same plain "limit" the writer sees for the
-			// daily count, not an unavailable service.
+			// daily count, not an unavailable service. A call unanswered twice
+			// stays stalled, so the status line can name the retry instead of
+			// the general unavailable.
 			if errors.Is(callErr, ErrLimit) {
 				return "", ErrLimit
+			}
+			if errors.Is(callErr, ErrStalled) {
+				return "", ErrStalled
 			}
 			return "", ErrUnavailable
 		}
@@ -166,14 +180,22 @@ func (s *Service) run(ctx context.Context, req Request, instruction string) (str
 	return "", ErrPreservation
 }
 
-// call makes one model call. A model that returns a verdict with its text
-// (CheckedModel) has the verdict read; a plain model is taken to vouch for
-// nothing and relies on the independent meaning check alone.
+// call makes one model call: one bounded attempt, asked once more when the
+// bound passes, by the retry rule the qualification tool shares. A model that
+// returns a verdict with its text (CheckedModel) has the verdict read; a plain
+// model is taken to vouch for nothing and relies on the independent meaning
+// check alone. The retry takes no second reservation and writes no second
+// ledger line: one logical call counts once, and only an answered call counts.
 func (s *Service) call(ctx context.Context, prompt Prompt) (text string, preserved bool, err error) {
 	if checked, ok := s.Model.(CheckedModel); ok {
-		result, err := checked.RewriteChecked(ctx, prompt)
+		result, err := RetryStalledCall(ctx, s.callTimeout(), func(callCtx context.Context) (Checked, error) {
+			return checked.RewriteChecked(callCtx, prompt)
+		})
 		return result.Text, result.MeaningPreserved, err
 	}
-	text, err = s.Model.Rewrite(ctx, prompt)
-	return text, true, err
+	result, err := RetryStalledCall(ctx, s.callTimeout(), func(callCtx context.Context) (Checked, error) {
+		text, err := s.Model.Rewrite(callCtx, prompt)
+		return Checked{Text: text, MeaningPreserved: true}, err
+	})
+	return result.Text, true, err
 }

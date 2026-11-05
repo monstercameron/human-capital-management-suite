@@ -35,7 +35,7 @@ func TestTodo_WEB_049_Security(t *testing.T) {
 }
 
 func TestTodo_WEB_050_Security(t *testing.T) {
-	for _, href := range []string{"javascript:alert(1)", "//evil.example/x", "http://idp.example/reset", "/workspace/x?token=abc", "https://idp.example/reset?client_secret=s"} {
+	for _, href := range []string{"javascript:alert(1)", "//evil.example/x", "http://idp.example/reset", "/workspace/x?token=abc", "https://idp.example/reset?client_secret=s", "/\\evil.example/phish", "/\\\\/evil.example/phish"} {
 		if validRecoveryHref(href) {
 			t.Errorf("unsafe recovery destination accepted: %q", href)
 		}

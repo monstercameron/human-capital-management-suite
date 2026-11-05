@@ -105,6 +105,7 @@ func agentOpsRecentRunDetails(locale LocaleContext, run AgentControlRun) ui.Node
 		agentRunOutcome(locale, run),
 	}
 	items = append(items, agentOpsRunHealthFacts(locale, run)...)
+	items = append(items, agentOpsRunOriginFacts(locale, run)...)
 	if run.State == "FAILED" {
 		_, next := agentOpsFailureCopy(locale, run.FailureGate)
 		if next == "" {

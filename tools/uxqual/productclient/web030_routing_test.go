@@ -234,7 +234,8 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		"ShareDocument":                true,
 	}
 	// Both Resolve* hooks return only projections the viewer may read; found=false is denial.
-	explicitReads := map[string]bool{"SearchKnowledge": true, "ResolveDocsProjectTaskPreview": true, "ResolveDocsJourneyPreview": true}
+	// ObserveRead hears read completions (name, latency, error) and reads nothing itself.
+	explicitReads := map[string]bool{"SearchKnowledge": true, "ResolveDocsProjectTaskPreview": true, "ResolveDocsJourneyPreview": true, "ObserveRead": true}
 	for index := 0; index < serviceType.NumField(); index++ {
 		name := serviceType.Field(index).Name
 		if !strings.HasPrefix(name, "List") && !strings.HasPrefix(name, "Get") && !explicitReads[name] && !explicitMutations[name] {

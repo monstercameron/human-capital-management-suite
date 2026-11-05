@@ -7,9 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
@@ -54,32 +52,14 @@ func New(cfg Config) (*Adapter, error) {
 		cfg.Identity.ProviderID != "anthropic" || strings.TrimSpace(cfg.Identity.ModelID) == "" || strings.TrimSpace(cfg.Identity.Version) == "" {
 		return nil, ErrNotConfigured
 	}
-	base := strings.TrimRight(cfg.BaseURL, "/")
-	if base == "" {
-		base = defaultBaseURL
-	}
-	parsed, err := url.Parse(base)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
-		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && isLoopback(parsed.Hostname()))) {
+	base, err := agentmodel.NormalizeAPIEndpoint(cfg.BaseURL, defaultBaseURL)
+	if err != nil {
 		return nil, fmt.Errorf("%w: invalid API base URL", ErrNotConfigured)
 	}
-	client := cfg.HTTPClient
-	if client == nil {
-		client = &http.Client{}
-	} else {
-		copy := *client
-		client = &copy
-	}
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &Adapter{
 		apiKey: cfg.APIKey, modelProfile: cfg.ModelProfile, identity: cfg.Identity,
-		endpoint: base + "/messages", client: client,
+		endpoint: base + "/messages", client: agentmodel.NoRedirectClient(cfg.HTTPClient),
 	}, nil
-}
-
-func isLoopback(host string) bool {
-	address := net.ParseIP(host)
-	return address != nil && address.IsLoopback()
 }
 
 // Identity returns the exact configured provider model and revision for egress pinning.

@@ -14,7 +14,7 @@ import (
 
 func main() {
 	outputPath := flag.String("output", filepath.Join("definitions", "planning", "todo-registry.json"), "path to output JSON file")
-	markdownPathFlag := flag.String("markdown", filepath.Join("planning", "todos.md"), "path to the todos markdown file")
+	markdownPathFlag := flag.String("markdown", filepath.Join("planning", "archive", "todos-2026-10-22.md"), "path to the todos markdown file")
 	knownDefectsPath := flag.String("known-defects", filepath.Join("definitions", "planning", "known-defects.yaml"), "path to the known-defects allow-list")
 	flag.Parse()
 

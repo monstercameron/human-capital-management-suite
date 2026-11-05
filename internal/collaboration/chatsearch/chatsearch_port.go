@@ -184,6 +184,26 @@ type Registry struct {
 	sources      map[Kind]Source
 	// SourceTimeout bounds each phase of a search; zero means DefaultSourceTimeout.
 	SourceTimeout time.Duration
+	// TransientBudgets rounds a transient (workspace-box) reply to a
+	// per-source budget; nil means TransientSourceBudgets. A Chat search page
+	// keeps the whole page, and a search filtered to one kind pages through
+	// the whole kind: the budget only diversifies the mixed box reply.
+	TransientBudgets map[Kind]int
+}
+
+// TransientSourceBudgets is how many rows of each source a transient
+// (workspace-box) reply carries: 2 messages, 3 threads, 2 documents, 1 person,
+// 1 action. Without it one source's flood starves the rest and the box shows
+// a single kind (CHATBUG-096). Kinds without a budget ride uncapped.
+func TransientSourceBudgets() map[Kind]int {
+	return map[Kind]int{Message: 2, Thread: 3, File: 2, Person: 1, Todo: 1}
+}
+
+func (r *Registry) transientBudgets() map[Kind]int {
+	if r.TransientBudgets != nil {
+		return r.TransientBudgets
+	}
+	return TransientSourceBudgets()
 }
 
 func NewRegistry() *Registry {
@@ -495,6 +515,10 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 	for _, row := range page {
 		counts[row.Kind]++
 	}
+	budgets := map[Kind]int{}
+	if q.Transient && q.Filters.Kind == "" {
+		budgets = r.transientBudgets()
+	}
 	for _, kind := range kinds {
 		if counts[kind] == 0 {
 			continue
@@ -504,6 +528,10 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 			if row.Kind == kind {
 				g.Rows = append(g.Rows, row)
 			}
+		}
+		if budget, ok := budgets[kind]; ok && len(g.Rows) > budget {
+			g.Rows = g.Rows[:budget]
+			g.Count = budget
 		}
 		out.Groups = append(out.Groups, g)
 	}

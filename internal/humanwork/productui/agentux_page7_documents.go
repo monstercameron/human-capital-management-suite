@@ -13,6 +13,7 @@ import (
 // projection. Owner and folder remain separate so equal titles are still
 // distinguishable, and Snippet is present only for a body-text match.
 type AgentRequestDocumentSuggestion struct {
+	_                incomparable
 	DocumentID       string
 	Title            string
 	Owner            string

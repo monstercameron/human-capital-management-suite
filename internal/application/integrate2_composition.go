@@ -44,6 +44,10 @@ func (s integrate2RenderingPolicy) AuthorizeRendering(ctx context.Context, scope
 }
 
 func (s integrate2RenderingPolicy) RenderingPolicy(ctx context.Context, scope chatstore.RenderingScope, id string) (chatrender.Policy, error) {
+	// The policy screens, detects and masks what was written, so its post read
+	// bypasses the reader projection (which would hand it the stand-in and,
+	// through the projector's own selection read, recurse without end).
+	ctx = context.WithValue(ctx, chattoneProjectingKey{}, true)
 	post, err := integrate2ReadPost(ctx, s.Chat, scope.Principal, scope.Tenant, scope.Conversation, id)
 	if err != nil {
 		return chatrender.Policy{}, err

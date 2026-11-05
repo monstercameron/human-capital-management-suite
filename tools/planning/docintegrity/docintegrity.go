@@ -237,7 +237,7 @@ func checkGeneratedIndex(root string, all map[string][]byte) []Diagnostic {
 	if err != nil {
 		return []Diagnostic{{path, "STALE_GENERATED_INDEX", "generated todo heading index is missing", 1}}
 	}
-	src := all[filepath.Join(root, "planning", "todos.md")]
+	src := all[filepath.Join(root, "planning", "archive", "todos-2026-10-22.md")]
 	want := []string{}
 	for i, l := range strings.Split(string(src), "\n") {
 		if todoID.MatchString(l) || strings.HasPrefix(l, "## ") {

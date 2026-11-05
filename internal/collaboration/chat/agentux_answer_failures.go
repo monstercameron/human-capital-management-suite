@@ -20,6 +20,10 @@ func AgentAnswerFailureFor(locale, agent, code string) AgentAnswerFailure {
 		{"permission", "ADMISSION_REFUSED,INVALID_POST,NOT_CANONICAL,AUTHOR_NOT_HUMAN,AUTHOR_NOT_MEMBER,AUTHOR_NOT_IN_AUDIENCE,OUT_OF_SCOPE,PERMISSION_DENIED,AUTHORITY_REFUSED,GRANT_DENIED,CONTEXT_UNAVAILABLE,TOOL_POLICY_UNAVAILABLE,TOOL_PROPOSAL_UNAVAILABLE,TOOL_ADMISSION_FAILED,DELIVERY_AUDIENCE_DENIED,authority,grant,audience,tool_scope,delivery_audience"},
 		{"nothing", "NOTHING_FOUND,NO_DOCUMENTS,NO_DOCUMENT,NO_RESULTS,NO_RESULT"},
 		{"unavailable", "PERSONA_NOT_INSTALLED,PERSONA_NOT_CURRENT,PERSONA_SUSPENDED,NO_EFFECTIVE_SKILLS,MODEL_BINDING_INVALID,TOOL_EXECUTION_FAILED,MODEL_ROUTE_UNAVAILABLE,MODEL_NOT_CONFIGURED,VERSION_NOT_RUNNABLE,ADMISSION_UNAVAILABLE,EXECUTION_UNAVAILABLE,MODEL_RESULT_INVALID,installation,model_route"},
+		// AGENTUX-082: a route that lapsed has a sentence of its own, which
+		// says the setup expired and who can renew it. Any other
+		// route failure keeps the generic unavailable sentence.
+		{"expired", "MODEL_ROUTE_EXPIRED"},
 		// CHATBUG-049: an answer the agent wrote and the reply checks refused is
 		// not an agent that is unavailable. The agent was there and answered; what
 		// it wrote was not shown, and the card says so. A reply that was nothing
@@ -50,6 +54,7 @@ func AgentAnswerFailureFor(locale, agent, code string) AgentAnswerFailure {
 		"permission":  {"{agent} cannot answer this request here.", "Ask about a document it can read in this conversation.", "false"},
 		"nothing":     {"{agent} found nothing about this in the documents it can read here.", "Try naming the document.", "false"},
 		"unavailable": {"{agent} is not available in this conversation right now.", "Ask the person who looks after it to check its setup.", "false"},
+		"expired":     {"{agent} is not available because its setup expired.", "Ask the person who looks after it to renew its setup.", "false"},
 		"no_model":    {"{agent} cannot answer because no model is configured on this server.", "Ask an administrator to connect a model.", "false"},
 		"rejected":    {"{agent} wrote an answer that did not pass its checks, so it is not shown.", "Ask again, or ask about one thing at a time.", "false"},
 		"title_only":  {"{agent} answered with only the name of a document, so the answer is not shown.", "Ask again, or ask what the document says.", "false"},
@@ -65,6 +70,7 @@ func AgentAnswerFailureFor(locale, agent, code string) AgentAnswerFailure {
 			"permission":  {"{agent} kann diese Anfrage hier nicht beantworten.", "Fragen Sie nach einem Dokument, das der Agent in dieser Unterhaltung lesen darf.", "false"},
 			"nothing":     {"{agent} hat dazu nichts in den hier lesbaren Dokumenten gefunden.", "Nennen Sie das Dokument.", "false"},
 			"unavailable": {"{agent} ist in dieser Unterhaltung gerade nicht verfügbar.", "Bitten Sie die verantwortliche Person, die Einrichtung zu prüfen.", "false"},
+			"expired":     {"{agent} ist nicht verfügbar, weil die Einrichtung abgelaufen ist.", "Bitten Sie die verantwortliche Person, die Einrichtung zu erneuern.", "false"},
 			"no_model":    {"{agent} kann nicht antworten, weil auf diesem Server kein Modell eingerichtet ist.", "Bitten Sie eine Administratorin oder einen Administrator, ein Modell zu verbinden.", "false"},
 			"rejected":    {"Die Antwort von {agent} hat die Prüfung nicht bestanden und wird deshalb nicht angezeigt.", "Fragen Sie erneut oder stellen Sie eine Frage nach der anderen.", "false"},
 			"title_only":  {"{agent} hat nur mit dem Namen eines Dokuments geantwortet; die Antwort wird deshalb nicht angezeigt.", "Fragen Sie erneut oder fragen Sie, was im Dokument steht.", "false"},
@@ -80,6 +86,7 @@ func AgentAnswerFailureFor(locale, agent, code string) AgentAnswerFailure {
 			"permission":  {"لا يمكن لـ {agent} الإجابة عن هذا الطلب هنا.", "اسأل عن مستند يمكنه قراءته في هذه المحادثة.", "false"},
 			"nothing":     {"لم يجد {agent} معلومات عن ذلك في المستندات التي يمكنه قراءتها هنا.", "حاول تسمية المستند.", "false"},
 			"unavailable": {"{agent} غير متاح في هذه المحادثة الآن.", "اطلب من المسؤول عنه التحقق من إعداداته.", "false"},
+			"expired":     {"{agent} غير متاح لأن صلاحية إعداداته انتهت.", "اطلب من المسؤول عنه تجديد إعداداته.", "false"},
 			"no_model":    {"لا يمكن لـ {agent} الإجابة لأنه لم يتم إعداد أي نموذج على هذا الخادم.", "اطلب من أحد المسؤولين ربط نموذج.", "false"},
 			"rejected":    {"لم تجتز إجابة {agent} الفحص، لذلك لم تُعرض.", "اسأل مرة أخرى، أو اسأل عن أمر واحد في كل مرة.", "false"},
 			"title_only":  {"أجاب {agent} باسم مستند فقط، لذلك لم تُعرض الإجابة.", "اسأل مرة أخرى، أو اسأل عمّا يقوله المستند.", "false"},

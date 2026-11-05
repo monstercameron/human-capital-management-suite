@@ -38,6 +38,7 @@ type workflowListState struct {
 }
 
 type workflowListRow struct {
+	_         incomparable
 	Item      WorkflowCatalogItem
 	Name      string
 	Status    string

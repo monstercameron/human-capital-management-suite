@@ -30,6 +30,7 @@ const (
 // authorized project list. OwnerID is a server-provided identity label; this
 // page does not resolve project owners through another directory.
 type ProjectSummaryProjection struct {
+	_              incomparable
 	ID             string
 	Name           string
 	Description    string

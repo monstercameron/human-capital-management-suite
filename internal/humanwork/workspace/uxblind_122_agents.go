@@ -55,6 +55,9 @@ type AgentSummaryConfig struct {
 	// zero for an agent that has none, which the page draws with a fallback.
 	Icon         agenticon.Value `json:"icon,omitzero"`
 	IconRevision int64           `json:"icon_revision,omitempty"`
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL string `json:"icon_image_url,omitempty"`
 }
 
 // AgentTaskConfig is one owner-scoped task row.
@@ -155,7 +158,7 @@ func (h *Handler) resolveAgents(ctx context.Context, principal *trust.Principal,
 	config.StartAvailable, config.StartUnavailableReason = snapshot.StartAvailable, snapshot.StartUnavailableReason
 	config.Agents = make([]AgentSummaryConfig, 0, len(snapshot.Agents))
 	for _, agent := range snapshot.Agents {
-		config.Agents = append(config.Agents, AgentSummaryConfig{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status, Icon: agent.Icon, IconRevision: agent.IconRevision})
+		config.Agents = append(config.Agents, AgentSummaryConfig{ID: agent.ID, Name: agent.Name, Description: agent.Description, Status: agent.Status, Icon: agent.Icon, IconRevision: agent.IconRevision, IconImageURL: agent.IconImageURL})
 	}
 	config.Tasks = make([]AgentTaskConfig, 0, len(snapshot.Tasks))
 	for _, task := range snapshot.Tasks {

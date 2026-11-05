@@ -103,6 +103,65 @@ func conversationAgentIcon(m Model, c Conversation) agenticon.Value {
 	return agentIconFor(m, []string{c.AgentID}, c.Name, c.Icon)
 }
 
+// storedAgentIconImage finds the owner's uploaded image for one agent wherever
+// this model carries it, mirroring storedAgentIcon. Empty means the agent
+// wears its generated icon.
+func storedAgentIconImage(m Model, ids []string, name string) string {
+	name = strings.TrimSpace(name)
+	known := func(id string) bool {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return false
+		}
+		for _, candidate := range ids {
+			if strings.TrimSpace(candidate) == id {
+				return true
+			}
+		}
+		return false
+	}
+	named := func(candidate string) bool {
+		return name != "" && strings.EqualFold(strings.TrimSpace(candidate), name)
+	}
+	selected := m.selected()
+	conversations := make([]Conversation, 0, len(m.Conversations)+1)
+	conversations = append(conversations, selected)
+	conversations = append(conversations, m.Conversations...)
+	for _, byID := range []bool{true, false} {
+		for _, c := range conversations {
+			if c.Agent && strings.TrimSpace(c.IconImageURL) != "" && (byID && known(c.AgentID) || !byID && named(c.Name)) {
+				return strings.TrimSpace(c.IconImageURL)
+			}
+		}
+		for _, member := range m.Members {
+			if member.Agent && strings.TrimSpace(member.IconImageURL) != "" && (byID && known(member.ID) || !byID && named(member.Name)) {
+				return strings.TrimSpace(member.IconImageURL)
+			}
+		}
+		for _, persona := range m.ResolvedPersonaMentions {
+			if strings.TrimSpace(persona.IconImageURL) != "" && (byID && known(persona.Reference.ID) || !byID && named(persona.Reference.Display)) {
+				return strings.TrimSpace(persona.IconImageURL)
+			}
+		}
+	}
+	return ""
+}
+
+// agentIconImageFor is the uploaded image one agent wears here: the image the
+// caller already holds, else the one stored anywhere in the model.
+func agentIconImageFor(m Model, ids []string, name, stored string) string {
+	if url := strings.TrimSpace(stored); url != "" {
+		return url
+	}
+	return storedAgentIconImage(m, ids, name)
+}
+
+// conversationAgentIconImage is the uploaded image a direct conversation with
+// an agent wears in the rail, the header and the details panel.
+func conversationAgentIconImage(m Model, c Conversation) string {
+	return agentIconImageFor(m, []string{c.AgentID}, c.Name, c.IconImageURL)
+}
+
 // agentConversationName is an agent conversation's name when its own record
 // carries none: the display name in the resolved mention directory.
 func agentConversationName(m Model, c Conversation) string {

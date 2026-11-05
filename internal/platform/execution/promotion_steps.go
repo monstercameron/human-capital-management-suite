@@ -92,6 +92,9 @@ type promotionStepPorts struct {
 	db              execute.Beginner
 	cellID          string
 	authorityDigest string
+	// thresholdParameters resolves per-tenant promotion thresholds. Nil
+	// keeps the reference table for every tenant.
+	thresholdParameters ThresholdParameterReader
 	// planDigest is the compiled promotion plan this composition runs. The
 	// approval record and its revalidation are bound to it, so a plan
 	// recompiled after approval refuses revalidation on that binding alone.
@@ -164,12 +167,24 @@ func (p *promotionStepPorts) bound() PromotionStepServices {
 // execute_promotion, and a shield that outlived a rolled-back advance
 // transaction would report a commit that never became durable. The durable
 // fence is the transaction itself plus the commit's own replay refusal.
+// thresholdResolution resolves the tenant's published promotion thresholds
+// for one step (REV-010-02). A nil reader answers the zero resolution,
+// which the rules engine renders as the reference table.
+func (p *promotionStepPorts) thresholdResolution(ctx context.Context, tenant string) (rules.TenantThresholdResolution, error) {
+	if p == nil || p.thresholdParameters == nil {
+		return rules.TenantThresholdResolution{}, nil
+	}
+	return p.thresholdParameters.ResolveThresholds(ctx, tenant)
+}
+
 func (p *promotionStepPorts) runner() *promotionsteps.Runner {
 	if p.bound() == nil {
 		return promotionsteps.New(promotionsteps.Config{})
 	}
 	threshold := promotionsteps.RulesThresholdPort{Inputs: func(ctx context.Context, req execute.StepRequest) (rules.PromotionApprovalInput, error) {
 		return p.thresholdInputs(ctx, nil, req)
+	}, Thresholds: func(ctx context.Context, req execute.StepRequest) (rules.TenantThresholdResolution, error) {
+		return p.thresholdResolution(ctx, req.Context.Tenant)
 	}}
 	return promotionsteps.New(promotionsteps.Config{
 		SnapshotWorker: p, SimulateCompensation: p, EvaluateBand: p, RaiseThreshold: threshold,

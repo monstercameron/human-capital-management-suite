@@ -78,10 +78,11 @@ func (s *server) SaveTenantAppearance(ctx context.Context, req *journeyv1.SaveTe
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "appearance", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "appearance", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
+	if !auth.hasRole(ctx, "comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.preferences.appearance.role_required", "organization appearance requires the compensation administrator role").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 	}
@@ -107,10 +108,11 @@ func (s *server) SaveOrganizationVisibility(ctx context.Context, req *journeyv1.
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "organization-visibility", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "organization-visibility", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
+	if !auth.hasRole(ctx, "comp_admin") {
 		return nil, envelope.New(envelope.CodePermissionDenied, "journey.preferences.organization_visibility.role_required", "organization visibility requires the compensation administrator role").
 			WithCorrelation(inv.RequestID()).WithEvidence(evidence(principal))
 	}

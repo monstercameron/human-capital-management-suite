@@ -45,6 +45,13 @@ func TestTodo_PM_021_Security(t *testing.T) {
 	if _, _, err := ApplyWorkItemProjection(current, WorkItemProjectionEvent{EventID: "event-x", TenantID: "tenant-b", WorkItemID: "work-1", ObservedVersion: 8, Freshness: WorkItemFreshnessCurrent, Authorized: true, OccurredAt: at}); !errors.Is(err, ErrInvalidWorkItemEvent) {
 		t.Fatalf("cross-tenant event error=%v", err)
 	}
+	revoked, applied, err := ApplyWorkItemProjection(current, WorkItemProjectionEvent{
+		EventID: "event-3", TenantID: "tenant-a", WorkItemID: "work-1", ObservedVersion: 9,
+		SafeStatus: "REDACTED_APPROVAL", Freshness: WorkItemFreshnessCurrent, Authorized: false, OccurredAt: at.Add(2 * time.Minute),
+	})
+	if err != nil || !applied || revoked.Available || revoked.SafeStatus != WorkItemSafeStatusUnavailable || revoked.Freshness != WorkItemFreshnessUnavailable || revoked.ObservedVersion != 9 {
+		t.Fatalf("revoked projection retained detail: %+v applied=%v err=%v", revoked, applied, err)
+	}
 }
 
 func TestTodo_PM_021_Integration(t *testing.T) {

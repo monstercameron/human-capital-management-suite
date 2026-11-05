@@ -48,7 +48,7 @@ func TestTodo_ALIGN_061_Property(t *testing.T) {
 
 func TestTodo_ALIGN_061_Golden(t *testing.T) {
 	envelope := execute(t, false)
-	const wantDigest = "sha256:5acc94653476d1d4f71ed85581770ac8741d5f8c05ba63932cc9b2cccabafbc2"
+	const wantDigest = "sha256:52cab964c5a14a0029e4871f1ecef0876140d5b0b283a451369aac42c09f37d9"
 	if envelope.SemanticDigest != wantDigest {
 		t.Fatalf("semantic digest=%q want=%q", envelope.SemanticDigest, wantDigest)
 	}

@@ -65,8 +65,24 @@ type chattoneReaderProjector struct {
 	Locale string
 }
 
+// chattoneProjectingKey marks a context the projector is already reading
+// through: reworded asks the rendering selection, which reads the post's
+// policy, which reads the post through the same projecting service. A nested
+// call passes the stored bodies through so the policy screens and detects
+// what was written; passing a stand-in instead would make the policy see a
+// calm message and hand the outer read the original. The outer call still
+// projects for the reader.
+type chattoneProjectingKey struct{}
+
+func chattoneProjecting(ctx context.Context) bool {
+	return ctx.Value(chattoneProjectingKey{}) != nil
+}
+
 func (p chattoneReaderProjector) ProjectReaderBodies(ctx context.Context, reader chat.Principal, posts []chat.Post) []chat.ReaderBody {
 	out := make([]chat.ReaderBody, len(posts))
+	if chattoneProjecting(ctx) {
+		return out
+	}
 	if p.Policy == nil || p.Policy.Store == nil {
 		return out
 	}
@@ -116,7 +132,7 @@ func (p chattoneReaderProjector) reworded(ctx context.Context, reader chat.Princ
 		return p.standIn(chatrender.Mark{State: "unavailable"})
 	}
 	scope := chatstore.RenderingScope{Principal: reader, Tenant: post.TenantID, Conversation: post.ConversationID}
-	selected, mark, err := p.Renderings.ReadRenderingSelection(ctx, scope, post.ID)
+	selected, mark, err := p.Renderings.ReadRenderingSelection(context.WithValue(ctx, chattoneProjectingKey{}, true), scope, post.ID)
 	if err != nil {
 		return p.standIn(chatrender.Mark{State: "unavailable"})
 	}

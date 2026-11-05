@@ -11,6 +11,7 @@ import (
 type TaskRecord struct {
 	Task                                      agentrun.AgentTask
 	OwnerID, AgentID, Version, InstallationID string
+	CauseKind, IncidentID                     string
 	SpendMicros                               int64
 	Steps                                     []StepMetric
 	Stalled, Looping, OverBudget              bool
@@ -27,6 +28,7 @@ type TaskView struct {
 	Revision                                                     uint64
 	CanPause                                                     bool
 	TaskID, AgentID, Version, InstallationID, State, FailureCode string
+	CauseKind, IncidentID                                        string
 	SpendMicros                                                  int64
 	Stalled, Looping, OverBudget                                 bool
 	Steps                                                        []StepMetric
@@ -56,7 +58,7 @@ func ProjectTasks(scope Scope, records []TaskRecord) ([]TaskView, error) {
 		if task.TenantID != scope.TenantID || (scope.Audience == AudienceMember && task.UserID != scope.SubjectID) || (scope.Audience == AudienceOwner && record.OwnerID != scope.SubjectID) {
 			continue
 		}
-		view := TaskView{TaskID: task.ID, AgentID: record.AgentID, Version: record.Version, InstallationID: record.InstallationID, State: safeCode(string(task.State)), FailureCode: safeCode(task.FailureCode), SpendMicros: nonnegativeInt(record.SpendMicros), Stalled: record.Stalled, Looping: record.Looping, OverBudget: record.OverBudget, Steps: []StepMetric{}}
+		view := TaskView{TaskID: task.ID, AgentID: record.AgentID, Version: record.Version, InstallationID: record.InstallationID, State: safeCode(string(task.State)), FailureCode: safeCode(task.FailureCode), CauseKind: safeCode(record.CauseKind), IncidentID: record.IncidentID, SpendMicros: nonnegativeInt(record.SpendMicros), Stalled: record.Stalled, Looping: record.Looping, OverBudget: record.OverBudget, Steps: []StepMetric{}}
 		view.Revision = task.Version
 		view.CanPause = has(scope.Capabilities, CapabilityPause) && task.State != agentrun.StatePaused && task.State != agentrun.StateCompleted && task.State != agentrun.StateFailed && task.State != agentrun.StateCancelled && task.State != agentrun.StateExpired
 		for _, step := range record.Steps {

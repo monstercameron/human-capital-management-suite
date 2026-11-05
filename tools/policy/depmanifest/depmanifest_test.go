@@ -37,7 +37,7 @@ func TestDependencyRoleManifestRejectsUnclassifiedModule(t *testing.T) {
 			{"exact row: goose", "github.com/pressly/goose/v3", true, depmanifest.RoleInfrastructureMechanic, true},
 			{"exact row: staticcheck is dev-only", "honnef.co/go/tools", true, depmanifest.RoleDevTestOnly, true},
 			{"exact row: grpc is not PROJECT_CORE", "google.golang.org/grpc", true, depmanifest.RoleInfrastructureMechanic, true},
-			{"family rule: unlisted golang.org/x module", "golang.org/x/crypto", true, depmanifest.RoleInfrastructureMechanic, false},
+			{"family rule: unlisted golang.org/x module", "golang.org/x/exp", true, depmanifest.RoleInfrastructureMechanic, false},
 			{"family rule: unlisted google.golang.org module", "google.golang.org/appengine", true, depmanifest.RoleInfrastructureMechanic, false},
 			{"unclassified module", "github.com/example/unclassified-thing", false, "", false},
 		}

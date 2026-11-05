@@ -1827,7 +1827,13 @@ func filterServerAuthorizedActions(actions []journey.Action, detail *journeyv1.J
 	for _, action := range actions {
 		keep := true
 		switch action.ID {
-		case ActionExecute, ActionWithdraw, ActionCancel, ActionEditProposal:
+		case ActionExecute:
+			// UXBLIND-005: the server's execution-authority answer, not the
+			// viewer's initiator relationship. An initiator without the
+			// execution role would be offered a start the server refuses,
+			// while an authorized operator who did not initiate would miss it.
+			keep = detail.GetCanExecute()
+		case ActionWithdraw, ActionCancel, ActionEditProposal:
 			keep = initiator
 		case ActionRepair:
 			keep = repairAnswered

@@ -56,6 +56,8 @@ type localUI struct {
 	agentFeedback   map[string]string
 	agentProfileID  string
 	emojiCompletion emojiCompletion
+	// channelSuggest is the composer's "#" channel list (chatux051_channels.go).
+	channelSuggest channelSuggestState
 	// emoji is the open emoji picker's state (chatemoji_state.go).
 	emoji emojiPickerState
 	// detailGroups is which collapsed groups of Conversation details the viewer

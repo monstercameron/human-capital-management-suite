@@ -51,6 +51,10 @@ type SignalSubscription struct {
 	// means the subscription never closes on its own (only Accept/cancel
 	// closes it).
 	ClosesAt values.Instant
+
+	// DeadlineDefault, when its schema is set, is the declared
+	// non-response payload a late signal completes with on TIMED_OUT.
+	DeadlineDefault values.DeadlineDefault
 }
 
 // Validate reports whether the subscription is complete enough to evaluate a
@@ -73,6 +77,11 @@ func (s SignalSubscription) Validate() error {
 	}
 	if !s.Ordering.Valid() {
 		return ErrSubscriptionOrderingInvalid
+	}
+	if s.DeadlineDefault.Schema != "" {
+		if err := s.DeadlineDefault.Validate(); err != nil {
+			return err
+		}
 	}
 	return nil
 }

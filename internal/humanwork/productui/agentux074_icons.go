@@ -3,6 +3,7 @@ package productui
 import (
 	"strings"
 
+	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
@@ -23,7 +24,19 @@ func agentUX074IconValue(stored agenticon.Value, id string, peers []string) agen
 }
 
 func agentUX074Icon(stored agenticon.Value, id string, peers []string) ui.Node {
-	return agenticon.Node(agentUX074IconValue(stored, id, peers))
+	return agentUX074IconImage(stored, "", id, peers)
+}
+
+// agentUX074IconImage draws the agent's own picture on the Agents page, Agent
+// setup and Agent operations: its uploaded image when one is stored, over its
+// generated icon so a failed image still leaves the agent recognisable.
+func agentUX074IconImage(stored agenticon.Value, imageURL, id string, peers []string) ui.Node {
+	value := agentUX074IconValue(stored, id, peers)
+	if url := strings.TrimSpace(imageURL); url != "" {
+		return html.Span(html.Props{Class: "agent-icon agent-icon-photo", Aria: map[string]string{"hidden": "true"}}, agenticon.Node(value),
+			html.Img(html.Props{Class: "agent-icon-photo-img", Src: url, Loading: "lazy", Raw: map[string]any{"alt": "", "decoding": "async"}}))
+	}
+	return agenticon.Node(value)
 }
 
 func agentUX074AgentIDs(agents []AgentSummary) []string {

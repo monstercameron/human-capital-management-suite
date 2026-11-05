@@ -1,6 +1,9 @@
 package task
 
-import "github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+import (
+	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+)
 
 const (
 	continuationSchema = "hcmnext.workflow.steps.task.Continuation"
@@ -9,7 +12,7 @@ const (
 )
 
 func writeNode(w *canonicalbytes.Writer, n CompiledTaskNode) *canonicalbytes.Writer {
-	return w.
+	w.
 		String("workflow_id", n.WorkflowID).
 		Int("workflow_version", int64(n.WorkflowVersion)).
 		String("node_id", n.NodeID).
@@ -23,6 +26,33 @@ func writeNode(w *canonicalbytes.Writer, n CompiledTaskNode) *canonicalbytes.Wri
 		Int("accessibility_policy.version", int64(n.AccessibilityPolicy.Version)).
 		String("accommodation_policy.ref", n.AccommodationPolicy.Ref).
 		Int("accommodation_policy.version", int64(n.AccommodationPolicy.Version))
+	// Deadline fields encode only when the node declares them, so a node
+	// without a deadline keeps its historical digest byte for byte.
+	if n.Deadline.AnchorPath != "" {
+		w.
+			String("deadline.anchor_path", n.Deadline.AnchorPath).
+			String("deadline.offset_kind", string(n.Deadline.OffsetKind)).
+			Int("deadline.offset_days", int64(n.Deadline.OffsetDays)).
+			Int("deadline.offset_seconds", n.Deadline.OffsetSeconds).
+			String("deadline.calendar", n.Deadline.Calendar.String()).
+			String("deadline.zone", n.Deadline.Zone.String()).
+			String("deadline.local_time", n.Deadline.WakeLocalTime.String()).
+			String("deadline.disambiguation", n.Deadline.Disambiguation.String()).
+			String("deadline.statute", statuteString(n.Deadline.Statute))
+	}
+	if n.DeadlineDefault.Schema != "" {
+		w.
+			String("deadline_default.schema", n.DeadlineDefault.Schema).
+			String("deadline_default.payload", n.DeadlineDefault.CanonicalJSON)
+	}
+	return w
+}
+
+func statuteString(s *values.StatuteRef) string {
+	if s == nil {
+		return ""
+	}
+	return s.String()
 }
 
 func computeContinuationDigest(c Continuation) string {
@@ -74,6 +104,9 @@ func computeResolutionDigest(r Resolution) string {
 		String("submission_digest", r.SubmissionDigest).
 		Value("resolved_at", r.ResolvedAt).
 		String("reason", r.Reason)
+	if r.DefaultOutputDigest != "" {
+		w.String("default_output_digest", r.DefaultOutputDigest)
+	}
 	raw, err := w.Bytes()
 	if err != nil {
 		return ""

@@ -87,6 +87,14 @@ func initPlatformStyles() {
 	platformStyles += ShellFixStylesheet()
 	platformStyles += chatbug080TopbarStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
+	// Each typed declaration hoists its own copy of the @keyframes blocks it
+	// names; the per-site animation-name is needed, but only the last
+	// same-named block can win, so earlier identical copies are dropped here,
+	// once, rather than edited out of every declare site (CHATUX-046).
+	platformHeadStyles = dedupeKeyframesBlocks(platformHeadStyles)
+	platformStyles = dedupeKeyframesBlocks(platformStyles)
+	platformChatStyles = dedupeKeyframesBlocks(platformChatStyles)
+	platformDarkStyles = dedupeKeyframesBlocks(platformDarkStyles)
 }
 
 // popoverStyles is the single visual and spatial contract for floating

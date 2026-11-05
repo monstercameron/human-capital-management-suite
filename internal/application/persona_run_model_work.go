@@ -192,7 +192,7 @@ func (s *DatabasePersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context
 		// limit would make every continuation ineligible.
 	}
 	done = agentUXSpeedEvent(ctx, "store.thread_context")
-	goal, history, refs, err := s.readThreadContext(ctx, admission, profile)
+	goal, history, refs, err := s.readThreadContext(ctx, admission, profile, route.ThreadClass)
 	done()
 	if err != nil {
 		return PersonaRunModelWork{}, err
@@ -282,8 +282,15 @@ func (s *DatabasePersonaRunModelWorkSource) resolveRoute(ctx context.Context, ad
 		return PersonaRunModelRoute{}, fmt.Errorf("%w: canonical tenant unavailable", errPersonaRunModelWork)
 	}
 	ref := manifest.ModelPolicy
-	stored, err := currentPersonaAgentModelRoute(ctx, s.routes, tenantKey, admission.Request.LegalEntity, ref, admission.Request.Agent.Digest, s.now().UTC())
+	now := s.now().UTC()
+	stored, err := currentPersonaAgentModelRoute(ctx, s.routes, tenantKey, admission.Request.LegalEntity, ref, admission.Request.Agent.Digest, now)
 	if err != nil || stored.TenantID != tenantKey || stored.LegalEntityID != admission.Request.LegalEntity || stored.PolicyID != ref.ID || stored.PolicyVersion != int64(ref.Version) || stored.PolicySchemaVersion != int64(ref.SchemaVersion) || stored.PolicyDigest != ref.Digest || stored.Revision <= 0 {
+		// A deployment that lapsed reads as expired, so the asker is told
+		// the setup expired and who can renew it; anything else keeps the
+		// generic unavailable cause (AGENTUX-082).
+		if errors.Is(err, agentstore.ErrPersonaModelRouteNotFound) && agentUX082RouteExpired(ctx, s.routes, tenantKey, admission.Request.LegalEntity, ref, admission.Request.Agent.Digest, now) {
+			return PersonaRunModelRoute{}, fmt.Errorf("%w: current tenant model policy expired: %w", errPersonaRunModelWork, errPersonaModelRouteExpired)
+		}
 		// The store's reason (none effective, expired, wrong digest) names the cause
 		// in the one log line the run writes; it carries policy facts, no content.
 		return PersonaRunModelRoute{}, fmt.Errorf("%w: current tenant model policy unavailable (%v): %w", errPersonaRunModelWork, err, errPersonaModelRouteUnavailable)
@@ -335,9 +342,9 @@ func (s *DatabasePersonaRunModelWorkSource) resolveRoute(ctx context.Context, ad
 	return policy, nil
 }
 
-func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Context, admission agentrun.Record, profile agentpersona.PersonaProfile) (string, []string, []agentmodel.ContextReference, error) {
+func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Context, admission agentrun.Record, profile agentpersona.PersonaProfile, class trustdlp.DataClass) (string, []string, []agentmodel.ContextReference, error) {
 	request := admission.Request
-	posts, err := s.threads.ReadThread(ctx, agentinvoke.ThreadReadRequest{TenantID: request.Source.TenantID, ConversationID: request.Audience.ID, ThreadID: request.Context.ID, InvokerID: request.Principal.InvokerID, InvokingPostID: request.Source.Ref, Limit: agentinvoke.MaxThreadPosts})
+	posts, err := disclosePersonaThreadPosts(ctx, s.threads, s.now, admission, string(class))
 	if err != nil || len(posts) == 0 || len(posts) > agentinvoke.MaxThreadPosts {
 		return "", nil, nil, fmt.Errorf("%w: authorized thread context unavailable", errPersonaRunModelWork)
 	}

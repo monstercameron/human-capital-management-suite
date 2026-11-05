@@ -27,8 +27,17 @@ func chatux010IsApple(platform string) bool {
 
 // chatux010ShortcutLabel is the key combination as written in the search box.
 func chatux010ShortcutLabel(platform string) string {
+	return chatux010ShortcutLabelFor("", platform)
+}
+
+// chatux010ShortcutLabelFor is the combination in the words printed on the
+// reader's own keyboard: a German keyboard's control key reads Strg (CHATUX-050).
+func chatux010ShortcutLabelFor(locale, platform string) string {
 	if chatux010IsApple(platform) {
 		return "Cmd+K"
+	}
+	if dateLocale(locale) == "de" {
+		return "Strg+K"
 	}
 	return "Ctrl+K"
 }
@@ -49,12 +58,12 @@ func chatux010ShortcutHint(m Model) ui.Node {
 	if strings.TrimSpace(m.Search) != "" {
 		return nil
 	}
-	return html.Kbd(html.Props{Class: "chat-search-shortcut", Dir: "ltr", Aria: map[string]string{"hidden": "true"}, Text: chatux010ShortcutLabel(chatPlatform())})
+	return html.Kbd(html.Props{Class: "chat-search-shortcut", Dir: "ltr", Aria: map[string]string{"hidden": "true"}, Text: chatux010ShortcutLabelFor(m.Locale, chatPlatform())})
 }
 
 // chatux010Hint is the search control's tooltip: its name and its key.
 func chatux010Hint(m Model) string {
-	return chatux001Textf(m, "chat.ux001.search_hint", map[string]string{"shortcut": chatux010ShortcutLabel(chatPlatform())})
+	return chatux001Textf(m, "chat.ux001.search_hint", map[string]string{"shortcut": chatux010ShortcutLabelFor(m.Locale, chatPlatform())})
 }
 
 // chatux010GroupName is the heading of a group of results, in the words a new

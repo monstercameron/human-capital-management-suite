@@ -151,7 +151,6 @@ const (
 	FieldTimerCalendarVersion             = "timer-calendar-version"
 	FieldScheduler                        = "scheduler"
 	FieldHealthAddr                       = "health-addr"
-	FieldWorkflowPlan                     = "workflow-plan"
 	FieldLegalEvidenceIssuerKeys          = "legal-evidence-issuer-keys"
 	FieldExecutionRetry                   = "execution-retry"
 	FieldExecutionRetryVersion            = "execution-retry-version"
@@ -230,11 +229,6 @@ const (
 	// even the loopback-only profile keeps cursor and credential signing
 	// material separate, so local cursors never verify under the dev key.
 	LocalDevPageCursorKey = "hcm-next-local-dev-page-cursor-key"
-)
-
-const (
-	WorkflowPlanPrototype = "prototype"
-	WorkflowPlanExecute   = "execute"
 )
 
 // OTelExporterNone, OTelExporterStdout and OTelExporterOTLPHTTP are the
@@ -329,7 +323,6 @@ type ServeConfig struct {
 	TimerTzdbVersion                 string
 	TimerCalendarVersion             string
 	Scheduler                        bool
-	WorkflowPlan                     string
 	LegalEvidenceIssuerKeys          string
 	ExecutionRetry                   bool
 	ExecutionRetryVersion            string
@@ -443,7 +436,6 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldTimerCalendarVersion, Usage: "business-calendar release the execution driver's durable timers resolve wake instants against", Default: DefaultTimerCalendarVersion},
 		{Name: FieldScheduler, Usage: "run the in-process workflow timer/ready-work dispatcher; on by default so the execute plan's durable WAITs settle (requires -tenant and -execution-authority=true)", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldHealthAddr, Env: EnvHealthAddr, Usage: "loopback host:port (127.0.0.1, localhost or ::1) to serve the health/readiness endpoint on; empty disables it"},
-		{Name: FieldWorkflowPlan, Usage: "promotion workflow plan: execute runs promotions through the engine, prototype simulates without effects", Default: WorkflowPlanExecute},
 		{Name: FieldLegalEvidenceIssuerKeys, Env: EnvLegalEvidenceIssuerKeys, Usage: "comma-separated standard-base64 public keys trusted for governed legal evidence"},
 		{Name: FieldExecutionRetry, Usage: "enable persisted admission for execution START retries", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldExecutionRetryVersion, Usage: "persisted execution retry budget version; required when retries are enabled"},
@@ -516,8 +508,7 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		// approvals succeed and a due-today timer is written, but nothing is
 		// present to settle and resume it. Keep the real timer path in local
 		// development and start its bounded in-process scheduler with the plan.
-		FieldScheduler:    "true",
-		FieldWorkflowPlan: WorkflowPlanExecute,
+		FieldScheduler: "true",
 		// PROMOUX-015: the demo tenant's finance approvals route to its
 		// Finance Director, so a local promotion is approved by real personas.
 		FieldExecutionFinancePartner: pack.FinancePartnerKey,
@@ -616,7 +607,6 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 		TimerTzdbVersion:                  values.String(FieldTimerTzdbVersion),
 		TimerCalendarVersion:              values.String(FieldTimerCalendarVersion),
 		HealthAddr:                        values.String(FieldHealthAddr),
-		WorkflowPlan:                      values.String(FieldWorkflowPlan),
 		LegalEvidenceIssuerKeys:           values.String(FieldLegalEvidenceIssuerKeys),
 		ExecutionRetryVersion:             values.String(FieldExecutionRetryVersion),
 		LocalDevNow:                       values.String(FieldLocalDevNow),
@@ -792,10 +782,8 @@ func (c ServeConfig) Validate() error {
 		if c.ExecutionApprover == "" {
 			return fmt.Errorf("-%s is required when -%s=true", FieldExecutionApprover, FieldExecutionAuthority)
 		}
-		if c.WorkflowPlan == WorkflowPlanExecute {
-			if c.ExecutionManagerApprover != "" && c.ExecutionManagerApprover == c.ExecutionApprover {
-				return fmt.Errorf("-%s must be distinct from -%s for the execute workflow plan", FieldExecutionManagerApprover, FieldExecutionApprover)
-			}
+		if c.ExecutionManagerApprover != "" && c.ExecutionManagerApprover == c.ExecutionApprover {
+			return fmt.Errorf("-%s must be distinct from -%s", FieldExecutionManagerApprover, FieldExecutionApprover)
 		}
 	}
 	if c.Scheduler {
@@ -805,9 +793,6 @@ func (c ServeConfig) Validate() error {
 		if !c.ExecutionAuthority {
 			return fmt.Errorf("-%s requires -%s=true", FieldScheduler, FieldExecutionAuthority)
 		}
-	}
-	if c.WorkflowPlan != "" && c.WorkflowPlan != WorkflowPlanPrototype && c.WorkflowPlan != WorkflowPlanExecute {
-		return fmt.Errorf("-%s must be %q or %q; got %q", FieldWorkflowPlan, WorkflowPlanPrototype, WorkflowPlanExecute, c.WorkflowPlan)
 	}
 	if (c.TimerTzdbVersion == "") != (c.TimerCalendarVersion == "") {
 		return fmt.Errorf("-%s and -%s are set together or not at all; a timer promise names both releases",

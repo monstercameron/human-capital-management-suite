@@ -51,24 +51,6 @@ func agentTaskRowTimes(locale LocaleContext, task AgentTask, now time.Time) ui.N
 	return html.Span(html.Props{Class: "agents-task-times"}, children...)
 }
 
-func agentTaskTimeline(locale LocaleContext, task AgentTask) ui.Node {
-	items := make([]ui.Node, 0, 2)
-	if !task.CreatedAt.IsZero() {
-		items = append(items, html.Span(html.Props{}, ui.Text(locale.Text("agents.started", map[string]string{"time": agentTaskDateTimeLabel(locale, task.CreatedAt, time.Now())}))))
-	}
-	if !task.UpdatedAt.IsZero() {
-		key := "agents.updated"
-		if agentTaskCategory(task.State) != "active" {
-			key = "agents.finished"
-		}
-		items = append(items, html.Span(html.Props{}, ui.Text(locale.Text(key, map[string]string{"time": agentTaskDateTimeLabel(locale, task.UpdatedAt, time.Now())}))))
-	}
-	if len(items) == 0 {
-		return nil
-	}
-	return html.P(html.Props{Class: "agents-task-timeline muted"}, items...)
-}
-
 func localizedAgentFailureReason(locale LocaleContext, reason string) string {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {

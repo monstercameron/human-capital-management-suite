@@ -35,18 +35,15 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result, err := h.opening(r)
 		writeResult(w, result, err)
 	case strings.HasPrefix(r.URL.Path, Path+"/invocations/") && strings.HasSuffix(r.URL.Path, "/retry") && r.Method == http.MethodPost:
-		id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, Path+"/invocations/"), "/retry")
-		if id == "" || strings.Contains(id, "/") {
+		id, ok := invocationActionID(r.URL.Path, "/retry")
+		if !ok {
 			writeError(w, ErrInvalid)
 			return
 		}
 		var input struct {
 			IdempotencyKey string `json:"idempotency_key"`
 		}
-		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&input); err != nil {
-			writeError(w, ErrInvalid)
+		if !decodeAction(w, r, &input) {
 			return
 		}
 		result, err := h.Surface.Retry(r.Context(), id, input.IdempotencyKey)

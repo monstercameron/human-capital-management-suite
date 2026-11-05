@@ -264,13 +264,22 @@ func TestTodo_PROMO_EXEC_DEF_Simulation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CompileSimulation: %v", err)
 	}
-	if !plan.Effects.ZeroEffect || len(plan.Effects.EffectKeys) != 0 {
-		t.Fatalf("simulation effects = %+v, want zero effects", plan.Effects)
+	// Since WF-TEST-001 the projection retains the two authored writes for
+	// the recording simulator instead of relabelling them as reads.
+	if plan.Effects.ZeroEffect {
+		t.Fatalf("simulation effects = %+v, want the two retained writes", plan.Effects)
 	}
+	writes := map[string]bool{}
 	for _, node := range plan.Nodes {
 		if node.EffectClass.IsWrite() {
-			t.Fatalf("simulation node %q carries write effect %s", node.ID, node.EffectClass)
+			writes[node.ID] = true
 		}
+	}
+	if len(writes) != 2 || !writes[NodeExecutePromotion] || !writes[NodeCompensateHold] {
+		t.Fatalf("simulation write nodes = %v, want the commit and the hold release", writes)
+	}
+	if core := plan.Effects.NodesByRole[string(workflow.RoleAuthoritativeCore)]; len(core) != 1 || core[0] != NodeExecutePromotion {
+		t.Fatalf("simulation core = %v, want the retained execute_promotion", core)
 	}
 }
 

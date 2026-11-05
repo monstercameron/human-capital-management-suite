@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/documents/evidence"
 )
 
 var (
@@ -142,7 +144,10 @@ type PackageEvent struct {
 
 // ExportArtifact is one scoped artifact reference. Artifact bytes live
 // elsewhere; LegalHold, CorrectionOf and RetentionDecision carry the
-// hold/correction/retention lineage the package must preserve.
+// hold/correction/retention lineage the package must preserve. Evidence is
+// the DOC-EVIDENCE-001 envelope the artifact's identity resolves into: the
+// export refuses any artifact whose EvidenceID and digest do not match a
+// sealed envelope item, so a bare string can never impersonate evidence.
 type ExportArtifact struct {
 	EvidenceID        string
 	ArtifactDigest    string
@@ -152,6 +157,17 @@ type ExportArtifact struct {
 	HoldRef           string
 	RetentionDecision string
 	CorrectionOf      string
+	Evidence          evidence.Package
+}
+
+// envelopeItem resolves one evidence ID to its sealed envelope item.
+func envelopeItem(envelope evidence.Package, id string) (evidence.EvidenceItem, bool) {
+	for _, item := range envelope.Items {
+		if item.ID == id {
+			return item, true
+		}
+	}
+	return evidence.EvidenceItem{}, false
 }
 
 // EvidencePackage is the verifiable scoped export of one case: the complete
@@ -209,6 +225,12 @@ func ExportEvidence(caseID string, allowed []string, events []PackageEvent, arti
 	for i, a := range artifacts {
 		if strings.TrimSpace(a.EvidenceID) == "" || strings.TrimSpace(a.ArtifactDigest) == "" || strings.TrimSpace(a.CompartmentID) == "" {
 			return EvidencePackage{}, fmt.Errorf("%w: artifacts[%d] is incomplete", ErrExportInvalid, i)
+		}
+		if verification := a.Evidence.Verify(); verification.Status != evidence.Complete {
+			return EvidencePackage{}, fmt.Errorf("%w: artifacts[%d] evidence envelope is %s, want COMPLETE", ErrExportInvalid, i, verification.Status)
+		}
+		if item, ok := envelopeItem(a.Evidence, a.EvidenceID); !ok || item.Digest != a.ArtifactDigest {
+			return EvidencePackage{}, fmt.Errorf("%w: artifacts[%d] identity does not resolve into its evidence envelope", ErrExportInvalid, i)
 		}
 		if strings.TrimSpace(a.RetentionDecision) == "" {
 			return EvidencePackage{}, fmt.Errorf("%w: artifact %s lacks a retention decision", ErrExportInvalid, a.EvidenceID)

@@ -209,25 +209,25 @@ func (m *chattoneLiveModel) RewriteChecked(ctx context.Context, p chatrewrite.Pr
 		Processing: agentmodel.ProcessingPolicy{Residency: m.region, Retention: m.retain, TrainingUse: m.training, Logging: m.logging}}
 	// The qualification calls the provider through the same SchemaFlux operation
 	// the service's schema comes from, so what is measured is what is served. A
-	// call the provider does not answer in time is asked once more: a stalled
-	// connection says nothing about the model's writing, and one in about sixty
-	// calls stalled on the first live runs, which is most runs of this suite.
-	for attempt := 1; ; attempt++ {
+	// call the provider does not answer in time is asked once more, by the one
+	// retry rule the served path uses: a stalled connection says nothing about
+	// the model's writing, and one in about sixty calls stalled on the first
+	// live runs, which is most runs of this suite.
+	checked, err := chatrewrite.RetryStalledCall(ctx, m.timeout, func(callCtx context.Context) (chatrewrite.Checked, error) {
 		request.Deadline = time.Now().Add(m.timeout)
-		callCtx, cancel := context.WithTimeout(ctx, m.timeout)
 		rewrite, result, err := m.op.Run(callCtx, request)
-		timedOut := callCtx.Err() != nil && ctx.Err() == nil
-		cancel()
 		m.mu.Lock()
 		m.cost += result.Usage.CostMicros
 		m.mu.Unlock()
-		if err == nil {
-			return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
+		if err != nil {
+			return chatrewrite.Checked{}, err
 		}
-		if !timedOut || attempt == 2 {
-			return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
-		}
+		return chatrewrite.Checked{Text: rewrite.Text, MeaningPreserved: rewrite.MeaningPreserved}, nil
+	})
+	if err != nil {
+		return chatrewrite.Checked{}, chatrewrite.ErrUnavailable
 	}
+	return checked, nil
 }
 
 // ChattoneQualifyConfig is what a live evaluation needs: an approved base

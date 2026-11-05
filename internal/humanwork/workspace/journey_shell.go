@@ -129,6 +129,9 @@ type JourneyConfig struct {
 	// anything in this island.
 	Tenant  string   `json:"tenant"`
 	Subject string   `json:"subject"`
+	// Session carries the admitted session's expiry facts and whether the
+	// expiring-session warning applies. Nil when no principal was admitted.
+	Session *SessionLifecycle `json:"session,omitempty"`
 	Roles   []string `json:"roles"`
 	// TenantName, TenantMark and TenantLogo are the signed-in company's own display name
 	// and logo asset path, set only when one process serves several demo
@@ -155,6 +158,10 @@ type JourneyConfig struct {
 	// WorkflowStartWorkflowID is set only for a catalog-visible workflow
 	// deep link, so the product client can render its authorized detail state.
 	WorkflowStartWorkflowID string `json:"workflow_start_workflow_id,omitempty"`
+	// ConfigurationCenter is the request-scoped, server-owned projection
+	// for the configuration center page. Nil means the owning service did
+	// not publish; the route keeps its honest unavailable state.
+	ConfigurationCenter *productui.ConfigurationCenterProjection `json:"configuration_center,omitempty"`
 	// Agents is the server's agents availability projection for this viewer
 	// (UXBLIND-122): it decides the Agents menu entry and the Agents page.
 	Agents *AgentsConfig `json:"agents,omitempty"`
@@ -218,6 +225,7 @@ func (h *Handler) serveJourney(w http.ResponseWriter, r *http.Request) {
 			config.Roles = roles
 		}
 		config.Purpose = principal.DefaultPurpose()
+		config.Session = resolveSessionLifecycle(principal, h.now())
 		h.applyCompanyBrand(&config)
 	}
 

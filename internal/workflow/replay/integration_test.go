@@ -287,7 +287,7 @@ func newExecutedRun(t *testing.T) *executedRun {
 		}
 		_, err = version.Publish(workflowversionstore.Store{}.BindTx(context.Background(), tx),
 			workflow.PromotionReferenceDefinition(), plan,
-			workflow.Options{Phase: workflow.PhaseP1A, Capabilities: registry},
+			workflow.Options{Phase: workflow.PhaseP1A, Capabilities: registry, IRSchemaVersion: 1},
 			version.PublishMeta{SemanticVersion: "1.0.0", PublishedAt: at, PublishedBy: "principal:wfrun013-publisher"})
 		return err
 	})

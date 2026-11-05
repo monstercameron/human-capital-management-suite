@@ -33,6 +33,7 @@ const docsSuggestLimit = 8
 // DocsReferenceSuggestion is one row of the list. Insert is the exact
 // Markdown written in place of the typed trigger and query.
 type DocsReferenceSuggestion struct {
+	_                         incomparable
 	ID, Label, Detail, Insert string
 }
 

@@ -21,6 +21,7 @@ import (
 // from a supplied binding whose individual values are redacted, unknown, or
 // temporarily unavailable. An unbound projection renders nothing.
 type ProvenanceProjection struct {
+	_                 incomparable
 	Bound             bool
 	AuthorityKind     values.Presence[ProvenanceAuthority]
 	AuthoritySystem   values.Presence[string]

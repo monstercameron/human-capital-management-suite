@@ -19,5 +19,57 @@
       "version": "1",
       "source": "internal/workflow/conformance/payroll/environment.go"
     }
+  ],
+  "responses": [
+    {
+      "node_id": "read_worker",
+      "capability_id": "hcmnext.conformance.managerchange.read_worker",
+      "capability_version": 1,
+      "outcome": "SUCCEEDED",
+      "fields": [
+        {
+          "path": "employment_active",
+          "type": { "kind": "BOOL" },
+          "value": "true"
+        },
+        {
+          "path": "current_manager_id",
+          "type": { "kind": "STRING", "brand": "WorkerID" },
+          "value": "manager-alice"
+        }
+      ]
+    },
+    {
+      "node_id": "read_worker",
+      "capability_id": "hcmnext.conformance.managerchange.read_worker",
+      "capability_version": 1,
+      "outcome": "REJECTED",
+      "detail": "The governed worker read withheld or could not confirm the subject."
+    },
+    {
+      "node_id": "read_proposed_manager",
+      "capability_id": "hcmnext.conformance.managerchange.read_manager",
+      "capability_version": 1,
+      "outcome": "SUCCEEDED",
+      "fields": [
+        {
+          "path": "employment_active",
+          "type": { "kind": "BOOL" },
+          "value": "true"
+        },
+        {
+          "path": "management_eligible",
+          "type": { "kind": "BOOL" },
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "node_id": "read_proposed_manager",
+      "capability_id": "hcmnext.conformance.managerchange.read_manager",
+      "capability_version": 1,
+      "outcome": "REJECTED",
+      "detail": "The proposed manager is not confirmed as an eligible manager."
+    }
   ]
 }

@@ -30,6 +30,7 @@ type missingPunchDraftState struct {
 // MissingPunchSessionView is the immutable server projection of the session
 // and original observation. The UI never edits these values.
 type MissingPunchSessionView struct {
+	_                                             incomparable
 	SessionID, WorkerRef, OriginalObservationID   string
 	WorkerLabel, OriginalEventLabel, SessionLabel string
 	WorkerTimezone                                string
@@ -41,6 +42,7 @@ type MissingPunchSessionView struct {
 
 // MissingPunchReviewView is an authorized supervisor review item.
 type MissingPunchReviewView struct {
+	_                                                                               incomparable
 	RequestID, WorkerRef, WorkerLabel, SessionLabel, OriginalEventLabel             string
 	OriginalAt, ProposedOutAt                                                       time.Time
 	Reason, RequestedBy, WorkflowTraceHref, ReopenRef, DecisionNote, IdempotencyKey string
@@ -50,6 +52,7 @@ type MissingPunchReviewView struct {
 
 // MissingPunchSubmission is the typed request sent to the application port.
 type MissingPunchSubmission struct {
+	_                                                                   incomparable
 	SessionID, WorkerRef, OriginalObservationID, Reason, IdempotencyKey string
 	ProposedOutAt                                                       time.Time
 	ExpectedRevision                                                    uint64
@@ -57,6 +60,7 @@ type MissingPunchSubmission struct {
 
 // MissingPunchDecision is the typed independent supervisor decision.
 type MissingPunchDecision struct {
+	_                                                             incomparable
 	RequestID, WorkerRef, DecisionNote, ReopenRef, IdempotencyKey string
 	ExpectedRevision                                              uint64
 	Approve                                                       bool
@@ -65,6 +69,7 @@ type MissingPunchDecision struct {
 // MissingPunchReceipt is durable workflow evidence returned by the native
 // transport/application seam. A receipt without a trace is not rendered.
 type MissingPunchReceipt struct {
+	_                                                                    incomparable
 	RequestID, Status, WorkflowTraceHref, WorkflowID, PlanDigest, NodeID string
 	WorkflowTraceID, WorkflowInstanceRef                                 string
 	Revision                                                             uint64

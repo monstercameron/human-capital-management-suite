@@ -46,6 +46,7 @@ const (
 // Minimum, Maximum and Currency are the server's exact permitted range, when
 // it sent one; they are validated here before any of them can be shown.
 type PromotionRefusalViolation struct {
+	_         incomparable
 	FieldPath string
 	RuleRef   string
 	Minimum   string

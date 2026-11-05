@@ -234,7 +234,12 @@ func personaAdminCheckPreview() {
 	if personaAdminBrowser.snapshot != nil && (persona == "" || subject == "" || conversation == "") {
 		cleared := *personaAdminBrowser.snapshot
 		cleared.Preview = productui.PersonaAdminPreview{}
+		cleared.PreviewState = productui.PersonaAdminRegionState{}
 		personaAdminBrowser.snapshot = &cleared
+		// A new check supersedes the previous request entirely: without this
+		// the old "could not be checked" failure stays visible next to the
+		// field guidance instead of the guidance alone (AGENTP-018).
+		personaAdminBrowser.previewUnavailable = false
 	}
 	personaAdminBrowser.Unlock()
 	if persona == "" || subject == "" || conversation == "" {

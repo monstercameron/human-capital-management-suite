@@ -68,10 +68,12 @@ func (s *agentServedAssembly) BindAgentUXAmbient(d agentUXAmbientDeps) error {
 }
 
 // BindAgentUXAmbientServed is the served assembly's one call: the stores the
-// composition root opened, handed over as they are. A pool that was not opened
-// is left out rather than passed on as a typed nil.
-func (s *agentServedAssembly) BindAgentUXAmbientServed(chat *chatstore.Store, extensions *ChatExtensions, service chatcore.ConversationService, agents *agentstore.Store, personas *agentpersonastore.Store, pool *pgxadapter.Pool, now func() time.Time) error {
-	deps := agentUXAmbientDeps{Chat: chat, Extensions: extensions, Service: service, Agents: agents, Personas: personas, TenantUUID: tenantKeyMapper[values.TenantId](pgstore.TenantID), Now: now}
+// composition root opened, handed over as they are, and the offers planner
+// the root composed over a qualified screen model (nil when none is
+// provisioned, which leaves the consumer reading no messages). A pool that
+// was not opened is left out rather than passed on as a typed nil.
+func (s *agentServedAssembly) BindAgentUXAmbientServed(chat *chatstore.Store, extensions *ChatExtensions, service chatcore.ConversationService, agents *agentstore.Store, personas *agentpersonastore.Store, pool *pgxadapter.Pool, planner AgentUXAmbientRunPlanner, now func() time.Time) error {
+	deps := agentUXAmbientDeps{Chat: chat, Extensions: extensions, Service: service, Agents: agents, Personas: personas, TenantUUID: tenantKeyMapper[values.TenantId](pgstore.TenantID), Planner: planner, Now: now}
 	if pool != nil {
 		deps.Core = pool
 	}

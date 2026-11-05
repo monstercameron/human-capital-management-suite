@@ -1,6 +1,6 @@
 # Human Capital Management Suite High-Level Plan
 
-This document is the durable product strategy and architecture constitution. It defines what Human Capital Management Suite is, the invariants that must remain true, the authority-expansion path, and the long-term Workforce OS direction. It is intentionally broader than the executable delivery plan.
+This document is the durable product strategy and architecture constitution. It defines what Human Capital Management Suite is, the invariants that must remain true, the authority-expansion path, and the people-and-work foundation for a small-business operations workspace. It is intentionally broader than the executable delivery plan.
 
 Use the planning set according to this hierarchy:
 
@@ -35,9 +35,9 @@ execution plan.
 
 ## 1. Executive Summary
 
-Human Capital Management Suite is a vendor-agnostic transaction control plane for enterprise HR changes. It helps organizations design, validate, approve, simulate, execute, reconcile, and audit employee changes across HCM, payroll, finance, identity, and internal systems.
+Human Capital Management Suite is an HR and workflow platform for small businesses, with a planned expansion into connected business operations. It helps people request, assign, approve, execute, observe, reconcile, and explain work across employees, customers, suppliers, jobs, resources, and commercial records. Domain-specific rules stay with their semantic owners; the shared platform supplies identity, authorization, workflow, records, integrations, and one coherent experience.
 
-The initial product is **Human Capital Management Suite ChangeOps**, a governed operating layer for high-risk employee changes such as promotions, compensation adjustments, manager changes, and organizational moves.
+The existing **Human Capital Management Suite ChangeOps** release remains the bounded workforce transaction proof: promotions, compensation adjustments, manager changes, and organizational moves. The owner-authorized small-business expansion recorded on 2026-10-22 is a delivery backlog, not merely a destination sketch; its feature contracts, reuse decisions, and acceptance criteria are in [the small-business expansion plan](small-business-platform-ideas.md). Neither this planning decision nor a GitHub issue claims shipped functionality or grants production data authority.
 
 The product does not begin by replacing Workday, UKG, Oracle HCM, SAP SuccessFactors, Dayforce, or customer-built systems. It begins by controlling the fragmented transaction process around them.
 
@@ -51,11 +51,11 @@ safer, faster, explainable employee changes
 
 The long-term opportunity is larger than becoming a system of record for a few HR domains. Human Capital Management Suite can become a **Workforce Operating System**: a unified system spanning people, workforce operations, talent, rewards, employee experience, and workforce access on one shared Person/Worker Graph.
 
-That destination does not change the entry strategy. ChangeOps remains the wedge, and authority must be earned gradually through demonstrated transaction safety, operational reliability, customer trust, and domain-specific readiness. The transaction control plane is the path into the suite, not the limit of the vision.
+The 2026-10-22 product decision extends that destination to optional small-business operations. ChangeOps remains a retained proof and integration path, while customers may enter through people, work, or a supported business workflow. Production authority is earned per domain through transaction safety, operational reliability, customer approval, and served acceptance evidence. Existing Gate A/B contents remain bounded; expansion work is sequenced explicitly in the execution plan.
 
 ## 2. Strategic Thesis
 
-Enterprise HCM is not primarily missing another employee database. It is missing a reliable control layer for changes that cross organizational and system boundaries.
+Small businesses need dependable coordination across people, customer work, resources, and commercial administration without building their own integrations. The common foundation is governed work with clear ownership and observable outcomes. HR remains a first-class domain and the Person/Worker Graph remains authoritative for workforce facts. Customer and supplier relationships extend the workspace without turning every contact into an employee. The enterprise ChangeOps use case below remains a demanding proof of the same mechanisms.
 
 A single promotion may involve:
 
@@ -71,7 +71,7 @@ A single promotion may involve:
 
 Most enterprises manage this process through a mixture of suite workflows, tickets, spreadsheets, email, chat, manual entry, and custom integrations. Each tool sees part of the process, but no system reliably governs the whole transaction.
 
-Human Capital Management Suite creates a shared transaction model above those systems. Its value is not generic workflow automation. Its value is the combination of:
+Human Capital Management Suite creates a shared transaction model above those systems. Its value comes from reusable workflow mechanics combined with owned business semantics, including:
 
 - HCM-specific transaction semantics
 - Effective-dated employee changes
@@ -88,29 +88,31 @@ Human Capital Management Suite creates a shared transaction model above those sy
 
 ### 3.1 Vision Statement
 
-> Make every material employee change safe, fast, explainable, and consistent across the enterprise.
+> Give a small business one dependable workspace for its people and work, with connected operations that remain understandable, governed, and repairable.
 
 ### 3.2 Category
 
 Primary category:
 
-> HCM Transaction Control Plane
+> HR and Business Workflow Platform
 
 Buyer-facing category:
 
-> Enterprise HR ChangeOps Platform
+> Small-Business Operations Workspace
+
+Enterprise HR ChangeOps remains a supported positioning for the existing bounded transaction pilot.
 
 ### 3.3 Day-One Positioning
 
-> Keep your HCM. Replace the chaos around it.
+> Organize your people and work, then connect the operations your business needs.
 
-Sharper competitive formulation:
-
-> Safely coordinate workforce change across everything you already run.
+For an existing enterprise HCM estate, the retained ChangeOps proposition is to coordinate workforce changes across the systems the customer already runs.
 
 ### 3.4 Long-Term Positioning
 
-> The Workforce Operating System: one governed worker model connecting HR, work, pay, talent, experience, and access.
+> One workspace for running a small business, built around its people and the work they do.
+
+The workforce model connects HR, work, pay, talent, experience, and access. Optional customer, job, scheduling, commercial, inventory, purchasing, equipment, portal, accounting, device, and setup capabilities connect through existing platform contracts. They retain separate data authority and lifecycle rules.
 
 `Workforce Operating System`, AI, workflow, APIs, webhooks, analytics, and
 orchestration are not treated as unique positioning by themselves. Incumbent
@@ -121,7 +123,7 @@ suites already market overlapping categories and language. The durable thesis is
 
 ### 3.5 Product Boundary
 
-Human Capital Management Suite is not initially:
+The bounded ChangeOps P1A/P1B release does not initially implement:
 
 - A complete HCM suite
 - A payroll calculation engine
@@ -132,7 +134,7 @@ Human Capital Management Suite is not initially:
 - An autonomous AI decision maker
 - A universal integration platform
 
-Human Capital Management Suite is initially:
+Within that bounded ChangeOps release, Human Capital Management Suite provides:
 
 - The governed entry point for selected employee changes
 - The place where proposed changes are validated and approved
@@ -141,17 +143,17 @@ Human Capital Management Suite is initially:
 - The place where intended and observed outcomes are reconciled
 - The audit surface for decisions, execution, failure, and repair
 
-### 3.6 End-State: Workforce Operating System
+### 3.6 Workforce product family within the operations workspace
 
-Sections 3.6 through 3.11 are a non-binding destination sketch. They exist so
-that the kernel does not paint the product into a corner; they are not a
+Sections 3.6 through 3.11 retain the workforce-family destination sketch. The separately adopted small-business contracts in section 3.13 and the expansion plan have an explicit implementation backlog. The retained workforce sketch exists so
+that the kernel does not paint the product into a corner; it is not a
 backlog, and nothing in the kernel, catalog, planes, registries, or data
-models may be sized to them. Stages 3 to 5 of the product path are options
+models may be sized to that sketch alone. Stages 3 to 5 of the retained workforce path are options
 with their own evidence gates.
 
 HCM is the umbrella category rather than one application beside recruiting, payroll, time, and talent. Major HCM suites already group core HR, talent acquisition, talent management, learning, compensation, benefits, payroll, time, absence, workforce planning, and analytics into connected portfolios. Rippling extends the boundary further by connecting HR with workforce identity, application access, devices, and selected finance operations around common workforce data.
 
-Human Capital Management Suite should therefore plan for two related identities:
+The retained workforce-family and enterprise ChangeOps track has two related identities:
 
 ```text
 Near-term category:
@@ -161,11 +163,11 @@ Long-term product:
     Workforce Operating System
 ```
 
-The complete system should not become a loose collection of HR modules sharing a brand. Every product family must use the same worker identity, employment facts, effective-dated history, permissions, workflows, ledger, documents, policies, and event model.
+The complete system should not become a loose collection of HR modules sharing a brand. Workforce features use the same worker identity and employment facts. All product families reuse platform identity, authorization, workflows, ledger mechanics, documents, policies and event contracts while retaining domain-owned facts. Customer/supplier contacts are linked explicitly; they neither require fictitious employment nor gain access to HR records.
 
 ### 3.7 Architectural Center: Person/Worker Graph
 
-The architectural center is not an abstract HR department. It is the person and every governed relationship that connects that person to work.
+The Person/Worker Graph remains the workforce data center. The wider workspace connects it to separately owned business parties, service locations, work orders, resources and commercial records through typed references and current authorization. An organization/customer/supplier record need not represent a person, employee or HR organization unit.
 
 ```text
                               PERSON
@@ -361,34 +363,31 @@ to build it. Native payroll, WFM, benefits, or other suite-depth investment must
 pass the authority-absorption gate in the [competitive positioning and authority
 expansion contract](specs/competitive-positioning-and-authority-expansion.md).
 
+### 3.13 Small-business operations expansion (2026-10-22)
+
+The owner has authorized detailed planning and implementation backlog creation for all twelve gap subsystems described in [the expansion plan](small-business-platform-ideas.md): business relationships; service jobs; scheduling/dispatch; quotes/orders; billing/payment tracking; stock; equipment/assets; purchasing; external portals; accounting connectivity; devices; and guided setup. Additional operational steps discovered during design belong to those owners and receive explicit backlog coverage.
+
+Reuse or enhance existing subsystems before introducing code. In particular, service execution extends workorder/workorderservice/workorderstore, equipment extends domains/asset and assetstore, job pricing extends workorderbilling, and scheduling extends appointment/scheduling/crew primitives. Recruiting CRM, employment service-credit, and the suite's own subscription billing must retain their present meanings. New customer-party or receivable semantics need narrowly bounded ownership, not a second workflow, ledger, integration runtime, identity system, or frontend.
+
+The common user outcome is request -> scope -> assign -> approve if required -> execute -> confirm -> reconcile. Each domain preserves its specific invariants. Roles, module availability, and object scope determine discovery and UI actions; workers, customers, suppliers, guests, and machine identities are related explicitly without inheriting one another's permissions.
+
+Feature registration, storage, APIs, events, schemas, and recovery are additive. No new kernel family or general orchestration layer is authorized. New semantic definitions enter the existing catalog through its normal publication lifecycle; suggested operation names are not pre-existing published definitions. `BI.WORK`, `BI.COMMERCIAL`, `BI.INTEGRATION`, `BI.EXPERIENCE`, and other accepted domain sets can describe implementation scope without asserting direct intent availability.
+
+The first connected reference workflows cover a service team delivering a customer job and a team receiving/issuing supplies. Full capability coverage remains in the backlog; these workflows determine implementation order and acceptance depth, not removal of the other approved features. Runtime enablement remains per tenant and per capability after real endpoint, database, browser, authorization, recovery, and migration evidence.
+
 ## 4. Target Market
 
-### 4.1 Ideal Customer Profile
+### 4.1 Small-business customer profile and retained ChangeOps pilot
 
-The first customers should be organizations where the cross-system gap
-demonstrably exists and the incumbent does not already close it:
+The primary expansion audience is a small business coordinating employees or contractors, customer work, suppliers, and physical or informational resources. Candidate segments are professional services, trades/field services, recurring service teams, repair/retail, and property services. The product supports an owner operating alone as well as multiple teams and locations; no market size, willingness to pay, preferred segment, or production scale is established by this plan.
 
-- 2,000 to 25,000 employees
-- **More than one HR system of record in active use**: a second HRIS inherited
-  through acquisition, or an HRIS with separate payroll and identity providers
-  that the HRIS does not natively orchestrate
-- Frequent job, manager, compensation, or organization changes
-- An internal HRIS or people systems team that owns the integrations today
-- Material payroll, compliance, and audit exposure
-- Too many manual handoffs around employee changes
-- A willingness to improve one workflow family before broader transformation
+Customer discovery must identify the daily workflow, existing tools to retain, import/cutover needs, responsible operator, deployment constraints, and the outcome worth paying for. Simple setup and clear recovery are required even when one person holds several roles. Templates may simplify role assignments but cannot waive mandatory separation or authorization rules.
 
-Explicit disqualifiers, until Gate A proves non-duplication for that segment:
-
-- A single-suite Workday estate whose Business Process Framework and
-  integrations already govern the promotion end to end. That customer's gap is
-  inside the suite, and the pilot would duplicate licensed functionality.
-- An estate with no independently owned downstream system, since the product
-  claim would collapse to single-system governance.
-
-Google-scale complexity remains an architectural stress test, not the initial sales target.
+The retained enterprise ChangeOps pilot targets multi-system HR estates with frequent employee changes and independently owned downstream systems. Its former 2,000–25,000 employee range is a pilot hypothesis, not an eligibility requirement for the small-business workspace. Incumbent non-duplication and authority-by-field proof continue to apply to that pilot; they do not exclude a small business using native people or work capabilities.
 
 ### 4.2 Likely Stakeholders
+
+For the small-business track, discovery and acceptance include the owner/operator, office administrator, dispatcher, field worker, bookkeeper, customer and supplier participant. One person may perform several authorized roles. Each needs simple setup, a clear next action, recovery from interruption and scope-appropriate information. The retained enterprise ChangeOps stakeholders below remain relevant to that proof track.
 
 | Stakeholder                  | Primary concern                                      |
 | ---------------------------- | ---------------------------------------------------- |
@@ -404,9 +403,11 @@ Google-scale complexity remains an architectural stress test, not the initial sa
 
 The initial champion, economic buyer, implementation owner, and security approver may be different people. Design-partner work must validate these roles rather than assume the Head of HRIS performs all of them.
 
-### 4.3 Initial Customer Problem
+### 4.3 Customer problems
 
-The first problem to solve is:
+The small-business expansion addresses fragmented requests, responsibilities, schedules, records, resources, and payment status. Each reference workflow must prove less duplicate entry and a clear next action across these boundaries.
+
+The retained ChangeOps proof addresses:
 
 > High-risk employee changes take too long, cross too many systems, lack consistent controls, and are difficult to explain when something goes wrong.
 
@@ -1379,9 +1380,11 @@ Production write authority should be conditional on demonstrated readiness acros
 
 ## 12. Go-to-Market Plan
 
-### 12.1 Initial Offer
+### 12.1 Small-business adoption and retained ChangeOps offer
 
-The first commercial offer should be a paid, narrowly scoped ChangeOps pilot:
+The small-business offer must prove a complete daily workflow, imports from existing tools, understandable role/module setup, and safe exit. Customer interviews and pilot evidence will determine the initial segment, pricing unit and support model. No price, market validation, partner or staffing is established by this expansion decision. Pricing and support discovery for this track are independent from the enterprise pilot hypotheses below.
+
+The retained enterprise ChangeOps commercial hypothesis is a paid, narrowly scoped pilot:
 
 - One workflow family
 - One primary HCM source
@@ -1404,7 +1407,7 @@ These figures are hypotheses to validate, not planning facts. The P1A price
 exists so that the first partner conversation is not blocked on the procurement
 process a write-path dependency requires.
 
-### 12.2 Primary Adoption Objection
+### 12.2 Retained ChangeOps adoption objection
 
 > Why should we introduce another mission-critical system into the write path of an already complex HR stack?
 
@@ -1655,6 +1658,8 @@ Promotion evidence:
 
 ### Phase 3: System of Transaction
 
+The owner-authorized small-business track adds relationships, jobs, quotes, billing, setup, and selected domain extensions through the same capabilities and workflows. Detailed work is sequenced by dependency and feature acceptance in the expansion plan; workforce-only wording below describes the retained ChangeOps track.
+
 Goal:
 
 > Become the trusted place where selected HCM changes are initiated, approved, and governed while another platform remains the domain system of record.
@@ -1690,6 +1695,8 @@ Promotion evidence:
 - Tenant sandbox, bundle promotion, migration, progressive rollout, restore, and business-continuity procedures use only Go product paths
 
 ### Phase 4: Domain System of Record
+
+Small-business stock, equipment, procurement, scheduling, portals, accounting adapters, and device operations gain authority only for their explicitly implemented and qualified scope. PHASE_3/PHASE_4 backlog labels are delivery horizons, not claims that previous phases are complete or approvals to replace incumbents wholesale.
 
 Goal:
 
@@ -1733,7 +1740,7 @@ Expansion should follow shared worker journeys rather than recreating an incumbe
 5. **Talent and experience** — recruiting, performance, skills, learning, service delivery, and communications on the shared graph.
 6. **Planning and intelligence** — cross-suite planning, analytics, and governed AI that can turn approved plans into transactions.
 
-Product-family sequencing remains evidence-driven. Different customer segments may justify a different order, but every expansion must strengthen the shared worker model rather than produce a silo.
+Product-family sequencing remains evidence-driven. Different customer segments may justify a different order. Every expansion must connect through shared identity, work, authorization, capability, and evidence contracts, while preserving independent domain authority; commercial parties and stock need not be modeled as workers.
 
 The architectural breadth in this plan does not imply that deep domain kernels already exist. Until separately approved and specified:
 
@@ -2050,7 +2057,7 @@ The detailed charter inventory is maintained in [the architecture specification 
 
 ## 18. Final Plan Statement
 
-> Human Capital Management Suite will begin as the governed transaction layer around existing enterprise HCM systems. It will first make high-risk job, compensation, manager, and organization changes safer and easier to operate. It will distinguish transaction truth from employee-domain authority, bind approvals to immutable proposals, resolve concurrent and effective-dated changes explicitly, reconcile external outcomes, preserve explainable history, and use AI only within governed human accountability. Its ledger will act as the business black box recorder, while rebuildable projections, continuous integrity checks, causal incident views, and governed RepairPlans keep derived and external state aligned with that truth. Every product action will be exposed as a semantic capability governed by record, field, relationship, purpose, context, risk, and identity; agents will discover and compose those capabilities without receiving unrestricted credentials or bypassing deterministic workflows. Live processes will remain version-pinned and historically immutable, yet repairable through explicit intervention and migration plans. Corporate hierarchy, inheritance, and cross-company workflows will operate inside the tenant boundary with directional sharing and security-preserving scope resolution. Authentication will establish principal identity while customer-defined authorization composes organization scope, capability, resource, data domain, field, population, relationship, purpose, and current context into an explainable decision and enforceable workflow obligations. Globalization will preserve canonical business values while independently resolving language, currency, timezone, calendar, formatting, and jurisdiction for every transaction, workflow, document, integration, and human audience. The Legal and Compliance Plane will resolve whether the organization may act or process data, attach versioned obligations and prohibitions, and turn privacy rights, retention, legal holds, regulated AI, legal change, and breach response into auditable workflows controlled by customer-approved interpretation. Workforce Intelligence will connect historical facts, semantic observations, human and agent decisions, meaningful interactions, and explicit inferences through a governed bitemporal semantic model while preserving the authority, provenance, privacy, and uncertainty of each class. The Agent Runtime will make intent the primary interface, discover governed capabilities and semantic context, create reproducible analyses and workflows, and learn through evaluated proposals while deterministic services retain exclusive control of authoritative execution. The physical data plane will protect one canonical event chronology and content-addressed artifacts while serving product, search, analytics, and agents through specialized, provenance-bearing stores that can be independently rebuilt, reconciled, and replaced. The Billing Plane will separate purchased entitlement, principal authority, semantic usage, versioned rating, append-only customer billing, and provider cost so the product remains commercially predictable, operationally explainable, and economically governable as API and agent consumption grows.
+> Human Capital Management Suite is an HR and workflow foundation expanding into a small-business operations workspace. Existing enterprise ChangeOps remains a bounded transaction proof; the 2026-10-22 expansion plan governs the additional customer, job, resource, commercial, and connectivity domains. It will first make high-risk job, compensation, manager, and organization changes safer and easier to operate. It will distinguish transaction truth from employee-domain authority, bind approvals to immutable proposals, resolve concurrent and effective-dated changes explicitly, reconcile external outcomes, preserve explainable history, and use AI only within governed human accountability. Its ledger will act as the business black box recorder, while rebuildable projections, continuous integrity checks, causal incident views, and governed RepairPlans keep derived and external state aligned with that truth. Every product action will be exposed as a semantic capability governed by record, field, relationship, purpose, context, risk, and identity; agents will discover and compose those capabilities without receiving unrestricted credentials or bypassing deterministic workflows. Live processes will remain version-pinned and historically immutable, yet repairable through explicit intervention and migration plans. Corporate hierarchy, inheritance, and cross-company workflows will operate inside the tenant boundary with directional sharing and security-preserving scope resolution. Authentication will establish principal identity while customer-defined authorization composes organization scope, capability, resource, data domain, field, population, relationship, purpose, and current context into an explainable decision and enforceable workflow obligations. Globalization will preserve canonical business values while independently resolving language, currency, timezone, calendar, formatting, and jurisdiction for every transaction, workflow, document, integration, and human audience. The Legal and Compliance Plane will resolve whether the organization may act or process data, attach versioned obligations and prohibitions, and turn privacy rights, retention, legal holds, regulated AI, legal change, and breach response into auditable workflows controlled by customer-approved interpretation. Workforce Intelligence will connect historical facts, semantic observations, human and agent decisions, meaningful interactions, and explicit inferences through a governed bitemporal semantic model while preserving the authority, provenance, privacy, and uncertainty of each class. The Agent Runtime will make intent the primary interface, discover governed capabilities and semantic context, create reproducible analyses and workflows, and learn through evaluated proposals while deterministic services retain exclusive control of authoritative execution. The physical data plane will protect one canonical event chronology and content-addressed artifacts while serving product, search, analytics, and agents through specialized, provenance-bearing stores that can be independently rebuilt, reconciled, and replaced. The Billing Plane will separate purchased entitlement, principal authority, semantic usage, versioned rating, append-only customer billing, and provider cost so the product remains commercially predictable, operationally explainable, and economically governable as API and agent consumption grows.
 >
 > Five lifecycle reference workflows—Hire and Onboard, Promotion and Compensation, Cross-Company Transfer, Leave and Return, and Termination and Offboarding—will serve as architecture conformance tests, with Payroll Correction as the bitemporal repair stress test. Their shared Workflow Simulation Contract will make planned state, authority, legal obligations, conflicts, side effects, costs, completion dimensions, revalidation, and repair visible before material execution.
 >

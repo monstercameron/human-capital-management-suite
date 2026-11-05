@@ -15,7 +15,7 @@ import (
 // must return a zero exit/error result from the command adapter.
 func TestTDDContractCommandAdapterSyntheticGreen(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "planning", "archive"), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	const markdown = "## Fixtures\n\n" +
@@ -25,7 +25,7 @@ func TestTDDContractCommandAdapterSyntheticGreen(t *testing.T) {
 		"  - **RED:** returns a typed error for the seeded defect.\n" +
 		"  - **GREEN:** returns the exact accepted state.\n" +
 		"  - **REFACTOR:** preserves the oracle and rerun scope.\n"
-	if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(markdown), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"), []byte(markdown), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	if err := runTDDContract(root); err != nil {
@@ -81,10 +81,10 @@ func TestTraceabilityCommandAdapterTickedGaps(t *testing.T) {
 	writeTodos := func(t *testing.T, markdown string) string {
 		t.Helper()
 		root := t.TempDir()
-		if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, "planning", "archive"), 0o755); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(markdown), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"), []byte(markdown), 0o644); err != nil {
 			t.Fatalf("WriteFile: %v", err)
 		}
 		return root
@@ -123,11 +123,11 @@ func TestReachabilityCommandAdapterClosesRuntimeTicks(t *testing.T) {
 		"  - **Refs:** [fixture](fixture.md).\n" +
 		"  - **Evidence (2026-09-21):** `TestFixture` in `internal/domains/leave`; `go test -count=1 ./internal/domains/leave/` PASS.\n"
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "planning", "archive"), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	markdown := "- [x] `FIXTURE-001` **[GATE_B][LUNA] ticked fixture.**\n" + body
-	if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(markdown), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"), []byte(markdown), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	var todos []todoregistry.Todo
@@ -225,7 +225,7 @@ func TestWorkflowConformanceCommandAdapter(t *testing.T) {
 	if err := os.WriteFile(workflowPath, []byte("workflow_id: sample/v1\nstate: EXTRACTED + EXPLORED\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "planning"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "planning", "archive"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	write := func(context string) {
@@ -239,7 +239,7 @@ func TestWorkflowConformanceCommandAdapter(t *testing.T) {
 			"  - **GREEN:** identifies exploratory evidence.\n" +
 			"  - **REFACTOR:** none.\n" +
 			"  - **Refs:** [workflow](workflows/people/sample.md).\n"
-		if err := os.WriteFile(filepath.Join(root, "planning", "todos.md"), []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -366,7 +366,7 @@ func repositoryRoot(t *testing.T) string {
 		t.Fatalf("Getwd: %v", err)
 	}
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "planning", "todos.md")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, "planning", "archive", "todos-2026-10-22.md")); err == nil {
 			return dir
 		}
 		parent := filepath.Dir(dir)

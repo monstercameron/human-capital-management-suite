@@ -8,7 +8,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
@@ -21,17 +20,8 @@ type chatsearchClientError struct{ Code string }
 
 func (e chatsearchClientError) Error() string { return "chat search: " + e.Code }
 func chatsearchRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, path, method string, input, output any) error {
-	u, e := url.Parse(cfg.TunnelURL)
-	if e != nil || u.Host == "" || u.User != nil || cfg.Bearer == "" {
-		return chatsearch.ErrInvalid
-	}
-	switch u.Scheme {
-	case "ws":
-		u.Scheme = "http"
-	case "wss":
-		u.Scheme = "https"
-	case "http", "https":
-	default:
+	u, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" {
 		return chatsearch.ErrInvalid
 	}
 	if path != "/api/chat/search" && path != "/api/chat/search/recent" {

@@ -175,7 +175,7 @@ func TestTodo_CHATTONE_004_HTTPFailures(t *testing.T) {
 		status int
 		code   string
 	}{
-		{personachat.ErrUnauthenticated, 401, "unauthenticated"}, {personachat.ErrDenied, 403, "denied"}, {chatrewrite.ErrDisabled, 403, "disabled"}, {chatrewrite.ErrInvalid, 400, "invalid"}, {chatrewrite.ErrLimit, 429, "limit"}, {chatrewrite.ErrPreservation, 422, "preservation"}, {chatrewrite.ErrPolicy, 422, "policy"}, {chatrewrite.ErrUnavailable, 503, "unavailable"},
+		{personachat.ErrUnauthenticated, 401, "unauthenticated"}, {personachat.ErrDenied, 403, "denied"}, {chatrewrite.ErrDisabled, 403, "disabled"}, {chatrewrite.ErrInvalid, 400, "invalid"}, {chatrewrite.ErrLimit, 429, "limit"}, {chatrewrite.ErrPreservation, 422, "preservation"}, {chatrewrite.ErrPolicy, 422, "policy"}, {chatrewrite.ErrStalled, 503, "stalled"}, {chatrewrite.ErrUnavailable, 503, "unavailable"},
 	} {
 		w := httptest.NewRecorder()
 		chattoneWrite(w, ChattoneReply{}, tc.err)

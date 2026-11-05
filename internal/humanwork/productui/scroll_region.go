@@ -257,12 +257,20 @@ func declareScrollRegionStyles() {
 	)
 	// At desktop widths the main page is the sole vertical scroll owner.
 	// This also lets table headers stick to the page scroll rather than an
-	// inner viewport that has no meaningful height of its own.
+	// inner viewport that has no meaningful height of its own. The viewport
+	// still owns horizontal scrolling (UXBLIND-023): with the supported
+	// optional People columns enabled the table is wider than its box, and
+	// a bare `overflow:visible` here left no scroll owner at all -- the
+	// shell clips sideways overflow, so later columns were unreachable by
+	// pointer. With max-height:none the height is unbounded, so the
+	// vertical axis never scrolls; this mirrors the workflow-history
+	// results viewport's own overflow-x:auto/overflow-y:visible split.
 	declareGlobal(".people-directory .data-table-scroll",
 		mediaRule(gwccss.MinW(1081),
 			gwccss.MaxHeight(gwccss.RawLength("none")),
 			gwccss.MinHeight(gwccss.Zero),
-			gwccss.Raw("overflow", "visible"),
+			gwccss.Raw("overflow-x", "auto"),
+			gwccss.Raw("overflow-y", "visible"),
 		),
 	)
 	declareGlobal(".history-filter-controls input,.history-filter-controls select",

@@ -2,6 +2,7 @@ package presentation
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -82,6 +83,22 @@ func TestTodo_WEB_006_Conformance(t *testing.T) {
 	}
 	if a != b {
 		t.Fatalf("digest changed: %s != %s", a, b)
+	}
+}
+
+func TestTodo_WEB_006_NaNConfidence(t *testing.T) {
+	nan := math.NaN()
+	v := BoundValue{SourceType: SourceCanonical, SourceID: "s", SourceVersion: "1", AuthorityClass: "a", Classification: "c", Confidence: &nan, RecordedAt: time.Now(), Disposition: DispositionShow}
+	if err := v.Validate(); err == nil {
+		t.Fatal("NaN confidence passed validation")
+	}
+	if _, err := v.Digest(); err == nil {
+		t.Fatal("NaN confidence produced a digest")
+	}
+	inf := math.Inf(1)
+	v.Confidence = &inf
+	if err := v.Validate(); err == nil {
+		t.Fatal("infinite confidence passed validation")
 	}
 }
 

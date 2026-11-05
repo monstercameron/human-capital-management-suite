@@ -95,6 +95,7 @@ type AgentControlsCommand struct {
 
 // AgentScheduleDraft is a bounded scheduling owner input, never a grant.
 type AgentScheduleDraft struct {
+	_                incomparable
 	ID               string `json:"id"`
 	ExpectedRevision uint64 `json:"expected_revision"`
 	Version          string `json:"version"`

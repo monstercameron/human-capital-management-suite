@@ -58,12 +58,14 @@ func (b *AgentPageCatalogBinding) Snapshot(ctx context.Context, req productui.Ag
 	if err != nil {
 		return productui.AgentSnapshot{}, err
 	}
-	agents, err := b.Catalog.List(ctx, verified)
+	agents, roster, err := b.Catalog.ListBoth(ctx, verified)
 	if err != nil {
 		return productui.AgentSnapshot{}, err
 	}
 	snapshot.Agents = cloneAgentSummariesForPage(agents)
+	snapshot.Roster = cloneAgentSummariesForPage(roster)
 	agentUX074AttachStoredIcons(ctx, b.Icons, verified, snapshot.Agents)
+	agentUX074AttachStoredIcons(ctx, b.Icons, verified, snapshot.Roster)
 	return snapshot, nil
 }
 

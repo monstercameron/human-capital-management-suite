@@ -188,61 +188,55 @@ func personaAdminLifecycleProgress(locale LocaleContext, persona PersonaAdminPer
 	)
 }
 
+// personaAdminR5Copy is the copy personaAdminR5Text resolves (agentux_copy.go).
+var personaAdminR5Copy = map[string][3]string{
+	"phase_draft":                         {"Draft", "Entwurf", "مسودة"},
+	"phase_waiting_review":                {"Waiting for review", "Wartet auf Prüfung", "بانتظار المراجعة"},
+	"phase_ready_evaluation":              {"Ready to evaluate", "Bereit zur Evaluierung", "جاهز للتقييم"},
+	"phase_evaluation_running":            {"Evaluation running", "Evaluierung läuft", "التقييم قيد التشغيل"},
+	"phase_evaluation_failed":             {"Evaluation needs changes", "Evaluierung erfordert Änderungen", "يحتاج التقييم إلى تعديلات"},
+	"phase_ready_publication":             {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
+	"phase_published":                     {"Published", "Veröffentlicht", "منشور"},
+	"phase_suspended":                     {"Paused", "Pausiert", "متوقف مؤقتًا"},
+	"heading_review":                      {"Review", "Prüfung", "المراجعة"},
+	"heading_evaluation":                  {"Evaluation", "Evaluierung", "التقييم"},
+	"heading_ready_publication":           {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
+	"heading_published":                   {"Published", "Veröffentlicht", "منشور"},
+	"live_badge":                          {"Live · version {version}", "Aktiv · Version {version}", "مباشر · الإصدار {version}"},
+	"version_badge":                       {"{version} · {phase}", "{version} · {phase}", "{version} · {phase}"},
+	"sentence_draft":                      {"People are using version {live}. Version {version} is a draft.", "Personen verwenden Version {live}. Version {version} ist ein Entwurf.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} مسودة."},
+	"sentence_waiting_review":             {"People are using version {live}. Version {version} is waiting for review.", "Personen verwenden Version {live}. Version {version} wartet auf Prüfung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار المراجعة."},
+	"sentence_ready_evaluation":           {"People are using version {live}. Version {version} is waiting for evaluation.", "Personen verwenden Version {live}. Version {version} wartet auf die Evaluierung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار التقييم."},
+	"sentence_evaluation_running":         {"People are using version {live}. Version {version} is being evaluated.", "Personen verwenden Version {live}. Version {version} wird evaluiert.", "يستخدم الأشخاص الإصدار {live}. جارٍ تقييم الإصدار {version}."},
+	"sentence_evaluation_failed":          {"People are using version {live}. Version {version} needs changes before it can be published.", "Personen verwenden Version {live}. Version {version} muss vor der Veröffentlichung geändert werden.", "يستخدم الأشخاص الإصدار {live}. يحتاج الإصدار {version} إلى تعديلات قبل نشره."},
+	"sentence_ready_publication":          {"People are using version {live}. Version {version} is ready to publish.", "Personen verwenden Version {live}. Version {version} kann veröffentlicht werden.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} جاهز للنشر."},
+	"sentence_draft_no_live":              {"Version {version} is a draft.", "Version {version} ist ein Entwurf.", "الإصدار {version} مسودة."},
+	"sentence_waiting_review_no_live":     {"Version {version} is waiting for review.", "Version {version} wartet auf Prüfung.", "الإصدار {version} بانتظار المراجعة."},
+	"sentence_ready_evaluation_no_live":   {"Version {version} is waiting for evaluation.", "Version {version} wartet auf die Evaluierung.", "الإصدار {version} بانتظار التقييم."},
+	"sentence_evaluation_running_no_live": {"Version {version} is being evaluated.", "Version {version} wird evaluiert.", "جارٍ تقييم الإصدار {version}."},
+	"sentence_evaluation_failed_no_live":  {"Version {version} needs changes before it can be published.", "Version {version} muss vor der Veröffentlichung geändert werden.", "يحتاج الإصدار {version} إلى تعديلات قبل نشره."},
+	"sentence_ready_publication_no_live":  {"Version {version} is ready to publish.", "Version {version} kann veröffentlicht werden.", "الإصدار {version} جاهز للنشر."},
+	"sentence_published_outdated_prefix":  {"Version {version} is published. {placement} still runs version {placement_version}. Move conversations to version {version} in", "Version {version} ist veröffentlicht. In {placement} läuft noch Version {placement_version}. Verschieben Sie Unterhaltungen auf Version {version} unter", "تم نشر الإصدار {version}. لا تزال {placement} تشغّل الإصدار {placement_version}. انقل المحادثات إلى الإصدار {version} في"},
+	"sentence_published_everywhere":       {"Every conversation runs version {version}.", "In jeder Unterhaltung läuft Version {version}.", "تشغّل كل محادثة الإصدار {version}."},
+	"sentence_published_no_placements":    {"Version {version} is published. Add it to a conversation before people can use it.", "Version {version} ist veröffentlicht. Fügen Sie sie einer Unterhaltung hinzu, bevor Personen sie verwenden können.", "تم نشر الإصدار {version}. أضفه إلى محادثة قبل أن يتمكن الأشخاص من استخدامه."},
+	"sentence_suspended":                  {"Version {version} is paused. Resume the agent to let it answer again.", "Version {version} ist pausiert. Setzen Sie den Agenten fort, damit er wieder antwortet.", "الإصدار {version} متوقف مؤقتًا. استأنف الوكيل حتى يجيب مجددًا."},
+	"rollout_link":                        {"Operations › Rollout", "Betrieb › Versionswechsel", "العمليات › الطرح"},
+	"sentence_end":                        {".", ".", "."},
+	"mobile_progress":                     {"{current} · next: {next}", "{current} · als Nächstes: {next}", "{current} · التالي: {next}"},
+	"independent_reviewer":                {"an independent reviewer", "eine unabhängige prüfende Person", "مراجع مستقل"},
+	"command_completed":                   {"The change was saved.", "Die Änderung wurde gespeichert.", "تم حفظ التغيير."},
+	"command_review_requested":            {"Review of version {version} requested from {reviewer}.", "Prüfung von Version {version} bei {reviewer} angefordert.", "طُلبت مراجعة الإصدار {version} من {reviewer}."},
+	"command_version_approved":            {"Version {version} approved.", "Version {version} genehmigt.", "تمت الموافقة على الإصدار {version}."},
+	"command_evaluation_passed":           {"Evaluation passed: {passed} of {total} cases.", "Evaluierung bestanden: {passed} von {total} Testfragen.", "نجح التقييم: {passed} من {total} حالات."},
+	"command_version_published":           {"Version {version} published.", "Version {version} veröffentlicht.", "تم نشر الإصدار {version}."},
+	"command_version_saved":               {"Version {version} saved as a draft.", "Version {version} als Entwurf gespeichert.", "تم حفظ الإصدار {version} كمسودة."},
+}
+
 func personaAdminR5Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"phase_draft":                         {"Draft", "Entwurf", "مسودة"},
-		"phase_waiting_review":                {"Waiting for review", "Wartet auf Prüfung", "بانتظار المراجعة"},
-		"phase_ready_evaluation":              {"Ready to evaluate", "Bereit zur Evaluierung", "جاهز للتقييم"},
-		"phase_evaluation_running":            {"Evaluation running", "Evaluierung läuft", "التقييم قيد التشغيل"},
-		"phase_evaluation_failed":             {"Evaluation needs changes", "Evaluierung erfordert Änderungen", "يحتاج التقييم إلى تعديلات"},
-		"phase_ready_publication":             {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
-		"phase_published":                     {"Published", "Veröffentlicht", "منشور"},
-		"phase_suspended":                     {"Paused", "Pausiert", "متوقف مؤقتًا"},
-		"heading_review":                      {"Review", "Prüfung", "المراجعة"},
-		"heading_evaluation":                  {"Evaluation", "Evaluierung", "التقييم"},
-		"heading_ready_publication":           {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
-		"heading_published":                   {"Published", "Veröffentlicht", "منشور"},
-		"live_badge":                          {"Live · version {version}", "Aktiv · Version {version}", "مباشر · الإصدار {version}"},
-		"version_badge":                       {"{version} · {phase}", "{version} · {phase}", "{version} · {phase}"},
-		"sentence_draft":                      {"People are using version {live}. Version {version} is a draft.", "Personen verwenden Version {live}. Version {version} ist ein Entwurf.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} مسودة."},
-		"sentence_waiting_review":             {"People are using version {live}. Version {version} is waiting for review.", "Personen verwenden Version {live}. Version {version} wartet auf Prüfung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار المراجعة."},
-		"sentence_ready_evaluation":           {"People are using version {live}. Version {version} is waiting for evaluation.", "Personen verwenden Version {live}. Version {version} wartet auf die Evaluierung.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} بانتظار التقييم."},
-		"sentence_evaluation_running":         {"People are using version {live}. Version {version} is being evaluated.", "Personen verwenden Version {live}. Version {version} wird evaluiert.", "يستخدم الأشخاص الإصدار {live}. جارٍ تقييم الإصدار {version}."},
-		"sentence_evaluation_failed":          {"People are using version {live}. Version {version} needs changes before it can be published.", "Personen verwenden Version {live}. Version {version} muss vor der Veröffentlichung geändert werden.", "يستخدم الأشخاص الإصدار {live}. يحتاج الإصدار {version} إلى تعديلات قبل نشره."},
-		"sentence_ready_publication":          {"People are using version {live}. Version {version} is ready to publish.", "Personen verwenden Version {live}. Version {version} kann veröffentlicht werden.", "يستخدم الأشخاص الإصدار {live}. الإصدار {version} جاهز للنشر."},
-		"sentence_draft_no_live":              {"Version {version} is a draft.", "Version {version} ist ein Entwurf.", "الإصدار {version} مسودة."},
-		"sentence_waiting_review_no_live":     {"Version {version} is waiting for review.", "Version {version} wartet auf Prüfung.", "الإصدار {version} بانتظار المراجعة."},
-		"sentence_ready_evaluation_no_live":   {"Version {version} is waiting for evaluation.", "Version {version} wartet auf die Evaluierung.", "الإصدار {version} بانتظار التقييم."},
-		"sentence_evaluation_running_no_live": {"Version {version} is being evaluated.", "Version {version} wird evaluiert.", "جارٍ تقييم الإصدار {version}."},
-		"sentence_evaluation_failed_no_live":  {"Version {version} needs changes before it can be published.", "Version {version} muss vor der Veröffentlichung geändert werden.", "يحتاج الإصدار {version} إلى تعديلات قبل نشره."},
-		"sentence_ready_publication_no_live":  {"Version {version} is ready to publish.", "Version {version} kann veröffentlicht werden.", "الإصدار {version} جاهز للنشر."},
-		"sentence_published_outdated_prefix":  {"Version {version} is published. {placement} still runs version {placement_version}. Move conversations to version {version} in", "Version {version} ist veröffentlicht. In {placement} läuft noch Version {placement_version}. Verschieben Sie Unterhaltungen auf Version {version} unter", "تم نشر الإصدار {version}. لا تزال {placement} تشغّل الإصدار {placement_version}. انقل المحادثات إلى الإصدار {version} في"},
-		"sentence_published_everywhere":       {"Every conversation runs version {version}.", "In jeder Unterhaltung läuft Version {version}.", "تشغّل كل محادثة الإصدار {version}."},
-		"sentence_published_no_placements":    {"Version {version} is published. Add it to a conversation before people can use it.", "Version {version} ist veröffentlicht. Fügen Sie sie einer Unterhaltung hinzu, bevor Personen sie verwenden können.", "تم نشر الإصدار {version}. أضفه إلى محادثة قبل أن يتمكن الأشخاص من استخدامه."},
-		"sentence_suspended":                  {"Version {version} is paused. Resume the agent to let it answer again.", "Version {version} ist pausiert. Setzen Sie den Agenten fort, damit er wieder antwortet.", "الإصدار {version} متوقف مؤقتًا. استأنف الوكيل حتى يجيب مجددًا."},
-		"rollout_link":                        {"Operations › Rollout", "Betrieb › Versionswechsel", "العمليات › الطرح"},
-		"sentence_end":                        {".", ".", "."},
-		"mobile_progress":                     {"{current} · next: {next}", "{current} · als Nächstes: {next}", "{current} · التالي: {next}"},
-		"independent_reviewer":                {"an independent reviewer", "eine unabhängige prüfende Person", "مراجع مستقل"},
-		"command_completed":                   {"The change was saved.", "Die Änderung wurde gespeichert.", "تم حفظ التغيير."},
-		"command_review_requested":            {"Review of version {version} requested from {reviewer}.", "Prüfung von Version {version} bei {reviewer} angefordert.", "طُلبت مراجعة الإصدار {version} من {reviewer}."},
-		"command_version_approved":            {"Version {version} approved.", "Version {version} genehmigt.", "تمت الموافقة على الإصدار {version}."},
-		"command_evaluation_passed":           {"Evaluation passed: {passed} of {total} cases.", "Evaluierung bestanden: {passed} von {total} Testfragen.", "نجح التقييم: {passed} من {total} حالات."},
-		"command_version_published":           {"Version {version} published.", "Version {version} veröffentlicht.", "تم نشر الإصدار {version}."},
-		"command_version_saved":               {"Version {version} saved as a draft.", "Version {version} als Entwurf gespeichert.", "تم حفظ الإصدار {version} كمسودة."},
+	if text, ok := agentuxCopyLookup(personaAdminR5Copy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	index := 0
-	switch locale.Resolved {
-	case "de-DE":
-		index = 1
-	case "ar":
-		index = 2
-	}
-	return values[index]
+	return key
 }
 
 func personaAdminCommandOutcomeText(locale LocaleContext, action string, persona PersonaAdminPersona) string {

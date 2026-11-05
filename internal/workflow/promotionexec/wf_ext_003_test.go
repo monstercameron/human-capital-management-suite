@@ -6,10 +6,11 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 )
 
-// promotionSimulatePlanDigest is the current 1.2.0 zero-effect SIMULATE projection.
-// It moved last with the Promotion helpers it replaces; WF-EXT-003 pins it
-// here so the compiler-owned projection can never drift from it.
-const promotionSimulatePlanDigest = "e889b8f99cb96a0049a4740c1dab24c00a4de652169a6f725bd796da29871617"
+// promotionSimulatePlanDigest is the current 1.2.0 SIMULATE projection. Since
+// WF-TEST-001 it retains the two authored writes for the recording simulator
+// instead of relabelling them as reads; it is pinned here so the
+// compiler-owned projection can never drift from it.
+const promotionSimulatePlanDigest = "5714988b93c43721bdf2bb0f8693df9870b715017472290b6ff139a168227c95"
 
 // promotionSimulatePlanDigestV1_0 is the frozen 1.0.0 SIMULATE projection,
 // pinned for the same reason beside the frozen EXECUTE digest.
@@ -35,11 +36,17 @@ func TestTodo_WF_EXT_003_Golden(t *testing.T) {
 	if got := sim.Digest(); got != promotionSimulatePlanDigest {
 		t.Fatalf("SIMULATE digest = %q, want the pinned %q", got, promotionSimulatePlanDigest)
 	}
-	if sim.Digest() == exec.Digest() {
-		t.Fatal("SIMULATE projection must be a distinct plan from EXECUTE")
+	// Since WF-TEST-001 the SIMULATE projection IS the execute graph: nothing
+	// is relabelled, and the recording simulator (not a second plan) is what
+	// distinguishes a test run. Any future overlay would diverge the digests
+	// and fail here.
+	if sim.Digest() != exec.Digest() {
+		t.Fatalf("SIMULATE digest = %q, want the execute graph %q: the projection must not relabel anything", sim.Digest(), exec.Digest())
 	}
-	if !sim.Effects.ZeroEffect {
-		t.Fatalf("SIMULATE effects = %+v, want zero effects", sim.Effects)
+	// Since WF-TEST-001 the current projection retains the two authored
+	// writes (no relabelling overlays); frozen 1.0.0 below keeps its own.
+	if sim.Effects.ZeroEffect {
+		t.Fatalf("SIMULATE effects = %+v, want the two retained writes", sim.Effects)
 	}
 	exec10, err := CompileV1_0()
 	if err != nil {
@@ -58,16 +65,21 @@ func TestTodo_WF_EXT_003_Golden(t *testing.T) {
 	if !sim10.Effects.ZeroEffect {
 		t.Fatalf("1.0.0 SIMULATE effects = %+v, want zero effects", sim10.Effects)
 	}
-	// The projection suppresses exactly the two writes the helpers used to
-	// special-case, and nothing else changes mode.
-	for _, id := range []string{NodeExecutePromotion, NodeCompensateHold} {
-		node, ok := sim.Node(id)
-		if !ok || node.EffectClass.IsWrite() || node.EffectRole != "" {
-			t.Fatalf("SIMULATE node %s = %+v, want a role-free read", id, node)
-		}
-		if node.Capability == nil || node.Capability.OperationMode != workflow.ModeSimulate {
-			t.Fatalf("SIMULATE node %s capability = %+v, want SIMULATE mode", id, node.Capability)
-		}
+	// The current projection retains exactly the two authored writes with
+	// their roles and EXECUTE bindings; nothing is relabelled.
+	commit, _ := sim.Node(NodeExecutePromotion)
+	if !commit.EffectClass.IsWrite() || commit.EffectRole != workflow.RoleAuthoritativeCore {
+		t.Fatalf("SIMULATE node %s = %+v, want the retained authoritative write", NodeExecutePromotion, commit)
+	}
+	if commit.Capability == nil || commit.Capability.OperationMode != workflow.ModeExecute {
+		t.Fatalf("SIMULATE node %s capability = %+v, want the EXECUTE binding untouched", NodeExecutePromotion, commit.Capability)
+	}
+	hold, _ := sim.Node(NodeCompensateHold)
+	if !hold.EffectClass.IsWrite() || hold.EffectRole != workflow.RoleDownstreamEffect {
+		t.Fatalf("SIMULATE node %s = %+v, want the retained downstream write", NodeCompensateHold, hold)
+	}
+	if hold.Capability == nil || hold.Capability.OperationMode != workflow.ModeExecute {
+		t.Fatalf("SIMULATE node %s capability = %+v, want the EXECUTE binding untouched", NodeCompensateHold, hold.Capability)
 	}
 	snapshot, _ := sim.Node(NodeSnapshotWorker)
 	if snapshot.Capability == nil || snapshot.Capability.OperationMode != workflow.ModeExecute {

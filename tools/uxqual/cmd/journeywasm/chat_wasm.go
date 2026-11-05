@@ -2262,7 +2262,7 @@ func loadChatMembers(cfg journeyclient.Config) {
 		}
 		if room.ID == conversation && room.Kind == chatui.DirectMessage && room.Agent {
 			agentID, agentName = room.AgentID, room.Name
-			agentIdentity = agentDirectIdentity{Icon: room.Icon, Revision: room.IconRevision}
+			agentIdentity = agentDirectIdentity{Icon: room.Icon, Revision: room.IconRevision, ImageURL: room.IconImageURL}
 		}
 	}
 	for _, membership := range result.GetMemberships() {
@@ -2282,6 +2282,7 @@ func loadChatMembers(cfg journeyclient.Config) {
 		if isAgent {
 			// The member list draws the agent with the icon its conversation holds.
 			member.Icon, member.IconRevision = agentIdentity.Icon, agentIdentity.Revision
+			member.IconImageURL = agentIdentity.ImageURL
 		}
 		members = append(members, member)
 		if membership.GetSubjectId() == active.Subject && membership.GetRole() == chatv1.MembershipRole_MEMBERSHIP_ROLE_MANAGER {

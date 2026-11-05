@@ -12,10 +12,13 @@ import (
 )
 
 type agentIconSurfaceFixture struct {
-	command AgentIconCommand
-	preview bool
-	calls   int
-	err     error
+	command  AgentIconCommand
+	preview  bool
+	calls    int
+	err      error
+	image    AgentIconImage
+	imageErr error
+	imageID  string
 }
 
 func (s *agentIconSurfaceFixture) ChangeAgentIcon(_ context.Context, c AgentIconCommand) (AgentIconReply, error) {
@@ -28,6 +31,10 @@ func (s *agentIconSurfaceFixture) PreviewAgentIcon(ctx context.Context, c AgentI
 	reply, err := s.ChangeAgentIcon(ctx, c)
 	reply.Revision = 1
 	return reply, err
+}
+func (s *agentIconSurfaceFixture) AgentIconImage(_ context.Context, personaID string) (AgentIconImage, error) {
+	s.imageID = personaID
+	return s.image, s.imageErr
 }
 
 func TestAgentUXIcon_Generated(t *testing.T) {
@@ -68,7 +75,7 @@ func TestAgentUXIcon_Generated_Security(t *testing.T) {
 	for _, tc := range []struct {
 		method, path string
 		status       int
-	}{{"GET", AgentIconPath + "/shuffle", 405}, {"POST", AgentIconPath + "/upload", 404}, {"POST", "/shuffle", 404}} {
+	}{{"GET", AgentIconPath + "/shuffle", 405}, {"POST", "/shuffle", 404}, {"POST", AgentIconPath + "/image", 405}} {
 		w := httptest.NewRecorder()
 		AgentIconHandler{}.ServeHTTP(w, httptest.NewRequest(tc.method, tc.path, nil))
 		if w.Code != tc.status {
@@ -77,6 +84,38 @@ func TestAgentUXIcon_Generated_Security(t *testing.T) {
 	}
 	w := httptest.NewRecorder()
 	AgentIconHandler{}.ServeHTTP(w, httptest.NewRequest("POST", AgentIconPath+"/reset", strings.NewReader(`{}`)))
+	if w.Code != 503 {
+		t.Fatal(w.Code)
+	}
+}
+
+// POST /upload routes the image bytes to the surface (AGENTUX-069: the
+// owner's own image), and GET /image serves a stored upload from this origin.
+func TestAgentUX069_IconUploadHTTP(t *testing.T) {
+	surface := &agentIconSurfaceFixture{}
+	w := httptest.NewRecorder()
+	AgentIconHandler{Surface: surface}.ServeHTTP(w, httptest.NewRequest(http.MethodPost, AgentIconPath+"/upload", strings.NewReader(`{"persona_id":"policy","expected_revision":1,"image":"aGk=","image_media_type":"image/png"}`)))
+	if w.Code != 200 || surface.calls != 1 || surface.command.Action != "upload" || string(surface.command.Image) != "hi" || surface.command.ImageMediaType != "image/png" {
+		t.Fatal("upload not routed", w.Code, w.Body.String(), surface.command)
+	}
+	surface = &agentIconSurfaceFixture{image: AgentIconImage{Content: []byte("jpeg-bytes"), MediaType: "image/jpeg", Revision: 3}}
+	w = httptest.NewRecorder()
+	AgentIconHandler{Surface: surface}.ServeHTTP(w, httptest.NewRequest(http.MethodGet, AgentIconPath+"/image?persona_id=policy", nil))
+	if w.Code != 200 || w.Body.String() != "jpeg-bytes" || w.Header().Get("Content-Type") != "image/jpeg" || surface.imageID != "policy" || w.Header().Get("ETag") != "3" {
+		t.Fatal("image not served", w.Code, w.Header(), surface.imageID)
+	}
+	for _, tc := range []struct {
+		err    error
+		status int
+	}{{ErrAgentIconUnauthenticated, 401}, {ErrAgentIconDenied, 403}, {ErrAgentIconInvalid, 503}, {errors.New("private details"), 503}} {
+		w = httptest.NewRecorder()
+		AgentIconHandler{Surface: &agentIconSurfaceFixture{imageErr: tc.err}}.ServeHTTP(w, httptest.NewRequest(http.MethodGet, AgentIconPath+"/image?persona_id=policy", nil))
+		if w.Code != tc.status || strings.Contains(w.Body.String(), "private details") {
+			t.Fatal("image error mapping", w.Code, w.Body.String())
+		}
+	}
+	w = httptest.NewRecorder()
+	AgentIconHandler{}.ServeHTTP(w, httptest.NewRequest(http.MethodGet, AgentIconPath+"/image?persona_id=policy", nil))
 	if w.Code != 503 {
 		t.Fatal(w.Code)
 	}

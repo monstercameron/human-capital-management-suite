@@ -60,7 +60,10 @@ type User struct {
 	NavigationGroups map[string]bool             `json:"navigation_groups,omitempty"`
 	FavoritePages    []string                    `json:"favorite_pages,omitempty"`
 	Tables           map[string]TablePreferences `json:"tables,omitempty"`
-	WorkflowUses     map[string]int64            `json:"workflow_uses,omitempty"`
+	// WorkflowUses maps a workflow id to its last-use sequence, a per-principal
+	// Lamport clock assigned by RecordWorkflowUse: ordering by value
+	// descending yields the viewer's last distinct starts (WFPAGE-004).
+	WorkflowUses map[string]int64 `json:"workflow_uses,omitempty"`
 	// Density is this principal's own layout density. Empty inherits the
 	// organization's Theme.Density; see NormalizeUserDensity (REV-092-01).
 	Density string `json:"density,omitempty"`

@@ -40,14 +40,21 @@ type AgentLoadingProps struct {
 	RetryRaw map[string]any
 }
 
-var agentLoadingCopy = map[string][3]string{
-	"slow":  {"This is taking longer than usual.", "Das dauert länger als gewöhnlich.", "يستغرق هذا وقتاً أطول من المعتاد."},
-	"retry": {"Try again", "Erneut versuchen", "حاول مجدداً"},
+var agentLoadingCopy = newLazyValue(buildAgentLoadingCopy)
+
+// buildAgentLoadingCopy answers the Agents loading frame's vocabulary. It is
+// built on first use: a cold load of any other page must not pay for it
+// (UXBLIND-089).
+func buildAgentLoadingCopy() map[string][3]string {
+	return map[string][3]string{
+		"slow":  {"This is taking longer than usual.", "Das dauert länger als gewöhnlich.", "يستغرق هذا وقتاً أطول من المعتاد."},
+		"retry": {"Try again", "Erneut versuchen", "حاول مجدداً"},
+	}
 }
 
 // AgentLoadingText answers from the table above in en, de and ar.
 func AgentLoadingText(locale LocaleContext, key string) string {
-	values := agentLoadingCopy[key]
+	values := agentLoadingCopy.Get()[key]
 	switch resolved := strings.ToLower(locale.Resolved); {
 	case strings.HasPrefix(resolved, "de"):
 		return values[1]

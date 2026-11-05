@@ -1073,8 +1073,8 @@ func (s LeaseStore) Acquire(ctx context.Context, ex Executor, in Lease, now time
 		if _, err := ex.Exec(ctx, `
 			UPDATE workflow_lease
 			SET lease_state = $3, lease_version = lease_version + 1, released_at = $4
-			WHERE tenant_id = $1 AND lease_id = $2`,
-			in.TenantID, current.LeaseID, LeaseExpired, now.UTC()); err != nil {
+			WHERE tenant_id = $1 AND lease_id = $2 AND lease_state = $5`,
+			in.TenantID, current.LeaseID, LeaseExpired, now.UTC(), LeaseHeld); err != nil {
 			return Lease{}, fmt.Errorf("runtimestate: expire lapsed lease %s: %w", current.LeaseID, err)
 		}
 	case !errors.Is(err, ErrNotFound):

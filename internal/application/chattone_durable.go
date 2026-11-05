@@ -61,7 +61,9 @@ func (s *ChattoneService) ensureSettings(ctx context.Context, tenant string) err
 }
 
 // saveSettings validates, writes and then configures; a failed write changes
-// nothing in memory.
+// nothing in memory. It holds the settings lock across the write and the
+// configure and marks the workspace loaded, so a first load racing the save
+// cannot overwrite the registry with the older stored document afterwards.
 func (s *ChattoneService) saveSettings(ctx context.Context, tenant, by string, enabled bool, rows []ChattoneAdminStyle) error {
 	styles := make([]chatrewrite.Style, len(rows))
 	for i, row := range rows {
@@ -70,6 +72,8 @@ func (s *ChattoneService) saveSettings(ctx context.Context, tenant, by string, e
 	if err := chatrewrite.ValidateConfiguration(tenant, styles); err != nil {
 		return err
 	}
+	s.settingsMu.Lock()
+	defer s.settingsMu.Unlock()
 	if s.Settings != nil {
 		document, err := json.Marshal(rows)
 		if err != nil {
@@ -79,7 +83,14 @@ func (s *ChattoneService) saveSettings(ctx context.Context, tenant, by string, e
 			return fmt.Errorf("%w: %v", chatrewrite.ErrUnavailable, err)
 		}
 	}
-	return s.Rewrite.Registry.Configure(tenant, enabled, styles)
+	if err := s.Rewrite.Registry.Configure(tenant, enabled, styles); err != nil {
+		return err
+	}
+	if s.settingsLoaded == nil {
+		s.settingsLoaded = map[string]bool{}
+	}
+	s.settingsLoaded[tenant] = true
+	return nil
 }
 
 // ChattoneUsageStore is the durable per-person daily count and usage line;

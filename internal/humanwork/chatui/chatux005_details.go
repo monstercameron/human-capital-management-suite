@@ -193,7 +193,7 @@ func chatux005AgentRow(m Model, c Conversation, agent chatux005Agent, withAnswer
 	if agent.persona == nil {
 		member := agent.member
 		return html.Li(html.Props{Class: "member-row"},
-			agentDMAvatar(agent.name, "avatar small agent-dm-avatar", agentIconFor(m, []string{member.ID}, agent.name, member.Icon)),
+			agentAvatar(agent.name, "avatar small agent-dm-avatar", agentIconImageFor(m, []string{member.ID}, agent.name, member.IconImageURL), agentIconFor(m, []string{member.ID}, agent.name, member.Icon)),
 			html.Span(html.Props{Class: "member-name", Dir: "auto", Text: agent.name}), AgentBadgeLabel(m.Locale))
 	}
 	persona := *agent.persona

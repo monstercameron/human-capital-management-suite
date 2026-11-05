@@ -188,6 +188,23 @@ func TestTodo_UXBLIND_065_Browser(t *testing.T) {
 	if !strings.Contains(doc, `aria-label="My Work"`) || !strings.Contains(doc, `aria-label="People"`) {
 		t.Fatal("collapsed navigation lost accessible item names")
 	}
+	// An open drawer never inherits the desktop collapsed preference: with
+	// no hover on touch, an icons-only overlay leaves destinations
+	// indistinguishable, so the drawer renders expanded with its labels and
+	// filter even when the rail is collapsed.
+	drawer, err := ui.RenderToString(ui.CreateElement(NavigationSidebar, navigationDrawerSidebarProps(view, true, func() {}, func() {})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(drawer, `class="sidebar collapsed`) {
+		t.Errorf("open drawer inherited the collapsed icon rail: %s", drawer)
+	}
+	if !strings.Contains(drawer, `class="menu-filter"`) {
+		t.Errorf("open drawer lost its filter to the collapsed preference: %s", drawer)
+	}
+	if !strings.Contains(drawer, `nav-drawer-open`) {
+		t.Errorf("open drawer lost its open visual state: %s", drawer)
+	}
 }
 
 func TestTodo_UXBLIND_065_Accessibility(t *testing.T) {
@@ -200,6 +217,20 @@ func TestTodo_UXBLIND_065_Accessibility(t *testing.T) {
 	for _, label := range []string{"My Work", "People", "Settings"} {
 		if !strings.Contains(doc, `title="`+label+`"`) || !strings.Contains(doc, `data-nav-tooltip="`+label+`"`) {
 			t.Errorf("collapsed item %q has no hover/focus label", label)
+		}
+	}
+	// Native title renders on mouse hover only, never on keyboard focus, so
+	// a focus-only renderer must paint the registry label beside the focused
+	// rail item, with the rail's clipping released while focus is inside it.
+	css := Stylesheet()
+	for _, want := range []string{
+		`.sidebar.collapsed .nav-link:focus-visible::after`,
+		`.sidebar.collapsed .nav-group-summary:focus-visible::after`,
+		`content:attr(data-nav-tooltip)`,
+		`.sidebar.collapsed:focus-within{overflow:visible`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("collapsed rail has no visible focus label %q", want)
 		}
 	}
 }

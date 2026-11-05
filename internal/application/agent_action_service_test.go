@@ -82,7 +82,6 @@ func newAgentActionFixture(t *testing.T, unbound ...bool) *agentActionFixture {
 	now := time.Date(2026, 1, 5, 9, 0, 0, 0, time.UTC)
 	config := app.CellConfig{Store: store, Verifier: trust.VerifierFunc(func(context.Context, trust.Credential) (*trust.Principal, error) { return nil, nil }), Audience: DefaultAudience, RoleAccess: chat045Access{}, Now: func() time.Time { return now }}
 	serve := executionServeConfig()
-	serve.WorkflowPlan = WorkflowPlanExecute
 	serve.ExecutionManagerApprover = "principal:agent-action-manager"
 	if err := ComposeExecutionAuthority(&config, pool, app.NewMemoryEvidenceSink(), serve); err != nil {
 		t.Fatal(err)

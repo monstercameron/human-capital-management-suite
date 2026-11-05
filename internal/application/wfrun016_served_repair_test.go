@@ -84,7 +84,6 @@ func servedRepairConfig(url string) ServeConfig {
 		ExecutionAuthorityRole:   "promotion_operator",
 		ExecutionApprover:        "principal:promotion-approver",
 		ExecutionFinancePartner:  LocalDevFinancePartner,
-		WorkflowPlan:             WorkflowPlanExecute,
 		TimerTzdbVersion:         DefaultTimerTzdbVersion,
 		TimerCalendarVersion:     DefaultTimerCalendarVersion,
 	}

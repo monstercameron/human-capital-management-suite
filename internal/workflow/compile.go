@@ -33,6 +33,10 @@ type Options struct {
 	// nil resolver makes every capability reference unresolvable, which is a
 	// diagnostic rather than a panic.
 	Capabilities CapabilityResolver
+	// AgentGate enforces the side-effecting agent gate (WF-CTRL-005-F1): a
+	// nil policy skips the check, since without it the compiler cannot tell
+	// an agent-backed capability from any other.
+	AgentGate AgentGatePolicy
 	// References resolves schema, rule, resolver, timeout-policy and
 	// compensation references against published registries (WF-COMP-007).
 	// A nil resolver leaves schema and unversioned rule references as they
@@ -51,6 +55,14 @@ type Options struct {
 	// a suppressing overlay is [CodeMutationInSimulation]. False compiles the
 	// definition as authored.
 	SimulateProjection bool
+	// SimulateProjectionRetainWrites keeps unsuppressed writes in a SIMULATE
+	// projection instead of rejecting them (WF-TEST-001). It is meaningful
+	// only with SimulateProjection: overlaid writes are still suppressed,
+	// while writes without an overlay keep their authored effect class,
+	// effect role and operation mode, so a recording simulator can capture
+	// what they would have done. Graphs that keep every write overlaid are
+	// unaffected whether the flag is set or not.
+	SimulateProjectionRetainWrites bool
 	// CompilerVersion overrides [CompilerVersion] for tests that need to prove
 	// the compiler identity is material to the digest.
 	CompilerVersion string
@@ -96,13 +108,19 @@ func (o Options) requiresZeroEffect() bool { return o.phase() == PhaseP1A }
 
 // CompiledMapping is one resolved, type-checked input binding.
 type CompiledMapping struct {
-	Target                     string               `json:"target"`
-	TargetType                 ValueType            `json:"target_type"`
-	SourceKind                 SourceKind           `json:"source_kind"`
-	SourceNode                 string               `json:"source_node,omitempty"`
-	SourceCtx                  string               `json:"source_context_kind,omitempty"`
-	SourcePath                 string               `json:"source_path,omitempty"`
-	SourceType                 ValueType            `json:"source_type"`
+	Target         string     `json:"target"`
+	TargetType     ValueType  `json:"target_type"`
+	SourceKind     SourceKind `json:"source_kind"`
+	SourceNode     string     `json:"source_node,omitempty"`
+	SourceCtx      string     `json:"source_context_kind,omitempty"`
+	SourceVariable string     `json:"source_variable,omitempty"`
+	SourcePath     string     `json:"source_path,omitempty"`
+	SourceType     ValueType  `json:"source_type"`
+	// MaxClassification is the destination cap the compiler enforced, and
+	// DeclassificationRef the reviewed exception when one excepted the flow
+	// (WF-DATA-004). The source label rides SourceType.Classification.
+	MaxClassification          DataClassification   `json:"max_classification,omitempty"`
+	DeclassificationRef        string               `json:"declassification_ref,omitempty"`
 	Constant                   string               `json:"constant,omitempty"`
 	PinnedInput                bool                 `json:"pinned_input"`
 	ParameterKey               string               `json:"parameter_key,omitempty"`
@@ -182,16 +200,17 @@ type CompiledObserve struct {
 // internal/workflow/steps/wait.FromCompiled translates this into that
 // package's own [wait.CompiledWaitNode] view.
 type CompiledWait struct {
-	WakeKind              WaitWakeKind `json:"wake_kind"`
-	WakeInstant           string       `json:"wake_instant,omitempty"`
-	WakeLocalDate         string       `json:"wake_local_date,omitempty"`
-	WakeLocalTime         string       `json:"wake_local_time,omitempty"`
-	Disambiguation        string       `json:"disambiguation,omitempty"`
-	ZoneID                string       `json:"zone_id"`
-	ZoneTzdbVersion       string       `json:"zone_tzdb_version"`
-	CalendarRef           string       `json:"calendar_ref"`
-	CalendarVersion       string       `json:"calendar_version"`
-	ReferenceUpdatePolicy string       `json:"reference_update_policy"`
+	WakeKind              WaitWakeKind  `json:"wake_kind"`
+	WakeInstant           string        `json:"wake_instant,omitempty"`
+	WakeLocalDate         string        `json:"wake_local_date,omitempty"`
+	WakeLocalTime         string        `json:"wake_local_time,omitempty"`
+	Disambiguation        string        `json:"disambiguation,omitempty"`
+	ZoneID                string        `json:"zone_id"`
+	ZoneTzdbVersion       string        `json:"zone_tzdb_version"`
+	CalendarRef           string        `json:"calendar_ref"`
+	CalendarVersion       string        `json:"calendar_version"`
+	ReferenceUpdatePolicy string        `json:"reference_update_policy"`
+	TimeExpr              *TimeExprSpec `json:"time_expr,omitempty"`
 }
 
 // CompiledSignal is a resolved SIGNAL binding: the correlation, schema and
@@ -200,12 +219,14 @@ type CompiledWait struct {
 // together with per-instance context, into that package's own
 // [signal.SignalSubscription] view.
 type CompiledSignal struct {
-	EventType                string    `json:"event_type"`
-	CorrelationKeyExpression string    `json:"correlation_key_expression"`
-	ExpectedSchemaRef        SchemaRef `json:"expected_schema_ref"`
-	AcceptedSources          []string  `json:"accepted_sources,omitempty"`
-	Ordering                 string    `json:"ordering"`
-	CloseAfterSeconds        uint64    `json:"close_after_seconds,omitempty"`
+	EventType                string               `json:"event_type"`
+	CorrelationKeyExpression string               `json:"correlation_key_expression"`
+	ExpectedSchemaRef        SchemaRef            `json:"expected_schema_ref"`
+	AcceptedSources          []string             `json:"accepted_sources,omitempty"`
+	Ordering                 string               `json:"ordering"`
+	CloseAfterSeconds        uint64               `json:"close_after_seconds,omitempty"`
+	CloseTimeExpr            *TimeExprSpec        `json:"close_time_expr,omitempty"`
+	TimeoutDefault           *DeadlineDefaultSpec `json:"timeout_default,omitempty"`
 }
 
 // CompiledGovernance is a node's resolved governance surface.
@@ -467,7 +488,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 	records := resolveCapabilities(&def, opts, c)
 	overlaid := map[string]bool{}
 	if opts.SimulateProjection {
-		overlaid = projectSimulate(&def, records, c)
+		overlaid = projectSimulate(&def, records, c, opts.SimulateProjectionRetainWrites)
 		downgradeSimulateRecords(&def, overlaid, records)
 	}
 	refs := resolveReferences(&def, opts, c)
@@ -476,6 +497,7 @@ func Compile(def Definition, opts Options) (*CompiledWorkflow, error) {
 		checkMappings(&def, g, opts.Parameters, c)
 	}
 	checkSteps(&def, g, records, c)
+	checkAgentGates(&def, g, opts, c)
 	effects := analyzeEffects(&def, g, records, opts, overlaid, c)
 	effects.NodesByRole = analyzeEffectRoles(g, records, c)
 	governance := analyzeGovernance(&def, g, records, c)
@@ -640,6 +662,7 @@ func normalize(
 				CalendarRef:           n.Wait.CalendarRef,
 				CalendarVersion:       n.Wait.CalendarVersion,
 				ReferenceUpdatePolicy: n.Wait.ReferenceUpdatePolicy,
+				TimeExpr:              n.Wait.TimeExpr,
 			}
 		}
 		if n.Signal != nil {
@@ -650,6 +673,8 @@ func normalize(
 				AcceptedSources:          append([]string(nil), n.Signal.AcceptedSources...),
 				Ordering:                 string(n.Signal.Ordering),
 				CloseAfterSeconds:        n.Signal.CloseAfterSeconds,
+				CloseTimeExpr:            n.Signal.CloseTimeExpr,
+				TimeoutDefault:           n.Signal.TimeoutDefault,
 			}
 		}
 		if t, ok := terminals[id]; ok {
@@ -806,14 +831,22 @@ func compileMappings(def *Definition, g *graph, n *Node, parameters ParameterRes
 	out := make([]CompiledMapping, 0, len(n.InputMappings))
 	for _, m := range n.InputMappings {
 		cm := CompiledMapping{
-			Target:      m.Target,
-			TargetType:  inputs[m.Target].clone(),
-			SourceKind:  m.Source.Kind,
-			SourceNode:  m.Source.NodeID,
-			SourceCtx:   m.Source.ContextKind,
-			SourcePath:  m.Source.Path,
-			Constant:    m.Source.Constant,
-			PinnedInput: isPinnedSource(n, m.Source),
+			Target:         m.Target,
+			TargetType:     inputs[m.Target].clone(),
+			SourceKind:     m.Source.Kind,
+			SourceNode:     m.Source.NodeID,
+			SourceCtx:      m.Source.ContextKind,
+			SourceVariable: m.Source.VariableName,
+			SourcePath:     m.Source.Path,
+			Constant:       m.Source.Constant,
+			PinnedInput:    isPinnedSource(n, m.Source),
+		}
+		cm.DeclassificationRef = m.DeclassificationRef
+		for _, f := range n.Inputs {
+			if f.Path == m.Target {
+				cm.MaxClassification = f.MaxClassification
+				break
+			}
 		}
 		if m.Source.Kind == SourceParameter && parameters != nil {
 			if parameter, ok := parameters.ResolveParameter(m.Source.ParameterKey); ok {

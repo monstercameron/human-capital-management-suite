@@ -47,5 +47,10 @@ const ChatEmojiStyles = `.emoji-pop{position:fixed;inset:auto;z-index:1400;box-s
 	`.emoji-pop[data-touch="true"] .emoji-pop-tab,.emoji-pop[data-touch="true"] .emoji-pop-tone,.emoji-pop[data-touch="true"] .emoji-pop-input{min-block-size:44px}` +
 	`.emoji-pop[data-sheet="true"]{inset:auto 0 0 0!important;inline-size:auto!important;max-inline-size:none!important;block-size:min(440px,72dvh)!important;max-block-size:72dvh!important;border-radius:var(--hcm-radius-surface) var(--hcm-radius-surface) 0 0;border-inline-width:0;border-block-end-width:0;padding-block-end:calc(8px + env(safe-area-inset-bottom,0px))}` +
 	`.emoji-completion-option .mention-emoji{flex:none;inline-size:1.75rem;text-align:center;font-size:1.25rem;line-height:1;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}` +
+	// CHATUX-051: the shortcode list shows the emoji's full name and trims
+	// the shortcode instead. The mention list's own name trimming is
+	// untouched: these rules only match inside the shortcode list.
+	`.emoji-completion-menu .mention-name{flex:none}` +
+	`.emoji-completion-menu .mention-detail{min-width:0;overflow:hidden;text-overflow:ellipsis}` +
 	`.emoji-flag-chip{display:inline-flex;align-items:center;box-sizing:border-box;padding:0 .4em;min-block-size:1.35em;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface);color:var(--hcm-color-text);font-size:.75em;font-weight:600;letter-spacing:.04em;line-height:1.35;vertical-align:baseline;white-space:nowrap}` +
 	`@media(forced-colors:active){.emoji-pop-cell.active .emoji-pop-btn,.emoji-pop-tab.current{outline:2px solid Highlight}}`

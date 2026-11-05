@@ -51,8 +51,9 @@ const EnvMessagingRole = "HCMNEXT_WORKER_MESSAGING_ROLE"
 
 // EnvConnectorRole gates SVC-008's governed connector-operation execution
 // role. It defaults off: enabling it today is safe (connectorRoleFor wires
-// fail-closed credential/provider stand-ins) but inert, since no production
-// destination-credential authority or connector provider adapter exists yet.
+// fail-closed credential/privacy/provider stand-ins) but inert, since no
+// production destination-credential authority, snapshot authority or
+// connector provider adapter exists yet.
 const EnvConnectorRole = "HCMNEXT_WORKER_CONNECTOR_ROLE"
 
 // EnvWorkerRoles selects the independently authorized roles hosted by this

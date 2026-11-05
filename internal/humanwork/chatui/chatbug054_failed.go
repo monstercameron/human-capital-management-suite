@@ -24,7 +24,7 @@ func chatbug054Header(model Model, name, questionPostID string) ui.Node {
 	if !identity.Valid() && model.selected().Agent {
 		identity = model.selected().Icon
 	}
-	avatar := agentDMAvatar(name, "avatar small agent-reply-avatar", agentIconFor(model, nil, name, identity))
+	avatar := agentAvatar(name, "avatar small agent-reply-avatar", agentIconImageFor(model, nil, name, ""), agentIconFor(model, nil, name, identity))
 	head := append(chatux017Identity(model, chatux003AgentID(model, PersonaPostActor{}, name), name, avatar), AgentBadgeLabel(model.Locale))
 	if question, found := chatbug040MessageByID(model, questionPostID); found && questionPostID != "" && question.TimeLabel != "" {
 		head = append(head, html.Time(html.Props{Text: question.TimeLabel}))

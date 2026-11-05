@@ -266,11 +266,22 @@ func (g *Gate) Admit(subject Subject) Decision {
 		if used != nil {
 			runs, micros = used.runs, used.micros
 		}
-		if limit.MaxRuns > 0 && runs+1 > limit.MaxRuns || limit.MaxSpendMicros > 0 && micros+subject.EstimateMicros > limit.MaxSpendMicros {
+		if limit.MaxRuns > 0 && runs >= limit.MaxRuns || limit.MaxSpendMicros > 0 && spendReached(micros, subject.EstimateMicros, limit.MaxSpendMicros) {
 			return Decision{Reached: reachedSentence(subject, key.conversation != "", resets, g.zone), ResetsAt: resets}
 		}
 	}
 	return Decision{Allowed: true, ResetsAt: resets}
+}
+
+// spendReached compares without adding: used and the ceiling stay far below
+// the int64 maximum, so subtracting cannot underflow and a huge estimate
+// cannot wrap negative past the ceiling. A negative estimate is invalid
+// input at a fail-closed gate and stops the call.
+func spendReached(used, estimate, ceiling int64) bool {
+	if estimate < 0 {
+		return true
+	}
+	return used >= ceiling || estimate > ceiling-used
 }
 
 // keysFor lists the limits a call counts against: the agent's, and the
@@ -297,8 +308,12 @@ func reachedSentence(subject Subject, conversation bool, resets time.Time, zone 
 
 // Record adds a finished call to today's usage under the agent's limit and the
 // conversation's limit, and tells the owner once when either reaches 80
-// percent of a dimension.
+// percent of a dimension. A negative spend is invalid input: the run still
+// counts, but it cannot discount the spend already recorded.
 func (g *Gate) Record(subject Subject, spendMicros int64, ownerID string) {
+	if spendMicros < 0 {
+		spendMicros = 0
+	}
 	at := g.now()
 	day, _ := g.dayOf(at)
 	var notices []string

@@ -19,6 +19,7 @@ type AgentSpendLimitClient interface {
 // AgentSpendLimitsProps are the inputs of the spend limits card. A zero value
 // means "no limit" on that line.
 type AgentSpendLimitsProps struct {
+	_ incomparable
 	I18nProps
 	AgentID              string
 	AgentName            string

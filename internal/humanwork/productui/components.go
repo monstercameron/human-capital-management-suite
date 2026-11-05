@@ -60,6 +60,7 @@ func personAvatar(name, label, photoURL, size string) ui.Node {
 }
 
 type personAvatarProps struct {
+	_                              incomparable
 	Name, Initials, PhotoURL, Size string
 }
 

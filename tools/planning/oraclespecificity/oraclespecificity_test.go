@@ -183,15 +183,15 @@ func TestTodo_GOV_028_Mutation(t *testing.T) {
 // known codes, and the ticked-strong P0 anchors must stay clean.
 func TestTodo_GOV_028_Conformance(t *testing.T) {
 	root := repoRoot(t)
-	content, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+	content, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		t.Fatalf("read live backlog: %v", err)
 	}
-	first, err := CheckMarkdown(string(content), "planning/todos.md")
+	first, err := CheckMarkdown(string(content), "planning/archive/todos-2026-10-22.md")
 	if err != nil {
 		t.Fatalf("live backlog check: %v", err)
 	}
-	second, err := CheckMarkdown(string(content), "planning/todos.md")
+	second, err := CheckMarkdown(string(content), "planning/archive/todos-2026-10-22.md")
 	if err != nil {
 		t.Fatalf("live backlog recheck: %v", err)
 	}

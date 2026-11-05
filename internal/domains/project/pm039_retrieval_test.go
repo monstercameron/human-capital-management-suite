@@ -46,6 +46,19 @@ func TestTodo_PM_039_Security(t *testing.T) {
 	if _, err := RetrieveBoardSources(bad, nil, nil); !errors.Is(err, ErrInvalidBoardRetrieval) {
 		t.Fatalf("invalid scope error = %v", err)
 	}
+	installationOnly := []BoardRetrievalGrant{
+		{TenantID: "tenant-a", SubjectKind: BoardGrantInstallation, SubjectID: "install-1", InstallationID: "install-1", Source: source, Allowed: true},
+	}
+	if got, err := RetrieveBoardSources(pm039Request(), installationOnly, []BoardRetrievalContent{{Source: source, Title: "Install title", Excerpt: "Install excerpt"}}); err != nil || len(got) != 0 {
+		t.Fatalf("missing requester grant disclosed content: %+v, %v", got, err)
+	}
+	explicitDeny := []BoardRetrievalGrant{
+		{TenantID: "tenant-a", SubjectKind: BoardGrantRequester, SubjectID: "person-1", InstallationID: "install-1", Source: source, Allowed: true},
+		{TenantID: "tenant-a", SubjectKind: BoardGrantInstallation, SubjectID: "install-1", InstallationID: "install-1", Source: source, Allowed: false},
+	}
+	if got, err := RetrieveBoardSources(pm039Request(), explicitDeny, []BoardRetrievalContent{{Source: source, Title: "Denied title", Excerpt: "Denied excerpt"}}); err != nil || len(got) != 0 {
+		t.Fatalf("explicit installation deny disclosed content: %+v, %v", got, err)
+	}
 }
 
 func TestTodo_PM_039_Integration(t *testing.T) {

@@ -26,6 +26,11 @@ package chatui
 // A phone has no hover bar, and a touch screen of any width has only a large
 // More inside the row (styles.go), so these rules are for 768 px and up with a
 // pointer that can hover.
+//
+// CHATBUG-097: a message right under a date or unread divider keeps its bar
+// inside its own row, like the list's first message: the bar reaches up over
+// the gap by design, and without this it is drawn across the divider. The
+// virtualised list nests the divider with its message inside one row.
 
 // ChatBug076Styles is joined into the workspace stylesheet through
 // ChatMsgListStyles. Its selectors carry the four classes of the most specific
@@ -37,8 +42,11 @@ const ChatBug076Styles = `
 .chat-workspace .message-list .message.continued:has(>.message-actions){background:color-mix(in srgb,var(--hcm-color-text) 7%,transparent)}
 .chat-workspace .message-list>.message:first-of-type .message-actions,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-actions{top:4px;transform:none}
 .chat-workspace .message-list>.message:first-of-type .message-meta,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-meta{padding-inline-end:196px}
+.chat-workspace .message-list>.day-divider + .message .message-actions,.chat-workspace .message-list>.unread-divider + .message .message-actions,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-actions,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-actions{top:4px;transform:none}
+.chat-workspace .message-list>.day-divider + .message .message-meta,.chat-workspace .message-list>.unread-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-meta{padding-inline-end:196px}
 @container chatmain (max-width:560px){
 .chat-workspace .message-list>.message:first-of-type .message-meta,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-meta{padding-inline-end:84px}
+.chat-workspace .message-list>.day-divider + .message .message-meta,.chat-workspace .message-list>.unread-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-meta{padding-inline-end:84px}
 }
 }
 @container chatmain (max-width:560px){

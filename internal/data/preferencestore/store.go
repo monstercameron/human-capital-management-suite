@@ -186,7 +186,19 @@ func (s *Store) RecordWorkflowUse(ctx context.Context, tenant values.TenantId, p
 		if err != nil {
 			return preferences.User{}, err
 		}
-		user.WorkflowUses[workflow]++
+		// WFPAGE-004: the value is the workflow's last-use sequence, a
+		// per-principal Lamport clock, so ordering by value descending
+		// yields the viewer's last distinct starts. A bare count cannot
+		// order distinct workflows by recency; legacy count values keep
+		// working as ranks and self-heal to sequence values on their next
+		// recorded use.
+		var last int64
+		for _, rank := range user.WorkflowUses {
+			if rank > last {
+				last = rank
+			}
+		}
+		user.WorkflowUses[workflow] = last + 1
 		updated, err := s.SaveUser(ctx, tenant, principal, user)
 		if !errors.Is(err, preferences.ErrVersionConflict) {
 			return updated, err

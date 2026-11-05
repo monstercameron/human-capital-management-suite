@@ -124,6 +124,16 @@ func validateFields(fields []Field, loc Location, c *collector) {
 		if err := f.Type.Validate(); err != nil {
 			c.add(CodeInvalidDefinition, fieldLoc, "%v", err)
 		}
+		if f.MaxClassification != "" && !f.MaxClassification.Valid() {
+			c.add(CodeInvalidDefinition, fieldLoc,
+				"max_classification %q is not a declared data classification", string(f.MaxClassification))
+		}
+		if f.MaxClassification != "" && f.Type.Classification != "" &&
+			!f.MaxClassification.Dominates(f.Type.Classification) {
+			c.add(CodeInvalidDefinition, fieldLoc,
+				"max_classification %q is below the field's own type classification %q",
+				string(f.MaxClassification), string(f.Type.Classification))
+		}
 	}
 }
 

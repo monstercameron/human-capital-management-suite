@@ -11,7 +11,10 @@ import (
 // authority, including citation titles and current-member history restrictions.
 // Worker records and arbitrary fields are deliberately outside this chat port.
 func (s *Store) AuthorizePublicChatDisclosure(ctx context.Context, hostTenant, expectedConversation, homeTenant, subject, postID, expectedDigest, field, title, class string) error {
-	if s == nil || s.pool == nil || ctx == nil || strings.TrimSpace(hostTenant) == "" || strings.TrimSpace(expectedConversation) == "" || strings.TrimSpace(homeTenant) == "" || strings.TrimSpace(subject) == "" || strings.TrimSpace(postID) == "" || field != "body" || title != "" || (class != "PUBLIC" && class != "INTERNAL") {
+	// The title is checked against the channel name below: empty, or exactly
+	// the channel, authorizes. Refusing every titled disclosure here would
+	// make that check dead and every citation-titled disclosure fail.
+	if s == nil || s.pool == nil || ctx == nil || strings.TrimSpace(hostTenant) == "" || strings.TrimSpace(expectedConversation) == "" || strings.TrimSpace(homeTenant) == "" || strings.TrimSpace(subject) == "" || strings.TrimSpace(postID) == "" || field != "body" || (class != "PUBLIC" && class != "INTERNAL") {
 		return ErrNotMember
 	}
 	return s.RunTenantTx(ctx, hostTenant, func(tx dbport.Tx) error {

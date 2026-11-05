@@ -216,6 +216,12 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 	if len(envelope.Sources) > 0 {
 		items := make([]ui.Node, 0, len(envelope.Sources))
 		for _, source := range envelope.Sources {
+			// A refused address is dropped, not linked: the reader sees the title
+			// as text, exactly as when the parse path refuses it. The link below
+			// must never trust an envelope built by another caller.
+			if source.Href != "" && !validAgentDocumentHref(source.Href) {
+				source.Href = ""
+			}
 			content := ui.Node(html.Span(html.Props{Class: "agent-reply-source-text"}, append(agentux061SourceLabel(source.Title, false), agentSourceLanguageNodes(model.Locale, source.Language)...)...))
 			if source.Href != "" {
 				href := source.Href

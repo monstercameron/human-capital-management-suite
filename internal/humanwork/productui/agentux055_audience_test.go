@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 )
 
 var agentUX055Tag = regexp.MustCompile(`<[^>]*>`)
@@ -86,7 +88,7 @@ func TestTodo_AGENTUX_055(t *testing.T) {
 
 	// An owner on Agent operations: what it did, what it cost, how to stop it.
 	locale := ResolveProductLocale("en-US").WithTimeZone("America/New_York")
-	activity := agentUXR7Render(t, RenderAgentControls(locale, agentUX073Snapshot(), "done"))
+	activity := agentUXR7Render(t, RenderAgentControls(locale, agentUX073SnapshotForText(), "done"))
 	for _, want := range []string{">Pause agent<", agentUXR7Text(locale, "asked_by"), "Walt Brennan", agentUXR7Text(locale, "cost"), "Failed after 1 hour", agentControlsText(locale, "failure_model_unavailable")} {
 		if !strings.Contains(activity, want) {
 			t.Fatalf("Agent operations does not tell an owner %q", want)
@@ -128,7 +130,7 @@ func TestTodo_AGENTUX_055_Browser(t *testing.T) {
 	pages := map[string]string{
 		"Agents":      renderAgentUXPage(t, "en-US", AgentsAvailabilityProjection{Enabled: true, ViewerIsAdmin: true, Snapshot: agentUX055EmployeeSnapshot()}),
 		"Agent setup": personaAdminRender(t, PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")}, State: PersonaAdminReady, Snapshot: agentUXSetup2Snapshot(persona), Client: &personaAdminTestClient{}})),
-		"Activity":    agentUXR7Render(t, RenderAgentControls(ResolveProductLocale("en-US"), agentUX073Snapshot(), "done")),
+		"Activity":    agentUXR7Render(t, RenderAgentControls(ResolveProductLocale("en-US"), agentUX073SnapshotForText(), "done")),
 	}
 	for name, markup := range pages {
 		if strings.Contains(markup, "<style") || strings.Contains(markup, ` style="`) {
@@ -187,7 +189,7 @@ func TestTodo_AGENTUX_055_Accessibility(t *testing.T) {
 		if !strings.Contains(employee, `aria-label="`+locale.Text("agents.open_named_task", map[string]string{"request": "Summarize the travel policy"})+`"`) {
 			t.Fatalf("%s: a task row has no accessible name", language)
 		}
-		activity := agentUXR7Render(t, RenderAgentControls(locale, agentUX073Snapshot(), "done"))
+		activity := agentUXR7Render(t, RenderAgentControls(locale, agentUX073SnapshotForText(), "done"))
 		for _, want := range []string{`aria-labelledby="agent-activity-agents-title"`, `<ul class="agent-activity-agents">`, `<th scope="col">`, `<label for="agent-history-agent">`, `role="status"`, agentUX073Text(locale, "state_paused"), agentUX073Text(locale, "state_answering")} {
 			if !strings.Contains(activity, want) {
 				t.Fatalf("%s Activity is missing %q", language, want)
@@ -197,5 +199,26 @@ func TestTodo_AGENTUX_055_Accessibility(t *testing.T) {
 		if strings.Count(activity, `class="agent-activity-icon"`) != strings.Count(activity, `aria-hidden="true" class="agent-activity-icon"`) {
 			t.Fatalf("%s: an agent icon is exposed to assistive technology without a name", language)
 		}
+	}
+}
+
+// agentUX073SnapshotForText is agentUX073Snapshot for tests that read words,
+// not icons: the same agents and runs, but the stored icon is a fallback,
+// which builds in the browser, instead of a generated one, which needs the
+// server-only vocabulary. Icon-asserting tests stay on agentUX073Snapshot.
+func agentUX073SnapshotForText() AgentControlsSnapshot {
+	return AgentControlsSnapshot{
+		Available: true, UpdatedAt: "2026-10-02T02:05:00Z", AllowedCommands: []string{"SUSPEND", "PUBLISH"},
+		Agents: []PersonaAdminPersona{
+			{ID: "assistant", Name: "Assistant", Version: "3", Lifecycle: PersonaPublished, Icon: agenticon.Fallback("assistant"),
+				Installations: []PersonaAdminInstallation{{InstallationID: "i1", ConversationID: "general", Conversation: "general", Kind: "channel"}},
+				RecentRuns:    []AgentControlRun{{ID: "run-live", AgentID: "assistant", State: "running"}}},
+			{ID: "policy-helper", Name: "Policy Helper", Version: "6", Lifecycle: PersonaSuspended},
+			{ID: "draft-agent", Name: "Draft Agent", Version: "1", Lifecycle: PersonaDraft},
+		},
+		Runs: []AgentControlRun{
+			{ID: "run-failed", AgentID: "assistant", Name: "Assistant", Version: "3", State: "FAILED", Started: "2026-10-02T01:00:00Z", Duration: "1h0m0s", RequestedBy: "Walt Brennan", Location: "#general", Failure: "MODEL_UNAVAILABLE"},
+			{ID: "run-done", AgentID: "policy-helper", Name: "Policy Helper", Version: "6", State: "COMPLETED", Started: "2026-10-02T01:30:00Z", Duration: "12s", RequestedBy: "Walt Brennan", Location: "#general"},
+		},
 	}
 }

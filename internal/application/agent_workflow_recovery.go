@@ -9,9 +9,16 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/workflowbridge"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/agentrunstate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
 )
 
+// AgentWorkflowRecoveryRuntime is the durable agent execution owner behind
+// completion recovery. Recover must repair a missing execution from its
+// accepted admission, apply an elapsed admission deadline as an EXPIRED
+// terminal outcome, and release a stale worker lease; it reports refused
+// admissions and ambiguous effects without inventing terminal state.
+// CommonAgentRuntime.Recover is the production implementation.
 type AgentWorkflowRecoveryRuntime interface {
 	GetAdmission(context.Context, string, string) (agentrun.Record, error)
 	Recover(context.Context, string, string) (runstate.Run, error)
@@ -52,7 +59,7 @@ func (b AgentWorkflowCompletionBridge) Sweep(ctx context.Context, runtime AgentW
 			}
 			if record.Decision == agentrun.DecisionAccepted {
 				run, readErr := b.Evidence.GetRun(ctx, tenant, record.ID)
-				if errors.Is(readErr, runstate.ErrNotFound) {
+				if errors.Is(readErr, runstate.ErrNotFound) || errors.Is(readErr, agentrunstate.ErrNotFound) {
 					run, readErr = runtime.Recover(ctx, tenant, record.ID)
 				}
 				if readErr != nil {

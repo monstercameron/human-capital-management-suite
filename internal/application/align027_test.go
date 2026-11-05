@@ -88,7 +88,7 @@ func (h *promoux015Harness) intents() intentsv1.IntentServiceClient {
 // public intent service, repeatedly, returns a proposal artifact with a
 // zero-effect receipt and leaves every PostgreSQL table byte-identical.
 func TestTodo_ALIGN_027(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	req, _ := h.discoverPromotion("hiring-manager")
 	proposed, err := h.client.ProposeJourney(h.rpc("hiring-manager"), req)
 	if err != nil {
@@ -122,7 +122,7 @@ func TestTodo_ALIGN_027(t *testing.T) {
 // fingerprint agree for every persona allowed to simulate and for repeated
 // runs: the artifact is deterministic and nothing is written.
 func TestTodo_ALIGN_027_Property(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	client := h.intents()
 	before := h.align027Fingerprint()
@@ -145,7 +145,7 @@ func TestTodo_ALIGN_027_Property(t *testing.T) {
 // TestTodo_ALIGN_027_Golden pins the zero-effect receipt a simulation
 // returns: it declares no persisted effect of any kind.
 func TestTodo_ALIGN_027_Golden(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	req, _ := h.discoverPromotion("hiring-manager")
 	proposed, err := h.client.ProposeJourney(h.rpc("hiring-manager"), req)
 	if err != nil {
@@ -171,7 +171,7 @@ func TestTodo_ALIGN_027_Golden(t *testing.T) {
 // write-free: an unknown intent and a persona without access are refused and
 // no table changes.
 func TestTodo_ALIGN_027_Security(t *testing.T) {
-	h := promoux015Compose(t)
+	h := promoux015ComposeWithWorkforce(t)
 	id := h.proposeAndExecute()
 	client := h.intents()
 	before := h.align027Fingerprint()

@@ -71,17 +71,8 @@ func chatremovePageRequest(ctx context.Context, client *http.Client, cfg journey
 }
 
 func chatremoveRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, action, query string, input any) ([]byte, error) {
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
-		return nil, chat.ErrUnavailable
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" {
 		return nil, chat.ErrUnavailable
 	}
 	endpoint.Path, endpoint.RawQuery, endpoint.Fragment = "/api/chat/moderation", "", ""

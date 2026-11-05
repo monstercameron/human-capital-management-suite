@@ -32,7 +32,7 @@ func TestComposedDemoTenantCarriesItsPerformancePayrollAndRoleData(t *testing.T)
 		Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-demo-data", MaxDeadline: 60 * time.Second,
 		Workspace: true, DevBrowserLogin: true, OTelExporter: OTelExporterNone,
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		TimerTzdbVersion:     DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {

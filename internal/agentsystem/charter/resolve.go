@@ -21,14 +21,18 @@ func Resolve(input Input) (Result, error) {
 		DataCategories: emptyResolved[DataCategory](),
 		Decisions:      emptyResolved[DecisionID](),
 	}
+	var (
+		organizationsAllow, jurisdictionsAllow, sourcesAllow bool
+		toolsAllow, dataCategoriesAllow, decisionsAllow      bool
+	)
 	for _, layer := range input.Layers {
 		source := layer.source()
-		result.Organizations = compose(result.Organizations, layer.Settings.Organizations, source)
-		result.Jurisdictions = compose(result.Jurisdictions, layer.Settings.Jurisdictions, source)
-		result.Sources = compose(result.Sources, layer.Settings.Sources, source)
-		result.Tools = compose(result.Tools, layer.Settings.Tools, source)
-		result.DataCategories = compose(result.DataCategories, layer.Settings.DataCategories, source)
-		result.Decisions = compose(result.Decisions, layer.Settings.Decisions, source)
+		result.Organizations = compose(result.Organizations, layer.Settings.Organizations, source, &organizationsAllow)
+		result.Jurisdictions = compose(result.Jurisdictions, layer.Settings.Jurisdictions, source, &jurisdictionsAllow)
+		result.Sources = compose(result.Sources, layer.Settings.Sources, source, &sourcesAllow)
+		result.Tools = compose(result.Tools, layer.Settings.Tools, source, &toolsAllow)
+		result.DataCategories = compose(result.DataCategories, layer.Settings.DataCategories, source, &dataCategoriesAllow)
+		result.Decisions = compose(result.Decisions, layer.Settings.Decisions, source, &decisionsAllow)
 		if !result.EscalationOwner.Set && layer.Settings.EscalationOwner.Set {
 			result.EscalationOwner = ResolvedValue[PrincipalID]{Set: true, Value: layer.Settings.EscalationOwner.Value, Source: sourcePtr(source)}
 		}
@@ -115,17 +119,20 @@ func validateInput(input Input) error {
 	return nil
 }
 
-func compose[T ~string](current ResolvedConstraint[T], rule Constraint[T], source Source) ResolvedConstraint[T] {
+func compose[T ~string](current ResolvedConstraint[T], rule Constraint[T], source Source, allowSet *bool) ResolvedConstraint[T] {
 	if !rule.Specified {
 		return current
 	}
 	// A nil Allow means that this layer supplies no allow ceiling. A
 	// non-nil empty Allow is an explicit empty ceiling and must remain
-	// distinguishable from a deny-only rule.
+	// distinguishable from a deny-only rule. Only an allow-bearing layer
+	// establishes the ceiling: a deny-only layer ahead of the first one
+	// must not turn "no ceiling yet" into an empty ceiling.
 	if rule.Allow != nil {
 		allowed := ordered(rule.Allow)
-		if len(current.Sources) == 0 {
+		if !*allowSet {
 			current.Allowed = allowed
+			*allowSet = true
 		} else {
 			current.Allowed = intersection(current.Allowed, allowed)
 		}

@@ -12,9 +12,12 @@ import (
 // link or a mention never ends in sentence punctuation: the full stop after
 // "@morgan." belongs to the sentence, so a rewrite that keeps or adds one
 // restores to the same text.
-func protectedPattern() *regexp.Regexp {
-	return regexp.MustCompile("(?m)```[\\s\\S]*?```|~~~[\\s\\S]*?~~~|``[^`]+``|`[^`\\n]+`|^>[ \\t]?.*$|\\\"[^\\\"\\n]+\\\"|(?:^|[^\\p{L}\\p{N}])'[^'\\n]+'|“[^”\\n]+”|‘[^’\\n]+’|\\[[^]\\n]*\\]\\([^ )\\n]+\\)|(?:https?://|mailto:|www\\.)[^\\s<>]*[^\\s<>.,;:!?)]|<@[^>]+>|@[\\p{L}\\p{N}_](?:[\\p{L}\\p{N}_.-]*[\\p{L}\\p{N}_])?|[$€£]?[-+]?[\\p{N}]+(?:[-/:.,][\\p{N}]+)*(?:%|[ \\t]?(?:USD|EUR|GBP))?")
-}
+// protectedPatternCompiled holds the protected-span pattern compiled once:
+// protect and restore both match it on every reword, and a Regexp is safe
+// for concurrent use.
+var protectedPatternCompiled = regexp.MustCompile("(?m)```[\\s\\S]*?```|~~~[\\s\\S]*?~~~|``[^`]+``|`[^`\\n]+`|^>[ \\t]?.*$|\\\"[^\\\"\\n]+\\\"|(?:^|[^\\p{L}\\p{N}])'[^'\\n]+'|“[^”\\n]+”|‘[^’\\n]+’|\\[[^]\\n]*\\]\\([^ )\\n]+\\)|(?:https?://|mailto:|www\\.)[^\\s<>]*[^\\s<>.,;:!?)]|<@[^>]+>|@[\\p{L}\\p{N}_](?:[\\p{L}\\p{N}_.-]*[\\p{L}\\p{N}_])?|[$€£]?[-+]?[\\p{N}]+(?:[-/:.,][\\p{N}]+)*(?:%|[ \\t]?(?:USD|EUR|GBP))?")
+
+func protectedPattern() *regexp.Regexp { return protectedPatternCompiled }
 
 type protectedDraft struct {
 	text           string

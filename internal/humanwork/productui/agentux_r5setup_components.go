@@ -205,65 +205,59 @@ func personaAdminNoStarterNotice(locale LocaleContext, options []PersonaAdminTar
 	return html.Div(html.Props{ID: "persona-admin-new-agent-note", Class: "persona-admin-new-agent-note", Role: "status"}, children...)
 }
 
+// personaAdminR5SetupCopy is the copy personaAdminR5SetupText resolves (agentux_copy.go).
+var personaAdminR5SetupCopy = map[string][3]string{
+	"rejection_reason":           {"What should the owner change before requesting review again?", "Was soll die verantwortliche Person ändern, bevor sie erneut eine Prüfung anfordert?", "ما الذي يجب أن يغيّره المالك قبل طلب المراجعة مجددًا؟"},
+	"no_template":                {"You can edit any agent below, pause or resume it, set its usage limits and choose which conversations it is added to.", "Sie können jeden Agenten unten bearbeiten, pausieren oder fortsetzen, seine Nutzungsgrenzen festlegen und bestimmen, zu welchen Unterhaltungen er hinzugefügt wird.", "يمكنك تحرير أي وكيل أدناه، وإيقافه مؤقتاً أو استئنافه، وتحديد حدود استخدامه، واختيار المحادثات التي يُضاف إليها."},
+	"no_template_next":           {"To change an agent, choose Edit on its card.", "Um einen Agenten zu ändern, wählen Sie auf seiner Karte „Bearbeiten“.", "لتغيير وكيل، اختر «تحرير» في بطاقته."},
+	"named_template_manager":     {"{person} also looks after agents and can help.", "{person} betreut ebenfalls Agenten und kann helfen.", "{person} يشرف أيضاً على الوكلاء ويمكنه المساعدة."},
+	"message_person":             {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
+	"retire_agent":               {"Retire agent…", "Agent stilllegen…", "إيقاف الوكيل…"},
+	"retire_role_reason":         {"Only an agent administrator can retire an agent. Ask your agent administrator.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie sie.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل معه."},
+	"retire_role_reason_named":   {"Only an agent administrator can retire an agent. Ask {person}.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie {person}.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل مع {person}."},
+	"audience_roles":             {"People in these {count} roles who are members of a conversation where this agent is added", "Personen in diesen {count} Rollen, die Mitglied einer Unterhaltung mit diesem Agenten sind", "الأشخاص في هذه الأدوار وعددها {count} ممن هم أعضاء في محادثة أُضيف إليها هذا الوكيل"},
+	"what_can_read":              {"Documents marked official in each conversation it is added to, plus the documents listed under Documents this agent reads ({count}).", "Als offiziell markierte Dokumente in jeder Unterhaltung, zu der der Agent hinzugefügt wurde, sowie die unter „Dokumente, die dieser Agent liest“ aufgeführten Dokumente ({count}).", "المستندات المعلَّمة كرسمية في كل محادثة أُضيف إليها، بالإضافة إلى المستندات المدرجة ضمن «المستندات التي يقرأها هذا الوكيل» ({count})."},
+	"cancel":                     {"Cancel", "Abbrechen", "إلغاء"},
+	"add":                        {"Add", "Hinzufügen", "إضافة"},
+	"versions":                   {"Versions", "Versionen", "الإصدارات"},
+	"technical_version_row":      {"Version {version} · {state}", "Version {version} · {state}", "الإصدار {version} · {state}"},
+	"technical_live_version_row": {"Version {version} · Live", "Version {version} · Aktiv", "الإصدار {version} · مباشر"},
+	"review_heading":             {"Review", "Prüfung", "المراجعة"},
+	"review_someone_else":        {"Someone other than you must review version {version}.", "Eine andere Person muss Version {version} prüfen.", "يجب أن يراجع شخص آخر غيرك الإصدار {version}."},
+	"waiting_for_reviewer":       {"Waiting for {reviewer} to review version {version}.", "Warten auf die Prüfung von Version {version} durch {reviewer}.", "بانتظار أن يراجع {reviewer} الإصدار {version}."},
+	"author_cannot_review":       {"You wrote version {version}, so someone else must review it.", "Sie haben Version {version} verfasst; deshalb muss eine andere Person sie prüfen.", "أنت كتبت الإصدار {version}، لذلك يجب أن يراجعه شخص آخر."},
+	"message_reviewer":           {"Message {reviewer}", "Nachricht an {reviewer}", "مراسلة {reviewer}"},
+	"evaluation_heading":         {"Evaluation", "Evaluierung", "التقييم"},
+	"evaluation_runs_cases":      {"Runs {count} test questions against version {version}. Takes a few minutes.", "Führt {count} Testfragen mit Version {version} aus. Das dauert einige Minuten.", "يشغّل {count} أسئلة اختبار على الإصدار {version}. يستغرق بضع دقائق."},
+	"evaluation_passed_prefix":   {"Evaluation passed", "Evaluierung bestanden", "نجح التقييم"},
+	"of":                         {"of", "von", "من"},
+	"test_questions":             {"test questions", "Testfragen", "أسئلة اختبار"},
+	"run_by":                     {"run by", "ausgeführt von", "أجراه"},
+	"view_results":               {"View results", "Ergebnisse ansehen", "عرض النتائج"},
+	"next_evaluator":             {"Next: {person} runs the evaluation.", "Als Nächstes führt {person} die Evaluierung aus.", "التالي: يجري {person} التقييم."},
+	"no_installations_live":      {"Not added to a conversation yet. Choose {action} so people can use it.", "Noch zu keiner Unterhaltung hinzugefügt. Wählen Sie „{action}“, damit Personen ihn verwenden können.", "لم تتم إضافته إلى محادثة بعد. اختر «{action}» ليتمكن الأشخاص من استخدامه."},
+	"next_evaluator_role":        {"Next: a person who administers agents runs the evaluation.", "Als Nächstes führt eine Person aus der Agentenadministration die Evaluierung aus.", "التالي: يجري التقييم شخص يدير الوكلاء."},
+	"message_evaluator":          {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
+	"ready_publish_heading":      {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
+	"publish_does_not_move":      {"Publishing does not change any conversation. Afterwards, move conversations to version {version} in", "Die Veröffentlichung ändert keine Unterhaltung. Verschieben Sie Unterhaltungen anschließend unter", "لا يغيّر النشر أي محادثة. بعد ذلك، انقل المحادثات إلى الإصدار {version} في"},
+	"published_heading":          {"Published", "Veröffentlicht", "منشور"},
+	"unreadable_review":          {"You cannot open {unreadable} of the {total} documents this agent reads.", "Sie können {unreadable} der {total} Dokumente, die dieser Agent liest, nicht öffnen.", "لا يمكنك فتح {unreadable} من أصل {total} من المستندات التي يقرأها هذا الوكيل."},
+	"ask_owner_access":           {"Ask {owner} for access", "{owner} um Zugriff bitten", "اطلب الوصول من {owner}"},
+	"approve_unread":             {"Approve without reading the documents", "Ohne Lesen der Dokumente genehmigen", "الموافقة دون قراءة المستندات"},
+	"choose_person":              {"Choose a person.", "Wählen Sie eine Person aus.", "اختر شخصاً."},
+	"choose_agent":               {"Choose an agent.", "Wählen Sie einen Agenten aus.", "اختر وكيلاً."},
+	"choose_conversation":        {"Choose a conversation.", "Wählen Sie eine Unterhaltung aus.", "اختر محادثة."},
+	"preview_result":             {"In {conversation}, for {person}, {agent} can read: {documents}. It can: {actions}. It cannot read: {unreadable} documents {first} cannot open.", "In {conversation} kann {agent} für {person} Folgendes lesen: {documents}. Der Agent kann: {actions}. Nicht lesbar sind: {unreadable} Dokumente, die {first} nicht öffnen kann.", "في {conversation}، بالنسبة إلى {person}، يمكن لـ {agent} قراءة: {documents}. ويمكنه: {actions}. ولا يمكنه قراءة: {unreadable} من المستندات التي لا يستطيع {first} فتحها."},
+	"preview_result_no_hidden":   {"In {conversation}, for {person}, {agent} can read: {documents}. It can: {actions}.", "In {conversation} kann {agent} für {person} Folgendes lesen: {documents}. Der Agent kann: {actions}.", "في {conversation}، بالنسبة إلى {person}، يمكن لـ {agent} قراءة: {documents}. ويمكنه: {actions}."},
+	"action_search_cite":         {"search and cite", "suchen und zitieren", "البحث والاستشهاد"},
+	"action_reply_conversation":  {"reply in the conversation", "in der Unterhaltung antworten", "الرد في المحادثة"},
+	"no_unreadable_documents":    {"No additional documents are hidden from {person}.", "Keine weiteren Dokumente sind für {person} ausgeblendet.", "لا توجد مستندات إضافية مخفية عن {person}."},
+	"cannot_open_document":       {"You cannot open this document.", "Sie können dieses Dokument nicht öffnen.", "لا يمكنك فتح هذا المستند."},
+}
+
 func personaAdminR5SetupText(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"rejection_reason":           {"What should the owner change before requesting review again?", "Was soll die verantwortliche Person ändern, bevor sie erneut eine Prüfung anfordert?", "ما الذي يجب أن يغيّره المالك قبل طلب المراجعة مجددًا؟"},
-		"no_template":                {"You can edit any agent below, pause or resume it, set its usage limits and choose which conversations it is added to.", "Sie können jeden Agenten unten bearbeiten, pausieren oder fortsetzen, seine Nutzungsgrenzen festlegen und bestimmen, zu welchen Unterhaltungen er hinzugefügt wird.", "يمكنك تحرير أي وكيل أدناه، وإيقافه مؤقتاً أو استئنافه، وتحديد حدود استخدامه، واختيار المحادثات التي يُضاف إليها."},
-		"no_template_next":           {"To change an agent, choose Edit on its card.", "Um einen Agenten zu ändern, wählen Sie auf seiner Karte „Bearbeiten“.", "لتغيير وكيل، اختر «تحرير» في بطاقته."},
-		"named_template_manager":     {"{person} also looks after agents and can help.", "{person} betreut ebenfalls Agenten und kann helfen.", "{person} يشرف أيضاً على الوكلاء ويمكنه المساعدة."},
-		"message_person":             {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
-		"retire_agent":               {"Retire agent…", "Agent stilllegen…", "إيقاف الوكيل…"},
-		"retire_role_reason":         {"Only an agent administrator can retire an agent. Ask your agent administrator.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie sie.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل معه."},
-		"retire_role_reason_named":   {"Only an agent administrator can retire an agent. Ask {person}.", "Nur die Agentenadministration kann einen Agenten stilllegen. Fragen Sie {person}.", "يمكن لمسؤول الوكلاء وحده إيقاف وكيل نهائياً. تواصل مع {person}."},
-		"audience_roles":             {"People in these {count} roles who are members of a conversation where this agent is added", "Personen in diesen {count} Rollen, die Mitglied einer Unterhaltung mit diesem Agenten sind", "الأشخاص في هذه الأدوار وعددها {count} ممن هم أعضاء في محادثة أُضيف إليها هذا الوكيل"},
-		"what_can_read":              {"Documents marked official in each conversation it is added to, plus the documents listed under Documents this agent reads ({count}).", "Als offiziell markierte Dokumente in jeder Unterhaltung, zu der der Agent hinzugefügt wurde, sowie die unter „Dokumente, die dieser Agent liest“ aufgeführten Dokumente ({count}).", "المستندات المعلَّمة كرسمية في كل محادثة أُضيف إليها، بالإضافة إلى المستندات المدرجة ضمن «المستندات التي يقرأها هذا الوكيل» ({count})."},
-		"cancel":                     {"Cancel", "Abbrechen", "إلغاء"},
-		"add":                        {"Add", "Hinzufügen", "إضافة"},
-		"versions":                   {"Versions", "Versionen", "الإصدارات"},
-		"technical_version_row":      {"Version {version} · {state}", "Version {version} · {state}", "الإصدار {version} · {state}"},
-		"technical_live_version_row": {"Version {version} · Live", "Version {version} · Aktiv", "الإصدار {version} · مباشر"},
-		"review_heading":             {"Review", "Prüfung", "المراجعة"},
-		"review_someone_else":        {"Someone other than you must review version {version}.", "Eine andere Person muss Version {version} prüfen.", "يجب أن يراجع شخص آخر غيرك الإصدار {version}."},
-		"waiting_for_reviewer":       {"Waiting for {reviewer} to review version {version}.", "Warten auf die Prüfung von Version {version} durch {reviewer}.", "بانتظار أن يراجع {reviewer} الإصدار {version}."},
-		"author_cannot_review":       {"You wrote version {version}, so someone else must review it.", "Sie haben Version {version} verfasst; deshalb muss eine andere Person sie prüfen.", "أنت كتبت الإصدار {version}، لذلك يجب أن يراجعه شخص آخر."},
-		"message_reviewer":           {"Message {reviewer}", "Nachricht an {reviewer}", "مراسلة {reviewer}"},
-		"evaluation_heading":         {"Evaluation", "Evaluierung", "التقييم"},
-		"evaluation_runs_cases":      {"Runs {count} test questions against version {version}. Takes a few minutes.", "Führt {count} Testfragen mit Version {version} aus. Das dauert einige Minuten.", "يشغّل {count} أسئلة اختبار على الإصدار {version}. يستغرق بضع دقائق."},
-		"evaluation_passed_prefix":   {"Evaluation passed", "Evaluierung bestanden", "نجح التقييم"},
-		"of":                         {"of", "von", "من"},
-		"test_questions":             {"test questions", "Testfragen", "أسئلة اختبار"},
-		"run_by":                     {"run by", "ausgeführt von", "أجراه"},
-		"view_results":               {"View results", "Ergebnisse ansehen", "عرض النتائج"},
-		"next_evaluator":             {"Next: {person} runs the evaluation.", "Als Nächstes führt {person} die Evaluierung aus.", "التالي: يجري {person} التقييم."},
-		"no_installations_live":      {"Not added to a conversation yet. Choose {action} so people can use it.", "Noch zu keiner Unterhaltung hinzugefügt. Wählen Sie „{action}“, damit Personen ihn verwenden können.", "لم تتم إضافته إلى محادثة بعد. اختر «{action}» ليتمكن الأشخاص من استخدامه."},
-		"next_evaluator_role":        {"Next: a person who administers agents runs the evaluation.", "Als Nächstes führt eine Person aus der Agentenadministration die Evaluierung aus.", "التالي: يجري التقييم شخص يدير الوكلاء."},
-		"message_evaluator":          {"Message {person}", "Nachricht an {person}", "مراسلة {person}"},
-		"ready_publish_heading":      {"Ready to publish", "Bereit zur Veröffentlichung", "جاهز للنشر"},
-		"publish_does_not_move":      {"Publishing does not change any conversation. Afterwards, move conversations to version {version} in", "Die Veröffentlichung ändert keine Unterhaltung. Verschieben Sie Unterhaltungen anschließend unter", "لا يغيّر النشر أي محادثة. بعد ذلك، انقل المحادثات إلى الإصدار {version} في"},
-		"published_heading":          {"Published", "Veröffentlicht", "منشور"},
-		"unreadable_review":          {"You cannot open {unreadable} of the {total} documents this agent reads.", "Sie können {unreadable} der {total} Dokumente, die dieser Agent liest, nicht öffnen.", "لا يمكنك فتح {unreadable} من أصل {total} من المستندات التي يقرأها هذا الوكيل."},
-		"ask_owner_access":           {"Ask {owner} for access", "{owner} um Zugriff bitten", "اطلب الوصول من {owner}"},
-		"approve_unread":             {"Approve without reading the documents", "Ohne Lesen der Dokumente genehmigen", "الموافقة دون قراءة المستندات"},
-		"choose_person":              {"Choose a person.", "Wählen Sie eine Person aus.", "اختر شخصاً."},
-		"choose_agent":               {"Choose an agent.", "Wählen Sie einen Agenten aus.", "اختر وكيلاً."},
-		"choose_conversation":        {"Choose a conversation.", "Wählen Sie eine Unterhaltung aus.", "اختر محادثة."},
-		"preview_result":             {"In {conversation}, for {person}, {agent} can read: {documents}. It can: {actions}. It cannot read: {unreadable} documents {first} cannot open.", "In {conversation} kann {agent} für {person} Folgendes lesen: {documents}. Der Agent kann: {actions}. Nicht lesbar sind: {unreadable} Dokumente, die {first} nicht öffnen kann.", "في {conversation}، بالنسبة إلى {person}، يمكن لـ {agent} قراءة: {documents}. ويمكنه: {actions}. ولا يمكنه قراءة: {unreadable} من المستندات التي لا يستطيع {first} فتحها."},
-		"preview_result_no_hidden":   {"In {conversation}, for {person}, {agent} can read: {documents}. It can: {actions}.", "In {conversation} kann {agent} für {person} Folgendes lesen: {documents}. Der Agent kann: {actions}.", "في {conversation}، بالنسبة إلى {person}، يمكن لـ {agent} قراءة: {documents}. ويمكنه: {actions}."},
-		"action_search_cite":         {"search and cite", "suchen und zitieren", "البحث والاستشهاد"},
-		"action_reply_conversation":  {"reply in the conversation", "in der Unterhaltung antworten", "الرد في المحادثة"},
-		"no_unreadable_documents":    {"No additional documents are hidden from {person}.", "Keine weiteren Dokumente sind für {person} ausgeblendet.", "لا توجد مستندات إضافية مخفية عن {person}."},
-		"cannot_open_document":       {"You cannot open this document.", "Sie können dieses Dokument nicht öffnen.", "لا يمكنك فتح هذا المستند."},
+	if text, ok := agentuxCopyLookup(personaAdminR5SetupCopy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	index := 0
-	switch locale.Resolved {
-	case "de-DE":
-		index = 1
-	case "ar":
-		index = 2
-	}
-	return values[index]
+	return key
 }

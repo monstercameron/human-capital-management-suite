@@ -143,7 +143,7 @@ func renderAgentAuthorLine(model Model, name string, at time.Time, identity ...a
 	if !value.Valid() && model.selected().Agent {
 		value = model.selected().Icon
 	}
-	avatar := agentDMAvatar(name, "avatar small agent-reply-avatar", agentIconFor(model, nil, name, value))
+	avatar := agentAvatar(name, "avatar small agent-reply-avatar", agentIconImageFor(model, nil, name, ""), agentIconFor(model, nil, name, value))
 	head := []ui.Node{avatar, html.Strong(html.Props{Class: "agent-reply-name", Text: name}), AgentBadgeLabel(model.Locale)}
 	if clock := agentReplyTime(model, at); clock != nil {
 		head = append(head, clock)

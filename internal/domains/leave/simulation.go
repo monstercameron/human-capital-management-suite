@@ -54,7 +54,7 @@ func Simulate(snapshot LeaveInputSnapshot, resolution EligibilityResolution, pla
 	sort.Strings(obligations)
 	var refs []string
 	for _, entry := range snapshot.Entries {
-		refs = append(refs, entry.EvidenceRef)
+		refs = append(refs, entry.EvidenceRef.ID)
 	}
 	sort.Strings(refs)
 	return Simulation{

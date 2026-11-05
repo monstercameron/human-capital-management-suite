@@ -75,7 +75,7 @@ func TestTodo_PROMOUX_014_Recovery(t *testing.T) {
 		Migrate: false, Workspace: true, OTelExporter: OTelExporterNone,
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux014-recovery-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
-		WorkflowPlan: WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
+		TimerTzdbVersion:     DefaultTimerTzdbVersion,
 		TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {

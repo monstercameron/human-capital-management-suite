@@ -10,6 +10,7 @@ import (
 // UtilityDrawerItem is one contextual destination: a related page or an
 // authorized start, both resolved from the registry and the view.
 type UtilityDrawerItem struct {
+	_           incomparable
 	ID          string
 	Label       string
 	Description string

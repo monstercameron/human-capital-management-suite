@@ -10,6 +10,7 @@ import (
 // PositionOptionProjection is one server-authorized position selectable by
 // its canonical revision reference.
 type PositionOptionProjection struct {
+	_            incomparable
 	Reference    string
 	PositionID   string
 	Title        string
@@ -21,6 +22,7 @@ type PositionOptionProjection struct {
 // PositionObjectProjection is a server-authorized presentation of a current
 // position revision. An empty projection means the reference did not resolve.
 type PositionObjectProjection struct {
+	_          incomparable
 	PositionID string
 	Revision   string
 	JobCode    string

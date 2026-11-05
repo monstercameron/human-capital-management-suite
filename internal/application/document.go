@@ -64,6 +64,9 @@ type documentService struct {
 	// agentNow is the clock AgentSearchDocuments binds its installation
 	// currency check to; nil uses time.Now.
 	agentNow func() time.Time
+	// personaMentions admits persona @mentions from new document comments
+	// (AGENTP-025); nil leaves comments without invocation.
+	personaMentions *surfaceMentionBridge
 }
 
 // agentInstallationRepository is the minimal chat app installation lookup
@@ -407,6 +410,7 @@ func (s documentService) AddDocumentComment(ctx context.Context, tenantID, actor
 	if err != nil {
 		return transportdocument.Comment{}, commentError(err)
 	}
+	s.admitDocumentPersonaMentions(ctx, tenantID, row)
 	return transportComment(row), nil
 }
 

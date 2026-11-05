@@ -418,10 +418,14 @@ func (v *Vault) DestroySubjectKey(tenant, subject string, refs []VaultRef, at ti
 		}
 	}
 	sort.Strings(keyIDs)
+	// The tombstone clears at the LATEST ref expiry: ciphertext copies can
+	// reappear from backups until every payload's expiry has passed, so
+	// clearing at the earliest would declare the data gone while a copy
+	// can still come back.
 	expiry := time.Time{}
 	payloads := make([]PayloadRecord, 0, len(refs))
 	for _, ref := range refs {
-		if expiry.IsZero() || ref.BackupExpiry.Before(expiry) {
+		if expiry.IsZero() || ref.BackupExpiry.After(expiry) {
 			expiry = ref.BackupExpiry
 		}
 		payloads = append(payloads, PayloadRecord{

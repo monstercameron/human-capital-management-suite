@@ -272,7 +272,8 @@ func (s *server) WatchJourney(req *journeyv1.WatchJourneyRequest, stream journey
 	}
 	// Resolved once for the life of the stream: a caller's diagnostics
 	// authority is a fact about who they are, not about which poll this is.
-	diagAuthorized := s.diagnosticsAuthorized(ctx, principal)
+	auth := s.authorize(principal, inv.RequestID())
+	diagAuthorized := auth.diagnosticsAuthorized(ctx)
 
 	intentID := req.GetIntentId()
 	// sent is the digest the client is known to hold: what it told us it

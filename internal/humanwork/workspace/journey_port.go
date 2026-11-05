@@ -466,9 +466,10 @@ type JourneyDetail struct {
 	Approver string
 
 	// Server-authorized, viewer-relative presentation capabilities. A client
-	// must not reconstruct either from roles or principal identifiers.
+	// must not reconstruct any of them from roles or principal identifiers.
 	DiagnosticsAvailable bool
 	CanDecide            bool
+	CanExecute           bool
 
 	// Notes are the journey's free-standing notes, oldest first (see
 	// [JourneyNoteEngine]).

@@ -94,11 +94,11 @@ func TestTodoTDDContractCompleteness(t *testing.T) {
 	}
 
 	root := repoRoot(t)
-	realContent, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+	realContent, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		t.Fatalf("read real corpus: %v", err)
 	}
-	realFindings, err := CheckMarkdown(string(realContent), "planning/todos.md")
+	realFindings, err := CheckMarkdown(string(realContent), "planning/archive/todos-2026-10-22.md")
 	if err != nil {
 		t.Fatalf("real corpus check: %v", err)
 	}

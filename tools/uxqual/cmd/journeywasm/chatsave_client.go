@@ -32,17 +32,8 @@ func (e chatsaveError) Error() string { return string(e) }
 
 func chatsaveRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, host, tab, cursor, query string, command *chatsaveCommand) (chat.SavedPage, error) {
 	var page chat.SavedPage
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" || client == nil {
-		return page, chatsaveError("unavailable")
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" || client == nil {
 		return page, chatsaveError("unavailable")
 	}
 	endpoint.Path, endpoint.RawQuery, endpoint.Fragment = "/api/chat/saved", "", ""

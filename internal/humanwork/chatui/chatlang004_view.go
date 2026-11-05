@@ -162,12 +162,24 @@ func chatlangAuthor(msg Message) string {
 // original beneath the translation when asked for, and the language picker on
 // the writer's own message.
 func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
+	return chatlangExtrasScoped(m, h, msg, "")
+}
+
+// chatlangExtrasThread is the same nodes for a message drawn in the thread
+// pane. The parent is drawn twice with a thread open, so the pane's copy
+// namespaces its element ids (CHATBUG-097); the toggle state is still the
+// message's, so both copies show and hide together.
+func chatlangExtrasThread(m Model, h handlers, msg Message) []ui.Node {
+	return chatlangExtrasScoped(m, h, msg, "thread-")
+}
+
+func chatlangExtrasScoped(m Model, h handlers, msg Message, prefix string) []ui.Node {
 	if m.EditingID == msg.ID {
 		return nil
 	}
 	v := chatlangMessageOf(m, msg)
 	local := h.local.chatlang
-	nodes := chattoneExtras(m, h, msg)
+	nodes := chattoneExtrasScoped(m, h, msg, prefix)
 	if v.Translated || v.Pending || v.NotTranslated {
 		text := ""
 		switch {
@@ -209,7 +221,7 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 			}
 			parts = append(parts, html.Button(html.Props{Class: "chatlang-mark-button", Type: "button",
 				Data: map[string]string{"action": "chatlang-original", "id": msg.ID},
-				Aria: map[string]string{"expanded": boolString(shown), "controls": "chatlang-original-" + msg.ID, "label": strings.ReplaceAll(chatlangText(m.Locale, aria), "{name}", chatlangAuthor(msg))},
+				Aria: map[string]string{"expanded": boolString(shown), "controls": prefix + "chatlang-original-" + msg.ID, "label": strings.ReplaceAll(chatlangText(m.Locale, aria), "{name}", chatlangAuthor(msg))},
 				Text: chatlangText(m.Locale, label)}))
 		}
 		parts = append(parts, buttons...)
@@ -223,7 +235,7 @@ func chatlangExtras(m Model, h handlers, msg Message) []ui.Node {
 			if v.SourceLang != "" {
 				textProps.Lang, textProps.Dir = v.SourceLang, chatlangDir(v.SourceLang)
 			}
-			nodes = append(nodes, html.Div(html.Props{ID: "chatlang-original-" + msg.ID, Class: "chatlang-original", Data: map[string]string{"chatlang-original": msg.ID}},
+			nodes = append(nodes, html.Div(html.Props{ID: prefix + "chatlang-original-" + msg.ID, Class: "chatlang-original", Data: map[string]string{"chatlang-original": msg.ID}},
 				html.Span(html.Props{Class: "chatlang-original-label", Text: label}),
 				html.Div(textProps, markdownMessageBody(m, msg.Body)...)))
 		}

@@ -74,22 +74,29 @@ func TestPromotionCompensateEdges(t *testing.T) {
 	}
 }
 
-func TestPromotionSimulateProjectionDowngradesCompensate(t *testing.T) {
+// TestPromotionSimulateProjectionRetainsWrites pins the shape WF-TEST-001
+// derives: the SIMULATE projection keeps the authored writes and the
+// authoritative core (no relabelling overlays); the recording simulator
+// captures them instead of executing them. (It replaces
+// TestPromotionSimulateProjectionDowngradesCompensate, whose downgraded
+// projection the WF-TEST-001 refactor deleted.)
+func TestPromotionSimulateProjectionRetainsWrites(t *testing.T) {
 	plan, err := CompileSimulation()
 	if err != nil {
 		t.Fatalf("CompileSimulation: %v", err)
 	}
-	node, ok := plan.Node(NodeCompensateHold)
+	hold, ok := plan.Node(NodeCompensateHold)
 	if !ok {
 		t.Fatalf("simulate plan carries no compensate node")
 	}
-	if node.EffectRole != "" {
-		t.Fatalf("simulate compensate role = %q, want none: a read-only projection classifies no core", node.EffectRole)
+	if !hold.EffectClass.IsWrite() || hold.EffectRole != workflow.RoleDownstreamEffect {
+		t.Fatalf("simulate compensate = %+v, want the retained downstream write", hold)
 	}
-	if !plan.Effects.ZeroEffect {
-		t.Fatalf("simulate effects = %+v, want zero effects: simulation mutates nothing", plan.Effects)
+	if plan.Effects.ZeroEffect {
+		t.Fatalf("simulate effects = %+v, want the retained writes", plan.Effects)
 	}
-	for _, id := range plan.NodesWithRole(workflow.RoleAuthoritativeCore) {
-		t.Fatalf("simulate plan carries authoritative core %q; simulation mutates nothing", id)
+	core := plan.NodesWithRole(workflow.RoleAuthoritativeCore)
+	if len(core) != 1 || core[0] != NodeExecutePromotion {
+		t.Fatalf("simulate cores = %v, want exactly the retained execute_promotion", core)
 	}
 }

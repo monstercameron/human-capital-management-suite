@@ -23,6 +23,10 @@ const (
 	SourceEvent          SourceKind = "EVENT"
 	SourceSchedule       SourceKind = "SCHEDULE"
 	SourceWorkflow       SourceKind = "WORKFLOW"
+	// SourceSupportEmail is Support Desk's stored customer email. The email is
+	// untrusted data; the run it causes is sponsored, persona-pinned and bound
+	// to the server-selected project and incident channel (AGENTUX-079).
+	SourceSupportEmail SourceKind = "SUPPORT_EMAIL"
 )
 
 // RunMode separates human-delegated work from autonomous sponsored work.
@@ -393,7 +397,7 @@ func withinBudget(requested, ceiling Budget) bool {
 
 func validSourceKind(k SourceKind) bool {
 	switch k {
-	case SourceChat, SourcePersonaMention, SourceAnnouncement, SourceAPI, SourceEvent, SourceSchedule, SourceWorkflow:
+	case SourceChat, SourcePersonaMention, SourceAnnouncement, SourceAPI, SourceEvent, SourceSchedule, SourceWorkflow, SourceSupportEmail:
 		return true
 	default:
 		return false

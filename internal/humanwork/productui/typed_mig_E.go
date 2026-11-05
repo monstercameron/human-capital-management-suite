@@ -152,9 +152,6 @@ func declareCustomerIdentityStyles() {
 		gwccss.Raw("background", "color-mix(in srgb,var(--on-brand) 12%,transparent)"),
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
-	declareGlobal(":root[data-hcm-navigation=\"brand\"] .sidebar .menu-filter input::placeholder",
-		gwccss.Raw("color", "color-mix(in srgb,var(--on-brand) 76%,transparent)"),
-	)
 	declareGlobal(":root[data-hcm-navigation=\"brand\"] .sidebar .menu-filter-submit",
 		gwccss.TextColor(gwccss.Var("on-brand")),
 	)
@@ -1342,9 +1339,6 @@ func declareNavigationEnhancementsStyles() {
 	declareGlobal(".nav-group-summary .nav-count+.nav-chevron",
 		gwccss.Raw("margin-left", "0"),
 	)
-	declareGlobal(".nav-group[open]>.nav-group-summary .nav-chevron",
-		gwccss.Transform(gwccss.Rotate(gwccss.Deg(90))),
-	)
 	declareGlobal(".subnav",
 		gwccss.Raw("display", "grid!important"),
 		gwccss.Gap(gwccss.Px(1)),
@@ -1409,6 +1403,50 @@ func declareNavigationEnhancementsStyles() {
 	)
 	declareGlobal(".nav-bottom",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("display", "none!important")),
+	)
+	// UXBLIND-065: the collapsed rail's native title renders on mouse hover
+	// only, never on keyboard focus. Paint the registry label from
+	// data-nav-tooltip beside the focused item, and release the rail's own
+	// overflow clipping while focus is inside it so the bubble can overlay
+	// the content column. Desktop only: the narrow drawer renders expanded
+	// (NavigationSidebar) and keeps its own scroll owner.
+	declareGlobal(".sidebar.collapsed .nav-link,.sidebar.collapsed .nav-group-summary",
+		gwccss.Position.Relative,
+	)
+	declareGlobal(".sidebar.collapsed:focus-within",
+		mediaRule(gwccss.MinW(761),
+			gwccss.Raw("overflow", "visible"),
+		),
+	)
+	declareGlobal(".sidebar.collapsed .nav-link:focus-visible::after,.sidebar.collapsed .nav-group-summary:focus-visible::after",
+		mediaRule(gwccss.MinW(761),
+			gwccss.Raw("content", "attr(data-nav-tooltip)"),
+			gwccss.Position.Absolute,
+			gwccss.Raw("inset-inline-start", "calc(100% + 8px)"),
+			gwccss.Raw("top", "50%"),
+			gwccss.Raw("transform", "translateY(-50%)"),
+			gwccss.Raw("white-space", "nowrap"),
+			gwccss.Raw("max-width", "240px"),
+			gwccss.Raw("overflow", "hidden"),
+			gwccss.Raw("text-overflow", "ellipsis"),
+			gwccss.Raw("background", "var(--surface)"),
+			gwccss.Raw("color", "var(--ink)"),
+			gwccss.Raw("border", "1px solid var(--line)"),
+			gwccss.Raw("border-radius", "var(--hcm-radius-control)"),
+			gwccss.Raw("box-shadow", "var(--hcm-shadow-raised)"),
+			gwccss.Raw("padding", "4px 10px"),
+			gwccss.Raw("font-size", "var(--hcm-type-label)"),
+			gwccss.Raw("line-height", "var(--hcm-leading-tight)"),
+			gwccss.ZIndex(40),
+			gwccss.Raw("pointer-events", "none"),
+		),
+	)
+	declareGlobal(".sidebar.collapsed .nav-link:focus-visible::after,.sidebar.collapsed .nav-group-summary:focus-visible::after",
+		mediaRule(gwccss.RawMedia("(forced-colors:active)"),
+			gwccss.Bg(gwccss.Color("Canvas")),
+			gwccss.TextColor(gwccss.Color("CanvasText")),
+			gwccss.BorderColor(gwccss.Color("CanvasText")),
+		),
 	)
 }
 

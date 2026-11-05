@@ -116,8 +116,14 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 	m := props.Model
 	t := func(key string) string { return modadminText(m, key) }
 	channel := props.Channel
+	// CHATUX-050: the workspace panel opened from a channel keeps the channel
+	// and shows only the built-in lists where it differs (modBuiltinSection);
+	// the workspace's own page still lists everything.
+	diffMode := props.Workspace && props.Channel != ""
 	if props.Workspace {
-		channel = ""
+		if !diffMode {
+			channel = ""
+		}
 	} else if channel == "" {
 		channel = m.SelectedID
 	}
@@ -137,10 +143,13 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 			props.Switch(request)
 		}
 	}
+	// In the channel's diff the built-in rows are the channel's own switches,
+	// so a flip writes the channel's row; custom rows stay workspace-level.
+	diffBuiltin := func(def chatfilter.Definition) bool { return diffMode && def.Product }
 	toggle := ui.UseEvent(func(e ui.MouseEvent) {
 		_, id, _ := eventAction(e)
 		if def, ok := ModDefinitionByID(props.Definitions, id); ok {
-			switchRequest(ModToggleRequest(def, props.Enablements, channel, props.Workspace, now))
+			switchRequest(ModToggleRequest(def, props.Enablements, channel, props.Workspace && !diffBuiltin(def), now))
 		}
 	})
 	action := ui.UseEvent(func(e ui.ChangeEvent) {
@@ -148,7 +157,7 @@ func modAdminPanel(props ModAdminProps) ui.Node {
 		def, ok := ModDefinitionByID(props.Definitions, id)
 		next := domValue("modadmin-act-" + modSafeID(id))
 		if ok && def.Product && modContains(ModBuiltinActions, next) {
-			switchRequest(ModActionRequest(def, channel, props.Workspace, next))
+			switchRequest(ModActionRequest(def, channel, props.Workspace && !diffBuiltin(def), next))
 		}
 	})
 	reset := ui.UseEvent(func(e ui.MouseEvent) {
@@ -422,12 +431,19 @@ func modSwitchButton(m Model, on, disabled bool, ruleID, labelledBy, describedBy
 
 func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel string, now time.Time, h modHandlers) ui.Node {
 	t := func(key string) string { return modadminText(m, key) }
+	// CHATUX-050: the workspace panel opened from a channel shows only the
+	// lists where the channel differs, in the channel grid's own shape, and
+	// "Same as workspace" when none does.
+	diff := props.Workspace && channel != ""
+	shapeWS := props.Workspace && !diff
 	hint := t("b_hint") + " " + t("b_hint_ch")
-	if props.Workspace {
+	if diff {
+		hint = t("b_hint_diff")
+	} else if props.Workspace {
 		hint = t("b_hint") + " " + t("b_hint_ws")
 	}
 	section := []ui.Node{html.H4(html.Props{Text: t("b_title")}), html.P(html.Props{Class: "chatmod-hint", Text: hint})}
-	if !props.Workspace {
+	if !shapeWS {
 		// A channel's grid has two columns: what the workspace sets, read only, and
 		// this channel's own switch (CHATUX-041).
 		section = append(section, html.Div(html.Props{Class: "chatmod-cols", Aria: map[string]string{"hidden": "true"}},
@@ -439,9 +455,12 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 		headingID := "modadmin-g-" + language
 		var items []ui.Node
 		for _, d := range lists.Builtin[language] {
+			state := ModResolve(d, props.Enablements, channel, now)
+			if diff && !state.Differs {
+				continue
+			}
 			row++
 			n := strconv.Itoa(row)
-			state := ModResolve(d, props.Enablements, channel, now)
 			name := modListName(m, d)
 			more := []ui.Node{}
 			if state.On {
@@ -458,12 +477,12 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 					more = append(more, html.P(html.Props{Class: "chatmod-hint chatmod-example", Dir: "auto"}, RenderFilterMaskedText(m, t("ex_mask"))))
 				}
 			}
-			if !props.Workspace && state.HasOverride && state.Differs {
+			if !shapeWS && state.HasOverride && state.Differs {
 				more = append(more, html.Button(html.Props{Type: "button", Class: "chatmod-link", Text: t("reset"), OnClick: h.reset, Disabled: props.Busy || props.Switch == nil,
 					Aria: map[string]string{"label": t("reset") + ": " + name}, Data: map[string]string{"action": "modadmin-reset", "id": d.ID}}))
 			}
 			main := []ui.Node{html.Span(html.Props{ID: "modadmin-n-" + n, Class: "chatmod-name", Dir: "auto", Text: name})}
-			if !props.Workspace {
+			if !shapeWS {
 				// The workspace's setting, read only; the switch beside it is this channel's.
 				workspace := t("off")
 				if state.WorkspaceOn {
@@ -474,12 +493,18 @@ func modBuiltinSection(m Model, props ModAdminProps, lists ModLists, channel str
 			main = append(main, modSwitchButton(m, state.On, props.Busy || props.Switch == nil, d.ID, "modadmin-n-"+n+" "+headingID, "modadmin-s-"+n, h.toggle))
 			items = append(items, html.Li(html.Props{Class: "chatmod-row"},
 				html.Div(html.Props{Class: "chatmod-row-main"}, main...),
-				html.Span(html.Props{ID: "modadmin-s-" + n, Class: "chatmod-state", Text: t(ModStatusKey(state, props.Workspace))}),
+				html.Span(html.Props{ID: "modadmin-s-" + n, Class: "chatmod-state", Text: t(ModStatusKey(state, shapeWS))}),
 				html.Div(html.Props{Class: "chatmod-row-more"}, more...)))
+		}
+		if diff && len(items) == 0 {
+			continue
 		}
 		section = append(section, html.Div(html.Props{Class: "chatmod-group"},
 			html.H5(html.Props{ID: headingID, Lang: language, Dir: direction(language), Text: modLanguageName(language)}),
 			html.Ul(html.Props{Class: "chatmod-list"}, items...)))
+	}
+	if diff && row == 0 {
+		section = append(section, html.P(html.Props{Class: "chatmod-same", Text: t("same_ws")}))
 	}
 	return html.Section(html.Props{Class: "chatmod-section"}, section...)
 }

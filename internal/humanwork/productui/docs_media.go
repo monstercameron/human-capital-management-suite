@@ -29,6 +29,7 @@ const (
 
 // DocumentAttachment is one file attached to a document.
 type DocumentAttachment struct {
+	_                                   incomparable
 	ID, DocumentID, Filename, MediaType string
 	Size                                int64
 	Width, Height, Pages                int
@@ -199,6 +200,7 @@ func docsMediaLinkNode(view View, destination, label string) (ui.Node, bool) {
 }
 
 type docsAttachmentImageProps struct {
+	_                           incomparable
 	Locale, DocumentID, ID, Alt string
 	Media                       *DocumentMediaPort
 }
@@ -274,6 +276,7 @@ func docsAttachmentImage(props docsAttachmentImageProps) ui.Node {
 }
 
 type docsAttachmentCardProps struct {
+	_                             incomparable
 	Locale, DocumentID, ID, Label string
 	Media                         *DocumentMediaPort
 }

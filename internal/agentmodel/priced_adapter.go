@@ -40,12 +40,8 @@ func (a *PricedAdapter) Invoke(ctx context.Context, request ModelRequest) (Model
 		return ModelResult{}, err
 	}
 	result, err := a.adapter.Invoke(ctx, request)
-	if result.Usage.TotalTokens > 0 {
-		cost, costErr := a.pricing.Cost(a.selection, result.Usage)
-		if costErr != nil {
-			return ModelResult{}, costErr
-		}
-		result.Usage.CostMicros = cost
+	if costErr := stampCost(a.pricing, a.selection, &result); costErr != nil {
+		return ModelResult{}, costErr
 	}
 	return result, err
 }

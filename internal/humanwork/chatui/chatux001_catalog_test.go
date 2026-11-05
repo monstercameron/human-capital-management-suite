@@ -51,18 +51,23 @@ func TestTodo_CHATUX_001_Browser_RealCatalog(t *testing.T) {
 
 			header := page(m)
 			noKeys("the page", header)
+			// CHATUX-050: the key reads as printed on the reader's keyboard.
+			shortcut := "Ctrl+K"
+			if locale == "de-DE" {
+				shortcut = "Strg+K"
+			}
 			for _, text := range []string{
 				`placeholder="` + want.search + `"`,
 				`aria-label="` + want.search + `"`,
 				`aria-label="` + want.pinned + `"`,
 				`aria-label="` + want.members + `"`,
-				`>Ctrl+K</kbd>`,
+				`>` + shortcut + `</kbd>`,
 			} {
 				if !strings.Contains(header, text) {
 					t.Errorf("the header or the search box lacks %s", text)
 				}
 			}
-			if !strings.Contains(header, `title="`+want.search+` (Ctrl+K)"`) {
+			if !strings.Contains(header, `title="`+want.search+` (`+shortcut+`)"`) {
 				t.Errorf("the search button's tooltip is not %q with its key", want.search)
 			}
 

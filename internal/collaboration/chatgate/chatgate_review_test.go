@@ -79,12 +79,12 @@ func TestTodo_CHATGATE_003_FieldError(t *testing.T) {
 }
 func TestTodo_CHATGATE_002_Bumps(t *testing.T) {
 	_, _, base := fixture(t, "automatic")
-	base.Version = Version{1, 2, 3}
+	base.Version = Version{Major: 1, Minor: 2, Patch: 3}
 	for _, test := range []struct {
 		name string
 		edit func(*Definition)
 		want Version
-	}{{"wording", func(d *Definition) { d.Fields[0].Label = "Your team" }, Version{1, 2, 4}}, {"kind", func(d *Definition) { d.Fields[0].Kind = "short_text" }, Version{2, 0, 0}}, {"optional option", func(d *Definition) { d.Fields[0].Options = append(d.Fields[0].Options, "People") }, Version{1, 3, 0}}, {"removed option", func(d *Definition) { d.Fields[0].Options = d.Fields[0].Options[:1] }, Version{2, 0, 0}}, {"required", func(d *Definition) { d.Fields = append(d.Fields, Field{ID: "new", Required: true}) }, Version{2, 0, 0}}} {
+	}{{"wording", func(d *Definition) { d.Fields[0].Label = "Your team" }, Version{Major: 1, Minor: 2, Patch: 4}}, {"kind", func(d *Definition) { d.Fields[0].Kind = "short_text" }, Version{Major: 2, Minor: 0, Patch: 0}}, {"optional option", func(d *Definition) { d.Fields[0].Options = append(d.Fields[0].Options, "People") }, Version{Major: 1, Minor: 3, Patch: 0}}, {"removed option", func(d *Definition) { d.Fields[0].Options = d.Fields[0].Options[:1] }, Version{Major: 2, Minor: 0, Patch: 0}}, {"required", func(d *Definition) { d.Fields = append(d.Fields, Field{ID: "new", Required: true}) }, Version{Major: 2, Minor: 0, Patch: 0}}} {
 		t.Run(test.name, func(t *testing.T) {
 			b, _ := json.Marshal(base)
 			var next Definition

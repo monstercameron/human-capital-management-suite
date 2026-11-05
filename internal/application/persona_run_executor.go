@@ -218,7 +218,7 @@ func (e *personaAdmittedRunExecutor) Start(ctx context.Context, admission agentr
 func personaRunStoredFailure(run runstate.Run) error {
 	kind := ErrPersonaRunOutputRejected
 	switch run.TerminalCode {
-	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
+	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE", "MODEL_ROUTE_EXPIRED":
 		kind = ErrPersonaRunExecutorUnavailable
 	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
@@ -245,13 +245,20 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	}
 	defer e.startLeaseRenewal(ctx, claimed)()
 	ctx = WithPersonaBackgroundAdmission(ctx, admission)
+	// AGENTCOST-001: the run's model turns record one ledger line per call
+	// into this ledger; newly recorded lines seal into the run below.
+	ledger := &agentmodel.CallLedger{}
+	ctx = agentmodel.WithCallLedger(ctx, ledger)
 	noteStep := personaRunStepNoter(ctx, admission)
 	noteStep(personaStepReadingQuestion, "")
 	done = agentUXSpeedStage(ctx, "build_model_work")
 	work, err := e.work.BuildPersonaRunModelWork(ctx, admission, claimed)
 	done()
 	if err != nil {
-		return e.fail(ctx, claimed, "CONTEXT_UNAVAILABLE", err)
+		// A route that lapsed or is invalid ends the run with its own code
+		// (AGENTUX-082, lane R4), not as a permission failure: the asker is
+		// told the agent is unavailable and who can fix it.
+		return e.fail(ctx, claimed, personaRunModelWorkFailureCode(err), err)
 	}
 	if work.Request.Task.TenantID != claimed.TenantID || work.Request.Task.TaskID != claimed.ID || work.Request.Task.AgentID != claimed.AgentDigest {
 		return e.fail(ctx, claimed, "MODEL_BINDING_INVALID", ErrPersonaRunOutputRejected)
@@ -278,10 +285,14 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 	// cites are listed as its sources at delivery.
 	var searchedDocuments []personaQualitySearchedDocument
 	searchRan, searchFoundNothing := false, false
-	modelResult, claimed, err := e.executeQualityModel(ctx, claimed, work.Request, admission)
+	answerCtx := agentmodel.WithCallContext(ctx, personaRunCallContext(admission, claimed, personaRunAnswerCallSite, agentmodel.CallStageAnswer))
+	modelResult, claimed, err := e.executeQualityModel(answerCtx, claimed, work.Request, admission)
 	done()
 	if err != nil {
 		return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, err), err)
+	}
+	if claimed, err = e.sealModelCalls(ctx, claimed, ledger); err != nil {
+		return fmt.Errorf("%w: seal model calls: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	if modelResult.Result.Failure != nil || modelResult.Result.Refusal != nil {
 		if modelResult.Result.Failure != nil {
@@ -394,10 +405,14 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		continuation.Request.Model.Tools = nil
 		noteStep(personaStepWriting, "")
 		done = agentUXSpeedStage(ctx, "model_execute")
-		modelResult, claimed, err = e.executeQualityModel(ctx, claimed, continuation.Request, admission)
+		continuationCtx := agentmodel.WithCallContext(ctx, personaRunCallContext(admission, claimed, personaRunContinuationCallSite, agentmodel.CallStageToolContinuation))
+		modelResult, claimed, err = e.executeQualityModel(continuationCtx, claimed, continuation.Request, admission)
 		done()
 		if err != nil {
 			return e.fail(ctx, claimed, personaQualityModelFailureCode(modelResult, err), err)
+		}
+		if claimed, err = e.sealModelCalls(ctx, claimed, ledger); err != nil {
+			return fmt.Errorf("%w: seal model calls: %v", ErrPersonaRunExecutorUnavailable, err)
 		}
 		if modelResult.Result.Failure != nil || modelResult.Result.Refusal != nil {
 			if modelResult.Result.Failure != nil {
@@ -447,6 +462,10 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		if regenErr != nil {
 			done()
 			return regenErr
+		}
+		if claimed, err = e.sealModelCalls(ctx, claimed, ledger); err != nil {
+			done()
+			return fmt.Errorf("%w: seal model calls: %v", ErrPersonaRunExecutorUnavailable, err)
 		}
 		if again {
 			modelResult.Result = regenerated
@@ -596,7 +615,7 @@ func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run,
 	}
 	kind := ErrPersonaRunOutputRejected
 	switch code {
-	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
+	case "CONTEXT_UNAVAILABLE", "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE", "MODEL_ROUTE_EXPIRED":
 		kind = ErrPersonaRunExecutorUnavailable
 	case "MODEL_UNAVAILABLE", "MODEL_REFUSED_OR_INCOMPLETE", "MODEL_RESULT_INVALID", "MODEL_TIMEOUT", "MODEL_LIMIT", "ANSWER_INTERRUPTED":
 		kind = ErrPersonaRunModelFailure
@@ -607,7 +626,7 @@ func (e *personaAdmittedRunExecutor) fail(ctx context.Context, run runstate.Run,
 	// A lapsed or invalid model route is the one cause named in the log without the
 	// debug switch: it is policy state, not business data, and an operator needs it
 	// to know which agent to renew.
-	if errors.Is(cause, errPersonaModelRouteUnavailable) || errors.Is(cause, agentmodel.ErrNoEligibleModel) {
+	if errors.Is(cause, errPersonaModelRouteUnavailable) || errors.Is(cause, errPersonaModelRouteExpired) || errors.Is(cause, agentmodel.ErrNoEligibleModel) {
 		slog.WarnContext(ctx, "hcmnext.persona_model_route_unavailable", "run_id", run.ID, "tenant_id", run.TenantID, "agent_id", run.AgentID, "agent_version", run.AgentVersion, "cause", cause.Error())
 	}
 	// Details may contain business data and are deliberately not exposed unless
@@ -623,7 +642,7 @@ func personaRunFailureRefusal(code string, cause error) runstate.FailureRefusal 
 	switch code {
 	case "CONTEXT_UNAVAILABLE":
 		gate = runstate.FailureGateAuthority
-	case "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE":
+	case "MODEL_BINDING_INVALID", "MODEL_ROUTE_UNAVAILABLE", "MODEL_ROUTE_EXPIRED":
 		gate = runstate.FailureGateModelRoute
 	case "MODEL_UNAVAILABLE":
 		gate = runstate.FailureGateModelCall

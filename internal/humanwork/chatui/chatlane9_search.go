@@ -19,10 +19,12 @@ func chatsearchAgentAvatar(m Model, row chatsearch.Row, conversation Conversatio
 	ids := []string{row.AuthorID}
 	isAgent := row.Kind == chatsearch.AgentAnswer || row.ByAgent
 	var stored agenticon.Value
+	var storedURL string
 	if known && conversation.Agent && (row.AuthorID == "" || row.AuthorID == conversation.AgentID) {
 		isAgent = true
 		ids = append(ids, conversation.AgentID)
 		stored = conversation.Icon
+		storedURL = conversation.IconImageURL
 	}
 	for _, member := range m.Members {
 		if member.Agent && member.ID == row.AuthorID {
@@ -30,12 +32,15 @@ func chatsearchAgentAvatar(m Model, row chatsearch.Row, conversation Conversatio
 			if !stored.Valid() {
 				stored = member.Icon
 			}
+			if storedURL == "" {
+				storedURL = member.IconImageURL
+			}
 		}
 	}
 	if !isAgent {
 		return nil, false
 	}
-	return agentDMAvatar(name, class+" agent-dm-avatar", agentIconFor(m, ids, name, stored)), true
+	return agentAvatar(name, class+" agent-dm-avatar", agentIconImageFor(m, ids, name, storedURL), agentIconFor(m, ids, name, stored)), true
 }
 
 // chatsearchRecentMax is how many recent searches the list under the box shows.

@@ -26,6 +26,7 @@ type DocumentChatPersonReference struct {
 // DocumentChatMessageReference contains message details only when Readable;
 // otherwise the opaque Token can be retained without revealing message data.
 type DocumentChatMessageReference struct {
+	_                                                                      incomparable
 	Token, ConversationID, ChannelName, PostID, AuthorID, AuthorName, Body string
 	CreatedAt                                                              time.Time
 	Readable                                                               bool

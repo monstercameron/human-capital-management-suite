@@ -1151,6 +1151,3079 @@ func (x *NodeExecution) GetTraceId() string {
 	return ""
 }
 
+// AuthoredSchemaRef mirrors workflow.SchemaRef.
+type AuthoredSchemaRef struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SchemaId         string                 `protobuf:"bytes,1,opt,name=schema_id,json=schemaId,proto3" json:"schema_id,omitempty"`
+	Version          uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	ProtobufFullName string                 `protobuf:"bytes,3,opt,name=protobuf_full_name,json=protobufFullName,proto3" json:"protobuf_full_name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AuthoredSchemaRef) Reset() {
+	*x = AuthoredSchemaRef{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredSchemaRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredSchemaRef) ProtoMessage() {}
+
+func (x *AuthoredSchemaRef) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredSchemaRef.ProtoReflect.Descriptor instead.
+func (*AuthoredSchemaRef) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *AuthoredSchemaRef) GetSchemaId() string {
+	if x != nil {
+		return x.SchemaId
+	}
+	return ""
+}
+
+func (x *AuthoredSchemaRef) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *AuthoredSchemaRef) GetProtobufFullName() string {
+	if x != nil {
+		return x.ProtobufFullName
+	}
+	return ""
+}
+
+// AuthoredVersionedRef mirrors workflow.VersionedRef.
+type AuthoredVersionedRef struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredVersionedRef) Reset() {
+	*x = AuthoredVersionedRef{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredVersionedRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredVersionedRef) ProtoMessage() {}
+
+func (x *AuthoredVersionedRef) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredVersionedRef.ProtoReflect.Descriptor instead.
+func (*AuthoredVersionedRef) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *AuthoredVersionedRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuthoredVersionedRef) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+// AuthoredValueType mirrors workflow.ValueType, recursively.
+type AuthoredValueType struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Kind            string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Nullable        bool                   `protobuf:"varint,2,opt,name=nullable,proto3" json:"nullable,omitempty"`
+	Brand           string                 `protobuf:"bytes,3,opt,name=brand,proto3" json:"brand,omitempty"`
+	Classification  string                 `protobuf:"bytes,4,opt,name=classification,proto3" json:"classification,omitempty"`
+	EnumRef         string                 `protobuf:"bytes,5,opt,name=enum_ref,json=enumRef,proto3" json:"enum_ref,omitempty"`
+	MessageRef      string                 `protobuf:"bytes,6,opt,name=message_ref,json=messageRef,proto3" json:"message_ref,omitempty"`
+	ReferenceTarget string                 `protobuf:"bytes,7,opt,name=reference_target,json=referenceTarget,proto3" json:"reference_target,omitempty"`
+	Element         *AuthoredValueType     `protobuf:"bytes,8,opt,name=element,proto3" json:"element,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AuthoredValueType) Reset() {
+	*x = AuthoredValueType{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredValueType) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredValueType) ProtoMessage() {}
+
+func (x *AuthoredValueType) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredValueType.ProtoReflect.Descriptor instead.
+func (*AuthoredValueType) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AuthoredValueType) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetNullable() bool {
+	if x != nil {
+		return x.Nullable
+	}
+	return false
+}
+
+func (x *AuthoredValueType) GetBrand() string {
+	if x != nil {
+		return x.Brand
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetEnumRef() string {
+	if x != nil {
+		return x.EnumRef
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetMessageRef() string {
+	if x != nil {
+		return x.MessageRef
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetReferenceTarget() string {
+	if x != nil {
+		return x.ReferenceTarget
+	}
+	return ""
+}
+
+func (x *AuthoredValueType) GetElement() *AuthoredValueType {
+	if x != nil {
+		return x.Element
+	}
+	return nil
+}
+
+// AuthoredField mirrors workflow.Field.
+type AuthoredField struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Path              string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Type              *AuthoredValueType     `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	MaxClassification string                 `protobuf:"bytes,3,opt,name=max_classification,json=maxClassification,proto3" json:"max_classification,omitempty"`
+	Label             string                 `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	Description       string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	Group             string                 `protobuf:"bytes,6,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AuthoredField) Reset() {
+	*x = AuthoredField{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredField) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredField) ProtoMessage() {}
+
+func (x *AuthoredField) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredField.ProtoReflect.Descriptor instead.
+func (*AuthoredField) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AuthoredField) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *AuthoredField) GetType() *AuthoredValueType {
+	if x != nil {
+		return x.Type
+	}
+	return nil
+}
+
+func (x *AuthoredField) GetMaxClassification() string {
+	if x != nil {
+		return x.MaxClassification
+	}
+	return ""
+}
+
+func (x *AuthoredField) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *AuthoredField) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AuthoredField) GetGroup() string {
+	if x != nil {
+		return x.Group
+	}
+	return ""
+}
+
+// AuthoredSource mirrors workflow.Source.
+type AuthoredSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	NodeId        string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ContextKind   string                 `protobuf:"bytes,3,opt,name=context_kind,json=contextKind,proto3" json:"context_kind,omitempty"`
+	VariableName  string                 `protobuf:"bytes,4,opt,name=variable_name,json=variableName,proto3" json:"variable_name,omitempty"`
+	Path          string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	Type          *AuthoredValueType     `protobuf:"bytes,6,opt,name=type,proto3" json:"type,omitempty"`
+	Constant      string                 `protobuf:"bytes,7,opt,name=constant,proto3" json:"constant,omitempty"`
+	ParameterKey  string                 `protobuf:"bytes,8,opt,name=parameter_key,json=parameterKey,proto3" json:"parameter_key,omitempty"`
+	ParameterMode string                 `protobuf:"bytes,9,opt,name=parameter_mode,json=parameterMode,proto3" json:"parameter_mode,omitempty"`
+	MaxAgeSeconds uint64                 `protobuf:"varint,10,opt,name=max_age_seconds,json=maxAgeSeconds,proto3" json:"max_age_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredSource) Reset() {
+	*x = AuthoredSource{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredSource) ProtoMessage() {}
+
+func (x *AuthoredSource) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredSource.ProtoReflect.Descriptor instead.
+func (*AuthoredSource) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *AuthoredSource) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetContextKind() string {
+	if x != nil {
+		return x.ContextKind
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetVariableName() string {
+	if x != nil {
+		return x.VariableName
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetType() *AuthoredValueType {
+	if x != nil {
+		return x.Type
+	}
+	return nil
+}
+
+func (x *AuthoredSource) GetConstant() string {
+	if x != nil {
+		return x.Constant
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetParameterKey() string {
+	if x != nil {
+		return x.ParameterKey
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetParameterMode() string {
+	if x != nil {
+		return x.ParameterMode
+	}
+	return ""
+}
+
+func (x *AuthoredSource) GetMaxAgeSeconds() uint64 {
+	if x != nil {
+		return x.MaxAgeSeconds
+	}
+	return 0
+}
+
+// AuthoredMapping mirrors workflow.Mapping.
+type AuthoredMapping struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Target              string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Source              *AuthoredSource        `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	DeclassificationRef string                 `protobuf:"bytes,3,opt,name=declassification_ref,json=declassificationRef,proto3" json:"declassification_ref,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AuthoredMapping) Reset() {
+	*x = AuthoredMapping{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredMapping) ProtoMessage() {}
+
+func (x *AuthoredMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredMapping.ProtoReflect.Descriptor instead.
+func (*AuthoredMapping) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AuthoredMapping) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *AuthoredMapping) GetSource() *AuthoredSource {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *AuthoredMapping) GetDeclassificationRef() string {
+	if x != nil {
+		return x.DeclassificationRef
+	}
+	return ""
+}
+
+// AuthoredContextRequirement mirrors workflow.ContextRequirement.
+type AuthoredContextRequirement struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Kind                  string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	FieldPaths            []string               `protobuf:"bytes,2,rep,name=field_paths,json=fieldPaths,proto3" json:"field_paths,omitempty"`
+	Purpose               string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	MaximumClassification string                 `protobuf:"bytes,4,opt,name=maximum_classification,json=maximumClassification,proto3" json:"maximum_classification,omitempty"`
+	MaxAgeSeconds         uint64                 `protobuf:"varint,5,opt,name=max_age_seconds,json=maxAgeSeconds,proto3" json:"max_age_seconds,omitempty"`
+	RequiredWatermarks    []string               `protobuf:"bytes,6,rep,name=required_watermarks,json=requiredWatermarks,proto3" json:"required_watermarks,omitempty"`
+	Pinned                bool                   `protobuf:"varint,7,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	MissingBehavior       string                 `protobuf:"bytes,8,opt,name=missing_behavior,json=missingBehavior,proto3" json:"missing_behavior,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredContextRequirement) Reset() {
+	*x = AuthoredContextRequirement{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredContextRequirement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredContextRequirement) ProtoMessage() {}
+
+func (x *AuthoredContextRequirement) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredContextRequirement.ProtoReflect.Descriptor instead.
+func (*AuthoredContextRequirement) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *AuthoredContextRequirement) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *AuthoredContextRequirement) GetFieldPaths() []string {
+	if x != nil {
+		return x.FieldPaths
+	}
+	return nil
+}
+
+func (x *AuthoredContextRequirement) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *AuthoredContextRequirement) GetMaximumClassification() string {
+	if x != nil {
+		return x.MaximumClassification
+	}
+	return ""
+}
+
+func (x *AuthoredContextRequirement) GetMaxAgeSeconds() uint64 {
+	if x != nil {
+		return x.MaxAgeSeconds
+	}
+	return 0
+}
+
+func (x *AuthoredContextRequirement) GetRequiredWatermarks() []string {
+	if x != nil {
+		return x.RequiredWatermarks
+	}
+	return nil
+}
+
+func (x *AuthoredContextRequirement) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *AuthoredContextRequirement) GetMissingBehavior() string {
+	if x != nil {
+		return x.MissingBehavior
+	}
+	return ""
+}
+
+// AuthoredCapabilityRef mirrors workflow.CapabilityRef.
+type AuthoredCapabilityRef struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version               uint32                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	OperationMode         string                 `protobuf:"bytes,3,opt,name=operation_mode,json=operationMode,proto3" json:"operation_mode,omitempty"`
+	AuthorityScopes       []string               `protobuf:"bytes,4,rep,name=authority_scopes,json=authorityScopes,proto3" json:"authority_scopes,omitempty"`
+	IdempotencyKeyMapping string                 `protobuf:"bytes,5,opt,name=idempotency_key_mapping,json=idempotencyKeyMapping,proto3" json:"idempotency_key_mapping,omitempty"`
+	EffectBinding         string                 `protobuf:"bytes,6,opt,name=effect_binding,json=effectBinding,proto3" json:"effect_binding,omitempty"`
+	ExpectedVersions      []string               `protobuf:"bytes,7,rep,name=expected_versions,json=expectedVersions,proto3" json:"expected_versions,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredCapabilityRef) Reset() {
+	*x = AuthoredCapabilityRef{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredCapabilityRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredCapabilityRef) ProtoMessage() {}
+
+func (x *AuthoredCapabilityRef) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredCapabilityRef.ProtoReflect.Descriptor instead.
+func (*AuthoredCapabilityRef) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AuthoredCapabilityRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuthoredCapabilityRef) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *AuthoredCapabilityRef) GetOperationMode() string {
+	if x != nil {
+		return x.OperationMode
+	}
+	return ""
+}
+
+func (x *AuthoredCapabilityRef) GetAuthorityScopes() []string {
+	if x != nil {
+		return x.AuthorityScopes
+	}
+	return nil
+}
+
+func (x *AuthoredCapabilityRef) GetIdempotencyKeyMapping() string {
+	if x != nil {
+		return x.IdempotencyKeyMapping
+	}
+	return ""
+}
+
+func (x *AuthoredCapabilityRef) GetEffectBinding() string {
+	if x != nil {
+		return x.EffectBinding
+	}
+	return ""
+}
+
+func (x *AuthoredCapabilityRef) GetExpectedVersions() []string {
+	if x != nil {
+		return x.ExpectedVersions
+	}
+	return nil
+}
+
+// AuthoredDecisionRoute mirrors workflow.DecisionRoute.
+type AuthoredDecisionRoute struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Predicate     string                 `protobuf:"bytes,2,opt,name=predicate,proto3" json:"predicate,omitempty"`
+	Precedence    int64                  `protobuf:"varint,3,opt,name=precedence,proto3" json:"precedence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredDecisionRoute) Reset() {
+	*x = AuthoredDecisionRoute{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredDecisionRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredDecisionRoute) ProtoMessage() {}
+
+func (x *AuthoredDecisionRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredDecisionRoute.ProtoReflect.Descriptor instead.
+func (*AuthoredDecisionRoute) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *AuthoredDecisionRoute) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionRoute) GetPredicate() string {
+	if x != nil {
+		return x.Predicate
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionRoute) GetPrecedence() int64 {
+	if x != nil {
+		return x.Precedence
+	}
+	return 0
+}
+
+// AuthoredDecisionSpec mirrors workflow.DecisionSpec.
+type AuthoredDecisionSpec struct {
+	state              protoimpl.MessageState   `protogen:"open.v1"`
+	EvaluatorRef       string                   `protobuf:"bytes,1,opt,name=evaluator_ref,json=evaluatorRef,proto3" json:"evaluator_ref,omitempty"`
+	EvaluatorVersion   uint32                   `protobuf:"varint,2,opt,name=evaluator_version,json=evaluatorVersion,proto3" json:"evaluator_version,omitempty"`
+	RuleRef            string                   `protobuf:"bytes,3,opt,name=rule_ref,json=ruleRef,proto3" json:"rule_ref,omitempty"`
+	RuleVersion        string                   `protobuf:"bytes,4,opt,name=rule_version,json=ruleVersion,proto3" json:"rule_version,omitempty"`
+	InputDigestProfile string                   `protobuf:"bytes,5,opt,name=input_digest_profile,json=inputDigestProfile,proto3" json:"input_digest_profile,omitempty"`
+	Routes             []*AuthoredDecisionRoute `protobuf:"bytes,6,rep,name=routes,proto3" json:"routes,omitempty"`
+	DefaultRoute       string                   `protobuf:"bytes,7,opt,name=default_route,json=defaultRoute,proto3" json:"default_route,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AuthoredDecisionSpec) Reset() {
+	*x = AuthoredDecisionSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredDecisionSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredDecisionSpec) ProtoMessage() {}
+
+func (x *AuthoredDecisionSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredDecisionSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredDecisionSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *AuthoredDecisionSpec) GetEvaluatorRef() string {
+	if x != nil {
+		return x.EvaluatorRef
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionSpec) GetEvaluatorVersion() uint32 {
+	if x != nil {
+		return x.EvaluatorVersion
+	}
+	return 0
+}
+
+func (x *AuthoredDecisionSpec) GetRuleRef() string {
+	if x != nil {
+		return x.RuleRef
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionSpec) GetRuleVersion() string {
+	if x != nil {
+		return x.RuleVersion
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionSpec) GetInputDigestProfile() string {
+	if x != nil {
+		return x.InputDigestProfile
+	}
+	return ""
+}
+
+func (x *AuthoredDecisionSpec) GetRoutes() []*AuthoredDecisionRoute {
+	if x != nil {
+		return x.Routes
+	}
+	return nil
+}
+
+func (x *AuthoredDecisionSpec) GetDefaultRoute() string {
+	if x != nil {
+		return x.DefaultRoute
+	}
+	return ""
+}
+
+// AuthoredTaintInput mirrors workflow.TaintInput.
+type AuthoredTaintInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	Level         string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredTaintInput) Reset() {
+	*x = AuthoredTaintInput{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredTaintInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredTaintInput) ProtoMessage() {}
+
+func (x *AuthoredTaintInput) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredTaintInput.ProtoReflect.Descriptor instead.
+func (*AuthoredTaintInput) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AuthoredTaintInput) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AuthoredTaintInput) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+// AuthoredTransformLookup mirrors workflow.TransformLookup.
+type AuthoredTransformLookup struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Ref            string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	SnapshotDigest string                 `protobuf:"bytes,2,opt,name=snapshot_digest,json=snapshotDigest,proto3" json:"snapshot_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthoredTransformLookup) Reset() {
+	*x = AuthoredTransformLookup{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredTransformLookup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredTransformLookup) ProtoMessage() {}
+
+func (x *AuthoredTransformLookup) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredTransformLookup.ProtoReflect.Descriptor instead.
+func (*AuthoredTransformLookup) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AuthoredTransformLookup) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *AuthoredTransformLookup) GetSnapshotDigest() string {
+	if x != nil {
+		return x.SnapshotDigest
+	}
+	return ""
+}
+
+// AuthoredTransformLimits mirrors workflow.TransformLimits.
+type AuthoredTransformLimits struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	MaxInputBytes  uint64                 `protobuf:"varint,1,opt,name=max_input_bytes,json=maxInputBytes,proto3" json:"max_input_bytes,omitempty"`
+	MaxOutputBytes uint64                 `protobuf:"varint,2,opt,name=max_output_bytes,json=maxOutputBytes,proto3" json:"max_output_bytes,omitempty"`
+	MaxSteps       uint64                 `protobuf:"varint,3,opt,name=max_steps,json=maxSteps,proto3" json:"max_steps,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthoredTransformLimits) Reset() {
+	*x = AuthoredTransformLimits{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredTransformLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredTransformLimits) ProtoMessage() {}
+
+func (x *AuthoredTransformLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredTransformLimits.ProtoReflect.Descriptor instead.
+func (*AuthoredTransformLimits) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AuthoredTransformLimits) GetMaxInputBytes() uint64 {
+	if x != nil {
+		return x.MaxInputBytes
+	}
+	return 0
+}
+
+func (x *AuthoredTransformLimits) GetMaxOutputBytes() uint64 {
+	if x != nil {
+		return x.MaxOutputBytes
+	}
+	return 0
+}
+
+func (x *AuthoredTransformLimits) GetMaxSteps() uint64 {
+	if x != nil {
+		return x.MaxSteps
+	}
+	return 0
+}
+
+// AuthoredTransformSpec mirrors workflow.TransformSpec.
+type AuthoredTransformSpec struct {
+	state                protoimpl.MessageState     `protogen:"open.v1"`
+	TransformRef         string                     `protobuf:"bytes,1,opt,name=transform_ref,json=transformRef,proto3" json:"transform_ref,omitempty"`
+	Version              uint32                     `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	ProgramRef           *AuthoredVersionedRef      `protobuf:"bytes,3,opt,name=program_ref,json=programRef,proto3" json:"program_ref,omitempty"`
+	InlineCode           string                     `protobuf:"bytes,4,opt,name=inline_code,json=inlineCode,proto3" json:"inline_code,omitempty"`
+	UsesClock            bool                       `protobuf:"varint,5,opt,name=uses_clock,json=usesClock,proto3" json:"uses_clock,omitempty"`
+	UsesRandom           bool                       `protobuf:"varint,6,opt,name=uses_random,json=usesRandom,proto3" json:"uses_random,omitempty"`
+	UsesNetwork          bool                       `protobuf:"varint,7,opt,name=uses_network,json=usesNetwork,proto3" json:"uses_network,omitempty"`
+	Lookups              []*AuthoredTransformLookup `protobuf:"bytes,8,rep,name=lookups,proto3" json:"lookups,omitempty"`
+	NormalizationProfile string                     `protobuf:"bytes,9,opt,name=normalization_profile,json=normalizationProfile,proto3" json:"normalization_profile,omitempty"`
+	InputTaint           []*AuthoredTaintInput      `protobuf:"bytes,10,rep,name=input_taint,json=inputTaint,proto3" json:"input_taint,omitempty"`
+	OutputTaint          string                     `protobuf:"bytes,11,opt,name=output_taint,json=outputTaint,proto3" json:"output_taint,omitempty"`
+	SanitizerReceiptRef  string                     `protobuf:"bytes,12,opt,name=sanitizer_receipt_ref,json=sanitizerReceiptRef,proto3" json:"sanitizer_receipt_ref,omitempty"`
+	Limits               *AuthoredTransformLimits   `protobuf:"bytes,13,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AuthoredTransformSpec) Reset() {
+	*x = AuthoredTransformSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredTransformSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredTransformSpec) ProtoMessage() {}
+
+func (x *AuthoredTransformSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredTransformSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredTransformSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AuthoredTransformSpec) GetTransformRef() string {
+	if x != nil {
+		return x.TransformRef
+	}
+	return ""
+}
+
+func (x *AuthoredTransformSpec) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *AuthoredTransformSpec) GetProgramRef() *AuthoredVersionedRef {
+	if x != nil {
+		return x.ProgramRef
+	}
+	return nil
+}
+
+func (x *AuthoredTransformSpec) GetInlineCode() string {
+	if x != nil {
+		return x.InlineCode
+	}
+	return ""
+}
+
+func (x *AuthoredTransformSpec) GetUsesClock() bool {
+	if x != nil {
+		return x.UsesClock
+	}
+	return false
+}
+
+func (x *AuthoredTransformSpec) GetUsesRandom() bool {
+	if x != nil {
+		return x.UsesRandom
+	}
+	return false
+}
+
+func (x *AuthoredTransformSpec) GetUsesNetwork() bool {
+	if x != nil {
+		return x.UsesNetwork
+	}
+	return false
+}
+
+func (x *AuthoredTransformSpec) GetLookups() []*AuthoredTransformLookup {
+	if x != nil {
+		return x.Lookups
+	}
+	return nil
+}
+
+func (x *AuthoredTransformSpec) GetNormalizationProfile() string {
+	if x != nil {
+		return x.NormalizationProfile
+	}
+	return ""
+}
+
+func (x *AuthoredTransformSpec) GetInputTaint() []*AuthoredTaintInput {
+	if x != nil {
+		return x.InputTaint
+	}
+	return nil
+}
+
+func (x *AuthoredTransformSpec) GetOutputTaint() string {
+	if x != nil {
+		return x.OutputTaint
+	}
+	return ""
+}
+
+func (x *AuthoredTransformSpec) GetSanitizerReceiptRef() string {
+	if x != nil {
+		return x.SanitizerReceiptRef
+	}
+	return ""
+}
+
+func (x *AuthoredTransformSpec) GetLimits() *AuthoredTransformLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+// AuthoredObserveSpec mirrors workflow.ObserveSpec.
+type AuthoredObserveSpec struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	EvidenceKind         string                 `protobuf:"bytes,1,opt,name=evidence_kind,json=evidenceKind,proto3" json:"evidence_kind,omitempty"`
+	SourceAuthority      string                 `protobuf:"bytes,2,opt,name=source_authority,json=sourceAuthority,proto3" json:"source_authority,omitempty"`
+	ExpectedStateFields  []string               `protobuf:"bytes,3,rep,name=expected_state_fields,json=expectedStateFields,proto3" json:"expected_state_fields,omitempty"`
+	RequiredWatermarks   []string               `protobuf:"bytes,4,rep,name=required_watermarks,json=requiredWatermarks,proto3" json:"required_watermarks,omitempty"`
+	MaxAgeSeconds        uint64                 `protobuf:"varint,5,opt,name=max_age_seconds,json=maxAgeSeconds,proto3" json:"max_age_seconds,omitempty"`
+	ComparisonProfile    string                 `protobuf:"bytes,6,opt,name=comparison_profile,json=comparisonProfile,proto3" json:"comparison_profile,omitempty"`
+	RetryExhaustionRoute string                 `protobuf:"bytes,7,opt,name=retry_exhaustion_route,json=retryExhaustionRoute,proto3" json:"retry_exhaustion_route,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AuthoredObserveSpec) Reset() {
+	*x = AuthoredObserveSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredObserveSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredObserveSpec) ProtoMessage() {}
+
+func (x *AuthoredObserveSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredObserveSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredObserveSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AuthoredObserveSpec) GetEvidenceKind() string {
+	if x != nil {
+		return x.EvidenceKind
+	}
+	return ""
+}
+
+func (x *AuthoredObserveSpec) GetSourceAuthority() string {
+	if x != nil {
+		return x.SourceAuthority
+	}
+	return ""
+}
+
+func (x *AuthoredObserveSpec) GetExpectedStateFields() []string {
+	if x != nil {
+		return x.ExpectedStateFields
+	}
+	return nil
+}
+
+func (x *AuthoredObserveSpec) GetRequiredWatermarks() []string {
+	if x != nil {
+		return x.RequiredWatermarks
+	}
+	return nil
+}
+
+func (x *AuthoredObserveSpec) GetMaxAgeSeconds() uint64 {
+	if x != nil {
+		return x.MaxAgeSeconds
+	}
+	return 0
+}
+
+func (x *AuthoredObserveSpec) GetComparisonProfile() string {
+	if x != nil {
+		return x.ComparisonProfile
+	}
+	return ""
+}
+
+func (x *AuthoredObserveSpec) GetRetryExhaustionRoute() string {
+	if x != nil {
+		return x.RetryExhaustionRoute
+	}
+	return ""
+}
+
+// AuthoredTimeExprSpec mirrors workflow.TimeExprSpec.
+type AuthoredTimeExprSpec struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	AnchorPath      string                 `protobuf:"bytes,1,opt,name=anchor_path,json=anchorPath,proto3" json:"anchor_path,omitempty"`
+	OffsetKind      string                 `protobuf:"bytes,2,opt,name=offset_kind,json=offsetKind,proto3" json:"offset_kind,omitempty"`
+	OffsetDays      int64                  `protobuf:"varint,3,opt,name=offset_days,json=offsetDays,proto3" json:"offset_days,omitempty"`
+	OffsetSeconds   int64                  `protobuf:"varint,4,opt,name=offset_seconds,json=offsetSeconds,proto3" json:"offset_seconds,omitempty"`
+	CalendarRef     string                 `protobuf:"bytes,5,opt,name=calendar_ref,json=calendarRef,proto3" json:"calendar_ref,omitempty"`
+	CalendarVersion string                 `protobuf:"bytes,6,opt,name=calendar_version,json=calendarVersion,proto3" json:"calendar_version,omitempty"`
+	ZoneId          string                 `protobuf:"bytes,7,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
+	ZoneTzdbVersion string                 `protobuf:"bytes,8,opt,name=zone_tzdb_version,json=zoneTzdbVersion,proto3" json:"zone_tzdb_version,omitempty"`
+	LocalTime       string                 `protobuf:"bytes,9,opt,name=local_time,json=localTime,proto3" json:"local_time,omitempty"`
+	Disambiguation  string                 `protobuf:"bytes,10,opt,name=disambiguation,proto3" json:"disambiguation,omitempty"`
+	StatuteRulePack string                 `protobuf:"bytes,11,opt,name=statute_rule_pack,json=statuteRulePack,proto3" json:"statute_rule_pack,omitempty"`
+	StatuteRelease  string                 `protobuf:"bytes,12,opt,name=statute_release,json=statuteRelease,proto3" json:"statute_release,omitempty"`
+	Statute         string                 `protobuf:"bytes,13,opt,name=statute,proto3" json:"statute,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AuthoredTimeExprSpec) Reset() {
+	*x = AuthoredTimeExprSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredTimeExprSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredTimeExprSpec) ProtoMessage() {}
+
+func (x *AuthoredTimeExprSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredTimeExprSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredTimeExprSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *AuthoredTimeExprSpec) GetAnchorPath() string {
+	if x != nil {
+		return x.AnchorPath
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetOffsetKind() string {
+	if x != nil {
+		return x.OffsetKind
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetOffsetDays() int64 {
+	if x != nil {
+		return x.OffsetDays
+	}
+	return 0
+}
+
+func (x *AuthoredTimeExprSpec) GetOffsetSeconds() int64 {
+	if x != nil {
+		return x.OffsetSeconds
+	}
+	return 0
+}
+
+func (x *AuthoredTimeExprSpec) GetCalendarRef() string {
+	if x != nil {
+		return x.CalendarRef
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetCalendarVersion() string {
+	if x != nil {
+		return x.CalendarVersion
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetZoneId() string {
+	if x != nil {
+		return x.ZoneId
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetZoneTzdbVersion() string {
+	if x != nil {
+		return x.ZoneTzdbVersion
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetLocalTime() string {
+	if x != nil {
+		return x.LocalTime
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetDisambiguation() string {
+	if x != nil {
+		return x.Disambiguation
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetStatuteRulePack() string {
+	if x != nil {
+		return x.StatuteRulePack
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetStatuteRelease() string {
+	if x != nil {
+		return x.StatuteRelease
+	}
+	return ""
+}
+
+func (x *AuthoredTimeExprSpec) GetStatute() string {
+	if x != nil {
+		return x.Statute
+	}
+	return ""
+}
+
+// AuthoredDeadlineDefaultSpec mirrors workflow.DeadlineDefaultSpec.
+type AuthoredDeadlineDefaultSpec struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Schema        string                 `protobuf:"bytes,1,opt,name=schema,proto3" json:"schema,omitempty"`
+	CanonicalJson string                 `protobuf:"bytes,2,opt,name=canonical_json,json=canonicalJson,proto3" json:"canonical_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredDeadlineDefaultSpec) Reset() {
+	*x = AuthoredDeadlineDefaultSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredDeadlineDefaultSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredDeadlineDefaultSpec) ProtoMessage() {}
+
+func (x *AuthoredDeadlineDefaultSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredDeadlineDefaultSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredDeadlineDefaultSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AuthoredDeadlineDefaultSpec) GetSchema() string {
+	if x != nil {
+		return x.Schema
+	}
+	return ""
+}
+
+func (x *AuthoredDeadlineDefaultSpec) GetCanonicalJson() string {
+	if x != nil {
+		return x.CanonicalJson
+	}
+	return ""
+}
+
+// AuthoredWaitSpec mirrors workflow.WaitSpec.
+type AuthoredWaitSpec struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	WakeKind              string                 `protobuf:"bytes,1,opt,name=wake_kind,json=wakeKind,proto3" json:"wake_kind,omitempty"`
+	WakeInstant           string                 `protobuf:"bytes,2,opt,name=wake_instant,json=wakeInstant,proto3" json:"wake_instant,omitempty"`
+	WakeLocalDate         string                 `protobuf:"bytes,3,opt,name=wake_local_date,json=wakeLocalDate,proto3" json:"wake_local_date,omitempty"`
+	WakeLocalTime         string                 `protobuf:"bytes,4,opt,name=wake_local_time,json=wakeLocalTime,proto3" json:"wake_local_time,omitempty"`
+	Disambiguation        string                 `protobuf:"bytes,5,opt,name=disambiguation,proto3" json:"disambiguation,omitempty"`
+	ZoneId                string                 `protobuf:"bytes,6,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
+	ZoneTzdbVersion       string                 `protobuf:"bytes,7,opt,name=zone_tzdb_version,json=zoneTzdbVersion,proto3" json:"zone_tzdb_version,omitempty"`
+	CalendarRef           string                 `protobuf:"bytes,8,opt,name=calendar_ref,json=calendarRef,proto3" json:"calendar_ref,omitempty"`
+	CalendarVersion       string                 `protobuf:"bytes,9,opt,name=calendar_version,json=calendarVersion,proto3" json:"calendar_version,omitempty"`
+	ReferenceUpdatePolicy string                 `protobuf:"bytes,10,opt,name=reference_update_policy,json=referenceUpdatePolicy,proto3" json:"reference_update_policy,omitempty"`
+	TimeExpr              *AuthoredTimeExprSpec  `protobuf:"bytes,11,opt,name=time_expr,json=timeExpr,proto3" json:"time_expr,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredWaitSpec) Reset() {
+	*x = AuthoredWaitSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredWaitSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredWaitSpec) ProtoMessage() {}
+
+func (x *AuthoredWaitSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredWaitSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredWaitSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AuthoredWaitSpec) GetWakeKind() string {
+	if x != nil {
+		return x.WakeKind
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetWakeInstant() string {
+	if x != nil {
+		return x.WakeInstant
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetWakeLocalDate() string {
+	if x != nil {
+		return x.WakeLocalDate
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetWakeLocalTime() string {
+	if x != nil {
+		return x.WakeLocalTime
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetDisambiguation() string {
+	if x != nil {
+		return x.Disambiguation
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetZoneId() string {
+	if x != nil {
+		return x.ZoneId
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetZoneTzdbVersion() string {
+	if x != nil {
+		return x.ZoneTzdbVersion
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetCalendarRef() string {
+	if x != nil {
+		return x.CalendarRef
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetCalendarVersion() string {
+	if x != nil {
+		return x.CalendarVersion
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetReferenceUpdatePolicy() string {
+	if x != nil {
+		return x.ReferenceUpdatePolicy
+	}
+	return ""
+}
+
+func (x *AuthoredWaitSpec) GetTimeExpr() *AuthoredTimeExprSpec {
+	if x != nil {
+		return x.TimeExpr
+	}
+	return nil
+}
+
+// AuthoredSignalSpec mirrors workflow.SignalSpec.
+type AuthoredSignalSpec struct {
+	state                    protoimpl.MessageState       `protogen:"open.v1"`
+	EventType                string                       `protobuf:"bytes,1,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	CorrelationKeyExpression string                       `protobuf:"bytes,2,opt,name=correlation_key_expression,json=correlationKeyExpression,proto3" json:"correlation_key_expression,omitempty"`
+	ExpectedSchemaRef        *AuthoredSchemaRef           `protobuf:"bytes,3,opt,name=expected_schema_ref,json=expectedSchemaRef,proto3" json:"expected_schema_ref,omitempty"`
+	AcceptedSources          []string                     `protobuf:"bytes,4,rep,name=accepted_sources,json=acceptedSources,proto3" json:"accepted_sources,omitempty"`
+	Ordering                 string                       `protobuf:"bytes,5,opt,name=ordering,proto3" json:"ordering,omitempty"`
+	CloseAfterSeconds        uint64                       `protobuf:"varint,6,opt,name=close_after_seconds,json=closeAfterSeconds,proto3" json:"close_after_seconds,omitempty"`
+	CloseTimeExpr            *AuthoredTimeExprSpec        `protobuf:"bytes,7,opt,name=close_time_expr,json=closeTimeExpr,proto3" json:"close_time_expr,omitempty"`
+	TimeoutDefault           *AuthoredDeadlineDefaultSpec `protobuf:"bytes,8,opt,name=timeout_default,json=timeoutDefault,proto3" json:"timeout_default,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *AuthoredSignalSpec) Reset() {
+	*x = AuthoredSignalSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredSignalSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredSignalSpec) ProtoMessage() {}
+
+func (x *AuthoredSignalSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredSignalSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredSignalSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AuthoredSignalSpec) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *AuthoredSignalSpec) GetCorrelationKeyExpression() string {
+	if x != nil {
+		return x.CorrelationKeyExpression
+	}
+	return ""
+}
+
+func (x *AuthoredSignalSpec) GetExpectedSchemaRef() *AuthoredSchemaRef {
+	if x != nil {
+		return x.ExpectedSchemaRef
+	}
+	return nil
+}
+
+func (x *AuthoredSignalSpec) GetAcceptedSources() []string {
+	if x != nil {
+		return x.AcceptedSources
+	}
+	return nil
+}
+
+func (x *AuthoredSignalSpec) GetOrdering() string {
+	if x != nil {
+		return x.Ordering
+	}
+	return ""
+}
+
+func (x *AuthoredSignalSpec) GetCloseAfterSeconds() uint64 {
+	if x != nil {
+		return x.CloseAfterSeconds
+	}
+	return 0
+}
+
+func (x *AuthoredSignalSpec) GetCloseTimeExpr() *AuthoredTimeExprSpec {
+	if x != nil {
+		return x.CloseTimeExpr
+	}
+	return nil
+}
+
+func (x *AuthoredSignalSpec) GetTimeoutDefault() *AuthoredDeadlineDefaultSpec {
+	if x != nil {
+		return x.TimeoutDefault
+	}
+	return nil
+}
+
+// AuthoredEndSpec mirrors workflow.EndSpec.
+type AuthoredEndSpec struct {
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	TerminalCode                   string                 `protobuf:"bytes,1,opt,name=terminal_code,json=terminalCode,proto3" json:"terminal_code,omitempty"`
+	RuntimeStatus                  string                 `protobuf:"bytes,2,opt,name=runtime_status,json=runtimeStatus,proto3" json:"runtime_status,omitempty"`
+	CompletionMapping              map[string]string      `protobuf:"bytes,3,rep,name=completion_mapping,json=completionMapping,proto3" json:"completion_mapping,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	OutstandingObligationRefs      []string               `protobuf:"bytes,4,rep,name=outstanding_obligation_refs,json=outstandingObligationRefs,proto3" json:"outstanding_obligation_refs,omitempty"`
+	RepairRefs                     []string               `protobuf:"bytes,5,rep,name=repair_refs,json=repairRefs,proto3" json:"repair_refs,omitempty"`
+	IncidentRefs                   []string               `protobuf:"bytes,6,rep,name=incident_refs,json=incidentRefs,proto3" json:"incident_refs,omitempty"`
+	CommitReceiptRef               string                 `protobuf:"bytes,7,opt,name=commit_receipt_ref,json=commitReceiptRef,proto3" json:"commit_receipt_ref,omitempty"`
+	ApprovalRequired               bool                   `protobuf:"varint,8,opt,name=approval_required,json=approvalRequired,proto3" json:"approval_required,omitempty"`
+	ApprovedMaterialDigest         string                 `protobuf:"bytes,9,opt,name=approved_material_digest,json=approvedMaterialDigest,proto3" json:"approved_material_digest,omitempty"`
+	ClosurePolicyPermitsOpenRepair bool                   `protobuf:"varint,10,opt,name=closure_policy_permits_open_repair,json=closurePolicyPermitsOpenRepair,proto3" json:"closure_policy_permits_open_repair,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
+}
+
+func (x *AuthoredEndSpec) Reset() {
+	*x = AuthoredEndSpec{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredEndSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredEndSpec) ProtoMessage() {}
+
+func (x *AuthoredEndSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredEndSpec.ProtoReflect.Descriptor instead.
+func (*AuthoredEndSpec) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AuthoredEndSpec) GetTerminalCode() string {
+	if x != nil {
+		return x.TerminalCode
+	}
+	return ""
+}
+
+func (x *AuthoredEndSpec) GetRuntimeStatus() string {
+	if x != nil {
+		return x.RuntimeStatus
+	}
+	return ""
+}
+
+func (x *AuthoredEndSpec) GetCompletionMapping() map[string]string {
+	if x != nil {
+		return x.CompletionMapping
+	}
+	return nil
+}
+
+func (x *AuthoredEndSpec) GetOutstandingObligationRefs() []string {
+	if x != nil {
+		return x.OutstandingObligationRefs
+	}
+	return nil
+}
+
+func (x *AuthoredEndSpec) GetRepairRefs() []string {
+	if x != nil {
+		return x.RepairRefs
+	}
+	return nil
+}
+
+func (x *AuthoredEndSpec) GetIncidentRefs() []string {
+	if x != nil {
+		return x.IncidentRefs
+	}
+	return nil
+}
+
+func (x *AuthoredEndSpec) GetCommitReceiptRef() string {
+	if x != nil {
+		return x.CommitReceiptRef
+	}
+	return ""
+}
+
+func (x *AuthoredEndSpec) GetApprovalRequired() bool {
+	if x != nil {
+		return x.ApprovalRequired
+	}
+	return false
+}
+
+func (x *AuthoredEndSpec) GetApprovedMaterialDigest() string {
+	if x != nil {
+		return x.ApprovedMaterialDigest
+	}
+	return ""
+}
+
+func (x *AuthoredEndSpec) GetClosurePolicyPermitsOpenRepair() bool {
+	if x != nil {
+		return x.ClosurePolicyPermitsOpenRepair
+	}
+	return false
+}
+
+// AuthoredNodeGovernance mirrors workflow.NodeGovernance.
+type AuthoredNodeGovernance struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Purpose               string                 `protobuf:"bytes,1,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Classification        string                 `protobuf:"bytes,2,opt,name=classification,proto3" json:"classification,omitempty"`
+	RequiredDecisions     []string               `protobuf:"bytes,3,rep,name=required_decisions,json=requiredDecisions,proto3" json:"required_decisions,omitempty"`
+	ObligationRefs        []string               `protobuf:"bytes,4,rep,name=obligation_refs,json=obligationRefs,proto3" json:"obligation_refs,omitempty"`
+	ApprovalRequirements  []string               `protobuf:"bytes,5,rep,name=approval_requirements,json=approvalRequirements,proto3" json:"approval_requirements,omitempty"`
+	RevalidationBoundary  string                 `protobuf:"bytes,6,opt,name=revalidation_boundary,json=revalidationBoundary,proto3" json:"revalidation_boundary,omitempty"`
+	DataAccessManifestRef string                 `protobuf:"bytes,7,opt,name=data_access_manifest_ref,json=dataAccessManifestRef,proto3" json:"data_access_manifest_ref,omitempty"`
+	OutputValidatorRef    string                 `protobuf:"bytes,8,opt,name=output_validator_ref,json=outputValidatorRef,proto3" json:"output_validator_ref,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredNodeGovernance) Reset() {
+	*x = AuthoredNodeGovernance{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredNodeGovernance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredNodeGovernance) ProtoMessage() {}
+
+func (x *AuthoredNodeGovernance) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredNodeGovernance.ProtoReflect.Descriptor instead.
+func (*AuthoredNodeGovernance) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AuthoredNodeGovernance) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *AuthoredNodeGovernance) GetClassification() string {
+	if x != nil {
+		return x.Classification
+	}
+	return ""
+}
+
+func (x *AuthoredNodeGovernance) GetRequiredDecisions() []string {
+	if x != nil {
+		return x.RequiredDecisions
+	}
+	return nil
+}
+
+func (x *AuthoredNodeGovernance) GetObligationRefs() []string {
+	if x != nil {
+		return x.ObligationRefs
+	}
+	return nil
+}
+
+func (x *AuthoredNodeGovernance) GetApprovalRequirements() []string {
+	if x != nil {
+		return x.ApprovalRequirements
+	}
+	return nil
+}
+
+func (x *AuthoredNodeGovernance) GetRevalidationBoundary() string {
+	if x != nil {
+		return x.RevalidationBoundary
+	}
+	return ""
+}
+
+func (x *AuthoredNodeGovernance) GetDataAccessManifestRef() string {
+	if x != nil {
+		return x.DataAccessManifestRef
+	}
+	return ""
+}
+
+func (x *AuthoredNodeGovernance) GetOutputValidatorRef() string {
+	if x != nil {
+		return x.OutputValidatorRef
+	}
+	return ""
+}
+
+// AuthoredRetryPolicy mirrors workflow.RetryPolicy.
+type AuthoredRetryPolicy struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MaxAttempts   uint32                 `protobuf:"varint,1,opt,name=max_attempts,json=maxAttempts,proto3" json:"max_attempts,omitempty"`
+	BackoffRef    string                 `protobuf:"bytes,2,opt,name=backoff_ref,json=backoffRef,proto3" json:"backoff_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredRetryPolicy) Reset() {
+	*x = AuthoredRetryPolicy{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredRetryPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredRetryPolicy) ProtoMessage() {}
+
+func (x *AuthoredRetryPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredRetryPolicy.ProtoReflect.Descriptor instead.
+func (*AuthoredRetryPolicy) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AuthoredRetryPolicy) GetMaxAttempts() uint32 {
+	if x != nil {
+		return x.MaxAttempts
+	}
+	return 0
+}
+
+func (x *AuthoredRetryPolicy) GetBackoffRef() string {
+	if x != nil {
+		return x.BackoffRef
+	}
+	return ""
+}
+
+// AuthoredModeOverlay mirrors workflow.ModeOverlay.
+type AuthoredModeOverlay struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SimulateEffect string                 `protobuf:"bytes,1,opt,name=simulate_effect,json=simulateEffect,proto3" json:"simulate_effect,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthoredModeOverlay) Reset() {
+	*x = AuthoredModeOverlay{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredModeOverlay) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredModeOverlay) ProtoMessage() {}
+
+func (x *AuthoredModeOverlay) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredModeOverlay.ProtoReflect.Descriptor instead.
+func (*AuthoredModeOverlay) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AuthoredModeOverlay) GetSimulateEffect() string {
+	if x != nil {
+		return x.SimulateEffect
+	}
+	return ""
+}
+
+// AuthoredApprovalRequirement mirrors workflow.ApprovalRequirement.
+type AuthoredApprovalRequirement struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ResolverExpression  string                 `protobuf:"bytes,2,opt,name=resolver_expression,json=resolverExpression,proto3" json:"resolver_expression,omitempty"`
+	Scope               string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	Quorum              int64                  `protobuf:"varint,4,opt,name=quorum,proto3" json:"quorum,omitempty"`
+	SeparationOfDuties  bool                   `protobuf:"varint,5,opt,name=separation_of_duties,json=separationOfDuties,proto3" json:"separation_of_duties,omitempty"`
+	EffectiveAsOfPolicy string                 `protobuf:"bytes,6,opt,name=effective_as_of_policy,json=effectiveAsOfPolicy,proto3" json:"effective_as_of_policy,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AuthoredApprovalRequirement) Reset() {
+	*x = AuthoredApprovalRequirement{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredApprovalRequirement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredApprovalRequirement) ProtoMessage() {}
+
+func (x *AuthoredApprovalRequirement) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredApprovalRequirement.ProtoReflect.Descriptor instead.
+func (*AuthoredApprovalRequirement) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *AuthoredApprovalRequirement) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuthoredApprovalRequirement) GetResolverExpression() string {
+	if x != nil {
+		return x.ResolverExpression
+	}
+	return ""
+}
+
+func (x *AuthoredApprovalRequirement) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *AuthoredApprovalRequirement) GetQuorum() int64 {
+	if x != nil {
+		return x.Quorum
+	}
+	return 0
+}
+
+func (x *AuthoredApprovalRequirement) GetSeparationOfDuties() bool {
+	if x != nil {
+		return x.SeparationOfDuties
+	}
+	return false
+}
+
+func (x *AuthoredApprovalRequirement) GetEffectiveAsOfPolicy() string {
+	if x != nil {
+		return x.EffectiveAsOfPolicy
+	}
+	return ""
+}
+
+// AuthoredObligationRequirement mirrors workflow.ObligationRequirement.
+type AuthoredObligationRequirement struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Authority             string                 `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
+	InsertionPoint        string                 `protobuf:"bytes,3,opt,name=insertion_point,json=insertionPoint,proto3" json:"insertion_point,omitempty"`
+	RequiredAction        string                 `protobuf:"bytes,4,opt,name=required_action,json=requiredAction,proto3" json:"required_action,omitempty"`
+	ResponsibleParty      string                 `protobuf:"bytes,5,opt,name=responsible_party,json=responsibleParty,proto3" json:"responsible_party,omitempty"`
+	SatisfactionCondition string                 `protobuf:"bytes,6,opt,name=satisfaction_condition,json=satisfactionCondition,proto3" json:"satisfaction_condition,omitempty"`
+	SourceVersion         string                 `protobuf:"bytes,7,opt,name=source_version,json=sourceVersion,proto3" json:"source_version,omitempty"`
+	ReevaluationPolicy    string                 `protobuf:"bytes,8,opt,name=reevaluation_policy,json=reevaluationPolicy,proto3" json:"reevaluation_policy,omitempty"`
+	Mandatory             bool                   `protobuf:"varint,9,opt,name=mandatory,proto3" json:"mandatory,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredObligationRequirement) Reset() {
+	*x = AuthoredObligationRequirement{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredObligationRequirement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredObligationRequirement) ProtoMessage() {}
+
+func (x *AuthoredObligationRequirement) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredObligationRequirement.ProtoReflect.Descriptor instead.
+func (*AuthoredObligationRequirement) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *AuthoredObligationRequirement) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetAuthority() string {
+	if x != nil {
+		return x.Authority
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetInsertionPoint() string {
+	if x != nil {
+		return x.InsertionPoint
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetRequiredAction() string {
+	if x != nil {
+		return x.RequiredAction
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetResponsibleParty() string {
+	if x != nil {
+		return x.ResponsibleParty
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetSatisfactionCondition() string {
+	if x != nil {
+		return x.SatisfactionCondition
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetSourceVersion() string {
+	if x != nil {
+		return x.SourceVersion
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetReevaluationPolicy() string {
+	if x != nil {
+		return x.ReevaluationPolicy
+	}
+	return ""
+}
+
+func (x *AuthoredObligationRequirement) GetMandatory() bool {
+	if x != nil {
+		return x.Mandatory
+	}
+	return false
+}
+
+// AuthoredCycleDeclaration mirrors workflow.CycleDeclaration.
+type AuthoredCycleDeclaration struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntryNodeId   string                 `protobuf:"bytes,1,opt,name=entry_node_id,json=entryNodeId,proto3" json:"entry_node_id,omitempty"`
+	GuardNodeId   string                 `protobuf:"bytes,2,opt,name=guard_node_id,json=guardNodeId,proto3" json:"guard_node_id,omitempty"`
+	MaxIterations uint32                 `protobuf:"varint,3,opt,name=max_iterations,json=maxIterations,proto3" json:"max_iterations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredCycleDeclaration) Reset() {
+	*x = AuthoredCycleDeclaration{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredCycleDeclaration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredCycleDeclaration) ProtoMessage() {}
+
+func (x *AuthoredCycleDeclaration) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredCycleDeclaration.ProtoReflect.Descriptor instead.
+func (*AuthoredCycleDeclaration) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *AuthoredCycleDeclaration) GetEntryNodeId() string {
+	if x != nil {
+		return x.EntryNodeId
+	}
+	return ""
+}
+
+func (x *AuthoredCycleDeclaration) GetGuardNodeId() string {
+	if x != nil {
+		return x.GuardNodeId
+	}
+	return ""
+}
+
+func (x *AuthoredCycleDeclaration) GetMaxIterations() uint32 {
+	if x != nil {
+		return x.MaxIterations
+	}
+	return 0
+}
+
+// AuthoredLimits mirrors workflow.Limits.
+type AuthoredLimits struct {
+	state          protoimpl.MessageState      `protogen:"open.v1"`
+	MaxFanOut      uint32                      `protobuf:"varint,1,opt,name=max_fan_out,json=maxFanOut,proto3" json:"max_fan_out,omitempty"`
+	MaxDepth       uint32                      `protobuf:"varint,2,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
+	MaxNodes       uint32                      `protobuf:"varint,3,opt,name=max_nodes,json=maxNodes,proto3" json:"max_nodes,omitempty"`
+	DeclaredCycles []*AuthoredCycleDeclaration `protobuf:"bytes,4,rep,name=declared_cycles,json=declaredCycles,proto3" json:"declared_cycles,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthoredLimits) Reset() {
+	*x = AuthoredLimits{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredLimits) ProtoMessage() {}
+
+func (x *AuthoredLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredLimits.ProtoReflect.Descriptor instead.
+func (*AuthoredLimits) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *AuthoredLimits) GetMaxFanOut() uint32 {
+	if x != nil {
+		return x.MaxFanOut
+	}
+	return 0
+}
+
+func (x *AuthoredLimits) GetMaxDepth() uint32 {
+	if x != nil {
+		return x.MaxDepth
+	}
+	return 0
+}
+
+func (x *AuthoredLimits) GetMaxNodes() uint32 {
+	if x != nil {
+		return x.MaxNodes
+	}
+	return 0
+}
+
+func (x *AuthoredLimits) GetDeclaredCycles() []*AuthoredCycleDeclaration {
+	if x != nil {
+		return x.DeclaredCycles
+	}
+	return nil
+}
+
+// AuthoredEdge mirrors workflow.Edge.
+type AuthoredEdge struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	RouteKey      string                 `protobuf:"bytes,3,opt,name=route_key,json=routeKey,proto3" json:"route_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredEdge) Reset() {
+	*x = AuthoredEdge{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredEdge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredEdge) ProtoMessage() {}
+
+func (x *AuthoredEdge) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredEdge.ProtoReflect.Descriptor instead.
+func (*AuthoredEdge) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *AuthoredEdge) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *AuthoredEdge) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *AuthoredEdge) GetRouteKey() string {
+	if x != nil {
+		return x.RouteKey
+	}
+	return ""
+}
+
+// AuthoredCatalogMetadata mirrors workflow.CatalogMetadata.
+type AuthoredCatalogMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DisplayName   string                 `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Category      string                 `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Keywords      []string               `protobuf:"bytes,4,rep,name=keywords,proto3" json:"keywords,omitempty"`
+	Icon          string                 `protobuf:"bytes,5,opt,name=icon,proto3" json:"icon,omitempty"`
+	Hidden        bool                   `protobuf:"varint,6,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredCatalogMetadata) Reset() {
+	*x = AuthoredCatalogMetadata{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredCatalogMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredCatalogMetadata) ProtoMessage() {}
+
+func (x *AuthoredCatalogMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredCatalogMetadata.ProtoReflect.Descriptor instead.
+func (*AuthoredCatalogMetadata) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *AuthoredCatalogMetadata) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *AuthoredCatalogMetadata) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *AuthoredCatalogMetadata) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *AuthoredCatalogMetadata) GetKeywords() []string {
+	if x != nil {
+		return x.Keywords
+	}
+	return nil
+}
+
+func (x *AuthoredCatalogMetadata) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *AuthoredCatalogMetadata) GetHidden() bool {
+	if x != nil {
+		return x.Hidden
+	}
+	return false
+}
+
+// AuthoredNodeDefinition mirrors workflow.Node field for field.
+type AuthoredNodeDefinition struct {
+	state              protoimpl.MessageState        `protogen:"open.v1"`
+	Id                 string                        `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type               string                        `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	InputSchema        *AuthoredSchemaRef            `protobuf:"bytes,3,opt,name=input_schema,json=inputSchema,proto3" json:"input_schema,omitempty"`
+	OutputSchema       *AuthoredSchemaRef            `protobuf:"bytes,4,opt,name=output_schema,json=outputSchema,proto3" json:"output_schema,omitempty"`
+	Inputs             []*AuthoredField              `protobuf:"bytes,5,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	Outputs            []*AuthoredField              `protobuf:"bytes,6,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	InputMappings      []*AuthoredMapping            `protobuf:"bytes,7,rep,name=input_mappings,json=inputMappings,proto3" json:"input_mappings,omitempty"`
+	RequiredContext    []*AuthoredContextRequirement `protobuf:"bytes,8,rep,name=required_context,json=requiredContext,proto3" json:"required_context,omitempty"`
+	Capability         *AuthoredCapabilityRef        `protobuf:"bytes,9,opt,name=capability,proto3" json:"capability,omitempty"`
+	Decision           *AuthoredDecisionSpec         `protobuf:"bytes,10,opt,name=decision,proto3" json:"decision,omitempty"`
+	Transform          *AuthoredTransformSpec        `protobuf:"bytes,11,opt,name=transform,proto3" json:"transform,omitempty"`
+	Observe            *AuthoredObserveSpec          `protobuf:"bytes,12,opt,name=observe,proto3" json:"observe,omitempty"`
+	End                *AuthoredEndSpec              `protobuf:"bytes,13,opt,name=end,proto3" json:"end,omitempty"`
+	Wait               *AuthoredWaitSpec             `protobuf:"bytes,14,opt,name=wait,proto3" json:"wait,omitempty"`
+	Signal             *AuthoredSignalSpec           `protobuf:"bytes,15,opt,name=signal,proto3" json:"signal,omitempty"`
+	DeclaredEffect     string                        `protobuf:"bytes,16,opt,name=declared_effect,json=declaredEffect,proto3" json:"declared_effect,omitempty"`
+	EffectRole         string                        `protobuf:"bytes,17,opt,name=effect_role,json=effectRole,proto3" json:"effect_role,omitempty"`
+	ResolverRef        *AuthoredVersionedRef         `protobuf:"bytes,18,opt,name=resolver_ref,json=resolverRef,proto3" json:"resolver_ref,omitempty"`
+	TimeoutPolicy      *AuthoredVersionedRef         `protobuf:"bytes,19,opt,name=timeout_policy,json=timeoutPolicy,proto3" json:"timeout_policy,omitempty"`
+	CompensationRef    *AuthoredVersionedRef         `protobuf:"bytes,20,opt,name=compensation_ref,json=compensationRef,proto3" json:"compensation_ref,omitempty"`
+	OutcomeAliases     map[string]string             `protobuf:"bytes,21,rep,name=outcome_aliases,json=outcomeAliases,proto3" json:"outcome_aliases,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ModeOverlay        *AuthoredModeOverlay          `protobuf:"bytes,22,opt,name=mode_overlay,json=modeOverlay,proto3" json:"mode_overlay,omitempty"`
+	Retry              *AuthoredRetryPolicy          `protobuf:"bytes,23,opt,name=retry,proto3" json:"retry,omitempty"`
+	FailureRoute       string                        `protobuf:"bytes,24,opt,name=failure_route,json=failureRoute,proto3" json:"failure_route,omitempty"`
+	SafePointRequested bool                          `protobuf:"varint,25,opt,name=safe_point_requested,json=safePointRequested,proto3" json:"safe_point_requested,omitempty"`
+	Governance         *AuthoredNodeGovernance       `protobuf:"bytes,26,opt,name=governance,proto3" json:"governance,omitempty"`
+	Metadata           map[string]string             `protobuf:"bytes,27,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AuthoredNodeDefinition) Reset() {
+	*x = AuthoredNodeDefinition{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredNodeDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredNodeDefinition) ProtoMessage() {}
+
+func (x *AuthoredNodeDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredNodeDefinition.ProtoReflect.Descriptor instead.
+func (*AuthoredNodeDefinition) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *AuthoredNodeDefinition) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AuthoredNodeDefinition) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *AuthoredNodeDefinition) GetInputSchema() *AuthoredSchemaRef {
+	if x != nil {
+		return x.InputSchema
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetOutputSchema() *AuthoredSchemaRef {
+	if x != nil {
+		return x.OutputSchema
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetInputs() []*AuthoredField {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetOutputs() []*AuthoredField {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetInputMappings() []*AuthoredMapping {
+	if x != nil {
+		return x.InputMappings
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetRequiredContext() []*AuthoredContextRequirement {
+	if x != nil {
+		return x.RequiredContext
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetCapability() *AuthoredCapabilityRef {
+	if x != nil {
+		return x.Capability
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetDecision() *AuthoredDecisionSpec {
+	if x != nil {
+		return x.Decision
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetTransform() *AuthoredTransformSpec {
+	if x != nil {
+		return x.Transform
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetObserve() *AuthoredObserveSpec {
+	if x != nil {
+		return x.Observe
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetEnd() *AuthoredEndSpec {
+	if x != nil {
+		return x.End
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetWait() *AuthoredWaitSpec {
+	if x != nil {
+		return x.Wait
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetSignal() *AuthoredSignalSpec {
+	if x != nil {
+		return x.Signal
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetDeclaredEffect() string {
+	if x != nil {
+		return x.DeclaredEffect
+	}
+	return ""
+}
+
+func (x *AuthoredNodeDefinition) GetEffectRole() string {
+	if x != nil {
+		return x.EffectRole
+	}
+	return ""
+}
+
+func (x *AuthoredNodeDefinition) GetResolverRef() *AuthoredVersionedRef {
+	if x != nil {
+		return x.ResolverRef
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetTimeoutPolicy() *AuthoredVersionedRef {
+	if x != nil {
+		return x.TimeoutPolicy
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetCompensationRef() *AuthoredVersionedRef {
+	if x != nil {
+		return x.CompensationRef
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetOutcomeAliases() map[string]string {
+	if x != nil {
+		return x.OutcomeAliases
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetModeOverlay() *AuthoredModeOverlay {
+	if x != nil {
+		return x.ModeOverlay
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetRetry() *AuthoredRetryPolicy {
+	if x != nil {
+		return x.Retry
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetFailureRoute() string {
+	if x != nil {
+		return x.FailureRoute
+	}
+	return ""
+}
+
+func (x *AuthoredNodeDefinition) GetSafePointRequested() bool {
+	if x != nil {
+		return x.SafePointRequested
+	}
+	return false
+}
+
+func (x *AuthoredNodeDefinition) GetGovernance() *AuthoredNodeGovernance {
+	if x != nil {
+		return x.Governance
+	}
+	return nil
+}
+
+func (x *AuthoredNodeDefinition) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+// AuthoredNodeLayout is editor canvas state for one node: position on the
+// canvas and presentation flags. It is stored with the artifact and never
+// mapped into the Go definition, so canvas edits can never change the
+// compiled plan or its digest.
+type AuthoredNodeLayout struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	Collapsed     bool                   `protobuf:"varint,3,opt,name=collapsed,proto3" json:"collapsed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredNodeLayout) Reset() {
+	*x = AuthoredNodeLayout{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredNodeLayout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredNodeLayout) ProtoMessage() {}
+
+func (x *AuthoredNodeLayout) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredNodeLayout.ProtoReflect.Descriptor instead.
+func (*AuthoredNodeLayout) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *AuthoredNodeLayout) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *AuthoredNodeLayout) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *AuthoredNodeLayout) GetCollapsed() bool {
+	if x != nil {
+		return x.Collapsed
+	}
+	return false
+}
+
+// AuthoredCanvasLayout is editor canvas state for the whole graph.
+type AuthoredCanvasLayout struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Zoom          float64                `protobuf:"fixed64,1,opt,name=zoom,proto3" json:"zoom,omitempty"`
+	CenterX       float64                `protobuf:"fixed64,2,opt,name=center_x,json=centerX,proto3" json:"center_x,omitempty"`
+	CenterY       float64                `protobuf:"fixed64,3,opt,name=center_y,json=centerY,proto3" json:"center_y,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoredCanvasLayout) Reset() {
+	*x = AuthoredCanvasLayout{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredCanvasLayout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredCanvasLayout) ProtoMessage() {}
+
+func (x *AuthoredCanvasLayout) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredCanvasLayout.ProtoReflect.Descriptor instead.
+func (*AuthoredCanvasLayout) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *AuthoredCanvasLayout) GetZoom() float64 {
+	if x != nil {
+		return x.Zoom
+	}
+	return 0
+}
+
+func (x *AuthoredCanvasLayout) GetCenterX() float64 {
+	if x != nil {
+		return x.CenterX
+	}
+	return 0
+}
+
+func (x *AuthoredCanvasLayout) GetCenterY() float64 {
+	if x != nil {
+		return x.CenterY
+	}
+	return 0
+}
+
+// AuthoredWorkflowDefinition is the lossless stored authoring form of one
+// workflow.Definition: every definition field is embedded verbatim.
+type AuthoredWorkflowDefinition struct {
+	state                 protoimpl.MessageState           `protogen:"open.v1"`
+	WorkflowId            string                           `protobuf:"bytes,1,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Version               uint32                           `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Name                  string                           `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Catalog               *AuthoredCatalogMetadata         `protobuf:"bytes,4,opt,name=catalog,proto3" json:"catalog,omitempty"`
+	IntentType            string                           `protobuf:"bytes,5,opt,name=intent_type,json=intentType,proto3" json:"intent_type,omitempty"`
+	MatchPredicate        map[string]string                `protobuf:"bytes,6,rep,name=match_predicate,json=matchPredicate,proto3" json:"match_predicate,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	InputSchema           *AuthoredSchemaRef               `protobuf:"bytes,7,opt,name=input_schema,json=inputSchema,proto3" json:"input_schema,omitempty"`
+	OutputSchema          *AuthoredSchemaRef               `protobuf:"bytes,8,opt,name=output_schema,json=outputSchema,proto3" json:"output_schema,omitempty"`
+	VariablesSchema       *AuthoredSchemaRef               `protobuf:"bytes,9,opt,name=variables_schema,json=variablesSchema,proto3" json:"variables_schema,omitempty"`
+	Inputs                []*AuthoredField                 `protobuf:"bytes,10,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	Outputs               []*AuthoredField                 `protobuf:"bytes,11,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	TenantScope           string                           `protobuf:"bytes,12,opt,name=tenant_scope,json=tenantScope,proto3" json:"tenant_scope,omitempty"`
+	OrganizationScope     string                           `protobuf:"bytes,13,opt,name=organization_scope,json=organizationScope,proto3" json:"organization_scope,omitempty"`
+	RiskClass             string                           `protobuf:"bytes,14,opt,name=risk_class,json=riskClass,proto3" json:"risk_class,omitempty"`
+	DeclaredModes         []string                         `protobuf:"bytes,15,rep,name=declared_modes,json=declaredModes,proto3" json:"declared_modes,omitempty"`
+	TerminalProfile       string                           `protobuf:"bytes,16,opt,name=terminal_profile,json=terminalProfile,proto3" json:"terminal_profile,omitempty"`
+	StartNodeId           string                           `protobuf:"bytes,17,opt,name=start_node_id,json=startNodeId,proto3" json:"start_node_id,omitempty"`
+	Nodes                 []*AuthoredNodeDefinition        `protobuf:"bytes,18,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Edges                 []*AuthoredEdge                  `protobuf:"bytes,19,rep,name=edges,proto3" json:"edges,omitempty"`
+	ApprovalRequirements  []*AuthoredApprovalRequirement   `protobuf:"bytes,20,rep,name=approval_requirements,json=approvalRequirements,proto3" json:"approval_requirements,omitempty"`
+	Obligations           []*AuthoredObligationRequirement `protobuf:"bytes,21,rep,name=obligations,proto3" json:"obligations,omitempty"`
+	Limits                *AuthoredLimits                  `protobuf:"bytes,22,opt,name=limits,proto3" json:"limits,omitempty"`
+	FailurePolicyRef      string                           `protobuf:"bytes,23,opt,name=failure_policy_ref,json=failurePolicyRef,proto3" json:"failure_policy_ref,omitempty"`
+	CancellationPolicyRef string                           `protobuf:"bytes,24,opt,name=cancellation_policy_ref,json=cancellationPolicyRef,proto3" json:"cancellation_policy_ref,omitempty"`
+	MigrationPolicyRef    string                           `protobuf:"bytes,25,opt,name=migration_policy_ref,json=migrationPolicyRef,proto3" json:"migration_policy_ref,omitempty"`
+	RetentionPolicyRef    string                           `protobuf:"bytes,26,opt,name=retention_policy_ref,json=retentionPolicyRef,proto3" json:"retention_policy_ref,omitempty"`
+	Layout                map[string]*AuthoredNodeLayout   `protobuf:"bytes,27,rep,name=layout,proto3" json:"layout,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Canvas                *AuthoredCanvasLayout            `protobuf:"bytes,28,opt,name=canvas,proto3" json:"canvas,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AuthoredWorkflowDefinition) Reset() {
+	*x = AuthoredWorkflowDefinition{}
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoredWorkflowDefinition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoredWorkflowDefinition) ProtoMessage() {}
+
+func (x *AuthoredWorkflowDefinition) ProtoReflect() protoreflect.Message {
+	mi := &file_hcmnext_workflow_v1_workflow_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoredWorkflowDefinition.ProtoReflect.Descriptor instead.
+func (*AuthoredWorkflowDefinition) Descriptor() ([]byte, []int) {
+	return file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *AuthoredWorkflowDefinition) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *AuthoredWorkflowDefinition) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetCatalog() *AuthoredCatalogMetadata {
+	if x != nil {
+		return x.Catalog
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetIntentType() string {
+	if x != nil {
+		return x.IntentType
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetMatchPredicate() map[string]string {
+	if x != nil {
+		return x.MatchPredicate
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetInputSchema() *AuthoredSchemaRef {
+	if x != nil {
+		return x.InputSchema
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetOutputSchema() *AuthoredSchemaRef {
+	if x != nil {
+		return x.OutputSchema
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetVariablesSchema() *AuthoredSchemaRef {
+	if x != nil {
+		return x.VariablesSchema
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetInputs() []*AuthoredField {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetOutputs() []*AuthoredField {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetTenantScope() string {
+	if x != nil {
+		return x.TenantScope
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetOrganizationScope() string {
+	if x != nil {
+		return x.OrganizationScope
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetRiskClass() string {
+	if x != nil {
+		return x.RiskClass
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetDeclaredModes() []string {
+	if x != nil {
+		return x.DeclaredModes
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetTerminalProfile() string {
+	if x != nil {
+		return x.TerminalProfile
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetStartNodeId() string {
+	if x != nil {
+		return x.StartNodeId
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetNodes() []*AuthoredNodeDefinition {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetEdges() []*AuthoredEdge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetApprovalRequirements() []*AuthoredApprovalRequirement {
+	if x != nil {
+		return x.ApprovalRequirements
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetObligations() []*AuthoredObligationRequirement {
+	if x != nil {
+		return x.Obligations
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetLimits() *AuthoredLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetFailurePolicyRef() string {
+	if x != nil {
+		return x.FailurePolicyRef
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetCancellationPolicyRef() string {
+	if x != nil {
+		return x.CancellationPolicyRef
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetMigrationPolicyRef() string {
+	if x != nil {
+		return x.MigrationPolicyRef
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetRetentionPolicyRef() string {
+	if x != nil {
+		return x.RetentionPolicyRef
+	}
+	return ""
+}
+
+func (x *AuthoredWorkflowDefinition) GetLayout() map[string]*AuthoredNodeLayout {
+	if x != nil {
+		return x.Layout
+	}
+	return nil
+}
+
+func (x *AuthoredWorkflowDefinition) GetCanvas() *AuthoredCanvasLayout {
+	if x != nil {
+		return x.Canvas
+	}
+	return nil
+}
+
 var File_hcmnext_workflow_v1_workflow_proto protoreflect.FileDescriptor
 
 const file_hcmnext_workflow_v1_workflow_proto_rawDesc = "" +
@@ -1269,7 +4342,317 @@ const file_hcmnext_workflow_v1_workflow_proto_rawDesc = "" +
 	"\t_retry_atB\x15\n" +
 	"\x13_execution_lease_idB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at*\xd1\x02\n" +
+	"\r_completed_at\"x\n" +
+	"\x11AuthoredSchemaRef\x12\x1b\n" +
+	"\tschema_id\x18\x01 \x01(\tR\bschemaId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\rR\aversion\x12,\n" +
+	"\x12protobuf_full_name\x18\x03 \x01(\tR\x10protobufFullName\"@\n" +
+	"\x14AuthoredVersionedRef\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"\xaa\x02\n" +
+	"\x11AuthoredValueType\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1a\n" +
+	"\bnullable\x18\x02 \x01(\bR\bnullable\x12\x14\n" +
+	"\x05brand\x18\x03 \x01(\tR\x05brand\x12&\n" +
+	"\x0eclassification\x18\x04 \x01(\tR\x0eclassification\x12\x19\n" +
+	"\benum_ref\x18\x05 \x01(\tR\aenumRef\x12\x1f\n" +
+	"\vmessage_ref\x18\x06 \x01(\tR\n" +
+	"messageRef\x12)\n" +
+	"\x10reference_target\x18\a \x01(\tR\x0freferenceTarget\x12@\n" +
+	"\aelement\x18\b \x01(\v2&.hcmnext.workflow.v1.AuthoredValueTypeR\aelement\"\xdc\x01\n" +
+	"\rAuthoredField\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12:\n" +
+	"\x04type\x18\x02 \x01(\v2&.hcmnext.workflow.v1.AuthoredValueTypeR\x04type\x12-\n" +
+	"\x12max_classification\x18\x03 \x01(\tR\x11maxClassification\x12\x14\n" +
+	"\x05label\x18\x04 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05group\x18\x06 \x01(\tR\x05group\"\xe5\x02\n" +
+	"\x0eAuthoredSource\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12!\n" +
+	"\fcontext_kind\x18\x03 \x01(\tR\vcontextKind\x12#\n" +
+	"\rvariable_name\x18\x04 \x01(\tR\fvariableName\x12\x12\n" +
+	"\x04path\x18\x05 \x01(\tR\x04path\x12:\n" +
+	"\x04type\x18\x06 \x01(\v2&.hcmnext.workflow.v1.AuthoredValueTypeR\x04type\x12\x1a\n" +
+	"\bconstant\x18\a \x01(\tR\bconstant\x12#\n" +
+	"\rparameter_key\x18\b \x01(\tR\fparameterKey\x12%\n" +
+	"\x0eparameter_mode\x18\t \x01(\tR\rparameterMode\x12&\n" +
+	"\x0fmax_age_seconds\x18\n" +
+	" \x01(\x04R\rmaxAgeSeconds\"\x99\x01\n" +
+	"\x0fAuthoredMapping\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12;\n" +
+	"\x06source\x18\x02 \x01(\v2#.hcmnext.workflow.v1.AuthoredSourceR\x06source\x121\n" +
+	"\x14declassification_ref\x18\x03 \x01(\tR\x13declassificationRef\"\xbe\x02\n" +
+	"\x1aAuthoredContextRequirement\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1f\n" +
+	"\vfield_paths\x18\x02 \x03(\tR\n" +
+	"fieldPaths\x12\x18\n" +
+	"\apurpose\x18\x03 \x01(\tR\apurpose\x125\n" +
+	"\x16maximum_classification\x18\x04 \x01(\tR\x15maximumClassification\x12&\n" +
+	"\x0fmax_age_seconds\x18\x05 \x01(\x04R\rmaxAgeSeconds\x12/\n" +
+	"\x13required_watermarks\x18\x06 \x03(\tR\x12requiredWatermarks\x12\x16\n" +
+	"\x06pinned\x18\a \x01(\bR\x06pinned\x12)\n" +
+	"\x10missing_behavior\x18\b \x01(\tR\x0fmissingBehavior\"\x9f\x02\n" +
+	"\x15AuthoredCapabilityRef\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\rR\aversion\x12%\n" +
+	"\x0eoperation_mode\x18\x03 \x01(\tR\roperationMode\x12)\n" +
+	"\x10authority_scopes\x18\x04 \x03(\tR\x0fauthorityScopes\x126\n" +
+	"\x17idempotency_key_mapping\x18\x05 \x01(\tR\x15idempotencyKeyMapping\x12%\n" +
+	"\x0eeffect_binding\x18\x06 \x01(\tR\reffectBinding\x12+\n" +
+	"\x11expected_versions\x18\a \x03(\tR\x10expectedVersions\"g\n" +
+	"\x15AuthoredDecisionRoute\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1c\n" +
+	"\tpredicate\x18\x02 \x01(\tR\tpredicate\x12\x1e\n" +
+	"\n" +
+	"precedence\x18\x03 \x01(\x03R\n" +
+	"precedence\"\xc1\x02\n" +
+	"\x14AuthoredDecisionSpec\x12#\n" +
+	"\revaluator_ref\x18\x01 \x01(\tR\fevaluatorRef\x12+\n" +
+	"\x11evaluator_version\x18\x02 \x01(\rR\x10evaluatorVersion\x12\x19\n" +
+	"\brule_ref\x18\x03 \x01(\tR\aruleRef\x12!\n" +
+	"\frule_version\x18\x04 \x01(\tR\vruleVersion\x120\n" +
+	"\x14input_digest_profile\x18\x05 \x01(\tR\x12inputDigestProfile\x12B\n" +
+	"\x06routes\x18\x06 \x03(\v2*.hcmnext.workflow.v1.AuthoredDecisionRouteR\x06routes\x12#\n" +
+	"\rdefault_route\x18\a \x01(\tR\fdefaultRoute\"B\n" +
+	"\x12AuthoredTaintInput\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\tR\x05level\"T\n" +
+	"\x17AuthoredTransformLookup\x12\x10\n" +
+	"\x03ref\x18\x01 \x01(\tR\x03ref\x12'\n" +
+	"\x0fsnapshot_digest\x18\x02 \x01(\tR\x0esnapshotDigest\"\x88\x01\n" +
+	"\x17AuthoredTransformLimits\x12&\n" +
+	"\x0fmax_input_bytes\x18\x01 \x01(\x04R\rmaxInputBytes\x12(\n" +
+	"\x10max_output_bytes\x18\x02 \x01(\x04R\x0emaxOutputBytes\x12\x1b\n" +
+	"\tmax_steps\x18\x03 \x01(\x04R\bmaxSteps\"\x8a\x05\n" +
+	"\x15AuthoredTransformSpec\x12#\n" +
+	"\rtransform_ref\x18\x01 \x01(\tR\ftransformRef\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\rR\aversion\x12J\n" +
+	"\vprogram_ref\x18\x03 \x01(\v2).hcmnext.workflow.v1.AuthoredVersionedRefR\n" +
+	"programRef\x12\x1f\n" +
+	"\vinline_code\x18\x04 \x01(\tR\n" +
+	"inlineCode\x12\x1d\n" +
+	"\n" +
+	"uses_clock\x18\x05 \x01(\bR\tusesClock\x12\x1f\n" +
+	"\vuses_random\x18\x06 \x01(\bR\n" +
+	"usesRandom\x12!\n" +
+	"\fuses_network\x18\a \x01(\bR\vusesNetwork\x12F\n" +
+	"\alookups\x18\b \x03(\v2,.hcmnext.workflow.v1.AuthoredTransformLookupR\alookups\x123\n" +
+	"\x15normalization_profile\x18\t \x01(\tR\x14normalizationProfile\x12H\n" +
+	"\vinput_taint\x18\n" +
+	" \x03(\v2'.hcmnext.workflow.v1.AuthoredTaintInputR\n" +
+	"inputTaint\x12!\n" +
+	"\foutput_taint\x18\v \x01(\tR\voutputTaint\x122\n" +
+	"\x15sanitizer_receipt_ref\x18\f \x01(\tR\x13sanitizerReceiptRef\x12D\n" +
+	"\x06limits\x18\r \x01(\v2,.hcmnext.workflow.v1.AuthoredTransformLimitsR\x06limits\"\xd7\x02\n" +
+	"\x13AuthoredObserveSpec\x12#\n" +
+	"\revidence_kind\x18\x01 \x01(\tR\fevidenceKind\x12)\n" +
+	"\x10source_authority\x18\x02 \x01(\tR\x0fsourceAuthority\x122\n" +
+	"\x15expected_state_fields\x18\x03 \x03(\tR\x13expectedStateFields\x12/\n" +
+	"\x13required_watermarks\x18\x04 \x03(\tR\x12requiredWatermarks\x12&\n" +
+	"\x0fmax_age_seconds\x18\x05 \x01(\x04R\rmaxAgeSeconds\x12-\n" +
+	"\x12comparison_profile\x18\x06 \x01(\tR\x11comparisonProfile\x124\n" +
+	"\x16retry_exhaustion_route\x18\a \x01(\tR\x14retryExhaustionRoute\"\xe9\x03\n" +
+	"\x14AuthoredTimeExprSpec\x12\x1f\n" +
+	"\vanchor_path\x18\x01 \x01(\tR\n" +
+	"anchorPath\x12\x1f\n" +
+	"\voffset_kind\x18\x02 \x01(\tR\n" +
+	"offsetKind\x12\x1f\n" +
+	"\voffset_days\x18\x03 \x01(\x03R\n" +
+	"offsetDays\x12%\n" +
+	"\x0eoffset_seconds\x18\x04 \x01(\x03R\roffsetSeconds\x12!\n" +
+	"\fcalendar_ref\x18\x05 \x01(\tR\vcalendarRef\x12)\n" +
+	"\x10calendar_version\x18\x06 \x01(\tR\x0fcalendarVersion\x12\x17\n" +
+	"\azone_id\x18\a \x01(\tR\x06zoneId\x12*\n" +
+	"\x11zone_tzdb_version\x18\b \x01(\tR\x0fzoneTzdbVersion\x12\x1d\n" +
+	"\n" +
+	"local_time\x18\t \x01(\tR\tlocalTime\x12&\n" +
+	"\x0edisambiguation\x18\n" +
+	" \x01(\tR\x0edisambiguation\x12*\n" +
+	"\x11statute_rule_pack\x18\v \x01(\tR\x0fstatuteRulePack\x12'\n" +
+	"\x0fstatute_release\x18\f \x01(\tR\x0estatuteRelease\x12\x18\n" +
+	"\astatute\x18\r \x01(\tR\astatute\"\\\n" +
+	"\x1bAuthoredDeadlineDefaultSpec\x12\x16\n" +
+	"\x06schema\x18\x01 \x01(\tR\x06schema\x12%\n" +
+	"\x0ecanonical_json\x18\x02 \x01(\tR\rcanonicalJson\"\xdd\x03\n" +
+	"\x10AuthoredWaitSpec\x12\x1b\n" +
+	"\twake_kind\x18\x01 \x01(\tR\bwakeKind\x12!\n" +
+	"\fwake_instant\x18\x02 \x01(\tR\vwakeInstant\x12&\n" +
+	"\x0fwake_local_date\x18\x03 \x01(\tR\rwakeLocalDate\x12&\n" +
+	"\x0fwake_local_time\x18\x04 \x01(\tR\rwakeLocalTime\x12&\n" +
+	"\x0edisambiguation\x18\x05 \x01(\tR\x0edisambiguation\x12\x17\n" +
+	"\azone_id\x18\x06 \x01(\tR\x06zoneId\x12*\n" +
+	"\x11zone_tzdb_version\x18\a \x01(\tR\x0fzoneTzdbVersion\x12!\n" +
+	"\fcalendar_ref\x18\b \x01(\tR\vcalendarRef\x12)\n" +
+	"\x10calendar_version\x18\t \x01(\tR\x0fcalendarVersion\x126\n" +
+	"\x17reference_update_policy\x18\n" +
+	" \x01(\tR\x15referenceUpdatePolicy\x12F\n" +
+	"\ttime_expr\x18\v \x01(\v2).hcmnext.workflow.v1.AuthoredTimeExprSpecR\btimeExpr\"\xee\x03\n" +
+	"\x12AuthoredSignalSpec\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x01 \x01(\tR\teventType\x12<\n" +
+	"\x1acorrelation_key_expression\x18\x02 \x01(\tR\x18correlationKeyExpression\x12V\n" +
+	"\x13expected_schema_ref\x18\x03 \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\x11expectedSchemaRef\x12)\n" +
+	"\x10accepted_sources\x18\x04 \x03(\tR\x0facceptedSources\x12\x1a\n" +
+	"\bordering\x18\x05 \x01(\tR\bordering\x12.\n" +
+	"\x13close_after_seconds\x18\x06 \x01(\x04R\x11closeAfterSeconds\x12Q\n" +
+	"\x0fclose_time_expr\x18\a \x01(\v2).hcmnext.workflow.v1.AuthoredTimeExprSpecR\rcloseTimeExpr\x12Y\n" +
+	"\x0ftimeout_default\x18\b \x01(\v20.hcmnext.workflow.v1.AuthoredDeadlineDefaultSpecR\x0etimeoutDefault\"\xf6\x04\n" +
+	"\x0fAuthoredEndSpec\x12#\n" +
+	"\rterminal_code\x18\x01 \x01(\tR\fterminalCode\x12%\n" +
+	"\x0eruntime_status\x18\x02 \x01(\tR\rruntimeStatus\x12j\n" +
+	"\x12completion_mapping\x18\x03 \x03(\v2;.hcmnext.workflow.v1.AuthoredEndSpec.CompletionMappingEntryR\x11completionMapping\x12>\n" +
+	"\x1boutstanding_obligation_refs\x18\x04 \x03(\tR\x19outstandingObligationRefs\x12\x1f\n" +
+	"\vrepair_refs\x18\x05 \x03(\tR\n" +
+	"repairRefs\x12#\n" +
+	"\rincident_refs\x18\x06 \x03(\tR\fincidentRefs\x12,\n" +
+	"\x12commit_receipt_ref\x18\a \x01(\tR\x10commitReceiptRef\x12+\n" +
+	"\x11approval_required\x18\b \x01(\bR\x10approvalRequired\x128\n" +
+	"\x18approved_material_digest\x18\t \x01(\tR\x16approvedMaterialDigest\x12J\n" +
+	"\"closure_policy_permits_open_repair\x18\n" +
+	" \x01(\bR\x1eclosurePolicyPermitsOpenRepair\x1aD\n" +
+	"\x16CompletionMappingEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x03\n" +
+	"\x16AuthoredNodeGovernance\x12\x18\n" +
+	"\apurpose\x18\x01 \x01(\tR\apurpose\x12&\n" +
+	"\x0eclassification\x18\x02 \x01(\tR\x0eclassification\x12-\n" +
+	"\x12required_decisions\x18\x03 \x03(\tR\x11requiredDecisions\x12'\n" +
+	"\x0fobligation_refs\x18\x04 \x03(\tR\x0eobligationRefs\x123\n" +
+	"\x15approval_requirements\x18\x05 \x03(\tR\x14approvalRequirements\x123\n" +
+	"\x15revalidation_boundary\x18\x06 \x01(\tR\x14revalidationBoundary\x127\n" +
+	"\x18data_access_manifest_ref\x18\a \x01(\tR\x15dataAccessManifestRef\x120\n" +
+	"\x14output_validator_ref\x18\b \x01(\tR\x12outputValidatorRef\"Y\n" +
+	"\x13AuthoredRetryPolicy\x12!\n" +
+	"\fmax_attempts\x18\x01 \x01(\rR\vmaxAttempts\x12\x1f\n" +
+	"\vbackoff_ref\x18\x02 \x01(\tR\n" +
+	"backoffRef\">\n" +
+	"\x13AuthoredModeOverlay\x12'\n" +
+	"\x0fsimulate_effect\x18\x01 \x01(\tR\x0esimulateEffect\"\xf3\x01\n" +
+	"\x1bAuthoredApprovalRequirement\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12/\n" +
+	"\x13resolver_expression\x18\x02 \x01(\tR\x12resolverExpression\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x16\n" +
+	"\x06quorum\x18\x04 \x01(\x03R\x06quorum\x120\n" +
+	"\x14separation_of_duties\x18\x05 \x01(\bR\x12separationOfDuties\x123\n" +
+	"\x16effective_as_of_policy\x18\x06 \x01(\tR\x13effectiveAsOfPolicy\"\xf9\x02\n" +
+	"\x1dAuthoredObligationRequirement\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
+	"\tauthority\x18\x02 \x01(\tR\tauthority\x12'\n" +
+	"\x0finsertion_point\x18\x03 \x01(\tR\x0einsertionPoint\x12'\n" +
+	"\x0frequired_action\x18\x04 \x01(\tR\x0erequiredAction\x12+\n" +
+	"\x11responsible_party\x18\x05 \x01(\tR\x10responsibleParty\x125\n" +
+	"\x16satisfaction_condition\x18\x06 \x01(\tR\x15satisfactionCondition\x12%\n" +
+	"\x0esource_version\x18\a \x01(\tR\rsourceVersion\x12/\n" +
+	"\x13reevaluation_policy\x18\b \x01(\tR\x12reevaluationPolicy\x12\x1c\n" +
+	"\tmandatory\x18\t \x01(\bR\tmandatory\"\x89\x01\n" +
+	"\x18AuthoredCycleDeclaration\x12\"\n" +
+	"\rentry_node_id\x18\x01 \x01(\tR\ventryNodeId\x12\"\n" +
+	"\rguard_node_id\x18\x02 \x01(\tR\vguardNodeId\x12%\n" +
+	"\x0emax_iterations\x18\x03 \x01(\rR\rmaxIterations\"\xc2\x01\n" +
+	"\x0eAuthoredLimits\x12\x1e\n" +
+	"\vmax_fan_out\x18\x01 \x01(\rR\tmaxFanOut\x12\x1b\n" +
+	"\tmax_depth\x18\x02 \x01(\rR\bmaxDepth\x12\x1b\n" +
+	"\tmax_nodes\x18\x03 \x01(\rR\bmaxNodes\x12V\n" +
+	"\x0fdeclared_cycles\x18\x04 \x03(\v2-.hcmnext.workflow.v1.AuthoredCycleDeclarationR\x0edeclaredCycles\"O\n" +
+	"\fAuthoredEdge\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x12\x1b\n" +
+	"\troute_key\x18\x03 \x01(\tR\brouteKey\"\xc2\x01\n" +
+	"\x17AuthoredCatalogMetadata\x12!\n" +
+	"\fdisplay_name\x18\x01 \x01(\tR\vdisplayName\x12\x1a\n" +
+	"\bcategory\x18\x02 \x01(\tR\bcategory\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\bkeywords\x18\x04 \x03(\tR\bkeywords\x12\x12\n" +
+	"\x04icon\x18\x05 \x01(\tR\x04icon\x12\x16\n" +
+	"\x06hidden\x18\x06 \x01(\bR\x06hidden\"\xfe\x0e\n" +
+	"\x16AuthoredNodeDefinition\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12I\n" +
+	"\finput_schema\x18\x03 \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\vinputSchema\x12K\n" +
+	"\routput_schema\x18\x04 \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\foutputSchema\x12:\n" +
+	"\x06inputs\x18\x05 \x03(\v2\".hcmnext.workflow.v1.AuthoredFieldR\x06inputs\x12<\n" +
+	"\aoutputs\x18\x06 \x03(\v2\".hcmnext.workflow.v1.AuthoredFieldR\aoutputs\x12K\n" +
+	"\x0einput_mappings\x18\a \x03(\v2$.hcmnext.workflow.v1.AuthoredMappingR\rinputMappings\x12Z\n" +
+	"\x10required_context\x18\b \x03(\v2/.hcmnext.workflow.v1.AuthoredContextRequirementR\x0frequiredContext\x12J\n" +
+	"\n" +
+	"capability\x18\t \x01(\v2*.hcmnext.workflow.v1.AuthoredCapabilityRefR\n" +
+	"capability\x12E\n" +
+	"\bdecision\x18\n" +
+	" \x01(\v2).hcmnext.workflow.v1.AuthoredDecisionSpecR\bdecision\x12H\n" +
+	"\ttransform\x18\v \x01(\v2*.hcmnext.workflow.v1.AuthoredTransformSpecR\ttransform\x12B\n" +
+	"\aobserve\x18\f \x01(\v2(.hcmnext.workflow.v1.AuthoredObserveSpecR\aobserve\x126\n" +
+	"\x03end\x18\r \x01(\v2$.hcmnext.workflow.v1.AuthoredEndSpecR\x03end\x129\n" +
+	"\x04wait\x18\x0e \x01(\v2%.hcmnext.workflow.v1.AuthoredWaitSpecR\x04wait\x12?\n" +
+	"\x06signal\x18\x0f \x01(\v2'.hcmnext.workflow.v1.AuthoredSignalSpecR\x06signal\x12'\n" +
+	"\x0fdeclared_effect\x18\x10 \x01(\tR\x0edeclaredEffect\x12\x1f\n" +
+	"\veffect_role\x18\x11 \x01(\tR\n" +
+	"effectRole\x12L\n" +
+	"\fresolver_ref\x18\x12 \x01(\v2).hcmnext.workflow.v1.AuthoredVersionedRefR\vresolverRef\x12P\n" +
+	"\x0etimeout_policy\x18\x13 \x01(\v2).hcmnext.workflow.v1.AuthoredVersionedRefR\rtimeoutPolicy\x12T\n" +
+	"\x10compensation_ref\x18\x14 \x01(\v2).hcmnext.workflow.v1.AuthoredVersionedRefR\x0fcompensationRef\x12h\n" +
+	"\x0foutcome_aliases\x18\x15 \x03(\v2?.hcmnext.workflow.v1.AuthoredNodeDefinition.OutcomeAliasesEntryR\x0eoutcomeAliases\x12K\n" +
+	"\fmode_overlay\x18\x16 \x01(\v2(.hcmnext.workflow.v1.AuthoredModeOverlayR\vmodeOverlay\x12>\n" +
+	"\x05retry\x18\x17 \x01(\v2(.hcmnext.workflow.v1.AuthoredRetryPolicyR\x05retry\x12#\n" +
+	"\rfailure_route\x18\x18 \x01(\tR\ffailureRoute\x120\n" +
+	"\x14safe_point_requested\x18\x19 \x01(\bR\x12safePointRequested\x12K\n" +
+	"\n" +
+	"governance\x18\x1a \x01(\v2+.hcmnext.workflow.v1.AuthoredNodeGovernanceR\n" +
+	"governance\x12U\n" +
+	"\bmetadata\x18\x1b \x03(\v29.hcmnext.workflow.v1.AuthoredNodeDefinition.MetadataEntryR\bmetadata\x1aA\n" +
+	"\x13OutcomeAliasesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"N\n" +
+	"\x12AuthoredNodeLayout\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x1c\n" +
+	"\tcollapsed\x18\x03 \x01(\bR\tcollapsed\"`\n" +
+	"\x14AuthoredCanvasLayout\x12\x12\n" +
+	"\x04zoom\x18\x01 \x01(\x01R\x04zoom\x12\x19\n" +
+	"\bcenter_x\x18\x02 \x01(\x01R\acenterX\x12\x19\n" +
+	"\bcenter_y\x18\x03 \x01(\x01R\acenterY\"\x8d\x0e\n" +
+	"\x1aAuthoredWorkflowDefinition\x12\x1f\n" +
+	"\vworkflow_id\x18\x01 \x01(\tR\n" +
+	"workflowId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\rR\aversion\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12F\n" +
+	"\acatalog\x18\x04 \x01(\v2,.hcmnext.workflow.v1.AuthoredCatalogMetadataR\acatalog\x12\x1f\n" +
+	"\vintent_type\x18\x05 \x01(\tR\n" +
+	"intentType\x12l\n" +
+	"\x0fmatch_predicate\x18\x06 \x03(\v2C.hcmnext.workflow.v1.AuthoredWorkflowDefinition.MatchPredicateEntryR\x0ematchPredicate\x12I\n" +
+	"\finput_schema\x18\a \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\vinputSchema\x12K\n" +
+	"\routput_schema\x18\b \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\foutputSchema\x12Q\n" +
+	"\x10variables_schema\x18\t \x01(\v2&.hcmnext.workflow.v1.AuthoredSchemaRefR\x0fvariablesSchema\x12:\n" +
+	"\x06inputs\x18\n" +
+	" \x03(\v2\".hcmnext.workflow.v1.AuthoredFieldR\x06inputs\x12<\n" +
+	"\aoutputs\x18\v \x03(\v2\".hcmnext.workflow.v1.AuthoredFieldR\aoutputs\x12!\n" +
+	"\ftenant_scope\x18\f \x01(\tR\vtenantScope\x12-\n" +
+	"\x12organization_scope\x18\r \x01(\tR\x11organizationScope\x12\x1d\n" +
+	"\n" +
+	"risk_class\x18\x0e \x01(\tR\triskClass\x12%\n" +
+	"\x0edeclared_modes\x18\x0f \x03(\tR\rdeclaredModes\x12)\n" +
+	"\x10terminal_profile\x18\x10 \x01(\tR\x0fterminalProfile\x12\"\n" +
+	"\rstart_node_id\x18\x11 \x01(\tR\vstartNodeId\x12A\n" +
+	"\x05nodes\x18\x12 \x03(\v2+.hcmnext.workflow.v1.AuthoredNodeDefinitionR\x05nodes\x127\n" +
+	"\x05edges\x18\x13 \x03(\v2!.hcmnext.workflow.v1.AuthoredEdgeR\x05edges\x12e\n" +
+	"\x15approval_requirements\x18\x14 \x03(\v20.hcmnext.workflow.v1.AuthoredApprovalRequirementR\x14approvalRequirements\x12T\n" +
+	"\vobligations\x18\x15 \x03(\v22.hcmnext.workflow.v1.AuthoredObligationRequirementR\vobligations\x12;\n" +
+	"\x06limits\x18\x16 \x01(\v2#.hcmnext.workflow.v1.AuthoredLimitsR\x06limits\x12,\n" +
+	"\x12failure_policy_ref\x18\x17 \x01(\tR\x10failurePolicyRef\x126\n" +
+	"\x17cancellation_policy_ref\x18\x18 \x01(\tR\x15cancellationPolicyRef\x120\n" +
+	"\x14migration_policy_ref\x18\x19 \x01(\tR\x12migrationPolicyRef\x120\n" +
+	"\x14retention_policy_ref\x18\x1a \x01(\tR\x12retentionPolicyRef\x12S\n" +
+	"\x06layout\x18\x1b \x03(\v2;.hcmnext.workflow.v1.AuthoredWorkflowDefinition.LayoutEntryR\x06layout\x12A\n" +
+	"\x06canvas\x18\x1c \x01(\v2).hcmnext.workflow.v1.AuthoredCanvasLayoutR\x06canvas\x1aA\n" +
+	"\x13MatchPredicateEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ab\n" +
+	"\vLayoutEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12=\n" +
+	"\x05value\x18\x02 \x01(\v2'.hcmnext.workflow.v1.AuthoredNodeLayoutR\x05value:\x028\x01*\xd1\x02\n" +
 	"\bStepType\x12\x19\n" +
 	"\x15STEP_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14STEP_TYPE_CAPABILITY\x10\x01\x12\x16\n" +
@@ -1337,54 +4720,143 @@ func file_hcmnext_workflow_v1_workflow_proto_rawDescGZIP() []byte {
 }
 
 var file_hcmnext_workflow_v1_workflow_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_hcmnext_workflow_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_hcmnext_workflow_v1_workflow_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
 var file_hcmnext_workflow_v1_workflow_proto_goTypes = []any{
-	(StepType)(0),                       // 0: hcmnext.workflow.v1.StepType
-	(WorkflowVersionState)(0),           // 1: hcmnext.workflow.v1.WorkflowVersionState
-	(RuntimeStatus)(0),                  // 2: hcmnext.workflow.v1.RuntimeStatus
-	(NodeExecutionStatus)(0),            // 3: hcmnext.workflow.v1.NodeExecutionStatus
-	(*WorkflowDefinitionReference)(nil), // 4: hcmnext.workflow.v1.WorkflowDefinitionReference
-	(*NodeDefinition)(nil),              // 5: hcmnext.workflow.v1.NodeDefinition
-	(*Edge)(nil),                        // 6: hcmnext.workflow.v1.Edge
-	(*WorkflowDefinition)(nil),          // 7: hcmnext.workflow.v1.WorkflowDefinition
-	(*CompiledWorkflowPlan)(nil),        // 8: hcmnext.workflow.v1.CompiledWorkflowPlan
-	(*WorkflowInstance)(nil),            // 9: hcmnext.workflow.v1.WorkflowInstance
-	(*NodeExecution)(nil),               // 10: hcmnext.workflow.v1.NodeExecution
-	(v1.SideEffectProfile)(0),           // 11: hcmnext.intents.v1.SideEffectProfile
-	(*v11.ScopeContext)(nil),            // 12: hcmnext.common.v1.ScopeContext
-	(*v1.CanonicalDigestReference)(nil), // 13: hcmnext.intents.v1.CanonicalDigestReference
-	(*v11.EntityRef)(nil),               // 14: hcmnext.common.v1.EntityRef
-	(v1.ExecutionMode)(0),               // 15: hcmnext.intents.v1.ExecutionMode
-	(*v1.LifecycleDimensions)(nil),      // 16: hcmnext.intents.v1.LifecycleDimensions
-	(*timestamppb.Timestamp)(nil),       // 17: google.protobuf.Timestamp
+	(StepType)(0),                         // 0: hcmnext.workflow.v1.StepType
+	(WorkflowVersionState)(0),             // 1: hcmnext.workflow.v1.WorkflowVersionState
+	(RuntimeStatus)(0),                    // 2: hcmnext.workflow.v1.RuntimeStatus
+	(NodeExecutionStatus)(0),              // 3: hcmnext.workflow.v1.NodeExecutionStatus
+	(*WorkflowDefinitionReference)(nil),   // 4: hcmnext.workflow.v1.WorkflowDefinitionReference
+	(*NodeDefinition)(nil),                // 5: hcmnext.workflow.v1.NodeDefinition
+	(*Edge)(nil),                          // 6: hcmnext.workflow.v1.Edge
+	(*WorkflowDefinition)(nil),            // 7: hcmnext.workflow.v1.WorkflowDefinition
+	(*CompiledWorkflowPlan)(nil),          // 8: hcmnext.workflow.v1.CompiledWorkflowPlan
+	(*WorkflowInstance)(nil),              // 9: hcmnext.workflow.v1.WorkflowInstance
+	(*NodeExecution)(nil),                 // 10: hcmnext.workflow.v1.NodeExecution
+	(*AuthoredSchemaRef)(nil),             // 11: hcmnext.workflow.v1.AuthoredSchemaRef
+	(*AuthoredVersionedRef)(nil),          // 12: hcmnext.workflow.v1.AuthoredVersionedRef
+	(*AuthoredValueType)(nil),             // 13: hcmnext.workflow.v1.AuthoredValueType
+	(*AuthoredField)(nil),                 // 14: hcmnext.workflow.v1.AuthoredField
+	(*AuthoredSource)(nil),                // 15: hcmnext.workflow.v1.AuthoredSource
+	(*AuthoredMapping)(nil),               // 16: hcmnext.workflow.v1.AuthoredMapping
+	(*AuthoredContextRequirement)(nil),    // 17: hcmnext.workflow.v1.AuthoredContextRequirement
+	(*AuthoredCapabilityRef)(nil),         // 18: hcmnext.workflow.v1.AuthoredCapabilityRef
+	(*AuthoredDecisionRoute)(nil),         // 19: hcmnext.workflow.v1.AuthoredDecisionRoute
+	(*AuthoredDecisionSpec)(nil),          // 20: hcmnext.workflow.v1.AuthoredDecisionSpec
+	(*AuthoredTaintInput)(nil),            // 21: hcmnext.workflow.v1.AuthoredTaintInput
+	(*AuthoredTransformLookup)(nil),       // 22: hcmnext.workflow.v1.AuthoredTransformLookup
+	(*AuthoredTransformLimits)(nil),       // 23: hcmnext.workflow.v1.AuthoredTransformLimits
+	(*AuthoredTransformSpec)(nil),         // 24: hcmnext.workflow.v1.AuthoredTransformSpec
+	(*AuthoredObserveSpec)(nil),           // 25: hcmnext.workflow.v1.AuthoredObserveSpec
+	(*AuthoredTimeExprSpec)(nil),          // 26: hcmnext.workflow.v1.AuthoredTimeExprSpec
+	(*AuthoredDeadlineDefaultSpec)(nil),   // 27: hcmnext.workflow.v1.AuthoredDeadlineDefaultSpec
+	(*AuthoredWaitSpec)(nil),              // 28: hcmnext.workflow.v1.AuthoredWaitSpec
+	(*AuthoredSignalSpec)(nil),            // 29: hcmnext.workflow.v1.AuthoredSignalSpec
+	(*AuthoredEndSpec)(nil),               // 30: hcmnext.workflow.v1.AuthoredEndSpec
+	(*AuthoredNodeGovernance)(nil),        // 31: hcmnext.workflow.v1.AuthoredNodeGovernance
+	(*AuthoredRetryPolicy)(nil),           // 32: hcmnext.workflow.v1.AuthoredRetryPolicy
+	(*AuthoredModeOverlay)(nil),           // 33: hcmnext.workflow.v1.AuthoredModeOverlay
+	(*AuthoredApprovalRequirement)(nil),   // 34: hcmnext.workflow.v1.AuthoredApprovalRequirement
+	(*AuthoredObligationRequirement)(nil), // 35: hcmnext.workflow.v1.AuthoredObligationRequirement
+	(*AuthoredCycleDeclaration)(nil),      // 36: hcmnext.workflow.v1.AuthoredCycleDeclaration
+	(*AuthoredLimits)(nil),                // 37: hcmnext.workflow.v1.AuthoredLimits
+	(*AuthoredEdge)(nil),                  // 38: hcmnext.workflow.v1.AuthoredEdge
+	(*AuthoredCatalogMetadata)(nil),       // 39: hcmnext.workflow.v1.AuthoredCatalogMetadata
+	(*AuthoredNodeDefinition)(nil),        // 40: hcmnext.workflow.v1.AuthoredNodeDefinition
+	(*AuthoredNodeLayout)(nil),            // 41: hcmnext.workflow.v1.AuthoredNodeLayout
+	(*AuthoredCanvasLayout)(nil),          // 42: hcmnext.workflow.v1.AuthoredCanvasLayout
+	(*AuthoredWorkflowDefinition)(nil),    // 43: hcmnext.workflow.v1.AuthoredWorkflowDefinition
+	nil,                                   // 44: hcmnext.workflow.v1.AuthoredEndSpec.CompletionMappingEntry
+	nil,                                   // 45: hcmnext.workflow.v1.AuthoredNodeDefinition.OutcomeAliasesEntry
+	nil,                                   // 46: hcmnext.workflow.v1.AuthoredNodeDefinition.MetadataEntry
+	nil,                                   // 47: hcmnext.workflow.v1.AuthoredWorkflowDefinition.MatchPredicateEntry
+	nil,                                   // 48: hcmnext.workflow.v1.AuthoredWorkflowDefinition.LayoutEntry
+	(v1.SideEffectProfile)(0),             // 49: hcmnext.intents.v1.SideEffectProfile
+	(*v11.ScopeContext)(nil),              // 50: hcmnext.common.v1.ScopeContext
+	(*v1.CanonicalDigestReference)(nil),   // 51: hcmnext.intents.v1.CanonicalDigestReference
+	(*v11.EntityRef)(nil),                 // 52: hcmnext.common.v1.EntityRef
+	(v1.ExecutionMode)(0),                 // 53: hcmnext.intents.v1.ExecutionMode
+	(*v1.LifecycleDimensions)(nil),        // 54: hcmnext.intents.v1.LifecycleDimensions
+	(*timestamppb.Timestamp)(nil),         // 55: google.protobuf.Timestamp
 }
 var file_hcmnext_workflow_v1_workflow_proto_depIdxs = []int32{
 	0,  // 0: hcmnext.workflow.v1.NodeDefinition.node_type:type_name -> hcmnext.workflow.v1.StepType
-	11, // 1: hcmnext.workflow.v1.NodeDefinition.side_effect_profile:type_name -> hcmnext.intents.v1.SideEffectProfile
+	49, // 1: hcmnext.workflow.v1.NodeDefinition.side_effect_profile:type_name -> hcmnext.intents.v1.SideEffectProfile
 	4,  // 2: hcmnext.workflow.v1.WorkflowDefinition.reference:type_name -> hcmnext.workflow.v1.WorkflowDefinitionReference
 	5,  // 3: hcmnext.workflow.v1.WorkflowDefinition.nodes:type_name -> hcmnext.workflow.v1.NodeDefinition
 	6,  // 4: hcmnext.workflow.v1.WorkflowDefinition.edges:type_name -> hcmnext.workflow.v1.Edge
-	12, // 5: hcmnext.workflow.v1.WorkflowDefinition.tenant_scope:type_name -> hcmnext.common.v1.ScopeContext
+	50, // 5: hcmnext.workflow.v1.WorkflowDefinition.tenant_scope:type_name -> hcmnext.common.v1.ScopeContext
 	1,  // 6: hcmnext.workflow.v1.WorkflowDefinition.state:type_name -> hcmnext.workflow.v1.WorkflowVersionState
 	4,  // 7: hcmnext.workflow.v1.CompiledWorkflowPlan.reference:type_name -> hcmnext.workflow.v1.WorkflowDefinitionReference
-	13, // 8: hcmnext.workflow.v1.CompiledWorkflowPlan.plan_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
+	51, // 8: hcmnext.workflow.v1.CompiledWorkflowPlan.plan_digest:type_name -> hcmnext.intents.v1.CanonicalDigestReference
 	4,  // 9: hcmnext.workflow.v1.WorkflowInstance.definition:type_name -> hcmnext.workflow.v1.WorkflowDefinitionReference
-	14, // 10: hcmnext.workflow.v1.WorkflowInstance.business_subject_refs:type_name -> hcmnext.common.v1.EntityRef
-	15, // 11: hcmnext.workflow.v1.WorkflowInstance.execution_mode:type_name -> hcmnext.intents.v1.ExecutionMode
+	52, // 10: hcmnext.workflow.v1.WorkflowInstance.business_subject_refs:type_name -> hcmnext.common.v1.EntityRef
+	53, // 11: hcmnext.workflow.v1.WorkflowInstance.execution_mode:type_name -> hcmnext.intents.v1.ExecutionMode
 	2,  // 12: hcmnext.workflow.v1.WorkflowInstance.runtime_status:type_name -> hcmnext.workflow.v1.RuntimeStatus
-	16, // 13: hcmnext.workflow.v1.WorkflowInstance.lifecycle:type_name -> hcmnext.intents.v1.LifecycleDimensions
-	17, // 14: hcmnext.workflow.v1.WorkflowInstance.created_at:type_name -> google.protobuf.Timestamp
-	17, // 15: hcmnext.workflow.v1.WorkflowInstance.started_at:type_name -> google.protobuf.Timestamp
-	17, // 16: hcmnext.workflow.v1.WorkflowInstance.completed_at:type_name -> google.protobuf.Timestamp
+	54, // 13: hcmnext.workflow.v1.WorkflowInstance.lifecycle:type_name -> hcmnext.intents.v1.LifecycleDimensions
+	55, // 14: hcmnext.workflow.v1.WorkflowInstance.created_at:type_name -> google.protobuf.Timestamp
+	55, // 15: hcmnext.workflow.v1.WorkflowInstance.started_at:type_name -> google.protobuf.Timestamp
+	55, // 16: hcmnext.workflow.v1.WorkflowInstance.completed_at:type_name -> google.protobuf.Timestamp
 	3,  // 17: hcmnext.workflow.v1.NodeExecution.status:type_name -> hcmnext.workflow.v1.NodeExecutionStatus
-	17, // 18: hcmnext.workflow.v1.NodeExecution.retry_at:type_name -> google.protobuf.Timestamp
-	17, // 19: hcmnext.workflow.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
-	17, // 20: hcmnext.workflow.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	55, // 18: hcmnext.workflow.v1.NodeExecution.retry_at:type_name -> google.protobuf.Timestamp
+	55, // 19: hcmnext.workflow.v1.NodeExecution.started_at:type_name -> google.protobuf.Timestamp
+	55, // 20: hcmnext.workflow.v1.NodeExecution.completed_at:type_name -> google.protobuf.Timestamp
+	13, // 21: hcmnext.workflow.v1.AuthoredValueType.element:type_name -> hcmnext.workflow.v1.AuthoredValueType
+	13, // 22: hcmnext.workflow.v1.AuthoredField.type:type_name -> hcmnext.workflow.v1.AuthoredValueType
+	13, // 23: hcmnext.workflow.v1.AuthoredSource.type:type_name -> hcmnext.workflow.v1.AuthoredValueType
+	15, // 24: hcmnext.workflow.v1.AuthoredMapping.source:type_name -> hcmnext.workflow.v1.AuthoredSource
+	19, // 25: hcmnext.workflow.v1.AuthoredDecisionSpec.routes:type_name -> hcmnext.workflow.v1.AuthoredDecisionRoute
+	12, // 26: hcmnext.workflow.v1.AuthoredTransformSpec.program_ref:type_name -> hcmnext.workflow.v1.AuthoredVersionedRef
+	22, // 27: hcmnext.workflow.v1.AuthoredTransformSpec.lookups:type_name -> hcmnext.workflow.v1.AuthoredTransformLookup
+	21, // 28: hcmnext.workflow.v1.AuthoredTransformSpec.input_taint:type_name -> hcmnext.workflow.v1.AuthoredTaintInput
+	23, // 29: hcmnext.workflow.v1.AuthoredTransformSpec.limits:type_name -> hcmnext.workflow.v1.AuthoredTransformLimits
+	26, // 30: hcmnext.workflow.v1.AuthoredWaitSpec.time_expr:type_name -> hcmnext.workflow.v1.AuthoredTimeExprSpec
+	11, // 31: hcmnext.workflow.v1.AuthoredSignalSpec.expected_schema_ref:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	26, // 32: hcmnext.workflow.v1.AuthoredSignalSpec.close_time_expr:type_name -> hcmnext.workflow.v1.AuthoredTimeExprSpec
+	27, // 33: hcmnext.workflow.v1.AuthoredSignalSpec.timeout_default:type_name -> hcmnext.workflow.v1.AuthoredDeadlineDefaultSpec
+	44, // 34: hcmnext.workflow.v1.AuthoredEndSpec.completion_mapping:type_name -> hcmnext.workflow.v1.AuthoredEndSpec.CompletionMappingEntry
+	36, // 35: hcmnext.workflow.v1.AuthoredLimits.declared_cycles:type_name -> hcmnext.workflow.v1.AuthoredCycleDeclaration
+	11, // 36: hcmnext.workflow.v1.AuthoredNodeDefinition.input_schema:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	11, // 37: hcmnext.workflow.v1.AuthoredNodeDefinition.output_schema:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	14, // 38: hcmnext.workflow.v1.AuthoredNodeDefinition.inputs:type_name -> hcmnext.workflow.v1.AuthoredField
+	14, // 39: hcmnext.workflow.v1.AuthoredNodeDefinition.outputs:type_name -> hcmnext.workflow.v1.AuthoredField
+	16, // 40: hcmnext.workflow.v1.AuthoredNodeDefinition.input_mappings:type_name -> hcmnext.workflow.v1.AuthoredMapping
+	17, // 41: hcmnext.workflow.v1.AuthoredNodeDefinition.required_context:type_name -> hcmnext.workflow.v1.AuthoredContextRequirement
+	18, // 42: hcmnext.workflow.v1.AuthoredNodeDefinition.capability:type_name -> hcmnext.workflow.v1.AuthoredCapabilityRef
+	20, // 43: hcmnext.workflow.v1.AuthoredNodeDefinition.decision:type_name -> hcmnext.workflow.v1.AuthoredDecisionSpec
+	24, // 44: hcmnext.workflow.v1.AuthoredNodeDefinition.transform:type_name -> hcmnext.workflow.v1.AuthoredTransformSpec
+	25, // 45: hcmnext.workflow.v1.AuthoredNodeDefinition.observe:type_name -> hcmnext.workflow.v1.AuthoredObserveSpec
+	30, // 46: hcmnext.workflow.v1.AuthoredNodeDefinition.end:type_name -> hcmnext.workflow.v1.AuthoredEndSpec
+	28, // 47: hcmnext.workflow.v1.AuthoredNodeDefinition.wait:type_name -> hcmnext.workflow.v1.AuthoredWaitSpec
+	29, // 48: hcmnext.workflow.v1.AuthoredNodeDefinition.signal:type_name -> hcmnext.workflow.v1.AuthoredSignalSpec
+	12, // 49: hcmnext.workflow.v1.AuthoredNodeDefinition.resolver_ref:type_name -> hcmnext.workflow.v1.AuthoredVersionedRef
+	12, // 50: hcmnext.workflow.v1.AuthoredNodeDefinition.timeout_policy:type_name -> hcmnext.workflow.v1.AuthoredVersionedRef
+	12, // 51: hcmnext.workflow.v1.AuthoredNodeDefinition.compensation_ref:type_name -> hcmnext.workflow.v1.AuthoredVersionedRef
+	45, // 52: hcmnext.workflow.v1.AuthoredNodeDefinition.outcome_aliases:type_name -> hcmnext.workflow.v1.AuthoredNodeDefinition.OutcomeAliasesEntry
+	33, // 53: hcmnext.workflow.v1.AuthoredNodeDefinition.mode_overlay:type_name -> hcmnext.workflow.v1.AuthoredModeOverlay
+	32, // 54: hcmnext.workflow.v1.AuthoredNodeDefinition.retry:type_name -> hcmnext.workflow.v1.AuthoredRetryPolicy
+	31, // 55: hcmnext.workflow.v1.AuthoredNodeDefinition.governance:type_name -> hcmnext.workflow.v1.AuthoredNodeGovernance
+	46, // 56: hcmnext.workflow.v1.AuthoredNodeDefinition.metadata:type_name -> hcmnext.workflow.v1.AuthoredNodeDefinition.MetadataEntry
+	39, // 57: hcmnext.workflow.v1.AuthoredWorkflowDefinition.catalog:type_name -> hcmnext.workflow.v1.AuthoredCatalogMetadata
+	47, // 58: hcmnext.workflow.v1.AuthoredWorkflowDefinition.match_predicate:type_name -> hcmnext.workflow.v1.AuthoredWorkflowDefinition.MatchPredicateEntry
+	11, // 59: hcmnext.workflow.v1.AuthoredWorkflowDefinition.input_schema:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	11, // 60: hcmnext.workflow.v1.AuthoredWorkflowDefinition.output_schema:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	11, // 61: hcmnext.workflow.v1.AuthoredWorkflowDefinition.variables_schema:type_name -> hcmnext.workflow.v1.AuthoredSchemaRef
+	14, // 62: hcmnext.workflow.v1.AuthoredWorkflowDefinition.inputs:type_name -> hcmnext.workflow.v1.AuthoredField
+	14, // 63: hcmnext.workflow.v1.AuthoredWorkflowDefinition.outputs:type_name -> hcmnext.workflow.v1.AuthoredField
+	40, // 64: hcmnext.workflow.v1.AuthoredWorkflowDefinition.nodes:type_name -> hcmnext.workflow.v1.AuthoredNodeDefinition
+	38, // 65: hcmnext.workflow.v1.AuthoredWorkflowDefinition.edges:type_name -> hcmnext.workflow.v1.AuthoredEdge
+	34, // 66: hcmnext.workflow.v1.AuthoredWorkflowDefinition.approval_requirements:type_name -> hcmnext.workflow.v1.AuthoredApprovalRequirement
+	35, // 67: hcmnext.workflow.v1.AuthoredWorkflowDefinition.obligations:type_name -> hcmnext.workflow.v1.AuthoredObligationRequirement
+	37, // 68: hcmnext.workflow.v1.AuthoredWorkflowDefinition.limits:type_name -> hcmnext.workflow.v1.AuthoredLimits
+	48, // 69: hcmnext.workflow.v1.AuthoredWorkflowDefinition.layout:type_name -> hcmnext.workflow.v1.AuthoredWorkflowDefinition.LayoutEntry
+	42, // 70: hcmnext.workflow.v1.AuthoredWorkflowDefinition.canvas:type_name -> hcmnext.workflow.v1.AuthoredCanvasLayout
+	41, // 71: hcmnext.workflow.v1.AuthoredWorkflowDefinition.LayoutEntry.value:type_name -> hcmnext.workflow.v1.AuthoredNodeLayout
+	72, // [72:72] is the sub-list for method output_type
+	72, // [72:72] is the sub-list for method input_type
+	72, // [72:72] is the sub-list for extension type_name
+	72, // [72:72] is the sub-list for extension extendee
+	0,  // [0:72] is the sub-list for field type_name
 }
 
 func init() { file_hcmnext_workflow_v1_workflow_proto_init() }
@@ -1402,7 +4874,7 @@ func file_hcmnext_workflow_v1_workflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hcmnext_workflow_v1_workflow_proto_rawDesc), len(file_hcmnext_workflow_v1_workflow_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   7,
+			NumMessages:   45,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

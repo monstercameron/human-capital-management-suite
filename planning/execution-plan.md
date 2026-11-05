@@ -391,6 +391,18 @@ served and tested.
   CHAT-052 records, and a design partner is selected to run the CHAT-053 and
   HUB-044 pilots. The four todos stay unticked until then.
 
+### Recorded placement: small-business operations (2026-10-22)
+
+The owner authorizes planning adoption, detailed implementation TODOs, and GitHub issues for the complete [small-business expansion](small-business-platform-ideas.md), including discovered operational dependencies. This is explicit scope authorization for the expansion backlog. It is not evidence that implementation is complete, that a vendor/customer has approved integration, or that a staffed production release is scheduled.
+
+- **Placement:** a distinct PHASE_3/PHASE_4 delivery track after each dependency's actual readiness; no automatic addition to Gate A/B acceptance. No existing Gate A/B item is removed or falsely marked complete. Promoting an item into those gates still requires the recorded staffing/schedule scope exchange.
+- **Accountability:** product/experience owns the connected outcome; existing semantic domain owners own mutations; platform owners own shared mechanics. A named release owner and support responsibility must be assigned before production enablement, without blocking technical contract and test preparation now.
+- **Reuse gate:** every issue identifies actual source owners, extension points, existing TODO/issue overlap, and why any new code is needed. A second workflow engine, identity store, ledger framework, general connector runtime, or frontend stack fails acceptance.
+- **Sequence:** shared registration/API adoption and party contracts; extend existing job/appointment/billing/asset paths; implement commercial and physical operations; connect external participants/devices/accounting; qualify setup, imports, end-to-end work and recovery. Independent slices may proceed when their dependencies are proven. The entire feature set remains tracked rather than being silently replaced by an MVP.
+- **Reference outcomes:** customer request through quote, scheduling, delivery, approved time/expenses/materials, invoice and observed payment; and purchase request through partial receipt, stock/asset use, return and supplier reconciliation. Each has denial, cancellation, duplicate, stale/conflict, partial failure, restart, and correction scenarios.
+- **Acceptance:** named tests exercise real stores and serving composition, browser behavior and accessible keyboard equivalents. Desktop 1280x720 and mobile 390/320, light/dark, en-US/de-DE/ar RTL, current authorization, truthful statuses, recovery, and no silent data loss are mandatory where a UI exists.
+- **Release proof:** module adoption is opt-in; migrations are additive; in-flight records remain readable on disable/rollback; external effects are observed and reconciled. Pilot selection, exact hardware/provider compatibility and operational budgets become explicit admission records, not implied support promises.
+
 ## Explicit Non-Goals
 
 - Full payroll, tax, benefits, timekeeping, recruiting, talent, or workforce-access products

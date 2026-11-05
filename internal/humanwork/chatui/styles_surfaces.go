@@ -88,7 +88,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	`.chip-input:focus,.chip-input:focus-visible{outline:2px solid transparent;box-shadow:none}.chip-field{min-height:38px}` +
 	`.chat-dialog-backdrop{align-items:flex-start;padding-top:max(16px,10vh)}` +
 	`.create-name>label::after{content:" *";color:var(--hcm-color-danger)}` +
-	`.thread-composer .send-label{display:none}.thread-composer .send-button{padding:0 10px;min-width:36px}` +
+	`.thread-composer .send-button{padding:0 10px;min-width:36px}` +
 	`.message-list{padding-top:18px}` +
 	`.search-filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}.search-filter-hint{color:var(--muted);font-size:.75rem}` +
 	// "Add channels" in the Channels section opens the same browser, so the

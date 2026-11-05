@@ -106,6 +106,9 @@ func (r *Registry) Publish(def Definition) (Pin, error) {
 	k := key{id: def.ID, version: def.Version}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.entries == nil {
+		r.entries = make(map[key]Record)
+	}
 	if _, exists := r.entries[k]; exists {
 		return Pin{}, fmt.Errorf("%w: %s/v%d", ErrAlreadyPublished, def.ID, def.Version)
 	}

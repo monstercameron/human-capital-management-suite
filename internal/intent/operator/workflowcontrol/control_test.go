@@ -451,7 +451,9 @@ func TestTodo_EP_WF_002_Fault(t *testing.T) {
 	if inst, _ := f.load(id); inst.RuntimeStatus != runtime.InstanceRunning {
 		t.Fatalf("a plan fault changed the instance to %s", inst.RuntimeStatus)
 	}
-	other, err := promotionexec.CompileSimulation()
+	// Since WF-TEST-001 the current SIMULATE projection is the execute
+	// graph, so the frozen 1.0.0 projection stands in as the wrong plan.
+	other, err := promotionexec.CompileSimulationV1_0()
 	if err != nil {
 		t.Fatal(err)
 	}

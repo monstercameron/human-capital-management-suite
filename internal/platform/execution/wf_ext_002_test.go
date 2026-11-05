@@ -310,7 +310,7 @@ func TestWorkflowRegistrationCapabilityDispatch(t *testing.T) {
 // byte-identical.
 const (
 	wantPrototypeDigestWFEXT002 = "6ad5a72214b7200f0957d40c983b3763de6201ba3a4ea209a49bb0f587a974c0"
-	wantExecuteDigestWFEXT002   = "9c97ca67a56638f631bebd17c0bbdb62336ca7ae801d43571e9b8f908f46d2bf"
+	wantExecuteDigestWFEXT002   = "5714988b93c43721bdf2bb0f8693df9870b715017472290b6ff139a168227c95"
 )
 
 // TestTodo_WF_EXT_002_Golden proves the registration path changes no plan
@@ -363,8 +363,8 @@ func TestTodo_WF_EXT_002_Integration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPromotionExecution(execute): %v", err)
 	}
-	if len(composition.Registrations) != 4 {
-		t.Fatalf("composed %d registrations, want 4", len(composition.Registrations))
+	if len(composition.Registrations) != 5 {
+		t.Fatalf("composed %d registrations, want 5", len(composition.Registrations))
 	}
 	pinned, err := ComposeWorkflowRegistrations(PLAN_EXECUTE)
 	if err != nil {
@@ -374,15 +374,15 @@ func TestTodo_WF_EXT_002_Integration(t *testing.T) {
 	// on the current execute plan and each pinned continuation resolves
 	// its own plan.
 	served := map[string]string{}
-	for _, pin := range []string{"", pinned[0].Pin.CompiledPlanDigest, pinned[1].Pin.CompiledPlanDigest, pinned[2].Pin.CompiledPlanDigest, pinned[3].Pin.CompiledPlanDigest} {
+	for _, pin := range []string{"", pinned[0].Pin.CompiledPlanDigest, pinned[1].Pin.CompiledPlanDigest, pinned[2].Pin.CompiledPlanDigest, pinned[3].Pin.CompiledPlanDigest, pinned[4].Pin.CompiledPlanDigest} {
 		sel, err := composition.Resolver.ResolveWorkflow(ctx, runtime.StartRequest{PinnedCompiledPlanDigest: pin})
 		if err != nil {
 			t.Fatalf("cell resolver pin %q: %v", pin, err)
 		}
 		served[pin] = sel.Pin.CompiledPlanDigest
 	}
-	if served[""] != pinned[2].Pin.CompiledPlanDigest {
-		t.Fatalf("cell serves new starts at %q, want current execute %q", served[""], pinned[2].Pin.CompiledPlanDigest)
+	if served[""] != pinned[3].Pin.CompiledPlanDigest {
+		t.Fatalf("cell serves new starts at %q, want current execute %q", served[""], pinned[3].Pin.CompiledPlanDigest)
 	}
 	policy, ok := composition.Resolver.(effects.PolicyResolver)
 	if !ok {

@@ -64,6 +64,9 @@ const (
 	AuthenticationMethodUnspecified AuthenticationMethod = iota
 	AuthenticationMethodBearerToken
 	AuthenticationMethodMutualTLS
+	// AuthenticationMethodOIDC is a browser sign-in completed through the
+	// OpenID Connect authorization-code flow and bound to a server session.
+	AuthenticationMethodOIDC
 )
 
 // String returns the canonical wire spelling of the authentication method.
@@ -73,6 +76,8 @@ func (m AuthenticationMethod) String() string {
 		return "bearer_token"
 	case AuthenticationMethodMutualTLS:
 		return "mutual_tls"
+	case AuthenticationMethodOIDC:
+		return "oidc"
 	case AuthenticationMethodUnspecified:
 		return "unspecified"
 	default:
@@ -82,7 +87,7 @@ func (m AuthenticationMethod) String() string {
 
 // valid reports whether m is a concrete authentication method.
 func (m AuthenticationMethod) valid() bool {
-	return m == AuthenticationMethodBearerToken || m == AuthenticationMethodMutualTLS
+	return m == AuthenticationMethodBearerToken || m == AuthenticationMethodMutualTLS || m == AuthenticationMethodOIDC
 }
 
 // Assurance is the session assurance level the authentication event reached.

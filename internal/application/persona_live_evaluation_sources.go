@@ -117,7 +117,7 @@ func (s *PersonaCandidateModelWorkSource) BuildPersonaRunModelWork(ctx context.C
 		return PersonaRunModelWork{}, fmt.Errorf("candidate model work definition: %w", err)
 	}
 	base := &DatabasePersonaRunModelWorkSource{threads: s.Threads, leases: s.Leases, workload: s.Workload, now: s.Now}
-	goal, history, refs, err := base.readThreadContext(ctx, admission, profile)
+	goal, history, refs, err := base.readThreadContext(ctx, admission, profile, s.Route.ThreadClass)
 	if err != nil {
 		return PersonaRunModelWork{}, fmt.Errorf("candidate model work thread: %w", err)
 	}

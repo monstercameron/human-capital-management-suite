@@ -16,6 +16,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/protomap"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -445,6 +446,22 @@ func (e *journeyEngine) Inspect(ctx context.Context, intentID string) (workspace
 	return e.inspectWithRelationships(ctx, intentID, nil)
 }
 
+// journeyExecuteCapability reports whether principal may start this journey's
+// execution under the same execution-authority gate Execute enforces
+// (UXBLIND-005). It answers authority only, like CanDecide: stage guards
+// stay with the caller offering the action. Anything unresolvable fails
+// closed.
+func (e *journeyEngine) journeyExecuteCapability(principal *trust.Principal, ref intent.Ref) bool {
+	if e == nil || e.svc == nil || e.svc.defs == nil {
+		return false
+	}
+	def, err := e.svc.defs.Resolve(ref)
+	if err != nil {
+		return false
+	}
+	return e.svc.authorizeExecution(principal, def) == nil
+}
+
 // inspectWithRelationships renders one journey with a relationship that was
 // already proven earlier in the same application operation. Decide uses this
 // after it closes an assigned manager WorkItem: the close correctly removes
@@ -604,6 +621,9 @@ func (e *journeyEngine) inspectWithRelationships(
 		detail.CanDecide = item.Assignment.ChosenOwner == principal.Subject()
 		detail.Approver = journeyApproverLabel(item, detail.CanDecide)
 	}
+	// UXBLIND-005: the start action is offered only when the same
+	// execution-authority gate Execute enforces admits this viewer.
+	detail.CanExecute = e.journeyExecuteCapability(principal, inst.Definition)
 	detail.Transitions = record.transitions
 	detail.Ledger = record.ledger
 	if record.instance != nil {

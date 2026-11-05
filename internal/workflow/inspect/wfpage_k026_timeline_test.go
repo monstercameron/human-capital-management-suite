@@ -4,13 +4,11 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/monstercameron/human-capital-management-suite/internal/ledger"
 )
 
 func TestTodo_WFPAGE_026_Security(t *testing.T) {
-	event := ledger.PageUseAuditEvent{Schema: ledger.PageUseAuditSchema, EventID: "event-1", TenantID: "tenant-a", RunID: "run-1", ActorRef: "principal:1", WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2, Operation: ledger.PageUseSubmit, RecordedAt: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
-	timeline, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Fields: map[string]string{"public": "shown", "salary": "secret"}, ReadableFields: map[string]bool{"public": true, "salary": false}, Audit: []ledger.PageUseAuditEvent{event}})
+	event := PageUseAuditEvent{Schema: PageUseAuditSchema, EventID: "event-1", TenantID: "tenant-a", RunID: "run-1", ActorRef: "principal:1", WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2, Operation: PageUseSubmit, RecordedAt: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
+	timeline, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Fields: map[string]string{"public": "shown", "salary": "secret"}, ReadableFields: map[string]bool{"public": true, "salary": false}, Audit: []PageUseAuditEvent{event}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,14 +21,20 @@ func TestTodo_WFPAGE_026_Security(t *testing.T) {
 }
 
 func TestTodo_WFPAGE_026(t *testing.T) {
-	event := ledger.PageUseAuditEvent{Schema: ledger.PageUseAuditSchema, EventID: "event-1", TenantID: "tenant-a", RunID: "run-1", ActorRef: "principal:1", WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2, Operation: ledger.PageUseRepair, RecordedAt: time.Now().UTC()}
-	_, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Audit: []ledger.PageUseAuditEvent{event}})
+	event := PageUseAuditEvent{Schema: PageUseAuditSchema, EventID: "event-1", TenantID: "tenant-a", RunID: "run-1", ActorRef: "principal:1", WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2, Operation: PageUseRepair, RecordedAt: time.Now().UTC()}
+	_, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Audit: []PageUseAuditEvent{event}})
 	if err != nil {
 		t.Fatalf("BuildPageUseTimeline() error = %v", err)
 	}
 	wrong := event
 	wrong.PageVersion = 3
-	if _, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Audit: []ledger.PageUseAuditEvent{wrong}}); !errors.Is(err, ErrPageTimelineInvalid) {
+
+	bogus := event
+	bogus.Operation = "BOGUS"
+	if _, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Audit: []PageUseAuditEvent{bogus}}); !errors.Is(err, ErrPageUseAuditInvalid) {
+		t.Fatalf("bad operation error = %v, want ErrPageUseAuditInvalid", err)
+	}
+	if _, err := BuildPageUseTimeline(PageUseTimelineRequest{RunID: "run-1", Page: PageVersionRef{WorkflowID: "workflow.change", WorkflowVersion: 4, PageID: "workflow.change.input", PageVersion: 2}, Audit: []PageUseAuditEvent{wrong}}); !errors.Is(err, ErrPageTimelineInvalid) {
 		t.Fatalf("wrong page version error = %v, want ErrPageTimelineInvalid", err)
 	}
 }

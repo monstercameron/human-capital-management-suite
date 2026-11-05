@@ -449,6 +449,6 @@ func twoCompanyExecutionConfig(databaseURL string) ServeConfig {
 		ExecutionApprover:        demoworkforce.HarborCarePack.ExecutionApproverKey,
 		ExecutionManagerApprover: demoworkforce.HarborCarePack.ManagerApproverKey,
 		ExecutionFinancePartner:  demoworkforce.HarborCarePack.FinancePartnerKey,
-		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion, TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         DefaultTimerTzdbVersion, TimerCalendarVersion: DefaultTimerCalendarVersion,
 	}
 }

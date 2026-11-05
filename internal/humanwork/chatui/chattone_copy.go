@@ -17,6 +17,7 @@ const chattoneCopyTable = "\nstyle\u0000Style\u0000Stil\u0000الأسلوب\u000
 	"\nundo_chip\u0000Undo\u0000Rückgängig\u0000تراجع\u0000" +
 	"\nnotice\u0000Your draft is sent to the model only when you choose a style. Review and edit the preview before sending.\u0000Ihr Entwurf wird erst an das Modell gesendet, wenn Sie einen Stil wählen. Prüfen und bearbeiten Sie die Vorschau vor dem Senden.\u0000تُرسل مسودتك إلى النموذج فقط عند اختيار أسلوب. راجع المعاينة وعدّلها قبل الإرسال.\u0000" +
 	"\nworking\u0000Rewriting… Keep typing; your changes will be kept.\u0000Wird umformuliert… Sie können weiterschreiben; Änderungen bleiben erhalten.\u0000جارٍ إعادة الصياغة… يمكنك متابعة الكتابة؛ ستبقى تغييراتك محفوظة.\u0000" +
+	"\nslow\u0000Taking longer than usual. Keep typing; your changes will be kept.\u0000Das dauert länger als gewöhnlich. Sie können weiterschreiben; Änderungen bleiben erhalten.\u0000يستغرق هذا وقتاً أطول من المعتاد. يمكنك متابعة الكتابة؛ ستبقى تغييراتك محفوظة.\u0000" +
 	"\nnote_not_qualified\u0000Writing styles are not available yet: no model has passed the quality check for them in this workspace.\u0000Schreibstile sind noch nicht verfügbar: Für diesen Arbeitsbereich hat noch kein Modell die Qualitätsprüfung bestanden.\u0000أساليب الكتابة غير متاحة بعد: لم ينجح أي نموذج في فحص الجودة لمساحة العمل هذه.\u0000" +
 	"\nnote_workspace_off\u0000Writing styles are turned off for this workspace by an administrator.\u0000Schreibstile sind für diesen Arbeitsbereich von einer Administration ausgeschaltet.\u0000أوقف مسؤول أساليب الكتابة لمساحة العمل هذه.\u0000" +
 	"\nnote_unavailable\u0000Writing styles are not available right now. Keep writing; they will return when the service does.\u0000Schreibstile sind gerade nicht verfügbar. Schreiben Sie weiter; sie kehren zurück, sobald der Dienst wieder da ist.\u0000أساليب الكتابة غير متاحة الآن. تابع الكتابة؛ ستعود عند عودة الخدمة.\u0000" +
@@ -27,6 +28,7 @@ const chattoneCopyTable = "\nstyle\u0000Style\u0000Stil\u0000الأسلوب\u000
 	"\ninvalid\u0000Write a few words, then choose a style.\u0000Schreiben Sie einige Wörter und wählen Sie dann einen Stil.\u0000اكتب بضع كلمات ثم اختر أسلوبًا.\u0000" +
 	"\ndenied\u0000Writing styles are unavailable in this conversation. Keep writing.\u0000Schreibstile sind in diesem Gespräch nicht verfügbar. Schreiben Sie weiter.\u0000أساليب الكتابة غير متاحة في هذه المحادثة. تابع الكتابة.\u0000" +
 	"\ndisabled\u0000Writing-style controls are turned off for this workspace.\u0000Schreibstil-Steuerelemente sind für diesen Arbeitsbereich ausgeschaltet.\u0000عناصر أسلوب الكتابة معطّلة لمساحة العمل هذه.\u0000" +
+	"\nstalled\u0000The model did not answer. Try the style again.\u0000Das Modell hat nicht geantwortet. Versuchen Sie den Stil erneut.\u0000لم يستجب النموذج. حاول الأسلوب مرة أخرى.\u0000" +
 	"\nundo\u0000Undo rewrite\u0000Umformulierung rückgängig machen\u0000تراجع عن إعادة الصياغة\u0000" +
 	"\nchanges\u0000See changes\u0000Änderungen ansehen\u0000عرض التغييرات\u0000" +
 	"\nbefore\u0000As typed\u0000Wie eingegeben\u0000كما كُتبت\u0000" +

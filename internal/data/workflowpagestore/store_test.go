@@ -2,7 +2,9 @@ package workflowpagestore
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -18,7 +20,7 @@ func pageFixture(t *testing.T) (*pgtest.DB, uuid.UUID, uuid.UUID) {
 	db := pgtest.New(t)
 	a, b := uuid.New(), uuid.New()
 	for _, tenant := range []uuid.UUID{a, b} {
-		db.Exec(t, `INSERT INTO tenant(tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES($1,$2,'cell-wfpage',$2,'ACTIVE',now())`, tenant, "tenant-"+tenant.String())
+		db.Exec(t, `INSERT INTO tenant(tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES($1,$2,'cell-wfpage','WFPAGE-011','ACTIVE',now())`, tenant, "tenant-"+tenant.String())
 	}
 	return db, a, b
 }
@@ -40,7 +42,15 @@ func TestTodo_WFPAGE_011(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get after fresh store: %v", err)
 	}
-	if !got.GeneratedDefault || string(got.Definition) != string(page.Definition) {
+	// jsonb normalizes spacing, so compare the JSON value, not the bytes.
+	var wantDef, gotDef map[string]any
+	if err := json.Unmarshal(page.Definition, &wantDef); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(got.Definition, &gotDef); err != nil {
+		t.Fatal(err)
+	}
+	if !got.GeneratedDefault || !reflect.DeepEqual(gotDef, wantDef) {
 		t.Fatalf("stored page = %+v", got)
 	}
 }
@@ -111,8 +121,8 @@ func TestTodo_WFPAGE_011_Integration(t *testing.T) {
 	if err := store.SaveDraft(context.Background(), draft); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.ExecErr(`UPDATE workflow_page_version SET published_by='forged' WHERE tenant_id=$1`, tenant); err == nil || !strings.Contains(strings.ToLower(err.Error()), "immutable") {
-		t.Fatalf("published update error=%v, want immutable trigger", err)
+	if err := db.ExecErr(`UPDATE workflow_page_version SET published_by='forged' WHERE tenant_id=$1`, tenant); err == nil || !strings.Contains(strings.ToLower(err.Error()), "append-only") {
+		t.Fatalf("published update error=%v, want append-only trigger", err)
 	}
 	if err := db.ExecErr(`DELETE FROM workflow_page_draft WHERE tenant_id=$1`, tenant); err == nil {
 		t.Fatal("draft delete was accepted")

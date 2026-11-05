@@ -33,6 +33,7 @@ import (
 // is already localized text, so PositionPicker never resolves locale copy
 // or recomputes availability itself.
 type PositionPickerOptionProps struct {
+	_ incomparable
 	// Reference is the opaque position+revision token this option's radio
 	// input carries as its value -- the one thing REFACTOR lets the browser
 	// carry back on submission.

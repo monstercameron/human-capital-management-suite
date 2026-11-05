@@ -112,6 +112,35 @@ func TestTodo_PM_029_Accessibility(t *testing.T) {
 	}
 }
 
+func TestTodo_PM_029_Browser(t *testing.T) {
+	if got := ProjectBoardHref("../not-a-project"); got != "" {
+		t.Fatalf("invalid project ID produced route %q", got)
+	}
+	markup := renderProjectTest(t, projectsPage(View{Title: "Projects", ProjectsState: ProjectProjectionReady, Projects: []ProjectSummaryProjection{
+		{ID: "ok-1", Name: "Launch", Status: "ACTIVE", OwnerID: "owner-1"},
+		{ID: "../evil", Name: "Evil", Status: "ACTIVE", OwnerID: "owner-2"},
+		{ID: "blank-1", Name: "  ", Status: "ACTIVE", OwnerID: "owner-3"},
+	}}))
+	if !strings.Contains(markup, `href="/workspace/app/project?project=ok-1"`) || !strings.Contains(markup, "Launch") {
+		t.Errorf("admitted project route missing: %s", markup)
+	}
+	if strings.Contains(markup, "Evil") || strings.Contains(markup, "blank-1") {
+		t.Fatalf("unroutable project leaked into shell: %s", markup)
+	}
+	if strings.Contains(markup, "No projects are available") {
+		t.Fatalf("empty state shown despite admitted project: %s", markup)
+	}
+	onlyBad := renderProjectTest(t, projectsPage(View{Title: "Projects", ProjectsState: ProjectProjectionReady, Projects: []ProjectSummaryProjection{
+		{ID: "bad id", Name: "Bad", Status: "ACTIVE", OwnerID: "owner-9"},
+	}}))
+	if !strings.Contains(onlyBad, "No projects are available") {
+		t.Fatalf("all-unroutable rows did not fall back to empty state: %s", onlyBad)
+	}
+	if strings.Contains(onlyBad, "/workspace/app/project?project=") {
+		t.Fatalf("empty shell exposed project routes: %s", onlyBad)
+	}
+}
+
 func TestTodo_PM_030_Browser(t *testing.T) {
 	markup := renderProjectTest(t, projectpresentation.Board(projectpresentation.Model{
 		Title: "Launch", Columns: []projectpresentation.Column{{ID: "todo", Label: "To do", Statuses: []projectpresentation.Status{{ID: "todo", Label: "To do"}}}},

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -118,9 +119,32 @@ func (e *journeyEngine) ListWorkers(ctx context.Context) ([]workspace.WorkerSumm
 	if err != nil {
 		return nil, workspace.WorkforceOptions{}, err
 	}
-	ladder, err := e.ladderEdges(ctx, principal.Tenant())
-	if err != nil {
-		return nil, workspace.WorkforceOptions{}, err
+	// UXBLIND-089: the ladder, the vacancies and the population are
+	// independent reads (each opens its own transaction), so they run
+	// together and the cold-load window pays the slowest one instead of the
+	// sum. Failures still report in the order the sequential read checked
+	// them, so no caller sees a new error for an old fault.
+	var ladder []demoworkforce.PromotionPathEdge
+	var vacancies []workspace.PositionVacancyOption
+	var created []workspace.WorkerSummary
+	var ladderErr, vacanciesErr, createdErr error
+	var reads sync.WaitGroup
+	reads.Add(3)
+	go func() {
+		defer reads.Done()
+		ladder, ladderErr = e.ladderEdges(ctx, principal.Tenant())
+	}()
+	go func() {
+		defer reads.Done()
+		vacancies, vacanciesErr = e.positionVacancies(ctx, principal)
+	}()
+	go func() {
+		defer reads.Done()
+		created, createdErr = e.listCreated(ctx, principal)
+	}()
+	reads.Wait()
+	if ladderErr != nil {
+		return nil, workspace.WorkforceOptions{}, ladderErr
 	}
 	options, err := workforceOptionsFrom(ladder)
 	if err != nil {
@@ -130,15 +154,13 @@ func (e *journeyEngine) ListWorkers(ctx context.Context) ([]workspace.WorkerSumm
 	// UXLIVE-011: the governed vacancy list travels with the rest of the
 	// options, on the same read the form already makes. A cell that cannot
 	// read positions returns none, and the form's empty state says so.
-	vacancies, err := e.positionVacancies(ctx, principal)
-	if err != nil {
-		return nil, workspace.WorkforceOptions{}, err
+	if vacanciesErr != nil {
+		return nil, workspace.WorkforceOptions{}, vacanciesErr
 	}
 	options.PositionVacancies = vacancies
 
-	created, err := e.listCreated(ctx, principal)
-	if err != nil {
-		return nil, workspace.WorkforceOptions{}, err
+	if createdErr != nil {
+		return nil, workspace.WorkforceOptions{}, createdErr
 	}
 	if len(created) > 0 {
 		return created, options, nil

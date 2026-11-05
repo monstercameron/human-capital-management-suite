@@ -27,6 +27,7 @@ const (
 // contains no Markdown body, grant or credential. A later service adapter
 // supplies only records the current principal may read.
 type DocumentSummary struct {
+	_                                                               incomparable
 	ID, Title, Owner, Version, Scope, ReviewDue, Sharing, UpdatedAt string
 	OwnerID, VersionID, ScopeKind, ScopeID                          string
 	Status                                                          DocumentStatus
@@ -55,6 +56,7 @@ type DocumentShareRequest struct {
 // itself cannot present one hash to the reviewer and submit another to
 // deploy.
 type DocumentReviewProjection struct {
+	_                                                   incomparable
 	DocumentID, VersionID, VersionHash, Title           string
 	Scope, Diff                                         string
 	ReviewState, ReviewNote, ReviewAction, DeployAction string
@@ -62,6 +64,7 @@ type DocumentReviewProjection struct {
 }
 
 type DocumentSearchResult struct {
+	_                                                        incomparable
 	DocumentID, VersionID, Title, Owner, Scope, Snippet, Why string
 	Status                                                   DocumentStatus
 }
@@ -72,6 +75,7 @@ type DocumentSearchResult struct {
 // control surface exists and degrades to an unfiltered authorized result
 // set rather than hiding filtering entirely.
 type DocumentSearchFilters struct {
+	_                                              incomparable
 	Team, Channel, Owner, Status, DateFrom, DateTo string
 }
 
@@ -119,6 +123,7 @@ type DocumentLinkTarget struct {
 // flow (HUB-033). Everything but Readable is empty when the version could
 // not be read.
 type DocumentVersionProjection struct {
+	_                                      incomparable
 	DocumentID, VersionID, Title, Markdown string
 	Version                                string
 	Readable                               bool
@@ -130,6 +135,7 @@ type DocumentVersionProjection struct {
 // VersionID: the store withheld everything else because this version is
 // more sensitive than the document's current classification.
 type DocumentVersionSummary struct {
+	_                          incomparable
 	VersionID, Title, AuthorID string
 	Version                    string
 	CreatedAt                  time.Time
@@ -139,11 +145,13 @@ type DocumentVersionSummary struct {
 // DocumentBacklink is one inbound link to the open document from a source
 // the viewer may also read (HUB-035/HUB-022).
 type DocumentBacklink struct {
+	_                                              incomparable
 	SourceDocumentID, SourceVersionID, SourceTitle string
 	Label, Block, State                            string
 }
 
 type DocumentComment struct {
+	_                                                incomparable
 	ID, AuthorID, Author, Body, CreatedAt, VersionID string
 	// Quote, Prefix and Suffix anchor the comment to a passage of the text
 	// (a text-quote selector); ParentID makes it a reply. Orphaned means the
@@ -156,11 +164,13 @@ type DocumentComment struct {
 }
 
 type DocumentCommentCreateRequest struct {
+	_                               incomparable
 	DocumentID, VersionID, Body     string
 	Quote, Prefix, Suffix, ParentID string
 }
 
 type DocumentEditRequest struct {
+	_                                          incomparable
 	DocumentID, BaseVersionID, Title, Markdown string
 }
 

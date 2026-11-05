@@ -25,14 +25,16 @@ import (
 // "treeitem" with aria-level - and gets its expand/collapse from native
 // <details>, which needs no script.
 //
-// One honest caveat, recorded rather than hidden: aria-expanded on a unit
-// treeitem states the server-rendered initial disclosure, and native <details>
-// toggling afterwards does not update it. The live state a screen reader
-// reports comes from the <summary> disclosure itself, which browsers expose
-// correctly. Keeping the ARIA tree roles without script also means this tree
-// has no roving-tabindex arrow-key navigation: it is operated with Tab and
-// Enter/Space over real controls. Both are consequences of a no-script CSP,
-// not oversights.
+// The unit treeitem deliberately carries no aria-expanded. Under a no-script
+// CSP nothing can keep such an attribute true after a native toggle, and a
+// treeitem claiming one state while its <summary> reports the other is a
+// contradiction assistive technology cannot resolve (UXBLIND-053). The native
+// <details>/<summary> disclosure is therefore the single authoritative
+// expanded/collapsed source; the treeitem keeps only its level so the
+// hierarchy stays announced. Keeping the ARIA tree roles without script also
+// means this tree has no roving-tabindex arrow-key navigation: it is operated
+// with Tab and Enter/Space over real controls. Both are consequences of a
+// no-script CSP, not oversights.
 
 // paramDirectoryQuery names the employee search field. The search is a plain
 // GET over an already-public seed plan, so its whole state lives in the URL
@@ -541,7 +543,7 @@ func (d *directoryRender) unit(code string, level int, visited map[string]bool) 
 	}
 
 	var out strings.Builder
-	out.WriteString(`<li class="org-unit" role="treeitem" aria-level="` + strconv.Itoa(level) + `" aria-expanded="` + strconv.FormatBool(open) + `">`)
+	out.WriteString(`<li class="org-unit" role="treeitem" aria-level="` + strconv.Itoa(level) + `">`)
 	out.WriteString(`<details`)
 	if open {
 		out.WriteString(` open`)

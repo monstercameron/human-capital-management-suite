@@ -3,6 +3,7 @@ package chatstore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -100,8 +101,19 @@ func (s *Store) RequestRendering(ctx context.Context, scope RenderingScope, r ch
 	// Target metadata is rebuilt from the durable revision, never supplied text.
 	return s.renderingTx(ctx, scope, r.Message, func(tx dbport.Tx) error {
 		var body, source string
-		if err := tx.QueryRow(ctx, `SELECT p.body,v.source_language FROM chat_post p JOIN chat_post_revision v ON v.tenant_id=p.tenant_id AND v.post_id=p.id AND v.revision=p.revision WHERE p.tenant_id=$1 AND p.id=$2 AND p.revision=$3 AND NOT p.tombstoned FOR SHARE OF p`, scope.Tenant, r.Message, r.Revision).Scan(&body, &source); err != nil {
+		err := tx.QueryRow(ctx, `SELECT p.body,COALESCE(v.source_language,'') FROM chat_post p LEFT JOIN chat_post_revision v ON v.tenant_id=p.tenant_id AND v.post_id=p.id AND v.revision=p.revision WHERE p.tenant_id=$1 AND p.id=$2 AND p.revision=$3 AND NOT p.tombstoned FOR SHARE OF p`, scope.Tenant, r.Message, r.Revision).Scan(&body, &source)
+		if errors.Is(err, dbport.ErrNoRows) {
+			// The post is gone (or was never readable here): the reader
+			// leaves it out instead of failing the batch (CHATBUG-094).
+			return chat.ErrNotFound
+		}
+		if err != nil {
 			return err
+		}
+		if source == "" {
+			// A post that predates detection keeps no revision row; detect
+			// from the body, as the read path does.
+			source = chatrender.Detect(body).Language
 		}
 		r.Text = body
 		r.SourceLanguage = source

@@ -121,10 +121,13 @@ func canonicalizeEdges(def *Definition) []Edge {
 // mode overlay, which is applied — cleared effect role and SIMULATE operation
 // mode — while reads pass through untouched. The manifest is the source of
 // effect truth, so a capability that resolves to a read needs no overlay
-// even when its step type defaults to a write. It returns the ids it
-// suppressed so capability records can follow. The definition's own nodes
-// are never mutated: suppression works on a copy.
-func projectSimulate(def *Definition, records map[string]capability.Record, c *collector) map[string]bool {
+// even when its step type defaults to a write. When retainWrites is set
+// (WF-TEST-001), writes without a suppressing overlay are kept as authored
+// instead of rejected, so a recording simulator can capture what they would
+// have done. It returns the ids it suppressed so capability records can
+// follow. The definition's own nodes are never mutated: suppression works on
+// a copy.
+func projectSimulate(def *Definition, records map[string]capability.Record, c *collector, retainWrites bool) map[string]bool {
 	def.Nodes = append([]Node(nil), def.Nodes...)
 	overlaid := map[string]bool{}
 	for i := range def.Nodes {
@@ -134,6 +137,9 @@ func projectSimulate(def *Definition, records map[string]capability.Record, c *c
 			continue
 		}
 		if !n.ModeOverlay.suppresses() {
+			if retainWrites {
+				continue
+			}
 			loc := Location{NodeID: n.ID, Field: "mode_overlay"}
 			if n.ModeOverlay == nil {
 				c.add(CodeMutationInSimulation, loc,

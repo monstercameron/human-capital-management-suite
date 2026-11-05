@@ -43,6 +43,30 @@ func clientBundleHeadroomProblems(rawBytes, gzipBytes int64) []string {
 
 func mib(bytes int64) float64 { return float64(bytes) / (1 << 20) }
 
+// measureClientBundle builds the browser client from the current sources
+// exactly as the gate does and reports the raw and transferred sizes,
+// logging both against their ceilings.
+func measureClientBundle(t *testing.T) (raw, gzip int64, buildErr error) {
+	t.Helper()
+	out := t.TempDir()
+	var stdout bytes.Buffer
+	// build compresses and then checks the ceilings, so an over-ceiling bundle
+	// still leaves both files behind to be measured and reported.
+	buildErr = build(out, &stdout)
+	sizes := map[string]int64{}
+	for _, name := range []string{wasmFile, wasmFile + ".gz"} {
+		info, err := os.Stat(filepath.Join(out, name))
+		if err != nil {
+			t.Fatalf("cannot measure the client bundle, the build produced no %s: %v", name, buildErr)
+		}
+		sizes[name] = info.Size()
+	}
+	raw, gzip = sizes[wasmFile], sizes[wasmFile+".gz"]
+	t.Logf("%s: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, raw, mib(raw), maxJourneyWasmBytes-raw, mib(maxJourneyWasmBytes-raw), maxJourneyWasmBytes)
+	t.Logf("%s.gz: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, gzip, mib(gzip), maxJourneyWasmGzipBytes-gzip, mib(maxJourneyWasmGzipBytes-gzip), maxJourneyWasmGzipBytes)
+	return raw, gzip, buildErr
+}
+
 // TestClientBundleHeadroomVerdict pins the arithmetic the headroom test below
 // relies on, without compiling anything.
 func TestClientBundleHeadroomVerdict(t *testing.T) {
@@ -74,22 +98,7 @@ func TestClientBundleHeadroom(t *testing.T) {
 	if _, err := goBinary(); err != nil {
 		t.Skipf("no go toolchain available to build with: %v", err)
 	}
-	out := t.TempDir()
-	var stdout bytes.Buffer
-	// build compresses and then checks the ceilings, so an over-ceiling bundle
-	// still leaves both files behind to be measured and reported.
-	buildErr := build(out, &stdout)
-	sizes := map[string]int64{}
-	for _, name := range []string{wasmFile, wasmFile + ".gz"} {
-		info, err := os.Stat(filepath.Join(out, name))
-		if err != nil {
-			t.Fatalf("cannot measure the client bundle, the build produced no %s: %v", name, buildErr)
-		}
-		sizes[name] = info.Size()
-	}
-	raw, gzip := sizes[wasmFile], sizes[wasmFile+".gz"]
-	t.Logf("%s: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, raw, mib(raw), maxJourneyWasmBytes-raw, mib(maxJourneyWasmBytes-raw), maxJourneyWasmBytes)
-	t.Logf("%s.gz: %d bytes (%.2f MiB), %d bytes (%.2f MiB) below the %d-byte ceiling", wasmFile, gzip, mib(gzip), maxJourneyWasmGzipBytes-gzip, mib(maxJourneyWasmGzipBytes-gzip), maxJourneyWasmGzipBytes)
+	raw, gzip, buildErr := measureClientBundle(t)
 	problems := clientBundleHeadroomProblems(raw, gzip)
 	if buildErr != nil {
 		if len(problems) != 0 {

@@ -135,13 +135,27 @@ func (s *Service) ValidateCreate(ctx context.Context, r CreateConversationReques
 	if (r.Kind == PublicChannel || r.Kind == PrivateChannel) && !ValidChannelName(strings.TrimSpace(r.Name)) {
 		return ErrChannelName
 	}
+	return uniqueCreateMembers(r.Kind, createMemberRefs(r))
+}
+
+// createMemberRefs resolves the member list a create carries: the supplied
+// member references, or the legacy member ids scoped to the conversation's
+// own tenant.
+func createMemberRefs(r CreateConversationRequest) []MemberRef {
 	refs := r.Members
 	if len(refs) == 0 {
 		for _, id := range r.MemberIDs {
 			refs = append(refs, MemberRef{TenantID: r.TenantID, SubjectID: id})
 		}
 	}
-	if r.Kind == Direct && len(refs) > 1 {
+	return refs
+}
+
+// uniqueCreateMembers rejects a create whose member list is blank, duplicated
+// or too long for a direct conversation. Keys are trimmed before comparison,
+// so "u1" and " u1 " are the same person wherever the list is read.
+func uniqueCreateMembers(kind ConversationKind, refs []MemberRef) error {
+	if kind == Direct && len(refs) > 1 {
 		return ErrInvalidArgument
 	}
 	seen := map[string]bool{}
@@ -171,25 +185,17 @@ func (s *Service) CreateConversation(ctx context.Context, r CreateConversationRe
 		return Conversation{}, ErrPermissionDenied
 	}
 	c := Conversation{ID: id, TenantID: r.TenantID, Kind: r.Kind, Name: strings.TrimSpace(r.Name), OwnerID: owner, Revision: 1}
-	refs := r.Members
-	if len(refs) == 0 {
-		for _, id := range r.MemberIDs {
-			refs = append(refs, MemberRef{TenantID: r.TenantID, SubjectID: id})
-		}
-	}
-	if c.Kind == Direct && len(refs) > 1 {
-		return Conversation{}, ErrInvalidArgument
+	refs := createMemberRefs(r)
+	if err := uniqueCreateMembers(c.Kind, refs); err != nil {
+		return Conversation{}, err
 	}
 	members := make([]Membership, 0, len(refs)+1)
 	seen := map[string]bool{}
 	for _, ref := range refs {
-		if strings.TrimSpace(ref.SubjectID) == "" || strings.TrimSpace(ref.TenantID) == "" || seen[ref.TenantID+"\x00"+ref.SubjectID] {
-			return Conversation{}, ErrInvalidArgument
-		}
-		seen[ref.TenantID+"\x00"+ref.SubjectID] = true
+		seen[strings.TrimSpace(ref.TenantID)+"\x00"+strings.TrimSpace(ref.SubjectID)] = true
 		members = append(members, Membership{ConversationID: id, TenantID: r.TenantID, HomeTenantID: ref.TenantID, SubjectID: ref.SubjectID, Role: Member, JoinedAt: timePtr(s.now()), HistoryVisibility: FullHistory, Revision: 1})
 	}
-	if !seen[r.TenantID+"\x00"+r.Principal.SubjectID] {
+	if !seen[strings.TrimSpace(r.TenantID)+"\x00"+strings.TrimSpace(r.Principal.SubjectID)] {
 		members = append(members, Membership{ConversationID: id, TenantID: r.TenantID, HomeTenantID: r.TenantID, SubjectID: r.Principal.SubjectID, Role: Manager, JoinedAt: timePtr(s.now()), HistoryVisibility: FullHistory, Revision: 1})
 	}
 	return s.store.CreateConversation(ctx, c, members, r.IdempotencyKey)
@@ -424,6 +430,11 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	if carriesCardMarker(r.Body) && !hasCardAuthority(ctx) {
 		return Post{}, ErrInvalidArgument
 	}
+	// Only the service itself writes a membership system line, through the
+	// store when somebody adds a person (CHATUX-021).
+	if carriesMembershipMarker(r.Body) {
+		return Post{}, ErrInvalidArgument
+	}
 	c, err := s.store.GetConversation(ctx, r.TenantID, r.ConversationID)
 	if err != nil {
 		return Post{}, err
@@ -517,7 +528,7 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 // original post's effects.
 func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error) {
 	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, func() error {
-		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) {
+		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) || carriesMembershipMarker(r.Body) {
 			return ErrInvalidArgument
 		}
 		return nil

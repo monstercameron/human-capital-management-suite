@@ -22,6 +22,7 @@ const (
 	fieldEvalProvisionerDatabaseURL = "agent-eval-provisioner-database-url"
 	fieldAgentOwnerDatabaseURL      = "agent-owner-database-url"
 	fieldChatOwnerDatabaseURL       = "chat-owner-database-url"
+	fieldProjectDatabaseURL         = "project-database-url"
 )
 
 func agentDemoSpec(rest []string) bootstrap.Spec {
@@ -41,6 +42,7 @@ func agentDemoSpec(rest []string) bootstrap.Spec {
 			{Name: fieldEvalProvisionerDatabaseURL, Env: "HCMNEXT_AGENT_EVAL_PROVISIONER_DATABASE_URL", Usage: "agent evaluation provisioner PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldAgentOwnerDatabaseURL, Env: "HCMNEXT_AGENT_OWNER_DATABASE_URL", Usage: "optional agent PostgreSQL owner URL for the local run policy row", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldChatOwnerDatabaseURL, Env: "HCMNEXT_CHAT_OWNER_DATABASE_URL", Usage: "optional chat PostgreSQL owner URL for repairing an unrouted direct conversation", Kind: bootstrap.KindString, Secret: true},
+			{Name: fieldProjectDatabaseURL, Env: application.EnvProjectDatabaseURL, Usage: "optional project PostgreSQL URL for the Customer support project; empty leaves Support Desk without a project", Kind: bootstrap.KindString, Secret: true},
 		},
 		Validate: func(values *bootstrap.Values) error {
 			return application.ValidateLocalAgentDemoConfig(agentDemoConfig(values))
@@ -63,7 +65,7 @@ func agentDemoConfig(values *bootstrap.Values) application.LocalAgentDemoConfig 
 		DatabaseURL: values.String("database-url"), AgentDatabaseURL: values.String(fieldAgentDatabaseURL),
 		ChatDatabaseURL: values.String(fieldChatDatabaseURL), DocumentDatabaseURL: values.String(fieldDocumentDatabaseURL),
 		ReviewAuthorityDatabaseURL: values.String(fieldReviewAuthorityDatabaseURL), PolicyAuthorityDatabaseURL: values.String(fieldPolicyAuthorityDatabaseURL),
-		RouteAuthorityDatabaseURL: values.String(fieldRouteAuthorityDatabaseURL), EvaluationProvisionerDatabaseURL: values.String(fieldEvalProvisionerDatabaseURL), AgentOwnerDatabaseURL: values.String(fieldAgentOwnerDatabaseURL), ChatOwnerDatabaseURL: values.String(fieldChatOwnerDatabaseURL),
+		RouteAuthorityDatabaseURL: values.String(fieldRouteAuthorityDatabaseURL), EvaluationProvisionerDatabaseURL: values.String(fieldEvalProvisionerDatabaseURL), AgentOwnerDatabaseURL: values.String(fieldAgentOwnerDatabaseURL), ChatOwnerDatabaseURL: values.String(fieldChatOwnerDatabaseURL), ProjectDatabaseURL: values.String(fieldProjectDatabaseURL),
 		Now: time.Now,
 	}
 }
@@ -87,6 +89,29 @@ func formatAgentDemoSummary(summary application.LocalAgentDemoSummary) string {
 	}
 	receipt := fmt.Sprintf("Policy Helper v%d: %s. Assistant v%d: %s. %s. Documents: Paid time off policy; 2026 holiday guide.", summary.Version, summary.State, summary.AssistantVersion, summary.AssistantState, change)
 	receipt += fmt.Sprintf(" Agent icons set: %d.", summary.IconsSet)
+	// The support project is Support Desk's ticket drawer: without it the
+	// desk stores emails but files nothing, and the receipt says why. A run
+	// that never reached the step says nothing about it.
+	switch support := summary.SupportProject; {
+	case support.Reason != "":
+		receipt += fmt.Sprintf(" Customer support project: not prepared (%s).", support.Reason)
+	case support.Created || support.GrantRecorded:
+		receipt += " Customer support project: prepared."
+	case support.Checked:
+		receipt += " Customer support project: already prepared."
+	}
+	// The birthday schedule is Birthday Buddy's daily round: filed paused and
+	// resumed once its model route exists.
+	switch schedule := summary.BirthdaySchedule; {
+	case schedule.Created && schedule.Resumed:
+		receipt += " Birthday schedule: filed and active."
+	case schedule.Created:
+		receipt += " Birthday schedule: filed, paused until its model route exists."
+	case schedule.Resumed:
+		receipt += " Birthday schedule: active."
+	case schedule.Checked:
+		receipt += " Birthday schedule: already filed."
+	}
 	for _, agent := range summary.AmbientAgents {
 		name := "Task Catcher"
 		if agent.Agent == "reminder" {

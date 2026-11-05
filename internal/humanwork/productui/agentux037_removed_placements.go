@@ -54,22 +54,16 @@ func personaAdminRemovedPlacements(locale LocaleContext, persona PersonaAdminPer
 	)
 }
 
+// agentUX037Copy is the copy agentUX037Text resolves (agentux_copy.go).
+var agentUX037Copy = map[string][3]string{
+	"removed_heading": {"Removed from", "Entfernt aus", "أُزيل من"},
+	"removed_by":      {"Removed by {name} on {date}", "Entfernt von {name} am {date}", "أزاله {name} في {date}"},
+	"removed_on":      {"Removed on {date}", "Entfernt am {date}", "أُزيل في {date}"},
+}
+
 func agentUX037Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"removed_heading": {"Removed from", "Entfernt aus", "أُزيل من"},
-		"removed_by":      {"Removed by {name} on {date}", "Entfernt von {name} am {date}", "أزاله {name} في {date}"},
-		"removed_on":      {"Removed on {date}", "Entfernt am {date}", "أُزيل في {date}"},
+	if text, ok := agentuxCopyLookup(agentUX037Copy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	index := 0
-	switch locale.Resolved {
-	case "de-DE":
-		index = 1
-	case "ar":
-		index = 2
-	}
-	return values[index]
+	return key
 }

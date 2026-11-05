@@ -2,6 +2,7 @@ package simulate
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 	evTransformExecutionID  = "transform_execution_id"
 	evInputDigest           = "input_digest"
 	evTaintManifestRef      = "taint_manifest_ref"
+	evRecordedEffect        = "recorded_effect"
 )
 
 // dispatch executes one node according to its step type and returns the
@@ -67,13 +69,16 @@ func (r *run) runCapability(
 		return "", nil, "", nil, refuse(CodeUnresolvedSource, node.ID,
 			"CAPABILITY node binds no capability")
 	}
+	if node.EffectClass.IsWrite() {
+		return r.recordCapability(node, inputs)
+	}
 	if r.gateway == nil {
 		return "", nil, "", nil, refuse(CodeInvalidOptions, node.ID,
 			"plan invokes %s/v%d but no capability registry was supplied",
 			node.Capability.ID, node.Capability.Version)
 	}
 	key := capability.Key{ID: node.Capability.ID, Version: node.Capability.Version}
-	result, err := r.gateway.Invoke(ctx, capability.InvokeRequest{
+	request := capability.InvokeRequest{
 		Capability: key,
 		Payload: CapabilityRequest{
 			NodeID:        node.ID,
@@ -84,7 +89,20 @@ func (r *run) runCapability(
 			At:            r.now(),
 		},
 		Authorization: r.opts.authorizer()(node),
-	})
+	}
+	if r.opts.TestRun != nil {
+		// A test run presents the governed envelope: its purpose stamps
+		// every evidence record, and the key pins the call to this node in
+		// this walk. The deadline rides the run clock, so a pinned clock
+		// keeps the envelope — and the evidence — deterministic.
+		request.Invocation = &capability.Invocation{
+			Purpose:         TestPurpose,
+			Deadline:        r.now().Add(time.Hour),
+			IdempotencyKey:  fmt.Sprintf("test:%s:%s:%d", r.plan.Digest(), node.ID, len(r.trace)),
+			DeclaredEffects: []capability.EffectClass{node.EffectClass},
+		}
+	}
+	result, err := r.gateway.Invoke(ctx, request)
 	if err != nil {
 		return "", nil, "", nil, wrap(CodeHandlerFailed, node.ID, err,
 			"capability %s refused or failed", key)
@@ -104,6 +122,32 @@ func (r *run) runCapability(
 		detail = "invoked " + key.String() + " in " + string(node.Capability.OperationMode)
 	}
 	return response.Outcome, response.Outputs, detail, extra, nil
+}
+
+// recordCapability captures a write-class node as a typed record instead of
+// invoking anything. The gateway is not consulted and no handler runs: the
+// record carries the mapped inputs, the declared outputs and the preview of
+// what the invocation would have carried. Admission guarantees a recording
+// profile is active on this path; the check here fails closed if it is not.
+func (r *run) recordCapability(
+	node workflow.CompiledNode,
+	inputs Bag,
+) (workflow.Outcome, Bag, string, map[string]string, error) {
+	if !r.recordingActive() {
+		return "", nil, "", nil, refuse(CodeWriteEffectInSimulate, node.ID,
+			"%s declares %s; a write effect cannot be simulated, only refused",
+			node.Type, node.EffectClass)
+	}
+	key := capability.Key{ID: node.Capability.ID, Version: node.Capability.Version}
+	record, err := recordEffect(node, key, inputs)
+	if err != nil {
+		return "", nil, "", nil, wrap(CodeRecordingRefused, node.ID, err,
+			"would-be effect of %s cannot be recorded", key)
+	}
+	r.recording.Recorder.Record(record)
+	r.recorded = append(r.recorded, record)
+	detail := "recorded would-be " + string(record.Kind) + " " + key.String() + " (not invoked)"
+	return workflow.OutcomeSucceeded, Bag{}, detail, map[string]string{evRecordedEffect: string(record.Kind)}, nil
 }
 
 // runDecision routes through the rules engine. The kernel decides nothing: it
@@ -357,6 +401,11 @@ func mintEvidenceID(planDigest, nodeID, ref string) string {
 type invocationSink struct {
 	planDigest string
 	seq        int
+	// store, when set by a WF-TEST-002 test run, receives every invocation
+	// decision under the expiring test-evidence class. A nil store keeps
+	// today's behavior: the evidence id is minted and nothing is kept.
+	store  *ExpiringEvidenceStore
+	tenant string
 }
 
 // RecordInvocation implements capability.EvidenceSink.
@@ -370,6 +419,19 @@ func (s *invocationSink) RecordInvocation(_ context.Context, evt capability.Invo
 		evt.ReasonCode,
 		itoa(uint64(s.seq)),
 	})
+	if s.store != nil {
+		if _, err := s.store.Put(EvidenceRecord{
+			Purpose:           evt.Purpose,
+			Principal:         evt.SubjectRef,
+			Tenant:            s.tenant,
+			CapabilityID:      evt.CapabilityID,
+			CapabilityVersion: evt.CapabilityVersion,
+			Decision:          evt.Decision,
+			ReasonCode:        evt.ReasonCode,
+		}); err != nil {
+			return "", err
+		}
+	}
 	return "ev:" + full[:32], nil
 }
 

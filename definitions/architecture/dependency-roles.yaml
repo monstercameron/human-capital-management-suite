@@ -369,7 +369,16 @@ modules:
     semantic_owner: data-and-ledger
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots: [migrations, cmd, internal/data/pgtest, internal/data/schema, internal/data/agentstore, internal/data/agentpersonastore/migrations, tools/chatload]
+    allowed_import_roots:
+      [
+        migrations,
+        cmd,
+        internal/data/pgtest,
+        internal/data/schema,
+        internal/data/agentstore,
+        internal/data/agentpersonastore/migrations,
+        tools/chatload,
+      ]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.
     exposure: >-
@@ -403,6 +412,135 @@ modules:
     upgrade_sla: Best-effort; never shipped in the release image.
     exposure: Transitive dependency of embedded-postgres, used to extract its bundled PostgreSQL binary at test time only.
     replacement_strategy: Removed entirely once TOOL-014 replaces embedded-postgres with Testcontainers.
+
+  - path: go.mongodb.org/mongo-driver
+    version: v1.17.10
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots:
+      [
+        internal/connectivity/mongo,
+      ]
+    direct_import_expected: true
+    upgrade_sla: Minor within 60 days; security patch within 7 days.
+    exposure: >-
+      Owns the MongoDB wire-protocol connection for tenant data sources:
+      direct network and data exposure, isolated behind the
+      internal/connectivity/mongo adapter boundary. Production callers speak
+      the datasource connector contract; the mongo package is the only code
+      that turns driver handles into that contract, and no mongo.* type
+      appears in an exported surface (WF-DATA-015).
+    replacement_strategy: go.mongodb.org/mongo-driver/v2 is the declared successor module; the datasource connector contract is the abstraction seam.
+
+  - path: github.com/golang/snappy
+    version: v1.0.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver (snappy wire compression); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/klauspost/compress
+    version: v1.20.3
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver (zstd wire compression); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/montanaflynn/stats
+    version: v0.13.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver (server round-trip-time monitor statistics); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/xdg-go/scram
+    version: v1.2.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver (SCRAM authentication mechanism); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/xdg-go/pbkdf2
+    version: v1.0.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver via xdg-go/scram (PBKDF2 key derivation); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/xdg-go/stringprep
+    version: v1.0.4
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver via xdg-go/scram (SASL string preparation); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/youmark/pkcs8
+    version: v0.0.0-20240726163527-a2c0da244d78
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin.
+    exposure: Transitive dependency of the mongo driver (PKCS#8 private-key parsing for TLS client certificates); no HCM package imports it (WF-DATA-015).
+    replacement_strategy: Removed with the mongo driver if the datasource connector contract is ever re-homed.
+
+  - path: github.com/davecgh/go-spew
+    version: v1.1.1
+    role: DEV_TEST_ONLY
+    semantic_owner: platform-foundation
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: [test]
+    direct_import_expected: false
+    upgrade_sla: Best-effort; never shipped in the release image.
+    exposure: Test-only transitive of the mongo driver (its internal/assert package, reached through the mtest mock deployment); never imported by production code (WF-DATA-015).
+    replacement_strategy: Removed with the driver's test harness.
+
+  - path: golang.org/x/crypto
+    version: v0.55.0
+    role: INFRASTRUCTURE_MECHANIC
+    semantic_owner: data-and-ledger
+    license_owner: platform-foundation
+    security_owner: platform-foundation
+    allowed_import_roots: []
+    direct_import_expected: false
+    upgrade_sla: Tracks go.mongodb.org/mongo-driver's own pin; security patch within 7 days.
+    exposure: Transitive dependency of the mongo driver (SCRAM and TLS cryptographic mechanics); no HCM package imports it directly today (WF-DATA-015).
+    replacement_strategy: Re-evaluated if the datasource connector contract is ever re-homed off the mongo driver.
 
   - path: go.uber.org/multierr
     version: v1.11.0
@@ -527,6 +665,7 @@ modules:
       [
         internal/collaboration/chatmedia,
         internal/data/brandassetstore,
+        internal/humanwork/agenticon,
         internal/humanwork/docsexport,
         internal/humanwork/workspace,
       ]
@@ -540,6 +679,8 @@ modules:
       exported PDFs), sfnt glyph metrics and the WebP decoder for attached
       images. Brand asset storage and the workspace asset handler decode WebP
       through the image codec registry; no x/image type crosses an owned API.
+      internal/humanwork/agenticon scales owner-uploaded avatar proxies behind
+      DecodeUpload's bytes-only API.
     replacement_strategy: Standard-library image codecs and scaling code if the x/image package is no longer maintained.
 
   - path: golang.org/x/tools

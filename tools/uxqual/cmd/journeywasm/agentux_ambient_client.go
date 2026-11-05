@@ -17,17 +17,8 @@ var errAgentUXAmbientRequest = errors.New("ambient agent request failed")
 
 func agentUXAmbientRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, conversation, action string, input any) (ambientagents.Snapshot, error) {
 	var snapshot ambientagents.Snapshot
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
-		return snapshot, errAgentUXAmbientRequest
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || cfg.Bearer == "" {
 		return snapshot, errAgentUXAmbientRequest
 	}
 	endpoint.Path = ambientagents.Path

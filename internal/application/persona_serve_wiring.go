@@ -137,6 +137,15 @@ func composePersonaServeWiring(pool *pgxadapter.Pool, cell *app.Cell, personas *
 	if _, err := bindPersonaChatReplySkill(catalog, skills); err != nil {
 		return nil, personaServeWiringError{stage: "chat_reply_skill", err: err}
 	}
+	// AGENTUX-079: the ambient offer skills and Support Desk's effect skills,
+	// from the same definitions the starters pin, so the Agents page can
+	// list Task Catcher, Reminder and Support Desk with their skills.
+	if _, err := BindAgentUX079AmbientSkills(skills); err != nil {
+		return nil, personaServeWiringError{stage: "ambient_offer_skills", err: err}
+	}
+	if _, err := BindAgentUX079SupportSkills(catalog, skills); err != nil {
+		return nil, personaServeWiringError{stage: "support_effect_skills", err: err}
+	}
 	current := &ServerAgentDiscoveryContext{
 		Roles:         &TenantAgentRoleSource{Directory: agentDirectory},
 		Population:    &TenantAgentPopulationSource{Directory: agentDirectory},
@@ -167,10 +176,16 @@ func composePersonaServeWiring(pool *pgxadapter.Pool, cell *app.Cell, personas *
 	}
 	adminTargets := &ChatDirectoryPersonaCatalogTargets{Directory: catalogDirectory, Roles: agentDirectory, RoleNames: cell.RoleAccess, Agents: personaInstallationStore{store: personas}}
 	adminGrants := &CurrentPersonaCatalogGrants{Evaluator: gate, Context: current, Skills: skills, Purpose: "persona_admin_preview", Now: now}
+	personaBackend := &AgentPersonaStoreBackend{Store: personas}
 	available := &TenantAvailablePersonaReader{
-		Backend:  &AgentPersonaStoreBackend{Store: personas},
+		Backend:  personaBackend,
 		Audience: audience,
 		Skills:   skillSource,
+		// AGENTUX-079: pinned skills are discovered under every purpose the
+		// served registry requires, and valid but unplaced published
+		// personas (Support Desk) are listed skill-gated.
+		Purposes:  agentSkillRegistryPurposes(skills),
+		Published: personaBackend,
 	}
 	return &personaServeWiring{
 		refs:              &lazyPersonaReferenceSource{},
@@ -309,6 +324,9 @@ func (w *personaServeWiring) bindAgents(tasks productui.AgentClient) productui.A
 	if err != nil {
 		return tasks
 	}
+	// AGENTUX-079: the roster discovers pinned skills under every purpose
+	// the served registry requires.
+	bound.Catalog.Purposes = agentSkillRegistryPurposes(w.skills)
 	bound.Icons = AgentIconProjection{Store: w.store}
 	return bound
 }

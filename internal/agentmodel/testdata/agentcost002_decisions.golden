@@ -1,0 +1,105 @@
+# Decision points and the decision port (AGENTCOST-002)
+
+Whichever decision model is chosen, the product asks typed questions through one governed interface, not a vendor call from ten places. Generation writes text through agentmodel.ModelRequest; decisions answer through agentmodel.DecisionRequest: yes or no, one of N, or a score, with per-option probabilities and a confidence, a threshold per decision point, and an explicit abstain that escalates to the general model or to a person.
+
+## Inventory
+
+### screen.message
+
+- Question: boolean; options: no, yes.
+- If the answer is wrong towards yes: A quiet message is read by a paid call: a fraction of a cent of waste per message, bounded.
+- If the answer is wrong towards no: A task or deadline nobody notices: the agent's whole purpose fails silently for that message.
+- Required confidence: 0.80; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.TaskCatcherAmbientSuite+ReminderAmbientSuite.
+
+### audience.todo_reminder
+
+- Question: choice; options: private, public.
+- If the answer is wrong towards yes: A private commitment offered publicly: another person reads what was meant for one. This direction is never taken on a bare majority.
+- If the answer is wrong towards no: A group task offered privately: one person sees it instead of the channel, and may still share it.
+- Required confidence: 0.90; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.AmbientPersonaSuite(task-catcher,reminder).
+
+### search.route
+
+- Question: choice; options: no_search, keyword, meaning, both.
+- If the answer is wrong towards yes: A search that was not needed: latency and a few hundred tokens, and possibly a noisier answer.
+- If the answer is wrong towards no: An answer from memory where the documents hold the truth: a confident wrong answer with false citations.
+- Required confidence: 0.70; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.AgentuxSearchSuite.
+
+### reaction.choose
+
+- Question: choice; options: none, like, celebrate, support.
+- If the answer is wrong towards yes: A reaction the moment did not call for: mild embarrassment on a work message, removable.
+- If the answer is wrong towards no: No reaction where one was apt: nothing happens, which is the safe default.
+- Required confidence: 0.85; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.AgentuxAmbientReactionSuite.
+
+### support.severity
+
+- Question: score; options: 0.00-0.25 routine, 0.25-0.50 normal, 0.50-0.75 urgent, 0.75-1.00 critical.
+- If the answer is wrong towards yes: Routine mail scored urgent: a person is interrupted for what could have waited.
+- If the answer is wrong towards no: An urgent request scored calm: a customer waits while the queue looks quiet.
+- Required confidence: 0.75; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.SupportTriageSuite.
+
+### support.needs_review
+
+- Question: boolean; options: no, yes.
+- If the answer is wrong towards yes: A draft a person must read that needed nothing: reviewer time, the cheap direction.
+- If the answer is wrong towards no: A wrong or unsafe reply sent to a customer without a person seeing it.
+- Required confidence: 0.80; below it the port abstains and escalates to a person.
+- Labelled suite that must pass before this point may be enabled: agenteval.SupportTriageSuite.
+
+### instruction.detect
+
+- Question: boolean; options: no, yes.
+- If the answer is wrong towards yes: Honest content treated as hostile: the agent refuses help it could have given.
+- If the answer is wrong towards no: An instruction in untrusted input obeyed: documents, email, gate answers or transcripts steer the agent.
+- Required confidence: 0.85; below it the port abstains and escalates to a person.
+- Labelled suite that must pass before this point may be enabled: agenteval.PersonaPeerInjectionSuite.
+
+### citation.supported
+
+- Question: boolean; options: no, yes.
+- If the answer is wrong towards yes: An unsupported sentence delivered as backed by its citations: the seal vouches for what the sources do not say.
+- If the answer is wrong towards no: A supported answer held back or reworked: latency and another paid call.
+- Required confidence: 0.85; below it the port abstains and escalates to a person.
+- Labelled suite that must pass before this point may be enabled: agenteval.PersonaGroundingSuite.
+
+### scope.skills
+
+- Question: boolean; options: no, yes.
+- If the answer is wrong towards yes: A run flagged as out of scope that stayed inside its skills: an investigation that finds nothing.
+- If the answer is wrong towards no: A run that left its declared skills unnoticed: the monitor's miss is silent by design, so the threshold stays high.
+- Required confidence: 0.90; below it the port abstains and escalates to a person.
+- Labelled suite that must pass before this point may be enabled: agenteval.RunScopeSuite.
+
+### model.profile
+
+- Question: choice; options: small, standard, large.
+- If the answer is wrong towards yes: Too large a profile for the question: the answer costs several times what it needed to.
+- If the answer is wrong towards no: Too small a profile for the question: a weak answer where a strong one was affordable.
+- Required confidence: 0.70; below it the port abstains and escalates to the general model.
+- Labelled suite that must pass before this point may be enabled: agenteval.ProfileRoutingSuite.
+
+## Governance, exactly like generation
+
+- Named in the model route policy as "decision", beside the generation profiles, so a route names which adapter answers each point.
+- Covered by the outbound verifier's source classes and data-class ceilings: a decision call carries the same purpose and data classes as a generation call.
+- Charged to the run budget before it is made: the request's limits reserve against the same ledger.
+- Sealed in the run record with the question, the options, the probabilities and the threshold (DecisionSeal).
+- Evaluated by a labelled suite per decision point before it may be enabled; a point without a passing suite answers nothing.
+
+## What a decision may never do alone
+
+- Never admit a person to anything: membership, access and hiring stay with people and grants.
+- Never publish anything where another person can read it: an offer is made, never posted, by a decision.
+- Never widen an audience: private stays private until a person widens it.
+- Never spend above a limit: budgets are enforced before the call, not decided at it.
+- Never execute a side effect whose refusal direction is unsafe: where refusing is the dangerous direction, a decision alone never refuses.
+
+## Thresholds
+
+Each point's threshold is the required confidence in the inventory. Confidence at or above the threshold delivers the choice; below it the port abstains and the question goes to the escalation named for that point, with the probabilities attached so the next step sees how close the call was.

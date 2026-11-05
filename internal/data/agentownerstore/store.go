@@ -147,6 +147,10 @@ func (s *Store) Records(ctx context.Context, tenant, taskID string) ([]ownerops.
 		if err != nil && !errors.Is(err, dbport.ErrNoRows) {
 			return nil, err
 		}
+		err = tx.QueryRow(ctx, `SELECT incident_id FROM agent_owner_stop_audit WHERE tenant_id=$1 AND task_id=$2 ORDER BY occurred_at DESC,request_id DESC LIMIT 1`, id, task.ID).Scan(&record.IncidentID)
+		if err != nil && !errors.Is(err, dbport.ErrNoRows) {
+			return nil, err
+		}
 		var spend, limit int64
 		var pauseReason string
 		err = tx.QueryRow(ctx, `SELECT used_spend,limit_spend,pause_reason FROM agent_budget_task WHERE tenant_id=$1 AND task_id=$2`, id, task.ID).Scan(&spend, &limit, &pauseReason)

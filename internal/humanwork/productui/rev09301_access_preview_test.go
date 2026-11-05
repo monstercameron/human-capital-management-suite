@@ -168,8 +168,8 @@ func TestTodo_REV_093_01_I18N(t *testing.T) {
 			t.Errorf("%s preview missing %q:\n%s", locale, want, markup)
 		}
 	}
-	for language, copy := range roleAccessPreviewCopy {
-		for key := range roleAccessPreviewCopy["en"] {
+	for language, copy := range roleAccessPreviewCopy.Get() {
+		for key := range roleAccessPreviewCopy.Get()["en"] {
 			if strings.TrimSpace(copy[key]) == "" {
 				t.Errorf("%s copy missing %q", language, key)
 			}

@@ -598,19 +598,7 @@ func (c *Console) Preview(tenant, actor, revisionID string, subject agentconnect
 		}
 	}
 	sort.Slice(result.Skills, func(i, j int) bool { return result.Skills[i].ID < result.Skills[j].ID })
-	for _, grant := range revision.Grants {
-		wide := containsWildcard(grant.Roles) && grant.Population == agentconnect.AnyScope
-		for _, id := range grant.Skills {
-			for _, skill := range revision.Skills {
-				if skill.ID == id && highImpact(skill.Tier) && wide {
-					result.Warnings = append(result.Warnings, fmt.Sprintf("%s (%s) is granted to everyone.", skill.ID, tierWord(skill.Tier)))
-				}
-			}
-		}
-	}
-	if revision.RequiresSecondAdmin() && revision.Status != StatusApproved && revision.Status != StatusPublished && revision.Status != StatusSuperseded {
-		result.Warnings = append(result.Warnings, "Publishing needs a second administrator.")
-	}
+	result.Warnings = previewWarnings(revision)
 	return result, nil
 }
 

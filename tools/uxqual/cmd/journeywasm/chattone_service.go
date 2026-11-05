@@ -111,7 +111,7 @@ func chattoneRequest(ctx context.Context, client *http.Client, cfg journeyclient
 		}
 		_ = decoder.Decode(&failure)
 		switch failure.Error {
-		case "limit", "preservation", "policy", "invalid", "denied", "disabled":
+		case "limit", "preservation", "policy", "invalid", "denied", "disabled", "stalled":
 		default:
 			failure.Error = "unavailable"
 		}
@@ -132,7 +132,10 @@ func chattoneRequest(ctx context.Context, client *http.Client, cfg journeyclient
 type chattonePreview struct {
 	Original, Rewritten string
 	Busy, ShowChanges   bool
-	Serial              uint64
+	// Slow is set when the taking-longer notice fires for the current rewrite
+	// (CHATTONE-006); it clears with every other end of that rewrite.
+	Slow   bool
+	Serial uint64
 	// Style is the style asked for, shown in the line above the text; Output is
 	// what the model wrote, so a later edit can be told from the rewrite itself.
 	Style, Output string
@@ -146,6 +149,7 @@ func (p *chattonePreview) Begin(draft string) (uint64, bool) {
 		return 0, false
 	}
 	p.Busy = true
+	p.Slow = false
 	p.Serial++
 	return p.Serial, true
 }
@@ -154,6 +158,7 @@ func (p *chattonePreview) Complete(serial uint64, typed, current, rewrite string
 		return false
 	}
 	p.Busy = false
+	p.Slow = false
 	if current != typed || rewrite == "" {
 		return false
 	}
@@ -173,6 +178,7 @@ func (p *chattonePreview) Undo() (string, bool) {
 	p.Output = ""
 	p.Style = ""
 	p.ShowChanges = false
+	p.Slow = false
 	p.Serial++
 	return original, true
 }
@@ -183,6 +189,7 @@ func (p *chattonePreview) Clear() {
 	p.Style = ""
 	p.ShowChanges = false
 	p.Busy = false
+	p.Slow = false
 	p.Serial++
 }
 

@@ -6,12 +6,12 @@ These instructions apply to the whole repository. `CLAUDE.md` at the root is a t
 
 ## Who decides what
 
-| Question                                           | Authority                                                               |
-| -------------------------------------------------- | ----------------------------------------------------------------------- |
-| What gets built, in which phase, behind which gate | `planning/plan.md`, `planning/execution-plan.md`, `planning/specs/*`    |
-| The unit of work and its proof                     | `planning/todos.md` (RED, GREEN, TEST and TEST MATRIX are the contract) |
-| How the work is done                               | this file                                                               |
-| What already exists                                | source, tests, migrations, `definitions/`                               |
+| Question                                           | Authority                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| What gets built, in which phase, behind which gate | `planning/plan.md`, `planning/execution-plan.md`, `planning/specs/*`                       |
+| The unit of work and its proof                     | `planning/archive/todos-2026-10-22.md` (RED, GREEN, TEST and TEST MATRIX are the contract) |
+| How the work is done                               | this file                                                                                  |
+| What already exists                                | source, tests, migrations, `definitions/`                                                  |
 
 Where they disagree about implemented behaviour, the source wins. Where they disagree about intent, the plan wins. Do not invent packages, tables or capabilities because the plan anticipates them.
 
@@ -43,7 +43,7 @@ Root `go test ./...` is not a gate on the development machine: every data packag
 
 ## Task lifecycle
 
-1. Read this file, then the todo entries you are closing in `planning/todos.md`, then every package their Refs name.
+1. Read this file, then the todo entries you are closing in `planning/archive/todos-2026-10-22.md`, then every package their Refs name.
 2. Inspect the source, tests, migrations and git state actually in scope. Another session may be working in the same checkout; `git status` is not all yours.
 3. Run the narrowest relevant test before changing anything.
 4. Implement the smallest sufficient change. No speculative abstraction, no adjacent cleanup.
@@ -70,7 +70,7 @@ Any agent may take a todo from requirements through implementation, tests, docum
 **Treat every todo as atomic.** Each one goes through the whole loop before the next one is called done. A red gate at any stage returns to the earliest
 stage that owns the defect; the defect is fixed at the source, never bypassed, never filed for later.
 
-1. **Requirements.** The contract is `planning/plan.md`, `planning/execution-plan.md`, `planning/specs/*` and the todo's `planning/todos.md` entry. The TEST
+1. **Requirements.** The contract is `planning/plan.md`, `planning/execution-plan.md`, `planning/specs/*` and the todo's `planning/archive/todos-2026-10-22.md` entry. The TEST
    and TEST MATRIX fields are the acceptance criteria. A todo with no testable criteria is not ready; clarify it before implementation.
 2. **Context.** Read every package the todo's Refs name, plus the source, tests, migrations and git state actually in scope. Run the narrowest relevant test
    before changing anything.
@@ -115,7 +115,7 @@ stage that owns the defect; the defect is fixed at the source, never bypassed, n
 
 ## Documents
 
-Do not create a new Markdown file unless the user explicitly asked for that file. Existing planning documents may be edited when a todo or the user requires it. `planning/todos.md` ticks carry an evidence line naming the tests and the exact `go test` command in backticks.
+Do not create a new Markdown file unless the user explicitly asked for that file. Existing planning documents may be edited when a todo or the user requires it. `planning/archive/todos-2026-10-22.md` ticks carry an evidence line naming the tests and the exact `go test` command in backticks.
 
 ## Environment notes
 

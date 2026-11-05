@@ -27,6 +27,7 @@ const (
 // ThemeToken is one stable semantic contract. CustomerOverridable means a
 // governed BrandPack may supply a value; it never bypasses validation.
 type ThemeToken struct {
+	_                   incomparable
 	Name                string
 	CSSVariable         string
 	Kind                ThemeTokenKind

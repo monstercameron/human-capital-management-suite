@@ -33,6 +33,7 @@ type OrganizationPageProps struct {
 // projection. It gives people an at-a-glance orientation without claiming
 // totals for records outside the viewer's server-authorized scope.
 type OrganizationSummaryProps struct {
+	_                incomparable
 	VisiblePeople    int
 	Units            int
 	Scope            string

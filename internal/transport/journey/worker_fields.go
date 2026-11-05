@@ -26,9 +26,10 @@ const redactedPayStandIn = "REDACTED"
 // masks unauthorized fields before serialization. Deny by default: a
 // disclosure that cannot be resolved fails closed to omitted pay, name and
 // linkage on that row, never to a refused RPC, so one unresolvable subject
-// cannot hide the whole directory.
-func (s *server) authorizeWorkers(ctx context.Context, principal *trust.Principal, all, visible []workspace.WorkerSummary) []*journeyv1.Worker {
-	roles := s.effectiveRoles(ctx, principal)
+// cannot hide the whole directory. roles is the caller's already-resolved
+// server-side set, which the handler authorized the call from, so the
+// listing resolves it once per RPC instead of again per helper.
+func (s *server) authorizeWorkers(_ context.Context, principal *trust.Principal, roles []string, all, visible []workspace.WorkerSummary) []*journeyv1.Worker {
 	subject := strings.ToLower(strings.TrimSpace(principal.Subject()))
 	// See organization_visibility.go's workerMatchesPrincipal and
 	// workerIdentityIndex: a persisted manager relationship names the manager
@@ -76,8 +77,8 @@ func (s *server) authorizeWorkers(ctx context.Context, principal *trust.Principa
 // over the single row: a creator named as the new worker's manager matches
 // directly, anything needing a wider reporting line resolves once the row
 // is listed.
-func (s *server) authorizeWorker(ctx context.Context, principal *trust.Principal, worker workspace.WorkerSummary) *journeyv1.Worker {
-	workers := s.authorizeWorkers(ctx, principal, []workspace.WorkerSummary{worker}, []workspace.WorkerSummary{worker})
+func (s *server) authorizeWorker(ctx context.Context, principal *trust.Principal, roles []string, worker workspace.WorkerSummary) *journeyv1.Worker {
+	workers := s.authorizeWorkers(ctx, principal, roles, []workspace.WorkerSummary{worker}, []workspace.WorkerSummary{worker})
 	return workers[0]
 }
 

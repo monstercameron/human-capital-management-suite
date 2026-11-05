@@ -27,12 +27,34 @@ func enrichDemoDirectory(tenantKey string, workers []*journeyv1.Worker, contacts
 	if err != nil {
 		return
 	}
+	merged := make(map[string]directoryEntry, len(entries))
+	for key, entry := range entries {
+		merged[key] = directoryEntry{PhotoURL: entry.PhotoURL, Email: entry.Email, Phone: entry.Phone}
+	}
+	applyDirectoryEntries(workers, pack.OrgUnitName, merged, contacts)
+}
+
+// directoryEntry is one person's contact row as the row merge sees it: photo,
+// mail and phone keyed by worker ref or subject id. The data package's own
+// entry type never crosses into the merge, so the merge has no data import
+// and the pack lookup above stays the only impure line.
+type directoryEntry struct {
+	PhotoURL, Email, Phone string
+}
+
+// applyDirectoryEntries merges contact rows into worker rows. A unit code the
+// namer knows gains its display name; a worker joins its row on the worker
+// ref, then the subject id; a photograph already on the row wins; contact
+// fields are set only for the chat projection.
+func applyDirectoryEntries(workers []*journeyv1.Worker, orgName func(string) string, entries map[string]directoryEntry, contacts bool) {
 	for _, worker := range workers {
 		if worker == nil {
 			continue
 		}
-		if name := pack.OrgUnitName(worker.GetOrgUnit()); name != "" {
-			worker.OrgUnitName = name
+		if orgName != nil {
+			if name := orgName(worker.GetOrgUnit()); name != "" {
+				worker.OrgUnitName = name
+			}
 		}
 		entry, found := entries[strings.TrimSpace(worker.GetWorkerRef())]
 		if !found {

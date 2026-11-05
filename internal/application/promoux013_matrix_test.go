@@ -75,8 +75,8 @@ func TestTodo_PROMOUX_013_Recovery(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux013-recovery-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promoux013-recovery-approver",
 		ExecutionManagerApprover: "principal:promoux013-recovery-manager",
-		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         DefaultTimerTzdbVersion,
+		TimerCalendarVersion:     DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("recovery configuration: %v", err)

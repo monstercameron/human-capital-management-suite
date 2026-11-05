@@ -4,7 +4,13 @@ This is the dependency-ordered bridge from the current planning repository to a
 paid, production-shaped ChangeOps pilot. It narrows sequencing; it does not
 replace [plan.md](plan.md) or the [Phase 1 execution plan](execution-plan.md).
 
-## Current truth
+## Current planning authority (2026-10-22)
+
+The source tree now includes a root Go module, production commands, schema migrations, and serving composition. Their presence does not establish production readiness. The owner has authorized the [small-business operations plan](small-business-platform-ideas.md) and its implementation backlog; [the execution-plan placement](execution-plan.md#recorded-placement-small-business-operations-2026-10-22) controls that track. This document continues to define the bounded ChangeOps P1A/P1B release; it does not veto the separately recorded expansion.
+
+## Historical baseline at the original convergence-plan drafting
+
+The following bullets are retained historical context, not a current inventory of the implementation or current scope authorization. Verify present capabilities against source, running paths, and acceptance evidence.
 
 - The architectural backlog is broad, but the production implementation is not
   bootstrapped. There is no root Go module, generated RPC service, authoritative

@@ -7,22 +7,24 @@ import (
 )
 
 func TestTodo_PM_023(t *testing.T) {
-	event := ProjectNoticeEvent{EventID: "notice-1", TenantID: "tenant-a", ProjectID: "project-a", TaskID: "task-a", Kind: NoticeAssigned, At: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
-	var delivered []ProjectNotice
-	router := &ProjectNoticeRouter{
-		Audience: func(context.Context, ProjectNoticeEvent) (ProjectNoticeAudience, error) {
-			return ProjectNoticeAudience{Revision: 4, Recipients: []string{"alice", "bob"}}, nil
-		},
-		Preference: func(context.Context, string, ProjectNoticeEvent) (ProjectNoticePreference, error) {
-			return ProjectNoticePreference{}, nil
-		},
-		Deliver: func(_ context.Context, notice ProjectNotice) error { delivered = append(delivered, notice); return nil },
-	}
-	if err := router.Route(context.Background(), event); err != nil {
-		t.Fatal(err)
-	}
-	if len(delivered) != 2 || delivered[0].AudienceRevision != 4 || delivered[0].Event.EventID != event.EventID {
-		t.Fatalf("delivery=%+v", delivered)
+	for i, kind := range []ProjectNoticeKind{NoticeAssigned, NoticeMentioned, NoticeDue, NoticeStatus} {
+		event := ProjectNoticeEvent{EventID: "notice-1", TenantID: "tenant-a", ProjectID: "project-a", TaskID: "task-a", Kind: kind, At: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
+		var delivered []ProjectNotice
+		router := &ProjectNoticeRouter{
+			Audience: func(context.Context, ProjectNoticeEvent) (ProjectNoticeAudience, error) {
+				return ProjectNoticeAudience{Revision: 4, Recipients: []string{"alice", "bob"}}, nil
+			},
+			Preference: func(context.Context, string, ProjectNoticeEvent) (ProjectNoticePreference, error) {
+				return ProjectNoticePreference{}, nil
+			},
+			Deliver: func(_ context.Context, notice ProjectNotice) error { delivered = append(delivered, notice); return nil },
+		}
+		if err := router.Route(context.Background(), event); err != nil {
+			t.Fatalf("kind %s route %d: %v", kind, i, err)
+		}
+		if len(delivered) != 2 || delivered[0].AudienceRevision != 4 || delivered[0].Event.EventID != event.EventID || delivered[0].Event.Kind != kind {
+			t.Fatalf("kind %s delivery=%+v", kind, delivered)
+		}
 	}
 }
 

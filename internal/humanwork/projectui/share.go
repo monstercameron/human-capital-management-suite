@@ -37,11 +37,14 @@ func ShareMenu(copy Copy, share *Share) ui.Node {
 		return nil
 	}
 	copy.Board = localizedBoardCopy(copy.Board, formatOrItoa(copy.FormatNumber))
-	return html.Details(html.Props{Class: "projectui-share"},
+	// UXBLIND-057: the shared shell popover controller owns dismissal for
+	// every menu, and it finds its menus through this marker. Without it
+	// Escape from a Share item left the disclosure open with focus on the item.
+	return html.Details(html.Props{Class: "projectui-share", Data: map[string]string{"hcm-transient-popover": "project-share"}},
 		html.Summary(html.Props{Class: "projectui-share-trigger", Aria: map[string]string{"haspopup": "menu"}},
 			html.Span(html.Props{Class: "projectui-share-icon", Aria: map[string]string{"hidden": "true"}}),
 			html.Span(html.Props{Text: copy.Board.Share})),
-		html.Div(html.Props{Class: "projectui-card-menu-panel projectui-share-panel", Role: "menu", Aria: map[string]string{"label": copy.Board.Share}}, shareItems(copy, share.Href, share.Title)...),
+		html.Div(html.Props{Class: "projectui-card-menu-panel projectui-share-panel", Role: "menu", Aria: map[string]string{"label": copy.Board.Share}, Data: map[string]string{"hcm-popover-surface": "true"}}, shareItems(copy, share.Href, share.Title)...),
 	)
 }
 

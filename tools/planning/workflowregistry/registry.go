@@ -3,6 +3,13 @@
 // discovery state and a content digest, and reports orphan, stale, duplicate
 // and dishonestly promoted entries as exact findings. It is kernel-pure: file
 // parsing and sorting only, no database, network or mutable global.
+//
+// Reachability class and ownership: planning conformance tooling, not a
+// runtime capability. It is intentionally outside every shipped binary's
+// dependency closure and claims no runtime capability ownership; it is
+// accountable to the Platform Engineering owner like the rest of the
+// planning-policy checker cohort, recorded in
+// planning/specs/specification-ownership-registry.md.
 package workflowregistry
 
 import (

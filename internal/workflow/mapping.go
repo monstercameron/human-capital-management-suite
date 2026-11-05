@@ -1,6 +1,9 @@
 package workflow
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 type parameterResolverSnapshot map[string]ParameterDeclaration
 
@@ -65,8 +68,8 @@ func contextDeclaresPath(req ContextRequirement, path string) bool {
 
 // isPinnedSource reports whether a source is a pinned snapshot rather than a
 // live read. Everything except an unpinned context read is pinned: workflow
-// input, a predecessor's recorded output and a literal constant cannot change
-// under the node's feet.
+// input, a predecessor's recorded output, the variable revision current at
+// the attempt and a literal constant cannot change under the node's feet.
 func isPinnedSource(n *Node, src Source) bool {
 	if src.Kind == SourceParameter {
 		return src.ParameterMode == ParameterPinnedAtPublish || src.ParameterMode == ParameterPinnedAtStart
@@ -91,7 +94,7 @@ func sourceType(def *Definition, g *graph, n *Node, src Source, parameters Param
 		}
 		t, ok := fieldsByPath(producer.Outputs)[src.Path]
 		return t, ok
-	case SourceContext, SourceConstant:
+	case SourceContext, SourceConstant, SourceVariable:
 		if err := src.Type.Validate(); err != nil {
 			return ValueType{}, false
 		}
@@ -188,6 +191,20 @@ func checkMappings(def *Definition, g *graph, parameters ParameterResolver, c *c
 					c.add(CodeTypeMismatch, loc, "a constant source is never nullable")
 					continue
 				}
+			case SourceVariable:
+				if strings.TrimSpace(m.Source.VariableName) == "" {
+					c.add(CodeUnresolvedRef, loc, "variable mapping names no variable")
+					continue
+				}
+				if m.Source.Path == "" {
+					c.add(CodeUnresolvedRef, loc,
+						"variable mapping names no field path; a whole variable is an unrestricted result")
+					continue
+				}
+				if err := m.Source.Type.Validate(); err != nil {
+					c.add(CodeUnresolvedRef, loc, "variable source type: %v", err)
+					continue
+				}
 			case SourceParameter:
 				if m.Source.ParameterKey == "" || !m.Source.ParameterMode.valid() {
 					c.add(CodeUnresolvedRef, loc, "parameter mapping requires a key and declared binding mode")
@@ -256,6 +273,7 @@ func checkMappings(def *Definition, g *graph, parameters ParameterResolver, c *c
 			if err := got.AssignableTo(want); err != nil {
 				c.add(CodeTypeMismatch, loc, "%s -> %s: %v", got, want, err)
 			}
+			checkMappingFlow(n, m, got, loc, c)
 		}
 
 		for _, f := range n.Inputs {
@@ -288,5 +306,6 @@ func checkWorkflowOutputs(def *Definition, n *Node, c *collector) {
 			c.add(CodeTypeMismatch, loc,
 				"workflow output %q: %s -> %s: %v", out.Path, got, out.Type, err)
 		}
+		checkOutputFlow(n, out, got, loc, c)
 	}
 }

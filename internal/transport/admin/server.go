@@ -19,7 +19,9 @@ import (
 	adminpolicy "github.com/monstercameron/human-capital-management-suite/internal/operations/admin"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/explorer"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/onboardingruns"
+	"github.com/monstercameron/human-capital-management-suite/internal/operations/repairworkbench"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/config/promotion"
+	"github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/manifest"
@@ -131,6 +133,18 @@ type Dependencies struct {
 	// diff/simulate/promote/rollback run against. Nil leaves those RPCs
 	// UNAVAILABLE.
 	ConfigPromotions *promotion.Registry
+	// RepairSubmitter backs SubmitRepairAction (REV-087-01): the governed
+	// operator gateway a repair submit forwards to after
+	// internal/operations/repairworkbench re-checks it against the
+	// operator's current view of the findings. Nil leaves that RPC
+	// UNAVAILABLE, matching every other optional port; the read-only
+	// operations RPCs need no gateway and keep working.
+	RepairSubmitter repairworkbench.Submitter
+	// CorrelationAllowlist backs CorrelateProductTelemetry (REV-087-01):
+	// the telemetry attribute allowlist raw events are sanitized
+	// against. Nil means telemetry.DefaultAllowlist, the compiled-in
+	// contract mirror.
+	CorrelationAllowlist *telemetry.Allowlist
 }
 
 // server adapts [Dependencies] to the generated adminv1.AdminServiceServer

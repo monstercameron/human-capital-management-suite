@@ -67,6 +67,10 @@ type Result struct {
 	Status       Status
 	Continuation bool
 	Reason       string
+	// DefaultOutputDigest, when set, is the declared non-response payload
+	// digest a late signal completes with. ToNodeOutcome prefers it over
+	// an empty digest on the TIMED_OUT route.
+	DefaultOutputDigest string
 }
 
 // matchedPrior finds, among prior (every previously recorded LogEntry for
@@ -166,7 +170,11 @@ func Accept(sub SignalSubscription, sig Signal, prior []LogEntry, verify Verifie
 	}
 
 	if sub.ClosesAt.IsSet() && !now.Before(sub.ClosesAt) {
-		return refuse(StatusRefusedLate, "signal arrived at/after the subscription's close time %s", sub.ClosesAt), nil
+		r := refuse(StatusRefusedLate, "signal arrived at/after the subscription's close time %s", sub.ClosesAt)
+		if sub.DeadlineDefault.Schema != "" {
+			r.DefaultOutputDigest = sub.DeadlineDefault.Digest()
+		}
+		return r, nil
 	}
 
 	return Result{Status: StatusAccepted, Continuation: true}, nil

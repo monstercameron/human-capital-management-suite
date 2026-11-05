@@ -1087,6 +1087,16 @@ exceptions:
       2026-09-06; raise the package to the floor or retire this exception.
     plan: "2027-06-24: add assertion-backed tests for uncovered behavior in internal/workflow/shadow and measure until at least 70 percent"
     expiry: "2027-07-24"
+  - package: internal/workflow/simulate
+    kind: below_floor
+    owner: workflow-runtime
+    reason: >-
+      68.2% of statements covered when WF-DATA-006 first staged
+      internal/workflow/simulate/run.go on 2026-10-22; all but one of the
+      uncovered statements predate that change; raise the package to the
+      floor or retire this exception.
+    plan: "2027-06-25: add assertion-backed tests for uncovered behavior in internal/workflow/simulate and measure until at least 70 percent"
+    expiry: "2027-07-25"
   - package: tools/conformance
     kind: below_floor
     owner: platform-toolchain

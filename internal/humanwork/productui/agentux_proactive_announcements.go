@@ -25,6 +25,7 @@ type AgentAnnouncementRow struct {
 }
 
 type AgentAnnouncementAttempt struct {
+	_                                              incomparable
 	At, TimeLabel, ResultCode, Reason, MessageHref string
 }
 

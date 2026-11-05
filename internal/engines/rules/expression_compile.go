@@ -3,6 +3,7 @@ package rules
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/canonicalbytes"
@@ -19,32 +20,74 @@ func CompileExpression(expr Expression, limits ...CostLimit) (CompiledExpression
 // CompileExpressionWithLibrary pins the exact expression function registry in
 // the compiled artifact. Published entries are validated before compilation.
 func CompileExpressionWithLibrary(expr Expression, library ExpressionFunctionLibrary, limits ...CostLimit) (CompiledExpression, error) {
-	if err := validateLibrary(library); err != nil {
+	limit, err := resolveCompileBackend(expr, library, limits)
+	if err != nil {
 		return CompiledExpression{}, err
+	}
+	return compileExpressionBackend(expr, library, nil, limit)
+}
+
+// CompileTenantExpression resolves every tenant-pathed input against its
+// pin — existence, type and classification — records each used pin as a
+// dependency so versions participate in the compiled digest, and lowers
+// through the standard backend.
+func CompileTenantExpression(expr Expression, pins []TenantTypePin, limits ...CostLimit) (CompiledExpression, error) {
+	return CompileTenantExpressionWithLibrary(expr, DefaultExpressionFunctionLibrary(), pins, limits...)
+}
+
+// CompileTenantExpressionWithLibrary pins the exact expression function
+// registry alongside the tenant type pins.
+func CompileTenantExpressionWithLibrary(expr Expression, library ExpressionFunctionLibrary, pins []TenantTypePin, limits ...CostLimit) (CompiledExpression, error) {
+	if err := validateTenantPins(pins); err != nil {
+		return CompiledExpression{}, err
+	}
+	if pins == nil {
+		pins = []TenantTypePin{}
+	}
+	limit, err := resolveCompileBackend(expr, library, limits)
+	if err != nil {
+		return CompiledExpression{}, err
+	}
+	return compileExpressionBackend(expr, library, pins, limit)
+}
+
+// resolveCompileBackend validates the library, budget and version shared by
+// every expression entry point.
+func resolveCompileBackend(expr Expression, library ExpressionFunctionLibrary, limits []CostLimit) (CostLimit, error) {
+	if err := validateLibrary(library); err != nil {
+		return CostLimit{}, err
 	}
 	limit := DefaultCostLimit
 	if len(limits) > 1 {
-		return CompiledExpression{}, fmt.Errorf("%w: at most one cost limit", ErrExpressionInvalid)
+		return CostLimit{}, fmt.Errorf("%w: at most one cost limit", ErrExpressionInvalid)
 	}
 	if len(limits) == 1 {
 		limit = limits[0]
 	}
 	if limit.MaxNodes <= 0 || limit.MaxDepth <= 0 || limit.MaxIterations <= 0 || limit.MaxCost <= 0 {
-		return CompiledExpression{}, fmt.Errorf("%w: all cost limits must be positive", ErrExpressionUnbounded)
+		return CostLimit{}, fmt.Errorf("%w: all cost limits must be positive", ErrExpressionUnbounded)
 	}
 	if expr.Version == "" {
-		return CompiledExpression{}, fmt.Errorf("%w: expression version is required", ErrExpressionInvalid)
+		return CostLimit{}, fmt.Errorf("%w: expression version is required", ErrExpressionInvalid)
 	}
 	if !expr.UnknownSemantics.Valid() {
-		return CompiledExpression{}, ErrExpressionUnknown
+		return CostLimit{}, ErrExpressionUnknown
 	}
+	return limit, nil
+}
+
+// compileExpressionBackend is the shared lowering body. A nil pin set means
+// the plain entry points: tenant paths are refused and must come through
+// CompileTenantExpression with pins. A non-nil set resolves and records
+// them.
+func compileExpressionBackend(expr Expression, library ExpressionFunctionLibrary, pins []TenantTypePin, limit CostLimit) (CompiledExpression, error) {
 	if len(expr.Inputs) > limit.MaxCost || len(expr.Dependencies) > limit.MaxCost || len(expr.Inputs)+len(expr.Dependencies) > limit.MaxCost {
 		return CompiledExpression{}, fmt.Errorf("%w: input declarations and dependencies exceed cost limit %d", ErrExpressionUnbounded, limit.MaxCost)
 	}
 
 	env := make(map[string]Input, len(expr.Inputs))
 	for _, input := range expr.Inputs {
-		if input.Name == "" || len(input.Name) > 256 || !input.Type.Valid() || (input.Type == ExpressionTypeList && !input.ElementType.Valid()) || (input.Type != ExpressionTypeList && input.ElementType != ExpressionTypeUnspecified) {
+		if input.Name == "" || len(input.Name) > 256 || !input.Type.Valid() || (input.Type == ExpressionTypeList && !input.ElementType.Valid()) || (input.Type != ExpressionTypeList && input.ElementType != ExpressionTypeUnspecified) || (input.MaxClassification != "" && !input.MaxClassification.Valid()) {
 			return CompiledExpression{}, fmt.Errorf("%w: invalid input %q", ErrExpressionInvalid, input.Name)
 		}
 		if _, exists := env[input.Name]; exists {
@@ -53,6 +96,49 @@ func CompileExpressionWithLibrary(expr Expression, library ExpressionFunctionLib
 		env[input.Name] = input
 	}
 	deps := append([]Dependency(nil), expr.Dependencies...)
+	declared := make(map[string]Dependency, len(deps))
+	for _, dep := range deps {
+		declared[dep.Name] = dep
+	}
+	for _, input := range expr.Inputs {
+		if !IsTenantPath(input.Name) {
+			continue
+		}
+		if pins == nil {
+			return CompiledExpression{}, fmt.Errorf("%w: input %q needs CompileTenantExpression with pins", ErrTenantPath, input.Name)
+		}
+		path, err := ParseTenantPath(input.Name)
+		if err != nil {
+			return CompiledExpression{}, err
+		}
+		pin, field, err := resolveTenantField(pins, path)
+		if err != nil {
+			return CompiledExpression{}, err
+		}
+		want, err := tenantExpressionType(field.Type)
+		if err != nil {
+			return CompiledExpression{}, fmt.Errorf("rules: input %q: %w", input.Name, err)
+		}
+		if want != input.Type {
+			return CompiledExpression{}, fmt.Errorf("%w: input %q is %s, declaration says %s", ErrTenantTypeMismatch, input.Name, want, input.Type)
+		}
+		if err := tenantFlowAllowed(field.Classification, input.MaxClassification); err != nil {
+			return CompiledExpression{}, fmt.Errorf("rules: input %q: %w", input.Name, err)
+		}
+		digest, err := pin.Digest()
+		if err != nil {
+			return CompiledExpression{}, err
+		}
+		candidate := Dependency{Name: pin.identity(), Version: strconv.FormatUint(pin.Version, 10), Digest: digest}
+		if prior, ok := declared[candidate.Name]; ok {
+			if prior != candidate {
+				return CompiledExpression{}, fmt.Errorf("%w: dependency %q conflicts with the pin", ErrExpressionDependency, candidate.Name)
+			}
+			continue
+		}
+		declared[candidate.Name] = candidate
+		deps = append(deps, candidate)
+	}
 	sort.SliceStable(deps, func(i, j int) bool { return dependencyLess(deps[i], deps[j]) })
 	for _, dep := range deps {
 		if dep.Name == "" || dep.Version == "" || dep.Digest == "" || len(dep.Name) > 256 || len(dep.Version) > 128 || len(dep.Digest) > 256 {
@@ -158,7 +244,9 @@ func (s *compilerState) lower(e Expr, depth int) (int, ExpressionType, error) {
 		}
 	case ExprKindVariable:
 		n.Opcode = OpcodeVariable
-		if strings.Contains(e.Name, ".") {
+		// Dotted names stay refused as ambient lookups, except tenant paths:
+		// those resolve only through declared, pin-checked inputs (WF-DATA-010).
+		if strings.Contains(e.Name, ".") && !IsTenantPath(e.Name) {
 			err = forbiddenCallError(e.Name)
 			break
 		}
@@ -449,6 +537,9 @@ func compiledDigest(version string, semantics UnknownSemantics, inputs []Input, 
 	w.Count("inputs", len(inputs))
 	for _, input := range inputs {
 		w.String("input.name", input.Name).String("input.type", input.Type.String()).String("input.element_type", input.ElementType.String())
+		if input.MaxClassification != "" {
+			w.String("input.max_classification", string(input.MaxClassification))
+		}
 	}
 	w.Count("dependencies", len(deps))
 	for _, dep := range deps {

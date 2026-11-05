@@ -20,6 +20,10 @@ package chatui
 // Every size is a token the page already uses or a plain length, every inset is
 // logical, and nothing here sets a colour, a shadow or a duration.
 const ChatUX050Styles = `.chat-workspace .chat-composer .composer-hint-slot:empty{display:none}` +
+	// The unfocused toolbar's older wrap (AGENTUX-071, same specificity) put
+	// Send on a row of its own on a phone once the draft had text. The tools
+	// may wrap inside the row; Send stays on it.
+	`.chat-workspace .chat-composer:not(:focus-within) .composer-toolbar{flex-wrap:nowrap}` +
 	`@media(min-width:761px){` +
 	`.chat-workspace form.chat-composer{padding:4px 6px;max-block-size:33.333dvh;box-sizing:border-box}` +
 	// AGENTUX-071's unfocused composer rule has more specificity than the base

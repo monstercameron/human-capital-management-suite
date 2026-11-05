@@ -92,6 +92,18 @@ func TestTodo_PM_019(t *testing.T) {
 			t.Fatalf("event[%d] = %#v", i, events[i])
 		}
 	}
+	if _, err := s.Add(context.Background(), request("oversize", 0, strings.Repeat("x", MaxTextBytes+1), now)); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("oversize comment error = %v", err)
+	}
+	if _, err := s.Add(context.Background(), request("blank", 0, "   ", now)); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("blank comment error = %v", err)
+	}
+	if _, err := s.Add(context.Background(), request("c2", 0, "second", now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Correct(context.Background(), request("c2", 1, strings.Repeat("y", MaxTextBytes+1), now)); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("oversize correction error = %v", err)
+	}
 }
 
 func TestTodo_PM_019_PagingStableSnapshot(t *testing.T) {

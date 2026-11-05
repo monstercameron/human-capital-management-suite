@@ -17,6 +17,15 @@ type PersonaReplyOutputPolicy struct {
 	AdminAllowedOrigins []string
 }
 
+// The reply sanitizer runs once per delivered answer; its static patterns are
+// compiled once. (The per-document legacy citation below stays inline: it
+// embeds the document's own title.)
+var (
+	personaReplyOutputImagePattern     = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	personaReplyOutputLinkPattern      = regexp.MustCompile(`\[([^\]]+)\]\(([^)]*)\)`)
+	personaReplyOutputUnsafeURLPattern = regexp.MustCompile(`(?i)(?:https?://|www\.|//)[^\s<>()]+`)
+)
+
 // renderPersonaReplyText keeps plain text and links approved by the existing
 // agentdeliver origin policy. Images, remote embeds, raw URLs, and unsafe link
 // destinations are removed before the chat Markdown and GIPHY renderers see it.
@@ -30,9 +39,8 @@ func renderPersonaReplyText(body, tenantID, conversationID string, policy Person
 		TenantOrigin:        policy.TenantOrigin,
 		AdminAllowedOrigins: append([]string(nil), policy.AdminAllowedOrigins...),
 	}
-	imagePattern := regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
-	body = imagePattern.ReplaceAllString(body, "")
-	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\(([^)]*)\)`)
+	body = personaReplyOutputImagePattern.ReplaceAllString(body, "")
+	linkPattern := personaReplyOutputLinkPattern
 	protected := make([]string, 0)
 	markerBase := "DFPERSONALINK"
 	for strings.Contains(body, markerBase) {
@@ -50,8 +58,7 @@ func renderPersonaReplyText(body, tenantID, conversationID string, policy Person
 		protected = append(protected, markup)
 		return marker
 	})
-	unsafeURL := regexp.MustCompile(`(?i)(?:https?://|www\.|//)[^\s<>()]+`)
-	body = unsafeURL.ReplaceAllStringFunc(body, func(candidate string) string {
+	body = personaReplyOutputUnsafeURLPattern.ReplaceAllStringFunc(body, func(candidate string) string {
 		if isGiphyOrigin(candidate) {
 			return ""
 		}

@@ -1,0 +1,828 @@
+DURABLE-001 crash inventory (code-read 2026-10-22)
+Shared substrate: runstate leases + fences (run.go), effect journal with UNKNOWN-first intents, core outbox with 30s IN_FLIGHT leases, jobs watermark checkpoints, idempotencystore first-claim-wins.
+Shared gap: agentServedAssembly.TickTenant fans out to announcement/ambient/restore/schedule workers but has NO production caller (tests only).
+
+## mention-answer: Answering a mention (admission, claim, model call, checkpoint, tool effect, continuation, validation, delivery, receipt)
+- post
+  state: chat_post + chat_idempotency + outbox row in one transaction (internal/data/chatstore/store.go)
+  durable: transaction
+  key: (tenant, conversation, client key)
+  resumer: sender retry before commit; nothing after (detached in-memory goroutine, persona_chat_invocation.go)
+  die-before: nothing written; sender retries
+  die-during: rollback; sender retries
+  die-after: post-commit goroutine dies before start: mention LOST, no re-trigger; post visible, answer never arrives, no card
+  visible: post visible; missing answer indistinguishable from slow answer until recovery card
+  resume: none found (recovery scans persona_invocations only, never the outbox gap)
+- admission
+  state: immutable agent_run_request row (admission_repository.go)
+  durable: transaction
+  key: arreq_sha256(tenant, kind, key); same digest replays, changed payload refuses with conflict
+  resumer: dispatcher re-reads and re-verifies authority (persona_background_runtime_dispatch.go)
+  die-before: claim outcome stands
+  die-during: rollback; claim redrives admission
+  die-after: duplicate returns the same record; refused admission is terminal
+  visible: ADMISSION_REFUSED card, or the run proceeds
+  resume: 1s admission poll
+- claim
+  state: persona_invocations CLAIMED row, then grant column, separate transactions under FOR UPDATE (agentinvocationstore/store.go, 60s bound)
+  durable: transaction
+  key: pinv_sha256(tenant, conversation, post, persona[, attempt])
+  resumer: recovery finalizes never-admitted claims as ANSWER_INTERRUPTED after 3 minutes (agentrun_recovery_dispatch.go)
+  die-before: lost; surfaced as interrupted card
+  die-during: lost; surfaced as interrupted card
+  die-after: durable claim drives admission
+  visible: yes: retryable failure card keyed (tenant, invoker, post)
+  resume: 3 minutes + poll/sweep
+- model call
+  state: no row; one in-memory 50ms transient retry with a DISTINCT step id, deliberately not provider-idempotent (agentux_answer_retry.go); spend unjournaled
+  durable: none
+  key: none (retry mints a new step id)
+  resumer: recovery: interrupts if spend occurred, else re-executes once (agentrun_recovery_dispatch.go)
+  die-before: re-runnable; nothing spent
+  die-during: paid but unjournaled spend; ANSWER_INTERRUPTED, person asks again
+  die-after: before the checkpoint lands: same as during
+  visible: yes: interrupted card; lost-call cost surfacing ungrounded
+  resume: lease TTL + poll/sweep
+- checkpoint
+  state: agent_run_execution row + ADMISSION checkpoint in one transaction (internal/data/agentrunstate/store.go); run id equals admission id
+  durable: transaction
+  key: run id = admission id; duplicate create returns the row after a digest check
+  resumer: wake creates the run if missing; admitted-without-run waits while the deadline is future, else interrupts
+  die-before: per model call
+  die-during: rollback; admission redrives
+  die-after: durable READY run
+  visible: answer or card only; READY spinner ungrounded (step board is in-memory)
+  resume: poll + sweep
+- run-claim
+  state: RUNNING + fence + lease set by CAS with an authority recheck (run.go Claim)
+  durable: lease + transaction
+  key: worker lease; second worker is refused Busy
+  resumer: wake drives Claim after Recover; refuses when the model may already have started
+  die-before: READY; picked up
+  die-during: READY; picked up
+  die-after: lease expiry (TTL at most 900s, 60s local) returns the run to READY, or FAILED
+  visible: spinner until expiry
+  resume: TTL + poll/sweep
+- tool effect
+  state: effect journal: UNKNOWN intent recorded BEFORE the call, terminal-only resolution, delivery blocked while UNKNOWN (run.go)
+  durable: journal entry
+  key: persona-tool-idem-<hex16> = sha256(run, step, proposal); duplicate id/key refused
+  resumer: owner ReconcileEffect with receiver evidence; persona recovery REFUSES to interrupt UNKNOWN runs and no persona reconcile caller was found
+  die-before: clean; nothing recorded
+  die-during: STUCK in RECONCILING, unbounded, no surfacing
+  die-after: before resolution: same as during
+  visible: partial at best; WAITING/RECONCILING left to the owner
+  resume: unbounded; manual/owner only
+- continuation
+  state: second model turn, same shape as model call (persona_run_executor.go); effect already resolved so recovery may interrupt
+  durable: none
+  key: none (new step id per attempt)
+  resumer: recovery interrupts or re-executes once
+  die-before: re-runnable
+  die-during: paid but unjournaled spend; ANSWER_INTERRUPTED
+  die-after: before the next checkpoint: same as during
+  visible: yes: interrupted card
+  resume: lease TTL + poll/sweep
+- validation
+  state: persona_final_outputs row (ON CONFLICT DO NOTHING) then VALIDATION checkpoint; the two writes are NOT atomic (persona_run_executor.go, final_output_store.go)
+  durable: transaction
+  key: output_id unique; digest mismatch refused
+  resumer: wake recovers the output row, backfills the checkpoint, delivers without re-running the model
+  die-before: per model call
+  die-during: orphaned output until wake backfills, then delivered once
+  die-after: durable validated output
+  visible: OUTPUT_REJECTED card on rejection
+  resume: TTL + poll/sweep
+- delivery
+  state: three separate writes: fenced chat commit, persona_reply_receipt (ON CONFLICT DO NOTHING, 5s budget), DELIVERY checkpoint to COMPLETED
+  durable: transaction
+  key: chat client_key = admission id; receipt (tenant, invocation)
+  resumer: wake redelivers; same key returns the same post
+  die-before: per earlier steps
+  die-during: commit reached or not; receipt decides
+  die-after: after commit before receipt: ORPHAN VISIBLE ANSWER with a later interrupted card possible; after receipt before checkpoint: exactly-once visible; then COMPLETED
+  visible: yes; attribution needs the receipt
+  resume: TTL + poll/sweep
+- receipt
+  state: persona_reply_receipt row (reply_receipt.go)
+  durable: transaction
+  key: (tenant, invocation) first-wins
+  resumer: wake re-receipts; replays return the run
+  die-before: delivery outcome stands
+  die-during: rollback; wake retries
+  die-after: durable; attribution provable
+  visible: yes
+  resume: TTL + poll/sweep
+
+## agents-page-task: A task on the Agents page
+- create
+  state: agent_task + events in one transaction; duplicate id refused (agentrunstore/store.go)
+  durable: transaction
+  key: none: id is random agt_+16B per attempt, retries make DIFFERENT tasks
+  resumer: user confirms long tasks; quick tasks confirm immediately; nothing auto-confirms
+  die-before: nothing
+  die-during: rollback
+  die-after: before confirm (quick path): possibly STUCK UNCONFIRMED; the tick drives RUNNING+confirmed only
+  visible: yes: task row
+  resume: user action; quick drives synchronously to 10s, then detached under a 3-minute bound
+- drive
+  state: CAS claim (step RUNNING + WorkerLease + version+1), unjournaled execute, separate finish transaction (uxblind_a5_runtime.go)
+  durable: lease + transaction
+  key: worker lease; concurrent Drive returns the row as-is
+  resumer: TickTenant RecoverStale reaps RUNNING leases older than 5 minutes: tier<T2 to PENDING, tier>=T2 PAUSED AMBIGUOUS_EFFECT for owner ReconcileEffect; drives at most 64 tasks x 32 steps
+  die-before: PENDING; tick drives
+  die-during: after 5 minutes re-runnable, or paused for owner reconcile when effect state is ambiguous
+  die-after: durable ledger append
+  visible: yes, with FailureCode
+  resume: 5 minutes + tick (period ungrounded)
+- park-wake
+  state: wake + last_wake_event columns; Park clears the lease; ClaimWake dedupes by event id; approvals carry a 24h StaleAfter
+  durable: transaction
+  key: timer:<task>:<version>:<due> and wake event ids
+  resumer: tick delivers due wakes and completes from durable LastWake; sweep fails stale wakes as LOST_WAKE and expires past-deadline tasks (7 days, 24h for page tasks)
+  die-before: prior state stands
+  die-during: rollback; wake redelivered
+  die-after: durable wait; timer fires on tick; ignored approval FAILS LOST_WAKE at 24h
+  visible: yes
+  resume: tick (period ungrounded) + due times
+- cancel-pause-resume
+  state: single CAS each; PauseAuthority voids approvals atomically (task_recovery.go)
+  durable: transaction
+  key: row version CAS
+  resumer: caller retries
+  die-before: unchanged
+  die-during: rollback; retry
+  die-after: durable terminal or paused state
+  visible: yes
+  resume: immediate
+
+## scheduled-announcement: A scheduled announcement occurrence
+- publish
+  state: TWO NON-ATOMIC writes, schedule-first: agent_announcement CAS row + agent_schedule_state + audit (agentux_proactive_announcement.go, agenttriggerstore/schedule.go)
+  durable: transaction
+  key: control client key into agent_announcement_command + digest; same key+digest replays seen
+  resumer: human retries
+  die-before: nothing
+  die-during: one half may commit
+  die-after: between the writes: ORPHAN schedule row (inference); CheckCurrent fails, never planned, no cleaner found
+  visible: yes: control error + announcement list
+  resume: human retries
+- plan
+  state: stale pendings settled FAILED + acked; Plan freezes Requests + advances cursor atomically (cursor CAS, storm cap, outbox ON CONFLICT DO NOTHING)
+  durable: transaction
+  key: scheduler source key
+  resumer: next TickTenant; NO PRODUCTION DRIVER (tests only)
+  die-before: cursor unchanged; next tick re-plans (CatchUpOnce/Max1)
+  die-during: cursor unchanged; next tick re-plans
+  die-after: pending occurrence durable
+  visible: missing post/history only
+  resume: next tick (never automatic: no driver)
+- replay-admit-ack
+  state: CheckRequest, Admit, digest-checked ack; failures stay pending; terminal occurrences acked even on run error (scheduled/outbox.go)
+  durable: transaction
+  key: (tenant, kind, key-digest); field change refuses with conflict
+  resumer: next TickTenant; no production driver
+  die-before: delayed replay
+  die-during: run started before its row: re-runs, and the paid model call may be repeated
+  die-after: row before ack: recovery finds the terminal row and acks without repost
+  visible: history
+  resume: next tick (no driver)
+- run
+  state: advisory fence; run id = admission id; CAS checkpoints; model runs 2 checkpointed attempts; seal pins identity to source key; failures land terminal FAILED/REFUSED rows
+  durable: checkpoint
+  key: run id = admission id
+  resumer: next TickTenant; no production driver; manual POST_NOW retries FAILED only
+  die-before: replay redrives
+  die-during: model cost possibly incurred (refund ungrounded); replay re-executes
+  die-after: FAILED is terminal
+  visible: history
+  resume: next tick (no driver)
+- deliver
+  state: conversation lease + audience re-resolve in fence; chat commit with IdempotencyKey = admission id (same-tx insert-or-return); delivery checkpoint
+  durable: transaction
+  key: admission id as chat client key
+  resumer: recovery finds the post via the idempotency JOIN on the admission id and records POSTED without repost
+  die-before: run outcome stands
+  die-during: commit reached or not; idempotency decides
+  die-after: commit before row: recorded POSTED without repost; re-driven ticks yield a single message
+  visible: message visible; history converges
+  resume: tick-driven (no driver)
+- project
+  state: RecordOccurrence append-only first-wins; different result refuses with revision error; owner history
+  durable: transaction
+  key: occurrence identity first-wins
+  resumer: terminal; no resume
+  die-before: delivery stands
+  die-during: rollback; redriven
+  die-after: durable history
+  visible: owner history + Last* reads
+  resume: immediate
+
+## reminder: A reminder (ambient set/deliver, saved-for-later)
+- set-change-snooze
+  state: one Control transaction (membership FOR UPDATE, ExpectedRevision, guards, source recheck, future-time, cancel prior, rev++, SET) + one schedule row per fire time (agentux_ambient_controls.go, agentux_ambient_schedule.go)
+  durable: transaction
+  key: ambient-sha256(tenant, offer, rev, fire); same-digest skip, different invalid
+  resumer: human retries; PRIVATE EnsureDM at set
+  die-before: error; retry safe
+  die-during: rollback; retry safe
+  die-after: durable; schedule-save joining the chat transaction is ungrounded, and a split orphan is inert via the current() recheck (inference)
+  visible: card state
+  resume: human retries; delivery on tick
+- deliver
+  state: tick rechecks current(), Plans, Replays, retires delivered; inbox rechecks the offer, matches fire time, admits; delivery re-reads body/digest/fire in a transaction then DM+Notify or PublicMessage (NotifyPerson is a no-op; the unread count is the notice)
+  durable: transaction
+  key: Source.Key; PUBLIC via chat idempotency, PRIVATE via DM SendPost key
+  resumer: next TickTenant; no production driver; fires within the last 14 days delivered once when back
+  die-before: next tick (within 14 days; older ungrounded)
+  die-during: plan reached or not; re-driven
+  die-after: plan before ack: re-admit dedupes + chat idempotency yield one post; post before ack/retire: same, then ack+retire; re-driven ticks converge
+  visible: channel/DM message; post-delivery card update ungrounded (stays SET)
+  resume: next tick (no driver)
+- saved-remind
+  state: ChangeSaved sets due + clears reminded_at; DeliverSavedReminder SELECT FOR UPDATE + key saved:<sha256> + in-tx NotifySaved + reminded_at=now (chatsave_store.go, chatsave_service.go)
+  durable: transaction
+  key: saved:<sha256>
+  resumer: NONE: no production caller of DispatchSavedReminders and no production notice implementer (verified); dues accumulate and are never delivered
+  die-before: pending; crash rolls back to pending
+  die-during: pending; crash rolls back to pending
+  die-after: dues stuck pending forever (unwired)
+  visible: partial: silent due date in ListSaved
+  resume: never (unwired)
+
+## ambient-read: A message read by an ambient agent
+- drain
+  state: cursor consumer over chat_outbox post events; advances the cursor per event AFTER processing; never marks publisher receipt, never reads payload (agentux_ambient_outbox.go)
+  durable: cursor
+  key: outbox id cursor
+  resumer: TickTenant drains only when the screen model is composed, else silent no-op; no production driver
+  die-before: redrain re-processes (inner dedupe below)
+  die-during: redrain re-processes
+  die-after: cursor before advance: redrain re-processes
+  visible: missing card only
+  resume: next tick (no driver)
+- reserve
+  state: one transaction: advisory locks, grant/install/member/optout, budget counts from READ rows, >=2 reads, caps, screen gate, parent read, insert RESERVED (agentux_ambient_candidate.go)
+  durable: transaction
+  key: reservation row identity
+  resumer: NONE: grounded comment says a crashed reserved read is not automatically retried
+  die-before: nothing; redrain re-attempts
+  die-during: rollback; redrain re-attempts
+  die-after: commit before model: RESERVED durable, model never called, LOST until an edit or new request; whether RESERVED suppresses retries via budget counts is ungrounded
+  visible: missing card; trace ungrounded
+  resume: new trigger only
+- model
+  state: model call OUTSIDE any transaction, 30s timeout (agentux_ambient_service.go); no journal, no lease
+  durable: none
+  key: none
+  resumer: none; error lands a FAILED row and stops
+  die-before: lost until new trigger
+  die-during: lost until new trigger
+  die-after: lost until new trigger
+  visible: missing card
+  resume: new trigger only
+- result
+  state: one result transaction: re-lock, source/authority recheck, outcome row ON CONFLICT DO NOTHING, cancel-on-delete, proposal validation, pure audience fn, deterministic offer id, live-dedupe, terminals honored, rev++ re-offer, single save + payload-free invalidation event (agentux_ambient_decision.go, service.go)
+  durable: transaction
+  key: ambient-sha256(tenant, post, agent)[:16]
+  resumer: redrain re-attempts subject to budget
+  die-before: lost; redrain re-attempts
+  die-during: rollback; redrain re-attempts
+  die-after: card durable + broadcast; private offers filtered in SQL
+  visible: yes (incl. SOURCE_CHANGED/CANCELLED)
+  resume: next tick (no driver)
+
+## offer-accept: A to-do or reminder offer and its acceptance
+- offer
+  state: created by the ambient result transaction (see ambient-read/result); deterministic offer id
+  durable: transaction
+  key: ambient-sha256(tenant, post, agent)[:16]
+  resumer: durable at creation; none needed
+  die-before: ambient result outcome stands
+  die-during: ambient result outcome stands
+  die-after: durable offer card
+  visible: yes: offer card
+  resume: immediate
+- accept
+  state: single transaction per action, no outbox/lease/journal: PRIVATE upserts agentux_ambient_task by offer id owner-pinned; PUBLIC writes chat_channel_todo + revision + inventory in the same transaction (agentux_ambient_controls.go, agentux_ambient_task.go); auto-accept for PUBLIC TASK + automatic_public grant at offer time
+  durable: transaction
+  key: offer/task id + ExpectedRevision + item dedupe (item id = offer id)
+  resumer: human retries; cancel removes only unfinished items with a proving offer
+  die-before: not applied; caller retries
+  die-during: rollback; caller retries
+  die-after: durable; same text/completed is a no-op, change needs authorizing offer state
+  visible: yes (ADDED, task lists, channel list)
+  resume: human retries
+
+## support-email: A support email becoming a ticket and an alert (simulation-only ingest; live path local-dev only; production serve passes nil)
+- validate
+  state: memory only (agentux054_support_desk.go)
+  durable: none
+  key: support-email:<uuidv5> derived after validation
+  resumer: owner re-POSTs
+  die-before: lost; re-POST
+  die-during: lost; re-POST
+  die-after: validated in memory only; crash before receipt loses the submission
+  visible: 400/403
+  resume: immediate (next re-POST)
+- store-object
+  state: filesystem $ROOT/support-objects/<tenant>/<sha256>.json, temp+Sync+rename, no transaction (agentux054_support_ports.go)
+  durable: none
+  key: content sha256; same bytes are a no-op
+  resumer: owner re-POSTs
+  die-before: lost; re-POST
+  die-during: lost or orphan temp (temp removed; GC ungrounded)
+  die-after: durable file without a receipt row until S2
+  visible: 503
+  resume: next re-POST
+- receipt
+  state: support_inbox_message PK (tenant, message), append-only; INSERT ON CONFLICT DO NOTHING + byte-compare in a transaction (agentux_demo_inbox.go, migration 00043)
+  durable: transaction
+  key: (tenant, message); byte mismatch refuses 409
+  resumer: owner re-POSTs
+  die-before: rollback
+  die-during: rollback
+  die-after: durable; ReceivedAt immutable
+  visible: 503 or Replayed
+  resume: next re-POST
+- fence-verify
+  state: advisory xact lock + in-memory target/digest compare (agentux_demo_effects.go, desk.go)
+  durable: none
+  key: message identity within the request
+  resumer: owner re-POSTs; lock auto-releases
+  die-before: lost; re-POST
+  die-during: lock released; re-POST
+  die-after: in-request verdict only; crash before the ticket step loses it
+  visible: 503
+  resume: next re-POST
+- plan
+  state: plan file + support_run_plan row PK (tenant, message) (migration 00044); deterministic planner; insert-once + compare in a transaction
+  durable: transaction
+  key: (tenant, message) insert-once
+  resumer: owner re-POSTs; re-plan over same bytes converges
+  die-before: receipt stands; re-POST re-plans
+  die-during: file/row split: orphan file, re-plan over same bytes
+  die-after: durable plan
+  visible: 503 until planned
+  resume: next re-POST
+- reserve
+  state: support_effect_reservation PK (tenant, skill, message); cap 25 per skill per UTC day; re-reserve is a no-op
+  durable: transaction
+  key: (tenant, skill, message)
+  resumer: owner re-POSTs; no delete path, no cleaner
+  die-before: no slot held
+  die-during: rollback; no slot held
+  die-after: fail after reserve: reservation slot stuck leaked until midnight, no delete; notice ungrounded
+  visible: 503
+  resume: midnight UTC (cap reset)
+- ticket
+  state: task + event + idempotency in one transaction (repository.go)
+  durable: transaction
+  key: support.create_ticket:<message> + uuidv5 id; replay returns the record
+  resumer: owner re-POSTs
+  die-before: reservation stands; re-POST continues
+  die-during: rollback; re-POST continues
+  die-after: durable ticket; fail surfaces 503 stored-no-ticket
+  visible: ticket visible
+  resume: next re-POST
+- alert
+  state: post + outbox + idempotency in one transaction (chatstore/store.go); ClientKey support.alert_channel:<message>; body never carries email text; NO production outbox consumer (tests only)
+  durable: transaction
+  key: support.alert_channel:<message>
+  resumer: owner re-POSTs; retry completes a ticket-without-alert with no duplicate
+  die-before: ticket without alert; retry completes
+  die-during: ticket without alert; retry completes
+  die-after: durable alert post; fanout limited to direct reads (no production consumer)
+  visible: alert post visible
+  resume: next re-POST
+
+## voice-transcription: Voice transcription (no outbox/lease/journal; pending-polling)
+- send
+  state: Validate, Upload, Post, Request are NOT one transaction (service.go)
+  durable: transaction
+  key: PK (tenant, conversation, post, artifact) + revision CAS
+  resumer: user re-sends the same key
+  die-before: nothing; re-send
+  die-during: partial path; re-send
+  die-after: after post commit before the request row: STUCK, no sweeper (ungrounded); retry 404s
+  visible: post without transcript
+  resume: user re-sends
+- poll
+  state: 3s poll, batch 20, 4 slots, only when Tenants set (chatvoice_serve.go); NO lease; CAS at save
+  durable: none
+  key: none at poll time (CAS at save)
+  resumer: the poll loop itself
+  die-before: rows stay pending
+  die-during: rows stay pending
+  die-after: two workers poll the same row: repeated provider call, one CAS winner
+  visible: pending transcript
+  resume: 3s poll
+- save
+  state: provider call OUTSIDE the transaction; one worker-only CAS save transaction (transcripts.go); Settle runs even on failure; budget IN-MEMORY (chatvoice_ops.go)
+  durable: transaction
+  key: PK + revision CAS; completion via re-read only
+  resumer: poll redrives; no auto-retry, click advances to next poll
+  die-before: pending; redriven
+  die-during: between the provider call and the save: repeated charge (DOUBLE CHARGE); crash wipes budget spend
+  die-after: durable transcript
+  visible: transcript or pending
+  resume: 3s poll
+- retry
+  state: unavailable/failed to pending, rev+1, one transaction (chatvoice_actions.go)
+  durable: transaction
+  key: revision CAS
+  resumer: user clicks; no auto-retry
+  die-before: stays failed; click retries
+  die-during: rollback; click retries
+  die-after: audio lost: retries re-fail forever, stuck failing with no recovery (openai.go)
+  visible: failed transcript
+  resume: user click + poll
+
+## document-indexing: Document indexing (nearest to a durable queue: lease-claimed jobs)
+- enqueue
+  state: job row written inside the document write transaction (index_jobs.go)
+  durable: transaction
+  key: UNIQUE (tenant, doc, version, model); conflict requeues only skipped rows, never resurrects failed (backfill only)
+  resumer: immediate; job visible in IndexQueueStats
+  die-before: vanish together (same tx)
+  die-during: vanish together (same tx)
+  die-after: durable queued job
+  visible: IndexQueueStats
+  resume: immediate
+- notify
+  state: in-memory channel post-commit (indexer.go)
+  durable: none
+  key: none (hint only)
+  resumer: polls run regardless of the hint
+  die-before: poll still finds the job
+  die-during: at most 2s delay
+  die-after: hint consumed or lost; harmless
+  visible: no
+  resume: poll interval
+- claim
+  state: one transaction: running + owner + lease + attempts++ over FOR UPDATE SKIP LOCKED (index_jobs.go); lease 2 minutes
+  durable: lease
+  key: lease_owner + lease_until
+  resumer: lease expiry reclaims; poll redrives
+  die-before: queued; claimed next
+  die-during: rollback; queued
+  die-after: commit then death: job stuck 2 minutes on a dead lease, then reclaimed
+  visible: IndexQueueStats
+  resume: lease + poll
+- embed-store
+  state: provider call OUTSIDE the transaction; vector insert ON CONFLICT DO NOTHING (search_vectors.go)
+  durable: transaction
+  key: vector identity insert-once
+  resumer: lease expiry redrives; no backoff
+  die-before: re-driven; re-embeds
+  die-during: re-embeds: repeated embedding spend, at-least-once, never half-state
+  die-after: durable vectors
+  visible: search coverage
+  resume: lease expiry
+- outcome
+  state: conditional finish; failed after 5 tries; backoff 5s*2^n capped 10 minutes; context-cancel records NOTHING; lost is NOT persisted
+  durable: transaction
+  key: job id finish-once
+  resumer: backoff redrive; failed rows wait for manual backfill via CLI + prepare; nobody automatic
+  die-before: redriven on backoff
+  die-during: cancel records nothing; redriven
+  die-after: failed jobs stuck until manual backfill (unbounded); lost transitions not persisted
+  visible: IndexQueueStats
+  resume: backoff; failed waits for manual backfill (unbounded)
+- restart
+  state: restart polls only constructor tenants + Notify (indexer.go); production seeds one tenant; watermark path has ZERO production callers; no model means no indexer
+  durable: none
+  key: none (in-memory tenant set)
+  resumer: reconstruct; other tenants idle (no sweeper)
+  die-before: jobs wait
+  die-during: jobs wait
+  die-after: jobs for unseeded tenants wait with no resumer
+  visible: IndexQueueStats (seeded tenant only)
+  resume: restart + poll (seeded tenants)
+
+## chat-indexing: Chat indexing (grounded negative: no index jobs, tables or watermarks)
+- write-index
+  state: PostgreSQL indexes maintained on write; no separate index pipeline
+  durable: transaction
+  key: post identity
+  resumer: none needed
+  die-before: write outcome stands
+  die-during: rollback with the write
+  die-after: indexed by the write itself
+  visible: search hits
+  resume: next request
+- registry
+  state: in-memory Registry rebuilt per boot + per-request fan-out; recent history in-process (chatsearch_source.go, chatsearch_recent.go); no index holds a historic audience snapshot
+  durable: none
+  key: none (rebuilt, not keyed)
+  resumer: next boot rebuilds identically; registry failure aborts startup
+  die-before: rebuilt at boot
+  die-during: rebuilt at boot
+  die-after: recent history wiped on restart (by design)
+  visible: search scope narrows after restart
+  resume: next boot
+- search
+  state: 100-row windows in their own transactions; fail-closed; atomic response
+  durable: transaction
+  key: request cursor
+  resumer: next request
+  die-before: no effect
+  die-during: request fails; retried by caller
+  die-after: read-only; nothing to resume
+  visible: request error
+  resume: next request
+
+## version-review: Version review
+- draft
+  state: one transaction + advisory lock (version_draft.go); versions/owners/lifecycle events DRAFT/IN_REVIEW/PUBLISHED/SUSPENDED + RETIRED
+  durable: transaction
+  key: none: version = latest+1, duplicate refused with conflict
+  resumer: human retries; no resumer
+  die-before: nothing
+  die-during: rollback; nothing
+  die-after: durable draft
+  visible: lifecycle read
+  resume: immediate (human)
+- request-review
+  state: one transaction: From must equal current, event INSERT ON CONFLICT refuses with conflict (store.go)
+  durable: transaction
+  key: fresh id/attempt; post-commit retry fails safe
+  resumer: human retries
+  die-before: still DRAFT
+  die-during: still DRAFT
+  die-after: durable IN_REVIEW
+  visible: lifecycle read
+  resume: immediate (human)
+- issue
+  state: single transaction on a dedicated pool (review_authority_pool.go, review_issuer.go); evidence expires min(issued+30d, grant)
+  durable: transaction
+  key: none: fresh uuid/attempt per call
+  resumer: reviewer retries; no auto-resume
+  die-before: no decision; retry safe
+  die-during: no decision; retry safe
+  die-after: after commit before response: retry mints a repeated decision row; latest-wins mitigates (current_review_query.go)
+  visible: review decision read
+  resume: immediate (reviewer)
+
+## evaluation: Evaluation
+- run-case
+  state: live per-case: synthetic run + journal checkpoint/case in one transaction per append + ON CONFLICT DO NOTHING + digest compare, mismatch refuses (store.go, migration 00032, immutable PK tenant/invocation); local-dev is in-memory with no journal
+  durable: journal entry
+  key: PK (tenant, invocation); rerun needs byte-match
+  resumer: operator reruns the whole suite; NO batch progress/resume: the loop runs all, any failure yields no report (persona_suite.go)
+  die-before: case not run; rerun covers
+  die-during: orphan case rows; the whole suite must be repeated from scratch (paid calls repeated); rerun id determinism ungrounded
+  die-after: durable case evidence
+  visible: no report until the suite completes
+  resume: full rerun
+- seal
+  state: in-memory digest over case evidence
+  durable: none
+  key: none (recomputed)
+  resumer: recompute
+  die-before: nothing sealed; recompute
+  die-during: nothing sealed; recompute
+  die-after: in-memory seal only; crash recomputes
+  visible: no
+  resume: recompute
+- sign-record
+  state: Issue validates against sealed profile/suite/model/freshness (persona_evaluation_issuer.go); Record is a caller-transaction insert, zero rows refuses with conflict (evaluation_evidence.go, immutable PK tenant/run, migration 00013)
+  durable: transaction
+  key: PK (tenant, run); admin uuid/run; prepare uses a deterministic run id and tolerates conflict
+  resumer: admin re-issues; full rerun on failure
+  die-before: no record; re-issue
+  die-during: rollback; re-issue
+  die-after: durable evidence; freshness at most 30 days
+  visible: {Status, Passed, Failed, FailingCases}
+  resume: immediate (re-issue + rerun)
+
+## publication-provisioning: Publication with provisioning
+- provision
+  state: order first (provision BEFORE lifecycle commit; refused with no provisioner); local provisioner runs sequential idempotent steps with NO encompassing transaction: evidence compare, in-memory eval, deployment file byte-compare else temp+rename, run-policy SELECT-then-INSERT, route current-check then publish rev 1..64, principal check to core INSERT to persona Provision (agentux_general_runtime_provisioner.go); route publisher is a single transaction + advisory lock + MAX(rev)+1 CAS; non-local provisioner ungrounded
+  durable: transaction
+  key: evidence compare, file bytes, route check, binding, grant freshness
+  resumer: human re-issues; retry idempotent with no duplicate revision; principal-without-binding reconciled
+  die-before: still IN_REVIEW; re-issue
+  die-during: mid-death: partial runtime, still IN_REVIEW; retry converges
+  die-after: provisioned runtime awaiting publish
+  visible: lifecycle read
+  resume: immediate (human re-issue)
+- publish
+  state: single transaction: lock, scan, in-transaction evidence re-resolution, owner checks, label seal, INSERT PUBLISHED ON CONFLICT refuses (store.go)
+  durable: transaction
+  key: fresh id but From==current fails safe; label kept/advanced
+  resumer: human retries
+  die-before: still IN_REVIEW
+  die-during: rollback; still IN_REVIEW
+  die-after: durable PUBLISHED
+  visible: lifecycle read
+  resume: immediate (retry)
+- import-draft
+  state: portable import to draft: one transaction over content + manifest + head + DRAFT, immutable DRAFT-only (agent_portable.go)
+  durable: transaction
+  key: none: retry mints a fresh agent id
+  resumer: manual retry
+  die-before: nothing; retry
+  die-during: rollback; retry
+  die-after: repeated import creates a second draft
+  visible: draft list
+  resume: immediate (manual retry)
+- populate
+  state: population provision: one transaction over all employees; per-subject lock; UUIDv5; ON CONFLICT DO NOTHING + verify (agent_population_provisioner.go)
+  durable: transaction
+  key: UUIDv5 subject identity; idempotent rerun
+  resumer: operator reruns
+  die-before: nothing; rerun
+  die-during: rollback; rerun
+  die-after: durable population
+  visible: population read
+  resume: immediate (rerun)
+
+## staged-rollout: Staged rollout (immutable plan by digest, progress rev/cursor/stage, immutable approval; migration 00029)
+- preview
+  state: one transaction: plan + PREVIEWED/rev1/cursor0 (agent_rollout_service.go)
+  durable: transaction
+  key: rollout_id uuid; duplicate refuses with conflict
+  resumer: operator retries with a new id (old lingers, harmless)
+  die-before: nothing; retry
+  die-during: rollback; retry
+  die-after: durable preview
+  visible: READ
+  resume: immediate
+- approve
+  state: one transaction FOR UPDATE: digest + expected-rev + PREVIEWED fences, approval row, to APPROVED rev+1 (version_rollout.go)
+  durable: transaction
+  key: (digest, expected-rev); mismatch refuses preview-stale
+  resumer: operator retries on current preview
+  die-before: still PREVIEWED
+  die-during: rollback; still PREVIEWED
+  die-after: durable APPROVED
+  visible: READ
+  resume: immediate
+- advance
+  state: one transaction per candidate: revalidate + fence, apply (fences, candidate==plan[cursor], locks, install FOR UPDATE + snapshot compare, in-tx evidence re-resolution, approval + scope checks, install CAS + cursor+1/rev+1 in the SAME transaction)
+  durable: transaction
+  key: (digest, rev) CAS + cursor equality: exactly once
+  resumer: operator retries; cursor persisted between transactions
+  die-before: cursor stands; retry continues
+  die-during: rollback; retry continues
+  die-after: durable advance; no double-apply (derived)
+  visible: READ, CATALOG
+  resume: immediate (retry continues)
+- promote
+  state: CANARY_COMPLETE to APPROVED by the same approver; NO background advancer; NO TTL
+  durable: transaction
+  key: approval identity
+  resumer: operator acts; nothing automatic
+  die-before: stage stands; operator acts
+  die-during: rollback; operator acts
+  die-after: durable stage; canaries wait for the operator with no deadline
+  visible: READ, CATALOG
+  resume: operator-driven (no deadline)
+
+## channel-gate: A channel gate submission becoming a membership
+- submit
+  state: ONE TRANSACTION PER MUTATION: Transact locks the conversation, runs fn, appends revs/versions/answers/audits, writes one outbox row/event, upserts state (chat_gate_state rev + state_json); Membership() in the same transaction; membership-fence and leave-erasure triggers backstop (chatgate_repository.go, migrations 00022/00023)
+  durable: transaction
+  key: (person:key) receipts with fingerprint (same key+input replays, different refuses) + ExpectedRevision CAS + digest submission id
+  resumer: same-key retry (no duplicate) or new key (supersedes)
+  die-before: full rollback (derived)
+  die-during: full rollback (derived)
+  die-after: durable: auto-admits + membership in the same transaction, or queued for review by rule mode
+  visible: summaries, roster, basis log
+  resume: immediate (retry)
+- review
+  state: Review/ReviewMany with revision CAS (chatgate_service.go); no auto-review
+  durable: transaction
+  key: ExpectedRevision CAS
+  resumer: reviewer retries
+  die-before: still queued
+  die-during: rollback; still queued
+  die-after: durable decision
+  visible: summaries, roster
+  resume: reviewer-driven
+- deliver-event
+  state: consumers read via PendingOutboxAfter + cursors and dedupe on Event.ID (store.go); DeliverEvent routes in-transaction and delivers outside: at-least-once; consumer implementation ungrounded
+  durable: outbox row
+  key: Event.ID dedupe
+  resumer: consumer cursor redrive
+  die-before: event still pending; redriven
+  die-during: routed or not; at-least-once redelivery replays by event id
+  die-after: delivered (at-least-once)
+  visible: roster + downstream effects
+  resume: consumer-driven
+
+## feedback-stop-retry: Feedback, stop and retry
+- feedback
+  state: request + current rows, voter receipt required, one transaction, rev bump (agentux_r5srv_feedback.go)
+  durable: transaction
+  key: client key 8-128 chars; same key+payload is a no-op, different refuses; undo is a new keyed request
+  resumer: caller retries safely
+  die-before: rollback; UI unsaved
+  die-during: rollback; UI unsaved
+  die-after: durable vote
+  visible: Active/Helpful echoed
+  resume: immediate
+- stop
+  state: same-row CAS: CancelRequested=true, lease cleared, to CANCELLED (or RECONCILING when UNKNOWN); one conflict retry; NO-OP rechecker (run.go, persona_actions.go); the model call is NOT preempted and lands at the next CAS
+  durable: transaction
+  key: key validated but NOT persisted: state-check idempotency only
+  resumer: caller retries (UI retry ungrounded)
+  die-before: cancel lost; run continues
+  die-during: cancel lost; run continues
+  die-after: durable CANCELLED
+  visible: "state":"CANCELLED"
+  resume: immediate
+- retry
+  state: NEW invocation with attempt N in the hash (uxblind_p8_invocation.go); old invocation untouched, page shows newest; eligibility gates (MODEL_UNAVAILABLE/ANSWER_INTERRUPTED, plus ADMISSION/EXECUTION_UNAVAILABLE on post rows); only after the prior run ended answerless (enforcement ungrounded)
+  durable: transaction
+  key: same attempt yields the same id, so Claim replays
+  resumer: user-driven; death behaves as claim/admission/run-create
+  die-before: old outcome stands
+  die-during: new invocation outcome per its own steps
+  die-after: durable new invocation
+  visible: new row; card retryable + retry_at
+  resume: user-driven
+- surface-failure
+  state: errors land in persona_invocation_failure via a 5s detached write (persona_chat_surface_failure.go); key (tenant, invoker, post) first-wins
+  durable: transaction
+  key: (tenant, invoker, post) first-wins
+  resumer: run recovery owns the card once a run exists; multi-agent multiplex ungrounded
+  die-before: no card; run card may follow
+  die-during: no card; run card may follow
+  die-after: GAP: the failure row does NOT finish an invocation that has a run, so the card follows the run and a dead run leaves a stuck card
+  visible: failure card (when it resolves)
+  resume: run recovery
+
+## preparation-command: The preparation command (one-shot, sequential, NO encompassing transaction; failure aborts with a partial receipt)
+- run-all
+  state: per-starter sequence (agentux_general_prepare.go): manifest compare-or-next-version, version reuse/upgrade/create, DRAFT to IN_REVIEW (skipped on rerun), review-if-none (idempotent 1h grant + lock), in-memory eval, settled-skip, renew lapsed via n+1 + recursion, eval Issue with deterministic run id tolerating conflict, chat identity lookup-or-register, role visibility (conflicts ignored), direct conversation ensure+repair, publish-or-reprovision, retire-duplicates (idempotent) + install/reinstall
+  durable: transaction
+  key: deterministic eval run id, manifest digest, file bytes, route check, binding, grant freshness
+  resumer: operator reruns; no daemon; rerun skips completed steps and converges to no change
+  die-before: step rolls back; rerun covers
+  die-during: step rolls back; rerun covers
+  die-after: completed steps skipped on rerun; converges
+  visible: summary + receipts
+  resume: immediate (operator rerun)
+- version-split
+  state: PutVersion + AppendLifecycle are separate writes (starter_prepare.go)
+  durable: transaction
+  key: version identity
+  resumer: operator reruns; recovery across the split is UNGROUNDED
+  die-before: no version; rerun creates
+  die-during: no version; rerun creates
+  die-after: between-write crash leaves a version without lifecycle; recovery ungrounded, possibly stuck
+  visible: summary + receipts
+  resume: operator rerun (split recovery ungrounded)
+- tail
+  state: ambient installs, alerts, history, support seed via stable keys; queue step is a no-op (agentux049_prepare_tail.go); deployment files temp+rename; eval key O_EXCL + Sync
+  durable: transaction
+  key: stable tail keys; support keys; manifest digest
+  resumer: operator reruns; expiry: grant 24h, eval 30d; old versions kept
+  die-before: tail reruns
+  die-during: step rolls back; rerun covers
+  die-after: durable tail state
+  visible: summary + receipts
+  resume: immediate (operator rerun)
+
+## findings
+- F-mention-postcommit [mention-answer/post]: post-commit mention fan-out is an in-memory goroutine with no re-trigger: a death before it starts loses the mention (fix: DURABLE-003)
+- F-mention-model [mention-answer/model call]: nothing durable covers the model call: paid but unjournaled spend ends ANSWER_INTERRUPTED (fix: DURABLE-003)
+- F-mention-tool [mention-answer/tool effect]: an effect left UNKNOWN is stuck in RECONCILING unbounded with no surfacing and no persona reconciler (fix: DURABLE-003)
+- F-mention-continuation [mention-answer/continuation]: nothing durable covers the continuation call: paid but unjournaled spend ends ANSWER_INTERRUPTED (fix: DURABLE-003)
+- F-mention-delivery-split [mention-answer/delivery]: chat commit, receipt and checkpoint are three separate writes: an orphan visible answer plus a later interrupted card is possible (fix: DURABLE-003)
+- F-task-unconfirmed [agents-page-task/create]: a quick task that dies after create but before confirm is stuck UNCONFIRMED: the tick drives RUNNING+confirmed only (fix: DURABLE-003)
+- F-task-ambiguous-owner [agents-page-task/drive]: a tier>=T2 step that dies mid-effect pauses AMBIGUOUS_EFFECT with step spend unjournaled and waits for an owner reconcile with no deadline (fix: DURABLE-006)
+- F-announce-publish-split [scheduled-announcement/publish]: announcement CAS and schedule write are non-atomic: a death between them orphans a schedule row that is never planned and never cleaned (fix: DURABLE-003)
+- F-announce-no-driver [scheduled-announcement/plan]: TickTenant has no production driver, so a planned occurrence never auto-resumes (fix: DURABLE-006)
+- F-announce-model-reexec [scheduled-announcement/replay-admit-ack]: a death after the run starts but before its row re-runs the occurrence and may repeat the paid model call (fix: DURABLE-003)
+- F-reminder-no-driver [reminder/deliver]: TickTenant has no production driver, so due reminders never auto-deliver (fix: DURABLE-006)
+- F-reminder-saved-unwired [reminder/saved-remind]: DispatchSavedReminders has no production caller and no production notice implementer: dues are stuck pending forever (fix: DURABLE-006)
+- F-ambient-no-driver [ambient-read/drain]: TickTenant has no production driver, so the outbox drain never runs on its own (fix: DURABLE-006)
+- F-ambient-reserved-lost [ambient-read/reserve]: a reservation committed before a death that kills the model call is never retried: the read is lost until an edit or new request (fix: DURABLE-003)
+- F-ambient-model [ambient-read/model]: nothing durable covers the ambient model call: no journal, no lease (fix: DURABLE-003)
+- F-support-validate [support-email/validate]: nothing durable covers validation: a crash before receipt loses the submission and the sender re-POSTs (fix: DURABLE-003)
+- F-support-object [support-email/store-object]: nothing transactional covers the email object file: temp+rename with no journal and ungrounded GC (fix: DURABLE-003)
+- F-support-fence [support-email/fence-verify]: nothing durable covers the fence verdict: an xact lock plus memory that a crash discards (fix: DURABLE-003)
+- F-support-reserve-leak [support-email/reserve]: a failure after reserve leaks the slot stuck until the midnight cap reset: no delete, no cleaner (fix: DURABLE-006)
+- F-support-alert-consumer [support-email/alert]: the alert outbox row has no production consumer, so fanout is limited to direct reads (fix: DURABLE-006)
+- F-voice-send-split [voice-transcription/send]: post commit and request row are not one transaction: a death between them leaves the upload stuck with no sweeper and 404ing retries (fix: DURABLE-003)
+- F-voice-poll-double [voice-transcription/poll]: nothing leases the poll: two workers poll the same row and repeat the provider call (one CAS winner) (fix: DURABLE-003)
+- F-voice-double-charge [voice-transcription/save]: the provider call sits outside the save transaction: a death between them repeats the charge, and the in-memory budget spend is wiped (fix: DURABLE-003)
+- F-voice-retry-audioloss [voice-transcription/retry]: lost audio leaves retries re-failing forever, stuck with no recovery (fix: DURABLE-006)
+- F-doc-notify [document-indexing/notify]: nothing durable carries the wakeup hint: an in-memory channel the polls do not need (fix: DURABLE-002)
+- F-doc-claim-lease [document-indexing/claim]: a death after claim leaves the job stuck 2 minutes on a dead lease before reclaim (fix: DURABLE-002)
+- F-doc-reembed [document-indexing/embed-store]: the embedding call sits outside the store transaction: redrive repeats the embedding spend (fix: DURABLE-003)
+- F-doc-failed-manual [document-indexing/outcome]: failed jobs are stuck until manual backfill (unbounded) and lost transitions are never persisted (fix: DURABLE-006)
+- F-doc-restart-tenants [document-indexing/restart]: nothing durable holds the poll tenant set: unseeded tenants idle with no resumer and the watermark path is dead (fix: DURABLE-006)
+- F-chat-registry-mem [chat-indexing/registry]: nothing durable holds the search registry or recent history: both are rebuilt or wiped every boot (fix: DURABLE-006)
+- F-review-issue-key [version-review/issue]: the decision issue carries no idempotency key: a retry after commit mints a repeated decision row (latest-wins mitigates) (fix: DURABLE-003)
+- F-eval-no-resume [evaluation/run-case]: the suite keeps no batch progress: a crash orphans case rows and the whole paid suite must be repeated (fix: DURABLE-003)
+- F-eval-seal [evaluation/seal]: nothing durable holds the seal digest: recomputed after every crash (fix: DURABLE-003)
+- F-import-second-draft [publication-provisioning/import-draft]: the import carries no idempotency key: a repeated import creates a second draft (fix: DURABLE-003)
+- F-rollout-no-advancer [staged-rollout/promote]: no background advancer and no TTL: canaries wait for the operator with no deadline (fix: DURABLE-006)
+- F-gate-consumer [channel-gate/deliver-event]: the gate outbox consumer implementation is ungrounded: redelivery relies on cursor replay the record cannot verify (fix: DURABLE-002)
+- F-stop-cancel-lost [feedback-stop-retry/stop]: the cancel key is validated but never persisted: a death before the CAS loses the cancel and the run continues (fix: DURABLE-003)
+- F-feedback-card-stuck [feedback-stop-retry/surface-failure]: the failure row does not finish an invocation that has a run: a dead run leaves a stuck card (fix: DURABLE-005)
+- F-prepare-version-split [preparation-command/version-split]: PutVersion and AppendLifecycle are separate writes with ungrounded recovery across the split: possibly stuck (fix: DURABLE-003)

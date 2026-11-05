@@ -41,7 +41,8 @@ func TestAgentUXSetup3_PublicationEvidenceDetails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if details.ReviewerID != "curtis" || !details.ReviewApprovedAt.Equal(reviewedAt) || !details.EvaluationPassedAt.Equal(evaluatedAt) {
+	evaluationExpiresAt := evaluatedAt.Add(24 * time.Hour)
+	if details.ReviewerID != "curtis" || !details.ReviewApprovedAt.Equal(reviewedAt) || !details.EvaluationPassedAt.Equal(evaluatedAt) || !details.EvaluationExpiresAt.Equal(evaluationExpiresAt) {
 		t.Fatalf("publication evidence details = %+v", details)
 	}
 	if _, err := fixture.store(t, tenant).ReadPublicationEvidenceDetails(context.Background(), "policy-helper", 3); !errors.Is(err, ErrPublicationEvidenceRequired) {

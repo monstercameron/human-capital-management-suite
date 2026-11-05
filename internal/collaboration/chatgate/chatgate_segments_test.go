@@ -56,7 +56,7 @@ func newSegEnv(t *testing.T, private bool) *segEnv {
 		mode = "review"
 	}
 	e.must(e.s.Define(t.Context(), e.cmd("admin", "define"), Definition{Mode: mode, Purpose: "Join the payroll discussion", Fields: segFields()}))
-	_, err := e.s.Publish(t.Context(), e.cmd("admin", "publish"), Version{1, 0, 0})
+	_, err := e.s.Publish(t.Context(), e.cmd("admin", "publish"), Version{Major: 1, Minor: 0, Patch: 0})
 	e.must(err)
 	return e
 }
@@ -228,7 +228,7 @@ func TestTodo_CHATGATE_009_Security(t *testing.T) {
 	}
 	// A question that does not name the consumer cannot feed it.
 	e.must(e.s.Define(t.Context(), e.cmd("admin", "v2"), Definition{Mode: "automatic", Purpose: "Join", Fields: []Field{{ID: "office", Kind: "single_choice", KindVersion: "1.0.0", Label: "Office", Purpose: "Say where you are", DataClass: "INTERNAL", Required: true, Options: []string{"Denver", "Austin"}, Visibility: Visibility{Administrators: true, Members: true}, RetentionDays: 90}}}))
-	if _, err := e.s.Publish(t.Context(), e.cmd("admin", "pub2"), Version{2, 0, 0}); err != nil {
+	if _, err := e.s.Publish(t.Context(), e.cmd("admin", "pub2"), Version{Major: 2, Minor: 0, Patch: 0}); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.rules("no-consumer", SegmentRule{ID: "r", Field: "office", Value: "Denver", Segment: "Denver office"}); !errors.Is(err, ErrDenied) {
@@ -251,7 +251,7 @@ func TestTodo_CHATGATE_009_Security(t *testing.T) {
 	// says later.
 	f := newSegEnv(t, false)
 	f.must(f.s.Define(t.Context(), f.cmd("admin", "v2"), Definition{Mode: "automatic", Purpose: "Join", Fields: []Field{{ID: "office", Kind: "single_choice", KindVersion: "1.0.0", Label: "Office", Purpose: "Say where you are", DataClass: "INTERNAL", Required: true, Options: []string{"Denver", "Austin"}, Visibility: Visibility{Administrators: true, Members: true}, RetentionDays: 90}}}))
-	if _, err := f.s.Publish(t.Context(), f.cmd("admin", "pub2"), Version{2, 0, 0}); err != nil {
+	if _, err := f.s.Publish(t.Context(), f.cmd("admin", "pub2"), Version{Major: 2, Minor: 0, Patch: 0}); err != nil {
 		t.Fatal(err)
 	}
 	g, _ := f.s.Get(t.Context(), Actor{"tenant", "admin"}, f.scope, true)
@@ -262,7 +262,7 @@ func TestTodo_CHATGATE_009_Security(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.must(f.s.Define(t.Context(), f.cmd("admin", "v3"), Definition{Mode: "automatic", Purpose: "Join", Fields: []Field{{ID: "office", Kind: "single_choice", KindVersion: "1.0.0", Label: "Office", Purpose: "Say where you are", DataClass: "INTERNAL", Required: true, Options: []string{"Denver", "Austin"}, Visibility: Visibility{Administrators: true, Members: true, Consumers: []string{ConsumerSegments}}, RetentionDays: 90}}}))
-	if _, err := f.s.Publish(t.Context(), f.cmd("admin", "pub3"), Version{3, 0, 0}); err != nil {
+	if _, err := f.s.Publish(t.Context(), f.cmd("admin", "pub3"), Version{Major: 3, Minor: 0, Patch: 0}); err != nil {
 		t.Fatal(err)
 	}
 	f.must(f.rules("now", SegmentRule{ID: "r", Field: "office", Value: "Denver", Segment: "Denver office"}))

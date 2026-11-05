@@ -13,7 +13,20 @@ import (
 
 func TestTodo_WF_UI_005_LocalDevelopmentCatalogIsExplicitAndTenantScoped(t *testing.T) {
 	policy, extensions := localDevelopmentWorkflowAuthoring(ServeConfig{Profile: ServeProfileLocalDev, Tenant: LocalDevTenant})
-	if policy == nil || len(extensions) != 3 {
+	// The governed local-development catalog: the promotion review
+	// fragment, the promotion and new-hire templates, and the two
+	// timeclock templates (punch session, missing-punch repair).
+	want := []struct {
+		id   string
+		kind designerpalette.Kind
+	}{
+		{"hcmnext.fragments.promotion_review", designerpalette.KindFragment},
+		{"hcmnext.templates.promotion", designerpalette.KindTemplate},
+		{"hcmnext.templates.new_hire", designerpalette.KindTemplate},
+		{"hcmnext.templates.time_punch_session", designerpalette.KindTemplate},
+		{"hcmnext.templates.fix_missing_punch", designerpalette.KindTemplate},
+	}
+	if policy == nil || len(extensions) != len(want) {
 		t.Fatalf("local development workflow authoring = policy %T, extensions %+v", policy, extensions)
 	}
 	key := capability.Key{ID: "hcmnext.people.promote_worker", Version: 1}
@@ -23,8 +36,17 @@ func TestTodo_WF_UI_005_LocalDevelopmentCatalogIsExplicitAndTenantScoped(t *test
 	if policy.AllowsCapability(context.Background(), "another-tenant", key) || policy.AllowsCapability(context.Background(), values.TenantId(LocalDevTenant), capability.Key{}) {
 		t.Fatal("local development policy broadened beyond the configured tenant and a versioned capability key")
 	}
-	if extensions[0].Kind != designerpalette.KindFragment || extensions[1].Kind != designerpalette.KindTemplate {
-		t.Fatalf("local development extension kinds = %+v", extensions)
+	for i, w := range want {
+		if extensions[i].ID != w.id || extensions[i].Kind != w.kind {
+			t.Fatalf("local development extension %d = %s %s, want %s %s", i, extensions[i].ID, extensions[i].Kind, w.id, w.kind)
+		}
+	}
+	// The timeclock templates bind executable definitions: each carries
+	// its template source and the digest of the plan it compiles to.
+	for _, entry := range extensions[3:] {
+		if entry.Expansion.Template == nil || entry.PublishedPlanDigest == "" || len(entry.RequiredCapabilities) == 0 {
+			t.Fatalf("timeclock template %s is not bound to an executable plan: %+v", entry.ID, entry)
+		}
 	}
 	extensions[1].RequiredCapabilities[0].ID = "mutated"
 	_, fresh := localDevelopmentWorkflowAuthoring(ServeConfig{Profile: ServeProfileLocalDev, Tenant: LocalDevTenant})

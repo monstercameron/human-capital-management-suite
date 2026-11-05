@@ -56,12 +56,8 @@ func (a *SchemaFluxTypedAdapter[T]) Invoke(ctx context.Context, req ModelRequest
 	client := schemaflux.NewClient("").WithProviderInstance(provider).WithRetries(0)
 	generated, err := schemaflux.Generating[T]("Return only the requested business material matching the approved schema. Authority, approval and provenance are supplied by HCM, never by this model.").Strict().Model(a.selection.Identity.ModelID).RunResult(client.Context(ctx))
 	result := provider.result
-	if result.Usage.TotalTokens > 0 {
-		cost, costErr := a.pricing.Cost(a.selection, result.Usage)
-		if costErr != nil {
-			return ModelResult{}, costErr
-		}
-		result.Usage.CostMicros = cost
+	if costErr := stampCost(a.pricing, a.selection, &result); costErr != nil {
+		return ModelResult{}, costErr
 	}
 	if err != nil {
 		if ctx.Err() != nil {

@@ -1,0 +1,15 @@
+[
+  "route:openai/gpt-journey-1@2026-10-01 fallback=false digest=ca71ddadee93446e71857f084922e6c35c2f730fc8533d1ad223e7915a221235",
+  "eval:passed fixtures=3 digest=sha256:ac38beac65547423661faaf402c1109214e5d77586ea07c73bbab437260d4e3f",
+  "review:team-assistant reviewer=rev-lena-fischer digest=sha256:d27f8c8fbaf7c9a86ef0c5b2ee773eac30e141c4390fa170b9fec969c16edbae",
+  "publish:team-assistant v1 generation=1 reviewer=rev-lena-fischer",
+  "install:persona-install-1 ACTIVE rev=1",
+  "mention:pinv_526655038202f80f986ae8f557f55e70e710245ee5f5358c0f0e7dc491e02e31 grant=grant-pinv_526655038202f80f986ae8f557f55e70e710245ee5f5358c0f0e7dc491e02e31 skills=team.answer:team:alpha",
+  "deliver:PRIVATE_INVOKER rev=1 citations=1",
+  "schedule:schedule:v1:449c9f97b9665fb6eb8459e2ec3b0f4e0e491784ea8b84fd33b40b8d16e2033f run=arreq_d5cd561d4d98fcb2c5e9dbfaca9da2d90c5c3a0b6a1e98de01e93e7dba0f8700 ACCEPTED duplicate=false",
+  "trigger:697a2e7dd1aaeb22f16b13107a7dbf0357fe407fe03948c618e6d7c2404ab627 depth=0 install=persona-install-1",
+  "workflow:arreq_541a792ef0c27db1cc6108ebf1781716684ba141673b3e75624f70b072594524 SUCCEEDED output=sha256:c6194ad2a910cb2523f3405a1e662f76dbec24514de03585237d3f6c662dbfcf",
+  "approve:approval-journey-1 digest=sha256:e03e65058de2562f4ddea7c002a301a195bea1aced1908afebcb5befbb3bec9b surface=PRODUCT_TASK_VIEW",
+  "submit:sha256:e03e65058de2562f4ddea7c002a301a195bea1aced1908afebcb5befbb3bec9b key=journey-submit-1 intents=1 replayed=false",
+  "report:done"
+]

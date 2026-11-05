@@ -144,7 +144,7 @@ func projectEmbedGlyph(board bool) ui.Node {
 	if board {
 		path = "M4 5h4v14H4zM10 5h4v9h-4zM16 5h4v6h-4z"
 	}
-	return html.Tag("svg", html.Props{Class: "chat-project-embed-glyph", Raw: map[string]any{"viewBox": "0 0 24 24", "fill": "none", "stroke": "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", "focusable": "false"}}, html.Tag("path", html.Props{Raw: map[string]any{"d": path}}))
+	return embedGlyph(path)
 }
 
 func projectPriorityBars() ui.Node {

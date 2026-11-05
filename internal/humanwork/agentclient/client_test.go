@@ -376,6 +376,18 @@ func (c *recordingPersonaCatalog) List(_ context.Context, principal *trust.Princ
 	return c.agents, c.err
 }
 
+func (c *recordingPersonaCatalog) ListPage(_ context.Context, principal *trust.Principal) ([]productui.AgentSummary, error) {
+	c.calls++
+	c.principal = principal
+	return c.agents, c.err
+}
+
+func (c *recordingPersonaCatalog) ListBoth(_ context.Context, principal *trust.Principal) ([]productui.AgentSummary, []productui.AgentSummary, error) {
+	c.calls++
+	c.principal = principal
+	return c.agents, c.agents, c.err
+}
+
 func catalogPrincipal(t *testing.T, subjectKind trust.SubjectKind) *trust.Principal {
 	t.Helper()
 	principal, err := trust.NewPrincipal(trust.PrincipalSpec{
@@ -445,13 +457,57 @@ func TestSnapshot_CatalogReceivesVerifiedPrincipalAndCopiesSummaries(t *testing.
 		t.Fatal(err)
 	}
 	if catalog.calls != 1 || catalog.principal != principal {
-		t.Fatalf("catalog received principal=%p calls=%d, want %p and one call", catalog.principal, catalog.calls, principal)
+		t.Fatalf("catalog received principal=%p calls=%d, want %p and one call (Ask list and page roster from one listing)", catalog.principal, catalog.calls, principal)
 	}
 	if len(got.Agents) != 1 || got.Agents[0].ID != "coach" || len(got.Agents[0].Skills) != 1 {
 		t.Fatalf("agents = %+v", got.Agents)
 	}
+	if len(got.Roster) != 1 || got.Roster[0].ID != "coach" {
+		t.Fatalf("roster = %+v", got.Roster)
+	}
 	catalog.agents[0].Skills[0] = "mutated"
 	if got.Agents[0].Skills[0] != "lookup" {
 		t.Fatalf("snapshot aliases catalog skills: %+v", got.Agents)
+	}
+	if got.Roster[0].Skills[0] != "lookup" {
+		t.Fatalf("snapshot aliases roster skills: %+v", got.Roster)
+	}
+}
+
+// minimalPersonaCatalog implements only the minimal PersonaCatalog contract,
+// so the snapshot must fall back to two calls.
+type minimalPersonaCatalog struct {
+	calls  int
+	agents []productui.AgentSummary
+}
+
+func (c *minimalPersonaCatalog) List(context.Context, *trust.Principal) ([]productui.AgentSummary, error) {
+	c.calls++
+	return c.agents, nil
+}
+
+func (c *minimalPersonaCatalog) ListPage(context.Context, *trust.Principal) ([]productui.AgentSummary, error) {
+	c.calls++
+	return c.agents, nil
+}
+
+func TestSnapshot_MinimalCatalogFillsBothProjections(t *testing.T) {
+	catalog := &minimalPersonaCatalog{agents: []productui.AgentSummary{{ID: "coach", Name: "People Coach", Skills: []string{"lookup"}}}}
+	principal := catalogPrincipal(t, trust.SubjectKindHuman)
+	got, err := catalogClient(catalog).Snapshot(
+		trust.WithPrincipal(context.Background(), principal),
+		productui.AgentSnapshotRequest{TenantID: tenantKey, Principal: "me"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.calls != 2 {
+		t.Fatalf("minimal catalog calls = %d, want two (Ask list and page roster)", catalog.calls)
+	}
+	if len(got.Agents) != 1 || got.Agents[0].ID != "coach" {
+		t.Fatalf("agents = %+v", got.Agents)
+	}
+	if len(got.Roster) != 1 || got.Roster[0].ID != "coach" {
+		t.Fatalf("roster = %+v", got.Roster)
 	}
 }

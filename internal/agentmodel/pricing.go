@@ -222,3 +222,18 @@ func pricingScheduleDigest(version, authority string, entries []PricingEntry) st
 func identityKey(identity ModelIdentity) string {
 	return identity.ProviderID + "\x00" + identity.ModelID + "\x00" + identity.Version
 }
+
+// stampCost computes the authoritative cost for a result that consumed tokens
+// and stamps it on the usage. Results without usage (refusals, failures)
+// pass through unstamped.
+func stampCost(pricing *PricingSchedule, selection ModelSelection, result *ModelResult) error {
+	if result.Usage.TotalTokens <= 0 {
+		return nil
+	}
+	cost, err := pricing.Cost(selection, result.Usage)
+	if err != nil {
+		return err
+	}
+	result.Usage.CostMicros = cost
+	return nil
+}

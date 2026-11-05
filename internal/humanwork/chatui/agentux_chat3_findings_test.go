@@ -219,7 +219,7 @@ func TestAgentUXChat3_OnePanePhoneAndStableComposer(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"@media(max-width:767px)", `.chat-workspace[data-has-selection="false"] .chat-rail{display:flex`, ".chat-rail{display:none}", ".chat-side.thread-pane{position:fixed;inset:0;width:100%", ".thread-back-label{display:inline}", ".chat-composer{position:sticky;bottom:0", ".mention-menu{position:absolute;inset-inline:0", "max-width:none", ".composer-toolbar{display:flex", ".jump-newest{inset-inline:auto;left:50%;bottom:8px", ".rail-row-more[aria-expanded=\"true\"]"} {
-		if !strings.Contains(AgentUXChat3Styles, want) {
+		if !strings.Contains(Stylesheet, want) {
 			t.Errorf("phone/composer contract missing %q", want)
 		}
 	}

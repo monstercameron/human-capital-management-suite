@@ -106,12 +106,27 @@ type CustomObjectDefinition struct {
 	// Fields maps field names to their types and classification rules.
 	// Every field in the map must have valid classification.
 	Fields map[string]FieldDefinition
+	// RecordRules declares record-level access by owner, scope and
+	// relationship. Empty means the platform policy alone decides.
+	RecordRules []RecordRule
 }
 
 // FieldDefinition declares one field's type and classification.
 type FieldDefinition struct {
 	Type           string
 	Classification FieldClassification
+	// Kind extends a text field with governed behavior (WF-DATA-031):
+	// sequence numbers, reference-data pick lists or pinned attachments.
+	// Blank is a plain field. Exactly the matching configuration is set.
+	Kind       FieldKind
+	Sequence   *SequenceConfig
+	Reference  *ReferenceConfig
+	Attachment *AttachmentConfig
+	// Derived computes the field from a bounded expression (WF-DATA-021)
+	// instead of storing a caller value. Nil stores caller values. A
+	// derived field is always plain: governed kinds carry caller or
+	// allocator values, never computed ones.
+	Derived *DerivedSpec
 }
 
 // Validate reports whether the definition is structurally sound and
@@ -139,8 +154,17 @@ func (d CustomObjectDefinition) Validate() error {
 		if err := fieldDef.Classification.Validate(); err != nil {
 			return fmt.Errorf("%w: field %q: %v", ErrDanglingField, fieldName, err)
 		}
+		if err := ValidateFieldKind(fieldName, fieldDef); err != nil {
+			return err
+		}
+		if err := validateDerivedLocal(fieldName, d.Fields, fieldDef); err != nil {
+			return err
+		}
 	}
-	return nil
+	if err := validateDerivedGraph(d.Fields); err != nil {
+		return err
+	}
+	return validateRecordRules(d)
 }
 
 // Canonical returns the deterministic byte encoding of the definition.
@@ -161,6 +185,12 @@ func (d CustomObjectDefinition) Canonical() []byte {
 		fieldDef := d.Fields[name]
 		w.String(fmt.Sprintf("fields.%s.type", name), fieldDef.Type).
 			Value(fmt.Sprintf("fields.%s.classification", name), fieldDef.Classification)
+		encodeFieldKind(w, name, fieldDef)
+		encodeDerived(w, name, fieldDef)
+	}
+
+	for i, rule := range canonicalRecordRules(d.RecordRules) {
+		w.String(fmt.Sprintf("record_rules.%d", i), rule)
 	}
 
 	raw, err := w.Bytes()
@@ -188,6 +218,12 @@ func (d CustomObjectDefinition) Digest() string {
 		fieldDef := d.Fields[name]
 		w.String(fmt.Sprintf("fields.%s.type", name), fieldDef.Type).
 			Value(fmt.Sprintf("fields.%s.classification", name), fieldDef.Classification)
+		encodeFieldKind(w, name, fieldDef)
+		encodeDerived(w, name, fieldDef)
+	}
+
+	for i, rule := range canonicalRecordRules(d.RecordRules) {
+		w.String(fmt.Sprintf("record_rules.%d", i), rule)
 	}
 
 	digest, err := w.Digest()

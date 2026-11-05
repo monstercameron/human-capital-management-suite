@@ -40,6 +40,8 @@ var chatTenantTables = []string{
 	"chat_gate_submission_revision",
 	"chat_gate_version",
 	"chat_idempotency",
+	"chat_location_jurisdiction",
+	"chat_location_policy",
 	"chat_location_share",
 	"chat_membership",
 	"chat_moderation_action",
@@ -55,6 +57,8 @@ var chatTenantTables = []string{
 	"chat_persona_source_classification",
 	"chat_pin",
 	"chat_post",
+	"chat_post_audience",
+	"chat_post_card_segment_tally",
 	"chat_post_card_tally",
 	"chat_post_card_vote",
 	"chat_post_revision",
@@ -70,6 +74,7 @@ var chatTenantTables = []string{
 	"chat_saved_item",
 	"chat_share_grant",
 	"chat_thread_follow",
+	"chat_voice_setting",
 	"chat_voice_transcript",
 }
 

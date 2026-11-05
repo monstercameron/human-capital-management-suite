@@ -143,17 +143,20 @@ func chatux020RailMenu(m Model, h handlers) ui.Node {
 	headingID := "rail-menu-notify-heading"
 	radios := []ui.Node{html.Div(html.Props{ID: headingID, Class: "menu-heading", Text: laneText(m, chatux020Copy, keyChatux020Notifications)})}
 	for _, choice := range []struct {
-		action string
-		mode   NotificationMode
-		key    string
-	}{{"rail-notify-all", NotifyAll, KeyNotifyAll}, {"rail-notify-mentions", NotifyMention, KeyNotifyMentions}, {"rail-notify-mute", NotifyMute, KeyNotifyMute}} {
+		action, glyph string
+		mode          NotificationMode
+		key           string
+	}{{"rail-notify-all", "bell", NotifyAll, KeyNotifyAll}, {"rail-notify-mentions", "at-sign", NotifyMention, KeyNotifyMentions}, {"rail-notify-mute", "bell-off", NotifyMute, KeyNotifyMute}} {
 		check := ""
 		if mode == choice.mode {
 			check = "✓"
 		}
+		// CHATUX-050: the choices lead with a glyph like every other item,
+		// so their labels share the menu's one edge; the choice in force
+		// keeps its check at the end.
 		radios = append(radios, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitemradio", Disabled: m.Callbacks.SetConversationNotification == nil, Data: map[string]string{"action": choice.action, "id": id},
 			Aria: map[string]string{"checked": boolString(mode == choice.mode)}},
-			html.Span(html.Props{Class: "rail-menu-check", Aria: map[string]string{"hidden": "true"}, Text: check}), html.Span(html.Props{Text: m.t(choice.key)})))
+			icon(choice.glyph), html.Span(html.Props{Text: m.t(choice.key)}), html.Span(html.Props{Class: "rail-menu-check", Aria: map[string]string{"hidden": "true"}, Text: check})))
 	}
 	items = append(items, html.Div(html.Props{Class: "menu-group", Role: "group", Aria: map[string]string{"labelledby": headingID}}, radios...))
 	// Moves: only to a section the row is not in and that fits its kind.

@@ -694,15 +694,6 @@ func declarenavigationViewportStylesStyles() {
 	declareGlobal(".primary-nav",
 		mediaRule(gwccss.MaxW(760), gwccss.Raw("flex", "none"), gwccss.Raw("overflow-x", "auto"), gwccss.Raw("overflow-y", "visible"), gwccss.Raw("scrollbar-width", "auto"), gwccss.Raw("scrollbar-color", "auto"), gwccss.Raw("scrollbar-gutter", "auto")),
 	)
-	declareGlobal(".primary-nav",
-		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Raw("scrollbar-color", "ButtonText Canvas")),
-	)
-	declareGlobal(".primary-nav::-webkit-scrollbar-track",
-		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.Bg(gwccss.Color("Canvas"))),
-	)
-	declareGlobal(".primary-nav::-webkit-scrollbar-thumb",
-		mediaRule(gwccss.RawMedia("(forced-colors:active)"), gwccss.BorderColor(gwccss.Color("Canvas")), gwccss.Bg(gwccss.Color("ButtonText"))),
-	)
 }
 
 func navigationViewportXStylesStylesheet() string {

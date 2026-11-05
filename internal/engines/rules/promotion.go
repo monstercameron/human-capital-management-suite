@@ -3,6 +3,7 @@ package rules
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
@@ -254,6 +255,111 @@ func PromotionApprovalThresholdTable() Table {
 			},
 		},
 	}
+}
+
+// Tenant threshold parameter keys. A tenant publishes decimal increase
+// percents (at IncreasePercentScale) under these WF-DATA-036 keys to
+// override the reference 10%/20% cut points; the rules engine never reads
+// the parameter substrate itself, so resolutions arrive as values.
+const (
+	ThresholdFinanceKey   = "promotion.approval.finance_threshold"
+	ThresholdExecutiveKey = "promotion.approval.executive_threshold"
+)
+
+// TenantThresholdScope is the tenant a threshold table is resolved for.
+// The tenant key is required: an empty scope cannot receive a tenant table
+// and always resolves the reference table through an explicit error.
+type TenantThresholdScope struct {
+	Tenant string
+}
+
+// TenantThresholdResolution is one published WF-DATA-037 tenant parameter
+// revision for the threshold keys. FinanceText and ExecutiveText are the
+// published decimal percents; Revision and DefinitionVersion identify the
+// exact published revision the values came from. Found is false when no
+// tenant override is published, in which case the reference table answers.
+type TenantThresholdResolution struct {
+	FinanceText       string
+	ExecutiveText     string
+	Revision          uint64
+	DefinitionVersion string
+	Found             bool
+}
+
+// PromotionApprovalThresholdTableForTenant builds the Promotion
+// approval-threshold decision table for one tenant scope. It is a pure
+// function of (tenant scope, published parameter revision): no per-call
+// reads join the decision-table engine.
+//
+//   - Found == false returns the byte-identical reference table: the
+//     existing table is the only fallback, and only when no tenant
+//     override is published.
+//   - Found == true parses the published decimal percents, requires the
+//     finance cut point strictly below the executive cut point, and cites
+//     the published definition version on the returned table, so each
+//     decision carries the exact revision it ran against. Table versions
+//     are tenant-scoped: two tenants may cite the same definition version
+//     with different values, and their tables still digest distinctly.
+//
+// A malformed override (unparseable or negative percents, finance at or
+// above executive, an empty tenant scope, or a published revision with no
+// definition version) is an error, never a silent reference table: serving
+// the reference thresholds while a tenant believes its own apply would be
+// a lie the engine refuses to tell.
+func PromotionApprovalThresholdTableForTenant(scope TenantThresholdScope, resolution TenantThresholdResolution) (Table, error) {
+	if !resolution.Found {
+		return PromotionApprovalThresholdTable(), nil
+	}
+	if strings.TrimSpace(scope.Tenant) == "" {
+		return Table{}, errors.New("rules: tenant threshold table needs a tenant scope")
+	}
+	if strings.TrimSpace(resolution.DefinitionVersion) == "" {
+		return Table{}, errors.New("rules: tenant threshold revision carries no definition version")
+	}
+	finance, err := values.NewDecimal(resolution.FinanceText, IncreasePercentScale, values.RoundingHalfEven)
+	if err != nil {
+		return Table{}, fmt.Errorf("rules: tenant finance threshold %q: %v", resolution.FinanceText, err)
+	}
+	executive, err := values.NewDecimal(resolution.ExecutiveText, IncreasePercentScale, values.RoundingHalfEven)
+	if err != nil {
+		return Table{}, fmt.Errorf("rules: tenant executive threshold %q: %v", resolution.ExecutiveText, err)
+	}
+	zero, err := values.NewDecimal("0", IncreasePercentScale, values.RoundingHalfEven)
+	if err != nil {
+		return Table{}, fmt.Errorf("rules: tenant threshold zero: %v", err)
+	}
+	if finance.Cmp(zero) < 0 || executive.Cmp(zero) < 0 {
+		return Table{}, fmt.Errorf("rules: tenant thresholds must not be negative: %s/%s", resolution.FinanceText, resolution.ExecutiveText)
+	}
+	if finance.Cmp(executive) >= 0 {
+		return Table{}, fmt.Errorf("rules: tenant finance threshold %s must be below executive threshold %s", resolution.FinanceText, resolution.ExecutiveText)
+	}
+	table := PromotionApprovalThresholdTable()
+	table.Version = resolution.DefinitionVersion
+	patched := 0
+	for i := range table.Rows {
+		switch table.Rows[i].ID {
+		case rowLargeRaise:
+			if len(table.Rows[i].Conditions) == 0 {
+				return Table{}, fmt.Errorf("rules: tenant table row %q lost its threshold condition", rowLargeRaise)
+			}
+			table.Rows[i].Conditions[0] = GreaterThan(DecimalValue(executive))
+			patched++
+		case rowRaiseOverThreshold:
+			if len(table.Rows[i].Conditions) == 0 {
+				return Table{}, fmt.Errorf("rules: tenant table row %q lost its threshold condition", rowRaiseOverThreshold)
+			}
+			table.Rows[i].Conditions[0] = GreaterThan(DecimalValue(finance))
+			patched++
+		}
+	}
+	if patched != 2 {
+		return Table{}, fmt.Errorf("rules: tenant table patched %d threshold rows, want 2", patched)
+	}
+	if err := table.Validate(); err != nil {
+		return Table{}, fmt.Errorf("rules: tenant threshold table invalid: %v", err)
+	}
+	return table, nil
 }
 
 // PromotionWorkflowThresholdTable preserves the 2026.1 approval-tier table

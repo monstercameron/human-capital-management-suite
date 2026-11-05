@@ -15,7 +15,7 @@ const realRepoRoot = "../../../.."
 func TestRunRealCorpusReportsKnownViolationsAndExitsNonZero(t *testing.T) {
 	var buf bytes.Buffer
 	code := run([]string{
-		"-markdown", filepath.Join(realRepoRoot, "planning", "todos.md"),
+		"-markdown", filepath.Join(realRepoRoot, "planning", "archive", "todos-2026-10-22.md"),
 		"-registry", filepath.Join(realRepoRoot, "definitions", "planning", "todo-registry.json"),
 		"-catalog", filepath.Join(realRepoRoot, "planning", "specs", "business-intent-catalog.md"),
 	}, &buf)

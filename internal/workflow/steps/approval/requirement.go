@@ -9,7 +9,29 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
+
+// ResolveRequirementDeadlines returns the set with every requirement
+// deadline expression resolved against the evaluated anchor and pinned
+// calendar dataset. Requirements without expressions pass through with their
+// declared absolute deadlines; set order is preserved. NewContinuation stays
+// absolute-only: resolve first, then bind.
+func ResolveRequirementDeadlines(set humanwork.RequirementSet, anchor values.Instant, cals values.CalendarDataset, dataset values.DatasetVersions) (humanwork.RequirementSet, error) {
+	out := set
+	out.Requirements = append([]humanwork.ApprovalRequirement(nil), set.Requirements...)
+	for i, req := range out.Requirements {
+		if req.DeadlineExpr == nil {
+			continue
+		}
+		dl, err := req.ResolveDeadline(anchor, cals, dataset)
+		if err != nil {
+			return humanwork.RequirementSet{}, fmt.Errorf("approval: requirement %q: %w", req.RequirementID, err)
+		}
+		out.Requirements[i].Deadline = dl
+	}
+	return out, nil
+}
 
 // NewContinuation binds the compiled approval requirements to the exact
 // proposal and WorkItems that may satisfy the parked workflow node.

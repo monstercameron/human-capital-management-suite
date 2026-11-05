@@ -37,12 +37,6 @@ func chatux008Text(m Model, key string) string {
 	return chatbug039Text(key, values[index], values[0])
 }
 
-// chatux008Bell is the bell glyph, drawn like the other chat icons.
-func chatux008Bell() ui.Node {
-	return html.Tag("svg", html.Props{Class: "chat-icon icon-bell", Raw: iconSVGAttrs},
-		html.Tag("path", html.Props{Raw: map[string]any{"d": "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"}}))
-}
-
 // chatux008Heading is the thread pane's header. roomName is the channel's
 // name as the pane writes it ("#random", already isolated for right-to-left).
 func chatux008Heading(m Model, roomName string) ui.Node {
@@ -62,7 +56,7 @@ func chatux008Heading(m Model, roomName string) ui.Node {
 		html.Div(html.Props{Class: "side-heading-actions"},
 			chatListenThreadAction(m),
 			html.Button(html.Props{Class: "icon-button thread-notify", Type: "button", Disabled: m.Callbacks.SetThreadFollow == nil, Title: tip,
-				Data: map[string]string{"action": "follow"}, Aria: map[string]string{"pressed": boolString(m.ThreadFollowed), "label": chatux008Text(m, "notify")}}, chatux008Bell()),
+				Data: map[string]string{"action": "follow"}, Aria: map[string]string{"pressed": boolString(m.ThreadFollowed), "label": chatux008Text(m, "notify")}}, icon("bell")),
 			html.Button(html.Props{Class: "icon-button chat-panel-close thread-back", Type: "button", Disabled: m.Callbacks.CloseThread == nil, Data: map[string]string{"action": "close-thread"}, Aria: map[string]string{"label": m.t(KeyCloseThread)}, Title: m.t(KeyCloseThread)}, icon("close"), html.Span(html.Props{Class: "thread-back-label", Text: m.t(KeyCloseThread)})),
 		))
 }

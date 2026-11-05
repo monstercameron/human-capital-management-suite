@@ -30,7 +30,13 @@ type PageDraft struct {
 // NewPageDraft opens a draft on one recorded revision. The working
 // copy starts identical to its base.
 func NewPageDraft(base PageDefinitionRevision) PageDraft {
-	return PageDraft{Page: base.Snapshot.Page, BaseVersion: base.Version, BaseDigest: base.Digest, Snapshot: base.Snapshot}
+	snapshot := base.Snapshot
+	// The working copy owns its search terms. The base may alias the
+	// revision log stored backing array (Record returns the stored
+	// struct), so a shared slice would let draft edits corrupt
+	// published history under an unchanged digest.
+	snapshot.SearchTerms = append([]string(nil), base.Snapshot.SearchTerms...)
+	return PageDraft{Page: snapshot.Page, BaseVersion: base.Version, BaseDigest: base.Digest, Snapshot: snapshot}
 }
 
 // NewPageDraftFromScratch opens a draft for a page carrying no

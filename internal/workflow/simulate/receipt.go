@@ -209,6 +209,15 @@ type Receipt struct {
 
 	Counters Counters         `json:"counters"`
 	Controls []ControlVersion `json:"controls"`
+	// RecordedEffects holds the would-be effects a WF-TEST-001 recording run
+	// captured instead of performing, in walk order. It is omitted when
+	// empty so receipts from plain simulations keep their exact bytes.
+	RecordedEffects []RecordedEffect `json:"recorded_effects,omitempty"`
+	// Cancel holds the WF-TEST-008 settlement of a run canceled at a node:
+	// where it stopped, what it had committed, the unwind the compiled
+	// plan demands, and the human decisions left open. It is nil for runs
+	// to completion, so their receipts keep their exact bytes.
+	Cancel *CancelRecord `json:"cancel,omitempty"`
 	// ZeroEffect is the domain's own receipt, minted by
 	// evidence.NewZeroEffectReceipt, which refuses to exist over a non-zero
 	// effect count. Its ExecutionState is always NOT_PLANNED: P1A never plans

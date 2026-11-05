@@ -76,7 +76,10 @@ func TestTodo_WF_EXT_007_Integration(t *testing.T) {
 	req := pf.baseStartRequest(tenant, "trigger:start:2026-09-23")
 	req.Proposal = runtime.ProposalBinding{}
 	req.ProposalFacts, req.ApprovalFacts = nil, nil
-	req.Source = &runtime.StartSource{Kind: runtime.StartSourceTrigger, IntentType: workflow.PromotionReferenceDefinition().IntentType, Trigger: &runtime.TriggerStartSource{
+	// The trigger source carries the promotion intent as a literal: the frozen
+	// v1 PromotionReferenceDefinition declares no IntentType by design, and
+	// the start contract only requires the source itself to be typed.
+	req.Source = &runtime.StartSource{Kind: runtime.StartSourceTrigger, IntentType: "hcmnext.people.promotion", Trigger: &runtime.TriggerStartSource{
 		TriggerID: "trigger:hire-date", TriggerType: "DATE", Key: "2026-09-23:employee:1",
 	}}
 	var started runtime.StartReceipt

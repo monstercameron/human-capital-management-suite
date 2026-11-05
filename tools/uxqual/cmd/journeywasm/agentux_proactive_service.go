@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/agentcontrols"
@@ -29,17 +28,8 @@ func (e agentAnnouncementReasonError) Unwrap() error { return errAgentAnnounceme
 
 func agentAnnouncementRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, action string, input any) (agentcontrols.AnnouncementReply, error) {
 	var reply agentcontrols.AnnouncementReply
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || strings.TrimSpace(cfg.Bearer) == "" {
-		return reply, errAgentAnnouncement
-	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem != tunnelOK || strings.TrimSpace(cfg.Bearer) == "" {
 		return reply, errAgentAnnouncement
 	}
 	endpoint.Path, endpoint.RawQuery, endpoint.Fragment = agentcontrols.AnnouncementPath, "", ""

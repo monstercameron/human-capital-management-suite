@@ -106,8 +106,11 @@ type PersonaAdminLimits struct {
 }
 
 type PersonaAdminPersona struct {
-	Icon             agenticon.Value
-	IconRevision     int64
+	Icon         agenticon.Value
+	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL     string
 	ID               string
 	StarterID        string
 	StarterVersion   uint32
@@ -138,25 +141,31 @@ type PersonaAdminPersona struct {
 	PublishPreview PersonaPublishPreview
 	// DocumentNotices names referenced documents that moved to a newer
 	// major line than the agent reads (AGENTUX-065).
-	DocumentNotices        []PersonaDocumentDriftNotice
-	Skills                 []PersonaAdminSkill
-	DerivedData            []string
-	ChannelClasses         []string
-	Audience               string
-	AudienceRoles          []PersonaAdminTarget
-	Organizations          []PersonaAdminTarget
-	Installations          []PersonaAdminInstallation
-	RemovedPlacements      []PersonaAdminRemovedPlacement
-	Limits                 PersonaAdminLimits
-	ReviewRequired         bool
-	ReviewApproved         bool
-	Reviewer               string
-	ReviewerName           string
-	ReviewerInitials       string
-	ReviewerAvatarURL      string
-	ReviewApprovedAt       string
-	EvaluationRef          string
-	EvaluationPassedAt     string
+	DocumentNotices    []PersonaDocumentDriftNotice
+	Skills             []PersonaAdminSkill
+	DerivedData        []string
+	ChannelClasses     []string
+	Audience           string
+	AudienceRoles      []PersonaAdminTarget
+	Organizations      []PersonaAdminTarget
+	Installations      []PersonaAdminInstallation
+	RemovedPlacements  []PersonaAdminRemovedPlacement
+	Limits             PersonaAdminLimits
+	ReviewRequired     bool
+	ReviewApproved     bool
+	Reviewer           string
+	ReviewerName       string
+	ReviewerInitials   string
+	ReviewerAvatarURL  string
+	ReviewApprovedAt   string
+	EvaluationRef      string
+	EvaluationPassedAt string
+	// EvidenceExpiresAt is the UTC date the version's retained evidence
+	// lapses ("2006-01-02"); the model route that lets the agent answer lasts
+	// exactly that long. Empty when the version has no retained evidence.
+	// EvidenceExpired is true once it is reached (AGENTUX-082).
+	EvidenceExpiresAt      string
+	EvidenceExpired        bool
 	EvaluationRunnerName   string
 	PublishedAt            string
 	EvaluationStatus       string
@@ -538,7 +547,7 @@ func personaAdminCard(locale LocaleContext, client PersonaAdminClient, persona P
 	}
 	purpose, purposeLanguage := agentUXR7Purpose(locale, persona.Purpose, purposeLanguage)
 	return html.Article(html.Props{Class: "surface persona-admin-card", Aria: map[string]string{"labelledby": id + "-title"}, Raw: map[string]any{"data-persona-id": persona.ID, "data-lifecycle": string(persona.Lifecycle), "data-agent-version": persona.Version}},
-		html.Div(html.Props{Class: "persona-admin-card-heading"}, html.Div(html.Props{Class: "persona-admin-card-identity"}, html.Div(html.Props{Class: "persona-admin-card-title"}, agentUX074Icon(persona.Icon, persona.ID, personaAdminIDs(snapshot)),
+		html.Div(html.Props{Class: "persona-admin-card-heading"}, html.Div(html.Props{Class: "persona-admin-card-identity"}, html.Div(html.Props{Class: "persona-admin-card-title"}, agentUX074IconImage(persona.Icon, persona.IconImageURL, persona.ID, personaAdminIDs(snapshot)),
 			// The version badge follows the name on the name's own line; it used to
 			// be a sibling of the whole title and floated away from it.
 			html.Div(html.Props{Class: "persona-admin-card-name"}, html.H3(html.Props{ID: id + "-title", Dir: "auto", Raw: map[string]any{"lang": purposeLanguage}}, ui.Text(persona.Name)), personaAdminLifecycleBadges(locale, persona, lifecycle)),
@@ -547,6 +556,7 @@ func personaAdminCard(locale LocaleContext, client PersonaAdminClient, persona P
 		personaAdminMoreActionsPanel(locale, client, persona, snapshot),
 		personaAdminFailureWarning(locale, persona),
 		personaAdminLifecycleSentence(locale, persona, lifecycle),
+		agentUX082ValidityLine(locale, persona, snapshot),
 		html.P(html.Props{Class: "persona-admin-purpose", Dir: "auto", Raw: map[string]any{"lang": purposeLanguage}}, html.Tag("bdi", html.Props{}, ui.Text(purpose))),
 		html.Tag("dl", html.Props{Class: "persona-admin-facts"},
 			personaAdminPersonDefinition(locale, "owner", persona.Owner, persona.OwnerName, persona.OwnerInitials, persona.OwnerAvatarURL), personaAdminPersonDefinition(locale, "steward", persona.Steward, persona.StewardName, persona.StewardInitials, persona.StewardAvatarURL), personaAdminAudienceDefinition(locale, persona), personaAdminReadDefinition(locale, persona), personaAdminWorkspaceSearchDefinition(locale, persona), personaAdminLimitsDefinition(locale, persona)),

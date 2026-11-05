@@ -35,7 +35,33 @@ func validateNode(n CompiledTaskNode) error {
 		n.AccommodationPolicy.Ref == "" || n.AccommodationPolicy.Version == 0 {
 		return ErrInvalidNode
 	}
+	if n.Deadline.AnchorPath != "" {
+		if err := n.Deadline.Validate(); err != nil {
+			return fmt.Errorf("%w: deadline: %v", ErrInvalidNode, err)
+		}
+	}
+	if n.DeadlineDefault.Schema != "" {
+		if err := n.DeadlineDefault.Validate(); err != nil {
+			return fmt.Errorf("%w: deadline default: %v", ErrInvalidNode, err)
+		}
+	}
 	return nil
+}
+
+// ResolveClaimExpiry resolves the claim-expiry instant for a TASK node
+// carrying a deadline expression: anchor is the evaluated AnchorPath instant
+// for this instance and cals is the pinned calendar dataset. A node with no
+// deadline expression is refused; claim expiry without a declared deadline
+// is a runtime concern, not a guess made here.
+func ResolveClaimExpiry(node CompiledTaskNode, anchor values.Instant, cals values.CalendarDataset, dataset values.DatasetVersions) (values.Instant, error) {
+	if node.Deadline.AnchorPath == "" {
+		return values.Instant{}, ErrNoDeadline
+	}
+	res, err := values.ResolveTimeExpr(node.Deadline, anchor, cals, dataset)
+	if err != nil {
+		return values.Instant{}, err
+	}
+	return res.FireAt, nil
 }
 
 // Resolve converts the current WorkItem state into a deterministic TASK
@@ -83,6 +109,9 @@ func Resolve(c Continuation, item workitem.WorkItem, submission *Submission, val
 			return Resolution{}, fmt.Errorf("%w: expired item cannot carry a completion submission", ErrInvalidSubmission)
 		}
 		r.Outcome, r.Reason = OutcomeExpired, "work item expired"
+		if c.Node.DeadlineDefault.Schema != "" {
+			r.DefaultOutputDigest = c.Node.DeadlineDefault.Digest()
+		}
 	case workitem.StatusCancelled:
 		if submission != nil {
 			return Resolution{}, fmt.Errorf("%w: cancelled item cannot carry a completion submission", ErrInvalidSubmission)
@@ -135,6 +164,9 @@ func (r Resolution) ToNodeOutcome(nodeID string) frontier.NodeOutcome {
 	case OutcomeReturned:
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.OutcomeRejected, OutputDigest: r.Digest}
 	case OutcomeExpired:
+		if r.DefaultOutputDigest != "" {
+			return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.Outcome("EXPIRED"), OutputDigest: r.DefaultOutputDigest}
+		}
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.Outcome("EXPIRED"), OutputDigest: r.Digest}
 	case OutcomeCancelled:
 		return frontier.NodeOutcome{NodeID: nodeID, Outcome: workflow.Outcome("CANCELLED"), OutputDigest: r.Digest}

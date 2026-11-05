@@ -12,22 +12,17 @@ import (
 // the workspace search status; every other agent's row has none to show.
 const agentux056AssistantPersonaID = "hcmnext.local.persona.assistant"
 
+// agentux056Copy is the copy agentux056Text resolves (agentux_copy.go).
+var agentux056Copy = map[string][3]string{
+	"label":   {"Workspace search", "Arbeitsbereichssuche", "البحث في مساحة العمل"},
+	"indexed": {"Searches {count} workspace documents (indexed {time})", "Durchsucht {count} Dokumente im Arbeitsbereich (indexiert {time})", "يبحث في {count} من مستندات مساحة العمل (فُهرست {time})"},
+	"behind":  {"{pending} of {count} workspace documents are not indexed yet, so their meaning is not searched; they are matched by their words.", "{pending} von {count} Dokumenten im Arbeitsbereich sind noch nicht indexiert; sie werden nur nach ihren Wörtern gefunden.", "لم تُفهرس {pending} من {count} من مستندات مساحة العمل بعد، لذا تُطابَق بكلماتها لا بمعناها."},
+	"absent":  {"Searches {count} workspace documents by their words only. None is indexed for meaning yet.", "Durchsucht {count} Dokumente im Arbeitsbereich nur nach Wörtern. Noch keines ist für die Bedeutungssuche indexiert.", "يبحث في {count} من مستندات مساحة العمل بكلماتها فقط. لم يُفهرس أي منها للبحث بالمعنى بعد."},
+	"none":    {"No workspace documents are open to every member yet.", "Noch ist kein Dokument im Arbeitsbereich für alle Mitglieder offen.", "لا توجد مستندات في مساحة العمل مفتوحة لكل الأعضاء بعد."},
+}
+
 func agentux056Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"label":   {"Workspace search", "Arbeitsbereichssuche", "البحث في مساحة العمل"},
-		"indexed": {"Searches {count} workspace documents (indexed {time})", "Durchsucht {count} Dokumente im Arbeitsbereich (indexiert {time})", "يبحث في {count} من مستندات مساحة العمل (فُهرست {time})"},
-		"behind":  {"{pending} of {count} workspace documents are not indexed yet, so their meaning is not searched; they are matched by their words.", "{pending} von {count} Dokumenten im Arbeitsbereich sind noch nicht indexiert; sie werden nur nach ihren Wörtern gefunden.", "لم تُفهرس {pending} من {count} من مستندات مساحة العمل بعد، لذا تُطابَق بكلماتها لا بمعناها."},
-		"absent":  {"Searches {count} workspace documents by their words only. None is indexed for meaning yet.", "Durchsucht {count} Dokumente im Arbeitsbereich nur nach Wörtern. Noch keines ist für die Bedeutungssuche indexiert.", "يبحث في {count} من مستندات مساحة العمل بكلماتها فقط. لم يُفهرس أي منها للبحث بالمعنى بعد."},
-		"none":    {"No workspace documents are open to every member yet.", "Noch ist kein Dokument im Arbeitsbereich für alle Mitglieder offen.", "لا توجد مستندات في مساحة العمل مفتوحة لكل الأعضاء بعد."},
-	}
-	index := 0
-	switch {
-	case strings.HasPrefix(locale.Resolved, "de"):
-		index = 1
-	case strings.HasPrefix(locale.Resolved, "ar"):
-		index = 2
-	}
-	return copy[key][index]
+	return agentuxCopyText(agentux056Copy, locale, key)
 }
 
 // personaAdminWorkspaceSearchDefinition says how many workspace documents the

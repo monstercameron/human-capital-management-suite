@@ -56,7 +56,20 @@ type SettingReader interface {
 // returning summaries; this adapter only supplies the verified principal and
 // never accepts authority claims from the page request.
 type PersonaCatalog interface {
+	// List returns the signed-in user's skill-authorized personas of a kind
+	// that answers questions: what Ask may offer.
 	List(context.Context, *trust.Principal) ([]productui.AgentSummary, error)
+	// ListPage returns the signed-in user's skill-authorized personas of
+	// every kind: the Agents page roster.
+	ListPage(context.Context, *trust.Principal) ([]productui.AgentSummary, error)
+}
+
+// personaCatalogBoth is the single-read form of PersonaCatalog: one listing
+// projected twice. Snapshot prefers it and falls back to List plus ListPage
+// for catalogs that only implement the minimal contract.
+type personaCatalogBoth interface {
+	PersonaCatalog
+	ListBoth(context.Context, *trust.Principal) ([]productui.AgentSummary, []productui.AgentSummary, error)
 }
 
 type platformRunners struct{ platform *agentsystem.Platform }
@@ -159,6 +172,7 @@ func (c *Client) Snapshot(ctx context.Context, req productui.AgentSnapshotReques
 		// The runtime has no agent registry or threads yet; both stay empty
 		// rather than being invented from task data.
 		Agents:  []productui.AgentSummary{},
+		Roster:  []productui.AgentSummary{},
 		Threads: []productui.AgentThread{},
 		Tasks:   make([]productui.AgentTask, 0, len(own)),
 	}
@@ -167,11 +181,25 @@ func (c *Client) Snapshot(ctx context.Context, req productui.AgentSnapshotReques
 		if err != nil {
 			return productui.AgentSnapshot{}, err
 		}
-		agents, err := c.catalog.List(ctx, verified)
-		if err != nil {
-			return productui.AgentSnapshot{}, fmt.Errorf("agentclient: list persona catalog: %w", err)
+		if both, ok := c.catalog.(personaCatalogBoth); ok {
+			agents, roster, err := both.ListBoth(ctx, verified)
+			if err != nil {
+				return productui.AgentSnapshot{}, fmt.Errorf("agentclient: list persona catalog: %w", err)
+			}
+			snapshot.Agents = cloneAgentSummaries(agents)
+			snapshot.Roster = cloneAgentSummaries(roster)
+		} else {
+			agents, err := c.catalog.List(ctx, verified)
+			if err != nil {
+				return productui.AgentSnapshot{}, fmt.Errorf("agentclient: list persona catalog: %w", err)
+			}
+			snapshot.Agents = cloneAgentSummaries(agents)
+			roster, err := c.catalog.ListPage(ctx, verified)
+			if err != nil {
+				return productui.AgentSnapshot{}, fmt.Errorf("agentclient: list persona roster: %w", err)
+			}
+			snapshot.Roster = cloneAgentSummaries(roster)
 		}
-		snapshot.Agents = cloneAgentSummaries(agents)
 	}
 	controlsEnabled := false
 	if c.settings != nil && c.controller != nil {

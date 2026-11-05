@@ -47,8 +47,8 @@ func TestTodo_PROMOUX_014_Integration(t *testing.T) {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux014-integration-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
 		ExecutionManagerApprover: approver + "-manager",
-		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         DefaultTimerTzdbVersion,
+		TimerCalendarVersion:     DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("integration configuration: %v", err)

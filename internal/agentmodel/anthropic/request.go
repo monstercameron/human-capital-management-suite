@@ -80,15 +80,38 @@ func makeRequest(model string, req agentmodel.ModelRequest) (messagesRequest, er
 				if !validToolName.MatchString(message.ToolName) {
 					return messagesRequest{}, &agentmodel.ModelRefusal{Code: agentmodel.RefusalFeature, Feature: agentmodel.FeatureTools, Detail: "tool name is outside the provider's supported syntax"}
 				}
-				content, _ := json.Marshal([]contentBlock{{Type: "tool_use", ID: message.ToolCallID, Name: message.ToolName, Input: message.ToolArguments}})
-				out.Messages = append(out.Messages, messageRequest{Role: "assistant", Content: content})
+				use := contentBlock{Type: "tool_use", ID: message.ToolCallID, Name: message.ToolName, Input: message.ToolArguments}
+				if n := len(out.Messages); n > 0 && out.Messages[n-1].Role == "assistant" {
+					// Assistant text immediately before a tool call joins it in
+					// one message: the provider rejects consecutive assistant
+					// messages.
+					var previous string
+					if err := json.Unmarshal(out.Messages[n-1].Content, &previous); err == nil {
+						merged, _ := json.Marshal([]contentBlock{{Type: "text", Text: previous}, use})
+						out.Messages[n-1].Content = merged
+					} else {
+						content, _ := json.Marshal([]contentBlock{use})
+						out.Messages = append(out.Messages, messageRequest{Role: "assistant", Content: content})
+					}
+				} else {
+					content, _ := json.Marshal([]contentBlock{use})
+					out.Messages = append(out.Messages, messageRequest{Role: "assistant", Content: content})
+				}
 			} else {
 				content, _ := json.Marshal(message.Content)
 				if n := len(out.Messages); n > 0 && out.Messages[n-1].Role == role {
 					var previous string
-					_ = json.Unmarshal(out.Messages[n-1].Content, &previous)
-					merged, _ := json.Marshal(previous + "\n" + message.Content)
-					out.Messages[n-1].Content = merged
+					if err := json.Unmarshal(out.Messages[n-1].Content, &previous); err == nil {
+						merged, _ := json.Marshal(previous + "\n" + message.Content)
+						out.Messages[n-1].Content = merged
+					} else if merged, ok := appendTextBlock(out.Messages[n-1].Content, message.Content); ok {
+						// The previous message carries content blocks (a tool
+						// result or tool call); the text joins them so roles
+						// keep alternating and no history is dropped.
+						out.Messages[n-1].Content = merged
+					} else {
+						out.Messages = append(out.Messages, messageRequest{Role: role, Content: content})
+					}
 				} else {
 					out.Messages = append(out.Messages, messageRequest{Role: role, Content: content})
 				}
@@ -114,6 +137,21 @@ func makeRequest(model string, req agentmodel.ModelRequest) (messagesRequest, er
 		out.OutputConfig = &outputConfig{Format: outputFormat{Type: "json_schema", Schema: req.Output.Schema}}
 	}
 	return out, nil
+}
+
+// appendTextBlock adds a text block to a message that already carries
+// content blocks, keeping one message per turn.
+func appendTextBlock(content []byte, text string) ([]byte, bool) {
+	var blocks []contentBlock
+	if err := json.Unmarshal(content, &blocks); err != nil {
+		return nil, false
+	}
+	blocks = append(blocks, contentBlock{Type: "text", Text: text})
+	merged, err := json.Marshal(blocks)
+	if err != nil {
+		return nil, false
+	}
+	return merged, true
 }
 
 func appendInstruction(system, instruction string) string {

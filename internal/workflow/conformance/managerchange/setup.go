@@ -17,13 +17,53 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/transaction/conflict"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/simulate"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/testprofile"
 )
 
-// Environment is the fixed, in-memory read projection used by the simulation.
-// It has no database, clock, network or HRIS write port.
-type Environment struct{}
+// conformanceProfile is the fake-data profile this family loads its
+// capability answers from (WF-TEST-003 REFACTOR).
+var conformanceProfile = testprofile.ProfileRef{ID: "harborcare-conformance", Version: 1}
 
-func NewEnvironment() *Environment { return &Environment{} }
+// Environment is the fixed, in-memory read projection used by the simulation.
+// It has no database, clock, network or HRIS write port. Capability answers
+// come from the checked-in conformance profile, never from hand-written
+// literals; only input echoes stay explicit in the handlers.
+type Environment struct {
+	// Outcomes picks the profile sample outcome per node for what-if
+	// branches. A node without a pick serves SUCCEEDED.
+	Outcomes map[string]workflow.Outcome
+
+	profile testprofile.Profile
+	loaded  bool
+}
+
+func NewEnvironment() *Environment { return &Environment{Outcomes: map[string]workflow.Outcome{}} }
+
+// loadProfile resolves the family's profile lazily so NewEnvironment keeps
+// its signature; a missing profile fails closed at first use.
+func (e *Environment) loadProfile() error {
+	if e.loaded {
+		return nil
+	}
+	registry, err := testprofile.DefaultRegistry()
+	if err != nil {
+		return fmt.Errorf("managerchange: load profiles: %w", err)
+	}
+	p, err := registry.Resolve(conformanceProfile)
+	if err != nil {
+		return fmt.Errorf("managerchange: resolve %s: %w", conformanceProfile.ID, err)
+	}
+	e.profile = p
+	e.loaded = true
+	return nil
+}
+
+func (e *Environment) picked(nodeID string) workflow.Outcome {
+	if outcome, ok := e.Outcomes[nodeID]; ok {
+		return outcome
+	}
+	return workflow.OutcomeSucceeded
+}
 
 // Registry publishes only read-only fixture capabilities.
 func (e *Environment) Registry() (*capability.Registry, error) {
@@ -54,11 +94,13 @@ func (e *Environment) readWorker(_ context.Context, payload any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return simulate.CapabilityResponse{Outcome: workflow.OutcomeSucceeded, Outputs: simulate.Bag{
-		"worker_id":          worker,
-		"employment_active":  simulate.NewBool(true),
-		"current_manager_id": simulate.NewBranded("WorkerID", "manager-alice"),
-	}}, nil
+	response, err := e.profileResponse(NodeReadWorker, req)
+	if err != nil {
+		return nil, err
+	}
+	// The subject echo is input-derived, not fake data: it stays explicit.
+	response.Outputs["worker_id"] = worker
+	return response, nil
 }
 
 func (e *Environment) readManager(_ context.Context, payload any) (any, error) {
@@ -70,11 +112,26 @@ func (e *Environment) readManager(_ context.Context, payload any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return simulate.CapabilityResponse{Outcome: workflow.OutcomeSucceeded, Outputs: simulate.Bag{
-		"proposed_manager_id": manager,
-		"employment_active":   simulate.NewBool(true),
-		"management_eligible": simulate.NewBool(true),
-	}}, nil
+	response, err := e.profileResponse(NodeReadManager, req)
+	if err != nil {
+		return nil, err
+	}
+	// The subject echo is input-derived, not fake data: it stays explicit.
+	response.Outputs["proposed_manager_id"] = manager
+	return response, nil
+}
+
+// profileResponse serves one capability answer from the family's profile for
+// the author's picked outcome.
+func (e *Environment) profileResponse(nodeID string, req simulate.CapabilityRequest) (simulate.CapabilityResponse, error) {
+	if err := e.loadProfile(); err != nil {
+		return simulate.CapabilityResponse{}, err
+	}
+	response, err := e.profile.SimulateResponse(nodeID, req.Capability.ID, req.Capability.Version, e.picked(nodeID))
+	if err != nil {
+		return simulate.CapabilityResponse{}, fmt.Errorf("managerchange: node %s: %w", nodeID, err)
+	}
+	return response, nil
 }
 
 // Transforms implements the pure validation and proposal simulation ports.

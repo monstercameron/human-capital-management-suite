@@ -323,6 +323,33 @@ func (d *durableConnectorJournal) Lease(ctx context.Context, req operation.Lease
 	return granted, nil
 }
 
+// AdmitPrivacyDispatch evaluates one snapshot authority grant against the
+// leased operation through the memory delegate, then mirrors the admission
+// evidence (PRIVACY_BOUND or EGRESS_BLOCKED) durably. A denial still syncs
+// the failure rows so the durable trail tracks the delegate; no provider
+// call is possible from this path.
+func (d *durableConnectorJournal) AdmitPrivacyDispatch(ctx context.Context, lease operation.Lease, grant operation.PrivacyGrant) (operation.Operation, error) {
+	if err := d.ready(); err != nil {
+		return operation.Operation{}, err
+	}
+	tenant, err := durableTenantID(lease.TenantID)
+	if err != nil {
+		return operation.Operation{}, err
+	}
+	admitted, err := d.mem.AdmitPrivacyDispatch(ctx, lease, grant)
+	if err != nil {
+		d.syncAfterFailure(ctx, tenant, lease.TenantID, lease.OperationID)
+		return operation.Operation{}, err
+	}
+	if err := d.persistNewEvents(ctx, tenant, lease.TenantID, lease.OperationID); err != nil {
+		return admitted, err
+	}
+	if err := d.syncBaseState(ctx, tenant, admitted); err != nil {
+		return admitted, err
+	}
+	return admitted, nil
+}
+
 // DispatchWithCredential binds and consumes the machine credential lease
 // immediately before dispatch, persisting the attempt row, the transition
 // trail and the reference-only binding evidence. A provider call already

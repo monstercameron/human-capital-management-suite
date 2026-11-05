@@ -358,6 +358,16 @@ func TestTodo_PM_013_Integration(t *testing.T) {
 	if err != nil || bulkStillActive.Version != bulkPublished.Version {
 		t.Fatalf("snapshot overflow changed active pointer: version=%d err=%v", bulkStillActive.Version, err)
 	}
+	newerConfig := bulkPublished.Config
+	newerConfig.Statuses = append([]projectworkflow.Status(nil), bulkPublished.Config.Statuses...)
+	newerConfig.Statuses[0].Name = "Queue v4"
+	if _, err := store.SaveDraft(ctx, tenant, bulkProject, "owner", bulkDraft.Revision, newerConfig, "bulk-newer-draft"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.Publish(ctx, tenant, bulkProject, "owner", bulkDraft.Revision, bulkPublished.Version, bulkDraft.Digest, "reject-stale-draft", ReviewEvidence{})
+	if !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("superseded draft revision accepted: %v", err)
+	}
 }
 
 func TestTodo_PM_014_Integration(t *testing.T) {

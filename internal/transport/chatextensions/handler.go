@@ -16,6 +16,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatrecords"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatblocked"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/chatshared"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
 	"google.golang.org/grpc"
@@ -102,45 +103,36 @@ func Register(g *grpc.Server, d Dependencies) {
 func NewHandler(d Dependencies, opts ...connect.HandlerOption) http.Handler {
 	s := &server{deps: d}
 	mux := http.NewServeMux()
-	register(mux, opts, chatv1.ChatExtensionsService_GetCounts_FullMethodName, s.GetCounts)
-	register(mux, opts, chatv1.ChatExtensionsService_GetThreadFollow_FullMethodName, s.GetThreadFollow)
-	register(mux, opts, chatv1.ChatExtensionsService_PutThreadFollow_FullMethodName, s.PutThreadFollow)
-	register(mux, opts, chatv1.ChatExtensionsService_GetSidebar_FullMethodName, s.GetSidebar)
-	register(mux, opts, chatv1.ChatExtensionsService_PutSidebar_FullMethodName, s.PutSidebar)
-	register(mux, opts, chatv1.ChatExtensionsService_GetQuietHours_FullMethodName, s.GetQuietHours)
-	register(mux, opts, chatv1.ChatExtensionsService_PutQuietHours_FullMethodName, s.PutQuietHours)
-	register(mux, opts, chatv1.ChatExtensionsService_InstallApp_FullMethodName, s.InstallApp)
-	register(mux, opts, chatv1.ChatExtensionsService_ListApps_FullMethodName, s.ListApps)
-	register(mux, opts, chatv1.ChatExtensionsService_ChangeAppStatus_FullMethodName, s.ChangeAppStatus)
-	register(mux, opts, chatv1.ChatExtensionsService_InvokeApp_FullMethodName, s.InvokeApp)
-	register(mux, opts, chatv1.ChatExtensionsService_GetAgent_FullMethodName, s.GetAgent)
-	register(mux, opts, chatv1.ChatExtensionsService_ProposeAgentIntent_FullMethodName, s.ProposeAgentIntent)
-	register(mux, opts, chatv1.ChatExtensionsService_ReportAbuse_FullMethodName, s.ReportAbuse)
-	register(mux, opts, chatv1.ChatExtensionsService_ModerateAbuse_FullMethodName, s.ModerateAbuse)
-	register(mux, opts, chatv1.ChatExtensionsService_IssueEventCursor_FullMethodName, s.IssueEventCursor)
-	register(mux, opts, chatv1.ChatExtensionsService_PullAppEvents_FullMethodName, s.PullAppEvents)
-	register(mux, opts, chatv1.ChatExtensionsService_ProposeCompanyGrant_FullMethodName, s.ProposeCompanyGrant)
-	register(mux, opts, chatv1.ChatExtensionsService_AcceptCompanyGrant_FullMethodName, s.AcceptCompanyGrant)
-	register(mux, opts, chatv1.ChatExtensionsService_RevokeCompanyGrant_FullMethodName, s.RevokeCompanyGrant)
-	register(mux, opts, chatv1.ChatExtensionsService_SetChannelPolicy_FullMethodName, s.SetChannelPolicy)
-	register(mux, opts, chatv1.ChatExtensionsService_GetRetentionPolicy_FullMethodName, s.GetRetentionPolicy)
-	register(mux, opts, chatv1.ChatExtensionsService_PutRetentionPolicy_FullMethodName, s.PutRetentionPolicy)
-	register(mux, opts, chatv1.ChatExtensionsService_GetChannelTodoList_FullMethodName, s.GetChannelTodoList)
-	register(mux, opts, chatv1.ChatExtensionsService_MutateChannelTodoList_FullMethodName, s.MutateChannelTodoList)
-	register(mux, opts, chatv1.ChatExtensionsService_GetChannelWidgets_FullMethodName, s.GetChannelWidgets)
-	register(mux, opts, chatv1.ChatExtensionsService_MutateChannelWidget_FullMethodName, s.MutateChannelWidget)
-	register(mux, opts, chatv1.ChatExtensionsService_GetChannelPoll_FullMethodName, s.GetChannelPoll)
-	register(mux, opts, chatv1.ChatExtensionsService_MutateChannelPoll_FullMethodName, s.MutateChannelPoll)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetCounts_FullMethodName, s.GetCounts)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetThreadFollow_FullMethodName, s.GetThreadFollow)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_PutThreadFollow_FullMethodName, s.PutThreadFollow)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetSidebar_FullMethodName, s.GetSidebar)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_PutSidebar_FullMethodName, s.PutSidebar)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetQuietHours_FullMethodName, s.GetQuietHours)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_PutQuietHours_FullMethodName, s.PutQuietHours)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_InstallApp_FullMethodName, s.InstallApp)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ListApps_FullMethodName, s.ListApps)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ChangeAppStatus_FullMethodName, s.ChangeAppStatus)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_InvokeApp_FullMethodName, s.InvokeApp)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetAgent_FullMethodName, s.GetAgent)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ProposeAgentIntent_FullMethodName, s.ProposeAgentIntent)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ReportAbuse_FullMethodName, s.ReportAbuse)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ModerateAbuse_FullMethodName, s.ModerateAbuse)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_IssueEventCursor_FullMethodName, s.IssueEventCursor)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_PullAppEvents_FullMethodName, s.PullAppEvents)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_ProposeCompanyGrant_FullMethodName, s.ProposeCompanyGrant)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_AcceptCompanyGrant_FullMethodName, s.AcceptCompanyGrant)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_RevokeCompanyGrant_FullMethodName, s.RevokeCompanyGrant)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_SetChannelPolicy_FullMethodName, s.SetChannelPolicy)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetRetentionPolicy_FullMethodName, s.GetRetentionPolicy)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_PutRetentionPolicy_FullMethodName, s.PutRetentionPolicy)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetChannelTodoList_FullMethodName, s.GetChannelTodoList)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_MutateChannelTodoList_FullMethodName, s.MutateChannelTodoList)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetChannelWidgets_FullMethodName, s.GetChannelWidgets)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_MutateChannelWidget_FullMethodName, s.MutateChannelWidget)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_GetChannelPoll_FullMethodName, s.GetChannelPoll)
+	chatshared.RegisterUnary(mux, opts, chatv1.ChatExtensionsService_MutateChannelPoll_FullMethodName, s.MutateChannelPoll)
 	return mux
-}
-func register[Req, Res any](m *http.ServeMux, opts []connect.HandlerOption, path string, fn func(context.Context, *Req) (*Res, error)) {
-	m.Handle(path, connect.NewUnaryHandler(path, func(ctx context.Context, r *connect.Request[Req]) (*connect.Response[Res], error) {
-		v, e := fn(ctx, r.Msg)
-		if e != nil {
-			return nil, e
-		}
-		return connect.NewResponse(v), nil
-	}, opts...))
 }
 func (s *server) principal(ctx context.Context) (chat.Principal, error) {
 	if s.deps.Service == nil {
@@ -467,16 +459,12 @@ func (s *server) SetChannelPolicy(ctx context.Context, r *chatv1.SetChannelPolic
 	return &chatv1.SetChannelPolicyResponse{Updated: true}, nil
 }
 
-// serverDerived refuses a caller-supplied value for a field the server owns.
-// The reader of a recipient projection is always the authenticated principal,
-// so a request that names a subject is refused rather than served somebody
-// else's row or - as before - quietly served its own.
-func serverDerived(field string) error {
-	return envelope.New(envelope.CodeInvalidArgument, "trusted_context.caller_selected_authority",
-		"the request may not select trusted context").
-		WithViolation(field, "the field is derived server-side from the verified credential",
-			"trusted_request_boundary.server_derived_field")
-}
+// serverDerivedMessage is what the shared trusted-context refusal tells a
+// caller that named a recipient-projection field. The reader of such a
+// projection is always the authenticated principal, so a request that names a
+// subject is refused rather than served somebody else's row or - as before -
+// quietly served its own.
+const serverDerivedMessage = "the field is derived server-side from the verified credential"
 
 func (s *server) GetCounts(ctx context.Context, r *chatv1.GetCountsRequest) (*chatv1.GetCountsResponse, error) {
 	p, e := s.principal(ctx)
@@ -484,7 +472,7 @@ func (s *server) GetCounts(ctx context.Context, r *chatv1.GetCountsRequest) (*ch
 		return nil, e
 	}
 	if r.GetSubjectId() != "" {
-		return nil, serverDerived("subject_id")
+		return nil, chatshared.ServerDerived("subject_id", serverDerivedMessage)
 	}
 	if len(r.GetConversationIds()) > 0 {
 		return s.sidebarCounts(ctx, p, r)
@@ -501,7 +489,7 @@ func (s *server) GetThreadFollow(ctx context.Context, r *chatv1.GetThreadFollowR
 		return nil, e
 	}
 	if r.GetSubjectId() != "" {
-		return nil, serverDerived("subject_id")
+		return nil, chatshared.ServerDerived("subject_id", serverDerivedMessage)
 	}
 	v, e := s.deps.Service.ThreadFollow(ctx, p, r.GetTenantId(), r.GetConversationId(), r.GetRootPostId())
 	if e != nil {
@@ -533,10 +521,10 @@ func (s *server) GetSidebar(ctx context.Context, r *chatv1.GetSidebarRequest) (*
 		return nil, e
 	}
 	if r.GetTenantId() != "" {
-		return nil, serverDerived("tenant_id")
+		return nil, chatshared.ServerDerived("tenant_id", serverDerivedMessage)
 	}
 	if r.GetSubjectId() != "" {
-		return nil, serverDerived("subject_id")
+		return nil, chatshared.ServerDerived("subject_id", serverDerivedMessage)
 	}
 	v, e := s.deps.Service.Sidebar(ctx, p)
 	if e != nil {
@@ -568,10 +556,10 @@ func (s *server) GetQuietHours(ctx context.Context, r *chatv1.GetQuietHoursReque
 		return nil, e
 	}
 	if r.GetTenantId() != "" {
-		return nil, serverDerived("tenant_id")
+		return nil, chatshared.ServerDerived("tenant_id", serverDerivedMessage)
 	}
 	if r.GetSubjectId() != "" {
-		return nil, serverDerived("subject_id")
+		return nil, chatshared.ServerDerived("subject_id", serverDerivedMessage)
 	}
 	v, e := s.deps.Service.QuietHours(ctx, p)
 	if e != nil {

@@ -30,7 +30,7 @@ func agentUX018Surfaces(t *testing.T, language string) map[string]string {
 
 	operations := ApplyLocale(NewView(PageAgentOperations, "tenant", "owner", ""), locale)
 	operations.AgentsProjection = &AgentsAvailabilityProjection{ViewerIsAdmin: true}
-	controls := agentUX073Snapshot()
+	controls := agentUX073SnapshotForText()
 	controls.Agents = []PersonaAdminPersona{persona}
 	rollout := AgentRolloutSnapshot{Available: true, CanPreview: true, Personas: []AgentRolloutPersona{{ID: "policy-helper", Name: "Policy Helper"}},
 		Versions:      []AgentRolloutVersion{{PersonaID: "policy-helper", Version: 3}, {PersonaID: "policy-helper", Version: 4, Current: true}},

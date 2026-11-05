@@ -10,21 +10,16 @@ import (
 // AGENTUX-075: Agent setup shows one checkbox per agent, "React to questions with
 // an emoji". Checked is the default: an agent whose owner has not chosen reacts.
 
+// agentUX075ReactionCopy is the copy agentUX075ReactionText resolves (agentux_copy.go).
+var agentUX075ReactionCopy = map[string][3]string{
+	"label": {"React to questions with an emoji", "Auf Fragen mit einem Emoji reagieren", "التفاعل مع الأسئلة برمز تعبيري"},
+	"hint": {"When someone asks this agent a question, it adds an emoji to the question before it answers.",
+		"Wenn jemand diesem Agenten eine Frage stellt, fügt er der Frage ein Emoji hinzu, bevor er antwortet.",
+		"عندما يطرح شخص سؤالاً على هذا الوكيل، يضيف رمزاً تعبيرياً إلى السؤال قبل أن يجيب."},
+}
+
 func agentUX075ReactionText(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"label": {"React to questions with an emoji", "Auf Fragen mit einem Emoji reagieren", "التفاعل مع الأسئلة برمز تعبيري"},
-		"hint": {"When someone asks this agent a question, it adds an emoji to the question before it answers.",
-			"Wenn jemand diesem Agenten eine Frage stellt, fügt er der Frage ein Emoji hinzu, bevor er antwortet.",
-			"عندما يطرح شخص سؤالاً على هذا الوكيل، يضيف رمزاً تعبيرياً إلى السؤال قبل أن يجيب."},
-	}
-	index := 0
-	switch language := strings.ToLower(locale.Resolved); {
-	case strings.HasPrefix(language, "de"):
-		index = 1
-	case strings.HasPrefix(language, "ar"):
-		index = 2
-	}
-	return copy[key][index]
+	return agentuxCopyText(agentUX075ReactionCopy, locale, key)
 }
 
 // personaAdminReactionsControl is the checkbox. It is left out for a retired

@@ -84,6 +84,90 @@ func TestTodo_PM_007(t *testing.T) {
 	}
 }
 
+func TestTodo_PM_007_Security(t *testing.T) {
+	p := fixture()
+	good := RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", Approver: "approver", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}
+	denied := []struct {
+		name  string
+		actor UserID
+		grant *RecoveryGrant
+		at    time.Time
+	}{
+		{"no grant for non-owner", "manager", nil, time.Time{}},
+		{"no grant for outsider", "outsider", nil, time.Time{}},
+		{"empty purpose", "recovery", &RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Approver: "approver", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}, time.Unix(15, 0)},
+		{"self-approved", "recovery", &RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", Approver: "recovery", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}, time.Unix(15, 0)},
+		{"missing approver", "recovery", &RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}, time.Unix(15, 0)},
+		{"wrong tenant", "recovery", &RecoveryGrant{Tenant: "other", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", Approver: "approver", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}, time.Unix(15, 0)},
+		{"wrong project", "recovery", &RecoveryGrant{Tenant: "t1", Project: "p2", Actor: "recovery", Purpose: "owner unavailable", Approver: "approver", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}, time.Unix(15, 0)},
+		{"wrong actor", "impostor", &good, time.Unix(15, 0)},
+		{"before window", "recovery", &good, time.Unix(9, 0)},
+		{"at window end", "recovery", &good, time.Unix(20, 0)},
+		{"after window", "recovery", &good, time.Unix(21, 0)},
+		{"zero-length window", "recovery", &RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", Approver: "approver", StartsAt: time.Unix(15, 0), EndsAt: time.Unix(15, 0)}, time.Unix(15, 0)},
+	}
+	for _, tc := range denied {
+		if _, _, err := TransferOwnership(p, tc.actor, "member", "t1", tc.grant, tc.at); !errors.Is(err, ErrRecoveryNotAuthorized) {
+			t.Fatalf("%s: error = %v, want ErrRecoveryNotAuthorized", tc.name, err)
+		}
+	}
+	if activeOwnerCount(p) != 1 {
+		t.Fatalf("denied attempts mutated owners: %d", activeOwnerCount(p))
+	}
+	// Recovery cannot self-grant ownership.
+	if _, _, err := TransferOwnership(p, "recovery", "recovery", "t1", &good, time.Unix(15, 0)); err == nil {
+		t.Fatal("recovery self-grant succeeded")
+	}
+	// A successful recovery transfer does not make the operator a member or reader.
+	recovered, _, err := TransferOwnership(p, "recovery", "member", "t1", &good, time.Unix(15, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := Authorize(recovered, "recovery", "t1", ReadTask, nil); d.Allowed || d.Reason != "no_active_membership" {
+		t.Fatalf("recovery operator gained read access: %+v", d)
+	}
+}
+
+func TestTodo_PM_007_Golden(t *testing.T) {
+	p := fixture()
+	transferred, audit, err := TransferOwnership(p, "owner", "manager", "t1", nil, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if audit != (Transfer{From: "owner", To: "manager"}) {
+		t.Fatalf("transfer record = %+v", audit)
+	}
+	wantRoles := map[UserID]Role{"owner": RoleManager, "manager": RoleOwner, "member": RoleContributor, "viewer": RoleViewer}
+	for user, want := range wantRoles {
+		role, ok := activeRole(transferred, user)
+		if !ok || role != want {
+			t.Fatalf("transfer role %q = %q active=%v, want %q", user, role, ok, want)
+		}
+	}
+	if n := activeOwnerCount(transferred); n != 1 {
+		t.Fatalf("transfer owners = %d, want exactly 1", n)
+	}
+	// Recovery at the inclusive window start adds an owner without demoting anyone.
+	grant := RecoveryGrant{Tenant: "t1", Project: "p1", Actor: "recovery", Purpose: "owner unavailable", Approver: "approver", StartsAt: time.Unix(10, 0), EndsAt: time.Unix(20, 0)}
+	recovered, record, err := TransferOwnership(p, "recovery", "member", "t1", &grant, time.Unix(10, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record != (Transfer{From: "recovery", To: "member"}) {
+		t.Fatalf("recovery record = %+v", record)
+	}
+	wantRecovery := map[UserID]Role{"owner": RoleOwner, "manager": RoleManager, "member": RoleOwner, "viewer": RoleViewer}
+	for user, want := range wantRecovery {
+		role, ok := activeRole(recovered, user)
+		if !ok || role != want {
+			t.Fatalf("recovery role %q = %q active=%v, want %q", user, role, ok, want)
+		}
+	}
+	if n := activeOwnerCount(recovered); n != 2 {
+		t.Fatalf("recovery owners = %d, want exactly 2", n)
+	}
+}
+
 func TestTodo_PM_036(t *testing.T) {
 	p := fixture()
 	if d := Authorize(p, "owner", "other-tenant", Archive, nil); d.Allowed || d.Reason != "tenant_scope" {

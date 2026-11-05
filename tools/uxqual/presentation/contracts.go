@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -69,7 +70,7 @@ func (v BoundValue) Validate() error {
 	if v.RecordedAt.IsZero() {
 		return fmt.Errorf("%w: recorded_at is required", ErrInvalid)
 	}
-	if v.Confidence != nil && (*v.Confidence < 0 || *v.Confidence > 1) {
+	if v.Confidence != nil && (math.IsNaN(*v.Confidence) || *v.Confidence < 0 || *v.Confidence > 1) {
 		return fmt.Errorf("%w: confidence must be between zero and one", ErrInvalid)
 	}
 	if (v.Disposition == DispositionHide || v.Disposition == DispositionRedact) &&

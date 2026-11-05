@@ -282,7 +282,7 @@
           "direction": "FORWARD",
           "from": "hcmnext.fixture.alpha/v1",
           "to": "todo:FIX-001",
-          "registry": "planning/todos.md"
+          "registry": "planning/archive/todos-2026-10-22.md"
         },
         {
           "class": "TODO",
@@ -296,7 +296,7 @@
           "direction": "FORWARD",
           "from": "todo:FIX-001",
           "to": "evidence:sha256:evidence-FIX-001",
-          "registry": "planning/todos.md"
+          "registry": "planning/archive/todos-2026-10-22.md"
         }
       ],
       "tests": [
@@ -318,7 +318,7 @@
       "expiry": "2026-12-31",
       "result": "COMPLETE",
       "defects": [],
-      "digest": "sha256:60faeca0419b58660fb527713901c95194addf11e260722616c949e8953ace64"
+      "digest": "sha256:c958101fef421746b321cd123de0bcdee960ff561529bdbe13c02c78f80a420b"
     },
     {
       "definition": "hcmnext.fixture.beta/v1",
@@ -530,7 +530,7 @@
           "direction": "FORWARD",
           "from": "hcmnext.fixture.beta/v1",
           "to": "todo:FIX-002",
-          "registry": "planning/todos.md"
+          "registry": "planning/archive/todos-2026-10-22.md"
         },
         {
           "class": "TODO",
@@ -544,7 +544,7 @@
           "direction": "FORWARD",
           "from": "todo:FIX-002",
           "to": "evidence:sha256:evidence-FIX-002",
-          "registry": "planning/todos.md"
+          "registry": "planning/archive/todos-2026-10-22.md"
         }
       ],
       "tests": [
@@ -581,7 +581,7 @@
           "detail": "reachable only through 1 generic lifecycle methods that dispatch every such definition; no endpoint is this definition's own"
         }
       ],
-      "digest": "sha256:a438f068982bd4522e451d3c1d259f72e06cf329dfaaecb36a3a954e794d65a8"
+      "digest": "sha256:3026f18ccf35a3bdae3e85d6c8084828fb8a3130bf8af05ca6229dac502a40e3"
     },
     {
       "definition": "hcmnext.fixture.gamma/v1",
@@ -777,5 +777,5 @@
       "detail": "an INTENT CONTEXT INTENTS token names no source-bound definition"
     }
   ],
-  "digest": "sha256:4a1fdef7240fd135b66bb3f0a116e79f0ff98c0fcb685d83f2df3acdff5ca3ee"
+  "digest": "sha256:a7f462ba4a8f25d9f45192ba83c435b81c0066ba623eb7a355791a3b9046bb46"
 }

@@ -4,6 +4,7 @@ package productui
 // no authorization or business meaning and is safe to apply across every
 // product component and embedded workflow surface.
 type AccessibilityPreferences struct {
+	_        incomparable
 	TextSize string `json:"text_size"`
 	Contrast string `json:"contrast"`
 	Motion   string `json:"motion"`
@@ -13,6 +14,7 @@ type AccessibilityPreferences struct {
 }
 
 type AccessibilityOption struct {
+	_              incomparable
 	ID             string
 	LabelKey       string
 	DescriptionKey string

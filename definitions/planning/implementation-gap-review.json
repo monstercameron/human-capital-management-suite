@@ -1,0 +1,1400 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-22 America/New_York / 2026-10-23 UTC",
+  "repository": "C:/Users/mreca/Desktop/hcm-next",
+  "status": "published_backlog",
+  "summary": {
+    "new_issue_count": 6,
+    "existing_issue_addenda": 1,
+    "confirmed_findings": 8,
+    "code_changes": 0,
+    "github_writes": 7,
+    "audit_agent_github_writes": 0
+  },
+  "scope": [
+    "Workorder aggregate/service/transport/report/billing and durable artifact contracts",
+    "Appointment shared reservation adapter and asset memory/domain/PostgreSQL parity",
+    "DataOps simulation/correction contracts and connector status disclosure",
+    "Contact revision/challenge persistence/application exposure read for reuse, no additional confirmed defect"
+  ],
+  "limitations": [
+    "Focused source/test audit, not exhaustive repository correctness or the separate eight-hour browser audit.",
+    "No browser interactions, live/demo-data mutations, deployments, runtime code changes, staging or commits.",
+    "Connector evidence and corrective absence are library defects with no production consumers found. No actual external exploit or executed rollback damage claimed.",
+    "No local race detector. Full payroll/legal, all project board methods, org admin, device/provider adapters and all config activation/retry histories were not comprehensively reviewed."
+  ],
+  "baseline_checks": [
+    {
+      "command": "go test -count=1 ./internal/application/workorderservice -run 'TestGet|TestRequestReport|TestRequestBillingDraft'",
+      "result": "Package ok1.817s; process exit1 due Windows unlinkat cleanup; per AGENTS not test failure."
+    },
+    {
+      "command": "go test -count=1 ./internal/domains/workorder ./internal/domains/workorderbilling ./internal/domains/workorderreport ./internal/domains/contact",
+      "result": "All4 packages ok (1.849s,1.895s,1.356s,1.859s); process exit1 due Windows unlinkat cleanup."
+    },
+    {
+      "command": "go test -count=1 ./internal/domains/dataops/importing/",
+      "result": "ok, 2.987s"
+    },
+    {
+      "command": "go test -count=1 ./internal/operations/admincenter/connectorconfig/",
+      "result": "ok, 0.765s; Windows unlinkat access-denied cleanup followed, not a package failure per AGENTS.md"
+    }
+  ],
+  "baseline_vs_probes": "Selected existing suites pass. New negative regression assertions fail on current source; asset proof contains five real-DB parity vectors grouped as one defect. No implementation fix claimed.",
+  "findings": [
+    {
+      "id": "IMPL-GAP-001",
+      "candidate_id": "IMPL-WO-FINANCIAL-VISIBILITY",
+      "title": "Enforce cost visibility for isolated work-order billing-review requests",
+      "priority": "P1",
+      "classification": "proven implementation defect",
+      "phase": "PHASE_3",
+      "owner": "internal/application/workorderservice",
+      "source": [
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 466,
+          "observation": "canCost defaults true and is reauthorized only when snapshotHasCost is true."
+        },
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 537,
+          "observation": "financialRequestKind includes RequestBillingReview."
+        },
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 586,
+          "observation": "snapshotHasCost repeats the sensitivity list but omits RequestBillingReview."
+        },
+        {
+          "path": "internal/application/workorderservice/service_test.go",
+          "line": 186,
+          "observation": "Existing projection test contains Budget plus Spending/Corrections, so always activates cost gate and cannot detect the isolated kind."
+        }
+      ],
+      "current_behavior": "A work-order snapshot containing a BILLING_REVIEW request but no other financial requests, spending, corrections or FINANCE notes bypasses ViewCost authorization. Get returns price-containing subject, rationale, configurable form data, pricing version, billing period and evidence refs to a principal whose ViewCost is denied.",
+      "expected_contract": "The existing financialRequestKind and projectSnapshot comments require configurable financial request content to be removed without current ViewCost while retaining safe workflow receipt/status metadata.",
+      "reproduction": [
+        "Create existing valid testSnapshot and append one valid BILLING_REVIEW with all required exact-decimal values initialized, confidential Subject/Rationale/FormValues/PricingVersion/EvidenceRefs; no other cost-bearing collections.",
+        "Call Service.Get with testAuthorizer allowing Read but denying ViewCost.",
+        "Expected sanitized request. Actual auth_calls=1,last_cap=read and original confidential request fields returned."
+      ],
+      "proof": {
+        "test": "TestAuditBillingReviewIsolatedFinancialProjection",
+        "file": ".artifacts/lanes/smb-expansion-20261022/implementation-review/workorder_probe_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorder-overlay.json ./internal/application/workorderservice -run TestAuditBillingReview -v",
+        "result": "FAIL at zz_audit_probe_test.go:19: financial fields escaped denied ViewCost; auth_calls=1,last_cap=read. Actual assertion failure, not Windows cleanup warning."
+      },
+      "exposure": "Public application Get path reproduced; authenticated RPC consumes its projection. No live user data or external exploitation attempted.",
+      "existing_overlap": {
+        "exact_open_issue_sufficient": false,
+        "search": "github-before full title/body scan for workorder, workorderstore, RequestBillingReview, snapshotHasCost; current GitHub recent100 check through #3436",
+        "related": [],
+        "note": "SMB-JOB001 and SMB-BILL work extend these sources but do not name this existing conditional-gate regression."
+      },
+      "proposed_fix": [
+        "Make financial sensitivity classification one owner-local predicate shared by gate detection and redaction, or always evaluate ViewCost for financial projections.",
+        "Table-test every financial request kind in isolation with no other collection capable of masking the missing gate; preserve safe metadata and authorized access.",
+        "Cover Get, List and mutation responses using the same projection; durable source state must remain unmodified."
+      ],
+      "acceptance": [
+        "Read allowed/ViewCost denied sees no financial Subject, Rationale, FormValues, price/version/period fields, evidence metadata or decision text on an isolated BILLING_REVIEW.",
+        "Same principal after current ViewCost revocation receives sanitized fresh and replayed mutation projections; granted principal still sees authorized values.",
+        "Every enumerated financial kind is independently tested and added kinds cannot silently bypass gate/redaction consistency.",
+        "No raw financial values leak through API JSON, DOM, hidden attributes, tooltips, search previews or errors when the job surface is consumed."
+      ],
+      "ui_ux": [
+        "Reuse existing work-order detail/request cards and field-visibility conventions; show safe request kind/state without empty money rendered as zero.",
+        "Keep authorized finance review fields and evidence actions visible for allowed users; denied users have no focusable hidden detail/evidence links.",
+        "No new nav/component system. Future served card smoke cases: 1280x720,390 and320, keyboard/focus and en-US/de-DE/arRTL; this audit did not run browser."
+      ],
+      "affected_smb": [
+        {
+          "id": "SMB-JOB-001",
+          "relation": "hard prerequisite",
+          "reason": "Customer-job extension consumes current work-order projection."
+        },
+        {
+          "id": "SMB-BILL-001",
+          "relation": "hard prerequisite",
+          "reason": "Billing review extension must inherit correct current cost visibility."
+        },
+        {
+          "id": "SMB-PORTAL-004",
+          "relation": "source-risk link",
+          "reason": "External financial projections must not reuse an ungated raw work-order view; verify own explicit field grants."
+        }
+      ],
+      "depends": [],
+      "intent_sets": ["BI.WORK", "BI.COMMERCIAL"],
+      "test": "TestTodo_IMPL_GAP_001",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_001",
+        "SECURITY": "TestTodo_IMPL_GAP_001_Security",
+        "INTEGRATION": "TestTodo_IMPL_GAP_001_Integration"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/application/workorderservice -run 'TestTodo_IMPL_GAP_001|TestGetProjectsFinancialAndPayFieldsByCurrentCapabilities'",
+        "go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_001_Integration"
+      ],
+      "red": "An isolated BILLING_REVIEW returns financial fields through Get despite denied ViewCost because snapshotHasCost omits that kind.",
+      "green": "All financial request kinds share one sensitivity predicate and denied projections retain only safe request receipt/status fields across Get/List/mutation and served transport.",
+      "refactor": "Reuse workorderservice.projectSnapshot and existing workorderaccess capabilities; do not introduce a second policy layer.",
+      "non_goals": [
+        "No new customer billing engine or portal",
+        "No live browser/external exploit claim"
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-001: Enforce cost visibility for isolated work-order billing-review requests",
+      "github_body": "Todo-ID: IMPL-GAP-001\nState: OPEN\nPriority: P1\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nA work-order snapshot containing a BILLING_REVIEW request but no other financial requests, spending, corrections or FINANCE notes bypasses ViewCost authorization. Get returns price-containing subject, rationale, configurable form data, pricing version, billing period and evidence refs to a principal whose ViewCost is denied.\nThe existing financialRequestKind and projectSnapshot comments require configurable financial request content to be removed without current ViewCost while retaining safe workflow receipt/status metadata.\n\n## Source evidence\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":466,\"observation\":\"canCost defaults true and is reauthorized only when snapshotHasCost is true.\"}\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":537,\"observation\":\"financialRequestKind includes RequestBillingReview.\"}\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":586,\"observation\":\"snapshotHasCost repeats the sensitivity list but omits RequestBillingReview.\"}\n- {\"path\":\"internal/application/workorderservice/service_test.go\",\"line\":186,\"observation\":\"Existing projection test contains Budget plus Spending/Corrections, so always activates cost gate and cannot detect the isolated kind.\"}\n\n## Reproduction and executed proof\n- Create existing valid testSnapshot and append one valid BILLING_REVIEW with all required exact-decimal values initialized, confidential Subject/Rationale/FormValues/PricingVersion/EvidenceRefs; no other cost-bearing collections.\n- Call Service.Get with testAuthorizer allowing Read but denying ViewCost.\n- Expected sanitized request. Actual auth_calls=1,last_cap=read and original confidential request fields returned.\n\n{\n  \"test\": \"TestAuditBillingReviewIsolatedFinancialProjection\",\n  \"file\": \".artifacts/lanes/smb-expansion-20261022/implementation-review/workorder_probe_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorder-overlay.json ./internal/application/workorderservice -run TestAuditBillingReview -v\",\n  \"result\": \"FAIL at zz_audit_probe_test.go:19: financial fields escaped denied ViewCost; auth_calls=1,last_cap=read. Actual assertion failure, not Windows cleanup warning.\"\n}\n\n## Required change and reuse\nOwner: `internal/application/workorderservice`.\n- Make financial sensitivity classification one owner-local predicate shared by gate detection and redaction, or always evaluate ViewCost for financial projections.\n- Table-test every financial request kind in isolation with no other collection capable of masking the missing gate; preserve safe metadata and authorized access.\n- Cover Get, List and mutation responses using the same projection; durable source state must remain unmodified.\n\n## UI and UX\n- Reuse existing work-order detail/request cards and field-visibility conventions; show safe request kind/state without empty money rendered as zero.\n- Keep authorized finance review fields and evidence actions visible for allowed users; denied users have no focusable hidden detail/evidence links.\n- No new nav/component system. Future served card smoke cases: 1280x720,390 and320, keyboard/focus and en-US/de-DE/arRTL; this audit did not run browser.\n\n## Acceptance\n- Read allowed/ViewCost denied sees no financial Subject, Rationale, FormValues, price/version/period fields, evidence metadata or decision text on an isolated BILLING_REVIEW.\n- Same principal after current ViewCost revocation receives sanitized fresh and replayed mutation projections; granted principal still sees authorized values.\n- Every enumerated financial kind is independently tested and added kinds cannot silently bypass gate/redaction consistency.\n- No raw financial values leak through API JSON, DOM, hidden attributes, tooltips, search previews or errors when the job surface is consumed.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.COMMERCIAL; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_001`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_001`; `SECURITY=TestTodo_IMPL_GAP_001_Security`; `INTEGRATION=TestTodo_IMPL_GAP_001_Integration`.\nRED: An isolated BILLING_REVIEW returns financial fields through Get despite denied ViewCost because snapshotHasCost omits that kind.\nGREEN: All financial request kinds share one sensitivity predicate and denied projections retain only safe request receipt/status fields across Get/List/mutation and served transport.\nREFACTOR: Reuse workorderservice.projectSnapshot and existing workorderaccess capabilities; do not introduce a second policy layer.\n\n- go test -count=1 ./internal/application/workorderservice -run 'TestTodo_IMPL_GAP_001|TestGetProjectsFinancialAndPayFieldsByCurrentCapabilities'\n- go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_001_Integration\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: none; source already exists.\n{\n  \"exact_open_issue_sufficient\": false,\n  \"search\": \"github-before full title/body scan for workorder, workorderstore, RequestBillingReview, snapshotHasCost; current GitHub recent100 check through #3436\",\n  \"related\": [],\n  \"note\": \"SMB-JOB001 and SMB-BILL work extend these sources but do not name this existing conditional-gate regression.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-JOB-001\",\"relation\":\"hard prerequisite\",\"reason\":\"Customer-job extension consumes current work-order projection.\"}\n- {\"id\":\"SMB-BILL-001\",\"relation\":\"hard prerequisite\",\"reason\":\"Billing review extension must inherit correct current cost visibility.\"}\n- {\"id\":\"SMB-PORTAL-004\",\"relation\":\"source-risk link\",\"reason\":\"External financial projections must not reuse an ungated raw work-order view; verify own explicit field grants.\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new customer billing engine or portal\n- No live browser/external exploit claim\n"
+    },
+    {
+      "id": "IMPL-GAP-002",
+      "title": "Enforce the asset domain custody state machine in the PostgreSQL adapter",
+      "severity": "high business-data correctness; proven accepted invalid histories and rejected valid recovery",
+      "owner": "internal/data/assetstore using internal/domains/asset semantics",
+      "source": [
+        "internal/data/assetstore/store.go:188",
+        "internal/data/assetstore/store.go:197",
+        "internal/data/assetstore/store.go:215",
+        "internal/data/assetstore/store.go:426",
+        "internal/domains/asset/contracts.go:243",
+        "internal/domains/asset/contracts.go:265",
+        "internal/domains/asset/contracts.go:282",
+        "migrations/00071_asset_inventory.sql:40"
+      ],
+      "evidence": "Both adapters implement asset.Repository. AppendCustody validates only the next row, reads revision/status without current worker/effective time, skips transition validation when no prior custody row exists, and uses a reduced separate validateTransition. Current database constraints restrict status vocabulary and uniqueness but do not repair these semantic gaps.",
+      "reproduction": [
+        "Fresh isolated real PostgreSQL, migrate through 00071; create tenant and asset fixture. Apply each scenario to both asset.NewCustodyStore and assetstore.New(db.Conn).",
+        "First custody RETIRED: memory rejects invalid transition; durable returns nil.",
+        "First assignment with retired inventory: memory rejects invalid transition; durable returns nil.",
+        "After assigned revision1, revision2 RETURN_PENDING predates revision1: memory ErrChronology; durable nil.",
+        "After assigned revision1, revision2 RETURN_PENDING names a different worker: memory ErrNotAssigned; durable nil.",
+        "Assigned -> Lost -> Returned with valid verified receipts and ascending time/revisions: memory succeeds; durable returns ASSET_INVALID invalid custody transition on recovery."
+      ],
+      "probe": ".artifacts/lanes/smb-expansion-20261022/implementation-review/assetstore_probe_test.go:13",
+      "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/data/assetstore -run TestAuditAssetstoreDomainParity -v",
+      "result": "All five named subtests fail adapter-equivalence assertions exactly as described. Real embedded PostgreSQL17.5 started on loopback port63023, cleanly stopped. Test body33.10s, package FAIL51.929s, exit1.",
+      "existing_overlap": [
+        {
+          "number": 919,
+          "title": "PERSIST-ASSET-001: Add durable PostgreSQL tables for equipment inventory and custody.",
+          "state": "closed",
+          "body_review": "Claims adapter persists domain CAS semantics; primary/integration tests only happy assignment->pending->return, duplicate/stale and tenant/append-only cases. New precise regression is appropriate rather than reopening all completed schema work."
+        },
+        {
+          "number": 809,
+          "title": "ASSET-001: Define equipment inventory, custody, assignment and return revisions.",
+          "state": "open",
+          "body_review": "Domain semantics already exist. Reopened for served reachability, not these database divergences. Link as semantic dependency."
+        },
+        {
+          "number": 392,
+          "title": "ASSET-002: Prove loss, recovery, offboarding and external inventory reconciliation.",
+          "state": "closed",
+          "body_review": "Memory domain implements loss/recovery; durable adapter rejects recovery. Require durable parity without replacing the domain."
+        },
+        {
+          "number": 1536,
+          "title": "REV-027-01: Wire the domain-persistence backfill store packages into a serving code path or reopen the tickets that claim them as done.",
+          "state": "open",
+          "body_review": "Generic serving wiring issue, does not specify custody state-machine errors. Do not mistake wiring for semantic correctness."
+        }
+      ],
+      "expansion_overlap": [
+        "SMB-ASSET-001 extends existing identity and serviceability, and should depend on this parity fix for served durable state.",
+        "SMB-ASSET-003 adds handoff UX/evidence and SMB-ASSET-005 adds loss/recovery stock reconciliation; both should reuse fixed durable custody transitions, not duplicate existing owner."
+      ],
+      "disposition": "Create one atomic adapter/domain parity regression linked to #919, #809 and #392; extend existing owner, no new subsystem. Add dependency references to SMB-ASSET stories through parent coordination.",
+      "acceptance": [
+        "A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.",
+        "The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.",
+        "Valid loss recovery persists and survives reopen; unverified return continues to fail.",
+        "Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.",
+        "Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.",
+        "Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes."
+      ],
+      "ui_ux": "Existing equipment/custody flows must retain form state and show the domain refusal next to attempted action; stale current state offers reload/review. Return recovery must show success only after durable receipt and never close exit obligations on a rejected write. No new navigation or visual subsystem.",
+      "review_verdict": "ACCEPTED by independent source review plus five real-DB negative proofs. No claim of external endpoint exploit or reproduced concurrent double-write.",
+      "candidate_id": "IMPL-ASSET-PARITY",
+      "priority": "P1",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["PERSIST-ASSET-001"],
+      "intent_sets": ["BI.WORKFORCE", "BI.WORK"],
+      "red": "Durable AppendCustody accepts invalid initial/retired/backdated/wrong-worker histories and rejects valid lost-to-returned recovery that the canonical domain handles correctly.",
+      "green": "Memory and real PostgreSQL adapters enforce the complete same custody transition semantics atomically; five observed vectors plus rejection-no-write, concurrency and reopen tests pass.",
+      "refactor": "Extract/reuse the existing asset-owned pure transition validator from both adapters while preserving write/CAS boundary and append-only histories.",
+      "affected_smb": [
+        {
+          "id": "SMB-ASSET-001",
+          "relation": "hard prerequisite"
+        },
+        {
+          "id": "SMB-ASSET-003",
+          "relation": "transitive prerequisite via SMB-ASSET001"
+        },
+        {
+          "id": "SMB-ASSET-005",
+          "relation": "transitive prerequisite via SMB-ASSET001"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/dataops_connectivity_review",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json"
+      },
+      "test": "TestTodo_IMPL_GAP_002",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_002",
+        "INTEGRATION": "TestTodo_IMPL_GAP_002_Integration",
+        "SECURITY": "TestTodo_IMPL_GAP_002_Security",
+        "RECOVERY": "TestTodo_IMPL_GAP_002_Recovery",
+        "RACE": "TestTodo_IMPL_GAP_002_Race"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/data/assetstore -run 'TestTodo_IMPL_GAP_002|TestTodo_PERSIST_ASSET_001'",
+        "go test -count=1 ./internal/domains/asset",
+        "CI supported toolchain: go test -race -count=1 ./internal/data/assetstore -run TestTodo_IMPL_GAP_002_Race"
+      ],
+      "non_goals": [
+        "No new asset subsystem",
+        "No concurrent double-write was reproduced; concurrency remains required fix acceptance"
+      ],
+      "github_title": "IMPL-GAP-002: Enforce the asset domain custody state machine in the PostgreSQL adapter",
+      "github_body": "Todo-ID: IMPL-GAP-002\nState: OPEN\nPriority: P1\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nBoth adapters implement asset.Repository. AppendCustody validates only the next row, reads revision/status without current worker/effective time, skips transition validation when no prior custody row exists, and uses a reduced separate validateTransition. Current database constraints restrict status vocabulary and uniqueness but do not repair these semantic gaps.\n\n\n## Source evidence\n- internal/data/assetstore/store.go:188\n- internal/data/assetstore/store.go:197\n- internal/data/assetstore/store.go:215\n- internal/data/assetstore/store.go:426\n- internal/domains/asset/contracts.go:243\n- internal/domains/asset/contracts.go:265\n- internal/domains/asset/contracts.go:282\n- migrations/00071_asset_inventory.sql:40\n\n## Reproduction and executed proof\n- Fresh isolated real PostgreSQL, migrate through 00071; create tenant and asset fixture. Apply each scenario to both asset.NewCustodyStore and assetstore.New(db.Conn).\n- First custody RETIRED: memory rejects invalid transition; durable returns nil.\n- First assignment with retired inventory: memory rejects invalid transition; durable returns nil.\n- After assigned revision1, revision2 RETURN_PENDING predates revision1: memory ErrChronology; durable nil.\n- After assigned revision1, revision2 RETURN_PENDING names a different worker: memory ErrNotAssigned; durable nil.\n- Assigned -> Lost -> Returned with valid verified receipts and ascending time/revisions: memory succeeds; durable returns ASSET_INVALID invalid custody transition on recovery.\n\nProbe: .artifacts/lanes/smb-expansion-20261022/implementation-review/assetstore_probe_test.go:13\nCommand: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/data/assetstore -run TestAuditAssetstoreDomainParity -v`\nObserved: All five named subtests fail adapter-equivalence assertions exactly as described. Real embedded PostgreSQL17.5 started on loopback port63023, cleanly stopped. Test body33.10s, package FAIL51.929s, exit1.\n\n## Required change and reuse\nOwner: `internal/data/assetstore using internal/domains/asset semantics`.\n- A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.\n- The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.\n- Valid loss recovery persists and survives reopen; unverified return continues to fail.\n- Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.\n- Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.\n- Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes.\n\n## UI and UX\nExisting equipment/custody flows must retain form state and show the domain refusal next to attempted action; stale current state offers reload/review. Return recovery must show success only after durable receipt and never close exit obligations on a rejected write. No new navigation or visual subsystem.\n\n## Acceptance\n- A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.\n- The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.\n- Valid loss recovery persists and survives reopen; unverified return continues to fail.\n- Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.\n- Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.\n- Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_002`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_002`; `INTEGRATION=TestTodo_IMPL_GAP_002_Integration`; `SECURITY=TestTodo_IMPL_GAP_002_Security`; `RECOVERY=TestTodo_IMPL_GAP_002_Recovery`; `RACE=TestTodo_IMPL_GAP_002_Race`.\nRED: Durable AppendCustody accepts invalid initial/retired/backdated/wrong-worker histories and rejects valid lost-to-returned recovery that the canonical domain handles correctly.\nGREEN: Memory and real PostgreSQL adapters enforce the complete same custody transition semantics atomically; five observed vectors plus rejection-no-write, concurrency and reopen tests pass.\nREFACTOR: Extract/reuse the existing asset-owned pure transition validator from both adapters while preserving write/CAS boundary and append-only histories.\n\n- go test -count=1 ./internal/data/assetstore -run 'TestTodo_IMPL_GAP_002|TestTodo_PERSIST_ASSET_001'\n- go test -count=1 ./internal/domains/asset\n- CI supported toolchain: go test -race -count=1 ./internal/data/assetstore -run TestTodo_IMPL_GAP_002_Race\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: PERSIST-ASSET-001.\n- {\"number\":919,\"title\":\"PERSIST-ASSET-001: Add durable PostgreSQL tables for equipment inventory and custody.\",\"state\":\"closed\",\"body_review\":\"Claims adapter persists domain CAS semantics; primary/integration tests only happy assignment->pending->return, duplicate/stale and tenant/append-only cases. New precise regression is appropriate rather than reopening all completed schema work.\"}\n- {\"number\":809,\"title\":\"ASSET-001: Define equipment inventory, custody, assignment and return revisions.\",\"state\":\"open\",\"body_review\":\"Domain semantics already exist. Reopened for served reachability, not these database divergences. Link as semantic dependency.\"}\n- {\"number\":392,\"title\":\"ASSET-002: Prove loss, recovery, offboarding and external inventory reconciliation.\",\"state\":\"closed\",\"body_review\":\"Memory domain implements loss/recovery; durable adapter rejects recovery. Require durable parity without replacing the domain.\"}\n- {\"number\":1536,\"title\":\"REV-027-01: Wire the domain-persistence backfill store packages into a serving code path or reopen the tickets that claim them as done.\",\"state\":\"open\",\"body_review\":\"Generic serving wiring issue, does not specify custody state-machine errors. Do not mistake wiring for semantic correctness.\"}\nAffected SMB consumers: - {\"id\":\"SMB-ASSET-001\",\"relation\":\"hard prerequisite\"}\n- {\"id\":\"SMB-ASSET-003\",\"relation\":\"transitive prerequisite via SMB-ASSET001\"}\n- {\"id\":\"SMB-ASSET-005\",\"relation\":\"transitive prerequisite via SMB-ASSET001\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/dataops_connectivity_review; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new asset subsystem\n- No concurrent double-write was reproduced; concurrency remains required fix acceptance\n"
+    },
+    {
+      "id": "IMPL-GAP-003",
+      "candidate_id": "IMPL-WO-ARTIFACT-TIMESTAMP",
+      "title": "Return the persisted creation time on the first work-order artifact receipt",
+      "priority": "P2",
+      "classification": "proven implementation defect",
+      "phase": "PHASE_3",
+      "owner": "internal/data/workorderstore",
+      "source": [
+        {
+          "path": "internal/data/workorderstore/store.go",
+          "line": 499,
+          "observation": "First RecordArtifact constructs result without CreatedAt and uses Exec INSERT instead of scanning database timestamp."
+        },
+        {
+          "path": "internal/data/workorderstore/store.go",
+          "line": 485,
+          "observation": "Replay scans persisted created_at."
+        },
+        {
+          "path": "internal/transport/workorder/server.go",
+          "line": 980,
+          "observation": "Report RPC maps Artifact.CreatedAt directly to GeneratedAt."
+        }
+      ],
+      "current_behavior": "First successful report/billing ArtifactRecord receipt returns Go zero time although database default created_at is valid. GetArtifact and same-key replay return the real time. Report RPC therefore exposes year 1 on first response and correct time on replay.",
+      "expected_contract": "RecordArtifact's documented immutable exact-replay receipt and RequestWorkOrderReport GeneratedAt should reflect the persisted artifact creation timestamp on every delivery.",
+      "reproduction": [
+        "Create real-PostgreSQL workorderstore fixture and initial order.",
+        "Call RecordArtifact REPORT at revision1, then GetArtifact and identical RecordArtifact replay.",
+        "Expected same nonzero CreatedAt on all three. Actual first=0001-01-01T00:00:00Z, persisted/replay=2026-10-22T20:47:32.813757-04:00."
+      ],
+      "proof": {
+        "test": "TestAuditArtifactFirstReceiptMatchesPersistedTime",
+        "file": ".artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore_probe_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore-overlay.json ./internal/data/workorderstore -run TestAuditArtifactFirstReceipt -v",
+        "result": "FAIL exact timestamp equality assertion against real PostgreSQL17.5; package55.750s, embedded database cleanly stopped."
+      },
+      "exposure": "Real database adapter proof plus direct RPC mapping source; no browser timestamp display asserted. Year1 is proto-valid, so claim incorrect value rather than serialization rejection.",
+      "existing_overlap": {
+        "exact_open_issue_sufficient": false,
+        "related": [],
+        "search": "github-before full scan workorderstore/RecordArtifact/timestamp; recent100 GitHub through #3436",
+        "note": "Existing TestTodo_WorkOrderStore_ArtifactsAndList checks artifact ID/content but omits first/read/replay CreatedAt equality."
+      },
+      "proposed_fix": [
+        "Read created_at from the same INSERT transaction (RETURNING) rather than substitute application time.",
+        "Preserve stable artifact identity, payload, source revision and exact persisted timestamp across first delivery/read/replay.",
+        "Apply same receipt path to REPORT and BILLING; no duplicate timestamp storage or migration unless separately necessary."
+      ],
+      "acceptance": [
+        "First REPORT and BILLING receipts have nonzero database creation time equal to GetArtifact and same-key replay.",
+        "RequestWorkOrderReport GeneratedAt matches persisted timestamp on initial response and retry.",
+        "Cross-tenant, digest-conflicting and stale-revision behavior is unchanged, with no successful receipt after failed transaction.",
+        "Time rendering uses existing locale/timezone formatting and retains machine timestamp, with no year1/1970 placeholder substituted."
+      ],
+      "ui_ux": [
+        "Existing generated report card/history must show the same actual generated time before and after reload/retry; no flicker from sentinel year1 to current time.",
+        "If a timestamp is unavailable due a failure, show an explicit unavailable state rather than false success or fabricated now.",
+        "No new page/UI system; verify the consuming card when present at320/390/1280 and locales with the existing date component."
+      ],
+      "affected_smb": [
+        {
+          "id": "SMB-JOB-006",
+          "relation": "hard prerequisite",
+          "reason": "Operations report receipts must have stable real generation time."
+        },
+        {
+          "id": "SMB-BILL-002",
+          "relation": "source-risk link",
+          "reason": "Billable artifact consumers also use RecordArtifact."
+        }
+      ],
+      "depends": [],
+      "intent_sets": ["BI.WORK"],
+      "test": "TestTodo_IMPL_GAP_003",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_003",
+        "INTEGRATION": "TestTodo_IMPL_GAP_003_Integration",
+        "RECOVERY": "TestTodo_IMPL_GAP_003_Recovery"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/data/workorderstore -run 'TestTodo_IMPL_GAP_003|TestTodo_WorkOrderStore_ArtifactsAndList'",
+        "go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_003_Integration"
+      ],
+      "red": "First successful artifact receipt has CreatedAt zero while persisted read and replay have database time.",
+      "green": "The atomic insert returns its persisted creation time, identical on first/read/replay and exposed faithfully by report RPC.",
+      "refactor": "Reuse one existing artifact persistence path and database timestamp authority.",
+      "non_goals": [
+        "No new renderer/download system",
+        "No claim year1 protobuf timestamp is invalid"
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-003: Return the persisted creation time on the first work-order artifact receipt",
+      "github_body": "Todo-ID: IMPL-GAP-003\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nFirst successful report/billing ArtifactRecord receipt returns Go zero time although database default created_at is valid. GetArtifact and same-key replay return the real time. Report RPC therefore exposes year 1 on first response and correct time on replay.\nRecordArtifact's documented immutable exact-replay receipt and RequestWorkOrderReport GeneratedAt should reflect the persisted artifact creation timestamp on every delivery.\n\n## Source evidence\n- {\"path\":\"internal/data/workorderstore/store.go\",\"line\":499,\"observation\":\"First RecordArtifact constructs result without CreatedAt and uses Exec INSERT instead of scanning database timestamp.\"}\n- {\"path\":\"internal/data/workorderstore/store.go\",\"line\":485,\"observation\":\"Replay scans persisted created_at.\"}\n- {\"path\":\"internal/transport/workorder/server.go\",\"line\":980,\"observation\":\"Report RPC maps Artifact.CreatedAt directly to GeneratedAt.\"}\n\n## Reproduction and executed proof\n- Create real-PostgreSQL workorderstore fixture and initial order.\n- Call RecordArtifact REPORT at revision1, then GetArtifact and identical RecordArtifact replay.\n- Expected same nonzero CreatedAt on all three. Actual first=0001-01-01T00:00:00Z, persisted/replay=2026-10-22T20:47:32.813757-04:00.\n\n{\n  \"test\": \"TestAuditArtifactFirstReceiptMatchesPersistedTime\",\n  \"file\": \".artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore_probe_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore-overlay.json ./internal/data/workorderstore -run TestAuditArtifactFirstReceipt -v\",\n  \"result\": \"FAIL exact timestamp equality assertion against real PostgreSQL17.5; package55.750s, embedded database cleanly stopped.\"\n}\n\n## Required change and reuse\nOwner: `internal/data/workorderstore`.\n- Read created_at from the same INSERT transaction (RETURNING) rather than substitute application time.\n- Preserve stable artifact identity, payload, source revision and exact persisted timestamp across first delivery/read/replay.\n- Apply same receipt path to REPORT and BILLING; no duplicate timestamp storage or migration unless separately necessary.\n\n## UI and UX\n- Existing generated report card/history must show the same actual generated time before and after reload/retry; no flicker from sentinel year1 to current time.\n- If a timestamp is unavailable due a failure, show an explicit unavailable state rather than false success or fabricated now.\n- No new page/UI system; verify the consuming card when present at320/390/1280 and locales with the existing date component.\n\n## Acceptance\n- First REPORT and BILLING receipts have nonzero database creation time equal to GetArtifact and same-key replay.\n- RequestWorkOrderReport GeneratedAt matches persisted timestamp on initial response and retry.\n- Cross-tenant, digest-conflicting and stale-revision behavior is unchanged, with no successful receipt after failed transaction.\n- Time rendering uses existing locale/timezone formatting and retains machine timestamp, with no year1/1970 placeholder substituted.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_003`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_003`; `INTEGRATION=TestTodo_IMPL_GAP_003_Integration`; `RECOVERY=TestTodo_IMPL_GAP_003_Recovery`.\nRED: First successful artifact receipt has CreatedAt zero while persisted read and replay have database time.\nGREEN: The atomic insert returns its persisted creation time, identical on first/read/replay and exposed faithfully by report RPC.\nREFACTOR: Reuse one existing artifact persistence path and database timestamp authority.\n\n- go test -count=1 ./internal/data/workorderstore -run 'TestTodo_IMPL_GAP_003|TestTodo_WorkOrderStore_ArtifactsAndList'\n- go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_003_Integration\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: none; source already exists.\n{\n  \"exact_open_issue_sufficient\": false,\n  \"related\": [],\n  \"search\": \"github-before full scan workorderstore/RecordArtifact/timestamp; recent100 GitHub through #3436\",\n  \"note\": \"Existing TestTodo_WorkOrderStore_ArtifactsAndList checks artifact ID/content but omits first/read/replay CreatedAt equality.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-JOB-006\",\"relation\":\"hard prerequisite\",\"reason\":\"Operations report receipts must have stable real generation time.\"}\n- {\"id\":\"SMB-BILL-002\",\"relation\":\"source-risk link\",\"reason\":\"Billable artifact consumers also use RecordArtifact.\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new renderer/download system\n- No claim year1 protobuf timestamp is invalid\n"
+    },
+    {
+      "candidate_id": "IMPL-DATAOPS-CONFLICT-ORDER",
+      "title": "Keep DataOps conflict evidence and references in one canonical order",
+      "priority": "P2",
+      "owner": "internal/domains/dataops/importing",
+      "scope": "Confirmed existing import-simulation library defect. No served CSV simulation endpoint reproduction claimed. The same verifier is consumed by internal/intent/app/import_simulation.go:71 and CommitImport.",
+      "evidence": [
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "258-264",
+          "observation": "Conflicts append in mapped-property order; only ConflictRefs are sorted globally."
+        },
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "397-399",
+          "observation": "Verifier compares each conflict EvidenceRef to the same-index sorted ConflictRefs, rejecting valid generated output."
+        }
+      ],
+      "reproduction": [
+        "Use existing simulationFixture with one row having compensation_component.amount conflict evidence-z and job.title conflict evidence-a.",
+        "SimulateImport succeeds and signs the result. Its draft has ConflictRefs [evidence-a,evidence-z] but Conflicts evidence order [evidence-z,evidence-a].",
+        "VerifyImportSimulation immediately rejects the returned result with ErrSimulationSignature."
+      ],
+      "proof": {
+        "overlay": "dataops-overlay.json",
+        "test_file": "dataops_conflict_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsConflictEvidenceRoundtrip -v",
+        "result": "FAIL: freshly generated signed simulation rejected: importing: simulation signature failed"
+      },
+      "existing_test_gap": "TestTodo_DATAOPS_005 checks only a single conflict; recovery verifier tests use conflict-free fixtures. Baseline importing package passes.",
+      "dedup": {
+        "existing_closed": [2985, 1763],
+        "existing_open_sufficient": false,
+        "note": "Full github-before.jsonl search for DATAOPS-005, conflictrefs and simulation conflict found no open exact regression issue. Existing SMB-SETUP-004/005 assume the library works and do not specify this multi-property ordering case."
+      },
+      "reuse_fix": "Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.",
+      "acceptance": [
+        "Every generated valid simulation verifies immediately and after persistence/reload, including multiple properties and reversed evidence lexical order.",
+        "Permuting input conflict list yields deterministic signed bytes; ties have explicit stable property/intent/evidence ordering.",
+        "Invalid or tampered evidence still fails verification.",
+        "CommitImport classifies CONFLICT rows as non-writing outcomes; NewImportProposalRevisions skips them and emits only CREATE/CHANGE proposals; both accept authentic simulation without ordering-based signature failure."
+      ],
+      "ui_ux": "In SMB-SETUP-004/005 preview, each conflicted row retains its actual field and evidence link; conflict rows remain reviewable rather than becoming a misleading signature-corruption error. No new page or component is required; do not claim current browser behavior tested.",
+      "related_planned_ids": ["SMB-SETUP-004", "SMB-SETUP-005"],
+      "recommended_disposition": "new scoped library regression issue; link as prerequisite to planned import consumers",
+      "id": "IMPL-GAP-004",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["DATAOPS-005"],
+      "intent_sets": ["BI.DATAOPS", "BI.INTEGRATION"],
+      "test": "TestTodo_IMPL_GAP_004",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_004",
+        "PROPERTY": "TestTodo_IMPL_GAP_004_Property",
+        "INTEGRATION": "TestTodo_IMPL_GAP_004_Integration",
+        "SECURITY": "TestTodo_IMPL_GAP_004_Security"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_004"
+      ],
+      "red": "Generated signed multi-conflict simulation fails its verifier because structured conflicts and refs have different order.",
+      "green": "One canonical ordering self-verifies generated multi-conflict simulations across persistence and retains tampering refusal.",
+      "refactor": "Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.",
+      "affected_smb": [
+        {
+          "id": "SMB-SETUP-004",
+          "relation": "hard prerequisite"
+        },
+        {
+          "id": "SMB-SETUP-005",
+          "relation": "transitive prerequisite via SMB-SETUP004"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-004: Keep DataOps conflict evidence and references in one canonical order",
+      "github_body": "Todo-ID: IMPL-GAP-004\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing import-simulation library defect. No served CSV simulation endpoint reproduction claimed. The same verifier is consumed by internal/intent/app/import_simulation.go:71 and CommitImport.\n\n\n## Source evidence\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"258-264\",\"observation\":\"Conflicts append in mapped-property order; only ConflictRefs are sorted globally.\"}\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"397-399\",\"observation\":\"Verifier compares each conflict EvidenceRef to the same-index sorted ConflictRefs, rejecting valid generated output.\"}\n\n## Reproduction and executed proof\n- Use existing simulationFixture with one row having compensation_component.amount conflict evidence-z and job.title conflict evidence-a.\n- SimulateImport succeeds and signs the result. Its draft has ConflictRefs [evidence-a,evidence-z] but Conflicts evidence order [evidence-z,evidence-a].\n- VerifyImportSimulation immediately rejects the returned result with ErrSimulationSignature.\n\n{\n  \"overlay\": \"dataops-overlay.json\",\n  \"test_file\": \"dataops_conflict_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsConflictEvidenceRoundtrip -v\",\n  \"result\": \"FAIL: freshly generated signed simulation rejected: importing: simulation signature failed\"\n}\n\n## Required change and reuse\nOwner: `internal/domains/dataops/importing`.\nFix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.\n\n## UI and UX\nIn SMB-SETUP-004/005 preview, each conflicted row retains its actual field and evidence link; conflict rows remain reviewable rather than becoming a misleading signature-corruption error. No new page or component is required; do not claim current browser behavior tested.\n\n## Acceptance\n- Every generated valid simulation verifies immediately and after persistence/reload, including multiple properties and reversed evidence lexical order.\n- Permuting input conflict list yields deterministic signed bytes; ties have explicit stable property/intent/evidence ordering.\n- Invalid or tampered evidence still fails verification.\n- CommitImport classifies CONFLICT rows as non-writing outcomes; NewImportProposalRevisions skips them and emits only CREATE/CHANGE proposals; both accept authentic simulation without ordering-based signature failure.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_004`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_004`; `PROPERTY=TestTodo_IMPL_GAP_004_Property`; `INTEGRATION=TestTodo_IMPL_GAP_004_Integration`; `SECURITY=TestTodo_IMPL_GAP_004_Security`.\nRED: Generated signed multi-conflict simulation fails its verifier because structured conflicts and refs have different order.\nGREEN: One canonical ordering self-verifies generated multi-conflict simulations across persistence and retains tampering refusal.\nREFACTOR: Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.\n\n- go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_004\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: DATAOPS-005.\n{\n  \"existing_closed\": [\n    2985,\n    1763\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"Full github-before.jsonl search for DATAOPS-005, conflictrefs and simulation conflict found no open exact regression issue. Existing SMB-SETUP-004/005 assume the library works and do not specify this multi-property ordering case.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-SETUP-004\",\"relation\":\"hard prerequisite\"}\n- {\"id\":\"SMB-SETUP-005\",\"relation\":\"transitive prerequisite via SMB-SETUP004\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    },
+    {
+      "candidate_id": "IMPL-DATAOPS-CORRECTION-PRESENCE",
+      "title": "Preserve absent versus present-empty values in DataOps corrective import intents",
+      "priority": "P2",
+      "owner": "internal/domains/dataops/importing",
+      "scope": "Confirmed existing correction planner information-loss defect. CorrectiveIntents has no production consumer found; this is a blocker before using its advertised rollback behavior, not a demonstrated database corruption event.",
+      "evidence": [
+        {
+          "path": "internal/domains/dataops/importing/commit.go",
+          "lines": "257-275",
+          "observation": "Contract promises baseline value or absence; planner copies only w.Current to Proposed and loses w.CurrentPresent."
+        },
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "37-43",
+          "observation": "DraftWrite represents CurrentPresent but no proposed presence/clear operation."
+        }
+      ],
+      "reproduction": [
+        "Construct a committed change with prior optional field absent (Current empty string, CurrentPresent false), proposed new value, and transaction lineage.",
+        "Plan CorrectiveIntents, then repeat with identical original values except CurrentPresent true (prior present-empty field).",
+        "Both returned correction write payloads are exactly identical, Proposed empty string and CurrentPresent true. No consumer can recover whether to clear the field or set an empty value from the correction payload."
+      ],
+      "proof": {
+        "overlay": "dataops-rollback-overlay.json",
+        "test_file": "dataops_rollback_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-rollback-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsCorrectionPreservesAbsence -v",
+        "result": "FAIL: corrective payload cannot distinguish restoring absence from restoring a present empty string"
+      },
+      "existing_test_gap": "commit_test.go:164-167 asserts only Proposed equals baseline Current text. It does not assert presence or prove a corrective operation restores the prior state. Baseline importing package passes.",
+      "dedup": {
+        "existing_closed": [2454],
+        "existing_open_sufficient": false,
+        "note": "Only closed DATAOPS-006 #2454 tracks CorrectiveIntents. SMB-SETUP-005 says domain corrections preserve history but does not cover missing versus empty state."
+      },
+      "reuse_fix": "Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.",
+      "acceptance": [
+        "Absent, present-empty and present-nonempty originals produce distinct semantically complete corrective requests.",
+        "Apply each correction through a test domain adapter and assert exact prior value/presence restored plus immutable lineage retained.",
+        "Creation reversal uses its explicit domain correction semantics rather than turning all previously absent properties into empty strings.",
+        "Concurrent edits after import prevent silent overwrite and require review/re-simulation.",
+        "Existing simulations and readers have explicit compatibility tests if the signed DraftWrite representation changes."
+      ],
+      "ui_ux": "Reversal preview must distinguish Clear field from Set to empty and Set to value; it must show current-to-target state, affected record and source import receipt. Unavailable/unsupported domain reversals are blocked with a reason rather than presenting successful undo. Applies to future import corrective UI; no current visual claim.",
+      "related_planned_ids": ["SMB-SETUP-005"],
+      "recommended_disposition": "new scoped existing-library regression issue; prerequisite to planned import corrections",
+      "id": "IMPL-GAP-005",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["DATAOPS-006"],
+      "intent_sets": ["BI.DATAOPS", "BI.INTEGRATION"],
+      "test": "TestTodo_IMPL_GAP_005",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_005",
+        "PROPERTY": "TestTodo_IMPL_GAP_005_Property",
+        "INTEGRATION": "TestTodo_IMPL_GAP_005_Integration",
+        "RECOVERY": "TestTodo_IMPL_GAP_005_Recovery"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_005"
+      ],
+      "red": "CorrectiveIntents emits identical corrective payloads for absent and present-empty baselines.",
+      "green": "Corrective requests preserve explicit presence/clear semantics, exact prior state and immutable lineage through domain authority, with concurrent-change refusal.",
+      "refactor": "Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.",
+      "affected_smb": [
+        {
+          "id": "SMB-SETUP-005",
+          "relation": "hard prerequisite"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-005: Preserve absent versus present-empty values in DataOps corrective import intents",
+      "github_body": "Todo-ID: IMPL-GAP-005\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing correction planner information-loss defect. CorrectiveIntents has no production consumer found; this is a blocker before using its advertised rollback behavior, not a demonstrated database corruption event.\n\n\n## Source evidence\n- {\"path\":\"internal/domains/dataops/importing/commit.go\",\"lines\":\"257-275\",\"observation\":\"Contract promises baseline value or absence; planner copies only w.Current to Proposed and loses w.CurrentPresent.\"}\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"37-43\",\"observation\":\"DraftWrite represents CurrentPresent but no proposed presence/clear operation.\"}\n\n## Reproduction and executed proof\n- Construct a committed change with prior optional field absent (Current empty string, CurrentPresent false), proposed new value, and transaction lineage.\n- Plan CorrectiveIntents, then repeat with identical original values except CurrentPresent true (prior present-empty field).\n- Both returned correction write payloads are exactly identical, Proposed empty string and CurrentPresent true. No consumer can recover whether to clear the field or set an empty value from the correction payload.\n\n{\n  \"overlay\": \"dataops-rollback-overlay.json\",\n  \"test_file\": \"dataops_rollback_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-rollback-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsCorrectionPreservesAbsence -v\",\n  \"result\": \"FAIL: corrective payload cannot distinguish restoring absence from restoring a present empty string\"\n}\n\n## Required change and reuse\nOwner: `internal/domains/dataops/importing`.\nExtend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.\n\n## UI and UX\nReversal preview must distinguish Clear field from Set to empty and Set to value; it must show current-to-target state, affected record and source import receipt. Unavailable/unsupported domain reversals are blocked with a reason rather than presenting successful undo. Applies to future import corrective UI; no current visual claim.\n\n## Acceptance\n- Absent, present-empty and present-nonempty originals produce distinct semantically complete corrective requests.\n- Apply each correction through a test domain adapter and assert exact prior value/presence restored plus immutable lineage retained.\n- Creation reversal uses its explicit domain correction semantics rather than turning all previously absent properties into empty strings.\n- Concurrent edits after import prevent silent overwrite and require review/re-simulation.\n- Existing simulations and readers have explicit compatibility tests if the signed DraftWrite representation changes.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_005`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_005`; `PROPERTY=TestTodo_IMPL_GAP_005_Property`; `INTEGRATION=TestTodo_IMPL_GAP_005_Integration`; `RECOVERY=TestTodo_IMPL_GAP_005_Recovery`.\nRED: CorrectiveIntents emits identical corrective payloads for absent and present-empty baselines.\nGREEN: Corrective requests preserve explicit presence/clear semantics, exact prior state and immutable lineage through domain authority, with concurrent-change refusal.\nREFACTOR: Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.\n\n- go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_005\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: DATAOPS-006.\n{\n  \"existing_closed\": [\n    2454\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"Only closed DATAOPS-006 #2454 tracks CorrectiveIntents. SMB-SETUP-005 says domain corrections preserve history but does not cover missing versus empty state.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-SETUP-005\",\"relation\":\"hard prerequisite\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    },
+    {
+      "candidate_id": "IMPL-CONNECTOR-WITHHELD-EVIDENCE",
+      "title": "Remove evidence references from denied connector status projections",
+      "priority": "P2",
+      "owner": "internal/operations/admincenter/connectorconfig",
+      "scope": "Confirmed existing projection-library disclosure bug. Global Go-source search finds no production BuildStatus caller, so no served endpoint exploit or live tenant exposure is claimed.",
+      "evidence": [
+        {
+          "path": "internal/operations/admincenter/connectorconfig/center.go",
+          "lines": "54-64",
+          "observation": "StatusView is seeded with EvidenceRefs; subject-denied branch returns without clearing them."
+        },
+        {
+          "path": "internal/operations/admincenter/connectorconfig/center.go",
+          "lines": "74-75",
+          "observation": "Field evidence deny filtering is bypassed by the earlier return."
+        }
+      ],
+      "reproduction": [
+        "Create the valid existing mustConnection fixture.",
+        "Call BuildStatus with matching tenant/environment, SubjectDisclosable false, no granted fields and evidence reference evidence:private-sync.",
+        "Returned view is Withheld true but retains [{ID:evidence:private-sync Kind:diagnostic}]."
+      ],
+      "proof": {
+        "overlay": "connector-overlay.json",
+        "test_file": "connector_disclosure_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/connector-overlay.json ./internal/connectivity/ -run TestImplementationReviewConnectorDeniedEvidence -v",
+        "result": "FAIL: denied subject disclosed evidence: [{ID:evidence:private-sync Kind:diagnostic}]"
+      },
+      "existing_test_gap": "connectorconfig/center_test.go tests only action registry and PlanAction. It has no BuildStatus disclosure matrix; baseline package reports ok.",
+      "dedup": {
+        "existing_closed": [310, 117],
+        "related_open": [2170, 2837],
+        "existing_open_sufficient": false,
+        "note": "REV-037-02 #2170 is AdminService/CLI wiring and REV-080-01 #2837 is UI wiring; neither acceptance specifies this library branch. Do not duplicate their wiring scope. Can alternatively append this exact regression prerequisite to #2170."
+      },
+      "reuse_fix": "Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.",
+      "acceptance": [
+        "SubjectDisclosable false returns Withheld true and zero evidence references regardless of FieldEvidence flag.",
+        "Subject allowed with FieldEvidence absent/false returns no evidence, while allowed/true preserves a cloned evidence list.",
+        "Tenant/environment mismatch still fails closed; mutation of source evidence slice cannot mutate a returned allowed view.",
+        "Before #2170/#2837 consumers are admitted, serialized RPC/HTML output contains no hidden evidence IDs, links, counts or tooltip metadata."
+      ],
+      "ui_ux": "Denied configuration rows use the existing unavailable/withheld state with no evidence links, evidence count badge, DOM data attributes, tooltip identifiers or keyboard focus targets exposing hidden references. Allowed users keep the normal provenance presentation.",
+      "related_planned_ids": ["SMB-DEVICE-009"],
+      "recommended_disposition": "new small library regression or exact prerequisite added to #2170; no duplicate connector-center implementation",
+      "id": "IMPL-GAP-006",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["ADMIN-004"],
+      "intent_sets": ["BI.OPERATIONS", "BI.SECURITY"],
+      "test": "TestTodo_IMPL_GAP_006",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_006",
+        "SECURITY": "TestTodo_IMPL_GAP_006_Security",
+        "INTEGRATION": "TestTodo_IMPL_GAP_006_Integration"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/operations/admincenter/connectorconfig -run TestTodo_IMPL_GAP_006"
+      ],
+      "red": "BuildStatus subject-denied early return retains EvidenceRefs.",
+      "green": "Subject denial returns withheld with no evidence; allowed views retain only authorized cloned evidence.",
+      "refactor": "Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.",
+      "affected_smb": [
+        {
+          "id": "SMB-DEVICE-009",
+          "relation": "hard prerequisite"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-006: Remove evidence references from denied connector status projections",
+      "github_body": "Todo-ID: IMPL-GAP-006\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing projection-library disclosure bug. Global Go-source search finds no production BuildStatus caller, so no served endpoint exploit or live tenant exposure is claimed.\n\n\n## Source evidence\n- {\"path\":\"internal/operations/admincenter/connectorconfig/center.go\",\"lines\":\"54-64\",\"observation\":\"StatusView is seeded with EvidenceRefs; subject-denied branch returns without clearing them.\"}\n- {\"path\":\"internal/operations/admincenter/connectorconfig/center.go\",\"lines\":\"74-75\",\"observation\":\"Field evidence deny filtering is bypassed by the earlier return.\"}\n\n## Reproduction and executed proof\n- Create the valid existing mustConnection fixture.\n- Call BuildStatus with matching tenant/environment, SubjectDisclosable false, no granted fields and evidence reference evidence:private-sync.\n- Returned view is Withheld true but retains [{ID:evidence:private-sync Kind:diagnostic}].\n\n{\n  \"overlay\": \"connector-overlay.json\",\n  \"test_file\": \"connector_disclosure_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/connector-overlay.json ./internal/connectivity/ -run TestImplementationReviewConnectorDeniedEvidence -v\",\n  \"result\": \"FAIL: denied subject disclosed evidence: [{ID:evidence:private-sync Kind:diagnostic}]\"\n}\n\n## Required change and reuse\nOwner: `internal/operations/admincenter/connectorconfig`.\nUse the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.\n\n## UI and UX\nDenied configuration rows use the existing unavailable/withheld state with no evidence links, evidence count badge, DOM data attributes, tooltip identifiers or keyboard focus targets exposing hidden references. Allowed users keep the normal provenance presentation.\n\n## Acceptance\n- SubjectDisclosable false returns Withheld true and zero evidence references regardless of FieldEvidence flag.\n- Subject allowed with FieldEvidence absent/false returns no evidence, while allowed/true preserves a cloned evidence list.\n- Tenant/environment mismatch still fails closed; mutation of source evidence slice cannot mutate a returned allowed view.\n- Before #2170/#2837 consumers are admitted, serialized RPC/HTML output contains no hidden evidence IDs, links, counts or tooltip metadata.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_006`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_006`; `SECURITY=TestTodo_IMPL_GAP_006_Security`; `INTEGRATION=TestTodo_IMPL_GAP_006_Integration`.\nRED: BuildStatus subject-denied early return retains EvidenceRefs.\nGREEN: Subject denial returns withheld with no evidence; allowed views retain only authorized cloned evidence.\nREFACTOR: Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.\n\n- go test -count=1 ./internal/operations/admincenter/connectorconfig -run TestTodo_IMPL_GAP_006\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: ADMIN-004.\n{\n  \"existing_closed\": [\n    310,\n    117\n  ],\n  \"related_open\": [\n    2170,\n    2837\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"REV-037-02 #2170 is AdminService/CLI wiring and REV-080-01 #2837 is UI wiring; neither acceptance specifies this library branch. Do not duplicate their wiring scope. Can alternatively append this exact regression prerequisite to #2170.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-DEVICE-009\",\"relation\":\"hard prerequisite\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    },
+    {
+      "id": "IMPL-APPT-TENANT",
+      "title": "Reject foreign-tenant appointment resources before acquiring shared holds",
+      "severity": "high domain isolation defect; no external exploitability claim",
+      "owner": "internal/domains/appointment",
+      "source": [
+        "internal/domains/appointment/reservation.go:80",
+        "internal/domains/appointment/reservation.go:342",
+        "internal/domains/appointment/reservation.go:355",
+        "internal/domains/appointment/reservation.go:423"
+      ],
+      "evidence": "ResourceHold.validate checks EntityRef syntax, presence of a resource type and positive quantity. Reserve explicitly checks participant tenant but never checks each resource or resource-type reference against Requirement.RequestTenant. An otherwise valid tenant-a request with ResourceRef.Tenant=tenant-b succeeds, creates one active local reservation and acquires shared fences keyed under tenant-b.",
+      "reproduction": [
+        "Use appt003KnownRequest fixture with tenant-a requirement/participant/type.",
+        "Change only r.Resources[0].ResourceRef.Tenant to tenant-b.",
+        "Call newTestReservationLedger().Reserve(req,r,appt003Now()).",
+        "Expected typed CROSS_TENANT refusal before any local/shared hold. Actual err=nil and ledger.Active()==1."
+      ],
+      "probe": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:6",
+      "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v",
+      "result": "FAIL TestAuditAppointmentCrossTenantResource: accepted cross-tenant resource eref:v1:tenant-b:resource:00000000-0000-4000-8000-000000000005; active=1. Package FAIL. Subsequent Windows unlinkat Access is denied is not the failure basis.",
+      "existing_overlap": [
+        {
+          "number": 654,
+          "title": "APPT-003: Reserve appointment slot and resources atomically.",
+          "state": "open",
+          "body_review": "Same owning Reserve acceptance contract: invalid time/resource contract must refuse and persist zero effects. Existing body has no cross-tenant-resource test, only primary/race/mutation. Prefer backfill existing issue with exact probe/security acceptance over duplicate generic appointment feature."
+        },
+        {
+          "number": 3118,
+          "title": "REV-046-02: Make APPT-003 appointment reservations use the shared RESERVE-001 fencing primitives instead of a private reimplementation.",
+          "state": "open",
+          "body_review": "Already implemented shared adapter source; current issue remains open for serving reachability. Do not repeat stale no-shared-import claim or assign this tenant semantic defect to the shared reservation store."
+        }
+      ],
+      "expansion_overlap": [
+        "SMB-SCHED-001 must reuse fixed appointment validation; it adds service-purpose/durable adapter rather than replacing appointment semantics."
+      ],
+      "disposition": "Backfill #654. An atomic security regression child linked to #654 is acceptable only if parent chooses granular implementation units; do not duplicate original feature scope.",
+      "acceptance": [
+        "ResourceRef and nonzero ResourceTypeRef must match admitted requirement tenant before any fence acquisition; valid unrelated tenant identities fail.",
+        "Same-tenant valid request continues to succeed and byte-identical replay stays stable.",
+        "Rejected input leaves Active count, shared hold/events, outbox, and downstream domain facts unchanged.",
+        "Include cross-tenant type, resource and participant cases with stable field/state/version errors. Do not trust UI option filtering as authorization."
+      ],
+      "ui_ux": "No new UI. Appointment/dispatch clients must show existing inline invalid-resource error and preserve selected slot/input; never show Booked or hold progress after refusal.",
+      "review_verdict": "ACCEPTED by independent source review and executed negative proof. Coverage claim limited to domain adapter.",
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/dataops_connectivity_review",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json"
+      }
+    },
+    {
+      "id": "IMPL-APPT-ALIAS",
+      "title": "Return isolated appointment snapshots so reads cannot mutate ledger state or invalidate digests",
+      "severity": "medium data-integrity defect",
+      "owner": "internal/domains/appointment",
+      "source": [
+        "internal/domains/appointment/reservation.go:391",
+        "internal/domains/appointment/reservation.go:435",
+        "internal/domains/appointment/reservation.go:439"
+      ],
+      "evidence": "Get comment promises a defensive copy but returns Reservation with Participants/Resources backing arrays shared with holds map. Reserve initially clones request slices but stores and returns the same cloned arrays; replay also returns the stored struct. Mutating Get's participant tenant changes subsequent Get while Digest remains unchanged and shared resource fences still describe the original participant.",
+      "reproduction": [
+        "Reserve the existing valid appt003KnownRequest fixture.",
+        "Save original participant then call Get(res.ID).",
+        "Set returned.Participants[0].Tenant=tenant-b.",
+        "Call Get again: actual stored participant is tenant-b and original digest is unchanged; expected original tenant-a participant."
+      ],
+      "probe": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:14",
+      "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v",
+      "result": "FAIL TestAuditAppointmentReadIsolation: before tenant-a candidate; after tenant-b candidate; digestUnchanged=true. Package FAIL, actual assertion failure.",
+      "existing_overlap": [
+        {
+          "number": 654,
+          "title": "APPT-003: Reserve appointment slot and resources atomically.",
+          "state": "open",
+          "body_review": "Mutable returned records violate authoritative hold/fingerprint integrity owned by this issue; no existing body explicitly tests returned-slice mutation."
+        },
+        {
+          "number": 387,
+          "title": "APPT-004: Confirm, reschedule and cancel appointments.",
+          "state": "open",
+          "body_review": "Transition methods also return reservations; audit every public snapshot boundary while fixing one shared cloning helper, rather than adding separate clones in each caller."
+        }
+      ],
+      "disposition": "Backfill #654 and reference #387; one cohesive snapshot-isolation regression if creating atomic children.",
+      "acceptance": [
+        "Mutating Participants/Resources from initial Reserve, replay Reserve, Get and transition returns cannot alter future reads, canonical digest, notifications or shared-fence identity.",
+        "Use one owner-local deep-copy helper for every mutable nested slice; no parallel reservation implementation.",
+        "Tests must mutate actual returned objects and assert stored state, digest and conflict outcomes, not compare a fixture to a newly created fixture.",
+        "Add genuine goroutine race test in CI to prove caller mutation cannot race a ledger read; local environment has no race detector."
+      ],
+      "ui_ux": "No new visual surface. Existing reservation state and conflict notices must reflect immutable server snapshots; UI edits remain proposals until an authorized transition succeeds.",
+      "review_verdict": "ACCEPTED by independent source review and executed negative proof.",
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/dataops_connectivity_review",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json"
+      }
+    }
+  ],
+  "new_issues": [
+    {
+      "id": "IMPL-GAP-001",
+      "candidate_id": "IMPL-WO-FINANCIAL-VISIBILITY",
+      "title": "Enforce cost visibility for isolated work-order billing-review requests",
+      "priority": "P1",
+      "classification": "proven implementation defect",
+      "phase": "PHASE_3",
+      "owner": "internal/application/workorderservice",
+      "source": [
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 466,
+          "observation": "canCost defaults true and is reauthorized only when snapshotHasCost is true."
+        },
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 537,
+          "observation": "financialRequestKind includes RequestBillingReview."
+        },
+        {
+          "path": "internal/application/workorderservice/service.go",
+          "line": 586,
+          "observation": "snapshotHasCost repeats the sensitivity list but omits RequestBillingReview."
+        },
+        {
+          "path": "internal/application/workorderservice/service_test.go",
+          "line": 186,
+          "observation": "Existing projection test contains Budget plus Spending/Corrections, so always activates cost gate and cannot detect the isolated kind."
+        }
+      ],
+      "current_behavior": "A work-order snapshot containing a BILLING_REVIEW request but no other financial requests, spending, corrections or FINANCE notes bypasses ViewCost authorization. Get returns price-containing subject, rationale, configurable form data, pricing version, billing period and evidence refs to a principal whose ViewCost is denied.",
+      "expected_contract": "The existing financialRequestKind and projectSnapshot comments require configurable financial request content to be removed without current ViewCost while retaining safe workflow receipt/status metadata.",
+      "reproduction": [
+        "Create existing valid testSnapshot and append one valid BILLING_REVIEW with all required exact-decimal values initialized, confidential Subject/Rationale/FormValues/PricingVersion/EvidenceRefs; no other cost-bearing collections.",
+        "Call Service.Get with testAuthorizer allowing Read but denying ViewCost.",
+        "Expected sanitized request. Actual auth_calls=1,last_cap=read and original confidential request fields returned."
+      ],
+      "proof": {
+        "test": "TestAuditBillingReviewIsolatedFinancialProjection",
+        "file": ".artifacts/lanes/smb-expansion-20261022/implementation-review/workorder_probe_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorder-overlay.json ./internal/application/workorderservice -run TestAuditBillingReview -v",
+        "result": "FAIL at zz_audit_probe_test.go:19: financial fields escaped denied ViewCost; auth_calls=1,last_cap=read. Actual assertion failure, not Windows cleanup warning."
+      },
+      "exposure": "Public application Get path reproduced; authenticated RPC consumes its projection. No live user data or external exploitation attempted.",
+      "existing_overlap": {
+        "exact_open_issue_sufficient": false,
+        "search": "github-before full title/body scan for workorder, workorderstore, RequestBillingReview, snapshotHasCost; current GitHub recent100 check through #3436",
+        "related": [],
+        "note": "SMB-JOB001 and SMB-BILL work extend these sources but do not name this existing conditional-gate regression."
+      },
+      "proposed_fix": [
+        "Make financial sensitivity classification one owner-local predicate shared by gate detection and redaction, or always evaluate ViewCost for financial projections.",
+        "Table-test every financial request kind in isolation with no other collection capable of masking the missing gate; preserve safe metadata and authorized access.",
+        "Cover Get, List and mutation responses using the same projection; durable source state must remain unmodified."
+      ],
+      "acceptance": [
+        "Read allowed/ViewCost denied sees no financial Subject, Rationale, FormValues, price/version/period fields, evidence metadata or decision text on an isolated BILLING_REVIEW.",
+        "Same principal after current ViewCost revocation receives sanitized fresh and replayed mutation projections; granted principal still sees authorized values.",
+        "Every enumerated financial kind is independently tested and added kinds cannot silently bypass gate/redaction consistency.",
+        "No raw financial values leak through API JSON, DOM, hidden attributes, tooltips, search previews or errors when the job surface is consumed."
+      ],
+      "ui_ux": [
+        "Reuse existing work-order detail/request cards and field-visibility conventions; show safe request kind/state without empty money rendered as zero.",
+        "Keep authorized finance review fields and evidence actions visible for allowed users; denied users have no focusable hidden detail/evidence links.",
+        "No new nav/component system. Future served card smoke cases: 1280x720,390 and320, keyboard/focus and en-US/de-DE/arRTL; this audit did not run browser."
+      ],
+      "affected_smb": [
+        {
+          "id": "SMB-JOB-001",
+          "relation": "hard prerequisite",
+          "reason": "Customer-job extension consumes current work-order projection."
+        },
+        {
+          "id": "SMB-BILL-001",
+          "relation": "hard prerequisite",
+          "reason": "Billing review extension must inherit correct current cost visibility."
+        },
+        {
+          "id": "SMB-PORTAL-004",
+          "relation": "source-risk link",
+          "reason": "External financial projections must not reuse an ungated raw work-order view; verify own explicit field grants."
+        }
+      ],
+      "depends": [],
+      "intent_sets": ["BI.WORK", "BI.COMMERCIAL"],
+      "test": "TestTodo_IMPL_GAP_001",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_001",
+        "SECURITY": "TestTodo_IMPL_GAP_001_Security",
+        "INTEGRATION": "TestTodo_IMPL_GAP_001_Integration"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/application/workorderservice -run 'TestTodo_IMPL_GAP_001|TestGetProjectsFinancialAndPayFieldsByCurrentCapabilities'",
+        "go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_001_Integration"
+      ],
+      "red": "An isolated BILLING_REVIEW returns financial fields through Get despite denied ViewCost because snapshotHasCost omits that kind.",
+      "green": "All financial request kinds share one sensitivity predicate and denied projections retain only safe request receipt/status fields across Get/List/mutation and served transport.",
+      "refactor": "Reuse workorderservice.projectSnapshot and existing workorderaccess capabilities; do not introduce a second policy layer.",
+      "non_goals": [
+        "No new customer billing engine or portal",
+        "No live browser/external exploit claim"
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-001: Enforce cost visibility for isolated work-order billing-review requests",
+      "github_body": "Todo-ID: IMPL-GAP-001\nState: OPEN\nPriority: P1\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nA work-order snapshot containing a BILLING_REVIEW request but no other financial requests, spending, corrections or FINANCE notes bypasses ViewCost authorization. Get returns price-containing subject, rationale, configurable form data, pricing version, billing period and evidence refs to a principal whose ViewCost is denied.\nThe existing financialRequestKind and projectSnapshot comments require configurable financial request content to be removed without current ViewCost while retaining safe workflow receipt/status metadata.\n\n## Source evidence\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":466,\"observation\":\"canCost defaults true and is reauthorized only when snapshotHasCost is true.\"}\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":537,\"observation\":\"financialRequestKind includes RequestBillingReview.\"}\n- {\"path\":\"internal/application/workorderservice/service.go\",\"line\":586,\"observation\":\"snapshotHasCost repeats the sensitivity list but omits RequestBillingReview.\"}\n- {\"path\":\"internal/application/workorderservice/service_test.go\",\"line\":186,\"observation\":\"Existing projection test contains Budget plus Spending/Corrections, so always activates cost gate and cannot detect the isolated kind.\"}\n\n## Reproduction and executed proof\n- Create existing valid testSnapshot and append one valid BILLING_REVIEW with all required exact-decimal values initialized, confidential Subject/Rationale/FormValues/PricingVersion/EvidenceRefs; no other cost-bearing collections.\n- Call Service.Get with testAuthorizer allowing Read but denying ViewCost.\n- Expected sanitized request. Actual auth_calls=1,last_cap=read and original confidential request fields returned.\n\n{\n  \"test\": \"TestAuditBillingReviewIsolatedFinancialProjection\",\n  \"file\": \".artifacts/lanes/smb-expansion-20261022/implementation-review/workorder_probe_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorder-overlay.json ./internal/application/workorderservice -run TestAuditBillingReview -v\",\n  \"result\": \"FAIL at zz_audit_probe_test.go:19: financial fields escaped denied ViewCost; auth_calls=1,last_cap=read. Actual assertion failure, not Windows cleanup warning.\"\n}\n\n## Required change and reuse\nOwner: `internal/application/workorderservice`.\n- Make financial sensitivity classification one owner-local predicate shared by gate detection and redaction, or always evaluate ViewCost for financial projections.\n- Table-test every financial request kind in isolation with no other collection capable of masking the missing gate; preserve safe metadata and authorized access.\n- Cover Get, List and mutation responses using the same projection; durable source state must remain unmodified.\n\n## UI and UX\n- Reuse existing work-order detail/request cards and field-visibility conventions; show safe request kind/state without empty money rendered as zero.\n- Keep authorized finance review fields and evidence actions visible for allowed users; denied users have no focusable hidden detail/evidence links.\n- No new nav/component system. Future served card smoke cases: 1280x720,390 and320, keyboard/focus and en-US/de-DE/arRTL; this audit did not run browser.\n\n## Acceptance\n- Read allowed/ViewCost denied sees no financial Subject, Rationale, FormValues, price/version/period fields, evidence metadata or decision text on an isolated BILLING_REVIEW.\n- Same principal after current ViewCost revocation receives sanitized fresh and replayed mutation projections; granted principal still sees authorized values.\n- Every enumerated financial kind is independently tested and added kinds cannot silently bypass gate/redaction consistency.\n- No raw financial values leak through API JSON, DOM, hidden attributes, tooltips, search previews or errors when the job surface is consumed.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK,BI.COMMERCIAL; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_001`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_001`; `SECURITY=TestTodo_IMPL_GAP_001_Security`; `INTEGRATION=TestTodo_IMPL_GAP_001_Integration`.\nRED: An isolated BILLING_REVIEW returns financial fields through Get despite denied ViewCost because snapshotHasCost omits that kind.\nGREEN: All financial request kinds share one sensitivity predicate and denied projections retain only safe request receipt/status fields across Get/List/mutation and served transport.\nREFACTOR: Reuse workorderservice.projectSnapshot and existing workorderaccess capabilities; do not introduce a second policy layer.\n\n- go test -count=1 ./internal/application/workorderservice -run 'TestTodo_IMPL_GAP_001|TestGetProjectsFinancialAndPayFieldsByCurrentCapabilities'\n- go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_001_Integration\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: none; source already exists.\n{\n  \"exact_open_issue_sufficient\": false,\n  \"search\": \"github-before full title/body scan for workorder, workorderstore, RequestBillingReview, snapshotHasCost; current GitHub recent100 check through #3436\",\n  \"related\": [],\n  \"note\": \"SMB-JOB001 and SMB-BILL work extend these sources but do not name this existing conditional-gate regression.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-JOB-001\",\"relation\":\"hard prerequisite\",\"reason\":\"Customer-job extension consumes current work-order projection.\"}\n- {\"id\":\"SMB-BILL-001\",\"relation\":\"hard prerequisite\",\"reason\":\"Billing review extension must inherit correct current cost visibility.\"}\n- {\"id\":\"SMB-PORTAL-004\",\"relation\":\"source-risk link\",\"reason\":\"External financial projections must not reuse an ungated raw work-order view; verify own explicit field grants.\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new customer billing engine or portal\n- No live browser/external exploit claim\n"
+    },
+    {
+      "id": "IMPL-GAP-002",
+      "title": "Enforce the asset domain custody state machine in the PostgreSQL adapter",
+      "severity": "high business-data correctness; proven accepted invalid histories and rejected valid recovery",
+      "owner": "internal/data/assetstore using internal/domains/asset semantics",
+      "source": [
+        "internal/data/assetstore/store.go:188",
+        "internal/data/assetstore/store.go:197",
+        "internal/data/assetstore/store.go:215",
+        "internal/data/assetstore/store.go:426",
+        "internal/domains/asset/contracts.go:243",
+        "internal/domains/asset/contracts.go:265",
+        "internal/domains/asset/contracts.go:282",
+        "migrations/00071_asset_inventory.sql:40"
+      ],
+      "evidence": "Both adapters implement asset.Repository. AppendCustody validates only the next row, reads revision/status without current worker/effective time, skips transition validation when no prior custody row exists, and uses a reduced separate validateTransition. Current database constraints restrict status vocabulary and uniqueness but do not repair these semantic gaps.",
+      "reproduction": [
+        "Fresh isolated real PostgreSQL, migrate through 00071; create tenant and asset fixture. Apply each scenario to both asset.NewCustodyStore and assetstore.New(db.Conn).",
+        "First custody RETIRED: memory rejects invalid transition; durable returns nil.",
+        "First assignment with retired inventory: memory rejects invalid transition; durable returns nil.",
+        "After assigned revision1, revision2 RETURN_PENDING predates revision1: memory ErrChronology; durable nil.",
+        "After assigned revision1, revision2 RETURN_PENDING names a different worker: memory ErrNotAssigned; durable nil.",
+        "Assigned -> Lost -> Returned with valid verified receipts and ascending time/revisions: memory succeeds; durable returns ASSET_INVALID invalid custody transition on recovery."
+      ],
+      "probe": ".artifacts/lanes/smb-expansion-20261022/implementation-review/assetstore_probe_test.go:13",
+      "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/data/assetstore -run TestAuditAssetstoreDomainParity -v",
+      "result": "All five named subtests fail adapter-equivalence assertions exactly as described. Real embedded PostgreSQL17.5 started on loopback port63023, cleanly stopped. Test body33.10s, package FAIL51.929s, exit1.",
+      "existing_overlap": [
+        {
+          "number": 919,
+          "title": "PERSIST-ASSET-001: Add durable PostgreSQL tables for equipment inventory and custody.",
+          "state": "closed",
+          "body_review": "Claims adapter persists domain CAS semantics; primary/integration tests only happy assignment->pending->return, duplicate/stale and tenant/append-only cases. New precise regression is appropriate rather than reopening all completed schema work."
+        },
+        {
+          "number": 809,
+          "title": "ASSET-001: Define equipment inventory, custody, assignment and return revisions.",
+          "state": "open",
+          "body_review": "Domain semantics already exist. Reopened for served reachability, not these database divergences. Link as semantic dependency."
+        },
+        {
+          "number": 392,
+          "title": "ASSET-002: Prove loss, recovery, offboarding and external inventory reconciliation.",
+          "state": "closed",
+          "body_review": "Memory domain implements loss/recovery; durable adapter rejects recovery. Require durable parity without replacing the domain."
+        },
+        {
+          "number": 1536,
+          "title": "REV-027-01: Wire the domain-persistence backfill store packages into a serving code path or reopen the tickets that claim them as done.",
+          "state": "open",
+          "body_review": "Generic serving wiring issue, does not specify custody state-machine errors. Do not mistake wiring for semantic correctness."
+        }
+      ],
+      "expansion_overlap": [
+        "SMB-ASSET-001 extends existing identity and serviceability, and should depend on this parity fix for served durable state.",
+        "SMB-ASSET-003 adds handoff UX/evidence and SMB-ASSET-005 adds loss/recovery stock reconciliation; both should reuse fixed durable custody transitions, not duplicate existing owner."
+      ],
+      "disposition": "Create one atomic adapter/domain parity regression linked to #919, #809 and #392; extend existing owner, no new subsystem. Add dependency references to SMB-ASSET stories through parent coordination.",
+      "acceptance": [
+        "A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.",
+        "The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.",
+        "Valid loss recovery persists and survives reopen; unverified return continues to fail.",
+        "Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.",
+        "Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.",
+        "Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes."
+      ],
+      "ui_ux": "Existing equipment/custody flows must retain form state and show the domain refusal next to attempted action; stale current state offers reload/review. Return recovery must show success only after durable receipt and never close exit obligations on a rejected write. No new navigation or visual subsystem.",
+      "review_verdict": "ACCEPTED by independent source review plus five real-DB negative proofs. No claim of external endpoint exploit or reproduced concurrent double-write.",
+      "candidate_id": "IMPL-ASSET-PARITY",
+      "priority": "P1",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["PERSIST-ASSET-001"],
+      "intent_sets": ["BI.WORKFORCE", "BI.WORK"],
+      "red": "Durable AppendCustody accepts invalid initial/retired/backdated/wrong-worker histories and rejects valid lost-to-returned recovery that the canonical domain handles correctly.",
+      "green": "Memory and real PostgreSQL adapters enforce the complete same custody transition semantics atomically; five observed vectors plus rejection-no-write, concurrency and reopen tests pass.",
+      "refactor": "Extract/reuse the existing asset-owned pure transition validator from both adapters while preserving write/CAS boundary and append-only histories.",
+      "affected_smb": [
+        {
+          "id": "SMB-ASSET-001",
+          "relation": "hard prerequisite"
+        },
+        {
+          "id": "SMB-ASSET-003",
+          "relation": "transitive prerequisite via SMB-ASSET001"
+        },
+        {
+          "id": "SMB-ASSET-005",
+          "relation": "transitive prerequisite via SMB-ASSET001"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/dataops_connectivity_review",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json"
+      },
+      "test": "TestTodo_IMPL_GAP_002",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_002",
+        "INTEGRATION": "TestTodo_IMPL_GAP_002_Integration",
+        "SECURITY": "TestTodo_IMPL_GAP_002_Security",
+        "RECOVERY": "TestTodo_IMPL_GAP_002_Recovery",
+        "RACE": "TestTodo_IMPL_GAP_002_Race"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/data/assetstore -run 'TestTodo_IMPL_GAP_002|TestTodo_PERSIST_ASSET_001'",
+        "go test -count=1 ./internal/domains/asset",
+        "CI supported toolchain: go test -race -count=1 ./internal/data/assetstore -run TestTodo_IMPL_GAP_002_Race"
+      ],
+      "non_goals": [
+        "No new asset subsystem",
+        "No concurrent double-write was reproduced; concurrency remains required fix acceptance"
+      ],
+      "github_title": "IMPL-GAP-002: Enforce the asset domain custody state machine in the PostgreSQL adapter",
+      "github_body": "Todo-ID: IMPL-GAP-002\nState: OPEN\nPriority: P1\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nBoth adapters implement asset.Repository. AppendCustody validates only the next row, reads revision/status without current worker/effective time, skips transition validation when no prior custody row exists, and uses a reduced separate validateTransition. Current database constraints restrict status vocabulary and uniqueness but do not repair these semantic gaps.\n\n\n## Source evidence\n- internal/data/assetstore/store.go:188\n- internal/data/assetstore/store.go:197\n- internal/data/assetstore/store.go:215\n- internal/data/assetstore/store.go:426\n- internal/domains/asset/contracts.go:243\n- internal/domains/asset/contracts.go:265\n- internal/domains/asset/contracts.go:282\n- migrations/00071_asset_inventory.sql:40\n\n## Reproduction and executed proof\n- Fresh isolated real PostgreSQL, migrate through 00071; create tenant and asset fixture. Apply each scenario to both asset.NewCustodyStore and assetstore.New(db.Conn).\n- First custody RETIRED: memory rejects invalid transition; durable returns nil.\n- First assignment with retired inventory: memory rejects invalid transition; durable returns nil.\n- After assigned revision1, revision2 RETURN_PENDING predates revision1: memory ErrChronology; durable nil.\n- After assigned revision1, revision2 RETURN_PENDING names a different worker: memory ErrNotAssigned; durable nil.\n- Assigned -> Lost -> Returned with valid verified receipts and ascending time/revisions: memory succeeds; durable returns ASSET_INVALID invalid custody transition on recovery.\n\nProbe: .artifacts/lanes/smb-expansion-20261022/implementation-review/assetstore_probe_test.go:13\nCommand: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/data/assetstore -run TestAuditAssetstoreDomainParity -v`\nObserved: All five named subtests fail adapter-equivalence assertions exactly as described. Real embedded PostgreSQL17.5 started on loopback port63023, cleanly stopped. Test body33.10s, package FAIL51.929s, exit1.\n\n## Required change and reuse\nOwner: `internal/data/assetstore using internal/domains/asset semantics`.\n- A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.\n- The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.\n- Valid loss recovery persists and survives reopen; unverified return continues to fail.\n- Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.\n- Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.\n- Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes.\n\n## UI and UX\nExisting equipment/custody flows must retain form state and show the domain refusal next to attempted action; stale current state offers reload/review. Return recovery must show success only after durable receipt and never close exit obligations on a rejected write. No new navigation or visual subsystem.\n\n## Acceptance\n- A shared transition validator owned by asset expresses first assignment, retired inventory refusal, worker continuity, strictly increasing effective time and revision stream, lost/recovered rules; memory and PostgreSQL adapters call equivalent semantics.\n- The five proof vectors yield equivalent accepted/refused outcomes and rejected writes leave row count/history/current state unchanged.\n- Valid loss recovery persists and survives reopen; unverified return continues to fail.\n- Read the full current custody revision required by domain validation inside the write transaction; preserve tenant RLS, append-only facts, canonical digests and existing schema history.\n- Add real database concurrency tests for equal expected revision with competing distinct next revisions; this race is a review concern, not claimed reproduced by the five sequential probes.\n- Include worker-switch, backdate, first-row status, retired inventory, loss recovery and invalid revision-stream mutation cases in parity matrix; existing happy path still passes.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORKFORCE,BI.WORK; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_002`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_002`; `INTEGRATION=TestTodo_IMPL_GAP_002_Integration`; `SECURITY=TestTodo_IMPL_GAP_002_Security`; `RECOVERY=TestTodo_IMPL_GAP_002_Recovery`; `RACE=TestTodo_IMPL_GAP_002_Race`.\nRED: Durable AppendCustody accepts invalid initial/retired/backdated/wrong-worker histories and rejects valid lost-to-returned recovery that the canonical domain handles correctly.\nGREEN: Memory and real PostgreSQL adapters enforce the complete same custody transition semantics atomically; five observed vectors plus rejection-no-write, concurrency and reopen tests pass.\nREFACTOR: Extract/reuse the existing asset-owned pure transition validator from both adapters while preserving write/CAS boundary and append-only histories.\n\n- go test -count=1 ./internal/data/assetstore -run 'TestTodo_IMPL_GAP_002|TestTodo_PERSIST_ASSET_001'\n- go test -count=1 ./internal/domains/asset\n- CI supported toolchain: go test -race -count=1 ./internal/data/assetstore -run TestTodo_IMPL_GAP_002_Race\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: PERSIST-ASSET-001.\n- {\"number\":919,\"title\":\"PERSIST-ASSET-001: Add durable PostgreSQL tables for equipment inventory and custody.\",\"state\":\"closed\",\"body_review\":\"Claims adapter persists domain CAS semantics; primary/integration tests only happy assignment->pending->return, duplicate/stale and tenant/append-only cases. New precise regression is appropriate rather than reopening all completed schema work.\"}\n- {\"number\":809,\"title\":\"ASSET-001: Define equipment inventory, custody, assignment and return revisions.\",\"state\":\"open\",\"body_review\":\"Domain semantics already exist. Reopened for served reachability, not these database divergences. Link as semantic dependency.\"}\n- {\"number\":392,\"title\":\"ASSET-002: Prove loss, recovery, offboarding and external inventory reconciliation.\",\"state\":\"closed\",\"body_review\":\"Memory domain implements loss/recovery; durable adapter rejects recovery. Require durable parity without replacing the domain.\"}\n- {\"number\":1536,\"title\":\"REV-027-01: Wire the domain-persistence backfill store packages into a serving code path or reopen the tickets that claim them as done.\",\"state\":\"open\",\"body_review\":\"Generic serving wiring issue, does not specify custody state-machine errors. Do not mistake wiring for semantic correctness.\"}\nAffected SMB consumers: - {\"id\":\"SMB-ASSET-001\",\"relation\":\"hard prerequisite\"}\n- {\"id\":\"SMB-ASSET-003\",\"relation\":\"transitive prerequisite via SMB-ASSET001\"}\n- {\"id\":\"SMB-ASSET-005\",\"relation\":\"transitive prerequisite via SMB-ASSET001\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/dataops_connectivity_review; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new asset subsystem\n- No concurrent double-write was reproduced; concurrency remains required fix acceptance\n"
+    },
+    {
+      "id": "IMPL-GAP-003",
+      "candidate_id": "IMPL-WO-ARTIFACT-TIMESTAMP",
+      "title": "Return the persisted creation time on the first work-order artifact receipt",
+      "priority": "P2",
+      "classification": "proven implementation defect",
+      "phase": "PHASE_3",
+      "owner": "internal/data/workorderstore",
+      "source": [
+        {
+          "path": "internal/data/workorderstore/store.go",
+          "line": 499,
+          "observation": "First RecordArtifact constructs result without CreatedAt and uses Exec INSERT instead of scanning database timestamp."
+        },
+        {
+          "path": "internal/data/workorderstore/store.go",
+          "line": 485,
+          "observation": "Replay scans persisted created_at."
+        },
+        {
+          "path": "internal/transport/workorder/server.go",
+          "line": 980,
+          "observation": "Report RPC maps Artifact.CreatedAt directly to GeneratedAt."
+        }
+      ],
+      "current_behavior": "First successful report/billing ArtifactRecord receipt returns Go zero time although database default created_at is valid. GetArtifact and same-key replay return the real time. Report RPC therefore exposes year 1 on first response and correct time on replay.",
+      "expected_contract": "RecordArtifact's documented immutable exact-replay receipt and RequestWorkOrderReport GeneratedAt should reflect the persisted artifact creation timestamp on every delivery.",
+      "reproduction": [
+        "Create real-PostgreSQL workorderstore fixture and initial order.",
+        "Call RecordArtifact REPORT at revision1, then GetArtifact and identical RecordArtifact replay.",
+        "Expected same nonzero CreatedAt on all three. Actual first=0001-01-01T00:00:00Z, persisted/replay=2026-10-22T20:47:32.813757-04:00."
+      ],
+      "proof": {
+        "test": "TestAuditArtifactFirstReceiptMatchesPersistedTime",
+        "file": ".artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore_probe_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore-overlay.json ./internal/data/workorderstore -run TestAuditArtifactFirstReceipt -v",
+        "result": "FAIL exact timestamp equality assertion against real PostgreSQL17.5; package55.750s, embedded database cleanly stopped."
+      },
+      "exposure": "Real database adapter proof plus direct RPC mapping source; no browser timestamp display asserted. Year1 is proto-valid, so claim incorrect value rather than serialization rejection.",
+      "existing_overlap": {
+        "exact_open_issue_sufficient": false,
+        "related": [],
+        "search": "github-before full scan workorderstore/RecordArtifact/timestamp; recent100 GitHub through #3436",
+        "note": "Existing TestTodo_WorkOrderStore_ArtifactsAndList checks artifact ID/content but omits first/read/replay CreatedAt equality."
+      },
+      "proposed_fix": [
+        "Read created_at from the same INSERT transaction (RETURNING) rather than substitute application time.",
+        "Preserve stable artifact identity, payload, source revision and exact persisted timestamp across first delivery/read/replay.",
+        "Apply same receipt path to REPORT and BILLING; no duplicate timestamp storage or migration unless separately necessary."
+      ],
+      "acceptance": [
+        "First REPORT and BILLING receipts have nonzero database creation time equal to GetArtifact and same-key replay.",
+        "RequestWorkOrderReport GeneratedAt matches persisted timestamp on initial response and retry.",
+        "Cross-tenant, digest-conflicting and stale-revision behavior is unchanged, with no successful receipt after failed transaction.",
+        "Time rendering uses existing locale/timezone formatting and retains machine timestamp, with no year1/1970 placeholder substituted."
+      ],
+      "ui_ux": [
+        "Existing generated report card/history must show the same actual generated time before and after reload/retry; no flicker from sentinel year1 to current time.",
+        "If a timestamp is unavailable due a failure, show an explicit unavailable state rather than false success or fabricated now.",
+        "No new page/UI system; verify the consuming card when present at320/390/1280 and locales with the existing date component."
+      ],
+      "affected_smb": [
+        {
+          "id": "SMB-JOB-006",
+          "relation": "hard prerequisite",
+          "reason": "Operations report receipts must have stable real generation time."
+        },
+        {
+          "id": "SMB-BILL-002",
+          "relation": "source-risk link",
+          "reason": "Billable artifact consumers also use RecordArtifact."
+        }
+      ],
+      "depends": [],
+      "intent_sets": ["BI.WORK"],
+      "test": "TestTodo_IMPL_GAP_003",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_003",
+        "INTEGRATION": "TestTodo_IMPL_GAP_003_Integration",
+        "RECOVERY": "TestTodo_IMPL_GAP_003_Recovery"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/data/workorderstore -run 'TestTodo_IMPL_GAP_003|TestTodo_WorkOrderStore_ArtifactsAndList'",
+        "go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_003_Integration"
+      ],
+      "red": "First successful artifact receipt has CreatedAt zero while persisted read and replay have database time.",
+      "green": "The atomic insert returns its persisted creation time, identical on first/read/replay and exposed faithfully by report RPC.",
+      "refactor": "Reuse one existing artifact persistence path and database timestamp authority.",
+      "non_goals": [
+        "No new renderer/download system",
+        "No claim year1 protobuf timestamp is invalid"
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-003: Return the persisted creation time on the first work-order artifact receipt",
+      "github_body": "Todo-ID: IMPL-GAP-003\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nFirst successful report/billing ArtifactRecord receipt returns Go zero time although database default created_at is valid. GetArtifact and same-key replay return the real time. Report RPC therefore exposes year 1 on first response and correct time on replay.\nRecordArtifact's documented immutable exact-replay receipt and RequestWorkOrderReport GeneratedAt should reflect the persisted artifact creation timestamp on every delivery.\n\n## Source evidence\n- {\"path\":\"internal/data/workorderstore/store.go\",\"line\":499,\"observation\":\"First RecordArtifact constructs result without CreatedAt and uses Exec INSERT instead of scanning database timestamp.\"}\n- {\"path\":\"internal/data/workorderstore/store.go\",\"line\":485,\"observation\":\"Replay scans persisted created_at.\"}\n- {\"path\":\"internal/transport/workorder/server.go\",\"line\":980,\"observation\":\"Report RPC maps Artifact.CreatedAt directly to GeneratedAt.\"}\n\n## Reproduction and executed proof\n- Create real-PostgreSQL workorderstore fixture and initial order.\n- Call RecordArtifact REPORT at revision1, then GetArtifact and identical RecordArtifact replay.\n- Expected same nonzero CreatedAt on all three. Actual first=0001-01-01T00:00:00Z, persisted/replay=2026-10-22T20:47:32.813757-04:00.\n\n{\n  \"test\": \"TestAuditArtifactFirstReceiptMatchesPersistedTime\",\n  \"file\": \".artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore_probe_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/workorderstore-overlay.json ./internal/data/workorderstore -run TestAuditArtifactFirstReceipt -v\",\n  \"result\": \"FAIL exact timestamp equality assertion against real PostgreSQL17.5; package55.750s, embedded database cleanly stopped.\"\n}\n\n## Required change and reuse\nOwner: `internal/data/workorderstore`.\n- Read created_at from the same INSERT transaction (RETURNING) rather than substitute application time.\n- Preserve stable artifact identity, payload, source revision and exact persisted timestamp across first delivery/read/replay.\n- Apply same receipt path to REPORT and BILLING; no duplicate timestamp storage or migration unless separately necessary.\n\n## UI and UX\n- Existing generated report card/history must show the same actual generated time before and after reload/retry; no flicker from sentinel year1 to current time.\n- If a timestamp is unavailable due a failure, show an explicit unavailable state rather than false success or fabricated now.\n- No new page/UI system; verify the consuming card when present at320/390/1280 and locales with the existing date component.\n\n## Acceptance\n- First REPORT and BILLING receipts have nonzero database creation time equal to GetArtifact and same-key replay.\n- RequestWorkOrderReport GeneratedAt matches persisted timestamp on initial response and retry.\n- Cross-tenant, digest-conflicting and stale-revision behavior is unchanged, with no successful receipt after failed transaction.\n- Time rendering uses existing locale/timezone formatting and retains machine timestamp, with no year1/1970 placeholder substituted.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.WORK; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_003`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_003`; `INTEGRATION=TestTodo_IMPL_GAP_003_Integration`; `RECOVERY=TestTodo_IMPL_GAP_003_Recovery`.\nRED: First successful artifact receipt has CreatedAt zero while persisted read and replay have database time.\nGREEN: The atomic insert returns its persisted creation time, identical on first/read/replay and exposed faithfully by report RPC.\nREFACTOR: Reuse one existing artifact persistence path and database timestamp authority.\n\n- go test -count=1 ./internal/data/workorderstore -run 'TestTodo_IMPL_GAP_003|TestTodo_WorkOrderStore_ArtifactsAndList'\n- go test -count=1 ./internal/transport/workorder -run TestTodo_IMPL_GAP_003_Integration\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: none; source already exists.\n{\n  \"exact_open_issue_sufficient\": false,\n  \"related\": [],\n  \"search\": \"github-before full scan workorderstore/RecordArtifact/timestamp; recent100 GitHub through #3436\",\n  \"note\": \"Existing TestTodo_WorkOrderStore_ArtifactsAndList checks artifact ID/content but omits first/read/replay CreatedAt equality.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-JOB-006\",\"relation\":\"hard prerequisite\",\"reason\":\"Operations report receipts must have stable real generation time.\"}\n- {\"id\":\"SMB-BILL-002\",\"relation\":\"source-risk link\",\"reason\":\"Billable artifact consumers also use RecordArtifact.\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\nLimits:\n- No new renderer/download system\n- No claim year1 protobuf timestamp is invalid\n"
+    },
+    {
+      "candidate_id": "IMPL-DATAOPS-CONFLICT-ORDER",
+      "title": "Keep DataOps conflict evidence and references in one canonical order",
+      "priority": "P2",
+      "owner": "internal/domains/dataops/importing",
+      "scope": "Confirmed existing import-simulation library defect. No served CSV simulation endpoint reproduction claimed. The same verifier is consumed by internal/intent/app/import_simulation.go:71 and CommitImport.",
+      "evidence": [
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "258-264",
+          "observation": "Conflicts append in mapped-property order; only ConflictRefs are sorted globally."
+        },
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "397-399",
+          "observation": "Verifier compares each conflict EvidenceRef to the same-index sorted ConflictRefs, rejecting valid generated output."
+        }
+      ],
+      "reproduction": [
+        "Use existing simulationFixture with one row having compensation_component.amount conflict evidence-z and job.title conflict evidence-a.",
+        "SimulateImport succeeds and signs the result. Its draft has ConflictRefs [evidence-a,evidence-z] but Conflicts evidence order [evidence-z,evidence-a].",
+        "VerifyImportSimulation immediately rejects the returned result with ErrSimulationSignature."
+      ],
+      "proof": {
+        "overlay": "dataops-overlay.json",
+        "test_file": "dataops_conflict_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsConflictEvidenceRoundtrip -v",
+        "result": "FAIL: freshly generated signed simulation rejected: importing: simulation signature failed"
+      },
+      "existing_test_gap": "TestTodo_DATAOPS_005 checks only a single conflict; recovery verifier tests use conflict-free fixtures. Baseline importing package passes.",
+      "dedup": {
+        "existing_closed": [2985, 1763],
+        "existing_open_sufficient": false,
+        "note": "Full github-before.jsonl search for DATAOPS-005, conflictrefs and simulation conflict found no open exact regression issue. Existing SMB-SETUP-004/005 assume the library works and do not specify this multi-property ordering case."
+      },
+      "reuse_fix": "Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.",
+      "acceptance": [
+        "Every generated valid simulation verifies immediately and after persistence/reload, including multiple properties and reversed evidence lexical order.",
+        "Permuting input conflict list yields deterministic signed bytes; ties have explicit stable property/intent/evidence ordering.",
+        "Invalid or tampered evidence still fails verification.",
+        "CommitImport classifies CONFLICT rows as non-writing outcomes; NewImportProposalRevisions skips them and emits only CREATE/CHANGE proposals; both accept authentic simulation without ordering-based signature failure."
+      ],
+      "ui_ux": "In SMB-SETUP-004/005 preview, each conflicted row retains its actual field and evidence link; conflict rows remain reviewable rather than becoming a misleading signature-corruption error. No new page or component is required; do not claim current browser behavior tested.",
+      "related_planned_ids": ["SMB-SETUP-004", "SMB-SETUP-005"],
+      "recommended_disposition": "new scoped library regression issue; link as prerequisite to planned import consumers",
+      "id": "IMPL-GAP-004",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["DATAOPS-005"],
+      "intent_sets": ["BI.DATAOPS", "BI.INTEGRATION"],
+      "test": "TestTodo_IMPL_GAP_004",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_004",
+        "PROPERTY": "TestTodo_IMPL_GAP_004_Property",
+        "INTEGRATION": "TestTodo_IMPL_GAP_004_Integration",
+        "SECURITY": "TestTodo_IMPL_GAP_004_Security"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_004"
+      ],
+      "red": "Generated signed multi-conflict simulation fails its verifier because structured conflicts and refs have different order.",
+      "green": "One canonical ordering self-verifies generated multi-conflict simulations across persistence and retains tampering refusal.",
+      "refactor": "Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.",
+      "affected_smb": [
+        {
+          "id": "SMB-SETUP-004",
+          "relation": "hard prerequisite"
+        },
+        {
+          "id": "SMB-SETUP-005",
+          "relation": "transitive prerequisite via SMB-SETUP004"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-004: Keep DataOps conflict evidence and references in one canonical order",
+      "github_body": "Todo-ID: IMPL-GAP-004\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing import-simulation library defect. No served CSV simulation endpoint reproduction claimed. The same verifier is consumed by internal/intent/app/import_simulation.go:71 and CommitImport.\n\n\n## Source evidence\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"258-264\",\"observation\":\"Conflicts append in mapped-property order; only ConflictRefs are sorted globally.\"}\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"397-399\",\"observation\":\"Verifier compares each conflict EvidenceRef to the same-index sorted ConflictRefs, rejecting valid generated output.\"}\n\n## Reproduction and executed proof\n- Use existing simulationFixture with one row having compensation_component.amount conflict evidence-z and job.title conflict evidence-a.\n- SimulateImport succeeds and signs the result. Its draft has ConflictRefs [evidence-a,evidence-z] but Conflicts evidence order [evidence-z,evidence-a].\n- VerifyImportSimulation immediately rejects the returned result with ErrSimulationSignature.\n\n{\n  \"overlay\": \"dataops-overlay.json\",\n  \"test_file\": \"dataops_conflict_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsConflictEvidenceRoundtrip -v\",\n  \"result\": \"FAIL: freshly generated signed simulation rejected: importing: simulation signature failed\"\n}\n\n## Required change and reuse\nOwner: `internal/domains/dataops/importing`.\nFix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.\n\n## UI and UX\nIn SMB-SETUP-004/005 preview, each conflicted row retains its actual field and evidence link; conflict rows remain reviewable rather than becoming a misleading signature-corruption error. No new page or component is required; do not claim current browser behavior tested.\n\n## Acceptance\n- Every generated valid simulation verifies immediately and after persistence/reload, including multiple properties and reversed evidence lexical order.\n- Permuting input conflict list yields deterministic signed bytes; ties have explicit stable property/intent/evidence ordering.\n- Invalid or tampered evidence still fails verification.\n- CommitImport classifies CONFLICT rows as non-writing outcomes; NewImportProposalRevisions skips them and emits only CREATE/CHANGE proposals; both accept authentic simulation without ordering-based signature failure.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_004`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_004`; `PROPERTY=TestTodo_IMPL_GAP_004_Property`; `INTEGRATION=TestTodo_IMPL_GAP_004_Integration`; `SECURITY=TestTodo_IMPL_GAP_004_Security`.\nRED: Generated signed multi-conflict simulation fails its verifier because structured conflicts and refs have different order.\nGREEN: One canonical ordering self-verifies generated multi-conflict simulations across persistence and retains tampering refusal.\nREFACTOR: Fix the canonical ordering once in the existing importing owner: sort structured conflicts under a stable total order, then derive ConflictRefs from that sequence (or compare according to an explicitly versioned canonical relation). Preserve duplicate evidence checks and signed payload compatibility explicitly; do not weaken signature validation.\n\n- go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_004\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: DATAOPS-005.\n{\n  \"existing_closed\": [\n    2985,\n    1763\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"Full github-before.jsonl search for DATAOPS-005, conflictrefs and simulation conflict found no open exact regression issue. Existing SMB-SETUP-004/005 assume the library works and do not specify this multi-property ordering case.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-SETUP-004\",\"relation\":\"hard prerequisite\"}\n- {\"id\":\"SMB-SETUP-005\",\"relation\":\"transitive prerequisite via SMB-SETUP004\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    },
+    {
+      "candidate_id": "IMPL-DATAOPS-CORRECTION-PRESENCE",
+      "title": "Preserve absent versus present-empty values in DataOps corrective import intents",
+      "priority": "P2",
+      "owner": "internal/domains/dataops/importing",
+      "scope": "Confirmed existing correction planner information-loss defect. CorrectiveIntents has no production consumer found; this is a blocker before using its advertised rollback behavior, not a demonstrated database corruption event.",
+      "evidence": [
+        {
+          "path": "internal/domains/dataops/importing/commit.go",
+          "lines": "257-275",
+          "observation": "Contract promises baseline value or absence; planner copies only w.Current to Proposed and loses w.CurrentPresent."
+        },
+        {
+          "path": "internal/domains/dataops/importing/simulate.go",
+          "lines": "37-43",
+          "observation": "DraftWrite represents CurrentPresent but no proposed presence/clear operation."
+        }
+      ],
+      "reproduction": [
+        "Construct a committed change with prior optional field absent (Current empty string, CurrentPresent false), proposed new value, and transaction lineage.",
+        "Plan CorrectiveIntents, then repeat with identical original values except CurrentPresent true (prior present-empty field).",
+        "Both returned correction write payloads are exactly identical, Proposed empty string and CurrentPresent true. No consumer can recover whether to clear the field or set an empty value from the correction payload."
+      ],
+      "proof": {
+        "overlay": "dataops-rollback-overlay.json",
+        "test_file": "dataops_rollback_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-rollback-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsCorrectionPreservesAbsence -v",
+        "result": "FAIL: corrective payload cannot distinguish restoring absence from restoring a present empty string"
+      },
+      "existing_test_gap": "commit_test.go:164-167 asserts only Proposed equals baseline Current text. It does not assert presence or prove a corrective operation restores the prior state. Baseline importing package passes.",
+      "dedup": {
+        "existing_closed": [2454],
+        "existing_open_sufficient": false,
+        "note": "Only closed DATAOPS-006 #2454 tracks CorrectiveIntents. SMB-SETUP-005 says domain corrections preserve history but does not cover missing versus empty state."
+      },
+      "reuse_fix": "Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.",
+      "acceptance": [
+        "Absent, present-empty and present-nonempty originals produce distinct semantically complete corrective requests.",
+        "Apply each correction through a test domain adapter and assert exact prior value/presence restored plus immutable lineage retained.",
+        "Creation reversal uses its explicit domain correction semantics rather than turning all previously absent properties into empty strings.",
+        "Concurrent edits after import prevent silent overwrite and require review/re-simulation.",
+        "Existing simulations and readers have explicit compatibility tests if the signed DraftWrite representation changes."
+      ],
+      "ui_ux": "Reversal preview must distinguish Clear field from Set to empty and Set to value; it must show current-to-target state, affected record and source import receipt. Unavailable/unsupported domain reversals are blocked with a reason rather than presenting successful undo. Applies to future import corrective UI; no current visual claim.",
+      "related_planned_ids": ["SMB-SETUP-005"],
+      "recommended_disposition": "new scoped existing-library regression issue; prerequisite to planned import corrections",
+      "id": "IMPL-GAP-005",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["DATAOPS-006"],
+      "intent_sets": ["BI.DATAOPS", "BI.INTEGRATION"],
+      "test": "TestTodo_IMPL_GAP_005",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_005",
+        "PROPERTY": "TestTodo_IMPL_GAP_005_Property",
+        "INTEGRATION": "TestTodo_IMPL_GAP_005_Integration",
+        "RECOVERY": "TestTodo_IMPL_GAP_005_Recovery"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_005"
+      ],
+      "red": "CorrectiveIntents emits identical corrective payloads for absent and present-empty baselines.",
+      "green": "Corrective requests preserve explicit presence/clear semantics, exact prior state and immutable lineage through domain authority, with concurrent-change refusal.",
+      "refactor": "Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.",
+      "affected_smb": [
+        {
+          "id": "SMB-SETUP-005",
+          "relation": "hard prerequisite"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-005: Preserve absent versus present-empty values in DataOps corrective import intents",
+      "github_body": "Todo-ID: IMPL-GAP-005\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing correction planner information-loss defect. CorrectiveIntents has no production consumer found; this is a blocker before using its advertised rollback behavior, not a demonstrated database corruption event.\n\n\n## Source evidence\n- {\"path\":\"internal/domains/dataops/importing/commit.go\",\"lines\":\"257-275\",\"observation\":\"Contract promises baseline value or absence; planner copies only w.Current to Proposed and loses w.CurrentPresent.\"}\n- {\"path\":\"internal/domains/dataops/importing/simulate.go\",\"lines\":\"37-43\",\"observation\":\"DraftWrite represents CurrentPresent but no proposed presence/clear operation.\"}\n\n## Reproduction and executed proof\n- Construct a committed change with prior optional field absent (Current empty string, CurrentPresent false), proposed new value, and transaction lineage.\n- Plan CorrectiveIntents, then repeat with identical original values except CurrentPresent true (prior present-empty field).\n- Both returned correction write payloads are exactly identical, Proposed empty string and CurrentPresent true. No consumer can recover whether to clear the field or set an empty value from the correction payload.\n\n{\n  \"overlay\": \"dataops-rollback-overlay.json\",\n  \"test_file\": \"dataops_rollback_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/dataops-rollback-overlay.json ./internal/domains/dataops/importing/ -run TestImplementationReviewDataOpsCorrectionPreservesAbsence -v\",\n  \"result\": \"FAIL: corrective payload cannot distinguish restoring absence from restoring a present empty string\"\n}\n\n## Required change and reuse\nOwner: `internal/domains/dataops/importing`.\nExtend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.\n\n## UI and UX\nReversal preview must distinguish Clear field from Set to empty and Set to value; it must show current-to-target state, affected record and source import receipt. Unavailable/unsupported domain reversals are blocked with a reason rather than presenting successful undo. Applies to future import corrective UI; no current visual claim.\n\n## Acceptance\n- Absent, present-empty and present-nonempty originals produce distinct semantically complete corrective requests.\n- Apply each correction through a test domain adapter and assert exact prior value/presence restored plus immutable lineage retained.\n- Creation reversal uses its explicit domain correction semantics rather than turning all previously absent properties into empty strings.\n- Concurrent edits after import prevent silent overwrite and require review/re-simulation.\n- Existing simulations and readers have explicit compatibility tests if the signed DraftWrite representation changes.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.DATAOPS,BI.INTEGRATION; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_005`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_005`; `PROPERTY=TestTodo_IMPL_GAP_005_Property`; `INTEGRATION=TestTodo_IMPL_GAP_005_Integration`; `RECOVERY=TestTodo_IMPL_GAP_005_Recovery`.\nRED: CorrectiveIntents emits identical corrective payloads for absent and present-empty baselines.\nGREEN: Corrective requests preserve explicit presence/clear semantics, exact prior state and immutable lineage through domain authority, with concurrent-change refusal.\nREFACTOR: Extend the existing correction/write contract with explicit proposed presence or domain clear semantics using existing presence vocabulary, while preserving ordinary create/change semantics and any signed-format compatibility. Corrective generation must retain the full prior assertion and revalidate the current post-commit revision through the owning domain before effects; do not reuse an obsolete baseline revision or delete ledger history.\n\n- go test -count=1 ./internal/domains/dataops/importing -run TestTodo_IMPL_GAP_005\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: DATAOPS-006.\n{\n  \"existing_closed\": [\n    2454\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"Only closed DATAOPS-006 #2454 tracks CorrectiveIntents. SMB-SETUP-005 says domain corrections preserve history but does not cover missing versus empty state.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-SETUP-005\",\"relation\":\"hard prerequisite\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    },
+    {
+      "candidate_id": "IMPL-CONNECTOR-WITHHELD-EVIDENCE",
+      "title": "Remove evidence references from denied connector status projections",
+      "priority": "P2",
+      "owner": "internal/operations/admincenter/connectorconfig",
+      "scope": "Confirmed existing projection-library disclosure bug. Global Go-source search finds no production BuildStatus caller, so no served endpoint exploit or live tenant exposure is claimed.",
+      "evidence": [
+        {
+          "path": "internal/operations/admincenter/connectorconfig/center.go",
+          "lines": "54-64",
+          "observation": "StatusView is seeded with EvidenceRefs; subject-denied branch returns without clearing them."
+        },
+        {
+          "path": "internal/operations/admincenter/connectorconfig/center.go",
+          "lines": "74-75",
+          "observation": "Field evidence deny filtering is bypassed by the earlier return."
+        }
+      ],
+      "reproduction": [
+        "Create the valid existing mustConnection fixture.",
+        "Call BuildStatus with matching tenant/environment, SubjectDisclosable false, no granted fields and evidence reference evidence:private-sync.",
+        "Returned view is Withheld true but retains [{ID:evidence:private-sync Kind:diagnostic}]."
+      ],
+      "proof": {
+        "overlay": "connector-overlay.json",
+        "test_file": "connector_disclosure_overlay_test.go",
+        "command": "go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/connector-overlay.json ./internal/connectivity/ -run TestImplementationReviewConnectorDeniedEvidence -v",
+        "result": "FAIL: denied subject disclosed evidence: [{ID:evidence:private-sync Kind:diagnostic}]"
+      },
+      "existing_test_gap": "connectorconfig/center_test.go tests only action registry and PlanAction. It has no BuildStatus disclosure matrix; baseline package reports ok.",
+      "dedup": {
+        "existing_closed": [310, 117],
+        "related_open": [2170, 2837],
+        "existing_open_sufficient": false,
+        "note": "REV-037-02 #2170 is AdminService/CLI wiring and REV-080-01 #2837 is UI wiring; neither acceptance specifies this library branch. Do not duplicate their wiring scope. Can alternatively append this exact regression prerequisite to #2170."
+      },
+      "reuse_fix": "Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.",
+      "acceptance": [
+        "SubjectDisclosable false returns Withheld true and zero evidence references regardless of FieldEvidence flag.",
+        "Subject allowed with FieldEvidence absent/false returns no evidence, while allowed/true preserves a cloned evidence list.",
+        "Tenant/environment mismatch still fails closed; mutation of source evidence slice cannot mutate a returned allowed view.",
+        "Before #2170/#2837 consumers are admitted, serialized RPC/HTML output contains no hidden evidence IDs, links, counts or tooltip metadata."
+      ],
+      "ui_ux": "Denied configuration rows use the existing unavailable/withheld state with no evidence links, evidence count badge, DOM data attributes, tooltip identifiers or keyboard focus targets exposing hidden references. Allowed users keep the normal provenance presentation.",
+      "related_planned_ids": ["SMB-DEVICE-009"],
+      "recommended_disposition": "new small library regression or exact prerequisite added to #2170; no duplicate connector-center implementation",
+      "id": "IMPL-GAP-006",
+      "phase": "PHASE_3",
+      "classification": "proven implementation defect",
+      "depends": ["ADMIN-004"],
+      "intent_sets": ["BI.OPERATIONS", "BI.SECURITY"],
+      "test": "TestTodo_IMPL_GAP_006",
+      "test_matrix": {
+        "PRIMARY": "TestTodo_IMPL_GAP_006",
+        "SECURITY": "TestTodo_IMPL_GAP_006_Security",
+        "INTEGRATION": "TestTodo_IMPL_GAP_006_Integration"
+      },
+      "required_test_commands": [
+        "go test -count=1 ./internal/operations/admincenter/connectorconfig -run TestTodo_IMPL_GAP_006"
+      ],
+      "red": "BuildStatus subject-denied early return retains EvidenceRefs.",
+      "green": "Subject denial returns withheld with no evidence; allowed views retain only authorized cloned evidence.",
+      "refactor": "Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.",
+      "affected_smb": [
+        {
+          "id": "SMB-DEVICE-009",
+          "relation": "hard prerequisite"
+        }
+      ],
+      "review": {
+        "status": "accepted",
+        "reviewer": "/root/implementation_gap_review/implementation_challenger",
+        "artifact": ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json"
+      },
+      "github_title": "IMPL-GAP-006: Remove evidence references from denied connector status projections",
+      "github_body": "Todo-ID: IMPL-GAP-006\nState: OPEN\nPriority: P2\nTags: [PHASE_3][SOL_HIGH]\n\n## Problem and boundary\nConfirmed existing projection-library disclosure bug. Global Go-source search finds no production BuildStatus caller, so no served endpoint exploit or live tenant exposure is claimed.\n\n\n## Source evidence\n- {\"path\":\"internal/operations/admincenter/connectorconfig/center.go\",\"lines\":\"54-64\",\"observation\":\"StatusView is seeded with EvidenceRefs; subject-denied branch returns without clearing them.\"}\n- {\"path\":\"internal/operations/admincenter/connectorconfig/center.go\",\"lines\":\"74-75\",\"observation\":\"Field evidence deny filtering is bypassed by the earlier return.\"}\n\n## Reproduction and executed proof\n- Create the valid existing mustConnection fixture.\n- Call BuildStatus with matching tenant/environment, SubjectDisclosable false, no granted fields and evidence reference evidence:private-sync.\n- Returned view is Withheld true but retains [{ID:evidence:private-sync Kind:diagnostic}].\n\n{\n  \"overlay\": \"connector-overlay.json\",\n  \"test_file\": \"connector_disclosure_overlay_test.go\",\n  \"command\": \"go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/connector-overlay.json ./internal/connectivity/ -run TestImplementationReviewConnectorDeniedEvidence -v\",\n  \"result\": \"FAIL: denied subject disclosed evidence: [{ID:evidence:private-sync Kind:diagnostic}]\"\n}\n\n## Required change and reuse\nOwner: `internal/operations/admincenter/connectorconfig`.\nUse the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.\n\n## UI and UX\nDenied configuration rows use the existing unavailable/withheld state with no evidence links, evidence count badge, DOM data attributes, tooltip identifiers or keyboard focus targets exposing hidden references. Allowed users keep the normal provenance presentation.\n\n## Acceptance\n- SubjectDisclosable false returns Withheld true and zero evidence references regardless of FieldEvidence flag.\n- Subject allowed with FieldEvidence absent/false returns no evidence, while allowed/true preserves a cloned evidence list.\n- Tenant/environment mismatch still fails closed; mutation of source evidence slice cannot mutate a returned allowed view.\n- Before #2170/#2837 consumers are admitted, serialized RPC/HTML output contains no hidden evidence IDs, links, counts or tooltip metadata.\n\n## Future fix test contract\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.OPERATIONS,BI.SECURITY; DIRECT=none; WHY=repair a current reused implementation before dependent business features rely on it`.\nTEST: `TestTodo_IMPL_GAP_006`.\nTEST MATRIX: `PRIMARY=TestTodo_IMPL_GAP_006`; `SECURITY=TestTodo_IMPL_GAP_006_Security`; `INTEGRATION=TestTodo_IMPL_GAP_006_Integration`.\nRED: BuildStatus subject-denied early return retains EvidenceRefs.\nGREEN: Subject denial returns withheld with no evidence; allowed views retain only authorized cloned evidence.\nREFACTOR: Use the existing BuildStatus owner and disclosure decision; deny subject before adding nonpublic evidence or clear references on every denied return. Keep any deliberately public opaque route identity explicitly documented and independently tested; do not introduce a second authorization framework.\n\n- go test -count=1 ./internal/operations/admincenter/connectorconfig -run TestTodo_IMPL_GAP_006\n\nExecuted overlay probes are failing regression assertions on current source, not implementation completion. Use AGENTS test cache/temp settings. No local race detector was run; supported CI must prove required races. Windows unlinkat cleanup noise is separate from package result.\n\n## Dependencies and overlap\nDepends: ADMIN-004.\n{\n  \"existing_closed\": [\n    310,\n    117\n  ],\n  \"related_open\": [\n    2170,\n    2837\n  ],\n  \"existing_open_sufficient\": false,\n  \"note\": \"REV-037-02 #2170 is AdminService/CLI wiring and REV-080-01 #2837 is UI wiring; neither acceptance specifies this library branch. Do not duplicate their wiring scope. Can alternatively append this exact regression prerequisite to #2170.\"\n}\nAffected SMB consumers: - {\"id\":\"SMB-DEVICE-009\",\"relation\":\"hard prerequisite\"}\n\n## Independent refinement\nAccepted by /root/implementation_gap_review/implementation_challenger; evidence `.artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json`. No code changes or runtime-data changes made by this audit.\n\n"
+    }
+  ],
+  "existing_issue_updates": [
+    {
+      "issue_number": 654,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/654",
+      "title": "APPT-003: Reserve appointment slot and resources atomically.",
+      "operation": "append body addendum, preserve original state/labels/body",
+      "original_body": "Todo-ID: APPT-003\nState: OPEN\nTags: [PHASE_3][SOL_HIGH]\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.\nTEST: `TestTodo_APPT_003`.\nTEST MATRIX: `PRIMARY=TestTodo_APPT_003`; `RACE=TestTodo_APPT_003_Race`; `MUTATION=TestTodo_APPT_003_Mutation`.\nGREEN: Concurrent reservation yields one winner, expiry/release is fenced and all participant/resource holds commit together or none.\nRED: Seeded defect: missing time or resource contract or competing slot reservation is accepted for APPT-003; the primary test must return APPT_003_REJECTED with offending field/state/version and persist zero authoritative rows, business events, outbox entries, human work and provider requests.\nREFACTOR: Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.\nRefs: [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [workflow runtime](specs/workflow-runtime.md).\nDepends: `APPT-002`, `RESERVE-001`.\nAudit (2026-09-24): Reopened because `internal/domains/appointment` is absent from shipped-command dependency closure, so GREEN's product capability is not proven on a served path. Per-ID reachability review: `.artifacts/lanes/reach-a-f-audit.tsv`.\nEvidence (2026-09-17): `TestTodo_APPT_003` plus RACE/MUTATION matrix in `internal/domains/appointment` (`reservation.go` atomic all-holds-or-none reserve with deterministic fingerprint replay, fenced release/expire); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.\n",
+      "append": "\n\n## Implementation-review backfill (2026-10-22)\n\nThis supplements the existing APPT-003 atomic/fencing/reachability scope. The source already uses shared reservation primitives; this is not another private-reservation migration request.\n\n### Reject foreign-tenant appointment resources before acquiring shared holds\n\nResourceHold.validate checks EntityRef syntax, presence of a resource type and positive quantity. Reserve explicitly checks participant tenant but never checks each resource or resource-type reference against Requirement.RequestTenant. An otherwise valid tenant-a request with ResourceRef.Tenant=tenant-b succeeds, creates one active local reservation and acquires shared fences keyed under tenant-b.\n\nSource: `internal/domains/appointment/reservation.go:80`, `internal/domains/appointment/reservation.go:342`, `internal/domains/appointment/reservation.go:355`, `internal/domains/appointment/reservation.go:423`.\n\nReproduction:\n- Use appt003KnownRequest fixture with tenant-a requirement/participant/type.\n- Change only r.Resources[0].ResourceRef.Tenant to tenant-b.\n- Call newTestReservationLedger().Reserve(req,r,appt003Now()).\n- Expected typed CROSS_TENANT refusal before any local/shared hold. Actual err=nil and ledger.Active()==1.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentCrossTenantResource: accepted cross-tenant resource eref:v1:tenant-b:resource:00000000-0000-4000-8000-000000000005; active=1. Package FAIL. Subsequent Windows unlinkat Access is denied is not the failure basis.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:6` (scratch overlay, no tracked edits).\n\nAcceptance:\n- ResourceRef and nonzero ResourceTypeRef must match admitted requirement tenant before any fence acquisition; valid unrelated tenant identities fail.\n- Same-tenant valid request continues to succeed and byte-identical replay stays stable.\n- Rejected input leaves Active count, shared hold/events, outbox, and downstream domain facts unchanged.\n- Include cross-tenant type, resource and participant cases with stable field/state/version errors. Do not trust UI option filtering as authorization.\n\nUI/UX: No new UI. Appointment/dispatch clients must show existing inline invalid-resource error and preserve selected slot/input; never show Booked or hold progress after refusal.\n\n### Return isolated appointment snapshots so reads cannot mutate ledger state or invalidate digests\n\nGet comment promises a defensive copy but returns Reservation with Participants/Resources backing arrays shared with holds map. Reserve initially clones request slices but stores and returns the same cloned arrays; replay also returns the stored struct. Mutating Get's participant tenant changes subsequent Get while Digest remains unchanged and shared resource fences still describe the original participant.\n\nSource: `internal/domains/appointment/reservation.go:391`, `internal/domains/appointment/reservation.go:435`, `internal/domains/appointment/reservation.go:439`.\n\nReproduction:\n- Reserve the existing valid appt003KnownRequest fixture.\n- Save original participant then call Get(res.ID).\n- Set returned.Participants[0].Tenant=tenant-b.\n- Call Get again: actual stored participant is tenant-b and original digest is unchanged; expected original tenant-a participant.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentReadIsolation: before tenant-a candidate; after tenant-b candidate; digestUnchanged=true. Package FAIL, actual assertion failure.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:14` (scratch overlay, no tracked edits).\n\nAcceptance:\n- Mutating Participants/Resources from initial Reserve, replay Reserve, Get and transition returns cannot alter future reads, canonical digest, notifications or shared-fence identity.\n- Use one owner-local deep-copy helper for every mutable nested slice; no parallel reservation implementation.\n- Tests must mutate actual returned objects and assert stored state, digest and conflict outcomes, not compare a fixture to a newly created fixture.\n- Add genuine goroutine race test in CI to prove caller mutation cannot race a ledger read; local environment has no race detector.\n\nUI/UX: No new visual surface. Existing reservation state and conflict notices must reflect immutable server snapshots; UI edits remain proposals until an authorized transition succeeds.\n\nPermanent tests: add `TestTodo_APPT_003_Security` and `TestTodo_APPT_003_SnapshotIsolation` to existing matrix; retain PRIMARY/RACE/MUTATION. Add actual returned-slice mutation and zero-effects assertions; run race test in supported CI. APPT-004 (#387) must inherit snapshot isolation, and SMB-SCHED-001 must consume this corrected owner. No browser observation or live endpoint exploitation claimed. Independent review accepted both in `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json`. This audit does not complete APPT-003.\n",
+      "proposed_body": "Todo-ID: APPT-003\nState: OPEN\nTags: [PHASE_3][SOL_HIGH]\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.\nTEST: `TestTodo_APPT_003`.\nTEST MATRIX: `PRIMARY=TestTodo_APPT_003`; `RACE=TestTodo_APPT_003_Race`; `MUTATION=TestTodo_APPT_003_Mutation`.\nGREEN: Concurrent reservation yields one winner, expiry/release is fenced and all participant/resource holds commit together or none.\nRED: Seeded defect: missing time or resource contract or competing slot reservation is accepted for APPT-003; the primary test must return APPT_003_REJECTED with offending field/state/version and persist zero authoritative rows, business events, outbox entries, human work and provider requests.\nREFACTOR: Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.\nRefs: [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [workflow runtime](specs/workflow-runtime.md).\nDepends: `APPT-002`, `RESERVE-001`.\nAudit (2026-09-24): Reopened because `internal/domains/appointment` is absent from shipped-command dependency closure, so GREEN's product capability is not proven on a served path. Per-ID reachability review: `.artifacts/lanes/reach-a-f-audit.tsv`.\nEvidence (2026-09-17): `TestTodo_APPT_003` plus RACE/MUTATION matrix in `internal/domains/appointment` (`reservation.go` atomic all-holds-or-none reserve with deterministic fingerprint replay, fenced release/expire); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.\n\n\n## Implementation-review backfill (2026-10-22)\n\nThis supplements the existing APPT-003 atomic/fencing/reachability scope. The source already uses shared reservation primitives; this is not another private-reservation migration request.\n\n### Reject foreign-tenant appointment resources before acquiring shared holds\n\nResourceHold.validate checks EntityRef syntax, presence of a resource type and positive quantity. Reserve explicitly checks participant tenant but never checks each resource or resource-type reference against Requirement.RequestTenant. An otherwise valid tenant-a request with ResourceRef.Tenant=tenant-b succeeds, creates one active local reservation and acquires shared fences keyed under tenant-b.\n\nSource: `internal/domains/appointment/reservation.go:80`, `internal/domains/appointment/reservation.go:342`, `internal/domains/appointment/reservation.go:355`, `internal/domains/appointment/reservation.go:423`.\n\nReproduction:\n- Use appt003KnownRequest fixture with tenant-a requirement/participant/type.\n- Change only r.Resources[0].ResourceRef.Tenant to tenant-b.\n- Call newTestReservationLedger().Reserve(req,r,appt003Now()).\n- Expected typed CROSS_TENANT refusal before any local/shared hold. Actual err=nil and ledger.Active()==1.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentCrossTenantResource: accepted cross-tenant resource eref:v1:tenant-b:resource:00000000-0000-4000-8000-000000000005; active=1. Package FAIL. Subsequent Windows unlinkat Access is denied is not the failure basis.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:6` (scratch overlay, no tracked edits).\n\nAcceptance:\n- ResourceRef and nonzero ResourceTypeRef must match admitted requirement tenant before any fence acquisition; valid unrelated tenant identities fail.\n- Same-tenant valid request continues to succeed and byte-identical replay stays stable.\n- Rejected input leaves Active count, shared hold/events, outbox, and downstream domain facts unchanged.\n- Include cross-tenant type, resource and participant cases with stable field/state/version errors. Do not trust UI option filtering as authorization.\n\nUI/UX: No new UI. Appointment/dispatch clients must show existing inline invalid-resource error and preserve selected slot/input; never show Booked or hold progress after refusal.\n\n### Return isolated appointment snapshots so reads cannot mutate ledger state or invalidate digests\n\nGet comment promises a defensive copy but returns Reservation with Participants/Resources backing arrays shared with holds map. Reserve initially clones request slices but stores and returns the same cloned arrays; replay also returns the stored struct. Mutating Get's participant tenant changes subsequent Get while Digest remains unchanged and shared resource fences still describe the original participant.\n\nSource: `internal/domains/appointment/reservation.go:391`, `internal/domains/appointment/reservation.go:435`, `internal/domains/appointment/reservation.go:439`.\n\nReproduction:\n- Reserve the existing valid appt003KnownRequest fixture.\n- Save original participant then call Get(res.ID).\n- Set returned.Participants[0].Tenant=tenant-b.\n- Call Get again: actual stored participant is tenant-b and original digest is unchanged; expected original tenant-a participant.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentReadIsolation: before tenant-a candidate; after tenant-b candidate; digestUnchanged=true. Package FAIL, actual assertion failure.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:14` (scratch overlay, no tracked edits).\n\nAcceptance:\n- Mutating Participants/Resources from initial Reserve, replay Reserve, Get and transition returns cannot alter future reads, canonical digest, notifications or shared-fence identity.\n- Use one owner-local deep-copy helper for every mutable nested slice; no parallel reservation implementation.\n- Tests must mutate actual returned objects and assert stored state, digest and conflict outcomes, not compare a fixture to a newly created fixture.\n- Add genuine goroutine race test in CI to prove caller mutation cannot race a ledger read; local environment has no race detector.\n\nUI/UX: No new visual surface. Existing reservation state and conflict notices must reflect immutable server snapshots; UI edits remain proposals until an authorized transition succeeds.\n\nPermanent tests: add `TestTodo_APPT_003_Security` and `TestTodo_APPT_003_SnapshotIsolation` to existing matrix; retain PRIMARY/RACE/MUTATION. Add actual returned-slice mutation and zero-effects assertions; run race test in supported CI. APPT-004 (#387) must inherit snapshot isolation, and SMB-SCHED-001 must consume this corrected owner. No browser observation or live endpoint exploitation claimed. Independent review accepted both in `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json`. This audit does not complete APPT-003.\n",
+      "existing_todo": "APPT-003",
+      "todo_backfill": "Add evidence-neutral open audit note/source refs and Security/SnapshotIsolation acceptance without ticking done.",
+      "affected_smb": [
+        {
+          "id": "SMB-SCHED-001",
+          "relation": "already depends APPT003; strengthen exact scope"
+        }
+      ]
+    }
+  ],
+  "acknowledged_existing_gaps": [
+    {
+      "gap": "Workorder production pricing/BillingSources ports are missing from composition",
+      "source": [
+        "internal/application/workorder_composition.go:64",
+        "internal/application/workorderservice/service_extras.go:479",
+        "planning/research/work-order-workflow-2026-09-25.md:7"
+      ],
+      "disposition": "Acknowledged fail-closed boundary; no duplicate defect.",
+      "backfill": "Commercial author updated SMB-BILL002 with ResolvePricing/Sources in composeWorkOrders and real PostgreSQL composed RequestBillingDraft proof."
+    },
+    {
+      "gap": "Asset/contact served surfaces expose reference functions rather than durable end-user features",
+      "source": [
+        "internal/application/asset_k1_served_surface.go:24",
+        "internal/application/contact_k1_served_surface.go:30"
+      ],
+      "disposition": "Existing persistence reachability issues and SMB-ASSET/CRM expansion own this; no claim kernel source is absent."
+    },
+    {
+      "gap": "Live workorder workflow binder and closeout evidence/inspection adapters pending",
+      "source": [
+        "planning/research/work-order-workflow-2026-09-25.md:7",
+        "internal/application/workorder_reporting_adapter.go:199"
+      ],
+      "disposition": "Source-risk links to SMB-JOB001/003/005/006; reuses existing workflow, not new engine."
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "candidate": "Report RenderInput zero proves lost report",
+      "reason": "Artifact.Payload retains render data; transport returns metadata+ref intentionally. No broken consumer proved."
+    },
+    {
+      "candidate": "Report replay ViewPay concern is live leak",
+      "reason": "Current transport exposes metadata only, no sensitive response consumer shown; not filed."
+    },
+    {
+      "candidate": "dataopsstore concurrent idempotency race",
+      "reason": "Structural suspicion lacked reproduction; excluded."
+    }
+  ],
+  "independent_reviews": [
+    ".artifacts/lanes/smb-expansion-20261022/implementation-review/independent-candidate-verdicts.json",
+    ".artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json",
+    ".artifacts/lanes/smb-expansion-20261022/implementation-review/final-publication-review.json"
+  ],
+  "publication_guidance": "Parent reserved IMPL-GAP001..006 and owns shared docs/TODO/registry and GitHub writes. Re-fetch #654 before append if changed. New issue payloads are self-contained; add affected hard prerequisites before SMB publication. Source risk links are not mandatory dependencies unless noted.",
+  "publication": {
+    "IMPL-GAP-001": {
+      "id": "IMPL-GAP-001",
+      "number": 3437,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3437",
+      "title": "IMPL-GAP-001: Enforce cost visibility for isolated work-order billing-review requests",
+      "sha256": "b1b8e9232f81608222df291e8ce8808699fba4337f32273a94f65163a39020a3",
+      "published_at": "2026-10-23T00:58:38.760Z"
+    },
+    "IMPL-GAP-002": {
+      "id": "IMPL-GAP-002",
+      "number": 3438,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3438",
+      "title": "IMPL-GAP-002: Enforce the asset domain custody state machine in the PostgreSQL adapter",
+      "sha256": "3fc86dbfdf99b07ee7051c480700d2371a7f3e080e1a4dce33a01d2506606909",
+      "published_at": "2026-10-23T00:58:41.981Z"
+    },
+    "IMPL-GAP-003": {
+      "id": "IMPL-GAP-003",
+      "number": 3439,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3439",
+      "title": "IMPL-GAP-003: Return the persisted creation time on the first work-order artifact receipt",
+      "sha256": "7f8f9d3fd413522799e2162a8b27164ec374a682ddc2b26b959f867a1ee7d8d0",
+      "published_at": "2026-10-23T00:58:44.755Z"
+    },
+    "IMPL-GAP-004": {
+      "id": "IMPL-GAP-004",
+      "number": 3440,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3440",
+      "title": "IMPL-GAP-004: Keep DataOps conflict evidence and references in one canonical order",
+      "sha256": "e9ccf803f2425a922e13e081bf2f2aebbd693961f606f47ab58f0e73873b9925",
+      "published_at": "2026-10-23T00:58:47.751Z"
+    },
+    "IMPL-GAP-005": {
+      "id": "IMPL-GAP-005",
+      "number": 3441,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3441",
+      "title": "IMPL-GAP-005: Preserve absent versus present-empty values in DataOps corrective import intents",
+      "sha256": "86f192a6a2e2a3f98d7054d47411adcf00456e54e43e7b2147906cbc123ca19d",
+      "published_at": "2026-10-23T00:58:50.079Z"
+    },
+    "IMPL-GAP-006": {
+      "id": "IMPL-GAP-006",
+      "number": 3442,
+      "url": "https://github.com/monstercameron/human-capital-management-suite/issues/3442",
+      "title": "IMPL-GAP-006: Remove evidence references from denied connector status projections",
+      "sha256": "eab7a5e3e104412928c8341ac2ebb220f6be7d60f384267da33db140c8e2880f",
+      "published_at": "2026-10-23T00:58:52.409Z"
+    }
+  },
+  "existing_issue_publication": {
+    "issue_number": 654,
+    "url": "https://github.com/monstercameron/human-capital-management-suite/issues/654",
+    "original_preserved": true,
+    "addenda": 2,
+    "verified": true,
+    "body": "Todo-ID: APPT-003\nState: OPEN\nTags: [PHASE_3][SOL_HIGH]\nINTENT CONTEXT: `ROLE=DOMAIN_SUPPORT; SETS=BI.RECRUITING; DIRECT=none; WHY=provide owned semantics, computation or effects consumed by the declared intent set`.\nTEST: `TestTodo_APPT_003`.\nTEST MATRIX: `PRIMARY=TestTodo_APPT_003`; `RACE=TestTodo_APPT_003_Race`; `MUTATION=TestTodo_APPT_003_Mutation`.\nGREEN: Concurrent reservation yields one winner, expiry/release is fenced and all participant/resource holds commit together or none.\nRED: Seeded defect: missing time or resource contract or competing slot reservation is accepted for APPT-003; the primary test must return APPT_003_REJECTED with offending field/state/version and persist zero authoritative rows, business events, outbox entries, human work and provider requests.\nREFACTOR: Keep the tested contract behind its semantic owner, remove duplication and rerun the named unit, integration, conformance, race, fuzz, security and recovery suites that apply without changing observable behavior.\nRefs: [Transaction coordinator](specs/transaction-plan-and-commit-coordinator.md), [workflow runtime](specs/workflow-runtime.md).\nDepends: `APPT-002`, `RESERVE-001`.\nAudit (2026-09-24): Reopened because `internal/domains/appointment` is absent from shipped-command dependency closure, so GREEN's product capability is not proven on a served path. Per-ID reachability review: `.artifacts/lanes/reach-a-f-audit.tsv`.\nEvidence (2026-09-17): `TestTodo_APPT_003` plus RACE/MUTATION matrix in `internal/domains/appointment` (`reservation.go` atomic all-holds-or-none reserve with deterministic fingerprint replay, fenced release/expire); `go test -count=1 ./internal/domains/appointment/` PASS on windows/arm64 (Go 1.26.3); verified 2026-09-17; branch campaign/complete-backlog.\n\n<!-- IMPL-REVIEW-20261022 -->\n\n\n## Implementation-review backfill (2026-10-22)\n\nThis supplements the existing APPT-003 atomic/fencing/reachability scope. The source already uses shared reservation primitives; this is not another private-reservation migration request.\n\n### Reject foreign-tenant appointment resources before acquiring shared holds\n\nResourceHold.validate checks EntityRef syntax, presence of a resource type and positive quantity. Reserve explicitly checks participant tenant but never checks each resource or resource-type reference against Requirement.RequestTenant. An otherwise valid tenant-a request with ResourceRef.Tenant=tenant-b succeeds, creates one active local reservation and acquires shared fences keyed under tenant-b.\n\nSource: `internal/domains/appointment/reservation.go:80`, `internal/domains/appointment/reservation.go:342`, `internal/domains/appointment/reservation.go:355`, `internal/domains/appointment/reservation.go:423`.\n\nReproduction:\n- Use appt003KnownRequest fixture with tenant-a requirement/participant/type.\n- Change only r.Resources[0].ResourceRef.Tenant to tenant-b.\n- Call newTestReservationLedger().Reserve(req,r,appt003Now()).\n- Expected typed CROSS_TENANT refusal before any local/shared hold. Actual err=nil and ledger.Active()==1.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentCrossTenantResource: accepted cross-tenant resource eref:v1:tenant-b:resource:00000000-0000-4000-8000-000000000005; active=1. Package FAIL. Subsequent Windows unlinkat Access is denied is not the failure basis.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:6` (scratch overlay, no tracked edits).\n\nAcceptance:\n- ResourceRef and nonzero ResourceTypeRef must match admitted requirement tenant before any fence acquisition; valid unrelated tenant identities fail.\n- Same-tenant valid request continues to succeed and byte-identical replay stays stable.\n- Rejected input leaves Active count, shared hold/events, outbox, and downstream domain facts unchanged.\n- Include cross-tenant type, resource and participant cases with stable field/state/version errors. Do not trust UI option filtering as authorization.\n\nUI/UX: No new UI. Appointment/dispatch clients must show existing inline invalid-resource error and preserve selected slot/input; never show Booked or hold progress after refusal.\n\n### Return isolated appointment snapshots so reads cannot mutate ledger state or invalidate digests\n\nGet comment promises a defensive copy but returns Reservation with Participants/Resources backing arrays shared with holds map. Reserve initially clones request slices but stores and returns the same cloned arrays; replay also returns the stored struct. Mutating Get's participant tenant changes subsequent Get while Digest remains unchanged and shared resource fences still describe the original participant.\n\nSource: `internal/domains/appointment/reservation.go:391`, `internal/domains/appointment/reservation.go:435`, `internal/domains/appointment/reservation.go:439`.\n\nReproduction:\n- Reserve the existing valid appt003KnownRequest fixture.\n- Save original participant then call Get(res.ID).\n- Set returned.Participants[0].Tenant=tenant-b.\n- Call Get again: actual stored participant is tenant-b and original digest is unchanged; expected original tenant-a participant.\n\nExecuted: `go test -count=1 -overlay .artifacts/lanes/smb-expansion-20261022/implementation-review/probe-overlay.json ./internal/domains/appointment -run TestAuditAppointment -v`.\nObserved: FAIL TestAuditAppointmentReadIsolation: before tenant-a candidate; after tenant-b candidate; digestUnchanged=true. Package FAIL, actual assertion failure.\nProbe source: `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment_probe_test.go:14` (scratch overlay, no tracked edits).\n\nAcceptance:\n- Mutating Participants/Resources from initial Reserve, replay Reserve, Get and transition returns cannot alter future reads, canonical digest, notifications or shared-fence identity.\n- Use one owner-local deep-copy helper for every mutable nested slice; no parallel reservation implementation.\n- Tests must mutate actual returned objects and assert stored state, digest and conflict outcomes, not compare a fixture to a newly created fixture.\n- Add genuine goroutine race test in CI to prove caller mutation cannot race a ledger read; local environment has no race detector.\n\nUI/UX: No new visual surface. Existing reservation state and conflict notices must reflect immutable server snapshots; UI edits remain proposals until an authorized transition succeeds.\n\nPermanent tests: add `TestTodo_APPT_003_Security` and `TestTodo_APPT_003_SnapshotIsolation` to existing matrix; retain PRIMARY/RACE/MUTATION. Add actual returned-slice mutation and zero-effects assertions; run race test in supported CI. APPT-004 (#387) must inherit snapshot isolation, and SMB-SCHED-001 must consume this corrected owner. No browser observation or live endpoint exploitation claimed. Independent review accepted both in `.artifacts/lanes/smb-expansion-20261022/implementation-review/appointment-asset-independent-review.json`. This audit does not complete APPT-003.\n"
+  }
+}

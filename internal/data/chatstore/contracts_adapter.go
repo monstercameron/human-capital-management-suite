@@ -1640,6 +1640,9 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 	}
 	defer rows.Close()
 	var out []chat.WatchEvent
+	// statusChanges holds the positions in out of status changes. Their
+	// conversation value is read once after the rows are closed.
+	var statusChanges []int
 	scanned := 0
 	for rows.Next() {
 		scanned++
@@ -1669,6 +1672,12 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 		case "post.deleted":
 			event.Kind = chat.PostDeleted
 		case "conversation.created", "conversation.updated":
+			event.Kind = chat.ConversationUpdated
+		case chatstateStatusChangedEvent:
+			// CHATBUG-075, service watch half: a lock, archive or
+			// announcements-only change is delivered as a conversation
+			// update, as the paged reader does. Dropping it here left a
+			// hole in the conversation's event numbers that read as a gap.
 			event.Kind = chat.ConversationUpdated
 		case "membership.added", "membership.removed":
 			event.Kind = chat.MembershipChanged
@@ -1711,6 +1720,11 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 			event.Revision = envelope.Revision
 			switch event.Kind {
 			case chat.ConversationUpdated:
+				if kind == chatstateStatusChangedEvent {
+					// The envelope holds the status, not the conversation.
+					statusChanges = append(statusChanges, len(out))
+					break
+				}
 				var v chat.Conversation
 				if err = json.Unmarshal(envelope.Value, &v); err != nil {
 					return after, nil, false, err
@@ -1746,6 +1760,12 @@ func (s *Adapter) watchPage(ctx context.Context, r chat.WatchConversationRequest
 	}
 	if err = rows.Err(); err != nil {
 		return after, nil, false, err
+	}
+	if len(statusChanges) > 0 {
+		rows.Close()
+		if readErr := attachStatusChangedConversations(ctx, tx, r.TenantID, r.ConversationID, out, statusChanges); readErr != nil {
+			return after, nil, false, readErr
+		}
 	}
 	return after, out, scanned < limit, tx.Commit(ctx)
 }

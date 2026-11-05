@@ -39,7 +39,7 @@ func fixture(t *testing.T, mode string) (*Service, Command, Definition) {
 	}
 	c.Key = "publish"
 	c.ExpectedRevision = 1
-	if _, e := s.Publish(t.Context(), c, Version{1, 0, 0}); e != nil {
+	if _, e := s.Publish(t.Context(), c, Version{Major: 1, Minor: 0, Patch: 0}); e != nil {
 		t.Fatal(e)
 	}
 	c.ExpectedRevision = 2
@@ -64,10 +64,10 @@ func TestTodo_CHATGATE_002(t *testing.T) {
 	}
 	c.ExpectedRevision++
 	c.Key = "bump"
-	if _, e = s.Publish(t.Context(), c, Version{1, 0, 0}); !errors.Is(e, ErrInvalid) && !errors.Is(e, ErrConflict) {
+	if _, e = s.Publish(t.Context(), c, Version{Major: 1, Minor: 0, Patch: 0}); !errors.Is(e, ErrInvalid) && !errors.Is(e, ErrConflict) {
 		t.Fatal(e)
 	}
-	if _, e = s.Publish(t.Context(), c, Version{1, 0, 1}); e != nil {
+	if _, e = s.Publish(t.Context(), c, Version{Major: 1, Minor: 0, Patch: 1}); e != nil {
 		t.Fatal(e)
 	}
 	c.ExpectedRevision++
@@ -81,7 +81,7 @@ func TestTodo_CHATGATE_002(t *testing.T) {
 }
 func TestTodo_CHATGATE_002_Property(t *testing.T) {
 	for n := 0; n < 100; n++ {
-		old := Definition{Version: Version{uint32(n + 1), 2, 3}}
+		old := Definition{Version: Version{Major: uint32(n + 1), Minor: 2, Patch: 3}}
 		next := old
 		next.Fields = []Field{{ID: "added", Required: n%2 == 0}}
 		v := RequiredBump(old, next)
@@ -175,7 +175,7 @@ func TestTodo_CHATGATE_004(t *testing.T) {
 				}
 				c.ExpectedRevision++
 				c.Key = "rules-publish"
-				if _, e := s.Publish(t.Context(), c, Version{2, 0, 0}); e != nil {
+				if _, e := s.Publish(t.Context(), c, Version{Major: 2, Minor: 0, Patch: 0}); e != nil {
 					t.Fatal(e)
 				}
 				c.ExpectedRevision++
@@ -318,7 +318,7 @@ func TestTodo_CHATGATE_007_Property(t *testing.T) {
 	}
 	c.ExpectedRevision++
 	c.Key = "publish-new"
-	if _, e := s.Publish(t.Context(), c, Version{2, 0, 0}); e != nil {
+	if _, e := s.Publish(t.Context(), c, Version{Major: 2, Minor: 0, Patch: 0}); e != nil {
 		t.Fatal(e)
 	}
 	r := ReadRequest{Actor: Actor{"tenant", "stranger"}, Scope: c.Scope, Person: "member", Purpose: "Read", Fields: []string{"team"}}
@@ -339,7 +339,7 @@ func TestTodo_CHATGATE_008(t *testing.T) {
 	}
 	c.ExpectedRevision++
 	c.Key = "consumer-publish"
-	if _, e := s.Publish(t.Context(), c, Version{2, 0, 0}); e != nil {
+	if _, e := s.Publish(t.Context(), c, Version{Major: 2, Minor: 0, Patch: 0}); e != nil {
 		t.Fatal(e)
 	}
 	c.ExpectedRevision++

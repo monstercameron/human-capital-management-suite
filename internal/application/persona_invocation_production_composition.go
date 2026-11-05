@@ -39,6 +39,10 @@ type PersonaInvocationProductionConfig struct {
 	Reactions personaQuestionReactor
 	// Steps is the board the runs report their step on (AGENTUX-075).
 	Steps *personaRunStepBoard
+	// Peer extracts tainted peer context for surface invocations (AGENTP-025).
+	// Chat leaves it unset; the document surface bridge is composed only when
+	// it is set, so no surface mention binds context without quarantine.
+	Peer agentinvoke.PeerExtractor
 
 	Run                PersonaRunStarterConfig
 	Fence              PersonaRunSecurityFence

@@ -35,6 +35,7 @@ type ChatRetentionSettingsProps struct {
 }
 
 type chatRetentionDraft struct {
+	_          incomparable
 	Source     ChatRetentionPolicy
 	Configured bool
 	Mode       string

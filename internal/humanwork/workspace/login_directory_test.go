@@ -192,9 +192,9 @@ func TestLoginDirectoryTreeIsANestedCollapsibleOrganization(t *testing.T) {
 	for _, want := range []string{
 		`<ul class="org-tree" role="tree" aria-labelledby="directory-tree-heading">`,
 		`<ul role="group">`,
-		`<li class="org-unit" role="treeitem" aria-level="1" aria-expanded="true">`,
-		`<li class="org-unit" role="treeitem" aria-level="2" aria-expanded="true">`,
-		`<li class="org-unit" role="treeitem" aria-level="3" aria-expanded="false">`,
+		`<li class="org-unit" role="treeitem" aria-level="1"><details open>`,
+		`<li class="org-unit" role="treeitem" aria-level="2"><details open>`,
+		`<li class="org-unit" role="treeitem" aria-level="3"><details>`,
 		`<li class="org-person" role="treeitem" aria-level="2">`,
 	} {
 		if !strings.Contains(body, want) {
@@ -212,14 +212,14 @@ func TestLoginDirectoryTreeIsANestedCollapsibleOrganization(t *testing.T) {
 	// departments start closed - and a search must override that rather than
 	// hiding its own answer behind a disclosure.
 	searched := getLoginPage(t, h, "Evelyn")
-	if !strings.Contains(searched, `<li class="org-unit" role="treeitem" aria-level="3" aria-expanded="true">`) {
+	if !strings.Contains(searched, `<li class="org-unit" role="treeitem" aria-level="3"><details open>`) {
 		t.Fatal("a unit holding a search match stayed collapsed")
 	}
-	if strings.Contains(searched, `aria-level="3" aria-expanded="false"`) {
+	if strings.Contains(searched, `<li class="org-unit" role="treeitem" aria-level="3"><details><summary>`) {
 		t.Fatal("the matching department is rendered both open and closed")
 	}
 	unmatched := getLoginPage(t, h, "nobody-by-that-name")
-	if strings.Contains(unmatched, `aria-expanded="true"`) {
+	if strings.Contains(unmatched, `<details open>`) {
 		t.Fatal("a search with no matches still expanded units")
 	}
 	// No script may appear on this page at all: it is served under
@@ -584,7 +584,7 @@ func TestLoginDirectoryRoleFilterNarrowsResultsAndTree(t *testing.T) {
 	}
 	// Exactly the units on the path to the match are open, and each says how
 	// much of itself it is actually showing.
-	if !strings.Contains(body, `<li class="org-unit" role="treeitem" aria-level="3" aria-expanded="true">`) {
+	if !strings.Contains(body, `<li class="org-unit" role="treeitem" aria-level="3"><details open>`) {
 		t.Error("the unit holding the match stayed collapsed")
 	}
 	if !strings.Contains(body, `<span class="org-count">1 match</span>`) {
@@ -613,7 +613,7 @@ func TestLoginDirectoryFiltersCombine(t *testing.T) {
 	if strings.Contains(none, "Sign in as Evelyn Morgan") || strings.Contains(none, "Sign in as Mateo Alvarez") {
 		t.Error("a contradictory filter still offered somebody")
 	}
-	if strings.Contains(none, `aria-expanded="true"`) {
+	if strings.Contains(none, `<details open>`) {
 		t.Error("a filter matching nobody still expanded a unit")
 	}
 }

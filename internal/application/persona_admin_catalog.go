@@ -50,6 +50,9 @@ func personaCatalogStage(stage string, err error) error {
 type PersonaCatalogVersion struct {
 	Icon         agenticon.Value
 	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL string
 	Profile      agentpersona.PersonaVersion
 	// Label is the version's sealed semantic label, empty for a draft or
 	// a version that predates labels (AGENTUX-065).
@@ -63,12 +66,16 @@ type PersonaCatalogVersion struct {
 	EvaluationRef      string
 	ReviewApprovedAt   string
 	EvaluationPassedAt string
-	InvocationsPerHour string
-	ConcurrentTasks    string
-	DailySpend         string
-	WorkspaceDocuments int
-	WorkspaceIndexedAt time.Time
-	WorkspacePending   int
+	// EvaluationExpiresAt is when the retained evaluation lapses; the model
+	// route published from it lasts exactly that long. Zero when the version
+	// has no retained evidence (AGENTUX-082).
+	EvaluationExpiresAt time.Time
+	InvocationsPerHour  string
+	ConcurrentTasks     string
+	DailySpend          string
+	WorkspaceDocuments  int
+	WorkspaceIndexedAt  time.Time
+	WorkspacePending    int
 }
 
 // PersonaCatalogVersionReader lists at most one current catalog version per persona for one tenant.
@@ -152,6 +159,9 @@ type PersonaAdminCatalogService struct {
 	Runtime       PersonaCatalogRuntimeStatusReader
 	// Reactions reads the owner's choice about each agent's reactions (AGENTUX-075).
 	Reactions personaReactionSettingReader
+	// Now dates the evidence-expiry comparison. Nil reads the clock, which
+	// tests override with a fixed time (AGENTUX-082).
+	Now func() time.Time
 }
 
 type PersonaAdminPlacementDocument struct {
@@ -282,6 +292,17 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		if !v.WorkspaceIndexedAt.IsZero() {
 			persona.WorkspaceIndexedAt = v.WorkspaceIndexedAt.UTC().Format(time.RFC3339)
 		}
+		// AGENTUX-082: the card reads the agent's answers-until window from
+		// the retained evidence; past it the agent is published and placed
+		// but its answers are refused until it is renewed.
+		if !v.EvaluationExpiresAt.IsZero() {
+			persona.EvidenceExpiresAt = v.EvaluationExpiresAt.UTC().Format("2006-01-02")
+			now := time.Now().UTC()
+			if s.Now != nil {
+				now = s.Now().UTC()
+			}
+			persona.EvidenceExpired = !now.Before(v.EvaluationExpiresAt)
+		}
 		applyAgentDocGuidanceProjection(&persona, profile)
 		// AGENTUX-075: the owner's choice about this agent's reactions. No stored choice
 		// (or a setting that cannot be read) leaves the agent reacting.
@@ -291,6 +312,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			}
 		}
 		persona.Icon, persona.IconRevision = v.Icon, v.IconRevision
+		persona.IconImageURL = v.IconImageURL
 		persona.VersionLabel = v.Label
 		persona.PublishPreview = previews[persona.ID]
 		persona.VersionHistory = history[persona.ID]

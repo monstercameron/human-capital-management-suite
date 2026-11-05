@@ -251,7 +251,7 @@ func (p PeriodDefinition) Validate() error {
 		return fmt.Errorf("%w: id and version are required", ErrPeriodInvalid)
 	}
 	switch p.Kind {
-	case PeriodPayPeriod, PeriodCalendarYear, PeriodFiscalYear, PeriodLifetime:
+	case PeriodPayPeriod, PeriodCalendarYear, PeriodFiscalYear, PeriodLifetime, PeriodRollingBackward:
 	default:
 		return fmt.Errorf("%w: kind must be specified", ErrPeriodInvalid)
 	}

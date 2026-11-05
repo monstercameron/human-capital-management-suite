@@ -137,12 +137,12 @@ func LoadSnapshot(root, asOf string) (Snapshot, error) {
 
 // loadTodos reads the backlog lifecycle and returns each todo's phase.
 func loadTodos(root string, snap *Snapshot) (map[string]string, error) {
-	_, records, parseErrs, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "todos.md"))
+	_, records, parseErrs, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		return nil, fmt.Errorf("convergence: load backlog: %w", err)
 	}
 	if len(parseErrs) > 0 {
-		return nil, fmt.Errorf("convergence: planning/todos.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
+		return nil, fmt.Errorf("convergence: planning/archive/todos-2026-10-22.md has %d structural parse errors, e.g. %v", len(parseErrs), parseErrs[0])
 	}
 	phases := map[string]string{}
 	for _, rec := range records {

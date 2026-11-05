@@ -140,7 +140,7 @@ func personaProgressStatus(locale LocaleContext, progress PersonaProgress) ui.No
 	}
 	label := progress.Announcement
 	if strings.TrimSpace(label) == "" {
-		label = locale.Text("agents.live_step") + ": " + agent + " — " + activity + " (" + formatPersonaNumber(current) + "/" + formatPersonaNumber(total) + ")"
+		label = locale.Text("agents.live_step") + ": " + agent + " — " + activity + " (" + locale.FormatNumber(strconv.Itoa(current), 0) + "/" + locale.FormatNumber(strconv.Itoa(total), 0) + ")"
 	}
 	return html.Div(html.Props{Class: "persona-chat-progress", Role: "status", Aria: map[string]string{"live": "polite", "atomic": "true"}, Data: map[string]string{"agent-progress": "true", "agent-invocation-id": progress.InvocationID, "reduced-motion": "respect"}}, ui.Text(label))
 }
@@ -169,8 +169,4 @@ func personaFailure(locale LocaleContext, failure PersonaChatFailure) ui.Node {
 		children = append(children, html.Button(html.Props{Class: "button secondary persona-retry", Type: "button", Data: map[string]string{"agent-action": "retry", "agent-invocation-id": failure.InvocationID}, Aria: map[string]string{"label": retryLabel}}, ui.Text(retryLabel)))
 	}
 	return html.Div(html.Props{Class: "persona-chat-failure", Role: "alert", Aria: map[string]string{"live": "assertive"}, Data: map[string]string{"agent-failure": "typed"}}, children...)
-}
-
-func formatPersonaNumber(value int) string {
-	return strconv.Itoa(value)
 }

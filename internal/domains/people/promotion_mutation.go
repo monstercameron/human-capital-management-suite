@@ -93,24 +93,41 @@ func (m PromotionMutation) Validate() error {
 	return nil
 }
 
+// assignmentRevision projects this promotion onto the generic assignment
+// revision: the revision owns the closed assignment field set and its
+// stable order, so the promotion mutation cannot drift from it. Only job
+// and grade are ever set; the promotion struct has no other assignment
+// field to smuggle through.
+func (m PromotionMutation) assignmentRevision() AssignmentRevision {
+	return AssignmentRevision{
+		Tenant: m.Tenant, ProposalRevisionID: m.ProposalRevisionID, ProposalDigest: m.ProposalDigest,
+		ActorPrincipalID: m.ActorPrincipalID, AuthorityDecision: m.AuthorityDecision,
+		WorkerID: m.WorkerID, AssignmentID: m.AssignmentID,
+		ResourceKey: m.ResourceKey, Subject: m.Subject,
+		Effective: m.Effective, ExpectedRevision: m.ExpectedRevision,
+		CurrentJobCode: m.CurrentJobCode, TargetJobCode: m.TargetJobCode,
+		CurrentLevel: m.CurrentLevel, TargetLevel: m.TargetLevel,
+	}
+}
+
 // PlannedWrites returns exactly the changed job and level fields in stable
 // order. The expected revision is attached to both writes so a stale stream
 // cannot partially advance.
+//
+// The write set comes from the generic revision's field projection; this
+// method only encodes it in the legacy unfenced shape the promotion
+// execution path consumes. Promotion keeps its own Validate contract, so
+// its refusal errors are unchanged.
 func (m PromotionMutation) PlannedWrites() ([]intent.PlannedWrite, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err
 	}
-	writes := make([]intent.PlannedWrite, 0, 2)
-	if m.TargetJobCode != m.CurrentJobCode {
+	changes := m.assignmentRevision().changedPairs()
+	writes := make([]intent.PlannedWrite, 0, len(changes))
+	for _, change := range changes {
 		writes = append(writes, intent.PlannedWrite{Subject: m.Subject, ResourceKey: m.ResourceKey,
-			FieldPath: AssignmentJobField, CurrentCanonicalText: m.CurrentJobCode,
-			ProposedCanonicalText: m.TargetJobCode, SourceAuthorityDecision: m.AuthorityDecision,
-			ExpectedRevision: m.ExpectedRevision})
-	}
-	if m.TargetLevel != m.CurrentLevel {
-		writes = append(writes, intent.PlannedWrite{Subject: m.Subject, ResourceKey: m.ResourceKey,
-			FieldPath: AssignmentLevelField, CurrentCanonicalText: m.CurrentLevel,
-			ProposedCanonicalText: m.TargetLevel, SourceAuthorityDecision: m.AuthorityDecision,
+			FieldPath: change.FieldPath, CurrentCanonicalText: change.CurrentCanonicalText,
+			ProposedCanonicalText: change.ProposedCanonicalText, SourceAuthorityDecision: m.AuthorityDecision,
 			ExpectedRevision: m.ExpectedRevision})
 	}
 	return writes, nil

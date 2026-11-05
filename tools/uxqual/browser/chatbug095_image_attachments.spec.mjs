@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { test, expect } from "@playwright/test";
 
 // CHATBUG-095: an image or GIF attachment shows its decoded picture at its
@@ -9,7 +10,8 @@ import { test, expect } from "@playwright/test";
 const channel = "/workspace/app/chat?locale=en-US#channel=leadership-private";
 
 // A 1x1 PNG and a 1-frame 1x1 GIF, embedded so the spec seeds itself.
-const onePNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const onePNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const oneGIF = "R0lGODlhAQABAIAAAP///////yH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
 test.setTimeout(120000);
@@ -59,9 +61,7 @@ test("seeded image and GIF tiles decode at their stored dimensions", async ({
   }
 });
 
-test("an uploaded GIF decodes and its badge overlaps no text", async ({
-  page,
-}) => {
+test("an uploaded GIF decodes and its badge overlaps no text", async ({ page }) => {
   await signIn(page);
   await page.goto(channel);
   await expect(page.locator(".conversation-heading h1")).toHaveText(
@@ -74,7 +74,9 @@ test("an uploaded GIF decodes and its badge overlaps no text", async ({
     { name: "dot.gif", mimeType: "image/gif", buffer: Buffer.from(oneGIF, "base64") },
   ]);
   await page.locator(".chat-composer .send-button:not(:disabled)").click();
-  const gif = page.locator('.attachment-image.gif .attachment-image-open[data-media-id]').last();
+  const gif = page
+    .locator(".attachment-image.gif .attachment-image-open[data-media-id]")
+    .last();
   await expect
     .poll(async () => (await naturalSize(gif)).width, { timeout: 30000 })
     .toBe(1);
@@ -94,9 +96,7 @@ test("an uploaded GIF decodes and its badge overlaps no text", async ({
   await expect(tile.locator(".attachment-fallback")).toBeHidden();
 });
 
-test("a failed tile ends in the file name, size and Download", async ({
-  page,
-}) => {
+test("a failed tile ends in the file name, size and Download", async ({ page }) => {
   await signIn(page);
   await page.route("**/v1/chat/media/*?*variant=*", (route) =>
     route.fulfill({ status: 500, body: "media down" }),

@@ -84,7 +84,7 @@ func LoadRepository(root string) (Snapshot, map[string]bool, error) {
 		}
 	}
 
-	_, records, _, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "todos.md"))
+	_, records, _, err := todogovernance.LoadMarkdown(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		return Snapshot{}, nil, err
 	}

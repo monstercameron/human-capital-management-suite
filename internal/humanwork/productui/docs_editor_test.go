@@ -479,9 +479,9 @@ func TestDocsEditorRendersAccessibleMarkup(t *testing.T) {
 }
 
 func TestDocsEditorCopyIsComplete(t *testing.T) {
-	for key := range docsEditorCopy["en-US"] {
+	for key := range docsEditorCopy.Get()["en-US"] {
 		for _, locale := range []string{"de-DE", "ar"} {
-			if docsEditorCopy[locale][key] == "" {
+			if docsEditorCopy.Get()[locale][key] == "" {
 				t.Errorf("%s lacks %q", locale, key)
 			}
 		}

@@ -3,6 +3,7 @@ package releasefixture
 import (
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/leavereturn"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/payroll"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/recruit"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/transfer"
 )
@@ -27,5 +28,6 @@ func ReferenceConformanceCatalog() []ReferenceConformance {
 		{ID: "CONF-002", WorkflowID: recruit.WorkflowID, Version: recruit.Version, Definition: recruit.ReferenceDefinition},
 		{ID: "CONF-003", WorkflowID: transfer.WorkflowID, Version: transfer.Version, Definition: transfer.ReferenceDefinition},
 		{ID: "CONF-004", WorkflowID: leavereturn.WorkflowID, Version: leavereturn.Version, Definition: leavereturn.ReferenceDefinition},
+		{ID: "CONF-009", WorkflowID: payroll.WorkflowID, Version: payroll.Version, Definition: payroll.ReferenceDefinition},
 	}
 }

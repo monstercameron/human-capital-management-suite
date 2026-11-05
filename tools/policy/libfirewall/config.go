@@ -21,6 +21,7 @@ type Config struct {
 	ProtobufGRPC           ProtobufGRPC `yaml:"protobuf_grpc"`
 	PGXLeakTypes           []string     `yaml:"pgx_leak_types"`
 	APDLeakTypes           []string     `yaml:"apd_leak_types"`
+	MongoLeakTypes         []string     `yaml:"mongo_leak_types"`
 	OTelModulePrefix       string       `yaml:"otel_module_prefix"`
 	GooseGoMigrationMarker string       `yaml:"goose_go_migration_marker"`
 }

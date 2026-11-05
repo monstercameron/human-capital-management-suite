@@ -16,14 +16,18 @@ import (
 // principal's server-side role set: a revoked administrator whose durable
 // assignment no longer holds comp_admin is refused even while the credential
 // still signs it.
-func (s *server) workerIDStore(ctx context.Context, principal *trust.Principal, requestID string) (workerids.Store, error) {
-	if !s.hasEffectiveRole(ctx, principal, "comp_admin") {
-		return nil, envelope.New(envelope.CodePermissionDenied, "journey.worker_ids.role_required", "worker identifier policy requires the compensation administrator role").WithCorrelation(requestID).WithEvidence(evidence(principal))
+// workerIDStore authorizes worker identifier administration from the
+// principal's server-side role set: a revoked administrator whose durable
+// assignment no longer holds comp_admin is refused even while the credential
+// still signs it.
+func (a *requestAuth) workerIDStore(ctx context.Context) (workerids.Store, error) {
+	if !a.hasRole(ctx, "comp_admin") {
+		return nil, envelope.New(envelope.CodePermissionDenied, "journey.worker_ids.role_required", "worker identifier policy requires the compensation administrator role").WithCorrelation(a.requestID).WithEvidence(evidence(a.principal))
 	}
-	if s.deps.WorkerIDs == nil {
-		return nil, envelope.New(envelope.CodeUnavailable, "journey.worker_ids.store_unconfigured", "worker identifier policy is not configured").WithCorrelation(requestID).WithEvidence(evidence(principal))
+	if a.server.deps.WorkerIDs == nil {
+		return nil, envelope.New(envelope.CodeUnavailable, "journey.worker_ids.store_unconfigured", "worker identifier policy is not configured").WithCorrelation(a.requestID).WithEvidence(evidence(a.principal))
 	}
-	return s.deps.WorkerIDs, nil
+	return a.server.deps.WorkerIDs, nil
 }
 
 func workerIDError(err error, principal *trust.Principal, requestID, operation string) error {
@@ -46,10 +50,11 @@ func (s *server) GetWorkerIDPolicy(ctx context.Context, _ *journeyv1.GetWorkerID
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requireServedCall(ctx, principal, inv, "GetWorkerIDPolicy"); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireServedCall(ctx, "GetWorkerIDPolicy"); err != nil {
 		return nil, err
 	}
-	store, dependencyErr := s.workerIDStore(ctx, principal, inv.RequestID())
+	store, dependencyErr := auth.workerIDStore(ctx)
 	if dependencyErr != nil {
 		return nil, dependencyErr
 	}
@@ -65,10 +70,11 @@ func (s *server) SaveWorkerIDPolicy(ctx context.Context, req *journeyv1.SaveWork
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "worker-ids", roleaccess.ActionUpdate); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "worker-ids", roleaccess.ActionUpdate); err != nil {
 		return nil, err
 	}
-	store, dependencyErr := s.workerIDStore(ctx, principal, inv.RequestID())
+	store, dependencyErr := auth.workerIDStore(ctx)
 	if dependencyErr != nil {
 		return nil, dependencyErr
 	}

@@ -120,8 +120,8 @@ func TestDocsChatChipsLocalized(t *testing.T) {
 		}
 	}
 	for _, locale := range []string{"en-US", "de-DE", "ar"} {
-		for key := range docsChatCopy["en-US"] {
-			if docsChatCopy[locale][key] == "" {
+		for key := range docsChatCopy.Get()["en-US"] {
+			if docsChatCopy.Get()[locale][key] == "" {
 				t.Fatalf("%s lacks %q", locale, key)
 			}
 		}

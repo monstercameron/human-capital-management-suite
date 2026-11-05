@@ -66,8 +66,11 @@ type ChatReference struct {
 // the menu. Eligibility is represented by presence in this server-filtered
 // list; client-set booleans never grant visibility.
 type ResolvedPersonaMention struct {
-	Icon                    agenticon.Value
-	IconRevision            int64
+	Icon         agenticon.Value
+	IconRevision int64
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL            string
 	Reference               ChatReference
 	Handle, Initials        string
 	AvatarURL               string
@@ -710,7 +713,7 @@ func personaMentionAvatar(persona ResolvedPersonaMention) ui.Node {
 // personaMentionAvatarIn draws the agent's own icon in the mention menu: its
 // stored icon, or its own fallback among the agents the model knows.
 func personaMentionAvatarIn(m Model, persona ResolvedPersonaMention) ui.Node {
-	return agentDMAvatar(persona.Reference.Display, "avatar small agent-dm-avatar", agentIconFor(m, []string{persona.Reference.ID}, persona.Reference.Display, persona.Icon))
+	return agentAvatar(persona.Reference.Display, "avatar small agent-dm-avatar", agentIconImageFor(m, []string{persona.Reference.ID}, persona.Reference.Display, persona.IconImageURL), agentIconFor(m, []string{persona.Reference.ID}, persona.Reference.Display, persona.Icon))
 }
 
 func mentionMenuText(m Model, key string) string {

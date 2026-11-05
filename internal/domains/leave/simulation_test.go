@@ -7,8 +7,9 @@ import (
 	"testing"
 )
 
-func simulationInputs() (LeaveInputSnapshot, EligibilityResolution, LeaveEntitlementPlan) {
-	snapshot, err := BuildSnapshot(snapshotEntries())
+func simulationInputs(t *testing.T) (LeaveInputSnapshot, EligibilityResolution, LeaveEntitlementPlan) {
+	t.Helper()
+	snapshot, err := BuildSnapshot(snapshotEntries(t))
 	if err != nil {
 		panic(err)
 	}
@@ -24,7 +25,7 @@ func simulationInputs() (LeaveInputSnapshot, EligibilityResolution, LeaveEntitle
 }
 
 func TestTodo_LEAVE_006(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	simulation, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatalf("Simulate: %v", err)
@@ -70,7 +71,7 @@ func TestTodo_LEAVE_006(t *testing.T) {
 }
 
 func TestTodo_LEAVE_006_Property(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	first, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +99,7 @@ func TestTodo_LEAVE_006_Property(t *testing.T) {
 }
 
 func TestTodo_LEAVE_006_Golden(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	simulation, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +134,7 @@ func TestTodo_LEAVE_006_Golden(t *testing.T) {
 }
 
 func TestTodo_LEAVE_006_Conformance(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	simulation, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatal(err)
@@ -149,13 +150,13 @@ func TestTodo_LEAVE_006_Conformance(t *testing.T) {
 }
 
 func TestTodo_LEAVE_006_Mutation(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	base, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Component change re-identifies the simulation.
-	changed := snapshotEntries()
+	changed := snapshotEntries(t)
 	changed[0].Revision = "rev-8"
 	altered, err := BuildSnapshot(changed)
 	if err != nil {
@@ -180,7 +181,7 @@ func TestTodo_LEAVE_006_Mutation(t *testing.T) {
 }
 
 func TestTodo_LEAVE_006_Security(t *testing.T) {
-	snapshot, resolution, plan := simulationInputs()
+	snapshot, resolution, plan := simulationInputs(t)
 	simulation, err := Simulate(snapshot, resolution, plan)
 	if err != nil {
 		t.Fatal(err)

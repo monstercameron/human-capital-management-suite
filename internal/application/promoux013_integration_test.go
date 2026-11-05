@@ -59,8 +59,8 @@ func promoux013Composed(t *testing.T, now *time.Time) (context.Context, workspac
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux013-integration-authority",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: approver,
 		ExecutionManagerApprover: approver + "-manager",
-		WorkflowPlan:             WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:         DefaultTimerTzdbVersion,
+		TimerCalendarVersion:     DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("integration configuration: %v", err)

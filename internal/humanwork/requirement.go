@@ -267,8 +267,12 @@ type RequirementSpec struct {
 	// and every delegation reached through a holder, must carry the whole floor.
 	AuthorityFloor []string
 
-	Quorum       Quorum
-	Deadline     Deadline
+	Quorum   Quorum
+	Deadline Deadline
+	// DeadlineExpr, when set, is the time expression the decision deadline
+	// resolves from at open time. DecideBy stays unset in the spec and
+	// Expiry stays absolute; ResolveDeadline merges them per instance.
+	DeadlineExpr *values.TimeExpr
 	Escalation   EscalationPolicy
 	Separation   SeparationConstraints
 	Invalidators []Invalidator
@@ -287,6 +291,7 @@ type ApprovalRequirement struct {
 
 	Quorum       Quorum
 	Deadline     Deadline
+	DeadlineExpr *values.TimeExpr
 	Escalation   EscalationPolicy
 	Separation   SeparationConstraints
 	Invalidators []Invalidator
@@ -294,6 +299,26 @@ type ApprovalRequirement struct {
 
 	// ExpressionDigest is minted by Compile over the candidate expression.
 	ExpressionDigest string
+}
+
+// ResolveDeadline returns the absolute deadline for one workflow instance:
+// the declared deadline when the requirement carries no expression, else
+// the expression resolved against the evaluated anchor and pinned calendar
+// dataset merged with the declared absolute expiry. The merged deadline is
+// validated, so an expression resolving past expiry is refused.
+func (r ApprovalRequirement) ResolveDeadline(anchor values.Instant, cals values.CalendarDataset, dataset values.DatasetVersions) (Deadline, error) {
+	if r.DeadlineExpr == nil {
+		return r.Deadline, nil
+	}
+	res, err := values.ResolveTimeExpr(*r.DeadlineExpr, anchor, cals, dataset)
+	if err != nil {
+		return Deadline{}, err
+	}
+	merged := Deadline{DecideBy: res.FireAt, Expiry: r.Deadline.Expiry}
+	if err := merged.Validate(); err != nil {
+		return Deadline{}, err
+	}
+	return merged, nil
 }
 
 // Compile validates a requirement specification and mints its expression
@@ -329,7 +354,20 @@ func Compile(spec RequirementSpec) (ApprovalRequirement, error) {
 	if err := spec.Quorum.Validate(); err != nil {
 		return ApprovalRequirement{}, err
 	}
-	if err := spec.Deadline.Validate(); err != nil {
+	if spec.DeadlineExpr != nil {
+		if err := spec.DeadlineExpr.Validate(); err != nil {
+			return ApprovalRequirement{}, newError("Compile", "deadline_expr", ErrInvalidRequirement,
+				"requirement %q carries an invalid deadline expression: %v", spec.RequirementID, err)
+		}
+		if spec.Deadline.DecideBy.IsSet() {
+			return ApprovalRequirement{}, newError("Compile", "deadline.decide_by", ErrInvalidRequirement,
+				"requirement %q names both a decision deadline and a deadline expression; exactly one is legal", spec.RequirementID)
+		}
+		if !spec.Deadline.Expiry.IsSet() {
+			return ApprovalRequirement{}, newError("Compile", "deadline.expiry", ErrInvalidRequirement,
+				"requirement %q carries a deadline expression but states no absolute decision expiry", spec.RequirementID)
+		}
+	} else if err := spec.Deadline.Validate(); err != nil {
 		return ApprovalRequirement{}, err
 	}
 	if err := spec.Escalation.Validate(); err != nil {
@@ -363,6 +401,7 @@ func Compile(spec RequirementSpec) (ApprovalRequirement, error) {
 		AuthorityFloor:   floor,
 		Quorum:           spec.Quorum,
 		Deadline:         spec.Deadline,
+		DeadlineExpr:     copyTimeExpr(spec.DeadlineExpr),
 		Escalation:       spec.Escalation,
 		Separation:       spec.Separation,
 		Invalidators:     inv,
@@ -374,6 +413,20 @@ func Compile(spec RequirementSpec) (ApprovalRequirement, error) {
 			"candidate expression for %q could not be canonicalized", spec.RequirementID)
 	}
 	return req, nil
+}
+
+// copyTimeExpr deep-copies a deadline expression so a compiled requirement
+// never aliases its spec.
+func copyTimeExpr(e *values.TimeExpr) *values.TimeExpr {
+	if e == nil {
+		return nil
+	}
+	dup := *e
+	if e.Statute != nil {
+		statute := *e.Statute
+		dup.Statute = &statute
+	}
+	return &dup
 }
 
 func validateInvalidators(requirementID string, inv []Invalidator) error {
@@ -412,9 +465,35 @@ func (r ApprovalRequirement) Canonical() []byte {
 		String("expression_digest", r.ExpressionDigest).
 		SortedStrings("authority_floor", r.AuthorityFloor).
 		Int("quorum.min_approvals", int64(r.Quorum.MinApprovals)).
-		Bool("quorum.distinct", r.Quorum.RequireDistinctPrincipals).
-		Value("deadline.decide_by", r.Deadline.DecideBy).
-		Value("deadline.expiry", r.Deadline.Expiry).
+		Bool("quorum.distinct", r.Quorum.RequireDistinctPrincipals)
+	if r.Deadline.DecideBy.IsSet() {
+		w.Value("deadline.decide_by", r.Deadline.DecideBy)
+	} else {
+		// A deadline expression leaves DecideBy unresolved until open
+		// time; the expression fields below carry the deadline instead.
+		// An encoded instant is never empty, so this cannot collide.
+		w.String("deadline.decide_by", "")
+	}
+	w = w.Value("deadline.expiry", r.Deadline.Expiry)
+	// The expression encodes only when declared, so an absolute requirement
+	// keeps its historical digest byte for byte.
+	if expr := r.DeadlineExpr; expr != nil {
+		statute := ""
+		if expr.Statute != nil {
+			statute = expr.Statute.String()
+		}
+		w.
+			String("deadline_expr.anchor_path", expr.AnchorPath).
+			String("deadline_expr.offset_kind", string(expr.OffsetKind)).
+			Int("deadline_expr.offset_days", int64(expr.OffsetDays)).
+			Int("deadline_expr.offset_seconds", expr.OffsetSeconds).
+			String("deadline_expr.calendar", expr.Calendar.String()).
+			String("deadline_expr.zone", expr.Zone.String()).
+			String("deadline_expr.local_time", expr.WakeLocalTime.String()).
+			String("deadline_expr.disambiguation", expr.Disambiguation.String()).
+			String("deadline_expr.statute", statute)
+	}
+	w = w.
 		String("escalation.on_deadline", string(r.Escalation.OnDeadline)).
 		String("escalation.rule_id", r.Escalation.RuleID).
 		Bool("sod.requester", r.Separation.RequesterMayNotApprove).

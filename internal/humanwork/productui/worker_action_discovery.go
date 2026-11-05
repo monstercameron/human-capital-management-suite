@@ -16,6 +16,7 @@ import "strings"
 // carries no launcher. It is presentation metadata, not
 // action authority.
 type WorkerAction struct {
+	_           incomparable
 	ID          string
 	Name        string
 	Category    string

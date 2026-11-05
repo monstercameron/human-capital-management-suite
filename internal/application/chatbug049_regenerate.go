@@ -45,7 +45,8 @@ func (e *personaAdmittedRunExecutor) regenerateTitleOnly(ctx context.Context, ad
 	if appendPersonaServerInstruction(&request, personaRegenerationInstruction, "title-only") != nil {
 		return agentmodel.ModelResult{}, run, false, nil
 	}
-	call, next, callErr := e.executeQualityModel(ctx, run, request, admission)
+	regenCtx := agentmodel.WithCallContext(ctx, personaRunCallContext(admission, run, personaRunAnswerCallSite, agentmodel.CallStageAnswer))
+	call, next, callErr := e.executeQualityModel(regenCtx, run, request, admission)
 	if next.ID != "" {
 		run = next
 	}
@@ -75,8 +76,8 @@ func (e *personaAdmittedRunExecutor) regenerateTitleOnly(ctx context.Context, ad
 	return reply, run, true, nil
 }
 
-// personaRegenerationRequest copies what appendPersonaRunRegeneration changes, so
-// the request the first answer was made from stays as it was.
+// personaRegenerationRequest copies what appendPersonaServerInstruction changes,
+// so the request the first answer was made from stays as it was.
 func personaRegenerationRequest(request AgentModelExecutorRequest) AgentModelExecutorRequest {
 	request.Model.Messages = append([]agentmodel.ModelMessage(nil), request.Model.Messages...)
 	request.Outbound.Fields = append([]agentegress.Field(nil), request.Outbound.Fields...)
@@ -87,42 +88,4 @@ func personaRegenerationRequest(request AgentModelExecutorRequest) AgentModelExe
 	}
 	request.FieldSources = sources
 	return request
-}
-
-// appendPersonaRunRegeneration adds the instruction as one more message from the
-// side of the conversation the question came from, on the same step binding
-// scheme (a step of its own, named for the one it follows), and checks the result
-// as the continuation does.
-func appendPersonaRunRegeneration(request *AgentModelExecutorRequest, instruction string) error {
-	if request == nil || strings.TrimSpace(instruction) == "" {
-		return ErrPersonaRunOutputRejected
-	}
-	model := &request.Model
-	asked := previousInvokerFieldName(model.Messages)
-	var original agentegress.Field
-	found := false
-	for _, field := range request.Outbound.Fields {
-		if field.Name == asked {
-			original, found = field, true
-			break
-		}
-	}
-	if asked == "" || !found || request.FieldSources[asked] == "" {
-		return ErrPersonaRunOutputRejected
-	}
-	name := fmt.Sprintf("model.message.%d", len(model.Messages))
-	model.Messages = append(model.Messages, agentmodel.ModelMessage{Role: agentmodel.RoleUser, Content: instruction})
-	request.Outbound.Fields = append(request.Outbound.Fields, agentegress.Field{
-		Name: name, Value: instruction, Class: original.Class,
-		Taint:      append([]string(nil), original.Taint...),
-		Provenance: append(append([]string(nil), original.Provenance...), "server-instruction:title-only"),
-	})
-	request.Outbound.DeclaredFields = append(request.Outbound.DeclaredFields, name)
-	request.FieldSources[name] = request.FieldSources[asked]
-	request.StepID += personaRegenerationSuffix
-	request.Route.TraceID, request.Model.TraceID = request.StepID, request.StepID
-	if err := agentmodel.ValidateModelRequest(*model); err != nil {
-		return ErrPersonaRunOutputRejected
-	}
-	return validateExecutorRequest(*request)
 }

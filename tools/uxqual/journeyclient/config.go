@@ -80,6 +80,8 @@ type Config struct {
 	WorkflowStartFavorites  []string        `json:"workflow_start_favorites,omitempty"`
 	WorkflowStartRecent     []string        `json:"workflow_start_recent,omitempty"`
 	WorkflowStartWorkflowID string          `json:"workflow_start_workflow_id,omitempty"`
+	// ConfigurationCenter mirrors the server-owned configuration center projection.
+	ConfigurationCenter *productui.ConfigurationCenterProjection `json:"configuration_center,omitempty"`
 	// Agents mirrors the server's agents availability projection.
 	Agents *Agents `json:"agents,omitempty"`
 	// Clock mirrors the server's time clock availability projection.

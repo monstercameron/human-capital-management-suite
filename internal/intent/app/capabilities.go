@@ -121,6 +121,8 @@ func (h *domainHandlers) handlerFor(id string) capability.Handler {
 		return h.simulateCompensation
 	case rewards.EvaluatePayBandIntentType:
 		return h.evaluatePayBandPosition
+	case rewards.CalculateSeveranceIntentType:
+		return h.calculateSeverance
 	case dataops.DetectDriftIntentType:
 		return h.detectDrift
 	case dataops.ExplainFieldHistoryOperation:
@@ -262,6 +264,17 @@ func (h *domainHandlers) evaluatePayBandPosition(ctx context.Context, payload an
 		return nil, fmt.Errorf("app: evaluate_pay_band_position expects a PayBandInputs, got %T", payload)
 	}
 	return rewards.EvaluatePayBandPosition(ctx, h.bands, in.Query, in.Amount)
+}
+
+func (h *domainHandlers) calculateSeverance(ctx context.Context, payload any) (any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	in, ok := payload.(SeveranceInputs)
+	if !ok {
+		return nil, fmt.Errorf("app: calculate_severance expects a SeveranceInputs, got %T", payload)
+	}
+	return rewards.CalculateSeverance(in.Plan, in.Query)
 }
 
 // newCapabilityRegistry republishes the compiled-in BOOTSTRAP capability table

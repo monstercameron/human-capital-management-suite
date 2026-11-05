@@ -8,6 +8,7 @@ import (
 // WorkerFact is one resolved section fact: the field key,
 // its localized label, and its verdict-projected value.
 type WorkerFact struct {
+	_     incomparable
 	Name  string
 	Label string
 	Value string

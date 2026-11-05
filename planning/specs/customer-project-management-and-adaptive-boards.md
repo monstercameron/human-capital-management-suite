@@ -32,6 +32,18 @@ planning, resource scheduling, time billing, a software development suite,
 cross-company projects, or AI-controlled project changes. It must be usable
 with AI disabled. AI setup is a separate pilot slice after manual boards work.
 
+### Small-business work-order extension (2026-10-22)
+
+The first board release exclusions above bound that release. The owner-authorized
+[small-business expansion](../small-business-platform-ideas.md) adds customer jobs,
+operational scheduling and commercial handoffs through existing workorder,
+workorderbilling, appointment/scheduling and access owners. Project tasks remain
+coordination records: completing a task cannot independently consume stock,
+complete a regulated obligation, issue an invoice or grant customer access.
+The same product UI and permission-filtered links expose the domain outcomes.
+Existing overlapping project/workorder TODOs are dependencies rather than
+cloned implementation stories. No second task or workflow engine is introduced.
+
 ### Why this belongs in the suite
 
 - Chat provides discussion; documents preserve guidance and decisions; a

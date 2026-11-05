@@ -133,6 +133,7 @@ const (
 	ComponentConfigBundleControl      = "configbundle-control"
 	ComponentConfigBundleReceiver     = "configbundle-receiver"
 	ComponentStoreHealth              = "store-health"
+	ComponentChatscaleOps             = "chatscale-ops"
 	ComponentPilotReliability         = "pilot-reliability"
 	ComponentProductSliceReleaseGate  = "product-slice-release-gate"
 	ComponentProposalExecutor         = "proposal-executor"
@@ -625,8 +626,9 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		// The plan this cell executes, so a top-band subject can be pinned to
 		// the variant at all. The pin still requires a configured
 		// HighPerformerVariantDigest, which stays empty until the variant is
-		// registered with the execution authority.
-		PromotionPlan: cfg.WorkflowPlan,
+		// registered with the execution authority. WF-EXT-008 removed the
+		// -workflow-plan flag; the served cell always runs the execute plan.
+		PromotionPlan: app.PromotionPlanExecute,
 	}
 	applyWorkspaceOIDCLogin(&cellConfig, cfg, oidcFlow, oidcSessions)
 	cellConfig.WorkflowCapabilityPolicy, cellConfig.WorkflowPaletteExtensions = localDevelopmentWorkflowAuthoring(cfg)
@@ -1133,6 +1135,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			in.WritingStyles = chattoneUnprovisionedService(writingReason, chatRuntime.store, chatFacts, options.Now)
 		}
 	}
+	// AGENTUX-079: the ambient offers' screen model, composed only over a
+	// qualified deployment; otherwise the consumer reads no messages and the
+	// start-up log states why.
+	ambientScreenPlanner, ambientScreenReason, ambientScreenErr := composeAgentUX079AmbientScreenPlanner(ctx, agentUX079AmbientScreenServeInput{Config: cfg, Runtime: platformAgentRuntime, Now: options.Now})
+	logAgentUX079AmbientScreenComposition(logger, ambientScreenPlanner, ambientScreenReason, ambientScreenErr)
+	if ambientScreenErr != nil {
+		ambientScreenPlanner = nil
+	}
 	// CHATLANG-003: translation of messages into each reader's language. It is
 	// composed over a qualified model (or, in the local development profile only,
 	// the deterministic test engine); every workspace stays off until its
@@ -1402,11 +1412,14 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// AGENTUX-066, -067, -068: "Set reminder" on the announcement scheduler, the
 	// consumer of real messages (idle until a screen model is configured) and the
 	// agents' share of the tenant loop.
-	if err := agentServices.BindAgentUXAmbientServed(chatRuntime.store, chatRuntime.extensions, chatRuntime.service, agentDatabase.store, agentDatabase.personas, in.Pool, options.Now); err != nil {
+	if err := agentServices.BindAgentUXAmbientServed(chatRuntime.store, chatRuntime.extensions, chatRuntime.service, agentDatabase.store, agentDatabase.personas, in.Pool, ambientScreenPlanner, options.Now); err != nil {
 		return nil, fmt.Errorf("bind served ambient reminders: %w", err)
 	}
 	// AGENTUX-054: the owner's "Simulate a customer email", local development only.
-	if err := agentServices.BindAgentUXSupportDesk(cfg.Profile, agentDatabase.store, chatRuntime.store, nil, nil, options.Now); err != nil {
+	// AGENTUX-079: the prepared project's ticket service and target source; a
+	// cell without a project database keeps the desk's unavailable state.
+	supportProjects, supportTargets := AgentUX079SupportDeskPorts(projects.service, projects.adapter, agentDatabase.store, tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID), options.Now)
+	if err := agentServices.BindAgentUXSupportDesk(cfg.Profile, agentDatabase.store, chatRuntime.store, supportTargets, supportProjects, options.Now); err != nil {
 		return nil, fmt.Errorf("bind support desk: %w", err)
 	}
 	edgeHandler = agentServices.Overlay(edgeHandler, cell.Config)
@@ -1436,6 +1449,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		probe := health.NewProbe(in.Pool, registry, health.DefaultPolicy())
 		edgeHandler = overlayStoreHealth(edgeHandler, cell.Config, probe, platformcache.New[health.Snapshot](platformcache.Config{TTL: 10 * time.Second}))
 		graph.add(ComponentStoreHealth, KindAdapter, probe, ComponentDatabasePool, ComponentCredentialVerifier)
+	}
+	if chatRuntime.store != nil {
+		edgeHandler = OverlayChatscaleOps(edgeHandler, chatRuntime.store, cell.Config)
+		graph.add(ComponentChatscaleOps, KindAdapter, chatRuntime.store, ComponentChatService, ComponentCredentialVerifier)
 	}
 	edgeHandler = composeSIEMHTTP(edgeHandler, cell.Config, options.SIEMRingResolver, in.Pool)
 	providerWebhooks, err := composeProviderWebhookReceivers(cfg, in.Pool, options.Now)

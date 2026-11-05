@@ -116,8 +116,8 @@ func promoux015ComposeWith(t *testing.T, options Options) *promoux015Harness {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:promoux015-separation",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
-		WorkflowPlan:            WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:        DefaultTimerTzdbVersion,
+		TimerCalendarVersion:    DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)

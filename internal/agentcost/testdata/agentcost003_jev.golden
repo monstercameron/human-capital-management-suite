@@ -1,0 +1,80 @@
+# Jev research (AGENTCOST-003)
+
+Researched 2026-10-22 against primary sources (vendor documentation, homepage, error reference) and secondary coverage where primary sources are silent. Vendor-claimed figures are labelled as such throughout.
+
+## 1. Interface and limits (confirmed from the vendor's own properties)
+
+Jev is a hosted decision model from TypeSafe AI, released 2026-09-15 and in early access (jev-latest; Jev 1.14 of 2026-10-14 current, 1.13 still served). One HTTPS call carries a state (text or JSON) and several typed questions, evaluated in parallel: Noul (yes-or-no probability 0-1), Choice (one of a fixed set with per-option probabilities and confidence), Score (ordered rubric levels with per-level distribution, confidence and legend), and Box (an image position as box edges). Images may appear in the state, in instructions and in criteria. Every request is at most 32 MiB of UTF-8 JSON, 64 nesting levels, gzip or zstd; the context length is stated per model and secondary coverage reports 64k tokens of state plus questions. The maximum options per question and the maximum questions per call are not published. Reached through api.typesafe.ai, the vendor console, or the OpenRouter, Vercel, Cloudflare and DigitalOcean gateways; official SDKs are Python and JavaScript.
+
+Sources: https://docs.typesafe.ai/llms.txt; https://docs.typesafe.ai/introduction.md; https://docs.typesafe.ai/api/errors.md; https://docs.typesafe.ai/primitives/choice.md; https://docs.typesafe.ai/primitives/score.md; https://docs.typesafe.ai/primitives/noul.md; https://docs.typesafe.ai/primitives/box.md; https://docs.typesafe.ai/images.md; https://typesafe.ai/ (early access, gateways); https://openrouter.ai/blog/insights/what-is-jev/ (versions 1.13/1.14, secondary).
+
+## 2. What calibrated is claimed to mean, and the evidence (confirmed from the vendor's own properties)
+
+Two different things share the word. The probabilities are claimed calibrated because Jev is trained with Reinforcement Learning for Calibrated Decisions (RLCD), which optimises for honest probabilities rather than human-preferred prose; the evidence offered is the vendor's own evals page and launch benchmarks, not an independent study. The confidence value is something weaker and exactly specified: a statistic derived from the answer's own probability distribution (for a Choice of N options, (N x largest probability - 1) / (N - 1)), 1 when all probability sits on one outcome, 0 on an even split; Noul answers carry no confidence. Our thresholds must therefore be validated against expected calibration error on our own suites, not taken from the vendor's word: a peaked distribution is not proof of a right answer.
+
+Sources: https://docs.typesafe.ai/confidence.md; https://docs.typesafe.ai/introduction/machine-learning-primer.md; https://typesafe.ai/ (RLCD, 193.6x/444.6x vendor figures); evals.typesafe.ai via vendor charts (vendor's own evals).
+
+## 3. Price and how it is metered (primary sources silent or secondary only)
+
+The vendor homepage lists $42 per billion input tokens ($0.042 per million), output free because Jev returns no conventional text; the same list price is reported on OpenRouter and the Vercel AI Gateway. Metering is input tokens of state plus questions; per-call minimums, overage behaviour and whether gateway calls carry platform fees are unpublished. The vendor's headline figures (193.6x faster, 444.6x cheaper; a demo of $0.000081 in 0.114s against $0.013880 in 8.566s for a frontier LLM) come from its own workflows and are vendor-claimed, not measured here.
+
+Sources: https://typesafe.ai/ ($42 per billion, vendor-claimed ratios); https://journal.qualiteg.com/jev-typesafe-ai-pricing-python-hands-on/ (gateway price parity, secondary).
+
+## 4. Data handling against our outbound terms (primary sources silent or secondary only)
+
+No data processing addendum, retention statement, training-use statement, region list, deletion procedure, sub-processor list or security whitepaper was found on the vendor's properties in this pass. The console and API are US-operated by a San Francisco company; data residency options, if any, are unpublished. Against our outbound terms this means no data class is covered: anything sent would leave the deployment to a processor with unknown retention, unknown training use and unknown regions. A clone-site warning (dozens of lookalike domains) further requires procurement to buy only from typesafe.ai or the named gateways. Verdict per class: none may be sent until terms exist.
+
+Sources: https://typesafe.ai/ (no terms/DPA found 2026-10-22); https://docs.typesafe.ai/llms.txt (no privacy/security pages in index); https://labs.eye.security/rise-of-the-jev-clones/ (clone-site warning, secondary).
+
+## 5. Failure behaviour, rate limits and availability (confirmed from the vendor's own properties)
+
+Documented failures are HTTP statuses: 400 (request rules incl. max_tokens_exceeded), 401, 413 (over 32 MiB), 415 (compression), 422 (validation), 429 (rate limit, numeric limits unpublished) and 529 (vendor overloaded); 429/529 call for exponential backoff, handled by the vendor SDKs. No status history page, no availability commitment and no latency commitment were found; the 70-500ms typical latency is vendor-claimed. Our adapter must therefore treat every Jev call as fallible and time-boxed, with the abstain-and-escalate path as the failure path.
+
+Sources: https://docs.typesafe.ai/api/errors.md; https://jevapi.dev/ (70-500ms, unaffiliated, vendor-claimed).
+
+## 6. Self-hosting or a private deployment (primary sources silent or secondary only)
+
+None exists. Jev is served as a hosted API in early access behind the vendor console; weights are unpublished and no private deployment, VPC offering or on-premises option is documented. The only in-deployment answers to the same questions are our own small classifier and the existing structured-output route, compared below.
+
+Sources: https://docs.typesafe.ai/introduction.md (hosted API); https://www.n884.com/html/models/85.html (weights unpublished, waitlist; secondary).
+
+## 7. Languages including German and Arabic, and images (primary sources silent or secondary only)
+
+The vendor publishes no language list and no per-language quality figures. German and Arabic coverage is therefore unconfirmed and must be measured on our own suites, which carry German and Arabic labels for both Task Catcher and Reminder. Images are confirmed as inputs (state, instructions, criteria) with a dedicated Box question type for positions; image pricing and size limits are unpublished.
+
+Sources: https://docs.typesafe.ai/images.md; https://docs.typesafe.ai/primitives/box.md; agenteval.TaskCatcherAmbientSuite/ReminderAmbientSuite (German and Arabic labels in-repo).
+
+## 8. Measured comparison on our own data (confirmed from the vendor's own properties)
+
+The harness below (ScoreJevStubProvider) runs the Task Catcher and Reminder ambient suites plus their persona-suite shape with synthetic members only, and reports accuracy, the reliability curve with expected calibration error, the abstain rate at the AGENTCOST-002 thresholds, latency and cost per thousand decisions. The three providers run here are deterministic stubs that prove the methodology executes; they are not measurements of Jev, of our general model or of our classifier. Real measurement needs vendor access (early-access console account) and is recorded as not performed. The break-even figures use the vendor-claimed price against the AGENTCOST-001 seeded cost per decision and are labelled as such.
+
+Sources: internal/agentcost/agentcost003_jev.go (harness); internal/agenteval (suites); definitions/planning/agentcost001-spend-report.md (current cost per decision).
+
+## Measured comparison: method and harness verification
+
+Cases: 80 screening questions from the Task Catcher and Reminder ambient suites (11 German and 8 Arabic labels among them), synthetic members only, plus the persona-suite shape with peer-injection cases. Metrics per provider: accuracy, reliability curve with expected calibration error, abstain rate at the AGENTCOST-002 screening threshold (0.80), mean latency and cost per thousand decisions.
+
+| provider | accuracy | expected calibration error | abstain rate | mean latency ms | cost per 1k decisions |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| general-model (stub) | 0.900 | 0.110 | 0.100 | 1800 | 900000 micros |
+| jev-hosted (stub) | 0.925 | 0.180 | 0.075 | 200 | 7000 micros |
+| in-deployment-classifier (stub) | 0.850 | 0.295 | 1.000 | 2 | 0 micros |
+
+These rows verify the harness executes; they are not measurements of Jev, of the general model or of the classifier. Real measurement is blocked on vendor access and is recorded as not performed.
+
+## Data classes that may be sent
+
+None. No vendor terms, DPA, retention, training-use or region statement covers PUBLIC, INTERNAL, PII, COMPENSATION, BANK, MEDICAL, IMMIGRATION, CASE or SPECIAL_CATEGORY content.
+
+## Recommendation per decision point
+
+- screen.message: do not adopt. no vendor terms cover any data class; revisit behind escalation once terms cover INTERNAL content and German/Arabic accuracy is measured. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- audience.todo_reminder: do not adopt. no vendor terms cover any data class; revisit behind escalation once terms cover INTERNAL content; the public direction needs a measured false-public rate near zero. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- search.route: do not adopt. no vendor terms cover any data class; revisit once terms cover INTERNAL content; a wrong route costs a whole answer. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- reaction.choose: do not adopt. no vendor terms cover any data class; revisit once terms cover INTERNAL content; lowest stakes, first candidate for a pilot. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- support.severity: do not adopt. no vendor terms cover any data class; revisit once terms cover PII and CASE content; support mail is never PUBLIC. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- support.needs_review: do not adopt. no vendor terms cover any data class; revisit once terms cover PII and CASE content; abstention must reach a person. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- instruction.detect: do not adopt. no vendor terms cover any data class; revisit once terms cover every class the agent reads; a guardrail that misses is load-bearing. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- citation.supported: do not adopt. no vendor terms cover any data class; revisit once terms cover INTERNAL content; the seal's word is only as good as this check. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- scope.skills: do not adopt. no vendor terms cover any data class; revisit once terms cover INTERNAL content; the monitor must not depend on the vendor it watches failing open. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).
+- model.profile: do not adopt. no vendor terms cover any data class; revisit once terms cover INTERNAL content; routing must stay available when the vendor is not. Break-even: a $5,000 integration repays at 42017 thousand decisions (vendor-claimed price, current 126 micros against 7).

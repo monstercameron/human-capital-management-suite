@@ -123,9 +123,20 @@ func (h *promoux015Harness) discoverPromotion(persona string) (*journeyv1.Propos
 		if path.GetSourceJobCode() != subject.GetJobCode() || path.GetSourceGrade() != subject.GetGrade() {
 			continue
 		}
+		// The page form stamps the target org unit from the subject's own
+		// unit, so a seat in any other unit is refused as incompatible at
+		// preflight. Prefer the subject's own unit; the first job match stays
+		// the fallback, so a subject with no same-unit seat proposes exactly
+		// as before.
 		var vacancy *journeyv1.PositionVacancyOption
 		for _, candidate := range listed.GetOptions().GetPositionVacancies() {
-			if candidate.GetJobCode() == path.GetTargetJobCode() {
+			if candidate.GetJobCode() != path.GetTargetJobCode() {
+				continue
+			}
+			if vacancy == nil {
+				vacancy = candidate
+			}
+			if candidate.GetOrgUnit() == subject.GetOrgUnit() {
 				vacancy = candidate
 				break
 			}

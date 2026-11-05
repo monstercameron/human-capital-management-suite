@@ -39,6 +39,22 @@ const (
 	WorkflowWidgetPositionPicker     WorkflowWidgetKind = "position_picker"
 	WorkflowWidgetOrganizationPicker WorkflowWidgetKind = "organization_unit_picker"
 	WorkflowWidgetCostCentrePicker   WorkflowWidgetKind = "cost_centre_picker"
+	// WFPAGE-014 kinds: attachments admit quarantined uploads as typed
+	// references, signatures bind the proof-bound ceremony, repeating
+	// groups bind list inputs row by row, and computed fields project a
+	// server-recalculated read-only value.
+	WorkflowWidgetAttachment     WorkflowWidgetKind = "attachment"
+	WorkflowWidgetSignature      WorkflowWidgetKind = "signature"
+	WorkflowWidgetRepeatingGroup WorkflowWidgetKind = "repeating_group"
+	WorkflowWidgetComputed       WorkflowWidgetKind = "computed"
+)
+
+// Computed operators: the closed, non-executable vocabulary for computed
+// widgets. Sum adds canonical decimal money inputs exactly; count counts
+// non-blank inputs. There is no expression language by design.
+const (
+	ComputedOpSum   = "sum"
+	ComputedOpCount = "count"
 )
 
 // RuleOperator is the closed, non-executable rule vocabulary. Rule
@@ -79,7 +95,9 @@ type WorkflowPageStep struct {
 }
 
 // WorkflowPageWidget binds exactly one closed widget kind to one workflow
-// input path. Labels and descriptions are data, not markup.
+// input path. Labels and descriptions are data, not markup. Every WFPAGE-014
+// field is omitempty so pages authored before them keep byte-identical
+// canonical form.
 type WorkflowPageWidget struct {
 	ID              string             `json:"id"`
 	SectionID       string             `json:"section_id"`
@@ -95,6 +113,17 @@ type WorkflowPageWidget struct {
 	Currency        string             `json:"currency,omitempty"`
 	PayBasis        string             `json:"pay_basis,omitempty"`
 	EffectiveDating string             `json:"effective_dating,omitempty"`
+	// Accept lists admitted attachment extensions ("pdf,png"); empty admits
+	// any quarantined safe type.
+	Accept string `json:"accept,omitempty"`
+	// Assurance is the required signature assurance level.
+	Assurance string `json:"assurance,omitempty"`
+	// RowCap bounds repeating-group rows; RowWidgets are the row template.
+	RowCap     int                  `json:"row_cap,omitempty"`
+	RowWidgets []WorkflowPageWidget `json:"row_widgets,omitempty"`
+	// ComputedOp and ComputedInputs declare the server recalculation.
+	ComputedOp     string   `json:"computed_op,omitempty"`
+	ComputedInputs []string `json:"computed_inputs,omitempty"`
 }
 
 // WorkflowPageRule carries a declarative rule for a bound input.
@@ -161,6 +190,8 @@ func workflowPageKinds() []WorkflowWidgetKind {
 		WorkflowWidgetMoney, WorkflowWidgetChoice, WorkflowWidgetList,
 		WorkflowWidgetPersonPicker, WorkflowWidgetPositionPicker,
 		WorkflowWidgetOrganizationPicker, WorkflowWidgetCostCentrePicker,
+		WorkflowWidgetAttachment, WorkflowWidgetSignature,
+		WorkflowWidgetRepeatingGroup, WorkflowWidgetComputed,
 	}
 }
 
@@ -232,6 +263,14 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 		if s.Label == "" {
 			add(p+".label", "required")
 		}
+		if strings.ContainsAny(s.Label, "<>") {
+			add(p+".label", "must not contain markup")
+		}
+	}
+	for i, s := range d.Sections {
+		if s.StepID != "" && !steps[s.StepID] {
+			add(fmt.Sprintf("sections[%d].step_id", i), "unknown step")
+		}
 	}
 	bindings := map[string]bool{}
 	widgets := map[string]WorkflowPageWidget{}
@@ -269,6 +308,20 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 		if w.StepID != "" && !steps[w.StepID] {
 			add(p+".step_id", "unknown step")
 		}
+		validatePhase3Widget(add, p, w)
+	}
+	for i, w := range d.Widgets {
+		if w.Kind != WorkflowWidgetComputed {
+			continue
+		}
+		p := fmt.Sprintf("widgets[%d]", i)
+		for _, in := range w.ComputedInputs {
+			if in == w.Binding {
+				add(p+".computed_inputs", "a computed field cannot read itself")
+			} else if !bindings[in] {
+				add(p+".computed_inputs", fmt.Sprintf("input %q is not a widget binding", in))
+			}
+		}
 	}
 	for i, r := range d.Rules {
 		p := fmt.Sprintf("rules[%d]", i)
@@ -283,15 +336,16 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 		}
 		validateCondition(add, p+".when", r.When)
 	}
-	for i, v := range d.Visibility {
-		p := fmt.Sprintf("visibility[%d]", i)
-		if v.Target == "" {
-			add(p+".target", "required")
-		}
-		validateCondition(add, p+".when", v.When)
-	}
+	blocks := map[string]bool{}
 	for i, c := range d.ContentBlocks {
 		p := fmt.Sprintf("content_blocks[%d]", i)
+		if !workflowPageIdentifier.MatchString(c.ID) {
+			add(p+".id", "must be a semantic id")
+		}
+		if blocks[c.ID] {
+			add(p+".id", "duplicate content block id")
+		}
+		blocks[c.ID] = true
 		if _, ok := sections[c.SectionID]; !ok {
 			add(p+".section_id", "unknown section")
 		}
@@ -302,8 +356,16 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 			add(p+".text_key", "must be a localized text key without markup")
 		}
 	}
+	slots := map[string]bool{}
 	for i, l := range d.LinkSlots {
 		p := fmt.Sprintf("link_slots[%d]", i)
+		if !workflowPageIdentifier.MatchString(l.ID) {
+			add(p+".id", "must be a semantic id")
+		}
+		if slots[l.ID] {
+			add(p+".id", "duplicate link slot id")
+		}
+		slots[l.ID] = true
 		if _, ok := sections[l.SectionID]; !ok {
 			add(p+".section_id", "unknown section")
 		}
@@ -313,6 +375,19 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 		if l.Mode != "latest" && l.Mode != "pinned" {
 			add(p+".mode", "must be latest or pinned")
 		}
+	}
+	for i, v := range d.Visibility {
+		p := fmt.Sprintf("visibility[%d]", i)
+		if v.Target == "" {
+			add(p+".target", "required")
+		} else if _, ok := sections[v.Target]; !ok {
+			if _, ok := widgets[v.Target]; !ok {
+				if !blocks[v.Target] {
+					add(p+".target", "must name a section, widget or content block")
+				}
+			}
+		}
+		validateCondition(add, p+".when", v.When)
 	}
 	if len(d.Accessibility.Landmarks) == 0 {
 		add("accessibility.landmarks", "at least one landmark is required")
@@ -326,6 +401,73 @@ func (d WorkflowPageDefinition) Validate() []Violation {
 		}
 	}
 	return out
+}
+
+// workflowAcceptExtension constrains attachment accept-list entries to bare
+// lowercase extensions: no dots, no MIME parameters, no executable names.
+var workflowAcceptExtension = regexp.MustCompile(`^[a-z0-9]{1,10}$`)
+
+// workflowRowKinds are the widget kinds a repeating-group row may hold. Rows
+// stay scalar: nested groups, computed fields, attachments and signatures
+// would need row-scoped admission and ceremony state the page contract does
+// not carry.
+func workflowRowKind(k WorkflowWidgetKind) bool {
+	switch k {
+	case WorkflowWidgetText, WorkflowWidgetInteger, WorkflowWidgetDecimal,
+		WorkflowWidgetCheckbox, WorkflowWidgetInstant, WorkflowWidgetLocalDate,
+		WorkflowWidgetMoney, WorkflowWidgetChoice,
+		WorkflowWidgetPersonPicker, WorkflowWidgetPositionPicker,
+		WorkflowWidgetOrganizationPicker, WorkflowWidgetCostCentrePicker:
+		return true
+	default:
+		return false
+	}
+}
+
+// validatePhase3Widget checks the WFPAGE-014 per-kind declarations.
+func validatePhase3Widget(add func(string, string), p string, w WorkflowPageWidget) {
+	switch w.Kind {
+	case WorkflowWidgetAttachment:
+		for _, ext := range strings.Split(w.Accept, ",") {
+			ext = strings.TrimSpace(ext)
+			if w.Accept != "" && !workflowAcceptExtension.MatchString(ext) {
+				add(p+".accept", "must be a comma-separated list of bare extensions")
+				break
+			}
+		}
+	case WorkflowWidgetSignature:
+		switch w.Assurance {
+		case "BASIC", "ENHANCED", "QUALIFIED":
+		default:
+			add(p+".assurance", "must be BASIC, ENHANCED or QUALIFIED")
+		}
+	case WorkflowWidgetRepeatingGroup:
+		if w.RowCap < 1 {
+			add(p+".row_cap", "must bound rows to at least one")
+		}
+		if len(w.RowWidgets) == 0 {
+			add(p+".row_widgets", "at least one row field is required")
+		}
+		for j, rw := range w.RowWidgets {
+			rp := fmt.Sprintf("%s.row_widgets[%d]", p, j)
+			if !workflowPageKindKnown(rw.Kind) || !workflowRowKind(rw.Kind) {
+				add(rp+".kind", "row fields must be scalar, choice or picker widgets")
+			}
+			if rw.Binding == "" {
+				add(rp+".binding", "required")
+			}
+			if rw.Label == "" || strings.ContainsAny(rw.Label, "<>") {
+				add(rp+".label", "required without markup")
+			}
+		}
+	case WorkflowWidgetComputed:
+		if w.ComputedOp != ComputedOpSum && w.ComputedOp != ComputedOpCount {
+			add(p+".computed_op", "operator is not in the closed vocabulary")
+		}
+		if len(w.ComputedInputs) == 0 {
+			add(p+".computed_inputs", "at least one declared input is required")
+		}
+	}
 }
 
 func validateCondition(add func(string, string), path string, c WorkflowCondition) {
@@ -421,6 +563,16 @@ func workflowWidgetCompatible(kind WorkflowWidgetKind, valueKind workflow.Kind, 
 		return valueKind == workflow.KindString && brand == "OrganizationUnitID"
 	case WorkflowWidgetCostCentrePicker:
 		return valueKind == workflow.KindString && brand == "CostCentreID"
+	case WorkflowWidgetAttachment:
+		// The input retains the admitted evidence reference.
+		return valueKind == workflow.KindString
+	case WorkflowWidgetSignature:
+		// The input retains the signed ceremony identity.
+		return valueKind == workflow.KindString
+	case WorkflowWidgetRepeatingGroup:
+		return valueKind == workflow.KindList
+	case WorkflowWidgetComputed:
+		return valueKind == workflow.KindMoney || valueKind == workflow.KindDecimal || valueKind == workflow.KindInteger
 	default:
 		return false
 	}

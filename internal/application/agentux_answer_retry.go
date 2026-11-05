@@ -116,7 +116,7 @@ func (e *personaAdmittedRunExecutor) executeQualityModel(ctx context.Context, ru
 		return result, currentRun, err
 	}
 	// The first call consumed its credential lease; the second needs its own.
-	if refresher, ok := interface{}(nil).(personaModelLeaseRefresher); ok {
+	if refresher, ok := e.work.(personaModelLeaseRefresher); ok {
 		if refreshErr := refresher.RefreshPersonaRunModelLease(callCtx, &request); refreshErr != nil {
 			return result, run, refreshErr
 		}

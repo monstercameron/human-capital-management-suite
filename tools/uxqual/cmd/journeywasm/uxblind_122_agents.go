@@ -95,6 +95,7 @@ func agentPageAgentSummaries(value *journeyclient.Agents) []productui.AgentSumma
 		summary := productui.AgentSummary{ID: id, Name: strings.TrimSpace(agent.Name), Description: strings.TrimSpace(agent.Description), Status: strings.TrimSpace(agent.Status)}
 		if agent.Icon.Valid() {
 			summary.Icon, summary.IconRevision = agent.Icon, agent.IconRevision
+			summary.IconImageURL = agent.IconImageURL
 		}
 		summaries = append(summaries, summary)
 	}

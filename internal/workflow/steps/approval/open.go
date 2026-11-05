@@ -10,6 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workitem"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
@@ -54,6 +55,13 @@ type OpenInput struct {
 	Requirement humanwork.ApprovalRequirement
 	Proposal    intent.ProposalRevision
 
+	// DeadlineAnchor, DeadlineCalendars and DeadlineDataset resolve a
+	// requirement deadline expression. They are required exactly when
+	// Requirement carries DeadlineExpr and ignored otherwise.
+	DeadlineAnchor    values.Instant
+	DeadlineCalendars values.CalendarDataset
+	DeadlineDataset   values.DatasetVersions
+
 	Now  time.Time
 	Meta workitem.TransitionMeta
 }
@@ -74,6 +82,13 @@ func Open(ctx context.Context, tx workitem.Executor, store workitem.Port, in Ope
 	}
 	if in.Requirement.RequirementID == "" || in.Requirement.Digest() == "" {
 		return workitem.WorkItem{}, fmt.Errorf("%w: requirement is not compiled", ErrInvalidContinuation)
+	}
+	if in.Requirement.DeadlineExpr != nil {
+		resolved, err := in.Requirement.ResolveDeadline(in.DeadlineAnchor, in.DeadlineCalendars, in.DeadlineDataset)
+		if err != nil {
+			return workitem.WorkItem{}, fmt.Errorf("%w: deadline expression: %v", ErrInvalidContinuation, err)
+		}
+		in.Requirement.Deadline = resolved
 	}
 	if err := in.Requirement.Deadline.Validate(); err != nil {
 		return workitem.WorkItem{}, fmt.Errorf("%w: %v", ErrInvalidContinuation, err)

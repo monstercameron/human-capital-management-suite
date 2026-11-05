@@ -25,6 +25,9 @@ type AgentIconRailEntry struct {
 	Purpose        string          `json:"purpose"`
 	Icon           agenticon.Value `json:"icon"`
 	IconRevision   int64           `json:"icon_revision"`
+	// IconImageURL serves the owner's uploaded image from this origin when
+	// the agent has one; empty for a generated icon.
+	IconImageURL string `json:"icon_image_url,omitempty"`
 }
 
 type AgentIconRail struct {

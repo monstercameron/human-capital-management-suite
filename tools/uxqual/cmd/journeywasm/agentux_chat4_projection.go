@@ -61,7 +61,7 @@ func preserveAgentConversationIdentity(previous chatui.Model, next *chatui.Model
 	}
 	for _, room := range previous.Conversations {
 		if room.Agent {
-			applyAgentDirectConversation(next, room.ID, room.AgentID, room.Name, agentDirectIdentity{Icon: room.Icon, Revision: room.IconRevision, Purpose: room.AgentPurpose})
+			applyAgentDirectConversation(next, room.ID, room.AgentID, room.Name, agentDirectIdentity{Icon: room.Icon, Revision: room.IconRevision, Purpose: room.AgentPurpose, ImageURL: room.IconImageURL})
 		}
 	}
 }

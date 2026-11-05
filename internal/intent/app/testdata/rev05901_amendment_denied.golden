@@ -1,0 +1,7 @@
+code: PERMISSION_DENIED
+reason: p1b.amendment_denied
+message: the bound authority amendment does not admit this write
+retryable: false
+http_status: 403
+grpc_code: PermissionDenied
+error: PERMISSION_DENIED (p1b.amendment_denied): the bound authority amendment does not admit this write

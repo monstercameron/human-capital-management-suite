@@ -64,7 +64,7 @@ func TestEvidenceFreshnessRejectsHistoricalClaim(t *testing.T) {
 	})
 
 	t.Run("real planning corpus has zero unallowed evidence-freshness gaps", func(t *testing.T) {
-		content, err := os.ReadFile(filepath.Join("..", "..", "..", "planning", "todos.md"))
+		content, err := os.ReadFile(filepath.Join("..", "..", "..", "planning", "archive", "todos-2026-10-22.md"))
 		if err != nil {
 			t.Fatalf("read todos.md: %v", err)
 		}

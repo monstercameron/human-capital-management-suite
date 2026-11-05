@@ -19,6 +19,7 @@ type WorkflowInputWidget struct {
 	RequiresCurrency  bool
 	RequiresPayBasis  bool
 	EffectiveDating   bool
+	ReadOnly          bool
 }
 
 // WorkflowInputRegistry owns its definitions as a value. There is no package
@@ -45,6 +46,10 @@ func NewWorkflowInputRegistry() WorkflowInputRegistry {
 		{Kind: pagedef.WorkflowWidgetPositionPicker, Role: "combobox", InputType: "text", SupportsTypeAhead: true, ReferenceKind: "position"},
 		{Kind: pagedef.WorkflowWidgetOrganizationPicker, Role: "combobox", InputType: "text", SupportsTypeAhead: true, ReferenceKind: "organization_unit"},
 		{Kind: pagedef.WorkflowWidgetCostCentrePicker, Role: "combobox", InputType: "text", SupportsTypeAhead: true, ReferenceKind: "cost_centre"},
+		{Kind: pagedef.WorkflowWidgetAttachment, Role: "button", InputType: "file"},
+		{Kind: pagedef.WorkflowWidgetSignature, Role: "button", InputType: "signature"},
+		{Kind: pagedef.WorkflowWidgetRepeatingGroup, Role: "group", InputType: "group"},
+		{Kind: pagedef.WorkflowWidgetComputed, Role: "textbox", InputType: "text", ReadOnly: true},
 	}}
 }
 
@@ -60,6 +65,8 @@ func (r WorkflowInputRegistry) Lookup(kind pagedef.WorkflowWidgetKind) (Workflow
 
 // InputRenderRequest is the authorized, viewer-specific state needed to
 // render a field. Options have already been filtered by the owning authority.
+// Values carries current page values by binding for computed recalculation;
+// RepeatingRows carries the current group rows.
 type InputRenderRequest struct {
 	Widget          pagedef.WorkflowPageWidget
 	Locale          string
@@ -67,6 +74,8 @@ type InputRenderRequest struct {
 	DisabledReason  string
 	Options         []string
 	ViewerMaySearch bool
+	Values          map[string]string
+	RepeatingRows   []RepeatingRowInput
 }
 
 // InputRenderResult is a semantic render projection. The IDs are stable so a
@@ -90,6 +99,14 @@ type InputRenderResult struct {
 	Currency         string
 	PayBasis         string
 	EffectiveDating  string
+	Accept           []string
+	Assurance        string
+	ReadOnly         bool
+	ComputedValue    string
+	RowCap           int
+	CanAdd           bool
+	CanRemove        bool
+	Rows             []RepeatingRowView
 }
 
 // Render validates the page binding against this registry and returns a
@@ -123,6 +140,17 @@ func (r WorkflowInputRegistry) Render(req InputRenderRequest) (InputRenderResult
 	}
 	if widget.EffectiveDating && result.EffectiveDating == "" {
 		result.EffectiveDating = "earliest; no retroactive change without reason"
+	}
+	result.ReadOnly = widget.ReadOnly
+	switch req.Widget.Kind {
+	case pagedef.WorkflowWidgetAttachment:
+		result = renderAttachment(result, req.Widget)
+	case pagedef.WorkflowWidgetSignature:
+		return renderSignature(result, req.Widget)
+	case pagedef.WorkflowWidgetComputed:
+		return renderComputed(result, req.Widget, req.Values)
+	case pagedef.WorkflowWidgetRepeatingGroup:
+		return r.renderRepeating(result, req)
 	}
 	return result, nil
 }

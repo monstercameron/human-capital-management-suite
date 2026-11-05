@@ -52,7 +52,7 @@ func readProtovalidateDecision(t *testing.T) (string, protovalidateDecision) {
 
 func readLIB019Block(t *testing.T, root string) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, "planning", "todos.md"))
+	data, err := os.ReadFile(filepath.Join(root, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		t.Fatal(err)
 	}

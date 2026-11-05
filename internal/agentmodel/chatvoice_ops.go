@@ -11,10 +11,8 @@ import (
 	"io"
 	"math"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/textproto"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -119,32 +117,15 @@ func NewAudioPort(cfg AudioConfig) (*AudioPort, error) {
 			return nil, ErrAudioNotConfigured
 		}
 	}
-	base := strings.TrimRight(cfg.BaseURL, "/")
-	if base == "" {
-		base = audioDefaultBaseURL
-	}
-	parsed, err := url.Parse(base)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
-		(parsed.Scheme != "https" && !(parsed.Scheme == "http" && audioLoopback(parsed.Hostname()))) {
+	base, err := NormalizeAPIEndpoint(cfg.BaseURL, audioDefaultBaseURL)
+	if err != nil {
 		return nil, fmt.Errorf("%w: invalid API base URL", ErrAudioNotConfigured)
 	}
-	client := &http.Client{}
-	if cfg.HTTPClient != nil {
-		copied := *cfg.HTTPClient
-		client = &copied
-	}
-	// The credential must never follow a redirect to another authority.
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	voice := strings.TrimSpace(cfg.Voice)
 	if voice == "" {
 		voice = DefaultSpeechVoice
 	}
-	return &AudioPort{apiKey: cfg.APIKey, base: base, voice: voice, client: client, transcribe: cfg.TranscribeModel, speech: cfg.SpeechModel, price: cfg.Price, guard: cfg.Guard}, nil
-}
-
-func audioLoopback(host string) bool {
-	address := net.ParseIP(host)
-	return address != nil && address.IsLoopback()
+	return &AudioPort{apiKey: cfg.APIKey, base: base, voice: voice, client: NoRedirectClient(cfg.HTTPClient), transcribe: cfg.TranscribeModel, speech: cfg.SpeechModel, price: cfg.Price, guard: cfg.Guard}, nil
 }
 
 // Models reports the pinned identities, for the administration page and for the
@@ -202,7 +183,7 @@ func (p *AudioPort) Transcribe(ctx context.Context, r TranscribeRequest) (AudioT
 		return AudioTranscript{}, ErrAudioInvalid
 	}
 	seconds := float64(r.DurationMS) / 1000
-	call := AudioCall{CallID: audioCallID(), Kind: AudioTranscribe, TenantID: r.Scope.TenantID, ConversationID: r.Scope.ConversationID, Actor: r.Scope.Actor, Model: p.transcribe, Seconds: seconds, EstimatedCostMicros: int64(math.Ceil(seconds * float64(p.price.TranscribeMicrosPerSecond)))}
+	call := AudioCall{CallID: audioCallID(), Kind: AudioTranscribe, TenantID: r.Scope.TenantID, ConversationID: r.Scope.ConversationID, Actor: r.Scope.Actor, Model: p.transcribe, Seconds: seconds, EstimatedCostMicros: audioTranscribeCost(seconds, p.price.TranscribeMicrosPerSecond)}
 	if err := p.guard.Admit(ctx, call); err != nil {
 		return AudioTranscript{}, errors.Join(ErrAudioRefused, err)
 	}
@@ -277,7 +258,7 @@ func (p *AudioPort) Speak(ctx context.Context, r SpeakRequest) (AudioSpeech, err
 	if characters == 0 || characters > AudioMaxSpeechCharacters {
 		return AudioSpeech{}, ErrAudioInvalid
 	}
-	cost := (int64(characters)*p.price.SpeechMicrosPerThousandChars + 999) / 1000
+	cost := audioSpeakCost(int64(characters), p.price.SpeechMicrosPerThousandChars)
 	call := AudioCall{CallID: audioCallID(), Kind: AudioSpeak, TenantID: r.Scope.TenantID, ConversationID: r.Scope.ConversationID, Actor: r.Scope.Actor, Model: p.speech, Characters: characters, EstimatedCostMicros: cost}
 	if err := p.guard.Admit(ctx, call); err != nil {
 		return AudioSpeech{}, errors.Join(ErrAudioRefused, err)
@@ -406,6 +387,27 @@ func audioLanguageCode(name string) string {
 		return code
 	}
 	return name
+}
+
+// audioTranscribeCost prices seconds at a per-second rate, rounding up.
+// A rate near the int64 maximum saturates at the maximum instead of
+// converting into a negative estimate.
+func audioTranscribeCost(seconds float64, rate int64) int64 {
+	cost := math.Ceil(seconds * float64(rate))
+	if cost >= float64(math.MaxInt64) {
+		return math.MaxInt64
+	}
+	return int64(cost)
+}
+
+// audioSpeakCost prices characters at a per-thousand rate, rounding up.
+// A rate near the int64 maximum saturates at the maximum instead of
+// wrapping the multiplication negative past it.
+func audioSpeakCost(characters, rate int64) int64 {
+	if rate > 0 && characters > (math.MaxInt64-999)/rate {
+		return math.MaxInt64
+	}
+	return (characters*rate + 999) / 1000
 }
 
 // AudioTimeout bounds one provider call.

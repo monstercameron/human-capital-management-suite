@@ -742,3 +742,11 @@ Low-cost foundations include Go's HTTP and XML/JSON libraries, standard Protobuf
 - [DocuSign eSignature embedded signing](https://developers.docusign.com/docs/esign-rest-api/esign101/concepts/embedding/embedded-signing/)
 - [ADP Workforce Now Worker Management API](https://developers.adp.com/articles/preview/guide-worker-management-api-guide-for-adp-workforce-now-0?chapter=10)
 - [ADP Workforce Now Job Applications API](https://developers.adp.com/articles/preview/guide-job-applications-v2-api-guide-for-adp-workforce-now-0?chapter=1)
+
+## Small-business adapters and physical devices (2026-10-22)
+
+The [small-business expansion](../small-business-platform-ideas.md) extends this same connector framework for accounting systems, customer/supplier exchanges, network-hosted appliances, and USB peripherals. Connector definitions, destination-bound leases, operation journal, idempotency, observation, retry, and reconciliation remain shared owners. Provider-specific mappings and hardware adapters add transport semantics without adding another dispatch runtime.
+
+Keyboard-mode scans are input observations; committed business actions pass through the same domain capability as manual entry. Optional browser APIs have an explicit compatibility matrix. A local connector uses a separately admitted least-privilege workload role, tenant/site/device enrollment and outbound authenticated communication; it must not reuse the privileged server worker identity. The local durable queue is a transport spool linked to authoritative operation IDs, not a second business ledger. Disconnection, expiry, revocation, duplicate delivery and uncertain physical effects have durable states. Reprinting, payments, and other physical/external effects are never claimed exactly-once merely because a request was deduplicated.
+
+Supported adapters, browser/OS/hardware combinations and provider editions require conformance evidence before UI availability. Connection health and permission errors appear through existing Admin integration/operations surfaces with safe retry, reconnect, cancel or reconcile actions. Secrets, local network topology, and private business records are not emitted in diagnostics or shared customer views.

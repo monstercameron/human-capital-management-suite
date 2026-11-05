@@ -9,6 +9,7 @@ import (
 	intentsv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/intents/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/engines/wire/digest"
+	"github.com/monstercameron/human-capital-management-suite/internal/governance/authority"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	transactioncommit "github.com/monstercameron/human-capital-management-suite/internal/transaction/commit"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/envelope"
@@ -68,6 +69,14 @@ const (
 	// again, which this condition never resolves. Nothing the caller does to
 	// the journey changes it; an operator releases a version.
 	reasonNoActiveWorkflowVersion = "workflow.no_active_version"
+	// reasonAmendmentDenied reports a start the cell's bound P1B authority
+	// amendment does not admit: a field, operation, tenant, instant or
+	// grant outside the bound transfer (REV-059-01).
+	reasonAmendmentDenied = "p1b.amendment_denied"
+	// reasonAmendmentMisconfigured reports a bound amendment whose own
+	// digest does not verify: the cell is misconfigured, so the caller is
+	// told the service is at fault rather than refused permission.
+	reasonAmendmentMisconfigured = "p1b.amendment_misconfigured"
 
 	ruleExecutionAuthorityGate = "release.p1b_execution_authority_gate"
 	// ruleWorkflowVersionRelease names the governed release the refusal above
@@ -360,6 +369,22 @@ func executionError(err error) *envelope.Error {
 		return envelope.New(envelope.CodeUnavailable, reasonExecutionOutcomeAmbiguous,
 			"the workflow start outcome could not be determined").
 			WithRetryable(false).
+			WithDiagnostic(err)
+	}
+	// REV-059-01: the amendment gate's own typed refusals project as a
+	// permission denial (the write is outside the bound transfer) or, for
+	// a digest that does not verify, as this cell's own misconfiguration.
+	// The amendment error travels as the nested diagnostic for operator
+	// logs; callers match the typed sentinel on the gate's own return.
+	if errors.Is(err, authority.ErrLocalWriteDenied) || errors.Is(err, authority.ErrTopologyMismatch) ||
+		errors.Is(err, authority.ErrAmendmentInactive) {
+		return envelope.New(envelope.CodePermissionDenied, reasonAmendmentDenied,
+			"the bound authority amendment does not admit this write").
+			WithDiagnostic(err)
+	}
+	if errors.Is(err, authority.ErrDigestMismatch) || errors.Is(err, authority.ErrInvalidAmendment) {
+		return envelope.New(envelope.CodeUnavailable, reasonAmendmentMisconfigured,
+			"the cell's bound authority amendment is invalid").
 			WithDiagnostic(err)
 	}
 	code := runtime.CodeOf(err)

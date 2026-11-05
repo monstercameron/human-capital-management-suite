@@ -63,7 +63,11 @@ type LocalAgentDemoConfig struct {
 	// only to repair a direct conversation an earlier preparation left
 	// unrouted; the serving role may not delete conversation rows.
 	ChatOwnerDatabaseURL string
-	Now                  func() time.Time
+	// ProjectDatabaseURL is the optional project-database connection the
+	// "Customer support" project is created in. Empty leaves Support Desk
+	// without a project and says so in the receipt (AGENTUX-079).
+	ProjectDatabaseURL string
+	Now                func() time.Time
 }
 
 // LocalAgentDemoSummary is the intentionally non-sensitive command receipt.
@@ -101,10 +105,16 @@ type LocalAgentDemoSummary struct {
 	// Task Catcher, Reminder and Support Desk were placed, how many messages
 	// #general's history gained, and how many support emails it seeded.
 	Placements LocalAgentDemoPlacements
+	// SupportProject is what the preparation did about the "Customer support"
+	// project and its service grant, or the plain reason it did nothing.
+	SupportProject AgentUX079SupportProjectReceipt
+	// BirthdaySchedule is what the preparation did about Birthday Buddy's
+	// daily schedule: created, resumed, or already converged.
+	BirthdaySchedule AgentUX079BirthdayScheduleReceipt
 }
 
 func (s LocalAgentDemoSummary) Changed() bool {
-	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.Placements.Changed() || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0
+	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.Placements.Changed() || s.SupportProject.Created || s.SupportProject.GrantRecorded || s.BirthdaySchedule.Created || s.BirthdaySchedule.Resumed || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0
 }
 
 // ValidateLocalAgentDemoConfig rejects the command before any connection is
@@ -127,6 +137,9 @@ func ValidateLocalAgentDemoConfig(config LocalAgentDemoConfig) error {
 	}
 	if config.ChatOwnerDatabaseURL != "" {
 		urls["chat-owner-database-url"] = config.ChatOwnerDatabaseURL
+	}
+	if config.ProjectDatabaseURL != "" {
+		urls["project-database-url"] = config.ProjectDatabaseURL
 	}
 	for name, raw := range urls {
 		parsed, err := url.Parse(raw)
@@ -332,6 +345,9 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		summary.InstallationsRefreshed += prepared.installationsRefreshed
 		summary.DuplicateInstallationsRetired += prepared.duplicateInstallationsGone
 		summary.SkillGrantsCreated += prepared.skillGrantsCreated
+		if prepared.birthdaySchedule.Checked {
+			summary.BirthdaySchedule = prepared.birthdaySchedule
+		}
 	}
 	summary.Starters = localAgentDemoStarterReceipts(localAgentDemoStarterNames(), versions)
 	summary.IconsSet, err = scoped.BackfillIcons(ctx, localAgentDemoAdmin, now)
@@ -359,6 +375,13 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	summary.Placements, err = prepareLocalAgentDemoTail(adminCtx, config, agents, chat, documents, mapper, publicConversation, now)
 	if err != nil {
 		return summary, fmt.Errorf("place the demo agents: %w", err)
+	}
+	// AGENTUX-079: the "Customer support" project Support Desk files tickets
+	// in, and the grant that lets its service identity create them. Without a
+	// project database the receipt says so plainly and nothing fails.
+	summary.SupportProject, err = prepareAgentUX079SupportProject(adminCtx, config, agents, mapper, now)
+	if err != nil {
+		return summary, fmt.Errorf("prepare the Customer support project: %w", err)
 	}
 	if modelErr != nil {
 		summary.WorkspaceIndex.Unavailable = modelErr.Error()

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
@@ -23,17 +22,11 @@ type voiceSendReply struct {
 }
 
 func voiceRequest(ctx context.Context, client *http.Client, cfg journeyclient.Config, action string, input, output any) error {
-	endpoint, err := url.Parse(cfg.TunnelURL)
-	if err != nil || endpoint.Host == "" || cfg.Bearer == "" {
+	endpoint, problem := tunnelHTTPBase(cfg.TunnelURL)
+	if problem == tunnelUnusable || cfg.Bearer == "" {
 		return chat.ErrVoiceUnavailable
 	}
-	switch endpoint.Scheme {
-	case "ws":
-		endpoint.Scheme = "http"
-	case "wss":
-		endpoint.Scheme = "https"
-	case "http", "https":
-	default:
+	if problem == tunnelBadScheme {
 		return chat.ErrInvalidArgument
 	}
 	switch action {

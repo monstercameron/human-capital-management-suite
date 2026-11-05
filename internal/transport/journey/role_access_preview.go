@@ -18,24 +18,24 @@ func (s *server) PreviewRoleAccess(ctx context.Context, req *journeyv1.PreviewRo
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
-	if err := s.requirePageAction(ctx, principal, inv, "organization-visibility", roleaccess.ActionView); err != nil {
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requirePageAction(ctx, "organization-visibility", roleaccess.ActionView); err != nil {
 		return nil, err
 	}
-	if err := s.requireRoleAdministrator(ctx, principal, inv.RequestID()); err != nil {
+	if err := auth.requireRoleAdministrator(ctx); err != nil {
 		return nil, err
 	}
 	if req.GetProposed() == nil {
 		return nil, roleAccessError(roleaccess.ErrInvalid, principal, inv.RequestID(), "preview")
 	}
-	store, err := s.roleAccessStore(principal, inv.RequestID())
-	if err != nil {
-		return nil, err
-	}
 	eng, depErr := s.engine(principal, inv, "preview_role_access")
 	if depErr != nil {
 		return nil, depErr
 	}
-	snapshot, err := store.Load(ctx, principal.Tenant(), principal.OrganizationScopeID())
+	// The preview reads the same snapshot the gates admitted the call
+	// from, so the RPC loads once and the answer cannot disagree with
+	// the authorization.
+	snapshot, err := auth.roleSnapshot(ctx)
 	if err != nil {
 		return nil, roleAccessError(err, principal, inv.RequestID(), "preview")
 	}

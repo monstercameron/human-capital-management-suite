@@ -1,0 +1,163 @@
+// DURABLE-005 record: what a person sees across a crash, and how the
+// browser carries on. Each DurableCrashArea names one person-visible
+// surface, its behavior today (grounded by code reading on 2026-10-22 with
+// file references), the gap against the owner's "continue like nothing
+// happened", and the contract the product must meet. DURABLE-004's
+// kill-the-real-server harness does not exist yet; the BROWSER matrix test
+// proves the reconnect half against the real client by killing the
+// transport instead of the process, and names DURABLE-004 as the follow-up
+// that replays these assertions with a page open during a real kill.
+package invalidation
+
+import (
+	"fmt"
+	"strings"
+)
+
+// DurableCrashArea is one person-visible surface across a crash.
+type DurableCrashArea struct {
+	ID       string
+	Title    string
+	Current  string
+	Gap      string
+	Contract string
+}
+
+// DurableCrashUX returns the person-visible crash record, one area per
+// GREEN clause.
+func DurableCrashUX() []DurableCrashArea {
+	return []DurableCrashArea{
+		{
+			ID:    "reconnect",
+			Title: "Reconnection of the tunnel with backoff and without a reload",
+			Current: "The page holds one WebSocket at /workspace/grpc carrying gRPC frames " +
+				"(internal/transport/cell/tunnel.go). The server ends sockets at an 8h ceiling so the client " +
+				"reconnects and re-authorizes, with 30s ping / 120s idle keepalive; every RPC carries its own " +
+				"Bearer [REDACTED] the tunnel forwards no Authorization or Cookie itself. The wasm client dials with " +
+				"retries disabled because the server owns idempotency. On top of the socket, four backoff " +
+				"schedules disagree: the chat stream retries at 2s doubling to 30s " +
+				"(tools/uxqual/cmd/journeywasm/chat_stream_wasm.go), product invalidation tries 6 times at " +
+				"500ms-1s then rests 30s (product_invalidation.go, via this package's RunReconnect), agent " +
+				"activity SSE backs off 3s doubling to 60s (persona_chat_service.go), and load-time reads use " +
+				"a 1s/2s/5s/15s retrier (internal/humanwork/chatui/chatux012_retry.go).",
+			Gap: "No single reconnect policy: four schedules, and the socket-level gRPC reconnect under " +
+				"the wasm dialer is library internals the record could not ground. Nothing proves the page " +
+				"reconnects without a reload after a server restart today.",
+			Contract: "The tunnel reconnects with backoff and jitter and without a reload; every " +
+				"reconnected RPC re-authorizes from the page credential; consecutive failures draw from a " +
+				"bounded budget (this package exhausts with ErrReconnectExhausted) and a productive round " +
+				"resets the budget. DURABLE-004 proves it against a real kill.",
+		},
+		{
+			ID:    "resubscribe",
+			Title: "Resubscription of everything on screen from stored state",
+			Current: "The chat stream resumes from its stored cursor, with catch-up of gaps through ListPosts, " +
+				"drops a stale cursor and resubscribes immediately, and gives up after 5 fruitless reconnects " +
+				"with the counter reset by a productive round. This package's RunReconnect resumes from the " +
+				"last committed local checkpoint and authoritatively catches the missing range up before the " +
+				"next hint is admitted; the server watches (WatchConversation, journey watch) each end at a " +
+				"15-minute ceiling. The Agents-page task instead polls every 3s while non-final and skips " +
+				"errors silently, so a restart is a silent stall that resumes with no give-up and no notice. " +
+				"Rollout-in-progress and transcription refresh wiring is ungrounded.",
+			Gap: "Polling surfaces have no subscription to resume and no notice while stalled; the chat " +
+				"'working' line is SSE-driven with a locally ticking elapsed clock, matching RED's stuck " +
+				"card when the stream silently dies. Nothing resubscribes a rollout or a transcription view " +
+				"that the record could verify.",
+			Contract: "A working answer, a running task, a rollout in progress and a transcription each " +
+				"resubscribe from stored state and show their true current state within seconds of recovery; " +
+				"a sequence gap is authoritatively caught up before any hint moves the view.",
+		},
+		{
+			ID:    "gap-ui",
+			Title: "What is shown during the gap",
+			Current: "Reads retry silently by design. The string 'Reconnecting' exists nowhere in the " +
+				"product: only this todo's GREEN text names it. The only terminal state is 'This conversation " +
+				"is no longer updating live.' after about 60s fruitless (2+4+8+16+30s, 5 attempts) with a retry " +
+				"control, localized; the give-up unregisters the stream so the route loader re-reads. Failed " +
+				"actions during an outage DO error: 'We couldn't X. The service did not answer. Try again.'",
+			Gap: "There is no quiet mid-gap state between silent retry and the 60s terminal notice, and " +
+				"failed actions during a restart surface as errors, against GREEN's 'never an error for a " +
+				"restart'.",
+			Contract: "Nothing is shown for under two seconds, then a quiet 'Reconnecting...' that never " +
+				"reads as an error; a restart is never an error. Only the spent bounded budget may surface a " +
+				"terminal state, with exactly one retry control.",
+		},
+		{
+			ID:    "drafts-forms",
+			Title: "Drafts and half-filled forms kept across the gap and a reload",
+			Current: "A test-enforced storage boundary lets journeywasm touch only sessionStorage, only " +
+				"for the history hint; localStorage and IndexedDB are forbidden " +
+				"(web031_storage_boundary_native_test.go). Chat drafts are server-persisted instead: a debounced " +
+				"writer stores them in SidebarState.LayoutJson.Drafts via PutSidebar with revision + " +
+				"abort-rebase over 3 attempts, loaded back via GetSidebar, so drafts survive a reload and a " +
+				"server restart; a write failure shows a notice with a manual 'Try again'. Half-filled " +
+				"promotion forms live in in-memory journeyclient state with no persistence found, and are " +
+				"expected lost on reload (search not exhaustive).",
+			Gap: "Anything not yet pushed to the server draft row, and every promotion form, dies with the " +
+				"page; the storage gate forbids the obvious client-side fix inside journeywasm.",
+			Contract: "Drafts and half-filled forms are kept across the gap AND across a reload: server-held " +
+				"draft rows where they exist, and a gate exception or server-held session for the rest.",
+		},
+		{
+			ID:    "voice-recording",
+			Title: "An unsent voice recording kept across the gap and a reload",
+			Current: "The recorder holds chunks in memory with a Blob + object-URL preview " +
+				"(tools/uxqual/cmd/journeywasm/chatvoice_recorder_wasm.go). send() runs a 30s timeout; failure " +
+				"lands 'sendfailed' with the bytes kept for a manual retry, cleared only on success or Cancel. " +
+				"A reload loses the recording.",
+			Gap: "Memory-only bytes plus a storage gate that forbids persisting them: RED's unsent voice " +
+				"recording cannot survive a reload today.",
+			Contract: "An unsent voice recording is kept across the gap and across a reload, either behind a " +
+				"narrow storage-gate exception or in a server-held resumable upload session keyed like the " +
+				"existing voice-<nanos> identity.",
+		},
+		{
+			ID:    "sessions",
+			Title: "Sessions surviving a restart",
+			Current: "Dev browser login verifies the pasted Bearer [REDACTED] and stores it verbatim in the " +
+				"HttpOnly hcmnext_session cookie for 12h with no server row, so it survives a restart while " +
+				"unexpired and the verifier key is unchanged (internal/humanwork/workspace/handler.go); " +
+				"cookie-for-header substitution needs an explicit flag. OIDC sessions live in Postgres " +
+				"(internal/trust/session/pgstore) and survive restarts, revoked on logout; the in-memory " +
+				"Manager is test-only. After a reload the shell re-issues island Bearer [REDACTED] the cookie, " +
+				"and per-RPC auth re-authenticates the reconnected socket with no re-login while valid.",
+			Gap: "RED's report that a signed-in session in one browser was gone while another continued is " +
+				"ungrounded: no code path found explains a restart signing exactly one browser out.",
+			Contract: "Sessions survive a restart; a reconnected page re-authenticates from its credential " +
+				"with no re-login while valid. DURABLE-004 reproduces RED's one-browser-signed-out report or " +
+				"closes it as unreproducible.",
+		},
+		{
+			ID:    "disconnected-actions",
+			Title: "An action taken during the gap is queued once or refused plainly",
+			Current: "Chat send makes one attempt with a 30s timeout; failure restores the text to the draft " +
+				"with a notice, and an identical retry reuses the SAME idempotency key, cleared on success: " +
+				"manual, duplicate-safe, never auto-queued (tools/uxqual/cmd/journeywasm/chat_wasm.go). The only " +
+				"queued case is location share, held while navigator.onLine is false and flushed on 'online'. " +
+				"Sidebar, draft and agent reads offer a manual 'Try again' only. Gap: agent-control and " +
+				"announcement commands mint a fresh randomUUID per click, so a retry after a timeout carries a " +
+				"new key the server cannot dedupe: a possible double-apply.",
+			Gap: "Nothing auto-queues a disconnected action for replay, and the fresh-key-per-click " +
+				"commands can double-apply on retry-after-timeout.",
+			Contract: "An action taken during the gap is either queued and sent once on reconnection under " +
+				"one stable idempotency key per user intent, or refused plainly; it is never silently dropped " +
+				"and never sent twice. DURABLE-004 asserts the queued-or-refused property for a mention, a " +
+				"task and an announcement post with a page open during the kill.",
+		},
+	}
+}
+
+// RenderDurableCrashUX renders the record as text.
+func RenderDurableCrashUX() string {
+	var out strings.Builder
+	out.WriteString("DURABLE-005 crash-UX record (code-read 2026-10-22)\n")
+	out.WriteString("Owner decision: the program crashes and recovers itself quickly and continues like nothing happened.\n")
+	out.WriteString("Proof boundary: DURABLE-004's kill-the-real-server harness does not exist yet; the reconnect assertions below are proven against the real client with a killed transport.\n\n")
+	for _, area := range DurableCrashUX() {
+		fmt.Fprintf(&out, "## %s: %s\n", area.ID, area.Title)
+		fmt.Fprintf(&out, "current: %s\n", area.Current)
+		fmt.Fprintf(&out, "gap: %s\n", area.Gap)
+		fmt.Fprintf(&out, "contract: %s\n\n", area.Contract)
+	}
+	return out.String()
+}

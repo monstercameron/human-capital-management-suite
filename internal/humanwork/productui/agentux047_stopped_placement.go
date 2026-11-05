@@ -44,29 +44,23 @@ func personaAdminStoppedReasonKey(code string) string {
 	return PersonaPlacementStoppedOther
 }
 
+// agentUX047Copy is the copy agentUX047Text resolves (agentux_copy.go).
+var agentUX047Copy = map[string][3]string{
+	"stopped":                 {"Stopped: {reason}.", "Angehalten: {reason}.", "متوقف: {reason}."},
+	"stopped_version":         {"version {version}", "Version {version}", "الإصدار {version}"},
+	"start_again":             {"Start again", "Erneut starten", "بدء التشغيل من جديد"},
+	"start_again_later":       {"It can be started again once this is fixed.", "Er kann erneut gestartet werden, sobald dies behoben ist.", "يمكن بدء تشغيله من جديد بعد إصلاح ذلك."},
+	"start_again_not_allowed": {"Someone who may add this agent to conversations can start it again.", "Eine Person, die diesen Agenten zu Unterhaltungen hinzufügen darf, kann ihn erneut starten.", "يمكن لمن يُسمح له بإضافة هذا الوكيل إلى المحادثات أن يبدأ تشغيله من جديد."},
+	"reason_" + PersonaPlacementStoppedNoIdentity:       {"this version is not set up to run", "diese Version ist nicht für die Ausführung eingerichtet", "هذا الإصدار غير مُعدّ للتشغيل"},
+	"reason_" + PersonaPlacementStoppedIdentityInactive: {"this version's setup to run is no longer active", "die Einrichtung dieser Version für die Ausführung ist nicht mehr aktiv", "إعداد تشغيل هذا الإصدار لم يعد نشطًا"},
+	"reason_" + PersonaPlacementStoppedNotPublished:     {"this version is no longer published", "diese Version ist nicht mehr veröffentlicht", "هذا الإصدار لم يعد منشورًا"},
+	"reason_" + PersonaPlacementStoppedVersionMissing:   {"this version is no longer available", "diese Version ist nicht mehr verfügbar", "هذا الإصدار لم يعد متاحًا"},
+	"reason_" + PersonaPlacementStoppedOther:            {"it needs attention from the person who manages this agent", "die für diesen Agenten zuständige Person muss sich darum kümmern", "يحتاج إلى متابعة من الشخص الذي يدير هذا الوكيل"},
+}
+
 func agentUX047Text(locale LocaleContext, key string) string {
-	copy := map[string][3]string{
-		"stopped":                 {"Stopped: {reason}.", "Angehalten: {reason}.", "متوقف: {reason}."},
-		"stopped_version":         {"version {version}", "Version {version}", "الإصدار {version}"},
-		"start_again":             {"Start again", "Erneut starten", "بدء التشغيل من جديد"},
-		"start_again_later":       {"It can be started again once this is fixed.", "Er kann erneut gestartet werden, sobald dies behoben ist.", "يمكن بدء تشغيله من جديد بعد إصلاح ذلك."},
-		"start_again_not_allowed": {"Someone who may add this agent to conversations can start it again.", "Eine Person, die diesen Agenten zu Unterhaltungen hinzufügen darf, kann ihn erneut starten.", "يمكن لمن يُسمح له بإضافة هذا الوكيل إلى المحادثات أن يبدأ تشغيله من جديد."},
-		"reason_" + PersonaPlacementStoppedNoIdentity:       {"this version is not set up to run", "diese Version ist nicht für die Ausführung eingerichtet", "هذا الإصدار غير مُعدّ للتشغيل"},
-		"reason_" + PersonaPlacementStoppedIdentityInactive: {"this version's setup to run is no longer active", "die Einrichtung dieser Version für die Ausführung ist nicht mehr aktiv", "إعداد تشغيل هذا الإصدار لم يعد نشطًا"},
-		"reason_" + PersonaPlacementStoppedNotPublished:     {"this version is no longer published", "diese Version ist nicht mehr veröffentlicht", "هذا الإصدار لم يعد منشورًا"},
-		"reason_" + PersonaPlacementStoppedVersionMissing:   {"this version is no longer available", "diese Version ist nicht mehr verfügbar", "هذا الإصدار لم يعد متاحًا"},
-		"reason_" + PersonaPlacementStoppedOther:            {"it needs attention from the person who manages this agent", "die für diesen Agenten zuständige Person muss sich darum kümmern", "يحتاج إلى متابعة من الشخص الذي يدير هذا الوكيل"},
+	if text, ok := agentuxCopyLookup(agentUX047Copy, locale, key); ok {
+		return text
 	}
-	values, ok := copy[key]
-	if !ok {
-		return key
-	}
-	index := 0
-	switch locale.Resolved {
-	case "de-DE":
-		index = 1
-	case "ar":
-		index = 2
-	}
-	return values[index]
+	return key
 }

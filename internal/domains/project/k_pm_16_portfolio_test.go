@@ -28,6 +28,14 @@ func TestTodo_PM_063_Security(t *testing.T) {
 	if err != nil || len(health.Initiatives) != 0 {
 		t.Fatalf("private initiative affected portfolio totals: %+v, err=%v", health, err)
 	}
+	health, err = BuildPortfolioHealth("tenant-1", []Initiative{{ID: "i1", TenantID: "tenant-1", OwnerID: "io", Version: 1, RollupRulesVersion: 1, ProjectIDs: []ProjectID{"visible", "private-project"}}}, []PortfolioProject{{ID: "visible", TenantID: "tenant-1", OwnerID: "vo", TaskCount: 2, CompletedTaskCount: 1, LastUpdated: now, StatusFreshness: "CURRENT", Authorized: true}, {ID: "private-project", TenantID: "tenant-1", OwnerID: "private-owner", TaskCount: 99, CompletedTaskCount: 99, LastUpdated: now, StatusFreshness: "CURRENT", Authorized: true}}, pm16PortfolioAccess{initiatives: map[string]bool{"i1": true}, projects: map[string]bool{"visible": true}}, now, time.Hour)
+	if err != nil || len(health.Initiatives) != 1 {
+		t.Fatalf("readable initiative missing: %+v, err=%v", health, err)
+	}
+	rollup := health.Initiatives[0]
+	if rollup.ProjectCount != 1 || rollup.TaskCount != 2 || rollup.CompletedTasks != 1 || len(rollup.Projects) != 1 || rollup.Projects[0].ProjectID != "visible" {
+		t.Fatalf("private project leaked into initiative totals: %+v", rollup)
+	}
 }
 
 func TestTodo_PM_063_Integration(t *testing.T) {

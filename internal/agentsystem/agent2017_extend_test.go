@@ -54,8 +54,8 @@ func TestTodo_AGENT2_017_ExtendBudgetByAllowance(t *testing.T) {
 	if result.Additional != allowance || result.Limit.Steps != before.Limit.Steps+allowance.Steps || allowance.Steps == 0 || result.PreviousRevision != before.Revision {
 		t.Fatalf("extension = %+v, allowance %+v, before %+v", result, allowance, before)
 	}
-	if again, err := f.runner.ExtendBudgetByAllowance(context.Background(), task.ID, task.UserID, "request-allowance", fixedNow); err == nil && again.Revision != result.Revision {
-		t.Fatalf("a repeated click extended the budget twice: %+v", again)
+	if again, err := f.runner.ExtendBudgetByAllowance(context.Background(), task.ID, task.UserID, "request-allowance", fixedNow); !errors.Is(err, agentbudget.ErrExtensionUnavailable) {
+		t.Fatalf("repeated click result = %+v, err %v; want extension unavailable", again, err)
 	}
 	still, err := f.runner.Runtime.GetTask(context.Background(), task.ID)
 	if err != nil || still.State != agentrun.StatePaused {

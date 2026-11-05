@@ -21,6 +21,7 @@ import (
 // the shell's one acting-context component, fed by the server-resolved
 // projection, shown or quiet the same way on every page.
 type PageIdentity struct {
+	_          incomparable
 	Page       PageID
 	Title      string
 	Subtitle   string

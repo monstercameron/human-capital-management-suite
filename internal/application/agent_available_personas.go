@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentskills"
@@ -47,6 +48,26 @@ func (b AgentPersonaStoreBackend) ListAvailable(ctx context.Context, tenant valu
 	return scoped.ListAvailable(ctx, allowed)
 }
 
+// ListPublished reads every published version from the requested tenant,
+// placed or not, for the unplaced listing.
+func (b AgentPersonaStoreBackend) ListPublished(ctx context.Context, tenant values.TenantId) ([]agentpersonastore.PersonaVersion, error) {
+	if b.Store == nil {
+		return nil, errAgentAvailablePersonas
+	}
+	scoped, err := b.Store.ForTenant(ctx, tenant)
+	if err != nil {
+		return nil, err
+	}
+	return scoped.ListPublished(ctx)
+}
+
+// AvailablePersonaPublishedBackend reads every published persona version in
+// a tenant. The reader uses it only to list valid but unplaced personas the
+// installation tuples cannot reach.
+type AvailablePersonaPublishedBackend interface {
+	ListPublished(context.Context, values.TenantId) ([]agentpersonastore.PersonaVersion, error)
+}
+
 // TenantAvailablePersonaReader supplies the verified persona versions used by
 // the Agents page. It verifies the request principal from the trust context,
 // then applies the trusted audience resolver before reading profile images.
@@ -57,6 +78,16 @@ type TenantAvailablePersonaReader struct {
 	// A nil source fails closed after audience resolution, so callers cannot
 	// accidentally expose personas without current skill authority.
 	Skills AgentSkillDiscoverer
+	// Purposes lists the discovery purposes pinned skills are unioned over.
+	// Empty means the chat purpose alone, the behavior before multi-skill
+	// agents.
+	Purposes []string
+	// Published, when set, also lists valid but unplaced published personas
+	// the installation tuples cannot reach, latest version per persona. An
+	// unplaced persona has no channel audience, so its disclosure is the
+	// same skill gate the placed flow applies: every pinned skill must be
+	// discoverable by this viewer under their grants.
+	Published AvailablePersonaPublishedBackend
 }
 
 var _ AvailablePersonaReader = (*TenantAvailablePersonaReader)(nil)
@@ -93,7 +124,7 @@ func (r *TenantAvailablePersonaReader) ListAvailable(ctx context.Context, princi
 		if r.Skills == nil {
 			return nil, errAgentAvailablePersonas
 		}
-		discovered, err := r.Skills.Discover(ctx, verified, personaChatReplyPurpose)
+		discovered, err := discoverAgentSkillsForPurposes(ctx, r.Skills, verified, r.Purposes)
 		if err != nil {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "skill_discovery_unavailable", "error", err.Error())
 			continue
@@ -104,6 +135,59 @@ func (r *TenantAvailablePersonaReader) ListAvailable(ctx context.Context, princi
 		}
 		if _, exists := seen[profile.Profile.PersonaID]; exists {
 			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "duplicate_persona")
+			continue
+		}
+		seen[profile.Profile.PersonaID] = struct{}{}
+		out = append(out, profile)
+	}
+	if r.Published == nil {
+		return out, nil
+	}
+	unplaced, err := r.listUnplacedPersonas(ctx, verified, seen)
+	if err != nil {
+		return nil, err
+	}
+	return append(out, unplaced...), nil
+}
+
+// listUnplacedPersonas lists valid but unplaced published personas the
+// installation tuples cannot reach, latest version per persona in persona ID
+// order. Every candidate passes the same sealed-profile and exact-skill
+// gates as a placed one; personas already listed are skipped.
+func (r *TenantAvailablePersonaReader) listUnplacedPersonas(ctx context.Context, verified *trust.Principal, seen map[string]struct{}) ([]agentpersona.PersonaVersion, error) {
+	published, err := r.Published.ListPublished(ctx, verified.Tenant())
+	if err != nil {
+		return nil, fmt.Errorf("read published personas: %w", err)
+	}
+	latest := make(map[string]agentpersonastore.PersonaVersion, len(published))
+	for _, candidate := range published {
+		if _, listed := seen[candidate.PersonaID]; listed {
+			continue
+		}
+		if current, ok := latest[candidate.PersonaID]; !ok || candidate.Version > current.Version {
+			latest[candidate.PersonaID] = candidate
+		}
+	}
+	ids := make([]string, 0, len(latest))
+	for id := range latest {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var out []agentpersona.PersonaVersion
+	for _, id := range ids {
+		candidate := latest[id]
+		profile, err := decodeAvailableProfile(candidate)
+		if err != nil {
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", candidate.PersonaID, "reason", "invalid_profile")
+			continue
+		}
+		discovered, err := discoverAgentSkillsForPurposes(ctx, r.Skills, verified, r.Purposes)
+		if err != nil {
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "skill_discovery_unavailable", "error", err.Error())
+			continue
+		}
+		if !hasExactPinnedSkills(profile.Profile.SkillPins, discovered) {
+			slog.WarnContext(ctx, "hcmnext.persona_projection_item_omitted", "projection", "available_personas", "item_type", "persona", "item_id", profile.Profile.PersonaID, "reason", "pinned_skill_not_discoverable", "pinned", len(profile.Profile.SkillPins), "discovered", len(discovered), "missing", missingPinnedSkills(profile.Profile.SkillPins, discovered))
 			continue
 		}
 		seen[profile.Profile.PersonaID] = struct{}{}

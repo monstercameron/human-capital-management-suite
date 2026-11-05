@@ -330,9 +330,6 @@ func declareworkflowHistoryStyles() {
 	declareGlobal(".history-row>.button",
 		mediaRule(gwccss.MaxW(980), gwccss.GridColumn(gwccss.GridLineAt(2)), gwccss.GridRow(gwccss.GridLineAt(2))),
 	)
-	declareGlobal(".history-filter-controls",
-		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
-	)
 	declareGlobal(".history-filter-controls .button",
 		mediaRule(gwccss.MaxW(760), gwccss.W(gwccss.Percent(100))),
 	)
@@ -472,12 +469,6 @@ func declarepeopleDirectoryStyles() {
 		gwccss.TextColor(gwccss.Var("muted")),
 		gwccss.Raw("cursor", "not-allowed"),
 		gwccss.OpacityNum(gwccss.Num(.78)),
-	)
-	declareGlobal(".people-filter-control",
-		mediaRule(gwccss.MaxW(760), gwccss.GridCols(gwccss.Fr(1))),
-	)
-	declareGlobal(".people-filter-actions",
-		mediaRule(gwccss.MaxW(760), gwccss.Display.Grid, gwccss.GridCols(gwccss.Fr(1), gwccss.Fr(1))),
 	)
 	declareGlobal(".people-filter-actions .button:only-child",
 		mediaRule(gwccss.MaxW(760), gwccss.GridColumn(gwccss.GridRange(gwccss.GridLineAt(1), gwccss.GridLineAt(-1)))),
@@ -1283,9 +1274,6 @@ func responsiveGridFixStylesheet() string {
 }
 
 func declareresponsiveGridFixStyles() {
-	declareGlobal(".shell-grid",
-		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.GridCols(gwccss.TrackLen(gwccss.Px(210)), gwccss.MinMax(gwccss.TrackLen(gwccss.Zero), gwccss.Fr(1)))),
-	)
 	declareGlobal(".people-workspace",
 		mediaRule(gwccss.RawMedia("(min-width:761px) and (max-width:1190px)"), gwccss.GridCols(gwccss.Fr(1))),
 	)

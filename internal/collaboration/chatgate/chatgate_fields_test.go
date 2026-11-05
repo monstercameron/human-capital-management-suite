@@ -73,7 +73,7 @@ func TestTodo_CHATGATE_004_DirectorySecurity(t *testing.T) {
 	}
 	c.ExpectedRevision++
 	c.Key = "directory-publish"
-	if _, e := s.Publish(t.Context(), c, Version{2, 0, 0}); e != nil {
+	if _, e := s.Publish(t.Context(), c, Version{Major: 2, Minor: 0, Patch: 0}); e != nil {
 		t.Fatal(e)
 	}
 	c.ExpectedRevision++

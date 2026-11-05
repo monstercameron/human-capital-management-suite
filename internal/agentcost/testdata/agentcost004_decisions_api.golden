@@ -1,0 +1,82 @@
+# OpenAI Decisions API research (AGENTCOST-004)
+
+Researched 2026-10-22. The product already has an approved route to this provider, so a decision interface from it would need the least new governance, if it is real, priced and stable. What follows separates what the provider's own documentation confirms from what only secondary reporting says.
+
+## 1. Availability and how to request preview access (unconfirmed from the provider's own documentation)
+
+Secondary reports agree OpenAI showed the Decisions API at DevDay on 2026-09-29 as a limited, invite-only preview on gpt-6-luna; several report a public beta on 2026-10-06 with general availability in the coming weeks. The provider's own documentation index contains no Decisions page, so neither the beta nor the GA date is confirmed. The reported route in is a preview request through the OpenAI account; this product has not requested access. Owner action: request preview access through the account that holds the existing approved OpenAI route, and record the reply.
+
+Sources: https://every.to/vibe-check/vibe-check-openai-devday-2026 (preview, beta expectation; secondary); https://ai-tldr.dev/releases/openai-decisions-api/ (beta 2026-10-06 reported; secondary); https://positionmysite.ca/blog/post/openai-decisions-api-request-triage-routing (changelog beta report; secondary); https://developers.openai.com/llms.txt (no Decisions entry 2026-10-22).
+
+## 2. Request and response shape (unconfirmed from the provider's own documentation)
+
+Reported: POST /v1/decisions takes context (text and images), a question and a fixed list of answers, and returns one selected answer with a confidence value in about 150 ms (one independent replay measured a 309 ms median against 161 ms for Jev on thread classification). Field names, context size, the maximum options per question and questions per call, batching and idempotency are unpublished. Nothing here is confirmed from the provider's own documentation.
+
+Sources: https://positionmysite.ca/blog/post/openai-decisions-api-request-triage-routing (endpoint shape; secondary); https://byteiota.com/openai-decisions-api-150ms-classification-agents/ (150 ms; secondary); https://every.to/vibe-check/vibe-check-openai-devday-2026 (309 ms replay; secondary).
+
+## 3. Per-option probabilities or only a chosen answer (unconfirmed from the provider's own documentation)
+
+Only a chosen answer, as reported: a direct comparison states the Decisions API returns a selection where Jev returns a choice plus probabilities and confidence. If that holds, our port's per-option probabilities and threshold semantics cannot be served faithfully by this interface: abstention would rest on the single confidence value alone. Unconfirmed from the provider; the emulation below measures what the same model family can do when probabilities are required.
+
+Sources: https://www.eesel.ai/blog/openai-decisions-api (selection vs probabilities; secondary).
+
+## 4. Price (unconfirmed from the provider's own documentation)
+
+No published price. Multiple secondary reports agree pricing has not been announced; one claims input-tokens-only metering with no output charge, which is unconfirmed and contradicts nothing because there is no price to contradict. Cost comparisons are therefore impossible; the paper comparison below carries price as unknown.
+
+Sources: https://every.to/vibe-check/vibe-check-openai-devday-2026 (pricing not announced; secondary); https://ai-tldr.dev/releases/openai-decisions-api/ (input-only claim; secondary, unconfirmed).
+
+## 5. Limits, errors and availability behaviour (unconfirmed from the provider's own documentation)
+
+No published limits, error behaviour, rate limits or availability commitments. The interface is a preview/beta whose contract is explicitly not final; behaviour changes without notice are the default assumption. Our adapter treats every call as fallible and time-boxed, with abstain-and-escalate as the failure path.
+
+Sources: https://developers.openai.com/llms.txt (no Decisions entry 2026-10-22); https://www.developersdigest.tech/blog/openai-devday-2026-recap-what-shipped (preview status; secondary).
+
+## 6. Data handling compared with the existing approved terms (unconfirmed from the provider's own documentation)
+
+The product's existing approved OpenAI route carries its own data terms; whether the Decisions preview shares them is unconfirmed, and preview terms are typically narrower. Regional processing is reported as US-only, which would fail EU residency on its own. Until the preview's terms are read, the preview carries no data class, including classes the existing route allows: approval of the provider is not approval of the preview. See the verdicts.
+
+Sources: https://positionmysite.ca/blog/post/openai-decisions-api-request-triage-routing (US-only regional processing report; secondary); internal/application/persona_openai_local_deployment.go (existing approved route).
+
+## 7. Calibration: what the confidence is worth (unconfirmed from the provider's own documentation)
+
+The confidence is described as model-reported, not independently calibrated, and third-party measurement gives reason to treat it as overconfident: on 3,600 logic problems, Luna answers at over 99% confidence were accurate only 68%. Our thresholds must be set from expected calibration error on our own suites, and the abstain path must be exercised, not assumed.
+
+Sources: https://ai-minor.com/blog/en/2026-10-02-1790930301406-openai_has_a_lot_of_work_to_do_if_they_think_luna_/ (99%-vs-68% via anth.us; secondary).
+
+## 8. Whether the model gateway can reach it or needs a new adapter (confirmed)
+
+It needs a new adapter. The gateway the product uses speaks SchemaFlux typed operations; the Decisions API is a different endpoint with a different request and response shape (context plus fixed choices in, a selection plus confidence out). The plan below keeps that adapter behind a feature flag with the emulation as fallback, and nothing in the product requires the unfinished contract.
+
+Sources: internal/agentmodel/gateway.go (SchemaFlux typed gateway); internal/agentmodel/schemaflux_adapter.go (existing adapter shape).
+
+## Access
+
+not requested: the reported channel is a preview request through the OpenAI account holding the existing approved route; no request has been made and no access is held.
+
+## Paper comparison until access exists
+
+| | OpenAI Decisions API (reported) | Jev (vendor docs) | Emulation (this product) |
+| --- | --- | --- | --- |
+| Availability | limited preview, public beta reported 2026-10-06, GA expected in weeks | early access, generally available | ships now |
+| Model | gpt-6-luna only | jev-latest (1.14) | the approved generation route |
+| Per-option probabilities | no: a selection only, as reported | yes, plus confidence | yes, required by the schema |
+| Confidence | model-reported; third-party evidence of overconfidence (99% stated, 68% actual) | derived from the distribution; RLCD-trained probabilities claimed | model-reported; thresholded and measured here |
+| Latency | about 150 ms reported; 309 ms in one replay | 70-500 ms vendor-claimed | seconds: a full generation call |
+| Price | unpublished | $0.042 per million input tokens, output free | the generation schedule |
+| Data terms | preview terms unconfirmed, US-only residency reported | no terms found | the existing approved terms |
+| Gateway | needs a new adapter | needs a new adapter | no new adapter |
+
+## Emulation ceiling
+
+The emulation establishes the accuracy ceiling of the same model family through the real adapter path: 71 of 71 screening cases decided, accuracy 1.000 on decided cases with scripted 0.95-correct model behaviour. This verifies the ceiling methodology; the measured comparison against the preview runs as soon as access exists.
+
+## Data classes that may reach the preview
+
+None until the preview's terms are read: PUBLIC, INTERNAL, PII, COMPENSATION, BANK, MEDICAL, IMMIGRATION, CASE and SPECIAL_CATEGORY all stay on the existing approved route.
+
+## Plan
+
+1. The decision port's first adapter is the emulation through the existing structured-output route; it can ship without any preview.
+2. The preview adapter sits behind a feature flag with the emulation as fallback (FlaggedDecisionAdapter): flag off or primary failure both reach the fallback.
+3. Nothing in the product requires an interface whose contract is not final: every decision point's shapes are answered with the flag off.

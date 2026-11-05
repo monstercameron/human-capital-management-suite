@@ -37,6 +37,9 @@ func agentUX033MarkAgentMembers(members []chatui.Member, agents []chatui.Resolve
 		if !next.Icon.Valid() && agent.Icon.Valid() {
 			next.Icon, next.IconRevision = agent.Icon, agent.IconRevision
 		}
+		if next.IconImageURL == "" && agent.IconImageURL != "" {
+			next.IconImageURL = agent.IconImageURL
+		}
 		if next == member {
 			continue
 		}

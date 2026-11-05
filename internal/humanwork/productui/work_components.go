@@ -96,6 +96,7 @@ type WorkRowProps struct {
 // field here is presentation-ready text; this package's render functions
 // never resolve locale copy from Reason codes or references themselves.
 type ApprovalDispositionCardProps struct {
+	_ incomparable
 	// Show is false when the owning work item carries no disposition at
 	// all -- render nothing, not an empty or default-valued card.
 	Show bool

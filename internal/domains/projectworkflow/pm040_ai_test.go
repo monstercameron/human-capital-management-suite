@@ -201,6 +201,33 @@ func TestTodo_PM_043_Security(t *testing.T) {
 	if !errors.Is(err, ErrSourceGrantStale) {
 		t.Fatalf("revoked/revised source accepted: %v", err)
 	}
+	valid := func() ProposalPublicationRequest {
+		return ProposalPublicationRequest{Proposal: proposal, CurrentConfig: proposal.Config, CurrentConfigVersion: 7, ExpectedConfigVersion: 7, ReviewedProposalDigest: ProposalDigest(proposal), ReviewedConfigDigest: configDigest, ReviewedSourceDigest: SourcesDigest(proposal.CitedSources), RequesterID: "requester-1", PublisherID: "publisher-1", RequesterGrants: []SourceGrant{{ID: "doc-1", Revision: 3, CanRead: true}}, PublisherGrants: []SourceGrant{{ID: "doc-1", Revision: 3, CanRead: true}}}
+	}
+	revokedPublisher := valid()
+	revokedPublisher.PublisherGrants = []SourceGrant{{ID: "doc-1", Revision: 3, CanRead: false}}
+	revokedRequester := valid()
+	revokedRequester.RequesterGrants = []SourceGrant{{ID: "doc-1", Revision: 3, CanRead: false}}
+	missingGrant := valid()
+	missingGrant.PublisherGrants = nil
+	mutated := valid()
+	mutated.Proposal.Rationale = "Changed after review"
+	staleConfig := valid()
+	staleConfig.CurrentConfigVersion = 8
+	for name, tc := range map[string]struct {
+		request ProposalPublicationRequest
+		want    error
+	}{
+		"publisher grant revoked":    {revokedPublisher, ErrSourceGrantStale},
+		"requester grant revoked":    {revokedRequester, ErrSourceGrantStale},
+		"publisher grant missing":    {missingGrant, ErrSourceGrantStale},
+		"proposal changed at review": {mutated, ErrPublicationStale},
+		"config version advanced":    {staleConfig, ErrPublicationStale},
+	} {
+		if _, err := RevalidateProposalPublication(tc.request); !errors.Is(err, tc.want) {
+			t.Fatalf("%s: err=%v, want %v", name, err, tc.want)
+		}
+	}
 }
 
 func TestTodo_PM_043_Golden(t *testing.T) {

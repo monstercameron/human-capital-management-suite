@@ -118,6 +118,7 @@ const (
 	// CodeUnvalidatedAgentOutput reports agent-eligible capability output
 	// flowing into an effect without typed output validation.
 	CodeUnvalidatedAgentOutput = "UNVALIDATED_AGENT_OUTPUT"
+	CodeAgentGateRequired      = "AGENT_GATE_REQUIRED" // WF-CTRL-005-F1: side-effecting agent with no gate on its path.
 	// CodeUnresolvedObligation reports an obligation reference with no
 	// declared insertion point, owner or satisfaction condition.
 	CodeUnresolvedObligation = "UNRESOLVED_OBLIGATION"
@@ -159,6 +160,10 @@ const (
 	// CodeRetryExhaustionFalseCompletion reports retry exhaustion that does
 	// not reach a degraded or repair terminal (WF-STEP-014 REFACTOR).
 	CodeRetryExhaustionFalseCompletion = "RETRY_EXHAUSTION_FALSE_COMPLETION"
+	// CodeRestrictedFlow reports a mapping whose source classification
+	// exceeds the destination's declared maximum without a referenced
+	// declassification (WF-DATA-004 RED).
+	CodeRestrictedFlow = "RESTRICTED_FLOW"
 
 	// CodeMissingDimension reports an END that does not record all five intent
 	// lifecycle dimensions.

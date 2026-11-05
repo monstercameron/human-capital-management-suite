@@ -327,3 +327,34 @@ func TestTodo_WF_REV_015_Golden(t *testing.T) {
 		t.Fatalf("golden tombstone mismatch:\n got: %s\nwant: %s", tombRaw, wantTomb)
 	}
 }
+
+// TestTombstoneBackupExpiryIsTheLatestRefExpiry proves the tombstone's
+// backup-clear date covers every destroyed payload. Ciphertext copies can
+// reappear from backups until the LATEST ref expiry, so the tombstone must
+// clear at the latest: clearing at the earliest would declare the data gone
+// while a copy can still come back.
+func TestTombstoneBackupExpiryIsTheLatestRefExpiry(t *testing.T) {
+	v := testVault(t, "tenant-a", "subject-1", "k1")
+	early, err := v.Seal("tenant-a", "subject-1", "ledger_event", "payload",
+		[]byte("original fact"), sealedAt, backupExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lateExpiry := backupExpiry.Add(30 * 24 * time.Hour)
+	late, err := v.Seal("tenant-a", "subject-1", "ledger_event", "payload",
+		[]byte("reversal fact"), sealedAt, lateExpiry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tomb, err := v.DestroySubjectKey("tenant-a", "subject-1",
+		[]payloadvault.VaultRef{early, late}, destroyedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tomb.BackupExpiry.Equal(lateExpiry) {
+		t.Fatalf("tombstone backup-expiry = %v, want the latest ref expiry %v", tomb.BackupExpiry, lateExpiry)
+	}
+	if !tomb.BackupClearAt().Equal(lateExpiry) {
+		t.Fatalf("BackupClearAt = %v, want %v", tomb.BackupClearAt(), lateExpiry)
+	}
+}

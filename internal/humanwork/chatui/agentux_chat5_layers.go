@@ -344,7 +344,7 @@ func chatAgentsSection(m Model) ui.Node {
 	for _, agent := range agents {
 		scope := chatAgentReadScope(m, agent)
 		rows = append(rows, html.Div(html.Props{Class: "chat-agent-here"},
-			agentDMAvatar(agent.Reference.Display, "avatar small agent-dm-avatar", agentIconFor(m, []string{agent.Reference.ID}, agent.Reference.Display, agent.Icon)), html.Strong(html.Props{Dir: "auto", Text: agent.Reference.Display}), AgentBadgeLabel(m.Locale),
+			agentAvatar(agent.Reference.Display, "avatar small agent-dm-avatar", agentIconImageFor(m, []string{agent.Reference.ID}, agent.Reference.Display, agent.IconImageURL), agentIconFor(m, []string{agent.Reference.ID}, agent.Reference.Display, agent.Icon)), html.Strong(html.Props{Dir: "auto", Text: agent.Reference.Display}), AgentBadgeLabel(m.Locale),
 			html.P(html.Props{Text: agent.Purpose}), html.P(html.Props{Text: scope}),
 			html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.SendMessageWithReferences == nil,
 				Data: map[string]string{"action": "agent-ask-here", "id": agent.Reference.ID},

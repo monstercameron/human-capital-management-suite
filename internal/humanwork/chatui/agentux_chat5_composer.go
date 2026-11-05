@@ -8,6 +8,7 @@ type composerKeyState struct {
 	EmojiOpen, EmojiHighlighted         bool
 	DocumentOpen, DocumentHighlighted   bool
 	CommandOpen, CommandHighlighted     bool
+	ChannelOpen, ChannelHighlighted     bool
 	SuggestionVisible, Shift, Composing bool
 	// MentionLoading is set while the "@" menu waits for the conversation's
 	// members: it is open, has nothing to pick yet, and will have rows soon.
@@ -22,6 +23,7 @@ const (
 	composerPickEmoji    composerAction = "emoji"
 	composerPickDocument composerAction = "document"
 	composerPickCommand  composerAction = "command"
+	composerPickChannel  composerAction = "channel"
 	composerSend         composerAction = "send"
 	composerEmpty        composerAction = "empty"
 	// composerHold swallows Enter while the "@" menu is still loading: the
@@ -46,6 +48,9 @@ func composerKeyAction(state composerKeyState, key string) composerAction {
 	}
 	if state.CommandOpen && state.CommandHighlighted {
 		return composerPickCommand
+	}
+	if state.ChannelOpen && state.ChannelHighlighted {
+		return composerPickChannel
 	}
 	if key != "Enter" {
 		return composerNative

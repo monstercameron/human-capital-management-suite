@@ -4,8 +4,8 @@ import "testing"
 
 func TestReferenceConformanceCatalog(t *testing.T) {
 	catalog := ReferenceConformanceCatalog()
-	if len(catalog) != 3 {
-		t.Fatalf("reference conformance entries = %d, want 3", len(catalog))
+	if len(catalog) != 4 {
+		t.Fatalf("reference conformance entries = %d, want 4", len(catalog))
 	}
 	seen := make(map[string]bool, len(catalog))
 	for _, entry := range catalog {
@@ -21,7 +21,7 @@ func TestReferenceConformanceCatalog(t *testing.T) {
 			t.Fatalf("%s catalog identity (%s/%d) differs from definition (%s/%d)", entry.ID, entry.WorkflowID, entry.Version, definition.WorkflowID, definition.Version)
 		}
 	}
-	for _, id := range []string{"CONF-002", "CONF-003", "CONF-004"} {
+	for _, id := range []string{"CONF-002", "CONF-003", "CONF-004", "CONF-009"} {
 		if !seen[id] {
 			t.Fatalf("catalog omits %s", id)
 		}

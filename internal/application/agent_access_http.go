@@ -189,7 +189,7 @@ type agentAccessRevokeBody struct{ TaskID string }
 type agentAccessRevisionBody struct{ RevisionID string }
 type agentAccessImportBody struct{ ConnectionID, SnapshotID string }
 type agentAccessTierBody struct{ RevisionID, SkillID, Tier string }
-type agentAccessPreviewBody struct{ RevisionID, UserID, Label string }
+type agentAccessPreviewBody struct{ RevisionID, UserID, Population, Label string }
 type agentAccessCreateBody struct {
 	Revision productui.AgentConnectionRevision
 }
@@ -624,15 +624,22 @@ func (h *AgentAccessHTTP) console(w http.ResponseWriter, r *http.Request, princi
 		if !decodeAgentAccessBody(w, r, &body) {
 			return bad()
 		}
-		if strings.TrimSpace(body.UserID) == "" {
+		// Exactly one of a user or a population: the two answers differ (one
+		// person's effective skills versus one population's reach with its
+		// per-member gating), so both at once is refused rather than guessed at.
+		userID, population := strings.TrimSpace(body.UserID), strings.TrimSpace(body.Population)
+		if (userID == "") == (population == "") {
 			return bad()
+		}
+		label := strings.TrimSpace(body.Label)
+		if population != "" {
+			return session.SnapshotForPopulation(label, population, body.RevisionID)
 		}
 		// The chosen person's own assigned roles decide the preview; the
 		// administrator's are not used for them.
-		subjectUser := h.userContext(r.Context(), principal, body.UserID, nil, principal.OrganizationScopeID())
-		label := strings.TrimSpace(body.Label)
+		subjectUser := h.userContext(r.Context(), principal, userID, nil, principal.OrganizationScopeID())
 		if label == "" {
-			label = body.UserID
+			label = userID
 		}
 		return session.Snapshot(label, &subjectUser, body.RevisionID)
 	}

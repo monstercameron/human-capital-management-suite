@@ -56,7 +56,6 @@ const composerPolishStyles = `.thread-composer{position:relative}` +
 	`@container chatmain (max-width:560px){.chat-composer:not(:focus-within){flex-direction:row;align-items:center;padding:4px 6px 4px 4px}.chat-composer:not(:focus-within) .composer-input{flex:1;min-height:40px;padding:9px 8px}.chat-composer:not(:focus-within) .composer-toolbar{border-top:0;min-height:0;padding:0;flex:none}.chat-composer:not(:focus-within) .composer-tools,.chat-composer:not(:focus-within) .composer-embeds{display:none}}` +
 	`@media(max-width:760px){.thread-composer:not(:focus-within) .format-tools{display:none}}` +
 	// Round-6 critique.
-	`.chat-workspace:has(.chat-search-results) .chat-row.selected{box-shadow:none}` +
 	`.rail-pill .icon-arrow-left{display:none}@media(max-width:760px){.rail-pill .icon-panel-left{display:none}.rail-pill .icon-arrow-left{display:inline}}` +
 	`.chat-main{timeline-scope:--chat-list}.message-list{scroll-timeline:--chat-list block}.conversation-header{box-shadow:none;animation:chat-header-lift linear both;animation-timeline:--chat-list;animation-range:0 24px}@keyframes chat-header-lift{from{box-shadow:none}to{box-shadow:0 6px 10px -8px color-mix(in srgb,var(--ink) 30%,transparent)}}` +
 	`.channel-todo-trigger,.channel-poll-trigger{border-color:transparent;background:transparent}.channel-todo-trigger:hover,.channel-poll-trigger:hover{border-color:var(--line);background:var(--soft)}` +

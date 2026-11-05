@@ -19,9 +19,12 @@ var ErrUnavailable = errors.New("configparamstore: unavailable")
 
 // Store persists immutable parameter value revisions under database RLS.
 // TenantUUID maps the authenticated logical tenant key to its physical UUID.
+// Limits bounds the tenant footprint; the zero value means the platform
+// defaults.
 type Store struct {
 	db         dbport.Beginner
 	tenantUUID func(string) uuid.UUID
+	Limits     config.TenantValueLimits
 }
 
 var _ config.ParameterRevisionRepository = (*Store)(nil)
@@ -39,6 +42,9 @@ func (s *Store) AppendParameterRevision(ctx context.Context, tenant string, snap
 		return config.ParameterValueRevision{}, fmt.Errorf("configparamstore: parameter definition %q is absent", change.Key)
 	}
 	if err := config.ValidateParameterValueChange(change, definition); err != nil {
+		return config.ParameterValueRevision{}, err
+	}
+	if err := config.CheckParameterValueSize(change.Value, s.Limits); err != nil {
 		return config.ParameterValueRevision{}, err
 	}
 	tenantID, err := s.resolveTenant(tenant)
@@ -73,6 +79,9 @@ func (s *Store) AppendParameterRevision(ctx context.Context, tenant string, snap
 		if err == nil && locked {
 			return config.ParameterValueRevision{}, config.ErrParameterScopeLocked
 		}
+	}
+	if err := s.checkKeyBudgetTx(ctx, tx, tenantID, change.Key); err != nil {
+		return config.ParameterValueRevision{}, err
 	}
 	var current uint64
 	var last time.Time
@@ -155,6 +164,32 @@ func (s *Store) ResolveParameterValue(ctx context.Context, tenant string, snapsh
 		return config.ParameterValueResolution{}, fmt.Errorf("configparamstore: commit resolve: %w", err)
 	}
 	return config.ResolveParameterRevisions(snapshot, key, path, environment, consumer, requestedType, revisions)
+}
+
+// checkKeyBudgetTx refuses a key the tenant has never stored once the
+// tenant already holds its budgeted distinct keys. New revisions of a
+// stored key always pass.
+func (s *Store) checkKeyBudgetTx(ctx context.Context, tx dbport.Tx, tenantID uuid.UUID, key string) error {
+	var one int
+	err := tx.QueryRow(ctx, `SELECT 1 FROM tenant_parameter_value_revision WHERE tenant_id=$1 AND parameter_key=$2 LIMIT 1`, tenantID, key).Scan(&one)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, dbport.ErrNoRows) {
+		return err
+	}
+	var distinct int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(DISTINCT parameter_key) FROM tenant_parameter_value_revision WHERE tenant_id=$1`, tenantID).Scan(&distinct); err != nil {
+		return err
+	}
+	limits := s.Limits
+	if limits.MaxKeysPerTenant <= 0 {
+		limits = config.DefaultTenantValueLimits()
+	}
+	if distinct >= limits.MaxKeysPerTenant {
+		return fmt.Errorf("%w: tenant already holds %d keys", config.ErrParameterKeyBudgetExceeded, distinct)
+	}
+	return nil
 }
 
 func validEnvironment(environment config.ParameterEnvironment) bool {

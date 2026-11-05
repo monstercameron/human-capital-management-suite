@@ -7,8 +7,25 @@ import (
 	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/latencygate"
 )
+
+// latencyProvenanceFixture is the canonical provenance binding for the latency
+// gate, built from display values: the canonical projection needs the
+// server-only evidence messages, which the browser client does not carry.
+func latencyProvenanceFixture() ProvenanceProjection {
+	return ProvenanceProjection{
+		Bound:           true,
+		AuthorityKind:   values.Value(ProvenanceAuthorityLocal),
+		AuthoritySystem: values.Value("Workforce service"),
+		EvidenceSource:  values.Value("Journey ledger"),
+		LineageStatus:   values.Value(ProvenanceLineagePartial),
+		SourceVersion:   values.Value("v17"),
+		EffectiveAt:     values.Value(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)),
+		RecordedAt:      values.Value(time.Date(2026, 9, 6, 12, 30, 0, 0, time.UTC)),
+	}
+}
 
 // interactionLatencySamples is 100 so the nearest-rank p95 is the 95th of 100
 // samples: a breach needs six slow runs, not two. At 25 samples p95 was the
@@ -44,7 +61,7 @@ func TestInteractionLatencyGate(t *testing.T) {
 	})
 
 	t.Run("provenance feedback within one frame", func(t *testing.T) {
-		projection := canonicalProvenanceFixture()
+		projection := latencyProvenanceFixture()
 		assertInteractionLatency(t, latencygate.Budget{
 			Name: "provenance feedback", P95: 16 * time.Millisecond, Warmups: 3, Samples: interactionLatencySamples,
 		}, func() error {

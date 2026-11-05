@@ -90,6 +90,12 @@ func start() error {
 	if err != nil {
 		return err
 	}
+	// UXBLIND-089: the tunnel handshake (WebSocket open plus the bridge's
+	// first answer) costs a few hundred milliseconds on the reads' critical
+	// path. Connecting now overlaps it with hydration and route setup; the
+	// call only starts the lazy connection, so a failure still surfaces on
+	// the first RPC exactly as before.
+	conn.Connect()
 	service := newJourneyService(conn, cfg)
 	if isProductPath(currentPath()) {
 		return startProduct(context.Background(), cfg, service, conn)

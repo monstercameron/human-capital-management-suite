@@ -229,7 +229,7 @@ func docsRevealAnchor(id string) bool {
 		node = node.Get("parentElement")
 	}
 	if node.Truthy() {
-		node.Call("scrollIntoView", map[string]any{"block": "center", "behavior": "smooth"})
+		node.Call("scrollIntoView", map[string]any{"block": "center", "behavior": "auto"})
 		return true
 	}
 	return false
@@ -517,7 +517,7 @@ func docsLinkedAt(event ui.Event) string {
 
 func docsScrollIntoView(id string) {
 	if el := js.Global().Get("document").Call("getElementById", id); el.Truthy() {
-		el.Call("scrollIntoView", map[string]any{"block": "nearest", "behavior": "smooth"})
+		el.Call("scrollIntoView", map[string]any{"block": "nearest", "behavior": "auto"})
 		el.Call("focus", map[string]any{"preventScroll": true})
 	}
 }

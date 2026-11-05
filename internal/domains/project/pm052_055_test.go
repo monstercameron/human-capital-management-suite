@@ -104,6 +104,31 @@ func TestTodo_PM_053(t *testing.T) {
 	if _, _, err := closedBook.Close("cycle-1", closed.Revision, time.Now(), map[TaskID]string{"task-1": "DONE"}, nil, nil); !errors.Is(err, ErrCycleClosed) {
 		t.Fatalf("closed cycle mutation error = %v", err)
 	}
+	taskBook, err := NewCycleBook("project-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, _ := NewCycle("ca", "project-1", "Cycle A", "2026-01-01", "2026-01-15")
+	cb, _ := NewCycle("cb", "project-1", "Cycle B", "2026-02-01", "2026-02-15")
+	if taskBook, err = taskBook.Add(ca); err != nil {
+		t.Fatal(err)
+	}
+	if taskBook, err = taskBook.Add(cb); err != nil {
+		t.Fatal(err)
+	}
+	var startedA, startedB Cycle
+	if taskBook, startedA, err = taskBook.Start("ca", ca.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if taskBook, startedB, err = taskBook.Start("cb", cb.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if taskBook, startedA, err = taskBook.AssignTask("ca", startedA.Revision, "shared-task"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := taskBook.AssignTask("cb", startedB.Revision, "shared-task"); !errors.Is(err, ErrCycleTaskConflict) {
+		t.Fatalf("task in two active cycles error = %v", err)
+	}
 }
 
 func TestTodo_PM_053_Race(t *testing.T) {
@@ -246,6 +271,9 @@ func TestTodo_PM_055(t *testing.T) {
 	if err != nil || len(board.Moves) != 3 {
 		t.Fatalf("flow after freeing WIP = %+v, %v", board.Moves, err)
 	}
+	if _, err := board.AddTask("c", ScrumbanInProgress); !errors.Is(err, ErrWIPLimit) {
+		t.Fatalf("direct add bypassed WIP limit: %v", err)
+	}
 }
 
 func TestTodo_PM_055_Conformance(t *testing.T) {
@@ -267,6 +295,17 @@ func TestTodo_PM_055_Conformance(t *testing.T) {
 	board, closed, err := board.CloseCycle(cycle.ID, cycle.Revision, time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC), map[TaskID]string{"task": "ACTIVE"}, map[TaskID]CarryoverChoice{"task": CarryoverToNext}, []string{"flow-input"})
 	if err != nil || closed.Cycle.CycleID != "cycle" || board.Cycles.Cycles[0].State != CycleClosed || closed.MovesBefore != 0 {
 		t.Fatalf("scrumban cycle composition = %+v, %+v, %v", board.Cycles, closed, err)
+	}
+	if board.Tasks[0].Status != ScrumbanReady || board.Tasks[0].Revision != 1 {
+		t.Fatalf("cycle close changed flow task state: %+v", board.Tasks[0])
+	}
+	moved, _, err := board.MoveTask("task", ScrumbanInProgress, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := moved.Cycles.Cycles[0].CloseRecord
+	if record == nil || record.CycleID != "cycle" || len(record.ReportInputs) != 1 || record.ReportInputs[0] != "flow-input" {
+		t.Fatalf("post-close move changed the close record: %+v", record)
 	}
 }
 

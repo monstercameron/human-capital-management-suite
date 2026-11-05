@@ -51,6 +51,42 @@ func TestTodo_WFPAGE_010(t *testing.T) {
 	if got := bad.Validate(); len(got) == 0 {
 		t.Fatal("arbitrary URL accepted as a link slot")
 	}
+
+	bad = page
+	bad.Steps = []WorkflowPageStep{{ID: "details", Label: "<b>Hi</b>"}}
+	if got := bad.Validate(); len(got) == 0 {
+		t.Fatal("free markup accepted in a step label")
+	}
+
+	bad = page
+	bad.Sections = []WorkflowPageSection{{ID: "section.person", Label: "Person", Columns: 2, StepID: "nope"}}
+	if got := bad.Validate(); len(got) == 0 {
+		t.Fatal("section with a dangling step accepted")
+	}
+
+	bad = page
+	bad.ContentBlocks = []WorkflowPageContentBlock{{ID: "BAD ID!", SectionID: "section.person", Kind: "guide", TextKey: "workflow.new_hire.guide"}}
+	if got := bad.Validate(); len(got) == 0 {
+		t.Fatal("non-identifier content block id accepted")
+	}
+
+	bad = page
+	bad.LinkSlots = []WorkflowPageLinkSlot{{ID: "BAD ID!", SectionID: "section.person", DocumentRef: "document:hiring-sop", Mode: "latest"}}
+	if got := bad.Validate(); len(got) == 0 {
+		t.Fatal("non-identifier link slot id accepted")
+	}
+
+	bad = page
+	bad.Visibility = []WorkflowPageVisibility{{Target: "nothing.here", When: WorkflowCondition{Path: "person.name", Op: RuleNotEquals, Value: "hidden"}}}
+	if got := bad.Validate(); len(got) == 0 {
+		t.Fatal("visibility target naming a nonexistent element accepted")
+	}
+
+	good := page
+	good.Visibility = []WorkflowPageVisibility{{Target: "guide", When: WorkflowCondition{Path: "person.name", Op: RuleNotEquals, Value: "hidden"}}}
+	if got := good.Validate(); len(got) != 0 {
+		t.Fatalf("visibility target naming a content block rejected: %v", got)
+	}
 }
 
 // TestTodo_WFPAGE_010_Golden pins the exact canonical bytes, not just a

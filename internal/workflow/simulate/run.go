@@ -89,6 +89,29 @@ type Options struct {
 	// margin, which is how a declared, guarded cycle stays bounded without a
 	// timer or a lease.
 	MaxSteps int
+
+	// Recording is the WF-TEST-001 execution contract for this run. Nil
+	// means today's behavior: write-class nodes are refused outright. A
+	// recording profile with the zero effect ceiling admits write-class
+	// nodes and captures each would-be effect as a typed record instead of
+	// invoking anything.
+	Recording *RecordingProfile
+
+	// Cancel is the WF-TEST-008 cancel contract. Nil runs to completion.
+	// When set, the walk dispatches AtNodeID and then cancels instead of
+	// advancing: the receipt records the unwind the compiled plan demands
+	// for the committed effects rather than a terminal. A cancel point the
+	// walk never reaches refuses the run.
+	Cancel *CancelSpec
+
+	// TestRun is the WF-TEST-002 test-run identity. Nil means today's
+	// behavior: node scopes are granted as declared and invocation evidence
+	// is minted without storage. When set, every node scope passes the real
+	// grants as the author's principal with purpose workflow.test, and the
+	// run's evidence lands in the expiring test-evidence store. It cannot
+	// be combined with an explicit Authorization: two authorizers is an
+	// ambiguous authority, so the run is refused.
+	TestRun *TestRunOptions
 }
 
 func (o Options) stepDuration() time.Duration {
@@ -106,6 +129,9 @@ func (o Options) subjectRef() string {
 }
 
 func (o Options) authorizer() Authorizer {
+	if o.TestRun != nil {
+		return o.TestRun.authorizer()
+	}
 	if o.Authorization != nil {
 		return o.Authorization
 	}
@@ -165,17 +191,27 @@ func Run(ctx context.Context, plan *workflow.CompiledWorkflow, in Inputs, opts O
 		return Receipt{}, wrap(CodePlanUnverified, "", err,
 			"plan %s cannot be simulated", plan.WorkflowID)
 	}
-	if err := Admit(plan); err != nil {
+	if err := admitWithRecording(plan, opts.Recording); err != nil {
+		return Receipt{}, err
+	}
+	if err := opts.TestRun.check(); err != nil {
+		return Receipt{}, err
+	}
+	if opts.TestRun != nil && opts.Authorization != nil {
+		return Receipt{}, refuse(CodeInvalidOptions, "", "a test run carries its own authorizer; explicit Authorization with TestRun is ambiguous")
+	}
+	if err := opts.Cancel.check(plan); err != nil {
 		return Receipt{}, err
 	}
 
 	r := &run{
-		plan:    plan,
-		inputs:  in,
-		opts:    opts,
-		clock:   opts.Clock,
-		step:    opts.stepDuration(),
-		outputs: map[string]Bag{},
+		plan:      plan,
+		inputs:    in,
+		opts:      opts,
+		clock:     opts.Clock,
+		step:      opts.stepDuration(),
+		outputs:   map[string]Bag{},
+		recording: opts.Recording,
 	}
 	if r.clock == nil {
 		r.clock = timeauth.NewFakeClock("simulate.virtual", DefaultClockStart)
@@ -186,6 +222,10 @@ func Run(ctx context.Context, plan *workflow.CompiledWorkflow, in Inputs, opts O
 	}
 	if opts.Capabilities != nil {
 		r.sink = &invocationSink{planDigest: plan.Digest()}
+		if opts.TestRun != nil {
+			r.sink.store = opts.TestRun.Store
+			r.sink.tenant = opts.TestRun.Tenant
+		}
 		r.gateway = capability.NewGateway(opts.Capabilities, r.sink, capability.WithClock(r.now))
 	}
 	return r.walk(ctx)
@@ -200,17 +240,37 @@ func Run(ctx context.Context, plan *workflow.CompiledWorkflow, in Inputs, opts O
 // and because a structural test proves the refusal without having to construct
 // a whole run.
 func Admit(plan *workflow.CompiledWorkflow) error {
+	return admitWithRecording(plan, nil)
+}
+
+// AdmitWithRecording admits a plan under a WF-TEST-001 recording profile:
+// write-class nodes are admitted when (and only when) the profile carries
+// the zero effect ceiling and a recorder to capture them. Every other gate
+// still applies, so a recording run can no more execute a durable primitive
+// than a plain simulation can.
+func AdmitWithRecording(plan *workflow.CompiledWorkflow, profile RecordingProfile) error {
+	if err := profile.check(); err != nil {
+		return err
+	}
+	return admitWithRecording(plan, &profile)
+}
+
+func admitWithRecording(plan *workflow.CompiledWorkflow, recording *RecordingProfile) error {
 	if plan == nil {
 		return refuse(CodeInvalidOptions, "", "no compiled plan")
+	}
+	active := recording != nil && recording.active()
+	if recording != nil && !active {
+		return refuse(CodeRecordingRefused, "", "recording profile cannot record honestly")
 	}
 	// Nodes are checked before the plan summary so a refusal names the exact
 	// node that cannot be simulated rather than the whole plan.
 	for _, node := range plan.Nodes {
-		if err := admitNode(node); err != nil {
+		if err := admitNodeWith(node, active); err != nil {
 			return err
 		}
 	}
-	if !plan.Effects.ZeroEffect {
+	if !plan.Effects.ZeroEffect && !active {
 		return refuse(CodePlanNotZeroEffect, "",
 			"plan %s declares effect classes %v; SIMULATE runs zero-effect plans only",
 			plan.WorkflowID, sortedClasses(plan.Effects.NodesByClass))
@@ -223,12 +283,22 @@ func Admit(plan *workflow.CompiledWorkflow) error {
 // node, so a plan that was admitted as a whole still cannot slip a write-class
 // node past the interpreter.
 func admitNode(node workflow.CompiledNode) error {
+	return admitNodeWith(node, false)
+}
+
+// admitNodeWith admits one node, recording write-class nodes instead of
+// refusing them when a recording profile is active. Recording bypasses the
+// write and mode gates -- a recorded node is captured, never executed -- but
+// never the step-type gate: WAIT, SIGNAL, COMPENSATE and the structural
+// primitives stay refused with or without a profile.
+func admitNodeWith(node workflow.CompiledNode, recording bool) error {
 	if node.EffectClass.IsWrite() {
-		return refuse(CodeWriteEffectInSimulate, node.ID,
-			"%s declares %s; a write effect cannot be simulated, only refused",
-			node.Type, node.EffectClass)
-	}
-	if !node.AdmitsMode(workflow.ModeSimulate) {
+		if !recording {
+			return refuse(CodeWriteEffectInSimulate, node.ID,
+				"%s declares %s; a write effect cannot be simulated, only refused",
+				node.Type, node.EffectClass)
+		}
+	} else if !node.AdmitsMode(workflow.ModeSimulate) {
 		return refuse(CodeModeNotAdmitted, node.ID,
 			"%s admits modes %v, which does not include %s",
 			node.Type, node.AllowedModes, workflow.ModeSimulate)
@@ -284,6 +354,15 @@ type run struct {
 	outputs   map[string]Bag
 	trace     []NodeTrace
 	workItems []WorkItem
+
+	recording *RecordingProfile
+	recorded  []RecordedEffect
+}
+
+// recordingActive reports whether this walk captures would-be effects
+// instead of refusing write-class nodes.
+func (r *run) recordingActive() bool {
+	return r.recording != nil && r.recording.active()
 }
 
 func (r *run) now() time.Time { return r.clock.Sample().Wall.Time() }
@@ -305,12 +384,15 @@ func (r *run) walk(ctx context.Context) (Receipt, error) {
 		if !ok {
 			return Receipt{}, refuse(CodeUnresolvedSource, current, "plan declares no such node")
 		}
-		if err := admitNode(node); err != nil {
+		if err := admitNodeWith(node, r.recordingActive()); err != nil {
 			return Receipt{}, err
 		}
 		next, done, err := r.step1(ctx, node)
 		if err != nil {
 			return Receipt{}, err
+		}
+		if r.opts.Cancel != nil && node.ID == r.opts.Cancel.AtNodeID {
+			return r.mintCancel(startedAt, node.ID)
 		}
 		if done {
 			terminal = node.Terminal
@@ -319,6 +401,10 @@ func (r *run) walk(ctx context.Context) (Receipt, error) {
 		current = next
 	}
 
+	if r.opts.Cancel != nil {
+		return Receipt{}, refuse(CodeCancelPointUnreached, r.opts.Cancel.AtNodeID,
+			"the walk never reached cancel point %q", r.opts.Cancel.AtNodeID)
+	}
 	if terminal == nil {
 		return Receipt{}, refuse(CodeNoTerminal, current,
 			"walk stopped without a compiled terminal artifact")
@@ -515,6 +601,13 @@ func (a mappingSourceAdapter) Context(kind, path string) (workflow.TypedValue, b
 	return workflow.TypedValue{Type: v.Type, Text: v.Text}, true
 }
 
+// Variable always refuses: a SIMULATE run carries no variable revision log,
+// so a VARIABLE mapping resolves to UNRESOLVED_VARIABLE rather than to a
+// value no durable history stands behind.
+func (a mappingSourceAdapter) Variable(string, string) (string, bool) {
+	return "", false
+}
+
 // mint assembles the receipt once the walk has reached a terminal, checking
 // the terminal's five-dimension tuple against the intent lifecycle rules on
 // the way out.
@@ -545,9 +638,10 @@ func (r *run) mint(startedAt time.Time, terminal workflow.Terminal) (Receipt, er
 			RuntimeStatus:             terminal.RuntimeStatus,
 			OutstandingObligationRefs: append([]string(nil), terminal.OutstandingObligationRefs...),
 		},
-		Lifecycle: lifecycleStateOf(terminal.Dimensions),
-		Counters:  countersOf(counters),
-		Controls:  r.controls(),
+		Lifecycle:       lifecycleStateOf(terminal.Dimensions),
+		Counters:        countersOf(counters),
+		Controls:        r.controls(),
+		RecordedEffects: append([]RecordedEffect(nil), r.recorded...),
 	}
 	if receipt.WorkItems == nil {
 		receipt.WorkItems = []WorkItem{}
@@ -557,11 +651,13 @@ func (r *run) mint(startedAt time.Time, terminal workflow.Terminal) (Receipt, er
 	}
 
 	resultDigest := canonicalDigest(resultDigestProfile, struct {
-		Trace     []NodeTrace    `json:"trace"`
-		WorkItems []WorkItem     `json:"work_items"`
-		Terminal  Terminal       `json:"terminal"`
-		Lifecycle LifecycleState `json:"lifecycle"`
-	}{receipt.Trace, receipt.WorkItems, receipt.Terminal, receipt.Lifecycle})
+		Trace           []NodeTrace      `json:"trace"`
+		WorkItems       []WorkItem       `json:"work_items"`
+		Terminal        Terminal         `json:"terminal"`
+		Lifecycle       LifecycleState   `json:"lifecycle"`
+		RecordedEffects []RecordedEffect `json:"recorded_effects,omitempty"`
+		Cancel          *CancelRecord    `json:"cancel,omitempty"`
+	}{receipt.Trace, receipt.WorkItems, receipt.Terminal, receipt.Lifecycle, receipt.RecordedEffects, receipt.Cancel})
 
 	controls := make([]evidence.ControlVersion, 0, len(receipt.Controls))
 	for _, c := range receipt.Controls {

@@ -130,8 +130,8 @@ func rbacCompose(t *testing.T) *rbacHarness {
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:rbac-runtime",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
-		WorkflowPlan:            WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:        DefaultTimerTzdbVersion,
+		TimerCalendarVersion:    DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)

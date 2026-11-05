@@ -1,11 +1,13 @@
 package chatstore
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -105,7 +107,10 @@ func chatsearchRowSkipped(kind chatsearch.Kind, cause error) {
 // chatsearchLikePatterns turns the typed words into ILIKE patterns for the
 // database prefilter. A word with non-ASCII letters is left to Match alone,
 // because the database's case folding there can differ from Go's; leaving a
-// word out only widens the prefilter. nil means no prefilter.
+// word out only widens the prefilter. nil means no prefilter. Longest first:
+// chatsearchBodyMatch asks the trigram index about the first pattern by
+// itself, so it must be the most selective word. ILIKE ALL is order-free,
+// and chatsearchLongestPattern re-derives its own longest either way.
 func chatsearchLikePatterns(query string) []string {
 	var out []string
 	escape := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
@@ -119,6 +124,7 @@ func chatsearchLikePatterns(query string) []string {
 		}
 		out = append(out, "%"+escape.Replace(word)+"%")
 	}
+	slices.SortFunc(out, func(a, b string) int { return cmp.Compare(len(b), len(a)) })
 	return out
 }
 
@@ -425,4 +431,8 @@ func chatsearchCatalog(kind chatsearch.Kind) (string, error) {
 // or the words of a stored rendering (a translation) the reader may be shown.
 // A mask only removes words from the authored text, so the authored words are a
 // superset for masked renderings. Match still decides every row afterwards.
-const chatsearchBodyMatch = `($12::text[] IS NULL OR p.body ILIKE ALL($12::text[]) OR p.id = ANY($13::text[]))`
+// The first pattern is matched by itself so the post-body trigram index can
+// answer it: ILIKE ALL over an array never uses the index (same shape as
+// chatsearchRenderingIDs). The id arm stays in both halves so translation-only
+// rows are never filtered by a body they do not carry.
+const chatsearchBodyMatch = `($12::text[] IS NULL OR cardinality($12::text[]) = 0 OR p.body ILIKE ($12::text[])[1] OR p.id = ANY($13::text[])) AND ($12::text[] IS NULL OR p.body ILIKE ALL($12::text[]) OR p.id = ANY($13::text[]))`

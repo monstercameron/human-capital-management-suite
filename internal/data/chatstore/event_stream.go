@@ -46,6 +46,23 @@ func statusChangedConversation(ctx context.Context, tx dbport.Tx, tenantID, conv
 	return c, nil
 }
 
+// attachStatusChangedConversations fills the Conversation of status-change
+// events with the conversation as it is now. Both stream readers share it:
+// the outbox row of a status change carries the status alone, and a watcher
+// is sent the whole conversation so the update cannot blank its name or kind
+// on the page.
+func attachStatusChangedConversations(ctx context.Context, tx dbport.Tx, tenantID, conversationID string, events []chat.WatchEvent, at []int) error {
+	current, err := statusChangedConversation(ctx, tx, tenantID, conversationID)
+	if err != nil {
+		return err
+	}
+	for _, i := range at {
+		value := current
+		events[i].Event.Conversation = &value
+	}
+	return nil
+}
+
 func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.WatchConversationRequest, after uint64, limit int) (EventPage, error) {
 	if s == nil || s.pool == nil || request.TenantID == "" || request.ConversationID == "" || request.Principal.TenantID == "" || request.Principal.SubjectID == "" || after > uint64(^uint64(0)>>1) {
 		return EventPage{}, chat.ErrInvalidArgument
@@ -233,13 +250,8 @@ func (s *Adapter) readConversationEventPage(ctx context.Context, request chat.Wa
 	page.Complete = scanned < limit
 	if len(statusChanges) > 0 {
 		rows.Close()
-		current, readErr := statusChangedConversation(ctx, tx, request.TenantID, request.ConversationID)
-		if readErr != nil {
-			return EventPage{}, readErr
-		}
-		for _, at := range statusChanges {
-			value := current
-			page.Events[at].Event.Conversation = &value
+		if err := attachStatusChangedConversations(ctx, tx, request.TenantID, request.ConversationID, page.Events, statusChanges); err != nil {
+			return EventPage{}, err
 		}
 	}
 	if err = tx.Commit(ctx); err != nil {

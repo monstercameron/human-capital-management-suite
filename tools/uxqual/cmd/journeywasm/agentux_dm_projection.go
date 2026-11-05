@@ -13,6 +13,9 @@ type agentDirectIdentity struct {
 	// Purpose is the agent's own description, the line under its name in the
 	// conversation header. Empty means the source did not say; an earlier one is kept.
 	Purpose string
+	// ImageURL serves the owner's uploaded image from this origin; empty
+	// means the agent wears its generated icon.
+	ImageURL string
 }
 
 // applyAgentDirectConversation adopts the identity projected by the
@@ -27,8 +30,10 @@ func applyAgentDirectConversation(model *chatui.Model, conversationID, agentID, 
 	value := agenticon.Value{}
 	revision := int64(0)
 	purpose := ""
+	image := ""
 	if len(identity) > 0 {
 		value, revision, purpose = identity[0].Icon, identity[0].Revision, strings.TrimSpace(identity[0].Purpose)
+		image = strings.TrimSpace(identity[0].ImageURL)
 	}
 	// A caller that knows only the name and agent id (the invocation and the
 	// reload paths) must not erase an icon the directory already supplied.
@@ -40,10 +45,12 @@ func applyAgentDirectConversation(model *chatui.Model, conversationID, agentID, 
 		}
 		if keepIcon {
 			value, revision = conversation.Icon, conversation.IconRevision
+			image = conversation.IconImageURL
 		}
-		if conversation.Name != name || !conversation.Agent || conversation.AgentID != agentID || conversation.Icon != value || conversation.IconRevision != revision {
+		if conversation.Name != name || !conversation.Agent || conversation.AgentID != agentID || conversation.Icon != value || conversation.IconRevision != revision || conversation.IconImageURL != image {
 			conversation.Name, conversation.Agent, conversation.AgentID = name, true, agentID
 			conversation.Icon, conversation.IconRevision = value, revision
+			conversation.IconImageURL = image
 			changed = true
 		}
 		if purpose != "" && conversation.AgentPurpose != purpose {
@@ -66,10 +73,12 @@ func applyAgentDirectConversation(model *chatui.Model, conversationID, agentID, 
 		member := &model.Members[index]
 		if keepIcon {
 			value, revision = member.Icon, member.IconRevision
+			image = member.IconImageURL
 		}
-		if member.ID == agentID && (member.Name != name || !member.Agent || member.Icon != value || member.IconRevision != revision) {
+		if member.ID == agentID && (member.Name != name || !member.Agent || member.Icon != value || member.IconRevision != revision || member.IconImageURL != image) {
 			member.Name, member.Agent = name, true
 			member.Icon, member.IconRevision = value, revision
+			member.IconImageURL = image
 			changed = true
 		}
 	}

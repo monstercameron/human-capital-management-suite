@@ -506,3 +506,13 @@ The visual-design sequence and current mockups are tracked in
 - No accessibility conformance claim without real browser and assistive-
   technology evidence.
 - No production use of disqualified SchemaFlux behavior.
+
+## Small-business operations experience (2026-10-22)
+
+The [expansion plan](../small-business-platform-ideas.md) adds role-relevant business workbenches through the existing page, floorplan, widget, action, permission and token registries. Home, My Work, authorized global search, Start an action and pinned destinations discover the enabled capabilities. Adding a domain does not automatically add a permanent global-navigation destination. Domain lists/details use the same Go SSR, Go/WASM, semantic HTML, theme, typography, input, table/list, form, dialog and recovery components as existing pages.
+
+Every implementation issue supplies its concrete page/route, actor, labels and fields, validation, primary/secondary actions, status transitions and test oracle. Shared acceptance includes loading with a bounded outcome, first-use empty guidance, truly empty results, permission denial, dependency outage, offline capture where supported, revision conflict, partial outcome and successful durable completion. A disabled action explains the reason and a safe next step without revealing forbidden records. Server errors preserve authorized unsaved values; destructive/financial confirmations bind the exact revision and scope.
+
+All flows work at 1280x720, 390px and 320px, in light/dark themes, en-US/de-DE/ar RTL and with keyboard-only operation. Labels, error summaries, focus placement/return, announcements, touch target sizing, zoom/reflow and contrast follow the existing accessibility contracts. Drag/drop has an equivalent form action; scans have a manual entry path; calendars have an accessible list/agenda. Structured money, dates, timezones, units and identifiers preserve canonical values while formatting by locale.
+
+External customer/supplier portals consume the same domain capabilities through explicit resource-scoped grants and field projections. They do not reuse an employee session or expose internal navigation, staff notes, costs, payroll, other customers, or cross-company records. Portal-specific framing may simplify the shell without introducing another application stack. Cross-object links obey current authorization at search, preview, opening and action time.

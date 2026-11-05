@@ -3,8 +3,10 @@
 ## Decision
 
 The catalog is the set of `IntentDefinition`s that exist in repository source
-with a resolvable owner. Today that is the fourteen definitions in the draft
-slice below. A separately supplied list of roughly 530 candidate names is
+with a resolvable owner. The fourteen definitions in the initial draft
+slice below are the retained P1A/P1B baseline. The separately authorized
+small-business track may add source definitions through the same lifecycle;
+its proposed issue/operation names are not catalog entries until that work lands. A separately supplied list of roughly 530 candidate names is
 retained as a non-normative vocabulary for naming consistency; it is not the
 catalog, it has no maturity state, and no work item may depend on ingesting,
 partitioning, counting, or attesting it. A name enters the catalog only when a
@@ -138,8 +140,17 @@ RETIRED         invocation prohibited; historical resolution preserved
 ```
 
 `CATALOGUED` is retired as a maturity value. A name that has not reached
-`DRAFT_CONTRACT` is not in the catalog. Only the Phase 1 promotion slice may
-advance to `CONTRACTED` or beyond under the present delivery plan.
+`DRAFT_CONTRACT` is not in the catalog. Within the P1A/P1B release, only
+the admitted Phase 1 promotion slice may advance. Under the separately recorded
+[small-business placement](../execution-plan.md#recorded-placement-small-business-operations-2026-10-22),
+SMB-CORE-001 and each domain contract add concrete owned source definitions,
+schemas and capability bindings before advancing through CONTRACTED, COMPILED
+and PUBLISHED. They retain the three kernel families and existing lifecycle
+dimensions. Tenant enablement, actor/purpose scope, idempotency, conflict
+footprints, immutable proposal/approval binding, action-time revalidation,
+cancellation/correction and evidence are mandatory. Closed entity/role/domain
+vocabularies receive additive compatibility tests; display labels and BI set
+tags do not create authority or pretend a definition already exists.
 
 ## Instance envelope
 
@@ -262,7 +273,8 @@ risk, budget, DLP, and tool-gateway decisions still apply.
 
 ## Initial draft-contract slice
 
-The catalog is these definitions. P1A executes the eight marked `P1A`; P1B adds
+This table is the initial release slice, not a permanent ban on later source
+definitions. P1A executes the eight marked `P1A`; P1B adds
 the five marked `P1B`; `change_manager` is a conformance fixture only:
 
 | Definition                                       | Family                | Side effect         | Release                   |
@@ -302,17 +314,22 @@ published definition below `CONTRACTED` maturity.
 
 ## Go-only implementation boundary
 
-Canonical request/result contracts are Protobuf. SchemaFlux consumes the
-structured intent definitions to validate relationships and emit Go registries,
-documentation, compatibility reports, fixtures, and dependency indexes. GWC
+Canonical request/result contracts are Protobuf. The admitted deterministic Go
+compiler validates the structured sources and produces registries, documentation,
+compatibility reports, fixtures, and dependency indexes. SchemaFlux remains
+disqualified for production generation until the qualification gates in the
+[frontend contract](production-frontend-and-page-composition.md) are satisfied. GWC
 discovers permitted definitions through Go capability clients. grpcbridge adapts
 external transports to the same gRPC services. No TypeScript catalog, UI model,
 Node generator, or parallel JSON schema is permitted.
 
 The initial canonical Protobuf contract is
 [`schema/proto/hcmnext/intents/v1/business_intent.proto`](../../schema/proto/hcmnext/intents/v1/business_intent.proto).
-Generated Go is not checked in until the repository pins the Protobuf toolchain;
-handwritten duplicate message types are prohibited.
+Generated Go is present in
+[`gen/go/hcmnext/intents/v1/business_intent.pb.go`](../../gen/go/hcmnext/intents/v1/business_intent.pb.go).
+Further changes use the pinned repository toolchain and regeneration/drift gates;
+handwritten duplicate message types are prohibited. Existing generated types do
+not establish that a proposed business definition is registered or published.
 
 ## Acceptance tests
 
@@ -330,6 +347,6 @@ handwritten duplicate message types are prohibited.
 ## Status and ownership
 
 - Owner: Business Transaction Service and Capability Registry owners
-- Status: kernel contract defined; fourteen `DRAFT_CONTRACT` definitions are the catalog; the intake name list is non-normative vocabulary
+- Status: kernel contract defined; the initial fourteen draft definitions are the baseline; actual source and maturity determine additions. The intake name list remains non-normative vocabulary
 - Phase 1: only the explicit slice above
-- Long term: a domain adds definitions when it is funded to implement them
+- Expansion: the owner-authorized small-business backlog contracts source definitions through existing owners and publication gates; production release still requires domain-specific evidence

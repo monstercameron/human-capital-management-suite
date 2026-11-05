@@ -221,6 +221,9 @@ type Input struct {
 	Name        string
 	Type        ExpressionType
 	ElementType ExpressionType
+	// MaxClassification caps the tenant field classification this input accepts (WF-DATA-010).
+	// Blank is uncapped. It participates in digests only when set.
+	MaxClassification TenantDataClassification
 }
 
 // Dependency pins a reference snapshot/function contract used by an
@@ -460,6 +463,9 @@ func expressionCanonical(expr Expression) ([]byte, error) {
 	w.Count("inputs", len(inputs))
 	for _, input := range inputs {
 		w.String("input.name", input.Name).String("input.type", input.Type.String()).String("input.element_type", input.ElementType.String())
+		if input.MaxClassification != "" {
+			w.String("input.max_classification", string(input.MaxClassification))
+		}
 	}
 	deps := append([]Dependency(nil), expr.Dependencies...)
 	sort.SliceStable(deps, func(i, j int) bool { return dependencyLess(deps[i], deps[j]) })

@@ -36,6 +36,10 @@ func rev09301Serve(t *testing.T) (journeyv1.JourneyServiceClient, func(string) c
 	}
 	t.Cleanup(pool.Close)
 	cfg := ServeConfig{
+		// Local-dev profile: the served verifier only admits development
+		// HMAC persona tokens under this profile (INTAPI-001); without it
+		// the fixture Bearer tokens fail verification as unauthenticated.
+		Profile:    "local-dev",
 		GRPCListen: "127.0.0.1:0", HTTPListen: "127.0.0.1:0", DatabaseURL: db.URL,
 		DevHMACKey: rev09301SigningKey, PageCursorKey: integrationPageCursorKey, Issuer: DefaultIssuer, Audience: DefaultAudience,
 		Tenant: demoworkforce.CompanyKey, CellID: "cell-rev-093-01", MaxDeadline: 60 * time.Second,
@@ -43,8 +47,8 @@ func rev09301Serve(t *testing.T) (journeyv1.JourneyServiceClient, func(string) c
 		ExecutionAuthority: true, ExecutionAuthorityDigest: "sha256:rev-093-01",
 		ExecutionAuthorityRole: "promotion_operator", ExecutionApprover: "principal:promotion-approver",
 		ExecutionFinancePartner: LocalDevFinancePartner,
-		WorkflowPlan:            WorkflowPlanExecute, TimerTzdbVersion: DefaultTimerTzdbVersion,
-		TimerCalendarVersion: DefaultTimerCalendarVersion,
+		TimerTzdbVersion:        DefaultTimerTzdbVersion,
+		TimerCalendarVersion:    DefaultTimerCalendarVersion,
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("configuration: %v", err)

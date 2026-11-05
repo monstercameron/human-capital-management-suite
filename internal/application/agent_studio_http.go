@@ -3,7 +3,6 @@ package application
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 
@@ -73,11 +72,8 @@ func (h *AgentStudioHandler) suggest(w http.ResponseWriter, r *http.Request, pri
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 	var request agentStudioSuggestRequest
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&request) != nil || decoder.Decode(&struct{}{}) != io.EOF || strings.TrimSpace(request.PersonaID) != request.PersonaID || request.PersonaID == "" || strings.TrimSpace(request.Goal) != request.Goal || request.Goal == "" {
+	if decodeStrictJSONBody(w, r, 64<<10, &request) != nil || strings.TrimSpace(request.PersonaID) != request.PersonaID || request.PersonaID == "" || strings.TrimSpace(request.Goal) != request.Goal || request.Goal == "" {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
@@ -113,11 +109,8 @@ func (h *AgentStudioHandler) applySuggestion(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 128<<10)
 	var suggestion AgentStudioSuggestion
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&suggestion) != nil || decoder.Decode(&struct{}{}) != io.EOF {
+	if decodeStrictJSONBody(w, r, 128<<10, &suggestion) != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}

@@ -57,3 +57,74 @@ func agentOpsRunHealthText(locale LocaleContext, key string) string {
 	}
 	return values[index]
 }
+
+// agentOpsRunOriginFacts are the trace facts of one run: what caused it, the
+// evaluation outcome of the version it executed, and whether stop evidence
+// links it to an incident. Causes and evaluations render only catalog words
+// for known codes; the incident reference itself never reaches the page.
+func agentOpsRunOriginFacts(locale LocaleContext, run AgentControlRun) []ui.Node {
+	facts := make([]ui.Node, 0, 3)
+	if cause := agentOpsRunCauseLabel(locale, run.Cause); cause != "" {
+		facts = append(facts, agentOpsRunFact(agentControlsText(locale, "cause"), cause))
+	}
+	for _, status := range run.Evals {
+		if label := agentOpsRunEvalLabel(locale, status); label != "" {
+			facts = append(facts, agentOpsRunFact(agentControlsText(locale, "evals"), label))
+			break
+		}
+	}
+	if strings.TrimSpace(run.Incident) != "" {
+		facts = append(facts, agentOpsRunFact(agentControlsText(locale, "incident"), agentOpsRunOriginText(locale, "incident_recorded")))
+	}
+	return facts
+}
+
+func agentOpsRunCauseLabel(locale LocaleContext, cause string) string {
+	labels := map[string][3]string{
+		"CHAT":            {"Chat", "Chat", "دردشة"},
+		"PERSONA_MENTION": {"Mention", "Erwähnung", "إشارة"},
+		"API":             {"API", "API", "API"},
+		"EVENT":           {"Event", "Ereignis", "حدث"},
+		"SCHEDULE":        {"Schedule", "Zeitplan", "جدول زمني"},
+		"WORKFLOW":        {"Workflow", "Workflow", "سير عمل"},
+	}
+	values, ok := labels[strings.ToUpper(strings.TrimSpace(cause))]
+	if !ok {
+		return ""
+	}
+	return agentOpsRunOriginPick(locale, values)
+}
+
+func agentOpsRunEvalLabel(locale LocaleContext, status string) string {
+	labels := map[string][3]string{
+		"passed":  {"Passed", "Bestanden", "ناجح"},
+		"expired": {"Expired", "Abgelaufen", "منتهي الصلاحية"},
+	}
+	values, ok := labels[strings.ToLower(strings.TrimSpace(status))]
+	if !ok {
+		return ""
+	}
+	return agentOpsRunOriginPick(locale, values)
+}
+
+func agentOpsRunOriginText(locale LocaleContext, key string) string {
+	copy := map[string][3]string{
+		"incident_recorded": {"Recorded", "Erfasst", "مسجّل"},
+	}
+	values, ok := copy[key]
+	if !ok {
+		return key
+	}
+	return agentOpsRunOriginPick(locale, values)
+}
+
+func agentOpsRunOriginPick(locale LocaleContext, values [3]string) string {
+	switch locale.Resolved {
+	case "de-DE":
+		return values[1]
+	case "ar":
+		return values[2]
+	default:
+		return values[0]
+	}
+}

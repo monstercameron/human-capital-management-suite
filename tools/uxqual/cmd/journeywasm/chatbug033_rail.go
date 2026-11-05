@@ -21,6 +21,7 @@ type agentRailEntry struct {
 	Purpose        string          `json:"purpose"`
 	Icon           agenticon.Value `json:"icon"`
 	IconRevision   int64           `json:"icon_revision"`
+	IconImageURL   string          `json:"icon_image_url"`
 	_              incomparable
 }
 
@@ -49,7 +50,7 @@ func applyAgentRail(model *chatui.Model, entries []agentRailEntry) bool {
 func applyAgentRailEntries(model *chatui.Model, entries []agentRailEntry) bool {
 	changed := false
 	for _, entry := range entries {
-		if applyAgentDirectConversation(model, entry.ConversationID, entry.AgentID, entry.Name, agentDirectIdentity{Icon: entry.Icon, Revision: entry.IconRevision, Purpose: entry.Purpose}) {
+		if applyAgentDirectConversation(model, entry.ConversationID, entry.AgentID, entry.Name, agentDirectIdentity{Icon: entry.Icon, Revision: entry.IconRevision, Purpose: entry.Purpose, ImageURL: entry.IconImageURL}) {
 			changed = true
 		}
 	}

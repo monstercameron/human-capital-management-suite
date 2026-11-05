@@ -117,6 +117,12 @@ func ThreadSnapshotDigest(snapshot ThreadSnapshot) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return canonicalSnapshotDigest(raw), nil
+}
+
+// canonicalSnapshotDigest names the one digest scheme both snapshot images
+// share: sha256 over the canonical JSON, hex-encoded with its scheme prefix.
+func canonicalSnapshotDigest(raw []byte) string {
 	sum := sha256.Sum256(raw)
-	return "sha256:" + hex.EncodeToString(sum[:]), nil
+	return "sha256:" + hex.EncodeToString(sum[:])
 }

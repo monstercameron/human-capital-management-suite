@@ -7,6 +7,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/agenticon"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport"
 	"github.com/monstercameron/human-capital-management-suite/internal/trust"
@@ -49,15 +50,58 @@ func (s *AgentIconSurface) command(ctx context.Context, command transport.AgentI
 		return transport.AgentIconReply{}, transport.ErrAgentIconDenied
 	}
 	var result agentpersonastore.PersonaIcon
-	if preview {
+	switch {
+	case command.Action == "upload" && preview:
+		if _, err = agenticon.DecodeUpload(command.Image, command.ImageMediaType); err != nil {
+			return transport.AgentIconReply{}, transport.ErrAgentIconInvalid
+		}
+		result, err = scoped.GetIcon(ctx, command.PersonaID)
+	case command.Action == "upload":
+		result, err = scoped.SetIconImage(ctx, command.PersonaID, command.ExpectedRevision, p.Subject(), at, s.Administrators, command.Image, command.ImageMediaType)
+	case preview:
 		result, err = scoped.PreviewIcon(ctx, command.PersonaID, command.ExpectedRevision, command.Action, p.Subject(), at, s.Administrators)
-	} else {
+	default:
 		result, err = scoped.ChangeIcon(ctx, command.PersonaID, command.ExpectedRevision, command.Action, p.Subject(), at, s.Administrators)
 	}
 	if err != nil {
 		return transport.AgentIconReply{}, agentIconError(err)
 	}
-	return transport.AgentIconReply{Icon: result.Value, Revision: result.Revision}, nil
+	reply := transport.AgentIconReply{Icon: result.Value, Revision: result.Revision}
+	if result.HasImage {
+		reply.ImageURL = transport.AgentIconImageURL(command.PersonaID, result.Revision)
+	}
+	return reply, nil
+}
+
+// AgentIconImage serves a stored upload to an authenticated human of the same
+// tenant. A missing agent and a missing upload both answer denied.
+func (s *AgentIconSurface) AgentIconImage(ctx context.Context, personaID string) (transport.AgentIconImage, error) {
+	if ctx == nil {
+		return transport.AgentIconImage{}, transport.ErrAgentIconUnauthenticated
+	}
+	p, ok := trust.FromContext(ctx)
+	if !ok || p == nil {
+		return transport.AgentIconImage{}, transport.ErrAgentIconUnauthenticated
+	}
+	if p.SubjectKind() != trust.SubjectKindHuman {
+		return transport.AgentIconImage{}, transport.ErrAgentIconDenied
+	}
+	if s == nil || s.Store == nil || s.Now == nil {
+		return transport.AgentIconImage{}, transport.ErrAgentIconUnavailable
+	}
+	at := s.Now().UTC()
+	if at.IsZero() || at.Before(p.IssuedAt()) || !at.Before(p.ExpiresAt()) {
+		return transport.AgentIconImage{}, transport.ErrAgentIconUnauthenticated
+	}
+	scoped, err := s.Store.ForTenant(ctx, p.Tenant())
+	if err != nil {
+		return transport.AgentIconImage{}, transport.ErrAgentIconDenied
+	}
+	content, mediaType, revision, err := scoped.GetIconImage(ctx, personaID)
+	if err != nil {
+		return transport.AgentIconImage{}, agentIconError(err)
+	}
+	return transport.AgentIconImage{Content: content, MediaType: mediaType, Revision: revision}, nil
 }
 
 func agentIconError(err error) error {

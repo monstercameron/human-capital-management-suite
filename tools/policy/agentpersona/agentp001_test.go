@@ -85,7 +85,7 @@ func TestTodo_AGENTP_001(t *testing.T) {
 	want := []string{"authority", "invocation", "context", "audience_floor", "writes_and_approvals", "ownership_and_lifecycle", "placement", "limits", "stop", "ux", "audit", "output_safety", "release_gate"}
 	got := make([]string, 0, len(d.Defaults))
 	owners := map[string]bool{}
-	todoBytes, err := os.ReadFile(filepath.Join(repoRoot, "planning", "todos.md"))
+	todoBytes, err := os.ReadFile(filepath.Join(repoRoot, "planning", "archive", "todos-2026-10-22.md"))
 	if err != nil {
 		t.Fatalf("read owner todo index: %v", err)
 	}

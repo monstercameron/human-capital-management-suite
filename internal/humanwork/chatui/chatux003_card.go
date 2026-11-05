@@ -98,7 +98,7 @@ func chatux003Header(model Model, name, agentID string, identity agenticon.Value
 	if !identity.Valid() && model.selected().Agent {
 		identity = model.selected().Icon
 	}
-	avatar := agentDMAvatar(name, "avatar small agent-reply-avatar", agentIconFor(model, nil, name, identity))
+	avatar := agentAvatar(name, "avatar small agent-reply-avatar", agentIconImageFor(model, nil, name, ""), agentIconFor(model, nil, name, identity))
 	head := append(chatux017Identity(model, agentID, name, avatar), AgentBadgeLabel(model.Locale))
 	if clock := agentReplyTime(model, at); clock != nil {
 		head = append(head, clock)
