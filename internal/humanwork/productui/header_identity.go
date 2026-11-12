@@ -213,3 +213,14 @@ func PageHeading(props PageHeadingProps) ui.Node {
 	}
 	return html.Div(html.Props{Class: "page-head", Data: map[string]string{"hcm-page": string(props.Identity.Page)}}, children...)
 }
+
+// InterimRouteDocumentTitle is the browser-tab title a client route writes
+// before its page renders. It uses the registry title in the active locale,
+// so German and Arabic tabs never show the English page name (UXBLIND-092).
+func InterimRouteDocumentTitle(definition PageDefinition, locale LocaleContext, appearance CustomerTheme, tenant string) string {
+	pageTitle := definition.Title
+	if definition.TitleKey != "" {
+		pageTitle = locale.Text(definition.TitleKey)
+	}
+	return DocumentTitle(pageTitle, appearance, tenant)
+}

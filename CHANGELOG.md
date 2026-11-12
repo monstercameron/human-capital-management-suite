@@ -1,3 +1,7 @@
+## 2026-11-12 — UXBLIND-092 (#2586)
+
+- Browser tab titles in German and Arabic now name the page in that language while the page is still loading.
+
 ## 2026-11-12 — IMPL-GAP-006 (#3442)
 
 - Denied connector status views no longer expose private evidence references, counts or links to users without disclosure rights.

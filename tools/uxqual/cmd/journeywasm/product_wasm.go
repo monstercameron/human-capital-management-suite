@@ -453,6 +453,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		}
 		return productui.PageVisible(page, cfg.Roles)
 	}
+	routeLocale := productui.ResolveProductLocale(cfg.Locale)
 	for _, definition := range productui.PageDefinitions() {
 		// A viewer with My Work but not Journeys (a finance approver) reaches
 		// one journey's detail from their queue and nothing else; the server
@@ -467,8 +468,9 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 		definition := definition
 		routeOptions := router.Options{
 			// The router writes this before the route renders; name the company
-			// rather than the product so the tab never flashes the suite name.
-			Title: productui.DocumentTitle(definition.Title, productui.DefaultCustomerTheme(), tenantLabel),
+			// rather than the product so the tab never flashes the suite name,
+			// and name the page in the active locale (UXBLIND-092).
+			Title: productui.InterimRouteDocumentTitle(definition, routeLocale, productui.DefaultCustomerTheme(), tenantLabel),
 			// A failed read never prints its error; see productRouteErrorComponent.
 			Error: productRouteErrorComponent,
 			Loader: func(loadCtx context.Context, routeContext router.RouteContext) (router.Attrs, error) {
