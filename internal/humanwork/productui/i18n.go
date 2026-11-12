@@ -1458,6 +1458,8 @@ var productMessages = withAgentUXPage5Messages(withFeatureMessages(map[string]ma
 		"work.action_queue_empty_detail_no_journeys": {Text: "New assignments will appear here."},
 		// UXBLIND lane II
 		"global_search.topbar_placeholder": {Text: "Search workspace"},
+		// #3775: on Chat the top bar says what it finds, next to Chat's own search.
+		"global_search.chat_placeholder": {Text: "Search pages and people"},
 	},
 	"de-DE": {
 		"appearance.density_help":                 {Text: "Passen Sie die Abstände des Arbeitsbereichs an, ohne lesbaren Text oder Bedienflächen zu verkleinern."},
@@ -2068,6 +2070,7 @@ var productMessages = withAgentUXPage5Messages(withFeatureMessages(map[string]ma
 		"work.action_queue_empty_detail_no_journeys": {Text: "Neue Aufgaben erscheinen hier."},
 		// UXBLIND lane II
 		"global_search.topbar_placeholder": {Text: "Arbeitsbereich durchsuchen"},
+		"global_search.chat_placeholder":   {Text: "Seiten und Personen durchsuchen"},
 	},
 	"ar": {
 		"appearance.brand_signature":              {Text: "توقيع العلامة التجارية"},
@@ -2181,6 +2184,7 @@ var productMessages = withAgentUXPage5Messages(withFeatureMessages(map[string]ma
 		"work.awaiting_my_approval": {Text: "بانتظار موافقتي"}, "organization.top_of_organization": {Text: "لا أحد — قمة المؤسسة"},
 		// UXBLIND lane II
 		"global_search.topbar_placeholder": {Text: "البحث في مساحة العمل"},
+		"global_search.chat_placeholder":   {Text: "البحث في الصفحات والأشخاص"},
 		// UXBLIND lane S
 		"journey.timeline_decision_approved": {Text: "تمت الموافقة"}, "journey.timeline_decision_rejected": {Text: "مرفوض"}, "journey.timeline_assigned_to": {Text: "أُسندت إلى {assignee}"}, "journey.timeline_decision_reason": {Text: "السبب: {reason}"},
 		// UXBLIND lane C

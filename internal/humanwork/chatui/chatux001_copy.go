@@ -19,8 +19,8 @@ func chatux001Text(m Model, key string) string {
 }
 
 var chatux001En = map[string]string{
-	"chat.ux001.search":        "Search Chat",
-	"chat.ux001.search_hint":   "Search Chat ({shortcut})",
+	"chat.ux001.search":        "Search messages",
+	"chat.ux001.search_hint":   "Search messages ({shortcut})",
 	"chat.ux001.pinned":        "Pinned messages",
 	"chat.ux001.pinned_count":  "Pinned messages ({n})",
 	"chat.ux001.members":       "Members",
@@ -28,8 +28,8 @@ var chatux001En = map[string]string{
 }
 
 var chatux001De = map[string]string{
-	"chat.ux001.search":        "Chat durchsuchen",
-	"chat.ux001.search_hint":   "Chat durchsuchen ({shortcut})",
+	"chat.ux001.search":        "Nachrichten durchsuchen",
+	"chat.ux001.search_hint":   "Nachrichten durchsuchen ({shortcut})",
 	"chat.ux001.pinned":        "Angeheftete Nachrichten",
 	"chat.ux001.pinned_count":  "Angeheftete Nachrichten ({n})",
 	"chat.ux001.members":       "Mitglieder",
@@ -37,8 +37,8 @@ var chatux001De = map[string]string{
 }
 
 var chatux001Ar = map[string]string{
-	"chat.ux001.search":        "البحث في الدردشة",
-	"chat.ux001.search_hint":   "البحث في الدردشة ({shortcut})",
+	"chat.ux001.search":        "البحث في الرسائل",
+	"chat.ux001.search_hint":   "البحث في الرسائل ({shortcut})",
 	"chat.ux001.pinned":        "الرسائل المثبتة",
 	"chat.ux001.pinned_count":  "الرسائل المثبتة ({n})",
 	"chat.ux001.members":       "الأعضاء",

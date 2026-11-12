@@ -98,7 +98,7 @@ func chatShellStylesheet() string {
 		// leftover, which leaves a full-bleed page half a screen tall. The
 		// chat page is the only row, so it takes the whole height.
 		"@media(max-width:760px){.main.page-full-bleed{padding:0}.main-scroll.main-scroll-full-bleed{scrollbar-gutter:auto}.app-shell .shell-grid:has(>.main-scroll-full-bleed){grid-template-rows:minmax(0,1fr)!important}}" +
-		chatPhoneShellStylesheet
+		chatPhoneShellStylesheet + chatDesignSearchStylesheet
 }
 
 // chatPhoneShellStylesheet is the page's claim on the whole phone viewport

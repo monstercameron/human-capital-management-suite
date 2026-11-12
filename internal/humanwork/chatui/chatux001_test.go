@@ -103,7 +103,7 @@ func TestTodo_CHATUX_001(t *testing.T) {
 	if got := chatPolishAttr(members, "aria-label"); got != "Members (18)" {
 		t.Fatalf("members name %q", got)
 	}
-	if got := chatPolishAttr(chatux001Button(t, header, "chat-search-open"), "aria-label"); got != "Search Chat" {
+	if got := chatPolishAttr(chatux001Button(t, header, "chat-search-open"), "aria-label"); got != "Search messages" {
 		t.Fatalf("search name %q", got)
 	}
 

@@ -44,6 +44,9 @@ type GlobalSearchProps struct {
 	// already authorized for this reader, or with none; they are listed after
 	// the local ones. Nil asks nobody.
 	Remote func(query string, done func([]GlobalSearchItem))
+	// PlaceholderKey names the copy shown in the empty field. Empty is the
+	// workspace name; Chat asks for the scope instead (#3775).
+	PlaceholderKey string
 }
 
 // globalSearchRemoteMinimum is the shortest query a service is asked for: one
@@ -69,11 +72,24 @@ func globalSearchProps(view View) GlobalSearchProps {
 		I18nProps: I18nProps{Locale: view.Locale}, Items: globalSearchItems(view),
 		Navigate: view.Navigate, FallbackHref: fallback, HiddenInputs: hidden,
 	}
+	// #3775: Chat has a search of its own beside this one, so here the field
+	// says what it finds (pages and people) instead of the workspace name.
+	if view.Page == PageChat {
+		props.PlaceholderKey = "global_search.chat_placeholder"
+	}
 	// Chat is asked only for a reader whose workspace shows them Chat.
 	if PageVisible(PageChat, view.Roles) {
 		props.Remote = view.SearchChat
 	}
 	return props
+}
+
+// globalSearchPlaceholderKey is the copy key of the top-bar field's placeholder.
+func globalSearchPlaceholderKey(props GlobalSearchProps) string {
+	if props.PlaceholderKey != "" {
+		return props.PlaceholderKey
+	}
+	return "global_search.topbar_placeholder"
 }
 
 func globalSearchItems(view View) []GlobalSearchItem {
@@ -549,7 +565,7 @@ func GlobalSearch(props GlobalSearchProps) ui.Node {
 	}
 	inputProps := html.Props{
 		ID: "global-search-input", Key: "global-search-input-" + fmt.Sprint(clearEpoch.Get()), Name: "q", Value: seed.Get(), Class: "global-search-input", Aria: inputAria,
-		Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text("global_search.topbar_placeholder"), "autocomplete": "off", "spellcheck": "false"},
+		Raw: map[string]any{"type": "search", "role": "combobox", "placeholder": props.Text(globalSearchPlaceholderKey(props)), "autocomplete": "off", "spellcheck": "false"},
 		OnInput: ui.UseEvent(func(event ui.InputEvent) {
 			// The event carries the field's own contents; it is recorded, never
 			// echoed back into the field.

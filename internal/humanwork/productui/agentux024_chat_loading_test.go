@@ -12,9 +12,9 @@ import (
 // the rail title, the search field, Quiet hours, the reading-language row, the
 // skip link and the two lines of the empty timeline.
 var agentux024Words = map[string][]string{
-	"en-US": {"Conversations", "Search Chat", "Quiet hours", "Reading language", "Skip to conversation", "Choose a conversation", "Loading conversation"},
-	"de-DE": {"Unterhaltungen", "Chat durchsuchen", "Ruhezeiten", "Lesesprache", "Zur Unterhaltung springen", "Wählen Sie eine Unterhaltung", "Unterhaltung wird geladen"},
-	"ar":    {"المحادثات", "البحث في الدردشة", "ساعات الهدوء", "لغة القراءة", "الانتقال إلى المحادثة", "اختر محادثة", "جارٍ تحميل المحادثة"},
+	"en-US": {"Conversations", "Search messages", "Quiet hours", "Reading language", "Skip to conversation", "Choose a conversation", "Loading conversation"},
+	"de-DE": {"Unterhaltungen", "Nachrichten durchsuchen", "Ruhezeiten", "Lesesprache", "Zur Unterhaltung springen", "Wählen Sie eine Unterhaltung", "Unterhaltung wird geladen"},
+	"ar":    {"المحادثات", "البحث في الرسائل", "ساعات الهدوء", "لغة القراءة", "الانتقال إلى المحادثة", "اختر محادثة", "جارٍ تحميل المحادثة"},
 }
 
 func agentux024Render(t *testing.T, node ui.Node) string {

@@ -63,7 +63,7 @@ func TestTodo_CHATUX_010(t *testing.T) {
 	}
 
 	// The sidebar box: one name, the key inside it.
-	for locale, name := range map[string]string{"en-US": "Search Chat", "de-DE": "Chat durchsuchen", "ar": "البحث في الدردشة"} {
+	for locale, name := range map[string]string{"en-US": "Search messages", "de-DE": "Nachrichten durchsuchen", "ar": "البحث في الرسائل"} {
 		m := chat4Fixture(locale, "sent", false)
 		area := chatux010Rail(t, m, 1440, "light")
 		inputs := chatPolishNodesIn(area, func(n *xhtml.Node) bool { return n.Data == "input" && chatPolishAttr(n, "id") == "chat-search" })
@@ -95,13 +95,13 @@ func TestTodo_CHATUX_010(t *testing.T) {
 
 	// No other name for the same search is left on the page.
 	page := chatPolishMarkup(t, Build(chat4Fixture("en-US", "sent", false)), 1440, "light")
-	for _, old := range []string{"Search messages", "Search channels, people, and messages"} {
+	for _, old := range []string{"Search Chat", "Search channels, people, and messages"} {
 		if strings.Contains(page, old) {
 			t.Fatalf("the page still calls the search %q", old)
 		}
 	}
-	if !strings.Contains(page, `title="Search Chat (Ctrl+K)"`) {
-		t.Fatal("the header's search button does not name Search Chat with its key")
+	if !strings.Contains(page, `title="Search messages (Ctrl+K)"`) {
+		t.Fatal("the header's search button does not name Search messages with its key")
 	}
 
 	// Result groups are named in plain words.

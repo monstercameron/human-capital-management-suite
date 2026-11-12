@@ -784,7 +784,7 @@ func TestTodo_CHATBUG_036_Browser(t *testing.T) {
 	wants := []want{
 		// The page and the sidebar, at both widths.
 		{"general", "region", `^Conversation messages$`, true},
-		{"general", "searchbox", `^Search Chat$`, true},
+		{"general", "searchbox", `^Search messages$`, true},
 		{"general", "button", `^Saved 2$`, true},
 		{"general", "button", `^Channels 3$`, true},
 		{"general", "button", `^Direct messages 4$`, true},
@@ -810,7 +810,7 @@ func TestTodo_CHATBUG_036_Browser(t *testing.T) {
 		{"rail-menu", "menu", `^More options for general$`, true},
 		{"rail-menu", "menuitem", `^Leave channel$`, true},
 		// The header: Search, Pinned, Members and Details; no button for a poll or a to-do list.
-		{"general", "button", `^Search Chat$`, true},
+		{"general", "button", `^Search messages$`, true},
 		{"general", "button", `^Pinned messages \(1\)$`, true},
 		{"general", "button", `^Members \(12\)$`, true},
 		{"general", "button", `^Conversation details$`, true},

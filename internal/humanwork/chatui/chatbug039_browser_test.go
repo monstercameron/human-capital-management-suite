@@ -34,9 +34,9 @@ func TestTodo_CHATBUG_039_Browser(t *testing.T) {
 				})
 			}
 			words := map[string][4]string{
-				"en-US": {"Choose an emoji", "Poll", "Search Chat", "Manage filters"},
-				"de-DE": {"Emoji auswählen", "Umfrage", "Chat durchsuchen", "Filter verwalten"},
-				"ar":    {"اختر رمزًا تعبيريًا", "استطلاع", "البحث في الدردشة", "أدر المرشحات"},
+				"en-US": {"Choose an emoji", "Poll", "Search messages", "Manage filters"},
+				"de-DE": {"Emoji auswählen", "Umfrage", "Nachrichten durchsuchen", "Filter verwalten"},
+				"ar":    {"اختر رمزًا تعبيريًا", "استطلاع", "البحث في الرسائل", "أدر المرشحات"},
 			}[locale]
 			for i, name := range []string{"emoji picker", "composer with add and command menus", "sidebar with preferences and Channels menu", "details with Manage channel open"} {
 				if !strings.Contains(html.UnescapeString(surfaces[name]), words[i]) {

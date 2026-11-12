@@ -8,7 +8,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatsearch"
 )
 
-// CHATUX-010: Chat's search has one name ("Search Chat"), shows the key that
+// CHATUX-010: Chat's search has one name ("Search messages" since #3775: it is labelled by what it finds), shows the key that
 // reaches it, and names its result groups in plain words.
 
 // chatux010IsApple reports whether a platform string (navigator.platform or
