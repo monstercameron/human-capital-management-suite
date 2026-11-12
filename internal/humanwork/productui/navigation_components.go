@@ -512,7 +512,9 @@ func NavigationSidebar(props NavigationSidebarProps) ui.Node {
 	}
 	for _, item := range props.Items {
 		if collapsed && len(item.Children) > 0 {
-			item.Children = nil
+			// #3839: the rail keeps the item's children behind a flyout.
+			menu = append(menu, html.WithKey(ui.CreateElement(NavigationRailFlyout, item), "flyout:"+string(item.Page)+":"+item.Label))
+			continue
 		}
 		menu = append(menu, html.WithKey(ui.CreateElement(NavigationItem, item), "item:"+string(item.Page)+":"+item.Label))
 	}

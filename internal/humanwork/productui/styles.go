@@ -85,6 +85,7 @@ func initPlatformStyles() {
 	platformStyles += personaAdminStylesheet()
 	platformStyles += agentUX073Stylesheet()
 	platformStyles += ShellFixStylesheet()
+	platformStyles += chatDesignNavFlyoutStylesheet()
 	platformStyles += chatbug080TopbarStylesheet()
 	platformDarkStyles = darkModeStylesStylesheet()
 	// Each typed declaration hoists its own copy of the @keyframes blocks it

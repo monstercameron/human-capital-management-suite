@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Collapsed rail items with child pages open a flyout (#3839)
+
+- In the collapsed navigation rail, Chat, Workflows, My Work and Admin now open a small flyout of their child pages on hover, keyboard focus or tap, so Chat's Agents page is reachable without expanding the navigation.
+
 ## 2026-11-12 — Chat: Keep three screens of messages mounted so scrolling re-creates no rows (#3827)
 
 - Scrolling a conversation keeps about three screens of messages on the page each way, so ordinary scrolling no longer rebuilds message rows or rewrites the command menu.

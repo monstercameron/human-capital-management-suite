@@ -369,7 +369,10 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// stylesheet gains the chatdesign_* rules (accent-text token, avatar hues,
 	// unread pills, sticky day pill, thread composer row, scoped search, agent
 	// mark, work-object card) and the avatar tokens in the product theme.
-	const want = "f74b5776234d623db85baa1992231c42afa780cb8b952413a125166df3b5ee6a"
+	// Re-pinned 2026-11-12 (#3839): the product stylesheet gains the collapsed
+	// rail flyout block (chatDesignNavFlyoutStylesheet) and rail items with child
+	// pages render a flyout trigger instead of a plain link.
+	const want = "d22323b27b139da71941b5024d0a83380375ca55055a7e033e20812da8bdf549"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}
