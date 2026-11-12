@@ -496,9 +496,16 @@ func (s *Store) RecordArtifact(ctx context.Context, tenantID, orderID, projectID
 		if uint64(revision) != expectedRevision {
 			return ErrRevisionConflict
 		}
-		out = ArtifactRecord{ID: uuid.NewString(), TenantID: tenantID, WorkOrderID: orderID, ProjectID: projectID, Kind: kind, ActorID: actorID, IdempotencyKey: idempotencyKey, CommandDigest: digest, SourceRevision: expectedRevision, Payload: append(json.RawMessage(nil), payload...)}
-		_, err = tx.Exec(ctx, `INSERT INTO work_order_artifact(tenant_id,id,work_order_id,project_id,kind,actor_id,idempotency_key,command_digest,source_revision,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, tenantID, out.ID, orderID, projectID, kind, actorID, idempotencyKey, digest, int64(expectedRevision), payload)
-		return err
+		out = ArtifactRecord{ID: uuid.NewString(), TenantID: tenantID, WorkOrderID: orderID, ProjectID: projectID, Kind: kind, ActorID: actorID, IdempotencyKey: idempotencyKey, CommandDigest: digest, SourceRevision: expectedRevision}
+		// RETURNING reads the database-assigned created_at and stored payload from the same insert,
+		// so the first receipt matches GetArtifact and replay.
+		var insertedPayload []byte
+		err = tx.QueryRow(ctx, `INSERT INTO work_order_artifact(tenant_id,id,work_order_id,project_id,kind,actor_id,idempotency_key,command_digest,source_revision,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) RETURNING created_at,payload`, tenantID, out.ID, orderID, projectID, kind, actorID, idempotencyKey, digest, int64(expectedRevision), payload).Scan(&out.CreatedAt, &insertedPayload)
+		if err != nil {
+			return err
+		}
+		out.Payload = append(json.RawMessage(nil), insertedPayload...)
+		return nil
 	})
 	return out, err
 }

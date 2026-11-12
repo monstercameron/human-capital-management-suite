@@ -272,3 +272,36 @@ func TestTodo_WorkOrderStore_ArtifactsAndList(t *testing.T) {
 		t.Fatal("artifact mutation succeeded")
 	}
 }
+
+// TestTodo_IMPL_GAP_003 pins that the first artifact receipt carries the persisted creation
+// time, identical to GetArtifact and same-key replay, instead of the zero time.
+func TestTodo_IMPL_GAP_003(t *testing.T) {
+	s, _ := fixture(t)
+	ctx := context.Background()
+	snapshot := initialSnapshot(t, "tenant", "wo-gap", "create-gap", "initiator")
+	if err := s.Create(ctx, "tenant", snapshot, "initiator", "create-gap"); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte(`{"sourceCutoff":"rev-1","lines":[]}`)
+	first, err := s.RecordArtifact(ctx, "tenant", "wo-gap", "project", "finance", "report-gap", 1, "REPORT", "digest-gap", payload)
+	if err != nil {
+		t.Fatalf("first receipt err=%v", err)
+	}
+	if first.CreatedAt.IsZero() {
+		t.Fatalf("first receipt CreatedAt is zero: %#v", first)
+	}
+	fetched, err := s.GetArtifact(ctx, "tenant", "wo-gap", "finance", "report-gap", "REPORT")
+	if err != nil {
+		t.Fatalf("GetArtifact err=%v", err)
+	}
+	replay, err := s.RecordArtifact(ctx, "tenant", "wo-gap", "project", "finance", "report-gap", 1, "REPORT", "digest-gap", payload)
+	if err != nil {
+		t.Fatalf("replay err=%v", err)
+	}
+	if !first.CreatedAt.Equal(fetched.CreatedAt) || !first.CreatedAt.Equal(replay.CreatedAt) {
+		t.Fatalf("CreatedAt mismatch first=%v fetched=%v replay=%v", first.CreatedAt, fetched.CreatedAt, replay.CreatedAt)
+	}
+	if string(first.Payload) != string(fetched.Payload) || string(first.Payload) != string(replay.Payload) {
+		t.Fatalf("payload mismatch first=%s fetched=%s replay=%s", first.Payload, fetched.Payload, replay.Payload)
+	}
+}

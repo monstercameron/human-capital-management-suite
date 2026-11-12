@@ -1,3 +1,7 @@
+## 2026-11-12 — IMPL-GAP-003 (#3439)
+
+- The first generated work-order report or billing draft now shows its real creation time, matching later reloads and retries instead of year 1.
+
 ## 2026-11-12 — IMPL-GAP-001 (#3437)
 
 - Work-order billing-review requests are now hidden from users who lack cost-view permission, matching the other financial request kinds.
