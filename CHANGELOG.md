@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Growing composer covers the newest messages and the list does not (#3716)
+
+- Chat: the message list stays on its newest message while the composer grows as you type, so the last message is no longer hidden under the composer (#3716).
+
 ## 2026-11-12 — Chat: Details panel member filter shows nothing at all when no member ma (#3712)
 
 - Details panel member filter shows nothing at all when no member ma
