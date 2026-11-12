@@ -55,7 +55,7 @@ func agentUX074AgentIDs(agents []AgentSummary) []string {
 func agentUX074TaskIcon(agents []AgentSummary, task AgentTask) agenticon.Value {
 	id := strings.TrimSpace(task.AnsweringAgentID)
 	if id == "" || strings.EqualFold(id, "general-agent") {
-		return agentUX074IconValue(agenticon.Value{}, agentUX074GeneralSeed, nil)
+		return generalAgentIcon()
 	}
 	peers := agentUX074AgentIDs(agents)
 	for _, agent := range agents {

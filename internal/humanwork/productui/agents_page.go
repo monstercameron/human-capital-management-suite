@@ -474,6 +474,18 @@ func agentTaskCategory(state AgentTaskState) string {
 	}
 }
 
+// agentTaskTone is the colour and mark of a task's status (#3776). It follows
+// the outcome, not only the tab the task is listed under: a task that finished
+// with no answer to show is listed under Completed but is not drawn as a
+// success. The tones are "active", "completed", "no-answer" and "failed".
+func agentTaskTone(task AgentTask) string {
+	category := agentTaskCategory(task.State)
+	if category == "completed" && strings.TrimSpace(task.AnswerText) == "" && strings.TrimSpace(task.ResultPreview) == "" {
+		return "no-answer"
+	}
+	return category
+}
+
 func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool, category string, index int, hidden bool) ui.Node {
 	request := strings.TrimSpace(task.Title)
 	if request == "" {
@@ -488,6 +500,10 @@ func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool
 			preview = answer
 		}
 	}
+	tone := agentTaskTone(task)
+	if tone == "no-answer" {
+		preview = locale.Text("agents.task_no_answer")
+	}
 	failureReason := ""
 	if category == "failed" {
 		preview = locale.Text("agents.task_failed_reassurance")
@@ -495,7 +511,7 @@ func agentTaskRow(view View, locale LocaleContext, task AgentTask, selected bool
 	}
 	children := []ui.Node{
 		html.Div(html.Props{Class: "agents-task-row-heading"},
-			html.Span(html.Props{Class: "agents-task-state-icon", Raw: map[string]any{"data-tone": category, "aria-hidden": "true"}}, ui.Text(agentTaskStatusGlyph(category))),
+			html.Span(html.Props{Class: "agents-task-state-icon", Raw: map[string]any{"data-tone": tone, "aria-hidden": "true"}}, ui.Text(agentTaskStatusGlyph(tone))),
 			html.Strong(html.Props{Class: "agents-task-request"}, html.Tag("bdi", html.Props{}, ui.Text(request))),
 			html.Span(html.Props{Class: "agents-task-chevron", Raw: map[string]any{"aria-hidden": "true"}}, ui.Text("›")),
 			agentTaskRowTimes(locale, task, time.Now()),
@@ -564,6 +580,9 @@ func agentTaskStatusGlyph(category string) string {
 	if category == "failed" {
 		return "!"
 	}
+	if category == "no-answer" {
+		return "–"
+	}
 	return "•"
 }
 
@@ -600,7 +619,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 	children := make([]ui.Node, 0, 8)
 	if len(snapshot.Agents) > 0 {
 		choices := make([]ui.Node, 0, len(snapshot.Agents)+1)
-		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true))
+		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true, generalAgentIcon()))
 		// Each agent wears its stored icon; one without a stored icon takes its
 		// fallback among the agents listed here, as Chat does among the agents it
 		// knows, so the same agent has the same picture on both pages.
@@ -619,7 +638,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 		}
 		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, choices...)))
 	} else {
-		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true))))
+		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true, generalAgentIcon()))))
 		children = append(children, html.P(html.Props{Class: "agents-general-agent muted", Role: "status"}, ui.Text(agentUXR7Text(locale, "other_agents"))))
 	}
 	inputProps := html.Props{ID: "agents-composer-input", Name: "prompt", Rows: 3, Placeholder: locale.Text("agents.composer_placeholder")}
@@ -645,6 +664,16 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 	}
 	children = append(children, agentUX077ComposerActions(locale, snapshot.StartAvailable))
 	return html.Form(html.Props{Class: "agents-composer", Raw: map[string]any{"aria-label": locale.Text("agents.composer")}}, children...)
+}
+
+// generalAgentIcon is the General agent's mark (#3776): the glyph and shape its
+// choice has always worn, in the neutral informational pair. The fallback
+// palette also holds the warning and danger pairs, and the default agent
+// drawn in the danger colour read as an alarm on a healthy page.
+func generalAgentIcon() agenticon.Value {
+	value := agenticon.Fallback(agentUX074GeneralSeed)
+	value.Foreground, value.Background = "--hcm-color-info", "--hcm-color-info-surface"
+	return value
 }
 
 func agentChoice(locale LocaleContext, id, value, name, purpose string, checked bool, identity ...agenticon.Value) ui.Node {
@@ -696,7 +725,7 @@ func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, 
 	request := agentTaskRequest(task)
 	heading := []ui.Node{
 		html.H1(html.Props{ID: "agents-task-title", Raw: map[string]any{"tabindex": "-1", "dir": "auto"}}, ui.Text(request)),
-		html.Span(html.Props{Class: "agents-task-status", Raw: map[string]any{"data-tone": agentTaskCategory(task.State)}}, ui.Text(agentTaskStateLabel(locale, task.State))),
+		html.Span(html.Props{Class: "agents-task-status", Raw: map[string]any{"data-tone": agentTaskTone(task)}}, ui.Text(agentTaskStateLabel(locale, task.State))),
 	}
 	children := []ui.Node{
 		softwareLink(view.Navigate, html.Props{Class: "agents-back-link", Raw: map[string]any{"data-agent-back-tasks": "true", "data-agent-back-task-id": task.ID}}, statefulHref(view, PageAgents)+"#agents-tasks", html.Span(html.Props{Class: "agents-detail-back-mobile"}, ui.Text(locale.Text("agents.back_to_tasks"))), html.Span(html.Props{Class: "agents-detail-close-desktop"}, ui.Text("× "+agentUXR7Text(locale, "close")))),

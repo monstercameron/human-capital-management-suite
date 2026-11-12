@@ -265,6 +265,8 @@ func declareAgentsStyles() {
 	declareGlobal(".agents-task-state-icon[data-tone=active]", gwccss.TextColor(gwccss.Var("info")), gwccss.Raw("border", "1px solid var(--info)"))
 	declareGlobal(".agents-task-state-icon[data-tone=completed]", gwccss.TextColor(gwccss.Var("success")), gwccss.Raw("border", "1px solid var(--success)"))
 	declareGlobal(".agents-task-state-icon[data-tone=failed]", gwccss.TextColor(gwccss.Var("danger")), gwccss.Raw("border", "1px solid var(--danger)"))
+	// #3776: finished with no answer is neither a success nor a failure.
+	declareGlobal(".agents-task-state-icon[data-tone=no-answer]", gwccss.TextColor(gwccss.Var("muted")), gwccss.Raw("border", "1px solid var(--muted)"))
 	declareGlobal(".agents-task-chevron", gwccss.FontSize(gwccss.Rem(1.25)), gwccss.Raw("line-height", "1"), gwccss.Raw("inline-size", "24px"), gwccss.Raw("text-align", "center"), gwccss.Raw("grid-column", "4"))
 	declareGlobal(".agents-task-link[aria-expanded=true] .agents-task-chevron", gwccss.Raw("transform", "rotate(90deg)"))
 	declareGlobal(".agents-task-request",
@@ -305,6 +307,7 @@ func declareAgentsStyles() {
 	declareGlobal(".agents-task-status[data-tone=\"active\"]", gwccss.TextColor(gwccss.Var("info")), gwccss.Raw("border", "1px solid var(--info)"))
 	declareGlobal(".agents-task-status[data-tone=\"completed\"]", gwccss.TextColor(gwccss.Var("success")), gwccss.Raw("border", "1px solid var(--success)"))
 	declareGlobal(".agents-task-status[data-tone=\"failed\"]", gwccss.TextColor(gwccss.Var("danger")), gwccss.Raw("border", "1px solid var(--danger)"))
+	declareGlobal(".agents-task-status[data-tone=\"no-answer\"]", gwccss.TextColor(gwccss.Var("muted")), gwccss.Raw("border", "1px solid var(--muted)"))
 	declareGlobal(".agents-manage-link,.agents-back-link",
 		gwccss.JustifySelf.Start, gwccss.TextColor(gwccss.Var("accent")),
 	)
