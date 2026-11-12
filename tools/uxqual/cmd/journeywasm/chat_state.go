@@ -3222,6 +3222,19 @@ func chatDropDeletedRow(model *chatui.Model, id string) {
 	}
 	model.Messages = chatWithoutMessage(model.Messages, id)
 	model.ThreadMessages = chatWithoutMessage(model.ThreadMessages, id)
+	chatDropDeletedPin(model, id)
+}
+
+// chatDropDeletedPin takes a deleted message out of the pin count and the
+// Pinned list; both read model.ChannelPins.
+func chatDropDeletedPin(model *chatui.Model, id string) {
+	pins := model.ChannelPins[:0:0]
+	for _, pin := range model.ChannelPins {
+		if pin.PostID != id {
+			pins = append(pins, pin)
+		}
+	}
+	model.ChannelPins = pins
 }
 
 func applyChatPostDeleted(model *chatui.Model, post *chatv1.Post) {
@@ -3240,6 +3253,7 @@ func applyChatPostDeleted(model *chatui.Model, post *chatv1.Post) {
 	}
 	model.Messages = chatWithoutMessage(model.Messages, id)
 	model.ThreadMessages = chatWithoutMessage(model.ThreadMessages, id)
+	chatDropDeletedPin(model, id)
 	if model.ThreadParent != nil && model.ThreadParent.ID == id {
 		model.ThreadParent = nil
 	}

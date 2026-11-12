@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Deleting a pinned message clears its pin at once (#3685)
+
+- Deleting a pinned message now removes it from the pinned count and the Pinned list straight away, without a reload.
+
 ## 2026-11-12 — Chat: Turning agents on updates the section in place (#3684)
 
 - Turning agents on or off in Chat settings now updates the Agents section in place and shows a saved confirmation, without reloading the page.
