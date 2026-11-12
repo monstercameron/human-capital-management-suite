@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -393,6 +394,9 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 			return
 		}
 		failed[kind] = true
+		// The reader sees only that a source is unavailable; the operator needs the
+		// cause (deadline, database or policy error) to diagnose it. The query is not logged.
+		slog.Warn("hcmnext.chat_search_source_unavailable", "source", string(kind), "cause", err.Error())
 		out.Unavailable = append(out.Unavailable, kind)
 		out.Failures = append(out.Failures, SourceFailure{Kind: kind, Err: err})
 	}

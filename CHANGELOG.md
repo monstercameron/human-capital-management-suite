@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Failed search sources are logged (#3679, partial)
+
+- Chat search now records in the server log why a content source failed, so a "content sources are unavailable" notice can be diagnosed.
+
 ## 2026-11-12 — Chat: Arabic channel placeholder keeps the hash before the name (#3677, partial)
 
 - In Arabic, the message box now shows the channel as "#channel" with the hash before the name, instead of after it.
