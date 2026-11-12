@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Moderation search returns reports that do not contain the search t (#3692)
+
+- Moderation search: typing in the Moderation page's search box now matches only what a card shows, so words that appear only in the folded surrounding conversation no longer keep a card on the page (#3692).
+
 ## 2026-11-12 — Chat: Refine search form does not reflect the active filters and silentl (#3690, partial)
 
 - Chat search: the Refine search fields and checkboxes now mirror the active query, so a box ticked in an earlier search is no longer re-applied.

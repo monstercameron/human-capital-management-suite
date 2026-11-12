@@ -249,6 +249,30 @@ func (b *chatremoveBrowser) reloadPage() {
 	}
 }
 
+// chatmod005ShownText is the text of one row without the conversation folded
+// under it (marked data-chatremove-context). That block stays closed until
+// asked for, so a word found only there is not a match the person can see.
+func chatmod005ShownText(node js.Value) string {
+	var b strings.Builder
+	var walk func(js.Value)
+	walk = func(n js.Value) {
+		switch n.Get("nodeType").Int() {
+		case 3:
+			b.WriteString(n.Get("nodeValue").String())
+		case 1:
+			if n.Call("hasAttribute", "data-chatremove-context").Bool() {
+				return
+			}
+			children := n.Get("childNodes")
+			for i := 0; i < children.Length(); i++ {
+				walk(children.Index(i))
+			}
+		}
+	}
+	walk(node)
+	return b.String()
+}
+
 // filterItems hides the items that do not contain what was typed, as it is
 // typed, from the items already on the page.
 func (b *chatremoveBrowser) filterItems(query string) {
@@ -258,7 +282,7 @@ func (b *chatremoveBrowser) filterItems(query string) {
 	visible := 0
 	for i := 0; i < items.Length(); i++ {
 		item := items.Index(i)
-		hide := needle != "" && !strings.Contains(strings.ToLower(item.Get("textContent").String()), needle)
+		hide := needle != "" && !strings.Contains(strings.ToLower(chatmod005ShownText(item)), needle)
 		item.Set("hidden", hide)
 		if !hide {
 			visible++

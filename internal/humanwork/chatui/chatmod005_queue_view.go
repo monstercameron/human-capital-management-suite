@@ -228,7 +228,9 @@ func moderationQueueItem(m ModerationPageModel, item chat.ModerationItem, now ti
 			}
 			around = append(around, moderationMessage(m, post.ID, post.AuthorID, body, post.CreatedAt, now))
 		}
-		children = append(children, html.Details(html.Props{Class: "chatmod005-context"}, around...))
+		// CHATBUG-3692: the page's type-to-filter skips this folded block, so a word
+		// found only in the surrounding messages does not keep the item on the page.
+		children = append(children, html.Details(html.Props{Class: "chatmod005-context", Data: map[string]string{"chatremove-context": "true"}}, around...))
 	}
 	if actions := moderationItemActions(m, item); actions != nil {
 		children = append(children, actions)
