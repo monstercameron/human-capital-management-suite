@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Loading state no longer draws a second, ungutted heading (#3680, partial)
+
+- On a phone, Chat's loading screen no longer shows a second "Chat" heading flush against the screen edge before the conversation list loads.
+
 ## 2026-11-12 — Chat: Failed search sources are logged (#3679, partial)
 
 - Chat search now records in the server log why a content source failed, so a "content sources are unavailable" notice can be diagnosed.

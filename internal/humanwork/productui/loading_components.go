@@ -78,7 +78,7 @@ func BuildLoading(view View) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}))
+	return appShellWithHeading(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}), !PageOwnsHeading(view.Page))
 }
 
 // BuildContentLoading keeps already-resolved application chrome mounted while
@@ -91,7 +91,7 @@ func BuildContentLoading(view View) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}))
+	return appShellWithHeading(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, Locale: view.Locale}), !PageOwnsHeading(view.Page))
 }
 
 // BuildRefreshing keeps the last authorized page tree visible while a newer
@@ -135,7 +135,7 @@ func BuildFailure(view View, message string) ui.Node {
 	view.Refreshing = false
 	view.RefreshingRegion = ""
 	view.LoadError = ""
-	return appShell(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, State: AsyncRegionFailure, Message: message, Locale: view.Locale}))
+	return appShellWithHeading(view, ui.CreateElement(LoadingProxy, LoadingProxyProps{Page: view.Page, State: AsyncRegionFailure, Message: message, Locale: view.Locale}), !PageOwnsHeading(view.Page))
 }
 
 // LoadingProxy preserves the broad geometry of each page family, avoiding
