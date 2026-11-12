@@ -87,7 +87,7 @@ const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;bo
 	`.chat-workspace .switch{display:inline-block;width:38px;min-width:38px;height:22px;min-height:22px;padding:0;border:1px solid color-mix(in srgb,var(--ink) 30%,transparent);background:color-mix(in srgb,var(--ink) 18%,var(--surface))}.chat-workspace .switch:checked{background:var(--accent);border-color:var(--accent)}` +
 	`.chip-input:focus,.chip-input:focus-visible{outline:2px solid transparent;box-shadow:none}.chip-field{min-height:38px}` +
 	`.chat-dialog-backdrop{align-items:flex-start;padding-top:max(16px,10vh)}` +
-	`.create-name>label::after{content:" *";color:var(--hcm-color-danger)}` +
+	`.create-name:has(input[required])>label::after{content:" *";color:var(--hcm-color-danger)}` +
 	`.thread-composer .send-button{padding:0 10px;min-width:36px}` +
 	`.message-list{padding-top:18px}` +
 	`.search-filter-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}.search-filter-hint{color:var(--muted);font-size:.75rem}` +

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Group message form marks Name as required (\*) although it is optio (#3709)
+
+- Group message form marks Name as required (\*) although it is optio
+
 ## 2026-11-12 — Chat: Leaving a channel inside Browse channels makes it vanish from the (#3708)
 
 - Chat: leaving a channel from Browse channels keeps it listed as a Join row instead of emptying the dialog until reload (#3708).
