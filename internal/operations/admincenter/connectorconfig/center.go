@@ -51,7 +51,7 @@ func BuildStatus(c *connectivity.ConnectorConnection, scope Scope, d *Decision, 
 	if scope.Environment != "" && string(c.Environment()) != scope.Environment {
 		return StatusView{}, errors.New("connectorconfig: environment scope mismatch")
 	}
-	v := StatusView{ConnectionID: c.ID(), TenantID: c.TenantID(), ConnectorID: c.ConnectorID(), ConnectorVersion: c.ConnectorVersion().String(), Environment: string(c.Environment()), State: string(c.State()), StateVersion: c.StateVersion(), EvidenceRefs: cloneEvidence(evidence)}
+	v := StatusView{ConnectionID: c.ID(), TenantID: c.TenantID(), ConnectorID: c.ConnectorID(), ConnectorVersion: c.ConnectorVersion().String(), Environment: string(c.Environment()), State: string(c.State()), StateVersion: c.StateVersion()}
 	if d != nil && !d.SubjectDisclosable {
 		v.Withheld = true
 		v.TenantID = ""
@@ -71,8 +71,8 @@ func BuildStatus(c *connectivity.ConnectorConnection, scope Scope, d *Decision, 
 		v.State = "UNKNOWN"
 		v.StateVersion = 0
 	}
-	if d != nil && !d.allows(FieldEvidence) {
-		v.EvidenceRefs = nil
+	if d == nil || d.allows(FieldEvidence) {
+		v.EvidenceRefs = cloneEvidence(evidence)
 	}
 	return v, nil
 }

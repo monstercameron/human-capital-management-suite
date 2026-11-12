@@ -1,3 +1,7 @@
+## 2026-11-12 — IMPL-GAP-006 (#3442)
+
+- Denied connector status views no longer expose private evidence references, counts or links to users without disclosure rights.
+
 ## 2026-11-12 — IMPL-GAP-004 (#3440)
 
 - Import simulations where one row has conflicts on several properties now verify and show each conflicting field for review instead of failing with a signature error.
