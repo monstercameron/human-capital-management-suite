@@ -18,11 +18,25 @@ var attachmentImageErrorHandler ui.Handler
 
 func initChatPhotoHandlers() {
 	photoErrorHandler = ui.WrapHandler(func(event ui.Event) {
+		rememberChatPhoto(event.JSValue().Get("target"), false)
 		setChatPhotoVisible(event.JSValue().Get("target"), false)
 	})
 	photoLoadHandler = ui.WrapHandler(func(event ui.Event) {
+		rememberChatPhoto(event.JSValue().Get("target"), true)
 		setChatPhotoVisible(event.JSValue().Get("target"), true)
 	})
+}
+
+// rememberChatPhoto records how the portrait in target ended, under the
+// address it was drawn with, so a row drawn again does not ask for a portrait
+// that failed (issue 3827, chatPhotoURL).
+func rememberChatPhoto(target js.Value, loaded bool) {
+	if !target.Truthy() || target.Get("getAttribute").Type() != js.TypeFunction {
+		return
+	}
+	if src := target.Call("getAttribute", "src"); src.Type() == js.TypeString {
+		chatPhotoResolved(src.String(), loaded)
+	}
 }
 
 // initChatAttachmentImageErrorHandler marks the enclosing attachment tile

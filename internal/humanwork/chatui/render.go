@@ -216,6 +216,10 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if body == "" || m.SelectedID == "" {
 			return
 		}
+		if notice := chat3715LengthNotice(m.Locale, body); notice != "" {
+			local.update(func(u *localUI) { u.composerNotice = notice })
+			return
+		}
 		if len(refs) == 0 {
 			if ref, ok := selectedAgentReference(m); ok {
 				refs = append(refs, ref)
@@ -989,6 +993,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				name = createGroupName("", st.picked)
 			}
 			if name == "" {
+				if channelNamed(kind) {
+					local.update(func(u *localUI) { u.nameMissing = true })
+				}
 				return
 			}
 			name, ok := createNameForSubmit(local, kind, name)
@@ -2135,7 +2142,7 @@ func railRow(m Model, c Conversation) ui.Node {
 	if c.ID == m.SelectedID {
 		class += " selected"
 	}
-	if c.Unread > 0 || c.Mentions > 0 {
+	if (c.Unread > 0 && !c.Muted) || c.Mentions > 0 {
 		class += " unread"
 	}
 	if c.Muted {
@@ -2171,7 +2178,7 @@ func railRow(m Model, c Conversation) ui.Node {
 	}
 	if c.Mentions > 0 {
 		children = append(children, html.Span(html.Props{Class: "chat-badge mention", Text: m.n(c.Mentions), Aria: map[string]string{"label": m.tf(KeyMentionCount, map[string]string{"n": m.n(c.Mentions)})}}))
-	} else if c.Unread > 0 {
+	} else if c.Unread > 0 && !c.Muted {
 		children = append(children, html.Span(html.Props{Class: "chat-badge", Text: m.n(c.Unread), Aria: map[string]string{"label": m.tf(KeyUnreadCount, map[string]string{"n": m.n(c.Unread)})}}))
 	}
 	rowAria := map[string]string{"current": boolString(c.ID == m.SelectedID)}
@@ -2238,7 +2245,7 @@ func agentAvatar(name, class, imageURL string, identity ...agenticon.Value) ui.N
 		return agentDMAvatar(name, class, identity...)
 	}
 	children := []ui.Node{agenticon.Node(value)}
-	if url := strings.TrimSpace(imageURL); url != "" {
+	if url := chatPhotoURL(imageURL); url != "" {
 		children = append(children, html.Img(html.Props{Class: "chat-avatar-photo", Src: url, Loading: "lazy", Width: "64", Height: "64", OnError: chatPhotoErrorHandler(), OnLoad: chatPhotoLoadHandler(), Raw: map[string]any{"alt": "", "decoding": "async"}}))
 	}
 	return html.Span(html.Props{Class: class, Aria: map[string]string{"hidden": "true"}}, children...)
@@ -2252,7 +2259,7 @@ func personAvatar(m Model, id, name, class string) ui.Node {
 
 func personAvatarWithPhoto(name, class, photoURL string) ui.Node {
 	children := []ui.Node{ui.Text(initials(name))}
-	if url := strings.TrimSpace(photoURL); url != "" {
+	if url := chatPhotoURL(photoURL); url != "" {
 		children = append(children, html.Img(html.Props{Class: "chat-avatar-photo", Src: url, Loading: "lazy", Width: "64", Height: "64", OnError: chatPhotoErrorHandler(), OnLoad: chatPhotoLoadHandler(), Raw: map[string]any{"alt": "", "decoding": "async"}}))
 	}
 	return html.Span(html.Props{Class: class, Aria: map[string]string{"hidden": "true"}}, children...)
@@ -2367,7 +2374,7 @@ func timeline(m Model, h handlers) ui.Node {
 		// clips when it runs out of room.
 		topicParts = append(topicParts, chatux001PurposeLine(purpose)...)
 	}
-	hasSelection := m.SelectedID != ""
+	hasSelection := m.SelectedID != "" && !refusedRoom(m)
 	titleBlock := html.Div(html.Props{Class: "conversation-title"},
 		kindGlyph(m, c, m.t(kindKey(c.Kind))),
 		html.Div(html.Props{Class: "conversation-heading"},
@@ -2679,6 +2686,9 @@ func timelineBody(m Model, h handlers) []ui.Node {
 		// CHATUX-009: a skeleton of message rows; one line after five seconds.
 		return chatux009LoadingBody(m)
 	case StateError:
+		if refusedRoom(m) {
+			return []ui.Node{html.Div(html.Props{Class: "state-panel", Role: "alert"}, html.H2(html.Props{Text: m.t(KeyErrorTitle)}), html.P(html.Props{Text: m.Error}))}
+		}
 		return []ui.Node{html.Div(html.Props{Class: "state-panel", Role: "alert"}, html.H2(html.Props{Text: m.t(KeyErrorTitle)}), html.P(html.Props{Text: m.Error}), retryButton(m))}
 	case StateEmpty:
 		if c := m.selected(); c.Agent {
@@ -3331,7 +3341,7 @@ func personPane(m Model) ui.Node {
 		name = m.t(KeyNotAvailable)
 	}
 	avatar := personAvatar(m, p.ID, name, "large-avatar")
-	if p.PhotoURL != "" {
+	if chatPhotoURL(p.PhotoURL) != "" {
 		avatar = html.Div(html.Props{Class: "large-avatar"}, html.Img(html.Props{Class: "chat-avatar-photo", Src: p.PhotoURL, Loading: "lazy", Width: "96", Height: "96", OnError: chatPhotoErrorHandler(), OnLoad: chatPhotoLoadHandler(), Raw: map[string]any{"alt": "", "decoding": "async"}}))
 	}
 	fields := personFieldRows(

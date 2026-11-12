@@ -25,8 +25,8 @@ func createNameInput(m Model, local localStore, typed string) {
 	if name != typed {
 		setDOMValue("new-chat-name", name)
 	}
-	if st := local.get(); st.nameRefused != refused || st.nameTyped != name {
-		local.update(func(u *localUI) { u.nameRefused, u.nameTyped = refused, name })
+	if st := local.get(); st.nameRefused != refused || st.nameTyped != name || st.nameMissing {
+		local.update(func(u *localUI) { u.nameRefused, u.nameMissing, u.nameTyped = refused, false, name })
 	}
 }
 

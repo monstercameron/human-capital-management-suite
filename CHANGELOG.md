@@ -1,3 +1,15 @@
+## 2026-11-12 — Chat: scroll flicker and the blocked loop 3 fixes (#3827, #3694, #3698, #3701, #3702, #3711, #3713, #3714, #3715, #3734)
+
+- Scrolling a conversation no longer re-renders the composer, keeps about a screen and a half of messages mounted and re-draws the list only when that window changes, and remembers a portrait that failed to load instead of requesting it again for every row (#3827, partial: text direction is still applied after the translation answer arrives). Message hover actions appear about 200 ms after scrolling stops.
+- Moderation's "conversation around it" names the authors instead of "Someone" (#3694).
+- An address for a channel that does not exist or that you may not open shows the no-access message with no Try again button and no invented channel header (#3698, #3713).
+- Quiet hours with the same From and Until read "Paused all day", and clearing a time keeps the saved time instead of saving 12:00 AM (#3701, #3702).
+- The people picker says when someone is already added or already a member instead of "No one matches" (#3711).
+- Creating a channel with no name says "Name is required." under the box (#3714, partial: the section form is unchanged).
+- A message over 4,000 characters keeps the draft and shows a notice in the composer (#3715, partial: the wiring has no test of its own).
+- A muted conversation with unread posts is no longer bold and shows no count unless it has a mention (#3734).
+- Four shell and stylesheet goldens are re-pinned for the loop 3 changes, with the cause noted beside each pin.
+
 ## 2026-11-12 — Chat: Conversation details has no Agents section for seeing or adding th (#3759, partial)
 
 - Chat: conversation details offers an add-agent link to owners and administrators when a conversation has no agent yet (#3759, partial; @-menu part needs a decision).

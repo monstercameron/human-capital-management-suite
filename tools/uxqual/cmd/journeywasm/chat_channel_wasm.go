@@ -10,7 +10,6 @@ import (
 
 	chatv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/productui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
 )
 
@@ -181,7 +180,7 @@ func showUnavailableChatChannelFragment(cfg journeyclient.Config, id string) {
 	_, generation := chatBrowser.selectChatConversation(id)
 	chatBrowser.commit(generation, func(model *chatui.Model) {
 		model.State = chatui.StateError
-		model.Error = productui.ResolveProductLocale(cfg.Locale).Text(chatui.KeySearchChannelUnavailable)
+		model.Error = chatui.ChannelNoAccessText(cfg.Locale)
 	})
 	queued := chatBrowser.finishChatOpen(id, generation)
 	if len(queued) > 0 {

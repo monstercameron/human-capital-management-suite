@@ -492,6 +492,12 @@ func setComposerSendReady(id, value string) {
 	button := form.Call("querySelector", ".send-button")
 	if button.Truthy() {
 		ready := chatPolishSendReady(form.Call("getAttribute", "data-send-capable").String() == "true", value)
+		// Issue 3827: this runs in the sweep after every change to the page, a
+		// scrolled timeline's among them; an attribute that is right is left alone.
+		aria := button.Call("getAttribute", "aria-disabled")
+		if aria.Type() == js.TypeString && !chatSendButtonStale(button.Get("disabled").Truthy(), aria.String(), ready) {
+			return
+		}
 		button.Set("disabled", !ready)
 		button.Call("setAttribute", "aria-disabled", boolString(!ready))
 	}

@@ -15,7 +15,7 @@ import (
 // dozen on screen (CHATBUG-014: the largest part of drawing the first page of
 // the review channel, where a row costs 3 to 10 ms to build). 24 rows is about
 // two screens, close to what the window draws anyway (the rows in view and
-// eight either side); below that there is nothing to save.
+// the overscan either side); below that there is nothing to save.
 const virtualTimelineThreshold = 24
 
 // virtualWholeLimit is the longest timeline that is still drawn whole when
@@ -25,7 +25,14 @@ const virtualTimelineThreshold = 24
 // this length goes back to being drawn whole for them (virtualDrawnWhole).
 const virtualWholeLimit = 160
 const virtualTimelineMaxRows = 96
-const virtualTimelineOverscan = 8
+
+// The window is sized in viewports, not rows (issue 3827). A window drawn
+// afresh reaches virtualOverscanFill viewports above and below the rows in
+// view, and it is kept as it is while at least virtualOverscanKeep viewports
+// are still drawn on both sides. Scrolling inside that margin therefore draws
+// nothing, and the rows a new window adds or drops are a viewport out of sight.
+const virtualOverscanFill = 1.5
+const virtualOverscanKeep = 1.0
 const virtualNearBottom = 120
 
 type virtualTimelineProps struct {
@@ -43,7 +50,46 @@ type virtualCache struct {
 	heights         map[string]float64
 	prelude, footer float64
 	lastIDs         string
+	// windowFirst and windowLast are the first and last rows of the window on
+	// the page (remember), which virtualWindow keeps while it still covers the
+	// viewport and its margin.
+	windowFirst, windowLast string
 }
+
+// remember records the window that is being drawn.
+func (c *virtualCache) remember(messages []Message, layout virtualLayout) {
+	c.windowFirst, c.windowLast = "", ""
+	if layout.active && layout.start < layout.end && layout.end <= len(messages) {
+		c.windowFirst, c.windowLast = messages[layout.start].ID, messages[layout.end-1].ID
+	}
+}
+
+// virtualKeptWindow is the window on the page, when it still has
+// virtualOverscanKeep viewports of rows (or the end of the timeline) on both
+// sides of a viewport whose top is rel pixels into the rows.
+func virtualKeptWindow(messages []Message, prefix []float64, cache *virtualCache, rel, viewport float64) (int, int, bool) {
+	if cache.windowFirst == "" || cache.windowLast == "" {
+		return 0, 0, false
+	}
+	start, end := -1, -1
+	for i, msg := range messages {
+		if msg.ID == cache.windowFirst {
+			start = i
+		}
+		if msg.ID == cache.windowLast {
+			end = i + 1
+		}
+	}
+	if start < 0 || end <= start || end-start > virtualTimelineMaxRows {
+		return 0, 0, false
+	}
+	keep := virtualOverscanKeep * viewport
+	if prefix[start] > math.Max(0, rel-keep) || prefix[end] < math.Min(prefix[len(messages)], rel+viewport+keep) {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
 type virtualFocus struct {
 	rowID, elementID string
 	start, end       int
@@ -161,16 +207,22 @@ func virtualWindow(m Model, messages []Message, cache *virtualCache, pos virtual
 		}
 	}
 	top = math.Max(0, math.Min(top, math.Max(0, total-viewport)))
-	first := virtualIndex(prefix, math.Max(0, top-base))
-	last := virtualIndex(prefix, math.Max(0, top-base)+viewport) + 1
-	start := max(0, first-virtualTimelineOverscan)
-	end := min(n, max(last+virtualTimelineOverscan, start+1))
-	if end-start > virtualTimelineMaxRows {
-		end = start + virtualTimelineMaxRows
+	rel := math.Max(0, top-base)
+	start, end, kept := virtualKeptWindow(messages, prefix, cache, rel, viewport)
+	if !kept {
+		fill := virtualOverscanFill * viewport
+		first := virtualIndex(prefix, rel)
+		last := min(n, virtualIndex(prefix, rel+viewport)+1)
+		start = min(virtualIndex(prefix, math.Max(0, rel-fill)), max(0, n-1))
+		end = min(n, max(virtualIndex(prefix, rel+viewport+fill)+1, start+1))
+		if end-start > virtualTimelineMaxRows {
+			// Short rows: share what the limit leaves between the two sides.
+			start = max(start, first-max(0, virtualTimelineMaxRows-(last-first))/2)
+			end = min(end, start+virtualTimelineMaxRows)
+		}
 	}
 	if pos.room != m.SelectedID || pos.bottom {
 		end = n
-		start = max(0, min(first-virtualTimelineOverscan, n-1))
 		if end-start > virtualTimelineMaxRows {
 			start = end - virtualTimelineMaxRows
 		}
@@ -206,8 +258,24 @@ func virtualAnchor(m Model, messages []Message, cache *virtualCache, top, height
 	return virtualPosition{room: m.SelectedID, anchor: anchor, offset: offset, top: top, height: height, bottom: total-top-height < virtualNearBottom}
 }
 
-func virtualPositionNeedsRender(old, next virtualPosition) bool {
-	return old.room != next.room || old.anchor != next.anchor || old.bottom != next.bottom || math.Abs(old.height-next.height) > 2
+// virtualScrollNeedsRender reports whether a scroll from old to next has to
+// draw the list again: drawn is the window on the page and wanted the one the
+// new position asks for. A scroll that stays inside the window draws nothing
+// (issue 3827); it used to draw at every message boundary.
+func virtualScrollNeedsRender(old, next virtualPosition, drawn, wanted virtualLayout) bool {
+	return old.room != next.room || old.bottom != next.bottom || math.Abs(old.height-next.height) > 2 || drawn.start != wanted.start || drawn.end != wanted.end
+}
+
+// virtualResized is the position after the list reports a new height. reported
+// is the position of the render that started the observer, and only its height
+// is news: the scroll handler has kept current up to date since, without a
+// render, so the reader's place comes from current.
+func virtualResized(current, reported virtualPosition) virtualPosition {
+	if current.room == "" || current.room != reported.room {
+		return reported
+	}
+	current.height = reported.height
+	return current
 }
 
 func virtualTimelineList(props virtualTimelineProps) ui.Node {
@@ -238,9 +306,11 @@ func virtualTimelineList(props virtualTimelineProps) ui.Node {
 		effectivePos.bottom = false
 	}
 	layout := virtualWindow(m, messages, cache, effectivePos)
+	cache.remember(messages, layout)
 	focus := captureVirtualFocus()
 	ui.UseLayoutEffect(func() func() {
 		return syncVirtualTimeline(m, messages, layout, cache, effectivePos, focus, func(next virtualPosition) {
+			next = virtualResized(positionRef.Get(), next)
 			positionRef.Set(next)
 			pos.Set(next)
 		}, func() { pos.Update(func(p virtualPosition) virtualPosition { p.revision++; return p }) })
@@ -257,7 +327,7 @@ func virtualTimelineList(props virtualTimelineProps) ui.Node {
 		old := positionRef.Get()
 		next.revision = old.revision
 		positionRef.Set(next)
-		if virtualPositionNeedsRender(old, next) {
+		if virtualScrollNeedsRender(old, next, layout, virtualWindow(m, messages, cache, next)) {
 			pos.Set(next)
 		}
 	})

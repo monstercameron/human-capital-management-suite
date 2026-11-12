@@ -126,7 +126,10 @@ func renderNotificationSubtree(t *testing.T, view View) string {
 // "promotion journey is visible in this scope." back reproduces the old pin.
 // NAAS-001 adds the localized empty inbox state before Open My Work.
 // UXBLIND lane II re-pinned it for the top-bar notification popover rework.
-const web042GoldenDigest = "73c328ddab7245945e299cbe75693d4baa1d3c3226a8c092b961fa87948456f1"
+// Re-pinned 2026-11-12 after the Chat loop 3 fixes: the header bell gained an
+// accessible label tied to its unread state (#3737), and the served Chat
+// stylesheet gained the loop 3 rules (#3703, #3704, #3712, #3714, #3734, #3827).
+const web042GoldenDigest = "548e4d84d6020863c3b15639eb13777cb913345a1315a14e1bfe7e963bd2d470"
 
 func TestTodo_WEB_042_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(renderNotificationSubtree(t, testView(PageWork))))

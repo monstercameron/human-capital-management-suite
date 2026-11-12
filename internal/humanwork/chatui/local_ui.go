@@ -23,6 +23,7 @@ type localUI struct {
 	picked               []mentionCandidate
 	pickActive           int
 	nameRefused          bool
+	nameMissing          bool
 	nameTyped            string
 	purposeEditing       bool
 	purposeDraft         string
@@ -122,7 +123,7 @@ func (s localStore) resetCreate() {
 	s.box.pickQuery = ""
 	s.box.picked = nil
 	s.box.pickActive = 0
-	s.box.nameRefused, s.box.nameTyped = false, ""
+	s.box.nameRefused, s.box.nameMissing, s.box.nameTyped = false, false, ""
 }
 
 // pickCandidates lists people the viewer can add to a new conversation: the

@@ -21,3 +21,33 @@ func ClearRefusedChannel(m *Model) bool {
 	m.Messages, m.HasOlder = nil, false
 	return true
 }
+
+// ISSUE-3698: a link to a channel the reader may not open names that refusal
+// in plain words. It is not a deletion, so it offers no retry and no channel
+// header or actions.
+const keyChannelNoAccess = "chat.refused_channel.no_access"
+
+var refusedChannelCopy = map[string]map[string]string{
+	"en-US": {keyChannelNoAccess: "You do not have access to this channel."},
+	"de-DE": {keyChannelNoAccess: "Du hast keinen Zugriff auf diesen Kanal."},
+	"ar":    {keyChannelNoAccess: "ليست لديك صلاحية الوصول إلى هذه القناة."},
+}
+
+// ChannelNoAccessText is the line a refused channel address shows.
+func ChannelNoAccessText(locale string) string {
+	return laneText(Model{Locale: locale}, refusedChannelCopy, keyChannelNoAccess)
+}
+
+// refusedRoom reports a selected room the page cannot list, preview or open:
+// the state ClearRefusedChannel also treats as a refusal.
+func refusedRoom(m Model) bool {
+	if m.State != StateError || m.SelectedID == "" || m.PreviewConversation != nil {
+		return false
+	}
+	for _, room := range m.Conversations {
+		if room.ID == m.SelectedID {
+			return false
+		}
+	}
+	return true
+}

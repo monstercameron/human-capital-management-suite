@@ -80,17 +80,23 @@ func TestChatVirtualScrollOnlyRendersWhenWindowCanChange(t *testing.T) {
 	withinRow := old
 	withinRow.offset = 38
 	withinRow.top = 1226
-	if virtualPositionNeedsRender(old, withinRow) {
+	drawn := virtualLayout{start: 2, end: 30, active: true}
+	if virtualScrollNeedsRender(old, withinRow, drawn, drawn) {
 		t.Fatal("pixel movement inside the same anchor scheduled a list render")
 	}
+	// Issue 3827: the first row in view changing is not a reason to draw; the
+	// window changing is.
 	newAnchor := withinRow
 	newAnchor.anchor = "post-11"
-	if !virtualPositionNeedsRender(withinRow, newAnchor) {
-		t.Fatal("crossing a message boundary did not schedule the new virtual window")
+	if virtualScrollNeedsRender(withinRow, newAnchor, drawn, drawn) {
+		t.Fatal("crossing a message boundary inside the drawn window scheduled a list render")
+	}
+	if !virtualScrollNeedsRender(withinRow, newAnchor, drawn, virtualLayout{start: 9, end: 37, active: true}) {
+		t.Fatal("a new virtual window was not scheduled")
 	}
 	resized := withinRow
 	resized.height = 800
-	if !virtualPositionNeedsRender(withinRow, resized) {
+	if !virtualScrollNeedsRender(withinRow, resized, drawn, drawn) {
 		t.Fatal("viewport resize did not schedule the recalculated window")
 	}
 }

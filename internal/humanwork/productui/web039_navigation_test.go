@@ -116,7 +116,10 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// trigger is a neutral skeleton span (class "avatar viewer avatar-loading")
 	// instead of the initials of the "Not reported" placeholder, and the Chat
 	// settings page subtitle now names retention and agents.
-	const want = "b4afc4df19a0fde1cf12d186ae5e18f92e39f13bf31f37d07954c66da950c32a"
+	// Re-pinned 2026-11-12 after the Chat loop 3 fixes: the header bell gained an
+	// accessible label tied to its unread state (#3737), and the served Chat
+	// stylesheet gained the loop 3 rules (#3703, #3704, #3712, #3714, #3734, #3827).
+	const want = "eff8260e3753aed723a8f30f8a9120dcf563d2b5a505b29463adf6cade85b584"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

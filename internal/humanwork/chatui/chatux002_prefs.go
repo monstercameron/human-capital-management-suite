@@ -36,6 +36,9 @@ func chatux002QuietValue(m Model) string {
 	if !m.Preferences.QuietHours {
 		return m.t(KeyOff)
 	}
+	if quietAllDay(m.Preferences) {
+		return quiet3701Text(m, keyQuiet3701Value)
+	}
 	return quietClock(m, m.Preferences.QuietStartMinute) + "–" + quietClock(m, m.Preferences.QuietEndMinute)
 }
 
@@ -71,6 +74,9 @@ func chatux002QuietMoon(m Model) ui.Node {
 		return nil
 	}
 	tip := chatux002Textf(m, keyChatux002QuietOnTip, map[string]string{"from": quietClock(m, m.Preferences.QuietStartMinute), "until": quietClock(m, m.Preferences.QuietEndMinute)})
+	if quietAllDay(m.Preferences) {
+		tip = quiet3701Text(m, keyQuiet3701Tip)
+	}
 	return html.Span(html.Props{Class: "rail-quiet-moon", Title: tip, Role: "img", Aria: map[string]string{"label": tip}, Data: map[string]string{"quiet-hours-on": "true"}}, icon("moon"))
 }
 

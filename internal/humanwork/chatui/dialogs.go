@@ -107,6 +107,10 @@ func createDialog(m Model, h handlers) ui.Node {
 			if note := createNameNote(m, local, kind); note != "" {
 				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint field-error", Role: "alert", Text: note})
 				describedBy["invalid"] = "true"
+			} else if note := chatbug3714NameNote(m, local, kind); note != "" {
+				// ISSUE-3714: an empty submit says why under the box.
+				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint field-error", Role: "alert", Text: note})
+				describedBy["invalid"] = "true"
 			}
 		} else {
 			// CHATBUG-099: a group name is optional and never channel-shaped.
@@ -137,7 +141,7 @@ func createDialog(m Model, h handlers) ui.Node {
 		html.Button(html.Props{Class: "button", Type: "submit", Disabled: disabled, Text: submit})))
 	return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
 		html.Dialog(html.Props{Class: "chat-dialog create-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.t(KeyCreateTitle), "modal": "true"}},
-			html.Form(html.Props{Class: "dialog-form", OnSubmit: h.createSubmit}, fields...)))
+			html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.createSubmit}, fields...)))
 }
 
 // memberPicker adds people as removable chips from a name search. The chips

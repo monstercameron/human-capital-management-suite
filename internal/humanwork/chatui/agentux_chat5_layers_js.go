@@ -373,6 +373,40 @@ func bindChatActiveRows(local localStore) func() {
 		}
 		return ""
 	}
+	// Issue 3827: a timeline scrolling under a resting mouse reports a new row
+	// under the pointer at every row. The hovered row is the workspace's state,
+	// so each report drew the composer and the sidebar again. While the scroll
+	// lasts the reports wait (chatPointerGate), and the row then under the
+	// pointer is named once.
+	var gate chatPointerGate
+	pointerShows := false
+	clock := func() float64 {
+		if performance := js.Global().Get("performance"); performance.Truthy() && performance.Get("now").Type() == js.TypeFunction {
+			return performance.Call("now").Float()
+		}
+		return js.Global().Get("Date").Call("now").Float()
+	}
+	settleTimer := js.Undefined()
+	var nameHovered js.Func
+	nameHovered = js.FuncOf(func(js.Value, []js.Value) any {
+		settleTimer = js.Undefined()
+		if left := gate.wait(clock()); left > 0 {
+			settleTimer = js.Global().Call("setTimeout", nameHovered, left)
+			return nil
+		}
+		id := ""
+		if pointerShows {
+			if row := root.Call("querySelector", ".message[data-message-id]:hover,.thread-message[data-message-id]:hover"); row.Truthy() {
+				id = row.Get("dataset").Get("messageId").String()
+			}
+		}
+		if local.get().pointerRow != id {
+			local.update(func(u *localUI) { u.pointerRow = id })
+		}
+		return nil
+	})
+	scrolled := js.FuncOf(func(js.Value, []js.Value) any { gate.scroll(clock()); return nil })
+	root.Call("addEventListener", "scroll", scrolled, true)
 	listeners := map[string]js.Func{}
 	for _, name := range []string{"pointerover", "pointerout", "focusin", "focusout"} {
 		name := name
@@ -394,8 +428,15 @@ func bindChatActiveRows(local localStore) func() {
 			}
 			state := local.get()
 			if strings.HasPrefix(name, "pointer") {
-				if !chatRowPointerActivates(event.Get("pointerType").String(), compact) {
+				pointerShows = chatRowPointerActivates(event.Get("pointerType").String(), compact)
+				if !pointerShows {
 					id = ""
+				}
+				if left := gate.wait(clock()); left > 0 {
+					if settleTimer.IsUndefined() {
+						settleTimer = js.Global().Call("setTimeout", nameHovered, left)
+					}
+					return nil
 				}
 				if state.pointerRow != id {
 					local.update(func(u *localUI) { u.pointerRow = id })
@@ -530,6 +571,12 @@ func bindChatActiveRows(local localStore) func() {
 			root.Call("removeEventListener", name, listener)
 			listener.Release()
 		}
+		root.Call("removeEventListener", "scroll", scrolled, true)
+		scrolled.Release()
+		if !settleTimer.IsUndefined() {
+			js.Global().Call("clearTimeout", settleTimer)
+		}
+		nameHovered.Release()
 		root.Call("removeEventListener", "input", search)
 		search.Release()
 		root.Call("removeEventListener", "click", capture, true)
