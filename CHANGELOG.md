@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Saving an empty edit does nothing with no feedback (#3717)
+
+- Chat: a message edit cleared to blank now says it cannot be empty under the edit box, as the user types, instead of doing nothing on Enter or Save (CHAT-3717).
+
 ## 2026-11-12 — Chat: Growing composer covers the newest messages and the list does not (#3716)
 
 - Chat: the message list stays on its newest message while the composer grows as you type, so the last message is no longer hidden under the composer (#3716).

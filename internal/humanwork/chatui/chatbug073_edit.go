@@ -1,6 +1,8 @@
 package chatui
 
 import (
+	"strings"
+
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -20,26 +22,31 @@ const ChatBug073Styles = `
 .chat-workspace .edit-input{display:block;box-sizing:border-box;resize:none;overflow-y:auto;field-sizing:content;min-block-size:calc(1.45em + 18px);max-block-size:50vh;max-block-size:50dvh}
 .chat-workspace .message-edit .edit-hint{font-size:.75rem;color:var(--hcm-color-text-muted);margin-inline-start:auto;align-self:center}
 .chat-workspace .message-edit .edit-actions{flex-wrap:wrap;align-items:center}
+.chat-workspace .message-edit .edit-hint.is-empty{color:var(--hcm-color-danger,#b42318);font-weight:600}
 .chat-workspace .message-edited{display:block;font-size:.75rem;font-weight:500;line-height:1.3;color:var(--hcm-color-text-muted)}
 `
 
 const (
 	keyChatbug073Hint   = "chat.bug073.edit_hint"
 	keyChatbug073Edited = "chat.bug073.edited"
+	keyChatbug073Empty  = "chat.bug073.edit_empty"
 )
 
 var chatbug073Copy = map[string]map[string]string{
 	"en-US": {
 		keyChatbug073Hint:   "Enter to save, Shift+Enter for a new line, Esc to cancel",
 		keyChatbug073Edited: "(edited)",
+		keyChatbug073Empty:  "A message cannot be empty. Write something, or cancel the edit.",
 	},
 	"de-DE": {
 		keyChatbug073Hint:   "Enter speichert, Umschalt+Enter fügt eine Zeile ein, Esc bricht ab",
 		keyChatbug073Edited: "(bearbeitet)",
+		keyChatbug073Empty:  "Eine Nachricht darf nicht leer sein. Schreiben Sie etwas oder brechen Sie die Bearbeitung ab.",
 	},
 	"ar": {
 		keyChatbug073Hint:   "Enter للحفظ، Shift+Enter لسطر جديد، Esc للإلغاء",
 		keyChatbug073Edited: "(معدّلة)",
+		keyChatbug073Empty:  "لا يمكن أن تكون الرسالة فارغة. اكتب شيئاً أو ألغِ التعديل.",
 	},
 }
 
@@ -52,9 +59,18 @@ func chatbug073Text(m Model, key string) string {
 func chatbug073HintID(postID string) string { return "edit-hint-" + postID }
 
 // chatbug073EditHint is the key hint under the edit box, in the composer hint's
-// type.
+// type. It also carries the line that says a blank edit cannot be saved
+// (CHAT-3717): edit_focus_js.go swaps the two texts as the box is emptied and
+// filled, so the blank case is said as the person types, not only after Enter.
 func chatbug073EditHint(m Model, postID string) ui.Node {
-	return html.Span(html.Props{ID: chatbug073HintID(postID), Class: "edit-hint kbd-hint", Text: chatbug073Text(m, keyChatbug073Hint)})
+	return html.Span(html.Props{ID: chatbug073HintID(postID), Class: "edit-hint kbd-hint", Text: chatbug073Text(m, keyChatbug073Hint),
+		Data: map[string]string{"edit-hint": chatbug073Text(m, keyChatbug073Hint), "edit-empty": chatbug073Text(m, keyChatbug073Empty)}})
+}
+
+// chatbug073EditBlank reports whether an edit box holds nothing to save. Spaces
+// and line breaks alone count as nothing, as they do when the edit is saved.
+func chatbug073EditBlank(value string) bool {
+	return strings.TrimSpace(value) == ""
 }
 
 // chatbug073EditAria adds the key hint to whatever already describes the edit

@@ -96,9 +96,32 @@ func editBoxSizesItself() bool {
 	return css.Truthy() && css.Get("supports").Type() == js.TypeFunction && css.Call("supports", "field-sizing", "content").Truthy()
 }
 
+// chatbug073SyncEditHint says, under the edit box, that a blank edit cannot be
+// saved (CHAT-3717). It runs on every key that changes the box, so the line is
+// there before Enter or Save is pressed, and the normal key hint returns when
+// the box holds words again.
+func chatbug073SyncEditHint(id string) {
+	hint := js.Global().Get("document").Call("getElementById", chatbug073HintID(id))
+	if !hint.Truthy() {
+		return
+	}
+	dataset := hint.Get("dataset")
+	if chatbug073EditBlank(domValue("edit-" + id)) {
+		hint.Set("textContent", dataset.Get("editEmpty").String())
+		hint.Call("setAttribute", "role", "alert")
+		hint.Get("classList").Call("add", "is-empty")
+		return
+	}
+	hint.Set("textContent", dataset.Get("editHint").String())
+	hint.Call("removeAttribute", "role")
+	hint.Get("classList").Call("remove", "is-empty")
+}
+
 // syncEditBoxHeight makes the edit box as tall as its text, up to half the
-// window, in a browser that does not size the box itself.
+// window, in a browser that does not size the box itself. It also keeps the
+// blank-edit line under the box in step with its text (CHAT-3717).
 func syncEditBoxHeight(id string) {
+	chatbug073SyncEditHint(id)
 	box := editBox(id)
 	if !box.Truthy() || editBoxSizesItself() {
 		return
