@@ -107,6 +107,22 @@ func (s *Adapter) createConversation(ctx context.Context, c chat.Conversation, m
 			return chat.Conversation{}, err
 		}
 	}
+	// ISSUE-3706: a public channel takes a name no other live public channel in
+	// the tenant holds, whatever its letter case. The advisory lock serialises
+	// two creates of one name; a replay of the same key returned above. Private
+	// rooms are not compared, so a refusal never reveals a room the caller may not know.
+	if c.Kind == chat.PublicChannel {
+		if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, fingerprint("chat-public-name\x00"+c.TenantID+"\x00"+strings.ToLower(c.Name))); err != nil {
+			return chat.Conversation{}, err
+		}
+		var taken bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM chat_conversation WHERE tenant_id=$1 AND kind='PUBLIC_CHANNEL' AND lifecycle<>'ARCHIVED' AND lower(name)=lower($2))`, c.TenantID, c.Name).Scan(&taken); err != nil {
+			return chat.Conversation{}, err
+		}
+		if taken {
+			return chat.Conversation{}, chat.ErrChannelNameTaken
+		}
+	}
 	// Create is the one write that cannot take the route fence, because the row
 	// it would lock does not exist yet. The lease instead records the placement
 	// that every later write to this conversation must match. A conversation

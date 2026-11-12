@@ -75,6 +75,7 @@ const (
 	ruleTrustedRequestBoundary    = chatshared.RuleTrustedRequestBoundary
 	ruleBodyBound                 = "chat.post_body_bound"
 	ruleChannelName               = "chat.channel_name_rule"
+	ruleChannelNameTaken          = "chat.channel_name_taken_rule"
 	ruleCursorConflict            = "chat.cursor_conflict"
 	// reasonStreamSend names a watch that ended because the caller's own
 	// connection could not be written to.
@@ -222,6 +223,12 @@ func callErr(err error) error {
 	}
 	// CHATBUG-072: a refused channel name is the author's to fix, reported
 	// against the name field so the form can say why under the box.
+	// ISSUE-3706: a public channel name another live channel holds is refused
+	// against the name field, so the create dialog stays open and says so.
+	if errors.Is(err, chatcore.ErrChannelNameTaken) {
+		return envelope.New(envelope.CodeInvalidArgument, chatcore.ReasonChannelNameTaken, "a public channel with this name already exists").
+			WithViolation("name", "a public channel with this name already exists", ruleChannelNameTaken)
+	}
 	if errors.Is(err, chatcore.ErrChannelName) {
 		return envelope.New(envelope.CodeInvalidArgument, chatcore.ReasonChannelName, "the channel name does not follow the naming rule").
 			WithViolation("name", "use lowercase letters, numbers, dashes and underscores, up to "+strconv.Itoa(chatcore.MaxChannelNameRunes)+" characters", ruleChannelName)

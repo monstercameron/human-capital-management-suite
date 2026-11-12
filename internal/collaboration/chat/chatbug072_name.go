@@ -15,6 +15,12 @@ const MaxChannelNameRunes = 80
 // request.
 var ErrChannelName = fmt.Errorf("%w: channel name", ErrInvalidArgument)
 
+// ErrChannelNameTaken is returned when a new public channel's name is already
+// the name of another live public channel in the tenant (ISSUE-3706). It is a
+// conflict the create dialog answers under the name box, so the person can
+// pick another name instead of getting a second channel with the same name.
+var ErrChannelNameTaken = fmt.Errorf("%w: channel name taken", ErrConflict)
+
 // NormalizeChannelName applies the naming rule to what a person typed: letters
 // become lowercase, spaces become dashes, and letters, digits, dashes and
 // underscores are kept. Everything else is dropped and the second result says
@@ -66,3 +72,7 @@ func ValidChannelName(name string) bool {
 // ErrChannelName, and the one a client matches to show the rule under the name
 // field.
 const ReasonChannelName = "chat.channel_name_invalid"
+
+// ReasonChannelNameTaken is the reason reference a transport reports for
+// ErrChannelNameTaken (ISSUE-3706).
+const ReasonChannelNameTaken = "chat.channel_name_taken"

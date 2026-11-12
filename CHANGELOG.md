@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Creating a channel with an existing name makes a duplicate instead (#3706)
+
+- Chat: creating a public channel with a name already held by a live public channel is refused with a name-taken note under the name box, instead of creating a duplicate (#3706).
+
 ## 2026-11-12 — Chat: Empty Channels section shows no hint for a person who is in no cha (#3705)
 
 - Chat: the Channels section shows a hint and a Browse channels button when you are in no channel (#3705)

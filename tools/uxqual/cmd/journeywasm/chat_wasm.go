@@ -1145,6 +1145,11 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 						refreshChatRoute()
 						return
 					}
+					if channelNameTakenRefused(err) {
+						chatBrowser.mutate(func(model *chatui.Model) { model.NewNameTaken = strings.TrimSpace(name) })
+						refreshChatRoute()
+						return
+					}
 					chatmod002Failed("create this conversation", err, "", "", chatui.ModAuthorSurfaceSaved, strings.TrimSpace(name))
 					refreshChatRoute()
 					return
@@ -1156,7 +1161,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				// had just created went to whichever conversation happened to
 				// be first in the list.
 				chatBrowser.mutate(func(model *chatui.Model) {
-					model.ShowCreate, model.NewNameRefused = false, ""
+					model.ShowCreate, model.NewNameRefused, model.NewNameTaken = false, "", ""
 					if conversation.GetId() != "" && !chatJoinedSet(model.Conversations)[conversation.GetId()] {
 						model.Conversations = append(model.Conversations, chatConversation(conversation))
 					}

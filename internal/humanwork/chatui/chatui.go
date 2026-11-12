@@ -678,6 +678,7 @@ type Model struct {
 	NewKind           ConversationKind
 	NewName           string
 	NewNameRefused    string // the channel name the service refused; see chatbug072_name.go
+	NewNameTaken      string // the public channel name another channel already holds (ISSUE-3706)
 	PurposeSaved      bool   // a purpose save went through and "Saved" shows for two seconds
 	Pane              PaneSizes
 	Preferences       Preferences

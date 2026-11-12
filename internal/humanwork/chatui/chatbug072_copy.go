@@ -6,20 +6,24 @@ import "strings"
 // entry, so neither the create dialog nor the search bar can print a copy key.
 const (
 	keyChatbug072NameRule   = "chat.bug072.name_rule"
+	keyChatbug072NameTaken  = "chat.bug072.name_taken"
 	keyChatbug072ScopeOffer = "chat.bug072.scope_offer"
 )
 
 var chatbug072Copy = map[string]map[string]string{
 	"en-US": {
 		keyChatbug072NameRule:   "Use letters, numbers, dashes and underscores, up to 80 characters.",
+		keyChatbug072NameTaken:  "A public channel with this name already exists. Choose another name.",
 		keyChatbug072ScopeOffer: "Search only in {channel}",
 	},
 	"de-DE": {
 		keyChatbug072NameRule:   "Buchstaben, Ziffern, Bindestriche und Unterstriche, höchstens 80 Zeichen.",
+		keyChatbug072NameTaken:  "Ein öffentlicher Kanal mit diesem Namen existiert bereits. Wählen Sie einen anderen Namen.",
 		keyChatbug072ScopeOffer: "Nur in {channel} suchen",
 	},
 	"ar": {
 		keyChatbug072NameRule:   "استخدم الأحرف والأرقام والشرطات والشرطات السفلية، بحد أقصى 80 حرفاً.",
+		keyChatbug072NameTaken:  "توجد قناة عامة بهذا الاسم بالفعل. اختر اسماً آخر.",
 		keyChatbug072ScopeOffer: "البحث في {channel} فقط",
 	},
 }

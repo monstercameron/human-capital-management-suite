@@ -54,6 +54,10 @@ func createNameNote(m Model, local localUI, kind ConversationKind) string {
 	if !channelNamed(kind) {
 		return ""
 	}
+	// ISSUE-3706: the service said this public name is taken.
+	if m.NewNameTaken != "" && m.NewNameTaken == local.nameTyped {
+		return laneText(m, chatbug072Copy, keyChatbug072NameTaken)
+	}
 	if local.nameRefused || (m.NewNameRefused != "" && m.NewNameRefused == local.nameTyped) {
 		return laneText(m, chatbug072Copy, keyChatbug072NameRule)
 	}
