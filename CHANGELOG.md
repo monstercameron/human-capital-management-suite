@@ -1,3 +1,7 @@
+## 2026-11-12 — REV-085-01 (#1939, partial)
+
+- The `productdurability` package documentation states that it is a design reference with no production claim and names the wired proof in `internal/data/rebuild` (REV-085-01).
+
 ## 2026-11-12 — UXBLIND-101 (#1844, partial)
 
 - On your own Start a workflow panel, the empty state now says you cannot start a promotion for your own record instead of telling you to ask your HR administrator.
