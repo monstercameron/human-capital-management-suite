@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Turning agents on updates the section in place (#3684)
+
+- Turning agents on or off in Chat settings now updates the Agents section in place and shows a saved confirmation, without reloading the page.
+
 ## 2026-11-12 — Chat: Saved panel shares the width on desktop instead of covering the composer (#3673)
 
 - Opening Saved on a desktop-width window now narrows the conversation to make room for it, so the composer's Send button and the header actions stay usable.

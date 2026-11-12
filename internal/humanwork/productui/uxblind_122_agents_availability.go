@@ -226,6 +226,11 @@ type AgentsSettingProps struct {
 type agentsSettingDraft struct {
 	Saving bool
 	Failed bool
+	// Known means a save has answered: Enabled is then the value the server
+	// stored, shown in place without reloading the page. Saved marks success.
+	Known   bool
+	Enabled bool
+	Saved   bool
 }
 
 // AgentsSetting is the one control that turns agents on or off for the
@@ -237,9 +242,13 @@ func AgentsSetting(props AgentsSettingProps) ui.Node {
 	}
 	state := ui.UseState(agentsSettingDraft{})
 	draft := state.Get()
+	enabled := props.Enabled
+	if draft.Known {
+		enabled = draft.Enabled
+	}
 	status := locale.Text("agents.setting_off")
 	actionKey := "agents.setting_turn_on"
-	if props.Enabled {
+	if enabled {
 		status = locale.Text("agents.setting_on")
 		actionKey = "agents.setting_turn_off"
 	}
@@ -247,9 +256,14 @@ func AgentsSetting(props AgentsSettingProps) ui.Node {
 		if props.OnSave == nil || state.Get().Saving {
 			return
 		}
-		state.Set(agentsSettingDraft{Saving: true})
-		props.OnSave(!props.Enabled, func(err error) {
-			state.Set(agentsSettingDraft{Failed: err != nil})
+		next := !enabled
+		state.Set(agentsSettingDraft{Saving: true, Known: true, Enabled: enabled})
+		props.OnSave(next, func(err error) {
+			if err != nil {
+				state.Set(agentsSettingDraft{Known: true, Enabled: enabled, Failed: true})
+				return
+			}
+			state.Set(agentsSettingDraft{Known: true, Enabled: next, Saved: true})
 		})
 	})
 	label := locale.Text(actionKey)
@@ -257,16 +271,19 @@ func AgentsSetting(props AgentsSettingProps) ui.Node {
 		label = locale.Text("agents.setting_saving")
 	}
 	buttonClass := "button primary"
-	if props.Enabled {
+	if enabled {
 		buttonClass = "button secondary"
 	}
 	children := []ui.Node{
 		html.Header(html.Props{}, html.H2(html.Props{ID: "agents-setting-title"}, ui.Text(locale.Text("agents.setting_title"))), html.P(html.Props{Class: "muted"}, ui.Text(locale.Text("agents.setting_intro")))),
-		html.P(html.Props{Class: "chat-retention-current agents-setting-current", Raw: map[string]any{"aria-live": "polite", "data-agents-enabled": map[bool]string{true: "true", false: "false"}[props.Enabled]}}, ui.Text(status)),
+		html.P(html.Props{Class: "chat-retention-current agents-setting-current", Raw: map[string]any{"aria-live": "polite", "data-agents-enabled": map[bool]string{true: "true", false: "false"}[enabled]}}, ui.Text(status)),
 		html.Div(html.Props{Class: "agents-setting-actions"}, html.Button(html.Props{ID: "agents-setting-toggle", Class: buttonClass, Type: "button", Disabled: props.OnSave == nil || draft.Saving, OnClick: toggle, Raw: map[string]any{"aria-describedby": "agents-setting-title"}}, ui.Text(label))),
 	}
 	if props.OnSave == nil {
 		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(locale.Text("agents.setting_unavailable"))))
+	}
+	if draft.Saved {
+		children = append(children, html.P(html.Props{Class: "muted", Role: "status"}, ui.Text(locale.Text("agents.setting_saved"))))
 	}
 	if draft.Failed {
 		children = append(children, html.Div(html.Props{Class: "notice error", Role: "alert"}, html.P(html.Props{}, ui.Text(locale.Text("agents.setting_error")))))
@@ -290,6 +307,7 @@ var agentsAvailabilityCopy = map[string]map[string]string{
 		"agents.setting_turn_on":      "Turn on agents",
 		"agents.setting_turn_off":     "Turn off agents",
 		"agents.setting_saving":       "Saving…",
+		"agents.setting_saved":        "Saved. The agent setting is up to date for this organization.",
 		"agents.setting_error":        "The agent setting could not be saved. Try again.",
 		"agents.setting_unavailable":  "This setting cannot be changed from this session.",
 	},
@@ -308,6 +326,7 @@ var agentsAvailabilityCopy = map[string]map[string]string{
 		"agents.setting_turn_on":      "Agenten einschalten",
 		"agents.setting_turn_off":     "Agenten ausschalten",
 		"agents.setting_saving":       "Wird gespeichert…",
+		"agents.setting_saved":        "Gespeichert. Die Agenteneinstellung ist für diese Organisation aktuell.",
 		"agents.setting_error":        "Die Agenteneinstellung konnte nicht gespeichert werden. Versuchen Sie es erneut.",
 		"agents.setting_unavailable":  "Diese Einstellung kann in dieser Sitzung nicht geändert werden.",
 	},
@@ -326,6 +345,7 @@ var agentsAvailabilityCopy = map[string]map[string]string{
 		"agents.setting_turn_on":      "تفعيل الوكلاء",
 		"agents.setting_turn_off":     "إيقاف الوكلاء",
 		"agents.setting_saving":       "جارٍ الحفظ…",
+		"agents.setting_saved":        "تم الحفظ. إعداد الوكلاء محدّث لهذه المؤسسة.",
 		"agents.setting_error":        "تعذّر حفظ إعداد الوكلاء. حاول مرة أخرى.",
 		"agents.setting_unavailable":  "لا يمكن تغيير هذا الإعداد من هذه الجلسة.",
 	},

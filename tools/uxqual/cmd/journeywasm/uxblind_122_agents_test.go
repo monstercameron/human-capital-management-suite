@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -299,5 +300,28 @@ func TestTodo_AGENTUX_020_ClientNeverAsksForAMissingTaskID(t *testing.T) {
 	}
 	if id, err := binding.ControlTask(context.Background(), "task-1", 3, agentv1.AgentTaskAction_AGENT_TASK_ACTION_PAUSE); err != nil || id != "task-1" || client.gotControl.GetTaskId() != "task-1" {
 		t.Fatalf("ControlTask for a real id = %q, %v", id, err)
+	}
+}
+
+// TestIssue3684_SaveAgentSettingDoesNotReloadPage pins that a saved agents
+// setting updates the Agents section in place. A reload would replace the
+// whole Chat settings page and lose the scroll position.
+func TestIssue3684_SaveAgentSettingDoesNotReloadPage(t *testing.T) {
+	source, err := os.ReadFile("uxblind_122_agents_wasm.go")
+	if err != nil {
+		t.Fatalf("read agents wasm source: %v", err)
+	}
+	body := string(source)
+	start := strings.Index(body, "func saveAgentSetting(")
+	end := strings.Index(body, "// handleAgentComposerClick")
+	if start < 0 || end < start {
+		t.Fatal("saveAgentSetting not found")
+	}
+	fn := body[start:end]
+	if strings.Contains(fn, `"reload"`) {
+		t.Fatalf("saveAgentSetting reloads the page on success:\n%s", fn)
+	}
+	if !strings.Contains(fn, "done(err)") {
+		t.Fatalf("saveAgentSetting must report the result to the Agents setting:\n%s", fn)
 	}
 }

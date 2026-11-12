@@ -1,6 +1,7 @@
 package productui
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -195,5 +196,26 @@ func TestIssue3683_OpenAgentSettingsTargetsAgentsSection(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(page.Subtitle), "agent") || !strings.Contains(strings.ToLower(page.Subtitle), "retention") {
 		t.Fatalf("chat settings subtitle %q does not describe the whole page", page.Subtitle)
+	}
+}
+
+// TestIssue3684_AgentsSettingUpdatesInPlace pins that a saved agents change
+// updates the Agents setting in place with a saved confirmation, without a
+// page reload.
+func TestIssue3684_AgentsSettingUpdatesInPlace(t *testing.T) {
+	source, err := os.ReadFile("uxblind_122_agents_availability.go")
+	if err != nil {
+		t.Fatalf("read agents availability source: %v", err)
+	}
+	body := string(source)
+	for _, want := range []string{
+		"Known: true, Enabled: next, Saved: true",
+		"Known: true, Enabled: enabled, Failed: true",
+		`ui.Text(locale.Text("agents.setting_saved"))`,
+		`"agents.setting_saved":`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("agents setting is missing in-place save behavior %q", want)
+		}
 	}
 }

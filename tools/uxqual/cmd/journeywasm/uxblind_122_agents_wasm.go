@@ -440,8 +440,9 @@ func currentAgentBinding() *agentServiceBinding {
 }
 
 // saveAgentSetting sends the administrator's choice over the tunnel and
-// reloads the document on success, so the server recomposes the agents
-// projection (navigation, page and setting) from the stored value.
+// reports the result to the Agents setting, which updates itself in place.
+// The document is not reloaded, so the Chat settings page keeps its scroll
+// position and the header keeps its loaded identity.
 func saveAgentSetting(_ journeyclient.Config, enabled bool, done func(error)) {
 	binding := currentAgentBinding()
 	go func() {
@@ -450,9 +451,6 @@ func saveAgentSetting(_ journeyclient.Config, enabled bool, done func(error)) {
 		err := binding.SetAgentsEnabled(ctx, enabled)
 		ui.PostAsync(func() {
 			done(err)
-			if err == nil {
-				js.Global().Get("location").Call("reload")
-			}
 		})
 	}()
 }
