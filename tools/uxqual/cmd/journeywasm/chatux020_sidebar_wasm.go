@@ -124,8 +124,15 @@ func leaveChatConversation(cfg journeyclient.Config, id string) {
 	}
 	next := ""
 	wasOpen := false
+	var left chatui.Conversation
 	chatBrowser.mutate(func(model *chatui.Model) {
 		wasOpen = model.SelectedID == id
+		for _, room := range model.Conversations {
+			if room.ID == id {
+				left = room
+				break
+			}
+		}
 		model.Conversations = withoutConversation(model.Conversations, id)
 		for s := range model.Sections {
 			model.Sections[s].Chats = withoutConversation(model.Sections[s].Chats, id)
@@ -137,6 +144,7 @@ func leaveChatConversation(cfg journeyclient.Config, id string) {
 			}
 		}
 	})
+	chatux3708RestoreBrowse(left)
 	setManualUnread(id, false)
 	chatActionSucceeded("You left the channel")
 	invalidateChatRecipientProjection()

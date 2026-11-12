@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Leaving a channel inside Browse channels makes it vanish from the (#3708)
+
+- Chat: leaving a channel from Browse channels keeps it listed as a Join row instead of emptying the dialog until reload (#3708).
+
 ## 2026-11-12 — Chat: Group message 'Start conversation' button cannot be clicked with t (#3707)
 
 - Chat: the group "Start conversation" button is enabled and clickable with an empty optional group name; the grey-out style applies only to the required channel name (#3707).
