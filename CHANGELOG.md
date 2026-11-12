@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Refine search form does not reflect the active filters and silentl (#3690, partial)
+
+- Chat search: the Refine search fields and checkboxes now mirror the active query, so a box ticked in an earlier search is no longer re-applied.
+
 ## 2026-11-12 — Chat: Location lookups are batched per page of messages (#3676, partial)
 
 - Opening a Chat conversation now asks for message locations one page at a time instead of one request per message.

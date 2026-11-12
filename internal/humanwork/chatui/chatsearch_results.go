@@ -117,22 +117,28 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	if v.Error != "" {
 		errorAssociation["describedby"] = "chatsearch-error"
 	}
+	// ISSUE-3690: every control mirrors the filter the query already holds. An
+	// unmirrored control kept the DOM value of an earlier search, so a stale box
+	// was re-applied and the form hid the active filters.
+	active := parsed.Filters
+	controlValues := map[string]string{"channel": active.Conversation, "person": active.Person, "before": active.Before, "after": active.After, "on": active.On}
+	controlChecked := map[string]bool{"file": active.File, "link": active.Link, "reactions": active.Reactions, "threads": active.Threads, "mentions": active.MentionsMe, "agent": active.Agent, "mine": active.Mine, "voice": active.Voice}
 	controls := []ui.Node{}
 	for _, field := range []string{"channel", "person", "before", "after", "on"} {
 		typ := "text"
 		if field == "before" || field == "after" || field == "on" {
 			typ = "date"
 		}
-		controls = append(controls, html.Label(html.Props{For: "chatsearch-" + field}, html.Span(html.Props{Text: t(field)}), html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Aria: errorAssociation})))
+		controls = append(controls, html.Label(html.Props{For: "chatsearch-" + field}, html.Span(html.Props{Text: t(field)}), html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Value: controlValues[field], Aria: errorAssociation})))
 	}
 	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("all")})}
 	for _, kind := range chatsearchKindChoices(v.Response) {
-		options = append(options, html.Option(html.Props{Value: string(kind), Text: chatsearchKind(locale, kind)}))
+		options = append(options, html.Option(html.Props{Value: string(kind), Selected: kind == active.Kind, Text: chatsearchKind(locale, kind)}))
 	}
 	controls = append(controls, html.Label(html.Props{For: "chatsearch-kind"}, html.Span(html.Props{Text: t("kind")}), html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
-	controls = append(controls, chatsearchWrittenControl(locale))
+	controls = append(controls, chatsearchWrittenControl(locale, active.Language))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
-		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox"}), ui.Text(t(field))))
+		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox", Checked: controlChecked[field]}), ui.Text(t(field))))
 	}
 	children = append(children, chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: t("filters")}), html.Form(html.Props{Data: map[string]string{"chatsearch-form": "filters"}}, html.Div(html.Props{Class: "chatsearch-controls"}, controls...), html.Button(html.Props{Type: "submit", Class: "chatsearch-primary", Text: t("apply"), Disabled: v.Loading}))))
 	chips := []ui.Node{}

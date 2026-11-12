@@ -131,11 +131,12 @@ func chatlangW10Click(m Model, local localStore, action, id string) bool {
 
 // chatsearchWrittenControl is the search page's "Written in" choice: it narrows
 // the results to messages written in one language, whatever language the reader
-// reads them in.
-func chatsearchWrittenControl(locale string) ui.Node {
+// reads them in. ISSUE-3690: selected is the language the query already names,
+// so the choice mirrors the active filter ("" is Any language).
+func chatsearchWrittenControl(locale, selected string) ui.Node {
 	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: chattoneW10Text(locale, "search_any_language")})}
 	for _, tag := range []string{"en", "de", "fr", "es", "pt", "ar", "ja", "hi"} {
-		options = append(options, html.Option(html.Props{Value: tag, Text: chatlangLanguageName(locale, tag)}))
+		options = append(options, html.Option(html.Props{Value: tag, Selected: tag == selected, Text: chatlangLanguageName(locale, tag)}))
 	}
 	return html.Label(html.Props{For: "chatsearch-written"}, html.Span(html.Props{Text: chattoneW10Text(locale, "search_written")}), html.Select(html.Props{ID: "chatsearch-written", Name: "written"}, options...))
 }
