@@ -100,6 +100,21 @@ func TestTodo_CHATBUG_072(t *testing.T) {
 	}
 }
 
+// CHATBUG-3672: the box's application value follows the rule's name as typed.
+// Before, it stayed the (empty) NewName, so a re-render after a refused
+// character wrote "" back into the box and cleared the whole name.
+func TestTodo_CHATBUG_3672_NameBoxValueFollowsTheTypedName(t *testing.T) {
+	m := Model{Callbacks: Callbacks{CreateConversation: func(ConversationKind, string, []string) {}}}
+	typed := renderNode(t, createDialog(m, handlers{local: localUI{nameRefused: true, nameTyped: "qa-smoke-"}}))
+	if !strings.Contains(typed, `data-chat-value="qa-smoke-"`) {
+		t.Fatalf("the name box's application value is not the typed name: %s", typed)
+	}
+	group := renderNode(t, createDialog(Model{NewName: "Walt", Callbacks: m.Callbacks}, handlers{local: localUI{createKind: GroupChat, nameTyped: "x"}}))
+	if !strings.Contains(group, `data-chat-value="Walt"`) {
+		t.Fatalf("a group name box does not keep the model's name: %s", group)
+	}
+}
+
 func TestTodo_CHATBUG_072_SubmitNameFollowsTheRule(t *testing.T) {
 	local := localStore{box: &localUI{}}
 	for _, tc := range []struct {

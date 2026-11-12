@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Channel name box keeps what was typed (#3672)
+
+- Typing a space or a capital letter in the new channel name box keeps the name you typed, with the naming rule shown under it, instead of clearing the whole field.
+
 ## 2026-11-12 — Chat: Grouped follow-up message keeps its width on a phone (#3671)
 
 - On a phone, a grouped follow-up message in Chat now uses the same width as the message above it, instead of a column one word wide.

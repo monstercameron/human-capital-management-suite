@@ -87,8 +87,14 @@ func createDialog(m Model, h handlers) ui.Node {
 	}
 	if kind != DirectMessage {
 		prefix := ui.Node(nil)
+		// CHATBUG-3672: the box's application value is the rule's name as
+		// typed (createNameInput keeps it in local). Writing the never-set
+		// NewName back on each re-render emptied the box after a refused
+		// character.
+		nameValue := m.NewName
 		if channel {
 			prefix = html.Span(html.Props{Class: "name-prefix", Aria: map[string]string{"hidden": "true"}, Text: "#"})
+			nameValue = local.nameTyped
 		}
 		hint := ui.Node(nil)
 		describedBy := map[string]string{}
@@ -113,7 +119,7 @@ func createDialog(m Model, h handlers) ui.Node {
 		fields = append(fields, html.Div(html.Props{Class: "prefs-field create-name"},
 			html.Label(html.Props{For: "new-chat-name", Text: m.t(KeyName)}),
 			html.Div(html.Props{Class: "name-input"}, prefix,
-				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": m.NewName}, Required: channel, AutoComplete: "off", AutoFocus: true, Placeholder: placeholder, OnInput: h.createName, Aria: describedBy})),
+				html.Input(html.Props{ID: "new-chat-name", Class: "chat-input", Data: map[string]string{"chat-value": nameValue}, Required: channel, AutoComplete: "off", AutoFocus: true, Placeholder: placeholder, OnInput: h.createName, Aria: describedBy})),
 			hint))
 	}
 	fields = append(fields, memberPicker(m, h, kind),
