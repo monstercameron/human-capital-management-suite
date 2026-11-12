@@ -2179,7 +2179,7 @@ func railRow(m Model, c Conversation) ui.Node {
 	if c.Mentions > 0 {
 		children = append(children, html.Span(html.Props{Class: "chat-badge mention", Text: m.n(c.Mentions), Aria: map[string]string{"label": m.tf(KeyMentionCount, map[string]string{"n": m.n(c.Mentions)})}}))
 	} else if c.Unread > 0 && !c.Muted {
-		children = append(children, html.Span(html.Props{Class: "chat-badge", Text: m.n(c.Unread), Aria: map[string]string{"label": m.tf(KeyUnreadCount, map[string]string{"n": m.n(c.Unread)})}}))
+		children = append(children, html.Span(html.Props{Class: chatDesignUnreadBadgeClass(c), Text: m.n(c.Unread), Aria: map[string]string{"label": m.tf(KeyUnreadCount, map[string]string{"n": m.n(c.Unread)})}}))
 	}
 	rowAria := map[string]string{"current": boolString(c.ID == m.SelectedID)}
 	moreName := label

@@ -286,7 +286,7 @@ func TestAgentUXChat3_UnreadAgentRowsRemainDistinctFromSelection(t *testing.T) {
 	model := Model{SelectedID: "general", Conversations: []Conversation{{ID: "general", Name: "general", Kind: PublicChannel}, {ID: "policy", Name: "Policy Helper", Kind: DirectMessage, Agent: true, Unread: 2}}, Callbacks: Callbacks{SelectConversation: func(string) {}}}
 	selected := renderAgentUXChat3Node(t, railRow(model, model.Conversations[0]), 390)
 	unread := renderAgentUXChat3Node(t, railRow(model, model.Conversations[1]), 390)
-	if !strings.Contains(selected, `class="chat-row selected"`) || strings.Contains(unread, `class="chat-row selected`) || !strings.Contains(unread, `class="chat-row unread"`) || !strings.Contains(unread, `class="chat-badge"`) || !strings.Contains(unread, ">2<") {
+	if !strings.Contains(selected, `class="chat-row selected"`) || strings.Contains(unread, `class="chat-row selected`) || !strings.Contains(unread, `class="chat-row unread"`) || !strings.Contains(unread, `class="chat-badge direct"`) || !strings.Contains(unread, ">2<") {
 		t.Fatalf("selection/unread state is ambiguous: selected=%s unread=%s", selected, unread)
 	}
 }

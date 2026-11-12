@@ -42,7 +42,9 @@ func TestTodo_CHATUX_007(t *testing.T) {
 	m := chatux007Model("en-US")
 	markup := chatPolishMarkup(t, rail(m, handlers{}), 1440, "light")
 
-	// Saved: its open count is plain muted text, not a badge.
+	// Saved: its open count is not the unread badge. Since #3772 it is drawn in
+	// the neutral pill (TestChatDesign_3772_UnreadCountsSitInPills); the base
+	// .chatsave-count rule below is what the pill is laid over.
 	counts := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-saved-count") == "true" })
 	if len(counts) != 1 || chatux002NodeText(counts[0]) != "2" || chatPolishHasClass(counts[0], "chat-badge") || !chatPolishHasClass(counts[0], "chatsave-count") || hasChatPolishAttribute(counts[0], "hidden") {
 		t.Fatalf("the Saved count is not plain text: %d nodes", len(counts))
@@ -88,12 +90,11 @@ func TestTodo_CHATUX_007(t *testing.T) {
 		t.Fatalf("a conversation with only a mention is not unread: %s", only)
 	}
 
-	// The look. No count in the list is a filled pill; an unread row is bold; a
-	// mention count is the accent colour; the selected row is the only filled row.
+	// The look. An unread row is bold. The counts themselves are pills since
+	// #3772 (TestChatDesign_3772_UnreadCountsSitInPills owns their fill); what
+	// stays from this todo is that no count uses the alert colour.
 	for selector, want := range map[string]map[string]string{
-		".chat-rail-row .chat-badge":         {"background": "none", "color": "var(--ink)"},
-		".chat-rail-row .chat-badge.mention": {"background": "none", "color": "var(--accent)"},
-		".chat-rail-row .chat-row.unread":    {"font-weight": "700", "color": "var(--ink)"},
+		".chat-rail-row .chat-row.unread": {"font-weight": "700", "color": "var(--ink)"},
 	} {
 		for property, value := range want {
 			if got := chatbugCascadeValue(Stylesheet, selector, property); got != value {
