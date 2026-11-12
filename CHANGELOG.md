@@ -1,3 +1,7 @@
+## 2026-11-12 — IMPL-GAP-001 (#3437)
+
+- Work-order billing-review requests are now hidden from users who lack cost-view permission, matching the other financial request kinds.
+
 ## 2026-11-12 — APPT-003 (#654)
 
 - Appointment reservations now refuse resources or participants from another tenant before any hold is taken, and returned reservation records can no longer be edited to change what is stored.

@@ -426,3 +426,59 @@ func TestCorrectRecordRequiresExistingCorrectableFact(t *testing.T) {
 		t.Fatalf("correction missing from journaled aggregate: %+v", got)
 	}
 }
+
+// TestTodo_IMPL_GAP_001 proves every financial request kind is gated by
+// ViewCost when it is the only cost-bearing record on the work order.
+func TestTodo_IMPL_GAP_001(t *testing.T) {
+	kinds := []workorder.RequestKind{
+		workorder.RequestBudget, workorder.RequestBudgetChange, workorder.RequestCrew,
+		workorder.RequestMaterial, workorder.RequestEquipment, workorder.RequestChangeOrder,
+		workorder.RequestBillingReview,
+	}
+	for _, kind := range kinds {
+		t.Run(string(kind), func(t *testing.T) {
+			amount := values.MustDecimal("125.50", 2, values.RoundingExactRequired)
+			zero := values.MustDecimal("0", 0, values.RoundingExactRequired)
+			snapshot := testSnapshot(t)
+			snapshot.Requests = []workorder.InitiatorRequest{{
+				ID: "req-1", DefinitionID: "DEF", Kind: kind, Status: workorder.RequestPending,
+				RequesterID: "alice", Subject: "Confidential subject", Rationale: "Confidential rationale",
+				Amount: amount, EstimatedCost: zero, Quantity: zero, QuantityDelta: zero, PriceDelta: zero,
+				Currency: "USD", PricingVersion: "pv-1", BillingPeriod: "2026-09",
+				FormValues: map[string]string{"item": "confidential item"}, EvidenceRefs: []string{"evidence-1"},
+				DecisionReason: "confidential decision",
+			}}
+
+			store := &testOrders{snapshot: snapshot}
+			deniedAuth := &testAuthorizer{deniedCaps: map[workorderaccess.Capability]bool{workorderaccess.ViewCost: true}}
+			denied, err := Service{Auth: deniedAuth, Orders: store}.Get(context.Background(), servicePrincipal(t), ScopedRequest{WorkOrderID: snapshot.ID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if deniedAuth.calls != 2 || deniedAuth.cap != workorderaccess.ViewCost {
+				t.Fatalf("ViewCost gate not evaluated for isolated %s: calls=%d last=%s", kind, deniedAuth.calls, deniedAuth.cap)
+			}
+			r := denied.Requests[0]
+			if r.ID != "req-1" || r.Kind != kind || r.Status != workorder.RequestPending {
+				t.Fatalf("safe receipt/status metadata lost for %s: %+v", kind, r)
+			}
+			if r.Subject != "" || r.Rationale != "" || len(r.FormValues) != 0 || len(r.EvidenceRefs) != 0 ||
+				r.DecisionReason != "" || r.Currency != "" || r.PricingVersion != "" || r.BillingPeriod != "" ||
+				r.Amount.Validate() == nil {
+				t.Fatalf("financial fields escaped without ViewCost for %s: %+v", kind, r)
+			}
+			if snapshot.Requests[0].Subject != "Confidential subject" || snapshot.Requests[0].FormValues["item"] != "confidential item" {
+				t.Fatalf("projection mutated durable request for %s: %+v", kind, snapshot.Requests[0])
+			}
+
+			granted, err := Service{Auth: &testAuthorizer{}, Orders: &testOrders{snapshot: snapshot}}.Get(context.Background(), servicePrincipal(t), ScopedRequest{WorkOrderID: snapshot.ID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			g := granted.Requests[0]
+			if g.Subject != "Confidential subject" || g.Amount.String() != amount.String() || g.PricingVersion != "pv-1" || g.BillingPeriod != "2026-09" || len(g.EvidenceRefs) != 1 {
+				t.Fatalf("authorized principal lost financial fields for %s: %+v", kind, g)
+			}
+		})
+	}
+}

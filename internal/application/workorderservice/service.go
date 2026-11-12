@@ -582,8 +582,7 @@ func snapshotHasCost(s workorder.Snapshot) bool {
 		return true
 	}
 	for _, r := range s.Requests {
-		switch r.Kind {
-		case workorder.RequestBudget, workorder.RequestBudgetChange, workorder.RequestCrew, workorder.RequestMaterial, workorder.RequestEquipment, workorder.RequestChangeOrder:
+		if financialRequestKind(r.Kind) {
 			return true
 		}
 	}
