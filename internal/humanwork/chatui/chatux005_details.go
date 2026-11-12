@@ -31,6 +31,7 @@ func chatux005Text(m Model, key string) string {
 		"manage":        {"Manage channel", "Kanal verwalten", "إدارة القناة"},
 		"project":       {"Project and milestones", "Projekt und Meilensteine", "المشروع والمراحل الرئيسية"},
 		"notifications": {"Notifications for me", "Benachrichtigungen für mich", "الإشعارات الخاصة بي"},
+		"no_match":      {"No members match “{query}”. Clear the filter to see everyone.", "Keine Mitglieder passen zu „{query}“. Leeren Sie den Filter, um alle zu sehen.", "لا يوجد أعضاء يطابقون “{query}”. امسح عامل التصفية لرؤية الجميع."},
 		"pin_copy":      {"Copy link", "Link kopieren", "نسخ الرابط"},
 		"no_pins":       {"Nothing is pinned yet. Pin a message from its menu.", "Noch nichts angeheftet. Heften Sie eine Nachricht über ihr Menü an.", "لا توجد رسائل مثبّتة بعد. ثبّت رسالة من قائمتها."},
 	}
@@ -289,6 +290,10 @@ func chatux005Members(m Model, h handlers, c Conversation) ui.Node {
 	}
 	shownRows, more := chatux030PeopleWindow(m, h, personRows, query != "")
 	children = append(children, memberFilter(m, h), html.Ul(list, shownRows...))
+	// ISSUE-3712: a filter that matches nobody says so, and names the way back.
+	if query != "" && len(agentRows) == 0 && len(personRows) == 0 {
+		children = append(children, html.P(html.Props{Class: "member-empty", Role: "status", Text: strings.ReplaceAll(chatux005Text(m, "no_match"), "{query}", strings.TrimSpace(m.MemberQuery))}))
+	}
 	if more != nil {
 		children = append(children, more)
 	}

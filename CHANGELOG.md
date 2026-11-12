@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Details panel member filter shows nothing at all when no member ma (#3712)
+
+- Details panel member filter shows nothing at all when no member ma
+
 ## 2026-11-12 — Chat: Browse channels header uses 'channels' for a count of 1 (#3710)
 
 - Chat: the Browse channels header reads "1 channel" for a single match, using the locale plural rule.
