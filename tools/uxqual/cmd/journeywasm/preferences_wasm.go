@@ -318,6 +318,11 @@ func (c *serverPreferenceController) PersistView(view productui.View) {
 		if user.Tables == nil {
 			user.Tables = map[string]*journeyv1.TablePreferences{}
 		}
+		// #3771: the person's own expand or collapse on Chat is remembered for
+		// Chat; a view of Chat's default rail stores nothing.
+		if choice := productui.ChatNavigationChoice(view); choice != "" {
+			user.Tables[productui.ChatNavigationTable] = &journeyv1.TablePreferences{Filters: map[string]string{productui.ChatNavigationFilter: choice}}
+		}
 		if view.Page == productui.PagePeople {
 			user.Tables["people"] = &journeyv1.TablePreferences{PageSize: int32(view.PeoplePageSize), Filters: map[string]string{"query": view.Query, "team": view.PeopleTeam, "location": view.PeopleLocation, "columns": productui.NormalizePeopleColumns(view.PeopleColumns)}, Sort: view.PeopleSort, Direction: view.PeopleDirection}
 		}

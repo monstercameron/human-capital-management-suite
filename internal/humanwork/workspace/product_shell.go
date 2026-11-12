@@ -203,6 +203,12 @@ func (h *Handler) serveProduct(w http.ResponseWriter, r *http.Request) {
 			TextSize: stored.TextSize, Contrast: stored.Contrast, Motion: stored.Motion, Links: stored.Links, ColorMode: stored.ColorMode,
 		})
 		savedLocale = snapshot.User.Locale
+		// #3771: Chat's first paint opens with the navigation rail unless the
+		// address says otherwise or this person chose the full navigation for
+		// Chat before; the client resolves the same way, so nothing moves.
+		if nav == "" && productui.ChatNavigationStoredExpanded(definition.ID, snapshot.User.NavCollapsed, snapshot.User.Tables[productui.ChatNavigationTable].Filters) {
+			nav = "expanded"
+		}
 		favoritePages = make([]productui.PageID, 0, len(snapshot.User.FavoritePages))
 		for _, page := range snapshot.User.FavoritePages {
 			favoritePages = append(favoritePages, productui.PageID(page))

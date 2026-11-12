@@ -96,6 +96,9 @@ func TestTodo_AGENTUX_044(t *testing.T) {
 func TestTodo_AGENTUX_044_Browser(t *testing.T) {
 	view := agentUX044View(t, "en-US", PageChat)
 	view.Page = PageChat
+	// Chat opens with the navigation as a rail since #3771; the names this test
+	// reads are the expanded navigation's.
+	view.NavExpanded = true
 	markup, err := ui.RenderToString(ui.CreateElement(NavigationSidebar, navigationSidebarProps(view)))
 	if err != nil {
 		t.Fatal(err)

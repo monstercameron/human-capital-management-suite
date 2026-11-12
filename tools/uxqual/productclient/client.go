@@ -333,7 +333,7 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		OrganizationView: routeValue(values, "org_view"), OrganizationAsOf: routeValue(values, "as_of"), OrganizationUnit: routeValue(values, "unit"),
 		WorkflowQuery: routeValue(values, "workflow_q"), HistoryQuery: routeValue(values, "history_q"), HistoryOutcome: routeValue(values, "outcome"),
 		HistoryPerson: routeValue(values, "history_person"), HistoryRequester: routeValue(values, "history_requester"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
-		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
+		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed", NavExpanded: routeValue(values, "nav") == "expanded",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
 		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), WorkflowShowReferences: routeProfile == productui.RouteProfileWorkflow && routeValue(values, "workflow_references") == "1", WorkflowListStatus: routeValue(values, "workflow_status"), WorkflowListSort: routeValue(values, "workflow_sort"), WorkflowListPage: workflowListPage, DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
 		DocumentFolder: routeValue(values, "folder"), DocumentSort: routeValue(values, "docs_sort"), DocumentOwner: routeValue(values, "docs_owner"), DocumentPage: documentPage, DocumentPerPage: documentPerPage, DocumentSearchMode: routeValue(values, "docs_mode"), DocumentEditing: routeValue(values, "docs_edit") == "1",
@@ -1644,6 +1644,9 @@ func applyPreferences(view *productui.View, state *State, response *journeyv1.Ge
 		request.Locale = productui.ResolveProductLocalePreference(request.Locale, user.GetLocale()).Resolved
 		if !state.Provided["nav"] {
 			request.NavCollapsed = user.GetNavCollapsed()
+			// #3771: Chat opens with the navigation as a rail unless this
+			// person chose the full navigation for Chat before.
+			request.NavExpanded = productui.ChatNavigationStoredExpanded(state.Page, request.NavCollapsed, user.GetTables()[productui.ChatNavigationTable].GetFilters())
 		}
 		if !state.Provided["favorites"] {
 			request.FavoritePages = parseFavoritePages(strings.Join(user.GetFavoritePages(), ","))

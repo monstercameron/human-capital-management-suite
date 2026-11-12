@@ -18,7 +18,7 @@ func appShell(view View, page ui.Node) ui.Node {
 func appShellWithHeading(view View, page ui.Node, showHeading bool) ui.Node {
 	useUXBlindQPopoverController()
 	class := "app-shell"
-	if view.NavCollapsed {
+	if view.navRailCollapsed() {
 		class += " nav-collapsed"
 	}
 	if view.NavExpanded {
@@ -121,7 +121,7 @@ func appHeader(view View, drawerOpen bool, drawerToggle func()) ui.Node {
 			brand,
 			softwareLink(toggle.Navigate, html.Props{
 				Class: "header-nav-toggle",
-				Aria:  map[string]string{"label": toggle.Label, "expanded": fmt.Sprint(!view.NavCollapsed), "controls": "workspace-navigation"},
+				Aria:  map[string]string{"label": toggle.Label, "expanded": fmt.Sprint(!view.navRailCollapsed()), "controls": "workspace-navigation"},
 				Raw:   map[string]any{"title": toggle.Label},
 			}, toggle.Href, navIcon(toggle.Icon)),
 			html.Button(html.Props{

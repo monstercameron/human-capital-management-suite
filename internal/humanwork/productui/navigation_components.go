@@ -195,7 +195,7 @@ func navigationSidebarPropsForQuery(view View) NavigationSidebarProps {
 	}
 	return NavigationSidebarProps{
 		I18nProps: I18nProps{Locale: view.Locale},
-		Collapsed: view.NavCollapsed, Tenant: tenantLabel, EmptyText: emptyText, Filter: filter,
+		Collapsed: view.navRailCollapsed(), Tenant: tenantLabel, EmptyText: emptyText, Filter: filter,
 		Favorites: favorites, Items: items, Support: support,
 	}
 }
@@ -209,7 +209,7 @@ func navigationToggleProps(view View) NavigationToggleProps {
 	if view.NavigateReplace != nil {
 		toggle.Navigate = view.NavigateReplace
 	}
-	if view.NavCollapsed {
+	if view.navRailCollapsed() {
 		toggle.Label, toggle.Icon = view.Locale.Text("nav.expand"), "expand"
 		toggle.Href = withExplicitQueryValue(currentPageHref(view, false), []string{"nav"}, "expanded")
 	}

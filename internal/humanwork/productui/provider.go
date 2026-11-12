@@ -65,8 +65,11 @@ type PageRequest struct {
 	WorkflowListSort   string
 	WorkflowListPage   int
 	NavCollapsed       bool
-	MenuQuery          string
-	FavoritePages      []PageID
+	// NavExpanded is the explicit nav=expanded choice (#3771): it overrides the
+	// tablet rail and Chat's rail default.
+	NavExpanded   bool
+	MenuQuery     string
+	FavoritePages []PageID
 }
 
 // ApplyRequest applies address-bar presentation state to a live projection.
@@ -192,6 +195,7 @@ func ApplyRequest(view View, request PageRequest) View {
 	workflowList := normalizeWorkflowListState(workflowListState{Status: request.WorkflowListStatus, Sort: request.WorkflowListSort, Page: request.WorkflowListPage})
 	view.WorkflowListStatus, view.WorkflowListSort, view.WorkflowListPage = workflowList.Status, workflowList.Sort, workflowList.Page
 	view.NavCollapsed = request.NavCollapsed
+	view.NavExpanded = request.NavExpanded && !request.NavCollapsed
 	view.MenuQuery = strings.TrimSpace(request.MenuQuery)
 	view.FavoritePages = authorizedFavoritePages(view.Navigation, request.FavoritePages)
 	if selected := strings.TrimSpace(request.SelectedWork); selected != "" {
