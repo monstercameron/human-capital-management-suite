@@ -3089,7 +3089,9 @@ func composer(m Model, h handlers) ui.Node {
 	c := m.selected()
 	target := displayName(m, c)
 	if c.Kind == PublicChannel || c.Kind == PrivateChannel {
-		target = "#" + target
+		// CHATUX-043/3677: the "#" is a neutral, so in a right-to-left page it
+		// would sit after the name; the channel token is one isolated unit.
+		target = chatux043Isolate(m.Locale, "#"+target)
 	}
 	placeholder := m.tf(KeyComposePlaceholder, map[string]string{"name": target})
 	if c.Agent {

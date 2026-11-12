@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Arabic channel placeholder keeps the hash before the name (#3677, partial)
+
+- In Arabic, the message box now shows the channel as "#channel" with the hash before the name, instead of after it.
+
 ## 2026-11-12 — Chat: Missing media answers a typed not-found and is logged (#3675, partial)
 
 - A chat image or GIF whose stored file is missing now shows as unavailable instead of failing with a server error, and the server logs the failure with the media digest.
