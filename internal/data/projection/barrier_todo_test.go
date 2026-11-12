@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 )
@@ -76,6 +78,62 @@ func TestTodo_DATA_021_Fault(t *testing.T) {
 	}
 	runBarrierCheckStatusesAndTimeoutDiagnostics(t)
 	runBarrierCheckUnavailableAndReadFailures(t)
+	runBarrierExpiredMissingWatermarks(t)
+	runBarrierAwaitExpiringUnavailable(t)
+}
+
+// runBarrierExpiredMissingWatermarks proves that a missing stream head or
+// checkpoint reports TIMEOUT once the requirement has expired, while keeping
+// the SourceHead/Required diagnostics and the underlying cause.
+func runBarrierExpiredMissingWatermarks(t *testing.T) {
+	tenant := uuid.New()
+	expired := time.Now().UTC().Add(-time.Second)
+	tests := []struct {
+		name           string
+		querier        *barrierQuerier
+		wantSourceHead int64
+		wantCause      error
+	}{
+		{name: "missing source head", querier: &barrierQuerier{sourceErr: dbport.ErrNoRows}, wantCause: dbport.ErrNoRows},
+		{name: "missing checkpoint", querier: &barrierQuerier{sourceHead: 4, checkpointErr: dbport.ErrNoRows}, wantSourceHead: 4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := projection.Check(context.Background(), tt.querier, projection.ReadRequirement{
+				Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey,
+				MinimumSequence: 2, Deadline: expired,
+			})
+			var barrierErr projection.BarrierError
+			if !errors.As(err, &barrierErr) || barrierErr.Status != projection.BarrierTimeout || got.Status != projection.BarrierTimeout {
+				t.Fatalf("expired missing watermark = %+v, %v", got, err)
+			}
+			if got.SourceHead != tt.wantSourceHead || barrierErr.SourceHead != tt.wantSourceHead || barrierErr.Required != 2 {
+				t.Fatalf("expired diagnostics = result %+v, error %+v", got, barrierErr)
+			}
+			if tt.wantCause != nil && !errors.Is(err, tt.wantCause) {
+				t.Fatalf("error %v does not preserve cause %v", err, tt.wantCause)
+			}
+		})
+	}
+}
+
+// runBarrierAwaitExpiringUnavailable proves that when an unavailable
+// requirement expires while Await waits, the returned result and the typed
+// error agree on TIMEOUT.
+func runBarrierAwaitExpiringUnavailable(t *testing.T) {
+	tenant := uuid.New()
+	querier := &barrierQuerier{sourceHead: 1, checkpoint: 1, checkpointStatus: "CURRENT"}
+	got, err := projection.Await(context.Background(), querier, projection.ReadRequirement{
+		Tenant: tenant, ProjectionName: projectionName, StreamKey: streamKey,
+		MinimumSequence: 2, Deadline: time.Now().UTC().Add(20 * time.Millisecond),
+	})
+	var barrierErr projection.BarrierError
+	if !errors.As(err, &barrierErr) || barrierErr.Status != projection.BarrierTimeout || got.Status != projection.BarrierTimeout {
+		t.Fatalf("expiring unavailable await = %+v, %v", got, err)
+	}
+	if barrierErr.Required != 2 || barrierErr.SourceHead != 1 {
+		t.Fatalf("expiring unavailable diagnostics = %+v", barrierErr)
+	}
 }
 
 func TestTodo_DATA_021_Recovery(t *testing.T) {

@@ -11,9 +11,9 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/draftcompile"
-	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 // Kind distinguishes a single insertable node from a reusable fragment or a

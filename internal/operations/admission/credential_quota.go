@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	quotaoperation "github.com/monstercameron/human-capital-management-suite/internal/connectivity/operation"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/quotawindow"
 )
 
 // CredentialIdentity is the verified machine-client scope used by the
@@ -68,7 +68,7 @@ type credentialKey struct {
 	client string
 }
 
-type credentialWindow = quotaoperation.QuotaWindow
+type credentialWindow = quotawindow.Window
 
 // CredentialLimiter owns bounded-window counters for the platform's inbound
 // API. Its mutex makes concurrent admissions atomic within this process.
@@ -113,10 +113,10 @@ func (l *CredentialLimiter) Admit(now time.Time, identity CredentialIdentity, po
 	d := CredentialDecision{Outcome: CredentialAdmit, Reason: "WITHIN_CREDENTIAL_LIMITS", Usage: usage}
 	if counters.rate.Used >= policy.RateLimit {
 		d.Outcome, d.Reason = CredentialRateLimited, "CREDENTIAL_RATE_LIMIT"
-		d.RetryAfter = quotaoperation.QuotaRetryAfterSeconds(now, usage.RateResetAt)
+		d.RetryAfter = quotawindow.RetryAfterSeconds(now, usage.RateResetAt)
 	} else if counters.quota.Used >= policy.QuotaLimit {
 		d.Outcome, d.Reason = CredentialQuotaExceeded, "CREDENTIAL_QUOTA_EXCEEDED"
-		d.RetryAfter = quotaoperation.QuotaRetryAfterSeconds(now, usage.QuotaResetAt)
+		d.RetryAfter = quotawindow.RetryAfterSeconds(now, usage.QuotaResetAt)
 	} else {
 		counters.rate.Used++
 		counters.quota.Used++
@@ -161,7 +161,7 @@ func (l *CredentialLimiter) pruneExpired(now time.Time) {
 }
 
 func advanceCredentialWindow(window credentialWindow, now time.Time, duration time.Duration) credentialWindow {
-	return quotaoperation.AdvanceQuotaWindow(window, now, duration)
+	return quotawindow.Advance(window, now, duration)
 }
 
 func credentialUsage(identity CredentialIdentity, counters credentialCounters, policy CredentialPolicy) CredentialUsage {

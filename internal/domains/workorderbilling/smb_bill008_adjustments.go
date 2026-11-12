@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	doctemplate "github.com/monstercameron/human-capital-management-suite/internal/documents/template"
+	doctemplate "github.com/monstercameron/human-capital-management-suite/internal/doctemplate"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -74,32 +74,6 @@ const (
 	AdjustCancelled = "cancelled"
 )
 
-// AdjustInvoiceLine is one frozen invoiced line inside a bound snapshot.
-type AdjustInvoiceLine struct {
-	LineID      string
-	Description string
-	Qty         string
-	UnitPrice   string
-	Amount      string
-	TaxAmount   string
-}
-
-// AdjustInvoice is the frozen invoice snapshot adjustments pin. The server
-// adapter resolves it from the invoice owner; the registry never mutates it.
-type AdjustInvoice struct {
-	InvoiceID  string
-	CustomerID string
-	Currency   string
-	Number     string
-	Status     string
-	Revision   uint64
-	Digest     string
-	IssuedAt   string
-	Lines      []AdjustInvoiceLine
-	Total      string
-	TaxTotal   string
-}
-
 // AdjustReceiptInput records one provenance-carrying receipt observation.
 type AdjustReceiptInput struct {
 	ReceiptID  string
@@ -129,82 +103,6 @@ type AdjustDraftInput struct {
 	EvidenceRef string
 	TermsRef    string
 	CorrectsRef string
-}
-
-// AdjustLine is one frozen adjustment line with its original treatment.
-type AdjustLine struct {
-	LineID         string
-	Description    string
-	Qty            string
-	NetAmount      string
-	TaxAmount      string
-	TotalAmount    string
-	OriginalQty    string
-	OriginalAmount string
-	OriginalTax    string
-}
-
-// Adjustment is one durable credit or debit memo.
-type Adjustment struct {
-	AdjustmentID    string
-	TenantID        string
-	LegalEntityID   string
-	CustomerID      string
-	Currency        string
-	Kind            string
-	InvoiceID       string
-	InvoiceRevision uint64
-	InvoiceDigest   string
-	Lines           []AdjustLine
-	NetAmount       string
-	TaxAmount       string
-	TotalAmount     string
-	Reason          string
-	EvidenceRef     string
-	TermsRef        string
-	CorrectsRef     string
-	Status          string
-	DraftedBy       string
-	SubmittedBy     string
-	ApprovedBy      string
-	IssuedBy        string
-	Number          string
-	DocumentDigest  string
-	SettledAmount   string
-	AllocationID    string
-	CreatedAt       string
-	IssuedAt        string
-	Events          []AdjustEvent
-}
-
-// AdjustPreviewLine carries per-line original, consumed, available and
-// proposed treatment for the adjustment drawer.
-type AdjustPreviewLine struct {
-	LineID          string
-	Description     string
-	OriginalQty     string
-	OriginalAmount  string
-	OriginalTax     string
-	CreditedQty     string
-	CreditedAmount  string
-	CreditedTax     string
-	AvailableQty    string
-	AvailableAmount string
-	AvailableTax    string
-	ProposedQty     string
-	ProposedAmount  string
-	ProposedTax     string
-}
-
-// AdjustPreview answers a totals preview without recording anything.
-type AdjustPreview struct {
-	InvoiceID   string
-	Kind        string
-	NetAmount   string
-	TaxAmount   string
-	TotalAmount string
-	Currency    string
-	Lines       []AdjustPreviewLine
 }
 
 // AdjustAllocation records how one issued credit split paid receipts into
@@ -253,14 +151,6 @@ type AdjustVoid struct {
 type AdjustPolicy struct {
 	VoidWindowDays      int64
 	VoidRequireApproval bool
-}
-
-// AdjustEvent is one audit entry on an adjustment.
-type AdjustEvent struct {
-	Kind   string
-	Actor  string
-	At     string
-	Detail string
 }
 
 // AdjustLedger is the receivable posting surface adjustments settle into.

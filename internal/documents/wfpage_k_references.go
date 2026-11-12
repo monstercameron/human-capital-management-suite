@@ -193,8 +193,11 @@ func (index *WorkflowBacklinkIndex) Record(link WorkflowBacklink) {
 	index.rows = append(index.rows, link)
 }
 
-func (index WorkflowBacklinkIndex) ForDocument(documentID string) []WorkflowBacklink {
+func (index *WorkflowBacklinkIndex) ForDocument(documentID string) []WorkflowBacklink {
 	result := make([]WorkflowBacklink, 0)
+	if index == nil {
+		return result
+	}
 	for _, row := range index.rows {
 		if row.TargetDocumentID == documentID {
 			result = append(result, row)

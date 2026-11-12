@@ -343,6 +343,21 @@ internal_package_roots:
     layer: trust
     phase: P1A
     description: Security validation for quarantined document content and malware inspection.
+  - name: doctemplate
+    owner: data-and-ledger
+    layer: data
+    phase: P1A
+    description: Immutable, governed document template contract (publish, render, digest). Pure stdlib, linkable from the browser client.
+  - name: documentvalue
+    owner: data-and-ledger
+    layer: data
+    phase: P1A
+    description: Page-facing document attachment and signature values carried across the browser boundary. Server admission stays behind the EvidenceAdmission seam.
+  - name: esign
+    owner: data-and-ledger
+    layer: data
+    phase: P1A
+    description: Proof-bound e-signature ceremony lifecycle (DOC-SIGN-001). Pure stdlib, linkable from the browser client.
   - name: effectgraph
     owner: platform-foundation
     layer: platform
@@ -420,6 +435,21 @@ internal_package_roots:
     layer: data
     phase: deferred
     description: Closed-intent execution receipts (EVIDENCE-001); declared on 2026-09-10 when CI first ran the layout gate past the quality gate and reported the missing root. Deferred beyond P1A scope; digests point at owner records, never a second ledger.
+  - name: regulatory
+    owner: governance-and-trust
+    layer: governance
+    phase: P1A
+    description: WF-CAP-011 workforce-action compliance facts computed from published legal rule packs (layoff-window counts, disclosure units, statute deadlines); pure calendar math, thresholds always come from the pack.
+  - name: semver
+    owner: platform-foundation
+    layer: kernel
+    phase: P1A
+    description: AGENTUX-065 shared semantic-version value (SemVer 2.0.0 precedence, MAJOR.MINOR.PATCH labels) used by documents, agents and gates. Pure stdlib value.
+  - name: telemetry
+    owner: platform-foundation
+    layer: platform
+    phase: P1A
+    description: Stdlib-only telemetry seams shared by the workflow engine and the browser client (observe, the one operation-recording seam); recorders and exporters live in their owning roots.
 
 # Approved process set (companion to definitions/architecture/process-roles.yaml, SVC-001).
 approved_commands:

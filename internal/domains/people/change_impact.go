@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/governance/legal"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/jurisdiction"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -99,8 +99,8 @@ type ProposedRevision struct {
 	EffectiveDate        time.Time
 	CurrentAddress       PostalAddress
 	ProposedAddress      PostalAddress
-	CurrentJurisdiction  legal.Jurisdiction
-	ProposedJurisdiction legal.Jurisdiction
+	CurrentJurisdiction  jurisdiction.Jurisdiction
+	ProposedJurisdiction jurisdiction.Jurisdiction
 	PlanRef              string
 	PopulationRef        string
 	HoursPerWeek         values.Decimal

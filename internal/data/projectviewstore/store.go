@@ -50,7 +50,7 @@ func InitializeProjectTx(ctx context.Context, tx dbport.Tx, tenantID, projectID,
 		},
 		Grouping:   projectboard.Grouping{Kind: projectboard.GroupNone},
 		OrderBy:    projectboard.OrderTaskID,
-		CardFields: []string{projectboard.CardTitle, projectboard.CardStatus, projectboard.CardAssignee, projectboard.CardPriority},
+		CardFields: []string{projectboard.CardTitle, projectboard.CardStatus, projectboard.CardAssignee, projectboard.CardPriority, projectboard.CardDueDate},
 	}
 	if err := projectboard.Validate(view); err != nil {
 		return ErrInvalidView

@@ -1,4 +1,4 @@
-package importing
+package importdraft
 
 import (
 	"encoding/csv"
@@ -105,8 +105,8 @@ func (s SourceDescriptor) Validate() error {
 }
 
 // canonical writes the descriptor's canonical bytes into w.
-func (s SourceDescriptor) canonical(w *canonWriter) {
-	w.str(s.Kind.String()).str(s.URI).str(string(s.Tenant))
+func (s SourceDescriptor) canonical(w *Canon) {
+	w.Str(s.Kind.String()).Str(s.URI).Str(string(s.Tenant))
 }
 
 // Row is one staged, content-addressed record. Its identity is derived from
@@ -141,10 +141,10 @@ func (r Row) Cell(index int) (string, bool) {
 // order (order is the record's own field order, which is meaningful and must
 // not be sorted away).
 func rowDigest(headerDigest string, cells []string) string {
-	w := newCanonWriter("hcmnext.dataops.importing.Row", 1)
-	w.str(headerDigest)
-	w.strings(cells)
-	return w.digestHex()
+	w := NewCanon("hcmnext.dataops.importing.Row", 1)
+	w.Str(headerDigest)
+	w.Strings(cells)
+	return w.DigestHex()
 }
 
 // Batch is an immutable, content-addressed set of staged rows. Staging a
@@ -249,9 +249,9 @@ func validateHeader(header []string) error {
 
 // headerDigest computes the content address of a header/schema.
 func headerDigest(header []string) string {
-	w := newCanonWriter("hcmnext.dataops.importing.Header", 1)
-	w.strings(header)
-	return w.digestHex()
+	w := NewCanon("hcmnext.dataops.importing.Header", 1)
+	w.Strings(header)
+	return w.DigestHex()
 }
 
 // validateRecord rejects a record whose width does not match the header, or
@@ -306,14 +306,14 @@ func StageBatch(source SourceDescriptor, retrievedAt values.Instant, header []st
 		rows = append(rows, Row{id: rowDigest(hDigest, cells), cells: cells})
 	}
 
-	w := newCanonWriter("hcmnext.dataops.importing.Batch", 1)
+	w := NewCanon("hcmnext.dataops.importing.Batch", 1)
 	source.canonical(w)
 	sec, nsec := retrievedAt.Unix()
-	w.i64(sec).i64(int64(nsec))
-	w.str(hDigest)
-	w.u64(uint64(len(rows)))
+	w.I64(sec).I64(int64(nsec))
+	w.Str(hDigest)
+	w.U64(uint64(len(rows)))
 	for _, r := range rows {
-		w.str(r.id)
+		w.Str(r.id)
 	}
 
 	b := Batch{
@@ -321,7 +321,7 @@ func StageBatch(source SourceDescriptor, retrievedAt values.Instant, header []st
 		retrievedAt: retrievedAt,
 		header:      hdr,
 		rows:        rows,
-		digest:      w.digestHex(),
+		digest:      w.DigestHex(),
 	}
 	if err := b.Validate(); err != nil {
 		return Batch{}, err

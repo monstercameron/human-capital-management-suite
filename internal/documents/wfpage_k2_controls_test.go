@@ -25,7 +25,8 @@ func TestTodo_WFPAGE_014(t *testing.T) {
 		t.Fatal(err)
 	}
 	attachment, err := AdmitAttachment(intake.NewService(registry), AttachmentRequest{ArtifactID: "offer", Purpose: "workflow.offer", SubjectID: "worker-1", RequestedBy: "hr-1"})
-	if err != nil || attachment.Evidence.ID == "" || attachment.DocumentType != "PDF" {
+	evidenceRef, isRef := attachment.Evidence.(intake.EvidenceRef)
+	if err != nil || !isRef || evidenceRef.ID == "" || attachment.DocumentType != "PDF" {
 		t.Fatalf("attachment = %+v, %v", attachment, err)
 	}
 	ceremony, err := BeginSignature(SignatureRequest{ID: "ack", ArtifactHash: "sha256:offer", SignerID: "worker-1", AssuranceLevel: AssuranceEnhanced, TrustedNow: 1, ExpiresAt: 10})
@@ -38,7 +39,7 @@ func TestTodo_WFPAGE_014(t *testing.T) {
 }
 
 func TestTodo_WFPAGE_014_Browser(t *testing.T) {
-	if !AssuranceQualified.valid() {
+	if !AssuranceQualified.Valid() {
 		t.Fatal("qualified assurance must be renderable")
 	}
 	if _, err := BeginSignature(SignatureRequest{ID: "x", ArtifactHash: "h", SignerID: "s", AssuranceLevel: "forged", TrustedNow: 1, ExpiresAt: 2}); !errors.Is(err, ErrAssuranceLevel) {

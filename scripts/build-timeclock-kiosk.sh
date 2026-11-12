@@ -31,9 +31,18 @@ if [ ! -s "$wasm_tmp" ]; then
   echo "build-timeclock-kiosk: Go produced an empty WASM bundle" >&2
   exit 1
 fi
+wasm_magic="$(head -c 4 "$wasm_tmp" | od -An -tx1 | tr -d ' \n')"
+if [ "$wasm_magic" != "0061736d" ]; then
+  echo "build-timeclock-kiosk: output is not a WebAssembly module (magic $wasm_magic)" >&2
+  exit 1
+fi
 cp "$shim_source" "$shim_tmp"
 if [ ! -s "$shim_tmp" ]; then
   echo "build-timeclock-kiosk: Go shim is empty: $shim_source" >&2
+  exit 1
+fi
+if ! grep -q 'globalThis.Go' "$shim_tmp"; then
+  echo "build-timeclock-kiosk: Go shim does not define the Go runtime: $shim_source" >&2
   exit 1
 fi
 

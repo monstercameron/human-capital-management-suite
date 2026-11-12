@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/operation"
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/contractortime"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/operationobservation"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -425,7 +425,7 @@ type payIdem struct {
 }
 
 type payStoredObservation struct {
-	verdict   operation.ObservationVerdict
+	verdict   operationobservation.ObservationVerdict
 	authority string
 	usedBy    string
 }
@@ -1088,7 +1088,7 @@ func payTotalOf(credit *payCredit) payMoneyValue {
 // RegisterObservation records one settlement observation for later payment
 // allocation. Unknown verdicts are refused; re-registering the same external
 // resource converges on one recording.
-func (r *PayableRegistry) RegisterObservation(op PayOp, obs operation.Observation) error {
+func (r *PayableRegistry) RegisterObservation(op PayOp, obs operationobservation.Observation) error {
 	if err := op.validate(); err != nil {
 		return err
 	}
@@ -1103,7 +1103,7 @@ func (r *PayableRegistry) RegisterObservation(op PayOp, obs operation.Observatio
 		return fmt.Errorf("%w: observation needs its external resource key", ErrPayableValidation)
 	}
 	switch obs.Verdict {
-	case operation.ObservationApplied, operation.ObservationNotApplied, operation.ObservationConflict, operation.ObservationUnknown:
+	case operationobservation.ObservationApplied, operationobservation.ObservationNotApplied, operationobservation.ObservationConflict, operationobservation.ObservationUnknown:
 	default:
 		return fmt.Errorf("%w: unknown observation verdict", ErrPayableValidation)
 	}
@@ -1176,7 +1176,7 @@ func (r *PayableRegistry) AllocatePayment(op PayOp, input PaymentInput, key stri
 		if !ok {
 			return PaymentReceipt{}, fmt.Errorf("%w: observation is not registered", ErrPayableState)
 		}
-		if stored.verdict != operation.ObservationApplied {
+		if stored.verdict != operationobservation.ObservationApplied {
 			return PaymentReceipt{}, fmt.Errorf("%w: observation is not applied", ErrPayableState)
 		}
 		if stored.usedBy != "" {
@@ -1744,7 +1744,7 @@ type paySnapshotFamily struct {
 }
 
 type paySnapshotObservation struct {
-	Verdict   operation.ObservationVerdict
+	Verdict   operationobservation.ObservationVerdict
 	Authority string
 	UsedBy    string
 }

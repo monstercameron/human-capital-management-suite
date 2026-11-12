@@ -14,8 +14,8 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
-	"github.com/monstercameron/human-capital-management-suite/internal/workflow/observe"
 )
 
 const maxDraftDocumentBytes = 4 << 20

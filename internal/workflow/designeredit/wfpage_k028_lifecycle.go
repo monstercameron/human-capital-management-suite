@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 	workflowversion "github.com/monstercameron/human-capital-management-suite/internal/workflow/version"
 )
 
@@ -66,7 +67,9 @@ func pageDraftTarget(draft PageOverrideDraft) string {
 	return strings.TrimSpace(draft.WorkflowID) + "\x00" + strconv.FormatUint(uint64(draft.WorkflowVersion), 10) + "\x00" + strings.TrimSpace(draft.PageID)
 }
 
-func (store *PageDraftStore) Save(_ context.Context, draft PageOverrideDraft, expectedRevision uint64) (PageOverrideDraft, error) {
+func (store *PageDraftStore) Save(ctx context.Context, draft PageOverrideDraft, expectedRevision uint64) (_ PageOverrideDraft, retErr error) {
+	_, op := observe.Begin(ctx, "workflow.designer.page_draft_save", draft)
+	defer func() { observe.Done(op, retErr) }()
 	if store == nil || strings.TrimSpace(draft.DraftID) == "" || strings.TrimSpace(draft.WorkflowID) == "" || draft.WorkflowVersion == 0 || strings.TrimSpace(draft.PageID) == "" || strings.TrimSpace(draft.BaseWorkflowDigest) == "" || strings.TrimSpace(draft.GeneratedDefaultDigest) == "" || strings.TrimSpace(draft.OverrideDigest) == "" {
 		return PageOverrideDraft{}, ErrPageDraftInvalid
 	}
@@ -91,7 +94,11 @@ func (store *PageDraftStore) Save(_ context.Context, draft PageOverrideDraft, ex
 	return clonePageOverrideDraft(draft), nil
 }
 
-func (store *PageDraftStore) Get(_ context.Context, draft PageOverrideDraft) (PageOverrideDraft, bool) {
+// Get reports a miss as ok=false, which is an ordinary answer rather than a
+// failure, so the operation ends SUCCESS.
+func (store *PageDraftStore) Get(ctx context.Context, draft PageOverrideDraft) (PageOverrideDraft, bool) {
+	_, op := observe.Begin(ctx, "workflow.designer.page_draft_get", draft)
+	defer func() { observe.Done(op, nil) }()
 	if store == nil {
 		return PageOverrideDraft{}, false
 	}
@@ -130,7 +137,9 @@ func ApprovePageOverride(draft PageOverrideDraft, reviewer string) (PageOverride
 	return clonePageOverrideDraft(draft), nil
 }
 
-func (store *PageDraftStore) Publish(_ context.Context, draft PageOverrideDraft, pageVersion int64, publisher string, workflowInputs []workflowversion.PageBinding, interrupted bool) (PagePublication, error) {
+func (store *PageDraftStore) Publish(ctx context.Context, draft PageOverrideDraft, pageVersion int64, publisher string, workflowInputs []workflowversion.PageBinding, interrupted bool) (_ PagePublication, retErr error) {
+	_, op := observe.Begin(ctx, "workflow.designer.page_publish", draft)
+	defer func() { observe.Done(op, retErr) }()
 	if store == nil || pageVersion < 1 || strings.TrimSpace(publisher) == "" || draft.Status != PageDraftStatusApproved {
 		return PagePublication{}, ErrPageDraftBlocked
 	}

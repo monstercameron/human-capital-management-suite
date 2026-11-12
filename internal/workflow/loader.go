@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	workflowv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
-	"google.golang.org/protobuf/encoding/protojson"
+	"github.com/monstercameron/human-capital-management-suite/internal/workflow/authoredwire"
 )
 
 // Load parses a workflow definition from its declarative document shape.
@@ -60,18 +59,18 @@ func Marshal(def Definition) ([]byte, error) {
 // canvas state in the artifact do not enter the definition; see
 // [FromAuthoredProto].
 func LoadProtoJSON(data []byte) (Definition, error) {
-	var pb workflowv1.AuthoredWorkflowDefinition
-	if err := protojson.Unmarshal(data, &pb); err != nil {
+	pb, err := authoredwire.Unmarshal(data)
+	if err != nil {
 		return Definition{}, fmt.Errorf("workflow: load definition protojson: %w", err)
 	}
-	return FromAuthoredProto(&pb), nil
+	return FromAuthoredProto(pb), nil
 }
 
 // MarshalProtoJSON renders a definition as its stored authoring form: the
 // protojson rendering of the AuthoredWorkflowDefinition mirror. It is the
 // artifact [LoadProtoJSON] accepts.
 func MarshalProtoJSON(def Definition) ([]byte, error) {
-	b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(ToAuthoredProto(def))
+	b, err := authoredwire.Marshal(ToAuthoredProto(def))
 	if err != nil {
 		return nil, fmt.Errorf("workflow: marshal definition protojson: %w", err)
 	}

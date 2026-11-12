@@ -122,6 +122,7 @@ var ImplicitAllowlist = []ImplicitEntry{
 	{Package: "internal/agentsystem/scheduled", Owner: "agent platform", Reason: "agent occurrence routing translates scheduled events into the shared admission inbox; canonical scheduling authority remains internal/engines/schedule"},
 	{Package: "internal/application/crewschedule", Owner: "experience platform", Reason: "FTIME-006 application authorization and revision boundary delegates shift rules to internal/domains/crewshift; it is not the scheduling substrate owner"},
 	{Package: "internal/collaboration/chatsearch", Owner: "collaboration platform", Reason: "Chat owns its current-access search contract; canonical search substrate remains internal/data/search"},
+	{Package: "internal/telemetry/observe", Owner: "observability platform", Reason: "the pure observation bracket (start, classify, finish) is a stdlib-only leaf the browser client can link; signal construction and exporters remain owned by internal/platform/telemetry"},
 	{Package: "internal/operations/telemetry", Owner: "operations platform", Reason: "OPS-002 owns operational telemetry policy facts; signal construction and exporters remain owned by internal/platform/telemetry"},
 }
 

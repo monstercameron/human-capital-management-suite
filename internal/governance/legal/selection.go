@@ -327,9 +327,9 @@ func cloneStrategies(in map[string]FamilyStrategy) map[string]FamilyStrategy {
 func selectionContextDigest(sel RulePackSelection, scope string) string {
 	var raw []byte
 	raw = append(raw, 'R', 'S', '1')
-	raw = sel.Primary.canonicalBytes(appendField(raw, "primary", ""))
+	raw = sel.Primary.CanonicalBytes(appendField(raw, "primary", ""))
 	for _, overlay := range sel.Overlays {
-		raw = overlay.canonicalBytes(appendField(raw, "overlay", ""))
+		raw = overlay.CanonicalBytes(appendField(raw, "overlay", ""))
 	}
 	raw = appendField(raw, "business_date", sel.BusinessDate.String())
 	raw = appendField(raw, "known_at", sel.KnownAt.String())
@@ -726,9 +726,9 @@ func knownSelectionStatus(status string) bool {
 func (s RulePackSelection) CanonicalBytes() []byte {
 	var out = []byte{'L', 'S', '7'}
 	out = appendField(out, "jurisdiction_context_digest", s.JurisdictionContextDigest)
-	out = s.Primary.canonicalBytes(appendField(out, "primary", ""))
+	out = s.Primary.CanonicalBytes(appendField(out, "primary", ""))
 	for _, overlay := range s.Overlays {
-		out = overlay.canonicalBytes(appendField(out, "overlay", ""))
+		out = overlay.CanonicalBytes(appendField(out, "overlay", ""))
 	}
 	out = appendField(out, "confidence", s.Confidence.String())
 	out = appendField(out, "attribution_rule", string(s.AttributionRule))
@@ -746,7 +746,7 @@ func (s RulePackSelection) CanonicalBytes() []byte {
 		out = appendField(out, "ordered_pack_id", r.Release.PackID)
 		out = appendUint32Field(out, "ordered_version", r.Release.Version)
 		out = appendUint32Field(out, "ordered_minor", r.Release.MinorVersion)
-		out = r.Release.Jurisdiction.canonicalBytes(appendField(out, "ordered_jurisdiction", ""))
+		out = r.Release.Jurisdiction.CanonicalBytes(appendField(out, "ordered_jurisdiction", ""))
 		out = appendField(out, "ordered_family", r.Family)
 		out = appendField(out, "ordered_digest", r.Digest)
 		out = appendField(out, "ordered_review", r.ReviewStatus.String())
@@ -754,12 +754,12 @@ func (s RulePackSelection) CanonicalBytes() []byte {
 	for _, e := range s.Excluded {
 		out = appendField(out, "excluded_pack_id", e.Release.PackID)
 		out = appendUint32Field(out, "excluded_version", e.Release.Version)
-		out = e.Release.Jurisdiction.canonicalBytes(appendField(out, "excluded_jurisdiction", ""))
+		out = e.Release.Jurisdiction.CanonicalBytes(appendField(out, "excluded_jurisdiction", ""))
 		out = appendField(out, "excluded_reason", e.Reason)
 	}
 	for _, c := range s.Conflicts {
 		out = appendField(out, "conflict_pack_id", c.PackID)
-		out = c.Jurisdiction.canonicalBytes(appendField(out, "conflict_jurisdiction", ""))
+		out = c.Jurisdiction.CanonicalBytes(appendField(out, "conflict_jurisdiction", ""))
 		for _, r := range c.Releases {
 			out = appendField(out, "conflict_version_pack", r.PackID)
 			out = appendUint32Field(out, "conflict_version", r.Version)
@@ -994,7 +994,7 @@ func (p RollbackPlan) CanonicalBytes() []byte {
 	out = appendField(out, "target_pack_id", p.Target.PackID)
 	out = appendUint32Field(out, "target_version", p.Target.Version)
 	out = appendUint32Field(out, "target_minor", p.Target.MinorVersion)
-	out = p.Target.Jurisdiction.canonicalBytes(appendField(out, "target_jurisdiction", ""))
+	out = p.Target.Jurisdiction.CanonicalBytes(appendField(out, "target_jurisdiction", ""))
 	out = appendField(out, "selection_digest", p.Selection.Digest)
 	for _, fenced := range p.FencedInflight {
 		out = appendField(out, "fenced", fenced)

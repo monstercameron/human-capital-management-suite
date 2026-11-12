@@ -19,6 +19,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/designerpalette"
 	stepsignal "github.com/monstercameron/human-capital-management-suite/internal/workflow/steps/signal"
@@ -326,7 +327,9 @@ func DispatchID(binding Binding, instanceID, nodeID string) string {
 
 // StartTrip validates the call, dispatches through the binding, and opens a
 // DISPATCHED trip keyed by the vendor's correlation value.
-func StartTrip(ctx context.Context, dispatcher Dispatcher, b Binding, call VendorCall, now time.Time) (Trip, error) {
+func StartTrip(ctx context.Context, dispatcher Dispatcher, b Binding, call VendorCall, now time.Time) (_ Trip, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.vendor.start_trip", observe.Attrs{observe.KeyInstance: call.InstanceID, observe.KeyNode: call.NodeID})
+	defer func() { observe.Done(op, retErr) }()
 	if err := b.Validate(); err != nil {
 		return Trip{}, err
 	}
@@ -396,7 +399,9 @@ func AcceptCallback(trip Trip, sub stepsignal.SignalSubscription, sig stepsignal
 // refuses (the vendor still owns the answer); a found read-back completes
 // the trip; exhausted polls or the hard deadline quarantine it with observed
 // evidence only.
-func PollOnce(ctx context.Context, poller Poller, b Binding, trip Trip, now time.Time) (Trip, error) {
+func PollOnce(ctx context.Context, poller Poller, b Binding, trip Trip, now time.Time) (_ Trip, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.vendor.poll_once", observe.Attrs{observe.KeyInstance: trip.InstanceID, observe.KeyNode: trip.NodeID})
+	defer func() { observe.Done(op, retErr) }()
 	if err := b.Validate(); err != nil {
 		return trip, err
 	}

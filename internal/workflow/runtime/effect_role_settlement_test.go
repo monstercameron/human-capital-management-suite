@@ -53,7 +53,10 @@ func rolePlan(t *testing.T, role workflow.EffectRole) *workflow.CompiledWorkflow
 		workflow.Edge{From: settlementLeg, To: promotionexec.NodeEndRepairPlan, RouteKey: "AMBIGUOUS"},
 	)
 	def.Limits.MaxNodes++
-	plan, err := promotionexec.Compile(def)
+	// The graph is frozen 1.0.0, so it compiles against the frozen v1
+	// manifests (execute is INTERNAL_MUTATION), not the current registry,
+	// where bootstrap v1 is READ_ONLY and the mutation lives at v2.
+	plan, err := promotionexec.CompileV1_0(def)
 	if err != nil {
 		t.Fatalf("compile %s plan: %v", role, err)
 	}

@@ -23,6 +23,8 @@ func refinementService(t *testing.T) (*designeredit.Service, *memoryDraftStore, 
 		Catalog: fixedCatalog{
 			{ID: "template.promotion", Version: 1, Name: "Promotion", Kind: designerpalette.KindTemplate, Expansion: designerpalette.Expansion{Template: &template}},
 			{ID: "kernel.task", Version: 1, Name: "Task", Kind: designerpalette.KindBlock, StepType: workflow.StepTask},
+			{ID: "kernel.wait", Version: 1, Name: "Wait", Kind: designerpalette.KindBlock, StepType: workflow.StepWait},
+			{ID: "kernel.signal", Version: 1, Name: "Signal", Kind: designerpalette.KindBlock, StepType: workflow.StepSignal},
 		},
 		NewID: func() (string, error) { return "01999f37-9f42-7000-8000-000000000106", nil },
 	}
@@ -84,6 +86,80 @@ func TestTodo_WF_UI_009_RepeatedKeyboardSubmissionDoesNotInventARevision(t *test
 	}
 	if change.Draft.Revision != draft.Revision || store.draft.Revision != draft.Revision || string(store.draft.Document) != string(before) {
 		t.Fatalf("unchanged keyboard submit created history: view=%d store=%d", change.Draft.Revision, store.draft.Revision)
+	}
+}
+
+// TestIssue3621_FreshWaitAndSignalExposeTypedSettings inserts Wait and Signal
+// blocks the way the palette does. Their typed parameters must be projected
+// before any configuration exists, and saved values must round-trip through
+// the stored document.
+func TestIssue3621_FreshWaitAndSignalExposeTypedSettings(t *testing.T) {
+	service, _, draft := refinementService(t)
+	ctx := context.Background()
+	tenant := values.TenantId("tenant-a")
+
+	waited, err := service.ApplyTemplateOverlay(ctx, tenant, "author-a", designeredit.ApplyTemplateOverlayRequest{
+		DraftID: draft.DraftID, ExpectedRevision: draft.Revision, Operation: designeredit.OverlayAdd, EntryID: "kernel.wait", EntryVersion: 1,
+	})
+	if err != nil || len(waited.InsertedNodeIDs) != 1 {
+		t.Fatalf("add wait: %v, inserted %v", err, waited.InsertedNodeIDs)
+	}
+	waitID := waited.InsertedNodeIDs[0]
+	wait := draftNode(t, waited.Draft, waitID)
+	if parameterKind(wait, "wait_wake_kind") != designeredit.ParameterEnum || len(parameterOptions(wait, "wait_wake_kind")) != 3 {
+		t.Fatalf("fresh wait schema = %+v", wait.Parameters)
+	}
+	if parameterKind(wait, "wait_zone") != designeredit.ParameterText || parameterKind(wait, "wait_calendar") != designeredit.ParameterText {
+		t.Fatalf("fresh wait zone or calendar missing = %+v", wait.Parameters)
+	}
+	if _, err := service.UpdateNodeParameters(ctx, tenant, "author-a", designeredit.UpdateNodeParametersRequest{
+		DraftID: waited.Draft.DraftID, ExpectedRevision: waited.Draft.Revision, NodeID: waitID,
+		Values: map[string]string{"wait_wake_kind": "NEVER", "wait_zone": "Europe/Berlin", "wait_calendar": "business-de"},
+	}); !errors.Is(err, designeredit.ErrInvalid) {
+		t.Fatalf("unknown wake kind = %v, want ErrInvalid", err)
+	}
+	saved, err := service.UpdateNodeParameters(ctx, tenant, "author-a", designeredit.UpdateNodeParametersRequest{
+		DraftID: waited.Draft.DraftID, ExpectedRevision: waited.Draft.Revision, NodeID: waitID,
+		Values: map[string]string{"wait_wake_kind": "AT_LOCAL_DATE", "wait_zone": "Europe/Berlin", "wait_calendar": "business-de"},
+	})
+	if err != nil {
+		t.Fatalf("save wait settings: %v", err)
+	}
+	wait = draftNode(t, saved.Draft, waitID)
+	if parameterValue(wait, "wait_wake_kind") != "AT_LOCAL_DATE" || parameterValue(wait, "wait_zone") != "Europe/Berlin" || parameterValue(wait, "wait_calendar") != "business-de" {
+		t.Fatalf("saved wait settings did not round-trip: %+v", wait.Parameters)
+	}
+
+	signalled, err := service.ApplyTemplateOverlay(ctx, tenant, "author-a", designeredit.ApplyTemplateOverlayRequest{
+		DraftID: saved.Draft.DraftID, ExpectedRevision: saved.Draft.Revision, Operation: designeredit.OverlayAdd, EntryID: "kernel.signal", EntryVersion: 1,
+	})
+	if err != nil || len(signalled.InsertedNodeIDs) != 1 {
+		t.Fatalf("add signal: %v, inserted %v", err, signalled.InsertedNodeIDs)
+	}
+	signalID := signalled.InsertedNodeIDs[0]
+	signal := draftNode(t, signalled.Draft, signalID)
+	if parameterKind(signal, "signal_event_type") != designeredit.ParameterText || parameterKind(signal, "signal_timeout_seconds") != designeredit.ParameterInteger {
+		t.Fatalf("fresh signal schema = %+v", signal.Parameters)
+	}
+	if _, err := service.UpdateNodeParameters(ctx, tenant, "author-a", designeredit.UpdateNodeParametersRequest{
+		DraftID: signalled.Draft.DraftID, ExpectedRevision: signalled.Draft.Revision, NodeID: signalID,
+		Values: map[string]string{"signal_event_type": "   "},
+	}); !errors.Is(err, designeredit.ErrInvalid) {
+		t.Fatalf("blank required event type = %v, want ErrInvalid", err)
+	}
+	savedSignal, err := service.UpdateNodeParameters(ctx, tenant, "author-a", designeredit.UpdateNodeParametersRequest{
+		DraftID: signalled.Draft.DraftID, ExpectedRevision: signalled.Draft.Revision, NodeID: signalID,
+		Values: map[string]string{"signal_event_type": "payroll.acknowledged", "signal_timeout_seconds": "3600"},
+	})
+	if err != nil {
+		t.Fatalf("save signal settings: %v", err)
+	}
+	signal = draftNode(t, savedSignal.Draft, signalID)
+	if parameterValue(signal, "signal_event_type") != "payroll.acknowledged" || parameterValue(signal, "signal_timeout_seconds") != "3600" {
+		t.Fatalf("saved signal settings did not round-trip: %+v", signal.Parameters)
+	}
+	if parameterValue(draftNode(t, savedSignal.Draft, waitID), "wait_zone") != "Europe/Berlin" {
+		t.Fatalf("wait settings lost after signal edit")
 	}
 }
 

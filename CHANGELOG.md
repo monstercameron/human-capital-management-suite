@@ -1,3 +1,15 @@
+## 2026-11-12 — Browser-client import lineage, projection barrier status and build-path repairs (#3631, #3639, #3640, #3641, #3643, #70, #71, #69)
+
+- DATA-021: `Await` no longer returns a TIMEOUT error next to a stale non-TIMEOUT `BarrierResult`, and an expired requirement with no stream head or checkpoint reports TIMEOUT instead of an unrelated status (#3631).
+- The browser client no longer links server packages: thirteen import edges are cut by moving the pure value types the client reads into leaf packages (`internal/kernel/{delivery,importdraft,jurisdiction,operationobservation,quotawindow}`, `internal/doctemplate`, `internal/documentvalue`, `internal/esign`, `internal/domains/workorderbilling/billview`, `internal/telemetry/observe`). The original packages re-export the moved names, so server callers are unchanged (#3639).
+- Eight workflow engine operations that lacked an observation bracket now have one; `TestWorkflowEngineOperationsAreInstrumented` passes (#3640).
+- The workflow JSON codec moves from `internal/workflow/loader.go` to `internal/workflow/authoredwire`, and the library firewall's protobuf allowance narrows from the whole `internal/workflow` root to that package (#3641).
+- `WorkflowBacklinkIndex.ForDocument` answers an empty result on a nil index instead of panicking, matching `Record` (#3643).
+- The repository layout inventory lists the package roots it omitted, and the substrate coverage map names `internal/telemetry/observe` (#70).
+- The enterprise gate test no longer expires with the calendar: the wall-clock `Evaluate` leg uses evidence that expires 30 days after the run, and the explicit-clock legs keep the fixed fixture (#71).
+- `scripts/build-timeclock-kiosk.sh` is a reproducible build-and-run path for the time clock kiosk, covered by `build-timeclock-kiosk.test.mjs` (#69).
+- New project boards include the due date among their default card fields, so the Board "Due soon" filter sees dated tasks; boards saved earlier keep their stored fields (#3613, partial).
+
 ## 2026-11-11 — Pre-commit hook and gate repairs
 
 - The pre-commit hook runs on the Go release `go.mod` pins (the one CI uses) and that release's gofmt; `.gitattributes` keeps text files LF on every platform. A Windows checkout no longer reports every file as unformatted, and a newer local Go no longer disagrees with CI's gofmt.

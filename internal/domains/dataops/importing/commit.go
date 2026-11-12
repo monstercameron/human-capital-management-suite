@@ -2,12 +2,9 @@ package importing
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
-	"sync"
 )
 
 // DATAOPS-006: an approved import commits resumably and reconciles every item.
@@ -28,24 +25,8 @@ import (
 
 // Commit errors.
 var (
-	ErrCommitBinding      = errors.New("importing: commit is not bound to the approved simulation")
-	ErrCheckpointConflict = errors.New("importing: checkpoint was advanced by another committer")
-	ErrCommitInput        = errors.New("importing: commit input is invalid")
-)
-
-// Item outcome statuses.
-const (
-	ItemCommitted = "COMMITTED"
-	ItemFailed    = "FAILED"
-	ItemNoOp      = "NO_OP"
-	ItemError     = "ERROR"
-	ItemConflict  = "CONFLICT"
-)
-
-// Reconciliation statuses an item committer reports.
-const (
-	ReconciliationMatched  = "MATCHED"
-	ReconciliationMismatch = "MISMATCH"
+	ErrCommitBinding = errors.New("importing: commit is not bound to the approved simulation")
+	ErrCommitInput   = errors.New("importing: commit input is invalid")
 )
 
 // CommitApproval is the recorded approval of one simulation.
@@ -55,53 +36,6 @@ type CommitApproval struct {
 	MappingDigest    string
 	ApprovalRef      string
 	ApprovedBy       string
-}
-
-// ItemRequest is one draft to commit.
-type ItemRequest struct {
-	Tenant           string
-	ImportID         string
-	SimulationDigest string
-	IdempotencyKey   string
-	Draft            BusinessIntentDraft
-}
-
-// ItemLineage is the evidence a committed item leaves.
-type ItemLineage struct {
-	TransactionRef       string
-	ObservationRef       string
-	ReconciliationStatus string
-}
-
-// ItemCommitter commits one draft through the governed transaction path. It
-// must be idempotent on ItemRequest.IdempotencyKey.
-type ItemCommitter interface {
-	CommitItem(ctx context.Context, req ItemRequest) (ItemLineage, error)
-}
-
-// ItemState is one checkpointed item.
-type ItemState struct {
-	Status      string
-	Lineage     ItemLineage
-	FailureCode string
-}
-
-// Checkpoint is the durable progress of one import commit.
-type Checkpoint struct {
-	ImportID         string
-	SimulationDigest string
-	BatchDigest      string
-	MappingDigest    string
-	Version          uint64
-	Items            map[string]ItemState
-}
-
-// CheckpointStore persists checkpoints under compare-and-set.
-type CheckpointStore interface {
-	Load(ctx context.Context, importID string) (Checkpoint, bool, error)
-	// Save stores cp when the stored version equals expectedVersion (0 for a
-	// new checkpoint), otherwise it returns ErrCheckpointConflict.
-	Save(ctx context.Context, cp Checkpoint, expectedVersion uint64) error
 }
 
 // CommitInput is one commit or resume.
@@ -134,12 +68,6 @@ type CommitResult struct {
 	Committed, NoOps, Errors, Conflicts, Failed, Pending int
 	Items                                                []ItemOutcome
 	Complete                                             bool
-}
-
-// IdempotencyKey is the item key a commit presents for a row of a simulation.
-func IdempotencyKey(simulationDigest, rowID string) string {
-	sum := sha256.Sum256([]byte("hcmnext.dataops.import.item/v1\x00" + simulationDigest + "\x00" + rowID))
-	return "import-item:" + hex.EncodeToString(sum[:16])
 }
 
 // CommitImport commits (or resumes committing) an approved import.
@@ -277,36 +205,4 @@ func CorrectiveIntents(sim ImportSimulation, res CommitResult) []CorrectiveInten
 		out = append(out, ci)
 	}
 	return out
-}
-
-// MemoryCheckpoints is an in-process [CheckpointStore].
-type MemoryCheckpoints struct {
-	mu   sync.Mutex
-	byID map[string]Checkpoint
-}
-
-// NewMemoryCheckpoints returns an empty store.
-func NewMemoryCheckpoints() *MemoryCheckpoints {
-	return &MemoryCheckpoints{byID: map[string]Checkpoint{}}
-}
-
-// Load implements CheckpointStore.
-func (m *MemoryCheckpoints) Load(_ context.Context, importID string) (Checkpoint, bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	cp, ok := m.byID[importID]
-	cp.Items = maps.Clone(cp.Items)
-	return cp, ok, nil
-}
-
-// Save implements CheckpointStore.
-func (m *MemoryCheckpoints) Save(_ context.Context, cp Checkpoint, expectedVersion uint64) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.byID[cp.ImportID].Version != expectedVersion {
-		return ErrCheckpointConflict
-	}
-	cp.Items = maps.Clone(cp.Items)
-	m.byID[cp.ImportID] = cp
-	return nil
 }

@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops/importing"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -51,12 +51,12 @@ func asset002Workers(tenant values.TenantId, worker values.EntityRef) bool {
 	return worker.Id == asset002Worker1 || worker.Id == asset002Worker2
 }
 
-func asset002Commit(t *testing.T, committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) importing.ItemLineage {
+func asset002Commit(t *testing.T, committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) importdraft.ItemLineage {
 	t.Helper()
-	lineage, err := committer.CommitItem(context.Background(), importing.ItemRequest{
+	lineage, err := committer.CommitItem(context.Background(), importdraft.ItemRequest{
 		Tenant: "tenant-a", ImportID: "import-1", SimulationDigest: simDigest,
-		IdempotencyKey: importing.IdempotencyKey(simDigest, row.RowID),
-		Draft:          importing.BusinessIntentDraft{RowID: row.RowID, IntentType: "equipment.register", Status: "CREATE", Writes: row.DraftWrites()},
+		IdempotencyKey: importdraft.IdempotencyKey(simDigest, row.RowID),
+		Draft:          importdraft.BusinessIntentDraft{RowID: row.RowID, IntentType: "equipment.register", Status: "CREATE", Writes: row.DraftWrites()},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -64,16 +64,16 @@ func asset002Commit(t *testing.T, committer *EquipmentCommitter, simDigest strin
 	return lineage
 }
 
-func asset002CommitInline(t *testing.T, committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) importing.ItemLineage {
+func asset002CommitInline(t *testing.T, committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) importdraft.ItemLineage {
 	t.Helper()
 	return asset002Commit(t, committer, simDigest, row)
 }
 
-func asset002CommitErr(committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) (importing.ItemLineage, error) {
-	return committer.CommitItem(context.Background(), importing.ItemRequest{
+func asset002CommitErr(committer *EquipmentCommitter, simDigest string, row EquipmentImportRow) (importdraft.ItemLineage, error) {
+	return committer.CommitItem(context.Background(), importdraft.ItemRequest{
 		Tenant: "tenant-a", ImportID: "import-1", SimulationDigest: simDigest,
-		IdempotencyKey: importing.IdempotencyKey(simDigest, row.RowID),
-		Draft:          importing.BusinessIntentDraft{RowID: row.RowID, IntentType: "equipment.register", Status: "CREATE", Writes: row.DraftWrites()},
+		IdempotencyKey: importdraft.IdempotencyKey(simDigest, row.RowID),
+		Draft:          importdraft.BusinessIntentDraft{RowID: row.RowID, IntentType: "equipment.register", Status: "CREATE", Writes: row.DraftWrites()},
 	})
 }
 

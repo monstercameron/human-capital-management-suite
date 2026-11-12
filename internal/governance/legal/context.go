@@ -230,10 +230,10 @@ func (c *LegalContext) canonicalBytes() []byte {
 	var b []byte
 	b = append(b, 0x4c, 0x43, 0x31) // "LC1" — LegalContext, encoding version 1.
 	b = appendField(b, "legal_entity_id", c.legalEntityID)
-	b = c.workLocation.canonicalBytes(appendField(b, "work_location", ""))
-	b = c.employmentJurisdiction.canonicalBytes(appendField(b, "employment_jurisdiction", ""))
+	b = c.workLocation.CanonicalBytes(appendField(b, "work_location", ""))
+	b = c.employmentJurisdiction.CanonicalBytes(appendField(b, "employment_jurisdiction", ""))
 	b = appendFieldBool(b, "remote_work", c.remoteWork)
-	b = c.jurisdiction.canonicalBytes(appendField(b, "jurisdiction", ""))
+	b = c.jurisdiction.CanonicalBytes(appendField(b, "jurisdiction", ""))
 	b = appendField(b, "effective_date", c.effectiveDate.String())
 	b = appendField(b, "known_at", c.knownAt.String())
 	b = appendField(b, "recorded_at", c.recordedAt.String())
@@ -241,12 +241,12 @@ func (c *LegalContext) canonicalBytes() []byte {
 	for _, r := range c.releases {
 		b = appendField(b, "release_pack_id", r.PackID)
 		b = appendUint32Field(b, "release_version", r.Version)
-		b = r.Jurisdiction.canonicalBytes(appendField(b, "release_jurisdiction", ""))
+		b = r.Jurisdiction.CanonicalBytes(appendField(b, "release_jurisdiction", ""))
 	}
 	if len(c.unregisteredLocalities) > 0 {
 		b = appendUint32Field(b, "unregistered_locality_count", uint32(len(c.unregisteredLocalities)))
 		for _, locality := range c.unregisteredLocalities {
-			b = locality.canonicalBytes(appendField(b, "unregistered_locality", ""))
+			b = locality.CanonicalBytes(appendField(b, "unregistered_locality", ""))
 		}
 	}
 	if c.failClosedOnUnregisteredLocality {

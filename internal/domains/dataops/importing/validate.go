@@ -3,6 +3,7 @@ package importing
 import (
 	"errors"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"sort"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/model"
@@ -39,53 +40,11 @@ var (
 	ErrMappingColumnMissing = errors.New("importing: mapping reads a column the batch does not have")
 )
 
-// ValidationSeverity is the closed set of severities a [ValidationError] carries.
-type ValidationSeverity uint8
-
-// Severities.
-const (
-	// The zero value is unspecified and never legal.
-	_ ValidationSeverity = iota
-	// ValidationSeverityError blocks the row from being VALID.
-	ValidationSeverityError
-	// ValidationSeverityWarning is informational and never blocks a row.
-	ValidationSeverityWarning
-)
-
-var severityWire = map[ValidationSeverity]string{
-	ValidationSeverityError:   "ERROR",
-	ValidationSeverityWarning: "WARNING",
-}
-
-// String returns the stable wire token, or "SEVERITY_UNSPECIFIED".
-func (s ValidationSeverity) String() string {
-	if w, ok := severityWire[s]; ok {
-		return w
-	}
-	return "SEVERITY_UNSPECIFIED"
-}
-
-// ValidationError is one rule violation, identified stably enough that
-// re-running validation over the same batch and mapping always reproduces the
-// identical error set: the identity is a digest of the batch, the row, the
-// property and the rule, so it never depends on where in the batch the row
-// sits, or on which pass found it first.
-type ValidationError struct {
-	Identity string // sha256 over batch id + row id + property + rule id.
-	BatchID  string
-	// RowID is empty for a batch-level diagnostic (RuleColumnUnmapped).
-	RowID    string
-	Property string
-	RuleID   string
-	Severity ValidationSeverity
-	Message  string
-}
-
 // computeIdentity derives the stable error identity.
 func computeIdentity(batchID, rowID, property, ruleID string) string {
-	w := newCanonWriter("hcmnext.dataops.importing.ValidationErrorIdentity", 1)
-	w.str(batchID).str(rowID).str(property).str(ruleID)
-	return w.digestHex()
+	w := importdraft.NewCanon("hcmnext.dataops.importing.ValidationErrorIdentity", 1)
+	w.Str(batchID).Str(rowID).Str(property).Str(ruleID)
+	return w.DigestHex()
 }
 
 // RowResult is one row's validation outcome.
@@ -348,9 +307,9 @@ func isIdentityField(m MappingProfile, target model.PropertyRef) bool {
 // parts, length-prefixing each so that ["ab","c"] and ["a","bc"] never
 // collide.
 func identityKey(parts []string) string {
-	w := newCanonWriter("hcmnext.dataops.importing.IdentityKey", 1)
-	w.strings(parts)
-	return w.digestHex()
+	w := importdraft.NewCanon("hcmnext.dataops.importing.IdentityKey", 1)
+	w.Strings(parts)
+	return w.DigestHex()
 }
 
 func sortErrors(errs []ValidationError) {

@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 )
 
 var (
@@ -147,7 +148,9 @@ func NewPageStartRegistry() *PageStartRegistry {
 	return &PageStartRegistry{receipts: make(map[string]PageStartReceipt)}
 }
 
-func (registry *PageStartRegistry) Submit(ctx context.Context, binding PageStartBinding, execute PageStartExecutor) (PageStartReceipt, error) {
+func (registry *PageStartRegistry) Submit(ctx context.Context, binding PageStartBinding, execute PageStartExecutor) (_ PageStartReceipt, retErr error) {
+	ctx, op := observe.Begin(ctx, "workflow.runtime.page_start_submit", binding)
+	defer func() { observe.Done(op, retErr) }()
 	if registry == nil || execute == nil || binding.TenantID == uuid.Nil || strings.TrimSpace(binding.WorkflowID) == "" || binding.WorkflowVersion == 0 ||
 		strings.TrimSpace(binding.PageID) == "" || binding.PageVersion < 1 || strings.TrimSpace(binding.SubjectRef) == "" ||
 		strings.TrimSpace(binding.IdempotencyKey) == "" || binding.InputDigest == "" {

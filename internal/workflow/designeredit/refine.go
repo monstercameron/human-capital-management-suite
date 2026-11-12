@@ -232,17 +232,30 @@ func parameterViews(node workflow.Node) []ParameterView {
 	if node.Retry != nil {
 		result = append(result, ParameterView{ID: "retry_max_attempts", Label: "Maximum attempts", Kind: ParameterInteger, Value: strconv.FormatUint(uint64(node.Retry.MaxAttempts), 10), Required: true, Minimum: 1, Maximum: 20})
 	}
-	if node.Signal != nil {
+	// WAIT and SIGNAL steps always project their typed fields, even before a
+	// spec is stored. A freshly inserted block has no spec yet, and gating on
+	// the spec's presence hid the only way to configure it. Unset fields read
+	// as blank, never as an invented default.
+	if node.Type == workflow.StepSignal || node.Signal != nil {
+		eventType, closeAfter := "", ""
+		if node.Signal != nil {
+			eventType = node.Signal.EventType
+			closeAfter = strconv.FormatUint(node.Signal.CloseAfterSeconds, 10)
+		}
 		result = append(result,
-			ParameterView{ID: "signal_event_type", Label: "Event type", Kind: ParameterText, Value: node.Signal.EventType, Required: true, Maximum: 160},
-			ParameterView{ID: "signal_timeout_seconds", Label: "Close after seconds", Kind: ParameterInteger, Value: strconv.FormatUint(node.Signal.CloseAfterSeconds, 10), Minimum: 0, Maximum: 31536000},
+			ParameterView{ID: "signal_event_type", Label: "Event type", Kind: ParameterText, Value: eventType, Required: true, Maximum: 160},
+			ParameterView{ID: "signal_timeout_seconds", Label: "Close after seconds", Kind: ParameterInteger, Value: closeAfter, Minimum: 0, Maximum: 31536000},
 		)
 	}
-	if node.Wait != nil {
+	if node.Type == workflow.StepWait || node.Wait != nil {
+		wakeKind, zone, calendar := "", "", ""
+		if node.Wait != nil {
+			wakeKind, zone, calendar = string(node.Wait.WakeKind), node.Wait.ZoneID, node.Wait.CalendarRef
+		}
 		result = append(result,
-			ParameterView{ID: "wait_wake_kind", Label: "Wake condition", Kind: ParameterEnum, Value: string(node.Wait.WakeKind), Required: true, Options: []string{string(workflow.WaitWakeAtInstant), string(workflow.WaitWakeAtLocalDate), string(workflow.WaitWakeAtLocalDateTime)}},
-			ParameterView{ID: "wait_zone", Label: "Time zone", Kind: ParameterText, Value: node.Wait.ZoneID, Required: true, Maximum: 80},
-			ParameterView{ID: "wait_calendar", Label: "Business calendar", Kind: ParameterText, Value: node.Wait.CalendarRef, Required: true, Maximum: 160},
+			ParameterView{ID: "wait_wake_kind", Label: "Wake condition", Kind: ParameterEnum, Value: wakeKind, Required: true, Options: []string{string(workflow.WaitWakeAtInstant), string(workflow.WaitWakeAtLocalDate), string(workflow.WaitWakeAtLocalDateTime)}},
+			ParameterView{ID: "wait_zone", Label: "Time zone", Kind: ParameterText, Value: zone, Required: true, Maximum: 80},
+			ParameterView{ID: "wait_calendar", Label: "Business calendar", Kind: ParameterText, Value: calendar, Required: true, Maximum: 160},
 		)
 	}
 	return result
@@ -286,6 +299,19 @@ func applyParameterValues(node *workflow.Node, values map[string]string) error {
 			}
 		default:
 			return ErrInvalid
+		}
+		// A node stored before its typed spec existed has nil Signal or Wait;
+		// the projection above already offers those fields, so allocate the
+		// spec before writing into it.
+		switch id {
+		case "signal_event_type", "signal_timeout_seconds":
+			if node.Signal == nil {
+				node.Signal = &workflow.SignalSpec{}
+			}
+		case "wait_wake_kind", "wait_zone", "wait_calendar":
+			if node.Wait == nil {
+				node.Wait = &workflow.WaitSpec{}
+			}
 		}
 		switch id {
 		case "display_name":

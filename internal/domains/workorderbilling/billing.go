@@ -15,14 +15,6 @@ import (
 
 var ErrRejected = errors.New("work order billing request rejected")
 
-type PricingMode string
-
-const (
-	PricingUnitPrice      PricingMode = "unit-price"
-	PricingTimeMaterial   PricingMode = "time-material"
-	PricingFixedMilestone PricingMode = "fixed-milestone"
-)
-
 // PricingPolicy is immutable once referenced by a draft. Version must identify
 // the approved customer contract schedule; calculations never infer FX/tax.
 type PricingPolicy struct {

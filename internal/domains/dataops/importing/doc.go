@@ -21,7 +21,10 @@
 // implemented here.
 //
 // The package imports only internal/kernel/*, internal/intent/model (the
-// canonical property registry) and the Go standard library. It does not
+// canonical property registry), its draft leaf and the Go standard library. It does not
 // import internal/data, internal/connectivity or internal/intent/app, and it
-// holds no storage and no connector of its own.
+// holds no storage and no connector of its own. The value types that the
+// browser client links (batches, drafts, checkpoints) live in the draft leaf,
+// so that importing the leaf does not pull the model-bound stages into the
+// client graph.
 package importing

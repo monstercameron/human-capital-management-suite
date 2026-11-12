@@ -60,7 +60,7 @@ const makeGoFixture = (name, options = {}) => {
   writeFileSync(path.join(scripts, "build-timeclock-kiosk.sh"), readFileSync(script));
   if (options.withShim !== false) {
     mkdirSync(path.dirname(shim), { recursive: true });
-    writeFileSync(shim, "// fake toolchain shim\n");
+    writeFileSync(shim, "// fake toolchain shim\nglobalThis.Go = class {};\n");
   }
   const fakeGo = path.join(bin, "go");
   writeFileSync(
@@ -76,6 +76,7 @@ const makeGoFixture = (name, options = {}) => {
       'shift; [ "$1" = -trimpath ] || exit 33; shift; [ "$1" = -o ] || exit 34; shift',
       'output=$1; shift; [ "$1" = ./tools/uxqual/cmd/timeclockwasm ] || exit 35',
       'if [ "${FAKE_GO_FAIL_BUILD:-0}" = 1 ]; then printf partial > "$output"; exit 36; fi',
+      'if [ "${FAKE_GO_OUTPUT:-}" = not-wasm ]; then printf "not a module" > "$output"; exit 0; fi',
       'printf "\\000asm\\001\\000\\000\\000" > "$output"; exit 0',
       "",
     ].join("\n"),
@@ -148,6 +149,27 @@ test("helper fails before compiling when the matching current-toolchain shim is 
   const result = runBuild(fixture);
   assert.notEqual(result.status, 0, "missing shim unexpectedly built");
   assert.match(result.stderr ?? "", /matching Go shim not found/);
+});
+
+test("helper rejects a compiler output that is not a WebAssembly module", () => {
+  const fixture = makeGoFixture("non-wasm-output");
+  const output = path.join(fixture.repository, ".artifacts", "bin", "timeclock-kiosk");
+  const result = runBuild(fixture, { FAKE_GO_OUTPUT: "not-wasm" });
+  assert.notEqual(result.status, 0, "non-wasm output unexpectedly accepted");
+  assert.match(result.stderr ?? "", /not a WebAssembly module/);
+  assert.equal(existsSync(path.join(output, "timeclock.wasm")), false);
+  assert.equal(existsSync(path.join(output, "wasm_exec.js")), false);
+});
+
+test("helper rejects a placeholder shim that does not define the Go runtime", () => {
+  const fixture = makeGoFixture("placeholder-shim");
+  writeFileSync(fixture.shim, "/* matching shim */\n");
+  const result = runBuild(fixture);
+  assert.notEqual(result.status, 0, "placeholder shim unexpectedly accepted");
+  assert.match(result.stderr ?? "", /does not define the Go runtime/);
+  const output = path.join(fixture.repository, ".artifacts", "bin", "timeclock-kiosk");
+  assert.equal(existsSync(path.join(output, "timeclock.wasm")), false);
+  assert.equal(existsSync(path.join(output, "wasm_exec.js")), false);
 });
 
 test("failed compilation preserves previous assets and removes its temporary bundle", () => {

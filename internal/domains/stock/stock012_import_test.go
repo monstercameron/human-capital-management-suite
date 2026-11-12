@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops/importing"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 )
 
 var stock012Header = []string{
@@ -83,7 +83,7 @@ func stock012Context() OperationContext {
 func stock012Importer() (*InventoryImporter, *Catalog, *LotRegistry) {
 	catalog := NewCatalog(nil)
 	lots := NewLotRegistry(catalog, nil)
-	return NewInventoryImporter(catalog, lots, importing.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}}), catalog, lots
+	return NewInventoryImporter(catalog, lots, importdraft.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}}), catalog, lots
 }
 
 func stock012Options() ImportOptions {
@@ -668,7 +668,7 @@ func TestTodo_SMB_STOCK_012_Recovery(t *testing.T) {
 	opts := stock012Options()
 	catalog := NewCatalog(nil)
 	lots := NewLotRegistry(catalog, nil)
-	importer := NewInventoryImporter(catalog, lots, importing.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}})
+	importer := NewInventoryImporter(catalog, lots, importdraft.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}})
 
 	records := [][]string{stock012ItemRow("item-rec", "REC-1", "Recovery item", nil)}
 	for i := 0; i < 10; i++ {
@@ -711,7 +711,7 @@ func TestTodo_SMB_STOCK_012_Recovery(t *testing.T) {
 	if err := lots2.Restore(lotsBytes); err != nil {
 		t.Fatal(err)
 	}
-	restarted := NewInventoryImporter(catalog2, lots2, importing.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}})
+	restarted := NewInventoryImporter(catalog2, lots2, importdraft.NewMemoryCheckpoints(), stock012Sites{known: map[string]bool{"site-1": true, "site-2": true}})
 	if err := restarted.Restore(impBytes); err != nil {
 		t.Fatal(err)
 	}
@@ -747,7 +747,7 @@ func TestTodo_SMB_STOCK_012_Recovery(t *testing.T) {
 	if err := restarted.Restore(impBytes); err == nil {
 		t.Fatal("restore into a populated importer succeeded, want refusal")
 	}
-	fresh := NewInventoryImporter(NewCatalog(nil), NewLotRegistry(nil, nil), importing.NewMemoryCheckpoints(), stock012Sites{})
+	fresh := NewInventoryImporter(NewCatalog(nil), NewLotRegistry(nil, nil), importdraft.NewMemoryCheckpoints(), stock012Sites{})
 	if err := fresh.Restore([]byte("{broken")); err == nil {
 		t.Fatal("restore of corrupt bytes succeeded, want refusal")
 	}

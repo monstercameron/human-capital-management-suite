@@ -3,6 +3,7 @@ package importing
 import (
 	"errors"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"math/big"
 	"regexp"
 	"strings"
@@ -214,11 +215,11 @@ func (c ColumnProfile) Validate() error {
 	return nil
 }
 
-func (c ColumnProfile) canonical(w *canonWriter) {
-	w.str(c.Name).str(c.Kind.String()).str(c.Format).
-		i64(int64(c.NullCount)).i64(int64(c.ValueCount)).
-		i64(int64(c.DistinctCount)).boolField(c.DistinctBounded).
-		str(c.Min).str(c.Max)
+func (c ColumnProfile) canonical(w *importdraft.Canon) {
+	w.Str(c.Name).Str(c.Kind.String()).Str(c.Format).
+		I64(int64(c.NullCount)).I64(int64(c.ValueCount)).
+		I64(int64(c.DistinctCount)).Bool(c.DistinctBounded).
+		Str(c.Min).Str(c.Max)
 }
 
 // Profile is the deterministic, digested profile of a staged batch.
@@ -492,11 +493,11 @@ func ProfileBatch(b Batch) (Profile, error) {
 		Columns:     columns,
 	}
 
-	w := newCanonWriter("hcmnext.dataops.importing.Profile", 1)
-	w.str(p.BatchDigest).i64(int64(p.RowCount)).u64(uint64(len(p.Columns)))
+	w := importdraft.NewCanon("hcmnext.dataops.importing.Profile", 1)
+	w.Str(p.BatchDigest).I64(int64(p.RowCount)).U64(uint64(len(p.Columns)))
 	for _, c := range p.Columns {
 		c.canonical(w)
 	}
-	p.Digest = w.digestHex()
+	p.Digest = w.DigestHex()
 	return p, nil
 }

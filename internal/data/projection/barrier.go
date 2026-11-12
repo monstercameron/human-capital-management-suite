@@ -68,7 +68,8 @@ func Check(ctx context.Context, q dbport.Querier, req ReadRequirement) (BarrierR
 	var sourceHead int64
 	if err := q.QueryRow(ctx, `SELECT head_sequence FROM stream_head WHERE tenant_id=$1 AND stream_key=$2`, req.Tenant, req.StreamKey).Scan(&sourceHead); err != nil {
 		if errors.Is(err, dbport.ErrNoRows) {
-			return BarrierResult{Status: BarrierUnavailable}, BarrierError{Status: BarrierUnavailable, Required: req.MinimumSequence, Cause: err}
+			status := statusOrTimeout(BarrierUnavailable, req.Deadline)
+			return BarrierResult{Status: status}, BarrierError{Status: status, Required: req.MinimumSequence, Cause: err}
 		}
 		return BarrierResult{}, fmt.Errorf("projection: read source head: %w", err)
 	}
@@ -76,7 +77,8 @@ func Check(ctx context.Context, q dbport.Querier, req ReadRequirement) (BarrierR
 	if err != nil {
 		var missing ErrCheckpointNotFound
 		if errors.As(err, &missing) {
-			return BarrierResult{Status: BarrierUnavailable, SourceHead: sourceHead}, BarrierError{Status: BarrierUnavailable, Required: req.MinimumSequence, SourceHead: sourceHead, Cause: err}
+			status := statusOrTimeout(BarrierUnavailable, req.Deadline)
+			return BarrierResult{Status: status, SourceHead: sourceHead}, BarrierError{Status: status, Required: req.MinimumSequence, SourceHead: sourceHead, Cause: err}
 		}
 		return BarrierResult{}, fmt.Errorf("projection: read checkpoint: %w", err)
 	}
@@ -100,6 +102,15 @@ func Check(ctx context.Context, q dbport.Querier, req ReadRequirement) (BarrierR
 	return result, err
 }
 
+// statusOrTimeout reports TIMEOUT once the requirement's deadline has passed,
+// and the given status otherwise.
+func statusOrTimeout(status BarrierStatus, deadline time.Time) BarrierStatus {
+	if !time.Now().UTC().Before(deadline.UTC()) {
+		return BarrierTimeout
+	}
+	return status
+}
+
 // Await retries Check until the requirement is met, the deadline expires, or
 // the context is cancelled. Callers that want a single non-blocking decision
 // should use Check.
@@ -116,6 +127,7 @@ func Await(ctx context.Context, q dbport.Querier, req ReadRequirement) (BarrierR
 		if barrierErr.Status == BarrierUnavailable || barrierErr.Status == BarrierDegraded || barrierErr.Status == BarrierRebuilding {
 			if !time.Now().UTC().Before(req.Deadline.UTC()) {
 				barrierErr.Status = BarrierTimeout
+				result.Status = BarrierTimeout
 				return result, barrierErr
 			}
 		}

@@ -63,18 +63,6 @@ func (op BillOp) validate() error {
 	return nil
 }
 
-// BillSourceKind names the producer shape behind one source family.
-type BillSourceKind string
-
-const (
-	BillKindTime        BillSourceKind = "time"
-	BillKindQuantity    BillSourceKind = "quantity"
-	BillKindMaterial    BillSourceKind = "material"
-	BillKindSubcontract BillSourceKind = "subcontract"
-	BillKindMilestone   BillSourceKind = "milestone"
-	BillKindExpense     BillSourceKind = "expense"
-)
-
 // BillClaimKind selects a leased draft hold or a permanent issued allocation.
 type BillClaimKind string
 
@@ -205,44 +193,6 @@ type BillReceipt struct {
 	Status          string
 	LeaseExpiry     string
 	Key             string
-}
-
-// BillPreview answers a totals preview without mutating the registry.
-type BillPreview struct {
-	FamilyID             string
-	Revision             uint64
-	BillableQty          string
-	BillableUnit         string
-	Amount               string
-	Currency             string
-	RemainingAfterQty    string
-	RemainingAfterAmount string
-}
-
-// BillSourceView is one customer-safe family row for drawers and adapters.
-type BillSourceView struct {
-	FamilyID          string
-	Revision          uint64
-	Description       string
-	ServiceDate       string
-	Kind              BillSourceKind
-	Unit              string
-	UnitDimension     string
-	ApprovedQty       string
-	ClaimedQty        string
-	RemainingQty      string
-	ApprovedAmount    string
-	ClaimedAmount     string
-	RemainingAmount   string
-	CostAmount        string
-	BillableUnit      string
-	BillableRemaining string
-	RateRef           string
-	PricingMode       PricingMode
-	Category          string
-	MilestoneRef      string
-	Eligible          bool
-	Reasons           []string
 }
 
 // BillCorrection answers a family correction with its adjustment position.

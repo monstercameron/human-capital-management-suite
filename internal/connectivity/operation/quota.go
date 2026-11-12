@@ -35,12 +35,12 @@ package operation
 // config we happened to write down.
 
 import (
-	"math"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/quotawindow"
 )
 
 // ConnectorQuota is what one vendor connection is known to allow: a
@@ -180,38 +180,20 @@ func sortScheduleCandidates(candidates []ScheduleCandidate) []ScheduleCandidate 
 }
 
 // QuotaWindow is the shared fixed-window counter used by connector dispatch
-// and inbound application-credential admission.
-type QuotaWindow struct {
-	Used    int
-	StartAt time.Time
-	ResetAt time.Time
-}
+// and inbound application-credential admission. Its definition lives in
+// internal/kernel/quotawindow so admission can use it without the journal.
+type QuotaWindow = quotawindow.Window
 
 // AdvanceQuotaWindow opens the current fixed window or preserves an active
 // one. The returned value has a zero Used count when a new window begins.
 func AdvanceQuotaWindow(window QuotaWindow, now time.Time, duration time.Duration) QuotaWindow {
-	if duration <= 0 {
-		duration = time.Minute
-	}
-	if window.StartAt.IsZero() || !now.Before(window.ResetAt) {
-		start := now.Truncate(duration)
-		return QuotaWindow{StartAt: start, ResetAt: start.Add(duration)}
-	}
-	return window
+	return quotawindow.Advance(window, now, duration)
 }
 
 // QuotaRetryAfterSeconds returns the whole-second delay until reset, rounded
 // up so a caller never retries before the quota window actually resets.
 func QuotaRetryAfterSeconds(now, reset time.Time) int {
-	remaining := reset.Sub(now)
-	if remaining <= 0 {
-		return 1
-	}
-	seconds := int(math.Ceil(remaining.Seconds()))
-	if seconds < 1 {
-		return 1
-	}
-	return seconds
+	return quotawindow.RetryAfterSeconds(now, reset)
 }
 
 type connectorWindow = QuotaWindow

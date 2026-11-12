@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/capability"
+	"github.com/monstercameron/human-capital-management-suite/internal/telemetry/observe"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/conformance/triage"
 	"github.com/monstercameron/human-capital-management-suite/internal/workflow/execute/capabilityrunner"
@@ -68,7 +69,9 @@ func NewTriageRunner(proposer triage.Proposer, telemetry *triage.TelemetrySink) 
 }
 
 // Start runs the guarded triage pipeline over the node's mapped inputs.
-func (r *TriageRunner) Start(_ context.Context, req AgentRunRequest) (AgentRunResult, error) {
+func (r *TriageRunner) Start(ctx context.Context, req AgentRunRequest) (_ AgentRunResult, retErr error) {
+	_, op := observe.Begin(ctx, "workflow.agent.triage_start", observe.Attrs{observe.KeyNode: req.NodeID})
+	defer func() { observe.Done(op, retErr) }()
 	inputs := canonicalInputs(req.Inputs)
 	runID := "triage:" + digestInputs(inputs)
 	r.mu.Lock()
@@ -79,7 +82,9 @@ func (r *TriageRunner) Start(_ context.Context, req AgentRunRequest) (AgentRunRe
 
 // Attach re-derives a recorded run. An unrecorded run id fails closed: the
 // fixture never invents a verdict it did not compute.
-func (r *TriageRunner) Attach(_ context.Context, runID string) (AgentRunResult, error) {
+func (r *TriageRunner) Attach(ctx context.Context, runID string) (_ AgentRunResult, retErr error) {
+	_, op := observe.Begin(ctx, "workflow.agent.triage_attach")
+	defer func() { observe.Done(op, retErr) }()
 	r.mu.Lock()
 	inputs, ok := r.recorded[runID]
 	r.mu.Unlock()

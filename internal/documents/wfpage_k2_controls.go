@@ -1,20 +1,23 @@
 // Package documents exposes the typed document controls consumed by workflow
 // input pages. Raw uploads stay in documentsecurity; page inputs receive only
 // an admitted evidence reference or a proof-bound signature ceremony.
+//
+// The page-facing value types live in internal/documentvalue so the browser
+// client can link them; this package re-exports them and owns admission.
 package documents
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/documents/intake"
-	"github.com/monstercameron/human-capital-management-suite/internal/documents/signing"
+	"github.com/monstercameron/human-capital-management-suite/internal/documentvalue"
+	"github.com/monstercameron/human-capital-management-suite/internal/esign"
 )
 
-var (
-	ErrAttachmentAdmission = errors.New("documents: attachment admission failed")
-	ErrAssuranceLevel      = errors.New("documents: invalid signature assurance level")
-)
+var ErrAttachmentAdmission = errors.New("documents: attachment admission failed")
+
+// ErrAssuranceLevel is the leaf's sentinel, so errors.Is holds across both paths.
+var ErrAssuranceLevel = documentvalue.ErrAssuranceLevel
 
 type AttachmentRequest struct {
 	ArtifactID  string
@@ -23,14 +26,9 @@ type AttachmentRequest struct {
 	RequestedBy string
 }
 
-// AttachmentReference contains no locator or bytes. It is the typed value a
-// workflow input may retain after quarantine and admission.
-type AttachmentReference struct {
-	ID           string
-	ArtifactID   string
-	DocumentType string
-	Evidence     intake.EvidenceRef
-}
+// AttachmentReference is the leaf value. Its Evidence field holds the
+// server's intake.EvidenceRef, which answers the fail-closed Check.
+type AttachmentReference = documentvalue.AttachmentReference
 
 func AdmitAttachment(service *intake.Service, request AttachmentRequest) (AttachmentReference, error) {
 	if service == nil {
@@ -46,17 +44,13 @@ func AdmitAttachment(service *intake.Service, request AttachmentRequest) (Attach
 	return AttachmentReference{ID: pkg.ID, ArtifactID: pkg.Evidence.ArtifactID, DocumentType: pkg.DocumentType, Evidence: pkg.Evidence}, nil
 }
 
-type AssuranceLevel string
+type AssuranceLevel = documentvalue.AssuranceLevel
 
 const (
-	AssuranceBasic     AssuranceLevel = "BASIC"
-	AssuranceEnhanced  AssuranceLevel = "ENHANCED"
-	AssuranceQualified AssuranceLevel = "QUALIFIED"
+	AssuranceBasic     = documentvalue.AssuranceBasic
+	AssuranceEnhanced  = documentvalue.AssuranceEnhanced
+	AssuranceQualified = documentvalue.AssuranceQualified
 )
-
-func (a AssuranceLevel) valid() bool {
-	return a == AssuranceBasic || a == AssuranceEnhanced || a == AssuranceQualified
-}
 
 type SignatureRequest struct {
 	ID             string
@@ -67,35 +61,15 @@ type SignatureRequest struct {
 	ExpiresAt      int64
 }
 
-type Signature struct {
-	Ceremony       signing.Ceremony
-	AssuranceLevel AssuranceLevel
-}
+type Signature = documentvalue.Signature
 
 func BeginSignature(request SignatureRequest) (Signature, error) {
-	if !request.AssuranceLevel.valid() {
+	if !request.AssuranceLevel.Valid() {
 		return Signature{}, ErrAssuranceLevel
 	}
-	ceremony, err := signing.Request(request.ID, request.ArtifactHash, request.SignerID, request.TrustedNow, request.ExpiresAt)
+	ceremony, err := esign.Request(request.ID, request.ArtifactHash, request.SignerID, request.TrustedNow, request.ExpiresAt)
 	if err != nil {
 		return Signature{}, err
 	}
 	return Signature{Ceremony: ceremony, AssuranceLevel: request.AssuranceLevel}, nil
-}
-
-func (s Signature) Validate() error {
-	if !s.AssuranceLevel.valid() || strings.TrimSpace(s.Ceremony.ID) == "" {
-		return ErrAssuranceLevel
-	}
-	return s.Ceremony.Verify()
-}
-
-func (s Signature) AssuranceLabel() string { return string(s.AssuranceLevel) }
-
-func (s Signature) Sign(proof, artifactHash, callbackID string, trustedNow int64) (Signature, error) {
-	ceremony, err := s.Ceremony.Sign(proof, artifactHash, callbackID, trustedNow)
-	if err != nil {
-		return Signature{}, err
-	}
-	return Signature{Ceremony: ceremony, AssuranceLevel: s.AssuranceLevel}, nil
 }

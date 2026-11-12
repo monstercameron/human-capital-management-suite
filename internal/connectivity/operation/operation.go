@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/operationobservation"
 )
 
 // Version is the operation-kernel contract version (ARCH-GO-009).
@@ -84,15 +85,21 @@ const (
 	ObservationBySemanticIdentity ObservationRequirement = "SEMANTIC_IDENTITY"
 )
 
-// ObservationVerdict is the provider read-back result for an operation.
-type ObservationVerdict string
+// ObservationVerdict and Observation are defined in
+// internal/kernel/operationobservation so the browser client can link them
+// without the operation journal; these aliases keep every caller on the types.
+type ObservationVerdict = operationobservation.ObservationVerdict
 
 const (
-	ObservationApplied    ObservationVerdict = "APPLIED"
-	ObservationNotApplied ObservationVerdict = "NOT_APPLIED"
-	ObservationConflict   ObservationVerdict = "CONFLICT"
-	ObservationUnknown    ObservationVerdict = "UNKNOWN"
+	ObservationApplied    = operationobservation.ObservationApplied
+	ObservationNotApplied = operationobservation.ObservationNotApplied
+	ObservationConflict   = operationobservation.ObservationConflict
+	ObservationUnknown    = operationobservation.ObservationUnknown
 )
+
+// Observation is a typed provider read-back. It is the only input that can
+// move an accepted or ambiguous operation to business completion.
+type Observation = operationobservation.Observation
 
 var (
 	ErrInvalid                 = errors.New("operation: invalid operation")
@@ -318,21 +325,6 @@ type DispatchResult struct {
 	Attempt             Attempt
 	ProviderCall        bool
 	ObservationRequired bool
-}
-
-// Observation is a typed provider read-back. It is the only input that can
-// move an accepted or ambiguous operation to business completion.
-type Observation struct {
-	TenantID            string
-	ObservationID       uuid.UUID
-	OperationID         uuid.UUID
-	ExternalResourceKey string
-	Verdict             ObservationVerdict
-	ExternalObjectRef   string
-	ExternalVersion     string
-	ObservedDigest      string
-	ObservedAt          time.Time
-	Authority           string
 }
 
 // ProviderReadBack is unnormalized, provider-specific evidence gathered when
@@ -816,7 +808,7 @@ func (j *MemoryJournal) RecordObservation(ctx context.Context, obs Observation) 
 	if err := contextError(ctx); err != nil {
 		return Operation{}, err
 	}
-	if err := obs.validate(); err != nil {
+	if err := validateObservation(obs); err != nil {
 		return Operation{}, err
 	}
 	if strings.TrimSpace(obs.TenantID) == "" {
@@ -974,7 +966,7 @@ func (o Operation) validate() error {
 	return nil
 }
 
-func (o Observation) validate() error {
+func validateObservation(o Observation) error {
 	if o.ObservationID == uuid.Nil || o.OperationID == uuid.Nil || strings.TrimSpace(o.ExternalResourceKey) == "" || o.ObservedAt.IsZero() {
 		return fmt.Errorf("%w: observation id, operation, resource and time are required", ErrObservationRequired)
 	}

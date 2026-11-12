@@ -1,4 +1,4 @@
-package template
+package doctemplate
 
 import (
 	"crypto/sha256"

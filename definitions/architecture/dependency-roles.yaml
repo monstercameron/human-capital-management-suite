@@ -1221,7 +1221,7 @@ modules:
         tools/timeclockkit,
         tools/uxqual/projectclient,
         tools/quality/bufprotovalidatekit,
-        internal/workflow,
+        internal/workflow/authoredwire,
       ]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.

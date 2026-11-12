@@ -114,7 +114,7 @@ type testID [16]byte
 
 func (id testID) String() string {
 	if id == (testID{}) {
-		return zeroUUID
+		return "00000000-0000-0000-0000-000000000000"
 	}
 	return fmt.Sprintf("id-%x", id[0])
 }
@@ -189,8 +189,8 @@ func TestOfExtractsOnlyAllowlistedIdentifiers(t *testing.T) {
 
 func TestBeginAndDoneWith(t *testing.T) {
 	_, op := Begin(context.Background(), "workflow.none", testRequest{NodeID: "n"})
-	if _, ok := op.(noop); !ok {
-		t.Fatal("Begin without a recorder did not return the noop operation")
+	if _, recording := op.(*fakeOp); recording {
+		t.Fatal("Begin without a recorder returned a recording operation")
 	}
 	if err := DoneWith(op, nil, testReceipt{Status: "DONE"}); err != nil {
 		t.Fatal(err)

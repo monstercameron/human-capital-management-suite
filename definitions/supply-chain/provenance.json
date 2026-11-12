@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "predicate_type": "https://slsa.dev/provenance/v1",
-  "generated_at": "2026-11-12T04:09:59Z",
+  "generated_at": "2026-11-12T07:33:52Z",
   "subjects": [
     {
       "name": "hcmnext",
-      "sha256": "8d91e8910e8ee6a6fd8776b6381b5e6a75909eafe835410958790f669641fe1c"
+      "sha256": "490db0ab5d972acbc7af8073c8032cf504d3eef95ecf64130d4bfd048fcfad31"
     }
   ],
   "builder": {
@@ -25,12 +25,12 @@
   },
   "sbom": {
     "path": "definitions/supply-chain/sbom.cdx.json",
-    "sha256": "977962775fa39fd8360df57077f6d17d45634f9dcc4ea4f85cb874bab81df396"
+    "sha256": "ef2d7b5063e2815ed9f224216a2605dccf6fd713400fa8c57a4639ba45e676c4"
   },
   "signature": {
     "algorithm": "ed25519",
     "public_key": "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b",
-    "value": "a334356ac5e0c49ae266b5551f26ddc1b66fdb24a9af90042db3ecb71804943568f861af0e6f5350406f1f4cdaaed708101505fe7ad544aa389bdca75ab81505",
+    "value": "966698e15afdacbd9f862023b0b696dadfa026b54aead413ffbe056da9a4e1a4d3319d2ae4b960635491bb70f135d03c5b04fed4565ff8a244a33706337e2400",
     "key_fixture": "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
   }
 }

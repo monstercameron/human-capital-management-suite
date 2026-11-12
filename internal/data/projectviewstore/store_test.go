@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"slices"
 	"strings"
 	"testing"
 
@@ -61,7 +62,9 @@ func TestTodo_PM_016_Integration(t *testing.T) {
 		t.Fatalf("initialize default view: %v", err)
 	}
 	defaultView, err := store.GetView(ctx, "tenant-a", "project-b", "alice", "default")
-	if err != nil || defaultView.Version != 1 || len(defaultView.Columns) != 3 || defaultView.Name != "Task board" || defaultView.SwimlaneValueOrder == nil {
+	// TestTodo_3613: the default board must carry due dates on its cards, or
+	// the Due soon filter has no date to match.
+	if err != nil || defaultView.Version != 1 || len(defaultView.Columns) != 3 || defaultView.Name != "Task board" || defaultView.SwimlaneValueOrder == nil || !slices.Contains(defaultView.CardFields, projectboard.CardDueDate) {
 		t.Fatalf("default view: %#v err=%v", defaultView, err)
 	}
 	personal := sampleView("mine", projectboard.AudiencePersonal)

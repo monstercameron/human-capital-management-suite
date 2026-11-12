@@ -3,7 +3,7 @@
 // receipts, remainder cancellation and least-privilege supplier commitment.
 //
 // Purchase orders never duplicate the delivery, approval or inventory
-// engines: dispatch runs on connectivity/delivery, amendment approval binds
+// engines: dispatch runs on kernel/delivery through BuyDispatcher, amendment approval binds
 // buyer decisions to revisions for the workflow approval owner, and received
 // or invoiced quantities arrive through the BUY-004 and BILL-012 seams.
 package procurement
@@ -23,7 +23,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/connectivity/delivery"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/delivery"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -388,12 +388,20 @@ const (
 	BuyEventReviewClear = "REVIEW_CLEARED"
 )
 
+// BuyDispatcher delivers one purchase-order envelope and reports the provider's
+// observation. delivery.Runner satisfies it. The composition root wires the
+// runner with its attempt store, transport and idempotency registry, which
+// this package does not import, so the browser client can link procurement.
+type BuyDispatcher interface {
+	Deliver(ctx context.Context, envelope delivery.Envelope) (delivery.Observation, error)
+}
+
 // BuyCoordinator owns purchase orders, dispatches, amendments,
 // cancellations and supplier commitment. Delivery runs on the wired
-// delivery.Runner; the composition root owns its store and transport.
+// BuyDispatcher; the composition root owns the runner, its store and transport.
 type BuyCoordinator struct {
 	mu         sync.Mutex
-	dispatch   delivery.Runner
+	dispatch   BuyDispatcher
 	sequence   int
 	orders     map[string]*BuyPO
 	revisions  map[string][]BuyRevision
@@ -414,7 +422,7 @@ type buyIdem struct {
 }
 
 // NewBuyCoordinator builds an empty coordinator over the delivery runner.
-func NewBuyCoordinator(dispatch delivery.Runner) *BuyCoordinator {
+func NewBuyCoordinator(dispatch BuyDispatcher) *BuyCoordinator {
 	return &BuyCoordinator{
 		dispatch: dispatch,
 		orders:   make(map[string]*BuyPO), revisions: make(map[string][]BuyRevision),

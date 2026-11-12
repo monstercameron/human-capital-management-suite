@@ -225,8 +225,14 @@ func TestRecordValidateAt_SecurityBranches(t *testing.T) {
 
 func TestEvaluateWrappersAndStatuses(t *testing.T) {
 	record := completeRecord()
+	// Evaluate reads the real clock, so its record must stay unexpired at the
+	// time the test runs; the explicit-clock wrappers keep the gateNow fixture.
+	live := completeRecord()
+	for i := range live.Evidence {
+		live.Evidence[i].ExpiresAt = time.Now().UTC().Add(30 * 24 * time.Hour)
+	}
 	for name, evaluate := range map[string]func(Record) (Decision, error){
-		"evaluate": func(r Record) (Decision, error) { return Evaluate(r) },
+		"evaluate": func(Record) (Decision, error) { return Evaluate(live) },
 		"explain":  func(r Record) (Decision, error) { return Explain(r, gateNow) },
 		"method":   func(r Record) (Decision, error) { return r.Explain(gateNow) },
 	} {

@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"sort"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/model"
@@ -32,49 +33,12 @@ type Signer interface {
 	Sign(payload []byte) (string, error)
 }
 
-// DraftWrite is a write which a simulated BusinessIntent would request.
-type DraftWrite struct {
-	Property         string
-	Current          string
-	CurrentPresent   bool
-	Proposed         string
-	AuthorityRef     string
-	ResourceKey      string
-	BaselineRevision string
-}
-
-// SimulationConflict is an already observed conflict from the read-only
-// snapshot. The simulator classifies it; it never resolves or overwrites it.
-type SimulationConflict struct {
-	RowID          string
-	Property       string
-	ExistingIntent string
-	EvidenceRef    string
-}
-
 // SimulationSubject is the trusted subject binding for a staged row. The
 // simulator never derives a domain subject identifier from CSV content.
 type SimulationSubject struct {
 	Kind            string
 	SubjectID       string
 	AuthorityDomain string
-}
-
-// BusinessIntentDraft is the ordered, per-row proposal input produced by the
-// simulator. Invalid rows are retained with an error for auditability.
-type BusinessIntentDraft struct {
-	Ordinal         int
-	RowID           string
-	IntentType      string
-	SubjectKind     string
-	SubjectID       string
-	AuthorityDomain string
-	AuthorityRefs   []string
-	Status          string // CREATE, CHANGE, NO_OP, ERROR, CONFLICT
-	Writes          []DraftWrite
-	Errors          []ValidationError
-	ConflictRefs    []string
-	Conflicts       []SimulationConflict
 }
 
 // ImportSimulation is a signed, zero-effect projection of an import.
@@ -296,9 +260,9 @@ func SimulateImport(in SimulationInput) (ImportSimulation, error) {
 			}
 		}
 	}
-	w := newCanonWriter("hcmnext.dataops.importing.ImportSimulation", 3)
+	w := importdraft.NewCanon("hcmnext.dataops.importing.ImportSimulation", 3)
 	canonicalSimulation(&w, out)
-	out.Digest = w.digestHex()
+	out.Digest = w.DigestHex()
 	payload := []byte(wireSimulation(out))
 	sig, err := in.Signer.Sign(payload)
 	if err != nil {
@@ -323,9 +287,9 @@ func VerifyImportSimulation(out ImportSimulation, signer Verifier) error {
 	if err := validateSimulationShape(out); err != nil {
 		return err
 	}
-	w := newCanonWriter("hcmnext.dataops.importing.ImportSimulation", 3)
+	w := importdraft.NewCanon("hcmnext.dataops.importing.ImportSimulation", 3)
 	canonicalSimulation(&w, out)
-	if subtle.ConstantTimeCompare([]byte(out.Digest), []byte(w.digestHex())) != 1 {
+	if subtle.ConstantTimeCompare([]byte(out.Digest), []byte(w.DigestHex())) != 1 {
 		return ErrSimulationSignature
 	}
 	if err := signer.Verify([]byte(wireSimulation(out)), out.Signature); err != nil {
@@ -430,70 +394,70 @@ func appendUnique(in []string, value string) []string {
 	}
 	return append(in, value)
 }
-func canonicalSimulation(w **canonWriter, out ImportSimulation) {
+func canonicalSimulation(w **importdraft.Canon, out ImportSimulation) {
 	c := *w
-	c.str(out.Tenant).str(out.OrganizationScopeID).str(out.LegalEntityID).str(out.EffectiveTime)
-	c.str(out.BatchDigest).str(out.MappingDigest).str(out.ValidationDigest).str(out.SnapshotDigest).str(out.ModelDigest).u64(uint64(out.Creates)).u64(uint64(out.Changes)).u64(uint64(out.NoOps)).u64(uint64(out.Errors)).u64(uint64(out.Conflicts)).u64(uint64(out.AuthorityRequired)).u64(uint64(out.ApprovalRequired)).u64(uint64(out.LegalReviewRequired)).u64(uint64(out.SideEffectCount)).i64(out.EstimatedCost).u64(uint64(out.CommittedEffects)).boolField(out.ZeroEffects).str(out.SigningAuthority)
+	c.Str(out.Tenant).Str(out.OrganizationScopeID).Str(out.LegalEntityID).Str(out.EffectiveTime)
+	c.Str(out.BatchDigest).Str(out.MappingDigest).Str(out.ValidationDigest).Str(out.SnapshotDigest).Str(out.ModelDigest).U64(uint64(out.Creates)).U64(uint64(out.Changes)).U64(uint64(out.NoOps)).U64(uint64(out.Errors)).U64(uint64(out.Conflicts)).U64(uint64(out.AuthorityRequired)).U64(uint64(out.ApprovalRequired)).U64(uint64(out.LegalReviewRequired)).U64(uint64(out.SideEffectCount)).I64(out.EstimatedCost).U64(uint64(out.CommittedEffects)).Bool(out.ZeroEffects).Str(out.SigningAuthority)
 	for _, d := range out.Drafts {
-		c.i64(int64(d.Ordinal)).str(d.RowID).str(d.IntentType).str(d.SubjectKind).str(d.SubjectID).str(d.AuthorityDomain).strings(d.AuthorityRefs).str(d.Status).strings(d.ConflictRefs)
+		c.I64(int64(d.Ordinal)).Str(d.RowID).Str(d.IntentType).Str(d.SubjectKind).Str(d.SubjectID).Str(d.AuthorityDomain).Strings(d.AuthorityRefs).Str(d.Status).Strings(d.ConflictRefs)
 		for _, conflict := range d.Conflicts {
-			c.str(conflict.RowID).str(conflict.Property).str(conflict.ExistingIntent).str(conflict.EvidenceRef)
+			c.Str(conflict.RowID).Str(conflict.Property).Str(conflict.ExistingIntent).Str(conflict.EvidenceRef)
 		}
 		for _, x := range d.Writes {
-			c.str(x.Property).str(x.Current).boolField(x.CurrentPresent).str(x.Proposed).str(x.AuthorityRef).str(x.ResourceKey).str(x.BaselineRevision)
+			c.Str(x.Property).Str(x.Current).Bool(x.CurrentPresent).Str(x.Proposed).Str(x.AuthorityRef).Str(x.ResourceKey).Str(x.BaselineRevision)
 		}
 		for _, e := range d.Errors {
 			canonicalValidationError(c, e)
 		}
 	}
 	for _, x := range out.PlannedWrites {
-		c.str(x.Property).str(x.Current).boolField(x.CurrentPresent).str(x.Proposed).str(x.AuthorityRef).str(x.ResourceKey).str(x.BaselineRevision)
+		c.Str(x.Property).Str(x.Current).Bool(x.CurrentPresent).Str(x.Proposed).Str(x.AuthorityRef).Str(x.ResourceKey).Str(x.BaselineRevision)
 	}
-	c.strings(out.Obligations)
+	c.Strings(out.Obligations)
 }
 func wireSimulation(out ImportSimulation) string {
-	w := newCanonWriter("hcmnext.dataops.importing.ImportSimulationPayload", 3)
+	w := importdraft.NewCanon("hcmnext.dataops.importing.ImportSimulationPayload", 3)
 	canonicalSimulation(&w, out)
-	return string(w.buf)
+	return string(w.Bytes())
 }
 func Simulate(in SimulationInput) (ImportSimulation, error) { return SimulateImport(in) }
 
 func cloneWrites(in []DraftWrite) []DraftWrite { return append([]DraftWrite(nil), in...) }
 
 func snapshotDigest(current map[string]map[string]string) string {
-	w := newCanonWriter("hcmnext.dataops.importing.Snapshot", 1)
+	w := importdraft.NewCanon("hcmnext.dataops.importing.Snapshot", 1)
 	rows := make([]string, 0, len(current))
 	for row := range current {
 		rows = append(rows, row)
 	}
 	sort.Strings(rows)
 	for _, row := range rows {
-		w.str(row)
+		w.Str(row)
 		props := make([]string, 0, len(current[row]))
 		for property := range current[row] {
 			props = append(props, property)
 		}
 		sort.Strings(props)
 		for _, property := range props {
-			w.str(property).str(current[row][property])
+			w.Str(property).Str(current[row][property])
 		}
 	}
-	return w.digestHex()
+	return w.DigestHex()
 }
 
 func validationDigest(result Result) string {
-	w := newCanonWriter("hcmnext.dataops.importing.ValidationResult", 1)
-	w.str(result.Summary.BatchDigest).str(result.Summary.MappingDigest).i64(int64(result.Summary.TotalRows)).i64(int64(result.Summary.ValidRows)).i64(int64(result.Summary.InvalidRows)).i64(int64(result.Summary.WarningCount))
+	w := importdraft.NewCanon("hcmnext.dataops.importing.ValidationResult", 1)
+	w.Str(result.Summary.BatchDigest).Str(result.Summary.MappingDigest).I64(int64(result.Summary.TotalRows)).I64(int64(result.Summary.ValidRows)).I64(int64(result.Summary.InvalidRows)).I64(int64(result.Summary.WarningCount))
 	rules := make([]string, 0, len(result.Summary.ByRule))
 	for rule := range result.Summary.ByRule {
 		rules = append(rules, rule)
 	}
 	sort.Strings(rules)
 	for _, rule := range rules {
-		w.str(rule).i64(int64(result.Summary.ByRule[rule]))
+		w.Str(rule).I64(int64(result.Summary.ByRule[rule]))
 	}
 	for _, row := range result.Rows {
-		w.str(row.RowID).boolField(row.Valid)
+		w.Str(row.RowID).Bool(row.Valid)
 		for _, issue := range row.Errors {
 			canonicalValidationError(w, issue)
 		}
@@ -501,11 +465,11 @@ func validationDigest(result Result) string {
 	for _, warning := range result.Warnings {
 		canonicalValidationError(w, warning)
 	}
-	return w.digestHex()
+	return w.DigestHex()
 }
 
-func canonicalValidationError(w *canonWriter, issue ValidationError) {
-	w.str(issue.Identity).str(issue.BatchID).str(issue.RowID).str(issue.Property).str(issue.RuleID).str(issue.Severity.String()).str(issue.Message)
+func canonicalValidationError(w *importdraft.Canon, issue ValidationError) {
+	w.Str(issue.Identity).Str(issue.BatchID).Str(issue.RowID).Str(issue.Property).Str(issue.RuleID).Str(issue.Severity.String()).Str(issue.Message)
 }
 
 func cloneSimulation(in ImportSimulation) ImportSimulation {

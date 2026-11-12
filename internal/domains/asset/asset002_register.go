@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops/importing"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -683,11 +683,11 @@ const (
 const EquipmentIntentType = "equipment.register"
 
 // DraftWrites renders the row as the equipment.register intent writes.
-func (row EquipmentImportRow) DraftWrites() []importing.DraftWrite {
-	write := func(property, proposed string) importing.DraftWrite {
-		return importing.DraftWrite{Property: property, Proposed: proposed}
+func (row EquipmentImportRow) DraftWrites() []importdraft.DraftWrite {
+	write := func(property, proposed string) importdraft.DraftWrite {
+		return importdraft.DraftWrite{Property: property, Proposed: proposed}
 	}
-	return []importing.DraftWrite{
+	return []importdraft.DraftWrite{
 		write(equipmentPropRowID, row.RowID),
 		write(equipmentPropSourceSystem, row.Source.SourceSystem),
 		write(equipmentPropCompany, row.Source.Company),
@@ -704,7 +704,7 @@ func (row EquipmentImportRow) DraftWrites() []importing.DraftWrite {
 	}
 }
 
-func decodeDraftRow(draft importing.BusinessIntentDraft) (EquipmentImportRow, error) {
+func decodeDraftRow(draft importdraft.BusinessIntentDraft) (EquipmentImportRow, error) {
 	var row EquipmentImportRow
 	seen := make(map[string]bool, len(draft.Writes))
 	for _, write := range draft.Writes {
@@ -865,36 +865,36 @@ func NewEquipmentCommitter(register *EquipmentRegister) *EquipmentCommitter {
 // with the same payload replays the original lineage; a changed
 // payload, a duplicate serial, or a stale version is a conflict, and a
 // newer version must arrive through CorrectEquipmentImport, never here.
-func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemRequest) (importing.ItemLineage, error) {
+func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importdraft.ItemRequest) (importdraft.ItemLineage, error) {
 	if err := ctx.Err(); err != nil {
-		return importing.ItemLineage{}, err
+		return importdraft.ItemLineage{}, err
 	}
 	tenant := values.TenantId(req.Tenant)
 	if err := tenant.Validate(); err != nil {
-		return importing.ItemLineage{}, fmt.Errorf("%w: commit tenant: %v", ErrEquipmentValidation, err)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: commit tenant: %v", ErrEquipmentValidation, err)
 	}
 	if req.ImportID == "" || req.SimulationDigest == "" || req.IdempotencyKey == "" {
-		return importing.ItemLineage{}, fmt.Errorf("%w: import id, simulation digest and idempotency key are required", ErrEquipmentValidation)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: import id, simulation digest and idempotency key are required", ErrEquipmentValidation)
 	}
 	if req.Draft.RowID == "" || req.Draft.IntentType == "" || req.Draft.Status == "" {
-		return importing.ItemLineage{}, fmt.Errorf("%w: intent row, type and status are required", ErrEquipmentValidation)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: intent row, type and status are required", ErrEquipmentValidation)
 	}
 	if req.Draft.IntentType != EquipmentIntentType {
-		return importing.ItemLineage{}, fmt.Errorf("%w: intent type %q is not %q", ErrEquipmentValidation, req.Draft.IntentType, EquipmentIntentType)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: intent type %q is not %q", ErrEquipmentValidation, req.Draft.IntentType, EquipmentIntentType)
 	}
 	if req.Draft.Status != "CREATE" {
-		return importing.ItemLineage{}, fmt.Errorf("%w: intent status %q is not CREATE", ErrEquipmentValidation, req.Draft.Status)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: intent status %q is not CREATE", ErrEquipmentValidation, req.Draft.Status)
 	}
 	row, err := decodeDraftRow(req.Draft)
 	if err != nil {
-		return importing.ItemLineage{}, err
+		return importdraft.ItemLineage{}, err
 	}
 	register := c.register
 	register.mu.Lock()
 	defer register.mu.Unlock()
 	verdict := register.verdictForRowLocked(tenant, row)
 	if verdict.Status != VerdictAccept {
-		return importing.ItemLineage{}, fmt.Errorf("%w: row %q: %s", ErrEquipmentValidation, row.RowID, strings.Join(verdict.Errors, "; "))
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: row %q: %s", ErrEquipmentValidation, row.RowID, strings.Join(verdict.Errors, "; "))
 	}
 	version, _ := parseSourceVersion(row.SourceVersion)
 	company := row.Source.Company
@@ -902,7 +902,7 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 	key := equipmentIdemKey(tenant, company, "commit", req.IdempotencyKey)
 	if prior, ok := register.idem[key]; ok {
 		if prior.Fingerprint != fingerprint {
-			return importing.ItemLineage{}, fmt.Errorf("%w: commit key was used with a different payload", ErrEquipmentConflict)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: commit key was used with a different payload", ErrEquipmentConflict)
 		}
 		return register.commitLineageLocked(prior, req.IdempotencyKey)
 	}
@@ -910,24 +910,24 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 	if entry, seen := register.bySource[sourceKey]; seen {
 		record, ok := register.records[entry.RecordKey]
 		if !ok {
-			return importing.ItemLineage{}, fmt.Errorf("%w: source entry references an unknown record", ErrEquipmentConflict)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: source entry references an unknown record", ErrEquipmentConflict)
 		}
 		switch {
 		case version == entry.AdmittedVersion && entry.PayloadHash == fingerprint:
 			register.idem[key] = equipmentIdem{Key: req.IdempotencyKey, Kind: "commit", Fingerprint: fingerprint, RecordIDs: []string{record.Inventory.InventoryID.Id}}
 			return commitLineageFor(record.Inventory.InventoryID, req.IdempotencyKey), nil
 		case version == entry.AdmittedVersion:
-			return importing.ItemLineage{}, fmt.Errorf("%w: source %q version %d payload changed; correct it explicitly", ErrEquipmentConflict, row.Source.ExternalKey, version)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: source %q version %d payload changed; correct it explicitly", ErrEquipmentConflict, row.Source.ExternalKey, version)
 		case version < entry.AdmittedVersion:
-			return importing.ItemLineage{}, fmt.Errorf("%w: source %q version %d is superseded by version %d", ErrEquipmentConflict, row.Source.ExternalKey, version, entry.AdmittedVersion)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: source %q version %d is superseded by version %d", ErrEquipmentConflict, row.Source.ExternalKey, version, entry.AdmittedVersion)
 		default:
-			return importing.ItemLineage{}, fmt.Errorf("%w: source %q version %d is newer than admitted %d; use CorrectEquipmentImport", ErrEquipmentValidation, row.Source.ExternalKey, version, entry.AdmittedVersion)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: source %q version %d is newer than admitted %d; use CorrectEquipmentImport", ErrEquipmentValidation, row.Source.ExternalKey, version, entry.AdmittedVersion)
 		}
 	}
 	normalized := normalizeEquipmentSerial(row.Serial)
 	full := row.Scheme + ":" + normalized
 	if _, taken := register.bySerial[equipmentSerialKey(tenant, company, full)]; taken {
-		return importing.ItemLineage{}, fmt.Errorf("%w: serial %q is already registered", ErrEquipmentConflict, full)
+		return importdraft.ItemLineage{}, fmt.Errorf("%w: serial %q is already registered", ErrEquipmentConflict, full)
 	}
 	committedAt := time.Now().UTC()
 	record, err := register.createRecordLocked(creationInput{
@@ -936,7 +936,7 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 		AcquiredSource: row.Source.SourceSystem, EffectiveAt: committedAt,
 	})
 	if err != nil {
-		return importing.ItemLineage{}, err
+		return importdraft.ItemLineage{}, err
 	}
 	worker := strings.TrimSpace(row.Worker)
 	switch {
@@ -952,7 +952,7 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 		recordKey := equipmentRecordKey(tenant, company, record.Inventory.InventoryID.Id)
 		revision, err := values.NewSequenceRevision("asset-custody", 1)
 		if err != nil {
-			return importing.ItemLineage{}, fmt.Errorf("%w: custody token: %v", ErrEquipmentValidation, err)
+			return importdraft.ItemLineage{}, fmt.Errorf("%w: custody token: %v", ErrEquipmentValidation, err)
 		}
 		assignee := Receipt{
 			ID:     values.EntityRef{Tenant: tenant, Kind: "receipt", Id: equipmentUUID("equipment-receipt\x00" + recordKey + "\x00assign")},
@@ -967,7 +967,7 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 			AssigneeReceipt: assignee, IssuerReceipt: issuer, Revision: revision, EffectiveAt: committedAt, Status: Assigned,
 		}
 		if err := register.store.Apply(record.Inventory.InventoryID, record.Inventory.Revision, next); err != nil {
-			return importing.ItemLineage{}, err
+			return importdraft.ItemLineage{}, err
 		}
 		record.CustodyLog = append(record.CustodyLog, CustodyEvent{
 			Worker: workerRef, Location: row.Site, Condition: row.Condition, Assignee: assignee, Issuer: issuer,
@@ -987,17 +987,17 @@ func (c *EquipmentCommitter) CommitItem(ctx context.Context, req importing.ItemR
 	return commitLineageFor(record.Inventory.InventoryID, req.IdempotencyKey), nil
 }
 
-func commitLineageFor(asset values.EntityRef, idempotencyKey string) importing.ItemLineage {
-	return importing.ItemLineage{
+func commitLineageFor(asset values.EntityRef, idempotencyKey string) importdraft.ItemLineage {
+	return importdraft.ItemLineage{
 		TransactionRef: asset.String(), ObservationRef: idempotencyKey,
-		ReconciliationStatus: importing.ReconciliationMatched,
+		ReconciliationStatus: importdraft.ReconciliationMatched,
 	}
 }
 
-func (r *EquipmentRegister) commitLineageLocked(prior equipmentIdem, idempotencyKey string) (importing.ItemLineage, error) {
+func (r *EquipmentRegister) commitLineageLocked(prior equipmentIdem, idempotencyKey string) (importdraft.ItemLineage, error) {
 	replayed, err := r.replayIdemLocked(prior)
 	if err != nil {
-		return importing.ItemLineage{}, err
+		return importdraft.ItemLineage{}, err
 	}
 	return commitLineageFor(replayed[0].Inventory.InventoryID, idempotencyKey), nil
 }

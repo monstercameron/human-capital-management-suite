@@ -3,6 +3,7 @@ package importing
 import (
 	"errors"
 	"fmt"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"regexp"
 	"sort"
 	"time"
@@ -269,18 +270,18 @@ type FieldMapping struct {
 	IsIdentity bool
 }
 
-func (fm FieldMapping) canonical(w *canonWriter) {
-	w.str(fm.SourceColumn).str(string(fm.Target)).boolField(fm.IsIdentity)
+func (fm FieldMapping) canonical(w *importdraft.Canon) {
+	w.Str(fm.SourceColumn).Str(string(fm.Target)).Bool(fm.IsIdentity)
 	t := fm.Transform
-	w.str(t.Kind.String()).str(t.Layout).str(t.Currency).str(t.CrosswalkVersion).str(t.Constant)
+	w.Str(t.Kind.String()).Str(t.Layout).Str(t.Currency).Str(t.CrosswalkVersion).Str(t.Constant)
 	keys := make([]string, 0, len(t.Crosswalk))
 	for k := range t.Crosswalk {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	w.u64(uint64(len(keys)))
+	w.U64(uint64(len(keys)))
 	for _, k := range keys {
-		w.str(k).str(t.Crosswalk[k])
+		w.Str(k).Str(t.Crosswalk[k])
 	}
 }
 
@@ -453,12 +454,12 @@ func Compile(reg *model.Registry, spec MappingSpecInput) (MappingProfile, error)
 		profile.engine[i] = lowered
 	}
 
-	w := newCanonWriter("hcmnext.dataops.importing.MappingProfile", 1)
-	w.str(profile.Version).u64(uint64(len(profile.Fields)))
+	w := importdraft.NewCanon("hcmnext.dataops.importing.MappingProfile", 1)
+	w.Str(profile.Version).U64(uint64(len(profile.Fields)))
 	for _, f := range profile.Fields {
 		f.canonical(w)
 	}
-	profile.Digest = w.digestHex()
+	profile.Digest = w.DigestHex()
 	return profile, nil
 }
 

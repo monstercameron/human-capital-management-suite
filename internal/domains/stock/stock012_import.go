@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/dataops/importing"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/importdraft"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
@@ -262,7 +262,7 @@ type InventoryImporter struct {
 	mu          sync.Mutex
 	catalog     *Catalog
 	lots        *LotRegistry
-	checkpoints importing.CheckpointStore
+	checkpoints importdraft.CheckpointStore
 	sites       SiteAuthority
 
 	admitted    map[string]admittedIdentity
@@ -280,9 +280,9 @@ type InventoryImporter struct {
 }
 
 // NewInventoryImporter builds an empty importer over the given owners.
-func NewInventoryImporter(catalog *Catalog, lots *LotRegistry, checkpoints importing.CheckpointStore, sites SiteAuthority) *InventoryImporter {
+func NewInventoryImporter(catalog *Catalog, lots *LotRegistry, checkpoints importdraft.CheckpointStore, sites SiteAuthority) *InventoryImporter {
 	if checkpoints == nil {
-		checkpoints = importing.NewMemoryCheckpoints()
+		checkpoints = importdraft.NewMemoryCheckpoints()
 	}
 	return &InventoryImporter{
 		catalog: catalog, lots: lots, checkpoints: checkpoints, sites: sites,
@@ -320,25 +320,25 @@ func (r *InventoryImporter) knownSite(companyID, siteID string) bool {
 
 // stage parses CSV text through the shared staging path. Digest, row IDs and
 // limits all come from importing; this package adds no staging of its own.
-func (r *InventoryImporter) stage(op OperationContext, sourceURI, csvText string, retrievedAt time.Time) (importing.Batch, error) {
+func (r *InventoryImporter) stage(op OperationContext, sourceURI, csvText string, retrievedAt time.Time) (importdraft.Batch, error) {
 	if strings.TrimSpace(sourceURI) == "" {
-		return importing.Batch{}, fmt.Errorf("%w: source uri is required", ErrImportValidation)
+		return importdraft.Batch{}, fmt.Errorf("%w: source uri is required", ErrImportValidation)
 	}
 	if retrievedAt.IsZero() {
 		retrievedAt = time.Now().UTC()
 	}
-	batch, err := importing.StageCSV(
-		importing.SourceDescriptor{Kind: importing.SourceKindCSV, URI: strings.TrimSpace(sourceURI), Tenant: values.TenantId(op.TenantID)},
+	batch, err := importdraft.StageCSV(
+		importdraft.SourceDescriptor{Kind: importdraft.SourceKindCSV, URI: strings.TrimSpace(sourceURI), Tenant: values.TenantId(op.TenantID)},
 		values.NewInstant(retrievedAt),
 		strings.NewReader(csvText),
 	)
 	if err != nil {
-		return importing.Batch{}, fmt.Errorf("%w: staging: %v", ErrImportValidation, err)
+		return importdraft.Batch{}, fmt.Errorf("%w: staging: %v", ErrImportValidation, err)
 	}
 	return batch, nil
 }
 
-func batchCell(batch importing.Batch, row importing.Row, column string) string {
+func batchCell(batch importdraft.Batch, row importdraft.Row, column string) string {
 	index, ok := batch.ColumnIndex(column)
 	if !ok {
 		return ""
@@ -347,7 +347,7 @@ func batchCell(batch importing.Batch, row importing.Row, column string) string {
 	return strings.TrimSpace(cell)
 }
 
-func parseImportRow(batch importing.Batch, row importing.Row, index int) importRow {
+func parseImportRow(batch importdraft.Batch, row importdraft.Row, index int) importRow {
 	cells := row.Cells()
 	get := func(column string) string { return batchCell(batch, row, column) }
 	scale, _ := strconv.Atoi(get("scale"))
@@ -805,7 +805,7 @@ func (r *InventoryImporter) CommitInventoryImport(ctx context.Context, op Operat
 	if err != nil {
 		return ImportCommitResult{}, err
 	}
-	items := map[string]importing.ItemState{}
+	items := map[string]importdraft.ItemState{}
 	for id, state := range cp.Items {
 		items[id] = state
 	}
@@ -814,7 +814,7 @@ func (r *InventoryImporter) CommitInventoryImport(ctx context.Context, op Operat
 	result := ImportCommitResult{ImportID: dryRun.ImportID, BatchDigest: dryRun.BatchDigest}
 	attempted := 0
 	for i, row := range rows {
-		if prior, ok := items[row.RowID]; ok && prior.Status == importing.ItemCommitted {
+		if prior, ok := items[row.RowID]; ok && prior.Status == importdraft.ItemCommitted {
 			if receiptID, found := r.rowReceipts[dryRun.ImportID+"\x00"+row.RowID]; found {
 				if receipt, ok := r.receipts[receiptID]; ok && receipt.Status == ReceiptApplied {
 					result.Receipts = append(result.Receipts, *receipt)
@@ -840,17 +840,17 @@ func (r *InventoryImporter) CommitInventoryImport(ctx context.Context, op Operat
 			result.PendingRows = append(result.PendingRows, ImportPendingRow{RowID: row.RowID, CSVLine: row.CSVLine, Code: outcome.code, Message: outcome.message})
 			continue
 		}
-		state := importing.ItemState{Status: importing.ItemCommitted}
+		state := importdraft.ItemState{Status: importdraft.ItemCommitted}
 		if outcome.receipt == nil {
-			state = importing.ItemState{Status: importing.ItemFailed, FailureCode: outcome.code}
+			state = importdraft.ItemState{Status: importdraft.ItemFailed, FailureCode: outcome.code}
 			result.Failed++
 			result.Errors = append(result.Errors, rowError(row, outcome.field, outcome.code, outcome.message))
 		} else {
-			state.Lineage = importing.ItemLineage{TransactionRef: outcome.receipt.MovementRef, ObservationRef: outcome.receipt.ReceiptID, ReconciliationStatus: importing.ReconciliationMatched}
+			state.Lineage = importdraft.ItemLineage{TransactionRef: outcome.receipt.MovementRef, ObservationRef: outcome.receipt.ReceiptID, ReconciliationStatus: importdraft.ReconciliationMatched}
 			result.Receipts = append(result.Receipts, *outcome.receipt)
 			result.Applied++
 		}
-		next := map[string]importing.ItemState{}
+		next := map[string]importdraft.ItemState{}
 		for id, state := range items {
 			next[id] = state
 		}
@@ -887,16 +887,16 @@ func batchDuplicates(op OperationContext, rows []importRow) (map[string][]int, m
 	return aliasHolders, serialHolders, keyHolders
 }
 
-func (r *InventoryImporter) loadCommitCheckpoint(ctx context.Context, dryRun ImportDryRun) (importing.Checkpoint, error) {
+func (r *InventoryImporter) loadCommitCheckpoint(ctx context.Context, dryRun ImportDryRun) (importdraft.Checkpoint, error) {
 	cp, found, err := r.checkpoints.Load(ctx, dryRun.ImportID)
 	if err != nil {
-		return importing.Checkpoint{}, fmt.Errorf("stock: load import checkpoint: %w", err)
+		return importdraft.Checkpoint{}, fmt.Errorf("stock: load import checkpoint: %w", err)
 	}
 	if !found {
-		return importing.Checkpoint{ImportID: dryRun.ImportID, SimulationDigest: dryRun.DryRunDigest, BatchDigest: dryRun.BatchDigest, MappingDigest: ImportSchemaDigest}, nil
+		return importdraft.Checkpoint{ImportID: dryRun.ImportID, SimulationDigest: dryRun.DryRunDigest, BatchDigest: dryRun.BatchDigest, MappingDigest: ImportSchemaDigest}, nil
 	}
 	if cp.SimulationDigest != dryRun.DryRunDigest || cp.BatchDigest != dryRun.BatchDigest || cp.MappingDigest != ImportSchemaDigest {
-		return importing.Checkpoint{}, fmt.Errorf("%w: checkpoint belongs to a different proposal", ErrImportConflict)
+		return importdraft.Checkpoint{}, fmt.Errorf("%w: checkpoint belongs to a different proposal", ErrImportConflict)
 	}
 	return cp, nil
 }
@@ -948,7 +948,7 @@ func (r *InventoryImporter) applyItemRow(_ context.Context, op OperationContext,
 	if row.BarcodeSym != "" {
 		draft.Aliases = []BarcodeAlias{{Symbology: row.BarcodeSym, Code: row.BarcodeCode}}
 	}
-	created, err := r.catalog.CreateItem(context.Background(), op, draft, importing.IdempotencyKey(dryRun.DryRunDigest, row.RowID))
+	created, err := r.catalog.CreateItem(context.Background(), op, draft, importdraft.IdempotencyKey(dryRun.DryRunDigest, row.RowID))
 	if err != nil {
 		if errors.Is(err, ErrDuplicateSKU) {
 			return failedOutcome("sku", "IMPORT_SKU_REGISTERED", "sku is already active; reconcile instead of importing")
@@ -1063,13 +1063,13 @@ func (r *InventoryImporter) commitOpeningLot(op OperationContext, dryRun ImportD
 		ReceivedFrom: row.SourceSystem, ReceivedDoc: row.OriginReceipt,
 		ReceivedAt: dryRun.RetrievedAt, Expiry: ExpiryPolicy{LocalDate: row.LotDate, Timezone: row.LotTZ, Rule: ExpiryNextLocalDayStart},
 		PolicyRevision: ifEmpty(row.PolicyVersion, "import-v1"), Scale: shape.Scale, OnHand: qtyText,
-	}, importing.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":lot"))
+	}, importdraft.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":lot"))
 	if err != nil {
 		out := failedOutcome("lot_supplier", "IMPORT_LOT_FAILED", err.Error())
 		return "", &out
 	}
 	if row.Bucket == BucketQuarantine {
-		if _, err := r.lots.HoldLot(context.Background(), op, lot.LotID, row.QualityReason, row.PolicyVersion, importing.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":hold")); err != nil {
+		if _, err := r.lots.HoldLot(context.Background(), op, lot.LotID, row.QualityReason, row.PolicyVersion, importdraft.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":hold")); err != nil {
 			out := failedOutcome("quality_reason", "IMPORT_HOLD_FAILED", err.Error())
 			return "", &out
 		}
@@ -1089,7 +1089,7 @@ func (r *InventoryImporter) commitOpeningSerial(op OperationContext, dryRun Impo
 	unit, err := r.lots.RegisterSerial(context.Background(), op, RegisterSerialInput{
 		Namespace: namespace, Serial: row.Serial, AssetRef: asset,
 		ItemID: shape.ItemID, LotID: receipt.LotID, SiteID: row.Site,
-	}, importing.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":serial"))
+	}, importdraft.IdempotencyKey(dryRun.DryRunDigest, row.RowID+":serial"))
 	if err != nil {
 		out := failedOutcome("serial", "IMPORT_SERIAL_FAILED", err.Error())
 		return &out
@@ -1377,7 +1377,7 @@ func (r *InventoryImporter) ReleaseOpeningQuarantine(ctx context.Context, op Ope
 		return Lot{}, err
 	}
 	r.mu.Unlock()
-	released, err := r.lots.ReleaseLot(ctx, op, lotID, reviewer, evidence, asOf, importing.IdempotencyKey("smb-stock-012-release/v1", lotID+strings.TrimSpace(key)))
+	released, err := r.lots.ReleaseLot(ctx, op, lotID, reviewer, evidence, asOf, importdraft.IdempotencyKey("smb-stock-012-release/v1", lotID+strings.TrimSpace(key)))
 	if err != nil {
 		return Lot{}, err
 	}
