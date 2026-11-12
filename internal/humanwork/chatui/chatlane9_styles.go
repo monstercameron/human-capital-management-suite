@@ -25,7 +25,7 @@ const chatux010RecentStyles = `.chat-workspace .rail-search-recent{display:none;
 	`.chat-workspace .rail-search-recent-title{display:block;padding:4px 8px;color:var(--muted);font-size:.75rem;font-weight:600}` +
 	`.chat-workspace .rail-search-recent-item{display:flex;align-items:center;gap:8px;inline-size:100%;min-block-size:32px;margin:0;padding:4px 8px;border:0;border-radius:var(--hcm-radius-xs);background:transparent;color:var(--ink);font:inherit;font-size:.875rem;text-align:start;cursor:pointer}` +
 	`.chat-workspace .rail-search-recent-item>span{min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}` +
-	`.chat-workspace .rail-search-recent-item .chat-icon{flex:none;inline-size:14px;block-size:14px;color:var(--muted)}` +
+	`.chat-workspace .rail-search-recent-item .chat-icon{position:static;transform:none;flex:none;inline-size:14px;block-size:14px;color:var(--muted)}` +
 	`.chat-workspace .rail-search-recent-item:hover,.chat-workspace .rail-search-recent-item:focus-visible{background:var(--soft)}`
 
 // chatlane9VarDefaults gives the custom properties the page sets from script a

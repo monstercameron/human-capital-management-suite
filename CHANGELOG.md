@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Recent-search dropdown icon overlaps the first characters of entri (#3696)
+
+- Chat: recent-search entries keep their magnifier in its own gutter instead of drawing over the first characters of the entry.
+
 ## 2026-11-12 — Chat: Resolved count disappears from the tab strip on the Permissions ta (#3695)
 
 - Chat: the Resolved count stays on the moderation Permissions tab, and the Permissions text and table have spacing from the tab bar.
