@@ -1,3 +1,12 @@
+## 2026-11-12 — Red-package repairs, registry regeneration and promotion reservation (#93)
+
+- Thirty-odd packages whose tests failed at HEAD pass again. Production fixes: a ledger append that loses the head race to its own exact replay returns the original receipt; a document's message references never name a channel the same response reports as locked; the chat seed replays a removed message without reclassifying it; durable legal-pipeline reads verify the event hash chain they actually store; the agent store no longer imports the pool driver directly; the spend report renders the aligned tables its checked-in copy uses; the three time-profile person fields have an operator data domain (the overtime exemption is compensation data).
+- Test fixes: fixed-date fixtures pin their clock, race tests give each goroutine its own connection, and goldens are re-pinned with the commit that changed their input named beside the pin (authorization policy v3, rule column classification, SBOM regeneration, layout rows, definition count).
+- Policy scanners skip `.artifacts/`, and the test-hygiene scanner no longer treats a domain method named `SkipStep` as a skipped test.
+- Regenerated: the todo registry, the storage disposition registries (migration 00732 hierarchy tables, agent and chat migrations), the architecture document and the OpenAPI document, which now includes the work order, agent and time services the generator already linked. Twelve stale evidence allow-list rows are removed and five broken planning links fixed.
+- `AgentActionService` submits hold the promotion budget before the workflow starts (#93).
+- Still red and filed for decisions: #3646–#3670.
+
 ## 2026-11-12 — Workspace, Chat, Projects and workflow UI defect sweep
 
 Chat
