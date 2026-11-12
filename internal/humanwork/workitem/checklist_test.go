@@ -14,11 +14,11 @@ func smb003Template(now time.Time) ChecklistTemplate {
 		Title:      "Engineer onboarding",
 		RoleRefs:   []string{"people.manager"},
 		Items: []TemplateItem{
-			{Kind: ItemKindDo, Title: "Provision laptop", Required: true},
-			{Kind: ItemKindRead, Title: "Read the handbook", Required: true},
-			{Kind: ItemKindSign, Title: "Sign the IP agreement", Required: true},
-			{Kind: ItemKindUpload, Title: "Upload right-to-work", Required: true},
-			{Kind: ItemKindConfirm, Title: "Confirm desk assignment", Required: false},
+			{Kind: ItemKindDo, Title: "Provision laptop", Required: true, AssigneeRole: "it.help"},
+			{Kind: ItemKindRead, Title: "Read the handbook", Required: true, AssigneeRole: "subject"},
+			{Kind: ItemKindSign, Title: "Sign the IP agreement", Required: true, AssigneeRole: "subject"},
+			{Kind: ItemKindUpload, Title: "Upload right-to-work", Required: true, AssigneeRole: "subject"},
+			{Kind: ItemKindConfirm, Title: "Confirm desk assignment", Required: false, AssigneeRole: "people.manager"},
 		},
 		CreatedAt: now,
 	}

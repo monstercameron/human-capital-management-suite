@@ -125,6 +125,9 @@ func (t ChecklistTemplate) Validate() error {
 		if !semanticKey(item.Title) {
 			return refuse(CodeInvalidRecord, id, "item %d title is required", i)
 		}
+		if !semanticKey(item.AssigneeRole) {
+			return refuse(CodeInvalidRecord, id, "item %d must name an assignee role; ownership is never dropped", i)
+		}
 		if item.DueInDays < 0 {
 			return refuse(CodeInvalidRecord, id, "item %d due offset %d days is in the past", i, item.DueInDays)
 		}
@@ -263,6 +266,9 @@ func (c Checklist) Validate() error {
 		}
 		if !semanticKey(item.Title) {
 			return refuse(CodeInvalidRecord, id, "item %d title is required", i)
+		}
+		if !semanticKey(item.Assignee) {
+			return refuse(CodeInvalidRecord, id, "item %d has no assignee; ownership is never dropped", i)
 		}
 		if !item.State.Valid() {
 			return refuse(CodeInvalidRecord, id, "item %d state %q is not declared", i, string(item.State))

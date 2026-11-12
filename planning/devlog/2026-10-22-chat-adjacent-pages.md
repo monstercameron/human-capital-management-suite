@@ -143,3 +143,11 @@ The CONF-014 conformance fixture in internal/workflow/conformance/hrcase was com
 Verified: PASS: go test -count=1 -run 'TestTodo_CONF_014' ./internal/workflow/conformance/hrcase/ (ok, 6.7s, existing). PASS: go test -count=1 -run 'TestTodo_CONF_014_Served' ./internal/application/ (ok, 28.9s; a post-run Windows unlinkat 'Access is denied' cleanup message on the temp test binary did not affect the result). PASS: go vet ./internal/application/ (exit 0). gofmt -l on both new files: clean. go list -deps ./cmd/hcmnext | grep conformance/hrcase: 1 match. Full package not run.</tests> <parameter name="unverified">No browser or served HTTP route exercises the new surface; like the termination and leave surfaces, it is reachable as a compile-time dependency and an App method with no HTTP consumer yet. I did not run the full internal/application package. Scenario-level semantics (RED cases) were not re-asserted in the new test beyond successful setup construction; the existing hrcase tests cover them.
 
 Not verified or left partial: not reported
+
+## 2026-11-12 — SMB-003 (#2185)
+
+The rev-smb reopening found two gaps in the committed checklist kernel. Templates and checklists accepted items without an assignee, so ownerless items were silently dropped from ProgressByOwner. ListByAssignee returned document links whose authorized viewer set excluded the assignee, exposing private links through the employee queue.
+
+Verified: go vet ./internal/humanwork/workitem/ exit 0; gofmt clean on the four touched files; go test -count=1 -run 'TestTodo_SMB_003|SMB' ./internal/humanwork/workitem/ ok; go test -count=1 -v -run TestTodo_SMB_003 shows all 7 PASS including new TestTodo_SMB_003_RedOwnerlessAndQueueLinks; full package go test -count=1 ./internal/humanwork/workitem/ ok (385.8s). Report at .artifacts/lanes/reports/2185.md.
+
+Not verified or left partial: Red-before-fix was established by reading the code, not by re-running the old source. No browser verification was possible. Templates now require a non-blank AssigneeRole per item, and the checklist fixture in checklist_test.go was updated to name roles.

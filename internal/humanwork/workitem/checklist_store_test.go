@@ -247,3 +247,59 @@ func TestTodo_SMB_003_ServedByOwner(t *testing.T) {
 		t.Fatal("cross-tenant progress = success, want refusal")
 	}
 }
+
+// TestTodo_SMB_003_RedOwnerlessAndQueueLinks proves the RED clauses: a
+// template or checklist that drops task ownership is refused, and the
+// assignee queue never serves a document link the assignee is not
+// authorized to view.
+func TestTodo_SMB_003_RedOwnerlessAndQueueLinks(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
+	template := smb003AssignedTemplate(now)
+
+	ownerless := template
+	ownerless.Items = append([]TemplateItem(nil), template.Items...)
+	ownerless.Items[0].AssigneeRole = ""
+	if err := ownerless.Validate(); err == nil {
+		t.Fatal("template with an ownerless item = valid, want refusal")
+	}
+
+	list, err := template.Instantiate(ChecklistInput{
+		ChecklistID: uuid.New(), Title: "Victim onboarding", CreatedAt: now,
+		Assignees: map[int]string{1: "victim", 2: "victim", 3: "victim", 4: "bea.manager"},
+	})
+	if err != nil {
+		t.Fatalf("instantiate: %v", err)
+	}
+	blankOwner := list
+	blankOwner.Items = append([]ChecklistItem(nil), list.Items...)
+	blankOwner.Items[0].Assignee = ""
+	if err := blankOwner.Validate(); err == nil {
+		t.Fatal("checklist item with no assignee = valid, want refusal")
+	}
+
+	store := &ChecklistStore{}
+	if err := store.Save(ctx, list); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	hidden := list
+	hidden.Items = append([]ChecklistItem(nil), list.Items...)
+	hidden.Items[1].Documents = []AuthorizedDocumentLink{{
+		TenantID:            list.TenantID,
+		DocumentVersionID:   "secret-v1",
+		DocumentDigest:      "sha256:secret",
+		AuthorizedViewerIDs: []string{"someone-else"},
+	}}
+	if _, err := store.Update(ctx, hidden); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	queue := store.ListByAssignee(ctx, list.TenantID, "victim")
+	if len(queue) != 1 {
+		t.Fatalf("victim queue = %d lists, want 1", len(queue))
+	}
+	for _, item := range queue[0].Items {
+		if len(item.Documents) != 0 {
+			t.Fatalf("queue exposed %d links the assignee cannot view, want 0", len(item.Documents))
+		}
+	}
+}

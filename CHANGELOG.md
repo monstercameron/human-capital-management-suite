@@ -1,3 +1,7 @@
+## 2026-11-12 — SMB-003 (#2185)
+
+- Checklist items always keep an owner, and the employee task queue only shows document links the signed-in owner is authorized to open.
+
 ## 2026-11-12 — CONF-014 (#1216)
 
 - The HR case and employee-relations compartment semantics are proven through a served surface with its own tests (CONF-014).

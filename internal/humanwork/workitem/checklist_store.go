@@ -135,9 +135,9 @@ func (s *ChecklistStore) LinkDocument(_ context.Context, tenantID, checklistID, 
 }
 
 // ListByAssignee is the employee-home queue: the tenant's checklists reduced
-// to the viewer's own items, in position order. Viewers outside an item's
-// authorized set still see the item; its document links are stripped by
-// [ChecklistStore.View] instead.
+// to the viewer's own items, in position order. Each item keeps only the
+// document links the assignee is authorized to view, as [ChecklistStore.View]
+// does, so the queue never exposes a link its viewer cannot open.
 func (s *ChecklistStore) ListByAssignee(_ context.Context, tenantID uuid.UUID, assigneeID string) []Checklist {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -149,9 +149,18 @@ func (s *ChecklistStore) ListByAssignee(_ context.Context, tenantID uuid.UUID, a
 		mine := cloneChecklist(list)
 		mine.Items = mine.Items[:0]
 		for _, item := range list.Items {
-			if item.Assignee == assigneeID {
-				mine.Items = append(mine.Items, cloneChecklistItem(item))
+			if item.Assignee != assigneeID {
+				continue
 			}
+			own := cloneChecklistItem(item)
+			kept := own.Documents[:0]
+			for _, link := range own.Documents {
+				if contains(link.AuthorizedViewerIDs, assigneeID) {
+					kept = append(kept, link)
+				}
+			}
+			own.Documents = kept
+			mine.Items = append(mine.Items, own)
 		}
 		if len(mine.Items) > 0 {
 			result = append(result, mine)
