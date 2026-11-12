@@ -181,8 +181,9 @@ func journeyPreviewCard(m Model, p JourneyPreview) ui.Node {
 	head := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-project-embed-kind"}, journeyGlyph(), ui.Text(m.tf(KeyJourneyEmbed, map[string]string{"workflow": journeyWorkflowName(m, p)})))}
 	switch {
 	case journeyPreviewReady(p, p.IntentID):
-	case p.State == "ready" || p.State == "restricted" || p.State == "unavailable":
-		return html.Div(html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": p.State}}, append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyJourneyRestricted)}))...)
+	case p.State == "ready" || p.State == "restricted" || p.State == "missing" || p.State == "unavailable":
+		state := journeyLockedState(p.State)
+		return html.Div(html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": state}}, append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: journeyStateText(m, state)}))...)
 	default:
 		return html.Div(html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-loading", Data: map[string]string{"embed-state": "loading"}, Aria: map[string]string{"busy": "true"}},
 			append(head,

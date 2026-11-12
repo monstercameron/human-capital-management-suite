@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Role refusal state in chat is indistinguishable from not found, an (#3729, partial)
+
+- Chat: journey cards tell no access, not found and temporary failure apart, with their own copy (#3729).
+
 ## 2026-11-12 — Chat: Focus is lost to the page body when the thread panel is closed (#3722, partial)
 
 - Chat: focus returns to the thread-count link when a thread closes from its Reply or count opener (issue 3722; Close-button restore pending a render.go edit).

@@ -12,6 +12,8 @@ import (
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Journey quick looks for shared in-progress workflows in chat. The cache is
@@ -139,13 +141,28 @@ func resolveVisibleChatJourneys(cfg journeyclient.Config) {
 	}()
 }
 
-// readChatJourney maps one InspectJourney answer onto a card. A refused or
-// failed read is the neutral restricted card.
+// chatJourneyFailureState names the card state for a failed InspectJourney
+// call (#3729): a missing journey, a refused read and a temporary failure
+// each get their own copy, so a viewer can tell them apart.
+func chatJourneyFailureState(err error) string {
+	switch status.Code(err) {
+	case codes.NotFound:
+		return "missing"
+	case codes.PermissionDenied, codes.Unauthenticated:
+		return "restricted"
+	}
+	return "unavailable"
+}
+
+// readChatJourney maps one InspectJourney answer onto a card.
 func readChatJourney(ctx context.Context, active journeyclient.Config, client journeyv1.JourneyServiceClient, id string) chatui.JourneyPreview {
-	restricted := chatui.JourneyPreview{IntentID: id, State: "restricted"}
 	response, err := client.InspectJourney(chatRPCContext(ctx, active), &journeyv1.InspectJourneyRequest{IntentId: id})
+	if err != nil {
+		return chatui.JourneyPreview{IntentID: id, State: chatJourneyFailureState(err)}
+	}
+	restricted := chatui.JourneyPreview{IntentID: id, State: "restricted"}
 	journey := response.GetDetail().GetJourney()
-	if err != nil || journey == nil || journey.GetIntentId() != id || strings.TrimSpace(journey.GetWorkerName()) == "" {
+	if journey == nil || journey.GetIntentId() != id || strings.TrimSpace(journey.GetWorkerName()) == "" {
 		return restricted
 	}
 	placement := func(p *journeyv1.Placement) string {
