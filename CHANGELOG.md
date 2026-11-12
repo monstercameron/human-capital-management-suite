@@ -1,3 +1,15 @@
+## 2026-11-12 — Chat design round (#3769–#3777)
+
+- Accent-coloured text in Chat (thread links, "Show the conversation around it", moderation channel links) uses a text-safe token that meets 4.5:1 in both themes (#3769).
+- Each person has a stable avatar colour from an eight-hue palette and a round avatar; agents keep the bordered square with a glyph (#3770).
+- Chat opens with the product navigation as its icon rail; a person's own expand or collapse choice is remembered and wins (#3771).
+- Unread counts sit in pills: accent for mentions and direct messages, neutral for ordinary unread, Saved and Moderation (#3772).
+- The day pill sticks below the header fade and is never clipped (#3773).
+- The thread reply composer has the main composer's single tool row, with "Also send to #channel" attached under it (#3774).
+- The Chat search says "Search messages"; on Chat the workspace search says "Search pages and people" and is visually quieter until focused (#3775).
+- The General agent's mark is never in the danger colour, and a finished task with no answer is shown muted as "Finished without an answer." (#3776).
+- Journey and ticket previews share one work-object card; a card waiting on the reader has an accent frame and a "Waiting on you" pill (#3777).
+
 ## 2026-11-12 — Chat: scroll flicker and the blocked loop 3 fixes (#3827, #3694, #3698, #3701, #3702, #3711, #3713, #3714, #3715, #3734)
 
 - Scrolling a conversation no longer re-renders the composer, keeps about a screen and a half of messages mounted and re-draws the list only when that window changes, and remembers a portrait that failed to load instead of requesting it again for every row (#3827, partial: text direction is still applied after the translation answer arrives). Message hover actions appear about 200 ms after scrolling stops.

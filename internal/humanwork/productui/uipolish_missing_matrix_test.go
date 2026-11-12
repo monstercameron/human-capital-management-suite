@@ -365,7 +365,11 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// Re-pinned 2026-11-12 after the Chat loop 3 fixes: the header bell gained an
 	// accessible label tied to its unread state (#3737), and the served Chat
 	// stylesheet gained the loop 3 rules (#3703, #3704, #3712, #3714, #3734, #3827).
-	const want = "3c58c9e22fe19e7994208edc9a497364aed23e67520e7c5af0df1ce82d5196a2"
+	// Re-pinned 2026-11-12 for the Chat design round (#3769-#3777): the served
+	// stylesheet gains the chatdesign_* rules (accent-text token, avatar hues,
+	// unread pills, sticky day pill, thread composer row, scoped search, agent
+	// mark, work-object card) and the avatar tokens in the product theme.
+	const want = "f74b5776234d623db85baa1992231c42afa780cb8b952413a125166df3b5ee6a"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}
