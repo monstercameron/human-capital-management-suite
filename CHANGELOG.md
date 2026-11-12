@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Jump to unread pill no longer covers sidebar rows (#3674)
+
+- The Jump to unread button in the chat sidebar no longer covers conversation rows or section headings; it appears in its own strip above or below the list only while it is shown.
+
 ## 2026-11-12 — Chat: Account trigger shows a skeleton until the identity loads (#3678, partial)
 
 - The account button shows a blank circle instead of the placeholder initials NR or NG while the signed-in profile loads.

@@ -195,7 +195,8 @@ func TestTodo_CHATUX_002(t *testing.T) {
 				scroll = 0
 				continue
 			}
-			if scroll == 0 {
+			// The Jump to unread strip below the list is an edge control, not a row.
+			if scroll == 0 && !chatPolishHasClass(child, "chatux007-jump-slot") {
 				after = append(after, chatPolishAttr(child, "class"))
 			}
 		}

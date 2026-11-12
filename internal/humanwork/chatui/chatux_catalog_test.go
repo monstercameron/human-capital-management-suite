@@ -77,7 +77,7 @@ func TestTodo_CHATUX_002_Browser(t *testing.T) {
 				tail := rail[strings.LastIndex(rail, `class="rail-scroll"`):]
 				tail = tail[strings.Index(tail, "chatux007-jump-down"):]
 				for _, row := range []string{"Quiet hours", "Reading languages", "New section", "Browse channels"} {
-					if strings.Contains(tail[strings.Index(tail, "</div></div>"):], row) {
+					if strings.Contains(tail, row) {
 						t.Errorf("%q is drawn under the list", row)
 					}
 				}
@@ -137,7 +137,7 @@ func TestTodo_CHATUX_007_Browser(t *testing.T) {
 			})
 		}
 	}
-	for _, rule := range []string{".chatsave-count{", ".chat-rail-row .chat-badge.mention{background:none;color:var(--accent)", ".chatux007-jump-slot{position:sticky"} {
+	for _, rule := range []string{".chatsave-count{", ".chat-rail-row .chat-badge.mention{background:none;color:var(--accent)", ".chatux007-jump-slot{flex:none"} {
 		if !strings.Contains(chatui.Stylesheet, rule) {
 			t.Errorf("the stylesheet lacks %q", rule)
 		}

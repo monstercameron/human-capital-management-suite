@@ -33,8 +33,8 @@ func chatux007SyncJump() {
 	if !scroll.Truthy() {
 		return
 	}
-	up := scroll.Call("querySelector", ".chatux007-jump[data-jump=up]")
-	down := scroll.Call("querySelector", ".chatux007-jump[data-jump=down]")
+	up := root.Call("querySelector", ".chatux007-jump[data-jump=up]")
+	down := root.Call("querySelector", ".chatux007-jump[data-jump=down]")
 	if !up.Truthy() && !down.Truthy() {
 		return
 	}

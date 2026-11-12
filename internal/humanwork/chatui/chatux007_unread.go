@@ -69,9 +69,11 @@ func chatux007Target(direction string, viewTop, viewBottom float64, rows []chatu
 }
 
 // chatux007Jump is one Jump to unread control. It is drawn closed and pinned to
-// the top or the bottom edge of the list's scroll area; the client opens it
-// only while an unread conversation is out of view on that side. It is always in
-// the tree so that its siblings keep their places as unread counts come and go.
+// the top or the bottom edge of the list's scroll area, outside the scroll area
+// itself; the strip it sits in takes space only while the client opens it, which
+// it does only while an unread conversation is out of view on that side. It is
+// always in the tree so that its siblings keep their places as unread counts
+// come and go.
 func chatux007Jump(m Model, direction string) ui.Node {
 	label := chatux002Text(m, keyChatux007Jump)
 	glyph := "arrow-down"

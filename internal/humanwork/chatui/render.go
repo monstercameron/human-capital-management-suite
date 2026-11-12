@@ -2016,8 +2016,7 @@ func rail(m Model, h handlers) ui.Node {
 	}
 	search := html.Div(html.Props{Class: "rail-search"},
 		html.Label(html.Props{Class: "sr-only", For: "chat-search"}, ui.Text(chatux001Text(m, "chat.ux001.search"))), icon("search"), searchField, chatux010ShortcutHint(m), chatsearchRecentList(m))
-	// CHATUX-007: Jump to unread rides the top and bottom edges of the list.
-	list := []ui.Node{chatux007Jump(m, chatux007Up)}
+	list := []ui.Node{}
 	// CHATUX-002: Add channels, Browse channels and New section are one menu on
 	// the Channels heading (the first section when there is no Channels one), and
 	// the foot of the list holds nothing but conversations.
@@ -2049,13 +2048,17 @@ func rail(m Model, h handlers) ui.Node {
 	// Archived is the last section of the list, in the flow of the list's own
 	// scroll, so no band can sit over a row (CHATBUG-092).
 	list = append(list, chatbug092ArchivedSection(m, h))
-	list = append(list, chatux007Jump(m, chatux007Down))
+	// CHATUX-007 and #3674: Jump to unread sits outside the list's scroll area,
+	// in a strip above and below it that takes space only while the control is
+	// shown, so it never covers a row or a section heading.
 	return html.Nav(html.Props{Class: "chat-rail chat-sidebar", Role: "navigation", Aria: map[string]string{"label": m.t(KeyNav)}},
 		head, search,
 		// Saved and Moderation stay fixed above the list instead of scrolling
 		// away with it (CHATUX-020).
 		html.Div(html.Props{Class: "rail-fixed"}, chatsaveSidebar(m), chatmod005Sidebar(m)),
+		chatux007Jump(m, chatux007Up),
 		html.Div(html.Props{Class: "rail-scroll"}, list...),
+		chatux007Jump(m, chatux007Down),
 		// The row menu comes and goes, so it is keyed: positionally the next
 		// sibling took over the menu's element when the menu closed, and with it
 		// the menu's fixed position (CHATBUG-092).

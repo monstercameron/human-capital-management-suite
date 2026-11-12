@@ -148,7 +148,8 @@ func TestTodo_CHATUX_007_JumpToUnread(t *testing.T) {
 	}
 
 	// Both controls are in the tree, closed, ready for the client to open: a click
-	// is the plain "jump-unread" action with its direction.
+	// is the plain "jump-unread" action with its direction. They sit in their
+	// edge strips beside the list, not inside its scroll area (#3674).
 	m := chatux007Model("en-US")
 	markup := chatPolishMarkup(t, rail(m, handlers{}), 390, "dark")
 	for _, direction := range []string{chatux007Up, chatux007Down} {
@@ -157,8 +158,8 @@ func TestTodo_CHATUX_007_JumpToUnread(t *testing.T) {
 			t.Fatalf("%d jump %s controls", len(buttons), direction)
 		}
 		b := buttons[0]
-		if !hasChatPolishAttribute(b, "hidden") || chatPolishAttr(b, "data-action") != "jump-unread" || chatPolishAttr(b, "data-id") != direction || chatPolishAttr(b, "type") != "button" || chatPolishAttr(b, "aria-label") != chatux002Text(m, keyChatux007Jump) || !chatPolishAncestor(b, "rail-scroll") {
-			t.Fatalf("jump %s is not a closed, named button in the list: %v", direction, b.Attr)
+		if !hasChatPolishAttribute(b, "hidden") || chatPolishAttr(b, "data-action") != "jump-unread" || chatPolishAttr(b, "data-id") != direction || chatPolishAttr(b, "type") != "button" || chatPolishAttr(b, "aria-label") != chatux002Text(m, keyChatux007Jump) || chatPolishAncestor(b, "rail-scroll") || !chatPolishAncestor(b, "chatux007-jump-slot") {
+			t.Fatalf("jump %s is not a closed, named button beside the list: %v", direction, b.Attr)
 		}
 	}
 	// The client keeps them in step with the list on every scroll, resize and
@@ -242,4 +243,35 @@ func TestTodo_CHATUX_007_Accessibility(t *testing.T) {
 			t.Errorf("jump directions: %v", seen)
 		}
 	})
+}
+
+// TestIssue3674_JumpPillReservesSpace: a Jump to unread control is never drawn
+// over a conversation row or a section heading. It sits outside the list's
+// scroll area, in a strip that takes space only while the control is shown, so
+// the rows scroll in what is left below or above it.
+func TestIssue3674_JumpPillReservesSpace(t *testing.T) {
+	chatPolishMatrix(t, func(t *testing.T, base Model, width int, theme string) {
+		m := chatux007Model(base.Locale)
+		markup := chatPolishMarkup(t, rail(m, handlers{}), width, theme)
+		jumps := chatPolishNodes(t, markup, func(n *xhtml.Node) bool { return chatPolishAttr(n, "data-action") == "jump-unread" })
+		if len(jumps) != 2 {
+			t.Fatalf("%d jump controls, want 2", len(jumps))
+		}
+		for _, jump := range jumps {
+			for p := jump.Parent; p != nil; p = p.Parent {
+				if chatPolishHasClass(p, "rail-scroll") {
+					t.Errorf("jump %q is inside the list's scroll area, where it covers rows and headings", chatPolishAttr(jump, "data-jump"))
+					break
+				}
+			}
+		}
+	})
+	// The pill is not absolutely placed over the list; its strip is in flow and
+	// only has height while the control is open.
+	if !strings.Contains(Stylesheet, ".chatux007-jump-slot:has(.chatux007-jump:not([hidden])){") {
+		t.Error("the stylesheet does not reserve the strip only while a jump control is shown")
+	}
+	if strings.Contains(Stylesheet, ".chatux007-jump{position:absolute") {
+		t.Error("the jump control is still absolutely placed over the list")
+	}
 }

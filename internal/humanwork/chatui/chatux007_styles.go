@@ -13,12 +13,9 @@ const ChatUX007Styles = `
 .chat-rail-row .chat-badge{min-inline-size:0;block-size:auto;padding:0 4px;border-radius:0;background:none;color:var(--ink);font-size:.75rem;font-weight:600;font-variant-numeric:tabular-nums}
 .chat-rail-row .chat-badge.mention{background:none;color:var(--accent);font-weight:700}
 .chat-rail-row .chat-badge.mention::before{content:"@";font-weight:600}
-.chatux007-jump-slot{position:sticky;z-index:5;block-size:0;display:flex;justify-content:center;pointer-events:none}
-.chatux007-jump-up{inset-block-start:44px}
-.chatux007-jump-down{inset-block-end:20px}
-.chatux007-jump{position:absolute;pointer-events:auto;display:inline-flex;align-items:center;gap:6px;min-block-size:32px;padding:4px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:.8125rem;font-weight:600;box-shadow:var(--hcm-shadow-raised);cursor:pointer}
-.chatux007-jump-up .chatux007-jump{inset-block-start:0}
-.chatux007-jump-down .chatux007-jump{inset-block-end:0}
+.chatux007-jump-slot{flex:none;block-size:0;display:flex;justify-content:center;pointer-events:none}
+.chatux007-jump-slot:has(.chatux007-jump:not([hidden])){block-size:auto;padding-block:6px}
+.chatux007-jump{pointer-events:auto;display:inline-flex;align-items:center;gap:6px;min-block-size:32px;padding:4px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:.8125rem;font-weight:600;box-shadow:var(--hcm-shadow-raised);cursor:pointer}
 .chatux007-jump[hidden]{display:none}
 .chatux007-jump .chat-icon{inline-size:14px;block-size:14px}
 .chatux007-jump:hover{background:var(--soft)}
