@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Copy text gives no confirmation (#3718, partial)
+
+- Copy text now copies the message's words without Markdown markup (chatissue3718 plain-text walk in chatui; call site pending in the Chat wasm client).
+
 ## 2026-11-12 — Chat: Saving an empty edit does nothing with no feedback (#3717)
 
 - Chat: a message edit cleared to blank now says it cannot be empty under the edit box, as the user types, instead of doing nothing on Enter or Save (CHAT-3717).
