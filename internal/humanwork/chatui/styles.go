@@ -448,7 +448,7 @@ const Stylesheet = chatcmd002Styles + `.chat-workspace{--chat-rail:256px;--chat-
 	`.chat-dialog{position:static;margin:0;width:min(460px,100%);max-height:calc(100dvh - 32px);overflow:auto;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:var(--hcm-radius-surface);box-shadow:var(--hcm-shadow-raised);padding:0 20px 20px}` +
 	`.chat-dialog::backdrop{background:transparent}` +
 	`.dialog-form{display:grid;gap:12px}` +
-	`.dialog-form:has(#new-chat-name:placeholder-shown) .dialog-actions .button:not(.secondary){background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--muted);opacity:.55;pointer-events:none}` +
+	`.dialog-form:has(#new-chat-name[required]:placeholder-shown) .dialog-actions .button:not(.secondary){background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--muted);opacity:.55;pointer-events:none}` +
 	`.dialog-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:4px}` +
 	`.dialog-empty{display:grid;justify-items:center;gap:6px;text-align:center;padding:12px 8px 8px;color:var(--muted);font-size:.875rem}` +
 	`.dialog-empty .button{margin-top:8px}` +

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Group message 'Start conversation' button cannot be clicked with t (#3707)
+
+- Chat: the group "Start conversation" button is enabled and clickable with an empty optional group name; the grey-out style applies only to the required channel name (#3707).
+
 ## 2026-11-12 — Chat: Creating a channel with an existing name makes a duplicate instead (#3706)
 
 - Chat: creating a public channel with a name already held by a live public channel is refused with a name-taken note under the name box, instead of creating a duplicate (#3706).
