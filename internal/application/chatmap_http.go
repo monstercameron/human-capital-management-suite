@@ -16,6 +16,9 @@ import (
 
 const ChatmapPath = "/api/chat/locations/v1"
 
+// chatmapMessageBatchLimit bounds how many post ids one batched message lookup may ask.
+const chatmapMessageBatchLimit = 100
+
 type ChatmapSurface interface {
 	Attach(context.Context, chat.AttachLocationRequest) (chat.LocationShare, error)
 	Read(context.Context, chat.Principal, chat.LocationKey) (chat.LocationShare, error)
@@ -30,13 +33,15 @@ type ChatmapHTTP struct {
 }
 type chatmapBody struct {
 	TenantID, ConversationID, PostID, ID string
-	PostRevision                         uint64
-	Place                                chat.LocationPlace
-	ExpiresAt                            *time.Time
-	Zoom                                 int
-	Size                                 chat.MapSize
-	Theme                                chat.MapTheme
-	Query                                string
+	// PostIDs asks the message lookup for several posts in one request (ISSUE-3676).
+	PostIDs      []string
+	PostRevision uint64
+	Place        chat.LocationPlace
+	ExpiresAt    *time.Time
+	Zoom         int
+	Size         chat.MapSize
+	Theme        chat.MapTheme
+	Query        string
 	// Live sharing and settings (CHATMAP-005, CHATMAP-006).
 	Live                bool
 	LiveIntervalSeconds int
@@ -113,9 +118,12 @@ func (h ChatmapHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		messages, ok := h.Surface.(interface {
 			MessageLocations(context.Context, chat.Principal, string, string, string) ([]chat.LocationShare, error)
 		})
-		if !ok {
+		switch {
+		case !ok:
 			err = chat.ErrLocationUnavailable
-		} else {
+		case len(body.PostIDs) > 0:
+			result, err = chatmapMessageBatch(r.Context(), messages.MessageLocations, p, k.TenantID, k.ConversationID, body.PostIDs)
+		default:
 			result, err = messages.MessageLocations(r.Context(), p, k.TenantID, k.ConversationID, k.PostID)
 		}
 	case ChatmapPath + "/sharing":
@@ -191,4 +199,28 @@ func (h ChatmapHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// chatmapMessageBatch answers the message lookup for each post id, keyed by id,
+// each value the same list the single form answers. Every post is authorized on
+// its own; one refusal refuses the batch so the caller can ask each post alone.
+func chatmapMessageBatch(ctx context.Context, lookup func(context.Context, chat.Principal, string, string, string) ([]chat.LocationShare, error), p chat.Principal, tenant, conversation string, postIDs []string) (map[string][]chat.LocationShare, error) {
+	if len(postIDs) > chatmapMessageBatchLimit {
+		return nil, chat.ErrInvalidArgument
+	}
+	out := make(map[string][]chat.LocationShare, len(postIDs))
+	for _, id := range postIDs {
+		if id == "" {
+			return nil, chat.ErrInvalidArgument
+		}
+		if _, done := out[id]; done {
+			continue
+		}
+		shares, err := lookup(ctx, p, tenant, conversation, id)
+		if err != nil {
+			return nil, err
+		}
+		out[id] = shares
+	}
+	return out, nil
 }

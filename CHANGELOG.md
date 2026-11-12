@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Location lookups are batched per page of messages (#3676, partial)
+
+- Opening a Chat conversation now asks for message locations one page at a time instead of one request per message.
+
 ## 2026-11-12 — Chat: Deleting a pinned message clears its pin at once (#3685)
 
 - Deleting a pinned message now removes it from the pinned count and the Pinned list straight away, without a reload.

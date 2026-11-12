@@ -15,13 +15,15 @@ import (
 
 type ChatmapRequest struct {
 	TenantID, ConversationID, PostID, ID string
-	PostRevision                         uint64
-	Place                                chat.LocationPlace
-	ExpiresAt                            any
-	Zoom                                 int
-	Size                                 chat.MapSize
-	Theme                                chat.MapTheme
-	Query                                string
+	// PostIDs asks the message lookup for several posts at once (ISSUE-3676).
+	PostIDs      []string
+	PostRevision uint64
+	Place        chat.LocationPlace
+	ExpiresAt    any
+	Zoom         int
+	Size         chat.MapSize
+	Theme        chat.MapTheme
+	Query        string
 	// Live sharing and settings; the server's chatmapBody names the same fields.
 	Live                bool
 	LiveIntervalSeconds int

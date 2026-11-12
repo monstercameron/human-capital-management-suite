@@ -347,6 +347,9 @@ func integrate2SyncProjection() {
 	}()
 }
 
+// chatmapMessageBatchSize matches the server batch limit (chatmapMessageBatchLimit).
+const chatmapMessageBatchSize = 100
+
 func integrate2SyncLocations(ctx context.Context, cfg journeyclient.Config) {
 	m := chatBrowser.snapshot()
 	if m.ChatFeatures == nil || !m.ChatFeatures.Locations || m.SelectedID == "" {
@@ -374,34 +377,70 @@ func integrate2SyncLocations(ctx context.Context, cfg journeyclient.Config) {
 	chatReadRetries.Cancel(retryKey)
 	locations := map[string][]chatui.ChatmapEmbed{}
 	answered := map[string]bool{}
+	take := func(msg chatui.Message, shares []chat.LocationShare) {
+		for _, share := range shares {
+			if share.PostID == msg.ID {
+				locations[msg.ID] = append(locations[msg.ID], chatui.ChatmapEmbed{Share: share, Sharer: msg.Author, MessageRevision: msg.Revision})
+			}
+		}
+	}
 	read := func() bool {
 		failed := false
+		pending := []chatui.Message{}
+		queued := map[string]bool{}
 		for _, msg := range integrate2ReaderMessages(m) {
-			if msg.ID == "" || answered[msg.ID] {
+			if msg.ID == "" || answered[msg.ID] || queued[msg.ID] {
 				continue
 			}
+			queued[msg.ID] = true
+			pending = append(pending, msg)
+		}
+		// ISSUE-3676: one batched request per page of messages, not one per message.
+		for start := 0; start < len(pending); start += chatmapMessageBatchSize {
+			page := pending[start:min(start+chatmapMessageBatchSize, len(pending))]
+			ids := make([]string, 0, len(page))
+			for _, msg := range page {
+				ids = append(ids, msg.ID)
+			}
 			call, cancel := context.WithTimeout(ctx, 10*time.Second)
-			raw, err := ChatmapRequestHTTP(call, http.DefaultClient, personaChatHTTPConfig(cfg), "message", ChatmapRequest{TenantID: host, ConversationID: m.SelectedID, PostID: msg.ID})
+			raw, err := ChatmapRequestHTTP(call, http.DefaultClient, personaChatHTTPConfig(cfg), "message", ChatmapRequest{TenantID: host, ConversationID: m.SelectedID, PostIDs: ids})
 			cancel()
 			if ctx.Err() != nil {
 				return true
 			}
-			if err != nil {
-				if chatux012LocationFinal(err) {
+			if err != nil && !chatux012LocationFinal(err) {
+				failed = true
+				continue
+			}
+			var answers map[string][]chat.LocationShare
+			if err == nil && json.Unmarshal(raw, &answers) == nil {
+				for _, msg := range page {
 					answered[msg.ID] = true
-				} else {
-					failed = true
+					take(msg, answers[msg.ID])
 				}
 				continue
 			}
-			answered[msg.ID] = true
-			var shares []chat.LocationShare
-			if json.Unmarshal(raw, &shares) != nil {
-				continue
-			}
-			for _, share := range shares {
-				if share.PostID == msg.ID {
-					locations[msg.ID] = append(locations[msg.ID], chatui.ChatmapEmbed{Share: share, Sharer: msg.Author, MessageRevision: msg.Revision})
+			// A batch the server refused (one post refused, or an older server) is asked
+			// message by message, so one refused post cannot hide the others.
+			for _, msg := range page {
+				call, cancel := context.WithTimeout(ctx, 10*time.Second)
+				raw, err := ChatmapRequestHTTP(call, http.DefaultClient, personaChatHTTPConfig(cfg), "message", ChatmapRequest{TenantID: host, ConversationID: m.SelectedID, PostID: msg.ID})
+				cancel()
+				if ctx.Err() != nil {
+					return true
+				}
+				if err != nil {
+					if chatux012LocationFinal(err) {
+						answered[msg.ID] = true
+					} else {
+						failed = true
+					}
+					continue
+				}
+				answered[msg.ID] = true
+				var shares []chat.LocationShare
+				if json.Unmarshal(raw, &shares) == nil {
+					take(msg, shares)
 				}
 			}
 		}
