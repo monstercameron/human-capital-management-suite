@@ -50,6 +50,11 @@ var chatPluralForms = map[string]map[string]map[string]string{
 		"de": {"one": "1 Antwort", "other": "{n} Antworten"},
 		"ar": {"zero": "لا ردود", "one": "رد واحد", "two": "ردان", "few": "{n} ردود", "many": "{n} ردًا", "other": "{n} رد"},
 	},
+	"matches": {
+		"en": {"one": "1 match", "other": "{n} matches"},
+		"de": {"one": "1 Treffer", "other": "{n} Treffer"},
+		"ar": {"zero": "لا مطابقات", "one": "مطابقة واحدة", "two": "مطابقتان", "few": "{n} مطابقات", "many": "{n} مطابقة", "other": "{n} مطابقة"},
+	},
 	"agents": {
 		"en": {"one": "1 agent", "other": "{n} agents"},
 		"de": {"one": "1 Agent", "other": "{n} Agenten"},

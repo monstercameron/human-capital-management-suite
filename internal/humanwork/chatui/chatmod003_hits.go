@@ -199,7 +199,7 @@ func modHitsPanel(props ModHitsProps) ui.Node {
 		html.Label(html.Props{For: "modadmin-hits-show", Text: t("hits_show_label")}),
 		html.Select(html.Props{ID: "modadmin-hits-show", Class: "chatmod-select", OnChange: choose}, options...)))
 	shown := ModHitsShown(props.Records, chosen)
-	nodes = append(nodes, html.P(html.Props{Class: "chatmod-state", Role: "status", Text: modadminFormat(t("hits_count"), "n", modHitsNumber(m, len(shown)))}))
+	nodes = append(nodes, html.P(html.Props{Class: "chatmod-state", Role: "status", Text: chatPlural(m.Locale, "matches", len(shown))}))
 	if len(shown) == 0 {
 		empty := "hits_none"
 		if chosen == ModHitsDry {

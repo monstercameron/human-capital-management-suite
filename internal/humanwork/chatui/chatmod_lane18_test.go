@@ -230,7 +230,7 @@ func TestTodo_CHATMOD_003_Browser_Hits(t *testing.T) {
 			t.Errorf("%s: %d column headings, want When, Filter, What happened, Where", locale, len(heads))
 		}
 		for _, want := range []string{text("hits_dry_title"), "Client names · v1.2.0", text("h_block"), text("h_dry_mask"), text("h_dry_flag"), "#general", text("hits_private"), text("hits_outside"),
-			modadminFormat(text("h_notify"), "target", "#security"), text("hits_older"), text("hits_again"), modadminFormat(text("hits_count"), "n", chatNumeral(locale, "5"))} {
+			modadminFormat(text("h_notify"), "target", "#security"), text("hits_older"), text("hits_again"), chatPlural(locale, "matches", 5)} {
 			if want == "" || !strings.Contains(visible, want) {
 				t.Errorf("%s: the open section does not show %q", locale, want)
 			}

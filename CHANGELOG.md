@@ -1,3 +1,7 @@
+## 2026-11-11 — CHATMOD-003 filter-history zero count (#3614)
+
+- The Workspace filters "Show matches" status line now writes the count through the shared plural helper, so an empty category reads "0 matches" (de-DE "0 Treffer", ar "لا مطابقات") instead of a bare "matches", and one match reads "1 match". `TestTodo_CHATMOD_003_Browser_HitsCountZero` pins 0, 1 and 3 in all three locales.
+
 ## 2026-11-04 — Go vet repair after WorkflowPlan removal
 
 - The promotion fixtures in `test/tunnel` and `test/workflow` no longer set or assert the `WorkflowPlan` serve setting that commit d8fe5cda removed. Execution authority and the scheduler are still asserted. `go build ./...` and `go vet ./...` pass with Go 1.27.3.

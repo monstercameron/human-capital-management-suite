@@ -205,7 +205,6 @@ var modadminCopy = map[string][3]string{
 	"hits_all":        {"All matches", "Alle Treffer", "كل المطابقات"},
 	"hits_acted":      {"Acted on", "Mit Wirkung", "التي طُبِّق عليها إجراء"},
 	"hits_dry":        {"Dry run only", "Nur Probelauf", "التسجيل فقط"},
-	"hits_count":      {"{n} matches", "{n} Treffer", "{n} مطابقات"},
 	"hits_when":       {"When", "Wann", "متى"},
 	"hits_filter":     {"Filter", "Filter", "المرشح"},
 	"hits_what":       {"What happened", "Was geschah", "ماذا حدث"},
