@@ -93,7 +93,13 @@ func (h ChatmapHTTP) live(ctx context.Context, path string, p chat.Principal, k 
 		if !ok {
 			return nil, unavailable
 		}
-		return struct{ Saved bool }{true}, s.SetLocationJurisdiction(ctx, p, k.TenantID, chat.LocationJurisdiction{Country: chatmapNormalizeCountry(body.Country), Enabled: body.Enabled, Basis: body.Basis})
+		// ISSUE-3699: only the workspace default or a real country is stored; a
+		// made-up code or markup is refused as invalid (400) before the write.
+		country := chatmapNormalizeCountry(body.Country)
+		if !chatmapIsJurisdictionCountry(country) {
+			return nil, chat.ErrInvalidArgument
+		}
+		return struct{ Saved bool }{true}, s.SetLocationJurisdiction(ctx, p, k.TenantID, chat.LocationJurisdiction{Country: country, Enabled: body.Enabled, Basis: body.Basis})
 	case ChatmapPath + "/settings":
 		s, ok := h.Surface.(interface {
 			WorkspaceLocationSettings(context.Context, chat.Principal, string) (chatmapSettingsWire, error)

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Admin country jurisdiction accepts unknown or markup values as cou (#3699, partial)
+
+- Chat admin: the country form now refuses codes that are not ISO countries and markup with an inline error, instead of saving them (#3699).
+
 ## 2026-11-12 — Chat: Recent-search dropdown icon overlaps the first characters of entri (#3696)
 
 - Chat: recent-search entries keep their magnifier in its own gutter instead of drawing over the first characters of the entry.
