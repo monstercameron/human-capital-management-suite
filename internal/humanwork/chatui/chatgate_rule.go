@@ -208,7 +208,7 @@ func gateRuleValueLabel(locale string, d chatgate.Definition, subject, value str
 func gateRuleEditor(v GateView, d chatgate.Definition) ui.Node {
 	t := func(k string) string { return GateText(v.Locale, k) }
 	edit := GateRuleOf(d)
-	subjects := []ui.Node{html.Option(html.Props{Value: "", Text: t("choose")})}
+	subjects := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
 	for _, f := range d.Fields {
 		label := f.Label
 		if label == "" {

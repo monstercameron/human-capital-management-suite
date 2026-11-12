@@ -183,3 +183,25 @@ func TestTodo_WFPAGE_009_Fault(t *testing.T) {
 		t.Fatalf("interrupted governed export = bytes %d, err %v; want no partial artifact", len(failed.CSV), err)
 	}
 }
+
+// TestIssue3593_StartedIsNotEffectiveDate pins the field mapping: the
+// employee's proposed effective date must never be presented, sorted or
+// filtered as the workflow run's Started chronology.
+func TestIssue3593_StartedIsNotEffectiveDate(t *testing.T) {
+	view := testView(PageWorkflowHistory)
+	view.Work = []WorkItem{{ID: "run-1", Title: "Promotion", Person: "Avery Patel", Requester: "Avery Patel", StatusKey: "MANAGER_APPROVAL", EffectiveDate: "2027-01-01", CompletedAt: "2026-10-23T02:45:00Z", ViewerRelationships: []string{"INITIATOR"}}}
+	view.RecordVerdicts = map[string]AuthorizedRecord{"run-1": {ID: "run-1", Disclosable: true}}
+	runs := workflowHistoryRuns(view)
+	if len(runs) != 1 {
+		t.Fatalf("history rows = %d, want 1", len(runs))
+	}
+	if runs[0].StartedAt == "2027-01-01" {
+		t.Fatalf("Started = proposed effective date %q; a run start must not come from EffectiveDate", runs[0].StartedAt)
+	}
+	if runs[0].StartedAt != "" {
+		t.Fatalf("Started = %q, want empty (no authoritative run start on the work item)", runs[0].StartedAt)
+	}
+	if got := FilterWorkflowHistoryRuns(runs, WorkflowRunHistoryFilter{From: "2027-01-01"}); len(got) != 0 {
+		t.Fatalf("started-from filter matched the effective date: %+v", got)
+	}
+}

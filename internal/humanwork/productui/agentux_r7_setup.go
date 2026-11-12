@@ -27,7 +27,7 @@ type PersonaAdminVersionHistory struct {
 
 func personaAdminAgentSelect(locale LocaleContext, selected string, disabled, invalid bool, options []personaAdminComboboxOption) ui.Node {
 	id := "persona-admin-preview-persona"
-	items := []ui.Node{html.Option(html.Props{Value: "", Selected: selected == ""}, ui.Text(personaAdminText(locale, "choose_persona_placeholder")))}
+	items := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: selected == ""}, ui.Text(personaAdminText(locale, "choose_persona_placeholder")))}
 	for _, option := range options {
 		items = append(items, html.Option(html.Props{Value: option.Value, Selected: option.Value == selected}, ui.Text(option.Label)))
 	}

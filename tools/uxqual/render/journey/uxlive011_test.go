@@ -129,6 +129,12 @@ func TestPositionPickerFieldHasNoFreeTextPath(t *testing.T) {
 	// this asserts the renderer does not reintroduce one by rendering a
 	// value-less radio for a blank option.
 	blank := uxlive011Render(t, uxlive011PickerField(VacancyOption{Title: "Unnamed"}))
+	// The clear choice (#3565) is the one radio that carries no reference, by
+	// design; it may be checked. Any other checked radio is the defect.
+	if start := strings.Index(blank, `position-picker-option-none`); start >= 0 {
+		end := strings.Index(blank[start:], "</li>")
+		blank = blank[:start] + blank[start+end+len("</li>"):]
+	}
 	if strings.Contains(blank, `checked`) {
 		t.Fatalf("an option with no reference was rendered as chosen:\n%s", blank)
 	}

@@ -185,6 +185,49 @@ func TestDocsListLoadSeparatesUnconfiguredCapabilityFromFailures(t *testing.T) {
 	}
 }
 
+// TestTodo_ISSUE76_DocsListStateComposition renders the view produced by the
+// real Load path. A transient ListDocuments outage must not be presented as a
+// confirmed absent capability, and a typed not-configured reason must still be.
+func TestTodo_ISSUE76_DocsListStateComposition(t *testing.T) {
+	session := Session{Tenant: "tenant-a", Principal: "reader-a", Scope: "scope-a"}
+	state := State{Page: productui.PageDocs, Request: productui.PageRequest{Page: productui.PageDocs}}
+	baseline := LoadingView(session, State{Page: productui.PageHome, Request: productui.PageRequest{Page: productui.PageHome}})
+	render := func(list func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error)) string {
+		t.Helper()
+		view, _ := LoadWithBaseline(context.Background(), Service{ListDocuments: list}, session, state, baseline)
+		markup, err := productui.Render(view)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return markup
+	}
+	transient := render(func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		return nil, status.Error(codes.Unavailable, "temporary network failure")
+	})
+	if strings.Contains(transient, "Not set up for this workspace") {
+		t.Fatal("transient ListDocuments outage rendered as workspace setup missing")
+	}
+	if !strings.Contains(transient, "Try again") {
+		t.Fatal("transient ListDocuments outage offered no retry")
+	}
+	absent := render(func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		st, err := status.New(codes.Unavailable, "safe summary").WithDetails(&commonv1.ErrorDetail{ReasonRef: "document.service.not_configured"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return nil, st.Err()
+	})
+	if !strings.Contains(absent, "Not set up for this workspace") {
+		t.Fatal("confirmed unconfigured Docs capability lost its setup state")
+	}
+	healthy := render(func(context.Context, *documentv1.ListDocumentsRequest) (*documentv1.ListDocumentsResponse, error) {
+		return &documentv1.ListDocumentsResponse{}, nil
+	})
+	if strings.Contains(healthy, "Not set up for this workspace") || strings.Contains(healthy, "Live data unavailable") {
+		t.Fatal("healthy empty library rendered an unavailable state")
+	}
+}
+
 func TestRecordedJourneyLeavesOpenWorkAndAllKnownStagesHaveLabels(t *testing.T) {
 	items, err := projectJourneys([]*journeyv1.Journey{{IntentId: "recorded", Stage: journeyv1.JourneyStage_JOURNEY_STAGE_RECORDED,
 		Viewer: &journeyv1.JourneyViewerProjection{Closed: true, Responsibility: journeyv1.JourneyViewerResponsibility_JOURNEY_VIEWER_RESPONSIBILITY_CLOSED}}})

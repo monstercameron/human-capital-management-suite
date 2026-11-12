@@ -294,6 +294,10 @@ func ParseState(pathname, rawQuery string) (State, error) {
 	if err != nil {
 		return State{}, err
 	}
+	workflowListPage, err := parsePositiveRouteInt(values, "workflow_page", 1)
+	if err != nil {
+		return State{}, err
+	}
 	rolePage, err := parsePositiveRouteInt(values, "role_page", 1)
 	if err != nil {
 		return State{}, err
@@ -331,7 +335,7 @@ func ParseState(pathname, rawQuery string) (State, error) {
 		HistoryPerson: routeValue(values, "history_person"), HistoryRequester: routeValue(values, "history_requester"), HistoryYear: routeValue(values, "history_year"), HistorySort: routeValue(values, "history_sort"), HistoryDirection: routeValue(values, "history_dir"), HistoryPage: historyPage, HistoryPageSize: historyPageSize,
 		WorkFilter: routeValue(values, "filter"), NavCollapsed: routeValue(values, "nav") == "collapsed",
 		JourneyID: routeValue(values, "journey"), JourneyWorker: routeValue(values, "worker"), JourneyMode: routeValue(values, "mode"),
-		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), WorkflowShowReferences: routeProfile == productui.RouteProfileWorkflow && routeValue(values, "workflow_references") == "1", DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
+		WorkflowID: routeValue(values, "workflow"), WorkflowRunID: routeValue(values, "run"), WorkflowDraftID: routeValue(values, "draft"), WorkflowNodeID: routeValue(values, "node"), WorkflowShowReferences: routeProfile == productui.RouteProfileWorkflow && routeValue(values, "workflow_references") == "1", WorkflowListStatus: routeValue(values, "workflow_status"), WorkflowListSort: routeValue(values, "workflow_sort"), WorkflowListPage: workflowListPage, DocumentID: routeValue(values, "document"), DocumentQuery: routeValue(values, "docs_q"), DocumentCollection: routeValue(values, "collection"), DocumentPageToken: routeValue(values, "cursor"),
 		DocumentFolder: routeValue(values, "folder"), DocumentSort: routeValue(values, "docs_sort"), DocumentOwner: routeValue(values, "docs_owner"), DocumentPage: documentPage, DocumentPerPage: documentPerPage, DocumentSearchMode: routeValue(values, "docs_mode"), DocumentEditing: routeValue(values, "docs_edit") == "1",
 		PositionReference: routeValue(values, "position_ref"),
 		MenuQuery:         routeValue(values, "menu_q"), FavoritePages: parseFavoritePages(routeValue(values, "favorites")),

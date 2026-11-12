@@ -46,7 +46,7 @@ func rev09102Detail(t *testing.T, review *journeyv1.JourneyPromotionReview) *jou
 
 func rev09102Render(t *testing.T, detail *journeyv1.JourneyDetail) (journey.Page, string) {
 	t.Helper()
-	page := DetailPage(testConfig(), detail, nil, nil)
+	page := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 	markup, err := journey.RenderToString(page)
 	if err != nil {
 		t.Fatalf("RenderToString: %v", err)

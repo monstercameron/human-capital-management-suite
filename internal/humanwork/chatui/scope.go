@@ -13,7 +13,9 @@ func ScopedStylesheet() string {
 	if runtime.GOOS == "js" {
 		return ""
 	}
-	return "@scope (.chat-workspace){" + strings.ReplaceAll(chatux038HoverGuard(Stylesheet), ".chat-workspace", ":scope") + "}" + ChatUX013Global +
+	// The Gate dialog is appended to document.body by the client, outside the
+	// workspace, so its rules (ChatgateStyles) must not sit inside the scope.
+	return "@scope (.chat-workspace){" + strings.ReplaceAll(chatux038HoverGuard(Stylesheet), ".chat-workspace", ":scope") + "}" + ChatUX013Global + ChatgateStyles +
 		`.chat-image-viewer{box-sizing:border-box;position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:56px 16px 16px;background:rgba(7,17,24,.96);overscroll-behavior:contain}` +
 		`.chat-image-viewer-media{position:relative;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}` +
 		`.chat-image-viewer img{display:block;position:absolute;top:50%;left:50%;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;transform:translate(-50%,-50%)}` +

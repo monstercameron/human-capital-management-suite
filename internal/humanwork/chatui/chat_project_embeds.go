@@ -100,7 +100,7 @@ func projectBoardSummary(m Model, preview ProjectTaskPreview) ui.Node {
 	done := min(max(preview.Done, 0), preview.Total)
 	return html.Span(html.Props{Class: "chat-project-embed-progress"},
 		html.Tag("progress", html.Props{Class: "chat-project-embed-bar", Aria: map[string]string{"hidden": "true"}, Raw: map[string]any{"value": done, "max": preview.Total}}),
-		html.Span(html.Props{Class: "chat-project-embed-counts", Text: m.tf(KeyProjectBoardProgress, map[string]string{"done": m.n(done), "total": m.n(preview.Total), "open": m.n(preview.Total - done)})}))
+		html.Span(html.Props{Class: "chat-project-embed-counts", Text: m.tf(KeyProjectBoardProgress, map[string]string{"done": m.nz(done), "total": m.nz(preview.Total), "open": m.nz(preview.Total - done)})}))
 }
 
 var projectPriorityKeys = map[string]string{"low": KeyProjectPriorityLow, "normal": KeyProjectPriorityNormal, "high": KeyProjectPriorityHigh, "urgent": KeyProjectPriorityUrgent}

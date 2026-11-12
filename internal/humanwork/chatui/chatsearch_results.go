@@ -123,13 +123,13 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		if field == "before" || field == "after" || field == "on" {
 			typ = "date"
 		}
-		controls = append(controls, html.Label(html.Props{Text: t(field), For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Aria: errorAssociation})))
+		controls = append(controls, html.Label(html.Props{For: "chatsearch-" + field}, html.Span(html.Props{Text: t(field)}), html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Aria: errorAssociation})))
 	}
-	options := []ui.Node{html.Option(html.Props{Value: "", Text: t("all")})}
+	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("all")})}
 	for _, kind := range chatsearchKindChoices(v.Response) {
 		options = append(options, html.Option(html.Props{Value: string(kind), Text: chatsearchKind(locale, kind)}))
 	}
-	controls = append(controls, html.Label(html.Props{Text: t("kind"), For: "chatsearch-kind"}, html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
+	controls = append(controls, html.Label(html.Props{For: "chatsearch-kind"}, html.Span(html.Props{Text: t("kind")}), html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
 	controls = append(controls, chatsearchWrittenControl(locale))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
 		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox"}), ui.Text(t(field))))

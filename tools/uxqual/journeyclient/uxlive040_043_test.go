@@ -63,7 +63,7 @@ func TestTodo_UXLIVE_041(t *testing.T) {
 
 func TestTodo_UXLIVE_041_Integration(t *testing.T) {
 	detail := &journeyv1.JourneyDetail{Journey: &journeyv1.Journey{Stage: journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED}, Findings: []*journeyv1.Finding{{Severity: "blocking", Code: "promotion.budget_observed_insufficient"}}}
-	page := DetailPage(Config{Locale: "de-DE"}, detail, nil, nil)
+	page := DetailPage(clockTestNow, Config{Locale: "de-DE"}, detail, nil, nil)
 	if page.Detail == nil || page.Detail.OutcomeReason == nil || page.Detail.OutcomeReason.Summary == "" {
 		t.Fatalf("detail projection omitted the authoritative outcome reason")
 	}
@@ -117,7 +117,7 @@ func TestTodo_UXLIVE_042(t *testing.T) {
 }
 
 func TestTodo_UXLIVE_042_Integration(t *testing.T) {
-	page := DetailPage(Config{Locale: "en-US"}, &journeyv1.JourneyDetail{Journey: &journeyv1.Journey{Stage: journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS}}, nil, nil)
+	page := DetailPage(clockTestNow, Config{Locale: "en-US"}, &journeyv1.JourneyDetail{Journey: &journeyv1.Journey{Stage: journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS}}, nil, nil)
 	if page.Detail == nil || page.Detail.Progress == nil {
 		t.Fatalf("detail page omitted downstream progress")
 	}

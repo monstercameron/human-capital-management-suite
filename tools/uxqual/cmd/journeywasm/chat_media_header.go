@@ -93,8 +93,8 @@ func chatJPEGHeader(data []byte) (chatImageHeader, bool) {
 		marker := data[pos]
 		pos++
 		switch {
-		case marker == 0x00:
-			return chatImageHeader{}, false
+		case marker == 0x00: // a stuffed zero is extraneous data, which the standard decoder skips
+			continue
 		case marker == 0x01 || (marker >= 0xd0 && marker <= 0xd8): // no length
 			continue
 		case marker == 0xd9 || marker == 0xda: // end of image, start of scan: no frame came first

@@ -16,7 +16,7 @@ func TestTodo_UXLIVE_009_Browser(t *testing.T) {
 	detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 	detail.GetJourney().BusinessReason = "promotion_into_senior_hrbp_fix_verify"
 
-	page := DetailPage(testConfig(), detail, nil, nil)
+	page := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 	markup, err := journey.RenderToString(page)
 	if err != nil {
 		t.Fatalf("rendering token-shaped business reason: %v", err)
@@ -31,7 +31,7 @@ func TestTodo_UXLIVE_009_Browser(t *testing.T) {
 	}
 
 	detail.GetJourney().BusinessReason = "Expanded scope across the regional team."
-	page = DetailPage(testConfig(), detail, nil, nil)
+	page = DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 	markup, err = journey.RenderToString(page)
 	if err != nil {
 		t.Fatalf("rendering prose business reason: %v", err)

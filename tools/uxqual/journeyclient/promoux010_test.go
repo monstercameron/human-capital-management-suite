@@ -30,7 +30,7 @@ func TestTodo_PROMOUX_010_Regression(t *testing.T) {
 			FieldWorker: testCreatedRef, FieldJobCode: "OPS-HRBP3", FieldGrade: "P3",
 			FieldBase: "78000", FieldEffective: "2026-12-01",
 		}
-		form := ProposalForm(values, testWorkers(), "", testWorkforceOptions())
+		form := ProposalForm(clockTestNow, values, testWorkers(), "", testWorkforceOptions())
 		if len(form.Confirmation) == 0 {
 			t.Fatal("ProposalForm set no Confirmation at all -- Start's final action would submit with no review, reproducing the original RED")
 		}
@@ -56,7 +56,7 @@ func TestTodo_PROMOUX_010_Regression(t *testing.T) {
 
 	t.Run("FocusedProposalForm refines Confirmation with the pinned worker's own name", func(t *testing.T) {
 		worker := testWorkers()[0] // testCreatedRef, preferred name "Rosa"
-		form := focusedProposalForm(
+		form := focusedProposalForm(clockTestNow,
 			map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "78000"},
 			testCreatedRef, testWorkforceOptions(), worker,
 		)
@@ -69,7 +69,7 @@ func TestTodo_PROMOUX_010_Regression(t *testing.T) {
 	})
 
 	t.Run("an unresolved worker degrades to the generic Employee fact rather than an empty, unreviewable form", func(t *testing.T) {
-		form := ProposalForm(map[string]string{FieldEffective: "2026-12-01"}, nil, "")
+		form := ProposalForm(clockTestNow, map[string]string{FieldEffective: "2026-12-01"}, nil, "")
 		if len(form.Confirmation) == 0 {
 			t.Fatal("no worker resolved must still leave a reviewable Confirmation (at least the effective date), not an empty one that would skip the review surface entirely")
 		}

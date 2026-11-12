@@ -107,7 +107,7 @@ func TestTodo_WF_UI_002_PageRouteState(t *testing.T) {
 	if !ok || profile != RouteProfileWorkflow {
 		t.Fatalf("workflow designer route profile = %q, ok=%t", profile, ok)
 	}
-	wantKeys := []string{"draft", "favorites", "locale", "menu_q", "nav", "node", "run", "workflow", "workflow_references"}
+	wantKeys := []string{"draft", "favorites", "locale", "menu_q", "nav", "node", "run", "workflow", "workflow_page", "workflow_q", "workflow_references", "workflow_sort", "workflow_status"}
 	gotKeys := append([]string(nil), profile.QueryKeys()...)
 	slices.Sort(gotKeys)
 	if !slices.Equal(gotKeys, wantKeys) {

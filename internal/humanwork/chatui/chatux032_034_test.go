@@ -164,8 +164,11 @@ func TestTodo_CHATUX_034(t *testing.T) {
 			t.Errorf("the stylesheet lacks %q", want)
 		}
 	}
-	if got := mentionHintText("en-US", false); got != "↑↓ to move · Enter to insert · Tab for details · Esc to close" {
+	if got := mentionHintText("en-US", false, false); got != "↑↓ to move · Enter to insert · Esc to close" {
 		t.Errorf("the people list's footer is %q", got)
+	}
+	if got := mentionHintText("en-US", false, true); got != "↑↓ to move · Enter to insert · Tab for details · Esc to close" {
+		t.Errorf("the agent footer is %q", got)
 	}
 
 	// The Add menu's attachment row is one line; its limits are the tooltip's.
@@ -217,4 +220,45 @@ func nodeText(n *xhtml.Node) string {
 	}
 	walk(n)
 	return strings.TrimSpace(out.String())
+}
+
+// TestIssue3622_MentionTabMatchesFooter pins the footer to what Tab does: on a
+// highlighted person Tab inserts (as Enter does) and the footer offers no Tab
+// action; on a highlighted agent Tab opens details and the footer says so.
+func TestIssue3622_MentionTabMatchesFooter(t *testing.T) {
+	model := agentUXMentionModel(PersonaLookupReady)
+	options, _ := mentionOptionsForState(model, "", "chat-composer", false)
+	person, agent := -1, -1
+	for i, option := range options {
+		if option.person != nil {
+			person = i
+		}
+		if option.persona != nil {
+			agent = i
+		}
+	}
+	if person < 0 || agent < 0 {
+		t.Fatalf("need one person and one agent option, got %d options", len(options))
+	}
+	if mentionOptionIsAgent(options, person) || !mentionOptionIsAgent(options, agent) {
+		t.Fatal("mentionOptionIsAgent misclassified the highlighted option")
+	}
+	if got := composerKeyAction(composerKeyState{Draft: "@", MentionOpen: true, MentionHighlighted: true}, "Tab"); got != composerPickMention {
+		t.Fatalf("Tab on a highlighted person = %q, want insert", got)
+	}
+	if got := composerKeyAction(composerKeyState{Draft: "@", MentionOpen: true, MentionHighlighted: true, MentionAgentHighlighted: true}, "Tab"); got != composerNative {
+		t.Fatalf("Tab on a highlighted agent = %q, want native so details open", got)
+	}
+	if got := composerKeyAction(composerKeyState{Draft: "@", MentionOpen: true, MentionHighlighted: true, MentionAgentHighlighted: true}, "Enter"); got != composerPickMention {
+		t.Fatalf("Enter on a highlighted agent = %q, want insert", got)
+	}
+
+	personMenu := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Active: person}, "chat-composer"))
+	if strings.Contains(personMenu, "Tab for details") || !strings.Contains(personMenu, "Enter to insert") {
+		t.Errorf("people-only footer advertises a Tab action Tab does not perform: %s", personMenu)
+	}
+	agentMenu := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Active: agent}, "chat-composer"))
+	if !strings.Contains(agentMenu, "Tab for details") {
+		t.Errorf("agent footer omits the Tab details action Tab now performs: %s", agentMenu)
+	}
 }

@@ -1992,6 +1992,12 @@ func declareorganizationHierarchyStylesStyles() {
 		gwccss.Raw("padding-inline-start", "28px"),
 		gwccss.Raw("border-inline-start", "1px solid color-mix(in srgb,var(--accent) 32%,var(--line))"),
 	)
+	// The grid above would otherwise override the hidden attribute that a
+	// collapsed branch sets, leaving its descendants drawn and in the
+	// accessible tree (#3608). This rule outranks it.
+	declareGlobal(".ownership-tree ul[hidden]",
+		gwccss.Raw("display", "none"),
+	)
 	declareGlobal(".ownership-tree ul>li",
 		gwccss.Position.Relative,
 	)

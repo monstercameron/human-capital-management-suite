@@ -437,3 +437,19 @@ func TestPromotionDraftTopologyMatchesTheExecutableDefinition(t *testing.T) {
 		}
 	}
 }
+
+// TestIssue3568_DraftNameFieldReflowsOnPhones pins the phone rule for the saved
+// draft header. The name input sizes to its authored text on desktop
+// (field-sizing: content), which at 320/390px pushed the header wider than the
+// viewport. Below 640px the field must take the available width instead.
+func TestIssue3568_DraftNameFieldReflowsOnPhones(t *testing.T) {
+	css := workflowEditorStylesheet()
+	want := "@media (max-width:640px){.workflow-editor-name-field{flex:1 1 100%}input.workflow-editor-name{field-sizing:fixed;inline-size:100%;min-inline-size:0}}"
+	if !strings.Contains(css, want) {
+		t.Fatalf("editor stylesheet lacks the phone name-field reflow rule %q", want)
+	}
+	desktop := "input.workflow-editor-name{field-sizing:content;inline-size:auto;min-inline-size:6rem;max-inline-size:100%}"
+	if !strings.Contains(css, desktop) {
+		t.Fatalf("desktop name field sizing changed unexpectedly; want %q", desktop)
+	}
+}

@@ -79,7 +79,7 @@ func focusEditBox(id string, retry bool) {
 		}
 		return
 	}
-	applyFieldValue(box)
+	applyFieldValue(box, false)
 	box.Call("focus")
 	end := box.Get("value").Get("length")
 	func() {

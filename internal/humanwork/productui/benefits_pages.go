@@ -305,14 +305,14 @@ func benefitEnrollForm(view View, projection BenefitsProjection, options, electa
 	} else if submitted.Get() {
 		status = html.P(html.Props{ID: "benefits-enroll-status", Raw: map[string]any{"role": "status"}}, ui.Text(benefitsText(view, "submitted")))
 	}
-	planOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(benefitsText(view, "choose_plan")))}
+	planOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(benefitsText(view, "choose_plan")))}
 	for _, option := range electable {
 		planOptions = append(planOptions, html.Option(
 			html.Props{Value: option.PlanRef + "\x00" + option.PlanRevision + "\x00" + option.Window.WindowID},
 			ui.Text(option.PlanName),
 		))
 	}
-	tierOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(benefitsText(view, "choose_tier")))}
+	tierOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(benefitsText(view, "choose_tier")))}
 	for _, code := range benefitElectionTiers() {
 		tierOptions = append(tierOptions, html.Option(html.Props{Value: string(code)}, ui.Text(benefitTierLabel(view, code))))
 	}

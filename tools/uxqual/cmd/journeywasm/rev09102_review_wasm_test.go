@@ -5,6 +5,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/journeyclient"
@@ -36,7 +37,7 @@ func TestTodo_REV_091_02_Browser(t *testing.T) {
 			},
 		},
 	}
-	page := journeyclient.DetailPage(journeyclient.Config{Locale: "en-US"}, detail, nil, nil)
+	page := journeyclient.DetailPage(time.Now(), journeyclient.Config{Locale: "en-US"}, detail, nil, nil)
 	// String rendering in the WASM build has no DOM adapter for event
 	// handlers, so the interactive action and note controls are left out;
 	// the review cards are static markup either way.

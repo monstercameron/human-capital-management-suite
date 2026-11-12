@@ -87,7 +87,7 @@ func renderGateSegments(v GateView) ui.Node {
 				rule = rules[i]
 			}
 			prefix := "gate-seg-" + strconv.Itoa(i) + "-"
-			options := []ui.Node{html.Option(html.Props{Value: "", Text: t("choose")})}
+			options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
 			for _, f := range fields {
 				options = append(options, html.Option(html.Props{Value: f.ID, Text: f.Label, Selected: f.ID == rule.Field}))
 			}
@@ -242,7 +242,7 @@ func gateReaderName(v GateView, a chatgate.ReadAudit) string {
 // audited override, named plainly, and asks for a reason.
 func renderGateOverride(v GateView) []ui.Node {
 	t := func(k string) string { return GateText(v.Locale, k) }
-	people := []ui.Node{html.Option(html.Props{Value: "", Text: t("choose")})}
+	people := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
 	for _, p := range v.Directory["person"] {
 		people = append(people, html.Option(html.Props{Value: p.ID, Text: p.Label}))
 	}

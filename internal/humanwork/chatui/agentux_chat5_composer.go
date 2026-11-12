@@ -13,6 +13,9 @@ type composerKeyState struct {
 	// MentionLoading is set while the "@" menu waits for the conversation's
 	// members: it is open, has nothing to pick yet, and will have rows soon.
 	MentionLoading bool
+	// MentionAgentHighlighted is set when the highlighted mention is an agent.
+	// Tab then opens that agent's details instead of inserting it.
+	MentionAgentHighlighted bool
 }
 
 type composerAction string
@@ -37,7 +40,7 @@ func composerKeyAction(state composerKeyState, key string) composerAction {
 	if state.Composing || state.Shift || (key != "Enter" && key != "Tab") {
 		return composerNative
 	}
-	if state.MentionOpen && state.MentionHighlighted {
+	if state.MentionOpen && state.MentionHighlighted && !(key == "Tab" && state.MentionAgentHighlighted) {
 		return composerPickMention
 	}
 	if state.EmojiOpen && state.EmojiHighlighted {

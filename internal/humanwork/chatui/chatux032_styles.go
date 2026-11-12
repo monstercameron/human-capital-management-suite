@@ -10,6 +10,7 @@ const ChatUX032Styles = `
 .chat-panel-head h2{flex:0 1 auto;min-width:0;margin:0;font-size:1rem;font-weight:600;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-panel-head h2:focus{outline:none}
 .chat-panel-head.person-pane-head h2{flex:1 1 auto}
+.chat-panel-head .thread-heading-text h2{flex:0 0 auto}
 .chat-panel-head .chat-panel-sub,.chat-panel-head .thread-channel-link{flex:0 1 auto;min-width:0;margin:0;font-size:.8125rem;font-weight:400;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-panel-head .chat-panel-sub{color:var(--muted);font-variant-numeric:tabular-nums}
 .chat-panel-head .side-heading-actions{flex:none;display:flex;align-items:center;gap:4px}
@@ -19,7 +20,7 @@ const ChatUX032Styles = `
 .chat-workspace .chat-panel-close:focus-visible{outline:var(--hcm-focus-ring-width) solid var(--hcm-color-focus);outline-offset:1px}
 .chat-panel-close .chat-icon{inline-size:18px;block-size:18px}
 @media(pointer:coarse){.chat-panel-head .chat-panel-close.chat-panel-close.icon-button{inline-size:44px;min-inline-size:44px;block-size:44px;min-block-size:44px}}
-@media(max-width:767px){.chat-panel-head .chat-panel-close.chat-panel-close.icon-button.thread-back{inline-size:auto;padding-inline:10px}}
+@media(max-width:767px){.chat-workspace .thread-back-label{display:none}}
 .chat-workspace .side-heading.chatsave-header{position:static;margin:0;padding-inline:0;border:0}
 .chatmod005-heading.chat-panel-head{position:static;margin-inline:0;padding-inline:16px}
 .chat-workspace .chat-composer:has(.composer-input:placeholder-shown) .send-button,.chat-workspace .thread-composer:has(.composer-input:placeholder-shown) .send-button,.chat-workspace .send-button:disabled,.chat-workspace .button:not(.secondary):disabled,.chat-workspace .button:not(.secondary)[aria-disabled="true"]{background:var(--soft);border-color:var(--line);color:var(--muted);opacity:1;cursor:not-allowed;filter:none}

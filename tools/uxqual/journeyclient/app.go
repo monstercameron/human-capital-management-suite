@@ -850,6 +850,18 @@ func (a *App) propose(ctx context.Context, generation int, values map[string]str
 	grade := strings.TrimSpace(values[NameGrade])
 	positionID := strings.TrimSpace(values[NamePosition])
 	basePay := strings.TrimSpace(values[NameBase])
+	// The amount is read in the reader's own separators and sent in the exact
+	// dot-decimal form. An amount that cannot be read unambiguously is refused
+	// below, and the reader's text is kept so they can correct it (#3566).
+	// The store keeps the reader's own text, so a refused or resubmitted form
+	// shows what they typed; only the request and the checks carry the
+	// canonical amount.
+	enteredBasePay, amountInvalid := basePay, false
+	if canonical, ok := canonicalProposalAmount(basePay, copy.Resolved); ok {
+		basePay = canonical
+	} else if basePay != "" {
+		amountInvalid = true
+	}
 	effectiveDate := strings.TrimSpace(values[NameEffective])
 	reason := strings.TrimSpace(values[NameReason])
 	if worker == "" {
@@ -862,7 +874,7 @@ func (a *App) propose(ctx context.Context, generation int, values map[string]str
 	// needs no extra render.
 	submitted := map[string]string{
 		FieldWorker: worker, FieldJobCode: jobCode, FieldGrade: grade,
-		FieldPosition: positionID, FieldBase: basePay,
+		FieldPosition: positionID, FieldBase: enteredBasePay,
 		FieldEffective: effectiveDate, FieldReason: reason,
 	}
 	currentValues := a.store.Values()
@@ -899,6 +911,10 @@ func (a *App) propose(ctx context.Context, generation int, values map[string]str
 			missing[field.id] = copy.Text("journey.required_field")
 			missingCorrections[field.id] = proposalCorrection{key: "journey.required_field"}
 		}
+	}
+	if amountInvalid {
+		missing[FieldBase] = copy.Text("journey.field_base_format_error")
+		missingCorrections[FieldBase] = proposalCorrection{key: "journey.field_base_format_error"}
 	}
 	if len(missing) > 0 {
 		a.mu.Lock()
@@ -1525,6 +1541,7 @@ func (a *App) show(notice *journey.Notice) {
 		WorkerErrors:   a.workerErrors,
 		ProposalErrors: a.proposalErrors,
 		Filter:         a.route.Filter,
+		Now:            a.now(),
 	}
 	focusRevision := a.proposalFocusRevision
 	editErrors := a.editErrors
@@ -1534,7 +1551,7 @@ func (a *App) show(notice *journey.Notice) {
 	values := a.store.Values()
 	var page journey.Page
 	if route.Kind == RouteDetail && detail.GetJourney().GetIntentId() == route.IntentID {
-		page = DetailPageWithInterventions(cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview, a.options)
+		page = DetailPageWithInterventions(a.now(), cfg, detail, notice, values, withdrawPreview, cancelPreview, repairPreview, a.options)
 		if page.Detail != nil && len(failedApprovalStarts) > 0 {
 			page.Detail.Timeline = append(failedApprovalStarts, page.Detail.Timeline...)
 		}
@@ -1542,7 +1559,7 @@ func (a *App) show(notice *journey.Notice) {
 		// The route names a journey whose answer has not arrived (or whose
 		// answer was a refusal). The chrome, the notice and the navigation
 		// still render, which is what leaves the reader a way back.
-		page = DetailPage(cfg, nil, notice, values)
+		page = DetailPage(a.now(), cfg, nil, notice, values)
 	} else if route.Kind == RouteProposal {
 		page = ProposalPage(cfg, data, notice, values)
 	} else {
@@ -1673,7 +1690,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 					page.Proposal.Form.Fields[i].Error = ""
 				}
 			}
-			page.Proposal.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, routeWorker), options)
+			page.Proposal.Form.Confirmation = draftConfirmation(a.now(), locale, page.Values, findWorker(workers, routeWorker), options)
 		}
 		if page.List != nil {
 			for i := range page.List.Form.Fields {
@@ -1686,7 +1703,7 @@ func (a *App) setProposalValue(fieldID, value string) {
 			if ref == "" {
 				ref = routeWorker
 			}
-			page.List.Form.Confirmation = draftConfirmation(locale, page.Values, findWorker(workers, ref), options)
+			page.List.Form.Confirmation = draftConfirmation(a.now(), locale, page.Values, findWorker(workers, ref), options)
 		}
 		if remaining == 0 && page.Notice != nil && (page.Notice.TitleKey == "journey.error_invalid_title" || page.Notice.TitleKey == "journey.required_fields_title") {
 			page.Notice = nil

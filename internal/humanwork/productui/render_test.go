@@ -280,7 +280,7 @@ func TestWorkflowHistoryShowsOnlyTerminalRecordsAndPreservesFilters(t *testing.T
 	}
 	for _, want := range []string{
 		"Workflow history", "Avery Patel", "COMPLETED · closed",
-		"2026-08-01", "4 Aug 2026 · 14:32 UTC",
+		"Not reported", "4 Aug 2026 · 14:32 UTC",
 		`name="history_q"`, `name="history_person"`, `name="outcome"`, `name="nav"`,
 		"Workflow", "Version", "Subject", "Requester", "Participants", "Stage", "Started", "Updated",
 		`href="/workspace/app/workflows/history?history_q=Avery&amp;nav=expanded&amp;outcome=closed"`,
@@ -288,6 +288,10 @@ func TestWorkflowHistoryShowsOnlyTerminalRecordsAndPreservesFilters(t *testing.T
 		if !strings.Contains(doc, want) {
 			t.Fatalf("workflow history missing %q", want)
 		}
+	}
+	// #3593: the proposed effective date (2026-08-01) is not the run's Started.
+	if strings.Contains(doc, "2026-08-01") {
+		t.Fatal("proposed effective date rendered as a workflow history chronology (#3593)")
 	}
 	if strings.Contains(doc, "Jordan Lee") {
 		t.Fatal("active work appeared in past workflow history")
@@ -503,7 +507,7 @@ func TestPeopleColumnHeadersAreIndependentGridItems(t *testing.T) {
 			t.Fatalf("directory column %q is not an independent grid item", heading)
 		}
 	}
-	for _, href := range []string{`href="/workspace/app/people?dir=desc"`, `href="/workspace/app/people?sort=role"`, `href="/workspace/app/people?sort=team"`} {
+	for _, href := range []string{`href="/workspace/app/people?dir=desc&amp;sort=name"`, `href="/workspace/app/people?dir=asc&amp;sort=role"`, `href="/workspace/app/people?dir=asc&amp;sort=team"`} {
 		if !strings.Contains(doc, href) {
 			t.Fatalf("directory sort control missing %q", href)
 		}
@@ -530,7 +534,7 @@ func TestPeopleDirectoryCombinesFacetsSortAndPagination(t *testing.T) {
 	for _, want := range []string{
 		"2 of 4 people", ">Zara</strong>", ">Bianca</strong>", `name="team"`, `value="Platform"`,
 		`name="location"`, `value="Boston"`, `>Person ↓</a>`,
-		`href="/workspace/app/people?location=Boston&amp;q=engineer&amp;sort=role&amp;team=Platform"`,
+		`href="/workspace/app/people?dir=asc&amp;location=Boston&amp;q=engineer&amp;sort=role&amp;team=Platform"`,
 		`href="/workspace/app/people?dir=desc&amp;eligible=&amp;location=&amp;q=&amp;team="`,
 	} {
 		if !strings.Contains(doc, want) {

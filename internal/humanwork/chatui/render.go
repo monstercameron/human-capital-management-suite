@@ -293,7 +293,8 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		action := composerKeyAction(composerKeyState{
 			Draft: value, Shift: shiftHeld(e), Composing: composerIsComposing(e),
 			MentionOpen: state.Open, MentionHighlighted: state.Active >= 0 && state.Active < len(options), MentionLoading: mentionPeopleLoading(m) && !m.MembersFailed,
-			EmojiOpen: emoji.Open && emoji.Target == target, EmojiHighlighted: emoji.Active >= 0 && emoji.Active < len(emojiCompletionItems(emoji.Query)),
+			MentionAgentHighlighted: mentionOptionIsAgent(options, state.Active),
+			EmojiOpen:               emoji.Open && emoji.Target == target, EmojiHighlighted: emoji.Active >= 0 && emoji.Active < len(emojiCompletionItems(emoji.Query)),
 			DocumentOpen: doc.Open && doc.Target == target, DocumentHighlighted: doc.Active >= 0 && doc.Active < len(doc.Items),
 			ChannelOpen: channel.Open && channel.Target == target, ChannelHighlighted: channel.Active >= 0 && channel.Active < len(channelSuggest(m, channel.Query)),
 		}, e.GetKey())
@@ -741,6 +742,12 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 		}),
 		rootKey: ui.UseEvent(func(e ui.KeyboardEvent) {
+			// Escape inside an open message-language editor closes it (CHATLANG-004).
+			if chatlangEditorKey(local, e) {
+				e.PreventDefault()
+				e.StopPropagation()
+				return
+			}
 			// Enter in a card's add-option or edit field, Escape in its edit form.
 			if action, post := chatcmd002KeyAction(e); action != "" {
 				e.PreventDefault()

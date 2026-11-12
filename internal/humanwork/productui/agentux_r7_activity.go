@@ -178,7 +178,7 @@ func RenderAgentRunHistory(locale LocaleContext, runs []AgentControlRun, filter 
 			ordered = append(ordered, v)
 		}
 		sort.Strings(ordered)
-		options := []ui.Node{html.Option(html.Props{Value: "", Selected: field.value == ""}, ui.Text(agentUXR7Text(locale, field.all)))}
+		options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: field.value == ""}, ui.Text(agentUXR7Text(locale, field.all)))}
 		for _, v := range ordered {
 			label := v
 			if field.key == "agent" {

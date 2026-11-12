@@ -772,7 +772,8 @@ type Model struct {
 	side chatside001UI
 }
 
-// n formats a count for display.
+// n formats a count for display. The client's Number may return "" for zero,
+// the tray's no-value signal, so a count that must read zero goes through nz.
 func (m Model) n(v int) string {
 	if m.Number != nil {
 		return m.Number(v)

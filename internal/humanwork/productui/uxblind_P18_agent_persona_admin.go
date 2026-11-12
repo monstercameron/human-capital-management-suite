@@ -427,11 +427,16 @@ func PersonaAdminPage(props PersonaAdminPageProps) ui.Node {
 			html.Div(html.Props{Class: "persona-admin-cards"}, cards...),
 		))
 	}
+	startersAvailable := len(personaAdminReadyStarters(props.Snapshot)) > 0
 	if len(sections) == 0 && !props.Snapshot.CatalogState.Unavailable {
-		sections = append(sections, html.P(html.Props{Class: "muted", Role: "status"}, ui.Text(personaAdminText(locale, "empty"))))
+		// The "Choose New agent" instruction is only true when that button renders.
+		emptyKey := "empty"
+		if !startersAvailable {
+			emptyKey = "empty_no_starter"
+		}
+		sections = append(sections, html.P(html.Props{Class: "muted", Role: "status"}, ui.Text(personaAdminText(locale, emptyKey))))
 	}
 
-	startersAvailable := len(personaAdminReadyStarters(props.Snapshot)) > 0
 	newAgentTarget := "persona-admin-editor"
 	newAgentAction := ui.Node(nil)
 	newAgentNote := ui.Node(nil)
@@ -994,7 +999,7 @@ func personaAdminPreview(locale LocaleContext, client PersonaAdminClient, snapsh
 
 func personaAdminSimpleSelect(locale LocaleContext, suffix, labelKey, selected string, disabled bool, options []personaAdminComboboxOption) ui.Node {
 	id := "persona-admin-preview-" + suffix
-	items := []ui.Node{html.Option(html.Props{Value: "", Disabled: true, Selected: selected == ""}, ui.Text(personaAdminText(locale, labelKey+"_placeholder")))}
+	items := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Disabled: true, Selected: selected == ""}, ui.Text(personaAdminText(locale, labelKey+"_placeholder")))}
 	for _, option := range options {
 		items = append(items, html.Option(html.Props{Value: option.Value, Selected: option.Value == selected}, ui.Text(option.Label)))
 	}
@@ -1158,7 +1163,7 @@ func personaAdminText(locale LocaleContext, key string) string {
 		"breadcrumb": {"Breadcrumb", "Brotkrümelnavigation", "مسار التنقل"}, "breadcrumb_admin": {"Admin", "Administration", "المسؤول"}, "breadcrumb_agents": {"Agents", "Agenten", "الوكلاء"},
 		"new_agent": {"New agent", "Neuer Agent", "وكيل جديد"}, "new_agent_no_template": {"New agents start from a reviewed template. No template is installed in this workspace yet. Ask your platform administrator to add one.", "Neue Agenten beginnen mit einer geprüften Vorlage. In diesem Arbeitsbereich ist noch keine Vorlage installiert. Bitten Sie Ihre Plattformadministration, eine hinzuzufügen.", "تبدأ الوكلاء الجدد من قالب تمت مراجعته. لا يوجد قالب مثبت في مساحة العمل هذه بعد. اطلب من مسؤول المنصة إضافة قالب."},
 		"loading": {"Loading agent setup…", "Agenteneinrichtung wird geladen…", "جارٍ تحميل إعداد الوكلاء…"}, "unavailable_title": {"Agent setup is unavailable", "Agenteneinrichtung ist nicht verfügbar", "إعداد الوكلاء غير متاح"},
-		"permission_denied": {"You do not have agent administration permission.", "Sie benötigen die Berechtigung zur Agentenverwaltung.", "ليست لديك صلاحية إدارة الوكلاء."}, "service_unavailable": {"The agent service is not connected to this workspace.", "Der Agentendienst ist nicht mit diesem Arbeitsbereich verbunden.", "خدمة الوكلاء غير متصلة بمساحة العمل هذه."}, "persona_store_unavailable": {"The agent store is not connected to this workspace.", "Der Agentenspeicher ist nicht mit diesem Arbeitsbereich verbunden.", "مخزن الوكلاء غير متصل بمساحة العمل هذه."}, "empty": {"No agents are configured. Choose New agent to get started.", "Es sind keine Agenten eingerichtet. Wählen Sie „Neuer Agent“, um zu beginnen.", "لم تتم تهيئة أي وكلاء. اختر «وكيل جديد» للبدء."},
+		"permission_denied": {"You do not have agent administration permission.", "Sie benötigen die Berechtigung zur Agentenverwaltung.", "ليست لديك صلاحية إدارة الوكلاء."}, "service_unavailable": {"The agent service is not connected to this workspace.", "Der Agentendienst ist nicht mit diesem Arbeitsbereich verbunden.", "خدمة الوكلاء غير متصلة بمساحة العمل هذه."}, "persona_store_unavailable": {"The agent store is not connected to this workspace.", "Der Agentenspeicher ist nicht mit diesem Arbeitsbereich verbunden.", "مخزن الوكلاء غير متصل بمساحة العمل هذه."}, "empty": {"No agents are configured. Choose New agent to get started.", "Es sind keine Agenten eingerichtet. Wählen Sie „Neuer Agent“, um zu beginnen.", "لم تتم تهيئة أي وكلاء. اختر «وكيل جديد» للبدء."}, "empty_no_starter": {"No agents are configured. New agents can be created here once a reviewed template is available.", "Es sind noch keine Agenten eingerichtet. Neue Agenten können hier erstellt werden, sobald eine geprüfte Vorlage verfügbar ist.", "لم تتم تهيئة أي وكلاء بعد. يمكن إنشاء وكلاء جدد هنا عند توفر قالب مُراجَع."},
 		"retry":                 {"Try again", "Erneut versuchen", "حاول مرة أخرى"},
 		"catalog_unavailable":   {"Agent details could not be loaded. Try again without leaving this page.", "Agentendetails konnten nicht geladen werden. Versuchen Sie es auf dieser Seite erneut.", "تعذر تحميل تفاصيل الوكلاء. حاول مرة أخرى دون مغادرة الصفحة."},
 		"targets_unavailable":   {"People and conversations could not be loaded. Try again before checking access.", "Personen und Unterhaltungen konnten nicht geladen werden. Versuchen Sie es vor der Zugriffsprüfung erneut.", "تعذر تحميل الأشخاص والمحادثات. حاول مرة أخرى قبل التحقق من الوصول."},

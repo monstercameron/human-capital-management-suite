@@ -75,3 +75,37 @@ func TestTodo_CHATSEARCH_002_Accessibility(t *testing.T) {
 		}
 	}
 }
+
+// TestIssue_3398_FilterLabelsCarryText fails when a Refine search control's
+// <label> has no visible text: html.Label drops Props.Text once children are
+// passed, so each label must carry its text as a child.
+func TestIssue_3398_FilterLabelsCarryText(t *testing.T) {
+	for _, locale := range []string{"en-US", "de-DE", "ar"} {
+		markup, err := ui.RenderToString(RenderChatSearch(locale, ChatSearchView{Query: "budget"}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		fields := map[string]string{
+			"channel": chatsearchText(locale, "channel"),
+			"person":  chatsearchText(locale, "person"),
+			"before":  chatsearchText(locale, "before"),
+			"after":   chatsearchText(locale, "after"),
+			"on":      chatsearchText(locale, "on"),
+			"kind":    chatsearchText(locale, "kind"),
+			"written": chattoneW10Text(locale, "search_written"),
+		}
+		for id, label := range fields {
+			start := strings.Index(markup, `for="chatsearch-`+id+`"`)
+			if start < 0 {
+				t.Fatalf("%s: no label for chatsearch-%s: %s", locale, id, markup)
+			}
+			end := strings.Index(markup[start:], "</label>")
+			if end < 0 {
+				t.Fatalf("%s: unclosed label for chatsearch-%s", locale, id)
+			}
+			if !strings.Contains(markup[start:start+end], label) {
+				t.Fatalf("%s: label for chatsearch-%s has no visible text %q: %s", locale, id, label, markup[start:start+end])
+			}
+		}
+	}
+}

@@ -264,6 +264,9 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 				focusTrapCleanup = nil
 			}
 			backdrop.Set("hidden", true)
+			// The open branch sets an inline display:block, which outranks the
+			// hidden attribute; the closed layer must not stay painted over the page.
+			backdrop.Get("style").Set("display", "none")
 			trigger.Set("aria-expanded", "false")
 			if focus {
 				focusElementByID(doc, triggerID)
@@ -302,9 +305,37 @@ func bindMobileNavigationDrawer(rootID, triggerID, backdropID string) func() {
 	})
 	key := js.FuncOf(func(_ js.Value, args []js.Value) any {
 		defer func() { _ = recover() }()
-		if len(args) > 0 && open && media.Get("matches").Bool() && args[0].Get("key").String() == "Escape" {
-			args[0].Call("preventDefault")
+		if len(args) == 0 || !open || !media.Get("matches").Bool() {
+			return nil
+		}
+		event := args[0]
+		switch event.Get("key").String() {
+		case "Escape":
+			event.Call("preventDefault")
 			setOpen(false, true)
+		case "Tab":
+			// The focus trap listens on the drawer itself, so a Tab pressed while
+			// focus still sits on the trigger (outside the drawer) would move to the
+			// page behind the modal. Pull it into the drawer instead (#3564).
+			if active := doc.Get("activeElement"); active.Truthy() && root.Call("contains", active).Bool() {
+				return nil
+			}
+			var items []js.Value
+			list := root.Call("querySelectorAll", drawerFocusableSelector)
+			for i := 0; i < list.Get("length").Int(); i++ {
+				if item := list.Call("item", i); drawerFocusableVisible(item) {
+					items = append(items, item)
+				}
+			}
+			if len(items) == 0 {
+				return nil
+			}
+			event.Call("preventDefault")
+			if event.Get("shiftKey").Bool() {
+				items[len(items)-1].Call("focus")
+			} else {
+				items[0].Call("focus")
+			}
 		}
 		return nil
 	})

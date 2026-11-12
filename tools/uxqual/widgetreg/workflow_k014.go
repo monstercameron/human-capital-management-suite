@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/documents"
-	"github.com/monstercameron/human-capital-management-suite/internal/documents/signing"
+	"github.com/monstercameron/human-capital-management-suite/internal/documentvalue"
+	"github.com/monstercameron/human-capital-management-suite/internal/esign"
 	"github.com/monstercameron/human-capital-management-suite/tools/uxqual/pagedef"
 )
 
@@ -184,8 +184,8 @@ func formatCents(cents *big.Int) string {
 type PageSubmission struct {
 	Values      map[string]string
 	Rows        map[string][]map[string]string
-	Attachments map[string]documents.AttachmentReference
-	Signatures  map[string]documents.Signature
+	Attachments map[string]documentvalue.AttachmentReference
+	Signatures  map[string]documentvalue.Signature
 }
 
 // SubmissionError is one field-scoped rejection. Row is -1 for errors that
@@ -288,6 +288,10 @@ func ValidateSubmission(widgets []pagedef.WorkflowPageWidget, sub PageSubmission
 				}
 				continue
 			}
+			if ref.Evidence == nil {
+				fail(w.Binding, -1, "", "attachment has no evidence reference")
+				continue
+			}
 			if err := ref.Evidence.Check(); err != nil {
 				fail(w.Binding, -1, "", "attachment is not admitted: %v", err)
 				continue
@@ -307,7 +311,7 @@ func ValidateSubmission(widgets []pagedef.WorkflowPageWidget, sub PageSubmission
 				fail(w.Binding, -1, "", "signature is invalid: %v", err)
 				continue
 			}
-			if sig.Ceremony.State != signing.StateSigned {
+			if sig.Ceremony.State != esign.StateSigned {
 				fail(w.Binding, -1, "", "ceremony is %s, not signed", sig.Ceremony.State)
 			}
 		default:

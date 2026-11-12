@@ -171,8 +171,8 @@ func renderAgentAnnouncementRow(locale LocaleContext, row AgentAnnouncementRow) 
 
 func renderAgentAnnouncementEditor(locale LocaleContext, agents []AgentAnnouncementAgent) ui.Node {
 	copy := func(key string) string { return agentAnnouncementText(locale, key) }
-	agentOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(copy("choose_agent")))}
-	conversationOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(copy("choose_conversation")))}
+	agentOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(copy("choose_agent")))}
+	conversationOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(copy("choose_conversation")))}
 	seenAgents := map[string]bool{}
 	for _, agent := range agents {
 		if seenAgents[agent.PersonaID] {

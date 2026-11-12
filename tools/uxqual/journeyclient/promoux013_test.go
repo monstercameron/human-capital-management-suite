@@ -41,7 +41,7 @@ func TestTodo_PROMOUX_013_Browser(t *testing.T) {
 	cfg := testConfig()
 
 	t.Run("an available intervention reuses the identical contained review structure", func(t *testing.T) {
-		out := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE), nil, nil))
+		out := mustRender(t, DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE), nil, nil))
 		if !strings.Contains(out, `class="jn-confirm"`) {
 			t.Fatalf("no reused review-surface disclosure rendered at all:\n%s", out)
 		}
@@ -72,7 +72,7 @@ func TestTodo_PROMOUX_013_Browser(t *testing.T) {
 	})
 
 	t.Run("an unavailable intervention reuses the identical disabled-reason structure Execute already used at BLOCKED", func(t *testing.T) {
-		out := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
+		out := mustRender(t, DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
 		// Execute's own BLOCKED-stage disabled reason is a reason paragraph
 		// with aria-describedby wired to it (components.go's actionCard). The
 		// three interventions must use the identical mechanism, not a new one.
@@ -106,7 +106,7 @@ func TestTodo_PROMOUX_013_Browser(t *testing.T) {
 // what PROMOUX-013 itself adds).
 func TestTodo_PROMOUX_013_Accessibility(t *testing.T) {
 	cfg := testConfig()
-	out := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE), nil, nil))
+	out := mustRender(t, DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE), nil, nil))
 
 	t.Run("the cancel and edit reason fields are required and carry a visible label", func(t *testing.T) {
 		for _, want := range []string{"Reason", "Reason for this edit", "Business reason", "Target job code", "Target grade", "Proposed base pay", "Effective date"} {
@@ -126,7 +126,7 @@ func TestTodo_PROMOUX_013_Accessibility(t *testing.T) {
 	})
 
 	t.Run("a refusal with no alternative is a real, associated explanation", func(t *testing.T) {
-		committed := mustRender(t, DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil))
+		committed := mustRender(t, DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil))
 		tag := regexp.MustCompile(`(?s)<p[^>]*id="[^"]*blocked"[^>]*>.*?</p>`).FindString(committed)
 		if tag == "" {
 			t.Fatalf("no disabled-reason paragraph once execution has committed:\n%s", committed)
@@ -165,7 +165,7 @@ func TestTodo_PROMOUX_013_I18N(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
-			p := DetailPageWithInterventions(testConfig(), detail, nil, nil,
+			p := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil,
 				&journeyv1.PreviewJourneyInterventionResponse{Available: true, ConsequenceSummary: tc.summary},
 				nil, nil,
 			)
@@ -186,11 +186,11 @@ func TestTodo_PROMOUX_013_I18N(t *testing.T) {
 	// anything a differently-privileged or differently-localized viewer
 	// might additionally know.
 	t.Run("the unavailable reason is byte-identical across differing underlying journeys, as required by PROMOUX-001/PROMOUX-004's precedent", func(t *testing.T) {
-		omar := mustRender(t, DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
+		omar := mustRender(t, DetailPage(clockTestNow, testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
 		other := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 		other.Journey.WorkerName = "A Completely Different Person"
 		other.Journey.CorrelationId = "cor_DIFFERENT"
-		different := mustRender(t, DetailPage(testConfig(), other, nil, nil))
+		different := mustRender(t, DetailPage(clockTestNow, testConfig(), other, nil, nil))
 
 		// The reason the Cancel control points at, wherever it is stated:
 		// per card when reasons differ, once per section when they do not

@@ -786,7 +786,12 @@ type View struct {
 	WorkflowPalette    []WorkflowPaletteItem
 	WorkflowView       *workflowview.View
 	// WorkflowShowReferences preserves the designer's address-backed catalog toggle.
-	WorkflowShowReferences  bool
+	WorkflowShowReferences bool
+	// WorkflowListStatus, WorkflowListSort and WorkflowListPage are the designer
+	// catalog's normalized, address-backed list state.
+	WorkflowListStatus      string
+	WorkflowListSort        string
+	WorkflowListPage        int
 	WorkflowDraft           *WorkflowDraftView
 	SelectedWorkflowID      string
 	SelectedWorkflowRunID   string

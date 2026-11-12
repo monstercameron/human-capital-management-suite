@@ -172,8 +172,10 @@ func routeStateProfile(profile RouteProfile) RouteStateProfile {
 		result.Studio = true
 		result.QueryKeys = []string{"mode"}
 	case RouteProfileWorkflow:
-		result.WorkflowDesigner = true
-		result.QueryKeys = []string{"workflow", "run", "draft", "node", "workflow_references"}
+		// The catalog's search text and list state live in the address so they
+		// survive reload, Back and chip navigation (issue 3567).
+		result.WorkflowDesigner, result.WorkflowQuery = true, true
+		result.QueryKeys = []string{"workflow", "run", "draft", "node", "workflow_references", "workflow_q", "workflow_status", "workflow_sort", "workflow_page"}
 	case RouteProfileDocs:
 		result.QueryKeys = []string{"document", "docs_q", "collection", "cursor", "folder", "docs_sort", "docs_owner", "docs_page", "docs_size", "docs_mode", "docs_edit"}
 	case RouteProfilePosition:
@@ -264,6 +266,22 @@ func setProfileValue(values url.Values, provided map[string]bool, key, value str
 func setProfileInt(values url.Values, provided map[string]bool, key string, value int) {
 	if provided[key] {
 		values.Set(key, strconv.Itoa(value))
+	}
+}
+
+// workflowCatalogRouteValues writes the catalog's non-default list state. The
+// values are normalized first, so defaults never reach the address and an
+// unknown status or sort is canonicalized the same way the catalog renders it.
+func workflowCatalogRouteValues(values url.Values, status, sort string, page int) {
+	list := normalizeWorkflowListState(workflowListState{Status: status, Sort: sort, Page: page})
+	if list.Status != workflowListStatusAll {
+		values.Set(workflowListStatusKey, list.Status)
+	}
+	if list.Sort != workflowListSortRecent {
+		values.Set(workflowListSortKey, list.Sort)
+	}
+	if list.Page > 1 {
+		values.Set(workflowListPageKey, strconv.Itoa(list.Page))
 	}
 }
 
@@ -361,6 +379,7 @@ func (profile RouteProfile) CanonicalValues(request PageRequest, provided map[st
 				values.Del("workflow_references")
 			}
 		}
+		workflowCatalogRouteValues(values, request.WorkflowListStatus, request.WorkflowListSort, request.WorkflowListPage)
 	}
 	if profile == RouteProfileDocs {
 		setProfileValue(values, provided, "document", request.DocumentID)
@@ -521,6 +540,7 @@ func (profile RouteProfile) AddressValues(values url.Values, view View) {
 		if view.WorkflowShowReferences {
 			values.Set("workflow_references", "1")
 		}
+		workflowCatalogRouteValues(values, view.WorkflowListStatus, view.WorkflowListSort, view.WorkflowListPage)
 	}
 	if profile == RouteProfileDocs {
 		// The open document is the page's subject: shell links that restate

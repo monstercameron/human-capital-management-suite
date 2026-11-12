@@ -46,7 +46,11 @@ type TicketList struct {
 	SortHrefs   map[string]string
 	// Loading is true while the per-project reads are still arriving.
 	Loading bool
-	Today   time.Time
+	// AssignedOpen counts the viewer's open tickets before any address
+	// filter, so an empty "My tickets" can tell a filtered-out result from
+	// genuinely nothing assigned.
+	AssignedOpen int
+	Today        time.Time
 	// PageSize is the rows per page of "All tickets"; Sizes are the
 	// rows-per-page choices as addresses.
 	PageSize int

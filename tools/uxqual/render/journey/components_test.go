@@ -1447,3 +1447,44 @@ func firstN(s string, n int) string {
 	}
 	return s[:n] + "..."
 }
+
+// TestTodo_ISSUE3565_ServedFormOffersAClearTargetPositionChoice renders the
+// governed position field as the served form does. The clear choice is a radio
+// with an empty value, checked when no position is chosen, and it is labelled
+// in the reader's locale.
+func TestTodo_ISSUE3565_ServedFormOffersAClearTargetPositionChoice(t *testing.T) {
+	field := Field{ID: "propose-position", Name: "desired_position_id", Kind: fieldKindPositionPicker, Label: "Target position", Vacancies: []VacancyOption{
+		{Reference: "rev-position-a", Title: "Foreman", JobCode: "IR-FMN", Organization: "Field Operations", Location: "Denver", ReservationState: "AVAILABLE"},
+	}}
+	markup := mustRenderNode(t, fieldNode(live{locale: "en-US"}, field, false))
+	if !strings.Contains(markup, "No target position") {
+		t.Fatalf("served form omitted the clear choice:\n%s", markup)
+	}
+	if !strings.Contains(markup, `value=""`) || !strings.Contains(markup, `type="radio"`) {
+		t.Fatalf("clear choice is not an empty-valued radio:\n%s", markup)
+	}
+	if strings.Count(markup, `name="desired_position_id"`) != 2 {
+		t.Fatalf("clear choice is not part of the bound radio group:\n%s", markup)
+	}
+	German := mustRenderNode(t, fieldNode(live{locale: "de-DE"}, field, false))
+	if !strings.Contains(German, "Keine Zielposition") {
+		t.Fatalf("de-DE served form has no localized clear choice:\n%s", German)
+	}
+}
+
+// TestTodo_ISSUE3566_BasePayInputAcceptsTheReadersSeparators renders the base
+// pay amount as the served form does: a text box with a decimal keypad, not a
+// type=number input that rejects a German decimal comma.
+func TestTodo_ISSUE3566_BasePayInputAcceptsTheReadersSeparators(t *testing.T) {
+	field := Field{ID: "propose-base", Name: "proposed_base", Kind: fieldKindAmount, Label: "Proposed base pay", Value: "36,50", Placeholder: "0.00"}
+	markup := mustRenderNode(t, fieldNode(live{locale: "de-DE"}, field, false))
+	if !strings.Contains(markup, `type="text"`) || !strings.Contains(markup, `inputmode="decimal"`) {
+		t.Fatalf("base pay is not a decimal text input:\n%s", markup)
+	}
+	if strings.Contains(markup, `type="number"`) {
+		t.Fatalf("base pay is still type=number, which rejects a decimal comma:\n%s", markup)
+	}
+	if !strings.Contains(markup, `value="36,50"`) {
+		t.Fatalf("the reader's typed amount was not kept as entered:\n%s", markup)
+	}
+}

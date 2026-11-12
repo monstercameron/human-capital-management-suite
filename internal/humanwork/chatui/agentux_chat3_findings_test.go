@@ -123,10 +123,13 @@ func TestAgentUXChat3_InlineMentionIsStableAndKeyboardOperable(t *testing.T) {
 	if mentionActionForKey("Tab") != mentionKeyDetails || mentionActionForKey("ArrowLeft") != mentionKeyNone || mentionActionForKey("ArrowRight") != mentionKeyNone {
 		t.Fatal("mention keyboard contract still steals text-navigation arrows")
 	}
-	if got := mentionHintText("de-DE", false); got != "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen" {
+	if got := mentionHintText("de-DE", false, true); got != "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen" {
 		t.Fatalf("German menu hint = %q", got)
 	}
-	if got := mentionHintText("ar", true); got != "Esc رجوع" {
+	if got := mentionHintText("de-DE", false, false); got != "↑↓ bewegen · Enter zum Einfügen · Esc zum Schließen" {
+		t.Fatalf("German people-only hint = %q", got)
+	}
+	if got := mentionHintText("ar", true, true); got != "Esc رجوع" {
 		t.Fatalf("Arabic details hint = %q", got)
 	}
 }

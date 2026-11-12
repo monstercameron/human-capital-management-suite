@@ -199,9 +199,9 @@ func agentProfileDialog(model Model, id string) ui.Node {
 	return nil
 }
 
-func agentMentionKeyboardHint(locale string, details bool) ui.Node {
+func agentMentionKeyboardHint(locale string, details, agent bool) ui.Node {
 	var keys []ui.Node
-	for _, key := range strings.Split(mentionHintText(locale, details), " · ") {
+	for _, key := range strings.Split(mentionHintText(locale, details, agent), " · ") {
 		keys = append(keys, html.Span(html.Props{Text: key}))
 	}
 	return html.P(html.Props{Class: "mention-hint kbd-hint", Aria: map[string]string{"hidden": "true"}}, keys...)

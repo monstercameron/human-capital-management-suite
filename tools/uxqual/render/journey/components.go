@@ -66,8 +66,11 @@ const (
 
 // Field kind vocabulary.
 const (
-	fieldKindText     = "text"
-	fieldKindNumber   = "number"
+	fieldKindText   = "text"
+	fieldKindNumber = "number"
+	// fieldKindAmount is a pay amount typed as text in the locale's own
+	// separators (#3566). It is not type=number, which rejects a decimal comma.
+	fieldKindAmount   = "amount"
 	fieldKindDate     = "date"
 	fieldKindSelect   = "select"
 	fieldKindTextarea = "textarea"
@@ -1383,6 +1386,10 @@ func positionPickerField(l live, f Field) ui.Node {
 		Selected:    l.value(f),
 		EmptyTitle:  f.EmptyTitle,
 		EmptyDetail: f.EmptyDetail,
+		// #3565: the optional target position can be cleared to a choice that
+		// names no position. Its radio carries an empty value.
+		NoneLabel:  copy.Text("journey.form_position_clear"),
+		NoneDetail: copy.Text("journey.form_position_clear_detail"),
 	}
 	if l.controlled() {
 		id, change := f.ID, l.onFieldChange
@@ -1522,6 +1529,14 @@ func fieldNode(l live, f Field, formDisabled bool) ui.Node {
 		base.Placeholder = f.Placeholder
 		base.Step = f.Step
 		base.Min = f.Min
+		base.Raw = map[string]any{"inputmode": "decimal"}
+		control = html.Input(base)
+	case fieldKindAmount:
+		// #3566: a text box in the reader's own separators, with a decimal
+		// keypad on touch devices. Parsing and validation happen on submit.
+		base.Type = "text"
+		base.Value = value
+		base.Placeholder = f.Placeholder
 		base.Raw = map[string]any{"inputmode": "decimal"}
 		control = html.Input(base)
 	case fieldKindDate:

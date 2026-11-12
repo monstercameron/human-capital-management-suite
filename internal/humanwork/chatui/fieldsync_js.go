@@ -218,7 +218,7 @@ func installFieldSync() {
 					case selectValueAttr, selectVersionAttr:
 						applySelectValue(r.Get("target"))
 					default:
-						applyFieldValue(r.Get("target"))
+						applyFieldValue(r.Get("target"), false)
 					}
 					continue
 				}
@@ -559,7 +559,7 @@ func seedAllFields() {
 	}
 	found := doc.Call("querySelectorAll", "["+fieldValueAttr+"]")
 	for i := 0; i < found.Length(); i++ {
-		applyFieldValue(found.Index(i))
+		applyFieldValue(found.Index(i), true)
 		if id := found.Index(i).Get("id").String(); id == "chat-composer" || id == "thread-composer" {
 			setComposerSendReady(id, found.Index(i).Get("value").String())
 		}
@@ -603,7 +603,13 @@ func applySelectValue(el js.Value) {
 	}
 }
 
-func applyFieldValue(el js.Value) {
+// applyFieldValue writes the application's value into a box. sweep is true when
+// the write comes from a re-render sweep rather than a change of the attribute
+// itself: a sweep must not replace a draft the person typed in a box that has
+// since lost focus, while the application's value is still the one it was given
+// (issue #3629: a milestone title or due date reset on an unrelated composer
+// re-render). Each write records the value on the box as __chatApplied.
+func applyFieldValue(el js.Value, sweep bool) {
 	if !el.Truthy() || el.Get("getAttribute").IsUndefined() {
 		return
 	}
@@ -621,11 +627,13 @@ func applyFieldValue(el js.Value) {
 			if el.Get("value").String() != v {
 				el.Set("value", v)
 			}
+			el.Set("__chatApplied", v)
 			return
 		}
 	}
 	if el.Get("value").String() == v {
 		el.Set("__chatTyped", false)
+		el.Set("__chatApplied", v)
 		return
 	}
 	doc := js.Global().Get("document")
@@ -647,7 +655,12 @@ func applyFieldValue(el js.Value) {
 		}
 		return
 	}
+	applied := el.Get("__chatApplied")
+	if fieldDraftKept(sweep, el.Get("__chatTyped").Truthy(), applied.Type() == js.TypeString, applied.String(), v) {
+		return
+	}
 	el.Set("value", v)
+	el.Set("__chatApplied", v)
 	if focused {
 		// Keep the caret at the end of the new text instead of wherever the
 		// browser left it; the only application writes here are a clear after

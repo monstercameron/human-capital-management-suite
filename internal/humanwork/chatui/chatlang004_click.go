@@ -91,12 +91,17 @@ func chatlangClick(m Model, local localStore, action, id, extra string) bool {
 			m.Callbacks.OpenMenu("")
 		}
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.openFixer(id) })
+		// The menu item that opened the editor is gone with its menu, so focus
+		// would fall to the page; move it into the editor.
+		focusChatLanguageEditor(id)
 	case "chatlang-reword-edit", "chatlang-reword-send":
 		chattoneRewordClick(m, local, action, id)
 	case "chatlang-report-open", "chatlang-report-cancel", "chatlang-report-send", "chatlang-notice-show", "chatlang-notice-ok":
 		chatlangW10Click(m, local, action, id)
 	case "chatlang-fix-cancel":
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.openFixer("") })
+		// The editor leaves the page; focus returns to the message's More actions.
+		focusMessageAfterEdit(id)
 	case "chatlang-correct":
 		revision, ok := chatlangMessageRevision(m, id)
 		if !ok || !chatrender.Supported(extra) {
@@ -104,7 +109,13 @@ func chatlangClick(m Model, local localStore, action, id, extra string) bool {
 		}
 		local.update(func(u *localUI) { u.chatlang = u.chatlang.saving() })
 		chatlangCorrect(m.SelectedID, id, revision, extra, func(err error) {
-			ui.PostAsync(func() { local.update(func(u *localUI) { u.chatlang = u.chatlang.saved(err) }) })
+			ui.PostAsync(func() {
+				local.update(func(u *localUI) { u.chatlang = u.chatlang.saved(err) })
+				if err == nil {
+					// The editor closes on success; focus returns to the message.
+					focusMessageAfterEdit(id)
+				}
+			})
 		})
 	}
 	return true
@@ -131,4 +142,24 @@ func (c ReadingSettingsClient) CorrectLanguage(ctx context.Context, room, post s
 		return chatrender.ErrUnavailable
 	}
 	return nil
+}
+
+// chatlangEditorEscape reports whether a key press closes the language editor:
+// Escape, pressed inside an editor that is open.
+func chatlangEditorEscape(l chatlangLocal, key string, inEditor bool) bool {
+	return key == "Escape" && l.fixing != "" && inEditor
+}
+
+// chatlangEditorKey closes an open language editor on Escape, the same way
+// Cancel does, and returns focus to the message. It reports whether it handled
+// the press.
+func chatlangEditorKey(local localStore, e ui.KeyboardEvent) bool {
+	state := local.get().chatlang
+	if !chatlangEditorEscape(state, e.GetKey(), chatlangEventInEditor(e)) {
+		return false
+	}
+	id := state.fixing
+	local.update(func(u *localUI) { u.chatlang = u.chatlang.openFixer("") })
+	focusMessageAfterEdit(id)
+	return true
 }

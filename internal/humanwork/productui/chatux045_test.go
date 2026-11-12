@@ -49,7 +49,7 @@ func TestTodo_CHATUX_045_Integration(t *testing.T) {
 	for _, want := range []string{
 		`.brand-logo-slot{min-inline-size:34px;flex:none}`,
 		`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar{display:flex`,
-		`.topbar>:not(.notifications,.account-menu){display:none}`,
+		`.topbar>:not(.notifications,.account-menu){display:none!important}`,
 	} {
 		if !strings.Contains(shell, want) {
 			t.Errorf("chat shell sheet missing %.70q", want)

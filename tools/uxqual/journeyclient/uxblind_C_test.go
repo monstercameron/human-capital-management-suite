@@ -17,7 +17,7 @@ func TestTodo_UXBLIND_007(t *testing.T) {
 	options.PromotionPaths = []*journeyv1.PromotionPathOption{{
 		TargetJobCode: "PPL-HRBP3", TargetTitle: "Principal People Partner",
 	}}
-	field := uxlive011Field(t, ProposalForm(map[string]string{}, nil, "", options))
+	field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{}, nil, "", options))
 	if len(field.Vacancies) != 2 {
 		t.Fatalf("picker options = %+v, want both published open projections", field.Vacancies)
 	}
@@ -31,7 +31,7 @@ func TestTodo_UXBLIND_007(t *testing.T) {
 
 func TestTodo_UXBLIND_007_Browser(t *testing.T) {
 	options := uxlive011Options(uxlive011Vacancy("ref-open", "PPL-HRBP3", "Principal People Partner"))
-	field := uxlive011Field(t, ProposalForm(map[string]string{}, nil, "", options))
+	field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{}, nil, "", options))
 	for _, vacancy := range field.Vacancies {
 		if strings.TrimSpace(vacancy.Title) == "" || vacancy.Title == vacancy.JobCode {
 			t.Fatalf("browser option is not title-first: %+v", vacancy)
@@ -45,7 +45,7 @@ func TestTodo_UXBLIND_007_Property(t *testing.T) {
 		uxlive011Vacancy("ref-b", "PPL-HRBP3", "Principal People Partner"),
 	)
 	for _, vacancy := range options.GetPositionVacancies() {
-		field := uxlive011Field(t, ProposalForm(map[string]string{FieldPosition: vacancy.GetReference()}, nil, "", options))
+		field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldPosition: vacancy.GetReference()}, nil, "", options))
 		if field.Value != vacancy.GetReference() {
 			t.Fatalf("published open reference %q was not retained", vacancy.GetReference())
 		}
@@ -69,12 +69,12 @@ func TestTodo_UXBLIND_008(t *testing.T) {
 
 func TestTodo_UXBLIND_009(t *testing.T) {
 	options := testWorkforceOptions()
-	before := focusedProposalForm(nil, "omar-reyes", options, findWorker(testWorkers(), "omar-reyes"))
+	before := focusedProposalForm(clockTestNow, nil, "omar-reyes", options, findWorker(testWorkers(), "omar-reyes"))
 	grade, _ := fieldByID(before.Fields, FieldGrade)
 	if len(grade.Options) != 1 || grade.Options[0].Value != "" {
 		t.Fatalf("grade options before role = %+v, want only the prompt", grade.Options)
 	}
-	after := focusedProposalForm(map[string]string{FieldJobCode: "OPS-HRBP3"}, "omar-reyes", options, findWorker(testWorkers(), "omar-reyes"))
+	after := focusedProposalForm(clockTestNow, map[string]string{FieldJobCode: "OPS-HRBP3"}, "omar-reyes", options, findWorker(testWorkers(), "omar-reyes"))
 	grade, _ = fieldByID(after.Fields, FieldGrade)
 	if len(grade.Options) != 2 || grade.Options[1].Value != "P3" || !grade.Options[1].Selected {
 		t.Fatalf("grade options after role = %+v, want selected P3 only", grade.Options)
@@ -82,11 +82,11 @@ func TestTodo_UXBLIND_009(t *testing.T) {
 }
 
 func TestTodo_UXBLIND_011(t *testing.T) {
-	form := ProposalForm(map[string]string{}, testWorkers(), "omar-reyes", testWorkforceOptions())
+	form := ProposalForm(clockTestNow, map[string]string{}, testWorkers(), "omar-reyes", testWorkforceOptions())
 	if form.Submit != productui.ResolveProductLocale("").Text("journey.form_submit") {
 		t.Fatalf("proposal action = %q, want the review action", form.Submit)
 	}
-	actions := actionsLocale("en-US", journey.JourneyCard{IntentID: testIntentID, Stage: stageProposed}, "", nil, nil, nil, nil)
+	actions := actionsLocale(clockTestNow, "en-US", journey.JourneyCard{IntentID: testIntentID, Stage: stageProposed}, "", nil, nil, nil, nil)
 	if len(actions) == 0 || actions[0].Label != "Start approval workflow" || !strings.Contains(actions[0].Description, "not record") {
 		t.Fatalf("saved proposal next step = %+v, want one explicit approval step", actions)
 	}
@@ -94,7 +94,7 @@ func TestTodo_UXBLIND_011(t *testing.T) {
 
 func TestTodo_UXBLIND_012_Browser(t *testing.T) {
 	values := map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "150000.00", FieldEffective: "2026-12-01", FieldReason: "Expanded scope"}
-	form := focusedProposalForm(values, "omar-reyes", testWorkforceOptions(), findWorker(testWorkers(), "omar-reyes"))
+	form := focusedProposalForm(clockTestNow, values, "omar-reyes", testWorkforceOptions(), findWorker(testWorkers(), "omar-reyes"))
 	position, ok := fieldByID(form.Fields, FieldPosition)
 	if !ok {
 		t.Fatal("proposal form has no target-position field")

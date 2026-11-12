@@ -185,3 +185,20 @@ func TestTodo_CHATUX_008_Accessibility(t *testing.T) {
 		})
 	}
 }
+
+// TestTodo_GH3598: at phone widths the thread header keeps the short "Thread"
+// title whole. The channel link is the part that truncates, and the close
+// button is icon-only with its accessible name kept.
+func TestTodo_GH3598_ThreadHeaderPhone(t *testing.T) {
+	const phoneClose = "@media(max-width:767px){.chat-workspace .thread-back-label{display:none}}"
+	if !strings.Contains(ChatUX032Styles, phoneClose) {
+		t.Errorf("the phone thread header still shows the close label")
+	}
+	if !strings.Contains(ChatUX032Styles, ".chat-panel-head .thread-heading-text h2{flex:0 0 auto}") {
+		t.Errorf("the thread title can shrink to an ellipsis at phone widths")
+	}
+	pane := chatux008Pane(t, chatux008Model(false))
+	if !strings.Contains(pane, `class="icon-button chat-panel-close thread-back"`) || !strings.Contains(pane, `aria-label="Close thread"`) {
+		t.Errorf("the close button lost its class or accessible name: %s", pane)
+	}
+}

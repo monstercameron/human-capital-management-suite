@@ -102,7 +102,8 @@ func uxlive038Markup(t *testing.T) string {
 
 func TestTodo_UXLIVE_038_Integration(t *testing.T) {
 	markup := uxlive038Markup(t)
-	if strings.Count(markup, `type="radio"`) != 2 || strings.Count(markup, `name="desired_position_id"`) != 2 {
+	// Two vacancies plus the clear choice (#3565) make three bound radios.
+	if strings.Count(markup, `type="radio"`) != 3 || strings.Count(markup, `name="desired_position_id"`) != 3 {
 		t.Fatalf("position choices are not a complete bound radio group:\n%s", markup)
 	}
 }

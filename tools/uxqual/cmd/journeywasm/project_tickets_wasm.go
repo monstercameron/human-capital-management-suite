@@ -121,6 +121,13 @@ func loadProjectTickets(ctx context.Context, cfg journeyclient.Config, service p
 		}
 	}
 	list.Total = len(rows)
+	// Counted before the address filters so "My tickets" can tell a
+	// filtered-out result from having nothing assigned.
+	for _, row := range rows {
+		if cfg.Subject != "" && row.ticket.AssigneeID == cfg.Subject && row.category != projectclient.CategoryDone {
+			list.AssignedOpen++
+		}
+	}
 	// The address's filters narrow the rows here; the search box and paging
 	// run in the page over what is left, so typing is instant.
 	matched := rows[:0:0]

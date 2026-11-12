@@ -7,7 +7,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/workorderbilling"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/workorderbilling/billview"
 )
 
 // smbBill002Labels carries the fixed drawer labels. Quantities and money
@@ -56,7 +56,7 @@ func smbBill002Text(locale, key string) string {
 // needing attention with exact reasons, the server totals preview, an
 // availability-change notice that retains selections, and the review-draft
 // link. The heading is the post-action focus target.
-func SMBBillClaimsCard(views []workorderbilling.BillSourceView, preview *workorderbilling.BillPreview, conflict bool, draftLink, locale string) ui.Node {
+func SMBBillClaimsCard(views []billview.BillSourceView, preview *billview.BillPreview, conflict bool, draftLink, locale string) ui.Node {
 	text := func(key string) string { return smbBill002Text(locale, key) }
 	props := html.Props{Class: "smb-bill-claims-card", ID: "smb-bill-claims"}
 	if strings.HasPrefix(locale, "ar") {
@@ -65,7 +65,7 @@ func SMBBillClaimsCard(views []workorderbilling.BillSourceView, preview *workord
 	} else {
 		props.Lang = locale
 	}
-	var eligible, attention []workorderbilling.BillSourceView
+	var eligible, attention []billview.BillSourceView
 	for _, view := range views {
 		if view.Eligible {
 			eligible = append(eligible, view)
@@ -105,7 +105,7 @@ func SMBBillClaimsCard(views []workorderbilling.BillSourceView, preview *workord
 	return html.Section(props, nodes...)
 }
 
-func smbBill002Table(views []workorderbilling.BillSourceView, text func(string) string, selectable bool) ui.Node {
+func smbBill002Table(views []billview.BillSourceView, text func(string) string, selectable bool) ui.Node {
 	header := html.Tr(html.Props{},
 		html.Th(html.Props{}, ui.Text(text("select"))),
 		html.Th(html.Props{}, ui.Text(text("source"))),
@@ -158,7 +158,7 @@ func smbBill002Table(views []workorderbilling.BillSourceView, text func(string) 
 		html.Tbody(html.Props{}, rows...))
 }
 
-func smbBill002Rate(view workorderbilling.BillSourceView) string {
+func smbBill002Rate(view billview.BillSourceView) string {
 	ref := strings.TrimSpace(view.RateRef)
 	ref = strings.TrimPrefix(ref, "rate:")
 	if ref == "" {

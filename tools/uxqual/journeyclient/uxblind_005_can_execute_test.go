@@ -21,7 +21,7 @@ func TestTodo_UXBLIND_005_CanExecute(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
 		detail.Journey.Viewer = initiator
 		detail.CanExecute = false
-		page := DetailPageWithInterventions(testConfig(), detail, nil, nil, preview, preview, nil)
+		page := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil, preview, preview, nil)
 		for _, action := range page.Detail.Actions {
 			if action.ID == ActionExecute {
 				t.Fatalf("unauthorized initiator was offered the start: %+v", page.Detail.Actions)
@@ -33,7 +33,7 @@ func TestTodo_UXBLIND_005_CanExecute(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
 		detail.Journey.Viewer = initiator
 		detail.CanExecute = true
-		page := DetailPageWithInterventions(testConfig(), detail, nil, nil, preview, preview, nil)
+		page := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil, preview, preview, nil)
 		for _, action := range page.Detail.Actions {
 			if action.ID == ActionExecute {
 				return
@@ -46,7 +46,7 @@ func TestTodo_UXBLIND_005_CanExecute(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
 		detail.Journey.Viewer = &journeyv1.JourneyViewerProjection{}
 		detail.CanExecute = true
-		page := DetailPageWithInterventions(testConfig(), detail, nil, nil, nil, nil, nil)
+		page := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil, nil, nil, nil)
 		for _, action := range page.Detail.Actions {
 			if action.ID == ActionExecute {
 				return
@@ -57,7 +57,7 @@ func TestTodo_UXBLIND_005_CanExecute(t *testing.T) {
 
 	t.Run("legacy fixtures without a viewer keep their shape", func(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
-		page := DetailPageWithInterventions(testConfig(), detail, nil, nil, nil, nil, nil)
+		page := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil, nil, nil, nil)
 		for _, action := range page.Detail.Actions {
 			if action.ID == ActionExecute {
 				return

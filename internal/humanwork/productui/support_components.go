@@ -214,7 +214,7 @@ func KnowledgeSearchPage(props KnowledgeSearchPageProps) ui.Node {
 }
 
 func HRServiceRequestPage(props HRServiceRequestPageProps) ui.Node {
-	categoryOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(props.CategoryPlaceholder))}
+	categoryOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(props.CategoryPlaceholder))}
 	for _, option := range props.Categories {
 		categoryOptions = append(categoryOptions, html.Option(html.Props{Value: option.Value}, ui.Text(option.Label)))
 	}

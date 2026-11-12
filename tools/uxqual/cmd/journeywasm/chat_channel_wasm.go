@@ -53,6 +53,14 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 	id, hash := currentChatChannelFragment()
 	if id == "" {
 		resetChatChannelFragment()
+		// A refused channel address that was removed leaves its refusal on the
+		// page; the ordinary Chat state is restored here (issue 3603).
+		var cleared bool
+		chatBrowser.mutate(func(model *chatui.Model) { cleared = chatui.ClearRefusedChannel(model) })
+		if cleared {
+			chatHistory.replace(chatBrowser.snapshot())
+			refreshChatRoute()
+		}
 		return
 	}
 	active := chatBrowser.config(cfg)

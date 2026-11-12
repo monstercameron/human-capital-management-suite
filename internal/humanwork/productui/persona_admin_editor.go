@@ -17,7 +17,7 @@ func PersonaAdminEditor(locale LocaleContext, client PersonaAdminClient, snapsho
 	ready := client != nil && len(starters) > 0
 	options := make([]ui.Node, 0, len(starters)+1)
 	if !ready {
-		options = append(options, html.Option(html.Props{Value: "", Disabled: true, Selected: true}, ui.Text(personaAdminEditorText(locale, personaAdminStarterStatusKey(snapshot)))))
+		options = append(options, html.Option(html.Props{Raw: map[string]any{"value": ""}, Disabled: true, Selected: true}, ui.Text(personaAdminEditorText(locale, personaAdminStarterStatusKey(snapshot)))))
 	}
 	for _, starter := range starters {
 		options = append(options, html.Option(html.Props{Value: starter.ID, Raw: map[string]any{"data-starter-name": starter.Name, "data-starter-handle": starter.Handle, "data-starter-purpose": starter.Purpose, "data-starter-version": starter.Version, "data-starter-manifest": starter.ManifestID, "data-starter-channels": strings.Join(starter.ChannelClasses, ","), "data-starter-instructions": starter.Instructions}}, ui.Text(starter.Name)))

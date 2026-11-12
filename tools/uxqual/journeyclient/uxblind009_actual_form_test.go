@@ -18,7 +18,7 @@ func TestTodo_UXBLIND_009_ActualProposalForm(t *testing.T) {
 
 	gradeOptions := func(values map[string]string) (string, []journey.Option) {
 		t.Helper()
-		form := ProposalForm(values, workers, worker.GetWorkerRef(), options)
+		form := ProposalForm(clockTestNow, values, workers, worker.GetWorkerRef(), options)
 		field, ok := fieldByID(form.Fields, FieldGrade)
 		if !ok {
 			t.Fatal("actual proposal form has no target-grade field")

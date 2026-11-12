@@ -440,3 +440,17 @@ func TestTodo_CHATSAVE_002_Accessibility(t *testing.T) {
 		t.Errorf("the panel's styles are not in the workspace stylesheet")
 	}
 }
+
+// TestTodo_CHATSAVE_002_GH3597: the phone Saved item actions keep the 44 px
+// target. The 24 px row rule for desktop pointers must stay behind a fine
+// pointer and a width above the phone breakpoint, or it wins over the phone rule.
+func TestTodo_CHATSAVE_002_GH3597(t *testing.T) {
+	const desktop = "@media(min-width:761px) and (pointer:fine){.chat-workspace .chatsave-actions .message-action{height:24px;min-height:24px}}"
+	if !strings.Contains(agentux063StateStyles, desktop) {
+		t.Errorf("the 24 px saved action rule is not limited to desktop pointers")
+	}
+	phone := ".chatsave-actions .message-action{width:44px;min-width:44px;height:44px;min-height:44px}"
+	if !strings.Contains(Stylesheet, phone) {
+		t.Errorf("the phone saved action target is missing from the stylesheet")
+	}
+}

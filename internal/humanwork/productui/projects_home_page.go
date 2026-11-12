@@ -138,7 +138,13 @@ func projectRouteHref(view View, taskID, cursor string, mode projectui.ViewMode)
 
 func projectsPage(view View) ui.Node {
 	copy := projectPageCopy(view.Locale)
-	if view.ProjectsState == ProjectProjectionRestricted || view.ProjectsState == ProjectProjectionUnavailable {
+	// A restricted home read is an access answer, not a disabled capability:
+	// it gets the same neutral treatment as a restricted board (#3426).
+	if view.ProjectsState == ProjectProjectionRestricted {
+		return html.Section(html.Props{Class: "project-page-home", Role: "region", Aria: map[string]string{"label": view.Title}},
+			html.H1(html.Props{Text: view.Title}), html.P(html.Props{Role: "status", Class: "project-page-notice", Text: copy.projectUnavailable}))
+	}
+	if view.ProjectsState == ProjectProjectionUnavailable {
 		return html.Section(html.Props{Class: "project-page-home", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
 	}
 	heading := []ui.Node{html.H1(html.Props{Text: view.Title})}
@@ -251,7 +257,15 @@ func projectPage(view View) ui.Node {
 			softwareLink(view.Navigate, html.Props{Class: "project-page-open"}, Path(PageProjects), html.Span(html.Props{Text: copy.openProjects})),
 		)
 	}
-	if view.ProjectBoardState == ProjectProjectionRestricted || view.ProjectBoardState == ProjectProjectionUnavailable {
+	// A restricted read is an authorization or not-found answer for this one
+	// project, not a disabled capability: say so neutrally and link back.
+	if view.ProjectBoardState == ProjectProjectionRestricted {
+		return html.Section(html.Props{Class: "project-page project-page-state", Role: "region", Aria: map[string]string{"label": view.Title}},
+			html.H1(html.Props{Text: view.Title}), html.P(html.Props{Role: "status", Class: "project-page-notice", Text: copy.projectUnavailable}),
+			softwareLink(view.Navigate, html.Props{Class: "project-page-open"}, Path(PageProjects), html.Span(html.Props{Text: copy.openProjects})),
+		)
+	}
+	if view.ProjectBoardState == ProjectProjectionUnavailable {
 		return html.Section(html.Props{Class: "project-page project-page-state", Role: "region", Aria: map[string]string{"label": view.Title}}, capabilityUnavailableFrame(view))
 	}
 	if view.ProjectBoardState != ProjectProjectionReady {
@@ -298,8 +312,10 @@ func projectPage(view View) ui.Node {
 	}
 	// The view switch is a segmented control: the current view is marked
 	// aria-current and the other is a canonical link that keeps selectors.
-	boardHref := projectWithFilter(ProjectViewHref(view.ProjectID, view.ProjectTaskID, view.ProjectBoardViewID, view.ProjectCursor, projectui.ViewBoard), view.ProjectBoard)
-	listHref := projectWithFilter(ProjectViewHref(view.ProjectID, view.ProjectTaskID, view.ProjectBoardViewID, view.ProjectCursor, projectui.ViewList), view.ProjectBoard)
+	// projectRouteHref carries the shell's locale, menu and navigation state
+	// together with the board's filter and query, so a switch keeps them.
+	boardHref := projectRouteHref(view, view.ProjectTaskID, view.ProjectCursor, projectui.ViewBoard)
+	listHref := projectRouteHref(view, view.ProjectTaskID, view.ProjectCursor, projectui.ViewList)
 	segment := func(mode projectui.ViewMode, href, label string) ui.Node {
 		props := html.Props{Class: "project-page-segment", Data: map[string]string{"view": string(mode)}, Aria: map[string]string{"label": copy.switchView(mode)}}
 		if board.Mode == mode || board.Mode == "" && mode == projectui.ViewBoard {
@@ -674,22 +690,6 @@ func projectActivityVerb(key string) string {
 	return ""
 }
 
-// projectWithFilter carries the board's quick filter and search into a
-// board, list or task address, so moving between views keeps them.
-func projectWithFilter(href string, board *projectui.Model) string {
-	if href == "" || board == nil || board.RouteFilter == "" && board.RouteQuery == "" {
-		return href
-	}
-	values := url.Values{}
-	if board.RouteFilter != "" {
-		values.Set("filter", board.RouteFilter)
-	}
-	if board.RouteQuery != "" {
-		values.Set("q", board.RouteQuery)
-	}
-	return href + "&" + values.Encode()
-}
-
 // projectActivityKey maps a service activity kind to its sentence. Unknown
 // kinds read as a general update rather than exposing the kind name.
 func projectActivityKey(kind string) string {
@@ -843,11 +843,11 @@ func projectTaskCreateForm(copy projectPageCopyText, projectID string, board pro
 		projectPopoverHead(copy.newTask, copy.closeDetail),
 		projectField(
 			html.Label(html.Props{For: "project-task-create-title", Text: copy.taskTitle}),
-			html.Input(html.Props{ID: "project-task-create-title", Name: "title", Type: "text", Required: true, MaxLength: 200, Disabled: !ready, Data: map[string]string{"autofocus": "true"}, Aria: map[string]string{"label": copy.taskTitle}}),
+			html.Input(html.Props{ID: "project-task-create-title", Name: "title", Type: "text", Required: true, MaxLength: 200, Disabled: !ready, Data: map[string]string{"autofocus": "true", "saved-value": ""}, Aria: map[string]string{"label": copy.taskTitle}}),
 		),
 		projectField(
 			html.Label(html.Props{For: "project-task-create-description", Text: copy.taskDescription}),
-			html.Textarea(html.Props{ID: "project-task-create-description", Name: "description", MaxLength: 8000, Rows: 3, Disabled: !ready, Aria: map[string]string{"label": copy.taskDescription}}),
+			html.Textarea(html.Props{ID: "project-task-create-description", Name: "description", MaxLength: 8000, Rows: 3, Disabled: !ready, Data: map[string]string{"saved-value": ""}, Aria: map[string]string{"label": copy.taskDescription}}),
 		),
 	}
 	statuses := make([]projectui.Status, 0)
@@ -866,7 +866,7 @@ func projectTaskCreateForm(copy projectPageCopyText, projectID string, board pro
 		for i, status := range statuses {
 			options = append(options, html.Option(html.Props{Value: status.ID, Selected: i == 0, Text: status.Label}))
 		}
-		pair = append(pair, projectField(html.Label(html.Props{For: "project-task-create-status", Text: copy.initialStatus}), html.Select(html.Props{ID: "project-task-create-status", Name: "initial-status-id", Disabled: !ready, Aria: map[string]string{"label": copy.initialStatus}}, options...)))
+		pair = append(pair, projectField(html.Label(html.Props{For: "project-task-create-status", Text: copy.initialStatus}), html.Select(html.Props{ID: "project-task-create-status", Name: "initial-status-id", Disabled: !ready, Data: map[string]string{"saved-value": statuses[0].ID}, Aria: map[string]string{"label": copy.initialStatus}}, options...)))
 	}
 	assignees := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: true, Text: copy.unassigned})}
 	for _, person := range board.Members {
@@ -874,14 +874,14 @@ func projectTaskCreateForm(copy projectPageCopyText, projectID string, board pro
 			assignees = append(assignees, html.Option(html.Props{Value: person.ID, Text: person.Name}))
 		}
 	}
-	pair = append(pair, projectField(html.Label(html.Props{For: "project-task-create-assignee", Text: copy.assignee}), html.Select(html.Props{ID: "project-task-create-assignee", Name: "assignee-id", Disabled: !ready}, assignees...)))
+	pair = append(pair, projectField(html.Label(html.Props{For: "project-task-create-assignee", Text: copy.assignee}), html.Select(html.Props{ID: "project-task-create-assignee", Name: "assignee-id", Disabled: !ready, Data: map[string]string{"saved-value": ""}}, assignees...)))
 	priorities := []ui.Node{}
 	for _, level := range []string{"LOW", "NORMAL", "HIGH", "URGENT"} {
 		priorities = append(priorities, html.Option(html.Props{Value: "TASK_PRIORITY_" + level, Selected: level == "NORMAL", Text: copy.priority(level)}))
 	}
 	pair = append(pair,
-		projectField(html.Label(html.Props{For: "project-task-create-priority", Text: copy.priorityLabel}), html.Select(html.Props{ID: "project-task-create-priority", Name: "priority", Disabled: !ready}, priorities...)),
-		projectField(html.Label(html.Props{For: "project-task-create-due", Text: copy.dueDate}), html.Input(html.Props{ID: "project-task-create-due", Name: "due-date", Type: "date", Disabled: !ready})),
+		projectField(html.Label(html.Props{For: "project-task-create-priority", Text: copy.priorityLabel}), html.Select(html.Props{ID: "project-task-create-priority", Name: "priority", Disabled: !ready, Data: map[string]string{"saved-value": "TASK_PRIORITY_NORMAL"}}, priorities...)),
+		projectField(html.Label(html.Props{For: "project-task-create-due", Text: copy.dueDate}), html.Input(html.Props{ID: "project-task-create-due", Name: "due-date", Type: "date", Disabled: !ready, Data: map[string]string{"saved-value": ""}})),
 	)
 	children = append(children, html.Div(html.Props{Class: "project-page-field-pair"}, pair...))
 	children = append(children, projectFormActions(projectCancelButton(copy.cancel), html.Button(html.Props{Class: "button primary", Type: "submit", Disabled: !ready, Text: copy.createTask})))
@@ -922,7 +922,7 @@ func projectBoardSettingsForm(copy projectPageCopyText, projectID string, board 
 	}
 	fieldControl := projectField(
 		html.Label(html.Props{For: "project-board-swimlane-field", Text: copy.swimlaneField}),
-		html.Select(html.Props{ID: "project-board-swimlane-field", Name: "swimlane-field-id", Disabled: disabled || len(board.EnumFields) == 0, Aria: map[string]string{"label": copy.swimlaneFieldID}}, fieldOptions...),
+		html.Select(html.Props{ID: "project-board-swimlane-field", Name: "swimlane-field-id", Disabled: disabled || len(board.EnumFields) == 0, Data: map[string]string{"saved-value": board.SwimlaneFieldID}, Aria: map[string]string{"label": copy.swimlaneFieldID}}, fieldOptions...),
 	)
 	if len(board.EnumFields) == 0 {
 		fieldControl = html.Div(html.Props{Class: "project-page-field"}, html.P(html.Props{Class: "project-page-form-note", Text: copy.noEnumFields}), html.Input(html.Props{ID: "project-board-swimlane-field", Name: "swimlane-field-id", Type: "hidden", Raw: map[string]any{"value": board.SwimlaneFieldID}}))
@@ -930,11 +930,11 @@ func projectBoardSettingsForm(copy projectPageCopyText, projectID string, board 
 	children = append(children,
 		projectField(
 			html.Label(html.Props{For: "project-board-view-name", Text: copy.boardName}),
-			html.Input(html.Props{ID: "project-board-view-name", Name: "name", Type: "text", Value: board.Title, Required: true, MaxLength: 200, Disabled: disabled, Data: map[string]string{"autofocus": "true"}, Aria: map[string]string{"label": copy.boardName}}),
+			html.Input(html.Props{ID: "project-board-view-name", Name: "name", Type: "text", Value: board.Title, Required: true, MaxLength: 200, Disabled: disabled, Data: map[string]string{"autofocus": "true", "saved-value": board.Title}, Aria: map[string]string{"label": copy.boardName}}),
 		),
 		projectField(
 			html.Label(html.Props{For: "project-board-swimlane-grouping", Text: copy.swimlaneGrouping}),
-			html.Select(html.Props{ID: "project-board-swimlane-grouping", Name: "swimlane-grouping", Disabled: disabled, Aria: map[string]string{"label": copy.swimlaneGrouping}}, options...),
+			html.Select(html.Props{ID: "project-board-swimlane-grouping", Name: "swimlane-grouping", Disabled: disabled, Data: map[string]string{"saved-value": board.SwimlaneGrouping}, Aria: map[string]string{"label": copy.swimlaneGrouping}}, options...),
 		),
 		html.Div(html.Props{Class: "project-page-field-custom"}, fieldControl),
 		html.H3(html.Props{Class: "project-page-form-section", Text: copy.columns}),
@@ -961,7 +961,7 @@ func projectBoardSettingsForm(copy projectPageCopyText, projectID string, board 
 		for statusIndex, status := range statuses {
 			id := fmt.Sprintf("project-board-column-status-%d-%d", index, statusIndex)
 			boxes = append(boxes, html.Label(html.Props{For: id, Class: "project-page-check"},
-				html.Input(html.Props{ID: id, Type: "checkbox", Name: fmt.Sprintf("column-status-%d", index), Value: status.ID, Checked: mapped[status.ID], Disabled: disabled}),
+				html.Input(html.Props{ID: id, Type: "checkbox", Name: fmt.Sprintf("column-status-%d", index), Value: status.ID, Checked: mapped[status.ID], Disabled: disabled, Data: map[string]string{"saved-checked": strconv.FormatBool(mapped[status.ID])}}),
 				html.Span(html.Props{Text: status.Label}),
 			))
 		}
@@ -969,7 +969,7 @@ func projectBoardSettingsForm(copy projectPageCopyText, projectID string, board 
 			html.Legend(html.Props{Class: "projectui-sr", Text: copy.columnName(index + 1)}),
 			projectField(
 				html.Label(html.Props{For: fmt.Sprintf("project-board-column-name-%d", index), Text: copy.columnName(index + 1)}),
-				html.Input(html.Props{ID: fmt.Sprintf("project-board-column-name-%d", index), Name: fmt.Sprintf("column-name-%d", index), Type: "text", Value: column.Label, Required: true, MaxLength: 100, Disabled: disabled}),
+				html.Input(html.Props{ID: fmt.Sprintf("project-board-column-name-%d", index), Name: fmt.Sprintf("column-name-%d", index), Type: "text", Value: column.Label, Required: true, MaxLength: 100, Disabled: disabled, Data: map[string]string{"saved-value": column.Label}}),
 			),
 			html.Div(html.Props{Class: "project-page-checks", Role: "group", Aria: map[string]string{"label": copy.columnStatuses(index + 1)}}, boxes...),
 		))
@@ -1130,7 +1130,7 @@ func projectBoardCopy(locale LocaleContext) projectui.Copy {
 			Range: func(from, to, total int) string {
 				return locale.Text("projects.page_range", map[string]string{"from": locale.FormatNumber(strconv.Itoa(from), 0), "to": locale.FormatNumber(strconv.Itoa(to), 0), "count": locale.FormatNumber(strconv.Itoa(total), 0)})
 			},
-			MyTickets: text("projectui.my_tickets"), AllTickets: text("projectui.all_tickets"), MyTicketsEmpty: text("projectui.my_tickets_empty"), MyTicketsEmptyHint: text("projectui.my_tickets_empty_hint"), Later: text("projectui.later"),
+			MyTickets: text("projectui.my_tickets"), AllTickets: text("projectui.all_tickets"), MyTicketsEmpty: text("projectui.my_tickets_empty"), MyTicketsFiltered: text("projectui.my_tickets_filtered"), MyTicketsEmptyHint: text("projectui.my_tickets_empty_hint"), Later: text("projectui.later"),
 			Points: func(n int) string {
 				return locale.Text("projectui.points_short", map[string]string{"count": locale.FormatNumber(strconv.Itoa(n), 0)})
 			},
@@ -1252,6 +1252,11 @@ const projectPageStyles = `
 .project-page-disclosure>summary:hover{background:var(--hcm-hover-surface)}
 .project-page-disclosure>summary::after{content:"";inline-size:.375rem;block-size:.375rem;margin-inline-start:.125rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-.1rem) rotate(45deg);opacity:.7;transition:transform var(--hcm-motion-fast) var(--hcm-motion-easing)}
 .project-page-disclosure[open]>summary::after{transform:translateY(.1rem) rotate(225deg)}
+@media (max-width:40rem){
+.project-page-board .projectui-actions>.project-page-disclosure:is(.project-page-settings-disclosure,.project-page-create-disclosure){flex:1 1 100%;min-inline-size:0;max-inline-size:100%}
+.project-page-board .projectui-actions .project-page-disclosure>summary{white-space:normal;max-inline-size:100%;min-block-size:2.75rem;text-align:start;overflow-wrap:anywhere}
+.project-page-board .projectui-actions .project-page-segment{white-space:normal;min-inline-size:0;text-align:center}
+}
 .project-page-create-disclosure>summary{border-color:transparent;background:var(--accent);color:var(--on-brand)}
 .project-page-create-disclosure>summary:hover{background:var(--accent-hover)}
 .project-page-create-disclosure>summary::before{content:"+";font-size:1.125rem;font-weight:500;line-height:0;margin-inline-end:-.1rem}

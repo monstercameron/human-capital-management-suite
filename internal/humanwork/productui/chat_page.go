@@ -42,7 +42,7 @@ func ChatDocDateLabel(locale LocaleContext, at, now time.Time) string {
 // BuildChatPage completes a chat model with what the view knows (locale,
 // direction, viewer, catalog) and builds the workspace.
 func BuildChatPage(view View, model chatui.Model) ui.Node {
-	if model.State == chatui.StateError && len(model.Conversations) == 0 && len(model.Messages) == 0 {
+	if model.State == chatui.StateError && len(model.Conversations) == 0 && len(model.Messages) == 0 && model.SelectedID == "" {
 		return capabilityUnavailableFrame(view)
 	}
 	if model.State == "" {
@@ -117,7 +117,11 @@ const chatPhoneShellStylesheet = "@media(max-width:760px){" +
 	// workspace bar becomes a fixed strip at the end of the list's bar that
 	// holds only those two; the list leaves room for them (ChatUX045Styles).
 	`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar{display:flex;align-items:center;position:fixed;inset-block-start:0;inset-inline-end:0;inline-size:auto;block-size:52px;padding:0;gap:0;border:0;background:transparent;box-shadow:none;z-index:1250}` +
-	`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar>:not(.notifications,.account-menu){display:none}` +
+	// The shell's brand cluster is forced to display:grid!important under 760px
+	// (typed_mig_B), so only an important declaration hides it here; a plain
+	// display:none let the brand link paint over the list heading (CHATUX-038/045
+	// overlap, #3607).
+	`.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar>:not(.notifications,.account-menu){display:none!important}` +
 	"}" +
 	// The brand mark is 34 px at tablet widths; its slot is as wide as the
 	// mark, so no neighbour can take the width the mark sits in.

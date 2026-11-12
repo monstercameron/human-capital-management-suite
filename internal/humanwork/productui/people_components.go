@@ -309,11 +309,13 @@ func peopleFilterQueryShouldNavigate(routeChanged bool, routeQuery, localQuery, 
 }
 
 func peopleFilterForm(props PeopleFilterProps, input ui.Node, teamProps, locationProps, eligibleProps, formProps html.Props) ui.Node {
-	teamOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: props.Team == ""}, ui.Text(props.Text("people.all_teams")))}
+	// Props.Value="" is dropped by the html package, which would render the label
+	// as the submitted value; Raw["value"] keeps the explicit empty value attribute.
+	teamOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: props.Team == ""}, ui.Text(props.Text("people.all_teams")))}
 	for _, option := range props.Teams {
 		teamOptions = append(teamOptions, html.Option(html.Props{Value: option.Value, Selected: props.Team == option.Value}, ui.Text(option.Label)))
 	}
-	locationOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: props.Location == ""}, ui.Text(props.Text("people.all_locations")))}
+	locationOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: props.Location == ""}, ui.Text(props.Text("people.all_locations")))}
 	for _, option := range props.Locations {
 		locationOptions = append(locationOptions, html.Option(html.Props{Value: option.Value, Selected: props.Location == option.Value}, ui.Text(option.Label)))
 	}

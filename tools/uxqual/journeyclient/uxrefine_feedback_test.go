@@ -12,7 +12,7 @@ import (
 // cancellation explanation reach the same rendered page a browser mounts.
 func TestTodo_UXBLIND_048_Browser(t *testing.T) {
 	finance := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL)
-	markup, err := journey.RenderToString(DetailPage(testConfig(), finance, nil, nil))
+	markup, err := journey.RenderToString(DetailPage(clockTestNow, testConfig(), finance, nil, nil))
 	if err != nil {
 		t.Fatalf("RenderToString finance approval: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestTodo_UXBLIND_048_Browser(t *testing.T) {
 	}
 
 	waiting := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE)
-	waitingMarkup, err := journey.RenderToString(DetailPage(testConfig(), waiting, nil, nil))
+	waitingMarkup, err := journey.RenderToString(DetailPage(clockTestNow, testConfig(), waiting, nil, nil))
 	if err != nil {
 		t.Fatalf("RenderToString waiting journey: %v", err)
 	}
@@ -52,7 +52,12 @@ func TestTodo_UXBLIND_049_Browser(t *testing.T) {
 		CompensationGuardrail: &journeyv1.JourneyCompensationGuardrail{CurrentAnnualized: "71760.00"},
 	}
 
-	page := DetailPage(testConfig(), detail, nil, nil)
+	// The hourly annualization runs over the promotion path's own hours, which
+	// the page reads from the workforce options (#3636).
+	options := &journeyv1.WorkforceOptions{PromotionPaths: []*journeyv1.PromotionPathOption{
+		{SourceJobCode: "OPS-HRBP2", SourceGrade: "P2", TargetJobCode: "OPS-HRBP3", TargetGrade: "P3", AnnualizationHours: 2080},
+	}}
+	page := DetailPageWithInterventions(clockTestNow, testConfig(), detail, nil, nil, nil, nil, nil, options)
 	markup, err := journey.RenderToString(page)
 	if err != nil {
 		t.Fatalf("RenderToString finance review: %v", err)

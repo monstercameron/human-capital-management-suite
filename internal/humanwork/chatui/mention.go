@@ -654,27 +654,45 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 		direction = "rtl"
 	}
 	// CHATBUG-044: the rows scroll above a fixed hint line.
-	return chatbug044Menu(target+"-mentions", direction, mentionMenuText(m, KeyMentionMenu), rows, agentMentionKeyboardHint(m.Locale, state.Details))
+	return chatbug044Menu(target+"-mentions", direction, mentionMenuText(m, KeyMentionMenu), rows, agentMentionKeyboardHint(m.Locale, state.Details, mentionOptionIsAgent(options, state.Active)))
 }
 
-func mentionHintText(locale string, details bool) string {
+// mentionOptionIsAgent reports whether the highlighted option is an agent. Only
+// agents have a details view, so only they are offered the Tab hint.
+func mentionOptionIsAgent(options []mentionOption, index int) bool {
+	return index >= 0 && index < len(options) && options[index].persona != nil
+}
+
+// mentionHintText is the footer for the open menu. Tab opens details only for
+// an agent option; for a person it inserts, as Enter does, so the Tab hint is
+// shown only while an agent is highlighted.
+func mentionHintText(locale string, details, agent bool) string {
 	if details {
 		switch {
 		case strings.HasPrefix(strings.ToLower(locale), "de"):
-			return "Esc zur\u00fcck"
+			return "Esc zurück"
 		case strings.HasPrefix(strings.ToLower(locale), "ar"):
-			return "Esc \u0631\u062c\u0648\u0639"
+			return "Esc رجوع"
 		default:
 			return "Esc back"
 		}
 	}
 	switch {
 	case strings.HasPrefix(strings.ToLower(locale), "de"):
-		return "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen"
+		if agent {
+			return "↑↓ bewegen · Enter zum Einfügen · Tab für Details · Esc zum Schließen"
+		}
+		return "↑↓ bewegen · Enter zum Einfügen · Esc zum Schließen"
 	case strings.HasPrefix(strings.ToLower(locale), "ar"):
-		return "↑↓ للتنقل · Enter للإدراج · Tab للتفاصيل · Esc للإغلاق"
+		if agent {
+			return "↑↓ للتنقل · Enter للإدراج · Tab للتفاصيل · Esc للإغلاق"
+		}
+		return "↑↓ للتنقل · Enter للإدراج · Esc للإغلاق"
 	default:
-		return englishCopy[KeyMentionHint]
+		if agent {
+			return englishCopy[KeyMentionHint]
+		}
+		return "↑↓ to move · Enter to insert · Esc to close"
 	}
 }
 

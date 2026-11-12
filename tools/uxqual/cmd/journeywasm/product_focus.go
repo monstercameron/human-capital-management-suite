@@ -72,6 +72,27 @@ func productResourceRouteKeys(path string) []string {
 	}
 }
 
+// journeyContentKey names the journey route's content instance. Only the
+// route-owned selection (the journey, the new-promotion mode and its worker)
+// may remount it. The list's search, status, dates, sort and grouping are
+// presentation state inside the same instance: keying on them remounts the
+// tracker on every change and drops focus from the control the reader just
+// used (#3625).
+func journeyContentKey(canonicalHref string) string {
+	parsed, err := url.Parse(canonicalHref)
+	if err != nil {
+		return canonicalHref
+	}
+	query := parsed.Query()
+	identity := url.Values{}
+	for _, key := range productResourceRouteKeys(parsed.Path) {
+		if value := query.Get(key); value != "" {
+			identity.Set(key, value)
+		}
+	}
+	return parsed.Path + "?" + identity.Encode()
+}
+
 func navigationOnlyRouteChange(previous, current string) bool {
 	return queryOnlyRouteChange(previous, current, "", map[string]bool{"nav": true})
 }

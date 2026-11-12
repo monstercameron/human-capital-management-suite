@@ -234,11 +234,11 @@ func WorkflowHistoryFilter(props WorkflowHistoryFilterProps) ui.Node {
 			onFilter(query, outcome, person, year)
 		})
 	}
-	personOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: person == ""}, ui.Text(props.Text("history.all_people")))}
+	personOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: person == ""}, ui.Text(props.Text("history.all_people")))}
 	for _, option := range props.People {
 		personOptions = append(personOptions, html.Option(html.Props{Value: option.Value, Selected: person == option.Value}, ui.Text(option.Label)))
 	}
-	yearOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: year == ""}, ui.Text(props.Text("history.any_year")))}
+	yearOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: year == ""}, ui.Text(props.Text("history.any_year")))}
 	for _, option := range props.Years {
 		yearOptions = append(yearOptions, html.Option(html.Props{Value: option.Value, Selected: year == option.Value}, ui.Text(option.Label)))
 	}
@@ -254,7 +254,7 @@ func WorkflowHistoryFilter(props WorkflowHistoryFilterProps) ui.Node {
 	}
 	controls = append(controls,
 		html.Select(selectProps,
-			html.Option(html.Props{Value: "", Selected: outcome == ""}, ui.Text(props.Text("history.all_outcomes"))),
+			html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: outcome == ""}, ui.Text(props.Text("history.all_outcomes"))),
 			html.Option(html.Props{Value: "completed", Selected: outcome == "completed"}, ui.Text(props.Text("history.completed"))),
 			html.Option(html.Props{Value: "rejected", Selected: outcome == "rejected"}, ui.Text(props.Text("history.rejected"))),
 			html.Option(html.Props{Value: "failed", Selected: outcome == "failed"}, ui.Text(props.Text("history.failed"))),

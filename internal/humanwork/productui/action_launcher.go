@@ -598,10 +598,9 @@ func appendActionLauncherDestinations(items []ActionLauncherItem, view View, nav
 				keywords = append(keywords, definition.SearchTerms...)
 				keywords = append(keywords, view.Locale.Text(definition.TitleKey))
 			}
-			href := destination.Href
-			if href == "" {
-				href = statefulHref(view, destination.Page)
-			}
+			// The sidebar and the launcher share one href builder, so a projected
+			// destination keeps the active URL locale and shell state.
+			href := navigationHrefForItem(view, destination)
 			items = append(items, ActionLauncherItem{
 				Page: destination.Page, Kind: ActionLauncherDestination, Action: "view",
 				ID: actionLauncherDestinationID(destination.Page), Label: label, Description: description,

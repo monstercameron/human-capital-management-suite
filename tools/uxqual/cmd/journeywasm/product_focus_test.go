@@ -66,3 +66,23 @@ func TestQueryOnlyRouteChangeRequiresTheDeclaredPath(t *testing.T) {
 		t.Fatal("a route outside the required path must never be reported as a directory-only change")
 	}
 }
+
+// TestTodo_3625_JourneyContentKeyIgnoresListFilters pins the #3625 fix: a
+// list sort, status, date, search or grouping change keeps the tracker's
+// content instance, so the focused filter control survives the commit. Route
+// identity (which journey, or the new-promotion worker) still remounts it.
+func TestTodo_3625_JourneyContentKeyIgnoresListFilters(t *testing.T) {
+	list := journeyContentKey("/workspace/app/journeys?sort=name&dir=asc&q=ana&status=all&group=person")
+	if got := journeyContentKey("/workspace/app/journeys?q=bob&sort=activity&dir=desc"); got != list {
+		t.Fatalf("list filter change remounted the tracker: %q != %q", got, list)
+	}
+	if got := journeyContentKey("/workspace/app/journeys?journey=J1&q=ana"); got == list {
+		t.Fatalf("opening a journey must remount the content instance, key %q", got)
+	}
+	if journeyContentKey("/workspace/app/journeys?journey=J1&q=a") != journeyContentKey("/workspace/app/journeys?journey=J1&sort=name") {
+		t.Fatal("filter change inside one journey must not remount it")
+	}
+	if journeyContentKey("/workspace/app/journeys?mode=new&worker=W1") == journeyContentKey("/workspace/app/journeys?mode=new&worker=W2") {
+		t.Fatal("a different new-promotion worker must remount the content instance")
+	}
+}

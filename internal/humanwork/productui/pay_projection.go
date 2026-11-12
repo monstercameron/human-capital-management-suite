@@ -262,11 +262,11 @@ func payDiscrepancyForm(view View, projection PayDiscrepancyProjection) ui.Node 
 	} else if submitted.Get() {
 		status = html.P(html.Props{ID: "pay-discrepancy-status", Raw: map[string]any{"role": "status"}}, ui.Text(payText(view, "submitted")))
 	}
-	statementOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(payText(view, "choose_statement")))}
+	statementOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(payText(view, "choose_statement")))}
 	for _, option := range projection.Statements {
 		statementOptions = append(statementOptions, html.Option(html.Props{Value: option.StatementRef + "\x00" + option.PeriodRef}, ui.Text(option.PeriodLabel)))
 	}
-	categoryOptions := []ui.Node{html.Option(html.Props{Value: ""}, ui.Text(payText(view, "choose_category")))}
+	categoryOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}}, ui.Text(payText(view, "choose_category")))}
 	for _, option := range projection.Categories {
 		if option.Code != "" && option.Label != "" {
 			categoryOptions = append(categoryOptions, html.Option(html.Props{Value: option.Code}, ui.Text(option.Label)))

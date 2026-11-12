@@ -18,3 +18,16 @@ func TestTodo_CHATUX_038_ShellBar(t *testing.T) {
 		t.Errorf("the workspace bar is still shown over the conversation list")
 	}
 }
+
+// TestIssue_3607_ListBarHidesBrand: while the conversation list is open, the
+// shell's brand cluster must be hidden with an important declaration, because
+// the shell forces it to display:grid!important at phone width. A plain
+// display:none lost that cascade and the brand link painted over the list
+// heading. The served-browser hit test is still required; this pins the rule.
+func TestIssue_3607_ListBarHidesBrand(t *testing.T) {
+	sheet := chatShellStylesheet()
+	hide := `.app-shell:has(.chat-workspace[data-sidebar-open="true"]) .topbar>:not(.notifications,.account-menu){display:none!important}`
+	if !strings.Contains(sheet, hide) {
+		t.Errorf("the list's bar does not hide the brand cluster with an important declaration:\n%s", chatPhoneShellStylesheet)
+	}
+}

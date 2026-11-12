@@ -178,7 +178,10 @@ func TestTodo_WEB_063_Golden(t *testing.T) {
 	// reproduces the previous pin 05ce9c3b... exactly.
 	// UXBLIND-027 re-pin: page title now equals the page label (one name
 	// per page), which shifts every registry-derived golden digest.
-	if got := hex.EncodeToString(digest[:]); got != "04fdec3197fe4b410c2f05680353649d5cb338a777e95dbd83ca7ff7eb3a3794" {
+	// #3623 re-pin: the Past workflows "All outcomes" and "Any effective year"
+	// options gained value="" so the catch-all submits an empty filter; the
+	// markup differs from 04fdec31... only in those two attributes.
+	if got := hex.EncodeToString(digest[:]); got != "e4f590b097b9739a312e67188f3dbd313d132f3f68f2b90f027fca46540d4c3b" {
 		t.Fatalf("governed profile golden mismatch: %s\n%s", got, node)
 	}
 }

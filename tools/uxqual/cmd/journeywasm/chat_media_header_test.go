@@ -8,6 +8,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"math/rand"
+	"sort"
 	"testing"
 )
 
@@ -87,7 +88,16 @@ func TestChatImageHeaderReadsProgressiveJPEG(t *testing.T) {
 // it accepts.
 func TestChatImageHeaderAgreesOnDamagedImages(t *testing.T) {
 	random := rand.New(rand.NewSource(14))
-	for name, original := range headerSamples(t) {
+	// The samples are visited in name order: a map range would hand the seeded
+	// random sequence to the samples in a different order on every run.
+	samples := headerSamples(t)
+	names := make([]string, 0, len(samples))
+	for name := range samples {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		original := samples[name]
 		for round := 0; round < 700; round++ {
 			data := append([]byte(nil), original...)
 			switch random.Intn(3) {
@@ -113,6 +123,22 @@ func TestChatImageHeaderAgreesOnDamagedImages(t *testing.T) {
 				t.Fatalf("%s round %d: a PNG the standard decoder refuses (%v) was sized %+v\n% x", name, round, err, got, data[:min(len(data), 48)])
 			}
 		}
+	}
+}
+
+// A stray 0xff 0x00 pair before the first segment is extraneous data: the
+// standard decoder skips it and sizes the frame that follows, so the header
+// must too.
+func TestChatImageHeaderSkipsStrayStuffedZero(t *testing.T) {
+	sample := headerSamples(t)["jpeg gray"]
+	data := append([]byte{0xff, 0xd8, 0xff, 0x00}, sample[2:]...)
+	want, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("the standard decoder refuses the sample: %v", err)
+	}
+	got, ok := chatImageHeaderOf(data)
+	if !ok || got.width != want.Width || got.height != want.Height || got.format != format {
+		t.Fatalf("header = %+v (%v), the standard decoder says %dx%d %s", got, ok, want.Width, want.Height, format)
 	}
 }
 

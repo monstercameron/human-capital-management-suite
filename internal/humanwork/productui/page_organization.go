@@ -342,6 +342,9 @@ func newOrganizationRelationshipIndex(view View) organizationRelationshipIndex {
 	}
 	for index, person := range people {
 		placement := organizationPlacementFor(buildOrganizationRelationship(person), visibleWorkerID)
+		if projected, ok := projectedRelationshipPlacement(person); ok {
+			placement = projected
+		}
 		if placement.nested {
 			if managerIndex, ok := byWorkerID[placement.managerID]; ok && managerIndex != index {
 				parentOf[index] = managerIndex

@@ -142,9 +142,16 @@ func bindUXBlindQPopoverController() func() {
 	var observerCallback js.Func
 	observerActive := false
 	if mutationObserver := js.Global().Get("MutationObserver"); mutationObserver.Truthy() {
+		// A menu's own open toggle and the page's constant re-renders are
+		// mutations too. Only a dialog that appears closes the open menus, so a
+		// dialog that is already showing does not close the menu just opened.
+		dialogVisible := uxblindQVisibleDialog(doc)
 		observerCallback = js.FuncOf(func(js.Value, []js.Value) any {
 			defer func() { _ = recover() }()
-			if uxblindQVisibleDialog(doc) {
+			now := uxblindQVisibleDialog(doc)
+			appeared := uxblindQDialogAppeared(dialogVisible, now)
+			dialogVisible = now
+			if appeared {
 				closeAll(false)
 			}
 			return nil
@@ -259,6 +266,12 @@ func uxblindQVisibleDialog(doc js.Value) bool {
 		// in the DOM even though those descendants are not rendered.
 		dialog := dialogs.Index(i)
 		if uxblindQClosest(dialog, "details[data-hcm-transient-popover]").Truthy() {
+			continue
+		}
+		// A popover that is not open is not drawn (display:none), though it has
+		// no hidden attribute. The composer's emoji shell is always in the Chat
+		// page; counting it made every mutation close the open menu (issue 3596).
+		if dialog.Call("hasAttribute", "popover").Bool() && !dialog.Call("matches", ":popover-open").Bool() {
 			continue
 		}
 		if !uxblindQClosest(dialog, "details:not([open])").Truthy() {

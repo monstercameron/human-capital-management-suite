@@ -61,7 +61,11 @@ type PositionPickerProps struct {
 	Selected    string
 	EmptyTitle  string
 	EmptyDetail string
-	OnSelect    func(string)
+	// NoneLabel, when set, adds a first choice that names no position. Its
+	// radio carries an empty value, so choosing it clears the selection (#3565).
+	NoneLabel  string
+	NoneDetail string
+	OnSelect   func(string)
 }
 
 // PositionPickerOptionPropsFrom adapts one already-resolved
@@ -122,7 +126,30 @@ func PositionPicker(props PositionPickerProps) ui.Node {
 			html.Small(html.Props{Class: "position-picker-empty-detail"}, ui.Text(props.EmptyDetail)),
 		)
 	}
-	choices := make([]ui.Node, 0, len(props.Options))
+	choices := make([]ui.Node, 0, len(props.Options)+1)
+	if props.NoneLabel != "" {
+		none := html.Props{
+			Type: "radio", Name: props.Name,
+			Checked: props.Selected == "",
+			Raw:     map[string]any{"aria-describedby": "position-picker-desc-none", "value": ""},
+		}
+		if props.OnSelect != nil {
+			input := none
+			input.OnChange = ui.UseEvent(func(ui.InputEvent) { props.OnSelect("") })
+			none = input
+		}
+		choices = append(choices, html.Li(html.Props{Class: "position-picker-option position-picker-option-none"},
+			html.Label(html.Props{},
+				html.Input(none),
+				html.Span(html.Props{Class: "position-picker-option-main"},
+					html.Strong(html.Props{}, ui.Text(props.NoneLabel)),
+				),
+			),
+			html.Span(html.Props{ID: "position-picker-desc-none", Class: "position-picker-option-meta"},
+				ui.Text(props.NoneDetail),
+			),
+		))
+	}
 	for _, opt := range props.Options {
 		opt := opt
 		descID := "position-picker-desc-" + opt.Reference

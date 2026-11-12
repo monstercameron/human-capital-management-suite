@@ -377,3 +377,70 @@ func TestTodo_CHATLANG_004_Writer(t *testing.T) {
 		t.Fatal("a revision for a message that is not shown")
 	}
 }
+
+// TestIssue3605_LanguageEditorKeepsFocusTarget: the open editor is marked with
+// its message, so the focus helpers can find it, and its current choice comes
+// first in the group, which is where focus is moved.
+func TestIssue3605_LanguageEditorKeepsFocusTarget(t *testing.T) {
+	m, german, _, _ := chatlangModel("en-US")
+	m.CurrentUser = "hans"
+	picker := chatlangMessageMarkup(t, m, german, localUI{chatlang: chatlangLocal{}.openFixer(german.ID)})
+	marker := `data-chatlang-fix="` + german.ID + `"`
+	if !strings.Contains(picker, marker) {
+		t.Fatalf("the open editor is not marked with its message (%s): %s", marker, picker)
+	}
+	group := strings.Index(picker, marker)
+	if pressed := strings.Index(picker, `aria-pressed="true"`); pressed < group {
+		t.Fatalf("the current choice is not inside the editor group: %s", picker)
+	}
+	if closed := chatlangMessageMarkup(t, m, german, localUI{}); strings.Contains(closed, "data-chatlang-fix=") {
+		t.Fatalf("a closed message still draws an editor marker: %s", closed)
+	}
+
+	// Tab order: the editor and its choices are not taken out of the sequence.
+	start := strings.Index(picker, marker)
+	end := strings.Index(picker, "chatlang-fix-cancel") + len("chatlang-fix-cancel")
+	if end <= start {
+		t.Fatalf("the editor's Cancel control is missing from the group: %s", picker)
+	}
+	editor := picker[start:end]
+	if strings.Contains(editor, `tabindex="-1"`) || strings.Contains(editor, "inert") {
+		t.Fatalf("the editor is removed from the Tab order: %s", editor)
+	}
+	if !strings.Contains(editor, `data-action="chatlang-correct"`) {
+		t.Fatalf("the editor offers no choices to Tab to: %s", editor)
+	}
+
+	// Escape: closes an open editor only when the press is inside it, and the
+	// state returns to no editor, the same as Cancel.
+	open := chatlangLocal{}.openFixer(german.ID)
+	if !chatlangEditorEscape(open, "Escape", true) {
+		t.Fatal("Escape inside an open editor does not close it")
+	}
+	if chatlangEditorEscape(open, "Enter", true) || chatlangEditorEscape(open, "Escape", false) || chatlangEditorEscape(chatlangLocal{}, "Escape", true) {
+		t.Fatal("Escape closes the editor for a key or place it must not")
+	}
+	if closedState := open.openFixer(""); closedState.fixing != "" || closedState.busy || closedState.failed {
+		t.Fatalf("Escape state is not a clean close: %+v", closedState)
+	}
+
+	// Save: a successful correction closes the editor (focus then returns to the
+	// message); a failed one keeps it open so the writer can retry.
+	if saved := open.saving().saved(nil); saved.fixing != "" {
+		t.Fatal("a successful save leaves the editor open, so focus has no return")
+	}
+	if failed := open.saving().saved(errors.New("failed")); failed.fixing != german.ID || !failed.failed {
+		t.Fatal("a failed save closed the editor or lost its error")
+	}
+
+	// Focus-return target: the message's More actions button and its row, the
+	// two places focus goes back to after Cancel, Escape or a save.
+	m.Callbacks.OpenMenu = func(string) {}
+	withMore := renderNode(t, html.Div(html.Props{}, chatux042MessageBar(m, german, chatux042React{}, true, false)...))
+	if !strings.Contains(withMore, `data-action="menu"`) || !strings.Contains(withMore, `data-id="`+german.ID+`"`) {
+		t.Fatalf("the message has no More actions button to return focus to: %s", withMore)
+	}
+	if row := chatlangMessageMarkup(t, m, german, localUI{}); !strings.Contains(row, `data-message-id="`+german.ID+`"`) {
+		t.Fatalf("the message row is not addressable for the fallback focus target: %s", withMore)
+	}
+}

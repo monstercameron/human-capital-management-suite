@@ -178,7 +178,7 @@ func searchGroupHeading(m Model, key string, count int) ui.Node {
 	if own := chatux010LegacyGroupName(m, key); own != "" {
 		name = own
 	}
-	return html.H3(html.Props{Class: "search-group-heading"}, ui.Text(name), html.Span(html.Props{Class: "search-group-count", Text: m.n(count)}))
+	return html.H3(html.Props{Class: "search-group-heading"}, ui.Text(name), html.Span(html.Props{Class: "search-group-count", Text: m.nz(count)}))
 }
 
 // searchContext renders "in {channel}" with the conversation's rail glyph

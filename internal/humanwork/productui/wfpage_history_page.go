@@ -71,7 +71,7 @@ func workflowHistoryCompatibilityPage(view View) ui.Node {
 }
 
 func workflowHistoryFilters(view View, filter WorkflowRunHistoryFilter) ui.Node {
-	statusOptions := []ui.Node{html.Option(html.Props{Value: "", Selected: filter.StatusGroup == "", Raw: map[string]any{"value": ""}}, ui.Text(view.Locale.Text("workflow_history.status_all")))}
+	statusOptions := []ui.Node{html.Option(html.Props{Selected: filter.StatusGroup == "", Raw: map[string]any{"value": ""}}, ui.Text(view.Locale.Text("workflow_history.status_all")))}
 	for _, value := range JourneyStatusFilterValues() {
 		statusOptions = append(statusOptions, html.Option(html.Props{Value: value, Selected: filter.StatusGroup == value}, ui.Text(view.Locale.Text("workflow_history.status_"+value))))
 	}

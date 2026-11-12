@@ -314,7 +314,47 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// against the Home document rendered at the parent commit: base plus
 	// exactly those three fragments is the new document byte for byte, zero
 	// markup changed (Home does not render the composer).
-	const want = "26d7ee7256c4c0f8599909dffaa646582d4c1e2e264916123f19556d7a192342"
+	// 2026-11-11 re-pin against 45d42be1 (the last pin, which reproduced). The
+	// delta is intentional and listed by todo:
+	//   - CHATUX-046 (closed): the served sheets keep only the last of identical
+	//     CSS rule copies and doubled @keyframes blocks. d8fe5cda's typed-sheet
+	//     removals (.topbar, .people-columns, .work-row>.avatar, .shell-grid,
+	//     .people-filter-control, .history-filter-controls, .people-filter-actions,
+	//     .primary-nav, the nav chevron and brand placeholder) only dropped dead
+	//     earlier copies; each still has a live copy later in platformHeadStyles
+	//     (TestTodo_CHATUX_046_DuplicateRules control). Same for the chat rules
+	//     .conversation-heading, .menu-item:hover, .menu-item.danger,
+	//     .timeline-frame.away, .chat-rail, .mobile-chat-toggle, .thread-composer
+	//     .send-label, .thread-back-label, .message-list first-of-type actions,
+	//     .chat-row.selected under search, the .chatmod switch rule, the
+	//     docs-detail-title-row h1 and persona-admin [popover] rules, and the
+	//     hcm-item-enter, hcm-status-settle, hcm-shimmer and hcm-route-progress
+	//     keyframes.
+	//   - UXBLIND-065 (open, not yet ticked): collapsed-sidebar focus tooltip
+	//     rules in typed_mig_E.go.
+	//   - CHATBUG-097: day/unread divider message-action and message-meta rules.
+	//   - CHATUX-051: emoji completion menu mention-name and mention-detail trim.
+	//   - CHATUX-097: .message-list scroll-padding-top, composer-tools and
+	//     composer-toolbar nowrap rules.
+	//   - .people-directory .data-table-scroll overflow-x:auto under 1081px,
+	//     asserted by uxblind_lane_II_tables_topbar_test.go.
+	// 2026-11-12 re-pin against 27993e51 (the Home document at 5c58a552). A
+	// rule-by-rule comparison of the two rendered documents shows 7 rules
+	// replaced and 50 added, zero markup changed:
+	//   - chat membership gate: the .chatgate overlay, form, table, rule-choice
+	//     and preview rules, and the .chat-workspace .chatgate-banner,
+	//     -browse-note and -poll-* rules (new).
+	//   - chat thread panel: .thread-heading-text h2 no longer flexes, the
+	//     narrow thread Back label hides under 767px in place of the widened
+	//     close button, and the compact saved-item actions apply only to
+	//     wide fine-pointer screens.
+	//   - chat sidebar open: the topbar hide rule gained !important.
+	//   - #3427 .ownership-tree ul[hidden] stays hidden.
+	//   - workflow designer: the name field takes a full row under 640px.
+	//   - project tickets and board: the toolbar, filters and empty states
+	//     gained min/max inline-size and single-column grids, and the board
+	//     action disclosures and segments wrap under 40rem.
+	const want = "6567a3ad7e1f2d87c78f64cccd9b0426ab211721b5a2d0bcfd999f6aa49c91c9"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

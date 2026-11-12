@@ -9,6 +9,69 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatfilter"
 )
 
+// TestTodo_CHATMOD_003_Browser_HitsDryLineCount: the dry-run line reads its
+// count with the noun's singular and plural forms in every locale ("1 message",
+// "2 messages"), and joins the outcome with the localized separator.
+func TestTodo_CHATMOD_003_Browser_HitsDryLineCount(t *testing.T) {
+	at := time.Date(2026, 10, 1, 14, 5, 0, 0, time.UTC)
+	dryRecord := func(id int64) chatfilter.Record {
+		return chatfilter.Record{ID: id, Tenant: "t", Channel: "room", At: at.Add(time.Duration(id) * time.Minute),
+			Hit: chatfilter.Hit{RuleID: "r-codes", RuleName: "Client names", Version: "1.2.0", Action: "block", Target: "", DryRun: true}}
+	}
+	want := map[string]map[int]string{
+		"en-US": {1: "1 message", 2: "2 messages", 3: "3 messages"},
+		"de-DE": {1: "1 Nachricht", 2: "2 Nachrichten", 3: "3 Nachrichten"},
+		"ar":    {1: "رسالة واحدة", 2: "رسالتان", 3: "٣ رسائل"},
+	}
+	for _, locale := range chatmodLocales {
+		m := Model{State: StateReady, Locale: locale, SelectedID: "room", CurrentUser: "walt", CurrentTenantID: "t", IsTenantAdmin: true,
+			Conversations: []Conversation{{ID: "room", Name: "general", Kind: PublicChannel}}}
+		for _, count := range []int{1, 2, 3} {
+			records := make([]chatfilter.Record, 0, count)
+			for i := 0; i < count; i++ {
+				records = append(records, dryRecord(int64(i+1)))
+			}
+			p := ModHitsProps{Model: m, Records: records, Loaded: true, Load: func(bool) {}, Now: at.Add(24 * time.Hour)}
+			markup := chatremoveMarkup(t, ModHitsPanel(p))
+			line := regexp.MustCompile(`<span[^>]*>\s*` + regexp.QuoteMeta(want[locale][count]) + ` · [^<]+</span>`)
+			if !line.MatchString(markup) {
+				t.Errorf("%s: %d dry-run matches: the line does not read %q followed by the outcome: %s", locale, count, want[locale][count], markup)
+			}
+		}
+	}
+}
+
+// TestTodo_CHATMOD_003_Browser_ScopeChannelCount: a custom filter that applies
+// to several channels says how many, with the channel noun's plural forms of the
+// language (Arabic gives the dual to two and the many form to eleven).
+func TestTodo_CHATMOD_003_Browser_ScopeChannelCount(t *testing.T) {
+	scoped := func(n int) chatfilter.Definition {
+		channels := make([]string, 0, n)
+		for i := 0; i < n; i++ {
+			channels = append(channels, "c"+strconv.Itoa(i+1))
+		}
+		return chatfilter.Definition{ID: "wide-" + strconv.Itoa(n), Name: "Client names", Version: "1.0.0", Kind: "words", Action: "block",
+			Match: []string{"phoenix"}, Channels: channels, Authority: chatfilter.AuthorityWorkspace}
+	}
+	want := map[string]map[int]string{
+		"en-US": {2: "2 channels", 3: "3 channels", 11: "11 channels"},
+		"de-DE": {2: "2 Kanäle", 3: "3 Kanäle", 11: "11 Kanäle"},
+		"ar":    {2: "قناتان", 3: "٣ قنوات", 11: "١١ قناة"},
+	}
+	for _, locale := range chatmodLocales {
+		m := Model{State: StateReady, Locale: locale, SelectedID: "room", CurrentUser: "walt", CurrentTenantID: "t", IsTenantAdmin: true,
+			Conversations: []Conversation{{ID: "room", Name: "general", Kind: PublicChannel}}}
+		for count := range want[locale] {
+			markup := chatremoveMarkup(t, ModAdminPanel(ModAdminProps{Model: m, CanManage: true, Workspace: true,
+				Definitions: []chatfilter.Definition{scoped(count)}, Switch: func(ModSwitch) {}}))
+			line := regexp.MustCompile(`<span[^>]*>\s*` + regexp.QuoteMeta(want[locale][count]) + `\s*</span>`)
+			if !line.MatchString(markup) {
+				t.Errorf("%s: a filter on %d channels does not read %q as its scope: %s", locale, count, want[locale][count], markup)
+			}
+		}
+	}
+}
+
 // TestTodo_CHATMOD_003_Browser_HitsCountZero: the "What the filters caught" status
 // line writes its count in every locale, zero included, with the singular and
 // plural forms of the language. The client's Number callback writes an empty

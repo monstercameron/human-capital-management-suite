@@ -44,7 +44,7 @@ func TestTodo_PROMOUX_009_Browser(t *testing.T) {
 		{Severity: "ADVISORY", Code: "compensation.increase_over_ten_percent", Message: "annualized increase exceeds the review threshold"},
 	}
 
-	p := DetailPage(testConfig(), detail, nil, nil)
+	p := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 	got := p.Detail.Findings
 	if len(got) != len(detail.Findings) {
 		t.Fatalf("len(rendered Findings) = %d, want %d: the render boundary must preserve count exactly", len(got), len(detail.Findings))
@@ -75,7 +75,7 @@ func TestTodo_PROMOUX_009_Browser(t *testing.T) {
 		{Severity: "WARNING", Code: "compensation.increase_over_ten_percent", Message: "annualized increase exceeds the review threshold"},
 		{Severity: "WARNING", Code: "compensation.increase_over_ten_percent", Message: "annualized increase exceeds the review threshold"},
 	}
-	dupPage := DetailPage(testConfig(), dupDetail, nil, nil)
+	dupPage := DetailPage(clockTestNow, testConfig(), dupDetail, nil, nil)
 	if len(dupPage.Detail.Findings) != 2 {
 		t.Fatalf("len(rendered Findings) = %d, want 2: the render layer must never silently deduplicate on rendered strings", len(dupPage.Detail.Findings))
 	}

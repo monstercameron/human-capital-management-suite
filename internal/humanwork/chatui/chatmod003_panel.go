@@ -393,7 +393,7 @@ func modScopeText(m Model, d chatfilter.Definition) string {
 		}
 		return modadminText(m, "sc_one")
 	}
-	return modadminFormat(modadminText(m, "sc_n"), "n", chatCount(m.Locale, len(d.Channels)))
+	return chatPlural(m.Locale, "channels", len(d.Channels))
 }
 
 var modLanguageNames = map[string]string{"en": "English", "de": "Deutsch", "ar": "العربية"}

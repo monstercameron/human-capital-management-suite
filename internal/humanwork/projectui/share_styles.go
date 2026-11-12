@@ -125,7 +125,7 @@ const projectUIShareStyles = `
 .project-my-tickets-group-title{display:flex;align-items:center;gap:.5rem;margin:0;padding:.5rem 1rem;background:var(--pu-subtle);color:var(--muted);font-size:.75rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
 .project-my-tickets-group[data-urgency="0"] .project-my-tickets-group-title{color:var(--hcm-color-danger)}
 .project-my-tickets-group[data-urgency="1"] .project-my-tickets-group-title{color:var(--hcm-color-warning)}
-.project-my-tickets-empty{display:grid;gap:.25rem;padding:1.25rem 1rem;color:var(--muted)}
+.project-my-tickets-empty{display:grid;grid-template-columns:minmax(0,1fr);gap:.25rem;min-inline-size:0;max-inline-size:100%;box-sizing:border-box;padding:1.25rem 1rem;color:var(--muted)}
 .project-my-tickets-empty p{margin:0}
 .project-my-tickets-empty-title{color:var(--ink);font-weight:600}
 .project-all-tickets{display:grid;gap:.25rem}
@@ -208,11 +208,11 @@ const projectUIShareStyles = `
 [dir="rtl"] .projectui-scroll-btn[data-dir="prev"] .projectui-scroll-chevron{transform:translateX(-2px) rotate(45deg)}
 @media (max-width:40rem){.projectui-scroll-btn{display:none!important}}
 .projectui-tickets .projectui-filterbar{display:flex}
-@media (max-width:40rem){.projectui-tickets .projectui-tickets-filters{flex-wrap:wrap;overflow-x:visible;padding-block-end:.25rem;inline-size:100%}}
+@media (max-width:40rem){.projectui-tickets .projectui-tickets-filters{flex-wrap:wrap;overflow-x:visible;padding-block-end:.25rem;inline-size:100%;flex:1 1 100%;min-inline-size:0;max-inline-size:100%}}
 
 /* Tickets list. */
 .projectui-tickets{display:grid;grid-template-columns:minmax(0,1fr);gap:.75rem;min-inline-size:0;color:var(--ink)}
-.projectui-tickets-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem}
+.projectui-tickets-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem;min-inline-size:0;max-inline-size:100%}
 .projectui-tickets-filters{flex:1 1 auto}
 .projectui-tickets-count{margin:0;color:var(--muted);font-size:.875rem;white-space:nowrap}
 .projectui-tickets-filter{position:relative;z-index:31}
@@ -239,7 +239,7 @@ const projectUIShareStyles = `
 .projectui-tickets-title-text{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-inline-size:100%}
 .projectui-tickets-project{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .projectui-tickets-td .projectui-assignee-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.projectui-tickets-empty{display:grid;justify-items:center;gap:.5rem;padding:2.5rem 1rem;color:var(--muted);text-align:center}
+.projectui-tickets-empty{display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:.5rem;min-inline-size:0;max-inline-size:100%;box-sizing:border-box;padding:2.5rem 1rem;color:var(--muted);text-align:center}
 .projectui-tickets-empty p{margin:0;max-inline-size:100%;overflow-wrap:anywhere}
 .project-my-tickets-empty p{max-inline-size:100%;overflow-wrap:anywhere}
 .projectui-tickets-empty-title{color:var(--ink);font-weight:650}

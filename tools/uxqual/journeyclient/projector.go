@@ -223,8 +223,11 @@ const (
 	severityInfo     = "info"
 	severitySuccess  = "success"
 
-	kindText     = "text"
-	kindNumber   = "number"
+	kindText   = "text"
+	kindNumber = "number"
+	// kindAmount is a pay amount typed as text in the locale's own separators
+	// (#3566). It is not type=number, which rejects a German decimal comma.
+	kindAmount   = "amount"
 	kindDate     = "date"
 	kindSelect   = "select"
 	kindTextarea = "textarea"
@@ -437,6 +440,10 @@ type ListData struct {
 	// Filter is the list route's search, status, date range, sort and
 	// grouping (UXLIVE-031), from the address.
 	Filter productui.JourneyListFilter
+	// Now is the App clock's reading for this render. The form defaults
+	// (effective and hire dates) and the finance in-year cost are computed
+	// from it, never from the wall clock.
+	Now time.Time
 }
 
 // ListPage projects the journeys overview: the workforce, the journeys and
@@ -466,7 +473,7 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 		cards = groupJourneyCards(cards)
 		groups = journeySubjectGroups(cards)
 	}
-	form := ProposalForm(values, data.Workers, data.SelectedRef, data.Options)
+	form := ProposalForm(data.Now, values, data.Workers, data.SelectedRef, data.Options)
 	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
 		form.Disabled = true
@@ -487,7 +494,7 @@ func ListPage(cfg Config, data ListData, notice *journey.Notice, values map[stri
 		confirmationValues = cloneProposalValues(values)
 		confirmationValues[FieldGrade] = grade
 	}
-	form.Confirmation = draftConfirmation(cfg.Locale, confirmationValues, findWorker(data.Workers, listWorker), data.Options)
+	form.Confirmation = draftConfirmation(data.Now, cfg.Locale, confirmationValues, findWorker(data.Workers, listWorker), data.Options)
 	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	if !proposalFormReadyForReview(form) {
 		form.Confirmation = nil
@@ -523,7 +530,7 @@ func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[
 		title = copy.Text("journey.promote_person", map[string]string{"name": workerName(worker)}) + " · " + Brand
 	}
 	p := chrome(cfg, title, notice, values, true)
-	form := focusedProposalForm(values, data.SelectedRef, data.Options, worker)
+	form := focusedProposalForm(data.Now, values, data.SelectedRef, data.Options, worker)
 	applyProposalErrors(&form, data.ProposalErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("journeys", "create") {
 		form.Disabled = true
@@ -547,7 +554,7 @@ func ProposalPage(cfg Config, data ListData, notice *journey.Notice, values map[
 		confirmationValues = cloneProposalValues(values)
 		confirmationValues[FieldGrade] = grade
 	}
-	form.Confirmation = draftConfirmation(cfg.Locale, confirmationValues, worker, data.Options)
+	form.Confirmation = draftConfirmation(data.Now, cfg.Locale, confirmationValues, worker, data.Options)
 	form.ConfirmationNote = copy.Text("journey.form_submit_help")
 	if !proposalFormReadyForReview(form) {
 		form.Confirmation = nil
@@ -729,6 +736,84 @@ func localizeProposalForm(form *journey.ProposalForm, copy productui.LocaleConte
 	}
 }
 
+// proposalAmountSeparators returns the decimal and grouping separators a pay
+// amount is typed with in the locale. German uses a decimal comma; the other
+// locales the journey renders use a decimal point.
+func proposalAmountSeparators(locale string) (decimal, grouping byte) {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(locale)), "de") {
+		return ',', '.'
+	}
+	return '.', ','
+}
+
+// canonicalProposalAmount reads a pay amount typed in the locale's own
+// separators and returns the exact dot-decimal form the proposal carries
+// ("36,50" in de-DE is "36.50"). Only an unambiguous shape is accepted: digits
+// with an optional fraction of one or two digits in the decimal separator, or
+// digits grouped in threes by the grouping separator. A separator the locale
+// does not use for that role ("36,50" in en-US, "36.50" in de-DE) is refused
+// rather than guessed, as is anything else. Arabic-Indic digits and the Arabic
+// decimal and grouping marks are read as their Western forms. No float is used.
+func canonicalProposalAmount(raw, locale string) (string, bool) {
+	text := strings.TrimSpace(raw)
+	if text == "" {
+		return "", false
+	}
+	var normalized strings.Builder
+	for _, r := range text {
+		switch {
+		case r >= '٠' && r <= '٩':
+			normalized.WriteByte(byte('0' + (r - '٠')))
+		case r == '٫':
+			normalized.WriteByte('.')
+		case r == '٬':
+			normalized.WriteByte(',')
+		default:
+			normalized.WriteRune(r)
+		}
+	}
+	decimal, grouping := proposalAmountSeparators(locale)
+	whole, fraction := normalized.String(), ""
+	if i := strings.IndexByte(whole, decimal); i >= 0 {
+		whole, fraction = whole[:i], whole[i+1:]
+		if !allDigits(fraction) || len(fraction) > 2 {
+			return "", false
+		}
+	}
+	if strings.IndexByte(whole, grouping) >= 0 {
+		groups := strings.Split(whole, string(grouping))
+		if len(groups[0]) < 1 || len(groups[0]) > 3 || !allDigits(groups[0]) {
+			return "", false
+		}
+		for _, group := range groups[1:] {
+			if len(group) != 3 || !allDigits(group) {
+				return "", false
+			}
+		}
+		whole = strings.Join(groups, "")
+	}
+	if !allDigits(whole) {
+		return "", false
+	}
+	if fraction != "" {
+		return whole + "." + fraction, true
+	}
+	return whole, true
+}
+
+// allDigits reports whether s is non-empty and made only of ASCII digits.
+func allDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // proposalPayError is the client-side half of the published pay rule. It is
 // deliberately fed by proposalPayRangeFor, the same projection used by the
 // helper text, so an amount is rejected inline before a review surface can
@@ -737,7 +822,11 @@ func proposalPayError(copy productui.LocaleContext, raw string, payRange *propos
 	if !payRange.hasBounds() || strings.TrimSpace(raw) == "" {
 		return ""
 	}
-	amount, err := values.NewMoney(strings.TrimSpace(raw), payRange.minimum.Currency(), 2, values.RoundingExactRequired)
+	canonical, ok := canonicalProposalAmount(raw, copy.Resolved)
+	if !ok {
+		return copy.Text("journey.field_base_format_error")
+	}
+	amount, err := values.NewMoney(canonical, payRange.minimum.Currency(), 2, values.RoundingExactRequired)
 	if err != nil {
 		return copy.Text("journey.field_base_exact_error")
 	}
@@ -997,10 +1086,10 @@ func DefaultEffectiveDate(now time.Time) string {
 // workers is the population the select lists -- the corpus and this
 // tenant's own created employees alike, because a promotion may be proposed
 // for either -- and selectedRef the one the People table has picked.
-func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selectedRef string, optionSet ...*journeyv1.WorkforceOptions) journey.ProposalForm {
+func ProposalForm(now time.Time, values map[string]string, workers []*journeyv1.Worker, selectedRef string, optionSet ...*journeyv1.WorkforceOptions) journey.ProposalForm {
 	effective := values[FieldEffective]
 	if effective == "" {
-		effective = DefaultEffectiveDate(time.Now())
+		effective = DefaultEffectiveDate(now)
 	}
 	worker := values[FieldWorker]
 	if worker == "" {
@@ -1058,7 +1147,7 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 			// free-text fallback to fall back to.
 			positionField(values[FieldPosition], options, values[FieldJobCode]),
 			{
-				ID: FieldBase, Name: NameBase, Kind: kindNumber,
+				ID: FieldBase, Name: NameBase, Kind: kindAmount,
 				Required: true, Value: values[FieldBase], Step: "0.01", Min: "0", Placeholder: "0.00",
 			},
 			{
@@ -1079,16 +1168,16 @@ func ProposalForm(values map[string]string, workers []*journeyv1.Worker, selecte
 // the route's worker as a hidden value. On a person-scoped transaction page,
 // changing the subject inside the form would be a dangerous context switch;
 // choosing another person belongs on the People page.
-func FocusedProposalForm(values map[string]string, selectedRef string, optionSet ...*journeyv1.WorkforceOptions) journey.ProposalForm {
+func FocusedProposalForm(now time.Time, values map[string]string, selectedRef string, optionSet ...*journeyv1.WorkforceOptions) journey.ProposalForm {
 	var options *journeyv1.WorkforceOptions
 	if len(optionSet) > 0 {
 		options = optionSet[0]
 	}
-	return focusedProposalForm(values, selectedRef, options, nil)
+	return focusedProposalForm(now, values, selectedRef, options, nil)
 }
 
-func focusedProposalForm(values map[string]string, selectedRef string, options *journeyv1.WorkforceOptions, worker *journeyv1.Worker) journey.ProposalForm {
-	form := ProposalForm(values, nil, selectedRef, options)
+func focusedProposalForm(now time.Time, values map[string]string, selectedRef string, options *journeyv1.WorkforceOptions, worker *journeyv1.Worker) journey.ProposalForm {
+	form := ProposalForm(now, values, nil, selectedRef, options)
 	jobCodes, grades := governedProposalChoices(options, worker, values[FieldJobCode])
 	if worker != nil && len(jobCodes) == 0 {
 		form.Disabled = true
@@ -1118,7 +1207,7 @@ func focusedProposalForm(values map[string]string, selectedRef string, options *
 	// chooser field above has been replaced by the pinned hidden value.
 	effective := values[FieldEffective]
 	if effective == "" {
-		effective = DefaultEffectiveDate(time.Now())
+		effective = DefaultEffectiveDate(now)
 	}
 	form.Confirmation = proposalConfirmation(worker, options, values[FieldJobCode], grade, values[FieldBase], values[FieldReason], effective, values[FieldPosition])
 	return form
@@ -1367,7 +1456,7 @@ func PeopleView(cfg Config, data ListData, values map[string]string) *journey.Pe
 	if len(data.Workers) == 0 && data.Options == nil {
 		return nil
 	}
-	form := WorkerForm(data.Options, values, data.WorkerErrors)
+	form := WorkerForm(data.Now, data.Options, values, data.WorkerErrors)
 	if len(cfg.PagePermissions) > 0 && !cfg.CanPageAction("people", "create") {
 		form.Disabled = true
 		form.DisabledReason = "Your assigned role can review people but cannot create an employee record."
@@ -1549,7 +1638,7 @@ func DefaultHireDate(now time.Time) string {
 //
 // Hidden is empty for the same reason ProposalForm's is: this client submits
 // over gRPC, so there is no cross-site request to forge.
-func WorkerForm(options *journeyv1.WorkforceOptions, values map[string]string, fieldErrors map[string]string) journey.WorkerForm {
+func WorkerForm(now time.Time, options *journeyv1.WorkforceOptions, values map[string]string, fieldErrors map[string]string) journey.WorkerForm {
 	currency := strings.TrimSpace(options.GetCurrency())
 	fields := []journey.Field{
 		{
@@ -1601,7 +1690,7 @@ func WorkerForm(options *journeyv1.WorkforceOptions, values map[string]string, f
 		{
 			ID: FieldWorkerHireDate, Name: NameHireDate, Label: "Hire date", Kind: kindDate,
 			Required: true,
-			Value:    valueOr(values, FieldWorkerHireDate, DefaultHireDate(time.Now())),
+			Value:    valueOr(values, FieldWorkerHireDate, DefaultHireDate(now)),
 			Help:     "The date the employment relationship starts, not the date you record it.",
 		},
 		{
@@ -1715,8 +1804,8 @@ func valueOr(values map[string]string, id, fallback string) string {
 // yet read the two PreviewJourneyIntervention answers (every test written
 // before PROMOUX-013, and any embedding that has not wired the two extra
 // reads) still gets a working detail page, exactly as before.
-func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string) journey.Page {
-	return DetailPageWithInterventions(cfg, detail, notice, values, nil, nil, nil)
+func DetailPage(now time.Time, cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string) journey.Page {
+	return DetailPageWithInterventions(now, cfg, detail, notice, values, nil, nil, nil)
 }
 
 // DetailPageWithInterventions is DetailPage plus PROMOUX-013's two typed-
@@ -1727,7 +1816,7 @@ func DetailPage(cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Not
 // the journey's own stage, with a shorter consequence note than the
 // server's own worded preview would supply.
 func DetailPageWithInterventions(
-	cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string,
+	now time.Time, cfg Config, detail *journeyv1.JourneyDetail, notice *journey.Notice, values map[string]string,
 	withdrawPreview, cancelPreview, repairPreview *journeyv1.PreviewJourneyInterventionResponse,
 	optionSet ...*journeyv1.WorkforceOptions,
 ) journey.Page {
@@ -1754,7 +1843,7 @@ func DetailPageWithInterventions(
 	if len(optionSet) > 0 {
 		options = optionSet[0]
 	}
-	detailActions := actionsLocaleWithDetail(cfg.Locale, head, detail, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview, repairPreview, options)
+	detailActions := actionsLocaleWithDetail(cfg.Locale, head, detail, detail.GetApprover(), detail.GetWorkItems(), withdrawPreview, cancelPreview, repairPreview, now, options)
 	if detail.GetJourney().GetViewer() != nil {
 		detailActions = filterServerAuthorizedActions(detailActions, detail, withdrawPreview, cancelPreview, repairPreview)
 	}
@@ -2678,7 +2767,7 @@ func effectiveWindowLocale(locale string, j *journeyv1.Journey) *journey.Effecti
 	}
 }
 
-func actionsLocale(locale string, head journey.JourneyCard, args ...any) []journey.Action {
+func actionsLocale(now time.Time, locale string, head journey.JourneyCard, args ...any) []journey.Action {
 	var detail *journeyv1.JourneyDetail
 	var approver string
 	var workItems []*journeyv1.WorkItem
@@ -2697,10 +2786,10 @@ func actionsLocale(locale string, head journey.JourneyCard, args ...any) []journ
 			previews[i], _ = args[i+3].(*journeyv1.PreviewJourneyInterventionResponse)
 		}
 	}
-	return actionsLocaleWithDetail(locale, head, detail, approver, workItems, previews[0], previews[1], previews[2])
+	return actionsLocaleWithDetail(locale, head, detail, approver, workItems, previews[0], previews[1], previews[2], now)
 }
 
-func actionsLocaleWithDetail(locale string, head journey.JourneyCard, detail *journeyv1.JourneyDetail, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview, repairPreview *journeyv1.PreviewJourneyInterventionResponse, optionSet ...*journeyv1.WorkforceOptions) []journey.Action {
+func actionsLocaleWithDetail(locale string, head journey.JourneyCard, detail *journeyv1.JourneyDetail, approver string, workItems []*journeyv1.WorkItem, withdrawPreview, cancelPreview, repairPreview *journeyv1.PreviewJourneyInterventionResponse, now time.Time, optionSet ...*journeyv1.WorkforceOptions) []journey.Action {
 	copy := productui.ResolveProductLocale(locale)
 	href := DetailHref(head.IntentID)
 	confirm := actionConfirmationLocale(locale, head)
@@ -2709,7 +2798,7 @@ func actionsLocaleWithDetail(locale string, head journey.JourneyCard, detail *jo
 		options = optionSet[0]
 	}
 	if head.Stage == stageFinanceApproval {
-		confirm = append(confirm, financeCostFacts(locale, detail)...)
+		confirm = append(confirm, financeCostFactsOn(locale, detail, now, financePathAnnualizationHours(options, detail.GetJourney()))...)
 	}
 	var out []journey.Action
 	switch head.Stage {
@@ -3113,63 +3202,146 @@ func actionConfirmationLocale(locale string, head journey.JourneyCard) []journey
 	return facts
 }
 
-// financeCostFacts is the small, projection-owned cost view needed by a
+// financeAnnualizationHours is the engine's default scheduled-hours rule: 2080
+// hours a year. financeCostFacts uses it when a caller names no basis. The
+// finance page annualizes over the promotion path's own hours instead.
+const financeAnnualizationHours = 2080
+
+// financeAnnualAmount expresses one pay amount in annual terms so that the
+// current and proposed sides of a cost delta are always in the same unit. A
+// salary (empty or ANNUAL_SALARY) is already annual; an hourly rate is
+// annualized over hours. Any other basis, an hourly rate with no hours basis,
+// or an amount that does not parse cannot be compared and reports false.
+func financeAnnualAmount(amount, basis string, hours int32) (*big.Rat, bool) {
+	value, ok := decimalOf(amount)
+	if !ok {
+		return nil, false
+	}
+	switch strings.TrimSpace(basis) {
+	case "", "ANNUAL_SALARY":
+		return value, true
+	case payBasisHourly:
+		if hours <= 0 {
+			return nil, false
+		}
+		return new(big.Rat).Mul(value, big.NewRat(int64(hours), 1)), true
+	}
+	return nil, false
+}
+
+// financePathAnnualizationHours is the annualization basis of the promotion
+// path this journey moves along. The journey proto does not carry it, but the
+// workforce options the page already holds do, so the path is matched on the
+// journey's own source and target placements. It returns 0 when the path is
+// not in the options, or when the path states no hours (both ends paid on one
+// basis); the finance view then says the basis is not available.
+func financePathAnnualizationHours(options *journeyv1.WorkforceOptions, j *journeyv1.Journey) int32 {
+	source, target := j.GetCurrent(), j.GetTarget()
+	if options == nil || source == nil || target == nil {
+		return 0
+	}
+	for _, path := range options.GetPromotionPaths() {
+		if path.GetSourceJobCode() == source.GetJobCode() && path.GetSourceGrade() == source.GetGrade() &&
+			path.GetTargetJobCode() == target.GetJobCode() && path.GetTargetGrade() == target.GetGrade() {
+			return path.GetAnnualizationHours()
+		}
+	}
+	return 0
+}
+
+// financeCostFacts is financeCostFactsOn over the engine's default 2080-hour
+// rule, for a caller that names no promotion path.
+func financeCostFacts(locale string, detail *journeyv1.JourneyDetail, now time.Time) []journey.Fact {
+	return financeCostFactsOn(locale, detail, now, financeAnnualizationHours)
+}
+
+// financeCostFactsOn is the small, projection-owned cost view needed by a
 // finance approver. It uses the same proposal amounts already on the journey
 // and the guardrail's annualized current baseline; no second RPC is needed
-// when the confirmation surface opens.
-func financeCostFacts(locale string, detail *journeyv1.JourneyDetail) []journey.Fact {
+// when the confirmation surface opens. now is the reference instant for the
+// current calendar year the in-year impact is taken over. hours is the
+// annualization basis for hourly pay; zero means the basis is not available,
+// and the cost lines say so while the budget line stays.
+func financeCostFactsOn(locale string, detail *journeyv1.JourneyDetail, now time.Time, hours int32) []journey.Fact {
 	if detail == nil || detail.GetJourney() == nil {
 		return nil
 	}
 	copy := productui.ResolveProductLocale(locale)
 	j := detail.GetJourney()
 	currency := strings.TrimSpace(j.GetCurrency())
-	currentAnnual := ""
+	// The guardrail's current figure is already annual; only the raw journey
+	// base carries the journey's own pay basis.
+	currentAmount, currentBasis := j.GetCurrentBase(), j.GetCurrentPayBasis()
 	if review := detail.GetPromotionReview(); review != nil && review.GetCompensationGuardrail() != nil {
-		currentAnnual = review.GetCompensationGuardrail().GetCurrentAnnualized()
-	}
-	if currentAnnual == "" {
-		currentAnnual = j.GetCurrentBase()
-	}
-	proposedAnnual := j.GetProposedBase()
-	if j.GetProposedPayBasis() == payBasisHourly {
-		if amount, ok := decimalOf(proposedAnnual); ok {
-			proposedAnnual = new(big.Rat).Mul(amount, big.NewRat(2080, 1)).FloatString(2)
+		if annual := review.GetCompensationGuardrail().GetCurrentAnnualized(); annual != "" {
+			currentAmount, currentBasis = annual, "ANNUAL_SALARY"
 		}
 	}
-	current, okCurrent := decimalOf(currentAnnual)
-	proposed, okProposed := decimalOf(proposedAnnual)
-	if !okCurrent || !okProposed {
-		return nil
-	}
-	delta := new(big.Rat).Sub(proposed, current)
-	facts := []journey.Fact{{
-		Label: copy.Text("journey.finance_annualized_cost"),
-		Value: formatAmountLocale(locale, currency, delta.FloatString(2)),
-	}}
-	if effective, err := time.Parse(isoDate, strings.TrimSpace(j.GetEffectiveDate())); err == nil {
-		end := time.Date(effective.Year(), time.December, 31, 0, 0, 0, 0, time.UTC)
-		if !effective.After(end) {
-			factor := big.NewRat(int64(end.Sub(effective).Hours()/24)+1, int64(time.Date(effective.Year(), time.December, 31, 0, 0, 0, 0, time.UTC).YearDay()))
-			facts = append(facts, journey.Fact{Label: copy.Text("journey.finance_in_year_cost"), Value: formatAmountLocale(locale, currency, new(big.Rat).Mul(delta, factor).FloatString(2))})
+	proposedBasis := j.GetProposedPayBasis()
+	hourly := currentBasis == payBasisHourly || proposedBasis == payBasisHourly
+	if hourly && hours <= 0 {
+		// Without the path's hours the hourly side cannot be annualized. The
+		// reader is told why, instead of the cost block disappearing.
+		unavailable := copy.Text("journey.finance_value_unavailable")
+		return []journey.Fact{
+			{Label: copy.Text("journey.finance_annualized_cost"), Value: unavailable},
+			{Label: copy.Text("journey.finance_annual_basis"), Value: copy.Text("journey.finance_basis_unavailable")},
+			{Label: copy.Text("journey.finance_in_year_cost"), Value: unavailable},
+			{Label: copy.Text("journey.finance_budget_line"), Value: financeBudgetValue(copy, detail)},
 		}
 	}
-	budget := ""
+	var facts []journey.Fact
+	current, okCurrent := financeAnnualAmount(currentAmount, currentBasis, hours)
+	proposed, okProposed := financeAnnualAmount(j.GetProposedBase(), proposedBasis, hours)
+	if okCurrent && okProposed {
+		delta := new(big.Rat).Sub(proposed, current)
+		facts = append(facts, journey.Fact{
+			Label: copy.Text("journey.finance_annualized_cost"),
+			Value: formatAmountLocale(locale, currency, delta.FloatString(2)),
+		})
+		if hourly {
+			facts = append(facts, journey.Fact{
+				Label: copy.Text("journey.finance_annual_basis"),
+				Value: copy.Text("journey.finance_basis_hours", map[string]string{"hours": copy.FormatNumber(strconv.Itoa(int(hours)), 0)}),
+			})
+		}
+		// The in-year impact is the share of the current calendar year the new
+		// pay covers: none before the year begins, the whole annual delta when
+		// it started in an earlier year, and the days from the effective date
+		// to December 31 otherwise.
+		yearStart := time.Date(now.UTC().Year(), time.January, 1, 0, 0, 0, 0, time.UTC)
+		yearEnd := time.Date(now.UTC().Year(), time.December, 31, 0, 0, 0, 0, time.UTC)
+		if effective, err := time.Parse(isoDate, strings.TrimSpace(j.GetEffectiveDate())); err == nil {
+			var inYear *big.Rat
+			switch {
+			case effective.After(yearEnd):
+				inYear = new(big.Rat)
+			default:
+				from := effective
+				if from.Before(yearStart) {
+					from = yearStart
+				}
+				days := int64(yearEnd.Sub(from).Hours()/24) + 1
+				inYear = new(big.Rat).Mul(delta, big.NewRat(days, int64(yearEnd.YearDay())))
+			}
+			facts = append(facts, journey.Fact{Label: copy.Text("journey.finance_in_year_cost"), Value: formatAmountLocale(locale, currency, inYear.FloatString(2))})
+		}
+	}
+	return append(facts, journey.Fact{Label: copy.Text("journey.finance_budget_line"), Value: financeBudgetValue(copy, detail)})
+}
+
+// financeBudgetValue is the budget line's reading: checked when a finding
+// names a budget, otherwise not reported.
+func financeBudgetValue(copy productui.LocaleContext, detail *journeyv1.JourneyDetail) string {
 	for _, finding := range detail.GetFindings() {
 		if finding == nil {
 			continue
 		}
-		code := strings.ToLower(finding.GetCode())
-		if strings.Contains(code, "budget") {
-			budget = copy.Text("journey.finding_budget_checked")
-			break
+		if strings.Contains(strings.ToLower(finding.GetCode()), "budget") {
+			return copy.Text("journey.finding_budget_checked")
 		}
 	}
-	if budget == "" {
-		budget = copy.Text("journey.finance_budget_unavailable")
-	}
-	facts = append(facts, journey.Fact{Label: copy.Text("journey.finance_budget_line"), Value: budget})
-	return facts
+	return copy.Text("journey.finance_budget_unavailable")
 }
 
 // proposalConfirmation builds the Employee/Placement/Base pay/Effective
@@ -3257,10 +3429,14 @@ func proposalConfirmationLocale(locale string, worker *journeyv1.Worker, options
 
 // draftConfirmation is proposalConfirmationLocale over a proposal form's
 // current values, defaulting the effective date the same way the form does.
-func draftConfirmation(locale string, values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
+func draftConfirmation(now time.Time, locale string, values map[string]string, worker *journeyv1.Worker, options *journeyv1.WorkforceOptions) []journey.Fact {
+	if canonical, ok := canonicalProposalAmount(values[FieldBase], locale); ok && canonical != values[FieldBase] {
+		values = cloneProposalValues(values)
+		values[FieldBase] = canonical
+	}
 	effective := values[FieldEffective]
 	if effective == "" {
-		effective = DefaultEffectiveDate(time.Now())
+		effective = DefaultEffectiveDate(now)
 	}
 	return proposalConfirmationLocale(locale, worker, options, values[FieldJobCode], values[FieldGrade], values[FieldBase], values[FieldPosition], values[FieldReason], effective)
 }

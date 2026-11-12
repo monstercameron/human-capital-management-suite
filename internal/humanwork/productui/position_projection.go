@@ -53,7 +53,7 @@ type PositionOccupantProjection struct {
 
 func positionOptionSelector(view View) ui.Node {
 	options := []ui.Node{
-		html.Option(html.Props{Value: "", Selected: strings.TrimSpace(view.PositionReference) == "", Raw: map[string]any{"value": ""}},
+		html.Option(html.Props{Selected: strings.TrimSpace(view.PositionReference) == "", Raw: map[string]any{"value": ""}},
 			ui.Text(view.Locale.Text("position_selector.choose"))),
 	}
 	for _, option := range view.PositionOptions {

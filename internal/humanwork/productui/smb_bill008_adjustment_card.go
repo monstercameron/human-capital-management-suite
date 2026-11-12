@@ -7,7 +7,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 
-	"github.com/monstercameron/human-capital-management-suite/internal/domains/workorderbilling"
+	"github.com/monstercameron/human-capital-management-suite/internal/domains/workorderbilling/billview"
 )
 
 var smbBill008Labels = map[string]map[string]string{
@@ -60,7 +60,7 @@ func smbBill008Text(locale, key string) string {
 // treatment, the required reason, the pinned-tax disclosure, the issue
 // review with the original link, the adjustment chain and the policy-gated
 // void section. The heading is the post-action focus target.
-func SMBBillAdjustmentCard(invoice workorderbilling.AdjustInvoice, preview *workorderbilling.AdjustPreview, chain []workorderbilling.Adjustment, originalLink string, voidEligible bool, voidReason, locale string) ui.Node {
+func SMBBillAdjustmentCard(invoice billview.AdjustInvoice, preview *billview.AdjustPreview, chain []billview.Adjustment, originalLink string, voidEligible bool, voidReason, locale string) ui.Node {
 	text := func(key string) string { return smbBill008Text(locale, key) }
 	props := html.Props{Class: "smb-bill-adjust-card", ID: "smb-bill-adjust"}
 	if strings.HasPrefix(locale, "ar") {
@@ -111,8 +111,8 @@ func SMBBillAdjustmentCard(invoice workorderbilling.AdjustInvoice, preview *work
 	return html.Section(props, nodes...)
 }
 
-func smbBill008LineTable(invoice workorderbilling.AdjustInvoice, preview *workorderbilling.AdjustPreview, text func(string) string) ui.Node {
-	byID := map[string]workorderbilling.AdjustPreviewLine{}
+func smbBill008LineTable(invoice billview.AdjustInvoice, preview *billview.AdjustPreview, text func(string) string) ui.Node {
+	byID := map[string]billview.AdjustPreviewLine{}
 	if preview != nil {
 		for _, line := range preview.Lines {
 			byID[line.LineID] = line

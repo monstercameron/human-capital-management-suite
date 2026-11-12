@@ -47,3 +47,45 @@ func TestWorkflowReferenceRouteStateIsTypedAndScoped(t *testing.T) {
 		t.Fatalf("hidden references were serialized into shell address: %v", address)
 	}
 }
+
+// TestIssue3567_WorkflowCatalogListStateIsAddressBacked pins the catalog's
+// search, status, sort and page parameters through the route profile: they
+// must be admitted, serialized from the request and kept in the shell address
+// so a reload, Back or a chip click does not drop them.
+func TestIssue3567_WorkflowCatalogListStateIsAddressBacked(t *testing.T) {
+	profile, _, ok := PageProfiles(PageWorkflowDesigner)
+	if !ok {
+		t.Fatal("workflow designer route profile is missing")
+	}
+	for _, key := range []string{workflowListQueryKey, workflowListStatusKey, workflowListSortKey, workflowListPageKey} {
+		if !slices.Contains(profile.QueryKeys(), key) {
+			t.Fatalf("workflow designer route does not admit %q", key)
+		}
+	}
+
+	request := PageRequest{WorkflowID: "workflows.clock", WorkflowQuery: "clock", WorkflowListStatus: workflowListStatusDraft, WorkflowListSort: workflowListSortName, WorkflowListPage: 2}
+	provided := map[string]bool{"workflow": true, workflowListQueryKey: true, workflowListStatusKey: true, workflowListSortKey: true, workflowListPageKey: true}
+	canonical := profile.CanonicalValues(request, provided)
+	for key, want := range map[string]string{workflowListQueryKey: "clock", workflowListStatusKey: workflowListStatusDraft, workflowListSortKey: workflowListSortName, workflowListPageKey: "2"} {
+		if got := canonical.Get(key); got != want {
+			t.Fatalf("canonical %s = %q, want %q (values %v)", key, got, want, canonical)
+		}
+	}
+
+	view := ApplyRequest(NewView(PageWorkflowDesigner, "Ironridge", "Walt", "admin"), request)
+	address := url.Values{}
+	profile.AddressValues(address, view)
+	for key, want := range map[string]string{workflowListQueryKey: "clock", workflowListStatusKey: workflowListStatusDraft, workflowListSortKey: workflowListSortName, workflowListPageKey: "2"} {
+		if got := address.Get(key); got != want {
+			t.Fatalf("shell address %s = %q, want %q (values %v)", key, got, want, address)
+		}
+	}
+
+	defaults := profile.CanonicalValues(PageRequest{WorkflowID: request.WorkflowID, WorkflowListStatus: workflowListStatusAll, WorkflowListSort: workflowListSortRecent, WorkflowListPage: 1}, provided)
+	if defaults.Get(workflowListStatusKey) != "" {
+		t.Fatalf("default status was serialized as %q", defaults.Get(workflowListStatusKey))
+	}
+	if defaults.Get(workflowListPageKey) != "" {
+		t.Fatalf("first page was serialized into the address: %v", defaults)
+	}
+}

@@ -222,3 +222,26 @@ func TestTodo_UXAUDIT_008_I18N_CompactSearchHint(t *testing.T) {
 		})
 	}
 }
+
+// TestIssue3623_UnrestrictedOptionsSubmitEmptyValue pins the rendered markup of
+// the All teams / All locations options. Without an explicit value attribute the
+// browser submits the visible label ("All teams") as a filter and returns zero rows.
+func TestIssue3623_UnrestrictedOptionsSubmitEmptyValue(t *testing.T) {
+	markup, err := ui.RenderToString(ui.CreateElement(PeopleFilter, PeopleFilterProps{
+		I18nProps: I18nProps{Locale: ResolveProductLocale("en-US")},
+		Teams:     []PeopleFilterOption{{Value: "ops", Label: "Ops"}},
+		Locations: []PeopleFilterOption{{Value: "berlin", Label: "Berlin"}},
+		OnFilter:  func(string, string, string, bool) {},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<option selected value="">All teams</option>`, `<option selected value="">All locations</option>`} {
+		if !strings.Contains(markup, want) {
+			t.Fatalf("unrestricted option must carry an explicit empty value; want %q in %s", want, markup)
+		}
+	}
+	if strings.Contains(markup, `<option>All teams</option>`) || strings.Contains(markup, `<option>All locations</option>`) {
+		t.Fatalf("unrestricted option rendered without a value attribute: %s", markup)
+	}
+}

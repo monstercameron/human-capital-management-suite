@@ -142,9 +142,21 @@ func projectTicketsBoard(props projectTicketsProps) ui.Node {
 	// My tickets.
 	mineBody := []ui.Node{}
 	if len(mine) == 0 {
-		mineBody = append(mineBody, html.Div(html.Props{Class: "project-my-tickets-empty"},
-			html.P(html.Props{Class: "project-my-tickets-empty-title", Text: board.MyTicketsEmpty}),
-			html.P(html.Props{Text: board.MyTicketsEmptyHint})))
+		switch projectMyTicketsEmptyKind(list) {
+		case projectMyTicketsLoading:
+			mineBody = append(mineBody, html.Div(html.Props{Class: "project-my-tickets-empty"},
+				html.P(html.Props{Class: "project-my-tickets-empty-title", Text: board.LoadingTickets})))
+		case projectMyTicketsFilteredOut:
+			children := []ui.Node{html.P(html.Props{Class: "project-my-tickets-empty-title", Text: board.MyTicketsFiltered})}
+			if list.ClearHref != "" && list.ActiveCount > 0 {
+				children = append(children, html.A(html.Props{Href: list.ClearHref, Class: "projectui-button", Text: board.ClearFilters}))
+			}
+			mineBody = append(mineBody, html.Div(html.Props{Class: "project-my-tickets-empty"}, children...))
+		default:
+			mineBody = append(mineBody, html.Div(html.Props{Class: "project-my-tickets-empty"},
+				html.P(html.Props{Class: "project-my-tickets-empty-title", Text: board.MyTicketsEmpty}),
+				html.P(html.Props{Text: board.MyTicketsEmptyHint})))
+		}
 	} else {
 		mineBody = append(mineBody, projectui.TicketHeader(list, copy))
 		shown := mine
@@ -224,6 +236,27 @@ func projectTicketsBoard(props projectTicketsProps) ui.Node {
 		mineSection,
 		html.Section(html.Props{Class: "project-all-tickets", Aria: map[string]string{"labelledby": "project-all-tickets-title"}}, allSection...),
 	)
+}
+
+// projectMyTicketsEmptyKind says why "My tickets" shows no rows. Tickets
+// still loading are not emptiness, and an assignment that only the address
+// filters or search hide is not "nothing assigned to you".
+type projectMyTicketsEmptyKindValue int
+
+const (
+	projectMyTicketsNothingAssigned projectMyTicketsEmptyKindValue = iota
+	projectMyTicketsFilteredOut
+	projectMyTicketsLoading
+)
+
+func projectMyTicketsEmptyKind(list projectui.TicketList) projectMyTicketsEmptyKindValue {
+	switch {
+	case list.Loading:
+		return projectMyTicketsLoading
+	case list.AssignedOpen > 0:
+		return projectMyTicketsFilteredOut
+	}
+	return projectMyTicketsNothingAssigned
 }
 
 func firstN10(value string) string {

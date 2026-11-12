@@ -131,13 +131,6 @@ func modHitWhere(m Model, r chatfilter.Record) string {
 	return modadminText(m, "hits_private")
 }
 
-func modHitsNumber(m Model, n int) string {
-	if m.Number != nil {
-		return m.Number(n)
-	}
-	return chatCount(m.Locale, n)
-}
-
 func modHitsPanel(props ModHitsProps) ui.Node {
 	m := props.Model
 	t := func(key string) string { return modadminText(m, key) }
@@ -185,7 +178,7 @@ func modHitsPanel(props ModHitsProps) ui.Node {
 			what := modHitOutcome(m, chatfilter.Hit{Action: line.Action, Target: line.Target, DryRun: true})
 			lines = append(lines, html.Li(html.Props{Dir: "auto"},
 				html.Span(html.Props{Class: "chatmod-name", Text: line.Name}),
-				html.Span(html.Props{Class: "chatmod-state", Text: modadminFormat(t("hits_dry_line"), "n", modHitsNumber(m, line.Count), "what", what)})))
+				html.Span(html.Props{Class: "chatmod-state", Text: modadminFormat(t("hits_dry_line"), "count", chatPlural(m.Locale, "messages", line.Count), "what", what)})))
 		}
 		nodes = append(nodes, html.Div(html.Props{Class: "chatmod-group chatmod-hits-dry"},
 			html.H5(html.Props{Text: t("hits_dry_title")}), html.P(html.Props{Class: "chatmod-hint", Text: t("hits_dry_hint")}), html.Ul(html.Props{Class: "chatmod-list"}, lines...)))

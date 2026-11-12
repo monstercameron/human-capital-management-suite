@@ -206,6 +206,21 @@ type organizationPlacement struct {
 	explanation string // an i18n key; empty means no explanation is owed.
 }
 
+// projectedRelationshipPlacement honours a manager disposition the server
+// already decided for this viewer. WITHHELD and ORPHAN carry no manager
+// endpoint, so without this the resolver reads them as VACANT and renders a
+// genuine top of the organization. Issue #3427.
+func projectedRelationshipPlacement(person Person) (organizationPlacement, bool) {
+	switch person.ManagerRelationship {
+	case OrganizationRelationshipWithheld:
+		return organizationPlacement{explanation: "organization.manager_withheld"}, true
+	case OrganizationRelationshipOrphan:
+		return organizationPlacement{explanation: "organization.relationship_undetermined"}, true
+	default:
+		return organizationPlacement{}, false
+	}
+}
+
 // organizationPlacementFor maps one resolution onto a placement. Every
 // org.ResolutionStatus and people.Disclosure branch is named explicitly; the
 // default cases are unreachable today but still resolve to an explained,

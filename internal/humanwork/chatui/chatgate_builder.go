@@ -24,7 +24,7 @@ func renderGateBuilder(v GateView) ui.Node {
 	}
 	nodes = append(nodes, html.Select(html.Props{ID: "gate-mode"}, modes...))
 	registry := chatgate.NewRegistry()
-	sampleOptions := []ui.Node{html.Option(html.Props{Value: "", Text: t("sample")})}
+	sampleOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("sample")})}
 	for _, person := range v.Directory["person"] {
 		sampleOptions = append(sampleOptions, html.Option(html.Props{Value: person.ID, Text: person.Label}))
 	}
@@ -52,7 +52,7 @@ func renderGateBuilder(v GateView) ui.Node {
 			items = append(items, html.Label(html.Props{For: prefix + "consumers", Text: t("consumer")}), html.Select(html.Props{ID: prefix + "consumers", Multiple: true}, options...))
 		}
 		if f.Kind == "acknowledgement" {
-			docs := []ui.Node{html.Option(html.Props{Value: "", Text: t("choose")})}
+			docs := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
 			for _, doc := range v.Directory["document"] {
 				value, _ := json.Marshal([]string{doc.ID, doc.Version})
 				docs = append(docs, html.Option(html.Props{Value: string(value), Text: doc.Label, Selected: f.DocumentID == doc.ID && f.DocumentVersion == doc.Version}))

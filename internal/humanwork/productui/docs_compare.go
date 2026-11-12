@@ -156,7 +156,7 @@ func docsCompareDialog(props docsCompareDialogProps) ui.Node {
 		// is a save, and "Sep 19, 2026" alone neither separates two saves
 		// on one day nor says whose edit it was.
 		showTitle := docsCompareTitlesDiffer(selectable)
-		options := []ui.Node{html.Option(html.Props{Value: "", Disabled: true, Selected: selected == ""}, ui.Text(text("compare_choose")))}
+		options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Disabled: true, Selected: selected == ""}, ui.Text(text("compare_choose")))}
 		for _, v := range selectable {
 			label := docsCompareOptionLabel(view.Locale, text, v, true, showTitle)
 			if author := docsCompareAuthor(view, v.AuthorID); author != "" {

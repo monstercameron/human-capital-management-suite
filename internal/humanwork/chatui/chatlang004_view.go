@@ -277,7 +277,7 @@ func chatlangFixer(m Model, local chatlangLocal, msg Message, v chatlangMessage)
 	if status != nil {
 		children = append(children, status)
 	}
-	return html.Div(html.Props{Class: "chatlang-fix", Role: "group", Aria: map[string]string{"label": chatlangText(m.Locale, "fix_group")}}, children...)
+	return html.Div(html.Props{Class: "chatlang-fix", Role: "group", Data: map[string]string{"chatlang-fix": msg.ID}, Aria: map[string]string{"label": chatlangText(m.Locale, "fix_group")}}, children...)
 }
 
 // chatlangMenuItems is the writer's "Message language…" entry in the More menu

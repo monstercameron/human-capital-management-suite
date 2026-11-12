@@ -134,7 +134,7 @@ func chatgate014Composer(m Model, disabled bool) ui.Node {
 	if c.ID == "" || c.Kind == DirectMessage || len(options.Segments) == 0 {
 		return nil
 	}
-	rows := []ui.Node{html.Option(html.Props{Value: "", Text: laneText(m, chatgate014ComposerCopy, chatgate014KeyEveryone), Selected: true})}
+	rows := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: laneText(m, chatgate014ComposerCopy, chatgate014KeyEveryone), Selected: true})}
 	for _, segment := range options.Segments {
 		rows = append(rows, html.Option(html.Props{Value: gateAudienceToPrefix + segment.Name, Text: laneTextf(m, chatgate014ComposerCopy, chatgate014KeyTo, map[string]string{"segment": segment.Name})}))
 	}
@@ -144,7 +144,7 @@ func chatgate014Composer(m Model, disabled bool) ui.Node {
 			if segment.People == 1 {
 				key = chatgate014KeyOnlyOne
 			}
-			rows = append(rows, html.Option(html.Props{Value: gateAudienceOnlyPrefix + segment.Name, Text: laneTextf(m, chatgate014ComposerCopy, key, map[string]string{"segment": segment.Name, "n": strings.TrimSpace(m.n(segment.People))})}))
+			rows = append(rows, html.Option(html.Props{Value: gateAudienceOnlyPrefix + segment.Name, Text: laneTextf(m, chatgate014ComposerCopy, key, map[string]string{"segment": segment.Name, "n": strings.TrimSpace(m.nz(segment.People))})}))
 		}
 	}
 	label := laneText(m, chatgate014ComposerCopy, chatgate014KeyVisible)
@@ -173,7 +173,7 @@ func chatgate014Tag(m Model, msg Message) ui.Node {
 		if a.People == 1 {
 			key = chatgate014KeyTagOne
 		}
-		text, kind = laneTextf(m, chatgate014ComposerCopy, key, map[string]string{"segments": names, "n": strings.TrimSpace(m.n(a.People))}), "only"
+		text, kind = laneTextf(m, chatgate014ComposerCopy, key, map[string]string{"segments": names, "n": strings.TrimSpace(m.nz(a.People))}), "only"
 	}
 	return html.Span(html.Props{Class: "message-audience", Dir: "auto", Data: map[string]string{"gate-audience-tag": kind}, Text: text})
 }

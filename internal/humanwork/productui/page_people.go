@@ -154,9 +154,15 @@ func peopleSortColumns(view View) []PeopleSortColumnProps {
 		if active == column.ID && direction == peopleSortAscending {
 			nextDirection = peopleSortDescending
 		}
+		// The default Person/ascending pair is dropped by peopleDirectoryHref so
+		// the address stays short. A header link must still name it explicitly,
+		// or the saved sort preference answers for the missing keys (#3624).
+		href := peopleDirectoryHref(view, 1, view.Query, view.PeopleTeam, view.PeopleLocation, view.PeopleEligibleOnly, column.ID, nextDirection)
+		href = withExplicitQueryValue(href, []string{"sort"}, column.ID)
+		href = withExplicitQueryValue(href, []string{"dir"}, nextDirection)
 		result = append(result, PeopleSortColumnProps{
 			ID: column.ID, Label: view.Locale.Text(column.LabelKey), Active: active == column.ID, Descending: active == column.ID && direction == peopleSortDescending,
-			Href: peopleDirectoryHref(view, 1, view.Query, view.PeopleTeam, view.PeopleLocation, view.PeopleEligibleOnly, column.ID, nextDirection), Navigate: view.Navigate,
+			Href: href, Navigate: view.Navigate,
 		})
 	}
 	return result

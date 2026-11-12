@@ -90,10 +90,37 @@ func TestTodo_REV_093_01_Editor(t *testing.T) {
 	narrowing := preview
 	narrowing.AddedUnits, narrowing.RemovedUnits, narrowing.ProposedUnits, narrowing.ProposedRelative, narrowing.ProposedMode = nil, []string{"Engineering"}, nil, true, "OWN_UNIT"
 	narrowed := rev09301Render(t, roleAccessPreviewNode(props, rev09301Ready(props, narrowing), ui.Handler{}))
-	for _, want := range []string{"No longer visible:", "Each person sees their own unit. Nobody has a saved assignment to this role yet."} {
+	for _, want := range []string{"No longer visible:", "Each person sees their own unit. 3 people hold this role; their units are not listed here."} {
 		if !strings.Contains(narrowed, want) {
 			t.Errorf("narrowing preview missing %q", want)
 		}
+	}
+	if strings.Contains(narrowed, "Nobody has a saved assignment") {
+		t.Error("nonzero holders described as having no saved assignment")
+	}
+}
+
+// TestIssue3389_RelativeHolderCopy proves the no-assignment sentence appears
+// only for a zero-holder preview, and that current and proposed agree on the
+// same server holder count.
+func TestIssue3389_RelativeHolderCopy(t *testing.T) {
+	props := rev09301Panel("en-US")
+	zero := RoleAccessPreview{RoleID: "manager", ExplicitRoles: []string{"manager"}, CurrentMode: "OWN_UNIT", CurrentRelative: true, ProposedMode: "OWN_UNIT", ProposedRelative: true}
+	none := rev09301Render(t, roleAccessPreviewNode(props, rev09301Ready(props, zero), ui.Handler{}))
+	if count := strings.Count(none, "Nobody has a saved assignment to this role yet."); count != 2 {
+		t.Errorf("zero-holder preview: want the no-assignment sentence in both panels, got %d:\n%s", count, none)
+	}
+	withHolders := zero
+	withHolders.HolderCount = 38
+	held := rev09301Render(t, roleAccessPreviewNode(props, rev09301Ready(props, withHolders), ui.Handler{}))
+	if strings.Contains(held, "Nobody has a saved assignment") {
+		t.Errorf("38 saved holders still described as having none:\n%s", held)
+	}
+	if count := strings.Count(held, "38 people hold this role"); count != 2 {
+		t.Errorf("38-holder preview: want the holder count in both panels, got %d:\n%s", count, held)
+	}
+	if !strings.Contains(held, ">38<") {
+		t.Errorf("holder fact missing 38:\n%s", held)
 	}
 }
 

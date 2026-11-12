@@ -19,7 +19,7 @@ func TestInterventionThatCannotApplyIsOmittedBesideItsAlternative(t *testing.T) 
 		journeyv1.JourneyStage_JOURNEY_STAGE_MANAGER_APPROVAL: {ActionCancel, ActionWithdraw},
 		journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED:         {ActionWithdraw, ActionCancel},
 	} {
-		page := DetailPage(cfg, testDetail(t, stage), nil, nil)
+		page := DetailPage(clockTestNow, cfg, testDetail(t, stage), nil, nil)
 		shown, hidden := want[0], want[1]
 		if a := findAction(t, page.Detail.Actions, shown); a.Disabled {
 			t.Fatalf("%s: %s is not offered: %+v", stageOf(stage), shown, a)
@@ -32,7 +32,7 @@ func TestInterventionThatCannotApplyIsOmittedBesideItsAlternative(t *testing.T) 
 			t.Fatalf("%s: the page still tells the reader to use the other stop:\n%s", stageOf(stage), markup)
 		}
 	}
-	committed := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil)
+	committed := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_EXECUTED), nil, nil)
 	for _, id := range []string{ActionWithdraw, ActionCancel} {
 		if a := findAction(t, committed.Detail.Actions, id); !a.Disabled || a.DisabledReason == "" {
 			t.Fatalf("with no alternative, %s must still state why it is refused: %+v", id, a)

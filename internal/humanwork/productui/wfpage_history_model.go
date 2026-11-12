@@ -87,7 +87,10 @@ func workflowHistoryRuns(view View) []WorkflowHistoryRun {
 			Subject: strings.TrimSpace(item.Person), Requester: requester, Participants: participants,
 			Relationship: workflowHistoryRelationshipValue(item),
 			Stage:        taxonomy.Stage, StatusGroup: taxonomy.HomeGroup,
-			StartedAt: strings.TrimSpace(item.EffectiveDate), UpdatedAt: strings.TrimSpace(item.CompletedAt), Href: item.Href,
+			// Started is the run's own start chronology. The work item carries
+			// no authoritative start, so it stays empty ("Not reported") rather
+			// than borrowing the employee's proposed effective date (#3593).
+			UpdatedAt: strings.TrimSpace(item.CompletedAt), Href: item.Href,
 		})
 	}
 	return result

@@ -1319,7 +1319,7 @@ func TestTodo_PROMOUX_007_I18N_ServerPayRefusalUsesActiveLocale(t *testing.T) {
 			h.app.SetLocale(tc.locale)
 			h.app.Submit(ActionPropose, map[string]string{
 				NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
-				NamePosition: "POS-HRBP-301", NameBase: "98000.00",
+				NamePosition: "POS-HRBP-301", NameBase: germanOr(tc.locale, "98000.00", "98000,00"),
 				NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
 			})
 			p := h.awaitPage(t, "the localized refusal", noticeTitled(tc.title))
@@ -2022,4 +2022,137 @@ func TestAWorkforceRefusalStillShowsTheJourneys(t *testing.T) {
 	if p.List.People != nil {
 		t.Error("the page claimed a workforce it could not read")
 	}
+}
+
+// TestTodo_ISSUE3566_GermanCommaAmountSubmitsExactDecimal proves the amount the
+// reader types in their own separators is what the proposal carries: "36,50"
+// in de-DE is sent as 36.50, and "36.50" in en-US is unchanged.
+func TestTodo_ISSUE3566_GermanCommaAmountSubmitsExactDecimal(t *testing.T) {
+	cases := []struct{ locale, typed, want string }{
+		{"de-DE", "36,50", "36.50"},
+		{"de-DE", "1.234,5", "1234.5"},
+		{"en-US", "36.50", "36.50"},
+		{"en-US", "1,234.50", "1234.50"},
+	}
+	for _, c := range cases {
+		t.Run(c.locale+" "+c.typed, func(t *testing.T) {
+			h := newHarness(t)
+			h.svc.proposed = testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+			h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+			h.app.SetLocale(c.locale)
+			h.app.Start(context.Background(), ListHref())
+			h.awaitPage(t, "the list", listLoaded)
+			h.app.Submit(ActionPropose, map[string]string{
+				NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+				NameBase: c.typed, NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+			})
+			h.awaitPage(t, "the new journey", detailShown)
+			if got := h.svc.proposeReq.GetDesiredBasePay(); got != c.want {
+				t.Fatalf("desired base pay = %q, want the exact %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestTodo_ISSUE3566_UnreadableAmountIsRefusedInTheReadersLocale proves an
+// amount with the wrong or an ambiguous separator is refused with a localized
+// message, is not sent, and keeps the reader's text.
+func TestTodo_ISSUE3566_UnreadableAmountIsRefusedInTheReadersLocale(t *testing.T) {
+	cases := []struct{ locale, typed, want string }{
+		{"de-DE", "36.50", "Geben Sie den Betrag mit Dezimalkomma und ohne Tausendertrennzeichen ein, zum Beispiel 36,50."},
+		{"en-US", "36,50", "Enter the amount with a decimal point and no separators, for example 36.50."},
+		{"de-DE", "1,2,3", "Geben Sie den Betrag mit Dezimalkomma und ohne Tausendertrennzeichen ein, zum Beispiel 36,50."},
+	}
+	for _, c := range cases {
+		t.Run(c.locale+" "+c.typed, func(t *testing.T) {
+			h := newHarness(t)
+			h.svc.proposed = testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+			h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+			h.app.SetLocale(c.locale)
+			h.app.Start(context.Background(), ListHref())
+			h.awaitPage(t, "the list", listLoaded)
+			h.app.Submit(ActionPropose, map[string]string{
+				NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+				NameBase: c.typed, NameEffective: "2026-12-01", NameReason: "promotion_into_senior_hrbp",
+			})
+			p := h.awaitPage(t, "the refused amount", func(p journey.Page) bool {
+				field, ok := fieldByID(p.List.Form.Fields, FieldBase)
+				return ok && field.Error != ""
+			})
+			field, _ := fieldByID(p.List.Form.Fields, FieldBase)
+			if field.Value != c.typed {
+				t.Errorf("the reader's text = %q, want it kept as %q", field.Value, c.typed)
+			}
+			if field.Error != c.want {
+				t.Errorf("refusal = %q, want %q", field.Error, c.want)
+			}
+			if h.svc.called("ProposePromotion") != 0 {
+				t.Errorf("an unreadable amount reached the server")
+			}
+		})
+	}
+}
+
+// TestTodo_ISSUE3566_CanonicalAmountReadsOnlyUnambiguousShapes pins the parser
+// directly: exact digits and separators in the locale's own roles, and a refusal
+// for every other shape.
+func TestTodo_ISSUE3566_CanonicalAmountReadsOnlyUnambiguousShapes(t *testing.T) {
+	accept := []struct{ locale, raw, want string }{
+		{"de-DE", "36,50", "36.50"},
+		{"de-DE", "36,5", "36.5"},
+		{"de-DE", "36", "36"},
+		{"de-DE", "1.234,50", "1234.50"},
+		{"de-DE", " 36,50 ", "36.50"},
+		{"en-US", "36.50", "36.50"},
+		{"en-US", "1,234", "1234"},
+		{"ar", "٣٦٫٥٠", "36.50"},
+	}
+	for _, c := range accept {
+		if got, ok := canonicalProposalAmount(c.raw, c.locale); !ok || got != c.want {
+			t.Errorf("canonicalProposalAmount(%q, %s) = %q, %v; want %q", c.raw, c.locale, got, ok, c.want)
+		}
+	}
+	refuse := []struct{ locale, raw string }{
+		{"de-DE", "36.50"}, {"de-DE", "36,500"}, {"de-DE", "1,2,3"}, {"de-DE", ",50"},
+		{"de-DE", "1.23,45"}, {"en-US", "36,50"}, {"en-US", "1,23.45"}, {"en-US", "36.505"},
+		{"en-US", "-36.50"}, {"en-US", "36.5.0"}, {"en-US", "abc"}, {"en-US", ""},
+	}
+	for _, c := range refuse {
+		if got, ok := canonicalProposalAmount(c.raw, c.locale); ok {
+			t.Errorf("canonicalProposalAmount(%q, %s) = %q; an ambiguous amount must be refused", c.raw, c.locale, got)
+		}
+	}
+}
+
+// TestTodo_ISSUE3565_ClearedTargetPositionSubmitsNoPosition proves that a
+// proposal submitted with the target position cleared names no position, while
+// the role, grade, pay and reason are still sent.
+func TestTodo_ISSUE3565_ClearedTargetPositionSubmitsNoPosition(t *testing.T) {
+	h := newHarness(t)
+	h.svc.proposed = testJourney(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.svc.detail = testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED)
+	h.app.Start(context.Background(), ListHref())
+	h.awaitPage(t, "the list", listLoaded)
+	h.app.Submit(ActionPropose, map[string]string{
+		NameWorker: "omar-reyes", NameJobCode: "OPS-HRBP3", NameGrade: "P3",
+		NamePosition: "", NameBase: "98000.00", NameEffective: "2026-12-01",
+		NameReason: "promotion_into_senior_hrbp",
+	})
+	h.awaitPage(t, "the new journey", detailShown)
+	req := h.svc.proposeReq
+	if got := req.GetDesiredPositionId(); got != "" {
+		t.Fatalf("cleared target position was sent as %q", got)
+	}
+	if req.GetDesiredJobCode() != "OPS-HRBP3" || req.GetDesiredGrade() != "P3" || req.GetDesiredBasePay() != "98000.00" || req.GetReason() != "promotion_into_senior_hrbp" {
+		t.Fatalf("the other proposal fields changed: %+v", req)
+	}
+}
+
+// germanOr returns the German spelling of an amount for a de-DE test case and
+// the dot-decimal spelling otherwise.
+func germanOr(locale, dot, comma string) string {
+	if locale == "de-DE" {
+		return comma
+	}
+	return dot
 }

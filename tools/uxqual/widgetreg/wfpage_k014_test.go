@@ -135,7 +135,8 @@ func TestTodo_WFPAGE_014(t *testing.T) {
 		if err != nil {
 			t.Fatalf("AdmitAttachment: %v", err)
 		}
-		if ref.DocumentType != "PDF" || ref.Evidence.ID == "" {
+		evidenceRef, isRef := ref.Evidence.(intake.EvidenceRef)
+		if ref.DocumentType != "PDF" || !isRef || evidenceRef.ID == "" {
 			t.Fatalf("typed reference = %+v", ref)
 		}
 		widgets := []pagedef.WorkflowPageWidget{
@@ -333,6 +334,21 @@ func TestTodo_WFPAGE_014_Security(t *testing.T) {
 		errs := ValidateSubmission(widgets, PageSubmission{Values: map[string]string{"name": "Ann", "is_admin": "true"}})
 		if len(errs) != 1 || errs[0].Binding != "is_admin" {
 			t.Fatalf("spoofed binding accepted: %v", errs)
+		}
+	})
+
+	t.Run("AttachmentWithoutEvidenceRefused", func(t *testing.T) {
+		widgets := []pagedef.WorkflowPageWidget{
+			{ID: "offer", Kind: pagedef.WorkflowWidgetAttachment, Binding: "offer_letter", Label: "Offer", Required: true},
+		}
+		// A typed reference with no admission behind it must not reach Check,
+		// which would panic on the nil seam.
+		unadmitted := PageSubmission{Attachments: map[string]documents.AttachmentReference{
+			"offer_letter": {ID: "x", ArtifactID: "a", DocumentType: "PDF"},
+		}}
+		errs := ValidateSubmission(widgets, unadmitted)
+		if len(errs) != 1 || errs[0].Message != "attachment has no evidence reference" {
+			t.Fatalf("errs = %v, want the single no-evidence refusal", errs)
 		}
 	})
 

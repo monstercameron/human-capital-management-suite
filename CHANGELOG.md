@@ -1,3 +1,44 @@
+## 2026-11-12 — Workspace, Chat, Projects and workflow UI defect sweep
+
+Chat
+
+- Search refinement names its inputs and its kind and language selectors, and "All kinds" / "Any language" no longer reject a valid query (#3398, #3403).
+- The mention picker's hint matches what Tab does, and the message-language editor keeps keyboard focus and stays in the Tab order (#3622, #3605).
+- Counts rendered through the number formatter show 0 instead of a blank, and the filter-history dry-run line reads "1 message" (#3632, #3633).
+- Saved phone actions are 44px touch targets, and the Arabic thread header keeps its short title at 320px (#3597, #3598).
+- Joining questions opens the Gate form inside the Chat viewport; leaving a denied private-channel link clears the "not set up" state without a reload; the shared Account and Language disclosures respond inside Chat; a soft locale switch re-renders Chat in the new language (#3609, #3603, #3596, #3630).
+
+Projects
+
+- Tickets empty-state copy and filters fit on mobile; a filtered "My tickets" list with no matches says so instead of claiming nothing is assigned (#66, #3612).
+- Milestone title and due-date drafts survive a composer rerender, and Board settings and New task reopen clean after Cancel (#3629, #3615).
+- Switching between board and list keeps the locale and RTL direction; an inaccessible private board is reported as such; localized board toolbar labels fit at 320px (#3424, #3426, #3423).
+
+People, Organization and Myself
+
+- Placeholder options carry `value=""`, so "All teams" and "All locations" no longer submit their labels as filters (#3634, #3623).
+- People header links carry an explicit sort and direction, so Person ascending is restored after another sort was saved (#3624).
+- Collapsing a reporting branch hides its descendants; the visibility preview no longer says nobody holds a role that has saved holders; the organization outline, explorer and responsive pages no longer show an "unavailable" warning above content (#3608, #3389, #92).
+- Myself localizes the payroll and workflow-history headings in Arabic and shows an unresolved or hidden manager as not shown instead of "None — top of organization" (#3436, #3427).
+
+Shell and navigation
+
+- The Workspace header no longer overlaps mobile Chat navigation; closing mobile navigation removes its backdrop; the navigation modal takes focus and its trigger announces the right expanded state (#3607, #3606, #3564).
+- The action launcher keeps the active URL locale, Journeys sort and search keep keyboard focus, and admin role and appearance forms are localized in German and Arabic (#3595, #3625, #3594).
+- The agent setup empty state no longer points to a control that is not there (#3610).
+
+Workflows and promotion
+
+- New Wait and Signal steps carry their typed configuration; the Workflow Designer catalog keeps its search text and honours status filters; the draft editor fits at 320/390px (#3621, #3567, #3568).
+- German promotion pay entry accepts a decimal comma and returns localized validation; the optional target position can be cleared (#3566, #3565).
+- Finance cost views annualize hourly pay on a disclosed basis, and a USD 2/hour raise no longer shows as a USD 75,885.50 increase (#3636, #3592).
+- Workflow history no longer labels the promotion effective date as Started (#3593, partial: a true start time needs a field the journey list does not carry yet).
+
+Tests and client
+
+- journeyclient render paths read the injected App clock, its two tests that were red at HEAD pass, `TestClientBundleHeadroom` fails when the WASM builder reports an error, and the Home and record-page goldens are re-pinned with their rule deltas listed in the test (#3637, #3638, #75, #3635).
+- Help gains the knowledge search entry promised by UXAUDIT-013 where the role already permits it (#3435, partial: the role grant is a product decision).
+
 ## 2026-11-12 — Browser-client import lineage, projection barrier status and build-path repairs (#3631, #3639, #3640, #3641, #3643, #70, #71, #69)
 
 - DATA-021: `Await` no longer returns a TIMEOUT error next to a stale non-TIMEOUT `BarrierResult`, and an expired requirement with no stream head or checkpoint reports TIMEOUT instead of an unrelated status (#3631).

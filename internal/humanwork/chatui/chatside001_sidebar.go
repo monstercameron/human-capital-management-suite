@@ -213,7 +213,7 @@ func chatside001Header(m Model, section SidebarSection, name string, menu ui.Nod
 	if section.Collapsed {
 		chevron = "chevron-right"
 	}
-	title := []ui.Node{icon(chevron), html.Span(html.Props{Text: name}), html.Span(html.Props{Class: "section-count", Text: m.n(len(section.Chats))})}
+	title := []ui.Node{icon(chevron), html.Span(html.Props{Text: name}), html.Span(html.Props{Class: "section-count", Text: m.nz(len(section.Chats))})}
 	if section.Collapsed {
 		if total, mention := chatside001UnreadTotal(section); total > 0 {
 			class := "chat-badge section-unread"

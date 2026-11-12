@@ -61,7 +61,7 @@ func TestTodo_PROMOUX_007_Browser_CopyableSupportReference(t *testing.T) {
 	if presentation.notice == nil || presentation.notice.SupportReference != reference {
 		t.Fatalf("typed refusal lost server-issued reference: %+v", presentation.notice)
 	}
-	form := focusedProposalForm(map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "100.00"}, worker.GetWorkerRef(), options, worker)
+	form := focusedProposalForm(clockTestNow, map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "100.00"}, worker.GetWorkerRef(), options, worker)
 	applyProposalErrors(&form, presentation.fields)
 	doc, err := journey.RenderToString(journey.Page{Locale: "en-US", Notice: presentation.notice, Proposal: &journey.ProposalView{Form: form}})
 	if err != nil {
@@ -138,7 +138,7 @@ func TestTodo_PROMOUX_007(t *testing.T) {
 
 func TestTodo_PROMOUX_007_Golden(t *testing.T) {
 	worker, options, _ := promotionValidationFixture(t)
-	form := focusedProposalForm(map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3"}, worker.GetWorkerRef(), options, worker)
+	form := focusedProposalForm(clockTestNow, map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3"}, worker.GetWorkerRef(), options, worker)
 	var help string
 	for _, field := range form.Fields {
 		if field.ID == FieldBase {
@@ -154,7 +154,7 @@ func TestTodo_PROMOUX_007_Golden(t *testing.T) {
 
 func TestTodo_PROMOUX_007_Browser(t *testing.T) {
 	worker, options, _ := promotionValidationFixture(t)
-	form := focusedProposalForm(map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "100.00"}, worker.GetWorkerRef(), options, worker)
+	form := focusedProposalForm(clockTestNow, map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3", FieldBase: "100.00"}, worker.GetWorkerRef(), options, worker)
 	applyProposalCurrency(&form, "USD")
 	applyProposalErrors(&form, proposalFieldErrorsLocale(promotionRangeRefusal(t), productui.ResolveProductLocale("en-US")))
 	doc, err := journey.RenderToString(journey.Page{Locale: "en-US", Notice: &journey.Notice{Tone: "warning", Title: "Correct the form"}, Proposal: &journey.ProposalView{Form: form}})
@@ -175,7 +175,7 @@ func TestTodo_PROMOUX_007_Browser(t *testing.T) {
 
 func TestTodo_PROMOUX_007_Accessibility(t *testing.T) {
 	worker, options, _ := promotionValidationFixture(t)
-	form := focusedProposalForm(map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3"}, worker.GetWorkerRef(), options, worker)
+	form := focusedProposalForm(clockTestNow, map[string]string{FieldJobCode: "OPS-HRBP3", FieldGrade: "P3"}, worker.GetWorkerRef(), options, worker)
 	applyProposalCurrency(&form, "USD")
 	applyProposalErrors(&form, proposalFieldErrorsLocale(promotionRangeRefusal(t), productui.ResolveProductLocale("en-US")))
 	doc, err := journey.RenderToString(journey.Page{Locale: "en-US", Notice: &journey.Notice{Tone: "warning", Title: "Correct the form"}, Proposal: &journey.ProposalView{Form: form}})
@@ -313,6 +313,9 @@ func TestTodo_PROMOUX_007_Regression_LocalizedCorrectionClearsOnlyStaleNotice(t 
 				wantKey := "journey.required_fields_title"
 				if serverRefusal {
 					basePay = "100.00"
+					if tc.locale == "de-DE" {
+						basePay = "100,00"
+					}
 					wantTitle = tc.title
 					wantKey = "journey.error_invalid_title"
 				}

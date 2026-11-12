@@ -460,3 +460,40 @@ func TestTodo_AGENTUX_003_PillDoesNotWrap(t *testing.T) {
 		}
 	}
 }
+
+// Issue #3610: the empty state names "Choose New agent" only when the New agent
+// button renders. With no starter template and no agent, the copy must not name
+// that control, and the no-template notice must explain the state instead.
+func TestIssue_3610_ZeroStarterEmptyStateNamesOnlyRenderedControl(t *testing.T) {
+	chooseInstruction := map[string]string{
+		"en-US": "Choose New agent",
+		"de-DE": "Wählen Sie „Neuer Agent“",
+		"ar":    "اختر «وكيل جديد»",
+	}
+	for _, localeID := range []string{"en-US", "de-DE", "ar"} {
+		t.Run(localeID, func(t *testing.T) {
+			locale := ResolveProductLocale(localeID)
+			render := func(snapshot PersonaAdminSnapshot) string {
+				return personaAdminRender(t, PersonaAdminPage(PersonaAdminPageProps{I18nProps: I18nProps{Locale: locale}, State: PersonaAdminReady, Snapshot: snapshot, Client: &personaAdminTestClient{snapshot: snapshot}}))
+			}
+
+			bare := render(PersonaAdminSnapshot{Available: true})
+			if strings.Contains(bare, chooseInstruction[localeID]) || strings.Contains(bare, "data-persona-new-agent") {
+				t.Fatalf("zero-starter empty state names a New agent control that is not rendered: %s", bare)
+			}
+			if !strings.Contains(bare, personaAdminText(locale, "empty_no_starter")) {
+				t.Fatalf("zero-starter empty state has no no-template copy: %s", bare)
+			}
+			if !strings.Contains(bare, personaAdminR5SetupText(locale, "no_template")) {
+				t.Fatalf("zero-starter, zero-agent page has no no-template notice: %s", bare)
+			}
+
+			// Positive control: with a starter the instruction and its button both render.
+			withStarters := PersonaAdminSnapshot{Available: true, StarterCatalogAvailable: true, Starters: []PersonaAdminStarter{{ID: "policy-helper", Version: 1, ManifestID: "manifest", SkillGrantIDs: []string{"grant"}, ChannelClasses: []string{"PRIVATE"}}}}
+			ready := render(withStarters)
+			if !strings.Contains(ready, chooseInstruction[localeID]) || !strings.Contains(ready, "data-persona-new-agent") {
+				t.Fatalf("starter available but the instruction and New agent button do not agree: %s", ready)
+			}
+		})
+	}
+}

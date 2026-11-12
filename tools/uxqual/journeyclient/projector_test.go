@@ -16,7 +16,7 @@ import (
 
 func TestUXBlindPromotionWithoutPublishedPathIsActionable(t *testing.T) {
 	worker := &journeyv1.Worker{JobCode: "SAL-AE3", Grade: "P4"}
-	form := focusedProposalForm(nil, "adrian", &journeyv1.WorkforceOptions{}, worker)
+	form := focusedProposalForm(clockTestNow, nil, "adrian", &journeyv1.WorkforceOptions{}, worker)
 	if !form.Disabled || !strings.Contains(form.DisabledReason, "career path") {
 		t.Fatalf("missing promotion path must disable submission with recovery guidance: %+v", form)
 	}
@@ -46,6 +46,10 @@ func stamp(t *testing.T, value string) *timestamppb.Timestamp {
 	}
 	return timestamppb.New(parsed)
 }
+
+// clockTestNow is the pinned App clock every projection test renders with, so
+// date defaults and the finance in-year cost do not drift with the wall clock.
+var clockTestNow = time.Date(2026, time.November, 11, 9, 0, 0, 0, time.UTC)
 
 func testConfig() Config {
 	return Config{
@@ -112,7 +116,7 @@ func TestDetailPageDoesNotOfferAnotherApproversDecision(t *testing.T) {
 	cfg.Subject = "avery.okafor@northwind.example"
 	detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL)
 	detail.CanDecide = false
-	p := DetailPage(cfg, detail, nil, nil)
+	p := DetailPage(clockTestNow, cfg, detail, nil, nil)
 	for _, action := range p.Detail.Actions {
 		if action.ID == ActionApprove || action.ID == ActionReject {
 			t.Fatalf("non-assignee received approval control: %+v", action)
@@ -332,7 +336,7 @@ func TestChromePairsPurposeWithItsLogoutHref(t *testing.T) {
 		t.Fatalf("list chrome Principal.LogoutHref = %q, want %q paired with Purpose %q", list.Principal.LogoutHref, cfg.LogoutPath, list.Principal.Purpose)
 	}
 
-	detail := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
+	detail := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 	if detail.Principal.Purpose != cfg.Purpose || detail.Principal.Purpose == "" {
 		t.Fatalf("detail chrome Principal.Purpose = %q, want the fixture's non-empty purpose", detail.Principal.Purpose)
 	}
@@ -459,7 +463,7 @@ func TestTodo_UXAUDIT_006_JourneyHeaderLocale(t *testing.T) {
 		t.Run(tc.locale, func(t *testing.T) {
 			cfg := testConfig()
 			cfg.Locale = tc.locale
-			p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL), nil, nil)
+			p := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL), nil, nil)
 			if !strings.Contains(p.Title, tc.title) || p.Detail.Journey.StageLabel != tc.stage || p.Detail.BackLink.Label != tc.back {
 				t.Fatalf("unlocalized detail header: title=%q stage=%q back=%q", p.Title, p.Detail.Journey.StageLabel, p.Detail.BackLink.Label)
 			}
@@ -472,7 +476,7 @@ func TestTodo_UXAUDIT_006_JourneyHeaderLocale(t *testing.T) {
 }
 
 func TestProposalFormShape(t *testing.T) {
-	form := ProposalForm(map[string]string{FieldEffective: "2026-12-01"}, nil, "")
+	form := ProposalForm(clockTestNow, map[string]string{FieldEffective: "2026-12-01"}, nil, "")
 	for _, field := range form.Fields {
 		if field.ID == FieldEffective && (strings.Contains(field.Help, "today") || !strings.Contains(field.Help, "date and final outcome still need review")) {
 			t.Fatalf("effective-date guidance promises a wall-clock rule: %q", field.Help)
@@ -497,7 +501,8 @@ func TestProposalFormShape(t *testing.T) {
 		// governed picker. The kind is what this line is protecting: a text
 		// box here is the defect, not a stylistic choice.
 		{FieldPosition, NamePosition, kindPositionPicker, "", false},
-		{FieldBase, NameBase, kindNumber, "", true},
+		// #3566: a typed amount is text in the locale's separators, not type=number.
+		{FieldBase, NameBase, kindAmount, "", true},
 		{FieldEffective, NameEffective, kindDate, "2026-12-01", true},
 		{FieldReason, NameReason, kindTextarea, "", true},
 	}
@@ -534,13 +539,52 @@ func TestProposalFormShape(t *testing.T) {
 	}
 }
 
-// TestProposalFormFallsBackToItsOwnClock covers the projection being called
-// with no seeded value at all (a page rendered before App.Start ran).
-func TestProposalFormFallsBackToItsOwnClock(t *testing.T) {
-	form := ProposalForm(nil, nil, "")
-	got := form.Fields[5].Value
-	if got != DefaultEffectiveDate(time.Now()) {
-		t.Errorf("effective date = %q, want the computed default %q", got, DefaultEffectiveDate(time.Now()))
+// TestTodo_ISSUE3637_FormDefaultsUseInjectedClock pins the proposal form's
+// effective-date default through the App clock: the same projection renders
+// the date of the clock it is given, never the wall clock. The default is the
+// first day of the month three months out.
+func TestTodo_ISSUE3637_FormDefaultsUseInjectedClock(t *testing.T) {
+	const effectiveField = 5
+	pinned := ProposalForm(clockTestNow, nil, nil, "")
+	if got := pinned.Fields[effectiveField].Value; got != "2027-02-01" {
+		t.Errorf("effective date at 2026-11-11 = %q, want 2027-02-01", got)
+	}
+	later := ProposalForm(time.Date(2027, time.January, 15, 0, 0, 0, 0, time.UTC), nil, nil, "")
+	if got := later.Fields[effectiveField].Value; got != "2027-04-01" {
+		t.Errorf("effective date at 2027-01-15 = %q, want 2027-04-01", got)
+	}
+}
+
+// TestTodo_ISSUE3637_FinanceInYearUsesInjectedClock renders the finance
+// approval page through DetailPage with the App clock. The in-year increase
+// is taken over the calendar year of the clock it is given: at 2026-11-11 a
+// 2026-12-01 start covers 31 of 365 days, and at 2027-01-15 the 2026 start
+// covers the whole 2027 year.
+func TestTodo_ISSUE3637_FinanceInYearUsesInjectedClock(t *testing.T) {
+	// The finance stage fixture carries an actionable approval; the pay facts
+	// are replaced with a salary-to-salary change and no guardrail baseline.
+	detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_FINANCE_APPROVAL)
+	detail.PromotionReview = nil
+	j := detail.GetJourney()
+	j.CurrentBase, j.CurrentPayBasis = "100000.00", "ANNUAL_SALARY"
+	j.ProposedBase, j.ProposedPayBasis = "120000.00", "ANNUAL_SALARY"
+	j.Currency, j.EffectiveDate = "USD", "2026-12-01"
+	inYear := func(now time.Time) string {
+		t.Helper()
+		page := DetailPage(now, testConfig(), detail, nil, nil)
+		for _, action := range page.Detail.Actions {
+			if v, ok := financeFactValue(action.Confirmation, "Increase in this calendar year"); ok {
+				return v
+			}
+		}
+		t.Fatalf("no in-year finance fact at %s", now.Format(isoDate))
+		return ""
+	}
+	if got := inYear(clockTestNow); got != "USD 1,698.63" {
+		t.Errorf("in-year increase at 2026-11-11 = %q, want USD 1,698.63 (31/365 of 20,000.00)", got)
+	}
+	if got := inYear(time.Date(2027, time.January, 15, 0, 0, 0, 0, time.UTC)); got != "USD 20,000.00" {
+		t.Errorf("in-year increase at 2027-01-15 = %q, want the full USD 20,000.00", got)
 	}
 }
 
@@ -614,7 +658,7 @@ func TestDetailPageStepsPerStage(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(stageOf(c.stage), func(t *testing.T) {
-			p := DetailPage(testConfig(), testDetail(t, c.stage), nil, nil)
+			p := DetailPage(clockTestNow, testConfig(), testDetail(t, c.stage), nil, nil)
 			steps := p.Detail.Steps
 			if len(steps) != 5 {
 				t.Fatalf("steps = %d, want 5", len(steps))
@@ -636,7 +680,7 @@ func TestDetailPageStepsPerStage(t *testing.T) {
 }
 
 func TestDetailPageStepTimesComeFromTheTimeline(t *testing.T) {
-	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
+	p := DetailPage(clockTestNow, testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	steps := p.Detail.Steps
 	want := []string{
 		"12 May 2026, 08:58 UTC", // INTENT_CREATED
@@ -694,7 +738,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	cfg := testConfig()
 
 	t.Run("proposed offers execution", func(t *testing.T) {
-		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
+		p := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 		actions := p.Detail.Actions
 		if len(actions) != 1+wantOfferedInterventions {
 			t.Fatalf("actions = %d, want %d (execute, withdraw and edit)", len(actions), 1+wantOfferedInterventions)
@@ -727,7 +771,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	})
 
 	t.Run("blocked explains refusal without a fake action", func(t *testing.T) {
-		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED), nil, nil)
+		p := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_BLOCKED), nil, nil)
 		actions := p.Detail.Actions
 		if len(actions) != wantOfferedInterventions {
 			t.Fatalf("blocked journey should show the applicable interventions, not Start: %+v", actions)
@@ -738,7 +782,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	})
 
 	t.Run("awaiting approval offers both decisions", func(t *testing.T) {
-		p := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil)
+		p := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil)
 		actions := p.Detail.Actions
 		if len(actions) != 2+wantOfferedInterventions {
 			t.Fatalf("actions = %d, want %d (approve, reject, cancel and edit)", len(actions), 2+wantOfferedInterventions)
@@ -786,7 +830,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 	t.Run("awaiting approval waits for the durable work item", func(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)
 		detail.WorkItems = nil
-		actions := DetailPage(cfg, detail, nil, nil).Detail.Actions
+		actions := DetailPage(clockTestNow, cfg, detail, nil, nil).Detail.Actions
 		approve := findAction(t, actions, ActionApprove)
 		if !approve.Disabled || approve.Label != "Preparing approval" {
 			t.Fatalf("approve before durable routing = %+v", approve)
@@ -807,7 +851,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		journeyv1.JourneyStage_JOURNEY_STAGE_REPAIR_REQUIRED,
 	} {
 		t.Run(stageOf(stage)+" offers no lifecycle action but an eligible cancel/edit", func(t *testing.T) {
-			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			p := DetailPage(clockTestNow, cfg, testDetail(t, stage), nil, nil)
 			actions := p.Detail.Actions
 			for _, id := range []string{ActionExecute, ActionApprove, ActionReject} {
 				for _, a := range actions {
@@ -855,7 +899,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		journeyv1.JourneyStage_JOURNEY_STAGE_OBSERVING_EFFECTS,
 	} {
 		t.Run(stageOf(stage)+" has already committed: all three interventions explain why", func(t *testing.T) {
-			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			p := DetailPage(clockTestNow, cfg, testDetail(t, stage), nil, nil)
 			actions := p.Detail.Actions
 			if len(actions) != len(wantInterventionIDs) {
 				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
@@ -876,7 +920,7 @@ func TestDetailPageActionsPerStage(t *testing.T) {
 		journeyv1.JourneyStage_JOURNEY_STAGE_FAILED,
 	} {
 		t.Run(stageOf(stage)+" is terminal: all three interventions explain why, identically", func(t *testing.T) {
-			p := DetailPage(cfg, testDetail(t, stage), nil, nil)
+			p := DetailPage(clockTestNow, cfg, testDetail(t, stage), nil, nil)
 			actions := p.Detail.Actions
 			if len(actions) != len(wantInterventionIDs) {
 				t.Fatalf("actions = %+v, want exactly the three interventions, all disabled", actions)
@@ -901,11 +945,11 @@ func TestTodo_UXAUDIT_006_I18N_ActionCards(t *testing.T) {
 	} {
 		cfg := testConfig()
 		cfg.Locale = tc.locale
-		proposed := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil).Detail.Actions
+		proposed := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil).Detail.Actions
 		if len(proposed) == 0 || proposed[0].ID != ActionExecute || proposed[0].Label != tc.start || proposed[0].Confirmation[0].Label == "" {
 			t.Errorf("%s proposed action = %+v", tc.locale, proposed)
 		}
-		approval := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil).Detail.Actions
+		approval := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL), nil, nil).Detail.Actions
 		if len(approval) < 2 || approval[0].ID != ActionApprove || approval[1].ID != ActionReject || approval[0].Label != tc.approve || approval[1].Label != tc.reject || approval[0].Fields[0].Label != tc.reason || approval[0].ActsAsLabel != tc.review {
 			t.Errorf("%s approval actions = %+v", tc.locale, approval)
 		}
@@ -944,7 +988,7 @@ func TestTodo_UXAUDIT_006_I18N_ApprovalOutcomeNotice(t *testing.T) {
 }
 
 func TestDetailPageSections(t *testing.T) {
-	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
+	p := DetailPage(clockTestNow, testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	d := p.Detail
 
 	if p.Title != "Omar Reyes · Promotion journey · Human Capital Management Suite" {
@@ -985,8 +1029,8 @@ func TestDetailPageSections(t *testing.T) {
 	}
 	// UXBLIND-075: comparison rows format through the shared en-US money
 	// formatter too, which joins currency and amount with a non-breaking
-	// space.
-	if r := rows["Base pay"]; r.Current != "USD 93,000.00" || r.Proposed != "USD 98,000.00" ||
+	// space. The pay row names its unit, as the card's pay line does.
+	if r := rows["Base pay"]; r.Current != "USD\u00a093,000.00 per year" || r.Proposed != "USD\u00a098,000.00 per year" ||
 		r.Delta != "+USD 5,000.00 (+5.4%)" || !r.Changed {
 		t.Errorf("base pay row = %+v", r)
 	}
@@ -1088,7 +1132,7 @@ func TestTodo_UXAUDIT_006_I18N_PromotionDetailBusinessProjection(t *testing.T) {
 		t.Run(tc.locale, func(t *testing.T) {
 			cfg := testConfig()
 			cfg.Locale = tc.locale
-			page := DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
+			page := DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 			facts := map[string]string{}
 			for _, fact := range page.Detail.Proposal {
 				facts[fact.Label] = fact.Value
@@ -1120,7 +1164,7 @@ func TestTodo_UXAUDIT_006_I18N_PromotionDetailBusinessProjection(t *testing.T) {
 }
 
 func TestTimelineIsNewestFirstAndToned(t *testing.T) {
-	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
+	p := DetailPage(clockTestNow, testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil)
 	events := p.Detail.Timeline
 	if len(events) != 6 {
 		t.Fatalf("business timeline = %d entries, want 6 without the diagnostic node", len(events))
@@ -1160,7 +1204,7 @@ func TestLedgerEffectiveDateFallsBackToTheProposal(t *testing.T) {
 	detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 	detail.Ledger.EffectiveAt = nil
 
-	page := DetailPage(testConfig(), detail, nil, nil)
+	page := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 	if page.Detail.Ledger == nil {
 		t.Fatal("the recorded outcome is missing")
 	}
@@ -1192,7 +1236,7 @@ func TestDetailPageApprovalActionsForEveryApprovalStage(t *testing.T) {
 		journeyv1.JourneyStage_JOURNEY_STAGE_REAPPROVAL,
 	} {
 		t.Run(stageOf(stage), func(t *testing.T) {
-			p := DetailPage(testConfig(), testDetail(t, stage), nil, nil)
+			p := DetailPage(clockTestNow, testConfig(), testDetail(t, stage), nil, nil)
 			actions := p.Detail.Actions
 			if len(actions) != 2+wantOfferedInterventions {
 				t.Fatalf("actions = %d, want approve, reject, cancel and edit", len(actions))
@@ -1286,7 +1330,7 @@ func TestTodo_UXAUDIT_006_I18N_CodeBackedFinding(t *testing.T) {
 // TestDetailPageBeforeExecution keeps the unexecuted journey's absent
 // sections absent rather than empty.
 func TestDetailPageBeforeExecution(t *testing.T) {
-	p := DetailPage(testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
+	p := DetailPage(clockTestNow, testConfig(), testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_PROPOSED), nil, nil)
 	d := p.Detail
 	if d.Engine != nil || d.Nodes != nil || d.WorkItems != nil || d.Ledger != nil {
 		t.Error("a journey with no workflow instance rendered engine sections")
@@ -1300,9 +1344,9 @@ func TestDetailPageBeforeExecution(t *testing.T) {
 // change and its answer: the chrome and the notice must still render.
 func TestDetailPageOfNothing(t *testing.T) {
 	notice := &journey.Notice{Tone: toneDanger, Title: "No such journey"}
-	p := DetailPage(testConfig(), nil, notice, nil)
+	p := DetailPage(clockTestNow, testConfig(), nil, notice, nil)
 	if p.Detail == nil {
-		t.Fatal("DetailPage(nil) produced no view at all")
+		t.Fatal("DetailPage(clockTestNow, nil) produced no view at all")
 	}
 	if p.Notice != notice {
 		t.Error("the notice was dropped")
@@ -1435,7 +1479,7 @@ func TestProjectedPagesRender(t *testing.T) {
 		}
 	}
 
-	detail, err := journey.RenderToString(DetailPage(cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
+	detail, err := journey.RenderToString(DetailPage(clockTestNow, cfg, testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED), nil, nil))
 	if err != nil {
 		t.Fatalf("rendering the detail: %v", err)
 	}
@@ -1591,7 +1635,7 @@ func TestListPageProjectsThePeoplePanel(t *testing.T) {
 		// UXBLIND-082/090: every surface shows the shared display name.
 		Ref: testCreatedRef, Name: "Rosa Iglesias", Number: "W-2001",
 		Title: "HR Business Partner", JobCode: "OPS-HRBP2", Grade: "P2",
-		OrgUnit: "People Ops", Location: "Barcelona, ES",
+		OrgUnit: "People Operations", Location: "Barcelona, ES",
 		PayLine: "USD 72,500.00 per year", HireDate: "1 Oct 2026", // UXBLIND-010/020: pay carries its unit
 		Source: "CREATED", SourceLabel: "Created", Tone: toneInfo,
 		ProposeHref: "#/journeys/new?worker=worker%3Acreated-rosa",
@@ -1837,7 +1881,7 @@ func TestListPageWithoutAWorkforceAnswerHasNoPanel(t *testing.T) {
 }
 
 func TestWorkerFormShape(t *testing.T) {
-	form := WorkerForm(testWorkforceOptions(), nil, nil)
+	form := WorkerForm(clockTestNow, testWorkforceOptions(), nil, nil)
 
 	if len(form.Hidden) != 0 {
 		t.Errorf("Hidden = %v, want empty: this client submits over gRPC", form.Hidden)
@@ -1861,7 +1905,7 @@ func TestWorkerFormShape(t *testing.T) {
 		{FieldWorkerBasePay, NameWorkerBasePay, kindNumber, "", true},
 		{FieldWorkerCurrency, NameCurrency, kindHidden, "USD", false},
 		{FieldWorkerBonusTarget, NameBonusTarget, kindNumber, DefaultBonusTarget, false},
-		{FieldWorkerHireDate, NameHireDate, kindDate, DefaultHireDate(time.Now()), true},
+		{FieldWorkerHireDate, NameHireDate, kindDate, DefaultHireDate(clockTestNow), true},
 		{FieldWorkerManager, NameManagerRef, kindText, "", false},
 	}
 	if len(form.Fields) != len(want) {
@@ -1911,7 +1955,7 @@ func TestWorkerFormKeepsWhatTheReaderTyped(t *testing.T) {
 		FieldWorkerBasePay:   "104000",
 		FieldWorkerHireDate:  "2027-01-01",
 	}
-	form := WorkerForm(testWorkforceOptions(), values, map[string]string{NameWorkerBasePay: "outside every band for this placement"})
+	form := WorkerForm(clockTestNow, testWorkforceOptions(), values, map[string]string{NameWorkerBasePay: "outside every band for this placement"})
 
 	if form.Fields[0].Value != "Rosa Iglesias" || form.Fields[8].Value != "104000" ||
 		form.Fields[12].Value != "" || form.Fields[11].Value != "2027-01-01" {
@@ -1938,7 +1982,7 @@ func TestWorkerFormKeepsWhatTheReaderTyped(t *testing.T) {
 func TestWorkerFormAsksForACurrencyWhenTheCellDeclaresNone(t *testing.T) {
 	options := testWorkforceOptions()
 	options.Currency = ""
-	form := WorkerForm(options, nil, nil)
+	form := WorkerForm(clockTestNow, options, nil, nil)
 
 	currency := form.Fields[9]
 	if currency.Kind != kindText || !currency.Required || currency.Value != DefaultCurrency {
@@ -1953,7 +1997,7 @@ func TestWorkerFormAsksForACurrencyWhenTheCellDeclaresNone(t *testing.T) {
 // published no closed sets at all: the selects are empty, and the defaults
 // this client owns are still there.
 func TestWorkerFormWithoutOptionsStillOffersAPosition(t *testing.T) {
-	form := WorkerForm(nil, nil, nil)
+	form := WorkerForm(clockTestNow, nil, nil, nil)
 	if form.Fields[5].Value != DefaultPositionID {
 		t.Errorf("the position = %q, want %q", form.Fields[5].Value, DefaultPositionID)
 	}
@@ -1966,7 +2010,7 @@ func TestWorkerFormWithoutOptionsStillOffersAPosition(t *testing.T) {
 }
 
 func TestProposalFormListsEveryWorkerIncludingTheCreatedOnes(t *testing.T) {
-	form := ProposalForm(nil, testWorkers(), testCreatedRef)
+	form := ProposalForm(clockTestNow, nil, testWorkers(), testCreatedRef)
 
 	options := form.Fields[0].Options
 	if len(options) != 4 {
@@ -1996,7 +2040,7 @@ func TestProposalFormListsEveryWorkerIncludingTheCreatedOnes(t *testing.T) {
 
 	// A value the reader chose outranks the table's selection: they are
 	// looking at the select they just used.
-	typed := ProposalForm(map[string]string{FieldWorker: "jane-doe"}, testWorkers(), testCreatedRef)
+	typed := ProposalForm(clockTestNow, map[string]string{FieldWorker: "jane-doe"}, testWorkers(), testCreatedRef)
 	if typed.Fields[0].Value != "jane-doe" {
 		t.Errorf("the reader's own choice = %q", typed.Fields[0].Value)
 	}
@@ -2072,5 +2116,113 @@ func TestTodo_UXAUDIT_006_PromotionRuleHelpHidesPolicyIdentifiers(t *testing.T) 
 		if strings.Contains(help, forbidden) {
 			t.Errorf("promotion help exposed %q: %q", forbidden, help)
 		}
+	}
+}
+
+// financeBasisFact returns the value of the fact labelled with the given copy
+// key in the locale, and whether the view carried one.
+func financeBasisFact(t *testing.T, locale string, facts []journey.Fact, key string) (string, bool) {
+	t.Helper()
+	label := productui.ResolveProductLocale(locale).Text(key)
+	return financeFactValue(facts, label)
+}
+
+// financeHourlyDetail is an hourly promotion from 20.00 to 22.00 per hour, on
+// a path whose placements are A/1 to B/2, effective 2026-12-01.
+func financeHourlyDetail() *journeyv1.JourneyDetail {
+	return &journeyv1.JourneyDetail{Journey: &journeyv1.Journey{
+		Current:     &journeyv1.Placement{JobCode: "A", Grade: "1"},
+		Target:      &journeyv1.Placement{JobCode: "B", Grade: "2"},
+		CurrentBase: "20.00", CurrentPayBasis: payBasisHourly,
+		ProposedBase: "22.00", ProposedPayBasis: payBasisHourly,
+		Currency:      "USD",
+		EffectiveDate: "2026-12-01",
+	}}
+}
+
+func TestTodo_ISSUE3636_PathBasisComesFromTheWorkforceOptions(t *testing.T) {
+	detail := financeHourlyDetail()
+	options := &journeyv1.WorkforceOptions{PromotionPaths: []*journeyv1.PromotionPathOption{
+		{SourceJobCode: "A", SourceGrade: "1", TargetJobCode: "B", TargetGrade: "3", AnnualizationHours: 2080},
+		{SourceJobCode: "A", SourceGrade: "1", TargetJobCode: "B", TargetGrade: "2", AnnualizationHours: 1950},
+	}}
+	if got := financePathAnnualizationHours(options, detail.GetJourney()); got != 1950 {
+		t.Errorf("path hours = %d, want the A/1 to B/2 path's 1950", got)
+	}
+	if got := financePathAnnualizationHours(nil, detail.GetJourney()); got != 0 {
+		t.Errorf("path hours without options = %d, want 0 (unknown)", got)
+	}
+	if got := financePathAnnualizationHours(&journeyv1.WorkforceOptions{}, detail.GetJourney()); got != 0 {
+		t.Errorf("path hours for an unlisted path = %d, want 0 (unknown)", got)
+	}
+}
+
+// TestTodo_ISSUE3636_PartTimeAndFullTimeAnnualizeFromTheirOwnBasis proves the
+// annual figure follows the path's scheduled hours: 30 hours a week is 1,560
+// hours a year and 37.5 hours a week is 1,950.
+func TestTodo_ISSUE3636_PartTimeAndFullTimeAnnualizeFromTheirOwnBasis(t *testing.T) {
+	cases := []struct {
+		name, locale string
+		hours        int32
+		wantDelta    string
+		wantBasis    string
+	}{
+		{"part-time 30h", "en-US", 1560, "USD 3,120.00", "1,560 hours"},
+		{"37.5h", "en-US", 1950, "USD 3,900.00", "1,950 hours"},
+		{"default 2080h", "en-US", 2080, "USD 4,160.00", "2,080 hours"},
+		{"part-time 30h in German", "de-DE", 1560, "3.120,00 USD", "1.560 Stunden"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			facts := financeCostFactsOn(c.locale, financeHourlyDetail(), clockTestNow, c.hours)
+			if got, _ := financeBasisFact(t, c.locale, facts, "journey.finance_annualized_cost"); got != c.wantDelta {
+				t.Errorf("annualized increase = %q, want %q", got, c.wantDelta)
+			}
+			if got, ok := financeBasisFact(t, c.locale, facts, "journey.finance_annual_basis"); !ok || got != c.wantBasis {
+				t.Errorf("annual basis = %q (present %v), want %q", got, ok, c.wantBasis)
+			}
+		})
+	}
+}
+
+// TestTodo_ISSUE3636_UnknownBasisSaysSoAndKeepsTheBudgetLine proves that an
+// hourly change with no known path hours states "not available" and keeps the
+// budget line, instead of omitting the cost block or inventing 2,080 hours.
+func TestTodo_ISSUE3636_UnknownBasisSaysSoAndKeepsTheBudgetLine(t *testing.T) {
+	for _, locale := range []string{"en-US", "de-DE", "ar"} {
+		facts := financeCostFactsOn(locale, financeHourlyDetail(), clockTestNow, 0)
+		copy := productui.ResolveProductLocale(locale)
+		unavailable := copy.Text("journey.finance_value_unavailable")
+		if got, _ := financeBasisFact(t, locale, facts, "journey.finance_annualized_cost"); got != unavailable {
+			t.Errorf("%s: annualized increase = %q, want the not-available reading %q", locale, got, unavailable)
+		}
+		if got, ok := financeBasisFact(t, locale, facts, "journey.finance_annual_basis"); !ok || got != copy.Text("journey.finance_basis_unavailable") {
+			t.Errorf("%s: annual basis = %q (present %v), want the disclosed unknown basis", locale, got, ok)
+		}
+		if got, ok := financeBasisFact(t, locale, facts, "journey.finance_budget_line"); !ok || got != copy.Text("journey.finance_budget_unavailable") {
+			t.Errorf("%s: budget line = %q (present %v), want it kept", locale, got, ok)
+		}
+	}
+	if got, _ := financeFactValue(financeCostFactsOn("en-US", financeHourlyDetail(), clockTestNow, 0), "Annual basis"); got != "The promotion path does not state its annual hours" {
+		t.Errorf("en-US unknown basis explanation = %q", got)
+	}
+}
+
+// TestTodo_ISSUE3636_GuardrailCurrentUsesTheSameHoursBasis: when the guardrail
+// supplies the server-annualized current figure, an hourly proposal must be
+// annualized over the same path hours. With no known basis the view says so
+// rather than mixing a server figure with a client-annualized one.
+func TestTodo_ISSUE3636_GuardrailCurrentUsesTheSameHoursBasis(t *testing.T) {
+	detail := financeHourlyDetail()
+	detail.PromotionReview = &journeyv1.JourneyPromotionReview{
+		CompensationGuardrail: &journeyv1.JourneyCompensationGuardrail{CurrentAnnualized: "30000.00"},
+	}
+	unknown := financeCostFactsOn("en-US", detail, clockTestNow, 0)
+	if got, _ := financeFactValue(unknown, "Annualized cost increase"); got != "Not available" {
+		t.Errorf("guardrail current with unknown basis = %q, want Not available (no mixed annualization)", got)
+	}
+	known := financeCostFactsOn("en-US", detail, clockTestNow, 1560)
+	if got, _ := financeFactValue(known, "Annualized cost increase"); got != "USD 4,320.00" {
+		t.Errorf("guardrail current with 1,560 path hours = %q, want USD 4,320.00 (34,320.00 - 30,000.00)", got)
 	}
 }

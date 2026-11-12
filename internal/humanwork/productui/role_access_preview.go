@@ -143,8 +143,8 @@ func roleAccessPreviewResult(props roleAccessPreviewPanelProps, preview RoleAcce
 			html.P(html.Props{}, ui.Text(text("override_detail")))))
 	}
 	nodes = append(nodes, html.Div(html.Props{Class: "role-access-preview-compare"},
-		roleAccessPreviewScope(props, "current", preview.CurrentMode, preview.CurrentUnits, preview.CurrentRelative, preview.AdministratorOverride, nil, nil),
-		roleAccessPreviewScope(props, "proposed", preview.ProposedMode, preview.ProposedUnits, preview.ProposedRelative, preview.AdministratorOverride, preview.AddedUnits, preview.RemovedUnits),
+		roleAccessPreviewScope(props, "current", preview.CurrentMode, preview.CurrentUnits, preview.CurrentRelative, preview.HolderCount, preview.AdministratorOverride, nil, nil),
+		roleAccessPreviewScope(props, "proposed", preview.ProposedMode, preview.ProposedUnits, preview.ProposedRelative, preview.HolderCount, preview.AdministratorOverride, preview.AddedUnits, preview.RemovedUnits),
 	))
 	inherited := text("none")
 	if len(preview.InheritedRoles) > 0 {
@@ -167,7 +167,7 @@ func roleAccessPreviewResult(props roleAccessPreviewPanelProps, preview RoleAcce
 	return nodes
 }
 
-func roleAccessPreviewScope(props roleAccessPreviewPanelProps, which, mode string, units []string, relative, override bool, added, removed []string) ui.Node {
+func roleAccessPreviewScope(props roleAccessPreviewPanelProps, which, mode string, units []string, relative bool, holders int, override bool, added, removed []string) ui.Node {
 	locale := props.Page.Locale
 	text := func(key string) string { return roleAccessPreviewText(locale, key) }
 	modeLabel := localizedVisibilityModeLabel(props.Page, mode)
@@ -190,8 +190,10 @@ func roleAccessPreviewScope(props roleAccessPreviewPanelProps, which, mode strin
 		}
 		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(strings.ReplaceAll(label, "{count}", strconv.Itoa(len(units))))),
 			html.Ul(html.Props{Class: "organization-scope-units", Aria: map[string]string{"label": text(which)}}, chips...))
-	case relative:
+	case relative && holders == 0:
 		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(text("relative_empty"))))
+	case relative:
+		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(strings.ReplaceAll(text("relative_holders"), "{count}", strconv.Itoa(holders)))))
 	default:
 		children = append(children, html.P(html.Props{Class: "muted"}, ui.Text(text("no_units"))))
 	}
@@ -221,9 +223,10 @@ func buildRoleAccessPreviewCopy() map[string]map[string]string {
 			"stale":   "You changed this draft after the preview. Preview again to update it.",
 			"current": "Current (saved)", "proposed": "Proposed (this draft)",
 			"units_count": "Organization units: {count}", "relative_units": "Each person sees their own unit. Units among people with this role: {count}",
-			"relative_empty": "Each person sees their own unit. Nobody has a saved assignment to this role yet.",
-			"no_units":       "No organization units",
-			"added":          "Newly visible:", "removed": "No longer visible:",
+			"relative_empty":   "Each person sees their own unit. Nobody has a saved assignment to this role yet.",
+			"relative_holders": "Each person sees their own unit. {count} people hold this role; their units are not listed here.",
+			"no_units":         "No organization units",
+			"added":            "Newly visible:", "removed": "No longer visible:",
 			"explicit": "Role being changed", "inherited": "Other roles its people also hold", "holders": "People with this role saved",
 			"overridden": "Of those, also administrators (see every unit)", "none": "None",
 			"override_title":         "Administrator override",
@@ -240,9 +243,10 @@ func buildRoleAccessPreviewCopy() map[string]map[string]string {
 			"stale":   "Sie haben den Entwurf nach der Vorschau geändert. Prüfen Sie erneut, um sie zu aktualisieren.",
 			"current": "Aktuell (gespeichert)", "proposed": "Vorgeschlagen (dieser Entwurf)",
 			"units_count": "Organisationseinheiten: {count}", "relative_units": "Jede Person sieht ihre eigene Einheit. Einheiten der Personen mit dieser Rolle: {count}",
-			"relative_empty": "Jede Person sieht ihre eigene Einheit. Diese Rolle ist noch niemandem gespeichert zugewiesen.",
-			"no_units":       "Keine Organisationseinheiten",
-			"added":          "Neu sichtbar:", "removed": "Nicht mehr sichtbar:",
+			"relative_empty":   "Jede Person sieht ihre eigene Einheit. Diese Rolle ist noch niemandem gespeichert zugewiesen.",
+			"relative_holders": "Jede Person sieht ihre eigene Einheit. {count} Personen haben diese Rolle; ihre Einheiten werden hier nicht aufgelistet.",
+			"no_units":         "Keine Organisationseinheiten",
+			"added":            "Neu sichtbar:", "removed": "Nicht mehr sichtbar:",
 			"explicit": "Geänderte Rolle", "inherited": "Weitere Rollen dieser Personen", "holders": "Personen mit gespeicherter Rolle",
 			"overridden": "Davon auch Administratoren (sehen alle Einheiten)", "none": "Keine",
 			"override_title":         "Administratorzugriff",
@@ -259,9 +263,10 @@ func buildRoleAccessPreviewCopy() map[string]map[string]string {
 			"stale":   "غيّرت المسودة بعد المعاينة. عاين مرة أخرى لتحديثها.",
 			"current": "الحالي (محفوظ)", "proposed": "المقترح (هذه المسودة)",
 			"units_count": "الوحدات التنظيمية: {count}", "relative_units": "يرى كل شخص وحدته. وحدات أصحاب هذا الدور: {count}",
-			"relative_empty": "يرى كل شخص وحدته. لا يوجد إسناد محفوظ لهذا الدور بعد.",
-			"no_units":       "لا وحدات تنظيمية",
-			"added":          "مرئي حديثاً:", "removed": "لم يعد مرئياً:",
+			"relative_empty":   "يرى كل شخص وحدته. لا يوجد إسناد محفوظ لهذا الدور بعد.",
+			"relative_holders": "يرى كل شخص وحدته. لدى {count} أشخاص هذا الدور؛ لا تُدرج وحداتهم هنا.",
+			"no_units":         "لا وحدات تنظيمية",
+			"added":            "مرئي حديثاً:", "removed": "لم يعد مرئياً:",
 			"explicit": "الدور الذي يتغير", "inherited": "أدوار أخرى يحملها أصحابه", "holders": "أشخاص لديهم هذا الدور محفوظاً",
 			"overridden": "منهم مسؤولون أيضاً (يرون كل الوحدات)", "none": "لا شيء",
 			"override_title":         "تجاوز المسؤول",

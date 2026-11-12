@@ -46,7 +46,7 @@ func TestTodo_PROMOUX_014_Regression(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_WAITING_EFFECTIVE_DATE)
 		detail.Findings = append(detail.Findings, promoux014Findings()...)
 
-		p := DetailPage(testConfig(), detail, nil, nil)
+		p := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 
 		if len(p.Detail.WaitExplanation) != 6 {
 			t.Fatalf("DetailPage produced %d WaitExplanation facts, want 6: %+v", len(p.Detail.WaitExplanation), p.Detail.WaitExplanation)
@@ -72,7 +72,7 @@ func TestTodo_PROMOUX_014_Regression(t *testing.T) {
 		incomplete := promoux014Findings()[:5] // every code except WAIT_INTERVENTION
 		detail.Findings = append(detail.Findings, incomplete...)
 
-		p := DetailPage(testConfig(), detail, nil, nil)
+		p := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 
 		if p.Detail.WaitExplanation != nil {
 			t.Fatalf("WaitExplanation = %+v, want nil for an incomplete set of WAIT_ codes", p.Detail.WaitExplanation)
@@ -89,7 +89,7 @@ func TestTodo_PROMOUX_014_Regression(t *testing.T) {
 
 	t.Run("a journey with no wait findings at all gets no WaitExplanation", func(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_AWAITING_APPROVAL)
-		p := DetailPage(testConfig(), detail, nil, nil)
+		p := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 		if p.Detail.WaitExplanation != nil {
 			t.Fatalf("WaitExplanation = %+v, want nil for a journey that never reached the wait", p.Detail.WaitExplanation)
 		}

@@ -261,7 +261,7 @@ func renderGateField(v GateView, f chatgate.Field) ui.Node {
 		props.MaxLength = 500
 		nodes = append(nodes, html.Textarea(props))
 	case "single_choice", "person", "team", "location":
-		options := []ui.Node{html.Option(html.Props{Value: "", Text: t("choose")})}
+		options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
 		choices := []GateChoice{}
 		if f.Kind == "single_choice" {
 			for _, o := range f.Options {

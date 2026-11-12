@@ -59,9 +59,14 @@ type PageRequest struct {
 	WorkflowNodeID     string
 	// WorkflowShowReferences preserves the designer's reference catalog toggle.
 	WorkflowShowReferences bool
-	NavCollapsed           bool
-	MenuQuery              string
-	FavoritePages          []PageID
+	// WorkflowListStatus, WorkflowListSort and WorkflowListPage are the catalog's
+	// address-backed list state; WorkflowQuery carries its search text.
+	WorkflowListStatus string
+	WorkflowListSort   string
+	WorkflowListPage   int
+	NavCollapsed       bool
+	MenuQuery          string
+	FavoritePages      []PageID
 }
 
 // ApplyRequest applies address-bar presentation state to a live projection.
@@ -184,6 +189,8 @@ func ApplyRequest(view View, request PageRequest) View {
 	view.SelectedWorkflowDraftID = strings.TrimSpace(request.WorkflowDraftID)
 	view.SelectedWorkflowNodeID = strings.TrimSpace(request.WorkflowNodeID)
 	view.WorkflowShowReferences = request.WorkflowShowReferences
+	workflowList := normalizeWorkflowListState(workflowListState{Status: request.WorkflowListStatus, Sort: request.WorkflowListSort, Page: request.WorkflowListPage})
+	view.WorkflowListStatus, view.WorkflowListSort, view.WorkflowListPage = workflowList.Status, workflowList.Sort, workflowList.Page
 	view.NavCollapsed = request.NavCollapsed
 	view.MenuQuery = strings.TrimSpace(request.MenuQuery)
 	view.FavoritePages = authorizedFavoritePages(view.Navigation, request.FavoritePages)

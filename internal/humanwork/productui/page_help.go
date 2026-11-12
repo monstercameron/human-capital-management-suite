@@ -60,9 +60,15 @@ func helpPage(view View) ui.Node {
 			}
 		}
 	}
+	// A withheld knowledge search must be explained, not silently omitted, so
+	// the viewer knows the capability exists and how to obtain it. Issue #3435.
+	escalation := description
+	if search == nil {
+		escalation = view.Locale.Text("help.search_unavailable") + " " + description
+	}
 	return ui.CreateElement(HelpPage, HelpPageProps{
 		Guidance: QuickActionsProps{Title: view.Locale.Text("help.tasks"), Actions: actions},
-		Support:  support, SearchDestination: search, Escalation: description,
+		Support:  support, SearchDestination: search, Escalation: escalation,
 	})
 }
 

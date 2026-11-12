@@ -65,6 +65,7 @@ type BoardCopy struct {
 	ColKey, ColTitle, ColUpdated, NoTickets, NoTicketsHint, NoMatch    string
 	LoadingTickets, PreviousPage, NextPage                             string
 	MyTickets, AllTickets, MyTicketsEmpty, MyTicketsEmptyHint, Later   string
+	MyTicketsFiltered                                                  string
 	ScrollPrev, ScrollNext                                             string
 	// PageSize labels the rows-per-page select; Range is "1–25 of 110".
 	PageSize string
@@ -103,6 +104,7 @@ func localizedBoardCopy(copy BoardCopy, format func(int) string) BoardCopy {
 		PageSize: "Rows per page", ShowFewer: "Show fewer",
 		ScrollPrev: "Scroll to earlier columns", ScrollNext: "Scroll to later columns",
 		MyTickets: "My tickets", AllTickets: "All tickets", MyTicketsEmpty: "Nothing is assigned to you right now.", MyTicketsEmptyHint: "Tickets assigned to you show up here first, most urgent on top.", Later: "Later",
+		MyTicketsFiltered: "No assigned tickets match these filters.",
 	}
 	for _, pair := range []struct {
 		value    *string
@@ -166,6 +168,7 @@ func localizedBoardCopy(copy BoardCopy, format func(int) string) BoardCopy {
 		{&copy.PageSize, defaults.PageSize}, {&copy.ShowFewer, defaults.ShowFewer}, {&copy.ReporterUnknown, defaults.ReporterUnknown},
 		{&copy.ScrollPrev, defaults.ScrollPrev}, {&copy.ScrollNext, defaults.ScrollNext},
 		{&copy.MyTickets, defaults.MyTickets}, {&copy.AllTickets, defaults.AllTickets}, {&copy.MyTicketsEmpty, defaults.MyTicketsEmpty}, {&copy.MyTicketsEmptyHint, defaults.MyTicketsEmptyHint}, {&copy.Later, defaults.Later},
+		{&copy.MyTicketsFiltered, defaults.MyTicketsFiltered},
 	} {
 		if *pair.value == "" {
 			*pair.value = pair.fallback

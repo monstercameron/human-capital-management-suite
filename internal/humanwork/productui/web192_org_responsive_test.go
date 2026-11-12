@@ -64,7 +64,10 @@ func TestTodo_WEB_192_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(golden))
 	got := hex.EncodeToString(digest[:])
 	// UXBLIND-027: page title now equals the page label (one name per page), which shifts every registry-derived golden digest.
-	const want = "109955f86b32c0b28ca4b5958096fd18caf9407d637a99a98179fcc342d9e521"
+	// #92 re-pin: the subtitle (registry and en-US catalog) was reworded to drop
+	// "governed", so the page keeps its own description instead of the generic
+	// unavailable copy; the subtitle is the only input that changed.
+	const want = "3e3b6deafb2d516cdc6656bb7303ba920a8e35f3d0758f4c54824bc8a646de97"
 	if got != want {
 		t.Fatalf("responsive organization digest = %s, want %s", got, want)
 	}

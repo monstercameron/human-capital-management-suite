@@ -131,6 +131,7 @@ func handleProjectPopoverClick(event js.Value) bool {
 	target := event.Get("target")
 	if closer := projectClosest(target, "[data-projectui-close-popover]"); closer.Truthy() {
 		if details := projectClosest(closer, "details.project-page-disclosure"); details.Truthy() {
+			projectRestorePopoverForm(details)
 			details.Call("removeAttribute", "open")
 			if summary := details.Call("querySelector", "summary"); summary.Truthy() {
 				summary.Call("focus")
@@ -155,6 +156,40 @@ func handleProjectPopoverClick(event js.Value) bool {
 		return true
 	}
 	return false
+}
+
+// projectRestorePopoverForm discards an unsaved edit when a popover is closed:
+// each control rendered with data-saved-value or data-saved-checked returns to
+// that value, its aria-invalid state is cleared, and the form's result message
+// (from a failed save) is removed. Nothing is saved or sent.
+func projectRestorePopoverForm(details js.Value) {
+	form := details.Call("querySelector", "form")
+	if !form.Truthy() {
+		return
+	}
+	controls := form.Call("querySelectorAll", "[data-saved-value],[data-saved-checked]")
+	for index := 0; index < controls.Get("length").Int(); index++ {
+		control := controls.Index(index)
+		kind, current, saved := projectControlValue, control.Get("value").String(), ""
+		if control.Call("hasAttribute", "data-saved-checked").Bool() {
+			kind = projectControlCheckbox
+			current = strconv.FormatBool(control.Get("checked").Bool())
+			saved = projectAttr(control, "data-saved-checked")
+		} else {
+			saved = projectAttr(control, "data-saved-value")
+		}
+		if restored, changed := projectRestoreControl(kind, current, saved); changed {
+			if kind == projectControlCheckbox {
+				control.Set("checked", restored.Checked)
+			} else {
+				control.Set("value", restored.Value)
+			}
+		}
+		control.Call("removeAttribute", "aria-invalid")
+	}
+	if result := form.Call("querySelector", "[data-projectui-result]"); result.Truthy() {
+		result.Call("remove")
+	}
 }
 
 func bindProjectPopovers() {
@@ -200,6 +235,9 @@ func bindProjectPopovers() {
 				return nil
 			}
 			event.Call("preventDefault")
+			if details.Call("matches", "details.project-page-disclosure").Bool() {
+				projectRestorePopoverForm(details)
+			}
 			details.Call("removeAttribute", "open")
 			if summary := details.Call("querySelector", "summary"); summary.Truthy() {
 				summary.Call("focus")

@@ -60,6 +60,16 @@ var chatPluralForms = map[string]map[string]map[string]string{
 		"de": {"one": "1 Agent", "other": "{n} Agenten"},
 		"ar": {"zero": "لا وكلاء", "one": "وكيل واحد", "two": "وكيلان", "few": "{n} وكلاء", "many": "{n} وكيلًا", "other": "{n} وكيل"},
 	},
+	"channels": {
+		"en": {"one": "1 channel", "other": "{n} channels"},
+		"de": {"one": "1 Kanal", "other": "{n} Kanäle"},
+		"ar": {"zero": "لا قنوات", "one": "قناة واحدة", "two": "قناتان", "few": "{n} قنوات", "many": "{n} قناة", "other": "{n} قناة"},
+	},
+	"messages": {
+		"en": {"one": "1 message", "other": "{n} messages"},
+		"de": {"one": "1 Nachricht", "other": "{n} Nachrichten"},
+		"ar": {"zero": "لا رسائل", "one": "رسالة واحدة", "two": "رسالتان", "few": "{n} رسائل", "many": "{n} رسالة", "other": "{n} رسالة"},
+	},
 }
 
 // chatPlural writes n of noun in the language of locale. An unknown noun or

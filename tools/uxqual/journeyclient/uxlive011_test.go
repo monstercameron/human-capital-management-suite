@@ -53,7 +53,7 @@ func TestTodo_UXLIVE_011(t *testing.T) {
 		uxlive011Vacancy("ref-care-1", "CARE-COORD", "Care Coordinator"),
 	)
 
-	field := uxlive011Field(t, ProposalForm(map[string]string{}, nil, "", options))
+	field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{}, nil, "", options))
 	if field.Kind == kindText {
 		t.Fatalf("the target position is still a free-text input")
 	}
@@ -68,13 +68,13 @@ func TestTodo_UXLIVE_011(t *testing.T) {
 	}
 
 	// Choosing a role narrows the list to what is open for it.
-	narrowed := uxlive011Field(t, ProposalForm(map[string]string{FieldJobCode: "CARE-COORD"}, nil, "", options))
+	narrowed := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldJobCode: "CARE-COORD"}, nil, "", options))
 	if len(narrowed.Vacancies) != 1 || narrowed.Vacancies[0].Reference != "ref-care-1" {
 		t.Fatalf("choosing CARE-COORD offers %+v, want only the open CARE-COORD position", narrowed.Vacancies)
 	}
 
 	// A role with nothing open is an answer, not a prompt to type one in.
-	empty := uxlive011Field(t, ProposalForm(map[string]string{FieldJobCode: "FIN-DIR"}, nil, "", options))
+	empty := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldJobCode: "FIN-DIR"}, nil, "", options))
 	if len(empty.Vacancies) != 0 {
 		t.Fatalf("a role with no open position offered %+v", empty.Vacancies)
 	}
@@ -93,7 +93,7 @@ func TestTodo_UXLIVE_011(t *testing.T) {
 // reader their entry would block the request; copy that predicts a refusal
 // belongs to a control that can produce one, and this one cannot.
 func TestTodo_UXLIVE_011_Browser(t *testing.T) {
-	field := uxlive011Field(t, ProposalForm(map[string]string{}, nil, "",
+	field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{}, nil, "",
 		uxlive011Options(uxlive011Vacancy("ref-1", "ENG-MGR", "Engineering Manager"))))
 
 	if strings.Contains(strings.ToLower(field.Help), "block the request") {
@@ -112,7 +112,7 @@ func TestTodo_UXLIVE_011_Browser(t *testing.T) {
 	// Every locale answers, so the picker is never rendered with a raw key
 	// or an empty legend in a language the audit did not run in.
 	for _, locale := range []string{"en-US", "de-DE", "ar-EG"} {
-		form := ProposalForm(map[string]string{}, nil, "", uxlive011Options())
+		form := ProposalForm(clockTestNow, map[string]string{}, nil, "", uxlive011Options())
 		localizeProposalForm(&form, productui.ResolveProductLocale(locale), false, nil, nil)
 		localized := uxlive011Field(t, form)
 		for name, text := range map[string]string{
@@ -134,14 +134,14 @@ func TestTodo_UXLIVE_011_Security(t *testing.T) {
 
 	// A value the server never published is dropped, not carried.
 	for _, guessed := range []string{"POS-ENG-MGR-101", "ref-published-x", " ref-published", "'; drop"} {
-		field := uxlive011Field(t, ProposalForm(map[string]string{FieldPosition: guessed}, nil, "", options))
+		field := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldPosition: guessed}, nil, "", options))
 		if field.Value != "" {
 			t.Errorf("a guessed position %q survived as the field's value %q", guessed, field.Value)
 		}
 	}
 
 	// A published one is kept, so this is a filter and not a blanket clear.
-	kept := uxlive011Field(t, ProposalForm(map[string]string{FieldPosition: "ref-published"}, nil, "", options))
+	kept := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldPosition: "ref-published"}, nil, "", options))
 	if kept.Value != "ref-published" {
 		t.Fatalf("a published reference was dropped: %q", kept.Value)
 	}
@@ -149,7 +149,7 @@ func TestTodo_UXLIVE_011_Security(t *testing.T) {
 	// A previously chosen position that is no longer offered -- filled since
 	// the form was drawn -- is dropped rather than resubmitted, because the
 	// proposal would be refused on exactly that ground.
-	stale := uxlive011Field(t, ProposalForm(map[string]string{FieldPosition: "ref-published", FieldJobCode: "FIN-DIR"}, nil, "", options))
+	stale := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{FieldPosition: "ref-published", FieldJobCode: "FIN-DIR"}, nil, "", options))
 	if stale.Value != "" {
 		t.Fatalf("a position no longer on offer was still carried: %q", stale.Value)
 	}
@@ -157,7 +157,7 @@ func TestTodo_UXLIVE_011_Security(t *testing.T) {
 	// A published option with no reference is not offered at all: an option
 	// whose value is empty would submit as "no position chosen" while
 	// looking like a choice.
-	blank := uxlive011Field(t, ProposalForm(map[string]string{}, nil, "",
+	blank := uxlive011Field(t, ProposalForm(clockTestNow, map[string]string{}, nil, "",
 		uxlive011Options(&journeyv1.PositionVacancyOption{Title: "Unnamed", JobCode: "ENG-MGR"})))
 	if len(blank.Vacancies) != 0 {
 		t.Fatalf("an option with no server-issued reference was offered: %+v", blank.Vacancies)
@@ -179,7 +179,7 @@ func TestPositionPickerStartsWithTheEmployeesNextRoles(t *testing.T) {
 		t.Fatal("fixture has no jane-doe")
 	}
 	got := map[string]bool{}
-	for _, vacancy := range uxlive011Field(t, focusedProposalForm(map[string]string{}, "jane-doe", options, jane)).Vacancies {
+	for _, vacancy := range uxlive011Field(t, focusedProposalForm(clockTestNow, map[string]string{}, "jane-doe", options, jane)).Vacancies {
 		got[vacancy.Reference] = true
 	}
 	if !got["ref-mgr"] || !got["ref-open"] || got["ref-nurse"] {

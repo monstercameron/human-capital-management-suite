@@ -3,6 +3,7 @@ package productui
 import (
 	"fmt"
 	"math/rand"
+	"net/url"
 	"reflect"
 	"slices"
 	"testing"
@@ -190,6 +191,52 @@ func TestPeopleDirectoryKeepsLocalSortUntilParentProjectionChanges(t *testing.T)
 	reconciled, reset := reconcilePeopleDirectoryState(changed, state)
 	if !reset || reconciled.InputKey != changed.InputKey || len(reconciled.Current.Rows) != len(filtered) {
 		t.Fatal("new parent projection did not replace component-local directory state")
+	}
+}
+
+// TestTodo_3624_HeaderHrefsNameDefaultSortExplicitly guards the header links:
+// the Person/ascending link must carry sort and dir, or a saved non-default
+// preference answers for the missing keys and the table keeps its old sort.
+func TestTodo_3624_HeaderHrefsNameDefaultSortExplicitly(t *testing.T) {
+	view := testView(PagePeople)
+	view.PeopleSort, view.PeopleDirection = peopleSortRole, peopleSortDescending
+	view.PeopleTeam = "Platform"
+	columns := peopleSortColumns(view)
+	var personHref string
+	for _, column := range columns {
+		if column.ID == peopleSortName {
+			personHref = column.Href
+		}
+	}
+	if personHref == "" {
+		t.Fatal("person column missing from header links")
+	}
+	parsed, err := url.Parse(personHref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parsed.Query().Get("sort"); got != peopleSortName {
+		t.Fatalf("sort=%q want %q in %s", got, peopleSortName, personHref)
+	}
+	if got := parsed.Query().Get("dir"); got != peopleSortAscending {
+		t.Fatalf("dir=%q want %q in %s", got, peopleSortAscending, personHref)
+	}
+	if got := parsed.Query().Get("team"); got != "Platform" {
+		t.Fatalf("team facet dropped: %s", personHref)
+	}
+
+	view.PeopleSort, view.PeopleDirection = peopleSortName, peopleSortDescending
+	for _, column := range peopleSortColumns(view) {
+		if column.ID != peopleSortName {
+			continue
+		}
+		parsed, err = url.Parse(column.Href)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if parsed.Query().Get("sort") != peopleSortName || parsed.Query().Get("dir") != peopleSortAscending {
+			t.Fatalf("descending person header must request explicit ascending: %s", column.Href)
+		}
 	}
 }
 

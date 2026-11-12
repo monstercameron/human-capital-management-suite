@@ -655,6 +655,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					return nil, context.Canceled
 				}
 				if state.Page == productui.PageChat {
+					// A soft locale switch reaches Chat only through the route: adopt it
+					// and re-read, because the early read used the previous locale.
+					if chatBrowser.adoptChatLocale(view.Locale.Resolved) {
+						chatRead = nil
+					}
 					chatModel, chatLoadErr = chatux009AwaitRead(loadCtx, chatRead)
 					chatux009AdoptShellPeople(view.People)
 					if chatLoadErr != nil && chatModel.Error == "" {
@@ -1256,7 +1261,7 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 					setActiveProductLayout(view, showHeading)
 					if state.Page == productui.PageJourneys {
 						content := journey.LiveContentComponent(journeyStore)
-						content.Props["key"] = productclient.CanonicalHref(state)
+						content.Props["key"] = journeyContentKey(productclient.CanonicalHref(state))
 						return content
 					}
 					return warmProductRouteContent(view)
@@ -1577,8 +1582,9 @@ func renderProductRoute(data router.Attrs) ui.Node {
 			// A promotion form, detail, and list are distinct route-owned
 			// subscriptions even though they share one long-lived store. Do not
 			// reuse the prior route's fiber while its async render is in flight.
+			// List filters stay inside the instance (see journeyContentKey).
 			if sourceHref, sourceOK := data[productSourceHrefKey].(string); sourceOK {
-				result.Props["key"] = sourceHref
+				result.Props["key"] = journeyContentKey(sourceHref)
 			}
 		}
 	}

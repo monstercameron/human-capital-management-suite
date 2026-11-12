@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -99,18 +100,42 @@ func TestClientBundleHeadroom(t *testing.T) {
 		t.Skipf("no go toolchain available to build with: %v", err)
 	}
 	raw, gzip, buildErr := measureClientBundle(t)
-	problems := clientBundleHeadroomProblems(raw, gzip)
+	if err := clientBundleVerdict(raw, gzip, buildErr); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// clientBundleVerdict decides a headroom run. A builder error always fails,
+// even when the artifacts it left behind measure within their floors: the
+// build may have stopped after writing them, so their sizes prove nothing.
+func clientBundleVerdict(rawBytes, gzipBytes int64, buildErr error) error {
+	problems := clientBundleHeadroomProblems(rawBytes, gzipBytes)
 	if buildErr != nil {
 		if len(problems) != 0 {
-			t.Fatalf("the browser client build failed: %v\nThe browser client is running out of room:\n  %s",
+			return fmt.Errorf("the browser client build failed: %v\nThe browser client is running out of room:\n  %s",
 				buildErr, strings.Join(problems, "\n  "))
 		}
-		t.Fatalf("the browser client build failed despite measurable bundle files: %v", buildErr)
+		return fmt.Errorf("the browser client build failed despite measurable bundle files: %v", buildErr)
 	}
 	if len(problems) != 0 {
-		t.Fatalf("the browser client is running out of room:\n  %s\n"+
+		return fmt.Errorf("the browser client is running out of room:\n  %s\n"+
 			"Do not raise the ceilings in performance_budget.go. Make the client smaller: move large static tables of text or style out of compiled code into data parsed at use, and look for packages one call pulls in. "+
 			"Measure by building with GOOS=js GOARCH=wasm without -s and reading the name section of the module by package and function-name prefix.",
 			strings.Join(problems, "\n  "))
+	}
+	return nil
+}
+
+// TestClientBundleHeadroomBuilderErrorFails covers the failure-after-artifacts
+// case without running the builder: sizes inside both floors must not turn a
+// builder error into a pass.
+func TestClientBundleHeadroomBuilderErrorFails(t *testing.T) {
+	roomy := maxJourneyWasmBytes - 2*minClientRawHeadroom
+	roomyGzip := maxJourneyWasmGzipBytes - 2*minClientGzipHeadroom
+	if err := clientBundleVerdict(roomy, roomyGzip, nil); err != nil {
+		t.Fatalf("roomy artifacts without a build error must pass, got %v", err)
+	}
+	if err := clientBundleVerdict(roomy, roomyGzip, errors.New("asset integrity manifest failed")); err == nil {
+		t.Fatal("a builder error after the artifacts were written was reported as a pass")
 	}
 }

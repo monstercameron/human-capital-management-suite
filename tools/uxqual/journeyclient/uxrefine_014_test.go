@@ -38,7 +38,7 @@ func TestTodo_UXBLIND_014(t *testing.T) {
 		detail := testDetail(t, journeyv1.JourneyStage_JOURNEY_STAGE_COMPLETED)
 		detail.Timeline[0].Actor = "Ana Flores"
 		detail.Timeline[1].Actor = "System"
-		page := DetailPage(testConfig(), detail, nil, nil)
+		page := DetailPage(clockTestNow, testConfig(), detail, nil, nil)
 		for _, title := range []string{"Promotion requested", "Proposal checks completed"} {
 			var found *journey.TimelineEvent
 			for i := range page.Detail.Timeline {
