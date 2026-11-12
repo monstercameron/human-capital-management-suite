@@ -1,3 +1,7 @@
+## 2026-11-12 — CONF-014 (#1216)
+
+- The HR case and employee-relations compartment semantics are proven through a served surface with its own tests (CONF-014).
+
 ## 2026-11-12 — REV-085-01 (#1939, partial)
 
 - The `productdurability` package documentation states that it is a design reference with no production claim and names the wired proof in `internal/data/rebuild` (REV-085-01).
