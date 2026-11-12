@@ -174,7 +174,11 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 				personAvatar(m, p.ID, p.Name, "avatar small"), html.Span(html.Props{Class: "mention-name", Text: p.Name})), "pick:"+p.ID))
 		}
 		if len(rows) == 0 && strings.TrimSpace(local.pickQuery) != "" {
-			rows = append(rows, html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": local.pickQuery})}))
+			text := m.tf(KeyMentionNone, map[string]string{"query": local.pickQuery})
+			if chatissue3711Already(m, local.pickQuery, local.picked) {
+				text = chatissue3711AlreadyText(m.Locale, strings.TrimSpace(local.pickQuery))
+			}
+			rows = append(rows, html.P(html.Props{Class: "mention-empty", Text: text}))
 		}
 		suggestions = html.Div(html.Props{ID: "new-chat-member-options", Class: "pick-options", Role: "listbox", Aria: map[string]string{"label": m.t(KeyAddPeople)}}, rows...)
 	}
@@ -324,7 +328,7 @@ func browseDialog(m Model, h handlers) ui.Node {
 	}
 	return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
 		html.Dialog(html.Props{Class: "chat-dialog browse-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.t(KeyBrowseTitle), "modal": "true"}},
-			html.Div(html.Props{Class: "side-heading"}, html.Div(html.Props{Class: "browse-heading"}, html.H2(html.Props{Text: m.t(KeyBrowseTitle)}), html.Span(html.Props{Class: "browse-count", Text: m.tf(KeyBrowseCount, map[string]string{"n": m.nz(len(entries))})})), actionButton("icon-button", "close-browse", "", m.t(KeyClose), m.Callbacks.CloseBrowse == nil, icon("close"))),
+			html.Div(html.Props{Class: "side-heading"}, html.Div(html.Props{Class: "browse-heading"}, html.H2(html.Props{Text: m.t(KeyBrowseTitle)}), html.Span(html.Props{Class: "browse-count", Text: chatPlural(m.Locale, "channels", len(entries))})), actionButton("icon-button", "close-browse", "", m.t(KeyClose), m.Callbacks.CloseBrowse == nil, icon("close"))),
 			html.Div(html.Props{Class: "rail-search browse-filter"},
 				html.Label(html.Props{Class: "sr-only", For: "browse-filter"}, ui.Text(m.t(KeyBrowseFilter))),
 				icon("search"),

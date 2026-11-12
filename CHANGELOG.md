@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Browse channels header uses 'channels' for a count of 1 (#3710)
+
+- Chat: the Browse channels header reads "1 channel" for a single match, using the locale plural rule.
+
 ## 2026-11-12 — Chat: Group message form marks Name as required (\*) although it is optio (#3709)
 
 - Group message form marks Name as required (\*) although it is optio
