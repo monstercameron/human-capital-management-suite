@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Grouped follow-up message keeps its width on a phone (#3671)
+
+- On a phone, a grouped follow-up message in Chat now uses the same width as the message above it, instead of a column one word wide.
+
 ## 2026-11-12 — UXBLIND-072 (#2264, partial)
 
 - The workflow history Stage column now shows the same stage name and status group wording as the journeys list (for example "Ready to start approval · In review") instead of raw internal keys.

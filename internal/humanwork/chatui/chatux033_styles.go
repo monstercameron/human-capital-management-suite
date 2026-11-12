@@ -23,6 +23,10 @@ const ChatUX033Styles = `@media(max-width:760px){` +
 	`.chat-workspace[data-sidebar-open="true"] .chat-rail{position:absolute;inset:0;width:100%;box-shadow:none;z-index:20}` +
 	`.chat-workspace[data-sidebar-open="true"] .chat-scrim{display:none}` +
 	`.chat-workspace .message{grid-template-columns:28px minmax(0,1fr);column-gap:8px}` +
+	// CHATUX-033 / issue 3671: a grouped follow-up has no avatar and its time is
+	// hidden here, so its text takes the only track and starts at 48px like the
+	// message above it. The 28px track above would otherwise hold the text.
+	`.chat-workspace .message.continued{grid-template-columns:minmax(0,1fr);padding-inline-start:48px}` +
 	`.chat-workspace .message .avatar{width:28px;height:28px;font-size:.6875rem}` +
 	`.chat-workspace .conversation-header .chat-favorite-toggle{display:none}` +
 	`.chat-workspace .conversation-header .icon-button{width:44px;height:44px}` +

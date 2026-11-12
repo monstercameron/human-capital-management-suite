@@ -147,3 +147,24 @@ func TestTodo_CHATUX_033(t *testing.T) {
 		t.Errorf("390px: the open conversation list is %q wide, want the full width", got)
 	}
 }
+
+// TestIssue_3671_GroupedFollowUpUsesPhoneBodyWidth: a grouped follow-up has no
+// avatar and its time is display:none on a phone, so its text must take the
+// row's only track. The phone row's 28px avatar column (ChatUX033Styles) used to
+// win the tie with the older .message.continued rule and squeezed the text into
+// one word per line. The text starts at 48px, as the message above it does.
+func TestIssue_3671_GroupedFollowUpUsesPhoneBodyWidth(t *testing.T) {
+	// A grouped message is also a .message, so every rule for a message row applies to it too.
+	grouped := func(sel string) bool {
+		return s35Chain(sel, ".message", ".message-list") || s35Chain(sel, ".message.continued", ".message-list")
+	}
+	for _, width := range []int{320, 390, 760} {
+		env := s11Env{width: width}
+		if got := s11Value(t, env, "grid-template-columns", grouped); got != "minmax(0,1fr)" {
+			t.Errorf("%dpx: a grouped message's columns are %q, want one track for the text", width, got)
+		}
+		if got := s11Value(t, env, "padding-inline-start", grouped); got != "48px" {
+			t.Errorf("%dpx: a grouped message's text starts at %q, want 48px as the message above it", width, got)
+		}
+	}
+}
