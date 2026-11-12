@@ -246,3 +246,49 @@ func TestTodo_DATAOPS_005_Mutation(t *testing.T) {
 		t.Fatalf("forged validation error = %v", err)
 	}
 }
+
+func TestTodo_IMPL_GAP_004(t *testing.T) {
+	in, signer := simulationFixture(t)
+	rows := in.Batch.Rows()
+	conflicts := []importing.SimulationConflict{
+		{RowID: rows[0].ID(), Property: "compensation_component.amount", ExistingIntent: "intent-1", EvidenceRef: "evidence-z"},
+		{RowID: rows[0].ID(), Property: "job.title", ExistingIntent: "intent-2", EvidenceRef: "evidence-a"},
+	}
+	in.Conflicts = conflicts
+	out, err := importing.SimulateImport(in)
+	if err != nil {
+		t.Fatalf("SimulateImport: %v", err)
+	}
+	if err := importing.VerifyImportSimulation(out, signer); err != nil {
+		t.Fatalf("freshly generated multi-conflict simulation did not verify: %v", err)
+	}
+	reversed := []importing.SimulationConflict{conflicts[1], conflicts[0]}
+	in.Conflicts = reversed
+	permuted, err := importing.SimulateImport(in)
+	if err != nil {
+		t.Fatalf("SimulateImport(permuted): %v", err)
+	}
+	if permuted.Digest != out.Digest || permuted.Signature != out.Signature {
+		t.Fatal("permuted conflict input did not yield deterministic signed bytes")
+	}
+	if err := importing.VerifyImportSimulation(permuted, signer); err != nil {
+		t.Fatalf("permuted simulation did not verify: %v", err)
+	}
+	tampered := cloneForTamper(out)
+	tampered.Drafts[0].ConflictRefs[0] = "evidence-x"
+	tampered.Drafts[0].Conflicts[0].EvidenceRef = "evidence-x"
+	if err := importing.VerifyImportSimulation(tampered, signer); !errors.Is(err, importing.ErrSimulationSignature) {
+		t.Fatalf("tampered conflict evidence verification error = %v", err)
+	}
+}
+
+func cloneForTamper(out importing.ImportSimulation) importing.ImportSimulation {
+	drafts := make([]importing.BusinessIntentDraft, len(out.Drafts))
+	copy(drafts, out.Drafts)
+	for i := range drafts {
+		drafts[i].ConflictRefs = append([]string(nil), out.Drafts[i].ConflictRefs...)
+		drafts[i].Conflicts = append([]importing.SimulationConflict(nil), out.Drafts[i].Conflicts...)
+	}
+	out.Drafts = drafts
+	return out
+}

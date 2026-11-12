@@ -220,12 +220,25 @@ func SimulateImport(in SimulationInput) (ImportSimulation, error) {
 			conflictKey := row.ID() + "\x00" + string(mv.Target)
 			for _, c := range conflicts[conflictKey] {
 				usedConflicts[conflictKey] = struct{}{}
-				d.ConflictRefs = append(d.ConflictRefs, c.EvidenceRef)
 				d.Conflicts = append(d.Conflicts, c)
 			}
 		}
 		sort.Strings(d.AuthorityRefs)
-		sort.Strings(d.ConflictRefs)
+		// Structured conflicts follow one canonical total order (property, evidence, intent);
+		// ConflictRefs are derived from that sequence so the verifier's index match holds.
+		sort.SliceStable(d.Conflicts, func(i, j int) bool {
+			a, b := d.Conflicts[i], d.Conflicts[j]
+			if a.Property != b.Property {
+				return a.Property < b.Property
+			}
+			if a.EvidenceRef != b.EvidenceRef {
+				return a.EvidenceRef < b.EvidenceRef
+			}
+			return a.ExistingIntent < b.ExistingIntent
+		})
+		for _, c := range d.Conflicts {
+			d.ConflictRefs = append(d.ConflictRefs, c.EvidenceRef)
+		}
 		if len(d.ConflictRefs) > 0 {
 			d.Status = "CONFLICT"
 			out.Conflicts++

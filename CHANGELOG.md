@@ -1,3 +1,7 @@
+## 2026-11-12 — IMPL-GAP-004 (#3440)
+
+- Import simulations where one row has conflicts on several properties now verify and show each conflicting field for review instead of failing with a signature error.
+
 ## 2026-11-12 — IMPL-GAP-003 (#3439)
 
 - The first generated work-order report or billing draft now shows its real creation time, matching later reloads and retries instead of year 1.
