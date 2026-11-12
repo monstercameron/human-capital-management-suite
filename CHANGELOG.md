@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Header bell is not labelled or tied to chat state (#3739, partial)
+
+- Chat: the header notifications bell is exposed as a named button ("Notifications, N unread notifications"), so keyboard and assistive-tech users can find it by role (#3739).
+
 ## 2026-11-12 — Chat: Role refusal state in chat is indistinguishable from not found, an (#3729, partial)
 
 - Chat: journey cards tell no access, not found and temporary failure apart, with their own copy (#3729).

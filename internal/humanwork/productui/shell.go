@@ -542,7 +542,7 @@ func notificationMenu(view View) ui.Node {
 		trigger = append(trigger, html.Span(html.Props{Class: "notification-unread-count", Aria: map[string]string{"label": view.Locale.Plural("notifications.unread_count", int64(unread))}}, ui.Text(fmt.Sprint(unread))))
 	}
 	return ui.CreateElement(TransientPopover, TransientPopoverProps{
-		Kind: "notification", Class: "notifications network-slot network-slot-ready", Label: label,
+		Kind: "notification", Class: "notifications network-slot network-slot-ready", Label: label, TriggerRole: "button",
 		Trigger: trigger, PanelClass: "popover notification-popover",
 		Children: children,
 	})

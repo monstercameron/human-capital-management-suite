@@ -27,9 +27,13 @@ func PopoverSurface(props PopoverSurfaceProps) ui.Node {
 // TransientPopoverProps is the narrow interaction contract shared by header
 // menus and contextual row actions.
 type TransientPopoverProps struct {
-	Kind          string
-	Class         string
-	TriggerClass  string
+	Kind         string
+	Class        string
+	TriggerClass string
+	// TriggerRole names the trigger's ARIA role when a <summary> must be
+	// exposed as a control (the header bell, UXLIVE-3739). Empty keeps the
+	// native disclosure role.
+	TriggerRole   string
 	PanelClass    string
 	Label         string
 	Title         string
@@ -52,7 +56,7 @@ func TransientPopover(props TransientPopoverProps) ui.Node {
 		kind = "generic"
 	}
 	rootClass := strings.TrimSpace("popover-root " + props.Class)
-	triggerProps := html.Props{Class: props.TriggerClass}
+	triggerProps := html.Props{Class: props.TriggerClass, Role: props.TriggerRole}
 	if props.Label != "" {
 		triggerProps.Aria = map[string]string{"label": props.Label}
 	}
