@@ -199,6 +199,42 @@ func TestTodo_X_Race(t *testing.T) {
 			want: nil,
 		},
 		{
+			name: "race with go statement inside a t.Run subtest is accepted",
+			src: `package p
+import "testing"
+func TestTodo_X_Race(t *testing.T) {
+	t.Run("concurrent", func(t *testing.T) {
+		done := make(chan int, 1)
+		go func() { done <- 1 }()
+		if <-done != 1 {
+			t.Fatal("goroutine did not run")
+		}
+	})
+}
+`,
+			want: nil,
+		},
+		{
+			name: "subtest without concurrency is still rejected",
+			src: `package p
+import "testing"
+func TestTodo_X_Race(t *testing.T) {
+	t.Run("serial", func(t *testing.T) { work() })
+}
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
+			name: "go inside a non-test Run callback is rejected",
+			src: `package p
+import "testing"
+type r struct{}
+func (r) Run(string, func()) {}
+func TestTodo_X_Race(t *testing.T) { r{}.Run("x", func() { go work() }) }
+`,
+			want: []string{RuleRaceWithoutConcurrency},
+		},
+		{
 			name: "race with t.Parallel is accepted",
 			src: `package p
 import "testing"

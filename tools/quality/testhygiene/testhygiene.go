@@ -247,6 +247,18 @@ func hasConcurrency(body *ast.BlockStmt, fn *ast.FuncDecl, file *ast.File) bool 
 				return false
 			case *ast.CallExpr:
 				if sel, ok := node.Fun.(*ast.SelectorExpr); ok {
+					// A subtest body passed to t.Run executes synchronously, so its
+					// statements count as the test's own.
+					if sel.Sel.Name == "Run" && len(node.Args) == 2 {
+						if id, ok := sel.X.(*ast.Ident); ok && isTestParam(fn, id.Name) {
+							if lit, ok := node.Args[1].(*ast.FuncLit); ok {
+								inspectExecutable(lit.Body)
+								if found {
+									return false
+								}
+							}
+						}
+					}
 					if sel.Sel.Name == "Parallel" {
 						if id, ok := sel.X.(*ast.Ident); ok && isTestParam(fn, id.Name) {
 							found = true

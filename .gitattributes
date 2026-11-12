@@ -1,0 +1,22 @@
+# Every text file is stored and checked out with LF line endings, on every
+# platform. The format gates (gofmt, prettier) and CI expect LF; without this a
+# Git for Windows checkout (core.autocrlf=true by default) turns the whole
+# working tree CRLF and the pre-commit hook reports every file as unformatted.
+* text=auto eol=lf
+
+# Committed with CRLF bytes on purpose or by history; byte-exact content
+# matters (golden fixtures, applied migrations), so they are never converted.
+internal/data/agentstore/migrations/00037_persona_candidate_model_calls.sql -text
+internal/data/chatstore/migrations/00027_chatsearch_paging.sql -text
+internal/governance/legal/testdata/district-of-columbia.golden.txt -text
+internal/governance/legal/testdata/new-york.golden.txt -text
+internal/governance/legal/testdata/ohio.golden.txt -text
+internal/governance/legal/testdata/texas.golden.txt -text
+internal/governance/legal/testdata/utah.golden.txt -text
+internal/governance/legal/testdata/vermont.golden.txt -text
+internal/governance/legal/testdata/washington.golden.txt -text
+internal/governance/legal/testdata/west-virginia.golden.txt -text
+internal/governance/legal/testdata/wyoming.golden.txt -text
+internal/workflow/fragments/testdata/fragments_golden.json -text
+migrations/00725_agent_task_paused_execution.sql -text
+tools/chat-pingback/agent.py -text

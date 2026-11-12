@@ -127,12 +127,12 @@ type JourneyConfig struct {
 	// without a round trip. They are display facts only: every RPC the
 	// client makes is authorized server-side from the credential, never from
 	// anything in this island.
-	Tenant  string   `json:"tenant"`
-	Subject string   `json:"subject"`
+	Tenant  string `json:"tenant"`
+	Subject string `json:"subject"`
 	// Session carries the admitted session's expiry facts and whether the
 	// expiring-session warning applies. Nil when no principal was admitted.
 	Session *SessionLifecycle `json:"session,omitempty"`
-	Roles   []string `json:"roles"`
+	Roles   []string          `json:"roles"`
 	// TenantName, TenantMark and TenantLogo are the signed-in company's own display name
 	// and logo asset path, set only when one process serves several demo
 	// companies; empty keeps the header's tenant-derived fallback.

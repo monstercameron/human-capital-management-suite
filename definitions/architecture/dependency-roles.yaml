@@ -231,6 +231,11 @@ modules:
         internal/domains/promotion,
         internal/domains/knowledge,
         internal/domains/subscription,
+        internal/domains/asset,
+        internal/domains/inventory,
+        internal/domains/org,
+        internal/domains/procurement,
+        internal/domains/stock,
         internal/governance/privacy/hipaa,
         internal/messaging,
         internal/platform/devclock,
@@ -419,10 +424,7 @@ modules:
     semantic_owner: data-and-ledger
     license_owner: platform-foundation
     security_owner: platform-foundation
-    allowed_import_roots:
-      [
-        internal/connectivity/mongo,
-      ]
+    allowed_import_roots: [internal/connectivity/mongo]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.
     exposure: >-
@@ -639,6 +641,8 @@ modules:
         internal/kernel/values,
         internal/intent,
         internal/domains/people,
+        internal/domains/inventory,
+        internal/domains/stock,
         internal/experience/i18n,
         internal/humanwork/productui,
         internal/i18n,
@@ -787,6 +791,7 @@ modules:
         internal/humanwork/workspace,
         internal/humanwork/chatui,
         internal/humanwork/docsdiagram,
+        internal/humanwork/graphcanvas,
         internal/timeclockapp,
       ]
     direct_import_expected: false
@@ -1216,6 +1221,7 @@ modules:
         tools/timeclockkit,
         tools/uxqual/projectclient,
         tools/quality/bufprotovalidatekit,
+        internal/workflow,
       ]
     direct_import_expected: true
     upgrade_sla: Minor within 60 days; security patch within 7 days.

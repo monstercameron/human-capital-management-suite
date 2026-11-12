@@ -27,3 +27,5 @@ definitions/planning/product-slices.yaml
 # Vendored third-party skill files stay byte-for-byte as upstream.
 .claude/skills/
 schema/openapi/rpcs.openapi.yaml
+# The served copy is the same tools/gen/openapi output, embedded by openapidoc.
+internal/transport/openapidoc/rpcs.openapi.yaml

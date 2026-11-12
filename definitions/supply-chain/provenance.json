@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "predicate_type": "https://slsa.dev/provenance/v1",
-  "generated_at": "2026-09-24T00:27:55Z",
+  "generated_at": "2026-11-12T04:09:59Z",
   "subjects": [
     {
       "name": "hcmnext",
-      "sha256": "b9d1ccd0538b5f98a53d37e8076b6ee36fd977a7c4eefa15ae2bb2eb014ab507"
+      "sha256": "8d91e8910e8ee6a6fd8776b6381b5e6a75909eafe835410958790f669641fe1c"
     }
   ],
   "builder": {
@@ -19,18 +19,18 @@
   "build_config": {
     "go_version": "go1.26.3",
     "goos": "windows",
-    "goarch": "amd64",
+    "goarch": "arm64",
     "flags": ["-trimpath=true", "CGO_ENABLED=0", "-compiler=gc", "-buildmode=exe"],
-    "config_digest": "bbc728bc0311c233833c33eb2b03bd316b0ca84cf3a05f1d94ef12c0485e6d68"
+    "config_digest": "cde747fbe838ee886ddc09527bed529cc09915a7b7bd1e45d013d60e3779cd3d"
   },
   "sbom": {
     "path": "definitions/supply-chain/sbom.cdx.json",
-    "sha256": "0c0d04df012086ccc3d531c2f73e8421afe9ac959866e4ddf2398aeac8bb9137"
+    "sha256": "977962775fa39fd8360df57077f6d17d45634f9dcc4ea4f85cb874bab81df396"
   },
   "signature": {
     "algorithm": "ed25519",
     "public_key": "93019e7b15fc44dbfb7f36e105e465486e5d5a6ddec109abda44507e0d45332b",
-    "value": "ae55a4702d685a9abe4a2c541fb5a0a535e68af5c70e0016a2edf920d300ce7567687b246727f559e509bc2215a65b77e722c8c5538e7d7596942f22a9ca9603",
+    "value": "a334356ac5e0c49ae266b5551f26ddc1b66fdb24a9af90042db3ecb71804943568f861af0e6f5350406f1f4cdaaed708101505fe7ad544aa389bdca75ab81505",
     "key_fixture": "tools/planning/gateevidence/testdata/dev-signing-key.yaml"
   }
 }

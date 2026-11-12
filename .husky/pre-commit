@@ -1,16 +1,34 @@
 #!/usr/bin/env sh
-# Every disposable output of the gates lands under .artifacts/ (ignored):
-# Go temp and test binaries, embedded PostgreSQL runtimes, coverage output.
+# A quick last-minute check of what is being committed: format, lint and vet
+# of the staged files only. The full evaluation (tests, coverage, drift, API,
+# policy gates, build) is `npm run test:all` and CI (.github/workflows/tests.yml).
+#
+# Disposable output lands under .artifacts/ (ignored).
 HCMNEXT_ARTIFACTS="$(pwd -W 2>/dev/null || pwd)/.artifacts"
 mkdir -p "$HCMNEXT_ARTIFACTS/tmp" "$HCMNEXT_ARTIFACTS/pg" "$HCMNEXT_ARTIFACTS/coverage"
 GOTMPDIR="$HCMNEXT_ARTIFACTS/tmp"; TMP="$HCMNEXT_ARTIFACTS/tmp"; TEMP="$HCMNEXT_ARTIFACTS/tmp"
 HCMNEXT_TEST_PG_CACHE="$HCMNEXT_ARTIFACTS/pg"
 export HCMNEXT_ARTIFACTS GOTMPDIR TMP TEMP HCMNEXT_TEST_PG_CACHE
-npm exec lint-staged
-npm run check:code-style
-npm run check:go
-go run ./tools/quality testhygiene -root .
-go run ./tools/planning/cmd/plancheck traceability .
-go run ./tools/planning/cmd/plancheck reachability .
-npm run check:coverage:staged
-npm run test:all
+
+# Use the toolchain go.mod pins, the one CI uses
+# (setup-go go-version-file). gofmt output differs between Go releases, so a
+# newer local Go would otherwise flag files CI accepts. GOTOOLCHAIN fetches the
+# pinned release on first use; its gofmt goes first on PATH for lint-staged.
+GOTOOLCHAIN="go$(sed -n 's/^go //p' go.mod)"
+export GOTOOLCHAIN
+HCMNEXT_GOROOT="$(go env GOROOT)" || exit 1
+if command -v cygpath >/dev/null 2>&1; then
+  HCMNEXT_GOROOT="$(cygpath -u "$HCMNEXT_GOROOT")"
+fi
+PATH="$HCMNEXT_GOROOT/bin:$PATH"
+export PATH
+
+# Format and lint the staged files (prettier, eslint --fix, gofmt -w).
+npm exec lint-staged || exit 1
+
+# Vet the packages that hold a staged Go file. Skipped when none is staged.
+HCMNEXT_GO_DIRS="$(git diff --cached --name-only --diff-filter=ACMR -- '*.go' | grep -v '^src/blocks/go/' | xargs -r -n1 dirname | sort -u | sed 's#^#./#')"
+if [ -n "$HCMNEXT_GO_DIRS" ]; then
+  # shellcheck disable=SC2086
+  go vet $HCMNEXT_GO_DIRS || exit 1
+fi

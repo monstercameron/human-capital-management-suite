@@ -80,9 +80,7 @@ test("[UXBLIND-069] role creation keeps paced input across Tab and blur", async 
 
   // Tab out: the settled value must survive blur and any re-render.
   await page.keyboard.press("Tab");
-  await expect
-    .poll(() => nameField.inputValue(), { timeout: 5000 })
-    .not.toBe("");
+  await expect.poll(() => nameField.inputValue(), { timeout: 5000 }).not.toBe("");
   const afterTab = await nameField.inputValue();
   expect(
     afterTab,
@@ -90,16 +88,12 @@ test("[UXBLIND-069] role creation keeps paced input across Tab and blur", async 
   ).toBe(typed);
 
   // The derived ID tracks the full name.
-  await expect
-    .poll(() => idField.inputValue(), { timeout: 5000 })
-    .toBe("qa_audit");
+  await expect.poll(() => idField.inputValue(), { timeout: 5000 }).toBe("qa_audit");
 
   // An explicit ID edit stays user-owned across blur.
   await idField.fill("qa_lead");
   await page.keyboard.press("Tab");
-  await expect
-    .poll(() => idField.inputValue(), { timeout: 5000 })
-    .toBe("qa_lead");
+  await expect.poll(() => idField.inputValue(), { timeout: 5000 }).toBe("qa_lead");
   expect(await nameField.inputValue()).toBe(typed);
 
   // Validation still works: an empty name blocks the submit inline and the
