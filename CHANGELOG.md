@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Local fake agent no longer reports an empty answer as success (#3681, partial)
+
+- An agent question that produces no answer now counts as Failed instead of Completed in local development. (Partial: the no-model notice before sending is not done yet.)
+
 ## 2026-11-12 — Chat: Loading state no longer draws a second, ungutted heading (#3680, partial)
 
 - On a phone, Chat's loading screen no longer shows a second "Chat" heading flush against the screen edge before the conversation list loads.

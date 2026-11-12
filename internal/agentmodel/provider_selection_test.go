@@ -188,3 +188,15 @@ func TestInitializeConfiguredDefaultProviderRejectsInvalidProvider(t *testing.T)
 		t.Fatal("invalid configured provider initialized successfully")
 	}
 }
+
+// Issue 3681: a fake answer with no goal to answer is not an answer. It used to
+// return "No answer was produced." as a completed AGENT_DERIVED answer, so the
+// task was listed under Completed instead of Failed.
+func TestDefaultFakeReplyWithoutGoalIsNotAnAnswerIssue3681(t *testing.T) {
+	for _, prompt := range []string{"Expected output: x\nInput:\n{}", "Goal: \nExpected output: x", "Goal: Reply with exactly:   \nExpected output: x"} {
+		reply, err := defaultFakeReply(0, schemaflux.CompletionRequest{UserPrompt: prompt})
+		if err == nil {
+			t.Fatalf("prompt %q answered %q; a run with no goal must fail, not complete", prompt, reply)
+		}
+	}
+}

@@ -79,7 +79,9 @@ func defaultFakeReply(_ int, req schemaflux.CompletionRequest) (string, error) {
 		text = strings.TrimSpace(exact)
 	}
 	if text == "" {
-		text = "No answer was produced."
+		// Issue 3681: with nothing to answer, the fake must fail the model step.
+		// A reply here would be accepted as a completed answer.
+		return "", fmt.Errorf("agent fake model: prompt carries no goal to answer")
 	}
 	encoded, err := json.Marshal(struct {
 		Text      string   `json:"text"`
