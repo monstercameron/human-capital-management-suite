@@ -56,6 +56,14 @@ type ConflictFence interface {
 	ValidateAtCommit(context.Context, dbport.Tx, conflict.CommitRequest) (conflict.CommitResult, error)
 }
 
+// ExecutionReevaluator is an optional extension of ConflictFence. When the
+// configured fence implements it, the commit re-evaluates the approval-pinned
+// intent against the current footprints in the same transaction and refuses
+// any verdict other than CLEAR, so a post-approval collision writes nothing.
+type ExecutionReevaluator interface {
+	ReevaluateAtCommit(context.Context, dbport.Tx, conflict.CommitRequest) (conflict.ExecutionPreflight, error)
+}
+
 // Receipt is the durable result of one local plan commit. Replayed is true
 // only when the result came from the already-completed idempotency record.
 type Receipt struct {
@@ -228,11 +236,23 @@ func (c *Committer) CommitInTx(ctx context.Context, tx dbport.Tx, prepared plan.
 					}
 					writes[i] = baseline
 				}
-				if _, err := c.opts.ConflictFence.ValidateAtCommit(ctx, tx, conflict.CommitRequest{
+				commitRequest := conflict.CommitRequest{
 					TenantID: tenant.String(), IntentID: prepared.ConflictIntentID, SnapshotDigest: prepared.ConflictSnapshotDigest,
 					Streams: baselines, Writes: writes, FootprintDigests: append([]string(nil), prepared.ConflictFootprintDigests...),
-				}); err != nil {
+				}
+				if _, err := c.opts.ConflictFence.ValidateAtCommit(ctx, tx, commitRequest); err != nil {
 					return idempotency.ResultIdentity{}, fmt.Errorf("transaction commit: conflict fence: %w", err)
+				}
+				// Re-run the approval-pinned conflict set against the current
+				// footprints inside this transaction; only CLEAR may commit.
+				if reevaluator, ok := c.opts.ConflictFence.(ExecutionReevaluator); ok {
+					preflight, err := reevaluator.ReevaluateAtCommit(ctx, tx, commitRequest)
+					if err != nil {
+						return idempotency.ResultIdentity{}, fmt.Errorf("transaction commit: conflict reevaluation: %w", err)
+					}
+					if preflight.Verdict != conflict.PreflightClear {
+						return idempotency.ResultIdentity{}, fmt.Errorf("transaction commit: conflict preflight %s: %w", preflight.Verdict, conflict.ErrIntentConflict)
+					}
 				}
 			}
 			if err := validateEvents(prepared); err != nil {

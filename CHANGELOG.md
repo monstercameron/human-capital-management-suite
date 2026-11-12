@@ -1,3 +1,7 @@
+## 2026-11-12 — REV-023-01 (#2319)
+
+- A commit is now refused, with zero rows written, when a competing conflicting intent appears after approval and the execution-time conflict re-check finds an overlap.
+
 ## 2026-11-12 — UXFLOW-008 (#2615)
 
 - The accessibility, localization and assisted/manual completion evidence for UXFLOW-008 is compiled on a served surface with tests.
