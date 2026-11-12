@@ -2254,15 +2254,13 @@ func agentAvatar(name, class, imageURL string, identity ...agenticon.Value) ui.N
 // personAvatar keeps the initials in the fixed-size slot beneath the image.
 // A failed image therefore leaves the person's initials visible in place.
 func personAvatar(m Model, id, name, class string) ui.Node {
-	return personAvatarWithPhoto(name, class, m.PhotoURLs[id])
+	return personAvatarFor(id, name, class, m.PhotoURLs[id])
 }
 
+// personAvatarWithPhoto draws a person whose id the caller does not hold: the
+// neutral avatar, in the person shape.
 func personAvatarWithPhoto(name, class, photoURL string) ui.Node {
-	children := []ui.Node{ui.Text(initials(name))}
-	if url := chatPhotoURL(photoURL); url != "" {
-		children = append(children, html.Img(html.Props{Class: "chat-avatar-photo", Src: url, Loading: "lazy", Width: "64", Height: "64", OnError: chatPhotoErrorHandler(), OnLoad: chatPhotoLoadHandler(), Raw: map[string]any{"alt": "", "decoding": "async"}}))
-	}
-	return html.Span(html.Props{Class: class, Aria: map[string]string{"hidden": "true"}}, children...)
+	return personAvatarFor("", name, class, photoURL)
 }
 
 func conversationAvatar(m Model, c Conversation) ui.Node {
@@ -3299,7 +3297,7 @@ func personManagerField(m Model, p *PersonDetails) ui.Node {
 	var content ui.Node = html.Span(html.Props{Class: "person-detail-value", Text: value})
 	if p.ManagerID != "" && p.Manager != "" && m.Callbacks.OpenPerson != nil {
 		content = personButton(m, p.ManagerID, p.Manager, "person-detail-value person-detail-link",
-			personAvatarWithPhoto(p.Manager, "avatar small person-detail-avatar", personPhotoURL(m, p.ManagerID, p.ManagerPhotoURL)), html.Span(html.Props{Class: "person-detail-name", Text: p.Manager}))
+			personAvatarFor(p.ManagerID, p.Manager, "avatar small person-detail-avatar", personPhotoURL(m, p.ManagerID, p.ManagerPhotoURL)), html.Span(html.Props{Class: "person-detail-name", Text: p.Manager}))
 	}
 	return html.Div(html.Props{Class: "person-detail-field"},
 		html.Span(html.Props{Class: "person-detail-label", Text: m.t(KeyManager)}), content)
@@ -3315,7 +3313,7 @@ func personReports(m Model, reports []PersonLink) ui.Node {
 			continue
 		}
 		links = append(links, html.Li(html.Props{}, personButton(m, report.ID, report.Name, "person-detail-link",
-			personAvatarWithPhoto(report.Name, "avatar small person-detail-avatar", personPhotoURL(m, report.ID, report.PhotoURL)), html.Span(html.Props{Class: "person-detail-name", Text: report.Name}))))
+			personAvatarFor(report.ID, report.Name, "avatar small person-detail-avatar", personPhotoURL(m, report.ID, report.PhotoURL)), html.Span(html.Props{Class: "person-detail-name", Text: report.Name}))))
 	}
 	if len(links) == 0 {
 		return nil

@@ -825,6 +825,9 @@ func declareSemanticThemeStyles() {
 		// exposing a second, independently drifting radius preference.
 		gwccss.Custom("hcm-radius-status", "var(--hcm-radius-control)"),
 	)
+	// The person-avatar palette (#3770); its dark values are in
+	// darkModeDeclarationRules.
+	declareGlobal(":root", avatarPaletteRules(false))
 	declareGlobal("body",
 		gwccss.FontSize(gwccss.VarLength("hcm-font-size-body")),
 		gwccss.Raw("line-height", "var(--hcm-line-height)"),

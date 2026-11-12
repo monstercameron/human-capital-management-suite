@@ -51,7 +51,7 @@ func chatux047MessagePhoto(m Model, msg Message) string {
 
 // chatux047MessageAvatar is the avatar of a person's message.
 func chatux047MessageAvatar(m Model, msg Message, class string) ui.Node {
-	return personAvatarWithPhoto(msg.Author, class, chatux047MessagePhoto(m, msg))
+	return personAvatarFor(msg.AuthorID, msg.Author, class, chatux047MessagePhoto(m, msg))
 }
 
 // chatux047NamedAgent adopts the name and icon an answer gave for an announcement

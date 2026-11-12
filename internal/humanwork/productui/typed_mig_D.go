@@ -785,7 +785,8 @@ func declareThemeCoverageBaseStylesStyles() {
 // helper shared by the fragment-string func and declareDarkModeStylesStyles.
 
 func darkModeDeclarationRules() []gwccss.Rule {
-	return gwccss.Rules(
+	// The person-avatar palette (#3770) follows the ordinary dark tokens.
+	return append(gwccss.Rules(
 		gwccss.Raw("color-scheme", "dark"),
 		gwccss.Custom("accent", "color-mix(in srgb,var(--hcm-color-brand-primary) 40%,#fff)"),
 		gwccss.Custom("accent-hover", "color-mix(in srgb,var(--hcm-color-brand-hover) 32%,#fff)"),
@@ -822,7 +823,7 @@ func darkModeDeclarationRules() []gwccss.Rule {
 		gwccss.Custom("info", "var(--hcm-color-info)"),
 		gwccss.Custom("hcm-shadow-resting", "0 1px 2px rgba(0,0,0,.32)"),
 		gwccss.Custom("hcm-shadow-raised", "0 16px 42px rgba(0,0,0,.46)"),
-	)
+	), avatarPaletteRules(true)...)
 }
 
 func lightPrintDeclarationRules() []gwccss.Rule {

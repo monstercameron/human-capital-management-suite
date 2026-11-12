@@ -204,7 +204,7 @@ func TestPersonDetailsLinksGovernedManagerAndDirectReports(t *testing.T) {
 		`data-action="open-person" data-id="report-a"`, `aria-label="View Alex Rivera&#39;s details"`,
 		`data-action="open-person" data-id="report-b"`, `Direct reports`,
 		`href="/workspace/app/organization?org_view=tree&amp;person=worker"`, `View in org chart`,
-		`src="/photos/manager"`, `src="/photos/alex"`, `data-id="report-b" type="button"><span aria-hidden="true" class="avatar small person-detail-avatar">TJ</span>`,
+		`src="/photos/manager"`, `src="/photos/alex"`, `data-id="report-b" type="button"><span aria-hidden="true" class="avatar small person-detail-avatar" data-avatar-hue="1">TJ</span>`,
 	} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing clickable relationship %q in %s", want, markup)
