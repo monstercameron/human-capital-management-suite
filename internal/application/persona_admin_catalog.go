@@ -184,7 +184,6 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		return productui.PersonaAdminSnapshot{}, personaCatalogStage("authorization", err)
 	}
 	out := productui.PersonaAdminSnapshot{Available: true, DocumentServiceAvailable: s.Documents != nil}
-	out.DocumentsState.Unavailable = s.Documents == nil
 	var users, conversations []productui.PersonaAdminTarget
 	if s.Targets == nil {
 		out.TargetsState.Unavailable = true
@@ -467,6 +466,11 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		}
 		persona.RemovedPlacements = s.removedPlacements(ctx, tenant, persona.ID, removedPlacements, users, conversations)
 		out.Personas = append(out.Personas, persona)
+	}
+	// AGENTUX-3757: with no agents there are no reference documents to read, so a
+	// missing document reader is not a failed load and shows no retry banner.
+	if s.Documents == nil && len(out.Personas) > 0 {
+		out.DocumentsState.Unavailable = true
 	}
 	if s.Targets != nil && s.Installations != nil && s.Skills != nil && s.Grants != nil && len(users) > 0 && len(conversations) > 0 {
 		for _, version := range versions {

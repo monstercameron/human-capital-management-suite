@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Agents > Setup shows a reference-documents load error on a tenant (#3757, partial)
+
+- Agent setup no longer shows a reference-documents load error on a workspace with no agents.
+
 ## 2026-11-12 — Chat: Rename, archive and delete freshness depends on a one-minute clien (#3753, partial)
 
 - Chat document links re-check their title and access about a minute after the last read, so a rename or revoked share reaches a quiet channel without a reload (archive labelling still pending).
