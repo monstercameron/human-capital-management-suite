@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Header avatar falls back to two-letter initials when the portrait fails (#3678)
+
+- The account button in the header now shows your two-letter initials instead of a broken image or a single letter when your portrait fails to load.
+
 ## 2026-11-12 — Chat: Settings links with a section fragment scroll to that section (#3683)
 
 - Opening a settings link with a section fragment, such as Open agent settings, now scrolls to that section once the page has loaded and moves focus to its heading.

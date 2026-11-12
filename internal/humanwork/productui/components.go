@@ -73,8 +73,9 @@ func personAvatarWithFallback(props personAvatarProps) ui.Node {
 	failed := ui.UseState(false)
 	// Created on every render: a hook inside the branch would disappear on
 	// the render after a failed photo and shift this component's hook slots.
-	onError := ui.UseEvent(func(ui.Event) { failed.Set(true) })
-	if photoURL != "" && !failed.Get() {
+	onError := ui.UseEvent(func(ui.Event) { markPortraitBroken(photoURL); failed.Set(true) })
+	useBrokenPortraitSweep(photoURL, func() { failed.Set(true) })
+	if photoURL != "" && !failed.Get() && !portraitBroken(photoURL) {
 		return html.Img(html.Props{
 			Class: class, Src: photoURL, Loading: "lazy", Width: "64", Height: "64",
 			Aria:    map[string]string{"hidden": "true"},

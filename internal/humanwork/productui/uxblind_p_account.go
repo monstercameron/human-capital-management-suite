@@ -5,7 +5,6 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
-	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/uicomponents"
 )
 
 // accountMenu is the shell's account boundary. The trigger remains a compact
@@ -20,8 +19,10 @@ func accountMenu(view View) ui.Node {
 		// initials (NR / NG); the trigger stays a neutral skeleton instead.
 		name = view.Locale.Text("common.not_reported")
 	}
-	if identityLoaded && strings.TrimSpace(profile.Initials) == "" {
-		profile.Initials = uicomponents.Initials(name)
+	if identityLoaded {
+		// Issue 3678: the directory may hold a one-letter label; the header
+		// always draws the two letters every other surface draws.
+		profile.Initials = viewerInitials(name)
 	}
 	trigger := personAvatar(name, profile.Initials, profile.PhotoURL, "viewer")
 	if !identityLoaded && strings.TrimSpace(profile.PhotoURL) == "" {
