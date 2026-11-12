@@ -1,3 +1,7 @@
+## 2026-11-12 — ALIGN-026 (#1322, partial)
+
+- Product drafts are bound to immutable proposal revisions on the served alignment surface (ALIGN-026, partial).
+
 ## 2026-11-12 — ATTEST-002 (#394, partial)
 
 - Attestations that name the same evidence item twice with different digests are now rejected instead of being bound to an ambiguous evidence set.

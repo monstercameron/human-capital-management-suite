@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/intent"
 	"github.com/monstercameron/human-capital-management-suite/internal/intent/draftstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	"github.com/monstercameron/human-capital-management-suite/internal/operations/releaseevidence"
@@ -30,6 +31,8 @@ type ServedAlignmentSurface struct {
 	DecodeRestartEnvelope func([]byte) (conformance.QueryEnvelope, error)
 	RestartDigest         func([]byte) string
 	NewMemoryDraftStore   func(time.Duration) draftstore.Port
+	BindDraft             func(draftstore.Record, intent.ProposalRevision, intent.Digester) (draftstore.ProposalBinding, error)
+	CheckBinding          func(draftstore.ProposalBinding, draftstore.Record, intent.ProposalRevision, intent.Digester) draftstore.BindingStatus
 }
 
 // NewServedAlignmentSurface returns the alignment contracts reachable from a
@@ -50,6 +53,10 @@ func NewServedAlignmentSurface() ServedAlignmentSurface {
 		DecodeRestartEnvelope: conformance.DecodeEnvelope,
 		RestartDigest:         conformance.RestartDigest,
 		NewMemoryDraftStore:   func(ttl time.Duration) draftstore.Port { return draftstore.NewMemory(ttl) },
+		BindDraft:             draftstore.Bind,
+		CheckBinding: func(b draftstore.ProposalBinding, rec draftstore.Record, latest intent.ProposalRevision, d intent.Digester) draftstore.BindingStatus {
+			return b.Check(rec, latest, d)
+		},
 	}
 }
 
