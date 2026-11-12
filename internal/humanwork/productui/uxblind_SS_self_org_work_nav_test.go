@@ -39,40 +39,31 @@ func TestTodo_UXBLIND_101(t *testing.T) {
 }
 
 func TestTodo_UXBLIND_101_Browser(t *testing.T) {
-	locale := ResolveProductLocale("en-US")
-	profile := PersonProfileProps{
-		Hero: PersonHeroProps{I18nProps: I18nProps{Locale: locale}, Name: "Walt Brennan", NameStatus: WorkerFactPresent},
-		Organization: EmploymentDetailsProps{
-			I18nProps: I18nProps{Locale: locale},
-			Title:     locale.Text("person.organization"),
-			Facts:     []ProfileFactProps{{Label: locale.Text("person.manager"), Value: locale.Text("common.not_reported"), Status: WorkerFactMissing}},
-		},
-		Workflows: WorkflowLauncherProps{
-			I18nProps:         I18nProps{Locale: locale},
-			PersonName:        "Walt Brennan",
-			Heading:           locale.Text("workflow.start"),
-			TotalCount:        1,
-			UnavailableDetail: "No eligible promotion role is published for this employee. Ask your HR administrator to review the job ladder and pay band.",
-			Workflows:         []WorkflowCardProps{{Name: "Promotion", Href: "/workspace/app/journeys?mode=new&worker=self"}},
-		},
+	view := testView(PageMyself)
+	view.Viewer = ViewerProfile{PersonID: "worker-walt", Name: "Walt Brennan", Initials: "WB"}
+	view.People = []Person{
+		{ID: "worker-walt", WorkerID: "11111111-1111-4111-8111-111111111111", Initials: "WB", Name: "Walt Brennan", Role: "CEO · G12", Team: "Executive", Location: "New York", PromotionAvailability: PromotionIneligible},
 	}
-	doc, err := ui.RenderToString(MyselfPage(MyselfPageProps{
-		I18nProps:               I18nProps{Locale: locale},
-		Profile:                 &profile,
-		OrganizationTitle:       locale.Text("organization.structure_title"),
-		OrganizationDescription: locale.Text("organization.structure_description"),
-		OrganizationTree:        []OwnershipNodeProps{{ID: "self"}},
-	}))
+	view.SelectedPerson = "worker-walt"
+	// The scan showed no other launchable workflow: the promotion is the only
+	// catalogue entry, so the empty launcher's own reason is what the owner sees.
+	view.PersonWorkflows = view.PersonWorkflows[:1]
+	doc, err := Render(view)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{locale.Text("workflow.promotion_self_subject"), locale.Text("organization.top_of_organization")} {
-		if !strings.Contains(doc, want) {
-			t.Errorf("Myself render missing %q: %s", want, doc)
-		}
+	locale := view.Locale
+	if !strings.Contains(doc, locale.Text("workflow.promotion_self_subject")) {
+		t.Errorf("Myself empty launcher did not explain the own-record refusal: %s", doc)
 	}
-	if strings.Contains(doc, "Ask your HR administrator") || strings.Contains(doc, "mode=new&amp;worker=self") {
-		t.Fatalf("Myself render retained the generic advice or forbidden launch link: %s", doc)
+	if strings.Contains(doc, "Ask your HR administrator") {
+		t.Errorf("Myself empty launcher told the owner to ask an administrator: %s", doc)
+	}
+	if !strings.Contains(doc, locale.Text("organization.top_of_organization")) {
+		t.Errorf("Myself manager fact did not show the top of the organization: %s", doc)
+	}
+	if strings.Contains(doc, "mode=new&amp;worker=worker-walt") {
+		t.Fatalf("Myself render retained a self-promotion launch link: %s", doc)
 	}
 }
 

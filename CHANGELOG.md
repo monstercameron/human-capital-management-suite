@@ -1,3 +1,7 @@
+## 2026-11-12 — UXBLIND-101 (#1844, partial)
+
+- On your own Start a workflow panel, the empty state now says you cannot start a promotion for your own record instead of telling you to ask your HR administrator.
+
 ## 2026-11-12 — UXBLIND-076 (#2582, partial)
 
 - An approval start refused for lack of permission now shows the permission message and records that reason in the journey History, instead of the stale-stage text.

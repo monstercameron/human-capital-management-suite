@@ -220,6 +220,12 @@ func personWorkflowLauncherProps(view View, person Person, target PageID) Workfl
 		if len(available) == 0 {
 			unavailableDetail = PromotionAvailabilityReason(view.Locale, PromotionActiveConflict)
 		}
+	case person.ID != "" && person.ID == view.Viewer.PersonID:
+		// UXBLIND-101: no one may start a promotion for their own record
+		// (UXBLIND-006 refuses it at Propose). Name that refusal rather than
+		// the job-ladder sentence that tells the owner to ask an administrator
+		// about a rule that does not apply.
+		unavailableDetail = view.Locale.Text("workflow.promotion_self_subject")
 	case !personPromotionEligible(person):
 		unavailableDetail = PromotionAvailabilityReason(view.Locale, person.PromotionAvailability)
 	}
