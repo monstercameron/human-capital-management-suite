@@ -15,7 +15,9 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/workspace"
+	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	hcmotel "github.com/monstercameron/human-capital-management-suite/internal/platform/telemetry/otel"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
 	transportjourney "github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
@@ -97,6 +99,22 @@ func (e *streamEngine) CreateWorker(context.Context, workspace.WorkerInput) (wor
 // both cardinalities plus this package's two interceptors after it - the
 // exact composition internal/transport/cell builds for a cell with
 // Telemetry - with JourneyService registered over streamEngine.
+// streamRoleAccess grants the harness principal's intent_author role view on
+// the journey detail, the grant WatchJourney requires. Only Load is called.
+type streamRoleAccess struct{ roleaccess.Store }
+
+func (streamRoleAccess) Load(context.Context, values.TenantId, string) (roleaccess.Snapshot, error) {
+	return roleaccess.Snapshot{
+		Roles: roleaccess.DefaultRoles(),
+		PagePermissions: []roleaccess.PagePermission{
+			{Version: 1, RoleID: "intent_author", PageID: "journeys", View: true},
+		},
+		FeaturePermissions: []roleaccess.FeaturePermission{
+			{Version: 1, RoleID: "intent_author", PageID: "journeys", FeatureID: "journey_detail", View: true},
+		},
+	}, nil
+}
+
 type streamHarness struct {
 	provider     *hcmotel.Provider
 	spanExporter *tracetest.InMemoryExporter
@@ -132,7 +150,7 @@ func newStreamHarness(t testing.TB) *streamHarness {
 	if err != nil {
 		t.Fatalf("grpcserver.NewServer: %v", err)
 	}
-	transportjourney.Register(srv, transportjourney.Dependencies{Engine: engine, PollInterval: 20 * time.Millisecond})
+	transportjourney.Register(srv, transportjourney.Dependencies{Engine: engine, PollInterval: 20 * time.Millisecond, RoleAccess: streamRoleAccess{}})
 
 	listener := bufconn.Listen(1 << 20)
 	go func() { _ = srv.Serve(listener) }()

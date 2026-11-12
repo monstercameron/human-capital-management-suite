@@ -91,7 +91,9 @@ func TestWatchJourneyCancelRacingAPollIsRecordedAsACancellation(t *testing.T) {
 	engine := newFakeEngine()
 	engine.inspectHonorsContext = true
 	logger := &recordingLogger{}
-	client := dialJourneyClient(startLoggingTestServer(t, watchDeps(engine), logger))
+	deps := watchDeps(engine)
+	deps.RoleAccess = defaultFixtureRoleAccess()
+	client := dialJourneyClient(startLoggingTestServer(t, deps, logger))
 
 	// Every poll runs against the stream's own context, so cancelling right
 	// after the opening emission, over several rounds, reaches the poll path

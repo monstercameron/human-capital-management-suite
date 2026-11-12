@@ -266,13 +266,16 @@ func (s *server) WatchJourney(req *journeyv1.WatchJourneyRequest, stream journey
 	if ctxErr != nil {
 		return ctxErr
 	}
+	auth := s.authorize(principal, inv.RequestID())
+	if err := auth.requireServedCall(ctx, "WatchJourney"); err != nil {
+		return err
+	}
 	eng, depErr := s.engine(principal, inv, "watch")
 	if depErr != nil {
 		return depErr
 	}
 	// Resolved once for the life of the stream: a caller's diagnostics
 	// authority is a fact about who they are, not about which poll this is.
-	auth := s.authorize(principal, inv.RequestID())
 	diagAuthorized := auth.diagnosticsAuthorized(ctx)
 
 	intentID := req.GetIntentId()

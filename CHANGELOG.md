@@ -1,3 +1,7 @@
+## 2026-11-12 — RBAC-RT-016 (#3347)
+
+- Journey watch streams refuse callers who lack a journey or work page grant, and adding a journey note now requires update access on the journey detail rather than view access.
+
 ## 2026-11-12 — REV-023-01 (#2319)
 
 - A commit is now refused, with zero rows written, when a competing conflicting intent appears after approval and the execution-time conflict re-check finds an overlap.

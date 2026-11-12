@@ -807,19 +807,16 @@ func (s *server) PreviewJourneyIntervention(ctx context.Context, req *journeyv1.
 // workspace.JourneyEngine.RequestIntervention, which is CancelIntent scoped
 // to journeys. Governed write.
 // AddJourneyNote forwards to workspace.JourneyNoteEngine.AddNote. Append-only
-// experience write. The page gate is the detail gate: whoever may read a
-// journey's detail may leave a note on it, and the engine re-admits the
-// caller to that one journey before recording anything.
+// experience write. The table's gate is an update grant on the journey
+// detail: a view grant admits reading a note, not leaving one, and the
+// engine re-admits the caller to that one journey before recording anything.
 func (s *server) AddJourneyNote(ctx context.Context, req *journeyv1.AddJourneyNoteRequest) (*journeyv1.AddJourneyNoteResponse, error) {
 	principal, inv, ctxErr := trustedContext(ctx)
 	if ctxErr != nil {
 		return nil, ctxErr
 	}
 	auth := s.authorize(principal, inv.RequestID())
-	if err := auth.requireAnyFeatureView(ctx,
-		featureAccessRequest{pageID: "journeys", featureID: "journey_detail"},
-		featureAccessRequest{pageID: "work", featureID: "assigned_queue"},
-	); err != nil {
+	if err := auth.requireServedCall(ctx, "AddJourneyNote"); err != nil {
 		return nil, err
 	}
 	eng, depErr := s.engine(principal, inv, "add_note")

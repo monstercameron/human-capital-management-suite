@@ -1,14 +1,19 @@
 package journey_test
 
 import (
+	"net"
 	"testing"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	journeyv1 "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/journey/v1"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/preferences"
 	"github.com/monstercameron/human-capital-management-suite/internal/experience/roleaccess"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/transport/grpcserver"
 	"github.com/monstercameron/human-capital-management-suite/internal/transport/journey"
 )
 
@@ -99,6 +104,65 @@ func TestTodo_RBAC_RT_016_Security(t *testing.T) {
 			t.Fatalf("RecordWorkflowUse code = %v, want InvalidArgument (err=%v)", status.Code(err), err)
 		}
 	})
+
+	// TestTodo_RBAC_RT_016_Security: a view grant on the journey detail reads a
+	// journey but must not write a note; the table's gate is update.
+	t.Run("view-only journey detail refuses a note", func(t *testing.T) {
+		snapshot := roleaccess.Snapshot{
+			Roles: roleaccess.DefaultRoles(),
+			PagePermissions: []roleaccess.PagePermission{
+				{Version: 1, RoleID: "worker_self", PageID: "journeys", View: true},
+			},
+			FeaturePermissions: []roleaccess.FeaturePermission{
+				{Version: 1, RoleID: "worker_self", PageID: "journeys", FeatureID: "journey_detail", View: true},
+			},
+		}
+		client := startRT2Server(t, journey.Dependencies{Engine: rt2Engine(), RoleAccess: &rt2Store{snapshot: snapshot}})
+		if _, err := client.AddJourneyNote(rt2CallContext(t, rt2WorkerToken), &journeyv1.AddJourneyNoteRequest{IntentId: "intent-rt16", Body: "note"}); status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("AddJourneyNote code = %v, want PermissionDenied (err=%v)", status.Code(err), err)
+		}
+	})
+
+	// TestTodo_RBAC_RT_016_Security: the watch stream carried no page or
+	// feature check of its own; without a journey or work grant it refuses.
+	t.Run("watch refuses without a journey or work grant", func(t *testing.T) {
+		client := startRT16StreamServer(t, journey.Dependencies{Engine: rt2Engine(), RoleAccess: &rt2Store{snapshot: rt16SettingsSnapshot("worker_self")}})
+		stream, err := client.WatchJourney(rt2CallContext(t, rt2WorkerToken), &journeyv1.WatchJourneyRequest{IntentId: "intent-rt16"})
+		if err == nil {
+			_, err = stream.Recv()
+		}
+		if status.Code(err) != codes.PermissionDenied {
+			t.Fatalf("WatchJourney code = %v, want PermissionDenied (err=%v)", status.Code(err), err)
+		}
+	})
+}
+
+// startRT16StreamServer is startRT2Server with the stream interceptor chained,
+// so the server-stream WatchJourney is admitted the way production admits it.
+func startRT16StreamServer(t *testing.T, deps journey.Dependencies) journeyv1.JourneyServiceClient {
+	t.Helper()
+	cfg := transport.Config{Verifier: rt2Verifier{}}
+	srv := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(grpcserver.UnaryInterceptor(cfg)),
+		grpc.ChainStreamInterceptor(grpcserver.StreamInterceptor(cfg)),
+	)
+	journey.Register(srv, deps)
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	go func() { _ = srv.Serve(lis) }()
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		srv.Stop()
+		t.Fatalf("dial: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = conn.Close()
+		srv.Stop()
+		_ = lis.Close()
+	})
+	return journeyv1.NewJourneyServiceClient(conn)
 }
 
 // TestTodo_RBAC_RT_016_Integration proves the table-gated calls serve end to

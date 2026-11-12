@@ -602,7 +602,7 @@ func TestWatchHoldsAtMostOneMessageWhileASendIsBlocked(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- journey.WatchJourneyForTest(
-			journey.Dependencies{Engine: engine, PollInterval: time.Millisecond, CursorKey: testCursorKey, Now: fixedNow()},
+			journey.Dependencies{Engine: engine, PollInterval: time.Millisecond, CursorKey: testCursorKey, Now: fixedNow(), RoleAccess: defaultFixtureRoleAccess()},
 			&journeyv1.WatchJourneyRequest{IntentId: fixtureIntentID},
 			stream,
 		)

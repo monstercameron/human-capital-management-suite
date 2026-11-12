@@ -81,8 +81,7 @@ var servedCallGates = map[string][]servedCallGate{
 	},
 	// AddJourneyNote is a write on the journey detail and needs update
 	// there: the work page's assigned_queue is a view-only feature, so no
-	// work page grant admits it. The handler wiring follows in the owning
-	// session; the table already states the intended gate.
+	// work page grant admits it.
 	"AddJourneyNote": {
 		{pageID: "journeys", featureID: "journey_detail", action: roleaccess.ActionUpdate},
 	},
