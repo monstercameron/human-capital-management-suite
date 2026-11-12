@@ -205,3 +205,19 @@ func TestMemoryStore_BindingCancellationAndCopies(t *testing.T) {
 		t.Fatalf("store returned mutable binding: %#v, %v", bindingsAgain, err)
 	}
 }
+
+// TestTodo_ATTEST_002_DuplicateEvidenceBinding proves that a binding cannot
+// carry two different digests for the same evidence ID: such a binding would
+// bind the statement to an ambiguous evidence set.
+func TestTodo_ATTEST_002_DuplicateEvidenceBinding(t *testing.T) {
+	base, _, _, _ := bindingFixture()
+	dup := base
+	dup.EvidenceBindings = []EvidenceBinding{
+		{EvidenceID: "e1", EvidenceHash: "sha256:e1"},
+		{EvidenceID: "e1", EvidenceHash: "sha256:e1-other"},
+		{EvidenceID: "e2", EvidenceHash: "sha256:e2"},
+	}
+	if err := dup.Validate(); !errors.Is(err, ErrBindingEvidenceDuplicate) {
+		t.Fatalf("duplicate evidence id error = %v, want errors.Is(%v)", err, ErrBindingEvidenceDuplicate)
+	}
+}

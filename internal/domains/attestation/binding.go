@@ -78,13 +78,14 @@ type Binding struct {
 
 // Validation errors for bindings.
 var (
-	ErrBindingStatementEmpty   = errors.New("attestation: binding statement id is empty")
-	ErrBindingStatementVersion = errors.New("attestation: binding statement version is zero")
-	ErrBindingVersionZero      = errors.New("attestation: binding version is zero")
-	ErrBindingBoundAtEmpty     = errors.New("attestation: binding bound-at instant is required")
-	ErrBindingSignerEmpty      = errors.New("attestation: binding signer is required")
-	ErrBindingEvidenceEmpty    = errors.New("attestation: binding requires at least one evidence binding")
-	ErrBindingContextInvalid   = errors.New("attestation: binding context digest is invalid")
+	ErrBindingStatementEmpty    = errors.New("attestation: binding statement id is empty")
+	ErrBindingStatementVersion  = errors.New("attestation: binding statement version is zero")
+	ErrBindingVersionZero       = errors.New("attestation: binding version is zero")
+	ErrBindingBoundAtEmpty      = errors.New("attestation: binding bound-at instant is required")
+	ErrBindingSignerEmpty       = errors.New("attestation: binding signer is required")
+	ErrBindingEvidenceEmpty     = errors.New("attestation: binding requires at least one evidence binding")
+	ErrBindingContextInvalid    = errors.New("attestation: binding context digest is invalid")
+	ErrBindingEvidenceDuplicate = errors.New("attestation: binding lists an evidence id more than once")
 )
 
 // Validate reports whether the binding is well-formed.
@@ -107,10 +108,15 @@ func (b Binding) Validate() error {
 	if len(b.EvidenceBindings) == 0 {
 		return fmt.Errorf("%w", ErrBindingEvidenceEmpty)
 	}
+	seenEvidence := make(map[string]struct{}, len(b.EvidenceBindings))
 	for i, eb := range b.EvidenceBindings {
 		if err := eb.Validate(); err != nil {
 			return fmt.Errorf("attestation: evidence binding[%d]: %w", i, err)
 		}
+		if _, dup := seenEvidence[eb.EvidenceID]; dup {
+			return fmt.Errorf("%w: %q", ErrBindingEvidenceDuplicate, eb.EvidenceID)
+		}
+		seenEvidence[eb.EvidenceID] = struct{}{}
 	}
 	if err := b.ContextDigest.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", ErrBindingContextInvalid, err)

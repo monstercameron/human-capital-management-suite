@@ -1,3 +1,7 @@
+## 2026-11-12 — ATTEST-002 (#394, partial)
+
+- Attestations that name the same evidence item twice with different digests are now rejected instead of being bound to an ambiguous evidence set.
+
 ## 2026-11-12 — RBAC-RT-016 (#3347)
 
 - Journey watch streams refuse callers who lack a journey or work page grant, and adding a journey note now requires update access on the journey detail rather than view access.
