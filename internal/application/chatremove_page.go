@@ -145,7 +145,12 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if canAssign {
 		noQueue = false
 		if query.Get("tab") == "permissions" {
-			h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "permissions", OpenCount: summary.Open, CanAssign: true, Permissions: &permissions, TimeZone: zone}, 200)
+			// The Resolved segment keeps its count on this tab too, as on the queue's.
+			resolvedCount, resolvedKnown := 0, false
+			if closed, e := h.HTTP.Service.Queue(r.Context(), p, p.TenantID, "state:closed"); e == nil {
+				resolvedCount, resolvedKnown = len(closed), true
+			}
+			h.renderPage(w, chatui.ModerationPageModel{Locale: locale, State: chatui.StateReady, Tab: "permissions", OpenCount: summary.Open, ResolvedCount: resolvedCount, ResolvedKnown: resolvedKnown, CanAssign: true, Permissions: &permissions, TimeZone: zone}, 200)
 			return
 		}
 	}
@@ -197,6 +202,9 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 			}
 			if item.ReporterID != "" {
 				ids = append(ids, item.ReporterID)
+			}
+			for _, post := range item.Context {
+				ids = append(ids, post.AuthorID)
 			}
 		}
 		names, err = h.Directory.ModerationNames(r.Context(), p, p.TenantID, ids)

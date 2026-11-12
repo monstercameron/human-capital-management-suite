@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Resolved count disappears from the tab strip on the Permissions ta (#3695)
+
+- Chat: the Resolved count stays on the moderation Permissions tab, and the Permissions text and table have spacing from the tab bar.
+
 ## 2026-11-12 — Chat: 'Message the author' dialog: Send with an empty message does nothi (#3693)
 
 - Chat: Message the author with an empty note now shows the "Write a note for the author first." error in the dialog instead of doing nothing (#3693).

@@ -193,4 +193,5 @@ const chatmod005PermissionsStyles = `
 .chatremove .chatmod005-perm-switch{min-block-size:44px;min-inline-size:44px;padding:6px 12px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-surface);color:var(--hcm-color-text);font:inherit;cursor:pointer}.chatremove .chatmod005-perm-switch[aria-checked=true]{border-color:var(--hcm-color-brand-primary);background:var(--hcm-color-brand-soft);font-weight:650}
 .chatmod005-perm-source{display:block;font-size:.75rem;margin-block-start:2px}.chatmod005-perm-scope{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.chatmod005-perm-list{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 8px}
 .chatremove .chatmod005-perm-role{grid-template-columns:minmax(0,1fr);border:0;padding:0;margin-block:16px}.chatmod005-perm-error[hidden]{display:none}
+.chatremove .chatmod005-tabs+.chatmod005-muted{margin-block:12px 16px}.chatremove .chatmod005-perm-scroll{margin-block:12px 16px}
 `
