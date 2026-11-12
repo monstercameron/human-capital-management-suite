@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Settings links with a section fragment scroll to that section (#3683)
+
+- Opening a settings link with a section fragment, such as Open agent settings, now scrolls to that section once the page has loaded and moves focus to its heading.
+
 ## 2026-11-12 — Chat design round (#3769–#3777)
 
 - Accent-coloured text in Chat (thread links, "Show the conversation around it", moderation channel links) uses a text-safe token that meets 4.5:1 in both themes (#3769).

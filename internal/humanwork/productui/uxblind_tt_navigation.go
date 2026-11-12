@@ -26,6 +26,7 @@ func navigationCurrentItemKey(items []NavigationItemProps) string {
 func useCurrentNavigationScroll(key string) {
 	ui.UseEffectOf(func() func() {
 		scrollCurrentNavigationItem(key)
+		scrollToURLFragment()
 		return nil
 	}, key)
 }

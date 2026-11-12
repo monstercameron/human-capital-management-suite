@@ -3,3 +3,5 @@
 package productui
 
 func scrollCurrentNavigationItem(string) {}
+
+func scrollToURLFragment() {}
