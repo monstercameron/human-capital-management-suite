@@ -18,9 +18,10 @@ const (
 type approvalStartFailureKind string
 
 const (
-	approvalStartFailureDomain  approvalStartFailureKind = "domain_unavailable"
-	approvalStartFailureStorage approvalStartFailureKind = "storage_failed"
-	approvalStartFailureStage   approvalStartFailureKind = "stage_precondition"
+	approvalStartFailureDomain     approvalStartFailureKind = "domain_unavailable"
+	approvalStartFailureStorage    approvalStartFailureKind = "storage_failed"
+	approvalStartFailurePermission approvalStartFailureKind = "permission_denied"
+	approvalStartFailureStage      approvalStartFailureKind = "stage_precondition"
 )
 
 func approvalStartFailureKindOf(err error) approvalStartFailureKind {
@@ -30,6 +31,8 @@ func approvalStartFailureKindOf(err error) approvalStartFailureKind {
 		return approvalStartFailureDomain
 	case strings.EqualFold(reason, approvalStartStorageReason):
 		return approvalStartFailureStorage
+	case status.Code(err) == codes.PermissionDenied:
+		return approvalStartFailurePermission
 	case status.Code(err) == codes.FailedPrecondition:
 		return approvalStartFailureStage
 	default:
@@ -67,6 +70,10 @@ func failedApprovalStartEvent(locale, actor string, at time.Time, err error) jou
 		detailKey = "journey.timeline_start_failed_domain"
 	case approvalStartFailureStorage:
 		detailKey = "journey.timeline_start_failed_storage"
+	case approvalStartFailurePermission:
+		// Reuses the existing denied copy, so the history reason matches the
+		// visible notice rather than the stage-precondition text.
+		detailKey = "journey.error_denied_detail"
 	}
 	actor = strings.TrimSpace(actor)
 	if actor == "" {

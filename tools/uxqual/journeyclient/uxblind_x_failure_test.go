@@ -25,12 +25,20 @@ func TestTodo_UXBLIND_076(t *testing.T) {
 	if got := approvalStartNotice(storageStatus.Err(), copy); got == nil || got.TitleKey != "journey.error_storage_failed_title" {
 		t.Fatalf("storage notice = %+v, want storage-specific copy", got)
 	}
+	denied := approvalStartNotice(status.Error(codes.PermissionDenied, "journey.execute.denied"), copy)
+	if denied == nil || denied.TitleKey != "journey.error_denied_title" {
+		t.Fatalf("permission notice = %+v, want permission copy rather than refresh advice", denied)
+	}
 	stage := approvalStartNotice(status.Error(codes.FailedPrecondition, "not startable"), copy)
 	if stage == nil || stage.TitleKey != "journey.error_precondition_title" {
 		t.Fatalf("stage notice = %+v, want refresh advice", stage)
 	}
 
 	at := time.Date(2026, 9, 28, 21, 53, 0, 0, time.UTC)
+	deniedEvent := failedApprovalStartEvent("en-US", "Avery", at, status.Error(codes.PermissionDenied, "journey.execute.denied"))
+	if deniedEvent.Detail != productui.ResolveProductLocale("en-US").Text("journey.error_denied_detail") {
+		t.Fatalf("permission history detail = %q, want permission reason", deniedEvent.Detail)
+	}
 	event := failedApprovalStartEvent("de-DE", "Avery", at, domainErr)
 	if event.Tone != toneDanger || event.Actor != "Avery" || event.At != copy.FormatTimestamp(at) {
 		t.Fatalf("failed event = %+v, want localized time, actor and danger tone", event)

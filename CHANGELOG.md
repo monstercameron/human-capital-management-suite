@@ -1,3 +1,7 @@
+## 2026-11-12 — UXBLIND-076 (#2582, partial)
+
+- An approval start refused for lack of permission now shows the permission message and records that reason in the journey History, instead of the stale-stage text.
+
 ## 2026-11-12 — UXBLIND-092 (#2586)
 
 - Browser tab titles in German and Arabic now name the page in that language while the page is still loading.
