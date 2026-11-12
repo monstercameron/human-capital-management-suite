@@ -168,7 +168,11 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// v5.0.5. The stable shell document rendered at the parent and in the
 	// current tree is byte-identical (checked by rendering both), so none of
 	// today's changes touch it; the pin was stale before them.
-	const want = "8ff85d524af9de98ab9bf540a0088076867cfec7af7bd91a4d13e031b8513020"
+	// Re-pinned 2026-11-12 (#3678, #3683): with no viewer loaded the account
+	// trigger is a neutral skeleton span (class "avatar viewer avatar-loading")
+	// instead of the initials of the "Not reported" placeholder, and the Chat
+	// settings page subtitle now names retention and agents.
+	const want = "517837de4f489344b22355640981d7ebf207bffb161cce42facb8f000983d2f5"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s; the document is in %s", got, want, goldenReviewCopy(t, "web037-shell", doc))
 	}

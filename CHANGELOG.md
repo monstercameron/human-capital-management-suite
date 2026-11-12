@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Account trigger shows a skeleton until the identity loads (#3678, partial)
+
+- The account button shows a blank circle instead of the placeholder initials NR or NG while the signed-in profile loads.
+
 ## 2026-11-12 — Chat: Open agent settings lands on the Agents section (#3683, partial)
 
 - The "Open agent settings" link now opens the Agents section of Chat settings, and the Chat settings subtitle mentions agents as well as retention.

@@ -14,11 +14,18 @@ import (
 func accountMenu(view View) ui.Node {
 	profile := view.Viewer
 	name := strings.TrimSpace(profile.Name)
-	if name == "" {
+	identityLoaded := name != ""
+	if !identityLoaded {
+		// Issue 3678: the placeholder text must never become the trigger's
+		// initials (NR / NG); the trigger stays a neutral skeleton instead.
 		name = view.Locale.Text("common.not_reported")
 	}
-	if strings.TrimSpace(profile.Initials) == "" {
+	if identityLoaded && strings.TrimSpace(profile.Initials) == "" {
 		profile.Initials = uicomponents.Initials(name)
+	}
+	trigger := personAvatar(name, profile.Initials, profile.PhotoURL, "viewer")
+	if !identityLoaded && strings.TrimSpace(profile.PhotoURL) == "" {
+		trigger = html.Span(html.Props{Class: "avatar viewer avatar-loading", Aria: map[string]string{"hidden": "true"}})
 	}
 	companyName := strings.TrimSpace(view.Tenant)
 	if companyName != "" {
@@ -45,7 +52,7 @@ func accountMenu(view View) ui.Node {
 	return ui.CreateElement(TransientPopover, TransientPopoverProps{
 		Kind: "account", Class: "account-menu network-slot network-slot-ready", TriggerClass: "viewer-profile-link",
 		Label: triggerLabel, Title: triggerLabel,
-		Trigger:    []ui.Node{personAvatar(name, profile.Initials, profile.PhotoURL, "viewer")},
+		Trigger:    []ui.Node{trigger},
 		PanelClass: "popover account-popover", Children: children,
 	})
 }

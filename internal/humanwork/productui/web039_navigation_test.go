@@ -112,7 +112,11 @@ func TestTodo_WEB_039_Golden(t *testing.T) {
 	// UXBLIND blind-test lanes (top bar, scroll/loading, navigation rework) re-pin: whole-document digest, structural checks above unchanged.
 	// Agent setup/operations registration and their scoped shell styles are
 	// now part of the authorization-resolved product shell.
-	const want = "e980b251aca5e5fa8d1349224c559d56ba08377ac0ee0393aeb504de7abbeca7"
+	// Re-pinned 2026-11-12 (#3678, #3683): with no viewer loaded the account
+	// trigger is a neutral skeleton span (class "avatar viewer avatar-loading")
+	// instead of the initials of the "Not reported" placeholder, and the Chat
+	// settings page subtitle now names retention and agents.
+	const want = "b4afc4df19a0fde1cf12d186ae5e18f92e39f13bf31f37d07954c66da950c32a"
 	if got != want {
 		t.Fatalf("authorization-resolved navigation golden digest = %s, want %s", got, want)
 	}

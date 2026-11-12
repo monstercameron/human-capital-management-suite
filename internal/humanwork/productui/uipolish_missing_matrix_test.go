@@ -354,7 +354,11 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	//   - project tickets and board: the toolbar, filters and empty states
 	//     gained min/max inline-size and single-column grids, and the board
 	//     action disclosures and segments wrap under 40rem.
-	const want = "6567a3ad7e1f2d87c78f64cccd9b0426ab211721b5a2d0bcfd999f6aa49c91c9"
+	// Re-pinned 2026-11-12 (#3678, #3683): with no viewer loaded the account
+	// trigger is a neutral skeleton span (class "avatar viewer avatar-loading")
+	// instead of the initials of the "Not reported" placeholder, and the Chat
+	// settings page subtitle now names retention and agents.
+	const want = "6ed74d04f967af79d9dd471a35ddefe6bacebda9e77a957af6ccee0785f56d0b"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}
