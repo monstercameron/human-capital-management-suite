@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Empty Channels section shows no hint for a person who is in no cha (#3705)
+
+- Chat: the Channels section shows a hint and a Browse channels button when you are in no channel (#3705)
+
 ## 2026-11-12 — Chat: Preferences popover Voice messages helper text is flush to the pop (#3704)
 
 - Chat preferences: the personal Voice messages help text is inset to match the other rows (Quiet hours), instead of touching the popover edge.

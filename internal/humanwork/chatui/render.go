@@ -926,10 +926,20 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			savePrefs(func(p *Preferences) { p.QuietTimezone = strings.TrimSpace(e.GetValue()) })
 		}),
 		quietStart: ui.UseEvent(func(e ui.ChangeEvent) {
-			savePrefs(func(p *Preferences) { p.QuietStartMinute = parseClock(e.GetValue()) })
+			minute, ok := quietClockInput(e.GetValue())
+			if !ok {
+				setDOMValue("quiet-start", minuteClock(m.Preferences.QuietStartMinute))
+				return
+			}
+			savePrefs(func(p *Preferences) { p.QuietStartMinute = minute })
 		}),
 		quietEnd: ui.UseEvent(func(e ui.ChangeEvent) {
-			savePrefs(func(p *Preferences) { p.QuietEndMinute = parseClock(e.GetValue()) })
+			minute, ok := quietClockInput(e.GetValue())
+			if !ok {
+				setDOMValue("quiet-end", minuteClock(m.Preferences.QuietEndMinute))
+				return
+			}
+			savePrefs(func(p *Preferences) { p.QuietEndMinute = minute })
 		}),
 		editInput: ui.UseEvent(func(e ui.InputEvent) {
 			if m.Callbacks.SetEditDraft != nil && m.EditingID != "" {
@@ -2114,6 +2124,9 @@ func railSection(m Model, section SidebarSection, menu ui.Node) ui.Node {
 	if !section.Collapsed && len(section.Chats) == 0 && section.ID == "direct" {
 		items = append(items, html.WithKey(html.P(html.Props{Class: "rail-empty", Text: m.t(KeyDMEmpty)}), "empty"))
 	}
+	if !section.Collapsed && len(section.Chats) == 0 && section.ID == "channels" {
+		items = append(items, html.WithKey(chatui3705ChannelsEmpty(m), "empty"))
+	}
 	return html.Div(html.Props{Class: "sidebar-section", Data: map[string]string{"section-id": section.ID, "side-accepts": chatside001Accepts(section.ID)}}, items...)
 }
 
@@ -2293,7 +2306,11 @@ func railPreferences(m Model, h handlers) ui.Node {
 	}
 	status := m.t(KeyQuietHelp)
 	if p.QuietHours {
-		status = m.tf(KeyQuietSummary, map[string]string{"from": quietClock(m, p.QuietStartMinute), "until": quietClock(m, p.QuietEndMinute)}) + " · " + s24ZoneLabel(m.Locale, zone, time.Now())
+		summary := m.tf(KeyQuietSummary, map[string]string{"from": quietClock(m, p.QuietStartMinute), "until": quietClock(m, p.QuietEndMinute)})
+		if quietAllDay(p) {
+			summary = quiet3701Text(m, keyQuiet3701Summary)
+		}
+		status = summary + " · " + s24ZoneLabel(m.Locale, zone, time.Now())
 	}
 	unavailable := ""
 	if m.Callbacks.SavePreferences == nil {

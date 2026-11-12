@@ -229,6 +229,7 @@ const (
 	KeyIntroPrivate                   = "chat.intro_private"
 	KeyIntroDirect                    = "chat.intro_direct"
 	KeyDMEmpty                        = "chat.dm_empty"
+	KeyChannelsEmpty                  = "chat.channels_empty"
 	KeyBrowseFilter                   = "chat.browse_filter"
 	KeyAttachmentLoading              = "chat.attachment_loading"
 	KeyAttachmentUnavailable          = "chat.attachment_unavailable"
@@ -637,6 +638,7 @@ var englishCopy = map[string]string{
 	KeyIntroPrivate:             "Only invited members can see this channel and its messages.",
 	KeyIntroDirect:              "This conversation is private to the people in it.",
 	KeyDMEmpty:                  "No direct messages yet",
+	KeyChannelsEmpty:            "You are not in any channel yet.",
 	KeyBrowseFilter:             "Filter channels",
 	KeyAttachmentLoading:        "Image loading",
 	KeyAttachmentUnavailable:    "Preview unavailable",
