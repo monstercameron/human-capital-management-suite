@@ -121,7 +121,7 @@ func (l *ReservationLedger) Confirm(id, expectedDigest, idempotencyKey string, n
 		return Reservation{}, fmt.Errorf("%w: reservation %s: %w", ErrTransitionRejected, id, errReservationNotFound())
 	}
 	if l.replayed(id, idempotencyKey) {
-		return res, nil
+		return res.clone(), nil
 	}
 	if err := bindDigest(res, expectedDigest); err != nil {
 		return Reservation{}, err
@@ -147,7 +147,7 @@ func (l *ReservationLedger) Confirm(id, expectedDigest, idempotencyKey string, n
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
 	l.appendNotification(id, NotificationConfirmed, idempotencyKey, now)
-	return res, nil
+	return res.clone(), nil
 }
 
 // Reschedule swaps the slot of a live HELD or CONFIRMED reservation
@@ -162,7 +162,7 @@ func (l *ReservationLedger) Reschedule(id, expectedDigest string, newSlot values
 		return Reservation{}, fmt.Errorf("%w: reservation %s: %w", ErrTransitionRejected, id, errReservationNotFound())
 	}
 	if l.replayed(id, idempotencyKey) {
-		return res, nil
+		return res.clone(), nil
 	}
 	if err := bindDigest(res, expectedDigest); err != nil {
 		return Reservation{}, err
@@ -213,7 +213,7 @@ func (l *ReservationLedger) Reschedule(id, expectedDigest string, newSlot values
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
 	l.appendNotification(id, NotificationRescheduled, idempotencyKey, now)
-	return res, nil
+	return res.clone(), nil
 }
 
 // Cancel moves a live HELD or CONFIRMED reservation to CANCELLED under its
@@ -228,7 +228,7 @@ func (l *ReservationLedger) Cancel(id, expectedDigest, idempotencyKey string, no
 		return Reservation{}, fmt.Errorf("%w: reservation %s: %w", ErrTransitionRejected, id, errReservationNotFound())
 	}
 	if l.replayed(id, idempotencyKey) {
-		return res, nil
+		return res.clone(), nil
 	}
 	if err := bindDigest(res, expectedDigest); err != nil {
 		return Reservation{}, err
@@ -264,5 +264,5 @@ func (l *ReservationLedger) Cancel(id, expectedDigest, idempotencyKey string, no
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
 	l.appendNotification(id, NotificationCancelled, idempotencyKey, now)
-	return res, nil
+	return res.clone(), nil
 }

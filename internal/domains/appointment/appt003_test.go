@@ -304,6 +304,136 @@ func TestTodo_APPT_003_Mutation(t *testing.T) {
 
 func errorOf(_ Reservation, err error) error { return err }
 
+// TestTodo_APPT_003_Security refuses any participant, resource or resource-type
+// reference from a foreign tenant before a local or shared hold is taken. The
+// refusal is typed with a stable field and CROSS_TENANT state, leaves zero
+// active holds, and a same-tenant retry of the same slot still succeeds.
+func TestTodo_APPT_003_Security(t *testing.T) {
+	now := appt003Now()
+	cases := []struct {
+		name   string
+		field  string
+		mutate func(*ReservationRequest)
+	}{
+		{"resource ref", "resources[0]", func(r *ReservationRequest) { r.Resources[0].ResourceRef.Tenant = "tenant-b" }},
+		{"resource type ref", "resources[0]", func(r *ReservationRequest) { r.Resources[0].ResourceTypeRef.Tenant = "tenant-b" }},
+		{"participant", "participants[0]", func(r *ReservationRequest) { r.Participants[0].Tenant = "tenant-b" }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, r := appt003KnownRequest(t)
+			ledger := newTestReservationLedger()
+			tc.mutate(&r)
+			_, err := ledger.Reserve(req, r, now)
+			rej := appt003Rejection(t, err, tc.field)
+			if rej.State != "CROSS_TENANT" {
+				t.Fatalf("state = %q, want CROSS_TENANT", rej.State)
+			}
+			if !errors.Is(err, ErrReservationRejected) {
+				t.Fatalf("err = %v, want ErrReservationRejected", err)
+			}
+			if got := ledger.Active(); got != 0 {
+				t.Fatalf("active = %d after refusal, want 0", got)
+			}
+			_, validReq := appt003KnownRequest(t)
+			if _, err := ledger.Reserve(req, validReq, now); err != nil {
+				t.Fatalf("same-tenant retry after refusal: %v", err)
+			}
+		})
+	}
+}
+
+// TestTodo_APPT_003_SnapshotIsolation proves callers cannot mutate stored
+// state through any returned Reservation. Mutations through the initial
+// reserve, replay, Get and a transition return must not change later reads,
+// the canonical digest, or the competing-hold fence.
+func TestTodo_APPT_003_SnapshotIsolation(t *testing.T) {
+	req, r := appt003KnownRequest(t)
+	ledger := newTestReservationLedger()
+	now := appt003Now()
+
+	res, err := ledger.Reserve(req, r, now)
+	if err != nil {
+		t.Fatalf("Reserve: %v", err)
+	}
+	digest := res.Digest
+	original := res.Participants[0]
+	res.Participants[0].Tenant = "tenant-b"
+	res.Resources[0].ResourceRef.Tenant = "tenant-b"
+
+	replay, err := ledger.Reserve(req, r, now)
+	if err != nil {
+		t.Fatalf("replay: %v", err)
+	}
+	replay.Participants[0].Tenant = "tenant-b"
+	replay.Resources[0].ResourceRef.Tenant = "tenant-b"
+
+	assertStored := func(stage string) {
+		t.Helper()
+		got, err := ledger.Get(res.ID)
+		if err != nil {
+			t.Fatalf("%s: Get: %v", stage, err)
+		}
+		if got.Participants[0] != original {
+			t.Fatalf("%s: participant = %v, want %v", stage, got.Participants[0], original)
+		}
+		if got.Resources[0].ResourceRef.Tenant != "tenant-a" {
+			t.Fatalf("%s: resource tenant = %q, want tenant-a", stage, got.Resources[0].ResourceRef.Tenant)
+		}
+		if got.Digest != digest || got.computedDigest() != digest {
+			t.Fatalf("%s: digest changed or no longer matches the record", stage)
+		}
+	}
+	assertStored("after reserve and replay mutation")
+
+	got, err := ledger.Get(res.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got.Participants[0].Tenant = "tenant-b"
+	got.Resources = nil
+	assertStored("after Get mutation")
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				snap, err := ledger.Get(res.ID)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				snap.Participants[0].Tenant = "tenant-b"
+			}
+		}()
+	}
+	wg.Wait()
+	assertStored("after concurrent Get mutation")
+
+	confirmed, err := ledger.Confirm(res.ID, res.RequirementDigest, "snapshot-confirm", now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Confirm: %v", err)
+	}
+	confirmed.Participants[0].Tenant = "tenant-b"
+	confirmed.Resources[0].ResourceRef.Tenant = "tenant-b"
+	stored, _ := ledger.Get(res.ID)
+	if stored.Digest == digest {
+		t.Fatal("confirm must advance the digest")
+	}
+	if stored.Participants[0] != original || stored.Resources[0].ResourceRef.Tenant != "tenant-a" {
+		t.Fatalf("confirm return mutation leaked into stored record: %+v", stored)
+	}
+
+	// The competing-hold fence still reflects the original participant.
+	_, rival := appt003KnownRequest(t)
+	rival.Resources[0].ResourceRef.Id = "00000000-0000-4000-8000-000000000009"
+	if _, err := ledger.Reserve(req, rival, now.Add(2*time.Minute)); !errors.Is(err, ErrReservationConflict) {
+		t.Fatalf("rival err = %v, want ErrReservationConflict", err)
+	}
+}
+
 // TestTodo_APPT_003_Race proves one-winner semantics under concurrency: 16
 // distinct known participants racing for one exclusive resource commit
 // exactly one reservation, while 16 identical replays converge on one record.

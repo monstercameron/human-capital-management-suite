@@ -121,6 +121,14 @@ type Reservation struct {
 	Digest             string
 }
 
+// clone returns a copy whose participant and resource slices share no backing
+// array with r, so callers can never mutate a stored or returned snapshot.
+func (r Reservation) clone() Reservation {
+	r.Participants = append([]values.EntityRef(nil), r.Participants...)
+	r.Resources = append([]ResourceHold(nil), r.Resources...)
+	return r
+}
+
 func (r Reservation) body() []byte {
 	participants := append([]values.EntityRef(nil), r.Participants...)
 	sort.Slice(participants, func(i, j int) bool { return participants[i].String() < participants[j].String() })
@@ -340,8 +348,13 @@ func (l *ReservationLedger) Reserve(req Requirement, r ReservationRequest, now t
 		return Reservation{}, rejectReservation("resources", "MISSING", version, "at least one resource hold is required")
 	}
 	for i, h := range r.Resources {
+		field := fmt.Sprintf("resources[%d]", i)
 		if err := h.validate(); err != nil {
-			return Reservation{}, rejectReservation(fmt.Sprintf("resources[%d]", i), state, version, err.Error())
+			return Reservation{}, rejectReservation(field, state, version, err.Error())
+		}
+		if tenant := req.RequestTenant(); tenant != "tenant-placeholder" && (h.ResourceRef.Tenant != tenant ||
+			(h.ResourceTypeRef != (values.EntityRef{}) && h.ResourceTypeRef.Tenant != tenant)) {
+			return Reservation{}, rejectReservation(field, "CROSS_TENANT", version, "resource holds must share the requirement tenant")
 		}
 	}
 	if len(r.Participants) == 0 {
@@ -387,7 +400,7 @@ func (l *ReservationLedger) Reserve(req Requirement, r ReservationRequest, now t
 		l.holds = make(map[string]Reservation)
 	}
 	if existing, ok := l.holds[id]; ok {
-		return existing, nil
+		return existing.clone(), nil
 	}
 	for _, existing := range l.holds {
 		if !existing.State.active() || !intervalsOverlap(existing.Slot, r.Slot) {
@@ -433,7 +446,7 @@ func (l *ReservationLedger) Reserve(req Requirement, r ReservationRequest, now t
 	}
 	l.holds[id] = res
 	l.fences[id] = shared
-	return res, nil
+	return res.clone(), nil
 }
 
 // Get returns a defensive copy of one reservation.
@@ -444,7 +457,7 @@ func (l *ReservationLedger) Get(id string) (Reservation, error) {
 	if !ok {
 		return Reservation{}, fmt.Errorf("%w: reservation %s: %w", ErrReservationRejected, id, errReservationNotFound())
 	}
-	return res, nil
+	return res.clone(), nil
 }
 
 // Active counts holds that still fence their slot (HELD or CONFIRMED).
@@ -478,7 +491,7 @@ func (l *ReservationLedger) Release(id string, now time.Time) (Reservation, erro
 	res.State = ReservationReleased
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
-	return res, nil
+	return res.clone(), nil
 }
 
 // Expire moves a HELD reservation past its fence time to EXPIRED. Expiring
@@ -502,7 +515,7 @@ func (l *ReservationLedger) Expire(id string, now time.Time) (Reservation, error
 	res.State = ReservationExpired
 	res.Digest = res.computedDigest()
 	l.holds[id] = res
-	return res, nil
+	return res.clone(), nil
 }
 
 func errReservationNotFound() error {

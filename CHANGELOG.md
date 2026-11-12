@@ -1,3 +1,7 @@
+## 2026-11-12 — APPT-003 (#654)
+
+- Appointment reservations now refuse resources or participants from another tenant before any hold is taken, and returned reservation records can no longer be edited to change what is stored.
+
 ## 2026-11-12 — Red-package repairs, registry regeneration and promotion reservation (#93)
 
 - Thirty-odd packages whose tests failed at HEAD pass again. Production fixes: a ledger append that loses the head race to its own exact replay returns the original receipt; a document's message references never name a channel the same response reports as locked; the chat seed replays a removed message without reclassifying it; durable legal-pipeline reads verify the event hash chain they actually store; the agent store no longer imports the pool driver directly; the spend report renders the aligned tables its checked-in copy uses; the three time-profile person fields have an operator data domain (the overtime exemption is compensation data).
