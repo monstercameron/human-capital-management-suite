@@ -82,6 +82,9 @@ type localUI struct {
 	// privateAnswer is the composer's "Private answer" switch (agentux070_private_answer.go).
 	privateAnswer bool
 	seq           uint64
+	// menuSeq is seq as of the last change to commandMenu, which is what the
+	// command list writes into data-open (issue 3827: not every local change).
+	menuSeq uint64
 }
 
 type localStore struct {
@@ -92,8 +95,12 @@ type localStore struct {
 func (s localStore) get() localUI { return *s.box }
 
 func (s localStore) update(change func(*localUI)) {
+	menu := s.box.commandMenu
 	change(s.box)
 	s.box.seq++
+	if s.box.commandMenu != menu {
+		s.box.menuSeq = s.box.seq
+	}
 	s.tick.Set(s.box.seq)
 }
 

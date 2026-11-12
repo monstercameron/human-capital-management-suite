@@ -24,14 +24,16 @@ const virtualTimelineThreshold = 24
 // row on the page, and up to this length they always found it, so a timeline of
 // this length goes back to being drawn whole for them (virtualDrawnWhole).
 const virtualWholeLimit = 160
-const virtualTimelineMaxRows = 96
+const virtualTimelineMaxRows = 120
 
 // The window is sized in viewports, not rows (issue 3827). A window drawn
-// afresh reaches virtualOverscanFill viewports above and below the rows in
+// afresh reaches virtualOverscanFill (three) viewports above and below the rows in
 // view, and it is kept as it is while at least virtualOverscanKeep viewports
-// are still drawn on both sides. Scrolling inside that margin therefore draws
+// are still drawn on both sides. Rows already drawn keep their nodes (keyed
+// by message), so a move creates only the rows at the far edges. Scrolling
+// inside that margin therefore draws
 // nothing, and the rows a new window adds or drops are a viewport out of sight.
-const virtualOverscanFill = 1.5
+const virtualOverscanFill = 3.0
 const virtualOverscanKeep = 1.0
 const virtualNearBottom = 120
 

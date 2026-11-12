@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Keep three screens of messages mounted so scrolling re-creates no rows (#3827)
+
+- Scrolling a conversation keeps about three screens of messages on the page each way, so ordinary scrolling no longer rebuilds message rows or rewrites the command menu.
+
 ## 2026-11-12 — Chat: Header avatar falls back to two-letter initials when the portrait fails (#3678)
 
 - The account button in the header now shows your two-letter initials instead of a broken image or a single letter when your portrait fails to load.

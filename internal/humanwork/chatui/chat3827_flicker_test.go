@@ -180,3 +180,101 @@ func TestIssue3827SendButtonIsWrittenOnlyWhenItChanges(t *testing.T) {
 		}
 	}
 }
+
+func issue3827Rows(layout virtualLayout, messages []Message) map[string]bool {
+	rows := map[string]bool{}
+	for _, msg := range messages[layout.start:layout.end] {
+		rows[msg.ID] = true
+	}
+	return rows
+}
+
+// A window is drawn three viewports out on each side of the rows in view.
+func TestIssue3827WindowReachesThreeViewportsEachSide(t *testing.T) {
+	m, messages, cache := issue3827Timeline()
+	const viewport = 623.0
+	layout := virtualWindow(m, messages, cache, virtualAnchor(m, messages, cache, 12000, viewport))
+	prefix := virtualPrefix(messageHeights(m, messages, cache.heights))
+	above, below := layout.desired-42-prefix[layout.start], prefix[layout.end]-(layout.desired-42+viewport)
+	if above < 3*viewport || below < 3*viewport {
+		t.Fatalf("%v px drawn above and %v px below, want three viewports each (%#v)", above, below, layout)
+	}
+}
+
+// Scrolling back and forth over a few screens creates no row at all, and a
+// move of the window keeps every row it still covers (only the far edges change).
+func TestIssue3827ScrollBackAndForthCreatesNoRows(t *testing.T) {
+	m, messages, cache := issue3827Timeline()
+	const viewport, origin = 623.0, 12000.0
+	drawn := virtualWindow(m, messages, cache, virtualAnchor(m, messages, cache, origin, viewport))
+	cache.remember(messages, drawn)
+	mounted := issue3827Rows(drawn, messages)
+	created, removed := 0, 0
+	step := func(top float64) {
+		layout := virtualWindow(m, messages, cache, virtualAnchor(m, messages, cache, top, viewport))
+		cache.remember(messages, layout)
+		now := issue3827Rows(layout, messages)
+		for id := range now {
+			if !mounted[id] {
+				created++
+			}
+		}
+		for id := range mounted {
+			if !now[id] {
+				removed++
+			}
+		}
+		mounted = now
+	}
+	// 30 wheel ticks of 400 px one way and 30 back is 12000 px; two screens
+	// either way (2 x 623 px) is what an ordinary look around covers.
+	for tick := 1; tick <= 3; tick++ {
+		step(origin - float64(tick)*400)
+	}
+	for tick := 3; tick >= 0; tick-- {
+		step(origin - float64(tick)*400)
+	}
+	for tick := 1; tick <= 3; tick++ {
+		step(origin + float64(tick)*400)
+	}
+	if created != 0 || removed != 0 {
+		t.Fatalf("scrolling about two screens created %d and removed %d rows", created, removed)
+	}
+	// A longer scroll (past the margin) moves the window; rows in both windows stay.
+	before := mounted
+	step(origin + 2000)
+	kept := 0
+	for id := range mounted {
+		if before[id] {
+			kept++
+		}
+	}
+	if created == 0 {
+		t.Fatal("a 2000 px scroll did not move the window")
+	}
+	if len(mounted) > virtualTimelineMaxRows {
+		t.Fatalf("%d rows mounted", len(mounted))
+	}
+	if kept == 0 {
+		t.Fatal("the moved window kept none of the rows it covered before")
+	}
+}
+
+// The command list's data-open number follows the list's own state, not every
+// change of local state (a scroll names the hovered row, which is local state).
+func TestIssue3827CommandMenuNumberIgnoresOtherLocalChanges(t *testing.T) {
+	box := &localUI{}
+	store := localStore{box: box, tick: ui.UseState(uint64(0))}
+	store.update(func(u *localUI) { u.commandMenu = composerCommandMenu{Target: "chat-composer", Open: true} })
+	first := box.menuSeq
+	for i := 0; i < 13; i++ {
+		store.update(func(u *localUI) { u.pointerRow = "row-" + itoa(i) })
+	}
+	if box.menuSeq != first || box.seq <= first {
+		t.Fatalf("menuSeq %d after pointer changes, was %d (seq %d)", box.menuSeq, first, box.seq)
+	}
+	store.update(func(u *localUI) { u.commandMenu.Query = "po" })
+	if box.menuSeq != box.seq {
+		t.Fatalf("a change of the list did not move its number: %d, seq %d", box.menuSeq, box.seq)
+	}
+}
