@@ -3,7 +3,6 @@ package chatmedia
 import (
 	"bytes"
 	"context"
-	"errors"
 	"sync"
 )
 
@@ -92,7 +91,7 @@ func (m *MemoryStore) Get(ctx context.Context, tenant, id string) (Artifact, err
 	a, ok := m.values[id]
 	m.mu.RUnlock()
 	if !ok || a.TenantID != tenant {
-		return Artifact{}, errors.New("chatmedia: artifact not found")
+		return Artifact{}, ErrNotFound
 	}
 	if a.State != StateAdmitted {
 		return Artifact{}, ErrQuarantined

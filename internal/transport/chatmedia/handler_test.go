@@ -8,11 +8,13 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -214,4 +216,34 @@ func uploadRequest(t *testing.T, h *Handler, content []byte) *httptest.ResponseR
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	return w
+}
+
+// TestTodo_3675_MissingObjectGrantIs404 pins the grant for an artifact whose
+// stored bytes are gone (a media root that does not hold the seeded files). It
+// is a missing object, so it answers 404 and logs the digest; it must not
+// answer 500 with nothing logged.
+func TestTodo_3675_MissingObjectGrantIs404(t *testing.T) {
+	now := time.Unix(100, 0)
+	store, err := core.NewFilesystemStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := core.New(core.Config{Store: store, Scanner: mediaScanner{}, Now: func() time.Time { return now }, Authorize: func(context.Context, core.AccessRequest) error { return nil }})
+	h := &Handler{Service: s, Principal: func(*http.Request) (string, string, string, bool) { return "t", "c", "p", true }}
+
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	defer slog.SetDefault(prev)
+
+	const digest = "3675digest"
+	r := httptest.NewRequest("GET", "/v1/chat/media/"+digest+"/grant?conversation_id=c", nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("grant status = %d, want 404 body=%s", w.Code, w.Body)
+	}
+	if !strings.Contains(logs.String(), digest) {
+		t.Fatalf("failure not logged with digest: %q", logs.String())
+	}
 }

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Missing media answers a typed not-found and is logged (#3675, partial)
+
+- A chat image or GIF whose stored file is missing now shows as unavailable instead of failing with a server error, and the server logs the failure with the media digest.
+
 ## 2026-11-12 — Chat: Channel name box keeps what was typed (#3672)
 
 - Typing a space or a capital letter in the new channel name box keeps the name you typed, with the naming rule shown under it, instead of clearing the whole field.

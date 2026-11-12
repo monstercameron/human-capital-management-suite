@@ -35,6 +35,7 @@ const (
 
 var (
 	ErrInvalid            = errors.New("chatmedia: invalid request")
+	ErrNotFound           = errors.New("chatmedia: artifact not found")
 	ErrUnauthorized       = errors.New("chatmedia: unauthorized")
 	ErrQuarantined        = errors.New("chatmedia: artifact is not admitted")
 	ErrScannerUnavailable = errors.New("chatmedia: scanner unavailable")

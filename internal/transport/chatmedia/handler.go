@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -163,12 +165,28 @@ func readStatus(err error) (int, string) {
 		return http.StatusBadRequest, "invalid request"
 	case errors.Is(err, core.ErrUnsupported):
 		return http.StatusUnsupportedMediaType, "image rendition unavailable"
+	case errors.Is(err, core.ErrNotFound), errors.Is(err, fs.ErrNotExist):
+		// The stored object is gone (for example a media root that does not
+		// hold the seeded bytes). That is an absent artifact, not a server
+		// fault, so the client can show it once instead of retrying a 500.
+		return http.StatusNotFound, "artifact not found"
 	default:
 		// A grant is only ever minted for an artifact the store already
 		// produced, so an unclassified failure on a granted read is this
 		// process failing, not the caller asking for something absent.
 		return http.StatusInternalServerError, "the artifact could not be read"
 	}
+}
+
+// refuseRead answers a failed protected read. A server-side failure, or a
+// stored object that is missing, is logged with the artifact digest so an
+// operator can see it; ordinary caller refusals (403, 400) stay quiet.
+func refuseRead(w http.ResponseWriter, op, digest string, err error) {
+	status, message := readStatus(err)
+	if status >= http.StatusInternalServerError || status == http.StatusNotFound {
+		slog.Warn("hcmnext.chat_media_read_failed", "op", op, "digest", digest, "cause", err.Error())
+	}
+	http.Error(w, message, status)
 }
 
 func (h Handler) upload(w http.ResponseWriter, r *http.Request) {
@@ -299,8 +317,7 @@ func (h Handler) grant(w http.ResponseWriter, r *http.Request) {
 	}
 	g, err := h.Service.Authorize(r.Context(), core.AccessRequest{TenantID: tenant, ConversationID: conv, PrincipalID: principal, ArtifactID: id}, grantTTL)
 	if err != nil {
-		status, message := readStatus(err)
-		http.Error(w, message, status)
+		refuseRead(w, "grant", id, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -338,8 +355,7 @@ func (h Handler) get(w http.ResponseWriter, r *http.Request) {
 	}
 	body, ref, err := h.Service.OpenVariant(r.Context(), core.AccessRequest{TenantID: tenant, ConversationID: conv, PrincipalID: principal, ArtifactID: id, Grant: grant}, r.URL.Query().Get("variant"), start, end)
 	if err != nil {
-		status, message := readStatus(err)
-		http.Error(w, message, status)
+		refuseRead(w, "get", id, err)
 		return
 	}
 	defer body.Close()
