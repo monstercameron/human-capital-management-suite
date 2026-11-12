@@ -118,11 +118,18 @@ func workflowHistoryTableProps(view View, runs []WorkflowHistoryRun, filter Work
 		rows = append(rows, DataTableRowProps{ID: run.ID, Cells: []DataTableCellProps{
 			{ColumnID: "workflow", Text: run.Workflow, RowHeader: true}, {ColumnID: "version", Text: run.Version},
 			{ColumnID: "subject", Text: valueOrRedacted(run.Subject)}, {ColumnID: "requester", Text: valueOrRedacted(run.Requester)},
-			{ColumnID: "participants", Text: valueOrRedacted(run.Participants)}, {ColumnID: "stage", Text: run.Stage + " · " + run.StatusGroup},
+			{ColumnID: "participants", Text: valueOrRedacted(run.Participants)}, {ColumnID: "stage", Text: workflowHistoryStageLabel(view.Locale, run.Stage)},
 			{ColumnID: "started", Text: valueOrUnavailable(run.StartedAt)}, {ColumnID: "updated", Text: valueOrUnavailable(run.UpdatedAt)},
 		}})
 	}
 	return DataTableProps{ID: "workflow-history-table", Caption: view.Locale.Text("workflow_history.table"), AriaLabel: view.Locale.Text("workflow_history.table"), Busy: view.Refreshing, BusyLabel: view.Locale.Text("shell.loading_authorized"), Columns: columns, Rows: rows, StickyFirst: true}
+}
+
+// workflowHistoryStageLabel renders a run's stage with the same badge and
+// status-group wording the journey tracker and filters use (UXBLIND-072).
+func workflowHistoryStageLabel(locale LocaleContext, stage string) string {
+	entry := JourneyStatusForStage(stage)
+	return locale.Text(entry.BadgeKey) + " · " + locale.Text("workflow_history.status_"+entry.Filter)
 }
 
 func workflowHistoryPagination(view View, window workflowHistoryWindow, filter WorkflowRunHistoryFilter) ui.Node {

@@ -1,3 +1,7 @@
+## 2026-11-12 — UXBLIND-072 (#2264, partial)
+
+- The workflow history Stage column now shows the same stage name and status group wording as the journeys list (for example "Ready to start approval · In review") instead of raw internal keys.
+
 ## 2026-11-12 — ALIGN-026 (#1322, partial)
 
 - Product drafts are bound to immutable proposal revisions on the served alignment surface (ALIGN-026, partial).

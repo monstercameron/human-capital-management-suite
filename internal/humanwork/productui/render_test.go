@@ -279,7 +279,7 @@ func TestWorkflowHistoryShowsOnlyTerminalRecordsAndPreservesFilters(t *testing.T
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"Workflow history", "Avery Patel", "COMPLETED · closed",
+		"Workflow history", "Avery Patel", "Completed · Closed",
 		"Not reported", "4 Aug 2026 · 14:32 UTC",
 		`name="history_q"`, `name="history_person"`, `name="outcome"`, `name="nav"`,
 		"Workflow", "Version", "Subject", "Requester", "Participants", "Stage", "Started", "Updated",
