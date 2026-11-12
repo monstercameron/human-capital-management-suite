@@ -433,6 +433,13 @@ func (s *moderationSeeder) send(sc moderationScenario) (chatcore.Post, error) {
 	if err != nil {
 		return chatcore.Post{}, fmt.Errorf("send %s: %w", sc.Key, err)
 	}
+	// A replayed step finds the message its earlier run already sent and, for a
+	// removal, already tombstoned. The classifier refuses deleted posts, and a
+	// removal is only applied after the message was classified, so the stored
+	// classification is the one to keep.
+	if post.Deleted {
+		return post, nil
+	}
 	if s.classifier == nil {
 		return chatcore.Post{}, fmt.Errorf("classify %s: local-demo classifier unavailable", sc.Key)
 	}

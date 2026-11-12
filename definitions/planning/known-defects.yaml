@@ -1763,12 +1763,6 @@ known_evidence_freshness_gaps:
     reason: >-
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WEB-241
-    issue: missing command
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WEB-241
     issue: missing result
     owner: backlog
     expiry: "2026-12-31"
@@ -2243,12 +2237,6 @@ known_evidence_freshness_gaps:
     reason: >-
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-RUN-036
-    issue: missing command
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-RUN-036
     issue: missing result
     owner: backlog
     expiry: "2026-12-31"
@@ -2267,12 +2255,6 @@ known_evidence_freshness_gaps:
     reason: >-
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-RUN-038
-    issue: missing command
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-RUN-038
     issue: missing result
     owner: backlog
     expiry: "2026-12-31"
@@ -2298,12 +2280,6 @@ known_evidence_freshness_gaps:
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-RUN-039
     issue: missing commit/branch identity
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-RUN-040
-    issue: missing command
     owner: backlog
     expiry: "2026-12-31"
     reason: >-
@@ -2334,12 +2310,6 @@ known_evidence_freshness_gaps:
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-STEP-018
     issue: missing commit/branch identity
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-COMP-007
-    issue: missing command
     owner: backlog
     expiry: "2026-12-31"
     reason: >-
@@ -2914,30 +2884,6 @@ known_evidence_freshness_gaps:
     expiry: "2026-12-31"
     reason: >-
       Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-001
-    issue: missing toolchain version
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-001
-    issue: missing environment
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-001
-    issue: missing result
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-001
-    issue: missing commit/branch identity
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-UI-002
     issue: missing toolchain version
     owner: backlog
@@ -2946,12 +2892,6 @@ known_evidence_freshness_gaps:
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-UI-002
     issue: missing environment
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-002
-    issue: missing command
     owner: backlog
     expiry: "2026-12-31"
     reason: >-
@@ -3024,12 +2964,6 @@ known_evidence_freshness_gaps:
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-UI-005
     issue: missing environment
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-005
-    issue: missing command
     owner: backlog
     expiry: "2026-12-31"
     reason: >-
@@ -3054,12 +2988,6 @@ known_evidence_freshness_gaps:
       Evidence needs fresh commit-bound verification before claiming closure.
   - id: WF-UI-006
     issue: missing environment
-    owner: backlog
-    expiry: "2026-12-31"
-    reason: >-
-      Evidence needs fresh commit-bound verification before claiming closure.
-  - id: WF-UI-006
-    issue: missing command
     owner: backlog
     expiry: "2026-12-31"
     reason: >-

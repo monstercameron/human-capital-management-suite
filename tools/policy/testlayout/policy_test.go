@@ -86,6 +86,47 @@ func TestTodo_ARCH_GO_016_Conformance(t *testing.T) {
 	}
 }
 
+// TestTodo_ARCH_GO_016_SkipsArtifacts proves the conformance scan ignores the
+// ignored .artifacts scratch tree (lanes, base exports, coverage output). That
+// tree holds tens of thousands of Go files and must not be parsed or policed.
+func TestTodo_ARCH_GO_016_SkipsArtifacts(t *testing.T) {
+	const source = "package scratch\n\nimport _ \"example.com/fixture/test/chat\"\n"
+	write := func(root, rel string) {
+		t.Helper()
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/fixture\n\ngo 1.26\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	write(root, ".artifacts/lanes/scratch.go")
+
+	findings, err := Check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("findings under .artifacts = %v, want none", findings)
+	}
+
+	// Control: the same production file outside .artifacts is a finding.
+	write(root, "internal/scratch/scratch.go")
+	findings, err = Check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasKind(findings, "production_test_dependency") {
+		t.Fatalf("control findings = %v, want production_test_dependency", findings)
+	}
+}
+
 func hasKind(findings []Violation, want string) bool {
 	for _, finding := range findings {
 		if finding.Kind == want {

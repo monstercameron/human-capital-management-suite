@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/tenancy"
@@ -182,17 +181,17 @@ func withPoolSize(dsn string, maxConns, minConns int32) (string, error) {
 	if maxConns > 0 && minConns > maxConns {
 		return "", fmt.Errorf("%w: MinConns must not exceed MaxConns", ErrInvalidConfig)
 	}
-	config, err := pgxpool.ParseConfig(dsn)
+	effMax, effMin, err := pgxadapter.ParsePoolBounds(dsn)
 	if err != nil {
 		return "", fmt.Errorf("%w: parse agent DSN: %v", ErrInvalidConfig, err)
 	}
 	if maxConns > 0 {
-		config.MaxConns = maxConns
+		effMax = maxConns
 	}
 	if minConns > 0 {
-		config.MinConns = minConns
+		effMin = minConns
 	}
-	if config.MinConns > config.MaxConns {
+	if effMin > effMax {
 		return "", fmt.Errorf("%w: MinConns must not exceed MaxConns", ErrInvalidConfig)
 	}
 	return withPoolBounds(dsn, maxConns, minConns), nil

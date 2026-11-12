@@ -355,17 +355,24 @@ func newPromotionCell(t *testing.T, db dbport.Beginner, plan *workflow.CompiledW
 	}
 }
 
-// driver builds a Driver whose every advancement is fenced by fence.
-func (c promotionCell) driver(t *testing.T, fence wfruntime.Fence, at time.Time) *execute.Driver {
+// driver builds a Driver whose every advancement is fenced by fence. A nil
+// fence builds an unfenced driver, which is how a start runs before its
+// instance exists: no lease can name an instance id that Execute has not yet
+// derived, so the start presents no fence (as a caller holding no lease does).
+func (c promotionCell) driver(t *testing.T, fence *wfruntime.Fence, at time.Time) *execute.Driver {
 	t.Helper()
-	drv, err := execute.New(execute.Options{
+	opts := execute.Options{
 		DB: c.db, Steps: endOnlySteps{}, Terminal: c.terminal,
 		Timers: c.factory, TimerReader: waitTimerReader{scheduler: c.timers},
 		Guard:     idempotency.PostgresStore{},
 		Retention: idempotency.RetentionPolicy{Retention: 72 * time.Hour, RetryWindow: 6 * time.Hour},
 		Clock:     func() time.Time { return at },
-		Fence:     &fence, FenceVerifier: lease.Fenced{Manager: c.leases},
-	})
+	}
+	if fence != nil {
+		opts.Fence = fence
+		opts.FenceVerifier = lease.Fenced{Manager: c.leases}
+	}
+	drv, err := execute.New(opts)
 	if err != nil {
 		t.Fatalf("execute.New: %v", err)
 	}

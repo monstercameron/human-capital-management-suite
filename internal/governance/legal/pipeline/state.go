@@ -408,6 +408,26 @@ func (p *Pipeline) Withdraw(principalID, reason string, signer *legal.Signer) er
 	return p.appendEvent(StageWithdrawn, principalID, legal.SigningRoleReleasePublisher, digest, signer)
 }
 
+// VerifyEvents checks only the event-level hash chain: each event's PrevDigest
+// equals the digest of the event before it, and each Signature verifies over
+// the recomputed event bytes. It needs nothing but the stored event rows, so a
+// durable store that persists events without their authoring evidence can still
+// verify the chain it reads back. [Pipeline.VerifyChain] runs it first.
+func VerifyEvents(events []Event) error {
+	prev := ""
+	for i, ev := range events {
+		if ev.PrevDigest != prev {
+			return fmt.Errorf("%w: event %d (%s) prev_digest %q, want %q", ErrChainBroken, i, ev.Stage, ev.PrevDigest, prev)
+		}
+		want := eventBytes(ev.Stage, ev.PrincipalID, ev.Role, ev.ArtifactDigest, ev.PrevDigest)
+		if err := legal.VerifySignature(want, ev.Digest, ev.Signature); err != nil {
+			return fmt.Errorf("%w: event %d (%s): %v", ErrChainBroken, i, ev.Stage, err)
+		}
+		prev = ev.Digest
+	}
+	return nil
+}
+
 // VerifyChain recomputes every event's bytes from its recorded fields,
 // checks that its Signature verifies over its Digest, and checks that its
 // PrevDigest equals the digest of the event immediately before it. It is
@@ -418,16 +438,8 @@ func (p *Pipeline) VerifyChain() error {
 	if len(p.Events) == 0 || p.Stage != p.Events[len(p.Events)-1].Stage {
 		return fmt.Errorf("%w: empty chain or stage does not match chain head", ErrChainBroken)
 	}
-	prev := ""
-	for i, ev := range p.Events {
-		if ev.PrevDigest != prev {
-			return fmt.Errorf("%w: event %d (%s) prev_digest %q, want %q", ErrChainBroken, i, ev.Stage, ev.PrevDigest, prev)
-		}
-		want := eventBytes(ev.Stage, ev.PrincipalID, ev.Role, ev.ArtifactDigest, ev.PrevDigest)
-		if err := legal.VerifySignature(want, ev.Digest, ev.Signature); err != nil {
-			return fmt.Errorf("%w: event %d (%s): %v", ErrChainBroken, i, ev.Stage, err)
-		}
-		prev = ev.Digest
+	if err := VerifyEvents(p.Events); err != nil {
+		return err
 	}
 	if p.Events[0].Stage != StageAuthored || p.Events[0].PrincipalID != p.AuthorID || p.Events[0].Role != legal.SigningRoleRuleAuthor || p.Events[0].ArtifactDigest != p.AuthoredDigest {
 		return fmt.Errorf("%w: authored event does not match author evidence", ErrChainBroken)

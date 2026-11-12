@@ -33,6 +33,11 @@ func TestClassificationClearedIsTheDeclaredAllowlist(t *testing.T) {
 		people.FieldPayZone:          false,
 		people.FieldFTE:              false,
 		people.FieldManagerRelation:  false,
+		// WTIME-001 time-profile fields: overtime exemption, capture mode and
+		// profile reference are pay/time classification, not directory text.
+		people.FieldExemptionStatus: false,
+		people.FieldTimeCaptureMode: false,
+		people.FieldTimeProfileRef:  false,
 	}
 	for _, field := range people.AllFields() {
 		want, declared := wantCleared[field]

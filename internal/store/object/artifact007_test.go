@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+// artifactClock pins the multipart clock before the grant expiry below so
+// the fixture does not depend on the wall-clock date. The grant expires
+// 2026-10-08; the pinned evidence date (2026-09-14) is inside that window.
+func artifactClock() time.Time {
+	return time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
+}
+
 func artifactGrant() UploadGrant {
 	return UploadGrant{
 		TenantID: "tenant-a", Principal: "uploader-a", Purpose: "evidence-bundle",
@@ -44,7 +51,7 @@ func putEvidenceParts(t *testing.T, manager *MultipartManager, upload MultipartU
 func TestConcurrentMultipartCompletionBindsOnlyAuthorizedVersionChecksumAndHold(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	log := NewRevisionLog(mustSealedStore(t, m))
 
 	// Completion binds the provider version plus the verified checksum

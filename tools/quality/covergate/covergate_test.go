@@ -171,7 +171,10 @@ func TestTodo_REV_103_05_Golden(t *testing.T) {
 		expiries[exception.Expiry] = true
 		byPackage[exception.Package] = exception
 	}
-	if len(plans) != 185 || len(expiries) != 185 {
+	// 186 exceptions: the 185 pinned at 76898526 plus internal/workflow/simulate
+	// (below_floor, added with WF-DATA-006 in d8fe5cda). Its plan and expiry are
+	// dated and unique, so staggering still holds one-to-one.
+	if len(plans) != 186 || len(expiries) != 186 {
 		t.Fatalf("plans and expiries must be staggered across packages; got %d plans, %d expiries for %d exceptions", len(plans), len(expiries), len(cfg.Exceptions))
 	}
 	requestPackages := []string{"internal/intent/app/pgstore", "internal/transport"}
@@ -203,8 +206,9 @@ func TestLoadConfig_ReadsTheCheckedInPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if cfg.Threshold < 70 || len(cfg.Exceptions) != 185 {
-		t.Fatalf("checked-in policy floor/exceptions = %.1f%%/%d, want at least 70%% and 185 remaining exceptions", cfg.Threshold, len(cfg.Exceptions))
+	// 186 = 185 at 76898526 plus internal/workflow/simulate (added in d8fe5cda).
+	if cfg.Threshold < 70 || len(cfg.Exceptions) != 186 {
+		t.Fatalf("checked-in policy floor/exceptions = %.1f%%/%d, want at least 70%% and 186 exceptions", cfg.Threshold, len(cfg.Exceptions))
 	}
 }
 

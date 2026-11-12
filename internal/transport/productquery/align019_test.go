@@ -81,7 +81,12 @@ func TestTodo_ALIGN_019_Property(t *testing.T) {
 
 func TestTodo_ALIGN_019_Golden(t *testing.T) {
 	env := freshEnvelope(t)
-	const wantDigest = "f1ef173164e61cd2106d89949d1764378298e86374a366d943eeab4465b47820"
+	// Re-pinned: authz.PolicyVersion moved from "authz.p1a.bootstrap.v2" to
+	// "authz.p1a.bootstrap.v3" in aded0971 (persona-invocation domain and
+	// persona-mention purpose added to the policy table), and the envelope
+	// records that version in policy_versions. Substituting v2 into the
+	// canonical bytes reproduces the previous pin exactly.
+	const wantDigest = "a7016f274f281d1814f484ac2259c4e2851ff2dd27fd47a62a16eb43eb822a1a"
 	if env.Digest() != wantDigest {
 		t.Fatalf("fresh envelope digest=%q want=%q", env.Digest(), wantDigest)
 	}

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
 )
@@ -186,7 +187,87 @@ func RenderAgentcost001Report(lines []agentmodel.CallLine) string {
 		fmt.Fprintf(&out, "| %s | %s | %s | %s | %s | %s |\n", agentcost001People(people), agentcost001Micros(screen), agentcost001Micros(detect), agentcost001Micros(triage), agentcost001Micros(announce), agentcost001Micros(screen+detect+triage+announce))
 	}
 	fmt.Fprintf(&out, "\n## How to regenerate\n\nRun the seeded replay in internal/agentcost and render it: `RenderAgentcost001Report(Agentcost001SeededLines())`. Production lines come from `agentmodel.RecordingAdapter`, one line per model call, sealed in the run record beside the stage timings; the same lines rebuild from sealed runs with `Agentcost001LinesFromRunRecords`, so the numbers regenerate from the review cell's run records as well as the replay.\n")
-	return out.String()
+	return agentcost001AlignTables(out.String())
+}
+
+// agentcost001AlignTables pads every markdown table in the report to its widest
+// cell, the way the repository's prettier pass lays tables out, so a regenerated
+// report matches the checked-in one byte for byte.
+func agentcost001AlignTables(doc string) string {
+	lines := strings.Split(doc, "\n")
+	var out []string
+	for i := 0; i < len(lines); {
+		if !strings.HasPrefix(lines[i], "|") {
+			out = append(out, lines[i])
+			i++
+			continue
+		}
+		j := i
+		for j < len(lines) && strings.HasPrefix(lines[j], "|") {
+			j++
+		}
+		out = append(out, agentcost001AlignTable(lines[i:j])...)
+		i = j
+	}
+	return strings.Join(out, "\n")
+}
+
+func agentcost001AlignTable(block []string) []string {
+	rows := make([][]string, len(block))
+	for r, line := range block {
+		cells := strings.Split(strings.Trim(line, "|"), "|")
+		for c := range cells {
+			cells[c] = strings.TrimSpace(cells[c])
+		}
+		rows[r] = cells
+	}
+	if len(rows) < 2 || len(rows[1]) != len(rows[0]) {
+		return block
+	}
+	cols := len(rows[0])
+	right := make([]bool, cols)
+	widths := make([]int, cols)
+	for c := 0; c < cols; c++ {
+		right[c] = strings.HasSuffix(rows[1][c], ":")
+		widths[c] = 3
+	}
+	for r, row := range rows {
+		if r == 1 {
+			continue
+		}
+		if len(row) != cols {
+			return block
+		}
+		for c, cell := range row {
+			if n := utf8.RuneCountInString(cell); n > widths[c] {
+				widths[c] = n
+			}
+		}
+	}
+	aligned := make([]string, len(rows))
+	for r, row := range rows {
+		var b strings.Builder
+		b.WriteString("|")
+		for c := 0; c < cols; c++ {
+			var cell string
+			if r == 1 {
+				cell = strings.Repeat("-", widths[c])
+				if right[c] {
+					cell = strings.Repeat("-", widths[c]-1) + ":"
+				}
+			} else {
+				gap := strings.Repeat(" ", widths[c]-utf8.RuneCountInString(row[c]))
+				if right[c] {
+					cell = gap + row[c]
+				} else {
+					cell = row[c] + gap
+				}
+			}
+			b.WriteString(" " + cell + " |")
+		}
+		aligned[r] = b.String()
+	}
+	return aligned
 }
 
 func agentcost001People(people int64) string {

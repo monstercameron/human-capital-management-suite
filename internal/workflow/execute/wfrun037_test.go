@@ -37,9 +37,18 @@ func legDefinition(t *testing.T, role workflow.EffectRole) workflow.Definition {
 	// observe_payroll (see newPromotionFixtureV1_0).
 	def := promotionexec.DefinitionV1_0()
 	var core workflow.Node
-	for _, n := range def.Nodes {
-		if n.ID == promotionexec.NodeExecutePromotion {
-			core = n
+	for i := range def.Nodes {
+		if def.Nodes[i].ID == promotionexec.NodeExecutePromotion {
+			// The frozen 1.0.0 core names capability version 1, the read-only
+			// bootstrap record. The committing core is the mutation published
+			// under version 2 (promotionexec capabilityRegistry). Without it the
+			// core is not a write, so no AUTHORITATIVE_CORE exists to reconcile
+			// the dependent leg from.
+			def.Nodes[i].Capability.Version = 2
+			id := def.Nodes[i].Capability.ID
+			def.Nodes[i].InputSchema = workflow.SchemaRef{SchemaID: id + ".request/v2", Version: 2, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}
+			def.Nodes[i].OutputSchema = workflow.SchemaRef{SchemaID: id + ".response/v2", Version: 2, ProtobufFullName: "hcmnext.capabilities.v1.CapabilityDefinition"}
+			core = def.Nodes[i]
 		}
 	}
 	if core.EffectRole != workflow.RoleAuthoritativeCore {

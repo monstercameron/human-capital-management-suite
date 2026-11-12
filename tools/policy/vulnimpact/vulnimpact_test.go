@@ -12,10 +12,17 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/vulnimpact"
 )
 
+// These pins follow the checked-in definitions/supply-chain/sbom.cdx.json as
+// staged in the working tree. The pins were last set at commit 63aaab83, when
+// the SBOM still had its earlier Metadata.Timestamp and serial number. The
+// SBOM was regenerated afterwards (76898526 and the current regeneration adds
+// the go-spew and golang/snappy components and a new timestamp). The canonical
+// SBOM digest covers the whole document, so each regeneration moves the SBOM,
+// finding and report digests together. Re-pin whenever the SBOM is regenerated.
 const (
-	checkedInImpactDigest  = "43681cc4a0a9afdb772e89e7f6cada3229d96d61f0d5c9788a617da6d10dcf26"
-	checkedInFindingDigest = "fe00c9b2a9c9b14aba8640bbf7229db67e80d6bcd3936c4b300e7273fa2428cc"
-	checkedInCanonicalSBOM = "d500e0171a2478954519f0e9d9cc047085f9ee5e651c3e4aaa99848026df0d4b"
+	checkedInImpactDigest  = "daf1f1dab357d2011355a1ba261bc81cace32adb1a300b2687944b9d6f098074"
+	checkedInFindingDigest = "9b95163480ef8ca18fb22abcb392da5c9d72eb33ec91aa49e556ab26b1c014cb"
+	checkedInCanonicalSBOM = "fb84700864c1ebae0740ee7736755a99932727ceb3b0e02940421aab54717d07"
 )
 
 func checkedInSBOM(t *testing.T) sbom.Document {

@@ -101,8 +101,12 @@ func previewMessage(row Preview) *documentv1.DocumentPreview {
 // chatReferenceMessages projects a document's chat references. A locked
 // channel and an unreadable message keep only their key or token.
 func chatReferenceMessages(refs ChatReferences, out *documentv1.GetDocumentResponse) {
+	locked := map[string]bool{}
 	for _, c := range refs.Channels {
 		if c.Locked {
+			if c.ConversationID != "" {
+				locked[c.ConversationID] = true
+			}
 			out.Channels = append(out.Channels, &documentv1.DocumentChannelReference{Key: c.Key, Locked: true})
 			continue
 		}
@@ -114,7 +118,13 @@ func chatReferenceMessages(refs ChatReferences, out *documentv1.GetDocumentRespo
 	for _, m := range refs.Messages {
 		if !m.Readable {
 			// A deleted message still names its channel (DOCS-08); an
-			// inaccessible or unresolvable one carries only its token.
+			// inaccessible or unresolvable one carries only its token. A
+			// message in a locked channel of this same response never names
+			// that channel, whatever the port returned.
+			if locked[m.ConversationID] {
+				out.Messages = append(out.Messages, &documentv1.DocumentMessageReference{Token: m.Token})
+				continue
+			}
 			out.Messages = append(out.Messages, &documentv1.DocumentMessageReference{Token: m.Token, ConversationId: m.ConversationID, ChannelName: m.ChannelName})
 			continue
 		}

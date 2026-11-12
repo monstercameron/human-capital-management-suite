@@ -142,6 +142,8 @@ func TestPromotionBackendCommitsTheWorkflowTransactionEndToEnd(t *testing.T) {
 			proposalID := uuid.MustParse(proposal.ProposalRevisionID)
 			var cmd domaincommit.Command
 			seeded, cmd = seedAtomicPromotion(t, db, tenantID, proposalID, at)
+			cmd.IntentID = proposal.IntentID
+			cmd.ProposalRevisionNumber = proposal.Revision
 			cmd.ProposalDigest = proposal.MaterialDigest.Digest
 			cmd.WorkflowPlanDigest = plan.Digest()
 			participants := []intent.PlanParticipant{

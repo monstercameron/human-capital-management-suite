@@ -185,8 +185,14 @@ func TestTodo_LEDGER_008_Integration(t *testing.T) {
 			if err := tx.Rollback(context.Background()); err != nil {
 				t.Fatal(err)
 			}
+			// newFixture registers the projection checkpoint at sequence 0, so the
+			// rollback guarantee for it is that no checkpoint advanced past 0.
+			where := `tenant_id=$1`
+			if tc.want == "projection_checkpoint" {
+				where += ` AND last_applied_sequence > 0`
+			}
 			var count int
-			if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM `+tc.want+` WHERE tenant_id=$1`, f.tenant).Scan(&count); err != nil {
+			if err := f.db.Conn.QueryRow(context.Background(), `SELECT count(*) FROM `+tc.want+` WHERE `+where, f.tenant).Scan(&count); err != nil {
 				t.Fatal(err)
 			}
 			if count != 0 {

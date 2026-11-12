@@ -221,6 +221,14 @@ func (a *Appender) Append(ctx context.Context, tx dbport.Tx, req AppendRequest) 
 		return AppendReceipt{}, fmt.Errorf("lock stream head %s: %w", req.StreamKey, err)
 	}
 	if head != req.ExpectedHead {
+		// A concurrent exact replay may have committed while this call waited
+		// for the head lock. Re-check it so the loser receives the original
+		// receipt instead of a stale-stream error.
+		if receipt, found, err := a.replay(ctx, tx, req, digest, algorithm, length); err != nil {
+			return AppendReceipt{}, err
+		} else if found {
+			return receipt, nil
+		}
 		return AppendReceipt{}, ErrStaleStream{
 			Tenant:    req.Tenant,
 			StreamKey: req.StreamKey,

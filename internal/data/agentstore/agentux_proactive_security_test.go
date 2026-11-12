@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"testing"
 	"time"
 
@@ -20,7 +21,14 @@ func TestAgentUXProactive_ServiceSecurityFence_Security_Integration(t *testing.T
 	tenant := uuid.New()
 	db.Exec(t, `INSERT INTO tenant(tenant_id) VALUES($1)`, tenant)
 	seedPersonaSecurityRun(t, db, tenant)
-	store, err := New(ctx, Config{DSN: testDSN(t, db.URL, db.Schema, "postgres", "", "postgres"), CoreDSN: "postgres://core:pw@127.0.0.1:5433/core"})
+	// The superuser password is whatever pgtest embedded in db.URL; an empty
+	// password is rejected by the server (SQLSTATE 28P01).
+	admin, err := url.Parse(db.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminPassword, _ := admin.User.Password()
+	store, err := New(ctx, Config{DSN: testDSN(t, db.URL, db.Schema, "postgres", adminPassword, "postgres"), CoreDSN: "postgres://core:pw@127.0.0.1:5433/core"})
 	if err != nil {
 		t.Fatal(err)
 	}

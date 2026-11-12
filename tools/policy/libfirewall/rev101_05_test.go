@@ -228,6 +228,7 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 		"golang.org/x/image": {
 			"internal/collaboration/chatmedia",
 			"internal/data/brandassetstore",
+			"internal/humanwork/agenticon", // added: agent icon upload (agentux_icon_upload.go) imports x/image
 			"internal/humanwork/docsexport",
 			"internal/humanwork/workspace",
 		},
@@ -257,6 +258,7 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"tools/timeclockkit",
 			"tools/uxqual/projectclient",
 			"tools/quality/bufprotovalidatekit",
+			"internal/workflow/authoredwire", // added: authored-workflow protojson codec moved out of internal/workflow
 		},
 		"gopkg.in/yaml.v3": {
 			"tools",
@@ -295,6 +297,11 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/domains/promotion",
 			"internal/domains/knowledge",
 			"internal/domains/subscription",
+			"internal/domains/asset",       // added: asset004_maintenance.go
+			"internal/domains/inventory",   // added: movement.go
+			"internal/domains/org",         // added: business_party.go, external_participant.go
+			"internal/domains/procurement", // added: buy003_purchase_order.go
+			"internal/domains/stock",       // added: stock002_catalog.go, stock008_lots.go, stock012_import.go
 			"internal/governance/privacy/hipaa",
 			"internal/messaging",
 			"internal/platform/devclock",
@@ -316,6 +323,8 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/kernel/values",
 			"internal/intent",
 			"internal/domains/people",
+			"internal/domains/inventory", // added: movement.go
+			"internal/domains/stock",     // added: stock008_lots.go
 			"internal/experience/i18n",
 			"internal/humanwork/productui",
 			"internal/i18n",
@@ -336,6 +345,7 @@ func TestTodo_REV_101_05_Golden(t *testing.T) {
 			"internal/humanwork/workspace",
 			"internal/humanwork/chatui",
 			"internal/humanwork/docsdiagram",
+			"internal/humanwork/graphcanvas", // added: canvas.go
 			"internal/timeclockapp",
 		},
 		"go.opentelemetry.io/otel/trace": {

@@ -158,8 +158,12 @@ func TestTodo_ARCH_GO_015_Golden(t *testing.T) {
 			definitions++
 		}
 	}
-	if definitions != 118 {
-		t.Fatalf("definitions YAML/JSON count = %d, want pinned count 118", definitions)
+	// Re-pinned 118 -> 150: git diff af39f238..HEAD -- definitions shows 32
+	// added YAML/JSON files and no deletions (agents/personas x4, time, workflows/time,
+	// and new architecture, legal, planning, storage, and ux definitions). The
+	// denominator is not a generator output, so this pin tracks the committed tree.
+	if definitions != 150 {
+		t.Fatalf("definitions YAML/JSON count = %d, want pinned count 150", definitions)
 	}
 	if !hasRule(report.Violations, "generated-definition-missing-generated_by") {
 		t.Fatal("real tree no longer reports the legacy generatedby definitions that need migration")

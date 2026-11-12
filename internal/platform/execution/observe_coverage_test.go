@@ -77,6 +77,20 @@ var executionUninstrumentedByDesign = map[string]string{
 	// none of their own.
 	"promotionsteps/promotionsteps.go Runner.RunInTx": "threshold node inside the instrumented advance transaction",
 	"rule_facts.go ServedRuleFacts.Lookup":            "rule facts read inside the instrumented currency check",
+
+	// Ports called from inside an instrumented operation. Each is reached
+	// only from a caller that opens the span: the served compensation
+	// transaction, the workflow start or driver advance, the notification
+	// publish, or the promotion step and currency check.
+	"compensation_postgres.go postgresCompensationStore.Reserve":            "compensation store port inside the instrumented served compensation transaction",
+	"compensation_postgres.go postgresCompensationStore.RecordEffect":       "compensation store port inside the instrumented served compensation transaction",
+	"compensation_postgres.go postgresCompensationStore.Complete":           "compensation store port inside the instrumented served compensation transaction",
+	"compensation_postgres.go postgresCompensationStore.AppendCompensation": "compensation ledger port inside the instrumented served compensation transaction",
+	"compensation_postgres.go postgresCompensationStore.CloseCompensated":   "compensation close port inside the instrumented served compensation transaction",
+	"definition_resolver.go DefinitionFactsFunc.Facts":                      "function adapter inside the instrumented workflow start resolution",
+	"definition_resolver.go ActiveDefinitionResolver.ResolveWorkflow":       "start resolution inside the instrumented workflow start or driver advance",
+	"execution.go promotionWorkItems.CurrentWorkItemAudience":               "audience re-resolution inside the instrumented workflow.notification.publish operation",
+	"threshold_parameters.go ConfigThresholdReader.ResolveThresholds":       "threshold read inside the instrumented promotion step and currency check",
 }
 
 // TestExecutionHostOperationsAreInstrumented holds the execution host to the

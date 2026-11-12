@@ -3,6 +3,7 @@ package correction_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -94,8 +95,8 @@ func TestTodo_TX_007_Race(t *testing.T) {
 		Authority: "hcmnext:people", SourceRef: "hcmnext:test:promotion-correction",
 		SchemaRef: "hcmnext.people.v1.Promotion@1", Payload: []byte("promotion:principal"),
 		OccurredAt: correctionOccurred, EffectiveAt: correctionEffective,
-		CorrelationID: uuid.New(), IdempotencyKey: "same-correction",
-		Reason: "wrong level", CorrectedBy: "steward:people",
+		CorrelationID: uuid.New(),
+		Reason:        "wrong level", CorrectedBy: "steward:people",
 	}
 	const workers = 8
 	start := make(chan struct{})
@@ -103,16 +104,25 @@ func TestTodo_TX_007_Race(t *testing.T) {
 	errs := make([]error, workers)
 	var wg sync.WaitGroup
 	for i := range results {
+		// Each competing writer needs its own session. A pgx
+		// connection is not safe for concurrent use, so sharing f.db.Conn across
+		// goroutines corrupts the wire protocol ("conn closed"). Competing
+		// corrections also carry distinct idempotency keys: identical keys with
+		// identical bytes are exact replays, which the ledger answers with the
+		// original receipt rather than a stale-head error.
+		conn := f.db.NewConn(t)
+		competing := request
+		competing.IdempotencyKey = fmt.Sprintf("competing-correction:%d", i)
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			tx, err := f.db.Conn.Begin(context.Background())
+			tx, err := conn.Begin(context.Background())
 			if err != nil {
 				errs[i] = err
 				return
 			}
-			results[i], errs[i] = correction.Append(context.Background(), tx, request, func() time.Time { return correctionRecorded })
+			results[i], errs[i] = correction.Append(context.Background(), tx, competing, func() time.Time { return correctionRecorded })
 			if errs[i] != nil {
 				_ = tx.Rollback(context.Background())
 				return

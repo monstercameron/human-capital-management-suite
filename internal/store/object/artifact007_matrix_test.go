@@ -59,7 +59,7 @@ func TestTodo_ARTIFACT_007_Property(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
 	log := NewRevisionLog(mustSealedStore(t, m))
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	for i, media := range []string{"application/pdf", "image/png", "text/csv"} {
 		upload := startEvidenceUpload(t, manager, "uploader-a", fmt.Sprintf("prop-object-%d", i))
 		putEvidenceParts(t, manager, upload, "uploader-a")
@@ -83,7 +83,7 @@ func TestTodo_ARTIFACT_007_Race(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
 	log := NewRevisionLog(mustSealedStore(t, m))
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	const racers = 8
 	var wg sync.WaitGroup
 	errs := make([]error, racers)
@@ -140,7 +140,7 @@ func TestTodo_ARTIFACT_007_Integration(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
 	log := NewRevisionLog(mustSealedStore(t, m))
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	upload := startEvidenceUpload(t, manager, "uploader-a", "abort-object")
 	grant := artifactGrant()
 	if err := manager.Abort(ctx, MultipartAbortRequest{UploadID: upload.UploadID, TenantID: "tenant-a", Grant: grant}); err != nil {
@@ -198,7 +198,7 @@ func TestTodo_ARTIFACT_007_Security(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
 	log := NewRevisionLog(mustSealedStore(t, m))
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	upload := startEvidenceUpload(t, manager, "uploader-a", "sec-object")
 	rogue := artifactGrant()
 	rogue.Principal = "rogue"
@@ -259,7 +259,7 @@ func TestTodo_ARTIFACT_007_Mutation(t *testing.T) {
 	m, ctxA, _, _ := sealedFixture(t)
 	ctx := context.Background()
 	log := NewRevisionLog(mustSealedStore(t, m))
-	manager := NewMultipartManager(nil)
+	manager := NewMultipartManager(artifactClock)
 	upload := startEvidenceUpload(t, manager, "uploader-a", "edge-object")
 	putEvidenceParts(t, manager, upload, "uploader-a")
 	content := mustCompleteParts(t, manager, upload, "uploader-a")

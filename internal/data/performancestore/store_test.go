@@ -301,9 +301,44 @@ func TestTodo_PERSIST_PERFORMANCE_001_Recovery(t *testing.T) {
 	}
 }
 
+// saveReviewerGraph opens the fixture cycle at its next revision and freezes one
+// participant/reviewer graph against it. saveFixture does not write a graph, so
+// without this the append-only check on performance_participant_reviewer_graph
+// runs against an empty table, where row-level triggers never fire.
+func saveReviewerGraph(t *testing.T, f fixture) {
+	t.Helper()
+	ctx := context.Background()
+	cycle, err := performance.NewPerformanceCycle(f.cycle.CycleID,
+		performance.PopulationBindingRef{DefinitionID: "population", RevisionVersion: "1", Digest: "sha256:population"},
+		performance.CalendarBindingRef{Ref: "calendar", Version: "1", Digest: "sha256:calendar"},
+		performance.RatingScaleVersionRef{ID: "scale", Version: "1", Digest: "sha256:scale"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cycle, err = cycle.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	openRow := performance.CycleRevision{CycleID: cycle.CycleID, Revision: cycle.Revision, State: cycle.State, SupersedesRevision: cycle.Revision - 1, CanonicalDigest: cycle.CanonicalDigest}
+	if err := f.store.SaveCycle(ctx, f.tenant, openRow); err != nil {
+		t.Fatalf("SaveCycle open: %v", err)
+	}
+	graph, err := performance.FreezeParticipantReviewerGraph(cycle,
+		[]performance.ParticipantRef{{ID: "worker-1"}},
+		[]performance.ReviewerAssignment{{ParticipantID: "worker-1", ReviewerID: "reviewer-1", Relationship: performance.ReviewerRelationshipManager}},
+		performance.DefaultReviewerGraphRules(), instant())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.SaveParticipantReviewerGraph(ctx, f.tenant, graph); err != nil {
+		t.Fatalf("SaveParticipantReviewerGraph: %v", err)
+	}
+}
+
 func TestTodo_PERSIST_PERFORMANCE_001_Mutation(t *testing.T) {
 	f := newFixture(t)
 	saveFixture(t, f)
+	saveReviewerGraph(t, f)
 	for _, table := range []string{"performance_cycle", "performance_rating_event", "performance_final_rating", "performance_calibration_session", "performance_review", "performance_outcome_link", "performance_participant_reviewer_graph"} {
 		if err := f.db.ExecErr(`UPDATE ` + table + ` SET row_id = row_id`); err == nil {
 			t.Errorf("%s accepted UPDATE", table)

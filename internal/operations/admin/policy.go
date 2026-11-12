@@ -339,6 +339,12 @@ var operatorFieldDomains = map[people.FieldID]authz.DataDomain{
 	people.FieldPayZone:          authz.DomainCompensation,
 	people.FieldFTE:              authz.DomainCore,
 	people.FieldManagerRelation:  authz.DomainCore,
+	// WTIME-001 time-profile facts. The overtime exemption decides pay
+	// eligibility, so it is compensation-governed; capture mode and the
+	// profile reference are employment descriptors, like worker type.
+	people.FieldExemptionStatus: authz.DomainCompensation,
+	people.FieldTimeCaptureMode: authz.DomainCore,
+	people.FieldTimeProfileRef:  authz.DomainCore,
 }
 
 // OperatorFieldDomain reports the policy-table data domain governing an

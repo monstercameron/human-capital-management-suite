@@ -93,6 +93,11 @@ func TestTodo_ARCH_GO_018_Property(t *testing.T) {
 	}
 }
 
+// Golden re-pinned to Explain(manifest) on 2026-11-12. Delta vs the prior pin, all
+// from definitions/architecture/repository-layout.yaml: removed internal/application
+// (now phase deferred), internal/documentextract and internal/documentredact (no
+// longer manifest rows); added the P1A rows absent from the prior pin, including
+// doctemplate, documentvalue, esign, regulatory, semver and telemetry.
 func TestTodo_ARCH_GO_018_Golden(t *testing.T) {
 	m := loadManifest(t)
 	explain := phaseone.Explain(m)

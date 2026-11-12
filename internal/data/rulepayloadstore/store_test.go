@@ -25,7 +25,10 @@ func TestPayloadPersistence(t *testing.T) {
 	tenantID := uuid.New()
 	table := rules.PromotionApprovalThresholdTable()
 	ref := workflow.Reference{Kind: workflow.RefRule, ID: "rules.threshold", Version: "v1"}
-	payload := rulepayload.Payload{Ref: ref, Kind: rulepayload.KindDecisionTable, Table: &table}
+	// The reference is an explicit alias of the table's intrinsic identity; the
+	// rulepayload validator requires BodyRef for any alias (see d7b62013).
+	bodyRef := &workflow.VersionedRef{ID: table.ID, Version: table.Version}
+	payload := rulepayload.Payload{Ref: ref, BodyRef: bodyRef, Kind: rulepayload.KindDecisionTable, Table: &table}
 
 	if err := store.Publish(context.Background(), tenantID, payload); err != nil {
 		t.Fatal(err)
@@ -51,7 +54,7 @@ func TestPayloadPersistence(t *testing.T) {
 
 	other := rules.PromotionApprovalThresholdTable()
 	other.Rows[0].ID = "changed"
-	if err := store.Publish(context.Background(), tenantID, rulepayload.Payload{Ref: ref, Kind: rulepayload.KindDecisionTable, Table: &other}); !errors.Is(err, ErrImmutable) {
+	if err := store.Publish(context.Background(), tenantID, rulepayload.Payload{Ref: ref, BodyRef: bodyRef, Kind: rulepayload.KindDecisionTable, Table: &other}); !errors.Is(err, ErrImmutable) {
 		t.Fatalf("changed replay error = %v", err)
 	}
 	if db.tenantSettingCalls < 4 {

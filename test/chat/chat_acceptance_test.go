@@ -1,3 +1,7 @@
+// Package chat_test is the cross-system chat harness. It drives the chat
+// collaboration core through the connect/gRPC transport and the Postgres-backed
+// chatstore, so it lives under the top-level test tree (ARCH-GO-016) rather
+// than beside a single package.
 package chat_test
 
 import (

@@ -82,11 +82,14 @@ func TestTodo_TX_005_Race(t *testing.T) {
 	errs := make([]error, workers)
 	var wg sync.WaitGroup
 	for i := range results {
+		// db.Conn is not safe for concurrent use (pgx reports "conn busy"), so
+		// each reader holds its own independent session on the same schema.
+		conn := db.NewConn(t)
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			results[i], errs[i] = recovery.Resolve(context.Background(), db.Conn, recovery.Request{Tenant: tenant, PlanID: prepared.PlanID, Key: prepared.IdempotencyKey})
+			results[i], errs[i] = recovery.Resolve(context.Background(), conn, recovery.Request{Tenant: tenant, PlanID: prepared.PlanID, Key: prepared.IdempotencyKey})
 		}(i)
 	}
 	close(start)

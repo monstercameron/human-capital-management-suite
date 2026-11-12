@@ -26,7 +26,7 @@ func TestTodo_PROMOUX_009TypedFindingIdentityRemovesOnlyKernelBridge(t *testing.
 	if got[0].GetCode() != string(unrelated.Code) || got[1].GetCode() != promotion.CodeBudgetObservationOnly {
 		t.Fatalf("finding codes = [%s %s], want unrelated then stable domain code", got[0].GetCode(), got[1].GetCode())
 	}
-	if got[1].GetMessage() != "Finance confirmed the current budget baseline. Funds are reserved only when the promotion is recorded." {
+	if got[1].GetMessage() != "The system checked the current budget baseline. Funds are reserved only when the promotion is recorded." {
 		t.Fatalf("budget copy = %q", got[1].GetMessage())
 	}
 }

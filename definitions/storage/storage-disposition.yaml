@@ -50,7 +50,7 @@
 
 version: 1
 module: github.com/monstercameron/human-capital-management-suite
-source: migrations/00001_platform_control.sql .. migrations/00731_revoke_update_on_sealed_tables.sql
+source: migrations/00001_platform_control.sql .. migrations/00732_hierarchy_closure.sql
 
 disposition: >-
   Every row is either PERMANENT (an append-only historical or evidentiary
@@ -6972,3 +6972,45 @@ tables:
     append_only: true
     notes: >-
       WFPAGE-011: workflow input page draft revisions, one row per draft version; sealed by forbid_mutation, SELECT/INSERT only.
+  - table: hierarchy_type
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00732_hierarchy_closure.sql
+    owner_package: internal/data/closure
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      WF-DATA-020: declared hierarchy types and their depth limits; sealed by forbid_mutation, SELECT/INSERT only.
+  - table: hierarchy_edge
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00732_hierarchy_closure.sql
+    owner_package: internal/data/closure
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      WF-DATA-020: effective-dated parent/child edges per hierarchy; sealed by forbid_mutation, SELECT/INSERT only.
+  - table: hierarchy_closure
+    plane: DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: migrations/00732_hierarchy_closure.sql
+    owner_package: internal/data/closure
+    tenant_scoping_column: tenant_id
+    append_only: true
+    notes: >-
+      WF-DATA-020: effective-dated ancestor/descendant closure rows per hierarchy; sealed by forbid_mutation, SELECT/INSERT only.

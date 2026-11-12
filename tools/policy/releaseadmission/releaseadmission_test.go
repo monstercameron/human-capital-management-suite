@@ -12,7 +12,8 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/tools/policy/releaseadmission"
 )
 
-const checkedInSBOMDigest = "6df911799045862d5ec8650654d3553002c4595a2fb9e17e8e637c89740f4c9d"
+// Re-pinned: sbom.cdx.json was regenerated intentionally (mongo driver dependencies added).
+const checkedInSBOMDigest = "ef2d7b5063e2815ed9f224216a2605dccf6fd713400fa8c57a4639ba45e676c4"
 
 func signedFixture(t *testing.T) provenance.Statement {
 	t.Helper()

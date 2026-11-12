@@ -260,7 +260,7 @@ func inspectCall(state *functionState, report *Report, call *ast.CallExpr, testN
 		return
 	}
 	base, _ := sel.X.(*ast.Ident)
-	if base != nil && strings.HasPrefix(sel.Sel.Name, "Skip") {
+	if base != nil && isTestingSkipMethod(sel.Sel.Name) {
 		report.Skips = append(report.Skips, SkipSite{TestName: testName, Package: importPath, File: relFile, Line: nodeLine(fset, call)})
 	}
 	if base != nil && sel.Sel.Name == "Cleanup" {
@@ -312,6 +312,17 @@ func addFinding(report *Report, finding Finding) {
 
 func findingKey(f Finding) string {
 	return string(f.Kind) + "\x00" + f.Package + "\x00" + f.File + "\x00" + strconv.Itoa(f.Line) + "\x00" + f.TestName
+}
+
+// isTestingSkipMethod reports whether name is a testing.TB skip method. Any
+// other selector that merely starts with "Skip" (for example a domain
+// planner.SkipStep) is not a test skip.
+func isTestingSkipMethod(name string) bool {
+	switch name {
+	case "Skip", "Skipf", "SkipNow":
+		return true
+	}
+	return false
 }
 
 func skipKey(s SkipSite) string {

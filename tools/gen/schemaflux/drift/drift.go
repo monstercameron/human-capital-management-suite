@@ -48,7 +48,11 @@ func CheckRepository(root string) Report {
 	return Check(Config{Root: root, GeneratedPath: "tools/gen/schemaflux/generated/models_generated.go", Documents: []Document{
 		{Path: "planning/data/models/README.md", Digest: "sha256:ea093186a267084088a4b1c2f2601d3ef442f6e3a12350402fb885596d46ac5e"},
 		{Path: "planning/data/models/registry-and-coverage-contracts.md", Digest: "sha256:53873ce31851b2ae00d1ee489cb86025cff3be82d52584b8bbb894f949b39257"},
-		{Path: "planning/specs/business-intent-catalog.md", Digest: "sha256:ade5585b510b2dd474d1caa463f2865f79bd092b7e90503342a524dd1d4b6999"},
+		// Re-pinned from ade5585b... to cdd207b1... after commit d006676e -> d8fe5cda changed the
+		// document: the small-business placement (execution-plan.md#recorded-placement-small-business-operations-2026-10-22)
+		// now permits source-defined catalog additions, the P1A/P1B slice is recorded as the baseline, and
+		// the Go-only boundary notes the generated pb.go. Those edits are the only input delta.
+		{Path: "planning/specs/business-intent-catalog.md", Digest: "sha256:cdd207b1d2f73a735853ef0ae40a1df1023df880721c846e94385c3ff57b6f2c"},
 	}})
 }
 

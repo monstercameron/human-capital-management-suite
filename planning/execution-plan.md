@@ -347,7 +347,7 @@ re-estimated and explicitly reapproved.
 Scope: the plan to let many workflows, and later tenant variants, be assembled
 from building blocks. The engine side is `WF-EXT-001`–`WF-EXT-026` and the
 missing domain capabilities are `WF-CAP-001`–`WF-CAP-019`, both in
-[the backlog](todos.md#77-workflow-engine-extensibility-and-building-blocks-2026-09-19).
+[the backlog](archive/todos-2026-10-22.md#77-workflow-engine-extensibility-and-building-blocks-2026-09-19).
 The contract is in
 [the workflow kernel spec](specs/workflow-runtime.md#extensibility-closed-kernel-open-registries).
 
@@ -373,8 +373,8 @@ The contract is in
 ### Recorded placement: chat and documentation human gates (2026-09-24)
 
 Scope: the four items in
-[the chat backlog](todos.md#83-native-company-chat-and-collaboration-delivery)
-and [the documentation hub backlog](todos.md#84-markdown-documentation-hub-and-hybrid-search-delivery)
+[the chat backlog](archive/todos-2026-10-22.md#83-native-company-chat-and-collaboration-delivery)
+and [the documentation hub backlog](archive/todos-2026-10-22.md#84-markdown-documentation-hub-and-hybrid-search-delivery)
 that no code can close. Everything else in those two sections is implemented,
 served and tested.
 

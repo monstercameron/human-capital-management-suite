@@ -362,7 +362,7 @@ func TestTodo_UXAUDIT_002(t *testing.T) {
 // timeline a committed promotion does.
 func assertUXAudit002Explains(t *testing.T, detail *journeyv1.JourneyDetail, stage string) {
 	t.Helper()
-	page := journeyclient.DetailPage(uxaudit002Config(), detail, nil, nil)
+	page := journeyclient.DetailPage(time.Now(), uxaudit002Config(), detail, nil, nil)
 	if page.Detail == nil {
 		t.Fatalf("%s: DetailPage projected no detail view", stage)
 	}
@@ -498,7 +498,7 @@ func TestTodo_UXAUDIT_002_Integration(t *testing.T) {
 		t.Fatalf("ListPage omits completed intent %s", proposed.GetIntentId())
 	}
 
-	detail := journeyclient.DetailPage(uxaudit002Config(), terminal, nil, nil)
+	detail := journeyclient.DetailPage(time.Now(), uxaudit002Config(), terminal, nil, nil)
 	if detail.Detail == nil || detail.Detail.Ledger == nil {
 		t.Fatalf("completed detail carries no ledger card: History has no completion evidence to show")
 	}

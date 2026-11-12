@@ -27,6 +27,7 @@ import (
 	// protoregistry.GlobalFiles. TestTodo_INTAPI_008 proves the list is
 	// complete by matching the registered files against schema/proto.
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/admin/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/agent/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/capabilities/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/chat/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/common/v1"
@@ -40,9 +41,12 @@ import (
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/notification/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/position/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/project/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/provenance/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/registry/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/reviewparticipants/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/time/v1"
 	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workflow/v1"
+	_ "github.com/monstercameron/human-capital-management-suite/gen/go/hcmnext/workorder/v1"
 )
 
 // packagePrefix is the Protobuf package namespace this generator documents.

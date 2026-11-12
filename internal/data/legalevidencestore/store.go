@@ -499,11 +499,13 @@ func ListPipelineEvents(ctx context.Context, q dbport.Querier, tenantID uuid.UUI
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("legalevidencestore: list pipeline events: %w", err)
 	}
-	p := legalpipeline.Pipeline{}
+	// Only the event rows are persisted, so the durable read verifies the
+	// event-level hash chain; authoring evidence is not stored here.
+	events := make([]legalpipeline.Event, 0, len(out))
 	for _, entry := range out {
-		p.Events = append(p.Events, entry.Event)
+		events = append(events, entry.Event)
 	}
-	if err := p.VerifyChain(); err != nil {
+	if err := legalpipeline.VerifyEvents(events); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrChainBroken, err)
 	}
 	return out, nil

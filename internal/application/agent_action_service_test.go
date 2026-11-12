@@ -347,3 +347,30 @@ func TestTodo_AGENT_036_Mutation(t *testing.T) {
 		t.Fatal("changed contract caused durable effect")
 	}
 }
+
+// TestIssue93_SubmitHoldsBudgetBeforeWorkflowStart proves the agent path records
+// the real budget hold: Compile records none, and the approved Submit records
+// exactly one HELD reservation before the workflow instance starts.
+func TestIssue93_SubmitHoldsBudgetBeforeWorkflowStart(t *testing.T) {
+	f, h, _ := newAgentActionPublishedFixture(t)
+	held := func() int {
+		var n int
+		if err := h.pool.QueryRow(context.Background(), `SELECT count(*) FROM budget_reservation WHERE status = 'HELD' AND superseded_at IS NULL`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	draft, err := f.service.Compile(f.ctx, f.req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := held(); n != 0 || f.count(t, "workflow_instance") != 0 {
+		t.Fatalf("compile recorded holds=%d workflows=%d, want none", n, f.count(t, "workflow_instance"))
+	}
+	if _, err := f.service.Submit(f.ctx, agentActionSubmission(draft)); err != nil {
+		t.Fatalf("submit: %v %s", err, promoux013Diagnostic(err))
+	}
+	if n := held(); n != 1 || f.count(t, "workflow_instance") != 1 {
+		t.Fatalf("submit holds=%d workflows=%d, want one HELD reservation and one workflow", n, f.count(t, "workflow_instance"))
+	}
+}

@@ -143,7 +143,8 @@ func (d *promotionDispatcher) Dispatch(ctx context.Context, work Work) (Disposit
 	outcome.OutputDigest = "sha256:" + requirement.Digest[:32] + requirement.Digest[:32]
 
 	at := d.clock.Now()
-	drv := d.cell.driver(d.t, work.Fence.RuntimeFence(at), at)
+	fence := work.Fence.RuntimeFence(at)
+	drv := d.cell.driver(d.t, &fence, at)
 	result, err := drv.ResumeTimer(ctx, execute.ResumeTimerRequest{
 		Start: start, InstanceID: work.Row.InstanceID, ExpectedInstanceVersion: instanceVersion,
 		TimerID: timerID, Outcome: outcome, RecordedAt: at,
@@ -190,26 +191,16 @@ func newWorld(t *testing.T, key string) (*pgtest.DB, uuid.UUID, promotionCell) {
 }
 
 // park starts one Promotion instance and leaves it waiting on a durable timer.
-// The start is fenced by a lease this test takes and releases like any other
-// runtime worker would.
+// The start runs unfenced: the instance id is derived by Execute itself, so
+// no WORKFLOW_INSTANCE lease can name it before the start. Every advancement
+// after the start is fenced by the scheduler's claim on that instance.
 func park(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, cell promotionCell, subject string, at time.Time) parked {
 	t.Helper()
 	ctx := context.Background()
 
-	holder := lease.Identity{WorkloadRef: "workload:hcmnext-workflow-runtime", InstanceRef: "replica:starter"}
-	resource := lease.Resource{Kind: lease.ResourceWorkflowInstance, ID: "start:" + subject}
-	var grant lease.Grant
-	inTenantTx(t, db, tenantID, func(tx dbport.Tx) error {
-		var err error
-		grant, err = cell.leases.Acquire(ctx, tx, lease.AcquireRequest{
-			TenantID: tenantID, Resource: resource, Holder: holder, Now: at, TTL: time.Hour,
-		})
-		return err
-	})
-
 	proposal := newDemoProposal(t, values.TenantId(subject), "intent:"+subject, subject, at)
 	start := cell.startRequest(tenantID, proposal, subject, at)
-	drv := cell.driver(t, grant.Fence.RuntimeFence(at), at)
+	drv := cell.driver(t, nil, at)
 
 	result, err := drv.Execute(ctx, execute.ExecuteRequest{Start: start})
 	if err != nil {
@@ -221,11 +212,6 @@ func park(t *testing.T, db *pgtest.DB, tenantID uuid.UUID, cell promotionCell, s
 	if len(result.Timers) != 1 {
 		t.Fatalf("Execute %s created %d timers, want exactly 1", subject, len(result.Timers))
 	}
-
-	inTenantTx(t, db, tenantID, func(tx dbport.Tx) error {
-		_, err := cell.leases.Release(ctx, tx, grant.Fence, at)
-		return err
-	})
 	return parked{instanceID: result.Start.InstanceID, start: start, subject: subject}
 }
 

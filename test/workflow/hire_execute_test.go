@@ -266,6 +266,21 @@ type hireWorkItems struct {
 	managerReq humanwork.ApprovalRequirement
 }
 
+// CurrentWorkItemAudience is the owner authority execution.WithWorkNotifications
+// requires of the factory it wraps: the approval's manager, or the TASK's
+// fixed owner, re-resolved from the same routing facts CreateAndRoute used.
+func (f hireWorkItems) CurrentWorkItemAudience(_ context.Context, _ workitem.Executor, item workitem.WorkItem) (string, string, error) {
+	const policy = "directory.test.new-hire/v1"
+	if item.Kind == workitem.KindApproval {
+		return humanwork.PrincipalManager, policy, nil
+	}
+	_, owner, ok := hireTaskSpec(item.NodeID)
+	if !ok {
+		return "", "", fmt.Errorf("test/workflow: no human-work spec bound for node %s", item.NodeID)
+	}
+	return owner, policy, nil
+}
+
 func (f hireWorkItems) CreateAndRoute(ctx context.Context, ex workitem.Executor, req execute.WorkItemRequest) (workitem.WorkItem, error) {
 	store := workitem.Store{}
 	if req.Continuation.TargetNodeID == hireexec.NodeApproveOffer {
@@ -843,15 +858,21 @@ func TestTodo_WF_HIRE_001_Integration(t *testing.T) {
 			return err
 		}
 		// One "sent for review" per routed step the requester does not own,
-		// then one FINISHED, newest first: the requester hears about every
-		// hand-off and about the end, and about nothing twice.
-		inReview := 0
-		for _, status := range statuses[1:] {
-			if status.Event == inbox.StatusInReview {
+		// then one FINISHED: the requester hears about every hand-off and
+		// about the end, and about nothing twice. Order is not asserted: the
+		// routed notices are stamped by the work-item store's wall clock while
+		// the terminal notice carries this fixture's engine clock, so the
+		// created_at ordering does not reflect the run's order here.
+		inReview, finished := 0, 0
+		for _, status := range statuses {
+			switch status.Event {
+			case inbox.StatusInReview:
 				inReview++
+			case inbox.StatusFinished:
+				finished++
 			}
 		}
-		if len(statuses) != len(owners)+1 || statuses[0].Event != inbox.StatusFinished || inReview != len(owners) {
+		if len(statuses) != len(owners)+1 || finished != 1 || inReview != len(owners) {
 			t.Errorf("requester statuses = %+v, want %d IN_REVIEW then one FINISHED", statuses, len(owners))
 		}
 		return nil

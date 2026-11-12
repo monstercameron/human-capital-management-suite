@@ -10,6 +10,7 @@ import (
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/dbport"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 )
 
 func TestTodo_DATA_009(t *testing.T) {
@@ -55,13 +56,16 @@ func TestTodo_DATA_009_Race(t *testing.T) {
 	calls := 0
 	start := make(chan struct{})
 	errs := make([]error, 2)
+	// A pgx connection is not safe for concurrent use, so each racing
+	// delivery gets its own connection to the same schema.
+	conns := []*pgxadapter.Conn{f.db.NewConn(t), f.db.NewConn(t)}
 	var wg sync.WaitGroup
 	for i := range errs {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, errs[i] = outbox.Process(context.Background(), f.db.Conn, event, func(context.Context, dbport.Tx, outbox.ConsumerEvent) error {
+			_, errs[i] = outbox.Process(context.Background(), conns[i], event, func(context.Context, dbport.Tx, outbox.ConsumerEvent) error {
 				mu.Lock()
 				calls++
 				mu.Unlock()

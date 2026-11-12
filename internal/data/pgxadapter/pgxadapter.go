@@ -226,6 +226,18 @@ func NewPool(ctx context.Context, url string, runtimeParams map[string]string) (
 	return &Pool{pool: pool, hygieneFailures: &hygieneFailures, hygieneRoundTrips: &hygieneRoundTrips}, nil
 }
 
+// ParsePoolBounds returns the MaxConns and MinConns that a pool built from dsn
+// would use, including any pool_max_conns/pool_min_conns the DSN carries and
+// pgx's defaults otherwise. It opens no connection. Callers that only need to
+// validate or rewrite pool bounds use it so they never import pgxpool themselves.
+func ParsePoolBounds(dsn string) (maxConns, minConns int32, err error) {
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return 0, 0, err
+	}
+	return cfg.MaxConns, cfg.MinConns, nil
+}
+
 // WithConn lends one physical connection to fn and releases it afterwards.
 // The next borrower receives a session cleaned by PrepareConn. fn must not
 // retain conn after it returns.

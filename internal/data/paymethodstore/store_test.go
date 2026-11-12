@@ -124,10 +124,20 @@ func testInstruction(t *testing.T, id string) settlement.PaymentInstruction {
 	if err != nil {
 		t.Fatal(err)
 	}
+	payee := uuid.New().String()
+	bankDetail := "bank-detail:" + id
+	// The settlement domain requires a consenting election bound to the payee
+	// and a jurisdiction rule snapshot matching the election.
 	instruction, err := settlement.NewPaymentInstruction(run, settlement.PaymentInstructionSpec{
-		InstructionID: id, PayeeRef: uuid.New().String(), Amount: amount, Currency: "USD",
-		FundingSourceRef: "funding:payroll", Rail: settlement.RailACH, BankDetailRef: "bank-detail:" + id,
+		InstructionID: id, PayeeRef: payee, Amount: amount, Currency: "USD",
+		FundingSourceRef: "funding:payroll", Rail: settlement.RailACH, BankDetailRef: bankDetail,
 		ScheduleRef: "schedule:weekly", ValueDate: valueDate,
+		PaymentMethodElection: settlement.PaymentMethodElection{
+			ElectionID: "election:" + id, WorkerRef: payee, Method: settlement.MethodDirectDeposit,
+			Consented: true, ConsentEvidenceRef: "consent:" + id, DestinationRef: bankDetail,
+			Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1",
+		},
+		SettlementPolicy: settlement.SettlementPolicy{Jurisdiction: "US-CA", RulePackRef: "rules:ca-v1", PaperCheckAllowed: true, PayCardAllowed: true},
 	})
 	if err != nil {
 		t.Fatal(err)

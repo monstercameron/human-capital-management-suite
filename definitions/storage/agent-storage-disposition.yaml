@@ -56,6 +56,9 @@ sources:
   - internal/data/agentstore/migrations/00049_agentux_reaction_setting.sql
   - internal/data/agentstore/migrations/00050_persona_invocation_mention_limit.sql
   - internal/data/agentstore/migrations/00051_agentux078_server_has_no_model_failure.sql
+  - internal/data/agentstore/migrations/00052_persona_run_policy_authority.sql
+  - internal/data/agentstore/migrations/00053_persona_publication_semantic_version.sql
+  - internal/data/agentstore/migrations/00054_agentcost001_call_ledger.sql
 
 defaults:
   plane: AGENT_DATA
@@ -881,5 +884,17 @@ tables:
     encryption_class: PLATFORM_MANAGED
     migration: internal/data/agentstore/migrations/00047_agent_cost_and_connection_console.sql
     owner_package: internal/data/agentconsolestore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: agent_run_model_call
+    plane: AGENT_DATA
+    data_role: LEDGER
+    isolation_package: internal/data/tenancy
+    rls_policy: tenant_isolation
+    rls_required: true
+    retention_class: PERMANENT
+    encryption_class: PLATFORM_MANAGED
+    migration: internal/data/agentstore/migrations/00054_agentcost001_call_ledger.sql
+    owner_package: internal/data/agentrunstate
     tenant_scoping_column: tenant_id
     append_only: true

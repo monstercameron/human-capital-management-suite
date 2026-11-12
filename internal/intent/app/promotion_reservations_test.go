@@ -147,9 +147,14 @@ func TestHoldProposalPosition(t *testing.T) {
 	ctx := context.Background()
 	seat := rev00602AppSeat(t)
 	observed := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	// The fence sweeps holds against its own clock. Pin it to the observed
+	// instant: the hold expires 2026-10-31, so a process clock past that date
+	// would expire the first hold before the second proposal competes for it.
+	reservations := localcommit.NewPromotionReservationFence()
+	reservations.Now = func() time.Time { return observed }
 	engine := &journeyEngine{
 		positionReader: rev00602AppReader{seats: map[string]position.PositionRevision{rev00602AppSeatID: seat}},
-		reservations:   localcommit.NewPromotionReservationFence(),
+		reservations:   reservations,
 	}
 	inst := intent.Instance{Tenant: rev00602AppTenant}
 	rev := rev00602AppRevision(t, "rev-1", rev00602AppSeatID, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC))

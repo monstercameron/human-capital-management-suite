@@ -58,6 +58,10 @@ sources:
   - internal/data/chatstore/migrations/00046_chatscale_sidebar_delta.sql
   - internal/data/chatstore/migrations/00047_chatgate_post_audience.sql
   - internal/data/chatstore/migrations/00048_chatlang006_monitoring_reports.sql
+  - internal/data/chatstore/migrations/00049_chatgate014_leave_placements.sql
+  - internal/data/chatstore/migrations/00050_chat_repair_role.sql
+  - internal/data/chatstore/migrations/00051_chat_agent_reaction_policy.sql
+  - internal/data/chatstore/migrations/00052_chat_post_body_trgm.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -787,3 +791,8 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: true
+  - table: chat_agent_reaction_policy
+    migration: internal/data/chatstore/migrations/00051_chat_agent_reaction_policy.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false

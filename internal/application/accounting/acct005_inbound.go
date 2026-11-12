@@ -43,6 +43,11 @@ const (
 	SourceStockCost     = "STOCK_COST"
 )
 
+// acctInboundPolicyVersion identifies the approved inbound adapter policy that
+// every externally observed invoice snapshot cites. Manual invoices must carry
+// an explicit policy version (workorderbilling ManualSource validation).
+const acctInboundPolicyVersion = "acct005-inbound/v1"
+
 // Ingest outcome statuses.
 const (
 	OutcomeApplied     = "applied"
@@ -655,7 +660,7 @@ func (r *InboundRegistry) applyARInvoice(op AcctOp, profile SourceProfile, obs A
 		ID: invoiceID, TenantID: op.TenantID, IssuerEntity: op.LegalEntityID, IssuerSeries: "EXT",
 		InvoiceNumber: strings.TrimSpace(obs.ExternalTextID), CustomerID: strings.TrimSpace(obs.AccountID),
 		Authority: "external:" + strings.TrimSpace(obs.ConnectionID) + ":" + strings.TrimSpace(obs.AccountID),
-		Source:    workorderbilling.InvoiceSource{Kind: workorderbilling.InvoiceSourceManual, Manual: workorderbilling.ManualSource{RateRef: "external-observe", PolicyRef: "acct005-inbound", Evidence: strings.TrimSpace(obs.EventID)}},
+		Source:    workorderbilling.InvoiceSource{Kind: workorderbilling.InvoiceSourceManual, Manual: workorderbilling.ManualSource{RateRef: "external-observe", PolicyRef: "acct005-inbound", PolicyVersion: acctInboundPolicyVersion, Evidence: strings.TrimSpace(obs.EventID)}},
 		Currency:  money.Currency(),
 		Lines: []workorderbilling.InvoiceLine{{ID: "ext-1", Description: "externally observed " + strings.TrimSpace(obs.ExternalTextID),
 			Quantity: quantity, UnitPrice: money, Amount: money, RateRef: "external-observe", PolicyRef: "acct005-inbound"}},

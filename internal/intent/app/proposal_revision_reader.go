@@ -25,8 +25,11 @@ type proposalRevisionReader struct {
 }
 
 func newProposalRevisionReader(db dbport.Beginner, tenantID func(values.TenantId) uuid.UUID, digester intent.Digester) (*proposalRevisionReader, error) {
-	if db == nil || tenantID == nil || digester == nil {
-		return nil, errors.New("app: durable proposal revision reader requires database, tenant mapping and digester")
+	// A nil tenant mapping is accepted: a cell composed without one reads no
+	// tenant rows, and Validate fails closed on it rather than skipping the
+	// durable revision check.
+	if db == nil || digester == nil {
+		return nil, errors.New("app: durable proposal revision reader requires database and digester")
 	}
 	return &proposalRevisionReader{db: db, tenantID: tenantID, digester: digester}, nil
 }

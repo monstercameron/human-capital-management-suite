@@ -78,7 +78,8 @@ func TestGRPCBackendQualification(t *testing.T) {
 // protobuf_grpc section is a visible diff.
 func TestTodo_LIB_003_Golden(t *testing.T) {
 	cfg := loadFirewallConfig(t)
-	want := []string{"gen", "schema/proto/gen", "internal/transport", "internal/data/projection/wire", "internal/data/provenance", "internal/data/roleaccessstore", "internal/data/siemstore", "internal/application", "internal/intent/app", "internal/intent/protomap", "internal/engines/wire", "internal/timeclockapp", "tools/gen", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "tools/uxqual/productclient", "tools/clockpartner", "tools/timeclockkit", "tools/uxqual/projectclient", "tools/quality/bufprotovalidatekit", "cmd"}
+	// internal/workflow/authoredwire was added when the workflow protojson codec moved out of internal/workflow.
+	want := []string{"gen", "schema/proto/gen", "internal/transport", "internal/data/projection/wire", "internal/data/provenance", "internal/data/roleaccessstore", "internal/data/siemstore", "internal/application", "internal/intent/app", "internal/intent/protomap", "internal/workflow/authoredwire", "internal/engines/wire", "internal/timeclockapp", "tools/gen", "tools/uxqual/journeyclient", "tools/uxqual/cmd/journeywasm", "tools/uxqual/productclient", "tools/clockpartner", "tools/timeclockkit", "tools/uxqual/projectclient", "tools/quality/bufprotovalidatekit", "cmd"}
 	got := cfg.ProtobufGRPC.AllowedImportRoots
 	if len(got) != len(want) {
 		t.Fatalf("protobuf_grpc.allowed_import_roots = %v, want %v", got, want)

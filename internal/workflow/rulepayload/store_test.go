@@ -173,7 +173,10 @@ func TestTodo_WF_EXT_006_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const want = `{"Ref":{"Kind":"RULE","ID":"rules.golden.route","Version":"1"},"BodyRef":null,"Digest":"sha256:7f5703e44ebd28f61518dab356845ce1d8e0094dfcd8cc4887c0050a280ef515","Status":"PUBLISHED","Kind":"DECISION_TABLE","Table":{"ID":"rules.golden.route","Version":"1","Inputs":[{"Name":"amount","Kind":1}],"Outputs":[{"Name":"route_key","Kind":2}],"HitPolicy":1,"Rows":[{"ID":"allow","Conditions":[{"Op":1,"Operand":{"kind":""},"Operands":null,"Low":{"kind":""},"High":{"kind":""}}],"Outputs":[{"kind":"STRING","text":"ALLOW"}]}]},"Expression":null,"Transform":null}`
+	// Re-pinned for WF-DATA-010: rules.Column gained MaxClassification (no omitempty tag),
+	// so each input and output column now serializes "MaxClassification":"" when unset.
+	// The canonical digest is unchanged; only the wire encoding of the two columns differs.
+	const want = `{"Ref":{"Kind":"RULE","ID":"rules.golden.route","Version":"1"},"BodyRef":null,"Digest":"sha256:7f5703e44ebd28f61518dab356845ce1d8e0094dfcd8cc4887c0050a280ef515","Status":"PUBLISHED","Kind":"DECISION_TABLE","Table":{"ID":"rules.golden.route","Version":"1","Inputs":[{"Name":"amount","Kind":1,"MaxClassification":""}],"Outputs":[{"Name":"route_key","Kind":2,"MaxClassification":""}],"HitPolicy":1,"Rows":[{"ID":"allow","Conditions":[{"Op":1,"Operand":{"kind":""},"Operands":null,"Low":{"kind":""},"High":{"kind":""}}],"Outputs":[{"kind":"STRING","text":"ALLOW"}]}]},"Expression":null,"Transform":null}`
 	if !bytes.Equal(encoded, []byte(want)) {
 		t.Fatalf("serialized payload differs from byte golden:\n got %s\nwant %s", encoded, want)
 	}

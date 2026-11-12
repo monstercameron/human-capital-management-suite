@@ -94,7 +94,9 @@ func TestTodo_EXTCOST_002_Integration(t *testing.T) {
 	if err != nil || l.CostMicros != 20 {
 		t.Fatalf("record %+v %v", l, err)
 	}
-	r, err := g.Read(context.Background(), "tenant-a", "admin", extcost.Filter{})
+	// Pin the read to the fixture clock: an unset From evaluates budgets at wall-clock now,
+	// which moves to a later month and drops the October usage from the budget totals.
+	r, err := g.Read(context.Background(), "tenant-a", "admin", extcost.Filter{From: extcostDate()})
 	if err != nil || len(r.Lines) != 1 || r.Lines[0].Measurement.ResultRef != "result-id" {
 		t.Fatal("journal result", err)
 	}

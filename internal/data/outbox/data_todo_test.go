@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/outbox"
+	"github.com/monstercameron/human-capital-management-suite/internal/data/pgxadapter"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/projection"
 )
 
@@ -27,13 +28,16 @@ func TestTodo_DATA_008_Race(t *testing.T) {
 	start := make(chan struct{})
 	claimed := make([][]outbox.Record, 2)
 	errs := make([]error, 2)
+	// A pgx connection is not safe for concurrent use, so each consumer gets
+	// its own connection to the same schema.
+	conns := []*pgxadapter.Conn{f.db.NewConn(t), f.db.NewConn(t)}
 	var wg sync.WaitGroup
 	for i := range claimed {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			claimed[i], errs[i] = outbox.NewConsumer(f.db.Conn, outbox.WithBatchSize(10)).Poll(context.Background(), f.tenant)
+			claimed[i], errs[i] = outbox.NewConsumer(conns[i], outbox.WithBatchSize(10)).Poll(context.Background(), f.tenant)
 		}(i)
 	}
 	close(start)

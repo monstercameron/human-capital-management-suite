@@ -9,7 +9,7 @@ Started: 2026-10-22. Last refined: 2026-10-22. The owner explicitly authorized d
 
 The HR and workflow foundation remains the entry point. Optional business modules extend it into connected operations. Professional services, trades, recurring maintenance, repair and property services are reference scenarios, not validated market commitments. A business may begin with one owner and enable only the operations it needs.
 
-The master [plan](plan.md#313-small-business-operations-expansion-2026-10-22), [execution plan](execution-plan.md), domain specifications and [TODO contracts](todos.md) now authorize this later-phase expansion. Planning approval does not establish implemented functionality, vendor qualification, staffed ownership, or production release. Existing Phase 1 gates and unfinished work retain their meaning.
+The master [plan](plan.md#313-small-business-operations-expansion-2026-10-22), [execution plan](execution-plan.md), domain specifications and [TODO contracts](archive/todos-2026-10-22.md) now authorize this later-phase expansion. Planning approval does not establish implemented functionality, vendor qualification, staffed ownership, or production release. Existing Phase 1 gates and unfinished work retain their meaning.
 
 The complete implementation specifications, UI/UX contracts, acceptance criteria and per-ID review histories are stored in [the expansion contract registry](../definitions/planning/smb-expansion.json). That file is planning evidence, not a second runtime schema or capability registry. The Markdown TODOs remain the authoritative atomic work list; their generated summary is `definitions/planning/todo-registry.json`.
 

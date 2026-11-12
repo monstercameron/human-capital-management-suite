@@ -174,6 +174,24 @@ func TestSkippedTestsHaveQuarantineRecords(t *testing.T) {
 	}
 }
 
+// TestSkipStepIsNotATestSkip_SMB_SETUP_001 pins that domain methods whose
+// names merely begin with "Skip" (for example planner.SkipStep) are not
+// counted as test skips. Only testing.T/B/F skip methods are.
+func TestSkipStepIsNotATestSkip_SMB_SETUP_001(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "internal/plan/plan_test.go", `package plan
+import "testing"
+func TestPlan(t *testing.T) { planner.SkipStep(req) }
+`)
+	report, err := Scan(root, "example.com/mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Skips) != 0 {
+		t.Fatalf("domain SkipStep counted as test skips: %+v", report.Skips)
+	}
+}
+
 func repoRootForTest(t *testing.T) string {
 	t.Helper()
 	d, err := os.Getwd()

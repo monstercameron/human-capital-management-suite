@@ -75,7 +75,7 @@ func Check(root string) ([]Violation, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if path != absRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "testdata") {
+			if path != absRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "testdata" || entry.Name() == ".artifacts") {
 				return filepath.SkipDir
 			}
 			return nil

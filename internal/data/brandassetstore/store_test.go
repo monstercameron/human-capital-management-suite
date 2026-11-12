@@ -79,7 +79,7 @@ func TestTodo_UXAUDIT_022_Integration(t *testing.T) {
 		id  uuid.UUID
 		key string
 	}{{first, "brand-one"}, {second, "brand-two"}} {
-		db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-local',$2,'ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, item.id, item.key)
+		db.Exec(t, `INSERT INTO tenant (tenant_id,tenant_key,cell_id,display_name,status,effective_from) VALUES ($1,$2,'cell-local',$3,'ACTIVE',timestamptz '2026-01-01T00:00:00Z')`, item.id, item.key, item.key)
 	}
 	mapper := func(key values.TenantId) uuid.UUID {
 		switch key {

@@ -133,7 +133,9 @@ func DiscoverConsumers(root string, tables []tableinventory.Table) (map[string][
 			return nil
 		}
 		if entry.IsDir() {
-			if entry.Name() == ".git" || entry.Name() == "vendor" {
+			// .artifacts holds local build caches and a pristine checkout copy;
+			// scanning it would double-count consumers under non-module paths.
+			if entry.Name() == ".git" || entry.Name() == "vendor" || entry.Name() == ".artifacts" {
 				return filepath.SkipDir
 			}
 			return nil

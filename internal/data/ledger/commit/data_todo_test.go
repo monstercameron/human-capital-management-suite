@@ -81,7 +81,7 @@ func TestTodo_DATA_007_Mutation(t *testing.T) {
 		second, err = ledgercommit.Commit(context.Background(), tx, ledger.New(), req)
 		return err
 	})
-	if first.Ledger.EventID != second.Ledger.EventID || second.Projection.Applied || second.Outbox.OutboxID != uuid.Nil {
+	if first.Ledger.EventID != second.Ledger.EventID || second.Projection.Applied || second.Outbox.OutboxID != first.Outbox.OutboxID {
 		t.Fatalf("idempotent replay changed durable identities: first=%+v second=%+v", first, second)
 	}
 }

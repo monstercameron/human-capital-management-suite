@@ -2,6 +2,8 @@ package effects_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
 	"testing"
@@ -36,13 +38,31 @@ func (d *delegateTerminal) Write(context.Context, dbport.Tx, execute.TerminalWri
 	return idempotency.ResultIdentity{ResultRef: "delegated"}, nil
 }
 
+// sealedPlan stamps the canonical digest that CommitTerminalWriter verifies
+// before commit, as the production preparer does. Fixtures that skip this are
+// rejected as invalid plans before the behaviour under test runs.
+func sealedPlan(p plan.TransactionPlan) plan.TransactionPlan {
+	sum := sha256.Sum256(p.CanonicalBytes())
+	p.Digest = "sha256:" + hex.EncodeToString(sum[:])
+	return p
+}
+
+// fakeBinder satisfies the ActionPlanBinder seam, which the plan-backed commit
+// path requires before it commits.
+type fakeBinder struct{}
+
+func (fakeBinder) BindAndPersist(context.Context, dbport.Tx, execute.TerminalWriteRequest, plan.TransactionPlan) (string, error) {
+	return strings.Repeat("b", 64), nil
+}
+
 func TestCommitTerminalWriterImplementsTerminalPortAndCommitsAPlan(t *testing.T) {
 	tenant := uuid.New()
 	fake := &fakeCommitter{receipt: transactioncommit.Receipt{ReceiptID: uuid.New(), PlanID: "plan-1"}}
 	writer := &effects.CommitTerminalWriter{
-		Committer: fake,
+		Committer:        fake,
+		ActionPlanBinder: fakeBinder{},
 		Plan: func(context.Context, dbport.Tx, execute.TerminalWriteRequest) (plan.TransactionPlan, error) {
-			return plan.TransactionPlan{Tenant: values.TenantId(tenant.String()), PlanID: "plan-1", IdempotencyKey: "key-1"}, nil
+			return sealedPlan(plan.TransactionPlan{Tenant: values.TenantId(tenant.String()), PlanID: "plan-1", IdempotencyKey: "key-1"}), nil
 		},
 	}
 	identity, err := writer.Write(context.Background(), nil, execute.TerminalWriteRequest{TenantID: tenant})
@@ -107,9 +127,10 @@ func TestCommitTerminalWriterReportsCommitErrorsAndReceiptEventIdentity(t *testi
 		cause := errors.New("transaction coordinator rejected plan")
 		committer := &fakeCommitter{err: cause}
 		writer := &effects.CommitTerminalWriter{
-			Committer: committer,
+			Committer:        committer,
+			ActionPlanBinder: fakeBinder{},
 			Plan: func(context.Context, dbport.Tx, execute.TerminalWriteRequest) (plan.TransactionPlan, error) {
-				return plan.TransactionPlan{IdempotencyKey: "key"}, nil
+				return sealedPlan(plan.TransactionPlan{IdempotencyKey: "key"}), nil
 			},
 		}
 		_, err := writer.Write(context.Background(), nil, execute.TerminalWriteRequest{})
@@ -124,9 +145,10 @@ func TestCommitTerminalWriterReportsCommitErrorsAndReceiptEventIdentity(t *testi
 			Events:    []datalogger.AppendReceipt{{StreamKey: stream, Sequence: 42}},
 		}}
 		writer := &effects.CommitTerminalWriter{
-			Committer: committer,
+			Committer:        committer,
+			ActionPlanBinder: fakeBinder{},
 			Plan: func(context.Context, dbport.Tx, execute.TerminalWriteRequest) (plan.TransactionPlan, error) {
-				return plan.TransactionPlan{IdempotencyKey: "request-key"}, nil
+				return sealedPlan(plan.TransactionPlan{IdempotencyKey: "request-key"}), nil
 			},
 		}
 		identity, err := writer.Write(context.Background(), nil, execute.TerminalWriteRequest{})

@@ -190,7 +190,11 @@ func DiscoverPhysicalPackages(root, module string) ([]string, error) {
 				return relErr
 			}
 			rel = filepath.ToSlash(rel)
-			if rel != "." && excludedPhysicalDirectory(rel) {
+			if rel != "." && (excludedPhysicalDirectory(rel) || !isReleasePhysicalRoot(strings.Split(rel, "/")[0])) {
+				// Only release roots can yield physical packages. Skipping the
+				// rest keeps the walk out of .artifacts/, planning/ and other
+				// trees that are created and removed concurrently (go build
+				// temp dirs), which made discovery fail with ENOENT.
 				return fs.SkipDir
 			}
 			return nil

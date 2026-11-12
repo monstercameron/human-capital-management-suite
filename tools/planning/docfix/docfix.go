@@ -76,20 +76,24 @@ func testAllSteps(t *testing.T, root string) []string {
 // must contain to document it.
 func agentsTokenForStep(step string) (string, bool) {
 	tokens := map[string]string{
-		"format:check":            "format",
-		"typecheck":               "typecheck",
-		"lint":                    "lint",
-		"check:code-style":        "code-style",
-		"check:go":                "check:go",
-		"check:race-policy":       "race-policy",
-		"check:decomposition":     "decomposition",
-		"check:driftgate":         "drift",
-		"check:apigate":           "API",
-		"check:substratecoverage": "substrate",
-		"check:enginecoverage":    "engine",
-		"test":                    "unit tests",
-		"test:go":                 "nested-module",
-		"build":                   "build",
+		"format:check":              "format",
+		"typecheck":                 "typecheck",
+		"lint":                      "lint",
+		"check:code-style":          "code-style",
+		"check:go":                  "check:go",
+		"check:race-policy":         "race-policy",
+		"check:decomposition":       "decomposition",
+		"check:driftgate":           "drift",
+		"check:apigate":             "API",
+		"check:substratecoverage":   "substrate",
+		"check:enginecoverage":      "engine",
+		"check:libfirewall":         "libfirewall",
+		"check:workflowconformance": "workflowconformance",
+		"check:reachability":        "reachability",
+		"check:testcoverage":        "testcoverage",
+		"test":                      "unit tests",
+		"test:go":                   "nested-module",
+		"build":                     "build",
 	}
 	token, ok := tokens[step]
 	return token, ok

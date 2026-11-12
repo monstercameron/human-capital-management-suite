@@ -470,3 +470,6 @@ persona_owners tenant_id
 persona_installations tenant_id
 workflow_page_version tenant_id
 workflow_page_draft tenant_id
+hierarchy_type tenant_id
+hierarchy_edge tenant_id
+hierarchy_closure tenant_id

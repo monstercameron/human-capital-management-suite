@@ -40,6 +40,10 @@ tags:
       Unlike AdminService, which is read-only by constitution, this service carries one mutating RPC (SubmitRepairAction): the repair itself still flows through the governed operator gateway with JIT authority, dual control, simulation and idempotency, exactly as if the operator had called the workbench package directly.
     x-hcmnext-service: hcmnext.admin.v1.OperationsService
     x-hcmnext-registered: false
+  - name: AgentService
+    description: 'AgentService is the browser Agents page''s write boundary (UXBLIND-122). Tenant, actor and user are never carried by a request: they come from the verified transport principal, and the tenant setting is writable only by a caller the durable role policy lets change Chat settings.'
+    x-hcmnext-service: hcmnext.agent.v1.AgentService
+    x-hcmnext-registered: false
   - name: ChatExtensionsService
     x-hcmnext-service: hcmnext.chat.v1.ChatExtensionsService
     x-hcmnext-registered: false
@@ -122,12 +126,32 @@ tags:
     description: ReviewParticipantsService returns the caller's authorized projection of frozen review-cycle participant/reviewer assignments. The request carries no tenant, subject, or cycle selector; all are resolved from trusted server authority.
     x-hcmnext-service: hcmnext.reviewparticipants.v1.ReviewParticipantsService
     x-hcmnext-registered: false
+  - name: ClockDeviceService
+    description: 'ClockDeviceService is the device- and kiosk-facing integration API: it is how a physical clock or tablet enrolls, syncs the minimum data it needs while offline, identifies a worker at a shared device and submits buffered punches for per-punch receipt (TCLOCK-002, TCLOCK-003, TCLOCK-004, TCLOCK-005, TCLOCK-008). Every path here writes the same Clock observations FTIME-003 writes; no method here evaluates attendance or produces a second punch store. CreateEnrollmentCode is the only admin (non-device) call; every other method authenticates as the enrolled device''s own machine-client identity.'
+    x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+    x-hcmnext-registered: false
+  - name: MissingPunchService
+    description: MissingPunchService is the principal-bound correction request boundary. Worker and tenant authority are resolved from authenticated context; they are intentionally absent from command requests.
+    x-hcmnext-service: hcmnext.time.v1.MissingPunchService
+    x-hcmnext-registered: false
+  - name: TimeService
+    description: TimeService is the typed boundary for clock commands, timecards, shifts and time profiles, used by workspace clients and external integrators (FTIME-008). Caller identity and tenant authority come from authenticated context; scope is checked by the server against that authority. Failures carry the canonical hcmnext.common.v1.ErrorDetail through the transport error contract. Every write below carries idempotency_key and, where it mutates an existing resource, expected_revision; every read returns the resource's etag; every list is bounded by hcmnext.common.v1.PageRequest/PageResponse.
+    x-hcmnext-service: hcmnext.time.v1.TimeService
+    x-hcmnext-registered: false
+  - name: WorkerClockService
+    description: WorkerClockService is the browser worker's own clock boundary. Identity, tenant and assignment come from the authenticated human principal and the server's self-worker resolver; requests never carry a worker id.
+    x-hcmnext-service: hcmnext.time.v1.WorkerClockService
+    x-hcmnext-registered: false
   - name: WorkflowService
     description: |-
       WorkflowService is the workflow instance/inspection and operational intervention surface named in planning/specs/http-grpc-endpoint-contract.md#workflow-operations.
 
       The inspector methods are read-only. The four operational-intervention methods are governed controls (EP-WF-002): each resolves a registered operational intent under current JIT authority, dual control or simulation where its kind demands, and an idempotency key, then applies the runtime's own transition fenced by the expected version or attempt. A server without governed control wiring refuses them with ERROR_CODE_FAILED_PRECONDITION and performs no transition. Governance refusals return a receipt whose outcome is DENIED, TOO_LATE or REPAIR_REQUIRED rather than an error.
     x-hcmnext-service: hcmnext.workflow.v1.WorkflowService
+    x-hcmnext-registered: true
+  - name: WorkOrderService
+    description: WorkOrderService is the typed boundary for field execution records. Caller identity and tenant authority come from authenticated context; scope is checked by the server against that authority. Failures carry the canonical hcmnext.common.v1.ErrorDetail through the transport error contract.
+    x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
     x-hcmnext-registered: true
 paths:
   /hcmnext.admin.v1.AdminService/ConfigDiff:
@@ -1097,6 +1121,171 @@ paths:
               schema:
                 $ref: '#/components/schemas/connect.Error'
       x-hcmnext-service: hcmnext.admin.v1.OperationsService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.agent.v1.AgentService/ControlAgentTask:
+    post:
+      tags:
+        - AgentService
+      summary: ControlAgentTask applies one owner-scoped, version-checked task action.
+      description: ControlAgentTask applies one owner-scoped, version-checked task action.
+      operationId: AgentService_ControlAgentTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.agent.v1.ControlAgentTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.agent.v1.ControlAgentTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.agent.v1.AgentService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.agent.v1.AgentService/GetAgentTask:
+    post:
+      tags:
+        - AgentService
+      summary: GetAgentTask returns one task owned by the signed-in user.
+      description: GetAgentTask returns one task owned by the signed-in user.
+      operationId: AgentService_GetAgentTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.agent.v1.GetAgentTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.agent.v1.GetAgentTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.agent.v1.AgentService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.agent.v1.AgentService/ListAgentTasks:
+    post:
+      tags:
+        - AgentService
+      summary: ListAgentTasks returns only tasks owned by the signed-in user.
+      description: ListAgentTasks returns only tasks owned by the signed-in user.
+      operationId: AgentService_ListAgentTasks
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.agent.v1.ListAgentTasksRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.agent.v1.ListAgentTasksResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.agent.v1.AgentService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.agent.v1.AgentService/SetAgentsEnabled:
+    post:
+      tags:
+        - AgentService
+      summary: SetAgentsEnabled turns agents on or off for the caller's own tenant.
+      description: SetAgentsEnabled turns agents on or off for the caller's own tenant.
+      operationId: AgentService_SetAgentsEnabled
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.agent.v1.SetAgentsEnabledRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.agent.v1.SetAgentsEnabledResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.agent.v1.AgentService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.agent.v1.AgentService/StartAgentTask:
+    post:
+      tags:
+        - AgentService
+      summary: StartAgentTask starts one confirmed, read-only agent task from the signed-in user's own prompt.
+      description: StartAgentTask starts one confirmed, read-only agent task from the signed-in user's own prompt. It is refused when agents are off.
+      operationId: AgentService_StartAgentTask
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.agent.v1.StartAgentTaskRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.agent.v1.StartAgentTaskResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.agent.v1.AgentService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
@@ -6594,7 +6783,7 @@ paths:
       x-hcmnext-service: hcmnext.project.v1.ProjectService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.project.v1.ProjectService/ArchiveTask:
     post:
       tags:
@@ -7254,7 +7443,7 @@ paths:
       x-hcmnext-service: hcmnext.project.v1.ProjectService
       x-hcmnext-rpc-kind: LIST
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.project.v1.ProjectService/ListTasks:
     post:
       tags:
@@ -7452,7 +7641,7 @@ paths:
       x-hcmnext-service: hcmnext.project.v1.ProjectService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.project.v1.ProjectService/RestoreProject:
     post:
       tags:
@@ -7485,7 +7674,7 @@ paths:
       x-hcmnext-service: hcmnext.project.v1.ProjectService
       x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.project.v1.ProjectService/RestoreTask:
     post:
       tags:
@@ -7716,7 +7905,7 @@ paths:
       x-hcmnext-service: hcmnext.project.v1.ProjectService
       x-hcmnext-rpc-kind: UPDATE
       x-hcmnext-registered: true
-      x-hcmnext-http-exposed: false
+      x-hcmnext-http-exposed: true
   /hcmnext.registry.v1.RegistryService/GetCapability:
     post:
       tags:
@@ -7874,6 +8063,1228 @@ paths:
               schema:
                 $ref: '#/components/schemas/connect.Error'
       x-hcmnext-service: hcmnext.reviewparticipants.v1.ReviewParticipantsService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/CreateEnrollmentCode:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: CreateEnrollmentCode
+      operationId: ClockDeviceService_CreateEnrollmentCode
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.CreateEnrollmentCodeRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.CreateEnrollmentCodeResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/EnrollDevice:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: EnrollDevice
+      operationId: ClockDeviceService_EnrollDevice
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.EnrollDeviceRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.EnrollDeviceResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/GetWorkerStatus:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: GetWorkerStatus
+      operationId: ClockDeviceService_GetWorkerStatus
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetWorkerStatusRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetWorkerStatusResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/Heartbeat:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: Heartbeat
+      operationId: ClockDeviceService_Heartbeat
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.HeartbeatRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.HeartbeatResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/IdentifyWorker:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: IdentifyWorker
+      operationId: ClockDeviceService_IdentifyWorker
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.IdentifyWorkerRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.IdentifyWorkerResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/RevokeDevice:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: RevokeDevice
+      operationId: ClockDeviceService_RevokeDevice
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.RevokeDeviceRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.RevokeDeviceResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/RotateDeviceKey:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: RotateDeviceKey
+      operationId: ClockDeviceService_RotateDeviceKey
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.RotateDeviceKeyRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.RotateDeviceKeyResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/SubmitPunches:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: SubmitPunches
+      operationId: ClockDeviceService_SubmitPunches
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.SubmitPunchesRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.SubmitPunchesResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.ClockDeviceService/SyncRoster:
+    post:
+      tags:
+        - ClockDeviceService
+      summary: SyncRoster
+      operationId: ClockDeviceService_SyncRoster
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.SyncRosterRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.SyncRosterResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.ClockDeviceService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.MissingPunchService/GetCorrectionContext:
+    post:
+      tags:
+        - MissingPunchService
+      summary: GetCorrectionContext
+      operationId: MissingPunchService_GetCorrectionContext
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetCorrectionContextRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetCorrectionContextResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.MissingPunchService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.MissingPunchService/ListPendingCorrections:
+    post:
+      tags:
+        - MissingPunchService
+      summary: ListPendingCorrections
+      operationId: MissingPunchService_ListPendingCorrections
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ListPendingCorrectionsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ListPendingCorrectionsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.MissingPunchService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.MissingPunchService/ReviewCorrection:
+    post:
+      tags:
+        - MissingPunchService
+      summary: ReviewCorrection
+      operationId: MissingPunchService_ReviewCorrection
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ReviewCorrectionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ReviewCorrectionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.MissingPunchService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.MissingPunchService/SubmitCorrection:
+    post:
+      tags:
+        - MissingPunchService
+      summary: SubmitCorrection
+      operationId: MissingPunchService_SubmitCorrection
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.SubmitCorrectionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.SubmitCorrectionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.MissingPunchService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ApproveTimecard:
+    post:
+      tags:
+        - TimeService
+      summary: ApproveTimecard
+      operationId: TimeService_ApproveTimecard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ApproveTimecardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ApproveTimecardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/AssignTimeProfile:
+    post:
+      tags:
+        - TimeService
+      summary: AssignTimeProfile
+      operationId: TimeService_AssignTimeProfile
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.AssignTimeProfileRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.AssignTimeProfileResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/AttestTimecard:
+    post:
+      tags:
+        - TimeService
+      summary: AttestTimecard
+      operationId: TimeService_AttestTimecard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.AttestTimecardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.AttestTimecardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/CancelShift:
+    post:
+      tags:
+        - TimeService
+      summary: CancelShift
+      operationId: TimeService_CancelShift
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.CancelShiftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.CancelShiftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ClockIn:
+    post:
+      tags:
+        - TimeService
+      summary: Session lifecycle.
+      description: Session lifecycle.
+      operationId: TimeService_ClockIn
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ClockInRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ClockInResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ClockOut:
+    post:
+      tags:
+        - TimeService
+      summary: ClockOut
+      operationId: TimeService_ClockOut
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ClockOutRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ClockOutResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/CorrectPunch:
+    post:
+      tags:
+        - TimeService
+      summary: Punch correction and missed-punch review (TCLOCK-011).
+      description: Punch correction and missed-punch review (TCLOCK-011).
+      operationId: TimeService_CorrectPunch
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.CorrectPunchRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.CorrectPunchResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/CreateShift:
+    post:
+      tags:
+        - TimeService
+      summary: Shift scheduling.
+      description: Shift scheduling.
+      operationId: TimeService_CreateShift
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.CreateShiftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.CreateShiftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/DecideMissedPunch:
+    post:
+      tags:
+        - TimeService
+      summary: DecideMissedPunch
+      operationId: TimeService_DecideMissedPunch
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.DecideMissedPunchRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.DecideMissedPunchResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/EndBreak:
+    post:
+      tags:
+        - TimeService
+      summary: EndBreak
+      operationId: TimeService_EndBreak
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.EndBreakRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.EndBreakResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/GetCurrentSession:
+    post:
+      tags:
+        - TimeService
+      summary: GetCurrentSession
+      operationId: TimeService_GetCurrentSession
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetCurrentSessionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetCurrentSessionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/GetTimeProfile:
+    post:
+      tags:
+        - TimeService
+      summary: Time profile.
+      description: Time profile.
+      operationId: TimeService_GetTimeProfile
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetTimeProfileRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetTimeProfileResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/GetTimecard:
+    post:
+      tags:
+        - TimeService
+      summary: Timecard review.
+      description: Timecard review.
+      operationId: TimeService_GetTimecard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetTimecardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetTimecardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ListSessions:
+    post:
+      tags:
+        - TimeService
+      summary: ListSessions
+      operationId: TimeService_ListSessions
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ListSessionsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ListSessionsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ListShifts:
+    post:
+      tags:
+        - TimeService
+      summary: ListShifts
+      operationId: TimeService_ListShifts
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ListShiftsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ListShiftsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ListTimeEvents:
+    post:
+      tags:
+        - TimeService
+      summary: Event pull cursor (TCLOCK-012 consumer side).
+      description: Event pull cursor (TCLOCK-012 consumer side).
+      operationId: TimeService_ListTimeEvents
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ListTimeEventsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ListTimeEventsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ListTimecards:
+    post:
+      tags:
+        - TimeService
+      summary: ListTimecards
+      operationId: TimeService_ListTimecards
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ListTimecardsRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ListTimecardsResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/PublishShift:
+    post:
+      tags:
+        - TimeService
+      summary: PublishShift
+      operationId: TimeService_PublishShift
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.PublishShiftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.PublishShiftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/ReopenTimecard:
+    post:
+      tags:
+        - TimeService
+      summary: ReopenTimecard
+      operationId: TimeService_ReopenTimecard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ReopenTimecardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ReopenTimecardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/RequestMissedPunch:
+    post:
+      tags:
+        - TimeService
+      summary: RequestMissedPunch
+      operationId: TimeService_RequestMissedPunch
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.RequestMissedPunchRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.RequestMissedPunchResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/StartBreak:
+    post:
+      tags:
+        - TimeService
+      summary: StartBreak
+      operationId: TimeService_StartBreak
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.StartBreakRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.StartBreakResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/SubmitTimecard:
+    post:
+      tags:
+        - TimeService
+      summary: SubmitTimecard
+      operationId: TimeService_SubmitTimecard
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.SubmitTimecardRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.SubmitTimecardResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.TimeService/TransferJob:
+    post:
+      tags:
+        - TimeService
+      summary: TransferJob
+      operationId: TimeService_TransferJob
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.TransferJobRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.TransferJobResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.TimeService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.WorkerClockService/ExecuteSelfClockAction:
+    post:
+      tags:
+        - WorkerClockService
+      summary: ExecuteSelfClockAction
+      operationId: WorkerClockService_ExecuteSelfClockAction
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.ExecuteSelfClockActionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.ExecuteSelfClockActionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.WorkerClockService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: false
+      x-hcmnext-http-exposed: false
+  /hcmnext.time.v1.WorkerClockService/GetSelfClock:
+    post:
+      tags:
+        - WorkerClockService
+      summary: GetSelfClock
+      operationId: WorkerClockService_GetSelfClock
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.time.v1.GetSelfClockRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.time.v1.GetSelfClockResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.time.v1.WorkerClockService
       x-hcmnext-rpc-kind: READ
       x-hcmnext-registered: false
       x-hcmnext-http-exposed: false
@@ -8601,6 +10012,390 @@ paths:
                 $ref: '#/components/schemas/connect.Error'
       x-hcmnext-service: hcmnext.workflow.v1.WorkflowService
       x-hcmnext-rpc-kind: UPDATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/AddWorkOrderNote:
+    post:
+      tags:
+        - WorkOrderService
+      summary: AddWorkOrderNote
+      operationId: WorkOrderService_AddWorkOrderNote
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.AddWorkOrderNoteRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.AddWorkOrderNoteResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/CreateWorkOrder:
+    post:
+      tags:
+        - WorkOrderService
+      summary: CreateWorkOrder
+      operationId: WorkOrderService_CreateWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.CreateWorkOrderRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.CreateWorkOrderResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: CREATE
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/DecideInitiatorRequest:
+    post:
+      tags:
+        - WorkOrderService
+      summary: DecideInitiatorRequest
+      operationId: WorkOrderService_DecideInitiatorRequest
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.DecideInitiatorRequestRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.DecideInitiatorRequestResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/GetWorkOrder:
+    post:
+      tags:
+        - WorkOrderService
+      summary: GetWorkOrder
+      operationId: WorkOrderService_GetWorkOrder
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.GetWorkOrderRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.GetWorkOrderResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: READ
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/ListWorkOrders:
+    post:
+      tags:
+        - WorkOrderService
+      summary: ListWorkOrders
+      operationId: WorkOrderService_ListWorkOrders
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.ListWorkOrdersRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.ListWorkOrdersResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: LIST
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RecordProgressEntry:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RecordProgressEntry
+      operationId: WorkOrderService_RecordProgressEntry
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RecordProgressEntryRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RecordProgressEntryResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RecordSpendEntry:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RecordSpendEntry
+      operationId: WorkOrderService_RecordSpendEntry
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RecordSpendEntryRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RecordSpendEntryResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RecordWorkEntry:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RecordWorkEntry
+      operationId: WorkOrderService_RecordWorkEntry
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RecordWorkEntryRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RecordWorkEntryResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RequestBillingDraft:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RequestBillingDraft
+      operationId: WorkOrderService_RequestBillingDraft
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RequestBillingDraftRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RequestBillingDraftResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RequestPhaseTransition:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RequestPhaseTransition
+      operationId: WorkOrderService_RequestPhaseTransition
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RequestPhaseTransitionRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RequestPhaseTransitionResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/RequestWorkOrderReport:
+    post:
+      tags:
+        - WorkOrderService
+      summary: RequestWorkOrderReport
+      operationId: WorkOrderService_RequestWorkOrderReport
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.RequestWorkOrderReportRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.RequestWorkOrderReportResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
+      x-hcmnext-registered: true
+      x-hcmnext-http-exposed: true
+  /hcmnext.workorder.v1.WorkOrderService/SubmitInitiatorRequest:
+    post:
+      tags:
+        - WorkOrderService
+      summary: SubmitInitiatorRequest
+      operationId: WorkOrderService_SubmitInitiatorRequest
+      parameters:
+        - $ref: '#/components/parameters/ConnectProtocolVersion'
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hcmnext.workorder.v1.SubmitInitiatorRequestRequest'
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/hcmnext.workorder.v1.SubmitInitiatorRequestResponse'
+        default:
+          description: Connect error. The HTTP status follows the edge's canonical error projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.Error'
+      x-hcmnext-service: hcmnext.workorder.v1.WorkOrderService
+      x-hcmnext-rpc-kind: ACTION
       x-hcmnext-registered: true
       x-hcmnext-http-exposed: true
 components:
@@ -10828,6 +12623,212 @@ components:
           format: int64
         status:
           type: string
+    hcmnext.agent.v1.AgentDocumentOmission:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.AgentDocumentOmission`.
+      properties:
+        label:
+          type: string
+        reason:
+          type: string
+    hcmnext.agent.v1.AgentDocumentReference:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.AgentDocumentReference`.
+      properties:
+        documentId:
+          type: string
+        versionMode:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentVersionMode'
+        pinnedVersion:
+          type: string
+          format: uint64
+        sectionAnchor:
+          type: string
+        label:
+          type: string
+    hcmnext.agent.v1.AgentDocumentUsageState:
+      type: string
+      description: Protobuf enum `hcmnext.agent.v1.AgentDocumentUsageState`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - AGENT_DOCUMENT_USAGE_STATE_UNKNOWN
+        - AGENT_DOCUMENT_USAGE_STATE_NONE
+        - AGENT_DOCUMENT_USAGE_STATE_USED
+    hcmnext.agent.v1.AgentDocumentVersionMode:
+      type: string
+      description: Protobuf enum `hcmnext.agent.v1.AgentDocumentVersionMode`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - AGENT_DOCUMENT_VERSION_MODE_UNSPECIFIED
+        - AGENT_DOCUMENT_VERSION_MODE_PINNED
+        - AGENT_DOCUMENT_VERSION_MODE_LATEST_PUBLISHED
+    hcmnext.agent.v1.AgentStartMode:
+      type: string
+      description: Protobuf enum `hcmnext.agent.v1.AgentStartMode`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - AGENT_START_MODE_UNSPECIFIED
+        - AGENT_START_MODE_QUICK_ANSWER
+        - AGENT_START_MODE_LONG_TASK
+    hcmnext.agent.v1.AgentTaskAction:
+      type: string
+      description: Protobuf enum `hcmnext.agent.v1.AgentTaskAction`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - AGENT_TASK_ACTION_UNSPECIFIED
+        - AGENT_TASK_ACTION_CONFIRM_PLAN
+        - AGENT_TASK_ACTION_PAUSE
+        - AGENT_TASK_ACTION_RESUME
+        - AGENT_TASK_ACTION_CANCEL
+    hcmnext.agent.v1.AgentTaskProjection:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.AgentTaskProjection`.
+      properties:
+        taskId:
+          type: string
+        state:
+          type: string
+        version:
+          type: string
+          format: uint64
+        prompt:
+          type: string
+        documentReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentReference'
+        documentOmissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentOmission'
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        updatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        resultPreview:
+          type: string
+        failureSummary:
+          type: string
+        retryable:
+          type: boolean
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentTaskStepProjection'
+        answeringAgentId:
+          type: string
+        answeringAgentDisplayName:
+          type: string
+        answeringAgentVersion:
+          type: string
+        usedDocumentReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentReference'
+        documentUsageState:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentUsageState'
+    hcmnext.agent.v1.AgentTaskStepProjection:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.AgentTaskStepProjection`.
+      properties:
+        kind:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        finishedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        failureSummary:
+          type: string
+    hcmnext.agent.v1.ControlAgentTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.ControlAgentTaskRequest`.
+      properties:
+        taskId:
+          type: string
+        expectedVersion:
+          type: string
+          format: uint64
+        action:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentTaskAction'
+    hcmnext.agent.v1.ControlAgentTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.ControlAgentTaskResponse`.
+      properties:
+        taskId:
+          type: string
+        state:
+          type: string
+        version:
+          type: string
+          format: uint64
+    hcmnext.agent.v1.GetAgentTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.GetAgentTaskRequest`.
+      properties:
+        taskId:
+          type: string
+    hcmnext.agent.v1.GetAgentTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.GetAgentTaskResponse`.
+      properties:
+        task:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentTaskProjection'
+    hcmnext.agent.v1.ListAgentTasksRequest:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.ListAgentTasksRequest`.
+    hcmnext.agent.v1.ListAgentTasksResponse:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.ListAgentTasksResponse`.
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentTaskProjection'
+    hcmnext.agent.v1.SetAgentsEnabledRequest:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.SetAgentsEnabledRequest`.
+      properties:
+        enabled:
+          type: boolean
+    hcmnext.agent.v1.SetAgentsEnabledResponse:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.SetAgentsEnabledResponse`.
+      properties:
+        enabled:
+          type: boolean
+    hcmnext.agent.v1.StartAgentTaskRequest:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.StartAgentTaskRequest`.
+      properties:
+        prompt:
+          type: string
+        mode:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentStartMode'
+        documentReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.agent.v1.AgentDocumentReference'
+        personaId:
+          type: string
+    hcmnext.agent.v1.StartAgentTaskResponse:
+      type: object
+      description: Protobuf message `hcmnext.agent.v1.StartAgentTaskResponse`.
+      properties:
+        taskId:
+          type: string
+        state:
+          type: string
+        version:
+          type: string
+          format: uint64
+        task:
+          $ref: '#/components/schemas/hcmnext.agent.v1.AgentTaskProjection'
     hcmnext.capabilities.v1.CapabilityDefinition:
       type: object
       description: Protobuf message `hcmnext.capabilities.v1.CapabilityDefinition`.
@@ -12884,6 +14885,14 @@ components:
           type: integer
           format: int32
         calendarRef:
+          type: string
+    hcmnext.common.v1.Money:
+      type: object
+      description: Protobuf message `hcmnext.common.v1.Money`.
+      properties:
+        amount:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        currencyCode:
           type: string
     hcmnext.common.v1.MoneyRange:
       type: object
@@ -21097,6 +23106,1844 @@ components:
           type: string
         relationship:
           type: string
+    hcmnext.time.v1.ApproveTimecardRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ApproveTimecardRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        timecardId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ApproveTimecardResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ApproveTimecardResponse`.
+      properties:
+        timecard:
+          $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+    hcmnext.time.v1.AssignTimeProfileRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AssignTimeProfileRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        captureMode:
+          $ref: '#/components/schemas/hcmnext.time.v1.CaptureMode'
+        payBasis:
+          $ref: '#/components/schemas/hcmnext.time.v1.PayBasis'
+        exemptionStatus:
+          $ref: '#/components/schemas/hcmnext.time.v1.ExemptionStatus'
+        workerCategory:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkerCategory'
+        destination:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeDestination'
+        overtimeMethod:
+          $ref: '#/components/schemas/hcmnext.time.v1.OvertimeMethod'
+        template:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeTemplate'
+        controlClasses:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.ControlClass'
+        effectiveRange:
+          $ref: '#/components/schemas/hcmnext.common.v1.EffectiveTimeRange'
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.AssignTimeProfileResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AssignTimeProfileResponse`.
+      properties:
+        profile:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeProfile'
+    hcmnext.time.v1.AttestTimecardRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AttestTimecardRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        timecardId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        answers:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.AttestationAnswer'
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.AttestTimecardResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AttestTimecardResponse`.
+      properties:
+        timecard:
+          $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+    hcmnext.time.v1.AttestationAnswer:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AttestationAnswer`.
+      properties:
+        questionRef:
+          type: string
+        answer:
+          type: string
+    hcmnext.time.v1.AttestationAnswerInput:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AttestationAnswerInput`.
+      properties:
+        questionRef:
+          type: string
+        answer:
+          type: string
+    hcmnext.time.v1.AttestationQuestion:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.AttestationQuestion`.
+      properties:
+        questionRef:
+          type: string
+        localizedText:
+          type: string
+        required:
+          type: boolean
+    hcmnext.time.v1.CancelShiftRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CancelShiftRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        shiftId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.CancelShiftResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CancelShiftResponse`.
+      properties:
+        shift:
+          $ref: '#/components/schemas/hcmnext.time.v1.Shift'
+    hcmnext.time.v1.CaptureMode:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.CaptureMode`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - CAPTURE_MODE_UNSPECIFIED
+        - CAPTURE_MODE_PUNCH
+        - CAPTURE_MODE_DURATION
+        - CAPTURE_MODE_EXCEPTION_ONLY
+        - CAPTURE_MODE_NONE
+    hcmnext.time.v1.ClockDevice:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockDevice`.
+      properties:
+        deviceId:
+          type: string
+        tenantId:
+          type: string
+        siteId:
+          type: string
+        profileRef:
+          type: string
+        timezone:
+          type: string
+        state:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockDeviceState'
+        publicKeyRef:
+          type: string
+        keyVersion:
+          type: integer
+          format: uint32
+          minimum: 0
+        appVersion:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+        enrolledAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.time.v1.ClockDeviceState:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.ClockDeviceState`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - CLOCK_DEVICE_STATE_UNSPECIFIED
+        - CLOCK_DEVICE_STATE_ACTIVE
+        - CLOCK_DEVICE_STATE_SUSPENDED
+        - CLOCK_DEVICE_STATE_REVOKED
+    hcmnext.time.v1.ClockEvent:
+      type: object
+      description: 'Protobuf message `hcmnext.time.v1.ClockEvent`. Oneof `payload`: at most one of `punchAccepted`, `punchRejected`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `timecardReopened`, `deviceOffline` may be set.'
+      properties:
+        eventId:
+          type: string
+        eventType:
+          type: string
+        tenantId:
+          type: string
+        sequence:
+          type: string
+          format: uint64
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        emittedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        punchAccepted:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchAcceptedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchRejected`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `timecardReopened`, `deviceOffline`.
+        punchRejected:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchRejectedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `timecardReopened`, `deviceOffline`.
+        sessionOpened:
+          $ref: '#/components/schemas/hcmnext.time.v1.SessionOpenedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `timecardReopened`, `deviceOffline`.
+        sessionClosed:
+          $ref: '#/components/schemas/hcmnext.time.v1.SessionClosedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionOpened`, `exceptionRaised`, `timecardApproved`, `timecardReopened`, `deviceOffline`.
+        exceptionRaised:
+          $ref: '#/components/schemas/hcmnext.time.v1.ExceptionRaisedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionOpened`, `sessionClosed`, `timecardApproved`, `timecardReopened`, `deviceOffline`.
+        timecardApproved:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimecardApprovedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardReopened`, `deviceOffline`.
+        timecardReopened:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimecardReopenedEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `deviceOffline`.
+        deviceOffline:
+          $ref: '#/components/schemas/hcmnext.time.v1.DeviceOfflineEvent'
+          description: Member of oneof `payload`. Mutually exclusive with `punchAccepted`, `punchRejected`, `sessionOpened`, `sessionClosed`, `exceptionRaised`, `timecardApproved`, `timecardReopened`.
+    hcmnext.time.v1.ClockInRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockInRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        timezone:
+          type: string
+        sourceRef:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ClockInResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockInResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.ClockOutRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockOutRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        sessionId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ClockOutResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockOutResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.ClockSession:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ClockSession`.
+      properties:
+        sessionId:
+          type: string
+        workerId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.SessionStatus'
+        currentJobId:
+          type: string
+        currentCostCodeId:
+          type: string
+        timezone:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.PunchEvent'
+        openedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        closedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+    hcmnext.time.v1.ControlClass:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.ControlClass`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - CONTROL_CLASS_UNSPECIFIED
+        - CONTROL_CLASS_SCHEDULE_LOCKOUT
+        - CONTROL_CLASS_MANDATORY_CLOCK_IN
+        - CONTROL_CLASS_GEOFENCE
+        - CONTROL_CLASS_PUNCH_PHOTO
+        - CONTROL_CLASS_BREAK_ATTESTATION
+        - CONTROL_CLASS_SHIFT_ASSIGNMENT
+    hcmnext.time.v1.CorrectPunchRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CorrectPunchRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        sessionId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        punchId:
+          type: string
+        correctedEventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        correctedOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        reason:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.CorrectPunchResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CorrectPunchResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.CorrectionContext:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CorrectionContext`.
+      properties:
+        sessionId:
+          type: string
+        workerRef:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        timezone:
+          type: string
+        periodRef:
+          type: string
+        originalIn:
+          $ref: '#/components/schemas/hcmnext.time.v1.CorrectionPunchFact'
+        originalOut:
+          $ref: '#/components/schemas/hcmnext.time.v1.CorrectionPunchFact'
+        originalWorkflowId:
+          type: string
+        originalWorkflowInstanceRef:
+          type: string
+        periodClosed:
+          type: boolean
+    hcmnext.time.v1.CorrectionPunchFact:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CorrectionPunchFact`.
+      properties:
+        eventType:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        observationId:
+          type: string
+    hcmnext.time.v1.CreateEnrollmentCodeRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CreateEnrollmentCodeRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        siteId:
+          type: string
+        profileRef:
+          type: string
+        timezone:
+          type: string
+        ttlSeconds:
+          type: string
+          format: int64
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.CreateEnrollmentCodeResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CreateEnrollmentCodeResponse`.
+      properties:
+        enrollmentCodeId:
+          type: string
+        code:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.time.v1.CreateShiftRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CreateShiftRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        siteId:
+          type: string
+        workerId:
+          type: string
+        jobId:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        timezone:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.CreateShiftResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.CreateShiftResponse`.
+      properties:
+        shift:
+          $ref: '#/components/schemas/hcmnext.time.v1.Shift'
+    hcmnext.time.v1.DecideMissedPunchRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.DecideMissedPunchRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        requestId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        decision:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissedPunchRequestStatus'
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.DecideMissedPunchResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.DecideMissedPunchResponse`.
+      properties:
+        request:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissedPunchRequest'
+    hcmnext.time.v1.DeviceOfflineEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.DeviceOfflineEvent`.
+      properties:
+        deviceId:
+          type: string
+        siteId:
+          type: string
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.time.v1.DevicePowerState:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.DevicePowerState`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - DEVICE_POWER_STATE_UNSPECIFIED
+        - DEVICE_POWER_STATE_AC_POWERED
+        - DEVICE_POWER_STATE_ON_BATTERY
+        - DEVICE_POWER_STATE_LOW_BATTERY
+        - DEVICE_POWER_STATE_CHARGING
+    hcmnext.time.v1.DevicePunch:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.DevicePunch`.
+      properties:
+        deviceSequence:
+          type: string
+          format: uint64
+        eventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        worker:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkerCredentialRef'
+        deviceOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        deviceClockOffsetSeconds:
+          type: string
+          format: int64
+        attestationAnswers:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.AttestationAnswerInput'
+        tipDeclaration:
+          type: string
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        photoArtifactRef:
+          type: string
+        identificationMethod:
+          $ref: '#/components/schemas/hcmnext.time.v1.IdentificationMethod'
+    hcmnext.time.v1.EndBreakRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.EndBreakRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        sessionId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.EndBreakResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.EndBreakResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.EnrollDeviceRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.EnrollDeviceRequest`.
+      properties:
+        enrollmentCode:
+          type: string
+        publicKey:
+          type: string
+          format: byte
+        challengeSignature:
+          type: string
+          format: byte
+        deviceModel:
+          type: string
+        appVersion:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.EnrollDeviceResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.EnrollDeviceResponse`.
+      properties:
+        device:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockDevice'
+        machineClientCredentialRef:
+          type: string
+    hcmnext.time.v1.ExceptionRaisedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ExceptionRaisedEvent`.
+      properties:
+        subjectId:
+          type: string
+        subjectKind:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeExceptionKind'
+        detailRef:
+          type: string
+    hcmnext.time.v1.ExecuteSelfClockActionRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ExecuteSelfClockActionRequest`.
+      properties:
+        action:
+          $ref: '#/components/schemas/hcmnext.time.v1.ExecuteSelfClockActionRequest.Action'
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ExecuteSelfClockActionRequest.Action:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.ExecuteSelfClockActionRequest.Action`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - ACTION_UNSPECIFIED
+        - ACTION_IN
+        - ACTION_OUT
+        - ACTION_START_BREAK
+        - ACTION_END_BREAK
+    hcmnext.time.v1.ExecuteSelfClockActionResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ExecuteSelfClockActionResponse`.
+      properties:
+        receiptId:
+          type: string
+        workerRef:
+          type: string
+        assignmentRef:
+          type: string
+        workflowInstanceRef:
+          type: string
+        publishedPlanRef:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.SelfClockProjection'
+        workflowTraceId:
+          type: string
+        workflowNodeId:
+          type: string
+        workflowAttempt:
+          type: integer
+          format: int32
+        workflowInstanceVersion:
+          type: string
+          format: int64
+        workflowId:
+          type: string
+    hcmnext.time.v1.ExemptionStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.ExemptionStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - EXEMPTION_STATUS_UNSPECIFIED
+        - EXEMPTION_STATUS_NON_EXEMPT
+        - EXEMPTION_STATUS_EXEMPT
+        - EXEMPTION_STATUS_SALARIED_NON_EXEMPT
+        - EXEMPTION_STATUS_NOT_APPLICABLE
+    hcmnext.time.v1.GetCorrectionContextRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetCorrectionContextRequest`.
+      properties:
+        sessionId:
+          type: string
+    hcmnext.time.v1.GetCorrectionContextResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetCorrectionContextResponse`.
+      properties:
+        context:
+          $ref: '#/components/schemas/hcmnext.time.v1.CorrectionContext'
+        pendingCorrections:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.MissingPunchCorrection'
+    hcmnext.time.v1.GetCurrentSessionRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetCurrentSessionRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+    hcmnext.time.v1.GetCurrentSessionResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetCurrentSessionResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.GetSelfClockRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetSelfClockRequest`.
+    hcmnext.time.v1.GetSelfClockResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetSelfClockResponse`.
+      properties:
+        workerLabel:
+          type: string
+        scheduleLabel:
+          type: string
+        statusLabel:
+          type: string
+        lastEventLabel:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        statusCode:
+          type: string
+    hcmnext.time.v1.GetTimeProfileRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetTimeProfileRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+    hcmnext.time.v1.GetTimeProfileResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetTimeProfileResponse`.
+      properties:
+        profile:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeProfile'
+    hcmnext.time.v1.GetTimecardRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetTimecardRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        timecardId:
+          type: string
+    hcmnext.time.v1.GetTimecardResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetTimecardResponse`.
+      properties:
+        timecard:
+          $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+    hcmnext.time.v1.GetWorkerStatusRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetWorkerStatusRequest`.
+      properties:
+        deviceId:
+          type: string
+        punchToken:
+          type: string
+    hcmnext.time.v1.GetWorkerStatusResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.GetWorkerStatusResponse`.
+      properties:
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkerPunchStatus'
+    hcmnext.time.v1.HeartbeatAction:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.HeartbeatAction`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - HEARTBEAT_ACTION_UNSPECIFIED
+        - HEARTBEAT_ACTION_NONE
+        - HEARTBEAT_ACTION_UPGRADE_REQUIRED
+        - HEARTBEAT_ACTION_RESYNC_REQUIRED
+        - HEARTBEAT_ACTION_REVOKED
+    hcmnext.time.v1.HeartbeatRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.HeartbeatRequest`.
+      properties:
+        deviceId:
+          type: string
+        appVersion:
+          type: string
+        queueDepth:
+          type: integer
+          format: int32
+        oldestUnsentAgeSeconds:
+          type: string
+          format: int64
+        batteryPercent:
+          type: integer
+          format: int32
+        powerState:
+          $ref: '#/components/schemas/hcmnext.time.v1.DevicePowerState'
+        measuredClockOffsetSeconds:
+          type: string
+          format: int64
+    hcmnext.time.v1.HeartbeatResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.HeartbeatResponse`.
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        action:
+          $ref: '#/components/schemas/hcmnext.time.v1.HeartbeatAction'
+        minimumSupportedAppVersion:
+          type: string
+    hcmnext.time.v1.IdentificationMethod:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.IdentificationMethod`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - IDENTIFICATION_METHOD_UNSPECIFIED
+        - IDENTIFICATION_METHOD_PIN
+        - IDENTIFICATION_METHOD_BADGE
+        - IDENTIFICATION_METHOD_QR
+        - IDENTIFICATION_METHOD_FACE
+        - IDENTIFICATION_METHOD_SUPERVISOR_OVERRIDE
+    hcmnext.time.v1.IdentifyWorkerRequest:
+      type: object
+      description: 'Protobuf message `hcmnext.time.v1.IdentifyWorkerRequest`. Oneof `credential`: at most one of `pin`, `badgeId`, `qrKeyId`, `supervisorCredentialRef` may be set.'
+      properties:
+        deviceId:
+          type: string
+        method:
+          $ref: '#/components/schemas/hcmnext.time.v1.IdentificationMethod'
+        pin:
+          type: string
+          description: Member of oneof `credential`. Mutually exclusive with `badgeId`, `qrKeyId`, `supervisorCredentialRef`.
+        badgeId:
+          type: string
+          description: Member of oneof `credential`. Mutually exclusive with `pin`, `qrKeyId`, `supervisorCredentialRef`.
+        qrKeyId:
+          type: string
+          description: Member of oneof `credential`. Mutually exclusive with `pin`, `badgeId`, `supervisorCredentialRef`.
+        supervisorCredentialRef:
+          type: string
+          description: Member of oneof `credential`. Mutually exclusive with `pin`, `badgeId`, `qrKeyId`.
+        overrideReason:
+          type: string
+    hcmnext.time.v1.IdentifyWorkerResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.IdentifyWorkerResponse`.
+      properties:
+        punchToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkerPunchStatus'
+    hcmnext.time.v1.JobCostCode:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.JobCostCode`.
+      properties:
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        label:
+          type: string
+    hcmnext.time.v1.ListPendingCorrectionsRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListPendingCorrectionsRequest`.
+      properties:
+        pageSize:
+          type: integer
+          format: uint32
+          minimum: 0
+    hcmnext.time.v1.ListPendingCorrectionsResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListPendingCorrectionsResponse`.
+      properties:
+        corrections:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.MissingPunchCorrection'
+    hcmnext.time.v1.ListSessionsRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListSessionsRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.SessionStatus'
+        openedAfter:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        openedBefore:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.time.v1.ListSessionsResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListSessionsResponse`.
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.time.v1.ListShiftsRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListShiftsRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        siteId:
+          type: string
+        workerId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.ShiftStatus'
+        startingAfter:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        startingBefore:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.time.v1.ListShiftsResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListShiftsResponse`.
+      properties:
+        shifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.Shift'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.time.v1.ListTimeEventsRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListTimeEventsRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        eventTypes:
+          type: array
+          items:
+            type: string
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.time.v1.ListTimeEventsResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListTimeEventsResponse`.
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.ClockEvent'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.time.v1.ListTimecardsRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListTimecardsRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimecardStatus'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.time.v1.ListTimecardsResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ListTimecardsResponse`.
+      properties:
+        timecards:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.time.v1.LocalizedString:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.LocalizedString`.
+      properties:
+        key:
+          type: string
+        locale:
+          type: string
+        value:
+          type: string
+    hcmnext.time.v1.LockoutShift:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.LockoutShift`.
+      properties:
+        shiftId:
+          type: string
+        workerId:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.time.v1.MissedPunchRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.MissedPunchRequest`.
+      properties:
+        requestId:
+          type: string
+        workerId:
+          type: string
+        sessionId:
+          type: string
+        claimedEventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        claimedOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        reason:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissedPunchRequestStatus'
+        decidedBy:
+          type: string
+        decisionReason:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+    hcmnext.time.v1.MissedPunchRequestStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.MissedPunchRequestStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - MISSED_PUNCH_REQUEST_STATUS_UNSPECIFIED
+        - MISSED_PUNCH_REQUEST_STATUS_PENDING
+        - MISSED_PUNCH_REQUEST_STATUS_APPROVED
+        - MISSED_PUNCH_REQUEST_STATUS_REJECTED
+    hcmnext.time.v1.MissingPunchCorrection:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.MissingPunchCorrection`.
+      properties:
+        requestId:
+          type: string
+        workerRef:
+          type: string
+        sessionId:
+          type: string
+        claimedEventType:
+          type: string
+        claimedOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        requestReason:
+          type: string
+        status:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        decisionReason:
+          type: string
+        workflowReceipt:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkflowTrackedReceipt'
+    hcmnext.time.v1.MissingPunchDecision:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.MissingPunchDecision`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - MISSING_PUNCH_DECISION_UNSPECIFIED
+        - MISSING_PUNCH_DECISION_APPROVED
+        - MISSING_PUNCH_DECISION_REJECTED
+    hcmnext.time.v1.OvertimeMethod:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.OvertimeMethod`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - OVERTIME_METHOD_UNSPECIFIED
+        - OVERTIME_METHOD_NONE
+        - OVERTIME_METHOD_SINGLE_RATE
+        - OVERTIME_METHOD_WEIGHTED_AVERAGE
+        - OVERTIME_METHOD_FLUCTUATING_WEEK
+        - OVERTIME_METHOD_HEALTHCARE_8_80
+        - OVERTIME_METHOD_PUBLIC_COMP_TIME
+        - OVERTIME_METHOD_PUBLIC_SAFETY_7K
+        - OVERTIME_METHOD_PIECE_RATE_AVERAGE
+    hcmnext.time.v1.PayBasis:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.PayBasis`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PAY_BASIS_UNSPECIFIED
+        - PAY_BASIS_HOURLY
+        - PAY_BASIS_SALARY
+        - PAY_BASIS_PIECE_RATE
+        - PAY_BASIS_DAY_RATE
+        - PAY_BASIS_CONTRACT_RATE
+    hcmnext.time.v1.PublishShiftRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PublishShiftRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        shiftId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.PublishShiftResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PublishShiftResponse`.
+      properties:
+        shift:
+          $ref: '#/components/schemas/hcmnext.time.v1.Shift'
+    hcmnext.time.v1.PunchAcceptedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PunchAcceptedEvent`.
+      properties:
+        receiptId:
+          type: string
+        deviceId:
+          type: string
+        workerId:
+          type: string
+        sessionId:
+          type: string
+        eventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        deviceSequence:
+          type: string
+          format: uint64
+    hcmnext.time.v1.PunchEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PunchEvent`.
+      properties:
+        punchId:
+          type: string
+        eventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        recordedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        sourceRef:
+          type: string
+        correctionOfPunchId:
+          type: string
+        reason:
+          type: string
+    hcmnext.time.v1.PunchEventType:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.PunchEventType`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PUNCH_EVENT_TYPE_UNSPECIFIED
+        - PUNCH_EVENT_TYPE_CLOCK_IN
+        - PUNCH_EVENT_TYPE_CLOCK_OUT
+        - PUNCH_EVENT_TYPE_BREAK_START
+        - PUNCH_EVENT_TYPE_BREAK_END
+        - PUNCH_EVENT_TYPE_MEAL_START
+        - PUNCH_EVENT_TYPE_MEAL_END
+        - PUNCH_EVENT_TYPE_JOB_TRANSFER
+    hcmnext.time.v1.PunchReceipt:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PunchReceipt`.
+      properties:
+        deviceSequence:
+          type: string
+          format: uint64
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchReceiptStatus'
+        receiptId:
+          type: string
+        originalReceiptId:
+          type: string
+        rejectionReason:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchRejectionReason'
+        rejectionDetail:
+          type: string
+    hcmnext.time.v1.PunchReceiptStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.PunchReceiptStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PUNCH_RECEIPT_STATUS_UNSPECIFIED
+        - PUNCH_RECEIPT_STATUS_ACCEPTED
+        - PUNCH_RECEIPT_STATUS_DUPLICATE
+        - PUNCH_RECEIPT_STATUS_REJECTED
+        - PUNCH_RECEIPT_STATUS_HELD_FOR_REVIEW
+    hcmnext.time.v1.PunchRejectedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.PunchRejectedEvent`.
+      properties:
+        deviceId:
+          type: string
+        workerCredentialRef:
+          type: string
+        deviceSequence:
+          type: string
+          format: uint64
+        reason:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchRejectionReason'
+        detailRef:
+          type: string
+    hcmnext.time.v1.PunchRejectionReason:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.PunchRejectionReason`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PUNCH_REJECTION_REASON_UNSPECIFIED
+        - PUNCH_REJECTION_REASON_UNKNOWN_WORKER
+        - PUNCH_REJECTION_REASON_WORKER_NOT_ON_ROSTER
+        - PUNCH_REJECTION_REASON_DEVICE_NOT_ELIGIBLE
+        - PUNCH_REJECTION_REASON_POLICY_VIOLATION
+        - PUNCH_REJECTION_REASON_SEQUENCE_GAP
+        - PUNCH_REJECTION_REASON_MALFORMED
+        - PUNCH_REJECTION_REASON_STALE_ROSTER
+        - PUNCH_REJECTION_REASON_DUPLICATE_OF_REJECTED
+    hcmnext.time.v1.ReopenTimecardRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ReopenTimecardRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        timecardId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ReopenTimecardResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ReopenTimecardResponse`.
+      properties:
+        timecard:
+          $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+    hcmnext.time.v1.RequestMissedPunchRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RequestMissedPunchRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workerId:
+          type: string
+        sessionId:
+          type: string
+        claimedEventType:
+          $ref: '#/components/schemas/hcmnext.time.v1.PunchEventType'
+        claimedOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        reason:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.RequestMissedPunchResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RequestMissedPunchResponse`.
+      properties:
+        request:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissedPunchRequest'
+    hcmnext.time.v1.ReviewCorrectionRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ReviewCorrectionRequest`.
+      properties:
+        requestId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        decision:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissingPunchDecision'
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.ReviewCorrectionResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.ReviewCorrectionResponse`.
+      properties:
+        correction:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissingPunchCorrection'
+    hcmnext.time.v1.RevokeDeviceRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RevokeDeviceRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        deviceId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.RevokeDeviceResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RevokeDeviceResponse`.
+      properties:
+        device:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockDevice'
+    hcmnext.time.v1.RosterSnapshot:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RosterSnapshot`.
+      properties:
+        snapshotRevision:
+          type: string
+          format: uint64
+        nextCursor:
+          type: string
+        workers:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.WorkerCredentialVerifier'
+        jobCostCodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.JobCostCode'
+        publishedShifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.LockoutShift'
+        attestationQuestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.AttestationQuestion'
+        tipRules:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.TipRule'
+        localizedStrings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.LocalizedString'
+        punchPolicyVersion:
+          type: string
+        maxOfflineAgeSeconds:
+          type: string
+          format: int64
+        urgentRemovedWorkerIds:
+          type: array
+          items:
+            type: string
+    hcmnext.time.v1.RotateDeviceKeyRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RotateDeviceKeyRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        deviceId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        newPublicKey:
+          type: string
+          format: byte
+        challengeSignature:
+          type: string
+          format: byte
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.RotateDeviceKeyResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.RotateDeviceKeyResponse`.
+      properties:
+        device:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockDevice'
+    hcmnext.time.v1.SelfClockProjection:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SelfClockProjection`.
+      properties:
+        workerLabel:
+          type: string
+        scheduleLabel:
+          type: string
+        statusLabel:
+          type: string
+        lastEventLabel:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        statusCode:
+          type: string
+    hcmnext.time.v1.SessionClosedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SessionClosedEvent`.
+      properties:
+        sessionId:
+          type: string
+        workerId:
+          type: string
+        closedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        workedSeconds:
+          type: string
+          format: int64
+    hcmnext.time.v1.SessionOpenedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SessionOpenedEvent`.
+      properties:
+        sessionId:
+          type: string
+        workerId:
+          type: string
+        openedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        sourceRef:
+          type: string
+    hcmnext.time.v1.SessionStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.SessionStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - SESSION_STATUS_UNSPECIFIED
+        - SESSION_STATUS_OPEN
+        - SESSION_STATUS_ON_BREAK
+        - SESSION_STATUS_CLOSED
+        - SESSION_STATUS_EXCEPTION
+    hcmnext.time.v1.Shift:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.Shift`.
+      properties:
+        shiftId:
+          type: string
+        siteId:
+          type: string
+        workerId:
+          type: string
+        jobId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.ShiftStatus'
+        startsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        endsAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        timezone:
+          type: string
+        cancelReason:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+    hcmnext.time.v1.ShiftStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.ShiftStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - SHIFT_STATUS_UNSPECIFIED
+        - SHIFT_STATUS_DRAFT
+        - SHIFT_STATUS_PUBLISHED
+        - SHIFT_STATUS_CANCELLED
+    hcmnext.time.v1.StartBreakRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.StartBreakRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        sessionId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.StartBreakResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.StartBreakResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.SubmitCorrectionRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitCorrectionRequest`.
+      properties:
+        sessionId:
+          type: string
+        claimedEventType:
+          type: string
+        claimedOccurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        reason:
+          type: string
+        idempotencyKey:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+    hcmnext.time.v1.SubmitCorrectionResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitCorrectionResponse`.
+      properties:
+        correction:
+          $ref: '#/components/schemas/hcmnext.time.v1.MissingPunchCorrection'
+    hcmnext.time.v1.SubmitPunchesRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitPunchesRequest`.
+      properties:
+        deviceId:
+          type: string
+        punches:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.DevicePunch'
+    hcmnext.time.v1.SubmitPunchesResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitPunchesResponse`.
+      properties:
+        receipts:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.PunchReceipt'
+        highestContiguousSequence:
+          type: string
+          format: uint64
+    hcmnext.time.v1.SubmitTimecardRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitTimecardRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        timecardId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.SubmitTimecardResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SubmitTimecardResponse`.
+      properties:
+        timecard:
+          $ref: '#/components/schemas/hcmnext.time.v1.Timecard'
+    hcmnext.time.v1.SyncRosterRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SyncRosterRequest`.
+      properties:
+        deviceId:
+          type: string
+        cursor:
+          type: string
+        maxResults:
+          type: integer
+          format: int32
+    hcmnext.time.v1.SyncRosterResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.SyncRosterResponse`.
+      properties:
+        snapshot:
+          $ref: '#/components/schemas/hcmnext.time.v1.RosterSnapshot'
+    hcmnext.time.v1.TimeDestination:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.TimeDestination`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TIME_DESTINATION_UNSPECIFIED
+        - TIME_DESTINATION_PAYROLL
+        - TIME_DESTINATION_CONTRACTOR_INVOICE
+        - TIME_DESTINATION_AGENCY_EXPORT
+        - TIME_DESTINATION_COSTING_ONLY
+    hcmnext.time.v1.TimeExceptionKind:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.TimeExceptionKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TIME_EXCEPTION_KIND_UNSPECIFIED
+        - TIME_EXCEPTION_KIND_SEQUENCE_GAP
+        - TIME_EXCEPTION_KIND_MISSING_CLOCK_OUT
+        - TIME_EXCEPTION_KIND_AMBIGUOUS_LOCATION
+        - TIME_EXCEPTION_KIND_DEVICE_REVOKED_QUEUE
+        - TIME_EXCEPTION_KIND_ATTESTATION_MISSING
+    hcmnext.time.v1.TimeProfile:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TimeProfile`.
+      properties:
+        profileId:
+          type: string
+        workerId:
+          type: string
+        captureMode:
+          $ref: '#/components/schemas/hcmnext.time.v1.CaptureMode'
+        payBasis:
+          $ref: '#/components/schemas/hcmnext.time.v1.PayBasis'
+        exemptionStatus:
+          $ref: '#/components/schemas/hcmnext.time.v1.ExemptionStatus'
+        workerCategory:
+          $ref: '#/components/schemas/hcmnext.time.v1.WorkerCategory'
+        destination:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeDestination'
+        overtimeMethod:
+          $ref: '#/components/schemas/hcmnext.time.v1.OvertimeMethod'
+        template:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimeTemplate'
+        controlClasses:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.ControlClass'
+        effectiveRange:
+          $ref: '#/components/schemas/hcmnext.common.v1.EffectiveTimeRange'
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+    hcmnext.time.v1.TimeTemplate:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.TimeTemplate`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TIME_TEMPLATE_UNSPECIFIED
+        - TIME_TEMPLATE_PUNCH_SESSION
+        - TIME_TEMPLATE_DURATION_TIMESHEET
+        - TIME_TEMPLATE_EXCEPTION_PERIOD
+        - TIME_TEMPLATE_CONTRACTOR_INVOICE
+        - TIME_TEMPLATE_AGENCY_VMS
+    hcmnext.time.v1.Timecard:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.Timecard`.
+      properties:
+        timecardId:
+          type: string
+        workerId:
+          type: string
+        periodStart:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        periodEnd:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        status:
+          $ref: '#/components/schemas/hcmnext.time.v1.TimecardStatus'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.time.v1.TimecardLine'
+        attestedBy:
+          type: string
+        attestedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        approvedBy:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        reopenReason:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        etag:
+          type: string
+    hcmnext.time.v1.TimecardApprovedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TimecardApprovedEvent`.
+      properties:
+        timecardId:
+          type: string
+        workerId:
+          type: string
+        approvedBy:
+          type: string
+        periodStart:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        periodEnd:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+    hcmnext.time.v1.TimecardLine:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TimecardLine`.
+      properties:
+        workDate:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        workedSeconds:
+          type: string
+          format: int64
+        breakSeconds:
+          type: string
+          format: int64
+        overtimeSeconds:
+          type: string
+          format: int64
+        sourceSessionIds:
+          type: array
+          items:
+            type: string
+    hcmnext.time.v1.TimecardReopenedEvent:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TimecardReopenedEvent`.
+      properties:
+        timecardId:
+          type: string
+        workerId:
+          type: string
+        reopenedBy:
+          type: string
+        reason:
+          type: string
+    hcmnext.time.v1.TimecardStatus:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.TimecardStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - TIMECARD_STATUS_UNSPECIFIED
+        - TIMECARD_STATUS_DRAFT
+        - TIMECARD_STATUS_SUBMITTED
+        - TIMECARD_STATUS_ATTESTED
+        - TIMECARD_STATUS_APPROVED
+        - TIMECARD_STATUS_REOPENED
+        - TIMECARD_STATUS_REJECTED
+    hcmnext.time.v1.TipRule:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TipRule`.
+      properties:
+        ruleRef:
+          type: string
+        description:
+          type: string
+    hcmnext.time.v1.TransferJobRequest:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TransferJobRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        sessionId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        jobId:
+          type: string
+        costCodeId:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        idempotencyKey:
+          type: string
+    hcmnext.time.v1.TransferJobResponse:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.TransferJobResponse`.
+      properties:
+        session:
+          $ref: '#/components/schemas/hcmnext.time.v1.ClockSession'
+    hcmnext.time.v1.WorkerCategory:
+      type: string
+      description: Protobuf enum `hcmnext.time.v1.WorkerCategory`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - WORKER_CATEGORY_UNSPECIFIED
+        - WORKER_CATEGORY_EMPLOYEE
+        - WORKER_CATEGORY_CONTRACTOR
+        - WORKER_CATEGORY_AGENCY_TEMP
+        - WORKER_CATEGORY_PLATFORM_WORKER
+    hcmnext.time.v1.WorkerCredentialRef:
+      type: object
+      description: 'Protobuf message `hcmnext.time.v1.WorkerCredentialRef`. Oneof `ref`: at most one of `punchToken`, `verifierRef` may be set.'
+      properties:
+        punchToken:
+          type: string
+          description: Member of oneof `ref`. Mutually exclusive with `verifierRef`.
+        verifierRef:
+          type: string
+          description: Member of oneof `ref`. Mutually exclusive with `punchToken`.
+    hcmnext.time.v1.WorkerCredentialVerifier:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.WorkerCredentialVerifier`.
+      properties:
+        workerId:
+          type: string
+        displayName:
+          type: string
+        method:
+          $ref: '#/components/schemas/hcmnext.time.v1.IdentificationMethod'
+        verifierRef:
+          type: string
+        revoked:
+          type: boolean
+    hcmnext.time.v1.WorkerPunchStatus:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.WorkerPunchStatus`.
+      properties:
+        workerId:
+          type: string
+        displayName:
+          type: string
+        sessionStatus:
+          $ref: '#/components/schemas/hcmnext.time.v1.SessionStatus'
+        currentJobId:
+          type: string
+        activeShiftId:
+          type: string
+        allowedNextEvents:
+          type: array
+          items:
+            type: string
+    hcmnext.time.v1.WorkflowTrackedReceipt:
+      type: object
+      description: Protobuf message `hcmnext.time.v1.WorkflowTrackedReceipt`.
+      properties:
+        receiptId:
+          type: string
+        workflowInstanceRef:
+          type: string
+        workflowTraceId:
+          type: string
+        workflowNodeId:
+          type: string
+        workflowAttempt:
+          type: integer
+          format: int32
+        workflowInstanceVersion:
+          type: string
+          format: int64
+        workflowId:
+          type: string
+        workflowPlanDigest:
+          type: string
     hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest:
       type: object
       description: Protobuf message `hcmnext.workflow.v1.ApplyWorkflowTemplateOverlayRequest`.
@@ -22220,3 +26067,907 @@ components:
           type: string
         targetId:
           type: string
+    hcmnext.workorder.v1.AddWorkOrderNoteRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.AddWorkOrderNoteRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        body:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.NoteVisibility'
+        classification:
+          type: string
+        phaseId:
+          type: string
+        lineId:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.AddWorkOrderNoteResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.AddWorkOrderNoteResponse`.
+      properties:
+        note:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrderNote'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.ApprovalRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ApprovalRequest`.
+      properties:
+        subject:
+          type: string
+        proposedAction:
+          type: string
+        approverClass:
+          type: string
+        dueAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.BillingDraft:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.BillingDraft`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        contractVersion:
+          type: string
+        sourceCutoffRevision:
+          type: string
+          format: uint64
+        status:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BillingDraftStatus'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.workorder.v1.BillingDraftLine'
+        total:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        generatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.workorder.v1.BillingDraftLine:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.BillingDraftLine`.
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        amount:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        sourceEntryIds:
+          type: array
+          items:
+            type: string
+        pricingRuleRef:
+          type: string
+    hcmnext.workorder.v1.BillingDraftStatus:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.BillingDraftStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - BILLING_DRAFT_STATUS_UNSPECIFIED
+        - BILLING_DRAFT_STATUS_PENDING_REVIEW
+        - BILLING_DRAFT_STATUS_APPROVED
+        - BILLING_DRAFT_STATUS_REJECTED
+    hcmnext.workorder.v1.BillingReviewRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.BillingReviewRequest`.
+      properties:
+        periodStart:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        periodEnd:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        contractVersion:
+          type: string
+        sourceCutoffRevision:
+          type: string
+          format: uint64
+        rationale:
+          type: string
+    hcmnext.workorder.v1.BudgetRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.BudgetRequest`.
+      properties:
+        requestedLimit:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        costCategory:
+          type: string
+        fundingSource:
+          type: string
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.ChangeOrderRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ChangeOrderRequest`.
+      properties:
+        scopeDelta:
+          type: string
+        quantityDelta:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        priceDelta:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        scheduleDeltaSeconds:
+          type: string
+          format: int64
+        baselineRevision:
+          type: string
+          format: uint64
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.CreateWorkOrderRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.CreateWorkOrderRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        title:
+          type: string
+        scope:
+          type: string
+        templateId:
+          type: string
+        templateVersion:
+          type: string
+        supervisorId:
+          type: string
+        linkedTaskIds:
+          type: array
+          items:
+            type: string
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.CreateWorkOrderResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.CreateWorkOrderResponse`.
+      properties:
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.DecideInitiatorRequestRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.DecideInitiatorRequestRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        requestId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        decision:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.DecisionKind'
+        reason:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.DecideInitiatorRequestResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.DecideInitiatorRequestResponse`.
+      properties:
+        request:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InitiatorRequest'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.DecisionKind:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.DecisionKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - DECISION_KIND_UNSPECIFIED
+        - DECISION_KIND_APPROVE
+        - DECISION_KIND_REJECT
+        - DECISION_KIND_RETURN_FOR_REVISION
+    hcmnext.workorder.v1.DocumentRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.DocumentRequest`.
+      properties:
+        documentKind:
+          type: string
+        dueAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        evidencePolicyRef:
+          type: string
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.GetWorkOrderRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.GetWorkOrderRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+    hcmnext.workorder.v1.GetWorkOrderResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.GetWorkOrderResponse`.
+      properties:
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.InitiatorRequest:
+      type: object
+      description: 'Protobuf message `hcmnext.workorder.v1.InitiatorRequest`. Oneof `details`: at most one of `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document` may be set.'
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InitiatorRequestKind'
+        status:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.RequestStatus'
+        requesterId:
+          type: string
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        workOrderRevision:
+          type: string
+          format: uint64
+        budget:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BudgetRequest'
+          description: Member of oneof `details`. Mutually exclusive with `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        approval:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ApprovalRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        resource:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ResourceRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        inspection:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InspectionRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `changeOrder`, `billingReview`, `document`.
+        changeOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ChangeOrderRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `billingReview`, `document`.
+        billingReview:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BillingReviewRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `document`.
+        document:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.DocumentRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`.
+    hcmnext.workorder.v1.InitiatorRequestKind:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.InitiatorRequestKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - INITIATOR_REQUEST_KIND_UNSPECIFIED
+        - INITIATOR_REQUEST_KIND_BUDGET
+        - INITIATOR_REQUEST_KIND_APPROVAL
+        - INITIATOR_REQUEST_KIND_CREW
+        - INITIATOR_REQUEST_KIND_MATERIAL
+        - INITIATOR_REQUEST_KIND_EQUIPMENT
+        - INITIATOR_REQUEST_KIND_INSPECTION
+        - INITIATOR_REQUEST_KIND_DOCUMENT
+        - INITIATOR_REQUEST_KIND_CHANGE_ORDER
+        - INITIATOR_REQUEST_KIND_BILLING_REVIEW
+    hcmnext.workorder.v1.InspectionRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.InspectionRequest`.
+      properties:
+        inspectionScope:
+          type: string
+        dueAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        evidencePolicyRef:
+          type: string
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.ListWorkOrdersRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ListWorkOrdersRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        projectId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrderStatus'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageRequest'
+    hcmnext.workorder.v1.ListWorkOrdersResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ListWorkOrdersResponse`.
+      properties:
+        workOrders:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+        page:
+          $ref: '#/components/schemas/hcmnext.common.v1.PageResponse'
+    hcmnext.workorder.v1.NoteVisibility:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.NoteVisibility`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - NOTE_VISIBILITY_UNSPECIFIED
+        - NOTE_VISIBILITY_PARTICIPANTS
+        - NOTE_VISIBILITY_SUPERVISORS
+        - NOTE_VISIBILITY_FINANCE
+    hcmnext.workorder.v1.PhaseTransitionResult:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.PhaseTransitionResult`.
+      properties:
+        applied:
+          type: boolean
+        transitionId:
+          type: string
+        outstandingRequirementRefs:
+          type: array
+          items:
+            type: string
+        refusalReasonRef:
+          type: string
+    hcmnext.workorder.v1.ProgressEntry:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ProgressEntry`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        lineId:
+          type: string
+        completedQuantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ProgressStatus'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        verifierId:
+          type: string
+        correctionOfEntryId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+    hcmnext.workorder.v1.ProgressStatus:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.ProgressStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - PROGRESS_STATUS_UNSPECIFIED
+        - PROGRESS_STATUS_SUBMITTED
+        - PROGRESS_STATUS_VERIFIED
+        - PROGRESS_STATUS_ACCEPTED
+        - PROGRESS_STATUS_REJECTED
+    hcmnext.workorder.v1.RecordProgressEntryRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordProgressEntryRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        lineId:
+          type: string
+        completedQuantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        correctionOfEntryId:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.RecordProgressEntryResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordProgressEntryResponse`.
+      properties:
+        entry:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ProgressEntry'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.RecordSpendEntryRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordSpendEntryRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        category:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkEntryKind'
+        disposition:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.SpendDisposition'
+        amount:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        sourceDocumentRef:
+          type: string
+        correctionOfEntryId:
+          type: string
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.RecordSpendEntryResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordSpendEntryResponse`.
+      properties:
+        entry:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.SpendEntry'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.RecordWorkEntryRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordWorkEntryRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        workerId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkEntryKind'
+        workDate:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        timezone:
+          type: string
+        durationSeconds:
+          type: string
+          format: int64
+        lineId:
+          type: string
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        sourceRef:
+          type: string
+        correctionOfEntryId:
+          type: string
+        idempotencyKey:
+          type: string
+        description:
+          type: string
+    hcmnext.workorder.v1.RecordWorkEntryResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RecordWorkEntryResponse`.
+      properties:
+        entry:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkEntry'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.ReportKind:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.ReportKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - REPORT_KIND_UNSPECIFIED
+        - REPORT_KIND_DAILY_FIELD
+        - REPORT_KIND_QUANTITY_PROGRESS
+        - REPORT_KIND_COST_VARIANCE
+        - REPORT_KIND_OPEN_REQUESTS
+        - REPORT_KIND_CLOSEOUT_EVIDENCE
+    hcmnext.workorder.v1.RequestBillingDraftRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestBillingDraftRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        contractVersion:
+          type: string
+        periodStart:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        periodEnd:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.RequestBillingDraftResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestBillingDraftResponse`.
+      properties:
+        draft:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BillingDraft'
+    hcmnext.workorder.v1.RequestPhaseTransitionRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestPhaseTransitionRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        targetPhaseId:
+          type: string
+        reason:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.RequestPhaseTransitionResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestPhaseTransitionResponse`.
+      properties:
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+        result:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.PhaseTransitionResult'
+    hcmnext.workorder.v1.RequestStatus:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.RequestStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - REQUEST_STATUS_UNSPECIFIED
+        - REQUEST_STATUS_PENDING
+        - REQUEST_STATUS_APPROVED
+        - REQUEST_STATUS_REJECTED
+        - REQUEST_STATUS_RETURNED
+        - REQUEST_STATUS_CANCELLED
+    hcmnext.workorder.v1.RequestWorkOrderReportRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestWorkOrderReportRequest`.
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ReportKind'
+        definitionId:
+          type: string
+        definitionVersion:
+          type: integer
+          format: uint32
+          minimum: 0
+        idempotencyKey:
+          type: string
+    hcmnext.workorder.v1.RequestWorkOrderReportResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.RequestWorkOrderReportResponse`.
+      properties:
+        report:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrderReport'
+    hcmnext.workorder.v1.ResourceRequest:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.ResourceRequest`.
+      properties:
+        roleOrItem:
+          type: string
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        location:
+          type: string
+        neededFrom:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        neededUntil:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        estimatedCost:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        rationale:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+    hcmnext.workorder.v1.SpendDisposition:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.SpendDisposition`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - SPEND_DISPOSITION_UNSPECIFIED
+        - SPEND_DISPOSITION_COMMITMENT
+        - SPEND_DISPOSITION_INCURRED
+    hcmnext.workorder.v1.SpendEntry:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.SpendEntry`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        category:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkEntryKind'
+        disposition:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.SpendDisposition'
+        amount:
+          $ref: '#/components/schemas/hcmnext.common.v1.Money'
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        sourceDocumentRef:
+          type: string
+        approverId:
+          type: string
+        correctionOfEntryId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+    hcmnext.workorder.v1.SubmitInitiatorRequestRequest:
+      type: object
+      description: 'Protobuf message `hcmnext.workorder.v1.SubmitInitiatorRequestRequest`. Oneof `details`: at most one of `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document` may be set.'
+      properties:
+        scopeContext:
+          $ref: '#/components/schemas/hcmnext.common.v1.ScopeContext'
+        workOrderId:
+          type: string
+        expectedRevision:
+          type: string
+          format: uint64
+        idempotencyKey:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InitiatorRequestKind'
+        budget:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BudgetRequest'
+          description: Member of oneof `details`. Mutually exclusive with `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        approval:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ApprovalRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `resource`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        resource:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ResourceRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `inspection`, `changeOrder`, `billingReview`, `document`.
+        inspection:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InspectionRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `changeOrder`, `billingReview`, `document`.
+        changeOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ChangeOrderRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `billingReview`, `document`.
+        billingReview:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.BillingReviewRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `document`.
+        document:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.DocumentRequest'
+          description: Member of oneof `details`. Mutually exclusive with `budget`, `approval`, `resource`, `inspection`, `changeOrder`, `billingReview`.
+        formValues:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map keyed by string (JSON object keys are strings).
+    hcmnext.workorder.v1.SubmitInitiatorRequestResponse:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.SubmitInitiatorRequestResponse`.
+      properties:
+        request:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.InitiatorRequest'
+        workOrder:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrder'
+    hcmnext.workorder.v1.WorkEntry:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.WorkEntry`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        workerId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkEntryKind'
+        workDate:
+          $ref: '#/components/schemas/hcmnext.common.v1.LocalDate'
+        timezone:
+          type: string
+        durationSeconds:
+          type: string
+          format: int64
+        lineId:
+          type: string
+        quantity:
+          $ref: '#/components/schemas/hcmnext.common.v1.Decimal'
+        unit:
+          type: string
+        sourceRef:
+          type: string
+        correctionOfEntryId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        description:
+          type: string
+    hcmnext.workorder.v1.WorkEntryKind:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.WorkEntryKind`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - WORK_ENTRY_KIND_UNSPECIFIED
+        - WORK_ENTRY_KIND_LABOR
+        - WORK_ENTRY_KIND_MATERIAL
+        - WORK_ENTRY_KIND_EQUIPMENT
+        - WORK_ENTRY_KIND_SUBCONTRACT
+        - WORK_ENTRY_KIND_OTHER
+    hcmnext.workorder.v1.WorkOrder:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.WorkOrder`.
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        scope:
+          type: string
+        templateId:
+          type: string
+        templateVersion:
+          type: string
+        phaseId:
+          type: string
+        status:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.WorkOrderStatus'
+        initiatorId:
+          type: string
+        supervisorId:
+          type: string
+        revision:
+          type: string
+          format: uint64
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+        updatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.workorder.v1.WorkOrderNote:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.WorkOrderNote`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        authorId:
+          type: string
+        body:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.NoteVisibility'
+        classification:
+          type: string
+        phaseId:
+          type: string
+        lineId:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/hcmnext.common.v1.EvidenceRef'
+        revision:
+          type: string
+          format: uint64
+        createdAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.workorder.v1.WorkOrderReport:
+      type: object
+      description: Protobuf message `hcmnext.workorder.v1.WorkOrderReport`.
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        kind:
+          $ref: '#/components/schemas/hcmnext.workorder.v1.ReportKind'
+        definitionId:
+          type: string
+        definitionVersion:
+          type: integer
+          format: uint32
+          minimum: 0
+        sourceCutoffRevision:
+          type: string
+          format: uint64
+        completenessState:
+          type: string
+        artifactRef:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+          description: RFC 3339 timestamp in UTC, e.g. 2026-09-19T12:00:00Z.
+    hcmnext.workorder.v1.WorkOrderStatus:
+      type: string
+      description: Protobuf enum `hcmnext.workorder.v1.WorkOrderStatus`. The JSON mapping writes value names; parsers also accept the numeric value.
+      enum:
+        - WORK_ORDER_STATUS_UNSPECIFIED
+        - WORK_ORDER_STATUS_DRAFT
+        - WORK_ORDER_STATUS_ACTIVE
+        - WORK_ORDER_STATUS_BLOCKED
+        - WORK_ORDER_STATUS_ACCEPTED
+        - WORK_ORDER_STATUS_CLOSED
+        - WORK_ORDER_STATUS_CANCELLED

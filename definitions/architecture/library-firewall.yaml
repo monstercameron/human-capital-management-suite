@@ -41,6 +41,7 @@ protobuf_grpc:
     - internal/application
     - internal/intent/app
     - internal/intent/protomap
+    - internal/workflow/authoredwire
     - internal/engines/wire
     - internal/timeclockapp
     - tools/gen
