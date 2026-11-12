@@ -178,32 +178,34 @@ func journeyPreviewEmbeds(m Model, body string) []ui.Node {
 }
 
 func journeyPreviewCard(m Model, p JourneyPreview) ui.Node {
-	head := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-project-embed-kind"}, journeyGlyph(), ui.Text(m.tf(KeyJourneyEmbed, map[string]string{"workflow": journeyWorkflowName(m, p)})))}
+	head := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-project-embed-kind chat-work-card-type"}, journeyGlyph(), ui.Text(m.tf(KeyJourneyEmbed, map[string]string{"workflow": journeyWorkflowName(m, p)})))}
 	switch {
 	case journeyPreviewReady(p, p.IntentID):
 	case p.State == "ready" || p.State == "restricted" || p.State == "missing" || p.State == "unavailable":
 		state := journeyLockedState(p.State)
-		return html.Div(html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": state}}, append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: journeyStateText(m, state)}))...)
+		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": state}}, false), append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: journeyStateText(m, state)}))...)
 	default:
-		return html.Div(html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-loading", Data: map[string]string{"embed-state": "loading"}, Aria: map[string]string{"busy": "true"}},
+		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-loading", Data: map[string]string{"embed-state": "loading"}, Aria: map[string]string{"busy": "true"}}, false),
 			append(head,
 				html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-title", Aria: map[string]string{"hidden": "true"}}),
 				html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-byline", Aria: map[string]string{"hidden": "true"}}),
 				html.Span(html.Props{Class: "sr-only", Text: m.t(KeyProjectEmbedLoading)}))...)
 	}
-	children := append(head, html.Strong(html.Props{Class: "chat-embed-source chat-project-embed-title", Dir: "auto", Text: p.Worker}))
+	children := append(head, html.Strong(html.Props{Class: "chat-embed-source chat-project-embed-title chat-work-card-title", Dir: "auto", Text: p.Worker}))
 	if p.From != "" || p.To != "" {
 		children = append(children, html.Span(html.Props{Class: "chat-journey-embed-move", Dir: "ltr"}, html.Span(html.Props{Text: p.From}), html.Span(html.Props{Class: "chat-journey-embed-arrow", Aria: map[string]string{"hidden": "true"}, Text: "→"}), html.Strong(html.Props{Text: p.To})))
 	}
-	meta := []ui.Node{html.Span(html.Props{Class: "chat-project-embed-status", Data: map[string]string{"tone": journeyTone(p.StageTone)}}, html.Span(html.Props{Class: "chat-project-embed-dot", Aria: map[string]string{"hidden": "true"}}), ui.Text(journeyStageLabel(m, p.Stage)))}
+	meta := []ui.Node{html.Span(html.Props{Class: "chat-project-embed-status chat-work-card-status", Data: map[string]string{"tone": journeyTone(p.StageTone)}}, html.Span(html.Props{Class: "chat-project-embed-dot", Aria: map[string]string{"hidden": "true"}}), ui.Text(journeyStageLabel(m, p.Stage)))}
 	if effective, err := time.Parse("2006-01-02", p.Effective); err == nil {
 		meta = append(meta, html.Span(html.Props{Class: "chat-project-embed-due", Text: m.tf(KeyJourneyEffective, map[string]string{"date": formatShortDate(m.Locale, effective)})}))
 	}
 	if p.Approver != "" {
-		meta = append(meta, html.Span(html.Props{Class: "chat-project-embed-assignee"}, ui.Text(m.tf(KeyJourneyApprover, map[string]string{"name": p.Approver}))))
+		meta = append(meta, html.Span(html.Props{Class: "chat-project-embed-assignee chat-work-card-waits"}, ui.Text(m.tf(KeyJourneyApprover, map[string]string{"name": p.Approver}))))
 	}
-	children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...))
-	return html.A(html.Props{Class: "chat-embed chat-embed-link chat-project-embed chat-journey-embed", Href: JourneyReferenceURL(p.IntentID), Data: map[string]string{"action": "open-journey-reference", "id": p.IntentID, "tone": p.StageTone}, Aria: map[string]string{"label": m.tf(KeyOpenJourney, map[string]string{"title": p.Worker})}}, children...)
+	// A journey still under way waits on its approver.
+	waits := workCardWaitsOnViewer(m, p.Approver, p.StageTone != "done")
+	children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...), workCardAction(m, waits))
+	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed chat-journey-embed", Href: JourneyReferenceURL(p.IntentID), Data: map[string]string{"action": "open-journey-reference", "id": p.IntentID, "tone": p.StageTone}, Aria: map[string]string{"label": m.tf(KeyOpenJourney, map[string]string{"title": p.Worker})}}, waits), children...)
 }
 
 // journeyTone maps a stage group onto the shared status-pill tones.
@@ -256,8 +258,8 @@ func journeyReferenceNavigate(m Model, intentID string, plain bool) bool {
 	return true
 }
 
-const journeyEmbedStyles = `.chat-journey-embed{border-inline-start-color:var(--hcm-color-warning,#b45309)}` +
-	`.chat-journey-embed[data-tone="done"]{border-inline-start-color:var(--hcm-color-success,#15803d)}` +
-	`.chat-journey-embed-move{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:.8125rem;color:var(--muted);font-variant-numeric:tabular-nums}` +
+// The card's frame is the shared work-object card's (chatDesignWorkCardStyles,
+// #3777); only the journey's own from/to line is styled here.
+const journeyEmbedStyles = `.chat-journey-embed-move{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:.8125rem;color:var(--muted);font-variant-numeric:tabular-nums}` +
 	`.chat-journey-embed-move strong{color:var(--ink);font-weight:600}` +
 	`.chat-journey-embed-arrow{color:var(--muted)}`
