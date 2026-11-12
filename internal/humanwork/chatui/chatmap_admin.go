@@ -45,9 +45,18 @@ type ChatmapAdminModel struct {
 	// Invalid is true when the country form was submitted without a country or
 	// without its basis.
 	Invalid bool
+	// CountryRejected is true when the server refused the country form as too
+	// long or not valid (ISSUE-3700); the message names the field, not the page.
+	CountryRejected bool
 	// SavePolicy saves the switches and limits; SaveCountry saves the country
 	// form; Retry reads the settings again after a failure.
 	SavePolicy, SaveCountry, Retry ui.Handler
+}
+
+// chatmapAdminCountryRefused is true when the server turned the country form
+// away as invalid (400 invalid_request), which the country field must explain.
+func chatmapAdminCountryRefused(action string, status int) bool {
+	return action == "setjurisdiction" && status == 400
 }
 
 func (m ChatmapAdminModel) failureKey() string {
@@ -109,6 +118,7 @@ var chatmapAdminCopy = map[string][3]string{
 	"admin_basis_hint":      {"Recorded with the change, for example the agreement or the date it is expected.", "Wird mit der Änderung festgehalten, zum Beispiel die Vereinbarung oder das erwartete Datum.", "يُسجَّل مع التغيير، مثل الاتفاق أو التاريخ المتوقع."},
 	"admin_save_country":    {"Save country", "Land speichern", "حفظ البلد"},
 	"admin_country_invalid": {"Enter a country and the basis for the choice.", "Geben Sie ein Land und die Grundlage der Entscheidung ein.", "أدخل بلداً وأساس القرار."},
+	"admin_country_refused": {"The country or the basis is too long or not valid. A country can be up to 8 characters and the basis up to 500.", "Land oder Grundlage ist zu lang oder ungültig. Ein Land darf höchstens 8 Zeichen haben, die Grundlage höchstens 500.", "البلد أو الأساس طويل أو غير صالح. يمكن أن يبلغ البلد 8 أحرف على الأكثر والأساس 500 حرف على الأكثر."},
 	"admin_everywhere":      {"Everywhere else", "Überall sonst", "في كل مكان آخر"},
 	"admin_row":             {"%s: location sharing %s. Basis: %s", "%s: Standortfreigabe %s. Grundlage: %s", "%s: مشاركة الموقع %s. الأساس: %s"},
 }
@@ -164,6 +174,8 @@ func ChatmapWorkspaceSettings(m ChatmapAdminModel) ui.Node {
 		problem = t("admin_loading")
 	case m.Invalid:
 		problem = t("admin_country_invalid")
+	case m.CountryRejected:
+		problem = t("admin_country_refused")
 	case m.Failed:
 		problem = t(m.failureKey())
 	}
@@ -219,9 +231,13 @@ func ChatmapWorkspaceSettings(m ChatmapAdminModel) ui.Node {
 	} else {
 		countries = append(countries, html.Ul(html.Props{Class: "chatlangadmin-terms", Aria: map[string]string{"label": t("admin_countries")}}, rows...))
 	}
+	countryAria := map[string]string{"describedby": "chatmapadmin-country-hint"}
+	if m.Invalid || m.CountryRejected {
+		countryAria["invalid"] = "true"
+	}
 	countries = append(countries, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatmapadmin": "country"}, OnSubmit: m.SaveCountry, Aria: map[string]string{"labelledby": "chatmapadmin-countries-title"}},
 		html.Label(html.Props{For: "chatmapadmin-country", Text: t("admin_country")}),
-		html.Input(html.Props{ID: "chatmapadmin-country", Name: "country", Type: "text", MaxLength: 40, Required: true, Disabled: m.Loading, Dir: "auto", Aria: map[string]string{"describedby": "chatmapadmin-country-hint"}}),
+		html.Input(html.Props{ID: "chatmapadmin-country", Name: "country", Type: "text", MaxLength: 40, Required: true, Disabled: m.Loading, Dir: "auto", Aria: countryAria}),
 		html.P(html.Props{ID: "chatmapadmin-country-hint", Class: "field-hint", Text: t("admin_country_hint")}),
 		html.Label(html.Props{For: "chatmapadmin-country-state", Text: t("admin_country_state")}),
 		html.Select(html.Props{ID: "chatmapadmin-country-state", Name: "state", Disabled: m.Loading}, html.Option(html.Props{Value: "off", Selected: true, Text: t("admin_off")}), html.Option(html.Props{Value: "on", Text: t("admin_on")})),

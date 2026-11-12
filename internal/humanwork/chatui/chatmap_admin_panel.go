@@ -15,7 +15,7 @@ func chatmapAdminPanel(props chatmapAdminProps) ui.Node {
 	state := ui.UseState(ChatmapAdminModel{Locale: props.Locale})
 	apply := func(data ChatmapAdminData, status int, err error, saved bool, field string) {
 		current := state.Get()
-		current.Loading, current.Invalid = false, false
+		current.Loading, current.Invalid, current.CountryRejected = false, false, false
 		switch {
 		case err == nil:
 			current.Data, current.Loaded, current.Failed, current.Denied, current.Saved = data, true, false, false, saved
@@ -38,9 +38,17 @@ func chatmapAdminPanel(props chatmapAdminProps) ui.Node {
 	// save writes, then reads the whole settings again.
 	save := func(action string, body any, field string) {
 		current := state.Get()
-		current.Loading, current.Failed, current.Saved, current.Invalid = true, false, false, false
+		current.Loading, current.Failed, current.Saved, current.Invalid, current.CountryRejected = true, false, false, false, false
 		state.Set(current)
 		chatmapAdminCall(action, body, func(_ ChatmapAdminData, status int, err error) {
+			if err != nil && chatmapAdminCountryRefused(action, status) {
+				// The server said the country is not valid: the form says so, and the
+				// settings on show stay as they were.
+				current := state.Get()
+				current.Loading, current.CountryRejected = false, true
+				state.Set(current)
+				return
+			}
 			if err != nil {
 				apply(ChatmapAdminData{}, status, err, false, "")
 				return

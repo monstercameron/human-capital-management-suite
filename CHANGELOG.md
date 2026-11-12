@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Validation failure on country save shows a generic 'could not load (#3700, partial)
+
+- Chat location settings: a country the server refuses now shows a field-level message on the country form instead of the page-level "could not load or save" line (ISSUE-3700).
+
 ## 2026-11-12 — Chat: Admin country jurisdiction accepts unknown or markup values as cou (#3699, partial)
 
 - Chat admin: the country form now refuses codes that are not ISO countries and markup with an inline error, instead of saving them (#3699).
