@@ -213,9 +213,11 @@ func chatLayerKind(action string) string {
 		return "reaction"
 	case "menu":
 		return "menu"
-	case "details", "stats", "agents-here":
+	case "details", "agents-here":
 		return "details"
-	case "reply":
+	case "reply", "stats":
+		// The thread-count link opens the same thread as Reply in thread, so focus
+		// returns to it when the thread closes (issue 3722).
 		return "thread"
 	case "chat-search-open":
 		return "search"

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Focus is lost to the page body when the thread panel is closed (#3722, partial)
+
+- Chat: focus returns to the thread-count link when a thread closes from its Reply or count opener (issue 3722; Close-button restore pending a render.go edit).
+
 ## 2026-11-12 — Chat: Copy text gives no confirmation (#3718, partial)
 
 - Copy text now copies the message's words without Markdown markup (chatissue3718 plain-text walk in chatui; call site pending in the Chat wasm client).
