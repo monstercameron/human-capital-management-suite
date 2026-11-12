@@ -11,10 +11,14 @@ import (
 // conversation instead of beside it, names keep their line, and the phone
 // list bar keeps the workspace controls.
 func TestTodo_CHATUX_045(t *testing.T) {
-	t.Run("Saved opens over the conversation at tablet widths", func(t *testing.T) {
+	t.Run("Saved takes its own grid column at tablet widths so the conversation shrinks", func(t *testing.T) {
+		// Issue #3673: Saved shares the width with the conversation like Thread
+		// does; the panel is not overlaid on the timeline's right edge.
 		for _, want := range []string{
-			// Saved takes no grid column: rail and conversation keep theirs.
-			`.chat-workspace.chat-workspace:has(>.chatsave-panel:popover-open) .chat-layout{grid-template-columns:minmax(220px,var(--chat-rail)) minmax(0,1fr)}`,
+			// Rail, conversation and a 360px track for the Saved panel.
+			`.chat-workspace.chat-workspace:has(>.chatsave-panel:popover-open) .chat-layout{grid-template-columns:minmax(220px,var(--chat-rail)) minmax(0,1fr) minmax(260px,360px)}`,
+			// Narrow tablet containers hide the rail and keep the same track for Saved.
+			`.chat-workspace.chat-workspace:has(>.chatsave-panel:popover-open) .chat-layout{grid-template-columns:minmax(0,1fr) minmax(260px,360px)}`,
 			`.chat-workspace .chatsave-panel{inline-size:min(360px,calc(100vw - 16px))}`,
 			// At the narrowest tablet widths the list steps aside as a drawer.
 			`.chat-workspace[data-sidebar-open="true"]:has(>.chatsave-panel:popover-open) .chat-rail{display:flex;position:fixed`,
@@ -22,6 +26,9 @@ func TestTodo_CHATUX_045(t *testing.T) {
 			if !strings.Contains(ChatUX045Styles, want) {
 				t.Errorf("tablet Saved rule missing: %.80q", want)
 			}
+		}
+		if strings.Contains(ChatUX045Styles, `.chat-layout{grid-template-columns:minmax(220px,var(--chat-rail)) minmax(0,1fr)}`) {
+			t.Error("Saved still drops the grid column at tablet widths; the composer and header actions sit under the panel")
 		}
 		if !strings.Contains(Stylesheet, ChatUX045Styles) {
 			t.Error("ChatUX045Styles is not composed into the served stylesheet")

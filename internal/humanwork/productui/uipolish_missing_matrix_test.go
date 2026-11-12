@@ -358,7 +358,11 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// trigger is a neutral skeleton span (class "avatar viewer avatar-loading")
 	// instead of the initials of the "Not reported" placeholder, and the Chat
 	// settings page subtitle now names retention and agents.
-	const want = "6ed74d04f967af79d9dd471a35ddefe6bacebda9e77a957af6ccee0785f56d0b"
+	// Re-pinned 2026-11-12 (#3673, #3674): the served stylesheet gains the rule
+	// that narrows the conversation column while the Saved panel is open on
+	// desktop widths, and the Jump-to-unread pills move out of the rail scroll
+	// area into strips that take height only while a pill is shown.
+	const want = "daf345002098b1f21be710828c97e9e379bc51b4f95648a72fe54557b4ba6b89"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

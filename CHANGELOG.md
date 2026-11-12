@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Saved panel shares the width on desktop instead of covering the composer (#3673)
+
+- Opening Saved on a desktop-width window now narrows the conversation to make room for it, so the composer's Send button and the header actions stay usable.
+
 ## 2026-11-12 — Chat: Jump to unread pill no longer covers sidebar rows (#3674)
 
 - The Jump to unread button in the chat sidebar no longer covers conversation rows or section headings; it appears in its own strip above or below the list only while it is shown.
