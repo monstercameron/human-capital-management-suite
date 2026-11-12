@@ -1223,7 +1223,7 @@ var productMessages = withAgentUXPage5Messages(withFeatureMessages(map[string]ma
 		"worker_ids.format_title": {Text: "Number format"}, "worker_ids.format_help": {Text: "Rules apply to new workers only; existing identifiers never change."}, "worker_ids.prefix": {Text: "Prefix"}, "worker_ids.prefix_help": {Text: "Up to 12 letters or digits."}, "worker_ids.suffix": {Text: "Suffix"}, "worker_ids.suffix_help": {Text: "Optional employment or company marker."}, "worker_ids.separator": {Text: "Separator"}, "worker_ids.digits": {Text: "Maximum sequence digits"}, "worker_ids.digits_help": {Text: "One to twelve digits; allocation stops before overflow."}, "worker_ids.start": {Text: "Starting number"}, "worker_ids.start_help": {Text: "Used only before this organization issues its first number."}, "worker_ids.increment": {Text: "Increment"}, "worker_ids.increment_help": {Text: "The step between eligible sequence values."}, "worker_ids.padding": {Text: "Number width"}, "worker_ids.year": {Text: "Hire-year segment"}, "worker_ids.unit": {Text: "Organization-unit segment"}, "worker_ids.check": {Text: "Error-detection digit"}, "worker_ids.excluded": {Text: "Reserved numbers or ranges"}, "worker_ids.excluded_help": {Text: "Comma-separated values such as 13,100-199,666."}, "worker_ids.save": {Text: "Save worker ID rules"}, "worker_ids.status": {Text: "Changes are organization-wide and version checked."},
 		"worker_ids.saved": {Text: "Saved"}, "worker_ids.unsaved": {Text: "Unsaved changes"}, "worker_ids.no_unsaved": {Text: "No unsaved changes"}, "worker_ids.changes_to_apply": {Text: "Changes to apply"}, "worker_ids.change_identity": {Text: "Number prefix, suffix, or separator"}, "worker_ids.change_sequence": {Text: "Sequence allocation"}, "worker_ids.change_format": {Text: "Display format"}, "worker_ids.change_reserved": {Text: "Reserved numbers"},
 		"worker_ids.unique": {Text: "Atomic uniqueness"}, "worker_ids.preview": {Text: "Format preview"}, "worker_ids.preview_help": {Text: "Preview of the current format. Examples use the next sequence; no numbers are issued until you save."}, "worker_ids.next": {Text: "Next sequence"}, "worker_ids.issued": {Text: "Numbers reserved"}, "worker_ids.non_reuse": {Text: "Reserved worker numbers are never reused. Failed or cancelled hiring workflows may intentionally leave gaps."},
-		"page.chat_settings.label": {Text: "Chat settings"}, "page.chat_settings.title": {Text: "Chat settings"}, "page.chat_settings.subtitle": {Text: "Manage tenant-wide chat retention settings."},
+		"page.chat_settings.label": {Text: "Chat settings"}, "page.chat_settings.title": {Text: "Chat settings"}, "page.chat_settings.subtitle": {Text: "Manage tenant-wide chat settings, including retention and agents."},
 		"page.appearance.label": {Text: "Brand & appearance"}, "page.appearance.title": {Text: "Brand & appearance"}, "page.appearance.subtitle": {Text: "Shape a consistent workspace identity with governed, accessible theme choices."},
 		"page.studio.label": {Text: "Experience Studio"}, "page.studio.title": {Text: "Experience Studio"}, "page.studio.subtitle": {Text: "Customer page configuration requires its governed service."},
 		"page.workflow_designer.label": {Text: "Workflow Designer"}, "page.workflow_designer.title": {Text: "Workflow Designer"}, "page.workflow_designer.subtitle": {Text: "Review published workflow paths and build controlled workflow drafts."},
@@ -2800,7 +2800,7 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	case "de-DE":
 		messages["page.chat_settings.label"] = localize.Message{Text: "Chat-Einstellungen"}
 		messages["page.chat_settings.title"] = localize.Message{Text: "Chat-Einstellungen"}
-		messages["page.chat_settings.subtitle"] = localize.Message{Text: "Verwalten Sie die mandantenweiten Einstellungen zur Chat-Aufbewahrung."}
+		messages["page.chat_settings.subtitle"] = localize.Message{Text: "Verwalten Sie die mandantenweiten Chat-Einstellungen für Aufbewahrung und Agenten."}
 		messages["knowledge_search.results"] = localize.Message{Text: "Suchergebnisse"}
 		messages["knowledge_search.no_results_title"] = localize.Message{Text: "Für diese Suche sind keine Artikel verfügbar"}
 		messages["knowledge_search.no_results_detail"] = localize.Message{Text: "Versuchen Sie eine andere Suchanfrage oder kehren Sie zum Hilfezentrum zurück."}
@@ -2818,7 +2818,7 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	case "ar":
 		messages["page.chat_settings.label"] = localize.Message{Text: "إعدادات الدردشة"}
 		messages["page.chat_settings.title"] = localize.Message{Text: "إعدادات الدردشة"}
-		messages["page.chat_settings.subtitle"] = localize.Message{Text: "أدر إعدادات الاحتفاظ برسائل الدردشة على مستوى المستأجر."}
+		messages["page.chat_settings.subtitle"] = localize.Message{Text: "أدر إعدادات الدردشة على مستوى المستأجر، بما في ذلك الاحتفاظ بالرسائل والوكلاء."}
 		messages["knowledge_search.results"] = localize.Message{Text: "نتائج البحث"}
 		messages["knowledge_search.no_results_title"] = localize.Message{Text: "لا تتوفر مقالات لهذا البحث"}
 		messages["knowledge_search.no_results_detail"] = localize.Message{Text: "جرّب عبارة بحث أخرى أو عُد إلى مركز المساعدة."}

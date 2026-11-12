@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Open agent settings lands on the Agents section (#3683, partial)
+
+- The "Open agent settings" link now opens the Agents section of Chat settings, and the Chat settings subtitle mentions agents as well as retention.
+
 ## 2026-11-12 — Chat: Local fake agent no longer reports an empty answer as success (#3681, partial)
 
 - An agent question that produces no answer now counts as Failed instead of Completed in local development. (Partial: the no-model notice before sending is not done yet.)

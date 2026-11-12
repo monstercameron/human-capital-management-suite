@@ -36,7 +36,7 @@ func TestDedicatedChatSettingsPageShowsSavedPolicyAndPendingEnforcement(t *testi
 			t.Errorf("dedicated chat settings page missing %q", want)
 		}
 	}
-	if count := strings.Count(doc, "Manage tenant-wide chat retention settings."); count != 1 {
+	if count := strings.Count(doc, "Manage tenant-wide chat settings, including retention and agents."); count != 1 {
 		t.Fatalf("chat settings subtitle appears %d times, want exactly once", count)
 	}
 }
@@ -59,7 +59,7 @@ func TestDedicatedChatSettingsPageUsesArabicRTLCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"إعدادات الدردشة", "أدر إعدادات الاحتفاظ برسائل الدردشة على مستوى المستأجر.", `dir="rtl"`} {
+	for _, want := range []string{"إعدادات الدردشة", "أدر إعدادات الدردشة على مستوى المستأجر، بما في ذلك الاحتفاظ بالرسائل والوكلاء.", `dir="rtl"`} {
 		if !strings.Contains(doc, want) {
 			t.Errorf("Arabic chat settings page missing %q", want)
 		}

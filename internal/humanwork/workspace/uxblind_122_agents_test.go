@@ -213,7 +213,7 @@ func TestTodo_UXBLIND_122_Browser(t *testing.T) {
 	}
 	for locale, want := range map[string]string{"en-US": "Agents are turned off for your organization", "de-DE": "Agenten sind für Ihre Organisation ausgeschaltet", "ar": "الوكلاء متوقفون لمؤسستك"} {
 		page := renderIslandPage(t, adminIsland, locale)
-		if !strings.Contains(page, want) || !strings.Contains(page, `href="/workspace/app/admin/chat-settings"`) {
+		if !strings.Contains(page, want) || !strings.Contains(page, `href="/workspace/app/admin/chat-settings#agents-setting"`) {
 			t.Fatalf("%s admin disabled page = %s", locale, page)
 		}
 	}

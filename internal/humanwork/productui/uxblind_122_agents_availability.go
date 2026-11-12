@@ -51,7 +51,7 @@ const AgentsReasonTenantDisabled = "agents.reason.tenant_disabled"
 const agentsSettingAnchor = "agents-setting"
 
 // AgentsSettingsHref is the route of the setting that enables agents.
-func AgentsSettingsHref() string { return pageHref(PageChatSettings) }
+func AgentsSettingsHref() string { return pageHref(PageChatSettings) + "#" + agentsSettingAnchor }
 
 // AgentsSurface is the resolved decision shared by navigation and the page.
 type AgentsSurface struct {

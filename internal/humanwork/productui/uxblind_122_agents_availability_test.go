@@ -53,7 +53,7 @@ func TestTodo_UXBLIND_122(t *testing.T) {
 	}{
 		{name: "enabled admin", enabled: true, admin: true, wantState: AgentsSurfaceEnabled, wantNav: true, wantText: []string{"Prepare quarterly summary", "Agents"}, forbidTexts: []string{"agents-disabled"}},
 		{name: "enabled regular", enabled: true, wantState: AgentsSurfaceEnabled, wantNav: true, wantText: []string{"Prepare quarterly summary"}, forbidTexts: []string{"agents-disabled"}},
-		{name: "disabled admin", admin: true, wantState: AgentsSurfaceDisabledAdmin, wantNav: true, wantText: []string{"Agents are turned off for your organization", "Turn agents on in Chat settings", `href="/workspace/app/admin/chat-settings"`, "Open agent settings"}, forbidTexts: []string{"Prepare quarterly summary"}},
+		{name: "disabled admin", admin: true, wantState: AgentsSurfaceDisabledAdmin, wantNav: true, wantText: []string{"Agents are turned off for your organization", "Turn agents on in Chat settings", `href="/workspace/app/admin/chat-settings#agents-setting"`, "Open agent settings"}, forbidTexts: []string{"Prepare quarterly summary"}},
 		{name: "disabled regular", wantState: AgentsSurfaceDisabledHidden, wantNav: false, wantText: []string{"Agents are not available", "Ask an administrator", `href="/workspace/app/chat"`}, forbidTexts: []string{"Prepare quarterly summary", "chat-settings", "Open agent settings"}},
 	}
 	for _, tc := range cases {
@@ -179,5 +179,21 @@ func TestTodo_UXBLIND_122_Security(t *testing.T) {
 	// empty non-nil list.
 	if enabled := NormalizeAgentsAvailability(AgentsAvailabilityProjection{Enabled: true, Snapshot: AgentSnapshot{Availability: AgentsAvailable}}); enabled.Snapshot.Threads == nil || len(enabled.Snapshot.Threads) != 0 {
 		t.Fatalf("threads = %#v", enabled.Snapshot.Threads)
+	}
+}
+
+// TestIssue3683_OpenAgentSettingsTargetsAgentsSection pins that the "Open agent
+// settings" link lands on the Agents section of Chat settings, not the top of the
+// page, and that the Chat settings subtitle names agents as well as retention.
+func TestIssue3683_OpenAgentSettingsTargetsAgentsSection(t *testing.T) {
+	if got, want := AgentsSettingsHref(), "/workspace/app/admin/chat-settings#"+agentsSettingAnchor; got != want {
+		t.Fatalf("AgentsSettingsHref() = %q, want %q", got, want)
+	}
+	page, ok := LookupPage(PageChatSettings)
+	if !ok {
+		t.Fatal("chat settings page is not registered")
+	}
+	if !strings.Contains(strings.ToLower(page.Subtitle), "agent") || !strings.Contains(strings.ToLower(page.Subtitle), "retention") {
+		t.Fatalf("chat settings subtitle %q does not describe the whole page", page.Subtitle)
 	}
 }
