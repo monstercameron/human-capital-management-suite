@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Conversation details has no Agents section for seeing or adding th (#3759, partial)
+
+- Chat: conversation details offers an add-agent link to owners and administrators when a conversation has no agent yet (#3759, partial; @-menu part needs a decision).
+
 ## 2026-11-12 — Chat: Agents > Setup shows a reference-documents load error on a tenant (#3757, partial)
 
 - Agent setup no longer shows a reference-documents load error on a workspace with no agents.
