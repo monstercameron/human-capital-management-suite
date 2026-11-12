@@ -3,7 +3,7 @@ package chatui
 // ChatDesignStyles is the Chat design pass (#3769 to #3777): one visual
 // direction laid over the existing structure. It is appended last to
 // Stylesheet, so a rule here wins over an earlier rule of equal specificity.
-const ChatDesignStyles = chatDesignAccentStyles + chatDesignAvatarStyles + chatDesignUnreadStyles + chatDesignDayPillStyles
+const ChatDesignStyles = chatDesignAccentStyles + chatDesignAvatarStyles + chatDesignUnreadStyles + chatDesignDayPillStyles + chatDesignThreadComposerStyles
 
 // chatDesignAccentStyles declares the accent colour for TEXT (#3769). The brand
 // primary is a fill: as text on the dark message and card surfaces it reads at
