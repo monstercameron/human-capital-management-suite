@@ -27,7 +27,7 @@ const ChatMod003Styles = `.chatmod{display:grid;gap:16px;min-width:0}` +
 	`.chatfilter-panel .chatmod-switch:focus-visible .chatmod-switch-track{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.chatmod-field{display:grid;gap:4px;min-width:0}.chatmod-field label,.chatmod-field legend,.chatmod-label{font-weight:600;font-size:.875rem}` +
 	`.chatmod-field fieldset{margin:0;padding:0;border:0;min-width:0}` +
-	`.chatfilter-panel .chatmod-link{min-height:44px;border:0;background:transparent;color:var(--hcm-color-brand-primary);text-decoration:underline;padding:0 4px;cursor:pointer}` +
+	`.chatfilter-panel .chatmod-link{min-height:44px;border:0;background:transparent;color:var(--chat-accent-text);text-decoration:underline;padding:0 4px;cursor:pointer}` +
 	`.chatfilter-panel .chatmod-select{width:auto;max-width:100%}` +
 	`.chatmod-editor{display:grid;gap:12px;min-width:0}` +
 	`.chatmod-error{margin:0;font-size:.8125rem;color:var(--hcm-color-danger);overflow-wrap:anywhere}` +

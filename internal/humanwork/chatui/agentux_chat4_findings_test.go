@@ -356,7 +356,7 @@ func TestAgentUXChat4_M14_M21_Header(t *testing.T) {
 }
 
 func TestAgentUXChat4_M16_J16_G87_TouchControls(t *testing.T) {
-	chat4Require(t, AgentUXChat4Styles, `.chat-workspace .message-actions{display:none}`, `.chat-workspace .thread-more{display:none}`, `.chat-rail-row .rail-row-more{visibility:hidden;pointer-events:none}`, `.chat-rail-row .agent-badge{margin-inline-end:8px}`, `.message-stats{color:var(--hcm-color-brand-primary);min-height:44px}`)
+	chat4Require(t, AgentUXChat4Styles, `.chat-workspace .message-actions{display:none}`, `.chat-workspace .thread-more{display:none}`, `.chat-rail-row .rail-row-more{visibility:hidden;pointer-events:none}`, `.chat-rail-row .agent-badge{margin-inline-end:8px}`, `.message-stats{color:var(--chat-accent-text);min-height:44px}`)
 	if bindChatMessageLongPress(Model{}) != nil {
 		t.Fatal("native render installed browser-only listeners")
 	}

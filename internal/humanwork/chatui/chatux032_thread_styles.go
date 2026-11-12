@@ -18,7 +18,7 @@ const ChatUX032ThreadStyles = `
 .chat-doc-embed-wrap>.chat-embed{margin-block-start:0;inline-size:100%;max-block-size:none;border-end-start-radius:0;border-end-end-radius:0}
 .chat-doc-embed-wrap:has(>.chat-embed-more[open])>.chat-embed .chat-embed-body{display:none}
 .chat-embed-more{box-sizing:border-box;padding:0 12px 8px;border:1px solid var(--line);border-block-start:0;border-inline-start:3px solid var(--accent);border-end-start-radius:var(--hcm-radius-control);border-end-end-radius:var(--hcm-radius-control);background:var(--soft);font-size:.8125rem}
-.chat-embed-more>summary{display:inline-block;list-style:none;cursor:pointer;color:var(--hcm-color-brand-primary);font-weight:600}
+.chat-embed-more>summary{display:inline-block;list-style:none;cursor:pointer;color:var(--chat-accent-text);font-weight:600}
 .chat-embed-more>summary::-webkit-details-marker{display:none}
 .chat-embed-more>summary:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px;border-radius:2px}
 .chat-embed-more .chat-embed-more-close,.chat-embed-more[open] .chat-embed-more-open{display:none}

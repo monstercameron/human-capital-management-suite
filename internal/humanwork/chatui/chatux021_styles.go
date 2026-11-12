@@ -25,7 +25,7 @@ const ChatUX021Styles = `
 .details-notify-option.selected{font-weight:600}
 .details-notify-radio{flex:none;margin:0;accent-color:var(--hcm-color-brand-primary)}
 .details-notify-text{flex:1;min-inline-size:0}
-.details-notify-check{display:inline-flex;color:var(--hcm-color-brand-primary)}
+.details-notify-check{display:inline-flex;color:var(--chat-accent-text)}
 .details-notify-check .chat-icon{inline-size:14px;block-size:14px}
 .pinned-row .pinned-link{gap:2px}
 .pinned-row .pinned-author{font-size:.75rem}
