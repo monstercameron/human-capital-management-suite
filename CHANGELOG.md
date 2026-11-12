@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: 'Message the author' dialog: Send with an empty message does nothi (#3693)
+
+- Chat: Message the author with an empty note now shows the "Write a note for the author first." error in the dialog instead of doing nothing (#3693).
+
 ## 2026-11-12 — Chat: Moderation search returns reports that do not contain the search t (#3692)
 
 - Moderation search: typing in the Moderation page's search box now matches only what a card shows, so words that appear only in the folded surrounding conversation no longer keep a card on the page (#3692).

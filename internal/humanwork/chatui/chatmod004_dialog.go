@@ -172,7 +172,14 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 	if m.CaseID != "" {
 		data["case-id"] = m.CaseID
 	}
-	children = append(children, html.Form(html.Props{Data: data, Aria: map[string]string{"describedby": describedby}}, fields...))
+	form := html.Props{Data: data, Aria: map[string]string{"describedby": describedby}}
+	if m.Action == "message" {
+		// Issue #3693: the browser's required check would stop an empty note
+		// before the client's own check, which shows the inline alert. The note
+		// stays required for assistive technology.
+		form.Raw = map[string]any{"novalidate": true}
+	}
+	children = append(children, html.Form(form, fields...))
 	if !m.Report && m.Action != "restore" && m.Action != "message" && m.CaseID == "" {
 		if picked := chatmodSelected(m); picked != nil {
 			children = append(children, picked)
