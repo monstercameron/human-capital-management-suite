@@ -1,3 +1,7 @@
+## 2026-11-12 — UXFLOW-008 (#2615)
+
+- The accessibility, localization and assisted/manual completion evidence for UXFLOW-008 is compiled on a served surface with tests.
+
 ## 2026-11-12 — SMB-003 (#2185)
 
 - Checklist items always keep an owner, and the employee task queue only shows document links the signed-in owner is authorized to open.
