@@ -290,7 +290,10 @@ func voiceSettingsView(props voiceSettingsProps, s voiceSettingsState, change ui
 	}
 	switch props.Scope {
 	case voiceScopePerson:
-		return chatux002Row("voice", title, value, control, append([]ui.Node{hint, status}, extra...)...)
+		// The help text sits in the padded body Quiet hours uses (.rail-prefs-body),
+		// so it is inset from the popover edge like the other rows' text (ISSUE-3704).
+		body := html.Div(html.Props{Class: "rail-prefs-body"}, append([]ui.Node{hint, status}, extra...)...)
+		return chatux002Row("voice", title, value, control, body)
 	case voiceScopeChannel:
 		body := html.Div(html.Props{Class: "chatvoice-settings-body", Dir: dir},
 			html.Label(html.Props{Class: "chatlangadmin-check", For: id}, control, html.Span(html.Props{Text: t(switchKey)}), status), hint)

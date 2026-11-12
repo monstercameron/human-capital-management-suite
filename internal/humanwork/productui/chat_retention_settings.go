@@ -62,7 +62,7 @@ func retentionCopy(locale LocaleContext) chatRetentionCopy {
 			currentPolicy: "Aktuelle Richtlinie", rule: "Aufbewahren nach", preserveAll: "Keine Richtlinie konfiguriert. Alle Nachrichten werden aufbewahrt.", beforeDate: "Vor einem Datum", diskBudget: "Speicherlimit",
 			dateHelp: "Nachrichten vor diesem UTC-Datum können für die Aufbewahrungsverarbeitung ausgewählt werden.", budgetHelp: "Das Speicherlimit gilt für alle Unterhaltungen dieses Mandanten.", budgetUnit: "MiB", review: "Änderung prüfen", save: "Richtlinie speichern", saving: "Wird gespeichert …", loading: "Aufbewahrungsrichtlinie wird geladen …",
 			errorTitle: "Speichern fehlgeschlagen", noticeTitle: "Gespeichert", confirmTitle: "Aufbewahrung verkürzen?", confirmBody: "Diese Änderung kann ältere Nachrichten für die Aufbewahrungsverarbeitung freigeben.", confirmSave: "Änderung bestätigen", cancel: "Abbrechen",
-			noDeletion: "Das Speichern hält die Richtlinie fest. Die Durchsetzung ist noch nicht aktiv und es werden keine Nachrichten gelöscht.", invalidDate: "Wählen Sie ein gültiges Datum.", invalidBudget: "Geben Sie ein positives Speicherlimit ein.",
+			noDeletion: "Das Speichern hält die Richtlinie fest. Die Durchsetzung ist noch nicht aktiv und es werden keine Nachrichten gelöscht.", invalidDate: "Wählen Sie ein gültiges Datum.", invalidBudget: "Geben Sie eine ganze Zahl in MiB ein, mindestens 1.",
 		}
 	case "ar":
 		return chatRetentionCopy{
@@ -71,7 +71,7 @@ func retentionCopy(locale LocaleContext) chatRetentionCopy {
 			currentPolicy: "السياسة الحالية", rule: "أساس الاحتفاظ", preserveAll: "لا توجد سياسة مهيأة. يتم الاحتفاظ بكل الرسائل.", beforeDate: "قبل تاريخ", diskBudget: "حد التخزين",
 			dateHelp: "قد تصبح الرسائل السابقة لهذا التاريخ بتوقيت UTC مؤهلة لمعالجة الاحتفاظ.", budgetHelp: "ينطبق حد التخزين على جميع محادثات هذا المستأجر.", budgetUnit: "ميبيبايت", review: "مراجعة التغيير", save: "حفظ السياسة", saving: "جارٍ الحفظ…", loading: "جارٍ تحميل سياسة الاحتفاظ…",
 			errorTitle: "تعذر الحفظ", noticeTitle: "تم الحفظ", confirmTitle: "تقليل مدة الاحتفاظ؟", confirmBody: "قد يجعل هذا التغيير الرسائل الأقدم مؤهلة لمعالجة الاحتفاظ.", confirmSave: "تأكيد التغيير", cancel: "إلغاء",
-			noDeletion: "يحفظ هذا الإعداد السياسة فقط. لم يبدأ تطبيقها بعد ولا يحذف أي رسائل.", invalidDate: "اختر تاريخًا صالحًا.", invalidBudget: "أدخل حد تخزين موجبًا.",
+			noDeletion: "يحفظ هذا الإعداد السياسة فقط. لم يبدأ تطبيقها بعد ولا يحذف أي رسائل.", invalidDate: "اختر تاريخًا صالحًا.", invalidBudget: "أدخل عددًا صحيحًا بالميبيبايت، لا يقل عن 1.",
 		}
 	default:
 		return chatRetentionCopy{
@@ -80,7 +80,7 @@ func retentionCopy(locale LocaleContext) chatRetentionCopy {
 			currentPolicy: "Current policy", rule: "Retention rule", preserveAll: "No policy is configured. All messages are retained.", beforeDate: "Before a date", diskBudget: "Storage limit",
 			dateHelp: "Messages before this UTC date may become eligible for retention processing.", budgetHelp: "The storage limit applies to every conversation in this tenant.", budgetUnit: "MiB", review: "Review change", save: "Save policy", saving: "Saving…", loading: "Loading retention policy…",
 			errorTitle: "Couldn't save policy", noticeTitle: "Saved", confirmTitle: "Shorten retention?", confirmBody: "This change can make older messages eligible for retention processing.", confirmSave: "Confirm change", cancel: "Cancel",
-			noDeletion: "This saves the policy only. Enforcement is not active yet, and saving it does not delete messages.", invalidDate: "Choose a valid date.", invalidBudget: "Enter a positive storage limit.",
+			noDeletion: "This saves the policy only. Enforcement is not active yet, and saving it does not delete messages.", invalidDate: "Choose a valid date.", invalidBudget: "Enter a whole number of MiB, at least 1.",
 		}
 	}
 }
@@ -108,8 +108,7 @@ func ChatRetentionSettings(props ChatRetentionSettingsProps) ui.Node {
 	edit := func(update func(*chatRetentionDraft)) {
 		next := state.Get()
 		update(&next)
-		next.Confirm, next.Invalid = false, false
-		state.Set(next)
+		state.Set(retentionEdited(next))
 	}
 	changed := !retentionDraftMatchesPolicy(draft)
 	needsConfirmation := retentionDraftReducesRetention(draft)
@@ -257,6 +256,15 @@ func retentionDraftReducesRetention(draft chatRetentionDraft) bool {
 	default:
 		return false
 	}
+}
+
+// retentionEdited clears a pending confirmation and reports an invalid value
+// inline as soon as it is entered. The save button stays disabled while the
+// draft is invalid, so a submit-only check would never show the reason.
+func retentionEdited(draft chatRetentionDraft) chatRetentionDraft {
+	draft.Confirm = false
+	draft.Invalid = !retentionDraftValid(draft)
+	return draft
 }
 
 func retentionDraftValid(draft chatRetentionDraft) bool {

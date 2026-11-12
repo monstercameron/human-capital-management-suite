@@ -1,3 +1,11 @@
+## 2026-11-12 — Chat: Preferences popover Voice messages helper text is flush to the pop (#3704)
+
+- Chat preferences: the personal Voice messages help text is inset to match the other rows (Quiet hours), instead of touching the popover edge.
+
+## 2026-11-12 — Chat: Retention Save policy is silently disabled for invalid storage lim (#3703, partial)
+
+- Chat retention: invalid storage limits show an inline range message as they are entered, and the country Basis field shows a required mark (#3703).
+
 ## 2026-11-12 — Chat: Validation failure on country save shows a generic 'could not load (#3700, partial)
 
 - Chat location settings: a country the server refuses now shows a field-level message on the country form instead of the page-level "could not load or save" line (ISSUE-3700).
