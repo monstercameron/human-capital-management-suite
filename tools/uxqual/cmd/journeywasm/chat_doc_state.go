@@ -162,6 +162,34 @@ func (c *chatDocPreviewCache) finish(identity string, epoch uint64, answers map[
 	return true
 }
 
+// revalidateIn reports how long until the soonest answer among ids goes
+// stale (issue 3753). claim() only runs on a render, so without this timer a
+// quiet channel kept a renamed or revoked title until something else rendered.
+// Stale answers are not counted: the render that finds them claims them.
+func (c *chatDocPreviewCache) revalidateIn(identity string, ids []string, now time.Time) (time.Duration, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if identity != c.identity {
+		return 0, false
+	}
+	var soonest time.Duration
+	found := false
+	for _, id := range ids {
+		entry, ok := c.entries[id]
+		if !ok || entry.pending {
+			continue
+		}
+		left := chatDocPreviewFreshFor - now.Sub(entry.at)
+		if left <= 0 {
+			continue
+		}
+		if !found || left < soonest {
+			soonest, found = left, true
+		}
+	}
+	return soonest, found
+}
+
 // snapshot is every answer the cache holds for identity.
 func (c *chatDocPreviewCache) snapshot(identity string) map[string]chatui.DocPreview {
 	c.mu.Lock()

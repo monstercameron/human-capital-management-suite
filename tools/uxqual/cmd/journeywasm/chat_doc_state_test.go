@@ -54,6 +54,30 @@ func TestChatDocPreviewClaimBatchesAndCaches(t *testing.T) {
 	}
 }
 
+// TestChatDocPreviewRevalidatesWithoutRender (issue 3753): a fresh answer must
+// schedule its own re-read at expiry, so a rename or revocation lands on a
+// quiet channel without waiting for an unrelated render.
+func TestChatDocPreviewRevalidatesWithoutRender(t *testing.T) {
+	cache := &chatDocPreviewCache{}
+	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	ids := []string{"d1"}
+	_, epoch, _ := cache.claim("t\x00alice", ids, now)
+	cache.finish("t\x00alice", epoch, map[string]chatui.DocPreview{"d1": chatDocPreviewAnswer("d1", true, "Guide", "Ana", "Sep 1", "")}, now)
+	if due, ok := cache.revalidateIn("t\x00alice", ids, now.Add(10*time.Second)); !ok || due != chatDocPreviewFreshFor-10*time.Second {
+		t.Fatalf("fresh answer due = %v %v, want %v true", due, ok, chatDocPreviewFreshFor-10*time.Second)
+	}
+	// A stale answer is already due: the next render claims it, so no timer is armed for it.
+	if due, ok := cache.revalidateIn("t\x00alice", ids, now.Add(2*time.Minute)); ok {
+		t.Fatalf("stale answer armed a timer %v", due)
+	}
+	if _, ok := cache.revalidateIn("t\x00bob", ids, now); ok {
+		t.Fatal("another viewer's answer armed a timer")
+	}
+	if _, ok := cache.revalidateIn("t\x00alice", []string{"d9"}, now); ok {
+		t.Fatal("an unclaimed document armed a timer")
+	}
+}
+
 func TestChatDocPreviewMergeAndFingerprint(t *testing.T) {
 	model := chatui.Model{SelectedID: "room", EmbedOrigin: "https://hcm.example", Messages: []chatui.Message{{Body: "doc:d1"}}}
 	before := chatDocPreviewFingerprint(model)

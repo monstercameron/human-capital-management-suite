@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Rename, archive and delete freshness depends on a one-minute clien (#3753, partial)
+
+- Chat document links re-check their title and access about a minute after the last read, so a rename or revoked share reaches a quiet channel without a reload (archive labelling still pending).
+
 ## 2026-11-12 — Chat: Ticket unfurl collapses deleted, archived, withheld and failed int (#3750, partial)
 
 - Chat project ticket previews distinguish missing, archived and failed reads from a refused read, and a cancelled batch no longer reports loss of access (#3750, partial: documents and the new copy keys remain).

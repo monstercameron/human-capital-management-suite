@@ -49,13 +49,19 @@ func resolveVisibleChatDocs(cfg journeyclient.Config) {
 		armChatDocRetry(cfg, time.Second)
 		return
 	}
-	claims, epoch, shown := chatDocPreviews.claim(identity, chatDocPreviewIDs(chatBrowser.snapshot()), time.Now())
+	ids := chatDocPreviewIDs(chatBrowser.snapshot())
+	claims, epoch, shown := chatDocPreviews.claim(identity, ids, time.Now())
 	changed := false
 	chatBrowser.mutate(func(model *chatui.Model) { changed = mergeChatDocPreviews(model, shown) })
 	if changed {
 		refreshChatRoute()
 	}
 	if len(claims) == 0 {
+		// Issue 3753: wake up when the newest answer on screen goes stale, so a
+		// rename or revoked share reaches a quiet channel without a render.
+		if due, ok := chatDocPreviews.revalidateIn(identity, ids, time.Now()); ok {
+			armChatDocRetry(cfg, due+time.Millisecond)
+		}
 		return
 	}
 	// A read that never answers (dropped connection, viewer switch mid-flight)
