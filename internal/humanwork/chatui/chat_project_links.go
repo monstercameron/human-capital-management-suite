@@ -30,7 +30,7 @@ type ProjectTaskPreview struct {
 	TaskID    string
 	Title     string
 	Readable  bool
-	State     string // loading, ready, restricted, unavailable
+	State     string // loading, ready, restricted, unavailable, missing, archived, failed
 	// Card detail, already authorized and localized by the resolver.
 	ProjectName   string
 	Key           string

@@ -1,3 +1,7 @@
+## 2026-11-12 — Chat: Ticket unfurl collapses deleted, archived, withheld and failed int (#3750, partial)
+
+- Chat project ticket previews distinguish missing, archived and failed reads from a refused read, and a cancelled batch no longer reports loss of access (#3750, partial: documents and the new copy keys remain).
+
 ## 2026-11-12 — Chat: Header bell is not labelled or tied to chat state (#3739, partial)
 
 - Chat: the header notifications bell is exposed as a named button ("Notifications, N unread notifications"), so keyboard and assistive-tech users can find it by role (#3739).

@@ -7,7 +7,37 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// chatProjectAnswerStates are the settled states a project read can end in.
+// "restricted" is the only neutral answer and is reserved for a refusal or a
+// malformed answer; "missing", "archived" and "failed" say what happened.
+var chatProjectAnswerStates = map[string]bool{"ready": true, "restricted": true, "unavailable": true, "missing": true, "archived": true, "failed": true}
+
+// chatProjectReadFailureState names a read that returned no project or task.
+// A refusal stays the neutral restricted answer; a record that is gone is
+// missing; any other error (a transient failure, a cancelled batch) is a failed
+// read the reader can retry, never a claim that they lack access.
+func chatProjectReadFailureState(err error) string {
+	reported, ok := status.FromError(err)
+	if !ok {
+		return "failed"
+	}
+	switch reported.Code() {
+	case codes.PermissionDenied:
+		return "restricted"
+	case codes.NotFound:
+		return "missing"
+	}
+	return "failed"
+}
+
+// chatProjectTaskAnswer is a non-ready answer for one reference.
+func chatProjectTaskAnswer(ref chatui.ProjectTaskReference, state string) chatui.ProjectTaskPreview {
+	return chatui.ProjectTaskPreview{ProjectID: ref.ProjectID, TaskID: ref.TaskID, State: state}
+}
 
 const chatProjectTaskPreviewLimit = 50
 const chatProjectTaskPreviewFreshFor = 15 * time.Second
@@ -64,7 +94,7 @@ func chatProjectTaskPreviewRefs(model chatui.Model) []chatui.ProjectTaskReferenc
 func chatProjectTaskPreviewFingerprint(model chatui.Model) string {
 	ready := 0
 	for _, preview := range model.ProjectTaskPreviews {
-		if preview.State == "ready" || preview.State == "restricted" || preview.State == "unavailable" {
+		if chatProjectAnswerStates[preview.State] {
 			ready++
 		}
 	}
@@ -91,7 +121,8 @@ func (c *chatProjectTaskPreviewCache) claim(identity string, refs []chatui.Proje
 		if ok && entry.pending && now.Sub(entry.at) > chatProjectTaskPreviewPendingTimeout {
 			entry.pending = false
 			if entry.value.State != "ready" {
-				entry.value = chatui.ProjectTaskPreview{ProjectID: ref.ProjectID, TaskID: ref.TaskID, State: "unavailable"}
+				// The read never answered: a retryable failure, not a refusal.
+				entry.value = chatProjectTaskAnswer(ref, "failed")
 			}
 			c.entries[key] = entry
 		}
@@ -122,7 +153,7 @@ func (c *chatProjectTaskPreviewCache) finish(identity string, epoch uint64, answ
 	}
 	for key, value := range answers {
 		if entry, ok := c.entries[key]; ok && entry.pending {
-			if key != chatui.ProjectTaskPreviewKey(value.ProjectID, value.TaskID) || value.State != "ready" || !value.Readable || strings.TrimSpace(value.Title) == "" {
+			if !chatProjectAnswerAccepted(key, value) {
 				value = chatui.ProjectTaskPreview{ProjectID: entry.value.ProjectID, TaskID: entry.value.TaskID, State: "restricted"}
 			}
 			c.entries[key] = chatProjectTaskPreviewEntry{value: value, at: now}
@@ -180,5 +211,18 @@ func mergeChatProjectTaskPreviews(model *chatui.Model, shown map[string]chatui.P
 }
 
 func restrictedChatProjectTaskAnswer(ref chatui.ProjectTaskReference) chatui.ProjectTaskPreview {
-	return chatui.ProjectTaskPreview{ProjectID: ref.ProjectID, TaskID: ref.TaskID, State: "restricted"}
+	return chatProjectTaskAnswer(ref, "restricted")
+}
+
+// chatProjectAnswerAccepted reports whether a resolved answer may be cached
+// under its key: a ready card needs a readable title, and every other settled
+// state is accepted as the definite answer it names.
+func chatProjectAnswerAccepted(key string, value chatui.ProjectTaskPreview) bool {
+	if key != chatui.ProjectTaskPreviewKey(value.ProjectID, value.TaskID) || !chatProjectAnswerStates[value.State] {
+		return false
+	}
+	if value.State == "ready" {
+		return value.Readable && strings.TrimSpace(value.Title) != ""
+	}
+	return true
 }

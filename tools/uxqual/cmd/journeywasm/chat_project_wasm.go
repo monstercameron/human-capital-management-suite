@@ -64,7 +64,8 @@ func resolveVisibleChatProjectTasks(cfg journeyclient.Config) {
 				select {
 				case semaphore <- struct{}{}:
 				case <-ctx.Done():
-					results <- result{key: chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID), value: restrictedChatProjectTaskAnswer(ref)}
+					// A cancelled batch is a failed read, not a refusal of access.
+					results <- result{key: chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID), value: chatProjectTaskAnswer(ref, "failed")}
 					return
 				}
 				defer func() { <-semaphore }()

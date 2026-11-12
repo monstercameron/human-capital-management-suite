@@ -44,7 +44,9 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 	head := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-project-embed-kind"}, projectEmbedGlyph(board), ui.Text(m.t(labelKey)))}
 	switch {
 	case preview.State == "ready" && preview.Readable && strings.TrimSpace(preview.Title) != "":
-	case preview.State == "ready" || preview.State == "restricted" || preview.State == "unavailable":
+	case preview.State == "ready" || preview.State == "restricted" || preview.State == "unavailable" || preview.State == "missing" || preview.State == "archived" || preview.State == "failed":
+		// embed-state names which settled answer this is; the copy is still
+		// the shared locked line until the missing/archived/failed copy keys land.
 		return html.Div(html.Props{Class: "chat-embed chat-project-embed is-locked", Data: map[string]string{"embed-state": preview.State}},
 			append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyProjectTaskRestricted)}))...)
 	default:

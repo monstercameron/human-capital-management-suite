@@ -16,14 +16,21 @@ import (
 // resolveChatProjectPreview reads one shared project address as the current
 // viewer. A task link becomes a task card (status, priority, due date and
 // assignee from the task, its project's name and workflow); a board link
-// becomes a board card with task counts. Any refused or failed read yields
-// the neutral restricted answer, so nothing unauthorized reaches the card.
+// becomes a board card with task counts. A refusal is the neutral restricted
+// answer; a deleted record is missing, an archived one is archived, and any
+// other failed read is retryable (see chatProjectReadFailureState).
 func resolveChatProjectPreview(ctx context.Context, active journeyclient.Config, client projectv1.ProjectServiceClient, ref chatui.ProjectTaskReference) chatui.ProjectTaskPreview {
 	value := restrictedChatProjectTaskAnswer(ref)
 	callCtx := chatRPCContext(ctx, active)
 	project, err := client.GetProject(callCtx, &projectv1.GetProjectRequest{ProjectId: ref.ProjectID})
-	if err != nil || project.GetProject().GetProjectId() != ref.ProjectID {
+	if err != nil {
+		return chatProjectTaskAnswer(ref, chatProjectReadFailureState(err))
+	}
+	if project.GetProject().GetProjectId() != ref.ProjectID {
 		return value
+	}
+	if project.GetProject().GetLifecycle() == projectv1.ProjectLifecycle_PROJECT_LIFECYCLE_ARCHIVED {
+		return chatProjectTaskAnswer(ref, "archived")
 	}
 	projectName := strings.TrimSpace(project.GetProject().GetName())
 	if ref.TaskID == "" {
@@ -37,9 +44,15 @@ func resolveChatProjectPreview(ctx context.Context, active journeyclient.Config,
 		return preview
 	}
 	response, err := client.GetTask(callCtx, &projectv1.GetTaskRequest{ProjectId: ref.ProjectID, TaskId: ref.TaskID})
+	if err != nil {
+		return chatProjectTaskAnswer(ref, chatProjectReadFailureState(err))
+	}
 	task := response.GetTask()
-	if err != nil || task == nil || task.GetProjectId() != ref.ProjectID || task.GetTaskId() != ref.TaskID || strings.TrimSpace(task.GetTitle()) == "" {
+	if task == nil || task.GetProjectId() != ref.ProjectID || task.GetTaskId() != ref.TaskID || strings.TrimSpace(task.GetTitle()) == "" {
 		return value
+	}
+	if task.GetArchived() {
+		return chatProjectTaskAnswer(ref, "archived")
 	}
 	preview := chatui.ProjectTaskPreview{
 		ProjectID: ref.ProjectID, TaskID: ref.TaskID, Title: strings.TrimSpace(task.GetTitle()), Readable: true, State: "ready",
