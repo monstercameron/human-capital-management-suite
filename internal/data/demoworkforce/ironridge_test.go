@@ -1,6 +1,10 @@
 package demoworkforce
 
 import (
+	"bytes"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"regexp"
 	"strings"
 	"testing"
@@ -287,6 +291,30 @@ func TestIronridgePerformanceRecordPlans(t *testing.T) {
 	}
 	if IronridgePack.Theme == nil || IronridgePack.Logo == nil || len(IronridgePack.Logo.PNG) == 0 || HarborCarePack.Theme != nil {
 		t.Fatal("only Ironridge carries its own brand")
+	}
+}
+
+// TestIronridgeLogoAssetsIssue74 pins the two embedded brand rasters a clean
+// checkout must ship: the PNG original decodes at the declared logo size and
+// the JPEG proxy decodes as a JPEG, so neither can silently become empty bytes.
+func TestIronridgeLogoAssetsIssue74(t *testing.T) {
+	logo := IronridgePack.Logo
+	if logo == nil {
+		t.Fatal("Ironridge carries no logo")
+	}
+	original, format, err := image.DecodeConfig(bytes.NewReader(logo.PNG))
+	if err != nil || format != "png" {
+		t.Fatalf("logo PNG decode = %q, %v; want png", format, err)
+	}
+	if original.Width != logo.Width || original.Height != logo.Height {
+		t.Fatalf("logo PNG is %dx%d, want %dx%d", original.Width, original.Height, logo.Width, logo.Height)
+	}
+	proxy, format, err := image.DecodeConfig(bytes.NewReader(logo.Proxy))
+	if err != nil || format != "jpeg" {
+		t.Fatalf("logo proxy decode = %q, %v; want jpeg", format, err)
+	}
+	if proxy.Width <= 0 || proxy.Height <= 0 {
+		t.Fatalf("logo proxy is %dx%d, want a non-empty raster", proxy.Width, proxy.Height)
 	}
 }
 
