@@ -412,6 +412,13 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		return nil, err
 	}
 
+	// The built-in local-dev chat and agent databases get a login role each
+	// before either store opens: both refuse the core credential.
+	cfg, err = isolateLocalDevDatabases(ctx, cfg, in.Pool)
+	if err != nil {
+		return nil, err
+	}
+
 	// Persona definitions and installations live on their own bounded pool.
 	// Keep the pool's lifetime in this composition, so every startup failure
 	// after this point rolls it back and normal shutdown closes it exactly once.

@@ -775,6 +775,25 @@ tenant isolation, PostgreSQL stores, gRPC tunnel, and production Go/WASM UI.
 Run migrations and seed explicitly when schema or fixtures change, as shown in
 the Run the prototype locally section below.
 
+Chat and agents keep their own databases (`hcm_next_chat`, `hcm_next_agents`)
+and refuse the core login. With the profile's built-in URLs the cell creates
+both databases on first start if they are missing, gives each a login role of
+its own (`hcmnext_chat_dev`, `hcmnext_agents_dev`, re-keyed from the
+development key on every start) and migrates the agent database. The chat
+schema and its demo rooms are applied with the migrate command, once, after
+that first start:
+
+```powershell
+$env:HCMNEXT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next?sslmode=disable"
+$env:HCMNEXT_CHAT_DATABASE_URL = "postgres://postgres:postgres@127.0.0.1:5432/hcm_next_chat?sslmode=disable"
+go run ./cmd/migrate chat up
+go run ./cmd/migrate chat seed -tenant=harborcare-demo
+```
+
+Pointing the cell at any other URL with `HCMNEXT_CHAT_DATABASE_URL` or
+`HCMNEXT_AGENT_DATABASE_URL` turns this off for that store: such a URL must
+already name a database and a login that is not the core one.
+
 Explicit flags and `HCMNEXT_DATABASE_URL` / `HCMNEXT_DEV_HMAC_KEY` override
 the profile defaults. To exercise the manual credential path instead, start
 the standard profile, mint a token, and run:

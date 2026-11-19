@@ -1,3 +1,7 @@
+## 2026-11-19 — Local development: the documented start command works again
+
+- `npm run dev:server` (the `local-dev` profile) starts with its built-in settings: on first start the server creates the chat and agent databases if they are missing, gives each its own database login and prepares the agent database. Before this, the built-in settings named one login for every database, which Chat and agents refuse, so the server stopped at startup unless extra environment variables were set by hand. The README now lists the two commands that load the chat schema and its demo rooms.
+
 ## 2026-11-12 — Chat: Collapsed rail items with child pages open a flyout (#3839)
 
 - In the collapsed navigation rail, Chat, Workflows, My Work and Admin now open a small flyout of their child pages on hover, keyboard focus or tap, so Chat's Agents page is reachable without expanding the navigation.
