@@ -80,6 +80,10 @@ type ChatMessageWork struct {
 	chat        projectrefs.ChatLinks
 	projects    ChatWorkProjects
 	coordinator *workitem.MessageConversionCoordinator
+	// cases answers whether a conversation is a restricted case (#3812). The
+	// served chat reader is wrapped by decorators that do not carry that
+	// question, so the composition names the core service here.
+	cases chatCaseRestrictor
 }
 
 func NewChatMessageWork(chatLinks projectrefs.ChatLinks, projects ChatWorkProjects) *ChatMessageWork {

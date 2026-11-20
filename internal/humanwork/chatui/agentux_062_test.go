@@ -141,6 +141,11 @@ func TestTodo_AGENTUX_062(t *testing.T) {
 		s := reflect.New(state).Elem()
 		switch field.Type.Kind() {
 		case reflect.Bool:
+			// #3596: an open workspace-header menu is the shell's to close, so Chat
+			// deliberately answers Escape with nothing while one is open.
+			if field.Name == "ShellPopover" {
+				continue
+			}
 			s.Field(i).SetBool(true)
 		case reflect.String:
 			s.Field(i).SetString(map[string]string{"TopLayer": "reaction", "Tray": "todo"}[field.Name])

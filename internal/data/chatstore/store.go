@@ -316,6 +316,10 @@ type SendRequest struct {
 	// server-issued identity and audience fence.
 	TrustedAuthor            bool
 	ExpectedAudienceRevision uint64
+	// SystemLine is set only by Adapter.SendSystemLine (issue 3728): the author
+	// is a workspace person who decided something elsewhere and is not in the
+	// room, so the membership check does not apply to this one body shape.
+	SystemLine bool
 }
 type OutboxEvent struct {
 	ID                               int64
@@ -409,7 +413,7 @@ func (s *Store) sendPostRaw(ctx context.Context, r SendRequest) (Post, error) {
 	if r.HomeTenantID == "" {
 		r.HomeTenantID = r.TenantID
 	}
-	if !r.TrustedAuthor {
+	if !r.TrustedAuthor && !r.SystemLine {
 		var member string
 		machine, identityErr := machineActor(ctx, r.HomeTenantID, r.AuthorID)
 		if identityErr != nil {

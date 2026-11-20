@@ -144,7 +144,11 @@ func (r *RecipientStateStore) QuietHours(ctx context.Context, home, subject stri
 		}
 		return err
 	})
-	return out, err
+	if err != nil {
+		return out, err
+	}
+	// Issue 3920: the weekly schedule and pause, when the person has them.
+	return out, r.quietScheduleInto(ctx, home, subject, &out)
 }
 func (r *RecipientStateStore) PutQuietHours(ctx context.Context, home, subject string, x chatrecipient.QuietHours, expected uint64) (chatrecipient.QuietHours, error) {
 	out := x

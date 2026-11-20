@@ -78,6 +78,23 @@ var chatTenantTables = []string{
 	"chat_thread_follow",
 	"chat_voice_setting",
 	"chat_voice_transcript",
+	"chat_ack_record",
+	"chat_ack_requirement",
+	"chat_approval_clarification",
+	"chat_away",
+	"chat_conversation_case",
+	"chat_decision",
+	"chat_digest_pref",
+	"chat_form_submission",
+	"chat_information_barrier",
+	"chat_input_request",
+	"chat_notification_read",
+	"chat_post_reference",
+	"chat_quiet_schedule",
+	"chat_saved_search",
+	"chat_scheduled_post",
+	"chat_work_handoff",
+	"chat_work_link",
 }
 
 // TestTodo_CHAT_004 proves every chat-owned table has forced

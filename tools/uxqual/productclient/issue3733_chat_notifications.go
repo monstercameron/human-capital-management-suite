@@ -41,6 +41,9 @@ func loadChatNotifications(ctx context.Context, feed *ChatNotificationFeed) ([]p
 // place: an unknown author stays empty and the bell says "Someone".
 func nameChatNotificationAuthors(items []productui.ChatNotification, people []productui.Person) {
 	for i := range items {
+		if items[i].CoveringName == "" && strings.TrimSpace(items[i].CoveringID) != "" {
+			items[i].CoveringName = chatNotificationPersonName(strings.TrimSpace(items[i].CoveringID), people)
+		}
 		if strings.TrimSpace(items[i].AuthorName) != "" {
 			continue
 		}
@@ -75,4 +78,19 @@ func chatNotificationReadHandlers(ctx context.Context, feed *ChatNotificationFee
 	}
 	return func(id string, done func(error)) { run([]string{id}, false, done) },
 		func(done func(error)) { run(nil, true, done) }
+}
+
+// chatNotificationPersonName is the name this page knows for a person, or empty:
+// an identifier is never written in a name's place (issue 3789).
+func chatNotificationPersonName(id string, people []productui.Person) string {
+	for _, person := range people {
+		if person.ID != id && person.WorkerID != id {
+			continue
+		}
+		if name := strings.TrimSpace(person.PreferredName); name != "" {
+			return name
+		}
+		return strings.TrimSpace(person.Name)
+	}
+	return ""
 }

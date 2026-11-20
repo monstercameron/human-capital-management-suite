@@ -424,7 +424,11 @@ type Cell struct {
 	// journey to show. A nil Journey travels to
 	// internal/humanwork/workspace.Options unchanged, and the page reports
 	// workspace.ErrJourneyUnavailable from its own nil check.
-	Journey           workspace.JourneyEngine
+	Journey workspace.JourneyEngine
+	// JourneyAnnouncer is told after each accepted journey decision so a
+	// conversation the journey was shared into can say it was decided (#3728).
+	// Nil is valid.
+	JourneyAnnouncer  workspace.JourneyDecisionAnnouncer
 	OIDCFlow          *oidc.Flow
 	OIDCTenant        values.TenantId
 	OIDCIssuerURL     string

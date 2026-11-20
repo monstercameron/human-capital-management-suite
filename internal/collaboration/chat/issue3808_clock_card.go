@@ -130,6 +130,9 @@ func IsSystemBody(body string) bool {
 	if _, ok := ParseJourneyStage(body); ok {
 		return true
 	}
+	if _, ok := ParseOnboardingCard(body); ok {
+		return true
+	}
 	_, ok := ParseClockCard(body)
 	return ok
 }

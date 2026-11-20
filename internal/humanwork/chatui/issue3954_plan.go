@@ -405,7 +405,7 @@ const issue3954Styles = `.chat-workspace .issue3954-panel{display:grid;gap:8px;m
 	`.chat-workspace .issue3954-title{margin:0;font-size:.875rem}.chat-workspace .issue3954-summary{margin:0;font-weight:600}.chat-workspace .issue3954-label{margin:0;font-size:.75rem;font-weight:600;color:var(--muted)}` +
 	`.chat-workspace .issue3954-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px;min-width:0}` +
 	`.chat-workspace .issue3954-fields .chat-input,.chat-workspace .issue3954-details{box-sizing:border-box;width:100%;min-width:0;max-width:100%}` +
-	`.chat-workspace .issue3954-stale{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--warn,var(--line));border-radius:var(--hcm-radius-control)}` +
+	`.chat-workspace .issue3954-stale{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--warning);border-radius:var(--hcm-radius-control)}` +
 	`.chat-workspace .issue3954-error{color:var(--danger,inherit)}` +
 	`.chat-workspace .issue3954-panel button,.chat-workspace .issue3954-open{min-height:32px}` +
 	`@media (pointer:coarse),(max-width:640px){.chat-workspace .issue3954-panel button,.chat-workspace .issue3954-open{min-height:44px}.chat-workspace .issue3954-panel .chat-input{min-height:44px}}`

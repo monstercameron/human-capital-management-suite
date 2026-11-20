@@ -243,12 +243,12 @@ Shared gap: agentServedAssembly.TickTenant fans out to announcement/ambient/rest
   state: ChangeSaved sets due + clears reminded_at; DeliverSavedReminder SELECT FOR UPDATE + key saved:<sha256> + in-tx NotifySaved + reminded_at=now (chatsave_store.go, chatsave_service.go)
   durable: transaction
   key: saved:<sha256>
-  resumer: NONE: no production caller of DispatchSavedReminders and no production notice implementer (verified); dues accumulate and are never delivered
+  resumer: chat-saved-reminders workload every 5 minutes: per served tenant ListSavedReminderPeople then DispatchSavedReminders, sink writes a private notice keyed saved:<sha256> (issue3735_saved_reminder.go)
   die-before: pending; crash rolls back to pending
   die-during: pending; crash rolls back to pending
-  die-after: dues stuck pending forever (unwired)
-  visible: partial: silent due date in ListSaved
-  resume: never (unwired)
+  die-after: notice written (ON CONFLICT DO NOTHING on the key) but reminded_at not set: the next run rewrites the same notice once and acknowledges
+  visible: private notice on the Moderation page, counted in the sidebar
+  resume: next 5 minute run
 
 ## ambient-read: A message read by an ambient agent
 - drain
@@ -798,7 +798,6 @@ Shared gap: agentServedAssembly.TickTenant fans out to announcement/ambient/rest
 - F-announce-no-driver [scheduled-announcement/plan]: TickTenant has no production driver, so a planned occurrence never auto-resumes (fix: DURABLE-006)
 - F-announce-model-reexec [scheduled-announcement/replay-admit-ack]: a death after the run starts but before its row re-runs the occurrence and may repeat the paid model call (fix: DURABLE-003)
 - F-reminder-no-driver [reminder/deliver]: TickTenant has no production driver, so due reminders never auto-deliver (fix: DURABLE-006)
-- F-reminder-saved-unwired [reminder/saved-remind]: DispatchSavedReminders has no production caller and no production notice implementer: dues are stuck pending forever (fix: DURABLE-006)
 - F-ambient-no-driver [ambient-read/drain]: TickTenant has no production driver, so the outbox drain never runs on its own (fix: DURABLE-006)
 - F-ambient-reserved-lost [ambient-read/reserve]: a reservation committed before a death that kills the model call is never retried: the read is lost until an edit or new request (fix: DURABLE-003)
 - F-ambient-model [ambient-read/model]: nothing durable covers the ambient model call: no journal, no lease (fix: DURABLE-003)

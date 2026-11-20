@@ -377,7 +377,10 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// threads, details, saved, moderation, phone layout and touch targets), and
 	// the product stylesheet gains the Agents page and account-link rules
 	// (#3764, #3776, #3961).
-	const want = "bfae89c4c3d9cb1335f804ba34c710af0995292471ef511971f5aad13e512dd1"
+	// Re-pinned 2026-11-20 for the second and third Chat feature waves and the
+	// browser-verification fixes: the served stylesheets gain their rules, and
+	// undefined style variables those waves introduced now use defined tokens.
+	const want = "ea02e939e99199481d7f95751d7c446ae4f2b08464b9a59f44600e3f091cb0f9"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

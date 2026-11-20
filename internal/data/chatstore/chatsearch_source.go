@@ -224,13 +224,11 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 			// that are then discarded. $3 is the reader.
 			query += ` AND (payload->>'AuthorID'=$3 OR payload->>'OwnerID'=$3)`
 		}
-		// ISSUE-3945: the keyset comparison and the sort flip together, so the
-		// oldest-first walk resumes after its cursor exactly as newest-first does.
-		cursorOp, direction := "<", "DESC"
 		if q.Oldest() {
-			cursorOp, direction = ">", "ASC"
+			query += chatsearchWindowOldest
+		} else {
+			query += chatsearchWindowNewest
 		}
-		query += ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")` + cursorOp + `($8,$9::text)) ORDER BY order_at ` + direction + `,order_id COLLATE "C" ` + direction + ` LIMIT $11`
 		limit := q.Limit
 		if limit == 0 {
 			limit = 20
@@ -340,6 +338,19 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 		}
 	}
 }
+
+// chatsearchWindowNewest ends every search statement: the keyset cursor, the
+// order and the window size, newest first. It is one whole statement tail on
+// purpose. The plan measurements (CHATBUG-096, CHATSCALE-001) recover the
+// served SQL from this file by reading its literals, and a tail assembled from
+// pieces is read back cut off at the first piece, which is not valid SQL.
+const chatsearchWindowNewest = ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")<($8,$9::text)) ORDER BY order_at DESC,order_id COLLATE "C" DESC LIMIT $11`
+
+// chatsearchWindowOldest is the same tail walked the other way (ISSUE-3945):
+// the keyset comparison and both sort keys flip together, so the oldest-first
+// walk resumes after its cursor exactly as newest-first does. It is derived
+// from the newest-first tail so the two cannot drift apart.
+var chatsearchWindowOldest = strings.NewReplacer(`)<($8,$9::text)`, `)>($8,$9::text)`, ` DESC`, ` ASC`).Replace(chatsearchWindowNewest)
 
 // chatsearchRenderingIDs finds the posts whose stored rendering (a translation)
 // holds the typed words. The longest word is matched first, by itself, so the

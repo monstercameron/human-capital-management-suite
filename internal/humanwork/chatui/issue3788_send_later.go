@@ -767,7 +767,7 @@ const Issue3788Styles = `.issue3788-control{padding:0 .75rem}` +
 	`.issue3788-intro{margin:0 0 .5rem;font-size:.75rem;opacity:.8}` +
 	`.issue3788-empty{margin:.25rem 0;display:grid;gap:.5rem;justify-items:start}` +
 	`.issue3788-list{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}` +
-	`.issue3788-item{display:grid;gap:.375rem;padding:.375rem .5rem;border-radius:.375rem;background:var(--accent-soft,rgba(0,0,0,.04))}` +
+	`.issue3788-item{display:grid;gap:.375rem;padding:.375rem .5rem;border-radius:.375rem;background:var(--soft)}` +
 	`.issue3788-body{display:grid;gap:.125rem;min-width:0}` +
 	`.issue3788-where{font-weight:600;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}` +
 	`.issue3788-preview{overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow-wrap:anywhere}` +

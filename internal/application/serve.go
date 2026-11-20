@@ -689,17 +689,6 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	// #3732: a local demo org starts with promotions at several stages, so the
-	// Journeys list and the chat journey card can be exercised at once.
-	if cfg.DevDemoJourneys && in.Pool != nil {
-		seeded := seedLocalDevDemoJourneys(ctx, cell.Journey, baseVerifier, cfg, options.Now)
-		if seeded.Created > 0 {
-			logger.Info("hcmnext.local_dev_demo_journeys_ready", "journeys_created", seeded.Created)
-		}
-		for _, note := range seeded.Notes {
-			logger.Info("hcmnext.local_dev_demo_journeys_skipped", "reason", note)
-		}
-	}
 	platformAgentRuntime := wireAgentRuntime(ctx, in, cell, logger, graph, options.Now)
 	personaWiring, personaWiringErr := composePersonaServeWiring(in.Pool, cell, agentDatabase.personas, options.Now)
 	if personaWiringErr != nil {
@@ -1403,6 +1392,11 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// Issue 3790: a message becomes a project task that links it.
 	messageWork := chatMessageWorkFor(projects.chatLinks, projects.service)
 	if messageWork != nil {
+		// Issue 3812: the served chat reader is a decorator chain that does not
+		// carry the case question, so ask the core service that holds the bindings.
+		if chatRuntime.core != nil {
+			messageWork.cases = chatRuntime.core
+		}
 		edgeHandler = OverlayChatMessageWork(edgeHandler, messageWork, cell.Config)
 		// Issue 3794: hand one linked work item's next step to another person.
 		if handoffs := chatWorkHandoffsFor(messageWork, projects.service, chatRuntime.store); handoffs != nil {
@@ -1422,6 +1416,12 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		if projects.chatLinks != nil && chatRuntime.service != nil && cell.Journey != nil {
 			if clarifications := NewApprovalClarifications(cell.Journey, chatRuntime.service, projects.chatLinks, chatRuntime.store, chatWorkIntentAdapter{service: cell.Service}, documentOwnerNames(in.Pool)); clarifications != nil {
 				edgeHandler = OverlayApprovalClarifications(edgeHandler, clarifications, cell.Config)
+			}
+		}
+		// Issue 3998: a reviewer asks for informal input in a conversation they can post in.
+		if projects.chatLinks != nil && chatRuntime.service != nil && cell.Journey != nil {
+			if inputRequests := NewInputRequests(cell.Journey, chatRuntime.service, projects.chatLinks, chatRuntime.store); inputRequests != nil {
+				edgeHandler = OverlayInputRequests(edgeHandler, inputRequests, cell.Config)
 			}
 		}
 		// Issue 3749: where a document was discussed, read under the viewer's authority.

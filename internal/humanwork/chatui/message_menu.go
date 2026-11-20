@@ -133,6 +133,10 @@ func chatux022MenuItems(m Model, msg Message) []ui.Node {
 	items = append(items, chatworkMenuItem(m, msg)...)
 	items = append(items, ackMenuItem(m, msg)...)
 	items = append(items, workflowHandoffMenuItem(m, msg)...)
+	items = append(items, analysisMenuItem(m, msg)...)
+	if thread {
+		items = append(items, impactMenuItem(m, msg)...)
+	}
 	items = append(items, decisionsMenuItem(m, msg)...)
 	items = append(items, memoryMenuItem(m, msg)...)
 	if listen := chatListenAction(m, msg, true); listen != nil {

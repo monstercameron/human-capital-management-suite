@@ -144,6 +144,7 @@ func bindProjectShare(cfg journeyclient.Config) {
 	projectShareInstalls = true
 	bindJourneyDiscussed(cfg)
 	bindJourneyClarify(cfg)
+	bindJourneyInput(cfg)
 	document.Call("addEventListener", "click", js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) == 0 {
 			return nil

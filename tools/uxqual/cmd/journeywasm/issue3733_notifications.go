@@ -31,6 +31,7 @@ type chatNotificationJSON struct {
 	ThreadRootID       string    `json:"thread_root_id"`
 	ThreadRootSequence uint64    `json:"thread_root_sequence"`
 	AuthorID           string    `json:"author_id"`
+	CoveringID         string    `json:"covering_id"`
 	Body               string    `json:"body"`
 	At                 time.Time `json:"at"`
 	Read               bool      `json:"read"`
@@ -125,6 +126,18 @@ func chatNotificationItems(reply chatNotificationsReply, name func(string) strin
 		if name != nil {
 			author = strings.TrimSpace(name(item.AuthorID))
 		}
+		covering := ""
+		if name != nil && item.CoveringID != "" {
+			covering = strings.TrimSpace(name(item.CoveringID))
+			if chatsaveLooksLikeIdentifier(covering) {
+				covering = ""
+			}
+		}
+		// A cover notice says where and who, never what (issue 3789).
+		body := item.Body
+		if item.Kind == "cover" {
+			body = ""
+		}
 		if chatsaveLooksLikeIdentifier(author) {
 			author = ""
 		}
@@ -135,7 +148,7 @@ func chatNotificationItems(reply chatNotificationsReply, name func(string) strin
 		items = append(items, productui.ChatNotification{
 			ID: item.ID, Kind: item.Kind, ConversationID: item.ConversationID, ConversationName: place,
 			PostID: item.PostID, Sequence: item.Sequence, ThreadRootID: item.ThreadRootID, ThreadRootSequence: item.ThreadRootSequence,
-			AuthorID: item.AuthorID, AuthorName: author, Body: item.Body, CreatedAt: item.At, Read: item.Read,
+			AuthorID: item.AuthorID, AuthorName: author, CoveringID: item.CoveringID, CoveringName: covering, Body: body, CreatedAt: item.At, Read: item.Read,
 		})
 	}
 	return items

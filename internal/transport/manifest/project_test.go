@@ -35,8 +35,9 @@ func TestTodo_PM_026_Conformance(t *testing.T) {
 			t.Errorf("%s: write retry lacks request idempotency key source %q", endpoint.EndpointID, endpoint.IdempotencyKeySource)
 		}
 	}
-	if count != 38 {
-		t.Fatalf("expected all 38 current ProjectService RPCs, got %d", count)
+	// 39 since #3751 added GetProjectPreviews, the batch ticket preview read.
+	if count != 39 {
+		t.Fatalf("expected all 39 current ProjectService RPCs, got %d", count)
 	}
 }
 

@@ -433,7 +433,7 @@ const Issue3787Styles = `.issue3787-control{padding:0 .75rem}` +
 	`.issue3787-note{margin:.25rem 0;display:grid;gap:.5rem;justify-items:start}` +
 	`.issue3787-sections{display:grid;gap:.75rem}.issue3787-section-title{margin:0 0 .25rem;font-size:.8125rem;font-weight:600}` +
 	`.issue3787-list{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}` +
-	`.issue3787-item{display:grid;gap:.375rem;padding:.375rem .5rem;border-radius:.375rem;background:var(--accent-soft,rgba(0,0,0,.04))}` +
+	`.issue3787-item{display:grid;gap:.375rem;padding:.375rem .5rem;border-radius:.375rem;background:var(--soft)}` +
 	`.issue3787-body{display:grid;gap:.125rem;min-width:0}` +
 	`.issue3787-channel{font-weight:600;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}` +
 	`.issue3787-preview{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}` +

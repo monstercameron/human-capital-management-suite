@@ -39,6 +39,7 @@ func chatbug045PanelRows(m Model, h handlers) []ui.Node {
 	}
 	add("quiet-hours", railPreferences(m, h))
 	add("quiet-schedule", issue3920Row(m, h))
+	add("away", issue3789Row(m))
 	add("voice-messages", chatvoicePersonalRow(m))
 	add("reading-languages", integrate2ReadingSettings(m))
 	if chatbug045WritingStyleRow != nil {

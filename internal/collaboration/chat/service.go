@@ -478,6 +478,10 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	if carriesClockCardMarker(r.Body) && !hasClockCardAuthority(ctx) {
 		return Post{}, ErrInvalidArgument
 	}
+	// Only PostOnboardingCard writes a welcome card (#3811).
+	if carriesOnboardingCardMarker(r.Body) && !hasOnboardingCardAuthority(ctx) {
+		return Post{}, ErrInvalidArgument
+	}
 	// Only PostFormCard writes a form card (#3795).
 	if carriesFormCardMarker(r.Body) && !hasFormCardAuthority(ctx) {
 		return Post{}, ErrInvalidArgument
@@ -592,7 +596,7 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 // original post's effects.
 func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error) {
 	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, func() error {
-		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) || carriesMembershipMarker(r.Body) || carriesClockCardMarker(r.Body) || carriesFormCardMarker(r.Body) || carriesJourneyStageMarker(r.Body) {
+		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) || carriesMembershipMarker(r.Body) || carriesClockCardMarker(r.Body) || carriesOnboardingCardMarker(r.Body) || carriesFormCardMarker(r.Body) || carriesJourneyStageMarker(r.Body) {
 			return ErrInvalidArgument
 		}
 		return nil

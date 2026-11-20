@@ -332,8 +332,8 @@ const issue3917Styles = `.chat-workspace .shared-files-body{display:flex;flex-di
 	`.chat-workspace .shared-files-search{display:flex;flex-direction:column;gap:4px;min-width:0}` +
 	`.chat-workspace .shared-files-search-row{display:flex;gap:6px;min-width:0}.chat-workspace .shared-files-search-row .chat-input{flex:1 1 auto;min-width:0;box-sizing:border-box}` +
 	`.chat-workspace .shared-files-types{display:flex;flex-wrap:wrap;gap:6px}` +
-	`.chat-workspace .shared-files-chip{min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:inherit;font:inherit;font-size:.8125rem;cursor:pointer}` +
-	`.chat-workspace .shared-files-chip[aria-pressed=true]{background:var(--accent-soft,var(--soft));border-color:var(--accent,currentColor);font-weight:600}` +
+	`.chat-workspace .shared-files-chip{min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:inherit;font:inherit;font-size:.8125rem;cursor:pointer}` +
+	`.chat-workspace .shared-files-chip[aria-pressed=true]{background:var(--soft);border-color:var(--accent,currentColor);font-weight:600}` +
 	`.chat-workspace .shared-files-chip:focus-visible,.chat-workspace .shared-files-body .button:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.chat-workspace .shared-files-status{margin:0;color:var(--muted);font-size:.8125rem;overflow-wrap:anywhere}` +
 	`.chat-workspace .shared-files-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}` +

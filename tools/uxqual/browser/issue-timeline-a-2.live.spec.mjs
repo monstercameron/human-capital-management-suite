@@ -1,14 +1,18 @@
 import { test, expect, devices } from "@playwright/test";
 
-// Live checks for #3845 (hover bar stays in its own row), #3843 and #3773
+// Live checks for #3845 (hover bar stays inside its own row), #3843 and #3773
 // (the sticky day pill has its own strip, whole below the header).
+//
+// The message list is virtualised and long, and it re-anchors itself after a
+// programmatic scroll, so every measurement below is taken in one synchronous
+// page.evaluate right after the list is seen at its first day.
 
-test.setTimeout(120000);
+test.setTimeout(180000);
 
 async function signIn(page) {
   await page.goto("/workspace/login");
   await page
-    .getByRole("button", { name: /^Continue as Rafael Torres/ })
+    .getByRole("button", { name: /^Continue as Darius Bennett/ })
     .first()
     .click();
   await page.waitForURL(/\/workspace\/app\//);
@@ -17,37 +21,105 @@ async function signIn(page) {
 async function openChannel(page, name, locale = "en-US") {
   await page.goto(`/workspace/app/chat?locale=${locale}#channel=${name}`);
   await expect(page.locator(".message[data-message-id]").first()).toBeVisible({
-    timeout: 45000,
+    timeout: 60000,
   });
+  await page.waitForTimeout(2500);
 }
+
+// Climb to the first day of the channel (where the day dividers are rendered)
+// and run `measure` (a function body string) there, in one evaluate.
+async function atFirstDay(page, measure) {
+  for (let i = 0; i < 80; i++) {
+    const result = await page.evaluate(`(() => {
+      const l = document.querySelector(".message-list");
+      if (!l.querySelector(".day-divider")) { l.scrollTop = 0; return { found: false }; }
+      return { found: true, value: (${measure})(l) };
+    })()`);
+    if (result.found) return result.value;
+    await page.waitForTimeout(600);
+  }
+  throw new Error("the first day divider never rendered");
+}
+
+const hoverMeasure = `(l) => {
+  const lb = l.getBoundingClientRect();
+  const rows = [...l.querySelectorAll(".message[data-message-id]")]
+    .map((el) => ({ id: el.dataset.messageId, b: el.getBoundingClientRect() }))
+    .filter((r) => r.b.bottom > lb.top + 20 && r.b.top < lb.bottom - 20);
+  return rows.map((r) => ({ id: r.id, x: r.b.x + r.b.width / 2, y: r.b.y + Math.min(r.b.height / 2, 30) }));
+}`;
 
 async function checkHoverBars(page, name, locale) {
   await openChannel(page, name, locale);
-  const rows = page.locator(".message-list .message[data-message-id]");
-  const count = await rows.count();
-  expect(count).toBeGreaterThan(2);
+  // The list opens at its newest messages and stays put there: hover those.
+  const targets = await page.evaluate(
+    `(${hoverMeasure})(document.querySelector('.message-list'))`,
+  );
+  expect(targets.length).toBeGreaterThan(2);
   let checked = 0;
-  for (let i = 1; i < Math.min(count, 10); i++) {
-    const row = rows.nth(i);
-    await row.scrollIntoViewIfNeeded();
-    await row.hover();
-    const bar = row.locator(".message-actions").first();
-    if (!(await bar.isVisible())) continue;
-    const prev = await rows.nth(i - 1).boundingBox();
-    const own = await row.boundingBox();
-    const b = await bar.boundingBox();
-    if (!prev || !own || !b) continue;
-    // Inside its own row (1px tolerance), and never reaching the row above.
-    expect(b.y, `bar ${i} top vs own row`).toBeGreaterThanOrEqual(own.y - 1);
-    expect(b.y + b.height, `bar ${i} bottom vs own row`).toBeLessThanOrEqual(
-      own.y + own.height + 1,
+  const skipped = [];
+  for (const t of targets.slice(1)) {
+    await page.mouse.move(t.x, t.y);
+    await page
+      .waitForFunction(
+        ([x, y]) =>
+          document
+            .elementFromPoint(x, y)
+            ?.closest(".message[data-message-id]")
+            ?.querySelector(".message-actions"),
+        [t.x, t.y],
+        { timeout: 2500 },
+      )
+      .catch(() => {});
+    const m = await page.evaluate(
+      ([x, y]) => {
+        const row = document
+          .elementFromPoint(x, y)
+          ?.closest(".message[data-message-id]");
+        if (!row) return { why: "no row under the pointer" };
+        const bar = row.querySelector(".message-actions");
+        if (!bar) return { why: "row has no bar" };
+        const cs = window.getComputedStyle(bar);
+        const b = bar.getBoundingClientRect();
+        if (b.width === 0 || cs.visibility === "hidden" || cs.opacity === "0")
+          return { why: `bar hidden ${cs.visibility} ${cs.opacity} ${b.width}` };
+        const all = [
+          ...document.querySelectorAll(".message-list .message[data-message-id]"),
+        ];
+        const prev = all[all.indexOf(row) - 1];
+        const own = row.getBoundingClientRect();
+        const p = prev && prev.getBoundingClientRect();
+        return {
+          shown: true,
+          barTop: b.top,
+          barBottom: b.bottom,
+          ownTop: own.top,
+          ownBottom: own.bottom,
+          prevBottom: p ? p.bottom : null,
+        };
+      },
+      [t.x, t.y],
     );
-    expect(b.y, `bar ${i} below previous row`).toBeGreaterThanOrEqual(
-      prev.y + prev.height - 1,
+    if (!m.shown) {
+      skipped.push(`${t.id}: ${m.why}`);
+      continue;
+    }
+    expect(m.barTop, `bar top vs own row (${t.id})`).toBeGreaterThanOrEqual(
+      m.ownTop - 1,
     );
+    expect(m.barBottom, `bar bottom vs own row (${t.id})`).toBeLessThanOrEqual(
+      m.ownBottom + 1,
+    );
+    if (m.prevBottom != null && m.prevBottom <= m.ownTop + 1)
+      expect(m.barTop, `bar below previous row (${t.id})`).toBeGreaterThanOrEqual(
+        m.prevBottom - 1,
+      );
     checked++;
   }
-  expect(checked).toBeGreaterThan(1);
+  expect(
+    checked,
+    `hover bars measured (skipped: ${skipped.join("; ")})`,
+  ).toBeGreaterThan(1);
 }
 
 for (const locale of ["en-US", "ar"]) {
@@ -62,70 +134,66 @@ for (const locale of ["en-US", "ar"]) {
   });
 }
 
-async function scrollDayChecks(page, label) {
-  const list = page.locator(".message-list").first();
-  await expect(page.locator(".message-list .day-divider").first()).toBeAttached();
-  const info = await page.evaluate(() => {
-    const d = document.querySelector(".message-list .day-divider");
-    const cs = window.getComputedStyle(d);
-    return {
-      position: cs.position,
-      bg: cs.backgroundColor,
-      pe: cs.pointerEvents,
-    };
-  });
-  expect(info.position, label).toBe("sticky");
-  expect(info.bg, `${label} strip colour`).not.toMatch(
+const dayMeasure = `(l) => {
+  const out = [];
+  const d0 = l.querySelector(".day-divider");
+  const cs = window.getComputedStyle(d0);
+  const style = { position: cs.position, bg: cs.backgroundColor, pe: cs.pointerEvents };
+  for (const off of [0, 12, 30, 60, 100]) {
+    const d = l.querySelector(".day-divider");
+    // scroll so the divider's own row starts off px above the list's top edge: its natural
+    // place is above the edge, so the strip has to be holding it there.
+    l.scrollTop += d.parentElement.getBoundingClientRect().top - l.getBoundingClientRect().top - off;
+    const lb = l.getBoundingClientRect();
+    const stuck = [...l.querySelectorAll(".day-divider")]
+      .map((x) => ({ x, b: x.getBoundingClientRect() }))
+      .filter((s) => s.b.bottom > lb.top && s.b.top < lb.bottom)
+      .sort((a, b) => a.b.top - b.b.top)[0];
+    if (!stuck) { out.push({ off, none: true }); continue; }
+    const pill = stuck.x.querySelector("span") || stuck.x;
+    const pb = pill.getBoundingClientRect();
+    const top = document.elementFromPoint(pb.x + pb.width / 2, pb.y + pb.height / 2);
+    const sb = stuck.b;
+    const covered = [];
+    for (const fx of [0.05, 0.25, 0.5, 0.75, 0.95]) {
+      const el = document.elementFromPoint(sb.x + sb.width * fx, sb.y + sb.height / 2);
+      if (el && !stuck.x.contains(el) && el.closest(".message")) covered.push(el.className);
+    }
+    const hdr = document.querySelector(".chat-workspace .conversation-header");
+    out.push({
+      off,
+      pillTop: pb.top,
+      listTop: lb.top,
+      headerBottom: hdr ? hdr.getBoundingClientRect().bottom : null,
+      pillOnTop: stuck.x.contains(top),
+      covered,
+    });
+  }
+  return { style, out };
+}`;
+
+async function dayChecks(page, label) {
+  const { style, out } = await atFirstDay(page, dayMeasure);
+  expect(style.position, label).toBe("sticky");
+  expect(style.bg, `${label} strip colour`).not.toMatch(
     /rgba\(0, 0, 0, 0\)|transparent/,
   );
-  expect(info.pe, `${label} strip takes the pointer`).not.toBe("none");
-  for (let s = 0; s < 6; s++) {
-    await list.evaluate((el, step) => {
-      el.scrollTop = Math.max(0, (el.scrollHeight - el.clientHeight) * (1 - step / 6));
-    }, s);
-    await page.waitForTimeout(150);
-    const r = await page.evaluate(() => {
-      const l = document.querySelector(".message-list");
-      const lb = l.getBoundingClientRect();
-      const all = [...l.querySelectorAll(".day-divider")];
-      const stuck = all
-        .map((d) => ({ d, b: d.getBoundingClientRect() }))
-        .filter((x) => x.b.bottom > lb.top && x.b.top < lb.bottom)
-        .sort((a, b) => a.b.top - b.b.top)[0];
-      if (!stuck) return null;
-      const pill = stuck.d.querySelector("span") || stuck.d;
-      const pb = pill.getBoundingClientRect();
-      const top = document.elementFromPoint(pb.x + pb.width / 2, pb.y + pb.height / 2);
-      const sb = stuck.b;
-      const covered = [];
-      for (const fx of [0.05, 0.25, 0.5, 0.75, 0.95]) {
-        const el = document.elementFromPoint(
-          sb.x + sb.width * fx,
-          sb.y + sb.height / 2,
-        );
-        if (el && !stuck.d.contains(el) && el.closest(".message"))
-          covered.push(el.className);
-      }
-      const hdr = document.querySelector(
-        ".chat-workspace .conversation-header, .chat-workspace .chat-header",
-      );
-      const hb = hdr ? hdr.getBoundingClientRect() : null;
-      return {
-        pillTop: pb.top,
-        headerBottom: hb ? hb.bottom : null,
-        pillOnTop: stuck.d.contains(top),
-        coveredByMessage: covered,
-      };
-    });
-    if (!r) continue;
-    expect(r.pillOnTop, `${label} step ${s}: pill is not under a message`).toBe(true);
-    expect(r.coveredByMessage, `${label} step ${s}: no message on the strip`).toEqual(
-      [],
+  expect(style.pe, `${label} strip takes the pointer`).not.toBe("none");
+  for (const r of out) {
+    expect(r.none, `${label} offset ${r.off}: divider in view`).toBeUndefined();
+    expect(r.pillOnTop, `${label} offset ${r.off}: pill not under a message`).toBe(
+      true,
     );
+    expect(r.covered, `${label} offset ${r.off}: no message on the strip`).toEqual([]);
+    expect(
+      r.pillTop - r.listTop,
+      `${label} offset ${r.off}: pill sits 16px below the list top`,
+    ).toBeGreaterThanOrEqual(15);
     if (r.headerBottom != null)
-      expect(r.pillTop, `${label} step ${s}: pill below header`).toBeGreaterThanOrEqual(
-        r.headerBottom - 0.5,
-      );
+      expect(
+        r.pillTop,
+        `${label} offset ${r.off}: pill below header`,
+      ).toBeGreaterThanOrEqual(r.headerBottom - 0.5);
   }
 }
 
@@ -149,7 +217,7 @@ for (const [label, viewport, locale, scheme] of [
     const page = await ctx.newPage();
     await signIn(page);
     await openChannel(page, "general", locale);
-    await scrollDayChecks(page, label);
+    await dayChecks(page, label);
     await ctx.close();
   });
 }

@@ -48,6 +48,8 @@ func overlayIntegrate1Chat(next http.Handler, runtime composedChat, voice VoiceS
 	next = OverlayChatDigest(next, chatDigestPort(runtime), admission)
 	// Issue 3920: the weekly quiet-hours schedule and one-off pause.
 	next = OverlayChatQuietSchedule(next, chatQuietSchedulePort(runtime), admission)
+	// Issue 3789: away until a date, with a named cover.
+	next = OverlayChatAway(next, chatAwayPort(runtime), admission)
 	// Issue 3788: messages their author chose to send later.
 	next = OverlayScheduledPosts(next, scheduledPostsPort(runtime), admission)
 	next = OverlayChatClientTelemetry(next, admission, nil)

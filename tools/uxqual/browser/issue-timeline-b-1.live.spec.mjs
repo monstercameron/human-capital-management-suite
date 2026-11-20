@@ -1,3 +1,4 @@
+/* global navigator, getComputedStyle */
 import { test, expect } from "@playwright/test";
 
 // Timeline fixes against the live dev cell: pinning your own message in a
@@ -14,7 +15,7 @@ async function signIn(page, persona) {
 
 async function createChannel(page, name) {
   await page.goto("/workspace/app/chat?locale=en-US");
-  await page.locator(".message[data-message-id]").first().waitFor({ timeout: 80000 });
+  await page.locator("[data-action='open-create']").first().waitFor({ timeout: 80000 });
   await page.locator("[data-action='open-create']").first().click();
   await page.locator("#create-kind-public-channel").click();
   await page.locator("#new-chat-name").fill(name);
@@ -23,18 +24,21 @@ async function createChannel(page, name) {
   await page.locator("textarea.composer-input").first().waitFor({ timeout: 40000 });
 }
 
-async function post(page, text) {
+async function post(page, text, find = text) {
   const input = page.locator("textarea.composer-input").first();
-  await input.fill(text);
-  await input.press("Enter");
-  const msg = page.locator(".message[data-message-id]", { hasText: text }).first();
+  // The page is a WASM app: typing before it has hydrated is lost.
+  await page.waitForTimeout(6000);
+  await input.click();
+  await page.keyboard.type(text);
+  await page.keyboard.press("Enter");
+  const msg = page.locator(".message[data-message-id]", { hasText: find }).first();
   await expect(msg).toBeVisible({ timeout: 30000 });
   return msg;
 }
 
 async function openMenu(page, msg) {
   await msg.hover();
-  await msg.getByRole("button", { name: "More", exact: true }).click();
+  await msg.getByRole("button", { name: "More actions", exact: true }).click();
   const menu = page.locator(".message-menu").first();
   await expect(menu).toBeVisible();
   return menu;
@@ -49,16 +53,26 @@ test("#3838 a member pins their own message in a channel they did not create", a
   await signIn(op, "Rafael Torres");
   await createChannel(op, name);
 
+  // The owner adds Linh, so she is a member who did not create the channel.
+  await op.waitForTimeout(6000);
+  await op
+    .getByRole("button", { name: /^Members/ })
+    .first()
+    .click();
+  await op.locator("[data-action='open-add-members']").first().click();
+  await op.locator("#new-chat-member-search").fill("Linh");
+  await op.locator("[data-action='create-pick']", { hasText: "Linh Tran" }).click();
+  await op.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(op.locator("[data-action='open-add-members']").first()).toBeVisible({
+    timeout: 20000,
+  });
+  await op.waitForTimeout(3000);
+
   const member = await browser.newContext();
   const mp = await member.newPage();
   await signIn(mp, "Linh Tran");
   await mp.goto(`/workspace/app/chat?locale=en-US#channel=${name}`);
-  await mp
-    .locator("textarea.composer-input, [data-action='join']")
-    .first()
-    .waitFor({ timeout: 80000 });
-  const join = mp.locator("[data-action='join'], [data-action='join-channel']").first();
-  if (await join.isVisible().catch(() => false)) await join.click();
+  await mp.locator("textarea.composer-input").first().waitFor({ timeout: 80000 });
   const marker = `zz-3838 mine ${Date.now()}`;
   const msg = await post(mp, marker);
   const menu = await openMenu(mp, msg);
@@ -83,15 +97,18 @@ test("#3718 Copy text confirms with 'Text copied' and copies plain text", async 
   const name = `zz-timeline-b-${Math.random().toString(36).slice(2, 8)}`;
   await createChannel(page, name);
   const tag = `zz3718${Date.now()}`;
-  const msg = await post(page, `${tag} **bold** and \`code\` text`);
+  const msg = await post(page, `${tag} **bold** and \`code\` text`, tag);
   // A stale link toast first, to prove it is replaced.
   let menu = await openMenu(page, msg);
   await menu.locator("[data-action='copy-link']").click();
-  menu = await openMenu(page, msg);
-  await menu.locator("[data-action='copy-contents']").click();
-  await expect(page.getByText("Text copied", { exact: true }).first()).toBeVisible({
+  await expect(page.locator(".chat-notice")).toHaveText(/Link copied/, {
     timeout: 10000,
   });
+  menu = await openMenu(page, msg);
+  await menu.locator("[data-action='copy-contents']").click();
+  const notice = page.locator(".chat-notice");
+  await expect(notice).toHaveText("Text copied", { timeout: 10000 });
+  await expect(notice).toBeVisible();
   await expect(page.getByText("Link copied")).toHaveCount(0);
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   expect(clip).toContain(`${tag} bold and code text`);
@@ -105,8 +122,8 @@ test("#3841 Arabic: English message body stays under its author on the start sid
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await signIn(page, "Rafael Torres");
-  await page.goto("/workspace/app/chat?locale=ar#channel=general");
-  const msg = page.locator(".message[data-message-id]").first();
+  await page.goto("/workspace/app/chat?locale=ar#channel=engineering");
+  const msg = page.locator(".message[data-message-id] .message-body").first();
   await expect(msg).toBeVisible({ timeout: 80000 });
   expect(
     await page.evaluate(() => getComputedStyle(document.documentElement).direction),
@@ -115,25 +132,30 @@ test("#3841 Arabic: English message body stays under its author on the start sid
     const out = [];
     for (const m of document.querySelectorAll(".message[data-message-id]")) {
       const body = m.querySelector(".message-body");
-      const author = m.querySelector(".message-author, .author, [class*='author']");
-      if (!body || !author) continue;
+      const avatar = m.querySelector(".person-avatar-button");
+      const author = m.querySelector(".message-author");
+      if (!body || !avatar || !author) continue;
       const b = body.getBoundingClientRect();
-      const a = author.getBoundingClientRect();
+      const a = avatar.getBoundingClientRect();
+      const au = author.getBoundingClientRect();
       const mr = m.getBoundingClientRect();
       out.push({
         bodyRight: b.right,
         bodyLeft: b.left,
-        authorRight: a.right,
-        msgRight: mr.right,
+        avatarLeft: a.left,
+        authorRight: au.right,
         msgLeft: mr.left,
+        msgWidth: mr.width,
+        text: body.innerText.slice(0, 30),
       });
     }
     return out;
   });
   expect(result.length).toBeGreaterThan(0);
   for (const r of result.slice(0, 12)) {
-    // The body block is anchored beside the author (right side), not detached at the left edge.
-    expect(r.bodyRight).toBeGreaterThan(r.authorRight - 40);
-    expect(r.bodyLeft).toBeGreaterThan(r.msgLeft + 1);
+    // The body block ends at the author's start edge (right side) and sits
+    // beside the avatar, not detached a full column away at the left edge.
+    expect(r.bodyRight, r.text).toBeGreaterThan(r.authorRight - 40);
+    expect(r.bodyRight, r.text).toBeLessThanOrEqual(r.avatarLeft + 1);
   }
 });

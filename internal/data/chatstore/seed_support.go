@@ -50,6 +50,9 @@ func (s *Store) ConversationExists(ctx context.Context, tenantID, conversationID
 // that would stop a conversation delete, so a reset cannot break silently again.
 var seedPurgeOrder = []struct{ table, column string }{
 	{"chat_reaction", "post_id_in_conversation"},
+	// A read mark names a post and nothing else, so it is found through the
+	// post while the post is still there.
+	{"chat_notification_read", "post_id_in_conversation"},
 	{"chat_pin", "conversation_id"},
 	{"chat_idempotency", "conversation_id"},
 	// A removal made by the moderation seed (CHATSEED-002) points at its room
@@ -64,6 +67,12 @@ var seedPurgeOrder = []struct{ table, column string }{
 	{"chat_preference", "conversation_id"},
 	{"chat_thread_follow", "conversation_id"},
 	{"chat_followup_state", "conversation_id"},
+	// A room's identifier is the same after a reseed, so a row that names the
+	// room without a foreign key would act on the new room: a message still
+	// waiting to be sent would be delivered into it, and a case binding still in
+	// force would restrict it. Both go with the room.
+	{"chat_scheduled_post", "conversation_id"},
+	{"chat_conversation_case", "conversation_id"},
 	// Tables that point at the room by a foreign key without a cascade. The
 	// mutable ones are removed here; the append-only ones are in
 	// seedPurgeImmutable and stop the purge before it starts.
@@ -85,12 +94,15 @@ var seedPurgeOrder = []struct{ table, column string }{
 // foreign key says ON DELETE CASCADE. The catalogue test checks the cascade is
 // really declared, so a later migration cannot turn one into a blocker unseen.
 var seedPurgeCascade = []string{
+	"chat_ack_record", "chat_ack_requirement", "chat_channel_memory",
 	"chat_channel_poll", "chat_channel_poll_revision", "chat_channel_poll_vote",
 	"chat_channel_todo", "chat_channel_todo_revision",
 	"chat_channel_widget", "chat_channel_widget_revision",
-	"chat_ephemeral_post", "chat_location_share", "chat_post_audience",
+	"chat_decision", "chat_ephemeral_post", "chat_form_submission",
+	"chat_location_share", "chat_post_audience",
 	"chat_post_card_segment_tally", "chat_post_card_tally", "chat_post_card_vote",
-	"chat_voice_transcript", "chatrender_job", "chatrender_rendering", "chatrender_report",
+	"chat_post_reference", "chat_voice_transcript", "chat_work_handoff", "chat_work_link",
+	"chatrender_job", "chatrender_rendering", "chatrender_report",
 	"chatscale_read_state", "chattone_reword_exemption",
 }
 
@@ -129,20 +141,25 @@ const (
 var seedPurgeKept = map[string]string{
 	"agentux_ambient_offer": keptNoForeignKey, "agentux_ambient_optout": keptNoForeignKey,
 	"agentux_ambient_read": keptAppendOnly, "agentux_ambient_task": keptNoForeignKey,
-	"chat_agent_reaction_policy": keptSetting,
-	"chat_app_event":             keptNoForeignKey, "chat_app_event_seen": keptPerPerson, "chat_app_installation": keptNoForeignKey,
-	"chat_audit_event":       keptAppendOnly,
+	"agentux_ambient_workflow_mute": keptPerPerson,
+	"chat_agent_reaction_policy":    keptSetting,
+	"chat_app_event":                keptNoForeignKey, "chat_app_event_seen": keptPerPerson, "chat_app_installation": keptNoForeignKey,
+	// A clarification or input request is the governed record that a question
+	// was asked. Its trigger refuses a delete, so it stays, as the audit log does.
+	"chat_approval_clarification": keptAppendOnly, "chat_input_request": keptAppendOnly,
+	"chat_audit_event": keptAppendOnly, "chat_away": keptPerPerson, "chat_digest_pref": keptPerPerson,
 	"chat_filter_enablement": keptSetting, "chat_filter_hit": keptAppendOnly,
 	"chat_filter_hit_review": keptAppendOnly, "chat_filter_version": keptAppendOnly,
+	"chat_information_barrier":   keptSetting,
 	"chat_location_jurisdiction": keptSetting, "chat_location_policy": keptSetting,
 	"chat_moderation_action": keptAppendOnly, "chat_moderation_notice": keptAppendOnly,
 	"chat_moderation_permission": keptSetting, "chat_moderation_report": keptNoForeignKey,
 	"chat_moderation_role": keptSetting,
 	"chat_outbox":          keptAppendOnly, "chat_outbox_cursor": keptSetting, "chat_outbox_receipt": keptAppendOnly,
 	"chat_personal_sidebar": keptPerPerson, "chat_post_revision": keptAppendOnly,
-	"chat_quiet_hours": keptPerPerson, "chat_record_export": keptNoForeignKey,
+	"chat_quiet_hours": keptPerPerson, "chat_quiet_schedule": keptPerPerson, "chat_record_export": keptNoForeignKey,
 	"chat_record_hold": keptNoForeignKey, "chat_record_inventory": keptNoForeignKey,
-	"chat_retention_policy": keptSetting, "chat_saved_item": keptPerPerson,
+	"chat_retention_policy": keptSetting, "chat_saved_item": keptPerPerson, "chat_saved_search": keptPerPerson,
 	"chat_voice_setting": keptSetting,
 	"chatlang_glossary":  keptSetting, "chatlang_pair_stat": keptSetting,
 	"chatlang_report_resolution": keptNoForeignKey, "chatlang_setting": keptSetting,

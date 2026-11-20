@@ -175,7 +175,10 @@ func TestTodo_WEB_037_Golden(t *testing.T) {
 	// Re-pinned 2026-11-12 after the Chat loop 3 fixes: the header bell gained an
 	// accessible label tied to its unread state (#3737), and the served Chat
 	// stylesheet gained the loop 3 rules (#3703, #3704, #3712, #3714, #3734, #3827).
-	const want = "9b0b6b84f614fce5f3ea7a1a1f627c39fa047cd86ebbf5f7c165d6512b2a77ef"
+	// Re-pinned 2026-11-20 for the Chat feature waves: the header bell opens the
+	// Chat notification inbox (#3733) and the product stylesheet gains the rules
+	// of the second and third wave.
+	const want = "d70c309694c3bd44b49e24657e5b6f9e2370629a452ee09f0c8ee45b28d4121f"
 	if got != want {
 		t.Fatalf("stable shell golden digest = %s, want %s; the document is in %s", got, want, goldenReviewCopy(t, "web037-shell", doc))
 	}

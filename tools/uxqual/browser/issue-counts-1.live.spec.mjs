@@ -57,6 +57,12 @@ const expected = {
   },
 };
 
+const filterLabel = {
+  "en-US": "Manage filters",
+  "de-DE": "Filter verwalten",
+  ar: "أدر المرشحات",
+};
+
 async function dryLines(page, locale, records) {
   await page.route("**/api/chat/filters/v1/hits**", (route) =>
     route.fulfill({
@@ -67,16 +73,20 @@ async function dryLines(page, locale, records) {
   );
   await openChannel(page, locale);
   await page.locator("button[data-action='details']").first().click();
-  // The manage sections sit behind "Manage channel"; the filter history is in
-  // the one called Manage filters (labels are localised, so go by position).
-  const labels = page.locator(".manage-sec-label");
-  await expect(labels.first()).toBeVisible({ timeout: 30000 });
-  const manage = page.locator(".manage-sec-label:visible").nth(2);
-  await manage.click();
-  const filters = page.locator(".manage-sec-label:visible").nth(6);
-  await filters.click();
-  const show = page.locator(".chatmod-hits .chatmod-actions button").first();
-  await show.click();
+  // The manage sections sit behind "Manage channel" (the third row); whether
+  // it is already open is remembered, so open it only when the filter row is
+  // not on screen.
+  await expect(page.locator(".manage-sec-label:visible").first()).toBeVisible({
+    timeout: 30000,
+  });
+  const filters = page.locator(".manage-sec-label:visible", {
+    hasText: filterLabel[locale],
+  });
+  if (!(await filters.count())) {
+    await page.locator(".manage-sec-label:visible").nth(2).click();
+  }
+  await filters.first().click();
+  await page.locator(".chatmod-hits .chatmod-actions button").first().click();
   const dry = page.locator(".chatmod-hits-dry");
   await expect(dry).toBeVisible({ timeout: 30000 });
   return (await dry.locator("li .chatmod-state").allInnerTexts()).map((t) => t.trim());
@@ -117,12 +127,9 @@ for (const locale of ["en-US", "de-DE", "ar"]) {
     // No count that is drawn on screen is blank.
     const blank = found.filter((c) => c.shown && c.text === "");
     expect(blank, JSON.stringify(blank)).toEqual([]);
-    // The Saved count: hidden at zero, and written in the locale's digits.
+    // The Saved count is hidden at zero but still written in the locale's digits.
     const saved = found.find((c) => /chatsave-count/.test(c.cls));
-    if (saved)
-      expect(
-        saved.shown ? saved.text !== "" : saved.text === zero || saved.text !== "",
-      ).toBe(true);
+    if (saved && !saved.shown) expect(saved.text).toMatch(/^[0٠]$|^\S+$/);
     // The to-do chips in the channel header show a zero ("0 of 1 done").
     const chip = page
       .locator("[class*='chip'], [class*='tray']")

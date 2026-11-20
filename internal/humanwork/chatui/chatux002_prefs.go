@@ -36,6 +36,9 @@ func chatux002QuietValue(m Model) string {
 	if !m.Preferences.QuietHours {
 		return m.t(KeyOff)
 	}
+	if issue3920WeeklyOn(m) {
+		return issue3920Text(m, k3920Weekly)
+	}
 	if quietAllDay(m.Preferences) {
 		return quiet3701Text(m, keyQuiet3701Value)
 	}

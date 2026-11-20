@@ -23,8 +23,13 @@ func TestIssue3916_ControlIsADisclosureWithTheCount(t *testing.T) {
 			t.Fatalf("missing %q in %s", want, markup)
 		}
 	}
-	if strings.Contains(markup, `id="issue3916-panel"`) {
-		t.Fatalf("panel drawn while closed")
+	// Closed, the region the control names is in the page as an empty hidden
+	// element, so aria-controls always resolves; its content is not drawn.
+	if !strings.Contains(markup, `<section id="issue3916-panel" hidden`) && !strings.Contains(markup, `hidden id="issue3916-panel"`) {
+		t.Fatalf("closed panel is not an empty hidden region: %s", markup)
+	}
+	if strings.Contains(markup, `class="issue3916-panel"`) {
+		t.Fatal("panel content drawn while closed")
 	}
 }
 

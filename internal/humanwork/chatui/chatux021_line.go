@@ -35,7 +35,7 @@ func chatux021IsLine(msg Message) bool {
 	if _, card := chat.ParseClockCard(msg.Body); card {
 		return true
 	}
-	if IsFormCardBody(msg.Body) {
+	if IsFormCardBody(msg.Body) || IsOnboardingCardBody(msg.Body) {
 		return true
 	}
 	if _, stage := chat.ParseJourneyStage(msg.Body); stage {

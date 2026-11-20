@@ -611,6 +611,7 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 		if option.person != nil {
 			person := *option.person
 			label, key = person.Name, "person:"+person.ID
+			detail = issue3789Line(m, person.ID)
 			avatar = personAvatar(m, person.ID, person.Name, "avatar small")
 		} else if option.persona != nil {
 			persona := *option.persona

@@ -456,8 +456,8 @@ func decisionsForm(v DecisionsDialogView) ui.Node {
 // ChatDecisionsStyles is joined into the workspace stylesheet through
 // ChatMsgListStyles.
 const ChatDecisionsStyles = `
-.decisions-overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--hcm-color-scrim,rgba(0,0,0,.45));box-sizing:border-box}
-.decisions-dialog{inline-size:min(100%,560px);max-block-size:100%;overflow:auto;padding:20px;border-radius:12px;background:var(--hcm-color-surface,Canvas);color:var(--hcm-color-text,CanvasText);box-shadow:0 12px 40px var(--hcm-color-shadow,rgba(0,0,0,.35));box-sizing:border-box}
+.decisions-overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in srgb,var(--ink) 45%,transparent);box-sizing:border-box}
+.decisions-dialog{inline-size:min(100%,560px);max-block-size:100%;overflow:auto;padding:20px;border-radius:12px;background:var(--hcm-color-surface,Canvas);color:var(--hcm-color-text,CanvasText);box-shadow:var(--hcm-shadow-raised);box-sizing:border-box}
 .decisions-heading{margin:0 0 8px;font-size:1.125rem;line-height:1.3;overflow-wrap:anywhere}
 .decisions-notice,.decisions-status,.decisions-hint{margin:0 0 12px;font-size:.8125rem;line-height:1.45;color:var(--hcm-color-text-muted,inherit)}
 .decisions-live:empty{display:none}

@@ -1,0 +1,165 @@
+package application
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/transport"
+	"github.com/monstercameron/human-capital-management-suite/internal/trust"
+)
+
+// Issue 3998: the input request routes, under /api/chat/ (the prefix the
+// page's content security policy lets the client call):
+//
+//	GET  /api/chat/journeys/{id}/input-request   what this person may see and ask
+//	POST /api/chat/journeys/{id}/input-request   preview or send a labelled informal question
+const (
+	inputRequestPrefix = "/api/chat/journeys/"
+	inputRequestSuffix = "/input-request"
+)
+
+// InputRequestsPort is the use case as the HTTP surface uses it.
+type InputRequestsPort interface {
+	View(context.Context, *trust.Principal, string) (InputRequestView, error)
+	Ask(context.Context, *trust.Principal, InputRequestAsk) (InputRequestAsked, error)
+}
+
+func inputRequestJourneyID(path string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, inputRequestPrefix)
+	if !ok {
+		return "", false
+	}
+	escaped, ok := strings.CutSuffix(rest, inputRequestSuffix)
+	if !ok || escaped == "" || strings.Contains(escaped, "/") {
+		return "", false
+	}
+	id, err := url.PathUnescape(escaped)
+	if err != nil || id == "" || strings.Contains(id, "/") {
+		return "", false
+	}
+	return id, true
+}
+
+type inputRequestCommand struct {
+	Revision        string `json:"revision"`
+	Question        string `json:"question"`
+	ConversationID  string `json:"conversation_id"`
+	Label           string `json:"label"`
+	RevisionLabel   string `json:"revision_label"`
+	IncludeCaseName bool   `json:"include_case_name"`
+	Preview         bool   `json:"preview"`
+	IdempotencyKey  string `json:"idempotency_key"`
+}
+
+func inputRequestHTTPError(w http.ResponseWriter, err error) {
+	status, code := 0, ""
+	switch {
+	case errors.Is(err, ErrInputRequestStale):
+		status, code = http.StatusConflict, "revision_changed"
+	case errors.Is(err, ErrInputRequestClosed):
+		status, code = http.StatusConflict, "case_closed"
+	case errors.Is(err, ErrChatWorkConflict):
+		status, code = http.StatusConflict, "conflict"
+	case errors.Is(err, ErrInputRequestConversation):
+		status, code = http.StatusUnprocessableEntity, "no_conversation"
+	case errors.Is(err, ErrInputRequestPublicName):
+		status, code = http.StatusUnprocessableEntity, "name_in_public"
+	}
+	if status == 0 {
+		chatMessageWorkHTTPError(w, err)
+		return
+	}
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(chatMessageWorkError{Code: code})
+}
+
+// InputRequestsHandler answers the routes for an admitted person.
+type InputRequestsHandler struct{ Requests InputRequestsPort }
+
+func (h InputRequestsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	journeyID, ok := inputRequestJourneyID(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		w.Header().Set("Allow", "GET, POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		_ = json.NewEncoder(w).Encode(chatMessageWorkError{Code: "method_not_allowed"})
+		return
+	}
+	verified, ok := trust.FromContext(r.Context())
+	if !ok || verified == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(chatMessageWorkError{Code: "unauthenticated"})
+		return
+	}
+	if verified.SubjectKind() != trust.SubjectKindHuman {
+		chatMessageWorkHTTPError(w, ErrChatWorkDenied)
+		return
+	}
+	if h.Requests == nil {
+		chatMessageWorkHTTPError(w, ErrChatWorkUnavailable)
+		return
+	}
+	if r.Method == http.MethodPost {
+		var command inputRequestCommand
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&command) != nil || decoder.Decode(new(any)) != io.EOF {
+			chatMessageWorkHTTPError(w, ErrChatWorkInvalid)
+			return
+		}
+		asked, err := h.Requests.Ask(r.Context(), verified, InputRequestAsk{
+			JourneyID: journeyID, Revision: command.Revision, Question: command.Question, ConversationID: command.ConversationID,
+			Label: command.Label, RevisionLabel: command.RevisionLabel, IncludeCaseName: command.IncludeCaseName,
+			Preview: command.Preview, IdempotencyKey: command.IdempotencyKey,
+		})
+		if err != nil {
+			inputRequestHTTPError(w, err)
+			return
+		}
+		if asked.Created {
+			w.WriteHeader(http.StatusCreated)
+		}
+		_ = json.NewEncoder(w).Encode(asked)
+		return
+	}
+	view, err := h.Requests.View(r.Context(), verified, journeyID)
+	if err != nil {
+		inputRequestHTTPError(w, err)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(view)
+}
+
+// OverlayInputRequests mounts the routes with the admission the neighbouring
+// Chat surfaces use; other paths fall through untouched.
+func OverlayInputRequests(next http.Handler, port InputRequestsPort, admission transport.Config) http.Handler {
+	if next == nil {
+		next = http.NotFoundHandler()
+	}
+	handler := InputRequestsHandler{Requests: port}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := inputRequestJourneyID(r.URL.Path); !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+		ctx, _, denied := transport.Admit(r.Context(), admission, transport.AdmissionRequest{Metadata: transport.MapMetadata(r.Header), Method: r.URL.Path, Kind: transport.KindHTTPEdge})
+		if denied != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(denied.HTTPStatus())
+			_ = json.NewEncoder(w).Encode(chatMessageWorkError{Code: "request_denied"})
+			return
+		}
+		handler.ServeHTTP(w, r.WithContext(ctx))
+	})
+}

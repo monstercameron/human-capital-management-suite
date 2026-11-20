@@ -21,5 +21,21 @@ CREATE POLICY tenant_isolation ON chat_digest_pref
     USING (tenant_id = current_setting('hcmnext.tenant_id', true))
     WITH CHECK (tenant_id = current_setting('hcmnext.tenant_id', true));
 
+-- The store writes a person's choice, replaces it, and reads it. It never
+-- deletes one.
+-- A serving role is given what the store runs against the table and nothing
+-- more, whether its privileges came from the schema's defaults or from a grant
+-- made before this table existed (migration 00041 has the history). Row level
+-- security still scopes every statement to the caller's tenant.
+-- +goose StatementBegin
+DO $$ DECLARE role_name text; BEGIN
+    FOR role_name IN SELECT DISTINCT grantee FROM information_schema.role_table_grants
+      WHERE table_schema=current_schema() AND table_name='chat_post' AND privilege_type='UPDATE' AND grantee<>'PUBLIC'
+    LOOP
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON chat_digest_pref TO %I',role_name);
+    END LOOP;
+END $$;
+-- +goose StatementEnd
+
 -- +goose Down
 DROP TABLE chat_digest_pref;

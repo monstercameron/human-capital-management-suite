@@ -232,10 +232,10 @@ func issue3936Click(e ui.MouseEvent, m Model, local localStore) bool {
 // phones; logical properties keep it right in right-to-left.
 const Issue3936Styles = `.issue3936-filter{padding:0 .75rem .25rem}` +
 	`.issue3936-toggle{display:flex;align-items:center;justify-content:space-between;gap:.5rem;width:100%;min-height:2rem;padding:.25rem .5rem;border:1px solid var(--line,transparent);border-radius:.5rem;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer}` +
-	`.issue3936-toggle.on{background:var(--accent-soft,rgba(0,0,0,.08));font-weight:600}` +
+	`.issue3936-toggle.on{background:var(--soft);font-weight:600}` +
 	`.issue3936-toggle:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.issue3936-count{min-width:1.25rem;padding:0 .375rem;border-radius:999px;border:1px solid currentColor;text-align:center;font-size:.75rem;font-variant-numeric:tabular-nums}` +
-	`.issue3936-count.has-mention{background:var(--accent,currentColor);color:var(--accent-contrast,#fff);border-color:transparent}` +
+	`.issue3936-count.has-mention{background:var(--accent,currentColor);color:var(--on-brand);border-color:transparent}` +
 	`.issue3936-note{padding:.5rem .75rem;display:grid;gap:.5rem;justify-items:start}` +
 	`.issue3936-muted{font-size:.8125rem}` +
 	`@media (max-width:640px){.issue3936-toggle,.issue3936-back{min-height:44px}}`

@@ -24,5 +24,20 @@ CREATE POLICY tenant_isolation ON chat_work_link
     WITH CHECK (tenant_id = current_setting('hcmnext.tenant_id', true));
 CREATE TRIGGER chat_work_link_immutable BEFORE UPDATE ON chat_work_link FOR EACH ROW EXECUTE FUNCTION chat_forbid_mutation();
 
+-- The store writes a link once and reads it. It never changes or deletes one.
+-- A serving role is given what the store runs against the table and nothing
+-- more, whether its privileges came from the schema's defaults or from a grant
+-- made before this table existed (migration 00041 has the history). Row level
+-- security still scopes every statement to the caller's tenant.
+-- +goose StatementBegin
+DO $$ DECLARE role_name text; BEGIN
+    FOR role_name IN SELECT DISTINCT grantee FROM information_schema.role_table_grants
+      WHERE table_schema=current_schema() AND table_name='chat_post' AND privilege_type='UPDATE' AND grantee<>'PUBLIC'
+    LOOP
+      EXECUTE format('GRANT SELECT, INSERT ON chat_work_link TO %I',role_name);
+    END LOOP;
+END $$;
+-- +goose StatementEnd
+
 -- +goose Down
 DROP TABLE chat_work_link;

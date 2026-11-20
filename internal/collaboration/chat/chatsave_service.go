@@ -195,6 +195,10 @@ func (s *Service) SaveForLater(ctx context.Context, r SavedRequest) (SavedItem, 
 	if _, system := ParseMembershipAdded(projected.Post.Body); system {
 		return SavedItem{}, ErrInvalidArgument
 	}
+	// So is a workflow decision line (#3728).
+	if _, system := ParseJourneyStage(projected.Post.Body); system {
+		return SavedItem{}, ErrInvalidArgument
+	}
 	return store.SaveItem(ctx, r.Principal, item)
 }
 

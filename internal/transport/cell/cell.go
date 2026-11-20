@@ -226,7 +226,7 @@ func newGRPCServerWithWorkflowInspectorAndOperations(
 	// the engine is a property of the service, and this composition has no
 	// reason to hold an opinion about it.
 	transportjourney.Register(srv, transportjourney.Dependencies{
-		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		Engine: c.Journey, Announcer: c.JourneyAnnouncer, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 		Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 		CursorKey:         append([]byte(nil), cursorKey...),
 		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
@@ -388,7 +388,7 @@ func newTunnelGRPCServerWithDocumentAndProjectActivityAndWorkOrder(
 		return nil, err
 	}
 	transportjourney.Register(srv, transportjourney.Dependencies{
-		Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+		Engine: c.Journey, Announcer: c.JourneyAnnouncer, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 		Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 		CursorKey:         append([]byte(nil), cursorKey...),
 		PreviousCursorKey: append([]byte(nil), previousCursorKey...),
@@ -498,7 +498,7 @@ func newEdgeHandlerWithDependenciesAndServices(c *app.Cell, grpcServer *grpc.Ser
 		Config: c.Config, Intent: c.Service, Registry: c.Service,
 		DataOps: services.DataOps, Integration: services.Integration, Project: services.Project, WorkOrder: services.WorkOrder,
 		Journey: &transportjourney.Dependencies{
-			Engine: c.Journey, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
+			Engine: c.Journey, Announcer: c.JourneyAnnouncer, Preferences: c.Preferences, RoleAccess: c.RoleAccess, WorkerIDs: c.WorkerIDs,
 			Knowledge:         app.KnowledgeSearchService{Source: c.KnowledgeSearch},
 			CursorKey:         append([]byte(nil), cursorKey...),
 			PreviousCursorKey: append([]byte(nil), previousCursorKey...),

@@ -3,7 +3,7 @@ package chatui
 // ChatLane3Styles gathers the rules this lane's todos add (CHATBUG-072,
 // CHATUX-021, CHATUX-019 and the ones after). It is joined after the other
 // chat rules so it wins ties, and each todo appends its own constant.
-const ChatLane3Styles = ChatBug072Styles + ChatUX021Styles + ChatBug048Styles + ChatUX020Styles + ChatlangPageStyles + ChatUX027Styles + ChatSide001Styles + Chat3703Styles + Issue3808Styles + Issue3795Styles + Issue3793Styles + Issue3815Styles + Issue3812Styles + Issue3728Styles
+const ChatLane3Styles = ChatBug072Styles + ChatUX021Styles + ChatBug048Styles + ChatUX020Styles + ChatlangPageStyles + ChatUX027Styles + ChatSide001Styles + Chat3703Styles + Issue3808Styles + Issue3811Styles + Issue3795Styles + Issue3793Styles + Issue3815Styles + Issue3812Styles + Issue3728Styles
 
 // ChatBug072Styles is the create dialog's name rule note: the hint turns to the
 // error colour when a character was refused.

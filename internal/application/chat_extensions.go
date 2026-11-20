@@ -305,6 +305,11 @@ func (s *ChatExtensions) Install(ctx context.Context, p chat.Principal, conversa
 	if err != nil {
 		return chatapps.Installation{}, err
 	}
+	// Issue 3812: an app reads a conversation like a member does, so in a
+	// conversation bound to a case only the case owner may install one.
+	if err := s.caseAllowsAppInstall(ctx, p, conversation); err != nil {
+		return chatapps.Installation{}, err
+	}
 	ctx, err = s.recordContext(ctx, p, conversation)
 	if err != nil {
 		return chatapps.Installation{}, err

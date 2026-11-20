@@ -163,6 +163,8 @@ func renderChatPage(props chatPageProps) ui.Node {
 	model = linkedworkProject(model, active)
 	// Issue 3795: form cards an agent posted for this reader to fill in.
 	model = formcardProject(model, active)
+	// Issue 3811: the new hire's welcome checklist, as the onboarding owner says it.
+	model = onboardingProject(model, active)
 	// Issue 3793: /leave and the typed requests it opens.
 	model = requestProject(model, active)
 	// Issue 3815: posts that ask the channel to acknowledge them.
@@ -171,6 +173,10 @@ func renderChatPage(props chatPageProps) ui.Node {
 	model = caseProject(model, active)
 	// Issue 3960: Review pinned guidance, in Conversation details.
 	model = pinReviewProject(model)
+	// Issue 3959: Prepare an analysis, in a message's menu.
+	model = analysisProject(model, props.View)
+	// Issue 3957: Check downstream impact, in a thread message's menu.
+	model = impactProject(model)
 	// Live finding: the server-rendered #chat-search and #chat-composer keep
 	// taking keystrokes for the few seconds this client takes to mount, and
 	// the client's first render otherwise starts both from an empty model --

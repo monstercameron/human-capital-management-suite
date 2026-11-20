@@ -210,8 +210,8 @@ func TestTodo_ENDPOINT_001_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if len(m.Endpoints) != len(golden)+38+12 {
-		t.Fatalf("expected %d endpoints including ProjectService and WorkOrderService methods, got %d", len(golden)+38+12, len(m.Endpoints))
+	if len(m.Endpoints) != len(golden)+39+12 {
+		t.Fatalf("expected %d endpoints including ProjectService and WorkOrderService methods, got %d", len(golden)+39+12, len(m.Endpoints))
 	}
 	for _, e := range m.Endpoints {
 		if strings.HasPrefix(e.EndpointID, "hcmnext.project.v1.ProjectService/") || strings.HasPrefix(e.EndpointID, "hcmnext.workorder.v1.WorkOrderService/") {

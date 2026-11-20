@@ -1,3 +1,30 @@
+## 2026-11-20 — Chat sweep wind-down: storage grants, integration repairs and back-outs
+
+- Editing or deleting a message no longer fails with a permission error on a server whose database roles were set up before the new chat tables existed; every chat table added in this sweep now grants the serving roles what the product needs.
+- Resetting the demo chat data also removes scheduled messages, case bindings and notification read marks of the demo rooms.
+- Searching messages oldest first keeps using the same indexed query as newest first.
+- The Followed threads and Follow-ups buttons always point at a region that exists, so screen readers no longer meet a dangling reference while the list is closed.
+- A journey that is closed no longer offers "Ask for clarification" or "Ask for input".
+- New Chat surfaces use the product's defined colours, focus ring and shadows instead of undefined style variables.
+- Not included, left for later: demo journeys (#3732), retention preview (#3778), case evidence (#3782), file comparison (#3956) and the offline Chat shell (#3810) were unfinished or unreviewed when the sweep stopped and are not in the product. Away status (#3789) is included but was not reviewed.
+
+## 2026-11-20 — Chat large features, first complete slices (third wave) (10 issues)
+
+- When a workflow request that was shared in a conversation is approved or rejected, the conversation now shows who decided, with a link to the request. (#3728, partial)
+- The build now publishes a per-package breakdown of what makes up the browser bundle, so size growth in Chat can be traced and trimmed. (#3799, partial)
+- New hires can get a private welcome in Chat that lists their onboarding checklist with what is confirmed, what is still to do and whom to ask, always read from People records rather than from the chat. (#3811, partial)
+- A conversation can now be bound to a case: only the case owner changes who is in it, nobody joins by themselves, and when it is restricted its messages cannot be forwarded, linked, saved or turned into tasks outside it, with a Case-bound, restricted label in the header. (#3812, partial)
+- Chat quiet hours can now follow your week: choose no quiet time, a whole quiet day or your own hours for each weekday, see when notifications next pause or resume, and pause or override them for a set time with an easy way back to your schedule. (#3920, partial)
+- In a thread, Check downstream impact looks at the work linked to the conversation for tasks due near a proposed date, shows what it did and did not check, and drafts a question you can edit before sending. (#3957, partial)
+- Messages that ask for workforce figures such as time to fill, offer acceptance or attrition now offer Prepare an analysis, a private request builder that lists what is still undecided and opens the analytics page; no figures are produced in Chat. (#3959, partial)
+- Conversation details can now review a pinned message against later messages you choose, side by side with dates and a note when dates or links differ, and you decide whether to keep or unpin it. (#3960, partial)
+- Approvers can now ask the person who made a request for clarification from the approval review: the question goes only to a private message between the two of them, tied to the exact proposal revision, and both can see where it stands from the review page. (#3995, partial)
+- Reviewers can now ask colleagues for informal input from a review, see exactly what will be shared and who can read it before sending, and every question is marked as advice that is not an approval and tied to the proposal version it was about. (#3998, partial)
+
+## 2026-11-20 — Chat defect sweep: checked in a real browser, with fixes for what did not hold (12 issues checked)
+
+- Each checked issue now has a live browser test under `tools/uxqual/browser` that runs against a served build.
+
 ## 2026-11-20 — Browser client: size ceiling removed; per-package size report added (#3799, partial)
 
 - The build no longer refuses the browser client for being larger than 64 MiB (13 MiB compressed). The owner removed that ceiling; the client was 67.2 MiB after the Chat feature waves and the build had stopped. The build still requires both files to exist and hold something, and the runtime shim keeps its own limits.

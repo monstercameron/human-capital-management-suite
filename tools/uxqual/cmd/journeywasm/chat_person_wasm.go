@@ -75,6 +75,8 @@ func openChatPersonRecorded(cfg journeyclient.Config, subjectID string, record f
 	})
 	record(chatBrowser.snapshot())
 	refreshChatRoute()
+	// Issue 3789: whether this person is away, and who covers.
+	go loadChatAwayPeople(cfg, subjectID)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()

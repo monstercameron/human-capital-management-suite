@@ -568,6 +568,9 @@ type Callbacks struct {
 	// SaveQuietSchedule keeps the person's weekly quiet-hours schedule and
 	// one-off pause (ISSUE-3920). nil hides the schedule row.
 	SaveQuietSchedule func(QuietScheduleEdit)
+	// SaveAway keeps the person's away-until date, cover and choices
+	// (ISSUE-3789). nil hides the Away row.
+	SaveAway func(AwayEdit)
 	// SaveEmojiPrefs stores the viewer's emoji choices (skin tone and most used,
 	// encoded by the picker) with their other personal Chat preferences. The
 	// picker calls it at most once every few seconds. nil keeps them for the
@@ -839,7 +842,9 @@ type Model struct {
 	PurposeSaved      bool   // a purpose save went through and "Saved" shows for two seconds
 	Pane              PaneSizes
 	Preferences       Preferences
-	QuietSchedule     QuietScheduleView // the weekly quiet-hours schedule and pause (ISSUE-3920)
+	QuietSchedule     QuietScheduleView         // the weekly quiet-hours schedule and pause (ISSUE-3920)
+	Away              AwayView                  // the signed-in person's own away setting (ISSUE-3789)
+	AwayPeople        map[string]AwayPersonView // what colleagues may see of others' absences, by person (ISSUE-3789)
 	Callbacks         Callbacks
 	Locale            string
 	Direction         string
@@ -915,6 +920,9 @@ type Model struct {
 	// Forms is what the server said this reader may do with each form card on
 	// screen (issue 3795). Transient client state, never message content.
 	Forms FormCardsState
+	// Onboarding is what the onboarding owner said of each welcome card on
+	// screen (issue 3811). Transient client state, never message content.
+	Onboarding OnboardingCardsState
 	// IntentRequests is /leave and the typed requests it opens (issue 3793).
 	// Transient client state, never message content.
 	IntentRequests IntentRequestsState
@@ -927,6 +935,10 @@ type Model struct {
 	// PinReview is the private review of a pinned message against later ones
 	// (issue 3960). Transient client state, never stored.
 	PinReview PinReviewState
+	// Analysis is the private Prepare an analysis builder (issue 3959). Transient client state, never stored.
+	Analysis AnalysisState
+	// Impact is the private Check downstream impact panel of a thread (issue 3957). Transient client state, never stored.
+	Impact ImpactState
 	// JourneyPreviews holds viewer-authorized quick looks at shared
 	// in-progress workflows (promotion journeys), keyed by intent ID.
 	JourneyPreviews map[string]JourneyPreview

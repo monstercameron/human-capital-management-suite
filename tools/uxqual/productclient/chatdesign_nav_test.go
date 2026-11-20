@@ -28,7 +28,7 @@ func TestChatDesign_3771_ChatNavigationChoiceIsRememberedAndWins(t *testing.T) {
 		{"chat, the address collapses", "/workspace/app/chat", "nav=collapsed", &journeyv1.UserPreferences{Tables: chatExpanded}, true, false, true},
 		{"home ignores the chat choice", "/workspace/app/home", "", &journeyv1.UserPreferences{Tables: chatExpanded}, false, false, false},
 		{"home keeps the workspace collapse", "/workspace/app/home", "", &journeyv1.UserPreferences{NavCollapsed: true}, true, false, true},
-		{"agents is not a rail-by-default page", "/workspace/app/chat/agents", "", &journeyv1.UserPreferences{}, false, false, false},
+		{"agents keeps the Chat rail (#3846)", "/workspace/app/chat/agents", "", &journeyv1.UserPreferences{}, false, false, true},
 	} {
 		state, err := ParseState(tc.path, tc.query)
 		if err != nil {

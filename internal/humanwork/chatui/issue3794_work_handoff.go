@@ -431,7 +431,7 @@ func RenderWorkHandoffDialog(v WorkHandoffDialogView) ui.Node {
 const ChatWorkHandoffStyles = `
 .chathandoff-group{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-block-start:6px;max-inline-size:100%}
 .chathandoff-open{min-block-size:44px;min-inline-size:44px}
-.chathandoff{inline-size:min(100%,520px);padding:12px;border:1px solid var(--hcm-color-border);border-radius:12px;background:var(--hcm-color-surface-muted,transparent);color:var(--hcm-color-text);font-size:.875rem;line-height:1.45;box-sizing:border-box}
+.chathandoff{inline-size:min(100%,520px);padding:12px;border:1px solid var(--hcm-color-border);border-radius:12px;background:var(--soft);color:var(--hcm-color-text);font-size:.875rem;line-height:1.45;box-sizing:border-box}
 .chathandoff p{margin:0 0 6px}
 .chathandoff-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px}
 .chathandoff-kind{font-weight:600;min-inline-size:0;overflow-wrap:anywhere}

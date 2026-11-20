@@ -67,9 +67,9 @@ func chatux001Button(t *testing.T, header *xhtml.Node, action string) *xhtml.Nod
 func chatux001Join(parts []string) string { return strings.Join(parts, ",") }
 
 func TestTodo_CHATUX_001(t *testing.T) {
-	// Nothing open, nothing pinned: the favorites star (CHATSIDE-001), Search, Members, Details. No poll, no to-do list.
+	// Nothing open, nothing pinned: the favorites star (CHATSIDE-001), Search, Jump to a date (#3930), Members, Details. No poll, no to-do list.
 	header, markup := chatux001Header(t, chatux001Fixture("en-US", 0, 0, 0), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-members,details" {
+	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,date-jump-toggle,header-members,details" {
 		t.Fatalf("quiet channel header = %s", got)
 	}
 	for _, gone := range []string{"channel-poll-trigger", "channel-todo-trigger", `data-action="open-poll"`, `data-action="open-todo"`} {
@@ -85,14 +85,14 @@ func TestTodo_CHATUX_001(t *testing.T) {
 		local localUI
 	}{{2, localUI{}}, {0, localUI{}}, {0, localUI{tray: "todo"}}} {
 		header, _ = chatux001Header(t, chatux001Fixture("en-US", c.tasks, 3, 0), handlers{local: c.local}, 1440, "light")
-		if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-members,details" {
+		if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,date-jump-toggle,header-members,details" {
 			t.Fatalf("header with %d open tasks and tray %q = %s", c.tasks, c.local.tray, got)
 		}
 	}
 
 	// Pins add Pinned between Search and Members and state their number.
 	header, _ = chatux001Header(t, chatux001Fixture("en-US", 0, 0, 3), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-pinned,header-members,details" {
+	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,date-jump-toggle,header-pinned,header-members,details" {
 		t.Fatalf("header with pins = %s", got)
 	}
 	pinned := chatux001Button(t, header, "header-pinned")

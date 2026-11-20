@@ -245,7 +245,7 @@ func journeyResolvePanel(m Model, p JourneyPreview) ui.Node {
 }
 
 const journeyResolveStyles = `.chat-journey-embed-wrap{display:flex;flex-direction:column;gap:6px;min-width:0}` +
-	`.chat-journey-resolve{border:1px solid var(--line);border-radius:10px;background:var(--panel,transparent);min-width:0}` +
+	`.chat-journey-resolve{border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0}` +
 	`.chat-journey-resolve-summary{cursor:pointer;min-height:44px;display:flex;align-items:center;padding-block:0;padding-inline:12px;font-weight:600;font-size:.875rem}` +
 	`.chat-journey-resolve-body{display:flex;flex-direction:column;gap:8px;padding-block:0 12px;padding-inline:12px;font-size:.8125rem;overflow-wrap:anywhere}` +
 	`.chat-journey-resolve-note{margin:0;color:var(--muted)}` +

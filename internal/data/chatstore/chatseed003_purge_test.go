@@ -189,14 +189,32 @@ func TestTodo_CHATSEED_003_PurgeRemovesEveryDependentRow(t *testing.T) {
 	}
 
 	for _, room := range []string{"reset-room", "other-room"} {
-		exec(`INSERT INTO chat_post(id,tenant_id,conversation_id,sequence,body,author_id,author_home_tenant_id,created_at) VALUES($1,$2,$3,1,'hello','alice',$2,now())`, "post-"+room, tenant, room)
+		exec(`INSERT INTO chat_post(id,tenant_id,conversation_id,sequence,body,author_id,author_home_tenant_id,created_at) VALUES($1,$2,$3,1,'hello doc:handbook','alice',$2,now())`, "post-"+room, tenant, room)
 		exec(`INSERT INTO chat_persona_source_classification(tenant_id,conversation_id,post_id,body_digest,data_class) VALUES($1,$2,$3,$4,'INTERNAL')`, tenant, room, "post-"+room, "sha256:"+strings.Repeat("b", 64))
 		exec(`INSERT INTO chat_persona_channel_policy(tenant_id,conversation_id,revision,policy_json) VALUES($1,$2,1,'{}')`, tenant, room)
 		exec(`INSERT INTO chat_public_audience_policy(tenant_id,conversation_id,revision,classification) VALUES($1,$2,1,'PUBLIC')`, tenant, room)
 		exec(`INSERT INTO chat_public_audience_principal(tenant_id,conversation_id,home_tenant_id,subject_id) VALUES($1,$2,$1,'alice')`, tenant, room)
 		exec(`INSERT INTO chat_gate_state(tenant_id,conversation_id,revision,state_json) VALUES($1,$2,1,'{}')`, tenant, room)
+		exec(`INSERT INTO chat_scheduled_post(tenant_id,id,home_tenant_id,author_id,conversation_id,body,send_at) VALUES($1,$2,$1,'alice',$3,'later',now()+interval '1 day')`, tenant, "later-"+room, room)
+		exec(`INSERT INTO chat_conversation_case(tenant_id,id,conversation_id,case_ref,owner_id,bound_by) VALUES($1,$2,$3,'CASE-1','alice','alice')`, tenant, "case-"+room, room)
+		exec(`INSERT INTO chat_notification_read(tenant_id,home_tenant_id,member_id,post_id) VALUES($1,$1,'alice',$2)`, tenant, "post-"+room)
 	}
-	dependents := []string{"chat_post", "chat_persona_source_classification", "chat_persona_channel_policy", "chat_public_audience_policy", "chat_public_audience_principal", "chat_gate_state"}
+	dependents := []string{"chat_post", "chat_persona_source_classification", "chat_persona_channel_policy", "chat_public_audience_policy", "chat_public_audience_principal", "chat_gate_state",
+		"chat_scheduled_post", "chat_conversation_case", "chat_post_reference"}
+	// A read mark carries no room, only the post it is about.
+	readMarks := func(room string) int {
+		t.Helper()
+		var n int
+		if err := s.RunTenantTx(ctx, tenant, func(tx dbport.Tx) error {
+			return tx.QueryRow(ctx, `SELECT count(*) FROM chat_notification_read WHERE tenant_id=$1 AND post_id=$2`, tenant, "post-"+room).Scan(&n)
+		}); err != nil {
+			t.Fatalf("count chat_notification_read: %v", err)
+		}
+		return n
+	}
+	if readMarks("reset-room") != 1 {
+		t.Fatal("fixture row missing in chat_notification_read")
+	}
 	for _, table := range dependents {
 		if count(table, "reset-room") != 1 {
 			t.Fatalf("fixture row missing in %s", table)
@@ -213,6 +231,12 @@ func TestTodo_CHATSEED_003_PurgeRemovesEveryDependentRow(t *testing.T) {
 		if n := count(table, "other-room"); n != 1 {
 			t.Errorf("%s holds %d rows for the room that was not purged, want 1", table, n)
 		}
+	}
+	if n := readMarks("reset-room"); n != 0 {
+		t.Errorf("chat_notification_read still holds %d rows for the purged room", n)
+	}
+	if n := readMarks("other-room"); n != 1 {
+		t.Errorf("chat_notification_read holds %d rows for the room that was not purged, want 1", n)
 	}
 
 	exec(`INSERT INTO chat_gate_version(tenant_id,conversation_id,semantic_version,digest,definition_json) VALUES($1,$2,'1.0.0',$3,'{}')`, tenant, "gated-room", "sha256:"+strings.Repeat("a", 64))

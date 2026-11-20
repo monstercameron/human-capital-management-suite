@@ -415,7 +415,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				return
 			}
-			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3756Click(e, m, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || issue3915Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || chatside001Click(e, m, local) || chatux008Click(e, m) || issue3930Click(e, m, local) || issue3942Click(e, m) || issue3973Click(e, m, local, drafts) || issue3917Click(e, m, local) || issue3964Click(e, m, local, drafts) || issue3977Click(e, m, local, drafts) || issue3986Click(e, m, local) || issue3990Click(e, m, local) || issue3963Click(e, m, local) || issue3920Click(e, m) {
+			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3756Click(e, m, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || issue3915Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || chatside001Click(e, m, local) || chatux008Click(e, m) || issue3930Click(e, m, local) || issue3942Click(e, m) || issue3973Click(e, m, local, drafts) || issue3917Click(e, m, local) || issue3964Click(e, m, local, drafts) || issue3977Click(e, m, local, drafts) || issue3986Click(e, m, local) || issue3990Click(e, m, local) || issue3963Click(e, m, local) || issue3920Click(e, m) || issue3789Click(e, m) {
 				return
 			}
 			if action, _, _ := eventAction(e); chatux001Click(m, action) || issue3892Click(e, action) {
@@ -1899,6 +1899,10 @@ func (m Model) act(action, id string) {
 		}
 	case "pinreview-open", "pinreview-close", "pinreview-toggle", "pinreview-keep", "pinreview-inspect":
 		m.pinReviewAction(action, id)
+	case "analysis-open", "analysis-close", "analysis-metric", "analysis-choose", "analysis-handoff":
+		m.analysisAction(action, id)
+	case "impact-open", "impact-close", "impact-run", "impact-dismiss", "impact-restore", "impact-draft":
+		m.impactAction(action, id)
 	case "pin-copy":
 		if cb.CopyPinReference != nil && !m.PinReferenceUnavailable {
 			cb.CopyPinReference(id)
@@ -2262,11 +2266,17 @@ func rail(m Model, h handlers) ui.Node {
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "cancel-section-create"}, Text: m.t(KeyCancel)}),
 				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.Callbacks.CreateSection == nil || len(sections) >= 30, Text: m.t(KeyCreate)}))))
 	list = append(list, chatside001NamePrompt(m))
+	// The toggles name these regions with aria-controls, so each region is in the
+	// page whether or not it is open: a closed one is an empty hidden element.
 	if h.local.followedOpen {
 		list = append(list, html.WithKey(issue3916Panel(m), "followed-threads"))
+	} else {
+		list = append(list, html.WithKey(html.Section(html.Props{ID: "issue3916-panel", Hidden: true}), "followed-threads"))
 	}
 	if h.local.followUpsOpen {
 		list = append(list, html.WithKey(issue3787Panel(m), "follow-ups"))
+	} else {
+		list = append(list, html.WithKey(html.Section(html.Props{ID: "issue3787-panel", Hidden: true}), "follow-ups"))
 	}
 	if h.local.scheduledOpen && m.Callbacks.LoadScheduled != nil {
 		list = append(list, html.WithKey(issue3788Tray(m, h.local), "scheduled-posts"))
@@ -2545,7 +2555,12 @@ func railPreferences(m Model, h handlers) ui.Node {
 			summary = quiet3701Text(m, keyQuiet3701Summary)
 		}
 		status = summary + " · " + s24ZoneLabel(m.Locale, zone, time.Now())
+		if issue3920WeeklyOn(m) {
+			// ISSUE-3920: the weekly schedule decides, so the daily hours are not shown as the person's.
+			status = issue3920Text(m, k3920DailyReplaced) + " · " + s24ZoneLabel(m.Locale, zone, time.Now())
+		}
 	}
+	dailyOff := !p.QuietHours || issue3920WeeklyOn(m)
 	unavailable := ""
 	if m.Callbacks.SavePreferences == nil {
 		status, unavailable = chatPolishUnavailable(m.Locale), chatPolishUnavailable(m.Locale)
@@ -2562,9 +2577,9 @@ func railPreferences(m Model, h handlers) ui.Node {
 			html.P(html.Props{Class: "field-hint chat-prefs-note", Text: status}),
 			html.Div(html.Props{Class: "prefs-times"},
 				html.Label(html.Props{Class: "prefs-field", For: "quiet-start"}, html.Span(html.Props{Text: m.t(KeyQuietStart)}),
-					html.Input(html.Props{ID: "quiet-start", Aria: map[string]string{"label": m.t(KeyQuietStart)}, Class: "chat-input", Type: "time", Disabled: !p.QuietHours, Data: map[string]string{"chat-value": minuteClock(p.QuietStartMinute)}, OnChange: h.quietStart})),
+					html.Input(html.Props{ID: "quiet-start", Aria: map[string]string{"label": m.t(KeyQuietStart)}, Class: "chat-input", Type: "time", Disabled: dailyOff, Data: map[string]string{"chat-value": minuteClock(p.QuietStartMinute)}, OnChange: h.quietStart})),
 				html.Label(html.Props{Class: "prefs-field", For: "quiet-end"}, html.Span(html.Props{Text: m.t(KeyQuietEnd)}),
-					html.Input(html.Props{ID: "quiet-end", Aria: map[string]string{"label": m.t(KeyQuietEnd)}, Class: "chat-input", Type: "time", Disabled: !p.QuietHours, Data: map[string]string{"chat-value": minuteClock(p.QuietEndMinute)}, OnChange: h.quietEnd})),
+					html.Input(html.Props{ID: "quiet-end", Aria: map[string]string{"label": m.t(KeyQuietEnd)}, Class: "chat-input", Type: "time", Disabled: dailyOff, Data: map[string]string{"chat-value": minuteClock(p.QuietEndMinute)}, OnChange: h.quietEnd})),
 			),
 			html.Label(html.Props{Class: "prefs-field", For: "quiet-timezone"}, html.Span(html.Props{Text: m.t(KeyQuietTimezone)}),
 				html.Select(html.Props{ID: "quiet-timezone", Aria: map[string]string{"label": m.t(KeyQuietTimezone)}, Class: "chat-input", Disabled: !p.QuietHours, OnChange: h.quietTZ}, options...)),
@@ -3115,6 +3130,9 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	if card, ok := issue3808ClockCard(m, msg); ok {
 		return card
 	}
+	if card, ok := issue3811OnboardingCard(m, msg); ok {
+		return card
+	}
 	if card, ok := issue3795FormCard(m, msg); ok {
 		return card
 	}
@@ -3242,6 +3260,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 	contentChildren = append(contentChildren, integrate2MessageLocations(m, msg)...)
 	contentChildren = append(contentChildren, chatworkChips(m, msg)...)
 	contentChildren = append(contentChildren, ackBlock(m, msg)...)
+	contentChildren = append(contentChildren, analysisBlock(m, msg)...)
 	embedBody := envelope.Body
 	if msg.PersonaActor.valid() {
 		// The Sources row is the reference for an agent's documents: no second
@@ -3650,6 +3669,9 @@ func personPane(m Model) ui.Node {
 		html.Div(html.Props{Class: "details-summary person-summary"}, avatar, html.H3(html.Props{Text: name}),
 			html.Button(html.Props{Class: "button", Type: "button", Disabled: !(p.Ready || p.Unavailable) || p.ID == "" || m.Callbacks.StartDirectMessage == nil, Data: map[string]string{"action": "start-direct-message", "id": p.ID}, Text: m.t(KeyStartDirectMessage)})),
 	}
+	if away := issue3789PersonAway(m, p.ID); away != nil {
+		contents = append(contents, away)
+	}
 	if p.OrgChartHref != "" && p.Ready {
 		contents = append(contents, html.A(html.Props{Class: "person-org-chart-link", Href: p.OrgChartHref}, html.Span(html.Props{Text: m.t(KeyViewOrgChart)})))
 	}
@@ -3728,6 +3750,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			rootChildren = append(rootChildren, chips)
 		}
 		rootChildren = append(rootChildren, threadMessageMenu(m, *root)...)
+		rootChildren = append(rootChildren, impactBlock(m, *root)...)
 		items = append(items, html.Div(html.Props{Class: "thread-root"}, integrate1MessageAvatar(m, *root, "avatar small"), html.Div(html.Props{Class: "thread-root-body"}, rootChildren...)))
 	}
 	if m.ThreadHasOlder {
@@ -3768,6 +3791,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			content = append(content, projectPreviewEmbeds(m, body)...)
 			content = append(content, journeyPreviewEmbeds(m, body)...)
 			content = append(content, threadMessageMenu(m, msg)...)
+			content = append(content, impactBlock(m, msg)...)
 			replies = append(replies, html.Div(issue3988ThreadReplyProps(m, msg, html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}), integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, content...)))
 		}
 		visibleCount := 0

@@ -14,7 +14,7 @@ import (
 func TestTodo_CHATBUG_059_Catalog(t *testing.T) {
 	// Words German writes as English does (a proper noun, a loan word).
 	shared := map[string]map[string]bool{
-		"de-DE": {"Moderation": true, "Agent": true, "Chat": true, "Status": true, "Name": true, "Link": true, "Filter": true, "Details": true, "Thread": true, "Apps": true, "GIF": true, "Code": true, "Emoji": true, "Online": true, "Offline": true, "Person": true, "Version:": true, "Team": true, "OK": true,
+		"de-DE": {"Boards": true, "Tickets": true, "Moderation": true, "Agent": true, "Chat": true, "Status": true, "Name": true, "Link": true, "Filter": true, "Details": true, "Thread": true, "Apps": true, "GIF": true, "Code": true, "Emoji": true, "Online": true, "Offline": true, "Person": true, "Version:": true, "Team": true, "OK": true,
 			// A template that is only placeholders, a loan word or a word both languages spell alike.
 			"Emoji {emoji}": true, "Workflow · {workflow}": true, "{workflow}: {name}": true, "Normal": true, "In {channel}": true, "in {channel}": true, "Thread · {name}": true},
 		"ar": {"GIF": true, "{workflow}: {name}": true},

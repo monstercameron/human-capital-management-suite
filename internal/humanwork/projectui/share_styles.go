@@ -223,6 +223,13 @@ const projectUIShareStyles = `
 .projectui-clarify-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem}
 @media (pointer:coarse){.projectui-clarify-ask,.projectui-clarify-send,.projectui-clarify-cancel,.projectui-journey-clarify-link{min-block-size:2.75rem}}
 @media (prefers-reduced-motion:reduce){.projectui-clarify-dialog,.projectui-clarify-dialog *{transition:none;animation:none}}
+.projectui-input-edit,.projectui-input-review{display:grid;gap:.5rem}
+.projectui-input-edit[hidden],.projectui-input-review[hidden]{display:none}
+.projectui-input-select{inline-size:100%;min-block-size:2.5rem;padding:.5rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.9375rem}
+.projectui-input-name{display:flex;align-items:flex-start;gap:.5rem;font-size:.875rem;overflow-wrap:anywhere}
+.projectui-input-message{margin:0;padding:.75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--hcm-hover-surface);color:var(--ink);font:inherit;font-size:.875rem;white-space:pre-wrap;overflow-wrap:anywhere;max-block-size:14rem;overflow:auto}
+.projectui-input-select:focus-visible,.projectui-input-review:focus-visible,.projectui-input-name input:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}
+@media (pointer:coarse){.projectui-input-select{min-block-size:2.75rem}.projectui-input-name input{inline-size:1.5rem;block-size:1.5rem}}
 .projectui-ticket-linker .projectui-share-select{inline-size:100%;min-block-size:2.5rem;padding:.5rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit}
 .projectui-ticket-linker .projectui-filter-search input{inline-size:100%;min-block-size:2.25rem;padding-inline:2rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit}
 .projectui-linker-list{max-block-size:min(45dvh,22rem);overflow:auto}

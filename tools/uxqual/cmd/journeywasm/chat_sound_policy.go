@@ -23,6 +23,10 @@ func shouldPlayChatSound(model chatui.Model, conversationID string, post *chatv1
 	if _, system := chat.ParseMembershipAdded(post.GetBody()); system {
 		return false
 	}
+	// So is a workflow decision line (#3728).
+	if _, system := chat.ParseJourneyStage(post.GetBody()); system {
+		return false
+	}
 	created := post.GetCreatedAt()
 	if created == nil {
 		return false
@@ -31,7 +35,7 @@ func shouldPlayChatSound(model chatui.Model, conversationID string, post *chatv1
 	if createdAt.After(now.Add(5*time.Second)) || now.Sub(createdAt) > chatSoundFreshness {
 		return false
 	}
-	if systemReduced || appReduced || chatQuietHoursActive(model.Preferences, now) {
+	if systemReduced || appReduced || chatQuietNow(model, now) {
 		return false
 	}
 	var conversation *chatui.Conversation

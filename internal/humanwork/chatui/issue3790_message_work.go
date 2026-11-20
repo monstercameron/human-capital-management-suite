@@ -311,8 +311,8 @@ func RenderMessageWorkDialog(v MessageWorkDialogView) ui.Node {
 // ChatMsgListStyles.
 const ChatWorkStyles = `
 .chatwork-chips{display:flex;flex-wrap:wrap;gap:6px;margin-block-start:6px}
-.chatwork-chip{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 8px;max-inline-size:100%;min-block-size:32px;padding:4px 10px;border:1px solid var(--hcm-color-border);border-radius:16px;background:var(--hcm-color-surface-muted,transparent);color:var(--hcm-color-text);font-size:.8125rem;line-height:1.35;text-decoration:none;box-sizing:border-box}
-a.chatwork-chip:hover{border-color:var(--hcm-color-accent,currentColor)}
+.chatwork-chip{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 8px;max-inline-size:100%;min-block-size:32px;padding:4px 10px;border:1px solid var(--hcm-color-border);border-radius:16px;background:var(--soft);color:var(--hcm-color-text);font-size:.8125rem;line-height:1.35;text-decoration:none;box-sizing:border-box}
+a.chatwork-chip:hover{border-color:var(--accent)}
 a.chatwork-chip:focus-visible{outline:2px solid var(--hcm-color-focus,currentColor);outline-offset:2px}
 .chatwork-chip .chat-icon{inline-size:16px;block-size:16px;flex:none}
 .chatwork-chip-kind{font-weight:600}

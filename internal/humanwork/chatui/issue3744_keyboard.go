@@ -108,11 +108,11 @@ func issue3744Step(ids []string, unread []bool, current string, action issue3744
 // in its content security policy and refuses any other inline style.
 const Issue3744Styles = `dialog.chat-shortcuts{box-sizing:border-box;inline-size:min(34rem,calc(100vw - 32px));max-block-size:calc(100dvh - 32px);margin:auto;padding:0;border:1px solid var(--line,#c9ced6);border-radius:12px;background:var(--canvas,#fff);color:var(--ink,#111827);overflow:hidden}` +
 	`dialog.chat-shortcuts[open]{display:flex;flex-direction:column}` +
-	`dialog.chat-shortcuts::backdrop{background:rgb(0 0 0/.45)}` +
+	`dialog.chat-shortcuts::backdrop{background:color-mix(in srgb,var(--ink) 45%,transparent)}` +
 	`.chat-shortcuts-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 16px;padding-inline:16px 8px;border-block-end:1px solid var(--line,#c9ced6)}` +
 	`.chat-shortcuts-head h2{margin:0;font-size:1.125rem}` +
 	`.chat-shortcuts-close{min-inline-size:44px;min-block-size:44px;border:0;border-radius:8px;background:none;color:inherit;font:inherit;font-size:1.25rem;cursor:pointer}` +
-	`.chat-shortcuts-close:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px}` +
+	`.chat-shortcuts-close:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.chat-shortcuts-list{margin:0;padding:0;list-style:none;overflow:auto}` +
 	`.chat-shortcuts-list li{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 16px;border-block-start:1px solid var(--line,#e5e7eb)}` +
 	`.chat-shortcuts-list li:first-child{border-block-start:0}` +

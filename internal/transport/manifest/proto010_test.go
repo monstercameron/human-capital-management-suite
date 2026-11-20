@@ -111,9 +111,10 @@ func TestTodo_PROTO_010_Golden(t *testing.T) {
 	// moving three methods from refused to served. ExecuteIntent is the one
 	// write still refused for the duration of P1A. REV-007-04 served the
 	// four analysis-to-action and intent-inspection reads. ProjectService and
-	// WorkOrderService contribute fifty served methods between them.
-	if served != 67 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 68 {
-		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {67 1 0 68}",
+	// WorkOrderService contribute fifty-one served methods between them (#3751
+	// added ProjectService.GetProjectPreviews).
+	if served != 68 || refused != 1 || notExposed != 0 || len(m.Endpoints) != 69 {
+		t.Fatalf("disposition distribution = {served:%d refused:%d not_exposed:%d total:%d}, want {68 1 0 69}",
 			served, refused, notExposed, len(m.Endpoints))
 	}
 }
@@ -150,8 +151,8 @@ func TestTodo_PROTO_010_Conformance(t *testing.T) {
 	for range rpcs {
 		wantCount++
 	}
-	if wantCount != 68 {
-		t.Fatalf("expected 68 total RPC methods across IntentService (14), RegistryService (4), ProjectService (38), and WorkOrderService (12), found %d", wantCount)
+	if wantCount != 69 {
+		t.Fatalf("expected 69 total RPC methods across IntentService (14), RegistryService (4), ProjectService (39), and WorkOrderService (12), found %d", wantCount)
 	}
 
 	m, err := Build()

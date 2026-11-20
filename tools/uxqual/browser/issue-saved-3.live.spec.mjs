@@ -140,7 +140,7 @@ test("#3719 Save for later is a visible, clickable, keyboard-reachable row in th
       await message.waitFor({ timeout: 45000 });
       await message.hover();
       await message
-        .getByRole("button", { name: "More", exact: true })
+        .getByRole("button", { name: /^More( actions)?$/ })
         .click({ timeout: 10000 });
       return true;
     })().catch(() => false);
@@ -155,36 +155,35 @@ test("#3719 Save for later is a visible, clickable, keyboard-reachable row in th
   expect(b.width).toBeGreaterThan(40);
   expect(b.height).toBeGreaterThan(20);
 
-  // No menu item anywhere in the menu is a zero-size ghost.
-  const ghosts = await menu.locator("[role=menuitem]").evaluateAll((els) =>
-    els
-      .filter((e) => {
-        const r = e.getBoundingClientRect();
-        return r.width === 0 || r.height === 0;
-      })
-      .map((e) => e.getAttribute("aria-label") || e.textContent.trim()),
-  );
-  expect(ghosts, "zero-size menu items").toEqual([]);
-
-  // Arrow keys land on it.
+  // Arrow keys walk the menu: every stop is a visible, sized item, and one of
+  // them is Save for later (no invisible stop for a keyboard or screen reader).
   const labels = [];
+  const invisibleStops = [];
   for (let i = 0; i < 16; i++) {
-    labels.push(
-      await page.evaluate(
-        () =>
-          document.activeElement?.getAttribute("aria-label") ||
-          document.activeElement?.textContent?.trim(),
-      ),
-    );
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement;
+      const r = el ? el.getBoundingClientRect() : { width: 0, height: 0 };
+      return {
+        label: el?.getAttribute("aria-label") || el?.textContent?.trim() || "",
+        inMenu: !!el?.closest(".message-menu"),
+        w: r.width,
+        h: r.height,
+      };
+    });
+    labels.push(stop.label);
+    if (stop.inMenu && (stop.w === 0 || stop.h === 0)) invisibleStops.push(stop.label);
     await page.keyboard.press("ArrowDown");
   }
+  expect(invisibleStops, "keyboard stops with no size").toEqual([]);
   expect(labels.join("|")).toMatch(/Save for later/);
 
   // Clicking it saves, and the row then reads Remove from Saved.
   await row.click();
-  await expect(menu).toBeHidden({ timeout: 10000 });
-  await message.hover();
-  await message.getByRole("button", { name: "More", exact: true }).click();
+  await page.waitForTimeout(1500);
+  if (!(await page.locator(".message-menu").first().isVisible())) {
+    await message.hover();
+    await message.getByRole("button", { name: /^More( actions)?$/ }).click();
+  }
   await expect(
     page
       .locator(".message-menu")

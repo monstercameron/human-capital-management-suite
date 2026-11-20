@@ -36,12 +36,18 @@ func chatux019PinnedSection(m Model) ui.Node {
 		if meta := chatux019PinMeta(m, pin); meta != "" {
 			link = append(link, html.Span(html.Props{Class: "pinned-meta", Text: meta}))
 		}
-		rows = append(rows, html.Li(html.Props{Class: "pinned-row"},
+		actions := []ui.Node{
+			actionButton("button secondary small", "pin-copy", pin.PostID, copyLabel, m.Callbacks.CopyPinReference == nil || m.PinReferenceUnavailable, ui.Text(copyLabel)),
+			actionButton("button secondary small", "unpin", pin.PostID, m.t(KeyUnpin), m.Callbacks.Unpin == nil, ui.Text(laneText(m, chatux021Copy, keyChatux019PinnedAction)))}
+		actions = append(actions, issue3960Controls(m, pin)...)
+		row := []ui.Node{
 			html.Button(html.Props{Class: "pinned-link", Type: "button", Title: m.t(KeyPinJump), Disabled: m.Callbacks.JumpToPin == nil || pin.Sequence == 0,
 				Data: map[string]string{"action": "pin-jump", "id": pin.PostID}}, link...),
-			html.Div(html.Props{Class: "pin-actions"},
-				actionButton("button secondary small", "pin-copy", pin.PostID, copyLabel, m.Callbacks.CopyPinReference == nil || m.PinReferenceUnavailable, ui.Text(copyLabel)),
-				actionButton("button secondary small", "unpin", pin.PostID, m.t(KeyUnpin), m.Callbacks.Unpin == nil, ui.Text(laneText(m, chatux021Copy, keyChatux019PinnedAction))))))
+			html.Div(html.Props{Class: "pin-actions"}, actions...)}
+		if panel := issue3960Panel(m, pin); panel != nil {
+			row = append(row, panel)
+		}
+		rows = append(rows, html.Li(html.Props{Class: "pinned-row"}, row...))
 	}
 	if len(rows) == 0 {
 		return html.Span(html.Props{Class: "pinned-slot"})

@@ -40,6 +40,7 @@ type ChatNotificationJSON struct {
 	ThreadRootID       string    `json:"thread_root_id,omitempty"`
 	ThreadRootSequence uint64    `json:"thread_root_sequence,omitempty"`
 	AuthorID           string    `json:"author_id"`
+	CoveringID         string    `json:"covering_id,omitempty"` // cover notices only: who is away (issue 3789)
 	Body               string    `json:"body,omitempty"`
 	At                 time.Time `json:"at"`
 	Read               bool      `json:"read"`
@@ -76,6 +77,11 @@ func (s chatNotificationsReaderPort) Notifications(ctx context.Context, p chat.P
 	}
 	out := append([]chatrecipient.Notification(nil), rows...)
 	for i := range out {
+		// A cover notice says where and who, never what (issue 3789).
+		if out[i].Kind == chatrecipient.NotificationCover {
+			out[i].Body = ""
+			continue
+		}
 		selected, mark, err := s.Rendering.ReadRenderingSelection(ctx, chatstore.RenderingScope{Principal: p, Tenant: host, Conversation: out[i].ConversationID}, out[i].PostID)
 		if err != nil || mark.State == "pending" || mark.State == "unavailable" {
 			out[i].Body = ""
@@ -139,7 +145,7 @@ func chatNotificationRows(rows []chatrecipient.Notification) ([]ChatNotification
 		}
 		out = append(out, ChatNotificationJSON{ID: row.ID, Kind: row.Kind, ConversationID: row.ConversationID, ConversationName: row.ConversationName,
 			ConversationKind: row.ConversationKind, PostID: row.PostID, Sequence: row.Sequence, ThreadRootID: row.ThreadRootID,
-			ThreadRootSequence: row.ThreadRootSequence, AuthorID: row.AuthorID, Body: row.Body, At: row.At.UTC(), Read: row.Read})
+			ThreadRootSequence: row.ThreadRootSequence, AuthorID: row.AuthorID, CoveringID: row.CoveringID, Body: row.Body, At: row.At.UTC(), Read: row.Read})
 	}
 	return out, unread
 }

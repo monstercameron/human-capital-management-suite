@@ -71,3 +71,14 @@ func TestIssue3945_StoreOldestFirstPagesBothWays_Integration(t *testing.T) {
 		}
 	}
 }
+
+// The oldest-first statement tail is derived from the newest-first one. This
+// pins the derived text, so a change to the newest-first tail that the
+// derivation no longer flips (the comparison or either sort key) fails here
+// and not as a page that repeats or skips rows.
+func TestIssue3945_OldestFirstWindowFlipsCursorAndBothSortKeys(t *testing.T) {
+	const want = ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")>($8,$9::text)) ORDER BY order_at ASC,order_id COLLATE "C" ASC LIMIT $11`
+	if chatsearchWindowOldest != want {
+		t.Fatalf("oldest-first window\n got %s\nwant %s", chatsearchWindowOldest, want)
+	}
+}

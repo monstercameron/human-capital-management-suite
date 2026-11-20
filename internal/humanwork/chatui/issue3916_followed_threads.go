@@ -305,7 +305,7 @@ const Issue3916Styles = `.issue3916-control{padding:0 .75rem}` +
 	`.issue3916-list{list-style:none;margin:0;padding:0;display:grid;gap:.25rem}` +
 	`.issue3916-item{display:flex;align-items:flex-start;gap:.5rem;justify-content:space-between}` +
 	`.issue3916-open{flex:1 1 auto;min-width:0;display:grid;gap:.125rem;padding:.375rem .5rem;border:0;border-radius:.375rem;background:none;color:inherit;font:inherit;text-align:start;cursor:pointer}` +
-	`.issue3916-open:hover{background:var(--accent-soft,rgba(0,0,0,.06))}` +
+	`.issue3916-open:hover{background:var(--soft)}` +
 	`.issue3916-open:focus-visible,.issue3916-stop:focus-visible,.issue3916-row:focus-visible,.issue3916-retry:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.issue3916-channel{font-weight:600;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}` +
 	`.issue3916-preview{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}.issue3916-preview.removed{font-style:italic}` +

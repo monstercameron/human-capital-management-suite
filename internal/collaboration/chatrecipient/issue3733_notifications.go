@@ -51,6 +51,9 @@ type Notification struct {
 	ThreadRootID       string
 	ThreadRootSequence uint64
 	AuthorID           string
+	// CoveringID is, for a cover notice (issue 3789), the person who is away and
+	// whose mention this is; empty for every other kind.
+	CoveringID string
 	// Body is a short preview, empty when it could not be shown.
 	Body string
 	At   time.Time
@@ -117,6 +120,10 @@ func (s *Service) Notifications(ctx context.Context, p chat.Principal, host stri
 		row.Body = FollowedPreview(row.Body)
 		out = append(out, row)
 	}
+	out, err = s.coverNotifications(ctx, p, host, now, out)
+	if err != nil {
+		return nil, err
+	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].At.After(out[j].At) })
 	return out, nil
 }
@@ -147,5 +154,16 @@ func (s *Service) MarkNotificationsRead(ctx context.Context, p chat.Principal, h
 	if all == (len(ids) > 0) || len(ids) > NotificationsMarkLimit {
 		return 0, chat.ErrInvalidArgument
 	}
-	return store.MarkNotificationsRead(ctx, host, p.TenantID, p.SubjectID, now.Add(-NotificationsWindow), ids, all)
+	marked, err := store.MarkNotificationsRead(ctx, host, p.TenantID, p.SubjectID, now.Add(-NotificationsWindow), ids, all)
+	if err != nil {
+		return marked, err
+	}
+	if away, err := s.awayStore(); err == nil {
+		covered, err := away.MarkCoverRead(ctx, host, p.TenantID, p.SubjectID, now.Add(-NotificationsWindow), now, ids, all)
+		if err != nil {
+			return marked, err
+		}
+		marked += covered
+	}
+	return marked, nil
 }

@@ -77,6 +77,9 @@ sources:
   - internal/data/chatstore/migrations/00066_issue3786_digest_pref.sql
   - internal/data/chatstore/migrations/00067_issue3794_work_handoff.sql
   - internal/data/chatstore/migrations/00068_issue3815_post_acknowledgement.sql
+  - internal/data/chatstore/migrations/00070_issue3920_quiet_schedule.sql
+  - internal/data/chatstore/migrations/00072_issue3998_input_request.sql
+  - internal/data/chatstore/migrations/00073_issue3789_away.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -871,6 +874,11 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: chat_away
+    migration: internal/data/chatstore/migrations/00073_issue3789_away.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
   - table: chat_digest_pref
     migration: internal/data/chatstore/migrations/00066_issue3786_digest_pref.sql
     owner_package: internal/data/chatstore
@@ -898,6 +906,11 @@ tables:
     append_only: true
   - table: chat_approval_clarification
     migration: internal/data/chatstore/migrations/00069_issue3995_approval_clarification.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_input_request
+    migration: internal/data/chatstore/migrations/00072_issue3998_input_request.sql
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: true

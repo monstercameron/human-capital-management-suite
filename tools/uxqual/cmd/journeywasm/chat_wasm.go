@@ -1646,7 +1646,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}()
 		},
 	}
-	return withPurposeSavedNote(withIssue3920Callbacks(withIssue3737Callbacks(withIssue3916Callbacks(withIssue3788Callbacks(withIssue3787Callbacks(withChatWorkCallbacks(withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatside001Callbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg))
+	return withPurposeSavedNote(withIssue3789Callbacks(withIssue3920Callbacks(withIssue3737Callbacks(withIssue3916Callbacks(withIssue3788Callbacks(withIssue3787Callbacks(withChatWorkCallbacks(withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatside001Callbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg))
 }
 
 func closeChatDetailsForPinJump(viewportWidth int) {

@@ -24,6 +24,7 @@ const (
 	ChatNotificationMention = "mention"
 	ChatNotificationReply   = "reply"
 	ChatNotificationDirect  = "direct"
+	ChatNotificationCover   = "cover"
 )
 
 // ChatNotification is one chat notification as the view shows it. AuthorID is
@@ -42,9 +43,13 @@ type ChatNotification struct {
 	ThreadRootSequence uint64
 	AuthorID           string
 	AuthorName         string
-	Body               string
-	CreatedAt          time.Time
-	Read               bool
+	// CoveringID and CoveringName are set on a cover notice (issue 3789): the
+	// person who is away, whose mention this is. A cover notice never has a Body.
+	CoveringID   string
+	CoveringName string
+	Body         string
+	CreatedAt    time.Time
+	Read         bool
 }
 
 // ChatNotificationHref is the address that opens the message in Chat. A reply
@@ -108,14 +113,20 @@ func ChatNotificationList(props ChatNotificationListProps) ui.Node {
 		} else {
 			place = "#" + place
 		}
+		covered := strings.TrimSpace(item.CoveringName)
+		if covered == "" {
+			covered = props.Text("chat_notifications.someone_covered")
+		}
 		key := "chat_notifications.mention"
 		switch {
+		case item.Kind == ChatNotificationCover:
+			key = "chat_notifications.cover"
 		case item.Kind == ChatNotificationReply:
 			key = "chat_notifications.reply"
 		case item.Kind == ChatNotificationDirect:
 			key = "chat_notifications.direct"
 		}
-		title := props.Text(key, map[string]string{"actor": actor, "place": place})
+		title := props.Text(key, map[string]string{"actor": actor, "place": place, "covered": covered})
 		when := props.Text("notifications.time_unavailable")
 		whenProps := html.Props{Class: "muted workflow-notification-time"}
 		if !item.CreatedAt.IsZero() {
@@ -132,7 +143,7 @@ func ChatNotificationList(props ChatNotificationListProps) ui.Node {
 			rowClass += " is-unread"
 		}
 		children := []ui.Node{html.Strong(html.Props{}, ui.Text(title))}
-		if body := strings.TrimSpace(item.Body); body != "" {
+		if body := strings.TrimSpace(item.Body); body != "" && item.Kind != ChatNotificationCover {
 			children = append(children, html.Span(html.Props{Class: "chat-notification-body", Dir: "auto"}, ui.Text(body)))
 		}
 		children = append(children,
@@ -156,42 +167,48 @@ func chatNotificationTranslations(locale string) map[string]string {
 	switch locale {
 	case "de-DE":
 		return map[string]string{
-			"chat_notifications.heading":       "Chat-Benachrichtigungen",
-			"chat_notifications.empty":         "Noch keine Chat-Benachrichtigungen.",
-			"chat_notifications.unavailable":   "Chat-Benachrichtigungen sind vorübergehend nicht verfügbar. Öffnen Sie den Chat, um Ihre Nachrichten zu lesen.",
-			"chat_notifications.mention":       "{actor} hat Sie in {place} erwähnt",
-			"chat_notifications.reply":         "{actor} hat in einem Thread geantwortet, dem Sie folgen ({place})",
-			"chat_notifications.direct":        "{actor} hat Ihnen eine Direktnachricht gesendet",
-			"chat_notifications.someone":       "Jemand",
-			"chat_notifications.unnamed_place": "einer Unterhaltung",
-			"chat_notifications.mark_all":      "Alle als gelesen markieren",
-			"chat_notifications.open_chat":     "Chat öffnen",
+			"chat_notifications.heading":         "Chat-Benachrichtigungen",
+			"chat_notifications.empty":           "Noch keine Chat-Benachrichtigungen.",
+			"chat_notifications.unavailable":     "Chat-Benachrichtigungen sind vorübergehend nicht verfügbar. Öffnen Sie den Chat, um Ihre Nachrichten zu lesen.",
+			"chat_notifications.mention":         "{actor} hat Sie in {place} erwähnt",
+			"chat_notifications.reply":           "{actor} hat in einem Thread geantwortet, dem Sie folgen ({place})",
+			"chat_notifications.direct":          "{actor} hat Ihnen eine Direktnachricht gesendet",
+			"chat_notifications.someone":         "Jemand",
+			"chat_notifications.someone_covered": "jemand, den Sie vertreten",
+			"chat_notifications.cover":           "{actor} hat {covered} in {place} erwähnt. Sie sind die Vertretung.",
+			"chat_notifications.unnamed_place":   "einer Unterhaltung",
+			"chat_notifications.mark_all":        "Alle als gelesen markieren",
+			"chat_notifications.open_chat":       "Chat öffnen",
 		}
 	case "ar":
 		return map[string]string{
-			"chat_notifications.heading":       "إشعارات الدردشة",
-			"chat_notifications.empty":         "لا توجد إشعارات دردشة حتى الآن.",
-			"chat_notifications.unavailable":   "إشعارات الدردشة غير متاحة مؤقتًا. افتح الدردشة لقراءة رسائلك.",
-			"chat_notifications.mention":       "أشار إليك {actor} في {place}",
-			"chat_notifications.reply":         "ردّ {actor} في سلسلة رسائل تتابعها ({place})",
-			"chat_notifications.direct":        "أرسل إليك {actor} رسالة مباشرة",
-			"chat_notifications.someone":       "شخص ما",
-			"chat_notifications.unnamed_place": "محادثة",
-			"chat_notifications.mark_all":      "وضع علامة مقروء على الكل",
-			"chat_notifications.open_chat":     "فتح الدردشة",
+			"chat_notifications.heading":         "إشعارات الدردشة",
+			"chat_notifications.empty":           "لا توجد إشعارات دردشة حتى الآن.",
+			"chat_notifications.unavailable":     "إشعارات الدردشة غير متاحة مؤقتًا. افتح الدردشة لقراءة رسائلك.",
+			"chat_notifications.mention":         "أشار إليك {actor} في {place}",
+			"chat_notifications.reply":           "ردّ {actor} في سلسلة رسائل تتابعها ({place})",
+			"chat_notifications.direct":          "أرسل إليك {actor} رسالة مباشرة",
+			"chat_notifications.someone":         "شخص ما",
+			"chat_notifications.someone_covered": "شخص تنوب عنه",
+			"chat_notifications.cover":           "أشار {actor} إلى {covered} في {place}. أنت من ينوب عنه.",
+			"chat_notifications.unnamed_place":   "محادثة",
+			"chat_notifications.mark_all":        "وضع علامة مقروء على الكل",
+			"chat_notifications.open_chat":       "فتح الدردشة",
 		}
 	default:
 		return map[string]string{
-			"chat_notifications.heading":       "Chat notifications",
-			"chat_notifications.empty":         "No chat notifications yet.",
-			"chat_notifications.unavailable":   "Chat notifications are temporarily unavailable. Open Chat to read your messages.",
-			"chat_notifications.mention":       "{actor} mentioned you in {place}",
-			"chat_notifications.reply":         "{actor} replied in a thread you follow in {place}",
-			"chat_notifications.direct":        "{actor} sent you a direct message",
-			"chat_notifications.someone":       "Someone",
-			"chat_notifications.unnamed_place": "a conversation",
-			"chat_notifications.mark_all":      "Mark all as read",
-			"chat_notifications.open_chat":     "Open Chat",
+			"chat_notifications.heading":         "Chat notifications",
+			"chat_notifications.empty":           "No chat notifications yet.",
+			"chat_notifications.unavailable":     "Chat notifications are temporarily unavailable. Open Chat to read your messages.",
+			"chat_notifications.mention":         "{actor} mentioned you in {place}",
+			"chat_notifications.reply":           "{actor} replied in a thread you follow in {place}",
+			"chat_notifications.direct":          "{actor} sent you a direct message",
+			"chat_notifications.someone":         "Someone",
+			"chat_notifications.someone_covered": "someone you cover",
+			"chat_notifications.cover":           "{actor} mentioned {covered} in {place}. You are their cover.",
+			"chat_notifications.unnamed_place":   "a conversation",
+			"chat_notifications.mark_all":        "Mark all as read",
+			"chat_notifications.open_chat":       "Open Chat",
 		}
 	}
 }

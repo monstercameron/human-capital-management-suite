@@ -188,6 +188,9 @@ func startChatRecipientProjection(cfg journeyclient.Config, conversations []*cha
 	// Issue 3920: the weekly quiet-hours schedule is read with the rest of the
 	// person's recipient state, so the next pause or resume stays current.
 	go loadChatQuietSchedule(cfg)
+	// Issue 3789: the away setting and the absences colleagues share.
+	go loadChatAway(cfg)
+	go loadChatAwayPeople(cfg)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		defer cancel()

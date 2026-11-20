@@ -23,7 +23,7 @@ func TestTodo_CHATMAP_005_HeaderMap(t *testing.T) {
 		t.Fatal("the Map control is drawn with nobody sharing", got)
 	}
 	header, markup := chatux001Header(t, chatmapCrewModel("en-US"), handlers{}, 1440, "light")
-	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,header-map,header-members,details" {
+	if got := chatux001Join(chatux001Actions(t, header)); got != "side-fav,chat-search-open,date-jump-toggle,header-map,header-members,details" {
 		t.Fatal("header with a live share = ", got)
 	}
 	button := chatux001Button(t, header, "header-map")

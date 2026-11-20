@@ -21,7 +21,9 @@ func TestChatDesign_3771_FirstPaintOfChatHasTheNavigationRail(t *testing.T) {
 		{page: productui.PageChat, nav: "collapsed", wantClass: "nav-collapsed"},
 		{page: productui.PageChat, nav: "expanded", wantClass: "nav-expanded"},
 		{page: productui.PageHome, nav: ""},
-		{page: productui.PageAgents, nav: ""},
+		// #3846: Agents sits in Chat's group and keeps the same rail, so moving
+		// between the two does not change the navigation width.
+		{page: productui.PageAgents, nav: "", wantClass: "nav-collapsed"},
 	} {
 		doc, err := productShellDocumentForRouteState(config, true, productui.ResolveProductLocale("en-US"), test.page, "", test.nav)
 		if err != nil {

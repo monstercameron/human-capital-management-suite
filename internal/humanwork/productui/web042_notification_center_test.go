@@ -129,7 +129,9 @@ func renderNotificationSubtree(t *testing.T, view View) string {
 // Re-pinned 2026-11-12 after the Chat loop 3 fixes: the header bell gained an
 // accessible label tied to its unread state (#3737), and the served Chat
 // stylesheet gained the loop 3 rules (#3703, #3704, #3712, #3714, #3734, #3827).
-const web042GoldenDigest = "548e4d84d6020863c3b15639eb13777cb913345a1315a14e1bfe7e963bd2d470"
+// Re-pinned 2026-11-20: the notification centre gains the Chat inbox entries
+// for mentions, replies and direct messages (#3733).
+const web042GoldenDigest = "f9069527539749a40a9c12cbcf4181bc5773cb97ea02ce1221bfad84a3712af3"
 
 func TestTodo_WEB_042_Golden(t *testing.T) {
 	digest := sha256.Sum256([]byte(renderNotificationSubtree(t, testView(PageWork))))

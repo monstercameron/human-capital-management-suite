@@ -164,7 +164,7 @@ func TestTodo_API_001_Integration(t *testing.T) {
 	}
 	// ProjectService task links and the modular WorkOrderService surface are
 	// both represented in discovery.
-	if len(doc.Endpoints) != 68 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
+	if len(doc.Endpoints) != 69 || len(doc.Capabilities) != 11 || len(doc.IntentDefinitions) != 14 {
 		t.Fatalf("unexpected production shape: %d endpoints, %d capabilities, %d intent definitions",
 			len(doc.Endpoints), len(doc.Capabilities), len(doc.IntentDefinitions))
 	}
