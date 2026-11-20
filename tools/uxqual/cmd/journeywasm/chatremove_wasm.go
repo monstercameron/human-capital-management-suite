@@ -100,7 +100,19 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		}
 		if target.Call("matches", "[data-chatremove-overlay=dialog]").Bool() {
 			// A press on the backdrop, outside the dialog, closes it (CHATBUG-085).
-			b.closeKind("dialog")
+			b.requestCloseDialog()
+			return nil
+		}
+		if choice := target.Call("closest", "[data-chatremove-discard]"); choice.Truthy() {
+			// Issue #3948: the answer to "Discard this report?".
+			event.Call("preventDefault")
+			b.discardChoice(choice.Call("getAttribute", "data-chatremove-discard").String())
+			return nil
+		}
+		if target.Call("closest", "[data-chatremove-retry]").Truthy() {
+			// Issue #3887: Try again in the dialog's loading or failed frame.
+			event.Call("preventDefault")
+			b.retryDialog()
 			return nil
 		}
 		if closer := target.Call("closest", "[data-chatremove-close]"); closer.Truthy() {
@@ -108,7 +120,11 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 			// The control closes the layer it is in: a dialog over the page leaves
 			// the page showing.
 			if layer := closer.Call("closest", "[data-chatremove-overlay]"); layer.Truthy() {
-				b.closeKind(layer.Call("getAttribute", "data-chatremove-overlay").String())
+				if kind := layer.Call("getAttribute", "data-chatremove-overlay").String(); kind == "dialog" {
+					b.requestCloseDialog()
+				} else {
+					b.closeKind(kind)
+				}
 			} else {
 				b.closeTop()
 			}
@@ -158,7 +174,11 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		event := args[0]
 		if event.Get("key").String() == "Escape" {
 			event.Call("preventDefault")
-			b.closeTop()
+			if b.overlay("dialog").Truthy() {
+				b.requestCloseDialog()
+			} else {
+				b.closeKind("page")
+			}
 			return nil
 		}
 		dialog := b.overlay("dialog")
@@ -200,7 +220,11 @@ func configureChatremove(cfg journeyclient.Config, locale string) func() {
 		}
 		event.Call("preventDefault")
 		event.Call("stopImmediatePropagation")
-		b.closeKind(kind)
+		if kind == "dialog" {
+			b.requestCloseDialog()
+		} else {
+			b.closeKind(kind)
+		}
 		return nil
 	})
 	js.Global().Call("addEventListener", "keydown", b.escape, true)

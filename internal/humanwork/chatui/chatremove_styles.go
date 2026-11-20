@@ -45,4 +45,4 @@ const ChatremoveStyles = `
 .chatmod005-error{color:var(--hcm-color-danger);margin:0}.chatmod005-nomatch{padding-block:16px}
 .chatremove .chatmod005-message button{min-block-size:0;min-inline-size:0;padding:0;border:0;background:transparent;color:inherit;text-align:start;justify-content:flex-start;white-space:normal}.chatremove .chatmod005-message .person-avatar-button{flex:none}.chatremove .chatmod005-message .message-author{font-weight:650;white-space:nowrap}.chatmod005-message .message-meta{flex-wrap:wrap}
 .chatremove .chatremove-reasons{border:0;padding:0;margin:0;gap:0}.chatremove-reason{min-block-size:40px}.chatremove-reason label{padding-block:.25rem}
-` + chatmodSelectedStyles + chatmod004RestoredStyles + chatmod005PermissionsStyles
+` + chatmodSelectedStyles + chatmod004RestoredStyles + chatmod005PermissionsStyles + issue3854ModerationStyles + issue3760ModerationPhoneStyles

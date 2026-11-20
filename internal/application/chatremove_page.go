@@ -75,7 +75,8 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 	action := query.Get("action")
 	if action != "" {
 		cid, id := query.Get("conversation"), query.Get("post")
-		if action != "report" && action != "remove" && action != "restore" && action != "message" {
+		// Issue #3697: Dismiss asks first too, and only for an item (a case).
+		if action != "report" && action != "remove" && action != "restore" && action != "message" && (action != "dismiss" || query.Get("case") == "") {
 			http.Error(w, "invalid action", 400)
 			return
 		}
@@ -92,8 +93,8 @@ func (h ChatModerationPageHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request
 				permission = chat.PermissionReviewRemovedMessages
 			}
 			err = h.HTTP.Permissions.CanModerate(r.Context(), p, p.TenantID, cid, permission)
-			if err != nil && action == "message" {
-				// Writing to the author is open to anyone who can decide an item.
+			if err != nil && (action == "message" || action == "dismiss") {
+				// Writing to the author, or dismissing, is open to anyone who can decide an item.
 				err = h.HTTP.Permissions.CanModerate(r.Context(), p, p.TenantID, cid, chat.PermissionReviewRemovedMessages)
 			}
 		}

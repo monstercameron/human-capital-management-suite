@@ -1,3 +1,15 @@
+## 2026-11-19 — Chat moderation and reporting: nine repairs (9 issues)
+
+- Dismissing or restoring a moderation item now asks for confirmation first and lets you add a note. (#3697)
+- The Close button on the Moderation page is no longer hidden behind the bell and account buttons on phones. (#3760)
+- Moderation tabs on a phone keep their names and counts on one line in every language. (#3762)
+- The Moderation Permissions table now becomes readable role cards on phones instead of breaking words into letters. (#3854)
+- The conversation shown around a moderated message now includes only messages from the same channel timeline or thread, not replies from other threads. (#3855)
+- Empty-search messages and the explanation on the Moderation Permissions tab now line up with the rest of the page instead of touching the screen edge. (#3856)
+- The report dialog now shows its loading and error states inside a proper dialog with Cancel and Try again. (#3887)
+- Closing a report you have started now asks before discarding it, and says nothing is saved. (#3948)
+- After closing a report and then its menu with the keyboard, focus returns to the message's More actions button. (#3949, partial)
+
 ## 2026-11-19 — Chat location sharing: five repairs (5 issues)
 
 - Location sharing settings load again for workspace administrators. (#58, already in place; regression test added)

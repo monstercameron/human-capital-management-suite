@@ -85,7 +85,16 @@ func moderationItemDetail(ctx context.Context, tx dbport.Tx, p chat.Principal, t
 	if !withContext {
 		return x, true, nil
 	}
-	contextRows, e := tx.Query(ctx, `SELECT id FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND sequence BETWEEN $3-2 AND $3+2 ORDER BY sequence`, t, x.ConversationID, x.Message.Sequence)
+	// CHATBUG-3855: the neighbours come from the message's own timeline: the
+	// channel's messages for a channel message, or the thread (its parent and
+	// the other replies) for a reply, never replies from another post's thread.
+	contextRows, e := tx.Query(ctx, `SELECT id FROM (
+ (SELECT id,sequence FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND parent_id=$4 AND sequence<=$3 ORDER BY sequence DESC LIMIT 3)
+ UNION ALL
+ (SELECT id,sequence FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND parent_id=$4 AND sequence>$3 ORDER BY sequence LIMIT 2)
+ UNION ALL
+ (SELECT id,sequence FROM chat_post WHERE tenant_id=$1 AND conversation_id=$2 AND id=$4 AND $4<>'')
+) c ORDER BY sequence`, t, x.ConversationID, x.Message.Sequence, x.Message.ParentID)
 	if e != nil {
 		return x, false, e
 	}

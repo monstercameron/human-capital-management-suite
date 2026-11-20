@@ -162,7 +162,7 @@ func moderationPermissionsView(locale string, m ModerationPermissionsModel) []ui
 				state = t("perm_yes")
 			}
 			label := strings.NewReplacer("{permission}", t(moderationPermissionKeys[permission]), "{role}", name).Replace(t("perm_cell"))
-			cells = append(cells, html.Td(html.Props{},
+			cells = append(cells, html.Td(html.Props{Data: map[string]string{"label": t(moderationPermissionKeys[permission])}},
 				html.Button(html.Props{Type: "button", Role: "switch", Class: "chatmod005-perm-switch",
 					Aria: map[string]string{"checked": boolString(cell.Allowed), "label": label},
 					Data: map[string]string{"chatremove-act": "permission", "role": role, "permission": permission, "allowed": boolString(!cell.Allowed), "conversation": m.ConversationID}},

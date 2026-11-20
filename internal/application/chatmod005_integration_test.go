@@ -92,7 +92,7 @@ func TestTodo_CHATMOD_005_Integration(t *testing.T) {
 	// buttons; the reporter is named to a moderator and to nobody else.
 	queuePage := f.call("owner", http.MethodGet, ChatModerationPagePath+"?locale=en-US&tz=-240", nil)
 	body := queuePage.Body.String()
-	for _, want := range []string{`<span>Open</span><span class="chatsave-seg-count">2</span>`, `<span>Resolved</span><span class="chatsave-seg-count">0</span>`, "Report", "Filter hit", "Rule that matched: Project Falcon 1.2.0", "Reported by Rae Reporter", "Alex Author", "the words to be removed", "#room", `data-chatremove-act="dismiss"`, "action=remove", "action=message", `data-chatremove="filter"`} {
+	for _, want := range []string{`<span>Open</span><span class="chatsave-seg-count">2</span>`, `<span>Resolved</span><span class="chatsave-seg-count">0</span>`, "Report", "Filter hit", "Rule that matched: Project Falcon 1.2.0", "Reported by Rae Reporter", "Alex Author", "the words to be removed", "#room", "action=dismiss", "action=remove", "action=message", `data-chatremove="filter"`} {
 		if queuePage.Code != http.StatusOK || !strings.Contains(body, want) {
 			t.Fatalf("the moderator's page misses %q: %d %s", want, queuePage.Code, body)
 		}
@@ -204,6 +204,13 @@ func TestTodo_CHATMOD_005_Integration(t *testing.T) {
 	item := chatmodItem(t, q, "appeal")
 	if !item.CanRestore || item.CanRemove || item.PostID != removal.PostID || item.ReporterID != "author" {
 		t.Fatalf("the appeal: %+v", item)
+	}
+	// Issue #3697: Restore of the appeal asks first, in a dialog served for the item.
+	restoreDialog := f.call("admin", http.MethodGet, ChatModerationPagePath+"?"+url.Values{"action": {"restore"}, "conversation": {item.ConversationID}, "post": {item.PostID}, "case": {item.ID}, "locale": {"en-US"}}.Encode(), nil)
+	for _, want := range []string{`data-chatremove="resolve"`, `data-case-id="` + item.ID + `"`, `value="restore"`, `name="note"`} {
+		if restoreDialog.Code != http.StatusOK || !strings.Contains(restoreDialog.Body.String(), want) {
+			t.Fatalf("the restore dialog misses %q: %d %s", want, restoreDialog.Code, restoreDialog.Body.String())
+		}
 	}
 	if code := f.resolve("owner", item.ID, "restore", "", ""); code != http.StatusForbidden && code != http.StatusNotFound {
 		t.Fatalf("a manager without the review permission decided an appeal: %d", code)

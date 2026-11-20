@@ -126,13 +126,20 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 	}
 	// Keep what is on screen while the next answer is on its way; the first open
 	// has nothing yet, so it says it is loading.
-	if !overlay.Call("querySelector", ".chatremove:not(.chatux037-page-failed)").Truthy() {
+	if kind == "dialog" {
+		overlay.Set("chatremoveHref", href)
+	}
+	if !overlay.Call("querySelector", ".chatremove:not(.chatux037-page-failed):not(.chatremove-dialog-pending)").Truthy() {
 		// CHATUX-037: the page's own frame at once, with placeholder rows; the
 		// status is read out and not printed.
 		if kind == "page" {
 			overlay.Set("innerHTML", chatui.ModerationLoadingMarkup(b.locale, chatmodTabOf(href)))
 		} else {
-			overlay.Set("innerHTML", chatui.ChatLoadingMarkup(chatui.LoadingFrame{Locale: b.locale, Shape: chatui.LoadingShapeSection, Status: chatui.ModerationText(b.locale, "loading")}))
+			// Issue #3887: the dialog's own frame, with Cancel, never bare bars.
+			overlay.Set("innerHTML", chatui.ModerationDialogPendingMarkup(b.locale, issue3887ActionOf(href), ""))
+			if cancel := overlay.Call("querySelector", ".chatremove-actions [data-chatremove-close]"); cancel.Truthy() {
+				cancel.Call("focus")
+			}
 		}
 	}
 	go func() {
@@ -152,18 +159,12 @@ func (b *chatremoveBrowser) openOverlay(href string, opener js.Value) {
 				return
 			}
 			if err != nil {
-				overlay.Set("textContent", "")
-				failed := document.Call("createElement", "p")
-				failed.Call("setAttribute", "role", "alert")
-				failed.Set("textContent", chatui.ModerationText(b.locale, chatremoveErrorKey(err)))
-				overlay.Call("appendChild", failed)
-				closer := document.Call("createElement", "button")
-				closer.Set("type", "button")
-				closer.Call("setAttribute", "data-chatremove-close", "")
-				closer.Set("className", "chatremove-link")
-				closer.Set("textContent", chatui.ModerationText(b.locale, "close"))
-				overlay.Call("appendChild", closer)
-				closer.Call("focus")
+				// Issue #3887: the failure stays inside the dialog, with Try again
+				// and Close.
+				overlay.Set("innerHTML", chatui.ModerationDialogPendingMarkup(b.locale, issue3887ActionOf(href), chatremoveErrorKey(err)))
+				if retry := overlay.Call("querySelector", "[data-chatremove-retry]"); retry.Truthy() {
+					retry.Call("focus")
+				}
 				return
 			}
 			overlay.Set("innerHTML", markup)

@@ -109,6 +109,9 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		title, help = "restore_title", "restore_help"
 	case m.Action == "message":
 		title, help = "message_title", "message_help"
+	case m.Action == "dismiss":
+		// Issue #3697: Dismiss is recorded against the author, so it asks first.
+		title, help = "dismiss_title", "dismiss_help"
 	}
 	if m.CaseID != "" {
 		kind = "resolve"
@@ -126,7 +129,7 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		describedby += " chatremove-error"
 	}
 	fields := []ui.Node{}
-	needsReason := (m.Action != "restore" && m.Action != "message") || m.Report
+	needsReason := (m.Action != "restore" && m.Action != "message" && m.Action != "dismiss") || m.Report
 	if needsReason {
 		legend := t("why_removed")
 		if m.Report {
@@ -140,6 +143,8 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		noteLabel = t("note")
 	case m.Action == "message":
 		noteLabel = chatmodFill(t("message_label"), name)
+	case m.Action == "dismiss":
+		noteLabel = t("dismiss_note")
 	}
 	fields = append(fields, html.Label(html.Props{For: "chatremove-note", Dir: "auto", Text: noteLabel}), html.Textarea(html.Props{ID: "chatremove-note", Name: "note", Rows: 3, MaxLength: 2000, Required: m.Action == "message", Data: map[string]string{"chat-value": m.Note}}))
 	fields = append(fields, chatmodError(locale, m.ErrorCode)...)
@@ -151,6 +156,8 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		button, decision = "restore", "restore"
 	case m.Action == "message":
 		button, decision = "send_message", "message_author"
+	case m.Action == "dismiss":
+		button, decision = "dismiss", "dismiss"
 	}
 	submit := html.Props{Type: "submit", Class: "primary", Text: t(button)}
 	if needsReason {
@@ -180,7 +187,7 @@ func ModerationDialog(m ModerationDialogModel) ui.Node {
 		form.Raw = map[string]any{"novalidate": true}
 	}
 	children = append(children, html.Form(form, fields...))
-	if !m.Report && m.Action != "restore" && m.Action != "message" && m.CaseID == "" {
+	if !m.Report && m.Action != "restore" && m.Action != "message" && m.Action != "dismiss" && m.CaseID == "" {
 		if picked := chatmodSelected(m); picked != nil {
 			children = append(children, picked)
 		}

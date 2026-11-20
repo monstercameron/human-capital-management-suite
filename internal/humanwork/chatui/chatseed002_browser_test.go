@@ -184,8 +184,8 @@ func TestTodo_CHATSEED_002_Browser(t *testing.T) {
 			}
 		}
 		// Only the removed message can be brought back; nothing decided is decided again.
-		if strings.Count(done, `data-chatremove-act="restore"`) != 1 || strings.Contains(done, `data-chatremove-act="dismiss"`) || strings.Contains(done, text("message_author")) {
-			t.Errorf("%s: the resolved list offers the wrong buttons: restore x%d", locale, strings.Count(done, `data-chatremove-act="restore"`))
+		if strings.Count(done, `action=restore`) != 1 || strings.Contains(done, `action=dismiss`) || strings.Contains(done, `data-chatremove-act="dismiss"`) || strings.Contains(done, text("message_author")) {
+			t.Errorf("%s: the resolved list offers the wrong buttons: restore x%d", locale, strings.Count(done, `action=restore`))
 		}
 		if strings.Count(done, `chatmod005-removed">`+text("removed_badge")+`<`) != 1 {
 			t.Errorf("%s: the removed badge shows %d times, want once", locale, strings.Count(done, `chatmod005-removed">`+text("removed_badge")+`<`))

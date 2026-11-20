@@ -141,7 +141,10 @@ const chatremoveCopyTable = "\nmoderation\u0000Moderation\u0000Moderation\u0000�
 	"\nperm_note\u0000A person holds a permission when any of their roles does. A channel's own answer replaces the workspace's for that channel. Removing or reading in a private channel still takes being a member of it.\u0000Eine Person hat eine Berechtigung, wenn eine ihrer Rollen sie hat. Die Angabe eines Kanals ersetzt dort die des Arbeitsbereichs. In einem privaten Kanal entfernen oder lesen kann weiterhin nur, wer dort Mitglied ist.\u0000يحمل الشخص الصلاحية إذا حملها أحد أدواره. ما يُحدَّد لقناة يحل محل إعداد مساحة العمل في تلك القناة. الإزالة أو القراءة في قناة خاصة تتطلب العضوية فيها.\u0000" +
 	"\nperm_other\u0000Another role\u0000Eine andere Rolle\u0000دور آخر\u0000" +
 	"\nperm_other_hint\u0000Type a role's name exactly as your workspace uses it. Its row appears; nothing is saved until you press a switch in it.\u0000Geben Sie den Namen einer Rolle genau so ein, wie Ihr Arbeitsbereich ihn verwendet. Die Zeile erscheint; gespeichert wird erst, wenn Sie darin einen Schalter drücken.\u0000اكتب اسم الدور تماماً كما تستخدمه مساحة عملك. يظهر صفّه، ولا يُحفظ شيء حتى تضغط مفتاحاً فيه.\u0000" +
-	"\nperm_other_add\u0000Show this role\u0000Diese Rolle anzeigen\u0000عرض هذا الدور\u0000"
+	"\nperm_other_add\u0000Show this role\u0000Diese Rolle anzeigen\u0000عرض هذا الدور\u0000" +
+	"\ndismiss_title\u0000Dismiss this item?\u0000Diesen Eintrag abweisen?\u0000رفض هذا العنصر؟\u0000" +
+	"\ndismiss_help\u0000The message stays as it is. The decision is recorded with your name, and anyone who raised this item is told the outcome.\u0000Die Nachricht bleibt unverändert. Die Entscheidung wird mit Ihrem Namen festgehalten, und wer diesen Eintrag gemeldet hat, erfährt das Ergebnis.\u0000تبقى الرسالة كما هي. يُسجَّل القرار باسمك، ويُبلَّغ كل من أبلغ عن هذا العنصر بالنتيجة.\u0000" +
+	"\ndismiss_note\u0000Add a note (optional). Anyone who raised this item can read it.\u0000Notiz hinzufügen (optional). Wer diesen Eintrag gemeldet hat, kann sie lesen.\u0000أضف ملاحظة (اختياري). يمكن لمن أبلغ عن هذا العنصر قراءتها.\u0000"
 
 func chatremoveText(locale, key string) string {
 	return integrate1Copy(chatremoveCopyTable, locale, key)

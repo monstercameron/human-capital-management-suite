@@ -240,8 +240,9 @@ func moderationQueueItem(m ModerationPageModel, item chat.ModerationItem, now ti
 
 // moderationItemActions is the one row of buttons an item offers, the action
 // that suits its kind first: Remove for a report or a flagged message, Restore
-// for an appeal. Remove and Message the author ask for what they need in a
-// dialog; Dismiss and Restore need nothing and happen at once.
+// for an appeal. Every decision on an item with a message asks in a dialog:
+// Remove for a reason, Message the author for the words, Dismiss and Restore for
+// a confirmation with an optional note (issue #3697).
 func moderationItemActions(m ModerationPageModel, item chat.ModerationItem) ui.Node {
 	t := func(key string) string { return chatremoveText(m.Locale, key) }
 	// CHATUX-048: every action is the page's standard secondary button; Remove is
@@ -253,6 +254,9 @@ func moderationItemActions(m ModerationPageModel, item chat.ModerationItem) ui.N
 		if action == "remove" {
 			class += " danger"
 		}
+		if primary && action == "restore" {
+			class = "chatmod005-action button primary"
+		}
 		return html.Button(html.Props{Type: "button", Class: class, Text: label, Data: map[string]string{"chatremove-open": ModerationPageHref + "?" + q.Encode()}})
 	}
 	direct := func(action, label string, primary bool) ui.Node {
@@ -262,19 +266,29 @@ func moderationItemActions(m ModerationPageModel, item chat.ModerationItem) ui.N
 		}
 		return html.Button(html.Props{Type: "button", Class: class, Text: label, Data: map[string]string{"chatremove-act": action, "case-id": item.ID}})
 	}
+	// Issue #3697: Dismiss and Restore are recorded against the author, so for an
+	// item with a message they ask first, in the dialog (an optional note, Cancel
+	// leaves the item as it is). An item no message could be matched to has no
+	// author and nothing to show, so it keeps the one press.
+	decide := func(action, label string, primary bool) ui.Node {
+		if item.PostID == "" {
+			return direct(action, label, primary)
+		}
+		return dialog(action, label, primary)
+	}
 	var buttons []ui.Node
 	if item.State != "OPEN" {
 		if item.CanRestore {
-			buttons = append(buttons, direct("restore", t("restore"), false))
+			buttons = append(buttons, decide("restore", t("restore"), false))
 		}
 	} else {
 		switch {
 		case item.Kind == "appeal" && item.CanRestore:
-			buttons = append(buttons, direct("restore", t("restore"), true))
+			buttons = append(buttons, decide("restore", t("restore"), true))
 		case item.CanRemove:
 			buttons = append(buttons, dialog("remove", t("remove_short"), true))
 		}
-		buttons = append(buttons, direct("dismiss", t("dismiss"), false))
+		buttons = append(buttons, decide("dismiss", t("dismiss"), false))
 		if item.PostID != "" {
 			buttons = append(buttons, dialog("message", t("message_author"), false))
 		}

@@ -320,12 +320,19 @@ func restoreMessageMenuFocus(id string) {
 				return nil
 			}
 			buttons := doc.Call("querySelectorAll", ".message-action[data-action=menu]")
+			found := false
 			for i := 0; i < buttons.Get("length").Int(); i++ {
 				button := buttons.Index(i)
 				if button.Get("dataset").Get("id").String() == id {
 					button.Call("focus", map[string]any{"preventScroll": true})
+					found = doc.Get("activeElement").Equal(button)
 					break
 				}
+			}
+			if !found {
+				// Issue #3949: More is drawn only while its row is active, so the
+				// row takes focus and More follows.
+				focusMessageRowForMenu(id)
 			}
 		}
 		callback.Release()

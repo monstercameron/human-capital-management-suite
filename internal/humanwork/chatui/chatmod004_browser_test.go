@@ -207,8 +207,8 @@ func TestTodo_CHATMOD_005_Browser_RealCatalog(t *testing.T) {
 				t.Errorf("%s: an item is not one row of buttons: %s", locale, article)
 			}
 		}
-		// Dismiss and Restore happen at once; Remove and Message the author ask in a dialog.
-		if !strings.Contains(open, `data-chatremove-act="dismiss"`) || !strings.Contains(open, `data-chatremove-act="restore"`) || !strings.Contains(open, `action=remove`) || !strings.Contains(open, `action=message`) || !strings.Contains(open, `case=filter%3A7`) {
+		// Every decision on an item with a message asks in a dialog (issue #3697).
+		if !strings.Contains(open, `action=dismiss`) || !strings.Contains(open, `action=restore`) || !strings.Contains(open, `action=remove`) || !strings.Contains(open, `action=message`) || !strings.Contains(open, `case=filter%3A7`) {
 			t.Errorf("%s: the buttons are not wired", locale)
 		}
 
