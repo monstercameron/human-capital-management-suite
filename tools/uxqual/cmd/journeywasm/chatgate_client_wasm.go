@@ -156,6 +156,9 @@ func init() {
 	doc.Call("addEventListener", "click", hook)
 }
 func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
+	if view.ChannelName == "" {
+		view.ChannelName = chatgateChannelName(chatBrowser.snapshot(), view.Conversation)
+	}
 	doc := js.Global().Get("document")
 	if doc.Call("querySelector", ".chatgate-overlay").Truthy() {
 		return
@@ -165,7 +168,7 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 	overlay.Set("className", "chatgate-overlay")
 	overlay.Call("setAttribute", "role", "dialog")
 	overlay.Call("setAttribute", "aria-modal", "true")
-	overlay.Call("setAttribute", "aria-label", chatui.GateText(view.Locale, "gate"))
+	overlay.Call("setAttribute", "aria-label", chatui.GateTitle(view))
 	doc.Get("body").Call("appendChild", overlay)
 	closed, busy := false, false
 	var click, key, input, submit js.Func
@@ -365,7 +368,11 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 					}
 				}
 			} else {
+				channel := view.ChannelName
 				view = *reply.View
+				if view.ChannelName == "" {
+					view.ChannelName = channel
+				}
 				if action == "save" {
 					view.Notice = chatui.GateText(view.Locale, "saved")
 				}

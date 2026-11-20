@@ -67,6 +67,12 @@ func channelFilterTarget(m Model, s string) (id string, used int) {
 			used++
 		}
 		want := strings.TrimSpace(inner)
+		// ISSUE-3937: two rooms can carry one name; the open one is meant.
+		for _, c := range m.Conversations {
+			if want != "" && c.ID == m.SelectedID && channelNamedLike(m, c, want) {
+				return c.ID, used
+			}
+		}
 		for _, c := range m.Conversations {
 			if want != "" && channelNamedLike(m, c, want) {
 				return c.ID, used
@@ -80,7 +86,7 @@ func channelFilterTarget(m Model, s string) (id string, used int) {
 			if name == "" {
 				continue
 			}
-			if n, ok := foldPrefix(s, name); ok && n > used && (n == len(s) || s[n] == ' ') {
+			if n, ok := foldPrefix(s, name); ok && (n > used || (n == used && c.ID == m.SelectedID)) && (n == len(s) || s[n] == ' ') {
 				id, used = c.ID, n
 			}
 		}
@@ -116,10 +122,10 @@ func foldPrefix(s, name string) (int, bool) {
 func searchFilterBar(m Model, query string) ui.Node {
 	children := []ui.Node{}
 	c := m.selected()
-	if m.SelectedID != "" && (c.Kind == PublicChannel || c.Kind == PrivateChannel) && !strings.Contains(strings.ToLower(query), "in:") {
-		name := displayName(m, c)
+	// ISSUE-3937: direct and group conversations are offered the same way.
+	if _, open := issue3937OpenConversation(m); open && issue3937ScopeToken(m, c) != "" && !strings.Contains(strings.ToLower(query), "in:") {
 		children = append(children, html.Button(html.Props{Class: "tray-chip search-filter-chip", Type: "button", Disabled: m.Callbacks.Search == nil,
-			Data: map[string]string{"action": "search-in-channel", "id": c.ID, "extra": searchInToken(name)}}, icon("search"), html.Span(html.Props{Text: laneTextf(m, chatbug072Copy, keyChatbug072ScopeOffer, map[string]string{"channel": "#" + name})})))
+			Data: map[string]string{"action": "search-in-channel", "id": c.ID, "extra": issue3937ScopeToken(m, c)}}, icon("search"), html.Span(html.Props{Text: laneTextf(m, chatbug072Copy, keyChatbug072ScopeOffer, map[string]string{"channel": issue3937ScopeLabel(m, c)})})))
 	}
 	children = append(children, html.Span(html.Props{Class: "search-filter-hint", Text: m.t(KeySearchFilterHint)}))
 	children = append(children, ChatSearchMount(m))

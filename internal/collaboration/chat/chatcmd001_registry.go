@@ -106,6 +106,11 @@ func Chatcmd001Defaults() Chatcmd001Registry {
 			Arguments: []Chatcmd001Argument{Chatcmd001Text, Chatcmd001Numbered, Chatcmd001Named, Chatcmd001Date}, Named: []string{"multiple", "anonymous", "results", "closes", "add"}, Preview: true},
 		{Name: "todo", Description: "Post a to-do list people can tick off", Usage: `/todo task, task @Name by Friday, task`, Example: `/todo "Launch checklist" 1="Book the room" 2="Send invites @Dana by Friday"`,
 			Arguments: []Chatcmd001Argument{Chatcmd001Text, Chatcmd001Numbered, Chatcmd001Mention, Chatcmd001Date, Chatcmd001Named}, Named: []string{"tick"}, Preview: true},
+		// Issue 3792: records what a conversation settled. Informal: it is never a deployed policy.
+		{Name: "decide", Description: "Record a decision the conversation reached", Usage: `/decide what was decided`, Example: `/decide "Freeze promotion changes until after calibration"`,
+			Arguments: []Chatcmd001Argument{Chatcmd001Text}, Preview: true},
+		// Issue 3723: hands the person to the governed promotion flow with this conversation as context. It posts nothing.
+		{Name: "promote", Description: "Start a promotion request from this conversation", Usage: `/promote`, Example: "/promote"},
 		{Name: "giphy", Description: "Find a GIF to post", Usage: `/giphy what to search for`, Example: "/giphy cats", Arguments: []Chatcmd001Argument{Chatcmd001Text}, Preview: true, Agents: true},
 		{Name: "location", Description: "Share a place or where you are", Usage: `/location`, Example: "/location", Preview: true, Agents: true},
 	}}

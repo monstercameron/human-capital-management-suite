@@ -381,7 +381,7 @@ func bindProjectWorkflows(cfg journeyclient.Config, service projectv1.ProjectSer
 				picker.Call("setAttribute", "data-status", "open")
 				filterProjectWorkflowPicker(picker)
 				func() {
-					defer func() { _ = recover() }()
+					defer recoverAt("project-workflows.bind-project-workf")
 					picker.Call("showModal")
 				}()
 				if search := picker.Call("querySelector", "#projectui-workflow-search"); search.Truthy() {

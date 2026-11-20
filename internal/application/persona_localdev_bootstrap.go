@@ -106,7 +106,7 @@ func localDevPersonaDemoConversationID(tenant, roomKey string) string {
 // or non-local profile can reach the writer.
 func ProvisionLocalDevPersonaDirectPolicy(ctx context.Context, store LocalDevPersonaChatPolicyStore, profile, tenant, conversation, administrator string) (int, error) {
 	expected, err := chatcore.DirectPairConversationID(tenant, []chatcore.MemberRef{{TenantID: tenant, SubjectID: administrator}, {TenantID: tenant, SubjectID: localAgentDemoAgentID}})
-	if ctx == nil || store == nil || profile != ServeProfileLocalDev || tenant != localAgentDemoTenant || administrator != localAgentDemoAdmin || strings.TrimSpace(conversation) == "" || err != nil || conversation != expected {
+	if ctx == nil || store == nil || profile != ServeProfileLocalDev || !isLocalAgentDemoTenant(tenant) || administrator != localAgentDemoAdminFor(tenant) || strings.TrimSpace(conversation) == "" || err != nil || conversation != expected {
 		return 0, ErrLocalDevPersonaChatBootstrap
 	}
 	ceiling := chatstore.PersonaChannelPolicy{

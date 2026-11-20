@@ -7,6 +7,8 @@ import (
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/localize"
 )
 
 type chatLayerRect struct{ left, top, right, bottom float64 }
@@ -287,14 +289,7 @@ func chatComposerHintReserved(m Model, h handlers) bool {
 }
 
 func chat5Clock(locale string, at time.Time) string {
-	clock := at.Local().Format("3:04 PM")
-	if strings.HasPrefix(locale, "de") {
-		clock = at.Local().Format("15:04")
-	}
-	if strings.HasPrefix(locale, "ar") {
-		clock = arabicDigits(at.Local().Format("15:04"))
-	}
-	return clock
+	return localize.FormatClock(locale, at.Local())
 }
 
 // The rail yields its field while the anchored search panel is open.

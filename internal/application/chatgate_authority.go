@@ -84,10 +84,9 @@ func (f currentRoleChatFacts) GatePeople(ctx context.Context, tenant string) ([]
 	}
 	out := make([]chatgatePerson, 0, len(rows))
 	for _, row := range rows {
-		name := strings.TrimSpace(row.PreferredName)
-		if name == "" {
-			name = strings.TrimSpace(row.LegalName)
-		}
+		// A full name: the queue and the reviewer list name people the way the
+		// directory does, not by the first name they go by.
+		name := chatui.GateFullName(row.PreferredName, row.LegalName)
 		out = append(out, chatgatePerson{Subject: row.WorkerKey, Name: name, Team: strings.TrimSpace(row.OrgUnit), Location: strings.TrimSpace(row.Location), Active: strings.EqualFold(row.LifecycleStatus, "active")})
 	}
 	return out, nil
@@ -226,6 +225,11 @@ func (a *ChatgateAuthority) discovers(ctx context.Context, actor chatgate.Actor,
 func (a *ChatgateAuthority) Check(ctx context.Context, actor chatgate.Actor, scope chatgate.Scope, permission string) error {
 	if a == nil || a.Store == nil || actor.Tenant == "" || actor.Tenant != scope.Tenant || actor.Person == "" {
 		return chatgate.ErrDenied
+	}
+	// The served deadline sweep (issue 3817) is the one non-person caller. It
+	// holds the sweep's own permission, inside its own workspace, and nothing else.
+	if permission == "retention" && chatgateIsSystem(ctx, actor) {
+		return nil
 	}
 	switch permission {
 	case "self", "read_answers":

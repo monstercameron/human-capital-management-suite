@@ -99,6 +99,9 @@ func chatsaveRestore(item chat.SavedItem) []chatsaveCommand {
 	if item.DueAt != nil {
 		commands = append(commands, chatsaveCommand{Action: "due", ConversationID: base.ConversationID, PostID: base.PostID, SetDue: true, DueAt: item.DueAt})
 	}
+	if len(item.Labels) > 0 {
+		commands = append(commands, chatsaveCommand{Action: "labels", ConversationID: base.ConversationID, PostID: base.PostID, AddLabels: item.Labels})
+	}
 	if item.State == chat.SavedDone {
 		commands = append(commands, chatsaveCommand{Action: "done", ConversationID: base.ConversationID, PostID: base.PostID})
 	}

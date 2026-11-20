@@ -6,7 +6,7 @@ import "strings"
 // focus moves into it when it opens, Tab stays inside it, and focus goes back
 // to the control that opened it. A dialog missing from this list opens with the
 // cursor wherever it was, so typing goes nowhere.
-const chatFocusDialogSelector = ".create-dialog, .browse-dialog, .add-members-dialog, .agent-profile-dialog"
+const chatFocusDialogSelector = ".create-dialog, .browse-dialog, .add-members-dialog, .agent-profile-dialog, .reactions-dialog"
 
 // chatDialogMenuToggleSelector is the selector of the button that opens the menu
 // whose element carries className (its first class names it): the place focus

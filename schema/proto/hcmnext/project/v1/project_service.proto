@@ -87,6 +87,10 @@ service ProjectService {
   // Reads the current published status, field, and transition configuration.
   rpc GetWorkflowConfiguration(GetWorkflowConfigurationRequest) returns (GetWorkflowConfigurationResponse);
   // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+  // Reads the chat unfurl of many task or board links in one call, each item
+  // authorized as the caller. A refused item is neutral and carries no detail.
+  rpc GetProjectPreviews(GetProjectPreviewsRequest) returns (GetProjectPreviewsResponse);
+  // P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
   // Saves a personal or project-audience view. The view never widens task
   // authorization; every board read rechecks task access.
   rpc SaveBoardView(SaveBoardViewRequest) returns (SaveBoardViewResponse);
@@ -566,6 +570,50 @@ message GetWorkflowConfigurationRequest {
 }
 
 message GetWorkflowConfigurationResponse { WorkflowConfiguration configuration = 1; }
+
+// ProjectPreviewRef names one task (task_id set) or one whole board (task_id empty).
+message ProjectPreviewRef {
+  string project_id = 1;
+  string task_id = 2;
+}
+
+message GetProjectPreviewsRequest {
+  hcmnext.common.v1.ScopeContext scope = 1;
+  // At most 50 refs; repeats are answered once.
+  repeated ProjectPreviewRef refs = 2;
+}
+
+enum ProjectPreviewState {
+  PROJECT_PREVIEW_STATE_UNSPECIFIED = 0;
+  PROJECT_PREVIEW_STATE_READY = 1;
+  // The caller may not read it. Carries no other field.
+  PROJECT_PREVIEW_STATE_RESTRICTED = 2;
+  PROJECT_PREVIEW_STATE_MISSING = 3;
+  PROJECT_PREVIEW_STATE_ARCHIVED = 4;
+  // A transient read failure the caller can retry.
+  PROJECT_PREVIEW_STATE_FAILED = 5;
+}
+
+// ProjectPreview is the unfurl of one ref. Everything but the ref and state is
+// sent only when state is READY. done_tasks and total_tasks are set for a
+// board when progress_known.
+message ProjectPreview {
+  string project_id = 1;
+  string task_id = 2;
+  ProjectPreviewState state = 3;
+  string project_name = 4;
+  string title = 5;
+  string status_name = 6;
+  ProjectStatusCategory status_category = 7;
+  TaskPriority priority = 8;
+  string due_date = 9;
+  string assignee_id = 10;
+  bool progress_known = 11;
+  uint32 done_tasks = 12;
+  uint32 total_tasks = 13;
+}
+
+message GetProjectPreviewsResponse { repeated ProjectPreview previews = 1; }
 
 enum BoardViewAudience {
   BOARD_VIEW_AUDIENCE_UNSPECIFIED = 0;

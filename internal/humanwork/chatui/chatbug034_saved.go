@@ -16,6 +16,8 @@ func SavedActionFailedText(locale, action string) string {
 		kind = "note"
 	case "due", "clear-due":
 		kind = "due"
+	case "labels", "rename_label", "remove_label":
+		kind = "label"
 	}
 	table := map[string]map[string]string{
 		"en": {
@@ -24,6 +26,7 @@ func SavedActionFailedText(locale, action string) string {
 			"state":  "We could not update this message. Try again.",
 			"note":   "We could not save your note. Try again.",
 			"due":    "We could not save your reminder. Try again.",
+			"label":  "We could not change your labels. Try again.",
 		},
 		"de": {
 			"save":   "Die Nachricht konnte nicht gespeichert werden. Versuchen Sie es erneut.",
@@ -31,6 +34,7 @@ func SavedActionFailedText(locale, action string) string {
 			"state":  "Die Nachricht konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
 			"note":   "Ihre Notiz konnte nicht gespeichert werden. Versuchen Sie es erneut.",
 			"due":    "Ihre Erinnerung konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+			"label":  "Ihre Labels konnten nicht geändert werden. Versuchen Sie es erneut.",
 		},
 		"ar": {
 			"save":   "تعذّر حفظ هذه الرسالة. حاول مرة أخرى.",
@@ -38,6 +42,7 @@ func SavedActionFailedText(locale, action string) string {
 			"state":  "تعذّر تحديث هذه الرسالة. حاول مرة أخرى.",
 			"note":   "تعذّر حفظ ملاحظتك. حاول مرة أخرى.",
 			"due":    "تعذّر حفظ تذكيرك. حاول مرة أخرى.",
+			"label":  "تعذّر تغيير تصنيفاتك. حاول مرة أخرى.",
 		},
 	}
 	language := "en"

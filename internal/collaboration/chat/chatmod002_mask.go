@@ -31,6 +31,7 @@ func (s *Service) maskReaderBodies(ctx context.Context, reader Principal, posts 
 	// Decided on the stored bodies, before any mask changes them.
 	hidden := s.projectReaderBodies(ctx, reader, posts)
 	s.maskByContentPolicy(ctx, reader, posts)
+	s.maskForwardNotes(ctx, reader, posts)
 	replaced := make([]bool, len(posts))
 	for i := range hidden {
 		if hidden[i].Replaced {

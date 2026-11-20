@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -46,7 +45,7 @@ func (r LocalAgentDemoPlacements) Changed() bool {
 func prepareLocalAgentDemoTail(adminCtx context.Context, config LocalAgentDemoConfig, agents *agentstore.Store, chat *chatstore.Store, documents *documenthubstore.Store, mapper func(values.TenantId) uuid.UUID, general string, now time.Time) (LocalAgentDemoPlacements, error) {
 	var receipt LocalAgentDemoPlacements
 	var err error
-	if receipt.AmbientInstallations, err = ensureLocalAgentDemoAmbientInstallations(adminCtx, chat, config.Tenant, localAgentDemoAdmin, now); err != nil {
+	if receipt.AmbientInstallations, err = ensureLocalAgentDemoAmbientInstallations(adminCtx, chat, config.Tenant, localAgentDemoAdminFor(config.Tenant), now); err != nil {
 		return receipt, err
 	}
 	if receipt.SupportAlertMemberships, err = ensureLocalAgentDemoSupportAlertMember(adminCtx, chat, config.Tenant); err != nil {
@@ -56,9 +55,9 @@ func prepareLocalAgentDemoTail(adminCtx context.Context, config LocalAgentDemoCo
 	if err != nil {
 		return receipt, err
 	}
-	receipt.GeneralHistoryPosts, err = ensureLocalAgentDemoGeneralHistory(adminCtx, localAgentDemoHistoryDeps{Chat: chat, Tenant: config.Tenant, General: general, Admin: localAgentDemoAdmin, OwnerName: owner, Members: members, Now: now,
+	receipt.GeneralHistoryPosts, err = ensureLocalAgentDemoGeneralHistory(adminCtx, localAgentDemoHistoryDeps{Chat: chat, Tenant: config.Tenant, General: general, Admin: localAgentDemoAdminFor(config.Tenant), OwnerName: owner, Members: members, Now: now,
 		DocumentLink: func(ctx context.Context, probe string) (string, string, error) {
-			hits, err := documents.SearchOfficialPlacementLexical(ctx, config.Tenant, general, probe, "person", localAgentDemoAdmin)
+			hits, err := documents.SearchOfficialPlacementLexical(ctx, config.Tenant, general, probe, "person", localAgentDemoAdminFor(config.Tenant))
 			if err != nil || len(hits) == 0 {
 				return "", "", err
 			}
@@ -71,7 +70,7 @@ func prepareLocalAgentDemoTail(adminCtx context.Context, config LocalAgentDemoCo
 	if err != nil {
 		return receipt, err
 	}
-	surface := AgentUXDemoInboxSurface{Inbox: inbox, Objects: AgentUXDemoLocalSupportObjects{Root: filepath.FromSlash(localAgentDemoObjectRoot)}, Queue: AgentUXDemoSupportDeferredQueue{}, Owners: AgentUXDemoSupportOwner{}, TenantUUID: mapper, Now: func() time.Time { return now }}
+	surface := AgentUXDemoInboxSurface{Inbox: inbox, Objects: AgentUXDemoLocalSupportObjects{Root: localAgentDevRoot()}, Queue: AgentUXDemoSupportDeferredQueue{}, Owners: AgentUXDemoSupportOwner{}, TenantUUID: mapper, Now: func() time.Time { return now }}
 	receipts, err := AgentUXDemoSeedSupportEmails(adminCtx, surface)
 	for _, seeded := range receipts {
 		if !seeded.Replayed {
@@ -137,5 +136,5 @@ func localAgentDemoHistoryMembers(ctx context.Context, chat *chatstore.Store, ag
 		}
 		members = append(members, localAgentDemoHistoryPerson{Key: key, Name: name, Month: month, Day: day, Shares: preference.Share})
 	}
-	return members, names[localAgentDemoAdmin], nil
+	return members, names[localAgentDemoAdminFor(tenant)], nil
 }

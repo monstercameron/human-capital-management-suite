@@ -41,6 +41,9 @@ type agentDocumentResolver struct {
 	workspace  WorkspaceDocumentMembers
 	agentFacts bool
 	reach      personaReachCache
+	// channelMemory and memory are set by EnablePersonaChannelMemory (issue 3804).
+	channelMemory PersonaChannelMemoryReader
+	memory        personaMemoryCache
 }
 
 // NewAgentDocumentResolver adapts the existing documentation-hub store to the

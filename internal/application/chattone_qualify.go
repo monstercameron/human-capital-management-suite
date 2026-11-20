@@ -240,7 +240,9 @@ type ChattoneQualifyConfig struct {
 	MaxCostMicros int64
 	Now           func() time.Time
 	// Model is the model to qualify; empty selects agentmodel.ChattoneDefaultModel
-	// (gpt-6-luna), not the base deployment's own first model. The base
+	// (gpt-6-luna), not the base deployment's own first model, except on the
+	// local development base (NewLocalPersonaOpenAIModelDeployment), where it
+	// selects the one model that base prices (LocalPersonaOpenAIModelID). The base
 	// deployment must carry an approved price for it. There is no fallback to
 	// another model: a model without a price is an error.
 	Model string
@@ -257,7 +259,7 @@ type ChattoneQualifyConfig struct {
 // deployment's own profile when it names the model asked for, else the model
 // asked for, pinned by its name.
 func (c ChattoneQualifyConfig) identity(template agentmodel.ModelProfile) agentmodel.ModelIdentity {
-	want := agentmodel.ChattoneModelID(c.Model)
+	want := agentmodel.ChattoneModelID(c.configuredModel())
 	if template.Identity.ModelID == want {
 		return template.Identity
 	}

@@ -76,7 +76,7 @@ func TestTodo_AGENTUX_005_Security(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(*LocalAgentDemoConfig){
 		"production profile": func(c *LocalAgentDemoConfig) { c.Profile = ServeProfileStandard },
-		"other tenant":       func(c *LocalAgentDemoConfig) { c.Tenant = "harborcare-demo" },
+		"other tenant":       func(c *LocalAgentDemoConfig) { c.Tenant = "acme-demo" },
 		"remote database":    func(c *LocalAgentDemoConfig) { c.AgentDatabaseURL = "postgres://agent@db.internal:5432/hcm" },
 	} {
 		t.Run(name, func(t *testing.T) {

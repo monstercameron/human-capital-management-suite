@@ -280,6 +280,9 @@ func chatux005Members(m Model, h handlers, c Conversation) ui.Node {
 		}
 		children = append(children, html.H4(html.Props{ID: "chat-details-people", Class: "details-subheading", Text: countedLabel(m, chatux005Text(m, "people"), people)}))
 		list.Aria = map[string]string{"labelledby": "chat-details-people"}
+	} else if chat3759MayPlaceAgents(m, c) && c.Kind != DirectMessage {
+		// ISSUE-3759: no agent answers here yet; whoever may place one is told so.
+		children = append(children, chat3759AddAgentLink(m))
 	}
 	// AGENTUX-066: who reads messages here, and the member's own switch.
 	if reads := ambientReadsSection(m); reads != nil {
@@ -361,6 +364,12 @@ func chatux005Details(m Model, h handlers) ui.Node {
 		html.Div(html.Props{Class: "details-summary"}, conversationAvatar(m, c), html.H3(html.Props{Text: displayName(m, c)}), html.P(html.Props{Class: "conversation-topic", Text: m.t(kindKey(c.Kind))})),
 		keyed(chatux005About(m, h, c, parts), "chatux005-about-"),
 		chatux005Pinned(m),
+		issue3917Section(m, h),
+		issue3964Section(m, h),
+		issue3812Section(m),
+		decisionsDetailsSection(m),
+		memoryDetailsSection(m),
+		linkedWorkDetailsSection(m),
 		chatmapCrewSection(m),
 		// The reader's own settings come before the long member list (CHATUX-030).
 		chatux027Notifications(m, h, m.SelectedID, mode),

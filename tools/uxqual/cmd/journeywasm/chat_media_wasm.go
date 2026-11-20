@@ -715,6 +715,11 @@ func downloadChatAttachment(cfg journeyclient.Config, postID, id string) {
 			}
 		}
 	}
+	// #3917: a file listed under Shared files may sit on a message that is not
+	// loaded; its name comes from the list, and the grant below still decides access.
+	if name == "" {
+		name = sharedFileName(model, postID, id)
+	}
 	if name == "" || model.SelectedID == "" {
 		return
 	}

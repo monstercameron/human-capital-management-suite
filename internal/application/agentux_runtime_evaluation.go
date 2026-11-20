@@ -252,10 +252,10 @@ func (r *localPersonaAdminEvaluationRunner) RunPersonaEvaluation(ctx context.Con
 // the verifier used by agent-demo and returns its deterministic evaluator. The
 // ordinary serving profile cannot load this private local authority.
 func (w *personaServeWiring) prepareLocalAdminEvaluation(agentDB *agentstore.Store, profile, tenantID string, now func() time.Time, servedTenants ...string) (PersonaAdminEvaluationRunner, error) {
-	if w == nil || agentDB == nil || profile != ServeProfileLocalDev || tenantID != localAgentDemoTenant || now == nil {
+	if w == nil || agentDB == nil || !localAdminEvaluationTenantAllowed(profile, tenantID) || now == nil {
 		return nil, ErrPersonaAdminEvaluationUnavailable
 	}
-	privateKey, err := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+	privateKey, err := loadOrCreateLocalAgentDemoEvaluationKey(localAgentDevFile(localAgentDemoEvaluationPath))
 	if err != nil {
 		return nil, err
 	}

@@ -106,7 +106,12 @@ func chatux022MenuItems(m Model, msg Message) []ui.Node {
 	if m.PinReferenceUnavailable {
 		copyLabel = m.t(KeyPinCopyGuestUnavailable)
 	}
-	items = append(items, chatux022Item("menu-item", "copy-link", msg.ID, "link", copyLabel, m.Callbacks.CopyLink == nil || m.PinReferenceUnavailable), copyContentsMenuItem(m, msg))
+	// Issue 3812: a restricted case conversation has no link, no share and no save.
+	restricted := issue3812Restricted(m)
+	if !restricted {
+		items = append(items, chatux022Item("menu-item", "copy-link", msg.ID, "link", copyLabel, m.Callbacks.CopyLink == nil || m.PinReferenceUnavailable))
+	}
+	items = append(items, copyContentsMenuItem(m, msg))
 	shareDisabled := m.Callbacks.OpenShare == nil || strings.TrimSpace(msg.Body) == ""
 	shareTitle := m.t(KeyShareToChannel)
 	if strings.TrimSpace(msg.Body) == "" && len(msg.Attachments) > 0 {
@@ -116,16 +121,24 @@ func chatux022MenuItems(m Model, msg Message) []ui.Node {
 	if shareTitle != m.t(KeyShareToChannel) {
 		shareAria += ". " + shareTitle
 	}
-	items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: shareDisabled, Title: shareTitle, Aria: map[string]string{"label": shareAria}, Data: map[string]string{"action": "open-share", "id": msg.ID}}, icon("send"), html.Span(html.Props{Text: m.t(KeyShareToChannel)})))
+	if !restricted {
+		items = append(items, html.Button(html.Props{Class: "menu-item", Type: "button", Role: "menuitem", Disabled: shareDisabled, Title: shareTitle, Aria: map[string]string{"label": shareAria}, Data: map[string]string{"action": "open-share", "id": msg.ID}}, icon("send"), html.Span(html.Props{Text: m.t(KeyShareToChannel)})))
+	}
 	// CHATUX-042: Pin is not on the bar any more, so the menu always offers it.
 	pinAction, pinLabel, pinClass := "pin", m.t(KeyPin), "menu-item"
 	if msg.Pinned {
 		pinAction, pinLabel = "unpin", m.t(KeyUnpin)
 	}
 	items = append(items, chatux022Item(pinClass, pinAction, msg.ID, "pin", pinLabel, m.Callbacks.Pin == nil), chatsaveAction(m, msg, true))
+	items = append(items, chatworkMenuItem(m, msg)...)
+	items = append(items, ackMenuItem(m, msg)...)
+	items = append(items, workflowHandoffMenuItem(m, msg)...)
+	items = append(items, decisionsMenuItem(m, msg)...)
+	items = append(items, memoryMenuItem(m, msg)...)
 	if listen := chatListenAction(m, msg, true); listen != nil {
 		items = append(items, listen)
 	}
+	items = append(items, chatlangTranslateMenuItems(m, msg)...)
 	if own {
 		// A poll or a to-do list changes with every vote and tick; its text is not
 		// edited in the message box.

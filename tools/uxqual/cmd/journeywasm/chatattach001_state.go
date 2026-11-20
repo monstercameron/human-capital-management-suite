@@ -362,7 +362,8 @@ func (s *chatattach001State) begin(scope, tenant, body string, mentions []chatui
 		if f.Uploading || f.ID == "" {
 			return nil, "", false
 		}
-		refs = append(refs, &chatv1.Reference{Kind: chatv1.ReferenceKind_REFERENCE_KIND_MEDIA, Id: f.ID, TenantId: tenant, ConversationId: room, Display: f.Name, ContentType: f.ContentType, ByteSize: uint64(f.Bytes), Width: uint32(max(f.Width, 0)), Height: uint32(max(f.Height, 0))})
+		alt, decorative := chatattach001ImageDescription(f)
+		refs = append(refs, &chatv1.Reference{Kind: chatv1.ReferenceKind_REFERENCE_KIND_MEDIA, Id: f.ID, TenantId: tenant, ConversationId: room, Display: f.Name, ContentType: f.ContentType, ByteSize: uint64(f.Bytes), Width: uint32(max(f.Width, 0)), Height: uint32(max(f.Height, 0)), AltText: alt, Decorative: decorative})
 	}
 	r.sending = true
 	identity, _ := json.Marshal(refs)
@@ -386,4 +387,53 @@ func (s *chatattach001State) finish(room string, success bool) []string {
 	r.files = nil
 	r.error = ""
 	return urls
+}
+
+// setDescription keeps what the person wrote as an image draft's description.
+// It is stored as typed (the field shows it back); begin trims and bounds it.
+func (s *chatattach001State) setDescription(scope, key, text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.room(scope)
+	for i := range r.files {
+		if r.files[i].Key == key && r.files[i].IsImage() {
+			r.files[i].AltText = text
+			return
+		}
+	}
+}
+
+// setDecorative records that the person chose to mark an image draft
+// decorative. The typed description stays, so unchecking brings it back.
+func (s *chatattach001State) setDecorative(scope, key string, decorative bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.room(scope)
+	for i := range r.files {
+		if r.files[i].Key == key && r.files[i].IsImage() {
+			r.files[i].Decorative = decorative
+			return
+		}
+	}
+}
+
+// chatattach001MaxDescription is chat.MaxImageDescriptionRunes: the most the
+// server takes.
+const chatattach001MaxDescription = 1000
+
+// chatattach001ImageDescription is what a draft's reference carries: the
+// trimmed, bounded description, or nothing for a decorative image or a file
+// that is not an image.
+func chatattach001ImageDescription(f chatui.Chatattach001Draft) (text string, decorative bool) {
+	if !f.IsImage() {
+		return "", false
+	}
+	if f.Decorative {
+		return "", true
+	}
+	text = strings.TrimSpace(f.AltText)
+	if r := []rune(text); len(r) > chatattach001MaxDescription {
+		text = strings.TrimSpace(string(r[:chatattach001MaxDescription]))
+	}
+	return text, false
 }

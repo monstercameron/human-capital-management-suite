@@ -62,6 +62,13 @@ type PersonaChatSurface struct {
 	// administrator requires private agent answers (AGENTUX-070). Unset, the
 	// setting is not offered.
 	ChannelPolicies personaChannelPolicies
+	// Allowance says how much of an agent's daily allowance is left in a
+	// conversation (#3807). Unset, no allowance is shown.
+	Allowance PersonaAllowanceReader
+	// Posts says which messages a person may not read, so an outcome receipt
+	// shows only beside a message the reader can open (#3803). Unset, a reader
+	// sees the receipts of their own questions only.
+	Posts personaPostVisibility
 }
 
 // personaPrivateCardReader lists the private cards delivered to one person in

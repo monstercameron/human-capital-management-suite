@@ -241,6 +241,9 @@ func chatlangExtrasScoped(m Model, h handlers, msg Message, prefix string) []ui.
 		}
 		nodes = append(nodes, below...)
 	}
+	if note := chatlangTranslateNote(m, msg, v); note != nil {
+		nodes = append(nodes, note)
+	}
 	if local.fixing == msg.ID && msg.AuthorID == m.CurrentUser {
 		nodes = append(nodes, chatlangFixer(m, local, msg, v))
 	}

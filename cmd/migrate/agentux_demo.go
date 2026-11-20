@@ -31,7 +31,7 @@ func agentDemoSpec(rest []string) bootstrap.Spec {
 		Args: rest,
 		ConfigFields: []bootstrap.Field{
 			{Name: fieldAgentDemoProfile, Usage: "required local development profile"},
-			{Name: fieldTenant, Usage: "tenant slug (ironridge-demo)"},
+			{Name: fieldTenant, Usage: "tenant slug (harborcare-demo, the default, or ironridge-demo)", Default: application.LocalAgentDemoDefaultTenant()},
 			{Name: "database-url", Env: EnvDatabaseURL, Usage: "core PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldAgentDatabaseURL, Env: "HCMNEXT_AGENT_DATABASE_URL", Usage: "agent PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "chat PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
@@ -42,6 +42,7 @@ func agentDemoSpec(rest []string) bootstrap.Spec {
 			{Name: fieldEvalProvisionerDatabaseURL, Env: "HCMNEXT_AGENT_EVAL_PROVISIONER_DATABASE_URL", Usage: "agent evaluation provisioner PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldAgentOwnerDatabaseURL, Env: "HCMNEXT_AGENT_OWNER_DATABASE_URL", Usage: "optional agent PostgreSQL owner URL for the local run policy row", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldChatOwnerDatabaseURL, Env: "HCMNEXT_CHAT_OWNER_DATABASE_URL", Usage: "optional chat PostgreSQL owner URL for repairing an unrouted direct conversation", Kind: bootstrap.KindString, Secret: true},
+			{Name: fieldChatTaskSuiteDigest, Usage: "optional sha256 digest of the evaluation suite you ran and are answerable for; with it the translation, writing-style and ambient-screen deployments are written in the same run"},
 			{Name: fieldProjectDatabaseURL, Env: application.EnvProjectDatabaseURL, Usage: "optional project PostgreSQL URL for the Customer support project; empty leaves Support Desk without a project", Kind: bootstrap.KindString, Secret: true},
 		},
 		Validate: func(values *bootstrap.Values) error {
@@ -65,7 +66,7 @@ func agentDemoConfig(values *bootstrap.Values) application.LocalAgentDemoConfig 
 		DatabaseURL: values.String("database-url"), AgentDatabaseURL: values.String(fieldAgentDatabaseURL),
 		ChatDatabaseURL: values.String(fieldChatDatabaseURL), DocumentDatabaseURL: values.String(fieldDocumentDatabaseURL),
 		ReviewAuthorityDatabaseURL: values.String(fieldReviewAuthorityDatabaseURL), PolicyAuthorityDatabaseURL: values.String(fieldPolicyAuthorityDatabaseURL),
-		RouteAuthorityDatabaseURL: values.String(fieldRouteAuthorityDatabaseURL), EvaluationProvisionerDatabaseURL: values.String(fieldEvalProvisionerDatabaseURL), AgentOwnerDatabaseURL: values.String(fieldAgentOwnerDatabaseURL), ChatOwnerDatabaseURL: values.String(fieldChatOwnerDatabaseURL), ProjectDatabaseURL: values.String(fieldProjectDatabaseURL),
+		RouteAuthorityDatabaseURL: values.String(fieldRouteAuthorityDatabaseURL), EvaluationProvisionerDatabaseURL: values.String(fieldEvalProvisionerDatabaseURL), AgentOwnerDatabaseURL: values.String(fieldAgentOwnerDatabaseURL), ChatOwnerDatabaseURL: values.String(fieldChatOwnerDatabaseURL), ProjectDatabaseURL: values.String(fieldProjectDatabaseURL), ChatTaskSuiteDigest: values.String(fieldChatTaskSuiteDigest),
 		Now: time.Now,
 	}
 }
@@ -78,7 +79,12 @@ func runAgentDemoCommand(ctx context.Context, config application.LocalAgentDemoC
 		fmt.Fprintf(out, "Preparation incomplete: %v.\nDone before the failure: %s\n", err, formatAgentDemoSummary(summary))
 		return err
 	}
-	_, err = fmt.Fprintln(out, formatAgentDemoSummary(summary))
+	if _, err = fmt.Fprintln(out, formatAgentDemoSummary(summary)); err != nil {
+		return err
+	}
+	if guide := application.LocalAgentDemoWhereToLook(config.Tenant); guide != "" {
+		_, err = fmt.Fprintln(out, guide)
+	}
 	return err
 }
 
@@ -128,6 +134,7 @@ func formatAgentDemoSummary(summary application.LocalAgentDemoSummary) string {
 			receipt += fmt.Sprintf(" %s v%d: prepared.", starter.Name, starter.Version)
 		}
 	}
+	receipt += formatAgentDemoChatTaskModels(summary)
 	index := summary.WorkspaceIndex
 	if index.Unavailable != "" {
 		return receipt + formatWorkspaceAccess(index) + " Warning: " + index.Unavailable

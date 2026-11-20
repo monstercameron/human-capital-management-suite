@@ -181,7 +181,7 @@ func composeAgentRuntime(ctx context.Context, in agentRuntimeInput) (*agentRunti
 
 	var typedModels *AgentTypedModelDispatchBinding
 	var model agentModel
-	if strings.TrimSpace(in.Config.AgentModelConfigFile) != "" || (in.Config.Profile == ServeProfileLocalDev && in.Env != nil && strings.TrimSpace(in.Env("MODEL_API_KEY")) != "") {
+	if strings.TrimSpace(in.Config.AgentModelConfigFile) != "" || (in.Config.Profile == ServeProfileLocalDev && in.Env != nil && (strings.TrimSpace(in.Env("MODEL_API_KEY")) != "" || localModelFixtureRequested(in.Env))) {
 		typedModels = &AgentTypedModelDispatchBinding{}
 		model = agentModel{Kind: agentModelConfigured, Typed: typedModels}
 	} else {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 )
 
 const localPersonaModelDeploymentPath = ".artifacts/lanes/agent-dev/model-deployment.json"
@@ -33,15 +32,15 @@ func personaServedProviderUnavailableReason(cfg ServeConfig, env func(string) st
 	}
 	path := cfg.AgentModelConfigFile
 	if path == "" {
-		path = filepath.FromSlash(localPersonaModelDeploymentPath)
+		path = localAgentDevFile(localPersonaModelDeploymentPath)
 	}
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return "prepared persona model deployment is missing; run " + localPersonaModelPreparationCommand
+		return "prepared persona model deployment is missing at " + absLocalAgentPath(path) + "; run " + localAgentDemoPreparationCommand(servedLocalAgentDemoTenant(cfg.ServedTenants()))
 	}
-	if env == nil || env("MODEL_API_KEY") == "" {
-		return "MODEL_API_KEY is not set for the prepared local persona deployment"
+	if env == nil || localModelAPIKeyMissing(env) {
+		return "MODEL_API_KEY is not set for the prepared local persona deployment (or set " + EnvLocalModelProvider + "=fixture for the local test provider)"
 	}
-	return "prepared persona runtime dependencies are incomplete; rerun " + localPersonaModelPreparationCommand
+	return "prepared persona runtime dependencies are incomplete; rerun " + localAgentDemoPreparationCommand(servedLocalAgentDemoTenant(cfg.ServedTenants()))
 }
 
 // Both chat personas and private tasks consume the same qualified deployment.
@@ -54,10 +53,17 @@ func loadServedAgentModelConfiguration(ctx context.Context, cfg ServeConfig, env
 	if err := ctx.Err(); err != nil {
 		return cfg, empty, "", false, err
 	}
+	// The fixture switch is refused outside local development before anything
+	// else is read, so a production process handed it fails closed.
+	if cfg.Profile != ServeProfileLocalDev {
+		if _, _, err := localModelFixtureEndpoint(cfg, env); err != nil {
+			return cfg, empty, "", false, err
+		}
+	}
 	path := cfg.AgentModelConfigFile
 	automaticLocal := path == "" && cfg.Profile == ServeProfileLocalDev
 	if automaticLocal {
-		path = filepath.FromSlash(localPersonaModelDeploymentPath)
+		path = localAgentDevFile(localPersonaModelDeploymentPath)
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			return cfg, empty, "", false, nil
 		} else if err != nil {
@@ -75,11 +81,22 @@ func loadServedAgentModelConfiguration(ctx context.Context, cfg ServeConfig, env
 		return cfg, empty, "", false, modelConfigurationError("MODEL_API_KEY environment source is required")
 	}
 	apiKey := env("MODEL_API_KEY")
+	fixtureEndpoint, fixtureKey, err := localModelFixtureEndpoint(cfg, env)
+	if err != nil {
+		return cfg, empty, "", false, err
+	}
+	if fixtureEndpoint != "" {
+		// Only the HTTP answer is canned: the deployment's profiles, egress
+		// terms, pricing and signing all still apply to the call.
+		apiKey, deployment.BaseURL = fixtureKey, fixtureEndpoint
+	}
 	if apiKey == "" {
 		return cfg, empty, "", false, modelConfigurationError("MODEL_API_KEY is required for the configured provider")
 	}
-	if automaticLocal {
-		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+	// An explicit deployment file no longer switches local signing off: the
+	// local profile loads its own seeds whenever none were supplied.
+	if automaticLocal || (cfg.Profile == ServeProfileLocalDev && len(cfg.PersonaOutputSigningSeed) == 0 && len(cfg.PersonaWorkloadSigningSeed) == 0) {
+		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if err != nil {
 			return cfg, empty, "", false, err
 		}

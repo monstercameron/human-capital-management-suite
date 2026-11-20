@@ -78,9 +78,21 @@ func chatux001CountButton(class, action, label string, disabled bool, glyph stri
 // under the header, so the header carries no button for them (CHATBUG-074).
 func chatux001HeaderActions(m Model, h handlers, c Conversation, detailsBtn ui.Node) []ui.Node {
 	actions := []ui.Node{}
+	// ISSUE-3937: the icon searches in this conversation; the scope is written
+	// into the search box, where it can be seen and removed.
+	searchData := map[string]string{"action": "chat-search-open"}
+	searchAria := map[string]string{"label": chatux001Text(m, "chat.ux001.search"), "keyshortcuts": chatux010KeyShortcuts(chatPlatform())}
+	if token := issue3937ScopeToken(m, c); token != "" {
+		searchData["extra"] = "in:" + token
+		searchAria["description"] = issue3937ScopeHint(m, c)
+	}
 	actions = append(actions,
-		html.Button(html.Props{Class: "icon-button chatux001-search", Type: "button", Disabled: m.Callbacks.Search == nil, Data: map[string]string{"action": "chat-search-open"},
-			Aria: map[string]string{"label": chatux001Text(m, "chat.ux001.search"), "keyshortcuts": chatux010KeyShortcuts(chatPlatform())}, Title: chatux010Hint(m)}, icon("search")))
+		html.Button(html.Props{Class: "icon-button chatux001-search", Type: "button", Disabled: m.Callbacks.Search == nil, Data: searchData,
+			Aria: searchAria, Title: chatux010Hint(m)}, icon("search")),
+		issue3930Button(m, h))
+	if handover := issue3973Button(m); handover != nil {
+		actions = append(actions, handover)
+	}
 	if n := chatux001PinnedCount(m); n > 0 {
 		label := chatux001Textf(m, "chat.ux001.pinned_count", map[string]string{"n": m.n(n)})
 		actions = append(actions, chatux001CountButton("chatux001-pinned", "header-pinned", label, m.Callbacks.ToggleDetails == nil, "pin", n, m))

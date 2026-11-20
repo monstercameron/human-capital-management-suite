@@ -102,6 +102,7 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		if err != nil {
 			return ChatgateReply{}, chatgate.ErrUnavailable
 		}
+		a.nameWaitingReviewers(ctx, actor, summaries)
 		return ChatgateReply{Result: summaries}, nil
 	}
 	scope := chatgate.Scope{Tenant: actor.Tenant, Conversation: r.Conversation}

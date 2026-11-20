@@ -233,6 +233,16 @@ func callErr(err error) error {
 		return envelope.New(envelope.CodeInvalidArgument, chatcore.ReasonChannelName, "the channel name does not follow the naming rule").
 			WithViolation("name", "use lowercase letters, numbers, dashes and underscores, up to "+strconv.Itoa(chatcore.MaxChannelNameRunes)+" characters", ruleChannelName)
 	}
+	// ISSUE-3783: an information barrier is a refusal with its own reason, so the
+	// add-people dialog can explain it. It names no group and no person.
+	if errors.Is(err, chatcore.ErrInformationBarrier) {
+		return envelope.New(envelope.CodePermissionDenied, chatcore.ReasonInformationBarrier, "an information barrier prevents adding this person to this conversation")
+	}
+	// ISSUE-3812: a conversation bound to a case refuses with a reason per kind
+	// of refusal. The message names no case and no owner.
+	if reason, ok := chatcore.CaseReason(err); ok {
+		return envelope.New(envelope.CodePermissionDenied, reason, "this conversation is bound to a case and does not allow that")
+	}
 	code, reason := envelope.CodeUnspecified, "chat.internal_error"
 	switch {
 	case errors.Is(err, chatcore.ErrInvalidArgument):
@@ -846,7 +856,7 @@ func (s *server) ForwardPost(c context.Context, r *chatv1.ForwardPostRequest) (*
 		return nil, chatshared.ServerDerived("source_attribution",
 			"attribution is derived server-side from the source post")
 	}
-	v, e := refSvc.ForwardPost(c, chatcore.ForwardPostRequest{Principal: p, SourceTenantID: r.GetSourceTenantId(), SourceConversationID: r.GetSourceConversationId(), SourcePostID: r.GetSourcePostId(), DestinationTenantID: r.GetDestinationTenantId(), DestinationConversationID: r.GetDestinationConversationId(), IdempotencyKey: r.GetIdempotencyKey()})
+	v, e := refSvc.ForwardPost(c, chatcore.ForwardPostRequest{Principal: p, SourceTenantID: r.GetSourceTenantId(), SourceConversationID: r.GetSourceConversationId(), SourcePostID: r.GetSourcePostId(), DestinationTenantID: r.GetDestinationTenantId(), DestinationConversationID: r.GetDestinationConversationId(), IdempotencyKey: r.GetIdempotencyKey(), Note: r.GetNote()})
 	if e != nil {
 		return nil, callErr(e)
 	}
@@ -964,6 +974,10 @@ func referenceKindOut(v chatcore.ReferenceKind) chatv1.ReferenceKind {
 		return chatv1.ReferenceKind_REFERENCE_KIND_CONVERSATION_REFERENCE
 	case chatcore.MediaAttachment:
 		return chatv1.ReferenceKind_REFERENCE_KIND_MEDIA
+	case chatcore.ProjectWorkReference:
+		return chatv1.ReferenceKind_REFERENCE_KIND_PROJECT_TASK
+	case chatcore.JourneyReference:
+		return chatv1.ReferenceKind_REFERENCE_KIND_JOURNEY
 	default:
 		return chatv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
 	}
@@ -1103,18 +1117,22 @@ func referenceKind(v chatv1.ReferenceKind) chatcore.ReferenceKind {
 		return chatcore.ConversationMention
 	case chatv1.ReferenceKind_REFERENCE_KIND_MEDIA:
 		return chatcore.MediaAttachment
+	case chatv1.ReferenceKind_REFERENCE_KIND_PROJECT_TASK:
+		return chatcore.ProjectWorkReference
+	case chatv1.ReferenceKind_REFERENCE_KIND_JOURNEY:
+		return chatcore.JourneyReference
 	default:
 		return ""
 	}
 }
 func reference(v chatcore.Reference) *chatv1.Reference {
-	return &chatv1.Reference{Kind: referenceKindOut(v.Kind), TenantId: v.TenantID, Id: v.ID, Display: v.Display, ConversationId: v.ConversationID, ContentType: v.ContentType, ByteSize: v.ByteSize, Width: v.Width, Height: v.Height}
+	return &chatv1.Reference{Kind: referenceKindOut(v.Kind), TenantId: v.TenantID, Id: v.ID, Display: v.Display, ConversationId: v.ConversationID, ContentType: v.ContentType, ByteSize: v.ByteSize, Width: v.Width, Height: v.Height, AltText: v.AltText, Decorative: v.Decorative}
 }
 func referenceIn(v *chatv1.Reference) chatcore.Reference {
 	if v == nil {
 		return chatcore.Reference{}
 	}
-	return chatcore.Reference{Kind: referenceKind(v.GetKind()), TenantID: v.GetTenantId(), ID: v.GetId(), Display: v.GetDisplay(), ConversationID: v.GetConversationId(), ContentType: v.GetContentType(), ByteSize: v.GetByteSize(), Width: v.GetWidth(), Height: v.GetHeight()}
+	return chatcore.Reference{Kind: referenceKind(v.GetKind()), TenantID: v.GetTenantId(), ID: v.GetId(), Display: v.GetDisplay(), ConversationID: v.GetConversationId(), ContentType: v.GetContentType(), ByteSize: v.GetByteSize(), Width: v.GetWidth(), Height: v.GetHeight(), AltText: v.GetAltText(), Decorative: v.GetDecorative()}
 }
 func referencesIn(v []*chatv1.Reference) []chatcore.Reference {
 	o := make([]chatcore.Reference, 0, len(v))
@@ -1129,7 +1147,7 @@ func sourceAttribution(v *chatcore.SourceAttribution) *chatv1.SourceAttribution 
 	if v == nil {
 		return nil
 	}
-	return &chatv1.SourceAttribution{TenantId: v.TenantID, ConversationId: v.ConversationID, PostId: v.PostID, PostRevision: v.PostRevision, OriginalAuthorId: v.OriginalAuthorID}
+	return &chatv1.SourceAttribution{TenantId: v.TenantID, ConversationId: v.ConversationID, PostId: v.PostID, PostRevision: v.PostRevision, OriginalAuthorId: v.OriginalAuthorID, Note: v.Note}
 }
 func sourceAttributionIn(v *chatv1.SourceAttribution) *chatcore.SourceAttribution {
 	if v == nil {

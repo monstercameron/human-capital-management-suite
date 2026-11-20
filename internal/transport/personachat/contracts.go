@@ -107,6 +107,13 @@ type Invocation struct {
 	// its admission to this read, by the server's clock (AGENTUX-026). The page
 	// counts on from it, so a reload shows the run's real age and not zero.
 	ElapsedSeconds int `json:"elapsed_seconds,omitempty"`
+	// UsedUnits is how many model calls the run has made, counted from the calls
+	// its sealed record holds (#3807). AllowanceRemainingPct is how much of the
+	// agent's daily allowance is left in this conversation, 0 to 100, and is nil
+	// when the agent has no limit or it could not be read. Like the rest of this
+	// row both are the invoker's own: another person's run never carries them.
+	UsedUnits             int64 `json:"used_units,omitempty"`
+	AllowanceRemainingPct *int  `json:"allowance_remaining_pct,omitempty"`
 }
 
 type Progress struct {
@@ -116,6 +123,34 @@ type Progress struct {
 	// (CHATBUG-040), so a finished question is drawn answered at once; an answer
 	// delivered later arrives on the conversation's event stream.
 	Answers []PrivateAnswer `json:"answers,omitempty"`
+	// Outcomes are the receipts for the conversation's finished agent runs, for
+	// any asker, readable by every member of the conversation (#3803).
+	Outcomes []OutcomeReceipt `json:"outcomes,omitempty"`
+}
+
+// Outcome words of an OutcomeReceipt.
+const (
+	OutcomeSucceeded = "succeeded"
+	OutcomeRefused   = "refused"
+	OutcomeFailed    = "failed"
+	OutcomeCancelled = "cancelled"
+	OutcomeExpired   = "expired"
+)
+
+// OutcomeReceipt says how one agent run ended, under the message that asked for
+// it. It names the agent, who it acted for and the outcome word, and nothing
+// the run produced: no answer, task name, reason, step or protected output.
+// Outcome is the agent run's own end; it does not say that any business
+// workflow the run touched has finished.
+type OutcomeReceipt struct {
+	ReceiptID      string `json:"receipt_id"`
+	PostID         string `json:"post_id"`
+	ThreadID       string `json:"thread_id"`
+	ConversationID string `json:"conversation_id"`
+	InvokerID      string `json:"invoker_id"`
+	PersonaID      string `json:"persona_id,omitempty"`
+	AgentName      string `json:"agent_name,omitempty"`
+	Outcome        string `json:"outcome"`
 }
 
 // PrivateAnswer is one private answer as its recipient's page holds it. It has

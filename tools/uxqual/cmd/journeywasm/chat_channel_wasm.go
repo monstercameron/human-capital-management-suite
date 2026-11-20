@@ -87,6 +87,7 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 	}
 	// The URL already names this room. While authorization is pending, do not
 	// leave the last room's messages visible under the new address.
+	rememberChatReadingPosition(cfg)
 	cancelChatSubscription()
 	clearChatMediaCache()
 	chatBrowser.releaseReactionRead()

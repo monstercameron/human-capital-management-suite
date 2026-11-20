@@ -250,6 +250,16 @@ type GateSummary struct {
 	Member      bool      `json:"member,omitempty"`
 	AnswerAgain bool      `json:"answer_again,omitempty"`
 	AnswerBy    time.Time `json:"answer_by,omitempty"`
+	// Request is the person's own latest request when it still matters to them
+	// (issue 3818): "review" while it waits for a person, "declined" once it was
+	// refused. It is empty for everyone who has not asked and for members.
+	// RequestReason is what the reviewer wrote when declining; Reviewers (set by
+	// the caller) are the names the request waits for. Only the asker's own
+	// request is ever listed, and nothing of the answers.
+	Request       string    `json:"request,omitempty"`
+	RequestReason string    `json:"request_reason,omitempty"`
+	RequestedAt   time.Time `json:"requested_at,omitempty"`
+	Reviewers     []string  `json:"reviewers,omitempty"`
 }
 
 // GateSummaries lists the gates in force that one person may know of: those of
@@ -314,6 +324,21 @@ func (r *GateRepository) GateSummaries(ctx context.Context, tenant, person strin
 			}
 			if !summary.AnswerAgain {
 				summary.AnswerBy = time.Time{}
+			}
+			if !summary.Member {
+				for i := len(gate.Submissions) - 1; i >= 0; i-- {
+					sub := gate.Submissions[i]
+					if sub.Person != person {
+						continue
+					}
+					if sub.Status == "review" || sub.Status == "declined" {
+						summary.Request, summary.RequestedAt = sub.Status, sub.SubmittedAt
+						if sub.Status == "declined" {
+							summary.RequestReason = sub.Reason
+						}
+					}
+					break
+				}
 			}
 			out = append(out, summary)
 		}

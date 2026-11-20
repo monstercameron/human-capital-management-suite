@@ -171,9 +171,19 @@ func (h ChatRenderingHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		}
 		selections := map[string]chatui.ReaderSelection{}
 		missing := 0
+		// Issue 3814: messages the reader pressed "Translate" on. Each is read with
+		// that ask; the port still decides, and refuses, by channel policy.
+		asked := map[string]bool{}
+		for _, id := range r.URL.Query()["translate"] {
+			asked[id] = true
+		}
 		for _, id := range ids {
 			var selected chatui.ReaderSelection
-			selected.Rendering, selected.Mark, err = h.Port.ReadRenderingSelection(r.Context(), scope, id)
+			readCtx := r.Context()
+			if asked[id] {
+				readCtx = chatrender.WithOnDemandTranslation(readCtx)
+			}
+			selected.Rendering, selected.Mark, err = h.Port.ReadRenderingSelection(readCtx, scope, id)
 			if errors.Is(err, chat.ErrNotFound) {
 				// A message that is gone (removed since the page listed it) is left
 				// out like one the pipeline cannot judge: the page keeps what it has

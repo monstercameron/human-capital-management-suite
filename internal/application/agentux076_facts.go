@@ -212,6 +212,8 @@ type personaAgentFacts struct {
 	Reads     bool
 	Failed    bool
 	General   bool
+	// Memory is what the channel asked its agents to remember (issue 3804).
+	Memory []string
 }
 
 // personaAgentFactsFor reads the reach and writes the facts. It reports false
@@ -233,6 +235,7 @@ func personaAgentFactsFor(ctx context.Context, resolver agentdocref.Resolver, ad
 		}
 	}
 	facts.Text = personaAgentFactsText(profile, placed, workspace, facts.General)
+	facts.Memory = personaChannelNotes(ctx, resolver, admission.ID, admission.Request.Source.TenantID, admission.Request.Audience.ID, fresh)
 	return facts, true
 }
 
@@ -345,11 +348,17 @@ type personaFactsMessage struct {
 func (f personaAgentFacts) messages() []personaFactsMessage {
 	encoded, _ := json.Marshal(f.listing())
 	data := personaFactsTitlesBegin + "\n" + string(encoded) + "\n" + personaFactsTitlesEnd
-	return []personaFactsMessage{
+	block := []personaFactsMessage{
 		{role: agentmodel.RoleDeveloper, content: f.Text, source: "persona-profile"},
 		{role: agentmodel.RoleDeveloper, content: personaFactsContainment, source: "persona-profile"},
 		{role: agentmodel.RoleUser, content: data, source: "persona-untrusted-reference-document", untrusted: true},
 	}
+	if len(f.Memory) > 0 {
+		block = append(block,
+			personaFactsMessage{role: agentmodel.RoleDeveloper, content: personaMemoryContainment, source: "persona-profile"},
+			personaFactsMessage{role: agentmodel.RoleUser, content: personaChannelNotesMessage(f.Memory), source: "persona-untrusted-reference-document", untrusted: true})
+	}
+	return block
 }
 
 // insertPersonaAgentFacts places the block immediately before the invoking

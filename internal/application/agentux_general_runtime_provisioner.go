@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -111,7 +110,7 @@ func (p *LocalPersonaRuntimeProvisioner) provision(ctx context.Context, actor Pe
 	}
 	path := p.DeploymentPath
 	if strings.TrimSpace(path) == "" {
-		path = filepath.FromSlash(localPersonaModelDeploymentPath)
+		path = localAgentDevFile(localPersonaModelDeploymentPath)
 	}
 	deploymentCreated, err := ensureLocalAgentDemoDeploymentProfile(path, config.Tenant, p.Signing, qualified)
 	if err != nil {

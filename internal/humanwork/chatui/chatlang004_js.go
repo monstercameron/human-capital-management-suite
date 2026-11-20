@@ -120,3 +120,12 @@ func chatlangEventInEditor(e ui.KeyboardEvent) bool {
 	target := e.JSValue().Get("target")
 	return target.Truthy() && target.Get("closest").Type() == js.TypeFunction && target.Call("closest", "[data-chatlang-fix]").Truthy()
 }
+
+// chatlangTranslateRequested tells the page's reader that a message was asked
+// to be translated, so it reads that message's reading view again with the ask
+// (issue 3814). The id travels as the event's detail.
+func chatlangTranslateRequested(id string) {
+	detail := js.Global().Get("Object").New()
+	detail.Set("detail", id)
+	js.Global().Get("document").Call("dispatchEvent", js.Global().Get("CustomEvent").New("chat-translate-asked", detail))
+}

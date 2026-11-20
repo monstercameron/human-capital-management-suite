@@ -61,6 +61,9 @@ type recipientLayout struct {
 	// ComposerFormat is the reader's choice for the composer's formatting row:
 	// "shown", "hidden", or empty for the width default (CHATUX-004).
 	ComposerFormat string `json:"composerFormat,omitempty"`
+	// ComposerEnter is the reader's Enter-key choice: "newline" makes Enter add a
+	// line (Ctrl or Cmd+Enter sends); empty or "send" keeps Enter sending (ISSUE-3934).
+	ComposerEnter string `json:"composerEnter,omitempty"`
 	// EmojiPrefs and VoicePrefs are the reader's emoji choices (skin tone, most
 	// used) and voice playback choices (speed, collapsed), each as the string the
 	// picker or player encodes. They ride in this blob like ComposerFormat, so
@@ -182,6 +185,9 @@ func startChatRecipientProjection(cfg journeyclient.Config, conversations []*cha
 	chatRecipientBrowser.hosts = hosts
 	previousCounts := chatRecipientBrowser.counts
 	chatRecipientBrowser.Unlock()
+	// Issue 3920: the weekly quiet-hours schedule is read with the rest of the
+	// person's recipient state, so the next pause or resume stays current.
+	go loadChatQuietSchedule(cfg)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		defer cancel()
@@ -303,6 +309,9 @@ func applyRecipientLayout(model *chatui.Model, layout recipientLayout, hosts map
 	}
 	if layout.EmojiPrefs != "" {
 		model.EmojiPrefs = layout.EmojiPrefs
+	}
+	if layout.ComposerEnter == chatui.ComposerEnterNewline || layout.ComposerEnter == chatui.ComposerEnterSends {
+		model.ComposerEnter = layout.ComposerEnter
 	}
 	starred := make(map[string]bool, len(layout.Starred))
 	for _, id := range layout.Starred {
@@ -526,6 +535,16 @@ func withChatRecipientCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 		model := chatBrowser.mutate(func(model *chatui.Model) { model.ComposerFormatRow = choice })
 		persistChatRecipientSidebar(cfg, model)
 	}
+	// ISSUE-3934: what Enter does in message boxes. The page changes at once; the
+	// choice is filed with the rest of the reader's layout.
+	callbacks.SetComposerEnter = func(newline bool) {
+		choice := chatui.ComposerEnterSends
+		if newline {
+			choice = chatui.ComposerEnterNewline
+		}
+		model := chatBrowser.mutate(func(model *chatui.Model) { model.ComposerEnter = choice })
+		persistChatRecipientSidebar(cfg, model)
+	}
 	// The emoji picker's skin tone and most-used list: the picker spaces its own
 	// writes (at most one every few seconds), this keeps them with the rest of the
 	// reader's sidebar layout.
@@ -646,7 +665,7 @@ func markChatRead(cfg journeyclient.Config, conversation string, posts []*chatv1
 		}
 	}
 	// CHATUX-022: a conversation marked unread while open stays unread.
-	if conversation == "" || last == 0 || chatReadHeld(conversation) {
+	if conversation == "" || last == 0 || chatReadHeld(conversation) || chatPageAway() {
 		return
 	}
 	key := host + "\x00" + conversation
@@ -732,6 +751,11 @@ func putChatThreadFollow(cfg journeyclient.Config, conversation, root string, fo
 		}
 	})
 	refreshChatRoute()
+	// Issue 3916: the Followed threads list reads the same row, so it is read
+	// again and agrees with the header.
+	if chatBrowser.snapshot().FollowedLoaded {
+		go loadChatFollowed(cfg)
+	}
 }
 
 func ensureRecipientSections(model *chatui.Model) {
@@ -908,6 +932,10 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 			// Not chosen on this page: keep what the account already holds.
 			layout.ComposerFormat = chatRecipientBrowser.layout.ComposerFormat
 		}
+		layout.ComposerEnter = model.ComposerEnter
+		if layout.ComposerEnter == "" {
+			layout.ComposerEnter = chatRecipientBrowser.layout.ComposerEnter
+		}
 		// The emoji and voice choices live in the account's layout; the page model
 		// holds the emoji copy it last showed, the cached layout the voice copy.
 		layout.EmojiPrefs, layout.VoicePrefs = model.EmojiPrefs, chatRecipientBrowser.layout.VoicePrefs
@@ -1037,7 +1065,7 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 			}
 			draftRevision = stamp
 			// Another device wrote first: its emoji use is kept alongside ours.
-			emojiWritten, voiceWritten := layout.EmojiPrefs, layout.VoicePrefs
+			emojiWritten, voiceWritten, enterWritten := layout.EmojiPrefs, layout.VoicePrefs, layout.ComposerEnter
 			if len(draftOnly) > 0 && draftOnly[0] {
 				if !keepDraftRooms(&server, layout, drafts) {
 					reportWriteError(status.Error(codes.FailedPrecondition, "sidebar conversation changed"))
@@ -1052,6 +1080,14 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 				rebased = changed
 			}
 			layout.EmojiPrefs = chatui.MergeEmojiPrefs(server.EmojiPrefs, emojiWritten)
+			// The Enter choice is this write's only when this page changed it from
+			// what it last held; otherwise another device's newer choice stands
+			// (a draft save must not put back an older one).
+			if enterWritten != "" && enterWritten != heldLayout.ComposerEnter {
+				layout.ComposerEnter = enterWritten
+			} else {
+				layout.ComposerEnter = server.ComposerEnter
+			}
 			if voiceWritten != "" {
 				layout.VoicePrefs = voiceWritten
 			}
@@ -1135,6 +1171,8 @@ func persistChatQuietHours(cfg journeyclient.Config, prefs chatui.Preferences) {
 		chatRecipientBrowser.quietRevision = result.GetQuietHours().GetRevision()
 		chatRecipientBrowser.quiet = result.GetQuietHours()
 		chatRecipientBrowser.Unlock()
+		// Issue 3920: the next pause or resume depends on the daily interval.
+		go loadChatQuietSchedule(cfg)
 	}()
 }
 
@@ -1144,6 +1182,10 @@ func persistChatQuietHours(cfg journeyclient.Config, prefs chatui.Preferences) {
 func clearOpenRoomUnread(model *chatui.Model) {
 	for i := range model.Conversations {
 		if model.Conversations[i].ID == model.SelectedID {
+			if chatPageAway() {
+				// Issue 3797: nobody is looking, so nothing is read yet.
+				continue
+			}
 			if chatReadHeld(model.SelectedID) {
 				keepHeldRoomUnread(&model.Conversations[i])
 				continue

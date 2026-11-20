@@ -22,4 +22,4 @@ const ChatSearchStyles = `
 .chatsearch-return .chatsearch-view{display:flex}
 .chatsearch-count{margin:0;color:var(--hcm-color-text)}
 @media(prefers-reduced-motion:reduce){.chatsearch-view *{animation:none;transition:none}}
-` + chatsearch003Styles + issue3860Styles
+` + chatsearch003Styles + issue3860Styles + issue3945Styles + issue3929ResultStyles

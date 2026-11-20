@@ -35,7 +35,7 @@ const agentUXDemoObjectPrefix = "local-object:"
 
 func (o AgentUXDemoLocalSupportObjects) path(tenant, ref string) (string, error) {
 	digest := strings.TrimPrefix(ref, agentUXDemoObjectPrefix)
-	if strings.TrimSpace(o.Root) == "" || tenant != localAgentDemoTenant || !agentUXDemoObjectTenant.MatchString(tenant) || !strings.HasPrefix(ref, agentUXDemoObjectPrefix) || len(digest) != 64 {
+	if strings.TrimSpace(o.Root) == "" || !isLocalAgentDemoTenant(tenant) || !agentUXDemoObjectTenant.MatchString(tenant) || !strings.HasPrefix(ref, agentUXDemoObjectPrefix) || len(digest) != 64 {
 		return "", ErrAgentUXDemoSupportDenied
 	}
 	if _, err := hex.DecodeString(digest); err != nil || digest != strings.ToLower(digest) {
@@ -111,7 +111,7 @@ func (o AgentUXDemoLocalSupportObjects) ReadSupportObject(_ context.Context, ten
 type AgentUXDemoSupportOwner struct{}
 
 func (AgentUXDemoSupportOwner) AuthorizeSupportInboxOwner(_ context.Context, p *trust.Principal) error {
-	if p == nil || p.SubjectKind() != trust.SubjectKindHuman || p.Tenant().String() != localAgentDemoTenant || !p.HasRole("hcm_admin") {
+	if p == nil || p.SubjectKind() != trust.SubjectKindHuman || !isLocalAgentDemoTenant(p.Tenant().String()) || !p.HasRole("hcm_admin") {
 		return chatcore.ErrPermissionDenied
 	}
 	return nil

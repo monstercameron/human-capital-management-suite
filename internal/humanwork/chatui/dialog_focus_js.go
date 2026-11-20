@@ -22,7 +22,7 @@ func rememberChatDialogTrigger(event ui.Event, action string) {
 }
 
 func rememberChatDialogTriggerJS(event js.Value, action string) {
-	if action != "open-create" && action != "open-browse" && action != "open-add-members" && action != "agent-profile-open" {
+	if action != "open-create" && action != "open-browse" && action != "open-add-members" && action != "agent-profile-open" && action != issue3938ViewAction {
 		return
 	}
 	target := event.Get("target")

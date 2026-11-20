@@ -14,6 +14,7 @@ const ChatUX005Styles = `
 .persona-member-reads{flex:0 0 100%;min-width:0;margin:0;color:var(--muted);font-size:.75rem;line-height:1.4;overflow-wrap:anywhere}
 .details-agents-manage{display:inline-block;margin-block:8px 0;font-size:.8125rem;color:var(--accent);text-decoration:none}
 .details-agents-manage:hover{text-decoration:underline}
+@media(pointer:coarse){.details-agents-manage,.mention-menu a.mention-action-row{display:inline-flex;align-items:center;min-block-size:44px}}
 .details-about-created{margin:6px 0 0;font-size:.8125rem}
 .details-about-status{display:flex;align-items:center;gap:8px;margin-block-start:6px;font-size:.8125rem}
 .details-manage{padding:0}

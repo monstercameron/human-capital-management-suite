@@ -65,10 +65,10 @@ var chatProjectTaskPreviews = &chatProjectTaskPreviewCache{}
 func chatProjectTaskPreviewRefs(model chatui.Model) []chatui.ProjectTaskReference {
 	seen := map[string]bool{}
 	refs := make([]chatui.ProjectTaskReference, 0, 8)
-	add := func(body string) {
-		for _, ref := range chatui.ProjectTaskReferences(body, model.EmbedOrigin) {
+	add := func(body string, typed ...chatui.ChatReference) {
+		for _, ref := range chatui.ProjectTaskReferencesFor(body, model.EmbedOrigin, typed) {
 			key := chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)
-			if key == "" || seen[key] || len(refs) >= chatProjectTaskPreviewLimit {
+			if ref.Unresolved || ref.ProjectID == "" || key == "" || seen[key] || len(refs) >= chatProjectTaskPreviewLimit {
 				continue
 			}
 			seen[key] = true
@@ -77,10 +77,10 @@ func chatProjectTaskPreviewRefs(model chatui.Model) []chatui.ProjectTaskReferenc
 	}
 	add(model.Draft)
 	for i := len(model.ThreadMessages) - 1; i >= 0 && len(refs) < chatProjectTaskPreviewLimit; i-- {
-		add(model.ThreadMessages[i].Body)
+		add(model.ThreadMessages[i].Body, model.ThreadMessages[i].WorkReferences...)
 	}
 	for i := len(model.Messages) - 1; i >= 0 && len(refs) < chatProjectTaskPreviewLimit; i-- {
-		add(model.Messages[i].Body)
+		add(model.Messages[i].Body, model.Messages[i].WorkReferences...)
 	}
 	for i := range model.SearchMessages {
 		if len(refs) >= chatProjectTaskPreviewLimit {
@@ -225,4 +225,33 @@ func chatProjectAnswerAccepted(key string, value chatui.ProjectTaskPreview) bool
 		return value.Readable && strings.TrimSpace(value.Title) != ""
 	}
 	return true
+}
+
+// revalidateIn reports how long until the soonest settled answer among refs
+// goes stale (issue 3753). claim() only runs on a render, so without this
+// timer a quiet channel kept a renamed, archived, deleted or access-revoked
+// task title until something else rendered. Stale and pending answers are not
+// counted: the next render claims them, and a pending read has its own timer.
+func (c *chatProjectTaskPreviewCache) revalidateIn(identity string, refs []chatui.ProjectTaskReference, now time.Time) (time.Duration, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if identity != c.identity {
+		return 0, false
+	}
+	var soonest time.Duration
+	found := false
+	for _, ref := range refs {
+		entry, ok := c.entries[chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)]
+		if !ok || entry.pending {
+			continue
+		}
+		left := chatProjectTaskPreviewFreshFor - now.Sub(entry.at)
+		if left <= 0 {
+			continue
+		}
+		if !found || left < soonest {
+			soonest, found = left, true
+		}
+	}
+	return soonest, found
 }

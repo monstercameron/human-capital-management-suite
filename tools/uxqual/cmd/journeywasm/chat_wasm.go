@@ -69,12 +69,14 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	// A new session starts with nothing unsaved (issue 3950): the previous
 	// session's leave-site prompt must not outlive its drafts.
 	setChatDraftUnloadGuard(false)
+	setChatUnsentUnloadGuard(false)
 	if origin := js.Global().Get("location").Get("origin"); origin.Truthy() {
 		chatBrowser.mutate(func(m *chatui.Model) { m.EmbedOrigin = origin.String() })
 	}
 	configureChatRecipientBrowser(conn, cfg)
 	configureChatDocuments(conn, cfg)
 	configureChatProjects(conn)
+	configureChatGeneralAgent(conn)
 	configurePersonaChatBrowser(cfg)
 	configureIntegrate1Icons(cfg)
 	chatattach001Configure(cfg)
@@ -1037,6 +1039,9 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			clearPersonaFeedbackRestored(invocationID)
 			go undoPersonaChatFeedback(cfg, invocationID)
 		},
+		AskGeneralAgent: func(question string, done func(chatui.GeneralAgentAnswer, error)) {
+			chatAskGeneralAgent(cfg, question, done)
+		},
 		ShareAgentAnswer: func(invocationID string) { go sharePersonaChatAnswer(cfg, invocationID) },
 		RemoveSharedAgentAnswer: func(invocationID string) {
 			go removeSharedPersonaChatAnswer(cfg, invocationID)
@@ -1161,6 +1166,12 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 						refreshChatRoute()
 						return
 					}
+					if membershipBarrierRefused(err) {
+						// Issue 3783: two of the people picked are kept apart.
+						noteChatAction(chatui.BarrierRefusalNotice(chatBrowser.localeTag()))
+						refreshChatRoute()
+						return
+					}
 					chatmod002Failed("create this conversation", err, "", "", chatui.ModAuthorSurfaceSaved, strings.TrimSpace(name))
 					refreshChatRoute()
 					return
@@ -1241,8 +1252,15 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		ReplyInThreadIn: func(conversationID, parentID, body string, alsoChannel bool) {
 			go sendThreadReply(cfg, conversationID, parentID, body, alsoChannel)
 		},
-		SearchFocus:       func() { chatsearchLoadRecent(cfg) },
+		SearchFocus: func() {
+			chatsearchLoadRecent(cfg)
+			chatsearchLoadSaved(cfg)
+		},
 		SearchClearRecent: func() { chatsearchClearRecent(cfg) },
+		SavedSearchSave:   func(name, query string) { chatsearchSaveSearch(cfg, name, query) },
+		SavedSearchEdit:   chatsearchEditSaved,
+		SavedSearchUpdate: func(id, name, query string) { chatsearchUpdateSaved(cfg, id, name, query) },
+		SavedSearchDelete: func(id string) { chatsearchDeleteSaved(cfg, id) },
 		Search: func(query string) {
 			query = strings.TrimSpace(query)
 			if chatsearchBegin(cfg, query) {
@@ -1401,6 +1419,9 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			chatHistory.push(chatBrowser.snapshot())
 			refreshChatRoute()
 			if open {
+				restoreSharedFilesPlace()
+			}
+			if open {
 				// Members load because the pane opened, not because the
 				// reader found the "Refresh members" button.
 				go loadChatMembers(cfg)
@@ -1427,7 +1448,14 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}
 			chatui.FocusChannelPoll(conversationID)
 		},
-		LoadMembers: func() { go loadChatMembers(cfg) },
+		LoadMembers:   func() { go loadChatMembers(cfg) },
+		RetryJourney:  func(intentID string) { retryChatJourney(cfg, intentID) },
+		DecideJourney: func(intentID string, approve bool) { decideChatJourney(cfg, intentID, approve) },
+		ToggleJourneyDecision: func(intentID string, open bool) {
+			setChatJourneyDecision(intentID, func(s *chatui.JourneyDecisionState) { s.Open = open })
+		},
+		SetJourneyDecisionDraft: setChatJourneyDecisionDraft,
+		RequestAttention:        func() { requestChatAttention(cfg) },
 		OpenAddMembers: func() {
 			chatBrowser.mutate(func(model *chatui.Model) { model.ShowAddMembers, model.AddMembersError = true, "" })
 			refreshChatRoute()
@@ -1537,6 +1565,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		OpenShare:                 func(postID string) { openChatShare(cfg, postID) },
 		CloseShare:                func() { chatBrowser.closeShare(); refreshChatShareRoute() },
 		FilterShare:               func(query string) { chatBrowser.shareFilter(query); refreshChatShareRoute() },
+		ChangeShareNote:           func(text string) { chatBrowser.shareNote(text); refreshChatShareRoute() },
 		SelectShareDestination: func(id string) {
 			if chatBrowser.shareSelect(id) {
 				refreshChatShareRoute()
@@ -1547,7 +1576,18 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			chatBrowser.mutate(func(model *chatui.Model) { model.MemberQuery = query })
 			refreshChatRoute()
 		},
-		JumpToNewest: func() { jumpToNewestChatMessages(cfg) },
+		JumpToNewest:          func() { jumpToNewestChatMessages(cfg) },
+		JumpToDate:            func(date string) { jumpChatToDate(cfg, date) },
+		JumpBackFromDate:      func() { jumpBackFromDate(cfg) },
+		JumpFromReadingResume: func() { jumpFromChatReadingResume(cfg) },
+		DismissReadingResume:  dismissChatReadingResume,
+		Handover:              func(cmd chatui.HandoverCommand) { handoverCommand(cfg, cmd) },
+		LoadSharedFiles:       func(name string) { loadSharedFiles(cfg, name) },
+		MoreSharedFiles:       func() { moreSharedFiles(cfg) },
+		OpenSharedFileSource:  func(id string) { openSharedFileSource(cfg, id) },
+		LoadTimeline:          func(from, to string, replies bool) { loadTimeline(cfg, from, to, replies) },
+		OpenTimelineSource:    func(id string) { openTimelineSource(cfg, id) },
+		CheckTimelineEntries:  func(ids []string, done func(chatui.TimelineCheck)) { checkTimelineEntries(cfg, ids, done) },
 		JumpToPin: func(postID string, sequence uint64) {
 			if width := js.Global().Get("innerWidth"); width.Type() == js.TypeNumber {
 				closeChatDetailsForPinJump(width.Int())
@@ -1606,7 +1646,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}()
 		},
 	}
-	return withPurposeSavedNote(withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatside001Callbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg))
+	return withPurposeSavedNote(withIssue3920Callbacks(withIssue3737Callbacks(withIssue3916Callbacks(withIssue3788Callbacks(withIssue3787Callbacks(withChatWorkCallbacks(withChatDocCallbacks(withChannelPollCallbacks(withChannelWidgetCallbacks(withChannelTodoCallbacks(withChatPersonCallbacks(withChatside001Callbacks(withChatRecipientCallbacks(withChatDiscoveryCallbacks(callbacks, cfg), cfg, refreshChatRoute), cfg, refreshChatRoute), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg), cfg))
 }
 
 func closeChatDetailsForPinJump(viewportWidth int) {
@@ -1631,53 +1671,23 @@ func sendChatMessage(cfg journeyclient.Config, conversationID, body string) {
 	// ReplyInThread with the root the reader is looking at, so an open thread
 	// pane can no longer swallow a message meant for the conversation.
 	//
-	// The key belongs to this body. An identical retry reuses it (that is what
-	// makes the retry safe); an edited retry after a timeout gets a new one
-	// instead of replaying the first post.
-	key := chatBrowser.sendKey(conversationID, body, func() string { return fmt.Sprintf("wasm-send-%d", time.Now().UnixNano()) })
+	// Issue 3737: the message becomes an unsent entry the moment Enter is
+	// pressed. It owns its idempotency key for its whole life, so Retry and the
+	// automatic resend after a reconnect can never post it twice, and it stays on
+	// screen as "Not sent" until it is delivered, edited or discarded.
+	// CHATGATE-014: the audience chosen under "Visible to" is read before the
+	// composer is emptied, and goes with this one message.
+	audience, restricted := chatgateComposerAudience()
+	id := chatUnsent.add(chatUnsentEntry{Conversation: conversationID, Body: body, Tenant: active.Tenant, Subject: active.Subject, Audience: audience, Restricted: restricted})
+	installChatUnsentRecovery(cfg)
 	// The composer is empty from this moment, before the RPC rather than after
 	// it. The reader has pressed Enter; the text is no longer a draft, and any
 	// render between here and the response must show an empty composer. This
 	// also cancels the pending debounced write of the text being sent, which
 	// would otherwise land after it.
-	// CHATGATE-014: the audience chosen under "Visible to" is read before the
-	// composer is emptied, and goes with this one message.
-	audience, restricted := chatgateComposerAudience()
 	chatBrowser.setDraft(conversationID, "")
 	flushChatDraftPersist(active)
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	sent, err := client.SendPost(chatRPCContext(ctx, active), &chatv1.SendPostRequest{
-		TenantId: active.Tenant, ConversationId: conversationID, Body: body, IdempotencyKey: key,
-		AudienceSegments: audience, AudienceRestricted: restricted,
-	})
-	if err != nil {
-		// A failed send is the one thing allowed to put the text back, so the
-		// reader can retry it rather than retype it. The idempotency key is
-		// kept: the same body retried reuses it.
-		chatBrowser.restoreDraft(conversationID, body)
-		flushChatDraftPersist(active)
-		chatmod002Failed("send this message", err, conversationID, chatui.ModAuthorKeyComposer(conversationID), chatui.ModAuthorSurfaceMessage, body)
-		chatStreamRender.Schedule()
-		return
-	}
-	chatBrowser.clearSendKey(conversationID)
-	chatgateComposerAudienceReset()
-	// The response is the committed post, so the reader's own message appears
-	// from it. No projection reload: a send used to cost a full route
-	// revalidation -- ListConversations, a ListPosts walk, ListPins -- for a
-	// post the client was already holding, and the stream delivers the rest.
-	_, gapped := chatBrowser.applySentChatPost(conversationID, sent.GetPost(), active.Locale, chatDirectorySnapshot(), time.Now())
-	if gapped {
-		// Other people posted while this send was in flight. Read those by
-		// cursor; a full route reload would put the open conversation through a
-		// loading render, and a loading render is what dropped the keystrokes
-		// typed during it.
-		catchUpChatConversation(ctx, conversationID, chatBrowser.currentGeneration(), active)
-	}
-	invalidateChatRecipientProjection()
-	chatBrowser.clearNotice(0)
-	chatStreamRender.Schedule()
+	deliverUnsentMessage(cfg, id)
 }
 
 // openChatConversation is the one path that makes a conversation the open one:
@@ -1730,6 +1740,10 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 	// the visit state de-duplicates the same open when both paths fire.
 	visitModel := chatBrowser.snapshot()
 	recordSelectedChatVisit(visitModel.CurrentTenantID, visitModel.CurrentUser, id)
+	// #3942: note where the room being left was read, and take the place left
+	// in this one. A search result, message link or unread message wins.
+	rememberChatReadingPosition(cfg)
+	resumePlace, resuming := takeChatReadingPlace(cfg, id, sequence > 0 || postID != "")
 	cancelChatSubscription()
 	clearChatMediaCache()
 	chatBrowser.releaseReactionRead()
@@ -1776,8 +1790,24 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 		model.SelectedID = id
 		var cursor chatCursor
 		var err error
+		resumeLanding, resumeOffset := "", 0
 		if sequence > 0 && postID != "" {
 			cursor, err = loadChatPosts(chatRPCContext(callCtx, active), client, active, &model, chatDirectorySnapshot(), chatSearchAnchor{sequence: sequence, postID: postID})
+		} else if resuming {
+			// #3942: read the window around the place the person left. A
+			// message that is gone lands on its closest neighbour; a window
+			// that cannot be read falls back to the newest messages.
+			cursor, err = loadChatPosts(chatRPCContext(callCtx, active), client, active, &model, chatDirectorySnapshot(), chatSearchAnchor{sequence: resumePlace.Sequence})
+			status := ""
+			if err != nil {
+				cursor, err = loadChatPosts(chatRPCContext(callCtx, active), client, active, &model, chatDirectorySnapshot())
+				status = chatui.ReadingUnavailable
+			} else if landing, landed, offset, ok := chatReadingResolve(resumePlace, model.Messages); ok {
+				resumeLanding, resumeOffset, status = landing, offset, landed
+			}
+			if err == nil && status != "" {
+				model.ReadingResume = chatui.ReadingResumeView{ConversationID: id, Status: status}
+			}
 		} else {
 			cursor, err = loadChatPosts(chatRPCContext(callCtx, active), client, active, &model, chatDirectorySnapshot())
 		}
@@ -1805,6 +1835,7 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 			// the room read; the commit has to carry it or the timeline never
 			// shows where the reader left off.
 			current.UnreadFromID = model.UnreadFromID
+			current.ReadingResume = model.ReadingResume
 			clearOpenRoomUnread(current)
 			if err != nil {
 				current.State, current.Error = chatui.StateError, chatLoadFailureMessage("this conversation", err)
@@ -1829,6 +1860,17 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 					if current.SelectedID == id && current.FocusMessageID == postID {
 						chatui.FocusSearchMessageOrElse(postID, func() {
 							chatSearchHitMissing(id, productui.ResolveProductLocale(chatBrowser.config(cfg).Locale).Text(chatui.KeySearchMessageUnavailable))
+						})
+					}
+				})
+			}
+			if resumeLanding != "" {
+				ui.PostAsync(func() {
+					if chatBrowser.selectedID() == id {
+						chatui.RestoreReadingPosition(resumeLanding, resumeOffset, func() {
+							if chatBrowser.selectedID() == id {
+								setChatReadingResume(id, chatui.ReadingUnavailable)
+							}
 						})
 					}
 				})
@@ -2030,6 +2072,7 @@ func copyChatContentsToClipboard(navigator js.Value, body string, active journey
 	}
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("chat.copy-chat-contents-to-clipboard")
 			failure()
 		}
 	}()
@@ -2107,6 +2150,7 @@ func copyChatConversationReferenceToClipboard(navigator js.Value, plain, rich st
 	}
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("chat.copy-chat-conversation-referenc")
 			failure()
 		}
 	}()
@@ -2346,7 +2390,7 @@ func addChatMembers(cfg journeyclient.Config, subjectIDs []string) {
 	chatBrowser.mutate(func(model *chatui.Model) { model.AddMembersPending = true })
 	refreshChatRoute()
 	var failed int
-	var lastErr error
+	var lastErr, barrierErr error
 	for _, subjectID := range subjectIDs {
 		if subjectID == "" {
 			continue
@@ -2365,6 +2409,9 @@ func addChatMembers(cfg journeyclient.Config, subjectIDs []string) {
 		if err != nil {
 			failed++
 			lastErr = err
+			if membershipBarrierRefused(err) {
+				barrierErr = err
+			}
 		}
 	}
 	current := chatBrowser.config(journeyclient.Config{})
@@ -2372,10 +2419,13 @@ func addChatMembers(cfg journeyclient.Config, subjectIDs []string) {
 		return
 	}
 	if failed > 0 {
-		message := chatLoadFailureMessage("add everyone you picked", lastErr)
-		if failed < len(subjectIDs) {
-			message = chatLoadFailureMessage("add everyone you picked (some were added)", lastErr)
+		// Issue 3783: a barrier refusal is explained as one, even when another
+		// person's add failed for a different reason after it.
+		reported := lastErr
+		if barrierErr != nil {
+			reported = barrierErr
 		}
+		message := addMembersFailureMessage(chatBrowser.localeTag(), reported, failed < len(subjectIDs))
 		chatBrowser.mutate(func(model *chatui.Model) { model.AddMembersPending, model.AddMembersError = false, message })
 		refreshChatRoute()
 		go loadChatMembers(cfg)

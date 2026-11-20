@@ -9,6 +9,7 @@ import (
 	"github.com/monstercameron/GoWebComponents/v5/html"
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/localize"
 )
 
 // moderationWhen writes a time the way the conversation does: a day and a clock,
@@ -21,13 +22,7 @@ func moderationWhen(locale string, at time.Time, zone *time.Location, now time.T
 		zone = time.UTC
 	}
 	at = at.In(zone)
-	clock := at.Format("3:04 PM")
-	switch {
-	case strings.HasPrefix(locale, "de"):
-		clock = at.Format("15:04")
-	case strings.HasPrefix(locale, "ar"):
-		clock = arabicDigits(at.Format("15:04"))
-	}
+	clock := localize.FormatClock(locale, at)
 	return formatDay(locale, at, at.Year() != now.In(zone).Year()) + ", " + clock
 }
 

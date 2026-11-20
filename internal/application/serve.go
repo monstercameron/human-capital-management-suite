@@ -24,8 +24,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -691,6 +689,17 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	// #3732: a local demo org starts with promotions at several stages, so the
+	// Journeys list and the chat journey card can be exercised at once.
+	if cfg.DevDemoJourneys && in.Pool != nil {
+		seeded := seedLocalDevDemoJourneys(ctx, cell.Journey, baseVerifier, cfg, options.Now)
+		if seeded.Created > 0 {
+			logger.Info("hcmnext.local_dev_demo_journeys_ready", "journeys_created", seeded.Created)
+		}
+		for _, note := range seeded.Notes {
+			logger.Info("hcmnext.local_dev_demo_journeys_skipped", "reason", note)
+		}
+	}
 	platformAgentRuntime := wireAgentRuntime(ctx, in, cell, logger, graph, options.Now)
 	personaWiring, personaWiringErr := composePersonaServeWiring(in.Pool, cell, agentDatabase.personas, options.Now)
 	if personaWiringErr != nil {
@@ -705,8 +714,8 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// run by the platform team. The demo tenant may be one of several this
 	// process serves; the runner itself refuses every other tenant.
 	var localEvaluation PersonaAdminEvaluationRunner
-	if personaWiring != nil && agentDatabase.store != nil && cfg.Profile == ServeProfileLocalDev && slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
-		runner, evaluationErr := personaWiring.prepareLocalAdminEvaluation(agentDatabase.store, cfg.Profile, localAgentDemoTenant, personaServeClock(options.Now), cfg.ServedTenants()...)
+	if personaWiring != nil && agentDatabase.store != nil && cfg.Profile == ServeProfileLocalDev && servedLocalAgentDemoTenant(cfg.ServedTenants()) != "" {
+		runner, evaluationErr := personaWiring.prepareLocalAdminEvaluation(agentDatabase.store, cfg.Profile, servedLocalAgentDemoTenant(cfg.ServedTenants()), personaServeClock(options.Now), cfg.ServedTenants()...)
 		if evaluationErr != nil {
 			logger.Error("hcmnext.persona_admin_evaluation_unavailable", "stage", "prepare", "error", evaluationErr.Error())
 		} else {
@@ -961,13 +970,13 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	var localPersonaBootstrap LocalDevPersonaBootstrapper
 	if cfg.Profile == ServeProfileLocalDev && personaWiring != nil && agentDatabase.store != nil &&
 		chatRuntime.extensions != nil && chatRuntime.extensions.TodoStore != nil && os.Getenv(EnvLocalAgentPolicyAuthorityDatabaseURL) != "" {
-		material, materialErr := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaModelSigningPath)
+		material, materialErr := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if materialErr != nil {
 			return nil, materialErr
 		}
 		deploymentPath := cfg.AgentModelConfigFile
 		if deploymentPath == "" {
-			deploymentPath = localPersonaModelDeploymentPath
+			deploymentPath = localAgentDevFile(localPersonaModelDeploymentPath)
 		}
 		localPolicyRegistry, err = composeLocalAgentModelPolicyRegistry(ctx, agentModelPolicyRegistryCompositionInput{
 			Config: cfg, Core: in.Pool, Agents: agentDatabase, Material: material,
@@ -986,18 +995,22 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 		}
 		routeAuthorityDSN := os.Getenv("HCMNEXT_PERSONA_MODEL_ROUTE_AUTHORITY_DATABASE_URL")
 		if routeAuthorityDSN != "" {
-			privateKey, keyErr := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+			privateKey, keyErr := loadOrCreateLocalAgentDemoEvaluationKey(localAgentDevFile(localAgentDemoEvaluationPath))
 			if keyErr != nil {
 				return nil, fmt.Errorf("compose local persona runtime evaluator: %w", keyErr)
 			}
 			mapper := tenantKeyMapper[kernelvalues.TenantId](pgstore.TenantID)
-			evaluations, authorityErr := localAgentDemoEvaluationAuthority(privateKey, localAgentDemoTenant, mapper, personaServeClock(options.Now))
+			provisionerTenant := servedLocalAgentDemoTenant(cfg.ServedTenants())
+			if provisionerTenant == "" {
+				provisionerTenant = localAgentDemoTenant
+			}
+			evaluations, authorityErr := localAgentDemoEvaluationAuthority(privateKey, provisionerTenant, mapper, personaServeClock(options.Now))
 			if authorityErr != nil {
 				return nil, fmt.Errorf("compose local persona runtime authority: %w", authorityErr)
 			}
 			provisioner := &LocalPersonaRuntimeProvisioner{
 				Tenants: cfg.ServedTenants(),
-				Config:  LocalAgentDemoConfig{Tenant: localAgentDemoTenant, DatabaseURL: cfg.DatabaseURL, AgentDatabaseURL: cfg.AgentDatabaseURL, ChatDatabaseURL: cfg.ChatDatabaseURL, DocumentDatabaseURL: cfg.DocumentDatabaseURL, RouteAuthorityDatabaseURL: routeAuthorityDSN, AgentOwnerDatabaseURL: os.Getenv("HCMNEXT_AGENT_OWNER_DATABASE_URL")},
+				Config:  LocalAgentDemoConfig{Tenant: provisionerTenant, DatabaseURL: cfg.DatabaseURL, AgentDatabaseURL: cfg.AgentDatabaseURL, ChatDatabaseURL: cfg.ChatDatabaseURL, DocumentDatabaseURL: cfg.DocumentDatabaseURL, RouteAuthorityDatabaseURL: routeAuthorityDSN, AgentOwnerDatabaseURL: os.Getenv("HCMNEXT_AGENT_OWNER_DATABASE_URL")},
 				Core:    in.Pool, Agents: agentDatabase.store, Personas: personaWiring.store, Evaluations: evaluations, Signing: material, DeploymentPath: deploymentPath, Now: personaServeClock(options.Now),
 			}
 			if bindErr := personaWiring.bindAdminRuntimeProvisioner(provisioner); bindErr != nil {
@@ -1092,6 +1105,21 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	projects, err := composeProjects(ctx, cfg, chatRuntime.service, documentRuntime.service, projectWorkItems, projectInvitees, options.Now)
 	if err != nil {
 		return nil, fmt.Errorf("compose projects: %w", err)
+	}
+	if chatRuntime.core != nil && projects.store != nil {
+		// Issue 3752: "Send to chat" attaches a typed project reference that
+		// the project service authorizes for the sender and for each reader.
+		chatRuntime.core.SetProjectWorkDirectory(chatProjectWorkDirectory{service: projects.service})
+	}
+	if chatRuntime.core != nil && chatRuntime.store != nil && cell.Service != nil {
+		// Issue 3725: "Send to chat" attaches a typed journey reference that the
+		// intent service authorizes for the sender and for each reader, and the
+		// conversation it was shared into is remembered for the journey.
+		chatRuntime.core.SetJourneyDirectory(chatJourneyDirectory{Intents: chatWorkIntentAdapter{service: cell.Service}})
+		chatRuntime.core.SetJourneyShareLinker(chatJourneyShareLinker{Links: chatRuntime.store})
+		// Issue 3728: an accepted decision is announced in each conversation the
+		// journey was shared into, as a system line naming the decider.
+		cell.JourneyAnnouncer = &journeyStageAnnouncer{Chat: chatRuntime.core, Links: chatRuntime.store}
 	}
 	projectsCommitted := false
 	defer func() {
@@ -1189,6 +1217,7 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	if agentServices != nil && agentServices.Access != nil && servedPersonaInvocation != nil && servedPersonaInvocation.Worker != nil {
 		agentServices.Access.Gate.Logger = logger
 		servedPersonaInvocation.Worker.BindCostGate(agentServices.Access.Gate)
+		personaWiring.BindAllowance(agentServices.Access.Gate)
 	}
 	var schedulerWorkload, progressWorkload bootstrap.Workload
 	if cfg.Scheduler {
@@ -1371,6 +1400,49 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	edgeHandler = transportcell.OverlayChatExtensions(edgeHandler, cell.Config, integrate1ChatExtensions(chatRuntime))
 	edgeHandler = overlayIntegrate1Chat(edgeHandler, chatRuntime, in.Voice, cell.Config, chatremoveNameDirectory{Read: documentOwnerNames(in.Pool)})
 	edgeHandler = OverlayChatcmd002Cards(edgeHandler, chatcmd002CardPort(chatRuntime), cell.Config)
+	// Issue 3790: a message becomes a project task that links it.
+	messageWork := chatMessageWorkFor(projects.chatLinks, projects.service)
+	if messageWork != nil {
+		edgeHandler = OverlayChatMessageWork(edgeHandler, messageWork, cell.Config)
+		// Issue 3794: hand one linked work item's next step to another person.
+		if handoffs := chatWorkHandoffsFor(messageWork, projects.service, chatRuntime.store); handoffs != nil {
+			edgeHandler = OverlayChatWorkHandoffs(edgeHandler, handoffs, cell.Config)
+		}
+	}
+	// Issue 3791: "Work from this conversation", read under the viewer's authority.
+	if chatRuntime.store != nil {
+		if linkedWork := NewChatLinkedWork(projects.chatLinks, chatRuntime.store, cell.Service, messageWork); linkedWork != nil {
+			edgeHandler = OverlayChatLinkedWork(edgeHandler, linkedWork, cell.Config)
+		}
+		// Issue 3726: where a journey was discussed, read under the viewer's authority.
+		if discussions := NewJourneyDiscussions(projects.chatLinks, chatRuntime.store, cell.Service); discussions != nil {
+			edgeHandler = OverlayJourneyDiscussions(edgeHandler, discussions, cell.Config)
+		}
+		// Issue 3995: an approver asks the requester for clarification in a private direct conversation.
+		if projects.chatLinks != nil && chatRuntime.service != nil && cell.Journey != nil {
+			if clarifications := NewApprovalClarifications(cell.Journey, chatRuntime.service, projects.chatLinks, chatRuntime.store, chatWorkIntentAdapter{service: cell.Service}, documentOwnerNames(in.Pool)); clarifications != nil {
+				edgeHandler = OverlayApprovalClarifications(edgeHandler, clarifications, cell.Config)
+			}
+		}
+		// Issue 3749: where a document was discussed, read under the viewer's authority.
+		if documentRuntime.store != nil {
+			if documentDiscussions := NewDocumentDiscussions(projects.chatLinks, chatRuntime.store, documentRuntime.store); documentDiscussions != nil {
+				edgeHandler = OverlayDocumentDiscussions(edgeHandler, documentDiscussions, cell.Config)
+			}
+		}
+	}
+	// Issue 3795: form cards an agent posts for a person to fill in.
+	if formCards := NewChatFormCards(projects.chatLinks, chatRuntime.service, chatRuntime.store); formCards != nil {
+		edgeHandler = OverlayChatForms(edgeHandler, formCards, cell.Config)
+	}
+	// Issue 3793: typed requests (/leave) a person sends as a proposed intent.
+	if requests := NewChatIntentRequests(chatRuntime.extensions); requests != nil {
+		edgeHandler = OverlayChatRequests(edgeHandler, requests, cell.Config)
+	}
+	// Issue 3815: posts that ask the channel to acknowledge them.
+	if postAcks := NewChatPostAcks(projects.chatLinks, chatRuntime.service, chatRuntime.store); postAcks != nil {
+		edgeHandler = OverlayChatAcks(edgeHandler, postAcks, cell.Config)
+	}
 	if cfg.ChatEnabled {
 		mediaCfg := options.ChatMedia.WithDefaults(cfg.ChatMediaRoot, cfg.ArtifactRoot)
 		if chatRuntime.extensions != nil {
@@ -1398,6 +1470,8 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 			// CHATBUG-067: the private card to share is read from the Chat service
 			// itself; the served decorator chain does not pass that read through.
 			personaChat.Cards = chatRuntime.core
+			// #3803: outcome receipts follow the audience of the message they sit under.
+			personaChat.Posts = chatRuntime.core
 		}
 		if in.WritingStyles != nil {
 			in.WritingStyles.Authority = ChattoneChatAuthority{Chat: personaChat}
@@ -1419,6 +1493,10 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// AGENTUX-066, -067, -068: "Set reminder" on the announcement scheduler, the
 	// consumer of real messages (idle until a screen model is configured) and the
 	// agents' share of the tenant loop.
+	// Issue 3805: workflows an administrator tagged "chat-offerable" are offered,
+	// privately, to the person who asked for one. Nothing is offered until a
+	// workflow is tagged and a channel's manager turns the offers on.
+	agentServices.ambientWorkflows = NewAgentUXAmbientWorkflowCatalog(cell.WorkflowStartSource(), roleAccess)
 	if err := agentServices.BindAgentUXAmbientServed(chatRuntime.store, chatRuntime.extensions, chatRuntime.service, agentDatabase.store, agentDatabase.personas, in.Pool, ambientScreenPlanner, options.Now); err != nil {
 		return nil, fmt.Errorf("bind served ambient reminders: %w", err)
 	}
@@ -1602,6 +1680,24 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	}
 	if ephemeralWorkload := agentEphemeralPruneWorkload(chatRuntime.store, cfg.ServedTenants(), options.Now, logger); ephemeralWorkload != nil {
 		workloads = append(workloads, *ephemeralWorkload)
+	}
+	if chatRuntime.gateSweep != nil {
+		if gateSweepWorkload := chatgateReviewSweepWorkload(chatRuntime.gateSweep.Lister, chatRuntime.gateSweep.Sweeper, cfg.ServedTenants(), logger, chatgateReviewSweepInterval); gateSweepWorkload != nil {
+			workloads = append(workloads, *gateSweepWorkload)
+		}
+	}
+	// Issue 3735: due saved-message reminders become private notices.
+	if chatRuntime.store != nil && chatRuntime.core != nil {
+		if remindWorkload := savedReminderWorkload(chatRuntime.store, chatRuntime.core, SavedReminderNotifications{Delivery: savedReminderDelivery{Notices: chatRuntime.store}}, cfg.ServedTenants(), logger, savedReminderInterval); remindWorkload != nil {
+			workloads = append(workloads, *remindWorkload)
+		}
+	}
+	// Issue 3788: messages their author chose to send later go out through the
+	// ordinary Send service, as the author, with every check made again.
+	if chatRuntime.store != nil && chatRuntime.service != nil {
+		if sendLater := scheduledPostWorkload(scheduledPostDeliveryFor(chatRuntime, options.Now, logger), cfg.ServedTenants(), scheduledPostInterval); sendLater != nil {
+			workloads = append(workloads, *sendLater)
+		}
 	}
 	// Both surfaces drain gracefully first: in-flight requests finish and new
 	// ones are refused. A request that outlives the shutdown deadline is

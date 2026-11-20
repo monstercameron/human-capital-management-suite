@@ -62,6 +62,21 @@ sources:
   - internal/data/chatstore/migrations/00050_chat_repair_role.sql
   - internal/data/chatstore/migrations/00051_chat_agent_reaction_policy.sql
   - internal/data/chatstore/migrations/00052_chat_post_body_trgm.sql
+  - internal/data/chatstore/migrations/00054_issue3792_chat_decision.sql
+  - internal/data/chatstore/migrations/00055_issue3791_chat_work_link.sql
+  - internal/data/chatstore/migrations/00056_issue3787_followup_state.sql
+  - internal/data/chatstore/migrations/00057_issue3788_scheduled_post.sql
+  - internal/data/chatstore/migrations/00058_issue3804_channel_memory.sql
+  - internal/data/chatstore/migrations/00059_issue3929_saved_search.sql
+  - internal/data/chatstore/migrations/00060_issue3726_journey_share.sql
+  - internal/data/chatstore/migrations/00061_issue3795_chat_form_submission.sql
+  - internal/data/chatstore/migrations/00062_issue3783_information_barrier.sql
+  - internal/data/chatstore/migrations/00065_issue3749_post_reference.sql
+  - internal/data/chatstore/migrations/00063_issue3733_notification_read.sql
+  - internal/data/chatstore/migrations/00064_issue3805_workflow_offer.sql
+  - internal/data/chatstore/migrations/00066_issue3786_digest_pref.sql
+  - internal/data/chatstore/migrations/00067_issue3794_work_handoff.sql
+  - internal/data/chatstore/migrations/00068_issue3815_post_acknowledgement.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -736,6 +751,11 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: agentux_ambient_workflow_mute
+    migration: internal/data/chatstore/migrations/00064_issue3805_workflow_offer.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
   - table: agentux_ambient_task
     migration: internal/data/chatstore/migrations/00033_agentux_ambient.sql
     owner_package: internal/data/chatstore
@@ -796,3 +816,88 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: chat_decision
+    migration: internal/data/chatstore/migrations/00054_issue3792_chat_decision.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_work_link
+    migration: internal/data/chatstore/migrations/00055_issue3791_chat_work_link.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_followup_state
+    migration: internal/data/chatstore/migrations/00056_issue3787_followup_state.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_scheduled_post
+    migration: internal/data/chatstore/migrations/00057_issue3788_scheduled_post.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_channel_memory
+    migration: internal/data/chatstore/migrations/00058_issue3804_channel_memory.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_saved_search
+    migration: internal/data/chatstore/migrations/00059_issue3929_saved_search.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_form_submission
+    migration: internal/data/chatstore/migrations/00061_issue3795_chat_form_submission.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_conversation_case
+    migration: internal/data/chatstore/migrations/00071_issue3812_conversation_case.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_information_barrier
+    migration: internal/data/chatstore/migrations/00062_issue3783_information_barrier.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_notification_read
+    migration: internal/data/chatstore/migrations/00063_issue3733_notification_read.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_quiet_schedule
+    migration: internal/data/chatstore/migrations/00070_issue3920_quiet_schedule.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_digest_pref
+    migration: internal/data/chatstore/migrations/00066_issue3786_digest_pref.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_work_handoff
+    migration: internal/data/chatstore/migrations/00067_issue3794_work_handoff.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_post_reference
+    migration: internal/data/chatstore/migrations/00065_issue3749_post_reference.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false
+  - table: chat_ack_requirement
+    migration: internal/data/chatstore/migrations/00068_issue3815_post_acknowledgement.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_ack_record
+    migration: internal/data/chatstore/migrations/00068_issue3815_post_acknowledgement.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
+  - table: chat_approval_clarification
+    migration: internal/data/chatstore/migrations/00069_issue3995_approval_clarification.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true

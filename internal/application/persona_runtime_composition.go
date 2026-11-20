@@ -175,6 +175,10 @@ func composePersonaRuntimeDependencies(ctx context.Context, in personaRuntimeCom
 		}
 		// AGENTUX-076: runs carry the agent's facts and the documents it can read.
 		EnablePersonaAgentFacts(documentResolver, WorkspaceDocumentDirectory{DB: in.Pool, TenantUUID: tenantUUID})
+		// Issue 3804: and the notes the channel asked its agents to remember.
+		if memory := chatMemoryService(in.ChatRuntime); memory != nil {
+			EnablePersonaChannelMemory(documentResolver, memory)
+		}
 	}
 	// CHATLANG-005: the agent is told the language its asker reads. The model work
 	// and the outbound verifier share one cached read, so the verifier rebuilds the

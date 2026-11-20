@@ -131,10 +131,15 @@ type Message struct {
 	Chips             []ReactionChip
 	ForwardedAuthor   string
 	ForwardedAuthorID string
+	// ForwardNote is the sharer's own note beside a forwarded copy (issue 3919).
+	ForwardNote string
 	// PersonaActor is supplied only from the trusted actor projection. A nil or
 	// incomplete value is rendered as unavailable; display names never infer it.
 	PersonaActor      *PersonaActor
 	PersonaReferences []ChatReference
+	// WorkReferences are the typed project references the post carries (issue
+	// 3752): data the card is drawn from, whatever the body says.
+	WorkReferences []ChatReference
 	// AuthorAgent is set when the answer that carried this message said its
 	// author is an agent, with the agent's own name already in Author and its
 	// stored icon (CHATUX-047). It names; it never attests: the Agent badge still
@@ -224,6 +229,11 @@ type Attachment struct {
 	Width, Height              int
 	Bytes                      int64
 	PreviewUnavailable         bool
+	// AltText is the description the author wrote for an image and Decorative
+	// the author's statement that it needs none (issue 3962). The file name stays
+	// Name; neither is derived from the other.
+	AltText    string
+	Decorative bool
 }
 
 // IsImage reports whether the attachment renders inline.
@@ -282,9 +292,15 @@ type Callbacks struct {
 	SearchMore         func()
 	SearchMoreChannels func()
 	SearchClearRecent  func() // deletes the stored recent searches (ISSUE-3928)
-	OpenSearchMessage  func(conversationID, postID string, sequence uint64)
-	OpenSearchChannel  func(conversationID string)
-	LoadMembers        func()
+	// Saved searches (ISSUE-3929): keep the search on screen under a name, open
+	// the editor of one (empty id closes it), save its changes, or delete it.
+	SavedSearchSave   func(name, query string)
+	SavedSearchEdit   func(id string)
+	SavedSearchUpdate func(id, name, query string)
+	SavedSearchDelete func(id string)
+	OpenSearchMessage func(conversationID, postID string, sequence uint64)
+	OpenSearchChannel func(conversationID string)
+	LoadMembers       func()
 	// ACCESS-01: opening/closing the "Add people" picker and submitting it
 	// for the selected conversation.
 	OpenAddMembers          func()
@@ -298,6 +314,7 @@ type Callbacks struct {
 	CloseCreate             func()
 	CreateConversation      func(ConversationKind, string, []string)
 	OpenBrowse              func()
+	LoadFindChannels        func() // reads the contact finder's channels and purposes (issue 3963)
 	CloseBrowse             func()
 	RequestJoinConversation func(string)
 	JoinConversation        func(string)
@@ -321,10 +338,37 @@ type Callbacks struct {
 	MarkConversationUnread func(string)
 	LeaveConversation      func(string)
 	SendMessage            func(string, string)
+	// AskGeneralAgent starts a task for the built-in General agent with the
+	// person's question and calls done, on the page's thread, with the task or
+	// the failure. Nothing is posted to the conversation (issue 3756). When nil,
+	// "/ask" with no agent name is refused as before.
+	AskGeneralAgent func(question string, done func(GeneralAgentAnswer, error))
+	// ReadEnrollmentGuide reads the viewer's own benefits eligibility and
+	// enrollment-window status for one kind of question from the benefits
+	// service and calls done, on the page's thread (issue 3990). It reads only.
+	// When nil, the guide says the status cannot be checked here.
+	ReadEnrollmentGuide func(kind string, done func(EnrollmentGuideStatus, error))
 	// SendMessageWithReferences submits the body and its canonical references
 	// together. Persona suggestions are unavailable when this callback is nil.
 	SendMessageWithReferences func(string, string, []ChatReference)
 	RetryPersonaMentions      func()
+	// RetryWorkPreviews reads the ticket and document cards that failed to load
+	// again (issue 3750); nil leaves the retry button inert.
+	RetryWorkPreviews func()
+	// RetryJourney reads one workflow card again after a temporary failure
+	// (issue 3729).
+	RetryJourney func(intentID string)
+	// DecideJourney sends the routed approver's decision on a workflow card
+	// (issue 3724); the client reads the reason draft and the reviewed
+	// revision itself. ToggleJourneyDecision opens or closes the review and
+	// SetJourneyDecisionDraft keeps the typed reason. All three nil leaves the
+	// card read-only.
+	DecideJourney           func(intentID string, approve bool)
+	ToggleJourneyDecision   func(intentID string, open bool)
+	SetJourneyDecisionDraft func(intentID, text string)
+	// RequestAttention reads the viewer's own work for the private "What needs my
+	// attention?" brief (issue 3986). It reads only; it never changes work.
+	RequestAttention func()
 	// SetChannelAgentPrivacy requires, or stops requiring, private agent answers
 	// in the open channel (AGENTUX-070).
 	SetChannelAgentPrivacy func(private bool)
@@ -332,52 +376,71 @@ type Callbacks struct {
 	// DraftConflictResolved says the person settled the other version of a
 	// conversation's draft (issue 3953); RetryDraftSave asks for the unsaved
 	// drafts to be written now (issue 3950).
-	DraftConflictResolved         func(conversationID string)
-	RetryDraftSave                func()
-	MentionPicked                 func() // the "@" menu's choice is in the draft: the page draws the note under the composer
-	OpenThread                    func(string)
-	CloseThread                   func()
-	LoadOlderThread               func()
-	LoadNewerThread               func()
-	SetThreadFollow               func(bool)
-	React                         func(string)
-	RemoveReaction                func(string)
-	Pin                           func(string)
-	Unpin                         func(string)
-	JumpToPin                     func(string, uint64)
-	CopyPinReference              func(string)
-	AddChannelTodo                func(string, string)
-	SetChannelTodoDraft           func(string)
-	SetChannelTodoSourcePin       func(string)
-	SetChannelTodoCompleted       func(string, bool)
-	DeleteChannelTodo             func(string)
-	SetChannelTodoPinned          func(bool)
-	SetChannelTodoPolicy          func(string, string, []ChannelTodoSelectedMember)
-	SetChannelTodoNewPolicy       func(string, []ChannelTodoSelectedMember)
-	RetryChannelTodo              func()
-	OpenChannelTodo               func()
-	RetryChannelWidgets           func()
-	SetChannelWidgetPinned        func(string, bool)
-	SetChannelTeamPurpose         func(string)
-	SetChannelTeamRoleLabel       func(string, string, string)
-	SetChannelProjectDetails      func(string, string)
-	AddChannelProjectMilestone    func(ChannelProjectMilestone)
-	UpdateChannelProjectMilestone func(ChannelProjectMilestone)
-	DeleteChannelProjectMilestone func(string)
-	RetryChannelPoll              func()
-	OpenChannelPoll               func(string)
-	CreateChannelPoll             func(string, []string)
-	VoteChannelPoll               func(string)
-	SavePreferences               func(Preferences)
-	SetConversationNotification   func(string, NotificationMode)
-	OpenConversationDetails       func(string)
-	OpenRailMenu                  func(string)
-	Retry                         func()
-	ToggleDetails                 func(bool)
-	ToggleSidebar                 func(bool)
-	BeginEdit                     func(string)
-	CancelEdit                    func()
-	SetEditDraft                  func(string, string)
+	DraftConflictResolved func(conversationID string)
+	RetryDraftSave        func()
+	MentionPicked         func() // the "@" menu's choice is in the draft: the page draws the note under the composer
+	OpenThread            func(string)
+	// Issue 3916: load the followed-thread list, open one in its conversation,
+	// and stop following one.
+	LoadFollowedThreads func()
+	OpenFollowedThread  func(conversationID, rootID string, sequence uint64)
+	UnfollowThread      func(conversationID, rootID string)
+	// Issue 3787: load the follow-ups, open one in context, and record the
+	// person's choice for one (action: snooze, done, dismiss or keep).
+	LoadFollowUps func()
+	OpenFollowUp  func(conversationID, postID string, sequence uint64, threadRootID string)
+	SetFollowUp   func(conversationID, postID, direction, action string)
+	// Issue 3788: Send later. ScheduleSend keeps the message for the time and
+	// reports the outcome through done; EditScheduled changes one; CancelScheduled
+	// removes one with its text; LoadScheduled reads the tray.
+	LoadScheduled   func()
+	ScheduleSend    func(conversationID, body string, at time.Time, done func(SendLaterResult))
+	EditScheduled   func(id, body string, at time.Time, revision uint64, done func(SendLaterResult))
+	CancelScheduled func(id string)
+	// Unsent messages (issue 3737): Retry, Edit and Discard take the row id.
+	RetryUnsent, EditUnsent, DiscardUnsent func(id string)
+	CloseThread                            func()
+	LoadOlderThread                        func()
+	LoadNewerThread                        func()
+	SetThreadFollow                        func(bool)
+	React                                  func(string)
+	RemoveReaction                         func(string)
+	Pin                                    func(string)
+	Unpin                                  func(string)
+	JumpToPin                              func(string, uint64)
+	CopyPinReference                       func(string)
+	AddChannelTodo                         func(string, string)
+	SetChannelTodoDraft                    func(string)
+	SetChannelTodoSourcePin                func(string)
+	SetChannelTodoCompleted                func(string, bool)
+	DeleteChannelTodo                      func(string)
+	SetChannelTodoPinned                   func(bool)
+	SetChannelTodoPolicy                   func(string, string, []ChannelTodoSelectedMember)
+	SetChannelTodoNewPolicy                func(string, []ChannelTodoSelectedMember)
+	RetryChannelTodo                       func()
+	OpenChannelTodo                        func()
+	RetryChannelWidgets                    func()
+	SetChannelWidgetPinned                 func(string, bool)
+	SetChannelTeamPurpose                  func(string)
+	SetChannelTeamRoleLabel                func(string, string, string)
+	SetChannelProjectDetails               func(string, string)
+	AddChannelProjectMilestone             func(ChannelProjectMilestone)
+	UpdateChannelProjectMilestone          func(ChannelProjectMilestone)
+	DeleteChannelProjectMilestone          func(string)
+	RetryChannelPoll                       func()
+	OpenChannelPoll                        func(string)
+	CreateChannelPoll                      func(string, []string)
+	VoteChannelPoll                        func(string)
+	SavePreferences                        func(Preferences)
+	SetConversationNotification            func(string, NotificationMode)
+	OpenConversationDetails                func(string)
+	OpenRailMenu                           func(string)
+	Retry                                  func()
+	ToggleDetails                          func(bool)
+	ToggleSidebar                          func(bool)
+	BeginEdit                              func(string)
+	CancelEdit                             func()
+	SetEditDraft                           func(string, string)
 	// ThreadDraftChanged reports the reply box's text under one root message.
 	ThreadDraftChanged func(parentID, value string)
 	// ThreadAlsoChanged reports the "Also send to the conversation" choice of
@@ -429,20 +492,57 @@ type Callbacks struct {
 	FilterShare             func(string)
 	SelectShareDestination  func(string)
 	ShareMessage            func()
-	OpenEmbeddedMessage     func(string)
+	// ChangeShareNote records the note typed in the share dialog (issue 3919).
+	ChangeShareNote     func(string)
+	OpenEmbeddedMessage func(string)
 	// JumpToNewest scrolls the timeline to its newest message.
 	JumpToNewest func()
-	OpenPerson   func(string)
+
+	// JumpToDate loads the timeline at the first message on or after a local day
+	// (YYYY-MM-DD); JumpBackFromDate returns to where the person jumped from
+	// (issue 3930).
+	JumpToDate       func(date string)
+	JumpBackFromDate func()
+
+	// JumpFromReadingResume leaves the place a return to a conversation restored
+	// and goes to the newest messages; DismissReadingResume only closes the bar
+	// (issue 3942).
+	JumpFromReadingResume func()
+	DismissReadingResume  func()
+
+	// Handover runs one step of the work handover panel (issue 3973).
+	Handover func(HandoverCommand)
+
+	// LoadSharedFiles reads the first page of the open conversation's files,
+	// narrowed by a name; MoreSharedFiles reads the next older page;
+	// OpenSharedFileSource shows the message a file was shared in (issue 3917).
+	LoadSharedFiles      func(name string)
+	MoreSharedFiles      func()
+	OpenSharedFileSource func(id string)
+
+	// LoadTimeline reads the event timeline of the open conversation for a range
+	// of days; OpenTimelineSource shows the message of one entry;
+	// CheckTimelineEntries reads access to entries again before a draft is made
+	// and calls done with the answer (issue 3964).
+	LoadTimeline         func(from, to string, replies bool)
+	OpenTimelineSource   func(id string)
+	CheckTimelineEntries func(ids []string, done func(TimelineCheck))
+
+	OpenPerson func(string)
 	// Navigate moves the whole application to an in-app address through
 	// the global history (a document a message links to); nil leaves the
 	// link to the browser.
 	Navigate func(string)
 	// SuggestDocuments lists documents the reader can open whose title
 	// matches query, for the composer's "[[" and "doc:" autocomplete; done
-	// runs once on the UI loop. nil turns the list off.
-	SuggestDocuments   func(query string, done func([]DocSuggestion))
-	ClosePerson        func()
-	StartDirectMessage func(string)
+	// runs once on the UI loop with the outcome (issue 3746: a failed or
+	// unconfigured search is not "no match"). nil turns the list off.
+	SuggestDocuments func(query string, done func([]DocSuggestion, DocSuggestStatus))
+	// SuggestTasks and SuggestProjects list tickets and project boards the
+	// reader can open, for the "ticket:" and "board:" composer pickers.
+	SuggestTasks, SuggestProjects func(query string, done func([]DocSuggestion, DocSuggestStatus))
+	ClosePerson                   func()
+	StartDirectMessage            func(string)
 	// SubmitAgentFeedback records feedback against the authenticated invocation.
 	// The application boundary owns persistence and owner notification.
 	SubmitAgentFeedback func(invocationID string, helpful bool)
@@ -461,6 +561,13 @@ type Callbacks struct {
 	// SetComposerFormatRow keeps the viewer's choice to show (true) or hide the
 	// composer's formatting row. nil keeps the choice for the session only.
 	SetComposerFormatRow func(shown bool)
+	// SetComposerEnter keeps the viewer's choice of what Enter does in message
+	// boxes: true makes Enter add a line (Ctrl or Cmd+Enter sends), false is the
+	// default, Enter sends (ISSUE-3934). nil hides the preference.
+	SetComposerEnter func(newline bool)
+	// SaveQuietSchedule keeps the person's weekly quiet-hours schedule and
+	// one-off pause (ISSUE-3920). nil hides the schedule row.
+	SaveQuietSchedule func(QuietScheduleEdit)
 	// SaveEmojiPrefs stores the viewer's emoji choices (skin tone and most used,
 	// encoded by the picker) with their other personal Chat preferences. The
 	// picker calls it at most once every few seconds. nil keeps them for the
@@ -484,6 +591,9 @@ type Model struct {
 	// "shown", "hidden", or "" for automatic visibility (shown from 800 px up
 	// once the draft has content; an empty draft keeps the composer compact).
 	ComposerFormatRow string
+	// ComposerEnter is the viewer's saved Enter-key choice: "newline" makes Enter
+	// add a line; "" or "send" keeps Enter sending (ISSUE-3934).
+	ComposerEnter string
 
 	ReaderRenderings     map[string]ReaderRendering
 	ReaderSelections     map[string]ReaderSelection
@@ -493,6 +603,21 @@ type Model struct {
 	Chatlang       ChatlangModel
 	ReaderPending  bool
 	SavedOpenCount int
+	// Followed threads (issue 3916): the list, whether it has loaded and whether
+	// loading failed. FollowedNote is set when a Stop following was refused.
+	FollowedThreads                                []FollowedThreadRow
+	FollowedLoading, FollowedLoaded, FollowedError bool
+	FollowedNote                                   string
+	// Follow-ups (issue 3787): the rows, whether they have loaded and whether
+	// loading failed. FollowUpsNote is set when a choice could not be saved.
+	FollowUps                                         []FollowUpRow
+	FollowUpsLoading, FollowUpsLoaded, FollowUpsError bool
+	FollowUpsNote                                     string
+	// SendLater is the Scheduled tray and Send later state (issue 3788).
+	SendLater SendLaterState
+	// Unsent are the sender's own messages not yet delivered (issue 3737), in
+	// the order they were sent; each shows in its own conversation.
+	Unsent []UnsentMessage
 	// Moderation is what the server said about moderation for the viewer
 	// (CHATMOD-004, CHATMOD-005): the sidebar entry, the Remove offer, the notices.
 	Moderation ModerationState
@@ -616,6 +741,9 @@ type Model struct {
 	// PersonaInvocations is an authenticated, invoker-only projection. Entries
 	// are keyed by their invoking post, so updates stay in that thread.
 	PersonaInvocations []PersonaThreadInvocation
+	// PersonaOutcomes is how each finished agent run of the open conversation
+	// ended, for any asker, each under the message that asked for it (#3803).
+	PersonaOutcomes []PersonaOutcomeReceipt
 	// PersonaActivityReady is true once the agent activity for the open
 	// conversation has answered (or has been refused), so PersonaInvocations
 	// being empty means "none" and not "not asked yet". Until then a message that
@@ -651,8 +779,12 @@ type Model struct {
 	GateLabels                map[string][]GateLabel
 	GateAudience              map[string]GateAudienceOptions
 	Search                    string
-	SearchRecent              []string // newest first; offered under the search box while it is empty
-	SearchRecentStatus        string   // "cleared" or "failed" after Clear was pressed in the recent-searches popover (ISSUE-3928)
+	SearchRecent              []string          // newest first; offered under the search box while it is empty
+	SearchRecentStatus        string            // "cleared" or "failed" after Clear was pressed in the recent-searches popover (ISSUE-3928)
+	SearchSaved               []SavedSearchItem // the person's kept searches, shown above the recent ones (ISSUE-3929)
+	SavedSearchEditing        string            // id of the saved search being edited in the popover
+	SavedSearchStatus         string            // how the last change went: saved, updated, deleted, failed, nameTaken, limit, invalid
+	SavedSearchName           string            // the name the status speaks of
 	SearchLoading             bool
 	SearchLoadingMore         bool
 	SearchLoadingMoreChannels bool
@@ -707,9 +839,15 @@ type Model struct {
 	PurposeSaved      bool   // a purpose save went through and "Saved" shows for two seconds
 	Pane              PaneSizes
 	Preferences       Preferences
+	QuietSchedule     QuietScheduleView // the weekly quiet-hours schedule and pause (ISSUE-3920)
 	Callbacks         Callbacks
 	Locale            string
 	Direction         string
+
+	FindChannels       []Conversation // browsable public channels with purposes, for the contact finder (issue 3963)
+	FindChannelsReady  bool           // false while FindChannels is being read
+	FindChannelsFailed bool           // the read failed: only the channels already listed were searched
+
 	// GiphyAPIKey is the public browser key supplied by the authenticated shell.
 	GiphyAPIKey                  string
 	CurrentUser, CurrentTenantID string
@@ -747,9 +885,11 @@ type Model struct {
 	ShareDestinations                                                          []Conversation
 	ShareLoading, SharePending                                                 bool
 	ShareVersion                                                               uint64
-	EmbedOrigin                                                                string
-	Embeds                                                                     map[string]LinkEmbed
-	EmbedRevision                                                              uint64
+	// ShareNote is the unsent note in the share dialog; it survives a refusal.
+	ShareNote     string
+	EmbedOrigin   string
+	Embeds        map[string]LinkEmbed
+	EmbedRevision uint64
 	// DocPreviews contains viewer-authorized document metadata for chat unfurls,
 	// keyed by document ID. It is transient client state, never message content.
 	DocPreviews map[string]DocPreview
@@ -757,9 +897,44 @@ type Model struct {
 	// message references, keyed by ProjectTaskPreviewKey. It is transient and
 	// must be cleared or revalidated when the viewer changes.
 	ProjectTaskPreviews map[string]ProjectTaskPreview
+	// MessageWork is the Create task action and the work each message became
+	// (issue 3790). It is transient client state, never message content.
+	MessageWork MessageWorkState
+	// WorkHandoff is the hand-off of one linked work item to another person
+	// (issue 3794). Transient client state.
+	WorkHandoff WorkHandoffState
+	// Decisions is /decide and the Decisions list (issue 3792). Transient client state.
+	Decisions DecisionsState
+	// MessageWorkflow is the Start a promotion handoff of the message menu and /promote
+	// (issue 3723). Transient client state.
+	MessageWorkflow MessageWorkflowState
+	// Memory is what the agents of the open channel remember (issue 3804). Transient client state.
+	Memory MemoryState
+	// LinkedWork is the Work from this conversation list (issue 3791). Transient client state.
+	LinkedWork LinkedWorkState
+	// Forms is what the server said this reader may do with each form card on
+	// screen (issue 3795). Transient client state, never message content.
+	Forms FormCardsState
+	// IntentRequests is /leave and the typed requests it opens (issue 3793).
+	// Transient client state, never message content.
+	IntentRequests IntentRequestsState
+	// Acks is what the server said about the posts of the open conversation that
+	// ask for acknowledgement (issue 3815). Transient client state.
+	Acks AcksState
+	// Case is what the server said about the open conversation's governed case
+	// (issue 3812). Transient client state.
+	Case CaseState
+	// PinReview is the private review of a pinned message against later ones
+	// (issue 3960). Transient client state, never stored.
+	PinReview PinReviewState
 	// JourneyPreviews holds viewer-authorized quick looks at shared
 	// in-progress workflows (promotion journeys), keyed by intent ID.
 	JourneyPreviews map[string]JourneyPreview
+	// JourneyDecisions is each workflow card's decision review, keyed by
+	// journey id (issue 3724). Transient client state, cleared with the viewer.
+	JourneyDecisions map[string]JourneyDecisionState
+	// Attention is the last read of the viewer's own work (issue3986_attention.go).
+	Attention AttentionBrief
 	// Text resolves a catalog key to the viewer's language. When nil, or when
 	// the key is unknown to the caller's catalog, the reviewed English copy in
 	// this package is used so the tree never shows a raw key.
@@ -778,6 +953,8 @@ type Model struct {
 	// Only canonical post references become chips; matching display text alone
 	// never gains identity or interaction semantics.
 	renderReferences []ChatReference
+	// renderWorkReferences are the typed project references of that message.
+	renderWorkReferences []ChatReference
 	// renderHighlight holds the searched words while a search result is drawn:
 	// the text the message renderer prints is tinted where it matches.
 	renderHighlight string
@@ -787,15 +964,34 @@ type Model struct {
 	// cardEditing is the poll or list message whose author is rewording it; the
 	// workspace copies it from its local state (CHATCMD-002).
 	cardEditing string
+	// issue3954Plan is the Plan next step panel a poll card has open; the
+	// workspace copies it from its local state (issue3954_plan.go).
+	issue3954Plan issue3954State
+	// issue3947 is the to-do task form a card has open; the workspace copies it
+	// from its local state (issue3947_task_change.go).
+	issue3947 issue3947State
 	// renderInLink is set while the label of a link is drawn, so that an
 	// address in the label is not made a second link inside it (CHATBUG-053).
 	renderInLink bool
 	// railDrafts is the conversations holding an unsent draft, for the sidebar's
 	// pencil; the workspace fills it from the draft store each render (CHATUX-020).
 	railDrafts map[string]bool
+	// railDraftBodies is the text behind railDrafts, for the Drafts list (issue 3915).
+	railDraftBodies map[string]string
 	// side is the sidebar's section state the workspace copies from its local
 	// state each render (CHATSIDE-001).
 	side chatside001UI
+	// DateJump is the last Jump to date in the open conversation (issue 3930).
+	DateJump DateJumpView
+	// ReadingResume is the last return to a remembered reading position in the
+	// open conversation (issue 3942).
+	ReadingResume ReadingResumeView
+	// Handover is the work handover panel of the open conversation (issue 3973).
+	Handover HandoverView
+	// SharedFiles is the Shared files list of the open conversation (issue 3917).
+	SharedFiles SharedFilesView
+	// Timeline is the event timeline of the open conversation (issue 3964).
+	Timeline TimelineView
 }
 
 // n formats a count for display. The client's Number answers "" for zero, so

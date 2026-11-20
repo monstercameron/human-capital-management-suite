@@ -52,7 +52,8 @@ func TestTodo_CHATUX_028(t *testing.T) {
 	for _, item := range chatPolishNodesIn(menus[0], func(n *xhtml.Node) bool { return chatPolishAttr(n, "role") == "menuitem" }) {
 		items = append(items, strings.TrimSpace(chatbug030Text(item)))
 	}
-	if len(items) != 3 || items[0] != "View shared answer" || items[1] != "Remove shared answer" || !strings.HasPrefix(items[2], "Saved in your conversation with") {
+	// Issue 3977 adds "Continue with another agent" ahead of the shared-copy items.
+	if len(items) != 4 || items[0] != "Continue with another agent" || items[1] != "View shared answer" || items[2] != "Remove shared answer" || !strings.HasPrefix(items[3], "Saved in your conversation with") {
 		t.Fatalf("the menu holds %q", items)
 	}
 	if got := chatux028Row(open); strings.Join(got, ",") != "agent-feedback,agent-feedback,agent-follow-up,menu" {

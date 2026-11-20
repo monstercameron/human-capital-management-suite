@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
@@ -52,7 +50,7 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 	path := in.Env(EnvChatWritingStyleModelConfigFile)
 	local := cfg.Profile == ServeProfileLocalDev
 	if path == "" && local {
-		candidate := filepath.FromSlash(localChattoneModelDeploymentPath)
+		candidate := localAgentDevFile(localChattoneModelDeploymentPath)
 		if _, err := os.Stat(candidate); err == nil {
 			path = candidate
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -60,17 +58,17 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 		}
 	}
 	if path == "" {
-		return nil, "no model is qualified for chat writing styles (set " + EnvChatWritingStyleModelConfigFile + ")", nil
+		return nil, "no model is qualified for chat writing styles (set " + EnvChatWritingStyleModelConfigFile + ")" + localChatTaskModelsHint(local), nil
 	}
 	if in.Runtime == nil || in.Runtime.Budget == nil || isNilPersonaOutputPort(in.Runtime.Audit) {
 		return nil, "the agent platform's budget ledger and audit chain are not composed", nil
 	}
-	if in.Env("MODEL_API_KEY") == "" {
+	if localModelAPIKeyMissing(in.Env) {
 		return nil, "MODEL_API_KEY is not set", nil
 	}
 	cfg.AgentModelConfigFile = path
 	if local {
-		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if err != nil {
 			return nil, "", err
 		}
@@ -136,11 +134,17 @@ func composeServedChattone(ctx context.Context, in chattoneServeInput) (*Chatton
 	if service.Reworder, err = NewChattoneReworder(cfgService.Model, cfgService.Policy, nil, now); err != nil {
 		return nil, "", err
 	}
-	// The development tenant is the only workspace the composition root turns
-	// on. Every other workspace opts in through its administrator.
-	if local && slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
-		if err := ChattoneEnableTenant(service.Rewrite.Registry, localAgentDemoTenant); err != nil {
-			return nil, "", err
+	// Only the served demo workspaces (the closed allowlist) are turned on, and
+	// only in the local development profile. Every other workspace opts in
+	// through its administrator.
+	if local {
+		for _, served := range cfg.ServedTenants() {
+			if !isLocalAgentDemoTenant(served) {
+				continue
+			}
+			if err := ChattoneEnableTenant(service.Rewrite.Registry, served); err != nil {
+				return nil, "", err
+			}
 		}
 	}
 	return service, "", nil

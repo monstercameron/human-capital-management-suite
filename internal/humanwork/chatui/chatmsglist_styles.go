@@ -19,4 +19,4 @@ const ChatMsgListStyles = `
 .chat-workspace a.chat-embed{display:grid}
 .chat-embed-label,.chat-embed-source,.chat-embed-byline{display:block}
 .agent-failure-heading{font-size:.9375rem;font-weight:400;line-height:1.45}
-` + ChatBug073Styles + ChatBug028Styles + ChatBug071Styles + ChatIssue3953Styles + ChatBug076Styles + ChatUX022Styles + ChatBug081Styles + ChatBug053Styles + ChatBug085Styles
+` + ChatBug073Styles + ChatBug028Styles + ChatBug071Styles + ChatIssue3953Styles + ChatBug076Styles + ChatUX022Styles + ChatBug081Styles + ChatBug053Styles + ChatBug085Styles + ChatWorkStyles + ChatWorkHandoffStyles + ChatDecisionsStyles + ChatMemoryStyles + ChatLinkedWorkStyles

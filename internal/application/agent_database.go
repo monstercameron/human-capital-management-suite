@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -138,10 +136,10 @@ func composeAgentPersonaStore(db agentpersonastore.DB, mapTenant func(values.Ten
 // evaluation key for a local-dev process that serves the demo tenant, keyed
 // as the local evaluator seals its claims. Every other process gets none.
 func localAgentDemoEvaluationVerifiers(cfg ServeConfig) (map[string]ed25519.PublicKey, error) {
-	if cfg.Profile != ServeProfileLocalDev || !slices.Contains(cfg.ServedTenants(), localAgentDemoTenant) {
+	if cfg.Profile != ServeProfileLocalDev || servedLocalAgentDemoTenant(cfg.ServedTenants()) == "" {
 		return nil, nil
 	}
-	privateKey, err := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+	privateKey, err := loadOrCreateLocalAgentDemoEvaluationKey(localAgentDevFile(localAgentDemoEvaluationPath))
 	if err != nil {
 		return nil, err
 	}

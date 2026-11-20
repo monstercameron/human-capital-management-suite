@@ -34,6 +34,7 @@ func bindProductLinkFallback(navigate func(string)) {
 func productLinkFallbackHref(event js.Value) (href string, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("product-links.product-link-fallback-")
 			href, ok = "", false
 		}
 	}()

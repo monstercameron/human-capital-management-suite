@@ -37,6 +37,7 @@ func projectRules() map[string]rule {
 		{"PreviewWorkflowDraft", "POST", "/v1/projects/{project}/workflow/drafts/{draft}:preview", "*", "workflow.drafts.preview", "projectaccess.configure_workflow", IntentBehaviorNonMaterial, false, "REQUIRED_EXACT_MATCH", "NOT_APPLICABLE", "NOT_APPLICABLE"},
 		{"PublishWorkflowDraft", "POST", "/v1/projects/{project}/workflow/drafts/{draft}:publish", "*", "workflow.publish", "projectaccess.configure_workflow", IntentBehaviorConsumes, true, "REQUIRED_EXACT_MATCH", "NOT_APPLICABLE", "NOT_APPLICABLE"},
 		{"GetWorkflowConfiguration", "GET", "/v1/projects/{project}/workflow", "", "workflow.get", "projectaccess.configure_workflow", IntentBehaviorObserves, false, "RETURNS_ETAG", "NOT_APPLICABLE", "NOT_APPLICABLE"},
+		{"GetProjectPreviews", "POST", "/v1/project-previews:batchGet", "*", "previews.get", "projectaccess.read_task", IntentBehaviorObserves, false, "NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE"},
 		{"SaveBoardView", "PUT", "/v1/projects/{project}/views/{view}", "*", "views.save", "projectaccess.manage_views", IntentBehaviorConsumes, true, "REQUIRED_EXACT_MATCH", "NOT_APPLICABLE", "NOT_APPLICABLE"},
 		{"ListBoardViews", "GET", "/v1/projects/{project}/views", "", "views.list", "projectaccess.manage_views", IntentBehaviorObserves, false, "NOT_APPLICABLE", "OPAQUE_CURSOR_BOUNDED", "STABLE_SNAPSHOT_ORDER"},
 		{"GetBoard", "GET", "/v1/projects/{project}/views/{view}/board", "", "board.get", "projectaccess.read_task", IntentBehaviorObserves, false, "RETURNS_ETAG", "OPAQUE_CURSOR_BOUNDED", "STABLE_SNAPSHOT_ORDER"},

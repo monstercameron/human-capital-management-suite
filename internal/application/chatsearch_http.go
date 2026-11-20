@@ -29,6 +29,8 @@ type ChatSearchHistory interface {
 type ChatSearchHTTP struct {
 	Port    ChatSearchPort
 	History ChatSearchHistory
+	// Saved holds the searches a person chose to keep (ISSUE-3929).
+	Saved *chatsearch.SavedService
 }
 type ChatSearchError struct {
 	Code string `json:"code"`
@@ -54,7 +56,7 @@ func OverlayChatSearch(next http.Handler, search ChatSearchHTTP, admission trans
 		next = http.NotFoundHandler()
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != ChatSearchPath && r.URL.Path != ChatSearchPath+"/recent" {
+		if r.URL.Path != ChatSearchPath && r.URL.Path != ChatSearchPath+"/recent" && !issue3929IsSavedPath(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -76,6 +78,10 @@ func (h ChatSearchHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := chatsearch.Actor{TenantID: p.Tenant().String(), HomeTenantID: p.Tenant().String(), PersonID: p.Subject()}
+	if issue3929IsSavedPath(r.URL.Path) {
+		h.serveSaved(w, r, actor)
+		return
+	}
 	if r.URL.Path == ChatSearchPath+"/recent" {
 		if h.History == nil {
 			chatsearchHTTPError(w, http.StatusServiceUnavailable, "unavailable")

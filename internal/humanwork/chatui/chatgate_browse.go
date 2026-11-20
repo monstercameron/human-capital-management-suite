@@ -34,6 +34,12 @@ type GateJoin struct {
 	// major version; AnswerBy is the date they have.
 	AnswerAgain bool
 	AnswerBy    time.Time
+	// Request is where the person's own request to join stands: "review" while a
+	// person has yet to decide, "declined" once refused (issue 3818). Reviewers
+	// are the names it waits for; RequestReason is the reason a refusal gave.
+	Request       string
+	RequestReason string
+	Reviewers     []string
 }
 
 // chatgateJoin is the gate a non-member would join the conversation through.
@@ -48,6 +54,9 @@ func chatgateJoin(m Model, c Conversation) (GateJoin, bool) {
 // chatgateJoinLabel is the text of a Browse row's join button: "Join", or for a
 // gated channel what joining takes.
 func chatgateJoinLabel(m Model, c Conversation) string {
+	if label := chatgateRequestLabel(m, c); label != "" {
+		return label
+	}
 	if gate, ok := chatgateJoin(m, c); ok {
 		return gateJoinTitle(chatgateLocale(m.Locale), gate.Questions)
 	}
@@ -71,6 +80,9 @@ func chatgateBrowseNote(m Model, c Conversation) ui.Node {
 	gate, ok := chatgateJoin(m, c)
 	if !ok || c.Joined {
 		return nil
+	}
+	if note := chatgateRequestNote(m, c); note != nil {
+		return note
 	}
 	locale := chatgateLocale(m.Locale)
 	parts := []string{}

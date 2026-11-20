@@ -19,6 +19,9 @@ type ProjectTaskReference struct {
 	TaskID    string
 	Start     int
 	End       int
+	// Unresolved marks a project address on the viewer's origin that could not
+	// be understood; it draws a chip and never a link or a card (issue 3752).
+	Unresolved bool
 }
 
 // ProjectTaskPreview is a server-authorized projection for one viewer.
@@ -168,7 +171,7 @@ func ProjectTaskReferenceBody(body, origin, restrictedLabel string, previews map
 			nodes = append(nodes, ui.Text(body[last:ref.Start]))
 		}
 		preview, ok := previews[ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)]
-		if ok && ref.ProjectID != "" && preview.State == "ready" && preview.Readable && preview.TaskID == ref.TaskID && preview.ProjectID == ref.ProjectID && preview.Title != "" {
+		if ok && ref.ProjectID != "" && (preview.State == "ready" || preview.State == "archived") && preview.Readable && preview.TaskID == ref.TaskID && preview.ProjectID == ref.ProjectID && preview.Title != "" {
 			href := ProjectTaskReferenceURL(preview.ProjectID, preview.TaskID)
 			if preview.IsBoard() {
 				href = ProjectBoardReferenceURL(preview.ProjectID)
@@ -188,7 +191,7 @@ func ProjectTaskReferenceBody(body, origin, restrictedLabel string, previews map
 // projectTaskReferenceBody composes task references with the existing
 // document and channel renderers for each plain Markdown text run.
 func projectTaskReferenceBody(m Model, body string) []ui.Node {
-	refs := ProjectTaskReferences(body, m.EmbedOrigin)
+	refs := ProjectTaskReferencesFor(body, m.EmbedOrigin, m.renderWorkReferences)
 	if len(refs) == 0 {
 		return docLinkReferenceBody(m, body)
 	}
@@ -201,8 +204,13 @@ func projectTaskReferenceBody(m Model, body string) []ui.Node {
 		if ref.Start > last {
 			nodes = append(nodes, docLinkReferenceBody(m, body[last:ref.Start])...)
 		}
+		if ref.Unresolved {
+			nodes = append(nodes, projectUnresolvedChip(m))
+			last = ref.End
+			continue
+		}
 		preview, ok := m.ProjectTaskPreviews[ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)]
-		if ok && ref.ProjectID != "" && preview.State == "ready" && preview.Readable && preview.ProjectID == ref.ProjectID && preview.TaskID == ref.TaskID && strings.TrimSpace(preview.Title) != "" {
+		if ok && ref.ProjectID != "" && (preview.State == "ready" || preview.State == "archived") && preview.Readable && preview.ProjectID == ref.ProjectID && preview.TaskID == ref.TaskID && strings.TrimSpace(preview.Title) != "" {
 			label := strings.TrimSpace(preview.Title)
 			href, aria := ProjectTaskReferenceURL(ref.ProjectID, ref.TaskID), m.tf(KeyOpenProjectTask, map[string]string{"title": label})
 			if ref.TaskID == "" {
@@ -235,7 +243,7 @@ func resolveProjectTaskReferencesForSnippet(m Model, body string) string {
 		}
 		out.WriteString(body[last:ref.Start])
 		label := m.t(KeyProjectTaskRestricted)
-		if preview, ok := m.ProjectTaskPreviews[ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)]; ok && ref.ProjectID != "" && preview.State == "ready" && preview.Readable && preview.ProjectID == ref.ProjectID && preview.TaskID == ref.TaskID && strings.TrimSpace(preview.Title) != "" {
+		if preview, ok := m.ProjectTaskPreviews[ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID)]; ok && ref.ProjectID != "" && (preview.State == "ready" || preview.State == "archived") && preview.Readable && preview.ProjectID == ref.ProjectID && preview.TaskID == ref.TaskID && strings.TrimSpace(preview.Title) != "" {
 			label = strings.TrimSpace(preview.Title)
 		}
 		out.WriteString(label)

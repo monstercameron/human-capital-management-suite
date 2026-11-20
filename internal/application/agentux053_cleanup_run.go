@@ -28,8 +28,8 @@ type LocalAgentDemoCleanupConfig struct {
 // development profile, the demo workspace and loopback databases, before any
 // connection is opened.
 func ValidateLocalAgentDemoCleanupConfig(config LocalAgentDemoCleanupConfig) error {
-	if config.Profile != ServeProfileLocalDev || config.Tenant != localAgentDemoTenant {
-		return fmt.Errorf("agent demo cleanup requires -profile local-dev and -tenant %s", localAgentDemoTenant)
+	if config.Profile != ServeProfileLocalDev || !isLocalAgentDemoTenant(config.Tenant) {
+		return fmt.Errorf("agent demo cleanup requires -profile local-dev and -tenant %s", localAgentDemoTenantChoices())
 	}
 	for name, raw := range map[string]string{"database-url": config.DatabaseURL, "chat-database-url": config.ChatDatabaseURL} {
 		parsed, err := url.Parse(raw)
@@ -50,11 +50,11 @@ type localAgentDemoCleanupAuthors struct {
 }
 
 func (a localAgentDemoCleanupAuthors) DemoPostAuthor(_ context.Context, tenant, subject string) (*trust.Principal, error) {
-	if tenant != localAgentDemoTenant {
+	if !isLocalAgentDemoTenant(tenant) {
 		return nil, errors.New("cleanup author is not in the demo workspace")
 	}
 	now := a.now()
-	if subject == localAgentDemoAdmin {
+	if subject == localAgentDemoAdminFor(tenant) {
 		return localAgentDemoPrincipal(now, tenant, subject, a.organization)
 	}
 	if subject != localAgentDemoAgentID && subject != localAgentDemoPersonaID {
@@ -86,11 +86,11 @@ func RunLocalAgentDemoCleanup(ctx context.Context, config LocalAgentDemoCleanupC
 		return nil, fmt.Errorf("open local core authority: %w", err)
 	}
 	defer core.Close()
-	organization, err := NewAgentHomeOrganizationDirectoryDB(core, mapper).CurrentHomeOrganization(ctx, values.TenantId(config.Tenant), localAgentDemoAdmin)
+	organization, err := NewAgentHomeOrganizationDirectoryDB(core, mapper).CurrentHomeOrganization(ctx, values.TenantId(config.Tenant), localAgentDemoAdminFor(config.Tenant))
 	if err != nil {
 		return nil, fmt.Errorf("resolve administrator home organization: %w", err)
 	}
-	admin, err := localAgentDemoPrincipal(now, config.Tenant, localAgentDemoAdmin, organization)
+	admin, err := localAgentDemoPrincipal(now, config.Tenant, localAgentDemoAdminFor(config.Tenant), organization)
 	if err != nil {
 		return nil, err
 	}

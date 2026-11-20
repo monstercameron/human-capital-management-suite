@@ -3,6 +3,8 @@ package chatui
 import (
 	"math"
 	"time"
+
+	"github.com/monstercameron/human-capital-management-suite/internal/experience/localize"
 )
 
 // CHATSAVE-002. Times in the Saved panel. Every function takes the reader's
@@ -10,13 +12,7 @@ import (
 // none reads the clock or the machine's zone itself.
 
 func chatsave002Clock(locale string, t time.Time) string {
-	switch dateLocale(locale) {
-	case "de":
-		return t.Format("15:04")
-	case "ar":
-		return arabicDigits(t.Format("15:04"))
-	}
-	return t.Format("3:04 PM")
+	return localize.FormatClock(locale, t)
 }
 
 func chatsave002DayStart(t time.Time) time.Time {

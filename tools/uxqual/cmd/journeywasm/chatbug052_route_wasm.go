@@ -225,7 +225,8 @@ func syncChatTabTitle() {
 	current := document.Get("title").String()
 	base := chatTabTitleBase(current, read("data-hcm-chat-title-last"), read("data-hcm-chat-title-base"))
 	kind, query := chatPageOnScreen()
-	next := chatTabTitleText(base, chatui.ChatTabTitle(chatBrowser.snapshot(), kind, query))
+	snapshot := chatBrowser.snapshot()
+	next := chatBadgedTabTitle(chatTabBadge(snapshot), chatTabTitleText(base, chatui.ChatTabTitle(snapshot, kind, query)))
 	if current != next {
 		document.Set("title", next)
 	}

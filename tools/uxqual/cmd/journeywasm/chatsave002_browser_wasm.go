@@ -246,6 +246,35 @@ func (b *chatsaveBrowser) panelKey(event, target js.Value) bool {
 			b.cancelNote()
 			return true
 		}
+		if b.editingLabels != "" {
+			stop()
+			b.cancelLabelEdit()
+			return true
+		}
+		if b.labelManage != "" {
+			stop()
+			b.cancelLabelManage()
+			return true
+		}
+		// Issue 3958: Esc leaves the brief for the list, and then select mode.
+		if b.brief != nil {
+			stop()
+			// An agenda being edited is never thrown away by a stray Esc: it
+			// moves focus to Back, which is the explicit way out.
+			if b.brief.stage == "draft" {
+				if back := js.Global().Get("document").Call("getElementById", "chatsave-brief-back"); back.Truthy() {
+					back.Call("focus")
+				}
+				return true
+			}
+			b.briefBack()
+			return true
+		}
+		if b.selecting {
+			stop()
+			b.briefClick("select-stop", "", "", "")
+			return true
+		}
 		return false
 	case "ArrowDown", "ArrowUp":
 		if modified || event.Get("shiftKey").Bool() {
@@ -325,6 +354,10 @@ func (b *chatsaveBrowser) panelKey(event, target js.Value) bool {
 		return false
 	}
 	if modified || editable || !item.Truthy() {
+		return false
+	}
+	// Issue 3932: a key pressed on a label control is not a shortcut for the message.
+	if target.Call("closest", ".chatsave-labelline").Truthy() {
 		return false
 	}
 	press := func(action string) bool {

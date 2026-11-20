@@ -554,8 +554,13 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 	emptyQuery := strings.TrimSpace(state.Query) == ""
 	agentGroupVisible := agentsEnabled && (agentCount > 0 || lookupState != PersonaLookupIdle || emptyQuery)
 	peopleLoading := mentionPeopleLoading(m)
+	addAgent := chat3759MentionAddAgent(m, target, lookupState)
 	if len(options) == 0 && !agentGroupVisible && !peopleLoading {
-		return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu empty", Role: "status", Aria: map[string]string{"live": "polite"}}, html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": state.Query})}))
+		empty := []ui.Node{html.P(html.Props{Class: "mention-empty", Text: m.tf(KeyMentionNone, map[string]string{"query": state.Query})})}
+		if addAgent != nil {
+			empty = append(empty, addAgent)
+		}
+		return html.Div(html.Props{ID: target + "-mentions", Class: "mention-menu empty", Role: "status", Aria: map[string]string{"live": "polite"}}, empty...)
 	}
 	rows := make([]ui.Node, 0, len(options)+8)
 	lastGroup := ""
@@ -648,6 +653,9 @@ func mentionMenu(m Model, state mentionState, target string) ui.Node {
 	}
 	if hasMorePeople {
 		rows = append(rows, html.Button(html.Props{Class: "mention-show-more", Type: "button", Data: map[string]string{"action": "mention-show-more", "id": target}, Text: mentionMenuText(m, KeyMentionShowMorePeople)}))
+	}
+	if addAgent != nil {
+		rows = append(rows, addAgent)
 	}
 	direction := "ltr"
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(m.Locale)), "ar") {

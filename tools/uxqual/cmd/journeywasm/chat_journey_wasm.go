@@ -38,28 +38,10 @@ var chatJourneys = struct {
 	entries  map[string]chatJourneyEntry
 }{}
 
+// chatJourneyRefs are the journeys the visible messages need read; the typed
+// references on a post count as much as an address in its body (issue 3725).
 func chatJourneyRefs(model chatui.Model) []string {
-	seen := map[string]bool{}
-	var ids []string
-	add := func(body string) {
-		for _, ref := range chatui.JourneyReferences(body, model.EmbedOrigin) {
-			if !seen[ref.IntentID] && len(ids) < chatJourneyLimit {
-				seen[ref.IntentID] = true
-				ids = append(ids, ref.IntentID)
-			}
-		}
-	}
-	add(model.Draft)
-	for i := len(model.ThreadMessages) - 1; i >= 0; i-- {
-		add(model.ThreadMessages[i].Body)
-	}
-	for i := len(model.Messages) - 1; i >= 0; i-- {
-		add(model.Messages[i].Body)
-	}
-	for i := range model.SearchMessages {
-		add(model.SearchMessages[i].Message.Body)
-	}
-	return ids
+	return chatJourneyPreviewIDs(model)
 }
 
 // chatJourneyProjection is what the model shows now for the visible ids.
@@ -88,13 +70,17 @@ func resolveVisibleChatJourneys(cfg journeyclient.Config) {
 	active := chatBrowser.config(cfg)
 	client := chatWorkers
 	if active.Tenant == "" || active.Subject == "" || client == nil {
+		// Signed out: no stream may keep running under the old principal (#3727).
+		stopChatJourneyWatches()
 		return
 	}
 	identity := active.Tenant + "\x00" + active.Subject
 	now := time.Now()
 	var claims []string
+	identityChanged := false
 	chatJourneys.Lock()
 	if chatJourneys.identity != identity || chatJourneys.entries == nil {
+		identityChanged = chatJourneys.identity != identity
 		chatJourneys.identity, chatJourneys.entries = identity, map[string]chatJourneyEntry{}
 	}
 	for _, id := range chatJourneyRefs(chatBrowser.snapshot()) {
@@ -113,6 +99,11 @@ func resolveVisibleChatJourneys(cfg journeyclient.Config) {
 		claims = append(claims, id)
 	}
 	chatJourneys.Unlock()
+	if identityChanged {
+		// A reason typed by one person is never shown to the next (#3724).
+		chatBrowser.mutate(func(model *chatui.Model) { model.JourneyDecisions = nil })
+	}
+	syncChatJourneyWatches(active, identity)
 	if len(claims) == 0 {
 		return
 	}
@@ -141,6 +132,34 @@ func resolveVisibleChatJourneys(cfg journeyclient.Config) {
 	}()
 }
 
+// retryChatJourney reads one card again after a temporary failure (#3729): the
+// cached failure is dropped so the card shows its loading state, then the
+// normal resolver reads it as the current viewer.
+func retryChatJourney(cfg journeyclient.Config, intentID string) {
+	chatJourneys.Lock()
+	entry, known := chatJourneys.entries[intentID]
+	identity := chatJourneys.identity
+	// A read already under way is the retry; a second press must not start
+	// another one, and only a failed card can be retried.
+	if !known || entry.pending || entry.value.State != "unavailable" {
+		chatJourneys.Unlock()
+		return
+	}
+	delete(chatJourneys.entries, intentID)
+	chatJourneys.Unlock()
+	resolveVisibleChatJourneys(cfg)
+	chatJourneys.Lock()
+	if claimed, ok := chatJourneys.entries[intentID]; ok && claimed.pending && chatJourneys.identity == identity {
+		claimed.value.Retrying = true
+		chatJourneys.entries[intentID] = claimed
+	}
+	chatJourneys.Unlock()
+	chatBrowser.mutate(func(model *chatui.Model) {
+		model.JourneyPreviews = chatJourneyProjection(identity, chatJourneyRefs(*model))
+	})
+	refreshChatRoute()
+}
+
 // chatJourneyFailureState names the card state for a failed InspectJourney
 // call (#3729): a missing journey, a refused read and a temporary failure
 // each get their own copy, so a viewer can tell them apart.
@@ -160,6 +179,13 @@ func readChatJourney(ctx context.Context, active journeyclient.Config, client jo
 	if err != nil {
 		return chatui.JourneyPreview{IntentID: id, State: chatJourneyFailureState(err)}
 	}
+	return chatJourneyPreviewFromDetail(ctx, active, id, response.GetDetail())
+}
+
+// chatJourneyPreviewFromDetail maps one authorized journey detail, from a read
+// or from the live watch (#3727), onto a card.
+func chatJourneyPreviewFromDetail(ctx context.Context, active journeyclient.Config, id string, detail *journeyv1.JourneyDetail) chatui.JourneyPreview {
+	response := &journeyv1.InspectJourneyResponse{Detail: detail}
 	restricted := chatui.JourneyPreview{IntentID: id, State: "restricted"}
 	journey := response.GetDetail().GetJourney()
 	if journey == nil || journey.GetIntentId() != id || strings.TrimSpace(journey.GetWorkerName()) == "" {
@@ -188,6 +214,47 @@ func readChatJourney(ctx context.Context, active journeyclient.Config, client jo
 		preview.Approver = chatDirectoryDisplayName(approver, names)
 		// The claim rests on the stable subject, never on the display name (#3994).
 		preview.WaitsOnViewer = chatui.JourneyWaitsOnSubject(stage, approver, strings.TrimSpace(active.Subject))
+	}
+	// Requester, waiting-since and decision detail come from the same
+	// authorized answer (#3730). The service names the initiator only to the
+	// initiator, so the card says "Requested by you" and nothing more.
+	events := make([]chatui.JourneyStatusEvent, 0, len(response.GetDetail().GetTimeline()))
+	for _, e := range response.GetDetail().GetTimeline() {
+		var at time.Time // a missing instant stays zero; AsTime would say 1970
+		if e.GetAt() != nil {
+			at = e.GetAt().AsTime()
+		}
+		events = append(events, chatui.JourneyStatusEvent{At: at, Kind: e.GetKind(), Actor: e.GetActor(), Title: e.GetTitle(), Detail: e.GetDetail()})
+	}
+	initiator := false
+	for _, r := range journey.GetViewer().GetRelationships() {
+		if r == journeyv1.JourneyViewerRelationship_JOURNEY_VIEWER_RELATIONSHIP_INITIATOR {
+			initiator = true
+		}
+	}
+	facts := chatui.JourneyStatusFacts(stage, events, initiator)
+	preview.RequestedByViewer, preview.WaitingSince = facts.RequestedByViewer, facts.WaitingSince
+	preview.DecidedBy, preview.DecisionReason = facts.DecidedBy, facts.DecisionReason
+	// When the service last updated this state (#3980); only the requester's
+	// card reads it, and a missing instant stays empty rather than 1970.
+	if initiator && journey.GetUpdatedAt() != nil && journey.GetUpdatedAt().IsValid() {
+		preview.Confirmed = journey.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339)
+	}
+	// Help me resolve this (#3978): the authoritative findings reduced to
+	// severity and code (never the engine's prose, which can carry pay), with
+	// the revision they were read for and the journey's next step.
+	if initiator {
+		resolve := make([]chatui.JourneyResolveFinding, 0, len(response.GetDetail().GetFindings()))
+		for _, f := range response.GetDetail().GetFindings() {
+			resolve = append(resolve, chatui.JourneyResolveFinding{Severity: f.GetSeverity(), Code: f.GetCode()})
+		}
+		preview.ResolveFindings = chatui.EncodeJourneyResolveFindings(resolve)
+		preview.Revision = strings.TrimSpace(journey.GetProposalRevisionId())
+		preview.NextStep = journey.GetViewer().GetNextStep().String()
+	}
+	// The routed approver binds a decision to the revision read here (#3724).
+	if preview.Revision == "" {
+		preview.Revision = journeyDecisionRevision(initiator, preview.WaitsOnViewer, journey.GetProposalRevisionId())
 	}
 	return preview
 }

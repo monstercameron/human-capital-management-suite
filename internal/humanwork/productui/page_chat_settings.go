@@ -29,5 +29,9 @@ func chatSettingsPage(view View) ui.Node {
 		Voice: chatui.VoiceWorkspaceSettingsPanel(view.Locale.Resolved),
 		// The workspace's agent reaction switch (AGENTUX-052).
 		Reactions: chatui.AgentReactionWorkspaceSettingsPanel(view.Locale.Resolved),
+		// Teams kept out of the same conversation (#3783).
+		Barriers: chatui.ChatBarrierWorkspaceSettingsPanel(view.Locale.Resolved),
+		// Who did what in Chat, readable and downloadable by an administrator (#3780).
+		Audit: chatui.ChatAuditWorkspaceSettingsPanel(view.Locale.Resolved),
 	})
 }

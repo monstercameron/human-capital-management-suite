@@ -13402,6 +13402,8 @@ components:
           type: string
         sourceAttribution:
           $ref: '#/components/schemas/hcmnext.chat.v1.SourceAttribution'
+        note:
+          type: string
     hcmnext.chat.v1.ForwardPostResponse:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ForwardPostResponse`.
@@ -14342,6 +14344,10 @@ components:
           type: integer
           format: uint32
           minimum: 0
+        altText:
+          type: string
+        decorative:
+          type: boolean
     hcmnext.chat.v1.ReferenceCandidate:
       type: object
       description: Protobuf message `hcmnext.chat.v1.ReferenceCandidate`.
@@ -14359,6 +14365,8 @@ components:
         - REFERENCE_KIND_AGENT_MENTION
         - REFERENCE_KIND_CONVERSATION_REFERENCE
         - REFERENCE_KIND_MEDIA
+        - REFERENCE_KIND_PROJECT_TASK
+        - REFERENCE_KIND_JOURNEY
     hcmnext.chat.v1.RemoveMembershipRequest:
       type: object
       description: Protobuf message `hcmnext.chat.v1.RemoveMembershipRequest`.
@@ -14622,6 +14630,8 @@ components:
           type: string
           format: uint64
         originalAuthorId:
+          type: string
+        note:
           type: string
     hcmnext.chat.v1.ThreadFollow:
       type: object
@@ -19707,6 +19717,8 @@ components:
         approve:
           type: boolean
         reason:
+          type: string
+        expectedProposalRevisionId:
           type: string
     hcmnext.journey.v1.DecideJourneyResponse:
       type: object

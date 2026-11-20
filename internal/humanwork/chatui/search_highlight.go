@@ -2,7 +2,6 @@ package chatui
 
 import (
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/monstercameron/GoWebComponents/v5/html"
@@ -105,7 +104,7 @@ func searchWhen(m Model, msg Message) string {
 	day := dayLabel(m, msg.SentAt)
 	clock := msg.TimeLabel
 	if clock == "" {
-		clock = msg.SentAt.Local().Format(time.Kitchen)
+		clock = chat5Clock(m.Locale, msg.SentAt)
 	}
 	return day + " · " + clock
 }

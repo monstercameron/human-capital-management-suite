@@ -47,6 +47,9 @@ type composerCommandRuntime struct {
 	// Unknown shows that name is not a command here and offers suggestion, the
 	// nearest command, when there is one. Without it Notice says the same.
 	Unknown func(name, suggestion string)
+	// AskGeneral asks the built-in General agent the question of an "/ask"
+	// line that names no agent (issue 3756). Nil where it cannot be asked.
+	AskGeneral func(question string)
 }
 
 // composerCommand is one registered command.
@@ -60,6 +63,8 @@ type composerCommand struct {
 	// Text is the key of that description in this feature's own copy table,
 	// for commands whose description lives there.
 	Text string
+	// Local, when set, is the description in the viewer's language.
+	Local func(locale string) string
 	// Summary is the registry's own description, used when no translated one
 	// exists (a command a skill or an integration registered).
 	Summary string
@@ -110,12 +115,15 @@ func defaultComposerCommands() composerCommandRegistry {
 	page := map[string]composerCommand{
 		"poll":     {Text: "cmd-poll", Available: chatcmd003Available, Run: chatcmd003RegistryRun},
 		"todo":     {Text: "cmd-todo", Available: chatcmd003Available, Run: chatcmd003RegistryRun},
+		"decide":   {Local: DecisionsCommandText, Available: decisionsAvailable, Run: decisionsRun},
+		"promote":  {Local: workflowHandoffCommandText, Available: workflowHandoffAvailable, Run: workflowHandoffRun},
 		"giphy":    {Description: keyComposerCommandGiphy, Run: runGiphyCommand},
 		"location": {Description: keyComposerCommandPlace, Available: composerLocationAvailable, Run: runLocationCommand},
 		"ask":      {Text: "cmd-ask", Available: agent027AskAvailable, Check: agent027AskCheck},
+		"leave":    {Local: intentRequestCommandText, Available: intentRequestAvailable("leave"), Run: intentRequestRun("leave")},
 	}
 	var commands []composerCommand
-	for _, shared := range chat.Chatcmd001WithAsk(chat.Chatcmd001Defaults()).Commands() {
+	for _, shared := range intentRequestShared().Commands() {
 		command, ok := page[shared.Name]
 		if !ok {
 			continue
@@ -142,7 +150,7 @@ func composerCommandsFor(target string) composerCommandRegistry {
 	}
 	var kept []composerCommand
 	for _, command := range registry.commands {
-		if command.Name != "location" {
+		if command.Name != "location" && command.Name != "leave" {
 			kept = append(kept, command)
 		}
 	}
@@ -151,6 +159,11 @@ func composerCommandsFor(target string) composerCommandRegistry {
 
 // composerCommandDescription is the one line the menu shows for a command.
 func composerCommandDescription(m Model, command composerCommand) string {
+	if command.Local != nil {
+		if text := command.Local(m.Locale); text != "" {
+			return text
+		}
+	}
 	if command.Text != "" {
 		if text := chatcmd003Text(m, command.Text); text != "" {
 			return text
@@ -646,7 +659,7 @@ func composerSendCommand(rt composerCommandRuntime, body string) (text string, c
 // composerCommandClosest is the nearest command the composer named by target
 // offers here to a mistyped name, or "".
 func composerCommandClosest(m Model, target, typed string) string {
-	closest := chat.Chatcmd001WithAsk(chat.Chatcmd001Defaults()).Closest(composerCommandPlace(m), typed)
+	closest := intentRequestShared().Closest(composerCommandPlace(m), typed)
 	if _, ok := composerCommandsFor(target).lookup(m, closest); !ok {
 		return ""
 	}
@@ -658,7 +671,7 @@ func composerCommandClosest(m Model, target, typed string) string {
 // location sheet, and shows its one quiet line above the composer. target is
 // the conversation's composer or the reply box of the open thread.
 func newComposerCommandRuntime(m Model, local localStore, giphy *giphyPickerViews, drafts *browserDrafts, target string) composerCommandRuntime {
-	return composerCommandRuntime{
+	rt := composerCommandRuntime{
 		Model:  m,
 		Target: target,
 		ClearDraft: func() {
@@ -685,6 +698,17 @@ func newComposerCommandRuntime(m Model, local localStore, giphy *giphyPickerView
 		OpenGiphy:    func(query string) { giphy.openSearch(target, m.GiphyAPIKey, query) },
 		OpenLocation: openComposerLocation,
 	}
+	if issue3756Available(m) {
+		// The question leaves the composer as soon as it is asked; a failure
+		// keeps it on the card with Try again.
+		rt.AskGeneral = func(question string) {
+			if local.get().generalAsk.Phase != issue3756Asking {
+				rt.ClearDraft()
+			}
+			issue3756Start(m, local, question)
+		}
+	}
+	return rt
 }
 
 // composerCommandKey gives the open "/" list its keys from the composer's key

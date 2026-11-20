@@ -162,13 +162,16 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 			if shown {
 				refreshChatRoute()
 				// #3857: a control the update replaced took focus with it.
-				chatsearchRepairLostFocus()
+				if !chatsearchRepairOrderFocus() {
+					chatsearchRepairLostFocus()
+				}
 				if len(outcome.Fresh) > 0 {
 					// #3899: continue at the seam, not at the top.
 					chatsearchFocusNewResults()
 				}
 				if e == nil {
 					chatsearchRefreshRecent(cfg, generation)
+					chatsearchLoadSaved(cfg)
 				}
 			}
 		})
@@ -200,6 +203,17 @@ func chatsearchClick(event js.Value) {
 		chatsearchLoad(view.Query, extra, 0, false)
 	case "recent":
 		chatsearchStart(cfg, extra, 0, false)
+	case "order":
+		// ISSUE-3945: the switch above the results writes the same sort: word the
+		// Refine search field does, so the words and filters are kept.
+		chosen := ""
+		if extra == chatsearch.OrderOldest {
+			chosen = chatsearch.OrderOldest
+		}
+		if query, e := chatsearchControlQuery(chatsearchControlBase(chatBrowser.snapshot(), view.Query), map[string]string{"order": chosen}, nil); e == nil {
+			chatsearchOrderFocusPending = true
+			chatsearchStart(cfg, query, 0, false)
+		}
 	case "widen":
 		if extra == "" {
 			extra = "*"
@@ -239,6 +253,11 @@ func chatsearchClick(event js.Value) {
 		// loads a bounded two-sided message window around the exact sequence.
 		model := chatBrowser.snapshot()
 		kind := chatsearch.Kind(button.Call("getAttribute", "data-kind").String())
+		if chatsearchOpensGate(kind) {
+			// #3816: the gate form opens over the results, which stay in place.
+			chatsearchOpenGate(target.ConversationID)
+			return
+		}
 		filter := kind == chatsearch.FilterDefinition && model.FilterSettings != nil
 		if kind != chatsearch.Person {
 			// The address names the conversation the result is in, not the
@@ -456,6 +475,7 @@ func chatsearchSeekVoice(target chatsearch.Target, sentence int) {
 		ui.PostAsync(func() {
 			defer func() {
 				if recover() != nil {
+					clientTelemetry.CountPanic("chatsearch.chatsearch-seek-voice")
 					done <- false
 				}
 			}()
@@ -494,9 +514,17 @@ func chatsearchSubmit(event js.Value) {
 		return
 	}
 	event.Call("preventDefault")
+	if form.Call("getAttribute", "data-chatsearch-form").String() == "save" {
+		// ISSUE-3929: the form above the results keeps the search under a name.
+		chatsearchBrowser.Lock()
+		cfg := chatsearchBrowser.config
+		chatsearchBrowser.Unlock()
+		chatsearchSubmitSave(form, cfg)
+		return
+	}
 	values := map[string]string{}
 	checks := map[string]bool{}
-	for _, name := range []string{"channel", "person", "kind", "written", "before", "after", "on"} {
+	for _, name := range []string{"channel", "person", "kind", "written", "order", "before", "after", "on"} {
 		values[name] = form.Call("querySelector", "[name='"+name+"']").Get("value").String()
 	}
 	for _, name := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {

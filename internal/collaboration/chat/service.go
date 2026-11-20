@@ -66,6 +66,9 @@ type Service struct {
 	disclosureChecker      DisclosureChecker
 	linkCodec              LinkCodec
 	mediaDirectory         MediaDirectory
+	projectWork            ProjectWorkDirectory
+	journeys               JourneyDirectory
+	journeyLinks           JourneyShareLinker
 	contentPolicy          ContentPolicy
 	readerBodies           ReaderBodyProjector
 	ephemeral              EphemeralStore
@@ -75,6 +78,8 @@ type Service struct {
 	agentSourceAccess      AgentSourceAccess
 	agentReactionAuthority AgentReactionAuthority
 	announceMembership     bool
+	membershipBarrier      MembershipBarrierPort
+	caseBindings           CaseBindingPort
 }
 
 // SetAuthority installs the current-authority resolver used by subsequent
@@ -197,6 +202,10 @@ func (s *Service) CreateConversation(ctx context.Context, r CreateConversationRe
 	}
 	if !seen[strings.TrimSpace(r.TenantID)+"\x00"+strings.TrimSpace(r.Principal.SubjectID)] {
 		members = append(members, Membership{ConversationID: id, TenantID: r.TenantID, HomeTenantID: r.TenantID, SubjectID: r.Principal.SubjectID, Role: Manager, JoinedAt: timePtr(s.now()), HistoryVisibility: FullHistory, Revision: 1})
+	}
+	// Issue 3783: a conversation cannot start with two separated groups in it.
+	if err := s.checkMembershipBarrier(ctx, r.TenantID, "", homeSubjects(r.TenantID, members...)); err != nil {
+		return Conversation{}, err
 	}
 	return s.store.CreateConversation(ctx, c, members, r.IdempotencyKey)
 }
@@ -321,7 +330,12 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	// its owner. Adding somebody else, or entering a private room, still needs
 	// the owner.
 	selfJoin := isSelfJoin(r.Principal, m, c)
-	if !selfJoin && (c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID) {
+	// Issue 3812: in a conversation bound to a case, the case owner changes the roster.
+	caseBound, caseOwner, err := s.caseRoster(ctx, r.Principal, c)
+	if err != nil {
+		return Membership{}, err
+	}
+	if !selfJoin && !caseOwner && (c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID) {
 		return Membership{}, ErrPermissionDenied
 	}
 	// AGENTUX-038: nobody joins a direct conversation after it was created.
@@ -338,6 +352,9 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	if err := s.authorize(ctx, r.Principal, c, action); err != nil {
 		return Membership{}, err
 	}
+	if err := caseRosterRefusal(caseBound, caseOwner); err != nil {
+		return Membership{}, err
+	}
 	if selfJoin {
 		// A self-join enters as an ordinary member. Letting the request name the
 		// role would let a caller make itself a manager of any public channel.
@@ -349,6 +366,10 @@ func (s *Service) AddMembership(ctx context.Context, r AddMembershipRequest) (Me
 	m.JoinedAt = timePtr(s.now())
 	m.LeftAt = nil
 	if err := s.checkChannelGate(ctx, r.Principal, m); err != nil {
+		return Membership{}, err
+	}
+	// Issue 3783: an information barrier is checked before the row is written.
+	if err := s.checkMembershipBarrier(ctx, m.TenantID, m.ConversationID, homeSubjects(m.TenantID, m)); err != nil {
 		return Membership{}, err
 	}
 	announce := s.announceMembership && !selfJoin && c.Kind != Direct
@@ -396,11 +417,25 @@ func (s *Service) RemoveMembership(ctx context.Context, r RemoveMembershipReques
 	if c.OwnerID == r.SubjectID && (r.Principal.SubjectID != c.OwnerID || r.Principal.TenantID != c.TenantID) {
 		return Membership{}, ErrPermissionDenied
 	}
-	if (c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID) && r.SubjectID != r.Principal.SubjectID {
+	// Issue 3812: in a conversation bound to a case, the case owner changes the
+	// roster; anyone else may only leave, and the case owner may not.
+	caseBound, caseOwner, err := s.caseRoster(ctx, r.Principal, c)
+	if err != nil {
+		return Membership{}, err
+	}
+	leaving := r.SubjectID == r.Principal.SubjectID
+	if (c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID) && !leaving && !caseOwner {
 		return Membership{}, ErrPermissionDenied
 	}
 	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
 		return Membership{}, err
+	}
+	if caseBound {
+		if targetOwner, err := s.caseOwnerIs(ctx, c, r.SubjectID); err != nil {
+			return Membership{}, err
+		} else if targetOwner || (!leaving && !caseOwner) {
+			return Membership{}, &CaseRestrictionError{Action: CaseActionMembership}
+		}
 	}
 	return s.store.RemoveMembership(ctx, r.Principal, r.TenantID, r.ConversationID, homeTenant, r.SubjectID, r.ExpectedRevision)
 }
@@ -435,6 +470,18 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	if carriesMembershipMarker(r.Body) {
 		return Post{}, ErrInvalidArgument
 	}
+	// Only PostJourneyStage writes a workflow decision line (#3728).
+	if carriesJourneyStageMarker(r.Body) {
+		return Post{}, ErrInvalidArgument
+	}
+	// Only PostClockCard writes a time-clock card (#3808).
+	if carriesClockCardMarker(r.Body) && !hasClockCardAuthority(ctx) {
+		return Post{}, ErrInvalidArgument
+	}
+	// Only PostFormCard writes a form card (#3795).
+	if carriesFormCardMarker(r.Body) && !hasFormCardAuthority(ctx) {
+		return Post{}, ErrInvalidArgument
+	}
 	c, err := s.store.GetConversation(ctx, r.TenantID, r.ConversationID)
 	if err != nil {
 		return Post{}, err
@@ -460,7 +507,22 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	if r.SourceAttribution != nil && !trustedSource {
 		return Post{}, ErrPermissionDenied
 	}
-	for _, ref := range r.References {
+	r.References = append([]Reference(nil), r.References...)
+	for i, ref := range r.References {
+		if ref.Kind == ProjectWorkReference {
+			// Issue 3752: the stored title snapshot is the project authority's.
+			if err := s.validateProjectWorkReference(ctx, r.Principal, r.TenantID, &r.References[i]); err != nil {
+				return Post{}, err
+			}
+			continue
+		}
+		if ref.Kind == JourneyReference {
+			// Issue 3725: the stored name snapshot is the journey authority's.
+			if err := s.validateJourneyReference(ctx, r.Principal, r.TenantID, &r.References[i]); err != nil {
+				return Post{}, err
+			}
+			continue
+		}
 		if err := s.validateReference(ctx, r.Principal, r.TenantID, r.ConversationID, ref); err != nil {
 			return Post{}, err
 		}
@@ -482,6 +544,8 @@ func (s *Service) sendPost(ctx context.Context, r SendPostRequest, trustedSource
 	if err != nil {
 		return sent, err
 	}
+	// Issue 3725: the journeys this post shares remember the conversation.
+	s.linkSentJourneys(ctx, sent)
 	// The author is told what readers see (CHATMOD-002); the stored body is the original.
 	return s.maskOwnPost(ctx, r.Principal, sent), nil
 }
@@ -528,7 +592,7 @@ func (s *Service) ListPosts(ctx context.Context, r ListPostsRequest) (ListPostsR
 // original post's effects.
 func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error) {
 	return s.mutatePost(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.ExpectedRevision, func() error {
-		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) || carriesMembershipMarker(r.Body) {
+		if strings.TrimSpace(r.Body) == "" || carriesCardMarker(r.Body) || carriesMembershipMarker(r.Body) || carriesClockCardMarker(r.Body) || carriesFormCardMarker(r.Body) || carriesJourneyStageMarker(r.Body) {
 			return ErrInvalidArgument
 		}
 		return nil
@@ -561,12 +625,25 @@ func (s *Service) EditPost(ctx context.Context, r EditPostRequest) (Post, error)
 // never re-notify someone who no longer belongs to the conversation.
 func (s *Service) editReferences(ctx context.Context, r EditPostRequest, current Post) ([]Reference, error) {
 	if r.References != nil {
-		for _, ref := range r.References {
-			if err := s.validateReference(ctx, r.Principal, r.TenantID, r.ConversationID, ref); err != nil {
+		refs := append([]Reference{}, r.References...)
+		for i := range refs {
+			if err := s.validateReference(ctx, r.Principal, r.TenantID, r.ConversationID, refs[i]); err != nil {
 				return nil, err
 			}
+			if refs[i].Kind == ProjectWorkReference {
+				// Issue 3752: the stored title is the project authority's, never the caller's.
+				if err := s.validateProjectWorkReference(ctx, r.Principal, r.TenantID, &refs[i]); err != nil {
+					return nil, err
+				}
+			}
+			if refs[i].Kind == JourneyReference {
+				// Issue 3725: the stored name is the journey authority's, never the caller's.
+				if err := s.validateJourneyReference(ctx, r.Principal, r.TenantID, &refs[i]); err != nil {
+					return nil, err
+				}
+			}
 		}
-		return append([]Reference{}, r.References...), nil
+		return refs, nil
 	}
 	kept := make([]Reference, 0, len(current.References))
 	for _, ref := range current.References {
@@ -683,7 +760,7 @@ func (s *Service) Search(ctx context.Context, r SearchRequest) (SearchResponse, 
 		messageScanned += len(page.Results)
 		for _, hit := range page.Results {
 			// A system line ("a person was added") is not something to find.
-			if _, system := ParseMembershipAdded(hit.Post.Body); system {
+			if IsSystemBody(hit.Post.Body) {
 				continue
 			}
 			ok, checkErr := check(hit.Post.ConversationID, chatpolicy.ActionRead)

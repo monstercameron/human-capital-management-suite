@@ -86,6 +86,14 @@ func chatlangClick(m Model, local localStore, action, id, extra string) bool {
 	case "chatlang-bar-dismiss":
 		chatlangRememberBarDismissed()
 		local.update(func(u *localUI) { u.chatlang.barDismissed = true })
+	case "chatlang-translate":
+		// Issue 3814: translate this one message for this reader.
+		if m.Callbacks.OpenMenu != nil {
+			m.Callbacks.OpenMenu("")
+		}
+		chatlangTranslateAsk(id)
+		chatlangTranslateRequested(id)
+		focusMessageAfterEdit(id)
 	case "chatlang-fix":
 		if m.Callbacks.OpenMenu != nil {
 			m.Callbacks.OpenMenu("")

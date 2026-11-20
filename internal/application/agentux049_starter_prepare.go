@@ -14,7 +14,6 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agenttemplate"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentpersonastore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
-	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 )
 
 // localAgentDemoStarterPlan is what a starter's first version (and its later
@@ -106,7 +105,7 @@ func ensureStarterVersion(ctx context.Context, scoped *agentpersonastore.TenantS
 		if err := scoped.PutVersion(ctx, next); err != nil {
 			return agentpersonastore.PersonaVersion{}, "", err
 		}
-		if err := scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: next.TenantID, EventID: plan.UpgradeEvent + "-" + uuid.NewString(), PersonaID: next.PersonaID, PersonaVersion: next.Version, To: agentpersonastore.StateDraft, Reason: plan.UpgradeReason, ActorID: localAgentDemoAdmin, OccurredAt: now}); err != nil {
+		if err := scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: next.TenantID, EventID: plan.UpgradeEvent + "-" + uuid.NewString(), PersonaID: next.PersonaID, PersonaVersion: next.Version, To: agentpersonastore.StateDraft, Reason: plan.UpgradeReason, ActorID: localAgentDemoAdminFor(next.TenantID.String()), OccurredAt: now}); err != nil {
 			return agentpersonastore.PersonaVersion{}, "", err
 		}
 		return next, agentpersonastore.StateDraft, nil
@@ -123,10 +122,10 @@ func ensureStarterVersion(ctx context.Context, scoped *agentpersonastore.TenantS
 		return agentpersonastore.PersonaVersion{}, "", err
 	}
 	raw, _ := json.Marshal(sealed.Profile)
-	row := agentpersonastore.PersonaVersion{TenantID: values.TenantId(localAgentDemoTenant), PersonaID: profile.PersonaID, Version: int64(profile.Version), AgentVersion: fmt.Sprintf("%s@%d", profile.Manifest.ID, profile.Manifest.Version), Handle: profile.Handle, DisplayName: profile.DisplayName, Profile: raw, ContentDigest: sealed.Digest, CreatedAt: now}
+	row := agentpersonastore.PersonaVersion{TenantID: scoped.Tenant(), PersonaID: profile.PersonaID, Version: int64(profile.Version), AgentVersion: fmt.Sprintf("%s@%d", profile.Manifest.ID, profile.Manifest.Version), Handle: profile.Handle, DisplayName: profile.DisplayName, Profile: raw, ContentDigest: sealed.Digest, CreatedAt: now}
 	owner := agentpersonastore.PersonaOwner{TenantID: row.TenantID, PersonaID: row.PersonaID, Role: agentpersonastore.BusinessOwner, PrincipalID: profile.Owner}
 	steward := agentpersonastore.PersonaOwner{TenantID: row.TenantID, PersonaID: row.PersonaID, Role: agentpersonastore.TechnicalSteward, PrincipalID: profile.Steward}
-	if err := scoped.CreateDraft(ctx, row, owner, steward, localAgentDemoAdmin, now); err != nil {
+	if err := scoped.CreateDraft(ctx, row, owner, steward, localAgentDemoAdminFor(row.TenantID.String()), now); err != nil {
 		return agentpersonastore.PersonaVersion{}, "", err
 	}
 	return row, agentpersonastore.StateDraft, nil
@@ -158,5 +157,5 @@ func renewPublishedPersonaVersion(ctx context.Context, scoped *agentpersonastore
 	if err := scoped.PutVersion(ctx, next); err != nil {
 		return err
 	}
-	return scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: next.TenantID, EventID: "renewed-" + uuid.NewString(), PersonaID: next.PersonaID, PersonaVersion: next.Version, To: agentpersonastore.StateDraft, Reason: "Renewed with current review and evaluation", ActorID: localAgentDemoAdmin, OccurredAt: now})
+	return scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: next.TenantID, EventID: "renewed-" + uuid.NewString(), PersonaID: next.PersonaID, PersonaVersion: next.Version, To: agentpersonastore.StateDraft, Reason: "Renewed with current review and evaluation", ActorID: localAgentDemoAdminFor(next.TenantID.String()), OccurredAt: now})
 }

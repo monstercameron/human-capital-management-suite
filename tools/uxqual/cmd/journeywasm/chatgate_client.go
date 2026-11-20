@@ -144,7 +144,17 @@ func chatgateRuleEdit(values map[string]string, checks map[string]bool) chatui.G
 // cannot be read at all.
 func chatgateDraftDefinition(d chatgate.Definition, values map[string]string, checks map[string]bool) (chatgate.Definition, bool) {
 	edited, err := chatgateEditedDefinition(d, values, checks)
+	// The rules editor is drawn only for By rule (issue 3823). A draft in another
+	// mode keeps the rule that was typed, or the saved one when the editor is not
+	// on the page, so choosing By rule again shows it; publishing sends none.
+	_, editorDrawn := values["gate-rule-field"]
 	if err == nil {
+		if edited.Mode != "rule" {
+			edited.Rules = d.Rules
+			if editorDrawn && values["gate-rule-field"] != "" {
+				edited.Rules = chatui.GateRuleDraft(edited, chatgateRuleEdit(values, checks)).Rules
+			}
+		}
 		return edited, true
 	}
 	if values["gate-mode"] != "rule" {
@@ -161,6 +171,10 @@ func chatgateDraftDefinition(d chatgate.Definition, values map[string]string, ch
 		return d, false
 	}
 	edited.Mode = "rule"
+	if !editorDrawn { // The editor was hidden: the saved rule is the rule.
+		edited.Rules = d.Rules
+		return edited, true
+	}
 	return chatui.GateRuleDraft(edited, chatgateRuleEdit(values, checks)), true
 }
 
@@ -176,6 +190,9 @@ func chatgateJoins(raw json.RawMessage) (map[string]chatui.GateJoin, bool) {
 		Mode           string    `json:"mode"`
 		AnswerAgain    bool      `json:"answer_again"`
 		AnswerBy       time.Time `json:"answer_by"`
+		Request        string    `json:"request"`
+		RequestReason  string    `json:"request_reason"`
+		Reviewers      []string  `json:"reviewers"`
 	}
 	if len(raw) == 0 || json.Unmarshal(raw, &rows) != nil {
 		return nil, false
@@ -185,7 +202,7 @@ func chatgateJoins(raw json.RawMessage) (map[string]chatui.GateJoin, bool) {
 		if row.Conversation == "" || row.Questions <= 0 {
 			continue
 		}
-		out[row.Conversation] = chatui.GateJoin{Questions: row.Questions, Purpose: row.Purpose, ChannelPurpose: row.ChannelPurpose, Mode: row.Mode, AnswerAgain: row.AnswerAgain, AnswerBy: row.AnswerBy}
+		out[row.Conversation] = chatui.GateJoin{Questions: row.Questions, Purpose: row.Purpose, ChannelPurpose: row.ChannelPurpose, Mode: row.Mode, AnswerAgain: row.AnswerAgain, AnswerBy: row.AnswerBy, Request: row.Request, RequestReason: row.RequestReason, Reviewers: row.Reviewers}
 	}
 	return out, true
 }
@@ -302,4 +319,17 @@ func chatgateConsumerRequest(req *chatgateClientRequest, action, id string, valu
 		// The list the administrator read on the page is the list they confirm.
 		req.People = append([]string(nil), v.Unanswered...)
 	}
+}
+
+// chatgateChannelName is the channel's name, without the #, from the channels
+// the page holds, for the joining-questions heading and breadcrumb.
+func chatgateChannelName(m chatui.Model, id string) string {
+	for _, list := range [][]chatui.Conversation{m.Conversations, m.Browse} {
+		for _, c := range list {
+			if c.ID == id {
+				return strings.TrimPrefix(c.Name, "#")
+			}
+		}
+	}
+	return ""
 }

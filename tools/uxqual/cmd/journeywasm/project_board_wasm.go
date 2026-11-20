@@ -145,7 +145,7 @@ func handleProjectPopoverClick(event js.Value) bool {
 		absolute := location.Get("origin").String() + href
 		if clipboard := js.Global().Get("navigator").Get("clipboard"); clipboard.Truthy() {
 			func() {
-				defer func() { _ = recover() }()
+				defer recoverAt("project-board.handle-project-popover")
 				clipboard.Call("writeText", absolute)
 			}()
 		}

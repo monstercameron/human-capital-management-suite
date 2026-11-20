@@ -10,9 +10,15 @@ type Filters struct {
 	Kind                                                           Kind
 	Before, After, On                                              string
 	File, Link, Reactions, Threads, MentionsMe, Agent, Mine, Voice bool
+	// Order is the sort:newest / sort:oldest choice (ISSUE-3945). It decides the
+	// order of the answer, never which rows match, so it does not count as a filter.
+	Order string
 }
 
-func (f Filters) Empty() bool { return f == (Filters{}) }
+func (f Filters) Empty() bool {
+	f.Order = ""
+	return f == (Filters{})
+}
 
 type Parsed struct {
 	Text    string
@@ -80,6 +86,13 @@ func Parse(query string) (Parsed, error) {
 		case "lang", "language":
 			// "Written in": the language a message was written in (CHATLANG-005).
 			f.Language = strings.ToLower(value)
+		case "sort":
+			// ISSUE-3945: the order rides in the query, so it is kept with the words,
+			// the filters, the recent searches and every page of the answer.
+			f.Order = strings.ToLower(value)
+			if f.Order != OrderNewest && f.Order != OrderOldest {
+				return p, ErrInvalid
+			}
 		case "before":
 			f.Before = value
 		case "after":
@@ -135,7 +148,7 @@ func Parse(query string) (Parsed, error) {
 	return p, nil
 }
 func Combine(a, b Filters) (Filters, error) {
-	pairs := [][2]*string{{&a.Conversation, &b.Conversation}, {&a.Person, &b.Person}, {&a.Language, &b.Language}, {&a.Before, &b.Before}, {&a.After, &b.After}, {&a.On, &b.On}}
+	pairs := [][2]*string{{&a.Conversation, &b.Conversation}, {&a.Person, &b.Person}, {&a.Language, &b.Language}, {&a.Before, &b.Before}, {&a.After, &b.After}, {&a.On, &b.On}, {&a.Order, &b.Order}}
 	for _, p := range pairs {
 		if *p[0] != "" && *p[1] != "" && *p[0] != *p[1] {
 			return Filters{}, ErrInvalid

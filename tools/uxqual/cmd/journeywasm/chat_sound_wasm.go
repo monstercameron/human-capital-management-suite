@@ -17,7 +17,7 @@ const chatSoundStateProperty = "__hcmChatSoundState"
 // attached to the document for this page's lifetime; browsers discard it when
 // the page is unloaded, and no process-wide Go audio state is retained.
 func installChatSoundUnlock() {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.install-chat-sound-unlock")
 	state, document, ok := chatSoundDocumentState()
 	if !ok || state.Get("installed").Bool() {
 		return
@@ -82,7 +82,7 @@ func noteChatSoundSequence(conversationID string, sequence uint64) {
 }
 
 func chatSoundStoreSequence(conversationID string, sequence uint64, ready bool) {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.chat-sound-store-sequence")
 	state, _, ok := chatSoundDocumentState()
 	if !ok || conversationID == "" {
 		return
@@ -103,7 +103,7 @@ func chatSoundStoreSequence(conversationID string, sequence uint64, ready bool) 
 }
 
 func chatSoundHasBaseline(conversationID string) bool {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.chat-sound-has-baseline")
 	state, _, ok := chatSoundDocumentState()
 	if !ok || conversationID == "" {
 		return false
@@ -117,7 +117,7 @@ func chatSoundHasBaseline(conversationID string) bool {
 }
 
 func chatSoundCurrentSequence(conversationID string) uint64 {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.chat-sound-current-sequen")
 	state, _, ok := chatSoundDocumentState()
 	if !ok || conversationID == "" {
 		return 0
@@ -148,7 +148,7 @@ func claimChatSoundSequence(conversationID string, sequence uint64) bool {
 }
 
 func unlockChatSoundFromGesture(state, document js.Value) {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.unlock-chat-sound-from-ge")
 	context := state.Get("context")
 	if context.IsUndefined() || context.IsNull() {
 		constructor := js.Global().Get("AudioContext")
@@ -190,7 +190,7 @@ func removeChatSoundListeners(state, document js.Value, events ...string) {
 }
 
 func closeChatSoundContext(state js.Value) {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.close-chat-sound-context")
 	context := state.Get("context")
 	if !context.IsUndefined() && !context.IsNull() && context.Get("state").String() != "closed" {
 		context.Call("close")
@@ -200,7 +200,7 @@ func closeChatSoundContext(state js.Value) {
 }
 
 func playChatSoundIfAllowed(model chatui.Model, conversationID string, post *chatv1.Post, now time.Time) {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.play-chat-sound-if-allowe")
 	if !shouldPlayChatSound(model, conversationID, post, now, chatSystemReducedInterruption(), chatAppReducedInterruption()) {
 		return
 	}
@@ -231,7 +231,7 @@ func playChatSoundIfAllowed(model chatui.Model, conversationID string, post *cha
 }
 
 func chatSystemReducedInterruption() bool {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.chat-system-reduced-inter")
 	matchMedia := js.Global().Get("matchMedia")
 	if matchMedia.IsUndefined() || matchMedia.IsNull() {
 		return false
@@ -240,7 +240,7 @@ func chatSystemReducedInterruption() bool {
 }
 
 func chatAppReducedInterruption() bool {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound.chat-app-reduced-interrup")
 	document := js.Global().Get("document")
 	root := document.Get("documentElement")
 	preference := domAttribute(root, "data-hcm-motion-preference")

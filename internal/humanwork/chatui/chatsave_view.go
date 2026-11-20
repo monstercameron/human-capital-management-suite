@@ -23,6 +23,8 @@ type SavedMessageRow struct {
 	Attachments   int
 	Revision      uint64
 	References    []ChatReference
+	// Labels are the owner's private labels for this saved message (issue 3932).
+	Labels []string
 }
 
 type SavedMessagesView struct {
@@ -55,9 +57,19 @@ type SavedMessagesView struct {
 	PickingDate                       bool
 	// Undo is "done" or "remove" while the Undo line is on screen.
 	Undo string
+	// Labels is the private-label filter, editor and manager (issue 3932).
+	Labels SavedLabelsView
+	// Select is the select-messages mode and Brief the meeting brief page that
+	// replaces the list while it is open (issue 3958).
+	Select SavedSelectView
+	Brief  *SavedBriefView
 }
 
 func chatsaveAction(m Model, msg Message, menu bool) ui.Node {
+	// Issue 3812: a restricted case conversation cannot be saved from.
+	if issue3812Restricted(m) {
+		return nil
+	}
 	copy := SavedMessagesCopy(m.Locale)
 	class, role := "message-action chatsave-action", "button"
 	if menu {

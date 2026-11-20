@@ -67,7 +67,12 @@ type LocalAgentDemoConfig struct {
 	// "Customer support" project is created in. Empty leaves Support Desk
 	// without a project and says so in the receipt (AGENTUX-079).
 	ProjectDatabaseURL string
-	Now                func() time.Time
+	// ChatTaskSuiteDigest is the optional, owner-stated digest of the evaluation
+	// suite that passed (sha256: and 64 hex digits). With it the preparation also
+	// derives the translation, writing-style and ambient-screen approval documents
+	// beside the base deployment (#3831); without it they are not derived.
+	ChatTaskSuiteDigest string
+	Now                 func() time.Time
 }
 
 // LocalAgentDemoSummary is the intentionally non-sensitive command receipt.
@@ -111,18 +116,25 @@ type LocalAgentDemoSummary struct {
 	// BirthdaySchedule is what the preparation did about Birthday Buddy's
 	// daily schedule: created, resumed, or already converged.
 	BirthdaySchedule AgentUX079BirthdayScheduleReceipt
+	// ChatTaskModels is each model-backed Chat approval document the run
+	// considered (#3831); ChatTaskModelsNote says why there are none.
+	ChatTaskModels     []LocalChatTaskModelDocument
+	ChatTaskModelsNote string
 }
 
 func (s LocalAgentDemoSummary) Changed() bool {
-	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.Placements.Changed() || s.SupportProject.Created || s.SupportProject.GrantRecorded || s.BirthdaySchedule.Created || s.BirthdaySchedule.Resumed || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0
+	return s.IconsSet > 0 || s.EvaluationRecorded || s.Published || s.InstallationsCreated > 0 || s.InstallationsRefreshed > 0 || s.ModelRouteCreated || s.RunPolicyCreated || s.ProviderDeploymentCreated || s.ChatConversationRepaired || s.PolicyDocumentPlacements > 0 || s.HolidayDocumentPlacements > 0 || s.DuplicateInstallationsRetired > 0 || s.SkillGrantsCreated > 0 || s.WorkspaceDocumentsShared > 0 || s.Placements.Changed() || s.SupportProject.Created || s.SupportProject.GrantRecorded || s.BirthdaySchedule.Created || s.BirthdaySchedule.Resumed || s.WorkspaceIndex.DocumentsIndexed > 0 || s.WorkspaceIndex.SectionsIndexed > 0 || s.chatTaskModelsWritten()
 }
 
 // ValidateLocalAgentDemoConfig rejects the command before any connection is
 // opened unless it is the fixed local-development preparation and every
 // database endpoint is loopback.
 func ValidateLocalAgentDemoConfig(config LocalAgentDemoConfig) error {
-	if config.Profile != ServeProfileLocalDev || config.Tenant != localAgentDemoTenant {
-		return fmt.Errorf("agent demo preparation requires -profile local-dev and -tenant %s", localAgentDemoTenant)
+	if config.Profile != ServeProfileLocalDev || !isLocalAgentDemoTenant(config.Tenant) {
+		return fmt.Errorf("agent demo preparation requires -profile local-dev and -tenant %s", localAgentDemoTenantChoices())
+	}
+	if err := validateLocalAgentDemoChatTaskDigest(config.ChatTaskSuiteDigest); err != nil {
+		return err
 	}
 	urls := map[string]string{
 		"database-url": config.DatabaseURL, "agent-database-url": config.AgentDatabaseURL,
@@ -214,7 +226,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		}
 	}
 
-	key, err := loadOrCreateLocalAgentDemoEvaluationKey(filepath.FromSlash(localAgentDemoEvaluationPath))
+	key, err := loadOrCreateLocalAgentDemoEvaluationKey(localAgentDevFile(localAgentDemoEvaluationPath))
 	if err != nil {
 		return summary, err
 	}
@@ -249,7 +261,7 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	if err != nil || sealed.Digest != row.ContentDigest || profile.Handle != localAgentDemoAgentID {
 		return summary, ErrPersonaDraftInvalid
 	}
-	material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+	material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 	if err != nil {
 		return summary, err
 	}
@@ -257,16 +269,16 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		return summary, err
 	}
 
-	organization, err := NewAgentHomeOrganizationDirectoryDB(core, mapper).CurrentHomeOrganization(ctx, values.TenantId(config.Tenant), localAgentDemoAdmin)
+	organization, err := NewAgentHomeOrganizationDirectoryDB(core, mapper).CurrentHomeOrganization(ctx, values.TenantId(config.Tenant), localAgentDemoAdminFor(config.Tenant))
 	if err != nil {
 		return summary, fmt.Errorf("resolve administrator home organization: %w", err)
 	}
-	principal, err := localAgentDemoPrincipal(now, config.Tenant, localAgentDemoAdmin, organization)
+	principal, err := localAgentDemoPrincipal(now, config.Tenant, localAgentDemoAdminFor(config.Tenant), organization)
 	if err != nil {
 		return summary, err
 	}
 	adminCtx := trust.WithPrincipal(ctx, principal)
-	legalEntity, err := (PersonaRunLegalEntityResolver{DB: core, TenantUUID: mapper, Now: func() time.Time { return now }}).Resolve(adminCtx, agentinvoke.RunRequest{TenantID: config.Tenant, Mode: agentinvoke.OnBehalfOf, InvokerID: localAgentDemoAdmin})
+	legalEntity, err := (PersonaRunLegalEntityResolver{DB: core, TenantUUID: mapper, Now: func() time.Time { return now }}).Resolve(adminCtx, agentinvoke.RunRequest{TenantID: config.Tenant, Mode: agentinvoke.OnBehalfOf, InvokerID: localAgentDemoAdminFor(config.Tenant)})
 	if err != nil {
 		return summary, fmt.Errorf("resolve administrator legal entity: %w", err)
 	}
@@ -350,22 +362,22 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 		}
 	}
 	summary.Starters = localAgentDemoStarterReceipts(localAgentDemoStarterNames(), versions)
-	summary.IconsSet, err = scoped.BackfillIcons(ctx, localAgentDemoAdmin, now)
+	summary.IconsSet, err = scoped.BackfillIcons(ctx, localAgentDemoAdminFor(config.Tenant), now)
 	if err != nil {
 		return summary, err
 	}
-	summary.PolicyDocumentPlacements, err = ensureLocalAgentDemoPolicyDocument(ctx, documents, chat, config.Tenant, localAgentDemoAdmin, publicConversation, []string{publicConversation, directConversation}, now)
+	summary.PolicyDocumentPlacements, err = ensureLocalAgentDemoPolicyDocument(ctx, documents, chat, config.Tenant, localAgentDemoAdminFor(config.Tenant), publicConversation, []string{publicConversation, directConversation}, now)
 	if err != nil {
 		return summary, err
 	}
-	summary.HolidayDocumentPlacements, err = ensureLocalAgentDemoHolidayDocument(ctx, documents, chat, config.Tenant, localAgentDemoAdmin, publicConversation, now)
+	summary.HolidayDocumentPlacements, err = ensureLocalAgentDemoHolidayDocument(ctx, documents, chat, config.Tenant, localAgentDemoAdminFor(config.Tenant), publicConversation, now)
 	if err != nil {
 		return summary, err
 	}
 	// Assistant searches the documents every member may read. The seed shares
 	// documents with subsets of people only, so the demo documents are shared
 	// with everyone through ordinary read grants.
-	summary.WorkspaceDocumentsShared, err = ensureLocalAgentDemoWorkspaceReaders(ctx, documents, WorkspaceDocumentDirectory{DB: core, TenantUUID: mapper}, config.Tenant, localAgentDemoAdmin, publicConversation)
+	summary.WorkspaceDocumentsShared, err = ensureLocalAgentDemoWorkspaceReaders(ctx, documents, WorkspaceDocumentDirectory{DB: core, TenantUUID: mapper}, config.Tenant, localAgentDemoAdminFor(config.Tenant), publicConversation)
 	if err != nil {
 		return summary, err
 	}
@@ -382,6 +394,11 @@ func PrepareLocalAgentDemo(ctx context.Context, config LocalAgentDemoConfig) (Lo
 	summary.SupportProject, err = prepareAgentUX079SupportProject(adminCtx, config, agents, mapper, now)
 	if err != nil {
 		return summary, fmt.Errorf("prepare the Customer support project: %w", err)
+	}
+	// #3831: the three task deployments are derived from the base deployment the
+	// starters just wrote, in this same run.
+	if err := summary.prepareChatTaskModels(config); err != nil {
+		return summary, err
 	}
 	if modelErr != nil {
 		summary.WorkspaceIndex.Unavailable = modelErr.Error()
@@ -505,7 +522,7 @@ func ensureLocalAgentDemoRoleVisibility(ctx context.Context, store *roleaccessst
 	for _, organization := range organizations {
 		for _, role := range audience.Roles {
 			policy := roleaccess.VisibilityPolicy{RoleID: role, Mode: roleaccess.VisibilityAll, Reason: "local agent demo: audience role may see the audience organization"}
-			if _, err := store.SaveVisibility(ctx, tenant, organization, localAgentDemoAdmin, policy); err != nil && !errors.Is(err, roleaccess.ErrVersionConflict) && !errors.Is(err, roleaccess.ErrInvalid) {
+			if _, err := store.SaveVisibility(ctx, tenant, organization, localAgentDemoAdminFor(tenant.String()), policy); err != nil && !errors.Is(err, roleaccess.ErrVersionConflict) && !errors.Is(err, roleaccess.ErrInvalid) {
 				return fmt.Errorf("seed local role visibility for %s: %w", role, err)
 			}
 		}
@@ -598,7 +615,7 @@ func ensureLocalAgentDemoDirectConversation(ctx context.Context, store *chatstor
 }
 
 func localAgentDemoInstalled(ctx context.Context, scoped *agentpersonastore.TenantStore, conversation, persona string, version int64) (bool, error) {
-	installed, _, err := localAgentDemoInstallationState(ctx, scoped, nil, localAgentDemoTenant, conversation, persona, version)
+	installed, _, err := localAgentDemoInstallationState(ctx, scoped, nil, scoped.Tenant().String(), conversation, persona, version)
 	return installed, err
 }
 

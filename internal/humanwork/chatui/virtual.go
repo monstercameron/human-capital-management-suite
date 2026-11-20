@@ -365,6 +365,7 @@ func virtualTimelineBody(m Model, h handlers, messages []Message, layout virtual
 	for _, privateMessage := range VisibleEphemeralMessages(m.EphemeralMessages, time.Now()) {
 		items = append(items, html.WithKey(RenderEphemeralMessage(m, privateMessage, time.Now()), "ephemeral:"+privateMessage.ID))
 	}
+	items = append(items, issue3737Rows(m)...)
 	protected := []string{m.EditingID, m.MenuID, m.PickerID, focusedVirtualMessageID()}
 	seen := map[string]bool{}
 	for _, id := range protected {

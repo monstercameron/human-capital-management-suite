@@ -77,6 +77,7 @@ func chatsave002Body(m Model, msg Message) (ui.Node, Message) {
 		}
 	}
 	m.renderReferences = msg.PersonaReferences
+	m.renderWorkReferences = msg.WorkReferences
 	body := ui.Node(html.Div(chatlangBodyProps(m, msg, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, text)...))
 	body = agentAnnouncementProjectedBody(m, readerAnnouncementMessage(m, msg), body)
 	return body, msg
@@ -148,9 +149,19 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 			status = copy.Deleted
 		}
 		props.Class += " is-unavailable"
+		unavailable := []ui.Node{html.P(html.Props{Class: "chatsave-unavailable", Text: status})}
+		// Issue 3932: the person's own labels stay visible and removable.
+		if line := chatsave3932Item(view, row, key, false); line != nil {
+			unavailable = append(unavailable, line)
+		}
+		// Issue 3958: a message that cannot be opened can still be selected, so
+		// the brief can say it was left out.
+		if pick := chatsave3958Pick(view, row, key, ""); pick != nil {
+			unavailable = append([]ui.Node{pick}, unavailable...)
+		}
 		return html.Li(props,
 			html.Span(html.Props{Class: "chatsave-avatar chatsave-avatar-empty", Aria: map[string]string{"hidden": "true"}}, chatsave002Icon("bookmark", false)),
-			html.Div(html.Props{Class: "chatsave-main"}, html.P(html.Props{Class: "chatsave-unavailable", Text: status})),
+			html.Div(html.Props{Class: "chatsave-main"}, unavailable...),
 			html.Div(html.Props{Class: "chatsave-actions", Role: "toolbar", Aria: map[string]string{"label": chatsave002Text(loc, "actions")}},
 				chatsave002Action(row, "remove", copy.Unsave, nil, chatsave002Icon("bookmark", true))))
 	}
@@ -201,6 +212,12 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	if row.Attachments > 0 {
 		main = append(main, html.Div(html.Props{Class: "chatsave-attach"}, chatbug037AttachmentBadge(m, row.Attachments)))
 	}
+	// Issue 3958: while selecting, a press on the message selects it.
+	if pick := chatsave3958Pick(view, row, key, author); pick != nil {
+		main = append([]ui.Node{pick}, main...)
+		props.Data["saved-action"] = "select-toggle"
+		props.Class += " is-selecting"
+	}
 
 	if row.Done {
 		when := chatux040DoneWhen(loc, SavedDoneLabel(loc, row.DoneAt, now))
@@ -240,6 +257,11 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	} else if strings.TrimSpace(row.Note) != "" {
 		main = append(main, html.Button(html.Props{ID: "chatsave-note-" + row.PostID + "-text", Class: "chatsave-note", Type: "button", Title: chatsave002Text(loc, "act_note_edit"), Data: map[string]string{"saved-action": "note", "saved-host": row.TenantID, "saved-conversation": row.ConversationID, "saved-post": row.PostID}, Aria: map[string]string{"label": chatsave002Text(loc, "act_note_edit") + ": " + row.Note}},
 			icon("edit"), html.Span(html.Props{Dir: "auto", Text: row.Note})))
+	}
+
+	// Issue 3932: private labels, on to-do and done messages alike.
+	if line := chatsave3932Item(view, row, key, true); line != nil {
+		main = append(main, line)
 	}
 
 	children := []ui.Node{lead, html.Div(html.Props{Class: "chatsave-main"}, main...)}
@@ -306,6 +328,9 @@ func chatsave002Button(class, label, action string) ui.Node {
 }
 
 func chatsave002Render(view SavedMessagesView) ui.Node {
+	if view.Brief != nil {
+		return chatsave3958Render(view)
+	}
 	copy := SavedMessagesCopy(view.Locale)
 	loc := view.Locale
 	tab := view.Tab
@@ -370,6 +395,14 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 			Close:   chatux032CloseButton(copy.Close, false, map[string]string{"saved-action": "close"}, "")}),
 		html.Div(html.Props{Class: "chatsave-seg", Role: "tablist", Aria: map[string]string{"label": chatsave002Text(loc, "segments")}}, segments...),
 	}
+	// Issue 3932: the private-label filter sits under the tabs.
+	if filter := chatsave3932Filter(view); filter != nil {
+		top = append(top, filter)
+	}
+	// Issue 3958: select messages to prepare a meeting brief.
+	if bar := chatsave3958Toolbar(view, all); bar != nil {
+		top = append(top, bar)
+	}
 	// The search appears once the list is long enough to need it; it never
 	// vanishes while it holds a search.
 	if all > 8 || strings.TrimSpace(view.Query) != "" {
@@ -396,6 +429,12 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 	}
 	if view.ActionError != "" && view.Error == "" {
 		status = SavedActionFailedText(view.Locale, view.Action)
+		switch view.ActionError {
+		case "label_limit":
+			status = chatsave002Text(loc, "lbl_limit")
+		case "label_invalid":
+			status = chatsave002Text(loc, "lbl_invalid")
+		}
 	}
 	nodes = append(nodes, html.P(html.Props{ID: "chatsave-status", Class: statusClass, Role: "status", Text: status, Aria: map[string]string{"live": "polite"}, Data: map[string]string{"saved-status": "true"}}))
 	if view.Error != "" {
@@ -428,6 +467,9 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 		var emptyLink ui.Node
 		if all > 0 {
 			empty, emptyLink = chatbug091Empty(loc, tab, todo, done, all)
+		}
+		if text, link := chatsave3932EmptyText(view); text != "" {
+			empty, glyph, emptyLink = text, "tag", link
 		}
 		if strings.TrimSpace(view.Query) != "" {
 			empty, glyph, emptyLink = chatsave002Text(loc, "no_match"), "search", nil

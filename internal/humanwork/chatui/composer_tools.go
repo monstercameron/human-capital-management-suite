@@ -85,6 +85,10 @@ func composerAddItems(m Model) []composerAddItem {
 	if composerVoiceAvailable(m) {
 		items = append(items, composerAddItem{"voice", "", keyComposerAddVoice, keyComposerAddVoiceNote})
 	}
+	// Issue 3788: write now, send at a time the person chooses.
+	if issue3788Available(m) {
+		items = append(items, composerAddItem{"sendlater", "calendar", "", ""})
+	}
 	return items
 }
 
@@ -109,6 +113,9 @@ func composerAddControl(m Model, target string, disabled bool) ui.Node {
 		if item.kind == "attachment" {
 			// CHATUX-034: the row is one line; the limits are the tooltip's.
 			name, note, tip = Chatattach001Text(m.Locale, "attach"), composerText(m, keyComposerAddAttachNote), Chatattach001Text(m.Locale, "note")
+		}
+		if item.kind == "sendlater" {
+			name, note, tip = laneText(m, issue3788Copy, keyIssue3788MenuName), laneText(m, issue3788Copy, keyIssue3788MenuNote), laneText(m, issue3788Copy, keyIssue3788MenuNote)
 		}
 		noteID := menuID + "-" + item.kind + "-note"
 		class, aria := "menu-item composer-add-item", map[string]string{"label": name, "describedby": noteID}
@@ -251,6 +258,9 @@ func composerToolsClick(e ui.MouseEvent, m Model, local localStore) bool {
 	case "composer-mention":
 		insertComposerMention(id)
 		return true
+	case "composer-enter":
+		issue3934Choose(m, extra)
+		return true
 	case "composer-format-toggle":
 		if id == threadComposerID {
 			captureThreadDraft(m, local)
@@ -296,6 +306,8 @@ func composerAddChoose(m Model, local localStore, kind string) {
 		if kind == "poll" && m.Callbacks.OpenChannelPoll != nil {
 			m.Callbacks.OpenChannelPoll(m.SelectedID)
 		}
+	case "sendlater":
+		issue3788Choose(m, local)
 	case "location":
 		clickComposerControl("[data-chatmap-action=toggle]")
 	case "voice":
@@ -358,8 +370,9 @@ const composerHintSends = 3
 // own, not the open conversation's, so the hint is shown or hidden the same way
 // in every composer (CHATUX-024): it used to show in a conversation the person
 // had written little in and not in the one beside it.
-func composerHintVisible(_ Model, local localUI) bool {
-	return local.sentCount < composerHintSends
+func composerHintVisible(m Model, local localUI) bool {
+	// Enter-adds-a-line (ISSUE-3934) is not what people expect, so its hint stays.
+	return composerEnterNewline(m) || local.sentCount < composerHintSends
 }
 
 // composerToolRow is the row under the text, left to right: Add (+), Mention
@@ -370,7 +383,7 @@ func composerHintVisible(_ Model, local localUI) bool {
 func composerToolRow(m Model, h handlers, id string, disabled, canSend bool) ui.Node {
 	var hint ui.Node
 	if composerHintVisible(m, h.local) {
-		hint = html.Span(html.Props{ID: "composer-help", Class: "composer-help kbd-hint"}, chatux043Hint(m.Locale, m.t(KeyComposeHint))...)
+		hint = html.Span(html.Props{ID: "composer-help", Class: "composer-help kbd-hint"}, chatux043Hint(m.Locale, issue3934ComposerHint(m))...)
 	}
 	return html.Div(html.Props{Class: "composer-toolbar"},
 		html.Div(html.Props{Class: "composer-tools"},

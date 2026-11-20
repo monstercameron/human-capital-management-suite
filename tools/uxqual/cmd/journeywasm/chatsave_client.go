@@ -23,7 +23,12 @@ type chatsaveCommand struct {
 	Note           *string    `json:"note,omitempty"`
 	SetDue         bool       `json:"set_due,omitempty"`
 	DueAt          *time.Time `json:"due_at,omitempty"`
-	_              incomparable
+	// Issue 3932: private labels.
+	AddLabels    []string `json:"add_labels,omitempty"`
+	RemoveLabels []string `json:"remove_labels,omitempty"`
+	Label        string   `json:"label,omitempty"`
+	NewLabel     string   `json:"new_label,omitempty"`
+	_            incomparable
 }
 
 type chatsaveError string
@@ -45,11 +50,15 @@ func chatsaveRequest(ctx context.Context, client *http.Client, cfg journeyclient
 	method := http.MethodGet
 	var body io.Reader
 	if command != nil {
-		if command.ConversationID == "" || command.PostID == "" {
-			return page, chatsaveError("invalid_argument")
-		}
 		switch command.Action {
 		case "save", "remove", "done", "reopen", "note", "due":
+			if command.ConversationID == "" || command.PostID == "" {
+				return page, chatsaveError("invalid_argument")
+			}
+		case "labels", "rename_label", "remove_label":
+			if !chatsaveLabelCommandOK(*command) {
+				return page, chatsaveError("invalid_argument")
+			}
 		default:
 			return page, chatsaveError("invalid_argument")
 		}
@@ -105,7 +114,7 @@ func chatsaveRows(page chat.SavedPage, cfg journeyclient.Config, model chatui.Mo
 		if item.HomeTenantID != cfg.Tenant || item.PersonID != cfg.Subject {
 			continue
 		}
-		row := chatui.SavedMessageRow{TenantID: item.TenantID, ConversationID: item.ConversationID, PostID: item.PostID, Note: item.Note, Done: item.State == chat.SavedDone, Availability: item.Availability, Author: copy.AuthorUnavailable}
+		row := chatui.SavedMessageRow{TenantID: item.TenantID, ConversationID: item.ConversationID, PostID: item.PostID, Note: item.Note, Labels: item.Labels, Done: item.State == chat.SavedDone, Availability: item.Availability, Author: copy.AuthorUnavailable}
 		if item.Availability == "readable" && item.Post != nil {
 			row.Body, row.Channel, row.Sequence = item.Post.Body, item.Channel, item.Post.Sequence
 			row.AuthorID, row.SentAt, row.Revision = item.Post.AuthorID, item.Post.CreatedAt, item.Post.Revision
@@ -207,6 +216,10 @@ func chatsaveChannelLabel(item chat.SavedItem, model chatui.Model) string {
 // service will, so the count and the hover-bar bookmark change before the
 // round trip. A save is shown only when add carries what the row needs.
 func chatsaveApplyLocal(page chat.SavedPage, host string, command chatsaveCommand, add *chat.SavedItem) chat.SavedPage {
+	switch command.Action {
+	case "labels", "rename_label", "remove_label":
+		return chatsaveApplyLabelsLocal(page, host, command)
+	}
 	items := make([]chat.SavedItem, 0, len(page.Items)+1)
 	found := false
 	for _, item := range page.Items {

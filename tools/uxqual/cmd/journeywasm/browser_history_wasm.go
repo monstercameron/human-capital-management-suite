@@ -153,6 +153,7 @@ func (controller *browserProductHistoryController) RecordSameRoutePush() {
 func cloneBrowserHistoryState(state js.Value) (clone js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.clone-browser-histor")
 			clone = js.Undefined()
 			ok = false
 		}
@@ -294,6 +295,7 @@ func readProductHistoryMax(id string) int {
 func productHistoryState(state js.Value) (id string, index int, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.product-history-stat")
 			id = ""
 			index = 0
 			ok = false
@@ -332,6 +334,7 @@ func safeProductHistoryID(id string) bool {
 func browserProperty(target js.Value, name string) (value js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-property")
 			value = js.Undefined()
 			ok = false
 		}
@@ -352,6 +355,7 @@ func browserProperty(target js.Value, name string) (value js.Value, ok bool) {
 func browserCall(target js.Value, name string, arguments ...any) (value js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-call")
 			value = js.Undefined()
 			ok = false
 		}
@@ -374,6 +378,7 @@ func browserCall(target js.Value, name string, arguments ...any) (value js.Value
 func browserHistory() (history js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-history")
 			history = js.Undefined()
 			ok = false
 		}
@@ -391,6 +396,7 @@ func browserHistory() (history js.Value, ok bool) {
 func browserHistoryState(history js.Value) (state js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-history-stat")
 			state = js.Undefined()
 			ok = false
 		}
@@ -404,6 +410,7 @@ func browserHistoryState(history js.Value) (state js.Value, ok bool) {
 func browserHistoryReplaceState(history, state js.Value, href string) (ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-history-repl")
 			ok = false
 		}
 	}()
@@ -417,6 +424,7 @@ func browserHistoryReplaceState(history, state js.Value, href string) (ok bool) 
 func browserHistoryGo(history js.Value, offset int) (ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-history-go")
 			ok = false
 		}
 	}()
@@ -430,6 +438,7 @@ func browserHistoryGo(history js.Value, offset int) (ok bool) {
 func browserLocationHref() (href string) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-location-hre")
 			href = ""
 		}
 	}()
@@ -451,6 +460,7 @@ func browserLocationHref() (href string) {
 func browserStorageSet(storage js.Value, key, value string) (ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-storage-set")
 			ok = false
 		}
 	}()
@@ -464,6 +474,7 @@ func browserStorageSet(storage js.Value, key, value string) (ok bool) {
 func browserSessionStorage() (storage js.Value, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-session-stor")
 			storage = js.Undefined()
 			ok = false
 		}
@@ -481,6 +492,7 @@ func browserSessionStorage() (storage js.Value, ok bool) {
 func browserStorageGet(storage js.Value, key string) (value string, ok bool) {
 	defer func() {
 		if recover() != nil {
+			clientTelemetry.CountPanic("browser-history.browser-storage-get")
 			value = ""
 			ok = false
 		}

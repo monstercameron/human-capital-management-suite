@@ -17,29 +17,29 @@ func gateEditorInput(v GateView, id, label, kind string) ui.Node {
 func renderGateBuilder(v GateView) ui.Node {
 	t := func(k string) string { return GateText(v.Locale, k) }
 	d := gateDefinition(v)
-	nodes := []ui.Node{html.H2(html.Props{Text: t("gate")}), gateEditorInput(v, "gate-purpose", "why", "text"), html.Label(html.Props{For: "gate-mode", Text: t("mode")})}
+	nodes := []ui.Node{html.H2(html.Props{Text: GateTitle(v)}), gateEditorInput(v, "gate-purpose", "formPurpose", "text"), html.Label(html.Props{For: "gate-mode", Text: t("admissionMode")})}
 	modes := []ui.Node{}
 	for _, mode := range []string{"automatic", "rule", "review"} {
 		modes = append(modes, html.Option(html.Props{Value: mode, Selected: mode == d.Mode, Text: t(mode)}))
 	}
 	nodes = append(nodes, html.Select(html.Props{ID: "gate-mode"}, modes...))
 	registry := chatgate.NewRegistry()
-	sampleOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("sample")})}
+	sampleOptions := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("tryAsNone")})}
 	for _, person := range v.Directory["person"] {
 		sampleOptions = append(sampleOptions, html.Option(html.Props{Value: person.ID, Text: person.Label}))
 	}
-	nodes = append(nodes, html.Label(html.Props{For: "gate-sample-person", Text: t("sample")}), html.Select(html.Props{ID: "gate-sample-person"}, sampleOptions...))
+	nodes = append(nodes, html.Label(html.Props{For: "gate-sample-person", Text: t("tryAs")}), html.Select(html.Props{ID: "gate-sample-person"}, sampleOptions...))
 	for i, f := range d.Fields {
 		id := strconv.Itoa(i)
 		prefix := "gate-editor-" + id + "-"
-		items := []ui.Node{html.Legend(html.Props{Text: f.Label}), gateEditorInput(v, prefix+"label", "label", "text"), gateEditorInput(v, prefix+"help", "help", "text"), gateEditorInput(v, prefix+"purpose", "why", "text"), gateEditorInput(v, prefix+"days", "retentionLabel", "number"), html.Label(html.Props{For: prefix + "kind", Text: t("kind")})}
+		items := []ui.Node{html.Legend(html.Props{Text: f.Label}), gateEditorInput(v, prefix+"label", "label", "text"), gateEditorInput(v, prefix+"help", "help", "text"), gateEditorInput(v, prefix+"purpose", "askWhy", "text"), gateEditorInput(v, prefix+"days", "retentionLabel", "number"), html.Label(html.Props{For: prefix + "kind", Text: t("answerType")})}
 		kinds := []ui.Node{}
 		for _, kind := range []string{"short_text", "long_text", "single_choice", "multiple_choice", "boolean", "date", "person", "team", "location", "acknowledgement"} {
 			k, _ := registry.Kind(kind, "1.0.0")
 			kinds = append(kinds, html.Option(html.Props{Value: kind, Selected: f.Kind == kind, Text: k.Names[v.Locale]}))
 		}
 		items = append(items, html.Select(html.Props{ID: prefix + "kind"}, kinds...), html.Label(html.Props{For: prefix + "options", Text: t("options")}), html.Textarea(html.Props{ID: prefix + "options", Rows: 3}, ui.Text(strings.Join(f.Options, "\n"))))
-		items = append(items, html.Label(html.Props{For: prefix + "class", Text: t("class")}), html.Select(html.Props{ID: prefix + "class"}, html.Option(html.Props{Value: "PUBLIC", Text: t("PUBLIC"), Selected: f.DataClass == "PUBLIC"}), html.Option(html.Props{Value: "INTERNAL", Text: t("INTERNAL"), Selected: f.DataClass == "INTERNAL"})))
+		items = append(items, html.Label(html.Props{For: prefix + "class", Text: t("privacy")}), html.Select(html.Props{ID: prefix + "class"}, html.Option(html.Props{Value: "PUBLIC", Text: t("PUBLIC"), Selected: f.DataClass == "PUBLIC"}), html.Option(html.Props{Value: "INTERNAL", Text: t("INTERNAL"), Selected: f.DataClass == "INTERNAL"})))
 		if len(v.ConsumerNames) > 0 {
 			options := []ui.Node{}
 			for consumer, name := range v.ConsumerNames {
@@ -49,7 +49,7 @@ func renderGateBuilder(v GateView) ui.Node {
 				}
 				options = append(options, html.Option(html.Props{Value: consumer, Text: name, Selected: selected}))
 			}
-			items = append(items, html.Label(html.Props{For: prefix + "consumers", Text: t("consumer")}), html.Select(html.Props{ID: prefix + "consumers", Multiple: true}, options...))
+			items = append(items, html.Label(html.Props{For: prefix + "consumers", Text: t("alsoShare")}), html.Select(html.Props{ID: prefix + "consumers", Multiple: true}, options...))
 		}
 		if f.Kind == "acknowledgement" {
 			docs := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("choose")})}
@@ -71,7 +71,11 @@ func renderGateBuilder(v GateView) ui.Node {
 	// The publish step names the version this draft needs and what publishing it
 	// means for the people already in the channel (chatgate_rule.go).
 	_, meaning := GatePublishMeaning(v)
-	nodes = append(nodes, gateButton(v, "question-add", "add", "", false), gateRuleEditor(v, d), gateEditorInput(v, "gate-answer-by", "date", "date"), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "define", "apply", "", true), gateButton(v, "try", "try", "", false)), gateEditorInput(v, "gate-version", "version", "text"), html.P(html.Props{ID: "gate-publish-meaning", Class: "chatgate-publish-meaning", Role: "status", Text: meaning}), html.P(html.Props{Class: "chatgate-hint", Text: t("meaning")}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "publish", "publish", "", true), gateButton(v, "pause", "pause", "", false), gateButton(v, "retire", "retire", "", false)), chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: t("sample")}), renderGateApplicant(GateView{Locale: v.Locale, Gate: chatgate.Gate{Versions: []chatgate.Definition{d}, Current: d.Version.String()}, Directory: v.Directory, Sample: true})))
+	nodes = append(nodes, gateButton(v, "question-add", "add", "", false))
+	if d.Mode == "rule" { // The rules are only a choice when people are let in by rule.
+		nodes = append(nodes, gateRuleEditor(v, d))
+	}
+	nodes = append(nodes, gateEditorInput(v, "gate-answer-by", "date", "date"), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "define", "apply", "", true), gateButton(v, "try", "try", "", false)), gateEditorInput(v, "gate-version", "version", "text"), html.P(html.Props{ID: "gate-publish-meaning", Class: "chatgate-publish-meaning", Role: "status", Text: meaning}), html.P(html.Props{Class: "chatgate-hint", Text: t("meaning")}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "publish", "publish", "", true), gateButton(v, "pause", "pause", "", false), gateButton(v, "retire", "retire", "", false)), chatPolishDisclosure(html.Props{}, chatPolishDisclosureLabel(html.Props{Text: t("sample")}), renderGateApplicant(GateView{Locale: v.Locale, Gate: chatgate.Gate{Versions: []chatgate.Definition{d}, Current: d.Version.String()}, Directory: v.Directory, Sample: true})))
 	return html.Section(html.Props{}, nodes...)
 }
 

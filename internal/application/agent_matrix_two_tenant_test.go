@@ -288,8 +288,10 @@ func TestTodo_AGENTUX_045(t *testing.T) {
 	wiring := &personaServeWiring{}
 	for name, attempt := range map[string]struct{ profile, tenant string }{
 		"standard profile": {ServeProfileStandard, localAgentDemoTenant},
-		"another tenant":   {ServeProfileLocalDev, "harborcare-demo"},
+		"another tenant":   {ServeProfileLocalDev, "acme-demo"},
 	} {
+		// harborcare-demo is an allowed local demo workspace (issue 3828); any
+		// other tenant and the standard profile still get no local evaluator.
 		if _, err := wiring.prepareLocalAdminEvaluation(&agentstore.Store{}, attempt.profile, attempt.tenant, func() time.Time { return now }, "harborcare-demo", localAgentDemoTenant); !errors.Is(err, ErrPersonaAdminEvaluationUnavailable) {
 			t.Errorf("%s was given the local evaluator: %v", name, err)
 		}

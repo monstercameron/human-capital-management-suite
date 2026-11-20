@@ -50,6 +50,24 @@ func (s integrate2Saved) SearchSaved(ctx context.Context, p chat.Principal, quer
 	return integrate2MatchSaved(items, query), nil
 }
 
+// Issue 3932: the reader-selection wrapper keeps the label-wide commands of the
+// port it wraps.
+func (s integrate2Saved) RenameSavedLabel(ctx context.Context, p chat.Principal, tenant, from, to string) (int, error) {
+	labels, ok := s.SavedMessagesPort.(SavedLabelsPort)
+	if !ok {
+		return 0, chat.ErrUnavailable
+	}
+	return labels.RenameSavedLabel(ctx, p, tenant, from, to)
+}
+
+func (s integrate2Saved) RemoveSavedLabel(ctx context.Context, p chat.Principal, tenant, label string) (int, error) {
+	labels, ok := s.SavedMessagesPort.(SavedLabelsPort)
+	if !ok {
+		return 0, chat.ErrUnavailable
+	}
+	return labels.RemoveSavedLabel(ctx, p, tenant, label)
+}
+
 func integrate2MatchSaved(items []chat.SavedItem, query string) []chat.SavedItem {
 	query = strings.ToLower(strings.TrimSpace(query))
 	out := []chat.SavedItem{}

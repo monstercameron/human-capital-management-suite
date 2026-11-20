@@ -26,17 +26,19 @@ type GateView struct {
 	Reviewers                                                  []string
 	ConsumerNames                                              map[string]string
 	Locale, Conversation, ChannelPurpose, State, Error, Notice string
-	Gate                                                       chatgate.Gate
-	Submission                                                 *chatgate.Submission
-	Answers                                                    map[string]json.RawMessage
-	FieldErrors                                                map[string]string
-	Directory                                                  map[string][]GateChoice
-	Controls                                                   map[string]chatgate.Control
-	Administrator, ExportAllowed, ConfirmWithdrawal, Held      bool
-	Submissions                                                []chatgate.Submission
-	VisibleAnswers                                             map[string]map[string]json.RawMessage
-	Names                                                      map[string]string
-	Reads                                                      []chatgate.ReadAudit
+	// ChannelName is the channel's name without the #, for the page's heading and breadcrumb.
+	ChannelName                                           string
+	Gate                                                  chatgate.Gate
+	Submission                                            *chatgate.Submission
+	Answers                                               map[string]json.RawMessage
+	FieldErrors                                           map[string]string
+	Directory                                             map[string][]GateChoice
+	Controls                                              map[string]chatgate.Control
+	Administrator, ExportAllowed, ConfirmWithdrawal, Held bool
+	Submissions                                           []chatgate.Submission
+	VisibleAnswers                                        map[string]map[string]json.RawMessage
+	Names                                                 map[string]string
+	Reads                                                 []chatgate.ReadAudit
 	// What the consumers of answers add (CHATGATE-009 to 013). An administrator
 	// reads the rules, the metrics and the operating settings; everybody reads
 	// their own labels and segments.
@@ -80,7 +82,11 @@ func RenderGate(v GateView) ui.Node {
 	if v.Locale == "ar" {
 		dir = "rtl"
 	}
-	children := []ui.Node{html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "close", "close", "", false))}
+	children := []ui.Node{}
+	if crumbs := gateBreadcrumb(v); crumbs != nil {
+		children = append(children, crumbs)
+	}
+	children = append(children, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "close", "close", "", false)))
 	if v.State == "loading" {
 		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: v.Locale, Shape: LoadingShapeSection, Rows: 3, Status: t("loading"), RetryData: map[string]string{"gate-action": "retry", "id": ""}}))
 	} else if v.Error != "" {
@@ -104,7 +110,7 @@ func RenderGate(v GateView) ui.Node {
 			children = append(children, renderGateApplicant(v))
 		}
 	}
-	return html.Section(html.Props{Class: "chatgate", Lang: v.Locale, Dir: dir, Data: map[string]string{"conversation": v.Conversation}, Aria: map[string]string{"label": t("gate")}}, children...)
+	return html.Section(html.Props{Class: "chatgate", Lang: v.Locale, Dir: dir, Data: map[string]string{"conversation": v.Conversation}, Aria: map[string]string{"label": GateTitle(v)}}, children...)
 }
 func gateDefinition(v GateView) chatgate.Definition {
 	if v.Administrator && v.Gate.Draft != nil {

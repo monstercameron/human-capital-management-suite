@@ -63,8 +63,8 @@ func chatbug073HintID(postID string) string { return "edit-hint-" + postID }
 // (CHAT-3717): edit_focus_js.go swaps the two texts as the box is emptied and
 // filled, so the blank case is said as the person types, not only after Enter.
 func chatbug073EditHint(m Model, postID string) ui.Node {
-	return html.Span(html.Props{ID: chatbug073HintID(postID), Class: "edit-hint kbd-hint", Text: chatbug073Text(m, keyChatbug073Hint),
-		Data: map[string]string{"edit-hint": chatbug073Text(m, keyChatbug073Hint), "edit-empty": chatbug073Text(m, keyChatbug073Empty)}})
+	return html.Span(html.Props{ID: chatbug073HintID(postID), Class: "edit-hint kbd-hint", Text: issue3934EditHintText(m),
+		Data: map[string]string{"edit-hint": issue3934EditHintText(m), "edit-empty": chatbug073Text(m, keyChatbug073Empty)}})
 }
 
 // chatbug073EditBlank reports whether an edit box holds nothing to save. Spaces

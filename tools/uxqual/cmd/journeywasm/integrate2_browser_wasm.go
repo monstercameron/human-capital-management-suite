@@ -121,13 +121,28 @@ func configureIntegrate2Chat(cfg journeyclient.Config) func() {
 		chatStreamRender.Schedule()
 		return nil
 	})
+	// Issue 3814: a message was asked to be translated. Every message is read
+	// again (the answers replace the old ones; nothing is cleared first, so the
+	// translations already on the page stay while the new one is on its way).
+	translateAsked := js.FuncOf(func(_ js.Value, _ []js.Value) any {
+		integrate2Browser.Lock()
+		integrate2Browser.readerKey = ""
+		integrate2Browser.Unlock()
+		integrate2Browser.askedReader.Reset()
+		integrate2SyncProjection()
+		chatStreamRender.Schedule()
+		return nil
+	})
 	document := js.Global().Get("document")
 	document.Call("addEventListener", "chat-reading-settings-changed", changed)
+	document.Call("addEventListener", "chat-translate-asked", translateAsked)
 	return func() {
 		cancel()
 		chatReadRetries.CancelPrefix(chatux012Integrate2Keys)
 		document.Call("removeEventListener", "chat-reading-settings-changed", changed)
+		document.Call("removeEventListener", "chat-translate-asked", translateAsked)
 		changed.Release()
+		translateAsked.Release()
 	}
 }
 
@@ -305,6 +320,10 @@ func integrate2SyncProjection() {
 			}
 			if len(query["message"]) == 0 {
 				continue
+			}
+			// Issue 3814: messages the reader pressed Translate on travel with the ask.
+			for _, id := range chatui.ChatlangTranslateAskedAmong(query["message"]) {
+				query.Add("translate", id)
 			}
 			part := map[string]chatui.ReaderSelection{}
 			call, cancel := context.WithTimeout(ctx, 20*time.Second)

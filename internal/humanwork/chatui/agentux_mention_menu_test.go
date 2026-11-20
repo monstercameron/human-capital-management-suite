@@ -223,10 +223,15 @@ func TestTodo_AGENTUX_007_EmptyRecoveryAndReplyHint(t *testing.T) {
 	model.ResolvedPersonaMentions = nil
 	model.IsTenantAdmin = true
 	markup := renderNode(t, mentionMenu(model, mentionState{Target: "chat-composer", Open: true, Details: true}, "chat-composer"))
-	for _, banned := range []string{`href="/workspace/app/chat/agents"`, `href="/workspace/app/admin/personas"`, "Add an agent to this conversation", "mention-heading agents"} {
+	for _, banned := range []string{`href="/workspace/app/chat/agents"`, `href="/workspace/app/admin/personas"`, "mention-heading agents"} {
 		if strings.Contains(markup, banned) {
 			t.Errorf("a conversation with no agents still offered %q: %s", banned, markup)
 		}
+	}
+	// ISSUE-3759 supersedes the earlier ban: someone who may place agents is
+	// offered the one add action, and nothing else about agents.
+	if !strings.Contains(markup, "Add an agent to this conversation") {
+		t.Errorf("an administrator is not offered the add action in an empty @ menu: %s", markup)
 	}
 	model.Conversations = []Conversation{{ID: "room", Name: "general", Kind: PublicChannel}}
 	mentions := mentionStore{box: &mentionBox{personas: []personaDraftMention{{Target: "chat-composer", ConversationID: "room", Reference: ChatReference{Display: "Policy Helper"}}}}}

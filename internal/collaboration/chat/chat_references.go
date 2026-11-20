@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chatpolicy"
 )
@@ -43,6 +44,12 @@ type Reference struct {
 	ContentType   string
 	ByteSize      uint64
 	Width, Height uint32
+	// AltText is the author's description of an image attachment and
+	// Decorative the author's statement that it needs none (issue 3962). Unlike
+	// the snapshot above they are the author's own words, kept with the post;
+	// the media service is not an authority on them.
+	AltText    string
+	Decorative bool
 }
 
 type ReferenceCandidate struct {
@@ -83,7 +90,14 @@ type SourceAttribution struct {
 	TenantID, ConversationID, PostID string
 	PostRevision                     uint64
 	OriginalAuthorID                 string
+	// Note is the sharer's own words beside a forwarded message (issue 3919).
+	// It is written by the server from the forward request only, never from a
+	// caller-supplied attribution.
+	Note string `json:",omitempty"`
 }
+
+// MaxForwardNoteRunes is the longest note a sharer may add to a forward.
+const MaxForwardNoteRunes = 1000
 
 type ForwardPostRequest struct {
 	Principal Principal
@@ -91,6 +105,8 @@ type ForwardPostRequest struct {
 	SourceTenantID, SourceConversationID, SourcePostID string
 	DestinationTenantID, DestinationConversationID     string
 	IdempotencyKey                                     string
+	// Note is an optional explanation from the sharer (issue 3919).
+	Note string
 }
 
 type DisclosureInput struct {
@@ -247,6 +263,12 @@ func (s *Service) validateReference(ctx context.Context, p Principal, tenant, co
 	if ref.Kind == MediaAttachment {
 		return s.validateMediaReference(ctx, tenant, conversation, ref)
 	}
+	if ref.Kind == ProjectWorkReference {
+		return s.validateProjectWorkReference(ctx, p, tenant, &ref)
+	}
+	if ref.Kind == JourneyReference {
+		return s.validateJourneyReference(ctx, p, tenant, &ref)
+	}
 	if ref.Kind == LocationReference {
 		return s.validateLocationReference(ctx, p, tenant, conversation, ref)
 	}
@@ -279,6 +301,10 @@ func (s *Service) CreateConversationLink(ctx context.Context, p Principal, tenan
 	c, err := s.store.GetConversation(ctx, tenant, conversation)
 	if err != nil || s.authorize(ctx, p, c, chatpolicy.ActionRead) != nil {
 		return ConversationLink{}, ErrPermissionDenied
+	}
+	// Issue 3812: a restricted case conversation has no link to hand on.
+	if err := s.CaseRestriction(ctx, c.TenantID, c.ID, CaseActionShare); err != nil {
+		return ConversationLink{}, err
 	}
 	if post != "" {
 		v, e := s.store.GetPost(ctx, tenant, conversation, post)
@@ -373,12 +399,20 @@ func (s *Service) ForwardPost(ctx context.Context, r ForwardPostRequest) (Post, 
 	if err != nil || s.authorize(ctx, r.Principal, src, chatpolicy.ActionRead) != nil {
 		return Post{}, ErrPermissionDenied
 	}
+	// Issue 3812: nothing is forwarded out of a restricted case conversation.
+	if err := s.CaseRestriction(ctx, src.TenantID, src.ID, CaseActionForward); err != nil {
+		return Post{}, err
+	}
 	post, err := s.store.GetPost(ctx, sourceTenant, sourceConversation, sourcePost)
 	if err != nil || post.Deleted || !s.postVisibleTo(ctx, r.Principal, src, post) {
 		return Post{}, ErrPermissionDenied
 	}
 	if r.PostRevision != 0 && post.Revision != r.PostRevision {
 		return Post{}, ErrConflict
+	}
+	note := strings.TrimSpace(r.Note)
+	if utf8.RuneCountInString(note) > MaxForwardNoteRunes {
+		return Post{}, ErrInvalidArgument
 	}
 	// A forward copies the stored body under the forwarder's name; a reader who
 	// may not read the message as written cannot hand it on.
@@ -403,7 +437,14 @@ func (s *Service) ForwardPost(ctx context.Context, r ForwardPostRequest) (Post, 
 		// likewise need an explicit disclosure decision.
 		return Post{}, ErrPermissionDenied
 	}
-	attr := SourceAttribution{TenantID: post.TenantID, ConversationID: post.ConversationID, PostID: post.ID, PostRevision: post.Revision, OriginalAuthorID: post.AuthorID}
+	// The note is new text the sharer writes into the destination, so the
+	// destination's content policy reads it as it reads any message.
+	if note != "" {
+		if err := s.checkContent(ctx, ContentInput{Principal: r.Principal, Conversation: dst, Body: note}); err != nil {
+			return Post{}, err
+		}
+	}
+	attr := SourceAttribution{TenantID: post.TenantID, ConversationID: post.ConversationID, PostID: post.ID, PostRevision: post.Revision, OriginalAuthorID: post.AuthorID, Note: note}
 	// What is copied is what the forwarder reads: a word the source channel
 	// masks must not reappear, unmasked, in a place with no such rule.
 	seen := []Post{post}
@@ -491,6 +532,9 @@ func (s *Service) validateMediaReference(ctx context.Context, tenant, conversati
 		return ErrInvalidArgument
 	}
 	if facts.Height != 0 && ref.Height != facts.Height {
+		return ErrInvalidArgument
+	}
+	if !validImageDescription(ref, facts) {
 		return ErrInvalidArgument
 	}
 	return nil

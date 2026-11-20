@@ -19,16 +19,34 @@ const docSuggestLimit = 8
 // DocSuggestion is one readable document offered by the list.
 type DocSuggestion struct {
 	ID, Title, Detail string
+	// Insert is the text written for the pick; empty means "doc:<ID>".
+	Insert string
 }
+
+// DocSuggestStatus is how a document search ended: DocSuggestOK answered
+// (an empty answer means nothing matched), DocSuggestFailed could not be
+// completed and may work on a retry, DocSuggestUnavailable means document
+// search is not set up for this reader.
+type DocSuggestStatus int
+
+const (
+	DocSuggestOK DocSuggestStatus = iota
+	DocSuggestFailed
+	DocSuggestUnavailable
+)
 
 // docSuggestState is the open list. Start and End are UTF-16 offsets of
 // the trigger and query in the field, the units a textarea reports.
 type docSuggestState struct {
 	Target, Query string
+	// Kind is which picker is open: empty for documents, SuggestKindTicket or
+	// SuggestKindBoard (issue 3747).
+	Kind          string
 	Start, End    int
 	Open, Loading bool
 	Active        int
 	Items         []DocSuggestion
+	Status        DocSuggestStatus
 	seq           uint64
 }
 
@@ -83,34 +101,85 @@ func applyDocSuggestion(value string, start, end int, id string) (string, int) {
 func docSuggestTrack(m Model, local localStore, target string) {
 	current := local.get().docSuggest
 	value, caret, ok := composerSelection(target)
-	query, start, found := docTokenAt(value, caret)
-	if !ok || !found || m.Callbacks.SuggestDocuments == nil {
+	kind, query, start, found := suggestTokenAt(value, caret)
+	if !ok || !found || workSuggestSource(m, kind) == nil {
 		if current.Open {
 			local.update(func(u *localUI) { u.docSuggest = docSuggestState{} })
 		}
 		return
 	}
-	if current.Open && current.Target == target && current.Query == query && current.Start == start {
+	if current.Open && current.Target == target && current.Kind == kind && current.Query == query && current.Start == start {
 		return
 	}
-	next := docSuggestState{Target: target, Query: query, Start: start, End: caret, Open: true, Loading: true, seq: current.seq + 1}
-	if current.Open && current.Target == target {
+	next := docSuggestState{Target: target, Kind: kind, Query: query, Start: start, End: caret, Open: true, Loading: true, seq: current.seq + 1}
+	if current.Open && current.Target == target && current.Kind == kind {
 		next.Items = current.Items
 	}
+	docSuggestRun(m, local, next)
+}
+
+// docSuggestRun shows next as the open list and asks for its documents; an
+// answer for a list that has since moved on is dropped.
+func docSuggestRun(m Model, local localStore, next docSuggestState) {
 	local.update(func(u *localUI) { u.docSuggest = next })
 	seq := next.seq
-	m.Callbacks.SuggestDocuments(query, func(items []DocSuggestion) {
+	source := workSuggestSource(m, next.Kind)
+	if source == nil {
+		local.update(func(u *localUI) { u.docSuggest = docSuggestState{} })
+		return
+	}
+	source(next.Query, func(items []DocSuggestion, status DocSuggestStatus) {
 		live := local.get().docSuggest
 		if !live.Open || live.seq != seq {
 			return
 		}
+		if next.Kind != "" {
+			// A ticket or board whose ids cannot form a canonical address has
+			// no link to write; picking it must not fall back to a "doc:" token.
+			kept := make([]DocSuggestion, 0, len(items))
+			for _, item := range items {
+				if item.Insert != "" {
+					kept = append(kept, item)
+				}
+			}
+			items = kept
+		}
 		if len(items) > docSuggestLimit {
 			items = items[:docSuggestLimit]
 		}
+		if status != DocSuggestOK {
+			items = nil
+		}
 		local.update(func(u *localUI) {
-			u.docSuggest.Items, u.docSuggest.Loading, u.docSuggest.Active = items, false, 0
+			u.docSuggest.Items, u.docSuggest.Loading, u.docSuggest.Active, u.docSuggest.Status = items, false, 0, status
 		})
 	})
+}
+
+// docSuggestRetry asks again for the open list's query after a failure.
+func docSuggestRetry(m Model, local localStore) {
+	current := local.get().docSuggest
+	if !current.Open || current.Status != DocSuggestFailed || workSuggestSource(m, current.Kind) == nil {
+		return
+	}
+	next := current
+	next.Loading, next.Status, next.Items, next.seq = true, DocSuggestOK, nil, current.seq+1
+	docSuggestRun(m, local, next)
+	// The button that was pressed is replaced by the searching frame; the
+	// caret goes back to the field the list belongs to.
+	focusChatLayerField(current.Target)
+}
+
+// docSuggestRetryKey lets a keyboard reader retry a failed search from the
+// field: Tab, which accepts a suggestion when there is one, asks again when
+// the list is showing the failure. It reports whether the key was used.
+func docSuggestRetryKey(m Model, local localStore, key, target string) bool {
+	state := local.get().docSuggest
+	if key != "Tab" || !state.Open || state.Target != target || state.Loading || state.Status != DocSuggestFailed {
+		return false
+	}
+	docSuggestRetry(m, local)
+	return true
 }
 
 // docSuggestKey routes the list's keys while it is open; it reports
@@ -158,8 +227,12 @@ func docSuggestPick(local localStore, index int) {
 	if !ok {
 		return
 	}
-	if _, start, found := docTokenAt(value, caret); found && start == state.Start {
-		updated, next := applyDocSuggestion(value, start, caret, state.Items[index].ID)
+	if kind, _, start, found := suggestTokenAt(value, caret); found && start == state.Start && kind == state.Kind {
+		item := state.Items[index]
+		updated, next := applyDocSuggestion(value, start, caret, item.ID)
+		if item.Insert != "" {
+			updated, next = insertEmojiAtUTF16(value, item.Insert+" ", start, caret)
+		}
 		replaceComposerText(state.Target, updated, next)
 	}
 }
@@ -170,13 +243,22 @@ func docSuggestMenu(m Model, state docSuggestState, target string) ui.Node {
 	if !state.Open || state.Target != target {
 		return html.Div(html.Props{Class: "doc-suggest-slot"})
 	}
+	titleKey, noneKey, failedKey, unavailableKey := workSuggestCopy(state.Kind)
 	if len(state.Items) == 0 {
 		if state.Loading {
 			return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty"}, ChatLoadingFrame(LoadingFrame{Locale: m.Locale, Shape: LoadingShapeMenu, Rows: 2, Status: m.t(KeyEmbedLoading)}))
 		}
-		return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: m.t(KeyDocSuggestNone)}))
+		switch state.Status {
+		case DocSuggestFailed:
+			return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty error", Role: "status", Aria: map[string]string{"live": "polite"}},
+				html.P(html.Props{Class: "mention-empty", Text: m.t(failedKey)}),
+				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "doc-suggest-retry"}, Text: m.t(KeyRetry)}))
+		case DocSuggestUnavailable:
+			return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: m.t(unavailableKey)}))
+		}
+		return html.Div(html.Props{Class: "mention-menu doc-suggest-menu empty", Role: "status"}, html.P(html.Props{Class: "mention-empty", Text: m.t(noneKey)}))
 	}
-	rows := []ui.Node{html.P(html.Props{Class: "mention-heading", Aria: map[string]string{"hidden": "true"}, Text: m.t(KeyDocSuggestTitle)})}
+	rows := []ui.Node{html.P(html.Props{Class: "mention-heading", Aria: map[string]string{"hidden": "true"}, Text: m.t(titleKey)})}
 	for i, item := range state.Items {
 		class := "mention-option doc-suggest-option"
 		if i == state.Active {
@@ -188,7 +270,7 @@ func docSuggestMenu(m Model, state docSuggestState, target string) ui.Node {
 			html.Span(html.Props{Class: "mention-name", Dir: "auto", Text: item.Title}),
 			html.Span(html.Props{Class: "mention-detail", Dir: "auto", Text: item.Detail})), "doc:"+item.ID))
 	}
-	return html.Div(html.Props{ID: target + "-docs", Class: "mention-menu doc-suggest-menu", Role: "listbox", Aria: map[string]string{"label": m.t(KeyDocSuggestTitle)}}, rows...)
+	return html.Div(html.Props{ID: target + "-docs", Class: "mention-menu doc-suggest-menu", Role: "listbox", Aria: map[string]string{"label": m.t(titleKey)}}, rows...)
 }
 
 // docSuggestFieldAria points the composer at the open document list.

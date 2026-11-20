@@ -58,7 +58,7 @@ func (s *Service) announceMembershipAdded(ctx context.Context, p Principal, c Co
 func withoutSystemPosts(posts []Post) []Post {
 	system := 0
 	for _, p := range posts {
-		if _, ok := ParseMembershipAdded(p.Body); ok {
+		if IsSystemBody(p.Body) {
 			system++
 		}
 	}
@@ -67,7 +67,7 @@ func withoutSystemPosts(posts []Post) []Post {
 	}
 	kept := make([]Post, 0, len(posts)-system)
 	for _, p := range posts {
-		if _, ok := ParseMembershipAdded(p.Body); !ok {
+		if !IsSystemBody(p.Body) {
 			kept = append(kept, p)
 		}
 	}

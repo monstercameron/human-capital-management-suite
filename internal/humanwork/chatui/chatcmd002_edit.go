@@ -135,6 +135,9 @@ func chatcmd002EditedCard(card chat.Chatcmd002Card, values map[string]string) (n
 // chatcmd002ActionLocal runs the card actions that keep state on the page (the
 // card being reworded) and hands every other to chatcmd002Action.
 func chatcmd002ActionLocal(m Model, local localStore, action, post, extra string) bool {
+	if issue3954Action(m, local, action, post, extra) || issue3947Action(m, local, action, post, extra) {
+		return true
+	}
 	switch action {
 	case "chatcmd002-edit":
 		if view, ok := m.Chatcmd002Views[post]; ok && chatcmd002CanEdit(m, view) {

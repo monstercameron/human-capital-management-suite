@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentbudget"
@@ -99,7 +98,7 @@ func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local boo
 	cfg := in.Config
 	path := in.Env(EnvChatTranslationModelConfigFile)
 	if path == "" && local {
-		candidate := filepath.FromSlash(localChatlangModelDeploymentPath)
+		candidate := localAgentDevFile(localChatlangModelDeploymentPath)
 		if _, err := os.Stat(candidate); err == nil {
 			path = candidate
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -107,17 +106,17 @@ func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local boo
 		}
 	}
 	if path == "" {
-		return nil, "", "no model is qualified for chat translation (set " + EnvChatTranslationModelConfigFile + ")", nil
+		return nil, "", "no model is qualified for chat translation (set " + EnvChatTranslationModelConfigFile + ")" + localChatTaskModelsHint(local), nil
 	}
 	if in.Runtime == nil || isNilPersonaOutputPort(in.Runtime.Audit) {
 		return nil, "", "the agent platform's audit chain is not composed", nil
 	}
-	if in.Env("MODEL_API_KEY") == "" {
+	if localModelAPIKeyMissing(in.Env) {
 		return nil, "", "MODEL_API_KEY is not set", nil
 	}
 	cfg.AgentModelConfigFile = path
 	if local {
-		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if err != nil {
 			return nil, "", "", err
 		}
@@ -156,7 +155,7 @@ func chatlangGatewayEngine(ctx context.Context, in chatlangServeInput, local boo
 		if err != nil {
 			return nil, "", "", err
 		}
-		binding, err := NewChatlangStructuredBinding(deployment, leases, ledger, now, ChatlangModelFromEnv(in.Env))
+		binding, err := NewChatlangStructuredBinding(deployment, leases, ledger, now, chatlangModelForProfile(in.Env, local, deployment))
 		if err != nil {
 			return nil, "", err.Error(), nil
 		}

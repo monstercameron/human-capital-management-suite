@@ -252,6 +252,7 @@ func watchChatConversation(ctx context.Context, conversationID string, generatio
 		}
 		if gap {
 			gaps++
+			clientTelemetry.CountStream("gap")
 			if gaps <= chatStreamGapBudget {
 				// A gap is not an outage: resubscribe at once from the
 				// sequence the catch-up established.
@@ -317,7 +318,10 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 	// CHATSIDE-001: a layout saved in another tab arrives as a notice on this
 	// stream and is read at once (chatside001_sync.go).
 	notified := &chatside001SignalStream{next: stream, onSignal: func(revision uint64) { chatside001SidebarAnnounced(cfg, revision) }}
-	privateStream := &agentReplyEphemeralStream{next: notified, apply: func(delivery *chatv1.EphemeralDelivery, resume string) bool {
+	// Issue 3796: so is a change in another room's counts, or in the read
+	// position, which keeps every tab's sidebar the same.
+	counted := &chatCountsNoticeStream{next: notified, onNotice: func(notice chatCountsNotice) { chatCountsNoticed(cfg, notice) }}
+	privateStream := &agentReplyEphemeralStream{next: counted, apply: func(delivery *chatv1.EphemeralDelivery, resume string) bool {
 		applied := chatBrowser.applyEphemeralDelivery(generation, conversationID, delivery, time.Now(), resume)
 		if applied {
 			// Private delivery also created an agent-authored durable post in the
@@ -366,6 +370,7 @@ func receiveChatEvents(ctx context.Context, stream chatv1.ConversationService_Wa
 				// next projection re-reads GetCounts.
 				invalidateChatRecipientProjection()
 				post := event.GetPost()
+				noteChatUnseenWhileAway(conversationID, []*chatv1.Post{post})
 				markChatRead(cfg, conversationID, []*chatv1.Post{post})
 				claimedSound := soundCandidate && post != nil && claimChatSoundSequence(conversationID, post.GetSequence())
 				if post != nil {
@@ -418,6 +423,7 @@ func catchUpChatConversation(ctx context.Context, conversationID string, generat
 		posts := result.GetPosts()
 		if len(posts) > 0 && chatBrowser.applyCatchup(generation, conversationID, posts, cfg.Locale, chatDirectorySnapshot(), time.Now()) {
 			applied = true
+			noteChatUnseenWhileAway(conversationID, posts)
 			markChatRead(cfg, conversationID, posts)
 		}
 		pageCursor = result.GetNextCursor()

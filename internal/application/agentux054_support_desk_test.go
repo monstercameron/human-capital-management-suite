@@ -331,7 +331,7 @@ func TestTodo_AGENTUX_054_Objects_Security(t *testing.T) {
 	if _, err := objects.PutSupportEmail(t.Context(), localAgentDemoTenant, "id", []byte(`{"From":"a"}`)); !errors.Is(err, ErrAgentUXDemoSupportDenied) {
 		t.Fatalf("a changed object was accepted: %v", err)
 	}
-	for _, bad := range []struct{ tenant, ref string }{{"harborcare-demo", ref}, {localAgentDemoTenant, "local-object:../../etc/passwd"}, {localAgentDemoTenant, "other:" + strings.TrimPrefix(ref, agentUXDemoObjectPrefix)}, {localAgentDemoTenant, agentUXDemoObjectPrefix + strings.Repeat("G", 64)}} {
+	for _, bad := range []struct{ tenant, ref string }{{"harborcare-demo", ref}, {"acme-demo", ref}, {localAgentDemoTenant, "local-object:../../etc/passwd"}, {localAgentDemoTenant, "other:" + strings.TrimPrefix(ref, agentUXDemoObjectPrefix)}, {localAgentDemoTenant, agentUXDemoObjectPrefix + strings.Repeat("G", 64)}} {
 		if _, err := objects.ReadSupportObject(t.Context(), bad.tenant, bad.ref); !errors.Is(err, ErrAgentUXDemoSupportDenied) {
 			t.Fatalf("object %+v read: %v", bad, err)
 		}

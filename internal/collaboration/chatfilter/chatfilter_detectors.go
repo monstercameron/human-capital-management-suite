@@ -21,6 +21,9 @@ func compileDetector(d Definition) (Matcher, error) {
 	case "external-link":
 		p = regexp.MustCompile(`https?://[^\s<>]+`)
 	default:
+		if _, ok := dlpClassByDetector[name]; ok {
+			return func(in Input) []Span { return dlpSpans(name, in.Body) }, nil
+		}
 		return nil, ErrInvalid
 	}
 	return func(in Input) []Span {

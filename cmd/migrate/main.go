@@ -226,6 +226,12 @@ func spec(command string, rest []string) bootstrap.Spec {
 	if command == agentDemoCommand {
 		return agentDemoSpec(rest)
 	}
+	if command == chatTaskModelsCommand {
+		return chatTaskModelsSpec(rest)
+	}
+	if command == workSurfaceDemoCommand {
+		return workSurfaceDemoSpec(rest)
+	}
 	if command == agentDemoCleanupCommand {
 		return agentDemoCleanupSpec(rest)
 	}

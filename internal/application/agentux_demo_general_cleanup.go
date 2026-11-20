@@ -31,21 +31,21 @@ type AgentUXDemoGeneralCleanup struct {
 // Policy Helper descendants, through the chat service as each post's author.
 // Its receipt contains identifiers only, including successful partial work.
 func (c AgentUXDemoGeneralCleanup) Run(ctx context.Context, admin *trust.Principal, now time.Time) ([]string, error) {
-	if ctx == nil || c.Chat == nil || c.Authors == nil || admin == nil || admin.SubjectKind() != trust.SubjectKindHuman || admin.Tenant().String() != localAgentDemoTenant || admin.Subject() != localAgentDemoAdmin || now.IsZero() {
+	if ctx == nil || c.Chat == nil || c.Authors == nil || admin == nil || admin.SubjectKind() != trust.SubjectKindHuman || !isLocalAgentDemoTenant(admin.Tenant().String()) || admin.Subject() != localAgentDemoAdminFor(admin.Tenant().String()) || now.IsZero() {
 		return nil, chat.ErrPermissionDenied
 	}
-	conversation := localDevPersonaDemoConversationID(localAgentDemoTenant, "general")
-	principal := chat.Principal{TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAdmin}
+	conversation := localDevPersonaDemoConversationID(admin.Tenant().String(), "general")
+	principal := chat.Principal{TenantID: admin.Tenant().String(), SubjectID: admin.Subject()}
 	ctx = trust.WithPrincipal(ctx, admin)
 	var posts []chat.Post
 	cursor, cursors := "", map[string]bool{}
 	for {
-		page, err := c.Chat.ListPosts(ctx, chat.ListPostsRequest{Principal: principal, TenantID: localAgentDemoTenant, ConversationID: conversation, Page: chat.Page{Cursor: cursor, PageSize: 100}})
+		page, err := c.Chat.ListPosts(ctx, chat.ListPostsRequest{Principal: principal, TenantID: principal.TenantID, ConversationID: conversation, Page: chat.Page{Cursor: cursor, PageSize: 100}})
 		if err != nil {
 			return nil, err
 		}
 		for _, p := range page.Posts {
-			if p.TenantID != localAgentDemoTenant || p.ConversationID != conversation || p.ID == "" || p.Revision == 0 {
+			if p.TenantID != principal.TenantID || p.ConversationID != conversation || p.ID == "" || p.Revision == 0 {
 				return nil, chat.ErrPermissionDenied
 			}
 			posts = append(posts, p)
@@ -58,7 +58,7 @@ func (c AgentUXDemoGeneralCleanup) Run(ctx context.Context, admin *trust.Princip
 		}
 		cursor, cursors[page.NextCursor] = page.NextCursor, true
 	}
-	selected := agentuxDemoVerificationPosts(posts, now)
+	selected := agentuxDemoVerificationPostsFor(principal.TenantID, posts, now)
 	// Resolve every author before deleting anything. An unavailable machine
 	// authority leaves the channel intact rather than half-cleaned.
 	authors := map[string]*trust.Principal{}
@@ -70,7 +70,7 @@ func (c AgentUXDemoGeneralCleanup) Run(ctx context.Context, admin *trust.Princip
 		if err != nil {
 			return nil, err
 		}
-		if author == nil || author.Tenant().String() != p.TenantID || author.Subject() != p.AuthorID || !now.Before(author.ExpiresAt()) || (p.AuthorID == localAgentDemoAdmin && author.SubjectKind() != trust.SubjectKindHuman) || (p.AuthorID != localAgentDemoAdmin && author.SubjectKind() != trust.SubjectKindAgent && author.SubjectKind() != trust.SubjectKindService) {
+		if author == nil || author.Tenant().String() != p.TenantID || author.Subject() != p.AuthorID || !now.Before(author.ExpiresAt()) || (p.AuthorID == localAgentDemoAdminFor(principal.TenantID) && author.SubjectKind() != trust.SubjectKindHuman) || (p.AuthorID != localAgentDemoAdminFor(principal.TenantID) && author.SubjectKind() != trust.SubjectKindAgent && author.SubjectKind() != trust.SubjectKindService) {
 			return nil, chat.ErrPermissionDenied
 		}
 		authors[p.AuthorID] = author
@@ -91,14 +91,18 @@ func (c AgentUXDemoGeneralCleanup) Run(ctx context.Context, admin *trust.Princip
 }
 
 func agentuxDemoVerificationPosts(posts []chat.Post, now time.Time) []chat.Post {
+	return agentuxDemoVerificationPostsFor(localAgentDemoTenant, posts, now)
+}
+
+func agentuxDemoVerificationPostsFor(tenant string, posts []chat.Post, now time.Time) []chat.Post {
 	start := time.Date(2026, time.October, 1, 1, 0, 0, 0, time.UTC)
-	conversation := localDevPersonaDemoConversationID(localAgentDemoTenant, "general")
+	conversation := localDevPersonaDemoConversationID(tenant, "general")
 	selected := map[string]bool{}
 	valid := func(p chat.Post) bool {
-		return !p.Deleted && p.TenantID == localAgentDemoTenant && p.AuthorHomeTenantID == localAgentDemoTenant && p.ConversationID == conversation && !p.CreatedAt.Before(start) && !p.CreatedAt.After(now)
+		return !p.Deleted && p.TenantID == tenant && p.AuthorHomeTenantID == tenant && p.ConversationID == conversation && !p.CreatedAt.Before(start) && !p.CreatedAt.After(now)
 	}
 	for _, p := range posts {
-		if valid(p) && p.AuthorID == localAgentDemoAdmin && (strings.HasPrefix(p.Body, "@Policy Helper") || strings.HasPrefix(p.Body, "@pol")) {
+		if valid(p) && p.AuthorID == localAgentDemoAdminFor(tenant) && (strings.HasPrefix(p.Body, "@Policy Helper") || strings.HasPrefix(p.Body, "@pol")) {
 			selected[p.ID] = true
 		}
 	}

@@ -73,10 +73,7 @@ func resolveVisibleChatDocs(cfg journeyclient.Config) {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		response, err := client.GetDocumentPreviews(chatRPCContext(ctx, active), &documentv1.GetDocumentPreviewsRequest{DocumentIds: claims})
 		cancel()
-		answers := make(map[string]chatui.DocPreview, len(claims))
-		for _, id := range claims {
-			answers[id] = chatui.DocPreview{ID: id, State: "unavailable"}
-		}
+		answers := chatDocDefaultAnswers(claims, err)
 		if err == nil {
 			locale := productui.ResolveProductLocale(active.Locale)
 			names := chatDirectorySnapshot()
@@ -139,21 +136,23 @@ func armChatDocRetry(cfg journeyclient.Config, delay time.Duration) {
 // title search over the documents the viewer can open. The document
 // service applies the same read rule as opening each one.
 func withChatDocCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Config) chatui.Callbacks {
-	callbacks.SuggestDocuments = func(query string, done func([]chatui.DocSuggestion)) {
+	callbacks.RetryWorkPreviews = func() { retryChatWorkPreviews(cfg) }
+	callbacks.SuggestDocuments = func(query string, done func([]chatui.DocSuggestion, chatui.DocSuggestStatus)) {
 		client := chatDocuments
 		active := chatBrowser.config(cfg)
 		if client == nil {
-			done(nil)
+			done(nil, chatui.DocSuggestUnavailable)
 			return
 		}
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			items, err := searchChatDocuments(chatRPCContext(ctx, active), client, query)
 			cancel()
+			status := chatui.DocSuggestOK
 			if err != nil {
-				items = nil
+				items, status = nil, chatui.DocSuggestFailed
 			}
-			ui.PostAsync(func() { done(items) })
+			ui.PostAsync(func() { done(items, status) })
 		}()
 	}
 	return callbacks

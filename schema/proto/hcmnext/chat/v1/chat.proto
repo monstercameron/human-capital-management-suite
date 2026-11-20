@@ -47,6 +47,18 @@ enum ReferenceKind {
   // never travel in the post: id is the artifact id and a reader fetches the
   // content through the media grant and download flow.
   REFERENCE_KIND_MEDIA = 4;
+  // REFERENCE_KIND_PROJECT_TASK points at a project board or one task on it
+  // (issue 3752). id is "<project>" or "<project>/<task>"; display is the
+  // title the project service returned to the sender. The server authorizes
+  // the sender on send and every reader on read.
+  REFERENCE_KIND_PROJECT_TASK = 5;
+  // REFERENCE_KIND_JOURNEY points at a workflow request (a journey) that
+  // "Send to chat" put in the conversation (issue 3725). id is the journey's
+  // intent id; display is the workflow's name. The post stores only the id: the
+  // stage, the requester and every detail are read live, per reader, from the
+  // journey service. The server authorizes the sender on send and every reader
+  // on read.
+  REFERENCE_KIND_JOURNEY = 6;
 }
 
 message Reference {
@@ -63,6 +75,14 @@ message Reference {
   uint64 byte_size = 7;
   uint32 width = 8;
   uint32 height = 9;
+  // alt_text is the description the author wrote for an image attachment
+  // (issue 3962), at most 1000 characters. decorative is the author's explicit
+  // statement that the image carries no information a description would add;
+  // it excludes alt_text. Both are empty on every other kind and on a media
+  // reference that is not an image. They belong to the post, not to the
+  // artifact, so a reader's own on-demand description never changes them.
+  string alt_text = 10;
+  bool decorative = 11;
 }
 
 message SourceAttribution {
@@ -71,6 +91,9 @@ message SourceAttribution {
   string post_id = 3;
   uint64 post_revision = 4;
   string original_author_id = 5;
+  // Issue 3919: the sharer's own words about the forwarded message. Empty when
+  // none was written; attributed to the post's author, not to the original author.
+  string note = 6;
 }
 
 message Conversation {
@@ -322,6 +345,9 @@ message ForwardPostRequest {
   // Deprecated: the forwarded post's attribution is derived server-side from
   // the source post. A populated value is refused, not overwritten.
   SourceAttribution source_attribution = 8 [deprecated = true];
+  // Issue 3919: an optional note from the sharer, shown above the forwarded
+  // message in the destination. At most 1000 characters.
+  string note = 9;
 }
 message ForwardPostResponse { Post post = 1; }
 

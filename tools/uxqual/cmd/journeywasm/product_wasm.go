@@ -110,6 +110,11 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 			return notificationv1.NewNotificationServiceClient(conn).MarkNotificationRead(chatRPCContext(ctx, cfg), request)
 		},
 	}
+	// Issue 3733: the chat items of the bell, read from the chat notification
+	// route with the session the chat client already uses.
+	liveService.ChatNotifications = chatNotificationFeed(func() journeyclient.Config { return chatBrowser.config(cfg) }, chatDirectorySnapshot)
+	// Issue 3786: the personal digest of the bell, from the chat digest route.
+	liveService.ChatDigest = chatDigestFeed(func() journeyclient.Config { return chatBrowser.config(cfg) }, chatDirectorySnapshot, agentViewerTimeZone)
 	// UXBLIND-089: each bootstrap read marks its own completion, so the
 	// cold-load window's inside is ranked per read instead of guessed.
 	// bootMark keeps the first mark, so later navigations never move these.
@@ -986,6 +991,10 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 							}
 						}()
 					}
+					// Issue 3749: the conversations that mention this document.
+					if len(cfg.PagePermissions) == 0 || cfg.CanPageAction("chat", "view") {
+						view.LoadDocumentDiscussions = documentDiscussionsLoader(cfg)
+					}
 					view.LoadDocumentBacklinks = func(documentID string, done func([]productui.DocumentBacklink, error)) {
 						go func() {
 							response, err := documentService.GetDocumentBacklinks(chatRPCContext(ctx, cfg), &documentv1.GetDocumentBacklinksRequest{DocumentId: documentID})
@@ -1020,6 +1029,13 @@ func startProduct(ctx context.Context, cfg journeyclient.Config, service journey
 				}
 				if view.Page == productui.PageDocs {
 					rememberDocsListHref(&view)
+					// Issue 3748: Send to chat on a document, through the same
+					// share host tickets use; an unpublished page permission map
+					// keeps the legacy behaviour (offered).
+					if len(cfg.PagePermissions) == 0 || cfg.CanPageAction("chat", "view") {
+						view.CanSendDocumentToChat = true
+						bindProjectShare(cfg)
+					}
 					wireDocumentLibrary(&view, documentService, func(ctx context.Context) context.Context { return chatRPCContext(ctx, cfg) }, ctx)
 					view.DocumentMedia = documentMediaPort(cfg)
 					wireDocsReferenceSuggest(&view, documentService, cfg)

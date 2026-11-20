@@ -78,6 +78,7 @@ var requiredFieldPaths = map[string][]string{
 	"/hcmnext.project.v1.ProjectService/PreviewWorkflowDraft":     {"draft_id", "project_id", "expected_draft_revision", "scope"},
 	"/hcmnext.project.v1.ProjectService/PublishWorkflowDraft":     {"idempotency_key", "project_id", "draft_id", "expected_project_workflow_revision", "expected_draft_revision", "reviewed_digest", "scope"},
 	"/hcmnext.project.v1.ProjectService/GetWorkflowConfiguration": {"project_id", "scope"},
+	"/hcmnext.project.v1.ProjectService/GetProjectPreviews":       {"refs", "scope"},
 	"/hcmnext.project.v1.ProjectService/SaveBoardView":            {"idempotency_key", "project_id", "view", "scope"},
 	"/hcmnext.project.v1.ProjectService/ListBoardViews":           {"project_id", "scope"},
 	"/hcmnext.project.v1.ProjectService/GetBoard":                 {"project_id", "view_id", "scope"},

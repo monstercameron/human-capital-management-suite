@@ -83,7 +83,7 @@ func setConversationUnread(model *chatui.Model, id string, unread int) {
 // until the next read of the sidebar, seconds later. A conversation whose
 // reading is held keeps its count.
 func chatux022OpenedRoomRead(model *chatui.Model) {
-	if model.SelectedID == "" || chatReadHeld(model.SelectedID) {
+	if model.SelectedID == "" || chatReadHeld(model.SelectedID) || chatPageAway() {
 		return
 	}
 	markConversationUnreadInModel(model, model.SelectedID, false)

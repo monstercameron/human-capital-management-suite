@@ -38,12 +38,14 @@ func chatbug045PanelRows(m Model, h handlers) []ui.Node {
 		}
 	}
 	add("quiet-hours", railPreferences(m, h))
+	add("quiet-schedule", issue3920Row(m, h))
 	add("voice-messages", chatvoicePersonalRow(m))
 	add("reading-languages", integrate2ReadingSettings(m))
 	if chatbug045WritingStyleRow != nil {
 		add("writing-style", chatbug045WritingStyleRow(m))
 	}
 	add("emoji-tone", chatbug045EmojiToneRow(m))
+	add("composer-enter", issue3934Row(m))
 	return rows
 }
 
@@ -114,4 +116,4 @@ const ChatBug045Styles = ChatBug045ReadingStyles + `.chat-prefs-swatches{display
 	`.chat-prefs-swatch{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;inline-size:44px;block-size:44px;padding:0;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font-size:1.25rem;line-height:1;cursor:pointer}` +
 	`.chat-prefs-swatch:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}` +
 	`.chat-prefs-swatch[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);box-shadow:inset 0 0 0 1px var(--accent)}` +
-	`.chat-prefs-swatch:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}`
+	`.chat-prefs-swatch:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` + Issue3934Styles

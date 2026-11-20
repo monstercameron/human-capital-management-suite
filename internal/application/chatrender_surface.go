@@ -196,8 +196,18 @@ func (s *ChatRenderingSurface) ReadRenderingSelection(ctx context.Context, scope
 	// channel off, no engine, text the filters mask) the reader simply reads the
 	// original; it is not a failed translation.
 	// CHATLANG-008: a person's own message is never translated back to them.
+	// Issue 3814: the reader pressed "Translate" on this one message. It widens
+	// nothing: a channel that does not offer translation, text the filters mask,
+	// and the reader's own message are refused in words, never silently.
+	onDemand, refused := chatrender.OnDemandTranslation(ctx), ""
+	if onDemand && (!chatrenderOffersTranslation(policy) || policy.Own || policy.RequireMask) {
+		refused = chatrender.RefusedPolicy
+	}
 	if !chatrenderOffersTranslation(policy) || policy.Own {
 		pref.Translate, pref.SourceOverrides = false, nil
+	}
+	if onDemand && refused == "" {
+		pref = chatrender.WithTranslationAsked(pref, policy.Original.SourceLanguage)
 	}
 	// CHATTONE: the reader's own tone choice applies only where the policy allows
 	// rewording; anywhere else the message is read as written.
@@ -223,6 +233,7 @@ func (s *ChatRenderingSurface) ReadRenderingSelection(ctx context.Context, scope
 				return chatrender.Rendering{}, chatrender.Mark{}, err
 			}
 			selected, mark := chatrender.SelectForReader(policy, pref, chatrender.Available{Renderings: []chatrender.Rendering{masked}})
+			mark.Refused = refused
 			return selected, mark, nil
 		}
 	}
@@ -257,6 +268,12 @@ func (s *ChatRenderingSurface) ReadRenderingSelection(ctx context.Context, scope
 		}
 	}
 	rendering, mark := chatrender.SelectForReader(policy, pref, available)
+	mark.Refused = refused
+	if onDemand && refused == "" && mark.State == "original" && len(mark.Wanted) == 0 {
+		// Nothing was asked of the engine: the message is already in a language
+		// the reader reads, or its language is not known.
+		mark.Refused = chatrender.RefusedSameLanguage
+	}
 	return rendering, mark, nil
 }
 

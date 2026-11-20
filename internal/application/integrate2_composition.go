@@ -170,13 +170,25 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 	if err := integrate2RegisterVoice(registry, adapter, routed, policy.Filter); err != nil {
 		return composedChat{}, err
 	}
-	result := composedChat{status: nil, renderings: surface, filters: filters, search: ChatSearchHTTP{Port: registry, History: chatsearch.NewRecent()}, store: store, voiceFilter: policy.Filter}
+	result := composedChat{status: nil, renderings: surface, filters: filters, search: ChatSearchHTTP{Port: registry, History: chatsearch.NewRecent(), Saved: chatsearch.NewSavedService(store)}, store: store, voiceFilter: policy.Filter}
 	result.status, _ = routed.(chat.ChannelStatusService)
 	result.locations, result.locationPictures = integrate2ComposeLocations(routed, store, chatmapServedInput(input), now)
 	chatmapBindGovernance(result.locations, chatmapAdmins{Workspace: administrators, Channel: store}, chatmapCountries{Directory: chatmapDirectory(facts)})
 
 	core.SetChannelGate(nil)
-	repository := &chatstore.GateRepository{Store: store, Membership: adapter.GateMembership}
+	gateMembership := chatstore.GateMembershipPort(adapter.GateMembership)
+	// Issue 3812: a conversation bound to a case is joined by the case owner
+	// alone, the join-request approval included.
+	core.SetCaseBindings(store)
+	gateMembership = chatCaseGateMembership(gateMembership, chatstore.ConversationCaseBound)
+	// Issue 3783: information barriers guard every way into a conversation,
+	// the join-request approval included.
+	if people := chatBarrierDirectory(facts); people != nil {
+		guard := chatBarrierGuard{Rules: store, People: people}
+		core.SetMembershipBarrier(guard)
+		gateMembership = chatBarrierGateMembership(gateMembership, guard, chatBarrierActiveMembers)
+	}
+	repository := &chatstore.GateRepository{Store: store, Membership: gateMembership}
 	gateAuthority, gateDirectory := input.GateAuthority, input.GateDirectory
 	if isNilPersonaOutputPort(gateAuthority) {
 		// CHATGATE-005: the product's own authority, where it has a people
@@ -188,8 +200,15 @@ func composeIntegrate2Chat(store *chatstore.Store, adapter *chatstore.Adapter, c
 		}
 	}
 	if !isNilPersonaOutputPort(gateAuthority) {
-		gates := &chatgate.Service{Repository: repository, Authority: gateAuthority, Registry: chatgate.NewRegistry(), Clock: now}
+		gates := &chatgate.Service{Repository: repository, Authority: gateAuthority, Registry: chatgate.NewRegistry(), Clock: now, Notifier: repository, Decisions: repository}
+		if result.gateAuthority != nil {
+			result.gateSweep = &chatgateSweepPorts{Lister: repository, Sweeper: gates}
+		}
 		core.SetChannelGate(ChatgateJoinAdapter{Service: gates, InForce: repository.GateInForce})
+		// Issue 3816: gate questions and a person's own answers are searchable.
+		if err := RegisterChatSearchGates(registry, chatSearchGates{Summaries: repository, Service: gates}); err != nil {
+			return composedChat{}, err
+		}
 		routes, _ := routed.(interface {
 			ChatWriteContext(context.Context, string, string) (context.Context, error)
 		})

@@ -225,12 +225,18 @@ func (s *Service) SweepQueue(ctx context.Context, a Actor, scope Scope) (overdue
 			age := s.now().Sub(sub.SubmittedAt)
 			level := st.Ops.Notified[sub.ID]
 			if age >= st.Ops.ReviewAfter && level == "" {
+				if e := s.sweepNotice(ctx, scope, sub, ReviewNoticeOverdue); e != nil {
+					return e
+				}
 				st.Ops.Notified[sub.ID] = "administrators"
 				s.event(st, c, "review_overdue", sub.Person, sub.ID, sub.Version)
 				overdue++
 				level = "administrators"
 			}
 			if st.Ops.EscalateAfter > 0 && age >= st.Ops.EscalateAfter && level != "workspace" {
+				if e := s.sweepNotice(ctx, scope, sub, ReviewNoticeEscalated); e != nil {
+					return e
+				}
 				st.Ops.Notified[sub.ID] = "workspace"
 				s.event(st, c, "review_escalated", sub.Person, sub.ID, sub.Version)
 				escalated++

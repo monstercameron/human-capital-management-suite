@@ -22,6 +22,11 @@ func (s *Service) projectConversationReferences(ctx context.Context, p Principal
 func (s *Service) projectReaderPosts(ctx context.Context, p Principal, posts []Post) ([]Post, []bool) {
 	projected := make([]Post, len(posts))
 	visible := make(map[string]bool)
+	type projectSeen struct {
+		title   string
+		allowed bool
+	}
+	projectTitles := make(map[string]projectSeen)
 	// CHATBUG-014: a source cited by several answers on the page is resolved
 	// once for this read (chatperf_sources.go).
 	sources := newAgentSourceMemo(s.agentSourceAccess)
@@ -30,6 +35,36 @@ func (s *Service) projectReaderPosts(ctx context.Context, p Principal, posts []P
 		projected[i].Body = projectAgentSourcesWith(ctx, sources, p, post.TenantID, post.ConversationID, post.Body)
 		projected[i].References = append([]Reference(nil), post.References...)
 		for j, ref := range projected[i].References {
+			if ref.Kind == ProjectWorkReference {
+				key := ref.TenantID + "\x00" + ref.ID
+				seen, known := projectTitles[key]
+				if !known {
+					seen.title, seen.allowed = s.projectWorkVisibleTo(ctx, p, ref)
+					projectTitles[key] = seen
+				}
+				if !seen.allowed {
+					projected[i].References[j] = Reference{Kind: ProjectWorkReference, Display: restrictedProjectWorkReference}
+				} else if seen.title != "" {
+					// A rename shows at once: the title is the authority's now.
+					projected[i].References[j].Display = seen.title
+				}
+				continue
+			}
+			if ref.Kind == JourneyReference {
+				// Issue 3725: the reader's own access to the journey decides.
+				key := "journey\x00" + ref.TenantID + "\x00" + ref.ID
+				seen, known := projectTitles[key]
+				if !known {
+					seen.title, seen.allowed = s.journeyVisibleTo(ctx, p, ref)
+					projectTitles[key] = seen
+				}
+				if !seen.allowed {
+					projected[i].References[j] = Reference{Kind: JourneyReference, Display: restrictedJourneyReference}
+				} else if seen.title != "" {
+					projected[i].References[j].Display = seen.title
+				}
+				continue
+			}
 			if ref.Kind != ConversationMention {
 				continue
 			}

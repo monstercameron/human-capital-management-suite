@@ -98,6 +98,9 @@ type PersonaProgressProjection struct {
 	// AnswerDue is when the page stops waiting for that text and points at the
 	// saved copy instead. Zero waits.
 	AnswerDue time.Time
+	// Cost is the invoker's own cost for the run (#3807). It is drawn only to the
+	// invoker, under the task card and the answer.
+	Cost *PersonaCostFooter
 }
 
 // RenderPersonaProgress renders invoker-only ephemeral progress and one
@@ -113,6 +116,9 @@ func RenderPersonaProgress(model Model, projection PersonaProgressProjection) ui
 		}
 		if projection.Task != nil && strings.TrimSpace(projection.Task.ID) != "" && model.RenderPersonaTask != nil {
 			children = append(children, model.RenderPersonaTask(*projection.Task))
+			if footer := issue3807OwnCost(model, projection, "task"); footer != nil {
+				children = append(children, footer)
+			}
 		}
 		if projection.Failure != nil && projection.Failure.InvokerID == projection.InvokerID {
 			children = append(children, renderPersonaProgressFailure(model, *projection.Failure, projection.AgentName))
@@ -197,4 +203,4 @@ func personaProgressText(model Model, key, fallback string) string {
 
 // PersonaProgressStyles keeps live updates calm for people who request less
 // motion. The host may append it alongside the chat stylesheet.
-const PersonaProgressStyles = `.persona-progress-surface{min-width:0}.agent-reply-row,.persona-task-card{margin-block:8px;padding:10px 12px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-brand-soft);overflow-wrap:anywhere;min-width:0}.agent-reply-identity{display:flex;align-items:center;gap:8px;min-width:0}.agent-reply-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agent-reply-state-text,.agent-reply-answer{margin:6px 0;white-space:pre-wrap}.agent-reply-open{color:var(--chat-accent-text)}.persona-task-state,.persona-task-approval{display:inline-block;margin-inline-start:8px;font-size:.8125rem;color:var(--hcm-color-text-muted)}.persona-task-goal{margin:6px 0}.persona-task-open{display:inline-block;margin-top:6px;color:var(--chat-accent-text)}.persona-progress-retry{margin-top:8px}@media(max-width:390px){.agent-reply-row{padding:8px 10px}.agent-reply-open{max-width:100%}}@media(prefers-reduced-motion:reduce){.persona-progress-surface *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}` + agentUX026WorkingStyles
+const PersonaProgressStyles = `.persona-progress-surface{min-width:0}.agent-reply-row,.persona-task-card{margin-block:8px;padding:10px 12px;border:1px solid var(--hcm-color-border);border-radius:var(--hcm-radius-control);background:var(--hcm-color-brand-soft);overflow-wrap:anywhere;min-width:0}.agent-reply-identity{display:flex;align-items:center;gap:8px;min-width:0}.agent-reply-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.agent-reply-state-text,.agent-reply-answer{margin:6px 0;white-space:pre-wrap}.agent-reply-open{color:var(--chat-accent-text)}.persona-task-state,.persona-task-approval{display:inline-block;margin-inline-start:8px;font-size:.8125rem;color:var(--hcm-color-text-muted)}.persona-task-goal{margin:6px 0}.persona-task-open{display:inline-block;margin-top:6px;color:var(--chat-accent-text)}.persona-progress-retry{margin-top:8px}@media(max-width:390px){.agent-reply-row{padding:8px 10px}.agent-reply-open{max-width:100%}}@media(prefers-reduced-motion:reduce){.persona-progress-surface *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}` + agentUX026WorkingStyles + issue3803OutcomeStyles

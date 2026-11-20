@@ -10,7 +10,15 @@ import (
 type chatShareAttempt struct {
 	Generation                               uint64
 	SourceRoom, SourcePost, Destination, Key string
-	Config                                   journeyclient.Config
+	// Note is the sharer's trimmed note (issue 3919); the key is minted for the
+	// destination and this exact note, so a retry of the same share is the same
+	// request and an edited note is a new one.
+	Note   string
+	Config journeyclient.Config
+}
+
+func chatShareKey(destination, note string) string {
+	return destination + "\x00" + strings.TrimSpace(note)
 }
 
 func (s *chatState) openShare(postID string) (uint64, bool) {
@@ -28,7 +36,7 @@ func (s *chatState) openShare(postID string) (uint64, bool) {
 		s.shareAttemptKey, s.shareAttemptDestination = "", ""
 		s.shareAttemptKeys = nil
 		s.model.SharePostID, s.model.ShareSourceRoomID, s.model.ShareSource = postID, s.model.SelectedID, &copy
-		s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError = "", "", ""
+		s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError, s.model.ShareNote = "", "", "", ""
 		s.model.ShareDestinations = nil
 		s.model.ShareLoading, s.model.SharePending = true, false
 		s.model.ShareVersion++
@@ -45,7 +53,7 @@ func (s *chatState) closeShare() {
 		return
 	}
 	s.shareGeneration++
-	s.model.SharePostID, s.model.ShareSourceRoomID, s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError = "", "", "", "", ""
+	s.model.SharePostID, s.model.ShareSourceRoomID, s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError, s.model.ShareNote = "", "", "", "", "", ""
 	s.model.ShareSource, s.model.ShareDestinations = nil, nil
 	s.model.ShareLoading = false
 	s.model.ShareVersion++
@@ -108,15 +116,32 @@ func (s *chatState) shareSelect(destination string) bool {
 		return true
 	}
 	for _, room := range s.model.ShareDestinations {
-		if room.ID == destination && room.ID != s.model.ShareSourceRoomID && (room.Kind == chatui.PublicChannel || room.Kind == chatui.PrivateChannel) {
+		if room.ID == destination && chatui.ShareDestinationEligible(room, s.model.ShareSourceRoomID) {
 			s.model.ShareDestinationID, s.model.ShareError = destination, ""
 			s.model.ShareVersion++
 			s.shareAttemptDestination = destination
-			s.shareAttemptKey = s.shareAttemptKeys[destination]
+			s.shareAttemptKey = s.shareAttemptKeys[chatShareKey(destination, s.model.ShareNote)]
 			return true
 		}
 	}
 	return false
+}
+
+// shareNote records the note typed in the share dialog. The text is kept
+// through a refusal and is dropped only when the dialog closes or the share is
+// sent. A note over the limit is cut at the limit, as the field does.
+func (s *chatState) shareNote(text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.model.SharePending || s.model.SharePostID == "" {
+		return
+	}
+	if runes := []rune(text); len(runes) > chatui.ShareNoteMaxRunes {
+		text = string(runes[:chatui.ShareNoteMaxRunes])
+	}
+	s.model.ShareNote = text
+	s.model.ShareVersion++
+	s.shareAttemptKey = s.shareAttemptKeys[chatShareKey(s.model.ShareDestinationID, text)]
 }
 
 func (s *chatState) beginShare(mint func() string) (chatShareAttempt, bool) {
@@ -128,7 +153,7 @@ func (s *chatState) beginShare(mint func() string) (chatShareAttempt, bool) {
 	}
 	eligible := false
 	for _, room := range m.ShareDestinations {
-		if room.ID == m.ShareDestinationID && (room.Kind == chatui.PublicChannel || room.Kind == chatui.PrivateChannel) {
+		if room.ID == m.ShareDestinationID && chatui.ShareDestinationEligible(room, m.ShareSourceRoomID) {
 			eligible = true
 			break
 		}
@@ -139,13 +164,15 @@ func (s *chatState) beginShare(mint func() string) (chatShareAttempt, bool) {
 	if s.shareAttemptKeys == nil {
 		s.shareAttemptKeys = make(map[string]string)
 	}
-	if s.shareAttemptKeys[m.ShareDestinationID] == "" {
-		s.shareAttemptKeys[m.ShareDestinationID] = mint()
+	note := strings.TrimSpace(m.ShareNote)
+	keyed := chatShareKey(m.ShareDestinationID, note)
+	if s.shareAttemptKeys[keyed] == "" {
+		s.shareAttemptKeys[keyed] = mint()
 	}
-	s.shareAttemptKey, s.shareAttemptDestination = s.shareAttemptKeys[m.ShareDestinationID], m.ShareDestinationID
+	s.shareAttemptKey, s.shareAttemptDestination = s.shareAttemptKeys[keyed], m.ShareDestinationID
 	s.model.SharePending, s.model.ShareError = true, ""
 	s.model.ShareVersion++
-	return chatShareAttempt{Generation: s.shareGeneration, SourceRoom: m.ShareSourceRoomID, SourcePost: m.SharePostID, Destination: m.ShareDestinationID, Key: s.shareAttemptKey, Config: s.cfg}, true
+	return chatShareAttempt{Generation: s.shareGeneration, SourceRoom: m.ShareSourceRoomID, SourcePost: m.SharePostID, Destination: m.ShareDestinationID, Key: s.shareAttemptKey, Note: note, Config: s.cfg}, true
 }
 
 func (s *chatState) finishShare(attempt chatShareAttempt, errText string) bool {
@@ -161,7 +188,7 @@ func (s *chatState) finishShare(attempt chatShareAttempt, errText string) bool {
 		return true
 	}
 	s.shareGeneration++
-	s.model.SharePostID, s.model.ShareSourceRoomID, s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError = "", "", "", "", ""
+	s.model.SharePostID, s.model.ShareSourceRoomID, s.model.ShareDestinationID, s.model.ShareQuery, s.model.ShareError, s.model.ShareNote = "", "", "", "", "", ""
 	s.model.ShareSource, s.model.ShareDestinations = nil, nil
 	s.shareAttemptKey, s.shareAttemptDestination = "", ""
 	s.shareAttemptKeys = nil

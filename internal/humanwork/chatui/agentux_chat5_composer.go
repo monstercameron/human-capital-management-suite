@@ -16,6 +16,9 @@ type composerKeyState struct {
 	// MentionAgentHighlighted is set when the highlighted mention is an agent.
 	// Tab then opens that agent's details instead of inserting it.
 	MentionAgentHighlighted bool
+	// EnterNewline is the viewer's choice that Enter adds a line; Command is
+	// Ctrl or Cmd held, which then sends (ISSUE-3934).
+	EnterNewline, Command bool
 }
 
 type composerAction string
@@ -40,6 +43,16 @@ func composerKeyAction(state composerKeyState, key string) composerAction {
 	if state.Composing || state.Shift || (key != "Enter" && key != "Tab") {
 		return composerNative
 	}
+	if state.EnterNewline && key == "Enter" && state.Command {
+		// The explicit send shortcut ignores the open lists: it sends the draft.
+		if state.MentionOpen && state.MentionLoading && !state.MentionHighlighted {
+			return composerHold
+		}
+		if !composerMessageReady(strings.TrimSpace(state.Draft)) {
+			return composerEmpty
+		}
+		return composerSend
+	}
 	if state.MentionOpen && state.MentionHighlighted && !(key == "Tab" && state.MentionAgentHighlighted) {
 		return composerPickMention
 	}
@@ -55,7 +68,8 @@ func composerKeyAction(state composerKeyState, key string) composerAction {
 	if state.ChannelOpen && state.ChannelHighlighted {
 		return composerPickChannel
 	}
-	if key != "Enter" {
+	if key != "Enter" || state.EnterNewline {
+		// With Enter adding lines, a plain Enter that no list owns is a line.
 		return composerNative
 	}
 	if state.MentionOpen && state.MentionLoading {

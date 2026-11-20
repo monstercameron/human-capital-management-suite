@@ -3,6 +3,7 @@ package chatui
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
 )
@@ -12,9 +13,22 @@ import (
 // members. Like mentionBox it lives in a ref, so a handler always reads its own
 // latest write even when events outrun renders; the tick only asks for one.
 type localUI struct {
-	chatcmd003           chatcmd003Preview
-	searchOpen           bool
-	archivedOpen         bool
+	chatcmd003   chatcmd003Preview
+	searchOpen   bool
+	archivedOpen bool
+	// unreadOnly is the sidebar's Unread filter and unreadKept the conversations
+	// that were unread when it was turned on (issue3936_unread_filter.go).
+	unreadOnly bool
+	// draftsOpen, draftsAsk and draftsNote are the sidebar Drafts list: open,
+	// the conversation whose discard awaits confirmation, and the polite status
+	// text (issue3915_drafts.go).
+	draftsOpen            bool
+	draftsAsk, draftsNote string
+	// followedOpen is the Followed threads panel (issue3916_followed_threads.go).
+	followedOpen bool
+	// followUpsOpen is the Follow-ups panel (issue3787_followups.go).
+	followUpsOpen        bool
+	unreadKept           map[string]bool
 	pointerRow, focusRow string
 	room                 string
 	tray                 string
@@ -42,6 +56,9 @@ type localUI struct {
 	// composerNotice explains a composer command that could not run, such as
 	// /giphy without a configured GIPHY key. The next keystroke clears it.
 	composerNotice string
+	// generalAsk is the card for the question last put to the General agent
+	// (issue3756_general_ask.go).
+	generalAsk issue3756State
 	// pollReady is whether the channel poll form holds a question and at
 	// least two options, so Create can be enabled (C-10, round 3).
 	pollReady bool
@@ -65,6 +82,8 @@ type localUI struct {
 	sentCount      int
 	agentFeedback  map[string]string
 	agentProfileID string
+	// reactionsFor is the message whose View reactions list is open (issue3938_reactions_view.go).
+	reactionsFor string
 	// threadPeek is the thread set aside so the channel shows on a narrow
 	// screen after View in channel (issue3894_thread_peek.go).
 	threadPeek      string
@@ -92,9 +111,21 @@ type localUI struct {
 	// cardEdit is the poll or list message its author is rewording
 	// (chatcmd002_edit.go).
 	cardEdit string
+	// plan is the poll card's Plan next step panel (issue3954_plan.go).
+	plan issue3954State
+	// task is the to-do task form a card has open (issue3947_task_change.go).
+	task issue3947State
 	// agentShareAsk is the agent run whose private answer card is asking whether
 	// to share it with the channel (chatux026_share.go).
 	agentShareAsk string
+	// handoff is the answer card reviewing "Continue with another agent" (issue3977_handoff.go).
+	handoff issue3977State
+	// attention is the "What needs my attention?" panel (issue3986_attention.go).
+	attention issue3986UI
+	// enroll is the "Help me understand my enrollment options" guide (issue3990_enrollment_guide.go).
+	enroll issue3990UI
+	// find is the "Find the right contact or channel" card (issue3963_find_contact.go).
+	find issue3963UI
 	// privateAnswer is the composer's "Private answer" switch (agentux070_private_answer.go).
 	privateAnswer bool
 	// privateByRoom keeps the switch of each conversation's unsent draft while
@@ -107,6 +138,32 @@ type localUI struct {
 	// menuSeq is seq as of the last change to commandMenu, which is what the
 	// command list writes into data-open (issue 3827: not every local change).
 	menuSeq uint64
+
+	// dateJumpOpen is the Jump to date bar (issue3930_date_jump.go); dateJumpInvalid
+	// is a Go press with no usable day in the field.
+	dateJumpOpen, dateJumpInvalid bool
+
+	// sharedFilesOpen is the Shared files entry of the details panel and
+	// sharedFilesType the type chip chosen in it (issue3917_shared_files.go).
+	sharedFilesOpen bool
+	sharedFilesType string
+
+	// The Event timeline entry of the details panel (issue3964_timeline.go): open,
+	// the entries the person removed, the note under the form (a copy key) and the
+	// access check before a draft.
+	timelineOpen, timelineChecking bool
+	timelineRemoved                map[string]bool
+	timelineNote                   string
+	timelineChanged                int
+
+	// Issue 3788: Send later. sendLaterOpen is the panel above the message box;
+	// scheduledOpen is the Scheduled tray and scheduledEdit the row being changed.
+	sendLaterOpen, sendLaterBusy                                                   bool
+	sendLaterNote, sendLaterDate, sendLaterClock                                   string
+	sendLaterSaved                                                                 time.Time
+	sendLaterQuiet                                                                 int
+	scheduledOpen                                                                  bool
+	scheduledEdit, scheduledBody, scheduledDate, scheduledClock, scheduledEditNote string
 }
 
 type localStore struct {
@@ -137,13 +194,20 @@ func (s localStore) forRoom(room string) {
 		s.box.tray = ""
 		s.box.pointerRow, s.box.focusRow = "", ""
 		s.box.searchOpen = false
+		s.box.dateJumpOpen, s.box.dateJumpInvalid = false, false
+		s.box.sharedFilesOpen, s.box.sharedFilesType = false, ""
+		s.box.timelineOpen, s.box.timelineChecking, s.box.timelineRemoved, s.box.timelineNote, s.box.timelineChanged = false, false, nil, "", 0
 		s.box.pollReady = false
 		s.box.roleQuery = ""
 		s.box.agentProfileID = ""
+		s.box.reactionsFor = ""
 		s.box.threadPeek = ""
 		s.box.agentShareAsk = ""
+		s.box.handoff = issue3977State{}
 		s.box.privateAnswer = s.box.privateAnswerForRoom(room)
 		s.box.cardEdit = ""
+		s.box.plan = issue3954State{}
+		s.box.task = issue3947State{}
 		s.box.purposeEditing, s.box.purposeDraft = false, ""
 		s.box.restorePurposeEdit(room)
 		s.box.emojiCompletion = emojiCompletion{Active: -1}

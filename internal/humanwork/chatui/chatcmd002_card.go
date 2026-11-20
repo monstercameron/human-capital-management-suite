@@ -202,6 +202,7 @@ func chatcmd002Todo(m Model, post string, view chat.Chatcmd002View, preview, clo
 			when := chatcmd002Stamp(m, time.Unix(item.CompletedAtUnix, 0))
 			parts = append(parts, html.Span(html.Props{Class: "chatcmd002-by", Dir: "auto", Title: chatcmd002Fill(chatcmd003Text(m, "completed"), "name", name, "date", when), Text: chatcmd002Fill(chatcmd003Text(m, "completed-by"), "name", name)}))
 		}
+		parts = append(parts, issue3947Row(m, post, view, item, preview, closed)...)
 		if !preview && m.Chatcmd002.AddToTasks != nil {
 			parts = append(parts, html.Button(html.Props{Type: "button", Class: "chatcmd002-link", Data: map[string]string{"action": "chatcmd002-add-tasks", "id": post, "extra": item.ID}, Text: chatcmd003Text(m, "add-tasks")}))
 		}
@@ -233,6 +234,9 @@ func Chatcmd002RenderCard(m Model, post string, view chat.Chatcmd002View, previe
 		children = append(children, chatcmd002Poll(m, post, view, preview, closed)...)
 	case c.Todo != nil:
 		children = append(children, chatcmd002Todo(m, post, view, preview, closed)...)
+	}
+	if !editing {
+		children = append(children, issue3954Plan(m, post, view, preview)...)
 	}
 	if view.Notice != "" && !preview {
 		children = append(children, html.P(html.Props{Class: "chatcmd002-note", Role: "alert", Text: chatcmd003Text(m, "card-"+view.Notice)}))
@@ -353,15 +357,7 @@ func chatcmd002Action(m Model, action, post, extra string) bool {
 	if !ok {
 		return true
 	}
-	revision := view.Revision
-	for _, msg := range append(append([]Message{}, m.Messages...), m.ThreadMessages...) {
-		if msg.ID == post {
-			revision = msg.Revision
-		}
-	}
-	if m.ThreadParent != nil && m.ThreadParent.ID == post {
-		revision = m.ThreadParent.Revision
-	}
+	revision := chatcmd002Revision(m, post, view)
 	switch action {
 	case "chatcmd002-add-tasks":
 		if m.Chatcmd002.AddToTasks != nil {

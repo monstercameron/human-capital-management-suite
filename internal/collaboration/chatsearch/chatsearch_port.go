@@ -98,7 +98,11 @@ type Row struct {
 	Target                                                                           Target
 	Private, HasFile, HasLink, HasReactions, InThread, MentionsMe, ByAgent, HasVoice bool
 	Deleted, Removed                                                                 bool
-	ExpiresAt                                                                        time.Time
+	// Edited is true when a message was changed after it was posted, and
+	// Restricted when it was addressed to part of its room (issue 3964). Both
+	// are read-only facts about the row; Text is always the current wording.
+	Edited, Restricted bool
+	ExpiresAt          time.Time
 	// Language is the language a message was written in, when the source knows it
 	// (the "written in" filter).
 	Language string
@@ -115,7 +119,9 @@ type Request struct {
 	DisplayQuery string
 	Filters      Filters
 	Mode, Cursor string
-	Limit        int
+	// Order is "newest" (the default, also "") or "oldest" (ISSUE-3945).
+	Order string
+	Limit int
 	// Transient marks a search asked while a person types in the workspace
 	// search box (CHATSEARCH-002). It is answered like any other and is not
 	// remembered among their recent Chat searches.
@@ -161,7 +167,7 @@ const DefaultSourceTimeout = 5 * time.Second
 // Source must narrow by current access BEFORE matching, counting, or producing
 // snippets. CanOpen must reload current access and current row state, including
 // deletion, expiry, segment and document grants. False reveals no reason.
-// Search streams newest-first by (At, Kind, ID), honors BeforeAt/BeforeKey,
+// Search streams newest-first (oldest-first when Request.Order says so) by (At, Kind, ID), honors BeforeAt/BeforeKey,
 // and returns at most Limit+1 authorized matches. No total is inferred from
 // a source's candidate count.
 type Source interface {
@@ -263,7 +269,8 @@ func requestScope(q Request) string {
 		Query   string
 		Filters Filters
 		Mode    string
-	}{q.Actor, q.Query, q.Filters, q.Mode})
+		Order   string
+	}{q.Actor, q.Query, q.Filters, q.Mode, q.Order})
 	h := sha256.Sum256(b)
 	return base64.RawURLEncoding.EncodeToString(h[:])
 }
@@ -333,6 +340,9 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 	if _, err := Parse(q.DisplayQuery); err != nil {
 		return Response{}, err
 	}
+	if !validOrder(q.Order) {
+		return Response{}, ErrInvalid
+	}
 	if q.Mode != "" && q.Mode != "keyword" && q.Mode != "meaning" {
 		return Response{}, ErrInvalid
 	}
@@ -351,6 +361,19 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 	if strings.TrimSpace(q.Query) == "" && q.Filters.Empty() {
 		return Response{}, ErrInvalid
 	}
+	// ISSUE-3945: the order may come from the request or from a sort: word in the
+	// query; both must agree. It is settled to one spelling here, so the paging
+	// cursor (bound to the request scope) names the direction it was issued for.
+	if q.Order != "" && q.Filters.Order != "" && q.Order != q.Filters.Order {
+		return Response{}, ErrInvalid
+	}
+	if q.Order == "" {
+		q.Order = q.Filters.Order
+	}
+	if q.Order == "" {
+		q.Order = OrderNewest
+	}
+	q.Filters.Order = q.Order
 	if q.Limit == 0 {
 		q.Limit = 20
 	}
@@ -439,12 +462,7 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 			rows = append(rows, row)
 		}
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].At.Equal(rows[j].At) {
-			return rowKey(rows[i]) > rowKey(rows[j])
-		}
-		return rows[i].At.After(rows[j].At)
-	})
+	q.sortRows(rows)
 	batch := map[Kind]map[string]bool{}
 	batchKinds := []Kind{}
 	batchRows := map[Kind][]Row{}
@@ -481,7 +499,7 @@ func (r *Registry) Search(ctx context.Context, q Request) (Response, error) {
 	defer singleCancel()
 	var page []Row
 	for _, row := range rows {
-		if after.Key != "" && (row.At.After(after.At) || row.At.Equal(after.At) && rowKey(row) >= after.Key) {
+		if after.Key != "" && q.servedBefore(row, after.At, after.Key) {
 			continue
 		}
 		if failed[row.Kind] {

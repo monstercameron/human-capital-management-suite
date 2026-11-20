@@ -49,7 +49,7 @@ func TestTodo_CHATUX_022(t *testing.T) {
 
 	t.Run("own message", func(t *testing.T) {
 		m := chatux022Model()
-		want := "Reply in thread (bar) | Copy link | Copy text | Share to channel | Pin message | Save for later (bar) | Edit message | --- | Delete message"
+		want := "Reply in thread (bar) | Copy link | Copy text | Share message | Pin message | Save for later (bar) | Edit message | --- | Delete message"
 		if got := join(chatux022Rows(t, m, own)); got != want {
 			t.Fatalf("menu rows:\n got %s\nwant %s", got, want)
 		}
@@ -73,7 +73,7 @@ func TestTodo_CHATUX_022(t *testing.T) {
 	t.Run("someone else's message", func(t *testing.T) {
 		m := chatux022Model()
 		got := join(chatux022Rows(t, m, other))
-		if !strings.HasPrefix(got, "Reply in thread (bar) | Copy link | Copy text | Share to channel | Pin message | Save for later (bar) | --- | ") || strings.Contains(got, "Edit message") || strings.Contains(got, "Delete message") {
+		if !strings.HasPrefix(got, "Reply in thread (bar) | Copy link | Copy text | Share message | Pin message | Save for later (bar) | --- | ") || strings.Contains(got, "Edit message") || strings.Contains(got, "Delete message") {
 			t.Fatalf("menu rows of someone else's message: %s", got)
 		}
 	})

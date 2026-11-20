@@ -79,3 +79,32 @@ func TestChatProjectTaskHrefUsesPersistentInAppRoute(t *testing.T) {
 		t.Fatalf("task link route = %q, %v; want %q, true", got, ok, want)
 	}
 }
+
+// TestIssue3753_ProjectCardRevalidatesWithoutRender: a settled project card
+// schedules its own re-read at expiry, never for another viewer, a stale or an
+// unclaimed reference.
+func TestIssue3753_ProjectCardRevalidatesWithoutRender(t *testing.T) {
+	cache := &chatProjectTaskPreviewCache{}
+	now := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	ref := chatui.ProjectTaskReference{ProjectID: "p1", TaskID: "t1"}
+	key := chatui.ProjectTaskPreviewKey("p1", "t1")
+	refs := []chatui.ProjectTaskReference{ref}
+	_, epoch, _ := cache.claim("t\x00alice", refs, now)
+	if _, ok := cache.revalidateIn("t\x00alice", refs, now); ok {
+		t.Fatal("a pending read armed a timer")
+	}
+	cache.finish("t\x00alice", epoch, map[string]chatui.ProjectTaskPreview{key: {ProjectID: "p1", TaskID: "t1", State: "archived"}}, now)
+	want := chatProjectTaskPreviewFreshFor - 5*time.Second
+	if due, ok := cache.revalidateIn("t\x00alice", refs, now.Add(5*time.Second)); !ok || due != want {
+		t.Fatalf("due = %v %v, want %v true", due, ok, want)
+	}
+	if _, ok := cache.revalidateIn("t\x00alice", refs, now.Add(time.Minute)); ok {
+		t.Fatal("a stale answer armed a timer")
+	}
+	if _, ok := cache.revalidateIn("t\x00bob", refs, now); ok {
+		t.Fatal("another viewer's answer armed a timer")
+	}
+	if _, ok := cache.revalidateIn("t\x00alice", []chatui.ProjectTaskReference{{ProjectID: "p9", TaskID: "t9"}}, now); ok {
+		t.Fatal("an unclaimed reference armed a timer")
+	}
+}

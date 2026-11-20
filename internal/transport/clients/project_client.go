@@ -26,6 +26,7 @@ const (
 	ProcedureGetBoard                 = "/hcmnext.project.v1.ProjectService/GetBoard"
 	ProcedureGetProject               = "/hcmnext.project.v1.ProjectService/GetProject"
 	ProcedureGetProjectMembership     = "/hcmnext.project.v1.ProjectService/GetProjectMembership"
+	ProcedureGetProjectPreviews       = "/hcmnext.project.v1.ProjectService/GetProjectPreviews"
 	ProcedureGetTask                  = "/hcmnext.project.v1.ProjectService/GetTask"
 	ProcedureGetWorkflowConfiguration = "/hcmnext.project.v1.ProjectService/GetWorkflowConfiguration"
 	ProcedureGetWorkflowDraft         = "/hcmnext.project.v1.ProjectService/GetWorkflowDraft"
@@ -69,6 +70,7 @@ func ProceduresProjectService() []string {
 		ProcedureGetBoard,
 		ProcedureGetProject,
 		ProcedureGetProjectMembership,
+		ProcedureGetProjectPreviews,
 		ProcedureGetTask,
 		ProcedureGetWorkflowConfiguration,
 		ProcedureGetWorkflowDraft,
@@ -128,6 +130,8 @@ type ProjectClient interface {
 	GetProject(ctx context.Context, req *projectv1.GetProjectRequest, opts ...CallOption) (*projectv1.GetProjectResponse, error)
 	// GetProjectMembership calls hcmnext.project.v1.ProjectService.GetProjectMembership.
 	GetProjectMembership(ctx context.Context, req *projectv1.GetProjectMembershipRequest, opts ...CallOption) (*projectv1.GetProjectMembershipResponse, error)
+	// GetProjectPreviews calls hcmnext.project.v1.ProjectService.GetProjectPreviews.
+	GetProjectPreviews(ctx context.Context, req *projectv1.GetProjectPreviewsRequest, opts ...CallOption) (*projectv1.GetProjectPreviewsResponse, error)
 	// GetTask calls hcmnext.project.v1.ProjectService.GetTask.
 	GetTask(ctx context.Context, req *projectv1.GetTaskRequest, opts ...CallOption) (*projectv1.GetTaskResponse, error)
 	// GetWorkflowConfiguration calls hcmnext.project.v1.ProjectService.GetWorkflowConfiguration.
@@ -309,6 +313,15 @@ func (c *projectGRPCClient) GetProjectMembership(ctx context.Context, req *proje
 // GetTask calls hcmnext.project.v1.ProjectService.GetTask over native gRPC.
 func (c *projectGRPCClient) GetTask(ctx context.Context, req *projectv1.GetTaskRequest, opts ...CallOption) (*projectv1.GetTaskResponse, error) {
 	res, err := c.client.GetTask(applyGRPCOptions(ctx, opts), req)
+	if err != nil {
+		return nil, DecodeGRPCError(err)
+	}
+	return res, nil
+}
+
+// GetProjectPreviews calls hcmnext.project.v1.ProjectService.GetProjectPreviews over native gRPC.
+func (c *projectGRPCClient) GetProjectPreviews(ctx context.Context, req *projectv1.GetProjectPreviewsRequest, opts ...CallOption) (*projectv1.GetProjectPreviewsResponse, error) {
+	res, err := c.client.GetProjectPreviews(applyGRPCOptions(ctx, opts), req)
 	if err != nil {
 		return nil, DecodeGRPCError(err)
 	}
@@ -537,6 +550,7 @@ type projectConnectClient struct {
 	getBoard                 *connect.Client[projectv1.GetBoardRequest, projectv1.GetBoardResponse]
 	getProject               *connect.Client[projectv1.GetProjectRequest, projectv1.GetProjectResponse]
 	getProjectMembership     *connect.Client[projectv1.GetProjectMembershipRequest, projectv1.GetProjectMembershipResponse]
+	getProjectPreviews       *connect.Client[projectv1.GetProjectPreviewsRequest, projectv1.GetProjectPreviewsResponse]
 	getTask                  *connect.Client[projectv1.GetTaskRequest, projectv1.GetTaskResponse]
 	getWorkflowConfiguration *connect.Client[projectv1.GetWorkflowConfigurationRequest, projectv1.GetWorkflowConfigurationResponse]
 	getWorkflowDraft         *connect.Client[projectv1.GetWorkflowDraftRequest, projectv1.GetWorkflowDraftResponse]
@@ -580,6 +594,7 @@ func NewProjectClientConnect(httpClient connect.HTTPClient, baseURL string, opts
 		getBoard:                 connect.NewClient[projectv1.GetBoardRequest, projectv1.GetBoardResponse](httpClient, baseURL+ProcedureGetBoard, opts...),
 		getProject:               connect.NewClient[projectv1.GetProjectRequest, projectv1.GetProjectResponse](httpClient, baseURL+ProcedureGetProject, opts...),
 		getProjectMembership:     connect.NewClient[projectv1.GetProjectMembershipRequest, projectv1.GetProjectMembershipResponse](httpClient, baseURL+ProcedureGetProjectMembership, opts...),
+		getProjectPreviews:       connect.NewClient[projectv1.GetProjectPreviewsRequest, projectv1.GetProjectPreviewsResponse](httpClient, baseURL+ProcedureGetProjectPreviews, opts...),
 		getTask:                  connect.NewClient[projectv1.GetTaskRequest, projectv1.GetTaskResponse](httpClient, baseURL+ProcedureGetTask, opts...),
 		getWorkflowConfiguration: connect.NewClient[projectv1.GetWorkflowConfigurationRequest, projectv1.GetWorkflowConfigurationResponse](httpClient, baseURL+ProcedureGetWorkflowConfiguration, opts...),
 		getWorkflowDraft:         connect.NewClient[projectv1.GetWorkflowDraftRequest, projectv1.GetWorkflowDraftResponse](httpClient, baseURL+ProcedureGetWorkflowDraft, opts...),
@@ -755,6 +770,17 @@ func (c *projectConnectClient) GetTask(ctx context.Context, req *projectv1.GetTa
 	connectReq := connect.NewRequest(req)
 	applyConnectOptions(connectReq, opts)
 	res, err := c.getTask.CallUnary(ctx, connectReq)
+	if err != nil {
+		return nil, DecodeConnectError(err)
+	}
+	return res.Msg, nil
+}
+
+// GetProjectPreviews calls hcmnext.project.v1.ProjectService.GetProjectPreviews over connect-go.
+func (c *projectConnectClient) GetProjectPreviews(ctx context.Context, req *projectv1.GetProjectPreviewsRequest, opts ...CallOption) (*projectv1.GetProjectPreviewsResponse, error) {
+	connectReq := connect.NewRequest(req)
+	applyConnectOptions(connectReq, opts)
+	res, err := c.getProjectPreviews.CallUnary(ctx, connectReq)
 	if err != nil {
 		return nil, DecodeConnectError(err)
 	}

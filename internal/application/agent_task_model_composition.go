@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
@@ -20,13 +19,13 @@ func composeServedAgentTaskModel(ctx context.Context, cfg ServeConfig, runtime *
 		return nil
 	}
 	if cfg.Profile == ServeProfileLocalDev && cfg.AgentModelConfigFile == "" {
-		path := filepath.FromSlash(localAgentTaskModelDeploymentPath)
+		path := localAgentDevFile(localAgentTaskModelDeploymentPath)
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			return nil
 		} else if err != nil {
 			return err
 		}
-		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if err != nil {
 			return err
 		}

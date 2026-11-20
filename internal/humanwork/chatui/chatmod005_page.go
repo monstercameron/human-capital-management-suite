@@ -84,6 +84,15 @@ func ModerationAuthorNotice(locale string, n chat.ModerationNotice) ui.Node {
 	if n.Outcome == chat.ModerationOutcomeFilterNotify {
 		return moderationFilterNotice(locale, n)
 	}
+	if chat.IsGateReviewOutcome(n.Outcome) {
+		return moderationGateReviewNotice(locale, n)
+	}
+	if chat.IsGateDecisionOutcome(n.Outcome) {
+		return moderationGateDecisionNotice(locale, n)
+	}
+	if chat.IsSavedReminderOutcome(n.Outcome) {
+		return moderationSavedReminderNotice(locale, n)
+	}
 	title := "outcome"
 	switch {
 	case strings.HasPrefix(n.ID, "outcome:"):

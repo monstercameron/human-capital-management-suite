@@ -16,11 +16,11 @@ import (
 
 var _ chat.SavedStore = (*Store)(nil)
 
-const chatsaveColumns = `host_tenant_id,home_tenant_id,person_id,conversation_id,post_id,state,note,due_at,created_at,updated_at,revision`
+const chatsaveColumns = `host_tenant_id,home_tenant_id,person_id,conversation_id,post_id,state,note,due_at,created_at,updated_at,revision,labels`
 
 func chatsaveScan(row interface{ Scan(...any) error }) (chat.SavedItem, error) {
 	var item chat.SavedItem
-	err := row.Scan(&item.TenantID, &item.HomeTenantID, &item.PersonID, &item.ConversationID, &item.PostID, &item.State, &item.Note, &item.DueAt, &item.CreatedAt, &item.UpdatedAt, &item.Revision)
+	err := row.Scan(&item.TenantID, &item.HomeTenantID, &item.PersonID, &item.ConversationID, &item.PostID, &item.State, &item.Note, &item.DueAt, &item.CreatedAt, &item.UpdatedAt, &item.Revision, &item.Labels)
 	if errors.Is(err, dbport.ErrNoRows) {
 		return item, chat.ErrNotFound
 	}
@@ -94,7 +94,38 @@ func (s *Store) ChangeSaved(ctx context.Context, p chat.Principal, tenantID, con
 	var result chat.SavedItem
 	err := s.chatsaveTx(ctx, p, tenantID, func(tx dbport.Tx) error {
 		var err error
-		result, err = chatsaveScan(tx.QueryRow(ctx, `UPDATE chat_saved_item SET state=COALESCE($6,state),note=COALESCE($7,note),due_at=CASE WHEN $8 THEN $9 ELSE due_at END,reminded_at=CASE WHEN $8 THEN NULL ELSE reminded_at END WHERE tenant_id=$1 AND home_tenant_id=$2 AND person_id=$3 AND conversation_id=$4 AND post_id=$5 AND host_tenant_id=$10 RETURNING `+chatsaveColumns, p.TenantID, p.TenantID, p.SubjectID, conversationID, postID, change.State, change.Note, change.SetDue, change.DueAt, tenantID))
+		// Issue 3932: nil leaves the labels alone; a non-nil slice replaces them.
+		var labels []string
+		if len(change.AddLabels)+len(change.RemoveLabels) > 0 {
+			// The person's label count is checked across rows; two devices adding
+			// labels to different messages take turns, as saves do.
+			if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1 || chr(31) || $2 || chr(31) || $3,21))`, p.TenantID, p.TenantID, p.SubjectID); err != nil {
+				return err
+			}
+			var current []string
+			if err = tx.QueryRow(ctx, `SELECT labels FROM chat_saved_item WHERE tenant_id=$1 AND home_tenant_id=$2 AND person_id=$3 AND conversation_id=$4 AND post_id=$5 AND host_tenant_id=$6 FOR UPDATE`, p.TenantID, p.TenantID, p.SubjectID, conversationID, postID, tenantID).Scan(&current); errors.Is(err, dbport.ErrNoRows) {
+				return chat.ErrNotFound
+			} else if err != nil {
+				return err
+			}
+			if labels, err = chat.ApplySavedLabels(current, change.AddLabels, change.RemoveLabels); err != nil {
+				return err
+			}
+			if labels == nil {
+				labels = []string{}
+			}
+			if len(change.AddLabels) > 0 {
+				// A person keeps a short list of labels: new names count against it.
+				var distinct int
+				if err = tx.QueryRow(ctx, `SELECT count(DISTINCT lower(l)) FROM (SELECT unnest(labels) l FROM chat_saved_item WHERE tenant_id=$1 AND home_tenant_id=$2 AND person_id=$3 AND NOT (conversation_id=$4 AND post_id=$5 AND host_tenant_id=$6) UNION ALL SELECT unnest($7::text[])) x`, p.TenantID, p.TenantID, p.SubjectID, conversationID, postID, tenantID, labels).Scan(&distinct); err != nil {
+					return err
+				}
+				if distinct > chat.SavedLabelsPerPerson {
+					return chat.ErrSavedLabelLimit
+				}
+			}
+		}
+		result, err = chatsaveScan(tx.QueryRow(ctx, `UPDATE chat_saved_item SET state=COALESCE($6,state),note=COALESCE($7,note),due_at=CASE WHEN $8 THEN $9 ELSE due_at END,reminded_at=CASE WHEN $8 THEN NULL ELSE reminded_at END,labels=COALESCE($11::text[],labels) WHERE tenant_id=$1 AND home_tenant_id=$2 AND person_id=$3 AND conversation_id=$4 AND post_id=$5 AND host_tenant_id=$10 RETURNING `+chatsaveColumns, p.TenantID, p.TenantID, p.SubjectID, conversationID, postID, change.State, change.Note, change.SetDue, change.DueAt, tenantID, labels))
 		return err
 	})
 	return result, err
@@ -192,7 +223,7 @@ func (s *Store) DeliverSavedReminder(ctx context.Context, p chat.Principal, item
 			return err
 		}
 		key := fmt.Sprintf("saved:%x", sha256.Sum256(identity))
-		item.Post, item.Channel, item.Note = nil, "", ""
+		item.Post, item.Channel, item.Note, item.Labels = nil, "", "", nil
 		if err := sink.NotifySaved(ctx, p, item, key); err != nil {
 			return err
 		}

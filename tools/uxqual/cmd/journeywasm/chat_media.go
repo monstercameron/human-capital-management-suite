@@ -456,7 +456,7 @@ func chatMediaAttachments(post *chatv1.Post) []chatui.Attachment {
 		if contentType == "" {
 			contentType = chatMediaContentType(name)
 		}
-		out = append(out, chatui.Attachment{ID: id, Name: name, ContentType: contentType, Bytes: int64(reference.GetByteSize()), Width: int(reference.GetWidth()), Height: int(reference.GetHeight())})
+		out = append(out, chatui.Attachment{ID: id, Name: name, ContentType: contentType, Bytes: int64(reference.GetByteSize()), Width: int(reference.GetWidth()), Height: int(reference.GetHeight()), AltText: reference.GetAltText(), Decorative: reference.GetDecorative()})
 	}
 	if len(out) == 0 {
 		return nil

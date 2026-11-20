@@ -139,8 +139,8 @@ func syncEditBoxHeight(id string) {
 // chatbug073EditKey saves the edit when Enter is pressed in the edit box, by
 // submitting the box's form so that the one save path runs. It reports whether
 // it took the key.
-func chatbug073EditKey(e ui.KeyboardEvent, editingID string) bool {
-	if editingID == "" || !chatbug073EditSaves(e.GetKey(), shiftHeld(e), composerIsComposing(e)) {
+func chatbug073EditKey(e ui.KeyboardEvent, editingID string, enterNewline bool) bool {
+	if editingID == "" || !issue3934EditSaves(e.GetKey(), shiftHeld(e), composerIsComposing(e), commandHeld(e), enterNewline) {
 		return false
 	}
 	target := e.JSValue().Get("target")

@@ -276,6 +276,10 @@ func (s *chatState) reset(client chatv1.ConversationServiceClient, cfg journeycl
 	s.cfg = cfg
 	s.callbacks = callbacks
 	s.model = chatui.Model{CurrentUser: cfg.Subject, CurrentTenantID: cfg.Tenant, Locale: cfg.Locale, Number: chatNumberFormatter(cfg.Locale)}
+	// Issue 3737: unsent text belongs to the person who typed it.
+	chatUnsent.forget()
+	// Issue 3942: a remembered reading place belongs to the person who read.
+	chatReadingAnchors.useOwner(cfg.Tenant, cfg.Subject)
 	s.sendAttempts = make(map[string]chatSendAttempt)
 	s.editDrafts = make(map[string]string)
 	s.drafts = make(map[string]string)
@@ -1329,12 +1333,22 @@ func (s *chatState) selectChatConversation(id string) (chatui.Model, uint64) {
 		swapChatDraft(model, s.drafts, id)
 		model.Search = ""
 		model.ChatSearch, model.SearchOpened = nil, false
+		// #3930: a Jump to date result belongs to the room it was made in.
+		model.DateJump = chatui.DateJumpView{}
+		// #3942: the bar about a returned-to place belongs to the room it was shown in.
+		model.ReadingResume = chatui.ReadingResumeView{}
+		// #3973: a handover belongs to the room it was prepared in.
+		model.Handover = chatui.HandoverView{}
+		// #3917: the Shared files list belongs to the room it was read in.
+		model.SharedFiles = chatui.SharedFilesView{}
+		// #3964: an event timeline belongs to the room it was read in.
+		model.Timeline = chatui.TimelineView{}
 		model.ShowThread = false
 		model.ThreadParentID = ""
 		model.ThreadParent = nil
 		model.ThreadMessages = nil
 		model.ResolvedPersonaMentions = nil
-		model.PersonaInvocations = nil
+		model.PersonaInvocations, model.PersonaOutcomes = nil, nil
 		model.PersonaActivityReady = false
 		model.PersonaPostActors = nil
 		model.EphemeralMessages = nil
@@ -1824,7 +1838,7 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		// not be rolled back by a refresh that only re-read the listing.
 		cur := s.model
 		loaded.ResolvedPersonaMentions, loaded.PersonaInvocations, loaded.RenderPersonaTask = cur.ResolvedPersonaMentions, cur.PersonaInvocations, cur.RenderPersonaTask
-		loaded.PersonaActivityReady = cur.PersonaActivityReady
+		loaded.PersonaActivityReady, loaded.PersonaOutcomes = cur.PersonaActivityReady, cur.PersonaOutcomes
 		loaded.PersonaPostActors = cur.PersonaPostActors
 		loaded.AgentFeedbackRestored, loaded.AgentShare = cur.AgentFeedbackRestored, cur.AgentShare
 		loaded.EphemeralMessages = cur.EphemeralMessages
@@ -1843,6 +1857,9 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		loaded.MemberQuery = cur.MemberQuery
 		loaded.ShowThread, loaded.ThreadParentID, loaded.ThreadFollowed = cur.ShowThread, cur.ThreadParentID, cur.ThreadFollowed
 		loaded.ThreadLoading = cur.ThreadLoading
+		loaded.FollowedThreads, loaded.FollowedLoading, loaded.FollowedLoaded, loaded.FollowedError, loaded.FollowedNote = cur.FollowedThreads, cur.FollowedLoading, cur.FollowedLoaded, cur.FollowedError, cur.FollowedNote
+		loaded.FollowUps, loaded.FollowUpsLoading, loaded.FollowUpsLoaded, loaded.FollowUpsError, loaded.FollowUpsNote = cur.FollowUps, cur.FollowUpsLoading, cur.FollowUpsLoaded, cur.FollowUpsError, cur.FollowUpsNote
+		loaded.SendLater = cur.SendLater
 		loaded.ThreadParent = cur.ThreadParent
 		loaded.Members = cur.Members
 		if reloaded && !cur.ShowThread {
@@ -1940,6 +1957,9 @@ func (s *chatState) adoptLoadedChatProjection(generation uint64, loaded chatui.M
 		loaded.Sections = sections
 	}
 	loaded.RailMenuID = s.model.RailMenuID
+	// Issue 3737: messages not yet delivered are not on the server, so a reload of
+	// the projection must not drop them.
+	loaded.Unsent = s.model.Unsent
 	integrate2PrepareReaderSelections(&loaded)
 	s.model = loaded
 	s.model.PeerIDs = peerIDs
@@ -2682,9 +2702,13 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 	}
 	forwardedAuthor := ""
 	forwardedAuthorID := ""
-	if source := v.GetSourceAttribution(); source != nil && source.GetOriginalAuthorId() != "" {
-		forwardedAuthorID = source.GetOriginalAuthorId()
-		forwardedAuthor = chatDisplayName(directory, source.GetOriginalAuthorId())
+	forwardNote := ""
+	if source := v.GetSourceAttribution(); source != nil {
+		forwardNote = source.GetNote()
+		if source.GetOriginalAuthorId() != "" {
+			forwardedAuthorID = source.GetOriginalAuthorId()
+			forwardedAuthor = chatDisplayName(directory, source.GetOriginalAuthorId())
+		}
 	}
 	author, photo, authorAgent := chatux047Author(v, directory)
 	return chatui.Message{
@@ -2702,7 +2726,9 @@ func chatMessage(v *chatv1.Post, locale string, directory map[string]string, now
 		Attachments:       chatMediaAttachments(v),
 		ForwardedAuthor:   forwardedAuthor,
 		ForwardedAuthorID: forwardedAuthorID,
+		ForwardNote:       forwardNote,
 		PersonaReferences: personaChatPostReferences(v),
+		WorkReferences:    chatWorkPostReferences(v),
 		Audience:          chatgateMessageAudience(v),
 		Avatar:            photo,
 		AuthorAgent:       authorAgent,

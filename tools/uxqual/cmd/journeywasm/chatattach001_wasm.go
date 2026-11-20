@@ -55,7 +55,7 @@ func chatattach001Configure(cfg journeyclient.Config) {
 	chatBrowser.mu.Unlock()
 	// Nothing is offered until the server says it takes uploads.
 	b.askAvailability()
-	for _, name := range []string{"click", "change", "paste", "drop", "dragover", "input"} {
+	for _, name := range []string{"click", "change", "paste", "drop", "dragover", "input", "keydown"} {
 		kind := name
 		f := js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if !b.disposed && len(args) > 0 {
@@ -181,6 +181,9 @@ func (b *chatattach001Bridge) event(kind string, e js.Value) {
 	if !target.Call("closest", ".chat-composer,.thread-composer").Truthy() {
 		return
 	}
+	if b.describe(kind, e, target) {
+		return
+	}
 	if kind == "input" {
 		// The page's own handler sets Send from the text alone; this runs with
 		// it and corrects it for the files.
@@ -232,6 +235,35 @@ func (b *chatattach001Bridge) event(kind string, e js.Value) {
 	}
 	chatStreamRender.Schedule()
 	b.syncSend()
+}
+
+// describe handles the image description editor under a draft (issue 3962)
+// and reports whether the event was its own. Typing keeps the description in
+// the draft without a render, so the field is never rebuilt under the caret;
+// the decorative box renders, because it takes the field out of use. Enter in
+// the field is the end of a description, not a send: the form would otherwise
+// submit the message.
+func (b *chatattach001Bridge) describe(kind string, e, target js.Value) bool {
+	if field := target.Call("closest", "[data-chatattach001-alt]"); field.Truthy() {
+		switch kind {
+		case "input":
+			b.state.setDescription(b.scopeOf(field), field.Call("getAttribute", "data-chatattach001-alt").String(), field.Get("value").String())
+		case "keydown":
+			// A key that confirms an input-method composition is not an Enter.
+			if e.Get("key").String() == "Enter" && !e.Get("isComposing").Truthy() {
+				e.Call("preventDefault")
+			}
+		}
+		return true
+	}
+	if box := target.Call("closest", "[data-chatattach001-decorative]"); box.Truthy() {
+		if kind == "change" {
+			b.state.setDecorative(b.scopeOf(box), box.Call("getAttribute", "data-chatattach001-decorative").String(), box.Get("checked").Bool())
+			chatStreamRender.Schedule()
+		}
+		return true
+	}
+	return false
 }
 
 // syncSend sets each composer's Send button for the files it holds: off while

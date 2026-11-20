@@ -195,7 +195,7 @@ func openProjectTicketLinker(cfg journeyclient.Config, service projectv1.Project
 		return nil
 	}))
 	func() {
-		defer func() { _ = recover() }()
+		defer recoverAt("project-journey-link.open-project-ti")
 		dialog.Call("showModal")
 	}()
 	status(text("loading"))

@@ -11,7 +11,7 @@ func TestTodo_CHAT_030_SharePicker(t *testing.T) {
 	if !strings.Contains(markup, `class="share-notices"`) || strings.Index(markup, `class="share-notices"`) < strings.Index(markup, `class="share-preview"`) {
 		t.Fatal("attachment disclosure must follow scrollable preview")
 	}
-	for _, want := range []string{`data-action="open-share" data-id="post"`, `role="dialog"`, `Share message to a channel`, `Review this`, `Attachments are not included`, `data-action="share-destination" data-id="public"`, `data-action="share-destination" data-id="private"`, `aria-pressed="true"`, `data-action="share-submit"`} {
+	for _, want := range []string{`data-action="open-share" data-id="post"`, `role="dialog"`, `Share message`, `Review this`, `Attachments are not included`, `data-action="share-destination" data-id="public"`, `data-action="share-destination" data-id="private"`, `aria-pressed="true"`, `data-action="share-submit"`} {
 		if !strings.Contains(markup, want) {
 			t.Errorf("missing %q", want)
 		}

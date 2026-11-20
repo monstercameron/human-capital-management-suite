@@ -35,7 +35,7 @@ var ModActions = []string{"block", "mask", "flag", "reword", "notify"}
 var ModBuiltinActions = []string{"block", "mask", "flag", "reword"}
 
 // ModDetectors is the order of the sensitive-data choices.
-var ModDetectors = []string{"card", "national-id", "access-key", "secret"}
+var ModDetectors = []string{"card", "national-id", "access-key", "secret", "dlp-compensation", "dlp-medical", "dlp-bank", "dlp-immigration", "dlp-pii"}
 
 // ModKindChoice is the editor choice a stored definition corresponds to.
 func ModKindChoice(d chatfilter.Definition) string {

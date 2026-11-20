@@ -15,6 +15,7 @@ type ReviewDecision struct {
 }
 
 func (s *Service) ReviewMany(ctx context.Context, c Command, decisions []ReviewDecision, reason string) error {
+	var decided []Submission
 	_, e := s.mutate(ctx, c, "admin", []any{decisions, reason}, func(tx Transaction) (any, error) {
 		if len(decisions) == 0 || len(decisions) > 100 {
 			return nil, ErrInvalid
@@ -61,9 +62,13 @@ func (s *Service) ReviewMany(ctx context.Context, c Command, decisions []ReviewD
 			sub.DecidedAt = s.now()
 			s.applySegments(tx, c, sub.Person, true)
 			s.event(tx.State(), c, sub.Status, sub.Person, sub.ID, sub.Version)
+			decided = append(decided, *sub)
 		}
 		return "reviewed", nil
 	})
+	if e == nil {
+		s.tellApplicant(ctx, c.Scope, decided...)
+	}
 	return e
 }
 func (s *Service) ExportAllCSV(ctx context.Context, a Actor, scope Scope) (string, error) {

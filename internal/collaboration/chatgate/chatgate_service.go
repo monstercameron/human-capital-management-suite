@@ -38,6 +38,11 @@ type Service struct {
 	Authority  Authority
 	Registry   *Registry
 	Clock      func() time.Time
+	// Notifier tells the channel's reviewers a request is waiting (issue 3817).
+	// Unset, nobody is told.
+	Notifier ReviewNotifier
+	// Decisions tells an applicant what a reviewer decided (issue 3818).
+	Decisions DecisionNotifier
 }
 
 func (s *Service) now() time.Time {
@@ -312,6 +317,9 @@ func (s *Service) Submit(ctx context.Context, c Command, version string, values 
 	if e == nil {
 		e = json.Unmarshal(raw, &sub)
 	}
+	if e == nil {
+		s.tellReviewers(ctx, c.Scope, sub)
+	}
 	return sub, e
 }
 func (s *Service) Review(ctx context.Context, c Command, id string, expected uint64, admit bool, reason string) (Submission, error) {
@@ -348,6 +356,9 @@ func (s *Service) Review(ctx context.Context, c Command, id string, expected uin
 	var sub Submission
 	if e == nil {
 		e = json.Unmarshal(raw, &sub)
+	}
+	if e == nil {
+		s.tellApplicant(ctx, c.Scope, sub)
 	}
 	return sub, e
 }

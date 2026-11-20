@@ -87,7 +87,10 @@ func openChatShare(cfg journeyclient.Config, postID string) {
 		defer cancel()
 		cursor := ""
 		seenCursors := map[string]bool{}
-		source := chatBrowser.snapshot().ShareSourceRoomID
+		snapshot := chatBrowser.snapshot()
+		source := snapshot.ShareSourceRoomID
+		directory := chatDirectorySnapshot()
+		peers := snapshot.PeerIDs
 		rooms := []chatui.Conversation{}
 		seen := map[string]bool{}
 		for {
@@ -98,15 +101,25 @@ func openChatShare(cfg journeyclient.Config, postID string) {
 				}
 				return
 			}
+			peers = chatux047PeerIDs(peers, result.GetConversations())
 			for _, c := range result.GetConversations() {
 				if c == nil || c.GetTenantId() != active.Tenant || c.GetArchived() || seen[c.GetId()] {
 					continue
 				}
 				seen[c.GetId()] = true
-				if c.GetKind() != chatv1.ConversationKind_CONVERSATION_KIND_PUBLIC_CHANNEL && c.GetKind() != chatv1.ConversationKind_CONVERSATION_KIND_PRIVATE_CHANNEL {
+				// Issue 3919: channels, and the direct and group conversations
+				// the caller is a current member of (the listing is the server's
+				// answer for this caller). A direct conversation is named by its
+				// peer, and one with an agent is not a destination.
+				room := chatux047Peer(chatConversation(c), c)
+				room = chatDirectoryNamedDirect(room, peers, directory)
+				if !chatui.ShareDestinationEligible(room, source) {
 					continue
 				}
-				rooms = append(rooms, chatConversation(c))
+				if room.Kind == chatui.DirectMessage && room.Name == room.ID {
+					room.Name = shareCopy(chatui.KeyKindDirect)
+				}
+				rooms = append(rooms, room)
 			}
 			next := result.GetNextCursor()
 			if next == "" || seenCursors[next] {
@@ -153,6 +166,7 @@ func shareChatMessage(cfg journeyclient.Config) {
 		_, err := client.ForwardPost(chatRPCContext(ctx, active), &chatv1.ForwardPostRequest{
 			SourceTenantId: active.Tenant, SourceConversationId: attempt.SourceRoom, SourcePostId: attempt.SourcePost,
 			DestinationTenantId: active.Tenant, DestinationConversationId: attempt.Destination, IdempotencyKey: attempt.Key,
+			Note: attempt.Note,
 		})
 		if err != nil {
 			if chatBrowser.finishShare(attempt, shareCopy(chatui.KeyShareError)) {

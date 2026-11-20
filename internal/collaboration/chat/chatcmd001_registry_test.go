@@ -22,7 +22,7 @@ func chatcmd001Names(commands []Chatcmd001Command) string {
 func TestTodo_CHATCMD_001(t *testing.T) {
 	registry := Chatcmd001Defaults()
 	channel := Chatcmd001Place{Kind: PublicChannel, Status: chatpolicy.StatusOpen}
-	if got := chatcmd001Names(registry.Available(channel)); got != "poll,todo,giphy,location" {
+	if got := chatcmd001Names(registry.Available(channel)); got != "poll,todo,decide,promote,giphy,location" {
 		t.Fatalf("commands in a channel: %s", got)
 	}
 	// Each one declares what the menu and the usage hint need.
@@ -74,7 +74,7 @@ func TestTodo_CHATCMD_001(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := chatcmd001Names(added.Available(channel)); got != "poll,todo,giphy,location,standup" || chatcmd001Names(registry.Available(channel)) != "poll,todo,giphy,location" {
+	if got := chatcmd001Names(added.Available(channel)); got != "poll,todo,decide,promote,giphy,location,standup" || chatcmd001Names(registry.Available(channel)) != "poll,todo,decide,promote,giphy,location" {
 		t.Fatalf("after registration: %s (the registry it was added to must not change)", got)
 	}
 	if got := chatcmd001Names(added.Available(Chatcmd001Place{Kind: Direct})); strings.Contains(got, "standup") {

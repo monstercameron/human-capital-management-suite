@@ -14,3 +14,5 @@ func focusChatLanguageEditor(string) {}
 func focusMessageAfterEdit(string) {}
 
 func chatlangEventInEditor(ui.KeyboardEvent) bool { return false }
+
+func chatlangTranslateRequested(string) {}

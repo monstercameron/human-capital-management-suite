@@ -125,6 +125,9 @@ func chatlang004Watch(ctx context.Context, cfg journeyclient.Config, room string
 		for _, id := range ids {
 			query.Add("message", id)
 		}
+		for _, id := range chatui.ChatlangTranslateAskedAmong(ids) {
+			query.Add("translate", id)
+		}
 		part := map[string]chatui.ReaderSelection{}
 		call, cancel := context.WithTimeout(ctx, 20*time.Second)
 		err := personaChatRequest(call, http.DefaultClient, personaChatHTTPConfig(cfg), http.MethodGet, "/api/chat/renderings/v1/reader?"+query.Encode(), "", &part)

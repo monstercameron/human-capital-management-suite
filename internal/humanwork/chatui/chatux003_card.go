@@ -69,11 +69,17 @@ func chatux003AnswerCard(model Model, local localUI, message EphemeralMessage, p
 		children = append(children, html.P(html.Props{Class: "agent-reply-why", Dir: "auto", Text: why}))
 	}
 	children = append(children, renderAgentReplySources(model, envelope)...)
+	if footer := issue3807OwnCost(model, projection, "answer"); footer != nil {
+		children = append(children, footer)
+	}
 	menuID := "agent-card:" + message.ID
 	actions := chatux003Actions(model, local, message, projection, name, reason, feedbackInvocation, menuID, actor)
 	children = append(children, actions)
+	if panel := issue3977Panel(model, local, message.ID); panel != nil {
+		children = append(children, panel)
+	}
 	if model.MenuID == menuID {
-		if menu := chatux003Menu(model, projection, name, menuID, append(agentux070ShareMenuItem(model, local, reason, feedbackInvocation), chatux026SharedMenuItems(model, feedbackInvocation, message.ThreadID)...)...); menu != nil {
+		if menu := chatux003Menu(model, projection, name, menuID, append(append(agentux070ShareMenuItem(model, local, reason, feedbackInvocation), issue3977MenuItem(model, message.ID)...), chatux026SharedMenuItems(model, feedbackInvocation, message.ThreadID)...)...); menu != nil {
 			children = append(children, menu)
 		}
 	}
@@ -145,7 +151,7 @@ func chatux003Actions(model Model, local localUI, message EphemeralMessage, proj
 	row = append(row, html.Button(html.Props{Class: "agent-feedback-button agent-reply-action agent-follow-up", Type: "button", Data: map[string]string{"action": "agent-follow-up", "id": agentID, "extra": href}, Aria: map[string]string{"label": followUp}, Title: followUp},
 		icon("reply"), html.Span(html.Props{Text: agentUXChat4Text(model, "chat.agent.ask_follow_up")})))
 	row = append(row, chatux026ShareControls(model, local, reason, name, invocationID, message.ThreadID)...)
-	if href != "" || len(chatux026SharedMenuItems(model, invocationID, message.ThreadID)) > 0 || agentux070CanShare(model, local, reason, invocationID) {
+	if href != "" || len(chatux026SharedMenuItems(model, invocationID, message.ThreadID)) > 0 || agentux070CanShare(model, local, reason, invocationID) || issue3977Offered(model, message.ID) {
 		more := chatux003Text(model, "chatux003.more")
 		row = append(row, html.Button(html.Props{Class: "message-action agent-reply-action agent-reply-more", Type: "button", Hidden: model.Callbacks.OpenMenu == nil, Disabled: model.Callbacks.OpenMenu == nil, Data: map[string]string{"action": "menu", "id": menuID}, Aria: map[string]string{"label": more, "haspopup": "menu", "expanded": boolString(model.MenuID == menuID)}, Title: more}, icon("more")))
 	}
@@ -265,4 +271,4 @@ const ChatUX003Styles = `.agent-reply-head{display:flex;align-items:center;gap:8
 	`@media(max-width:480px){.agent-reply-state-divider,.agent-progress-cancel{order:1}.agent-reply-counter{order:2;flex:1 0 100%;margin-inline-start:0}}` +
 	`@media(pointer:coarse){.agent-reply-action{min-height:44px}}` +
 	`.agent-feedback-unsaved{color:var(--hcm-color-danger);font-size:.8125rem;line-height:1.4}` +
-	chatBug054Styles + chatBug047Styles + chatUX016Styles + chatUX017Styles + chatUX024Styles + chatUX026Styles + issue3918Styles + chatUX028Styles + chatUX070Styles + chatIssue3969Styles + chatUX070MarkStyles
+	chatBug054Styles + chatBug047Styles + chatUX016Styles + chatUX017Styles + chatUX024Styles + chatUX026Styles + issue3918Styles + issue3919Styles + chatUX028Styles + chatUX070Styles + chatIssue3969Styles + chatUX070MarkStyles + issue3977Styles + issue3986Styles + issue3807Styles + chatIssue3756Styles + chatIssue3990Styles + chatIssue3963Styles + issue3750Styles

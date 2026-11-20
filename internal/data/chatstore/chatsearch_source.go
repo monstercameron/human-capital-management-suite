@@ -224,7 +224,13 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 			// that are then discarded. $3 is the reader.
 			query += ` AND (payload->>'AuthorID'=$3 OR payload->>'OwnerID'=$3)`
 		}
-		query += ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")<($8,$9::text)) ORDER BY order_at DESC,order_id COLLATE "C" DESC LIMIT $11`
+		// ISSUE-3945: the keyset comparison and the sort flip together, so the
+		// oldest-first walk resumes after its cursor exactly as newest-first does.
+		cursorOp, direction := "<", "DESC"
+		if q.Oldest() {
+			cursorOp, direction = ">", "ASC"
+		}
+		query += ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")` + cursorOp + `($8,$9::text)) ORDER BY order_at ` + direction + `,order_id COLLATE "C" ` + direction + ` LIMIT $11`
 		limit := q.Limit
 		if limit == 0 {
 			limit = 20
@@ -404,6 +410,7 @@ const chatsearchPostPayload = `jsonb_build_object('Kind',%s,'ID',p.id,'TenantID'
  'HasReactions',EXISTS(SELECT 1 FROM chat_reaction r WHERE r.tenant_id=p.tenant_id AND r.post_id=p.id),
  'MentionsMe',EXISTS(SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(p.references_json)='array' THEN p.references_json ELSE '[]'::jsonb END) r WHERE r->>'Kind'='PERSON_MENTION' AND r->>'TenantID'=$2 AND r->>'ID'=$3),
  'ByAgent',EXISTS(SELECT 1 FROM chat_app_installation i WHERE i.tenant_id=p.tenant_id AND i.conversation_id=p.conversation_id AND i.app_id=p.author_id),
+ 'Edited',p.revision>1,'Restricted',EXISTS(SELECT 1 FROM chat_post_audience au WHERE au.tenant_id=p.tenant_id AND au.post_id=p.id AND au.restricted),
  'Language',COALESCE((SELECT v.source_language FROM chat_post_revision v WHERE v.tenant_id=p.tenant_id AND v.post_id=p.id AND v.revision=p.revision),''))`
 
 func chatsearchCatalog(kind chatsearch.Kind) (string, error) {

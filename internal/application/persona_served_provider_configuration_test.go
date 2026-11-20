@@ -40,6 +40,9 @@ func TestTodo_AGENT_021_ServedProviderQualifiedLocalConfiguration(t *testing.T) 
 	cfg := ServeConfig{Profile: ServeProfileLocalDev, CellID: "actual-serving-cell"}
 	called := false
 	env := func(key string) string {
+		if key == EnvLocalModelProvider {
+			return ""
+		}
 		called = true
 		if key != "MODEL_API_KEY" {
 			t.Fatalf("unexpected environment read %q", key)

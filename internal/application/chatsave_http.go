@@ -34,6 +34,20 @@ type SavedMessageCommand struct {
 	Note           *string    `json:"note,omitempty"`
 	SetDue         bool       `json:"set_due,omitempty"`
 	DueAt          *time.Time `json:"due_at,omitempty"`
+	// Issue 3932: private labels. add_labels and remove_labels change one saved
+	// message; rename_label and remove_label change a label on every saved
+	// message of the caller and need no message.
+	AddLabels    []string `json:"add_labels,omitempty"`
+	RemoveLabels []string `json:"remove_labels,omitempty"`
+	Label        string   `json:"label,omitempty"`
+	NewLabel     string   `json:"new_label,omitempty"`
+}
+
+// SavedLabelsPort is the label-wide part of the saved port. A port that does
+// not offer it answers the two label-wide commands as unavailable.
+type SavedLabelsPort interface {
+	RenameSavedLabel(ctx context.Context, p chat.Principal, tenant, from, to string) (int, error)
+	RemoveSavedLabel(ctx context.Context, p chat.Principal, tenant, label string) (int, error)
 }
 
 type SavedMessagesHandler struct{ Service SavedMessagesPort }
@@ -55,6 +69,8 @@ func chatsaveHTTPError(w http.ResponseWriter, err error) {
 		status, code = http.StatusBadRequest, "invalid_argument"
 	case errors.Is(err, chat.ErrSavedLimit):
 		status, code = http.StatusConflict, "saved_limit"
+	case errors.Is(err, chat.ErrSavedLabelLimit):
+		status, code = http.StatusConflict, "label_limit"
 	case errors.Is(err, chat.ErrConflict):
 		status, code = http.StatusConflict, "conflict"
 	default:
@@ -149,6 +165,27 @@ func (h SavedMessagesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 			} else {
 				reply, err = h.Service.UpdateSaved(r.Context(), req, chat.SavedChange{SetDue: true, DueAt: command.DueAt})
 			}
+		case "labels":
+			if len(command.AddLabels)+len(command.RemoveLabels) == 0 {
+				err = chat.ErrInvalidArgument
+			} else {
+				reply, err = h.Service.UpdateSaved(r.Context(), req, chat.SavedChange{AddLabels: command.AddLabels, RemoveLabels: command.RemoveLabels})
+			}
+		case "rename_label", "remove_label":
+			labels, ok := h.Service.(SavedLabelsPort)
+			if !ok {
+				err = chat.ErrUnavailable
+				break
+			}
+			var changed int
+			if command.Action == "rename_label" {
+				changed, err = labels.RenameSavedLabel(r.Context(), p, host, command.Label, command.NewLabel)
+			} else {
+				changed, err = labels.RemoveSavedLabel(r.Context(), p, host, command.Label)
+			}
+			reply = struct {
+				Changed int `json:"changed"`
+			}{changed}
 		default:
 			err = chat.ErrInvalidArgument
 		}

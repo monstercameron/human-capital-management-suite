@@ -43,6 +43,9 @@ import (
 // on its own say-so.
 type chatAppsIntentAdapter struct {
 	intent *intentapp.IntentService
+	// links remembers which conversation a proposal came from, for the
+	// conversation's work panel (issue 3791). Nil leaves proposals unlinked.
+	links ChatWorkLinker
 }
 
 func (a chatAppsIntentAdapter) Propose(ctx context.Context, p chatapps.Proposal) (chatapps.ProposalReceipt, error) {
@@ -99,10 +102,14 @@ func (a chatAppsIntentAdapter) Propose(ctx context.Context, p chatapps.Proposal)
 	if err != nil {
 		return chatapps.ProposalReceipt{}, err
 	}
-	return chatapps.ProposalReceipt{
+	receipt := chatapps.ProposalReceipt{
 		IntentID: resp.GetIntent().GetIntentId(),
 		Status:   resp.GetIntent().GetLifecycle().GetRequest().String(),
-	}, nil
+	}
+	if err := linkProposal(ctx, a.links, p, receipt); err != nil {
+		return chatapps.ProposalReceipt{}, err
+	}
+	return receipt, nil
 }
 
 // unavailableChatAuthority keeps an enabled chat surface fail closed until a
@@ -168,12 +175,15 @@ const DefaultChatStreamRecheckInterval = 5 * time.Second
 // Its store has a separate pool and therefore a separate lifecycle from the
 // core database pool carried by ServeInput.
 type composedChat struct {
-	status           chatcore.ChannelStatusService
-	renderings       *ChatRenderingSurface
-	search           ChatSearchHTTP
-	gates            ChatgateSurface
-	segments         chatcore.SegmentAudiencePort
-	gateAuthority    *ChatgateAuthority
+	status        chatcore.ChannelStatusService
+	renderings    *ChatRenderingSurface
+	search        ChatSearchHTTP
+	gates         ChatgateSurface
+	segments      chatcore.SegmentAudiencePort
+	gateAuthority *ChatgateAuthority
+	// gateSweep runs the join-request deadline sweep (issue 3817); nil when the
+	// product's own gate authority is not the one composed.
+	gateSweep        *chatgateSweepPorts
 	filters          *chatfilter.Service
 	store            *chatstore.Store
 	locations        ChatmapSurface
@@ -264,7 +274,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		// CHAT-045: an agent's proposed HCM action is carried through the real
 		// application/intent path (internal/intent/app.IntentService.CreateIntent),
 		// under the caller's own authenticated context, not a same-package fake.
-		apps.Intent = chatAppsIntentAdapter{intent: intentService}
+		apps.Intent = chatAppsIntentAdapter{intent: intentService, links: store}
 	}
 	service.SetReferenceDirectory(chatReferenceDirectory{store: adapter, apps: apps, personas: input.PersonaReferences})
 	// One policy and grant authority over the chat database, shared by the
@@ -324,6 +334,8 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		Recipients:    &chatrecipient.Service{Conversations: routed, Repo: chatstore.NewRecipientStateStore(store)},
 		Grants:        grants,
 		TodoStore:     store,
+		Barriers:      newChatBarrierApplication(store, grants, facts),
+		Cases:         newChatCaseApplication(store, routed, grants),
 		// CHATMOD-002: to-do, poll and widget text passes the same filters as a message.
 		ContentFilter: filterPolicy,
 	}
@@ -363,5 +375,5 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 	// cached authority and closes that tenant's live subscriptions.
 	grants.withRevocation(authorityCache, streamRuntime)
 	extensions.Admission = streamRuntime
-	return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, locations: wave.locations, locationPictures: wave.locationPictures, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
+	return composedChat{status: wave.status, renderings: wave.renderings, search: wave.search, gates: wave.gates, filters: wave.filters, store: store, locations: wave.locations, locationPictures: wave.locationPictures, core: service, routes: directory, moderation: moderation, moderationPermissions: moderationPorts, moderationStore: moderated, service: &streamingChatService{ConversationService: routed, runtime: streamRuntime, counts: newChatCountsSignaler(streamRuntime, moderated, routed, extensions), membership: moderated, authority: authorityCache, personaDM: input.PersonaDM, masker: service}, extensions: extensions, close: store.Close}, nil
 }

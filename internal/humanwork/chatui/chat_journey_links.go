@@ -3,7 +3,6 @@ package chatui
 import (
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +36,23 @@ type JourneyPreview struct {
 	// WaitsOnViewer is the resolver's answer, from stable identities, that
 	// this journey asks the viewer for an approval now (#3994).
 	WaitsOnViewer bool
+	// Retrying marks a card the viewer asked to read again after a temporary
+	// failure (#3729): the Try again button stays in place, disabled, so a
+	// keyboard reader does not lose focus while the card loads.
+	Retrying bool
+	// Status detail (#3730): the viewer started the request, since when an
+	// approval has waited (YYYY-MM-DD), and the decision's decider and reason.
+	RequestedByViewer         bool
+	WaitingSince              string
+	DecidedBy, DecisionReason string
+	// Help-me-resolve inputs (#3978): the proposal revision the checks ran
+	// against, the journey's next step (JourneyNextStep enum name) and the
+	// preflight findings as EncodeJourneyResolveFindings wrote them. Raw
+	// engine prose and pay figures never travel here, only codes.
+	Revision, NextStep, ResolveFindings string
+	// Confirmed is when the journey service last updated this state
+	// (RFC 3339, UTC); empty when it was not reported (#3980).
+	Confirmed string
 }
 
 var journeyURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/journeys\?[^\s<>"']+`), "http://", "https://", "/workspace/app/journeys?")
@@ -90,7 +106,7 @@ func JourneyReferences(body, origin string) []JourneyReference {
 			refs = append(refs, JourneyReference{IntentID: id, Start: span[0], End: span[0] + len(candidate)})
 		}
 	}
-	sort.Slice(refs, func(i, j int) bool { return refs[i].Start < refs[j].Start })
+	sortJourneyReferences(refs)
 	return refs
 }
 
@@ -102,7 +118,7 @@ func journeyPreviewReady(p JourneyPreview, id string) bool {
 // authorized preview is ready, and neutral text otherwise; every other run
 // of text continues through the project, document and channel renderers.
 func journeyReferenceBody(m Model, body string) []ui.Node {
-	refs := JourneyReferences(body, m.EmbedOrigin)
+	refs := JourneyReferencesFor(body, m.EmbedOrigin, m.renderWorkReferences)
 	if len(refs) == 0 {
 		return projectTaskReferenceBody(m, body)
 	}
@@ -163,7 +179,11 @@ func journeyWorkflowName(m Model, p JourneyPreview) string {
 
 // journeyPreviewEmbeds renders one quick-look card per distinct journey.
 func journeyPreviewEmbeds(m Model, body string) []ui.Node {
-	refs := JourneyReferences(body, m.EmbedOrigin)
+	return journeyPreviewEmbedsFor(m, body)
+}
+
+func journeyPreviewEmbedsFor(m Model, body string) []ui.Node {
+	refs := JourneyReferencesFor(body, m.EmbedOrigin, m.renderWorkReferences)
 	seen := map[string]bool{}
 	var out []ui.Node
 	for _, ref := range refs {
@@ -186,7 +206,17 @@ func journeyPreviewCard(m Model, p JourneyPreview) ui.Node {
 	case journeyPreviewReady(p, p.IntentID):
 	case p.State == "ready" || p.State == "restricted" || p.State == "missing" || p.State == "unavailable":
 		state := journeyLockedState(p.State)
-		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": state}}, false), append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: journeyStateText(m, state)}))...)
+		locked := append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: journeyStateText(m, state)}))
+		// Only a temporary failure can change on a second try; no access and
+		// not found stay as they are (#3729).
+		if state == "unavailable" && m.Callbacks.RetryJourney != nil {
+			locked = append(locked, html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "retry-journey", "id": p.IntentID}, Text: journeyRetryText(m)}))
+		}
+		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": state}}, false), locked...)
+	case p.Retrying && p.State == "loading" && m.Callbacks.RetryJourney != nil:
+		retry := html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "retry-journey", "id": p.IntentID}, Aria: map[string]string{"disabled": "true"}, Text: journeyRetryText(m)})
+		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-locked", Data: map[string]string{"embed-state": "loading"}, Role: "status", Aria: map[string]string{"busy": "true"}}, false),
+			append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyProjectEmbedLoading)}), retry)...)
 	default:
 		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed chat-journey-embed is-loading", Data: map[string]string{"embed-state": "loading"}, Aria: map[string]string{"busy": "true"}}, false),
 			append(head,
@@ -208,8 +238,31 @@ func journeyPreviewCard(m Model, p JourneyPreview) ui.Node {
 	// Only the resolver's identity-based answer, and only in a stage that asks
 	// for an approval, claims the journey waits on the reader (#3994).
 	waits := p.WaitsOnViewer && p.StageTone != "done" && journeyStageAwaitsApprover(p.Stage)
-	children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...), workCardAction(m, waits))
-	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed chat-journey-embed", Href: JourneyReferenceURL(p.IntentID), Data: map[string]string{"action": "open-journey-reference", "id": p.IntentID, "tone": p.StageTone}, Aria: map[string]string{"label": m.tf(KeyOpenJourney, map[string]string{"title": p.Worker})}}, waits), children...)
+	children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...))
+	if facts := journeyStatusMeta(m, p); len(facts) > 0 {
+		children = append(children, html.Span(html.Props{Class: "chat-journey-embed-facts"}, facts...))
+	}
+	if note := journeyDecisionNote(m, p); note != nil {
+		children = append(children, note)
+	}
+	children = append(children, workCardAction(m, waits))
+	card := html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed chat-journey-embed", Href: JourneyReferenceURL(p.IntentID), Data: map[string]string{"action": "open-journey-reference", "id": p.IntentID, "tone": p.StageTone}, Aria: map[string]string{"label": m.tf(KeyOpenJourney, map[string]string{"title": p.Worker})}}, waits), children...)
+	panels := []ui.Node{card}
+	// The panels hold links and disclosures, so they sit beside the card's own
+	// link rather than inside it (#3978, #3980).
+	if panel := journeyResolvePanel(m, p); panel != nil {
+		panels = append(panels, panel)
+	}
+	if panel := journeyStopRevisePanel(m, p); panel != nil {
+		panels = append(panels, panel)
+	}
+	if panel := journeyDecisionPanel(m, p); panel != nil {
+		panels = append(panels, panel)
+	}
+	if len(panels) > 1 {
+		return html.Div(html.Props{Class: "chat-journey-embed-wrap"}, panels...)
+	}
+	return card
 }
 
 // journeyTone maps a stage group onto the shared status-pill tones.
@@ -266,4 +319,6 @@ func journeyReferenceNavigate(m Model, intentID string, plain bool) bool {
 // #3777); only the journey's own from/to line is styled here.
 const journeyEmbedStyles = `.chat-journey-embed-move{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:.8125rem;color:var(--muted);font-variant-numeric:tabular-nums}` +
 	`.chat-journey-embed-move strong{color:var(--ink);font-weight:600}` +
-	`.chat-journey-embed-arrow{color:var(--muted)}`
+	`.chat-journey-embed-arrow{color:var(--muted)}` +
+	`.chat-journey-embed-facts{display:flex;flex-direction:column;gap:2px;font-size:.8125rem;color:var(--muted);min-width:0}` +
+	`.chat-journey-embed-reason{overflow-wrap:anywhere}` + journeyResolveStyles + journeyStopReviseStyles + journeyDecisionStyles

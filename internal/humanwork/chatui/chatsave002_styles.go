@@ -104,6 +104,24 @@ const Chatsave002Styles = `
 .chatsave-undo{position:sticky;inset-block-end:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:auto -16px 0;padding:10px 16px;border-top:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:.875rem}
 .chatsave-undo-button{padding:2px 6px;border:0;border-radius:var(--hcm-radius-xs);background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer}
 .chatsave-undo-button:hover{background:var(--soft)}
+.chatsave-labels{margin-block-start:8px}
+.chatsave-labelchips,.chatsave-tags{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.chatsave-labelchip,.chatsave-tag-suggest,.chatsave-tag-add,.chatsave-labelaction{display:inline-flex;align-items:center;gap:6px;max-width:100%;height:24px;box-sizing:border-box;padding:0 8px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--muted);font:inherit;font-size:.75rem;line-height:1;cursor:pointer}
+.chatsave-labelchip>span:first-child,.chatsave-tag-suggest>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chatsave-labelchip[aria-pressed="true"]{background:var(--soft);border-color:var(--accent);color:var(--ink);font-weight:600}
+.chatsave-labelchip:hover,.chatsave-tag-suggest:hover,.chatsave-tag-add:hover,.chatsave-labelaction:hover{color:var(--ink)}
+.chatsave-labelmanage{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-block-start:6px}
+.chatsave-labelform,.chatsave-labelconfirm{flex-direction:column;align-items:stretch}
+.chatsave-labelaction{border-color:transparent;background:none;padding-inline:4px;text-decoration:underline}
+.chatsave-labelline{margin-block-start:6px;min-width:0}
+.chatsave-tag{display:inline-flex;align-items:center;gap:2px;max-width:100%;height:22px;padding-block:0;padding-inline:8px 2px;border-radius:var(--hcm-radius-control);background:var(--soft);color:var(--ink);font-size:.75rem}
+.chatsave-tag-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chatsave-tag-x{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:var(--hcm-radius-xs);background:none;color:var(--muted);cursor:pointer}
+.chatsave-tag-x .chat-icon{width:10px;height:10px}
+.chatsave-tag-x:hover{background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink)}
+.chatsave-tag-add{height:22px;border-style:dashed}
+.chatsave-tag-add .chat-icon{width:12px;height:12px}
+.chatsave-labels-form .chatsave-tags{margin-block-start:6px}
 @media(max-width:760px),(pointer:coarse){
 .chatsave-actions{position:static;grid-column:2;justify-content:flex-start;gap:4px;height:auto;margin-block-start:6px;padding:0;border:0;background:none;box-shadow:none;opacity:1;pointer-events:auto}
 .chatsave-actions .message-action{width:44px;min-width:44px;height:44px;min-height:44px}
@@ -113,6 +131,9 @@ const Chatsave002Styles = `
 .chatsave-jump{width:44px;min-width:44px;height:44px;min-height:44px}
 .chatsave-chip{height:32px}
 .chatsave-chip-clear{width:32px;height:32px}
+.chatsave-labelchip,.chatsave-labelaction,.chatsave-tag-suggest,.chatsave-tag-add{min-height:44px}
+.chatsave-tag{min-height:44px}
+.chatsave-tag-x{width:44px;height:44px}
 .chatsave-note-hint{display:none}
 .chatsave-note-buttons .button{min-height:44px}
 .chatsave-pick .button,.chatsave-due-input{min-height:44px}

@@ -31,6 +31,12 @@ type ChatExtensions struct {
 	Recipients              *chatrecipient.Service
 	Grants                  *ChatCompanyGrants
 	TodoStore               *chatstore.Store
+	// Barriers is the workspace's information barrier settings (issue 3783); nil
+	// when the product has no people directory to apply them to.
+	Barriers ChatBarrierService
+	// Cases binds conversations to governed cases (issue 3812); nil when the
+	// product has no administrator check to decide with.
+	Cases ChatCaseService
 	// Admission bounds the extension lanes. Integration event pulls are derived
 	// work and are shed first; governance records take the read lane. A nil
 	// runtime leaves these calls unmetered, which is the streaming-disabled
@@ -163,7 +169,7 @@ func (ChatRecordAuthority) Authorize(ctx context.Context, actor, tenant, action,
 	if !ok || v.actor != actor || v.tenant != tenant {
 		return "", chat.ErrPermissionDenied
 	}
-	if v.manager && strings.HasPrefix(action, "retention.") {
+	if v.manager && (strings.HasPrefix(action, "retention.") || strings.HasPrefix(action, "audit.")) {
 		return "chat:tenant-admin:" + tenant, nil
 	}
 	if v.revision == 0 {

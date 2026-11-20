@@ -17,11 +17,11 @@ func TestTodo_CHAT_030_ShareAttemptState(t *testing.T) {
 	if s.shareListing(gen+1, []chatui.Conversation{{ID: "stale", Kind: chatui.PublicChannel}}, "") {
 		t.Fatal("stale listing accepted")
 	}
-	rooms := []chatui.Conversation{{ID: "dest", Kind: chatui.PrivateChannel}, {ID: "direct", Kind: chatui.DirectMessage}}
+	rooms := []chatui.Conversation{{ID: "dest", Kind: chatui.PrivateChannel}, {ID: "agent", Kind: chatui.DirectMessage, Agent: true}}
 	if !s.shareListing(gen, rooms, "") {
 		t.Fatal("fresh listing rejected")
 	}
-	if s.shareSelect("direct") || s.shareSelect("source") {
+	if s.shareSelect("agent") || s.shareSelect("source") {
 		t.Fatal("ineligible destination selected")
 	}
 	if !s.shareSelect("dest") {

@@ -147,7 +147,7 @@ func chatcmd003Closes(m Model, preset string, typed *time.Time) *time.Time {
 	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 0, 0, now.Location())
 	var at time.Time
 	switch preset {
-	case "never":
+	case "never", closesCustom:
 		return nil
 	case "hour":
 		at = now.Add(time.Hour)
@@ -483,6 +483,11 @@ func chatcmd003Post(m Model, local localStore) {
 		local.update(func(u *localUI) { u.chatcmd003 = next })
 		return
 	}
+	if problem := chatcmd003CustomProblem(state.Settings, time.Now()); problem != "" {
+		// Checked again now, not trusted from when it was set; the draft stays.
+		local.update(func(u *localUI) { u.chatcmd003.Error = problem })
+		return
+	}
 	card := chatcmd003Apply(m, chatcmd003CloneCard(state.Draft.Card), state.Settings)
 	if chatcmd003Problem(card) != "" {
 		return
@@ -634,6 +639,7 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 			if pin := chatcmd003ClosesPin(m, extra); pin != "" {
 				settings[settingClosesAt] = pin
 			}
+			chatcmd003CustomKeep(settings, state.Settings)
 		}
 		state.Settings = settings
 		next := chatcmd003Draw(m, state, kind, state.Draft.Raw)
@@ -643,6 +649,14 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 			// The closing-time note's button is gone once a time is chosen;
 			// focus goes to the choice it set (#3924, #3931).
 			focusField(chatcmd003RadioID(id, extra))
+		}
+	case "chatcmd003-custom":
+		// The date and time fields' text is read on the press (#3927).
+		next := chatcmd003CustomSet(m, state, domValue("chatcmd003-custom-date"), domValue("chatcmd003-custom-time"), time.Now())
+		local.update(func(u *localUI) { u.chatcmd003 = next })
+		chatcmd003Remember(m, next)
+		if next.Error != "" {
+			focusField("chatcmd003-custom-date")
 		}
 	case "chatcmd003-tidy":
 		if m.Chatcmd002.Tidy == nil || state.Error == "parse" {
@@ -730,7 +744,7 @@ func chatcmd003Choice(m Model, name, label, current string, disabled bool, prefi
 func chatcmd003Settings(m Model, state chatcmd003Preview) ui.Node {
 	var rows []ui.Node
 	if p := state.Draft.Card.Poll; p != nil {
-		closes, labels, presets := state.Settings["closes"], map[string]string{}, []string{"never", "hour", "today", "tomorrow", "week"}
+		closes, labels, presets := state.Settings["closes"], map[string]string{}, []string{"never", "hour", "today", "tomorrow", "week", closesCustom}
 		if typed := state.Draft.Original.Poll; typed != nil && typed.ClosesAt != nil {
 			// A date typed in the text (closes=friday) is one more choice.
 			labels["typed"] = chatcmd002Stamp(m, *typed.ClosesAt)
@@ -747,7 +761,11 @@ func chatcmd003Settings(m Model, state chatcmd003Preview) ui.Node {
 				chatcmd003Switch(m, "multiple", "multiple", p.Multiple, state.Busy),
 				chatcmd003Switch(m, "anonymous", "anonymous", p.Anonymous, state.Busy)),
 			chatcmd003Choice(m, "results", "results", p.Results, state.Busy, "", nil, "always", "after-voting", "after-closing"),
-			chatcmd003Choice(m, "closes", "closes", closes, state.Busy, "closes-", labels, presets...),
+			chatcmd003Choice(m, "closes", "closes", closes, state.Busy, "closes-", labels, presets...))
+		if fields := chatcmd003CustomFields(m, state); fields != nil {
+			rows = append(rows, fields)
+		}
+		rows = append(rows,
 			chatcmd003Choice(m, "add", "add-options", p.AddOptions, state.Busy, "add-", nil, "author", "members"))
 	}
 	if t := state.Draft.Card.Todo; t != nil {
@@ -868,7 +886,7 @@ func chatcmd003PreviewView(m Model, state chatcmd003Preview) ui.Node {
 	actions := html.Div(html.Props{Class: "chatcmd003-actions"},
 		html.Button(html.Props{ID: "chatcmd003-post", Class: "button small", Type: "button", Disabled: !ready || state.Busy || m.Chatcmd002.Post == nil, Data: map[string]string{"action": "chatcmd003-post"}, Text: chatcmd003Text(m, kind+"-post")}),
 		button("cancel", "cancel", "", false),
-		html.Span(html.Props{Class: "chatcmd003-keys kbd-hint", Text: chatcmd003Text(m, "keys")}))
+		html.Span(html.Props{Class: "chatcmd003-keys kbd-hint", Text: issue3934PreviewKeys(m)}))
 	return html.Section(html.Props{Class: "chatcmd003-preview", Role: "region", Dir: agentReplyDirection(m.Locale), Data: map[string]string{"kind": kind}, Aria: map[string]string{"labelledby": "chatcmd003-heading"}},
 		html.Div(html.Props{Class: "chatcmd003-body"}, children...), actions)
 }

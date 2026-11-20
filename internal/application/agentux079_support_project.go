@@ -99,7 +99,7 @@ func prepareAgentUX079SupportProject(ctx context.Context, config LocalAgentDemoC
 	return ensureAgentUX079SupportProject(ctx, AgentUX079SupportProjectDeps{
 		Projects:   &projectservice.StoreAdapter{Projects: store, Configs: projectconfigstore.New(store), Views: projectviewstore.New(store)},
 		Grants:     inbox,
-		TenantUUID: mapper, Tenant: config.Tenant, Admin: localAgentDemoAdmin,
+		TenantUUID: mapper, Tenant: config.Tenant, Admin: localAgentDemoAdminFor(config.Tenant),
 		Now: func() time.Time { return now },
 	})
 }
@@ -225,7 +225,7 @@ func (s AgentUX079SupportTargets) SupportTargets(ctx context.Context, tenant str
 	if s.Projects == nil {
 		return targets, ErrAgentUX079SupportProjectUnavailable
 	}
-	if ctx == nil || s.Grants == nil || s.TenantUUID == nil || s.Now == nil || tenant != localAgentDemoTenant {
+	if ctx == nil || s.Grants == nil || s.TenantUUID == nil || s.Now == nil || !isLocalAgentDemoTenant(tenant) {
 		return targets, ErrAgentUXDemoSupportDenied
 	}
 	info, err := s.Projects.ResolveSupportProject(ctx, tenant)

@@ -174,6 +174,12 @@ func (f currentRoleChatFacts) CheckChatSession(ctx context.Context, tenant, subj
 	if !ok || trusted.Subject() != subject || string(trusted.Tenant()) != tenant || at.IsZero() {
 		return errChatIdentity
 	}
+	// Issue 3788: a message the author chose to send later is delivered by the
+	// server, with no browser session to look up. Their worker record, roles,
+	// membership and the channel are still read fresh.
+	if scheduledDeliveryFor(ctx, tenant, subject) {
+		return nil
+	}
 	if f.sessions != nil {
 		return f.sessions.CheckRevocation(ctx, trusted.SessionRef(), at)
 	}

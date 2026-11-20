@@ -1,7 +1,6 @@
 package application
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
@@ -34,7 +33,7 @@ func (s *agentServedAssembly) BindAgentUXSupportDesk(profile string, agents *age
 	if err != nil {
 		return err
 	}
-	objects := AgentUXDemoLocalSupportObjects{Root: filepath.FromSlash(localAgentDemoObjectRoot)}
+	objects := AgentUXDemoLocalSupportObjects{Root: localAgentDevRoot()}
 	desk := &AgentUXDemoSupportDesk{Inbox: inbox, Journal: inbox, Objects: objects, Planner: AgentUXDemoLocalSupportPlanner{}, Targets: targets, Projects: projects, Now: now}
 	if chat != nil {
 		desk.Alerts = AgentUXDemoChatSupportAlerts{Chat: chat, Agent: localAgentDemoSupportAgent}

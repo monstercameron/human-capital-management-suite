@@ -55,7 +55,8 @@ func chatsearchRecentList(m Model) ui.Node {
 	if strings.TrimSpace(m.Search) != "" {
 		return nil
 	}
-	if len(m.SearchRecent) == 0 {
+	saved := issue3929Section(m)
+	if len(m.SearchRecent) == 0 && len(saved) == 0 {
 		// ISSUE-3928: a finished clear is announced after the list is gone.
 		return issue3928ClearedNotice(m)
 	}
@@ -70,10 +71,27 @@ func chatsearchRecentList(m Model) ui.Node {
 			break
 		}
 	}
-	if len(items) == 0 {
+	if len(items) == 0 && len(saved) == 0 {
 		return nil
 	}
 	label := chatsearchText(m.Locale, "recent")
-	return html.Div(html.Props{Class: "rail-search-recent", Role: "group", Aria: map[string]string{"label": label}},
-		append(append([]ui.Node{html.Span(html.Props{Class: "rail-search-recent-title", Text: label})}, items...), issue3928Footer(m)...)...)
+	nodes := []ui.Node{}
+	if len(saved) > 0 {
+		// ISSUE-3929: kept searches come first and are their own list; Clear
+		// below deletes only the automatic history.
+		label = issue3929Text(m.Locale, "group")
+		nodes = append(nodes, saved...)
+		if note := issue3929StatusNote(m, ""); note != nil && m.SavedSearchStatus != "saved" {
+			nodes = append(nodes, note)
+		}
+	}
+	if len(items) > 0 {
+		nodes = append(nodes, html.Span(html.Props{Class: "rail-search-recent-title", Text: chatsearchText(m.Locale, "recent")}))
+		nodes = append(nodes, items...)
+		nodes = append(nodes, issue3928Footer(m)...)
+		if keeps := issue3929Keeps(m); keeps != nil {
+			nodes = append(nodes, keeps)
+		}
+	}
+	return html.Div(html.Props{Class: "rail-search-recent", Role: "group", Aria: map[string]string{"label": label}}, nodes...)
 }

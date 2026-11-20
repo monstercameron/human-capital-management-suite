@@ -189,6 +189,18 @@ const (
 	// never travel in the post: id is the artifact id and a reader fetches the
 	// content through the media grant and download flow.
 	ReferenceKind_REFERENCE_KIND_MEDIA ReferenceKind = 4
+	// REFERENCE_KIND_PROJECT_TASK points at a project board or one task on it
+	// (issue 3752). id is "<project>" or "<project>/<task>"; display is the
+	// title the project service returned to the sender. The server authorizes
+	// the sender on send and every reader on read.
+	ReferenceKind_REFERENCE_KIND_PROJECT_TASK ReferenceKind = 5
+	// REFERENCE_KIND_JOURNEY points at a workflow request (a journey) that
+	// "Send to chat" put in the conversation (issue 3725). id is the journey's
+	// intent id; display is the workflow's name. The post stores only the id: the
+	// stage, the requester and every detail are read live, per reader, from the
+	// journey service. The server authorizes the sender on send and every reader
+	// on read.
+	ReferenceKind_REFERENCE_KIND_JOURNEY ReferenceKind = 6
 )
 
 // Enum value maps for ReferenceKind.
@@ -199,6 +211,8 @@ var (
 		2: "REFERENCE_KIND_AGENT_MENTION",
 		3: "REFERENCE_KIND_CONVERSATION_REFERENCE",
 		4: "REFERENCE_KIND_MEDIA",
+		5: "REFERENCE_KIND_PROJECT_TASK",
+		6: "REFERENCE_KIND_JOURNEY",
 	}
 	ReferenceKind_value = map[string]int32{
 		"REFERENCE_KIND_UNSPECIFIED":            0,
@@ -206,6 +220,8 @@ var (
 		"REFERENCE_KIND_AGENT_MENTION":          2,
 		"REFERENCE_KIND_CONVERSATION_REFERENCE": 3,
 		"REFERENCE_KIND_MEDIA":                  4,
+		"REFERENCE_KIND_PROJECT_TASK":           5,
+		"REFERENCE_KIND_JOURNEY":                6,
 	}
 )
 
@@ -383,10 +399,18 @@ type Reference struct {
 	// empty on every other kind. They are a rendering snapshot: a client sizes
 	// and labels the attachment before it spends a round trip on the bytes, and
 	// the media service remains the authority on all of them.
-	ContentType   string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	ByteSize      uint64 `protobuf:"varint,7,opt,name=byte_size,json=byteSize,proto3" json:"byte_size,omitempty"`
-	Width         uint32 `protobuf:"varint,8,opt,name=width,proto3" json:"width,omitempty"`
-	Height        uint32 `protobuf:"varint,9,opt,name=height,proto3" json:"height,omitempty"`
+	ContentType string `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	ByteSize    uint64 `protobuf:"varint,7,opt,name=byte_size,json=byteSize,proto3" json:"byte_size,omitempty"`
+	Width       uint32 `protobuf:"varint,8,opt,name=width,proto3" json:"width,omitempty"`
+	Height      uint32 `protobuf:"varint,9,opt,name=height,proto3" json:"height,omitempty"`
+	// alt_text is the description the author wrote for an image attachment
+	// (issue 3962), at most 1000 characters. decorative is the author's explicit
+	// statement that the image carries no information a description would add;
+	// it excludes alt_text. Both are empty on every other kind and on a media
+	// reference that is not an image. They belong to the post, not to the
+	// artifact, so a reader's own on-demand description never changes them.
+	AltText       string `protobuf:"bytes,10,opt,name=alt_text,json=altText,proto3" json:"alt_text,omitempty"`
+	Decorative    bool   `protobuf:"varint,11,opt,name=decorative,proto3" json:"decorative,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -484,6 +508,20 @@ func (x *Reference) GetHeight() uint32 {
 	return 0
 }
 
+func (x *Reference) GetAltText() string {
+	if x != nil {
+		return x.AltText
+	}
+	return ""
+}
+
+func (x *Reference) GetDecorative() bool {
+	if x != nil {
+		return x.Decorative
+	}
+	return false
+}
+
 type SourceAttribution struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
@@ -491,8 +529,11 @@ type SourceAttribution struct {
 	PostId           string                 `protobuf:"bytes,3,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"`
 	PostRevision     uint64                 `protobuf:"varint,4,opt,name=post_revision,json=postRevision,proto3" json:"post_revision,omitempty"`
 	OriginalAuthorId string                 `protobuf:"bytes,5,opt,name=original_author_id,json=originalAuthorId,proto3" json:"original_author_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Issue 3919: the sharer's own words about the forwarded message. Empty when
+	// none was written; attributed to the post's author, not to the original author.
+	Note          string `protobuf:"bytes,6,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SourceAttribution) Reset() {
@@ -556,6 +597,13 @@ func (x *SourceAttribution) GetPostRevision() uint64 {
 func (x *SourceAttribution) GetOriginalAuthorId() string {
 	if x != nil {
 		return x.OriginalAuthorId
+	}
+	return ""
+}
+
+func (x *SourceAttribution) GetNote() string {
+	if x != nil {
+		return x.Note
 	}
 	return ""
 }
@@ -4869,8 +4917,11 @@ type ForwardPostRequest struct {
 	//
 	// Deprecated: Marked as deprecated in hcmnext/chat/v1/chat.proto.
 	SourceAttribution *SourceAttribution `protobuf:"bytes,8,opt,name=source_attribution,json=sourceAttribution,proto3" json:"source_attribution,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Issue 3919: an optional note from the sharer, shown above the forwarded
+	// message in the destination. At most 1000 characters.
+	Note          string `protobuf:"bytes,9,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ForwardPostRequest) Reset() {
@@ -4959,6 +5010,13 @@ func (x *ForwardPostRequest) GetSourceAttribution() *SourceAttribution {
 		return x.SourceAttribution
 	}
 	return nil
+}
+
+func (x *ForwardPostRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
 }
 
 type ForwardPostResponse struct {
@@ -5356,7 +5414,7 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
 	"subject_id\x18\x02 \x01(\tR\tsubjectId\x12\x14\n" +
 	"\x05roles\x18\x03 \x03(\tR\x05roles\x12&\n" +
-	"\x0equalifications\x18\x04 \x03(\tR\x0equalifications\"\x9d\x02\n" +
+	"\x0equalifications\x18\x04 \x03(\tR\x0equalifications\"\xd8\x02\n" +
 	"\tReference\x122\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1e.hcmnext.chat.v1.ReferenceKindR\x04kind\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12\x0e\n" +
@@ -5366,13 +5424,19 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12\x1b\n" +
 	"\tbyte_size\x18\a \x01(\x04R\bbyteSize\x12\x14\n" +
 	"\x05width\x18\b \x01(\rR\x05width\x12\x16\n" +
-	"\x06height\x18\t \x01(\rR\x06height\"\xc5\x01\n" +
+	"\x06height\x18\t \x01(\rR\x06height\x12\x19\n" +
+	"\balt_text\x18\n" +
+	" \x01(\tR\aaltText\x12\x1e\n" +
+	"\n" +
+	"decorative\x18\v \x01(\bR\n" +
+	"decorative\"\xd9\x01\n" +
 	"\x11SourceAttribution\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12\x17\n" +
 	"\apost_id\x18\x03 \x01(\tR\x06postId\x12#\n" +
 	"\rpost_revision\x18\x04 \x01(\x04R\fpostRevision\x12,\n" +
-	"\x12original_author_id\x18\x05 \x01(\tR\x10originalAuthorId\"\x89\x03\n" +
+	"\x12original_author_id\x18\x05 \x01(\tR\x10originalAuthorId\x12\x12\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\x89\x03\n" +
 	"\fConversation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x125\n" +
@@ -5710,7 +5774,7 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x05token\x18\x02 \x01(\tR\x05token\"\x88\x01\n" +
 	"\x18ResolveShareLinkResponse\x12A\n" +
 	"\fconversation\x18\x01 \x01(\v2\x1d.hcmnext.chat.v1.ConversationR\fconversation\x12)\n" +
-	"\x04post\x18\x02 \x01(\v2\x15.hcmnext.chat.v1.PostR\x04post\"\xcc\x03\n" +
+	"\x04post\x18\x02 \x01(\v2\x15.hcmnext.chat.v1.PostR\x04post\"\xe0\x03\n" +
 	"\x12ForwardPostRequest\x12<\n" +
 	"\tprincipal\x18\x01 \x01(\v2\x1a.hcmnext.chat.v1.PrincipalB\x02\x18\x01R\tprincipal\x12(\n" +
 	"\x10source_tenant_id\x18\x02 \x01(\tR\x0esourceTenantId\x124\n" +
@@ -5719,7 +5783,8 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x15destination_tenant_id\x18\x05 \x01(\tR\x13destinationTenantId\x12>\n" +
 	"\x1bdestination_conversation_id\x18\x06 \x01(\tR\x19destinationConversationId\x12'\n" +
 	"\x0fidempotency_key\x18\a \x01(\tR\x0eidempotencyKey\x12U\n" +
-	"\x12source_attribution\x18\b \x01(\v2\".hcmnext.chat.v1.SourceAttributionB\x02\x18\x01R\x11sourceAttribution\"@\n" +
+	"\x12source_attribution\x18\b \x01(\v2\".hcmnext.chat.v1.SourceAttributionB\x02\x18\x01R\x11sourceAttribution\x12\x12\n" +
+	"\x04note\x18\t \x01(\tR\x04note\"@\n" +
 	"\x13ForwardPostResponse\x12)\n" +
 	"\x04post\x18\x01 \x01(\v2\x15.hcmnext.chat.v1.PostR\x04post\"\xab\x03\n" +
 	"\x11ConversationEvent\x12:\n" +
@@ -5769,13 +5834,15 @@ const file_hcmnext_chat_v1_chat_proto_rawDesc = "" +
 	"\x1dREAD_HISTORY_FROM_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16READ_HISTORY_FROM_NONE\x10\x01\x12\x1a\n" +
 	"\x16READ_HISTORY_FROM_JOIN\x10\x02\x12\x1a\n" +
-	"\x16READ_HISTORY_FROM_FULL\x10\x03*\xb9\x01\n" +
+	"\x16READ_HISTORY_FROM_FULL\x10\x03*\xf6\x01\n" +
 	"\rReferenceKind\x12\x1e\n" +
 	"\x1aREFERENCE_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dREFERENCE_KIND_PERSON_MENTION\x10\x01\x12 \n" +
 	"\x1cREFERENCE_KIND_AGENT_MENTION\x10\x02\x12)\n" +
 	"%REFERENCE_KIND_CONVERSATION_REFERENCE\x10\x03\x12\x18\n" +
-	"\x14REFERENCE_KIND_MEDIA\x10\x04*\xf6\x02\n" +
+	"\x14REFERENCE_KIND_MEDIA\x10\x04\x12\x1f\n" +
+	"\x1bREFERENCE_KIND_PROJECT_TASK\x10\x05\x12\x1a\n" +
+	"\x16REFERENCE_KIND_JOURNEY\x10\x06*\xf6\x02\n" +
 	"\x15ConversationEventKind\x12'\n" +
 	"#CONVERSATION_EVENT_KIND_UNSPECIFIED\x10\x00\x12(\n" +
 	"$CONVERSATION_EVENT_KIND_POST_CREATED\x10\x01\x12'\n" +

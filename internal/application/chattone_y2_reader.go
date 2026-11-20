@@ -93,7 +93,7 @@ func (p chattoneReaderProjector) ProjectReaderBodies(ctx context.Context, reader
 		if post.Deleted || strings.TrimSpace(post.Body) == "" || chatlangOwn(reader, post) {
 			continue
 		}
-		if _, system := chat.ParseMembershipAdded(post.Body); system {
+		if chat.IsSystemBody(post.Body) {
 			continue
 		}
 		rows, err := memo.LoadRewordSettings(ctx, post.TenantID)

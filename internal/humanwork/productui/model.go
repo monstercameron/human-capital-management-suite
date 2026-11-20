@@ -2,6 +2,7 @@ package productui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/domains/organization"
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
@@ -623,6 +624,7 @@ type View struct {
 	Document               *DocumentDetail
 	DocumentID             string
 	DocumentOrigin         string
+	CanSendDocumentToChat  bool // "Send to chat" on a readable document; set by the host when chat is available (issue 3748)
 	CreateDocument         func(DocumentCreateRequest, func(error))
 	ShareDocument          func(DocumentShareRequest, func(error))
 	AddDocumentComment     func(DocumentCommentCreateRequest, func(error))
@@ -657,10 +659,14 @@ type View struct {
 	// LoadDocumentBacklinks reads the authorized inbound links to an open
 	// document (docs_backlinks.go, HUB-035); nil hides the backlinks panel.
 	LoadDocumentBacklinks func(documentID string, done func([]DocumentBacklink, error))
-	Roles                 []string
-	LogoutHref            string
-	Navigation            []NavItem
-	NavigationSupport     []NavItem
+	// LoadDocumentDiscussions reads the conversations that mention an open
+	// document, already limited to those the viewer may open (issue 3749,
+	// issue3749_doc_discussions.go); nil hides the "Discussed in" section.
+	LoadDocumentDiscussions func(documentID string, done func(DocumentDiscussions, error))
+	Roles                   []string
+	LogoutHref              string
+	Navigation              []NavItem
+	NavigationSupport       []NavItem
 	// NavigationProjection is nil only for isolated legacy/component previews.
 	// Once supplied, it owns discoverability and suppresses all registry
 	// fallback, including when its answer is empty or malformed.
@@ -671,8 +677,24 @@ type View struct {
 	// MarkNotificationRead persists a recipient's read transition. The callback
 	// owns transport and invokes done after the durable CAS finishes.
 	MarkNotificationRead func(id string, done func(error))
-	People               []Person
-	PersonWorkflows      []PersonWorkflow
+	// ChatNotifications are the chat items of the bell (issue 3733): mentions,
+	// replies in followed threads and direct messages, newest first. The server
+	// owns their read state; the two callbacks persist a person's choice and
+	// invoke done once it is stored.
+	ChatNotifications            []ChatNotification
+	ChatNotificationsUnavailable bool
+	MarkChatNotificationRead     func(id string, done func(error))
+	MarkAllChatNotificationsRead func(done func(error))
+	// ChatDigest is the person's digest choice and, when due, the digest (issue
+	// 3786). SaveChatDigestPref stores a new choice and ChatDigestSeen records
+	// that the digest was seen through the given moment; each calls done after
+	// the server answers.
+	ChatDigest            *ChatDigest
+	ChatDigestUnavailable bool
+	SaveChatDigestPref    func(cadence string, minute int, done func(error))
+	ChatDigestSeen        func(through time.Time, done func(error))
+	People                []Person
+	PersonWorkflows       []PersonWorkflow
 	// JourneyPopulation is the server's authorized summary over exactly the
 	// journeys in Work (UXLIVE-027). Nil when no summary was read.
 	JourneyPopulation *JourneyPopulation

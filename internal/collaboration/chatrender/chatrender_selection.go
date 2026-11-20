@@ -81,6 +81,9 @@ type Mark struct {
 	// for when the state is not "ready" ("pending", "fallback", "unavailable"):
 	// a client says "Translating…" or "Not translated" from it, never from a guess.
 	Wanted []Kind `json:"wanted,omitempty"`
+	// Refused says why a translation the reader pressed "Translate" for was not
+	// made (RefusedPolicy, RefusedSameLanguage); empty otherwise (issue 3814).
+	Refused string `json:"refused,omitempty"`
 }
 type Available struct {
 	Renderings []Rendering

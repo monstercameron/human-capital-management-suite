@@ -321,6 +321,8 @@ const (
 	KeyJourneyStageInProgress         = "chat.journey_stage_in_progress"
 	KeyDocSuggestTitle                = "chat.doc_suggest_title"
 	KeyDocSuggestNone                 = "chat.doc_suggest_none"
+	KeyDocSuggestFailed               = "chat.doc_suggest_failed"
+	KeyDocSuggestUnavailable          = "chat.doc_suggest_unavailable"
 	KeyPickReaction                   = "chat.pick_reaction"
 	KeyReactionChip                   = "chat.reaction_chip"
 	KeyReactWith                      = "chat.react_with"
@@ -662,19 +664,19 @@ var englishCopy = map[string]string{
 	KeyCopyContentsEmpty:        "No message text to copy",
 	KeyCopyContentsSuccess:      "Text copied",
 	KeyCopyContentsFailure:      "Could not copy message contents. Check clipboard access and try again.",
-	KeyShareToChannel:           "Share to channel",
-	KeyShareTitle:               "Share message to a channel",
-	KeyShareDestination:         "Destination channel",
-	KeyShareFilter:              "Search your channels",
-	KeyShareEmpty:               "No eligible channels found",
-	KeyShareLoading:             "Loading your channels…",
-	KeyShareDisclosure:          "Members of the destination channel will see this message.",
+	KeyShareToChannel:           "Share message",
+	KeyShareTitle:               "Share message",
+	KeyShareDestination:         "Send to",
+	KeyShareFilter:              "Search channels and conversations",
+	KeyShareEmpty:               "No eligible channels or conversations found",
+	KeyShareLoading:             "Loading your conversations…",
+	KeyShareDisclosure:          "Only the people in the destination you choose will see this message.",
 	KeyShareAttachments:         "Only the message text will be shared. Attachments are not included.",
 	KeyShareSubmit:              "Share",
 	KeySharePending:             "Sharing…",
-	KeyShareLoadError:           "Could not load channels. Try again.",
+	KeyShareLoadError:           "Could not load your conversations. Try again.",
 	KeyShareError:               "Could not share this message. Check your access and try again.",
-	KeyShareSuccess:             "Message shared to channel",
+	KeyShareSuccess:             "Message shared",
 	KeyShareUnavailable:         "Sharing is unavailable. Try again.",
 	KeyForwardedFrom:            "Forwarded from {name}",
 	KeyEmbedTitle:               "Linked message",
@@ -720,6 +722,8 @@ var englishCopy = map[string]string{
 	KeyJourneyStageInProgress:   "In progress",
 	KeyDocSuggestTitle:          "Documents",
 	KeyDocSuggestNone:           "No documents you can open match",
+	KeyDocSuggestFailed:         "Documents could not be searched right now",
+	KeyDocSuggestUnavailable:    "Document search is not set up yet",
 	KeyPickReaction:             "Choose a reaction",
 	KeyReactionChip:             "{n} reacted with {emoji}",
 	KeyReactWith:                "React with {emoji}",

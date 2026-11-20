@@ -336,6 +336,9 @@ type streamingChatService struct {
 	masker chatWatchMasker
 	// identities names the people and agents a listing carries (CHATUX-047).
 	identities chatIdentitySource
+	// counts publishes the person-scoped count notices (issue 3796). Nil leaves
+	// the periodic reconciliation as the only way a tab learns of other rooms.
+	counts *chatCountsSignaler
 }
 
 // chatWatchMasker is the reader's masked view of one live watch event.
@@ -442,7 +445,11 @@ func (s *streamingChatService) SendPost(ctx context.Context, req chatcore.SendPo
 		return chatcore.Post{}, err
 	}
 	defer lease.Release()
-	return s.sendPost(ctx, req)
+	post, err := s.sendPost(ctx, req)
+	if err == nil {
+		s.counts.notifyPostedLater(ctx, req.TenantID, req.ConversationID, req.Principal)
+	}
+	return post, err
 }
 
 // CommitPersonaReply preserves the optional server-owned write through the
@@ -458,7 +465,11 @@ func (s *streamingChatService) CommitPersonaReply(ctx context.Context, req chatc
 	if !ok {
 		return chatcore.Post{}, chatcore.ErrUnavailable
 	}
-	return committer.CommitPersonaReply(ctx, req)
+	post, err := committer.CommitPersonaReply(ctx, req)
+	if err == nil {
+		s.counts.notifyPostedLater(ctx, req.TenantID, req.ConversationID, chatcore.Principal{})
+	}
+	return post, err
 }
 
 // CommitAgentQuestionReaction forwards an agent's reaction to the question it was
@@ -599,7 +610,12 @@ func (s *streamingChatService) ForwardPost(ctx context.Context, r chatcore.Forwa
 		return chatcore.Post{}, err
 	}
 	defer lease.Release()
-	return v.ForwardPost(ctx, r)
+	post, err := v.ForwardPost(ctx, r)
+	if err == nil {
+		// Issue 3796: a forward is a new post in the destination room.
+		s.counts.notifyPostedLater(ctx, r.DestinationTenantID, r.DestinationConversationID, r.Principal)
+	}
+	return post, err
 }
 
 // WatchConversationWithErrors is the reporting form of the watch: it hands back
@@ -669,6 +685,15 @@ func (s *streamingChatService) WatchConversationWithErrors(ctx context.Context, 
 					fail <- chatStreamError(nextErr)
 				}
 				return
+			}
+			if countsEvent, isCounts := chatCountsSignalEvent(event, sub.Cursor()); isCounts {
+				// Issue 3796: a count notice, counts only, same path as the sidebar one.
+				select {
+				case out <- countsEvent:
+				case <-ctx.Done():
+					return
+				}
+				continue
 			}
 			if event.Signal == chatstream.SignalSidebarLayoutChanged {
 				// A person-scoped notice, not a conversation event: it skips the

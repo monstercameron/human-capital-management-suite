@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -36,48 +35,27 @@ func resolveVisibleChatProjectTasks(cfg journeyclient.Config) {
 		return
 	}
 	identity := active.Tenant + "\x00" + active.Subject
-	claims, epoch, shown := chatProjectTaskPreviews.claim(identity, chatProjectTaskPreviewRefs(chatBrowser.snapshot()), time.Now())
+	refs := chatProjectTaskPreviewRefs(chatBrowser.snapshot())
+	claims, epoch, shown := chatProjectTaskPreviews.claim(identity, refs, time.Now())
 	changed := false
 	chatBrowser.mutate(func(model *chatui.Model) { changed = mergeChatProjectTaskPreviews(model, shown) })
 	if changed {
 		refreshChatRoute()
 	}
 	if len(claims) == 0 {
+		// Issue 3753: wake up when the newest answer on screen goes stale, so a
+		// rename, archive, delete or revoked grant reaches a quiet channel.
+		if due, ok := chatProjectTaskPreviews.revalidateIn(identity, refs, time.Now()); ok {
+			armChatProjectTaskRetry(cfg, due+time.Millisecond)
+		}
 		return
 	}
 	armChatProjectTaskRetry(cfg, chatProjectTaskPreviewPendingTimeout+time.Second)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		type result struct {
-			key   string
-			value chatui.ProjectTaskPreview
-		}
-		results := make(chan result, len(claims))
-		semaphore := make(chan struct{}, 8)
-		var workers sync.WaitGroup
-		for _, ref := range claims {
-			ref := ref
-			workers.Add(1)
-			go func() {
-				defer workers.Done()
-				select {
-				case semaphore <- struct{}{}:
-				case <-ctx.Done():
-					// A cancelled batch is a failed read, not a refusal of access.
-					results <- result{key: chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID), value: chatProjectTaskAnswer(ref, "failed")}
-					return
-				}
-				defer func() { <-semaphore }()
-				results <- result{key: chatui.ProjectTaskPreviewKey(ref.ProjectID, ref.TaskID), value: resolveChatProjectPreview(ctx, active, client, ref)}
-			}()
-		}
-		workers.Wait()
-		close(results)
-		answers := make(map[string]chatui.ProjectTaskPreview, len(claims))
-		for answer := range results {
-			answers[answer.key] = answer.value
-		}
+		// One batched, viewer-authorized read for every claimed link (#3751).
+		answers := resolveChatProjectPreviews(ctx, active, client, claims)
 		current := chatBrowser.config(cfg)
 		if current.Tenant+"\x00"+current.Subject != identity {
 			return

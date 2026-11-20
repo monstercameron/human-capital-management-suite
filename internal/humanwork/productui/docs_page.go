@@ -591,6 +591,9 @@ func docsDetail(props docsDetailProps) ui.Node {
 	if summary.CanManageAccess && view.ShareDocument != nil && view.DocumentOrigin != "" {
 		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item", Type: "button", Data: map[string]string{"docs-action": "copy-link"}}, productIcon("link", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "copy_link")))))
 	}
+	if item := docsSendToChatItem(view, summary); item != nil {
+		menu = append(menu, item)
+	}
 	if view.MoveDocuments != nil {
 		menu = append(menu, html.Button(html.Props{Class: "docs-menu-item", Type: "button", Data: map[string]string{"docs-action": "move"}}, productIcon("folder", "docs-menu-icon"), html.Span(html.Props{}, ui.Text(docsText(locale, "move_to_folder")))))
 	}
@@ -722,6 +725,13 @@ func docsDetail(props docsDetailProps) ui.Node {
 			}
 			rail = append(rail, docsBacklinksPanel(docsBacklinksPanelProps{
 				Locale: locale, Backlinks: backlinksShown.Rows, Loading: !backlinksDone, Unavailable: backlinksDone && backlinksShown.Failed,
+			}))
+		}
+		// Issue 3749: the conversations that mention this document, already
+		// limited by the server to those the viewer may open.
+		if view.LoadDocumentDiscussions != nil {
+			rail = append(rail, ui.CreateElement(docsDiscussionsSection, docsDiscussionsSectionProps{
+				Locale: locale, DocumentID: summary.ID, Load: view.LoadDocumentDiscussions,
 			}))
 		}
 	}
@@ -965,7 +975,7 @@ func docsStylesheet() string {
 .docs-review-diff{white-space:pre-wrap;overflow:auto;padding:var(--hcm-space-2);background:var(--surface-subtle,var(--soft));border-radius:var(--hcm-radius-control)}
 .docs-search-provenance{display:inline-block;font-weight:600;padding:0 var(--hcm-space-1);border-radius:var(--hcm-radius-xs);background:var(--surface-subtle,var(--soft))}
 @media (max-width:40rem){.docs-search-filters{flex-direction:column}.docs-actions{flex-direction:column;align-items:stretch}}
-` + docsLibraryStylesheet() + docsLibraryListStylesheet() + docsEditorStylesheet() + docsdiagram.Stylesheet() + docsVisualStylesheet() + docsReaderStylesheet() + docsDialogStylesheet() + docsChatRefsStylesheet() + docsProjectTaskStylesheet() + docsProjectEmbedStylesheet() + docsJourneyStylesheet() + docsMediaStylesheet() + docsCompareStylesheet() + docsBacklinksStylesheet() + docsRemoveStylesheet()
+` + docsLibraryStylesheet() + docsLibraryListStylesheet() + docsEditorStylesheet() + docsdiagram.Stylesheet() + docsVisualStylesheet() + docsReaderStylesheet() + docsDialogStylesheet() + docsChatRefsStylesheet() + docsProjectTaskStylesheet() + docsProjectEmbedStylesheet() + docsJourneyStylesheet() + docsMediaStylesheet() + docsCompareStylesheet() + docsBacklinksStylesheet() + docsDiscussionsStylesheet() + docsRemoveStylesheet()
 }
 
 // docsWithoutLeadingTitle drops a first heading that only repeats the

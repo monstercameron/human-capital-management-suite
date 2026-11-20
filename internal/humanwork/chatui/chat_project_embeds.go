@@ -14,7 +14,7 @@ import (
 // is a skeleton of the ready card's own rows, and a refused read is a neutral
 // locked card that never names the task.
 func projectPreviewEmbeds(m Model, body string) []ui.Node {
-	refs := ProjectTaskReferences(body, m.EmbedOrigin)
+	refs := ProjectTaskReferencesFor(body, m.EmbedOrigin, m.renderWorkReferences)
 	if len(refs) == 0 {
 		return nil
 	}
@@ -43,12 +43,15 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 	}
 	head := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-project-embed-kind chat-work-card-type"}, projectEmbedGlyph(board), ui.Text(m.t(labelKey)))}
 	switch {
-	case preview.State == "ready" && preview.Readable && strings.TrimSpace(preview.Title) != "":
+	case (preview.State == "ready" || preview.State == "archived") && preview.Readable && strings.TrimSpace(preview.Title) != "":
 	case preview.State == "ready" || preview.State == "restricted" || preview.State == "unavailable" || preview.State == "missing" || preview.State == "archived" || preview.State == "failed":
-		// embed-state names which settled answer this is; the copy is still
-		// the shared locked line until the missing/archived/failed copy keys land.
+		// embed-state names which settled answer this is (issue 3750).
+		if preview.State == "failed" {
+			return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed is-locked", Data: map[string]string{"embed-state": preview.State}}, false),
+				append(head, issue3750FailedCard(m)...)...)
+		}
 		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed is-locked", Data: map[string]string{"embed-state": preview.State}}, false),
-			append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyProjectTaskRestricted)}))...)
+			append(head, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: issue3750WorkStateText(m, preview.State)}))...)
 	default:
 		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-project-embed is-loading", Data: map[string]string{"embed-state": "loading"}, Aria: map[string]string{"busy": "true"}}, false),
 			append(head,
@@ -62,7 +65,10 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 	if board {
 		children = append(children, html.Strong(html.Props{Class: "chat-embed-source chat-project-embed-title chat-work-card-title", Dir: "auto", Text: title}))
 		children = append(children, projectBoardSummary(m, preview))
-		return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed is-board", Href: ProjectBoardReferenceURL(preview.ProjectID), Data: map[string]string{"action": "open-project-task-reference", "project": preview.ProjectID, "task": "", "id": preview.ProjectID, "extra": ""}, Aria: map[string]string{"label": m.tf(KeyOpenProjectBoard, map[string]string{"title": title})}}, false), children...)
+		if preview.State == "archived" {
+			children = append(children, issue3750ArchivedChip(m))
+		}
+		return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed is-board", Href: ProjectBoardReferenceURL(preview.ProjectID), Data: issue3750WorkData(preview, map[string]string{"action": "open-project-task-reference", "project": preview.ProjectID, "task": "", "id": preview.ProjectID, "extra": ""}), Aria: map[string]string{"label": m.tf(KeyOpenProjectBoard, map[string]string{"title": title})}}, false), children...)
 	}
 
 	titleRow := []ui.Node{}
@@ -75,6 +81,9 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 		children = append(children, html.Span(html.Props{Class: "chat-embed-byline", Dir: "auto", Text: preview.ProjectName}))
 	}
 	meta := []ui.Node{}
+	if preview.State == "archived" {
+		meta = append(meta, issue3750ArchivedChip(m))
+	}
 	if preview.Status != "" {
 		meta = append(meta, html.Span(html.Props{Class: "chat-project-embed-status chat-work-card-status", Data: map[string]string{"tone": preview.StatusTone}}, html.Span(html.Props{Class: "chat-project-embed-dot", Aria: map[string]string{"hidden": "true"}}), ui.Text(preview.Status)))
 	}
@@ -93,7 +102,7 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 	// Only the resolver's identity-based answer claims the ticket waits on the reader (#3994).
 	waits := preview.WaitsOnViewer && preview.StatusTone != "done"
 	children = append(children, workCardAction(m, waits))
-	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed", Href: ProjectTaskReferenceURL(preview.ProjectID, preview.TaskID), Data: map[string]string{"action": "open-project-task-reference", "project": preview.ProjectID, "task": preview.TaskID, "id": preview.ProjectID, "extra": preview.TaskID}, Aria: map[string]string{"label": m.tf(KeyOpenProjectTask, map[string]string{"title": title})}}, waits), children...)
+	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed", Href: ProjectTaskReferenceURL(preview.ProjectID, preview.TaskID), Data: issue3750WorkData(preview, map[string]string{"action": "open-project-task-reference", "project": preview.ProjectID, "task": preview.TaskID, "id": preview.ProjectID, "extra": preview.TaskID}), Aria: map[string]string{"label": m.tf(KeyOpenProjectTask, map[string]string{"title": title})}}, waits), children...)
 }
 
 // projectBoardSummary is a board card's progress: a done/total bar and the

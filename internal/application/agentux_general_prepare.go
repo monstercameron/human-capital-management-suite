@@ -138,7 +138,7 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 		}
 	}
 	if state == agentpersonastore.StateDraft {
-		if err := scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: row.TenantID, EventID: "local-assistant-review-request-" + uuid.NewString(), PersonaID: row.PersonaID, PersonaVersion: row.Version, From: state, To: agentpersonastore.StateInReview, Reason: "Independent persona review requested", ActorID: localAgentDemoAdmin, OccurredAt: now}); err != nil {
+		if err := scoped.AppendLifecycle(ctx, agentpersonastore.LifecycleEvent{TenantID: row.TenantID, EventID: "local-assistant-review-request-" + uuid.NewString(), PersonaID: row.PersonaID, PersonaVersion: row.Version, From: state, To: agentpersonastore.StateInReview, Reason: "Independent persona review requested", ActorID: localAgentDemoAdminFor(row.TenantID.String()), OccurredAt: now}); err != nil {
 			return out, "", err
 		}
 		state, out.state = agentpersonastore.StateInReview, agentpersonastore.StateInReview
@@ -162,7 +162,7 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 		return out, "", err
 	}
 	modelDigest := "sha256:" + candidate.ProfileDigest
-	target := agenteval.PersonaEvaluationTarget{TenantID: config.Tenant, SyntheticTenantID: localAgentDemoSynthetic, InvokerID: localAgentDemoAdmin, PersonaID: row.PersonaID, PersonaVersion: row.Version, ProfileDigest: row.ContentDigest, ModelDigest: modelDigest}
+	target := agenteval.PersonaEvaluationTarget{TenantID: config.Tenant, SyntheticTenantID: localAgentDemoSynthetic, InvokerID: localAgentDemoAdminFor(config.Tenant), PersonaID: row.PersonaID, PersonaVersion: row.Version, ProfileDigest: row.ContentDigest, ModelDigest: modelDigest}
 	report, measuredSuite, err := localAgentDemoEvaluationReportForSuite(ctx, target, suite, now.Add(-time.Second))
 	if err != nil {
 		return out, "", err
@@ -216,13 +216,13 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 	}
 	directConversation := ""
 	if spec.direct {
-		direct, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdmin, profile.Handle, profile.DisplayName)
+		direct, repaired, err := ensureLocalAgentDemoDirectConversation(adminCtx, repairStore, chatService, config.Tenant, localAgentDemoAdminFor(config.Tenant), profile.Handle, profile.DisplayName)
 		if err != nil {
 			return out, "", err
 		}
 		directConversation = direct
 		out.chatConversationRepaired = repaired
-		if err := provisionLocalAgentDemoDirectPolicy(ctx, chat, profile.Handle, directConversation); err != nil {
+		if err := provisionLocalAgentDemoDirectPolicy(ctx, chat, config.Tenant, profile.Handle, directConversation); err != nil {
 			return out, "", err
 		}
 	}
@@ -239,7 +239,7 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 			if _, err := ProvisionLocalDevPersonaChatPolicy(ctx, chat, config.Profile, config.Tenant, conversation, room); err != nil {
 				return out, "", fmt.Errorf("provision %s for %s: %w", room, row.DisplayName, err)
 			}
-			if err := ensureLocalAgentDemoRoomManager(ctx, chat, config.Tenant, conversation, localAgentDemoAdmin); err != nil {
+			if err := ensureLocalAgentDemoRoomManager(ctx, chat, config.Tenant, conversation, localAgentDemoAdminFor(config.Tenant)); err != nil {
 				return out, "", fmt.Errorf("make the administrator a manager of %s to install %s: %w", room, row.DisplayName, err)
 			}
 			targets = append(targets, conversation)
@@ -272,11 +272,11 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 		targets = agentUX082UnionPlacementConversations(targets, placed)
 	}
 	builder := agentDemoProfileBuilder{manifest: manifest}
-	authorizer := localAgentDemoAuthorizer{tenant: row.TenantID, subject: localAgentDemoAdmin, persona: row.PersonaID}
+	authorizer := localAgentDemoAuthorizer{tenant: row.TenantID, subject: localAgentDemoAdminFor(row.TenantID.String()), persona: row.PersonaID}
 	install := GovernedPersonaAdminInstallation{Placement: NewPersonaPublicAudienceAuthority(chat), Versions: personaAdminInstallationVersions{store: personas}, Profiles: builder}
 	runtime := localAgentDemoRecordingProvisioner{changes: &out, runtime: &LocalPersonaRuntimeProvisioner{Config: config, Core: core, Agents: agents, Personas: personas, Evaluations: evaluations, Signing: material, DeploymentPath: p.deploymentPath, Now: func() time.Time { return now }}}
 	executor := NewPersonaAdminLifecycleExecutor(personaAdminLifecycleStoreAdapter{store: personas}, authorizer, &PersonaAdminDraftService{Profiles: builder}, nil, nil, personaAdminStoredEvidence{store: personas}, install, nil, func() time.Time { return now }, uuid.NewString, runtime)
-	actor := PersonaAdminCommandActor{Principal: adminPrincipal, Tenant: row.TenantID, Subject: localAgentDemoAdmin}
+	actor := PersonaAdminCommandActor{Principal: adminPrincipal, Tenant: row.TenantID, Subject: localAgentDemoAdminFor(row.TenantID.String())}
 	if state == agentpersonastore.StateInReview {
 		if err := executor.ExecutePersonaAdminCommand(adminCtx, actor, PersonaAdminCommand{Action: PersonaAdminPublish, PersonaID: row.PersonaID}); err != nil {
 			return out, "", fmt.Errorf("publish "+row.DisplayName+": %w", err)
@@ -324,7 +324,7 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 		// instead of filing a schedule that can never fire.
 		out.birthdaySchedule, err = prepareAgentUX079BirthdaySchedule(adminCtx, AgentUX079BirthdayScheduleWiring{
 			Agents: p.agents, Personas: p.personas, Core: p.core, Chat: p.chat,
-			TenantUUID: p.mapper, Tenant: config.Tenant, Admin: localAgentDemoAdmin,
+			TenantUUID: p.mapper, Tenant: config.Tenant, Admin: localAgentDemoAdminFor(config.Tenant),
 			Conversation: localDevPersonaDemoConversationID(config.Tenant, "general"),
 			Now:          func() time.Time { return p.now },
 		})
@@ -337,21 +337,21 @@ func (p localAgentDemoPreparation) prepareSpec(adminCtx context.Context, spec lo
 
 // Assistant's private conversation uses the same reviewed local DM ceiling.
 // Policy Helper's existing bootstrap contract and identifiers stay unchanged.
-func provisionLocalAgentDemoDirectPolicy(ctx context.Context, chat *chatstore.Store, handle, conversation string) error {
+func provisionLocalAgentDemoDirectPolicy(ctx context.Context, chat *chatstore.Store, tenant, handle, conversation string) error {
 	if handle == localAgentDemoAgentID {
-		_, err := ProvisionLocalDevPersonaDirectPolicy(ctx, chat, ServeProfileLocalDev, localAgentDemoTenant, conversation, localAgentDemoAdmin)
+		_, err := ProvisionLocalDevPersonaDirectPolicy(ctx, chat, ServeProfileLocalDev, tenant, conversation, localAgentDemoAdminFor(tenant))
 		return err
 	}
-	expected, err := chatcore.DirectPairConversationID(localAgentDemoTenant, []chatcore.MemberRef{{TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAdmin}, {TenantID: localAgentDemoTenant, SubjectID: localAgentDemoAssistantAgentID}})
+	expected, err := chatcore.DirectPairConversationID(tenant, []chatcore.MemberRef{{TenantID: tenant, SubjectID: localAgentDemoAdminFor(tenant)}, {TenantID: tenant, SubjectID: localAgentDemoAssistantAgentID}})
 	if chat == nil || handle != localAgentDemoAssistantAgentID || err != nil || conversation != expected {
 		return ErrLocalDevPersonaChatBootstrap
 	}
 	ceiling, _, _ := localDevPersonaRoomCeiling("dm-0")
 	ceiling.ConversationSearchAllowed = true
-	if _, err := chat.PutAudiencePolicy(ctx, localAgentDemoTenant, conversation, 0, chatstore.AudiencePolicy{RoleMode: 1, Classification: "INTERNAL"}); err != nil && !errors.Is(err, chatstore.ErrAudiencePolicyConflict) {
+	if _, err := chat.PutAudiencePolicy(ctx, tenant, conversation, 0, chatstore.AudiencePolicy{RoleMode: 1, Classification: "INTERNAL"}); err != nil && !errors.Is(err, chatstore.ErrAudiencePolicyConflict) {
 		return err
 	}
-	current, err := chat.CapturePersonaChannelPolicy(ctx, localAgentDemoTenant, conversation, "")
+	current, err := chat.CapturePersonaChannelPolicy(ctx, tenant, conversation, "")
 	if err == nil {
 		if !reflect.DeepEqual(current.Policy, ceiling) {
 			return ErrLocalDevPersonaChatBootstrap
@@ -361,7 +361,7 @@ func provisionLocalAgentDemoDirectPolicy(ctx context.Context, chat *chatstore.St
 	if !errors.Is(err, dbport.ErrNoRows) && !errors.Is(err, chatstore.ErrAudienceEligibilityUnavailable) {
 		return err
 	}
-	_, err = chat.PutPersonaChannelPolicy(ctx, localAgentDemoTenant, conversation, 0, ceiling)
+	_, err = chat.PutPersonaChannelPolicy(ctx, tenant, conversation, 0, ceiling)
 	return err
 }
 

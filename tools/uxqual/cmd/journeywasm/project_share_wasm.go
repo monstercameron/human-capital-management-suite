@@ -90,6 +90,10 @@ func projectShareCanonical(href string) string {
 	if err != nil {
 		return href
 	}
+	// Issue 3748: a document is named by its document selector alone.
+	if parsed.Path == docsSharePath {
+		return docShareCanonical(href)
+	}
 	query := parsed.Query()
 	values := url.Values{}
 	if project := query.Get("project"); project != "" {
@@ -113,7 +117,7 @@ func projectAbsolute(href string) string {
 func projectClipboard(text string) {
 	if clipboard := js.Global().Get("navigator").Get("clipboard"); clipboard.Truthy() {
 		func() {
-			defer func() { _ = recover() }()
+			defer recoverAt("project-share.project-clipboard")
 			clipboard.Call("writeText", text)
 		}()
 	}
@@ -138,6 +142,8 @@ func bindProjectShare(cfg journeyclient.Config) {
 		return
 	}
 	projectShareInstalls = true
+	bindJourneyDiscussed(cfg)
+	bindJourneyClarify(cfg)
 	document.Call("addEventListener", "click", js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if len(args) == 0 {
 			return nil
@@ -151,6 +157,9 @@ func bindProjectShare(cfg journeyclient.Config) {
 		if share := projectClosest(target, `[data-projectui-action="share-chat"]`); share.Truthy() {
 			if words := projectClosest(share, ".projectui-journey-actions"); words.Truthy() {
 				ensureProjectShareDialog(words)
+			} else if projectAttr(share, "data-text-send-title") != "" {
+				// Issue 3748: a document's menu item carries its own dialog words.
+				ensureProjectShareDialog(share)
 			}
 			openProjectShareDialog(cfg, projectShareCanonical(projectResolveShareHref(projectAttr(share, "data-href"))), projectAttr(share, "data-title"))
 			if menu := projectClosest(share, "details[open]"); menu.Truthy() {
@@ -211,7 +220,7 @@ func openProjectShareDialog(cfg journeyclient.Config, href, title string) {
 	}
 	form.Call("removeAttribute", "aria-busy")
 	func() {
-		defer func() { _ = recover() }()
+		defer recoverAt("project-share.open-project-share-dia")
 		dialog.Call("showModal")
 	}()
 	if picker := form.Call("querySelector", "select"); picker.Truthy() {
@@ -287,10 +296,22 @@ func sendProjectShare(cfg journeyclient.Config, form js.Value) {
 		if !failed {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
-			_, err := client.SendPost(chatRPCContext(ctx, active), &chatv1.SendPostRequest{
+			request := &chatv1.SendPostRequest{
 				TenantId: active.Tenant, ConversationId: conversationID, Body: body,
 				IdempotencyKey: fmt.Sprintf("project-share-%d", time.Now().UnixNano()),
-			})
+			}
+			// Issue 3752: the post carries a typed reference to the shared
+			// board or task, so its card does not depend on the link's text.
+			if reference := projectShareReference(href, active.Tenant); reference != nil {
+				request.References = []*chatv1.Reference{reference}
+			}
+			// Issue 3725: a shared journey travels the same way, as a typed
+			// workflow-request reference the server authorizes and links to
+			// this conversation.
+			if reference := journeyShareReference(href, active.Tenant); reference != nil {
+				request.References = append(request.References, reference)
+			}
+			_, err := client.SendPost(chatRPCContext(ctx, active), request)
 			failed = err != nil
 		}
 		form.Call("removeAttribute", "aria-busy")
@@ -304,6 +325,8 @@ func sendProjectShare(cfg journeyclient.Config, form js.Value) {
 			dialog.Call("close")
 		}
 		invalidateChatRecipientProjection()
+		// Issue 3726: a shared journey remembers where it was discussed.
+		recordJourneyShare(active, href, conversationID)
 		showProjectToast(strings.ReplaceAll(sentTemplate, "{name}", label), "/workspace/app/chat#channel="+url.QueryEscape(conversationID), "")
 	}()
 }

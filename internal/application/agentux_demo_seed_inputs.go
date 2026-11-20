@@ -12,7 +12,7 @@ import (
 // restart and the queue resolves each existing admission instead of rerunning it.
 func AgentUXDemoSeedSupportEmails(ctx context.Context, surface agentdemo.Surface) ([]agentdemo.Receipt, error) {
 	principal, ok := trust.FromContext(ctx)
-	if !ok || principal.SubjectKind() != trust.SubjectKindHuman || principal.Tenant().String() != localAgentDemoTenant || principal.Subject() != localAgentDemoAdmin || surface == nil {
+	if !ok || principal.SubjectKind() != trust.SubjectKindHuman || !isLocalAgentDemoTenant(principal.Tenant().String()) || principal.Subject() != localAgentDemoAdminFor(principal.Tenant().String()) || surface == nil {
 		return nil, agentdemo.ErrDenied
 	}
 	var receipts []agentdemo.Receipt

@@ -44,6 +44,9 @@ type sidebarLayout struct {
 	// their size (CHATEMOJI-004).
 	EmojiPrefs string `json:"emojiPrefs"`
 	VoicePrefs string `json:"voicePrefs"`
+	// ComposerEnter is what Enter does in message boxes: "send" (default) or
+	// "newline"; empty means the default (ISSUE-3934).
+	ComposerEnter string `json:"composerEnter"`
 }
 
 // sidebarPrefsMax bounds each personal-preference string in the sidebar layout.
@@ -77,6 +80,8 @@ type QuietHours struct {
 	StartMinute, EndMinute int
 	Enabled                bool
 	Revision               uint64
+	// Schedule is the optional weekly schedule and one-off pause (issue 3920).
+	Schedule QuietSchedule
 }
 
 type Repository interface {
@@ -262,7 +267,7 @@ func (s *Service) PutSidebar(ctx context.Context, p chat.Principal, x Sidebar, e
 			return Sidebar{}, chat.ErrInvalidArgument
 		}
 	}
-	if len(layout.Sections) > 30 || len(layout.EmojiPrefs) > sidebarPrefsMax || len(layout.VoicePrefs) > sidebarPrefsMax {
+	if len(layout.Sections) > 30 || len(layout.EmojiPrefs) > sidebarPrefsMax || len(layout.VoicePrefs) > sidebarPrefsMax || (layout.ComposerEnter != "" && layout.ComposerEnter != "send" && layout.ComposerEnter != "newline") {
 		return Sidebar{}, chat.ErrInvalidArgument
 	}
 	if err := s.validateSectionRules(ctx, p, layout); err != nil {
@@ -350,6 +355,9 @@ func ShouldNotify(kind NoticeKind, mode DeliveryMode, quiet QuietHours, at time.
 	if mode == Muted || (mode == MentionsOnly && kind != OptionalMention) {
 		return false, nil
 	}
+	if quiet.Schedule.Pause.activeAt(at) {
+		return quiet.Schedule.Pause.Kind == PauseNotify, nil
+	}
 	if !quiet.Enabled {
 		return true, nil
 	}
@@ -360,13 +368,5 @@ func ShouldNotify(kind NoticeKind, mode DeliveryMode, quiet QuietHours, at time.
 	if err != nil {
 		return false, errors.Join(chat.ErrInvalidArgument, err)
 	}
-	local := at.In(loc)
-	minute := local.Hour()*60 + local.Minute()
-	if quiet.StartMinute == quiet.EndMinute {
-		return false, nil
-	}
-	if quiet.StartMinute < quiet.EndMinute {
-		return minute < quiet.StartMinute || minute >= quiet.EndMinute, nil
-	}
-	return minute >= quiet.EndMinute && minute < quiet.StartMinute, nil
+	return !baseQuiet(quiet, at.In(loc)), nil
 }

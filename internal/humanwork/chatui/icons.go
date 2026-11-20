@@ -23,6 +23,7 @@ var iconPaths = map[string]string{
 	"chevron-right": "M9 6l6 6-6 6",
 	"arrow-up":      "M12 19V5M5 12l7-7 7 7",
 	"arrow-down":    "M12 5v14M5 12l7 7 7-7",
+	"calendar":      "M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4",
 	"people":        "M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM21 19v-1a4 4 0 0 0-3-3.87M15 4.13a3.5 3.5 0 0 1 0 6.74",
 	"lock":          "M6 11h12v9H6zM9 11V7a3 3 0 0 1 6 0v4",
 	"moon":          "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",

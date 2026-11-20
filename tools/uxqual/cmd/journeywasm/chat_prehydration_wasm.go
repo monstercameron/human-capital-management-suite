@@ -144,7 +144,7 @@ func restorePreHydrationChatFocus() {
 	}
 	n := len([]rune(el.Get("value").String()))
 	func() {
-		defer func() { _ = recover() }()
+		defer recoverAt("chat-prehydration.restore-pre-hydrat")
 		el.Call("setSelectionRange", n, n)
 	}()
 }

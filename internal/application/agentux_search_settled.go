@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,7 +40,7 @@ func (p localAgentDemoPreparation) publishedRuntimeSettled(ctx, adminCtx context
 	if _, err := resolver.Resolve(ctx, row.TenantID, row.PersonaID, row.Version); err != nil {
 		return false, nil
 	}
-	legalEntity, err := (PersonaRunLegalEntityResolver{DB: p.core, TenantUUID: p.mapper, Now: func() time.Time { return p.now }}).Resolve(adminCtx, agentinvoke.RunRequest{TenantID: row.TenantID.String(), Mode: agentinvoke.OnBehalfOf, InvokerID: localAgentDemoAdmin})
+	legalEntity, err := (PersonaRunLegalEntityResolver{DB: p.core, TenantUUID: p.mapper, Now: func() time.Time { return p.now }}).Resolve(adminCtx, agentinvoke.RunRequest{TenantID: row.TenantID.String(), Mode: agentinvoke.OnBehalfOf, InvokerID: localAgentDemoAdminFor(row.TenantID.String())})
 	if err != nil {
 		return false, err
 	}
@@ -54,7 +53,7 @@ func (p localAgentDemoPreparation) publishedRuntimeSettled(ctx, adminCtx context
 	}
 	path := p.deploymentPath
 	if strings.TrimSpace(path) == "" {
-		path = filepath.FromSlash(localPersonaModelDeploymentPath)
+		path = localAgentDevFile(localPersonaModelDeploymentPath)
 	}
 	created, err := ensureLocalAgentDemoDeploymentProfile(path, p.config.Tenant, p.material, qualified)
 	if err != nil {

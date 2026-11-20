@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -529,7 +528,7 @@ func composeAgentUX079AmbientScreenPlanner(ctx context.Context, in agentUX079Amb
 	path := in.Env(EnvAgentUX079AmbientScreenModelConfigFile)
 	local := cfg.Profile == ServeProfileLocalDev
 	if path == "" && local {
-		candidate := filepath.FromSlash(localAgentUX079AmbientScreenDeploymentPath)
+		candidate := localAgentDevFile(localAgentUX079AmbientScreenDeploymentPath)
 		if _, err := os.Stat(candidate); err == nil {
 			path = candidate
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -537,17 +536,17 @@ func composeAgentUX079AmbientScreenPlanner(ctx context.Context, in agentUX079Amb
 		}
 	}
 	if path == "" {
-		return nil, "no model is qualified to screen messages for offers (set " + EnvAgentUX079AmbientScreenModelConfigFile + ")", nil
+		return nil, "no model is qualified to screen messages for offers (set " + EnvAgentUX079AmbientScreenModelConfigFile + ")" + localChatTaskModelsHint(local), nil
 	}
 	if in.Runtime == nil || in.Runtime.Budget == nil || isNilPersonaOutputPort(in.Runtime.Audit) {
 		return nil, "the agent platform's budget ledger and audit chain are not composed", nil
 	}
-	if in.Env("MODEL_API_KEY") == "" {
+	if localModelAPIKeyMissing(in.Env) {
 		return nil, "MODEL_API_KEY is not set", nil
 	}
 	cfg.AgentModelConfigFile = path
 	if local {
-		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(filepath.FromSlash(localPersonaModelSigningPath))
+		material, err := LoadOrCreateLocalPersonaModelSigningMaterial(localPersonaSigningFile())
 		if err != nil {
 			return nil, "", err
 		}

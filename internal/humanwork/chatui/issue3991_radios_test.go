@@ -45,7 +45,8 @@ func TestIssue3991_RadioGroupsAreOneTabStopAtTheChosenOption(t *testing.T) {
 	}
 	// Show results, Closes and Who can add options: one Tab stop each, every
 	// other option skipped.
-	if tabbable != 3 || skipped != 7 {
+	// "Pick date and time" (#3927) is one more option in the Closes group.
+	if tabbable != 3 || skipped != 8 {
 		t.Fatalf("tab stops %d skipped %d in %s", tabbable, skipped, markup)
 	}
 	if !strings.Contains(markup, `id="chatcmd003-closes-week"`) {

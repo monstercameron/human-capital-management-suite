@@ -102,7 +102,7 @@ func chatsearchControlQuery(query string, values map[string]string, checks map[s
 	// the answer for its filter: filled replaces it, empty (blank text, Any
 	// choice, unticked box) removes it. A control the form did not submit (a
 	// key absent from the maps) leaves its filter alone.
-	for _, pair := range [][2]string{{"channel", "in"}, {"person", "from"}, {"kind", "kind"}, {"written", "lang"}, {"before", "before"}, {"after", "after"}, {"on", "on"}} {
+	for _, pair := range [][2]string{{"channel", "in"}, {"person", "from"}, {"kind", "kind"}, {"written", "lang"}, {"order", "sort"}, {"before", "before"}, {"after", "after"}, {"on", "on"}} {
 		raw, submitted := values[pair[0]]
 		if !submitted {
 			continue

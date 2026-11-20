@@ -63,6 +63,7 @@ var seedPurgeOrder = []struct{ table, column string }{
 	{"chat_cursor", "conversation_id"},
 	{"chat_preference", "conversation_id"},
 	{"chat_thread_follow", "conversation_id"},
+	{"chat_followup_state", "conversation_id"},
 	// Tables that point at the room by a foreign key without a cascade. The
 	// mutable ones are removed here; the append-only ones are in
 	// seedPurgeImmutable and stop the purge before it starts.

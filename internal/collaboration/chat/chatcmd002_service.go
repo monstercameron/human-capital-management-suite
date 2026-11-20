@@ -91,6 +91,10 @@ func (s *Chatcmd002Service) Post(ctx context.Context, r Chatcmd002PostRequest) (
 	if err := s.authorize(ctx, Chatcmd002Request{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}, true); err != nil {
 		return Post{}, err
 	}
+	// A closing time is checked again here, not trusted from the preview (#3927).
+	if r.Card.Poll != nil && r.Card.Poll.ClosesAt != nil && !r.Card.Poll.ClosesAt.After(s.Chat.now()) {
+		return Post{}, ErrInvalidArgument
+	}
 	conversation, err := s.Chat.store.GetConversation(ctx, r.TenantID, r.ConversationID)
 	if err != nil {
 		return Post{}, err

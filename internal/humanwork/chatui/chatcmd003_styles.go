@@ -42,6 +42,9 @@ const chatcmd003Styles = `.chat-workspace .command-menu{position:absolute;inset-
 	`.chat-workspace .chatcmd003-choice:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:1px}.chat-workspace .chatcmd003-choice:disabled{opacity:.6;cursor:default}` +
 	`.chat-workspace .chatcmd003-actions{align-items:center}.chat-workspace .chatcmd003-keys{margin-inline-start:auto;color:var(--muted);font-size:.75rem}` +
 	`@media(pointer:coarse){.chat-workspace .chatcmd003-choice{min-block-size:44px;padding-inline:14px}}` +
+	// Custom closing time (#3927): date, time and the button wrap on a phone and follow the writing direction.
+	`.chat-workspace .chatcmd003-custom{flex-direction:column;align-items:stretch;grid-column:1/-1}.chat-workspace .chatcmd003-custom-fields{display:flex;flex-wrap:wrap;align-items:end;gap:8px}.chat-workspace .chatcmd003-custom-field{display:grid;gap:2px;min-width:min(100%,9rem);flex:1 1 9rem}.chat-workspace .chatcmd003-custom-field input{min-block-size:32px}` +
+	`@media(pointer:coarse){.chat-workspace .chatcmd003-custom-field input,.chat-workspace .chatcmd003-custom-fields .button{min-block-size:44px}}` +
 	// At phone width an empty composer without focus is one row (CHATUX-011).
 	// With a preview above it the composer stays a column, or the preview and
 	// the field would share that row.

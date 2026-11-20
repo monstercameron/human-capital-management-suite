@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -95,6 +96,9 @@ type personaServeWiring struct {
 	// steps is what each run in flight is doing now, shared by the run and the
 	// progress read (AGENTUX-075).
 	steps *personaRunStepBoard
+	// allowance is the cost gate persona runs are held to, bound after the agent
+	// services are composed (#3807).
+	allowance atomic.Pointer[PersonaRunCostGate]
 }
 
 // composePersonaServeWiring builds production persona sources. Incomplete

@@ -85,6 +85,7 @@ func start() error {
 	if root := js.Global().Get("document").Get("documentElement"); root.Truthy() {
 		cfg.Locale = productui.ResolveProductLocale(root.Get("lang").String()).Resolved
 	}
+	installClientTelemetry(cfg.Locale)
 	bootMark(bootPhaseDial)
 	conn, err := dial(cfg)
 	if err != nil {

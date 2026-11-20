@@ -27,13 +27,15 @@ type SavedItem struct {
 	TenantID, HomeTenantID, PersonID, ConversationID, PostID string
 	State                                                    SavedState
 	Note                                                     string
-	DueAt                                                    *time.Time
-	CreatedAt, UpdatedAt                                     time.Time
-	Revision                                                 uint64
-	Post                                                     *Post  `json:",omitempty"`
-	Channel                                                  string `json:",omitempty"`
-	Availability                                             string
-	_                                                        incomparable
+	// Labels are the owner's private labels for this item (issue 3932).
+	Labels               []string
+	DueAt                *time.Time
+	CreatedAt, UpdatedAt time.Time
+	Revision             uint64
+	Post                 *Post  `json:",omitempty"`
+	Channel              string `json:",omitempty"`
+	Availability         string
+	_                    incomparable
 }
 
 type SavedRequest struct {
@@ -58,6 +60,9 @@ type SavedChange struct {
 	Note   *string
 	SetDue bool
 	DueAt  *time.Time
+	// AddLabels and RemoveLabels change the item's private labels by name, so
+	// two devices adding different labels both keep theirs (issue 3932).
+	AddLabels, RemoveLabels []string
 }
 
 // SavedStore is separate from the channel store: saves emit no shared events.
@@ -181,6 +186,11 @@ func (s *Service) SaveForLater(ctx context.Context, r SavedRequest) (SavedItem, 
 	if projected.Post == nil {
 		return SavedItem{}, ErrPermissionDenied
 	}
+	// Issue 3812: a message of a restricted case conversation is not kept in
+	// the person's saved list, which lives outside the conversation.
+	if err := s.CaseRestriction(ctx, r.TenantID, r.ConversationID, CaseActionSave); err != nil {
+		return SavedItem{}, err
+	}
 	// The "added people" line is a record of the room, not something to come back to.
 	if _, system := ParseMembershipAdded(projected.Post.Body); system {
 		return SavedItem{}, ErrInvalidArgument
@@ -209,6 +219,18 @@ func (s *Service) UpdateSaved(ctx context.Context, r SavedRequest, change SavedC
 	}
 	if change.SetDue && change.DueAt != nil && !change.DueAt.After(s.now()) {
 		return SavedItem{}, ErrInvalidArgument
+	}
+	if len(change.AddLabels)+len(change.RemoveLabels) > 0 {
+		var err error
+		if change.AddLabels, err = normalizeSavedLabels(change.AddLabels); err != nil {
+			return SavedItem{}, err
+		}
+		if change.RemoveLabels, err = normalizeSavedLabels(change.RemoveLabels); err != nil {
+			return SavedItem{}, err
+		}
+		if len(change.AddLabels) > SavedLabelsPerItem {
+			return SavedItem{}, ErrSavedLabelLimit
+		}
 	}
 	return store.ChangeSaved(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, change)
 }
@@ -294,7 +316,9 @@ func (s *Service) DispatchSavedReminders(ctx context.Context, person Principal, 
 	}
 	cursor := ""
 	for {
-		page, err := s.ListSaved(ctx, SavedListRequest{Principal: person, TenantID: tenant, Tab: SavedTodo, Page: Page{Cursor: cursor, PageSize: 200}})
+		// A reminder is due whether or not the message can still be read, so the
+		// list is not projected through the person's current access (issue 3735).
+		page, err := store.ListSavedItems(ctx, person, tenant, SavedTodo, Page{Cursor: cursor, PageSize: 200})
 		if err != nil {
 			return err
 		}

@@ -26,7 +26,7 @@ func agentDemoCleanupSpec(rest []string) bootstrap.Spec {
 		Args: rest,
 		ConfigFields: []bootstrap.Field{
 			{Name: fieldAgentDemoProfile, Usage: "required local development profile"},
-			{Name: fieldTenant, Usage: "tenant slug (ironridge-demo)"},
+			{Name: fieldTenant, Usage: "tenant slug (ironridge-demo or harborcare-demo)"},
 			{Name: "database-url", Env: EnvDatabaseURL, Usage: "core PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 			{Name: fieldChatDatabaseURL, Env: EnvChatDatabaseURL, Usage: "chat PostgreSQL URL", Kind: bootstrap.KindString, Secret: true},
 		},

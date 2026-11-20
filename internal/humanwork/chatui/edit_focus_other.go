@@ -12,4 +12,4 @@ func syncEditFocus(string) {}
 // browser; see edit_focus_js.go (CHATBUG-073).
 func syncEditBoxHeight(string) {}
 
-func chatbug073EditKey(ui.KeyboardEvent, string) bool { return false }
+func chatbug073EditKey(ui.KeyboardEvent, string, bool) bool { return false }

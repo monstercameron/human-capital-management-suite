@@ -150,6 +150,7 @@ func (s *PersonaChatSurface) Progress(ctx context.Context, conversationID string
 			return personachat.Progress{}, personachat.ErrUnavailable
 		}
 		projectPersonaSurfaceRun(&projection, run)
+		s.projectPersonaCost(&projection, run, room.TenantID, invocation.PersonaID, room.ID)
 		projection.ElapsedSeconds = personaRunElapsedSeconds(run, s.now())
 		s.projectPersonaStep(&projection, invocation, run, true)
 		if err := s.projectPersonaInvocationTask(ctx, invocation, run, &projection); err != nil {
@@ -166,6 +167,8 @@ func (s *PersonaChatSurface) Progress(ctx context.Context, conversationID string
 		result.Invocations = append(result.Invocations, projection)
 	}
 	slices.SortFunc(result.Invocations, func(a, b personachat.Invocation) int { return strings.Compare(a.InvocationID, b.InvocationID) })
+	// #3803: how every asker's finished runs ended, for each member.
+	result.Outcomes = s.personaOutcomeReceipts(ctx, p, room, store)
 	return result, nil
 }
 

@@ -45,6 +45,7 @@ const (
 	ProjectService_PreviewWorkflowDraft_FullMethodName     = "/hcmnext.project.v1.ProjectService/PreviewWorkflowDraft"
 	ProjectService_PublishWorkflowDraft_FullMethodName     = "/hcmnext.project.v1.ProjectService/PublishWorkflowDraft"
 	ProjectService_GetWorkflowConfiguration_FullMethodName = "/hcmnext.project.v1.ProjectService/GetWorkflowConfiguration"
+	ProjectService_GetProjectPreviews_FullMethodName       = "/hcmnext.project.v1.ProjectService/GetProjectPreviews"
 	ProjectService_SaveBoardView_FullMethodName            = "/hcmnext.project.v1.ProjectService/SaveBoardView"
 	ProjectService_ListBoardViews_FullMethodName           = "/hcmnext.project.v1.ProjectService/ListBoardViews"
 	ProjectService_GetBoard_FullMethodName                 = "/hcmnext.project.v1.ProjectService/GetBoard"
@@ -142,6 +143,10 @@ type ProjectServiceClient interface {
 	// P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
 	// Reads the current published status, field, and transition configuration.
 	GetWorkflowConfiguration(ctx context.Context, in *GetWorkflowConfigurationRequest, opts ...grpc.CallOption) (*GetWorkflowConfigurationResponse, error)
+	// P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+	// Reads the chat unfurl of many task or board links in one call, each item
+	// authorized as the caller. A refused item is neutral and carries no detail.
+	GetProjectPreviews(ctx context.Context, in *GetProjectPreviewsRequest, opts ...grpc.CallOption) (*GetProjectPreviewsResponse, error)
 	// P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
 	// Saves a personal or project-audience view. The view never widens task
 	// authorization; every board read rechecks task access.
@@ -457,6 +462,16 @@ func (c *projectServiceClient) GetWorkflowConfiguration(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *projectServiceClient) GetProjectPreviews(ctx context.Context, in *GetProjectPreviewsRequest, opts ...grpc.CallOption) (*GetProjectPreviewsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProjectPreviewsResponse)
+	err := c.cc.Invoke(ctx, ProjectService_GetProjectPreviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *projectServiceClient) SaveBoardView(ctx context.Context, in *SaveBoardViewRequest, opts ...grpc.CallOption) (*SaveBoardViewResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SaveBoardViewResponse)
@@ -661,6 +676,10 @@ type ProjectServiceServer interface {
 	// Reads the current published status, field, and transition configuration.
 	GetWorkflowConfiguration(context.Context, *GetWorkflowConfigurationRequest) (*GetWorkflowConfigurationResponse, error)
 	// P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
+	// Reads the chat unfurl of many task or board links in one call, each item
+	// authorized as the caller. A refused item is neutral and carries no detail.
+	GetProjectPreviews(context.Context, *GetProjectPreviewsRequest) (*GetProjectPreviewsResponse, error)
+	// P1A disposition: OUT; this Phase 3 project-management method is not part of the Phase 1 surface.
 	// Saves a personal or project-audience view. The view never widens task
 	// authorization; every board read rechecks task access.
 	SaveBoardView(context.Context, *SaveBoardViewRequest) (*SaveBoardViewResponse, error)
@@ -792,6 +811,9 @@ func (UnimplementedProjectServiceServer) PublishWorkflowDraft(context.Context, *
 }
 func (UnimplementedProjectServiceServer) GetWorkflowConfiguration(context.Context, *GetWorkflowConfigurationRequest) (*GetWorkflowConfigurationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetWorkflowConfiguration not implemented")
+}
+func (UnimplementedProjectServiceServer) GetProjectPreviews(context.Context, *GetProjectPreviewsRequest) (*GetProjectPreviewsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetProjectPreviews not implemented")
 }
 func (UnimplementedProjectServiceServer) SaveBoardView(context.Context, *SaveBoardViewRequest) (*SaveBoardViewResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SaveBoardView not implemented")
@@ -1318,6 +1340,24 @@ func _ProjectService_GetWorkflowConfiguration_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProjectService_GetProjectPreviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectPreviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).GetProjectPreviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectService_GetProjectPreviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).GetProjectPreviews(ctx, req.(*GetProjectPreviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ProjectService_SaveBoardView_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SaveBoardViewRequest)
 	if err := dec(in); err != nil {
@@ -1644,6 +1684,10 @@ var ProjectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetWorkflowConfiguration",
 			Handler:    _ProjectService_GetWorkflowConfiguration_Handler,
+		},
+		{
+			MethodName: "GetProjectPreviews",
+			Handler:    _ProjectService_GetProjectPreviews_Handler,
 		},
 		{
 			MethodName: "SaveBoardView",

@@ -105,7 +105,8 @@ WHERE n.nspname=current_schema() AND c.relkind='r'
 AND (c.relname LIKE 'chat\_%' ESCAPE '\' OR c.relname LIKE 'chatscale\_%' ESCAPE '\') ORDER BY c.relname`
 
 const chatscaleOpsSlowQuerySQL = `SELECT query,calls,mean_exec_time,max_exec_time FROM pg_stat_statements
-WHERE (query ILIKE '%chat\_%' ESCAPE '\' OR query ILIKE '%chatscale\_%' ESCAPE '\')
+WHERE dbid=(SELECT oid FROM pg_database WHERE datname=current_database())
+AND (query ILIKE '%chat\_%' ESCAPE '\' OR query ILIKE '%chatscale\_%' ESCAPE '\')
 AND query NOT ILIKE '%pg\_stat\_%' ESCAPE '\' AND query NOT ILIKE '%pg\_class%' ESCAPE '\'
 AND query NOT ILIKE '%pg\_extension%' ESCAPE '\'
 ORDER BY mean_exec_time DESC LIMIT $1`

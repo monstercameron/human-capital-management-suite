@@ -18,6 +18,10 @@ type ChatSettingsPageProps struct {
 	Voice ui.Node
 	// Reactions is the workspace's agent reaction switch (AGENTUX-052).
 	Reactions ui.Node
+	// Audit is the workspace's audit log of who did what in Chat (#3780).
+	Audit ui.Node
+	// Barriers is the workspace's information barriers between teams (#3783).
+	Barriers ui.Node
 }
 
 func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
@@ -25,5 +29,5 @@ func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
 	if props.AgentReactions != nil {
 		reactions = ui.CreateElement(AgentAnswerReactionSettings, *props.AgentReactions)
 	}
-	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions, props.Translation, props.Location, props.Voice, props.Reactions)
+	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions, props.Translation, props.Location, props.Voice, props.Reactions, props.Barriers, props.Audit)
 }

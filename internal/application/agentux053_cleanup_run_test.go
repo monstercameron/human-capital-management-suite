@@ -17,7 +17,7 @@ func TestTodo_AGENTUX_053_CleanupCommand_Security(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(*LocalAgentDemoCleanupConfig){
 		"production profile": func(c *LocalAgentDemoCleanupConfig) { c.Profile = ServeProfileStandard },
-		"other tenant":       func(c *LocalAgentDemoCleanupConfig) { c.Tenant = "harborcare-demo" },
+		"other tenant":       func(c *LocalAgentDemoCleanupConfig) { c.Tenant = "acme-demo" },
 		"remote chat":        func(c *LocalAgentDemoCleanupConfig) { c.ChatDatabaseURL = "postgres://chat@db.internal:5432/chat" },
 		"remote core":        func(c *LocalAgentDemoCleanupConfig) { c.DatabaseURL = "postgres://core@db.internal:5432/core" },
 	} {
@@ -40,7 +40,7 @@ func TestTodo_AGENTUX_053_CleanupCommand_Security(t *testing.T) {
 	if err != nil || agent.SubjectKind() != trust.SubjectKindAgent || agent.HasRole("hcm_admin") || len(agent.Roles()) != 0 {
 		t.Fatalf("agent author borrows roles: %v %v", agent, err)
 	}
-	for _, bad := range []struct{ tenant, subject string }{{"harborcare-demo", localAgentDemoAdmin}, {localAgentDemoTenant, "ir-008-curtis-bell"}, {localAgentDemoTenant, "assistant"}} {
+	for _, bad := range []struct{ tenant, subject string }{{"harborcare-demo", localAgentDemoAdmin}, {"acme-demo", localAgentDemoAdmin}, {localAgentDemoTenant, "ir-008-curtis-bell"}, {localAgentDemoTenant, "assistant"}} {
 		if _, err := authors.DemoPostAuthor(t.Context(), bad.tenant, bad.subject); err == nil {
 			t.Fatalf("author %+v accepted", bad)
 		}

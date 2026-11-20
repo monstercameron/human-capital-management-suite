@@ -38,7 +38,7 @@ func chatcmd003ClosesPin(m Model, preset string) string {
 // chatcmd003ClosesKept is the closing time a card takes for preset: the one
 // kept when it was chosen, or, with none kept, the one counted from now.
 func chatcmd003ClosesKept(m Model, preset string, typed *time.Time, settings map[string]string) *time.Time {
-	if chatcmd003Relative(preset) {
+	if chatcmd003Relative(preset) || preset == closesCustom {
 		if at, err := time.Parse(time.RFC3339Nano, settings[settingClosesAt]); err == nil {
 			return &at
 		}

@@ -271,10 +271,7 @@ func renderAgentQuestionContext(model Model, envelope agentReplyEnvelope, timeLa
 	view := strings.ReplaceAll(agentReplyFallback(model.Locale, "chat.agent.view_in", "View in {conversation}"), "{conversation}", conversation)
 	line := []ui.Node{html.Span(html.Props{Text: prefix + " "}), html.Tag("bdi", html.Props{Dir: "ltr", Text: conversation})}
 	if strings.TrimSpace(timeLabel) == "" && !envelope.QuestionAt.IsZero() {
-		timeLabel = envelope.QuestionAt.Local().Format("3:04 PM")
-		if strings.HasPrefix(strings.ToLower(model.Locale), "de") {
-			timeLabel = envelope.QuestionAt.Local().Format("15:04")
-		}
+		timeLabel = chat5Clock(model.Locale, envelope.QuestionAt)
 	}
 	if strings.TrimSpace(timeLabel) != "" {
 		line = append(line, html.Span(html.Props{Text: " · " + timeLabel}))

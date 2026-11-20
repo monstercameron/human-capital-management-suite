@@ -241,7 +241,10 @@ type personaChatInvocation struct {
 	// ElapsedSeconds is how long the run has been going since its admission, by
 	// the server's clock (AGENTUX-026).
 	ElapsedSeconds int `json:"elapsed_seconds"`
-	_              incomparable
+	// UsedUnits and AllowanceRemainingPct are the invoker's own cost lines (#3807).
+	UsedUnits             int64 `json:"used_units"`
+	AllowanceRemainingPct *int  `json:"allowance_remaining_pct"`
+	_                     incomparable
 }
 
 func personaChatURL(cfg journeyclient.Config, path, conversation string) (string, error) {
@@ -395,9 +398,12 @@ func personaChatInvocations(invocations []personaChatInvocation, cfg journeyclie
 				projection.Progress = &chatui.PersonaProgressProps{InvocationID: invocation.InvocationID, InvokerID: invocation.InvokerID, AgentName: invocation.AgentName, Activity: invocation.Activity, StepKind: invocation.StepKind, StepSubject: invocation.StepSubject, CurrentStep: invocation.CurrentStep, TotalSteps: invocation.TotalSteps, ElapsedSeconds: max(0, invocation.ElapsedSeconds), Visible: true}
 			}
 		}
+		if invocation.UsedUnits > 0 || invocation.AllowanceRemainingPct != nil {
+			projection.Cost = &chatui.PersonaCostFooter{UsedUnits: invocation.UsedUnits, AllowanceRemainingPct: invocation.AllowanceRemainingPct}
+		}
 		if invocation.TaskID != "" {
 			state := strings.ToLower(invocation.TaskState)
-			projection.Task = &chatui.PersonaTaskCardProps{ID: invocation.TaskID, Title: invocation.TaskTitle, State: state, Revision: strconv.FormatUint(invocation.TaskRevision, 10), OpenTaskHref: "/workspace/app/agents?task=" + url.QueryEscape(invocation.TaskID), AwaitingApproval: state == "awaiting_approval"}
+			projection.Task = &chatui.PersonaTaskCardProps{ID: invocation.TaskID, Title: invocation.TaskTitle, State: state, Revision: strconv.FormatUint(invocation.TaskRevision, 10), OpenTaskHref: "/workspace/app/chat/agents?task=" + url.QueryEscape(invocation.TaskID), AwaitingApproval: state == "awaiting_approval"}
 		}
 		out = append(out, chatui.PersonaThreadInvocation{PostID: invocation.PostID, ThreadID: invocation.ThreadID, Projection: projection})
 	}

@@ -14,7 +14,10 @@ import (
 )
 
 const (
-	chatSoundPollInterval     = 20 * time.Second
+	// Issue 3796: new posts and read changes reach the tab at once on the
+	// person-scoped channel; this poll is the sound baseline and the safety net
+	// for a notice that never arrived.
+	chatSoundPollInterval     = 120 * time.Second
 	chatSoundPollPageSize     = 50
 	chatSoundPollFanout       = 4
 	chatSoundPollRoomsPerTick = 24
@@ -98,7 +101,7 @@ func pollChatSoundConversations(ctx context.Context) {
 }
 
 func chatSoundPollCursor() int {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound-poll.chat-sound-poll-curs")
 	state, _, ok := chatSoundDocumentState()
 	if !ok {
 		return 0
@@ -111,7 +114,7 @@ func chatSoundPollCursor() int {
 }
 
 func setChatSoundPollCursor(cursor int) {
-	defer func() { _ = recover() }()
+	defer recoverAt("chat-sound-poll.set-chat-sound-poll-")
 	state, _, ok := chatSoundDocumentState()
 	if ok {
 		state.Set("pollCursor", cursor)

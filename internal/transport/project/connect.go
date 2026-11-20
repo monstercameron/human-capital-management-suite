@@ -42,6 +42,7 @@ func NewConnectHandler(deps Dependencies, opts ...connect.HandlerOption) http.Ha
 	registerProjectUnary(mux, opts, projectv1.ProjectService_PreviewWorkflowDraft_FullMethodName, s.PreviewWorkflowDraft)
 	registerProjectUnary(mux, opts, projectv1.ProjectService_PublishWorkflowDraft_FullMethodName, s.PublishWorkflowDraft)
 	registerProjectUnary(mux, opts, projectv1.ProjectService_GetWorkflowConfiguration_FullMethodName, s.GetWorkflowConfiguration)
+	registerProjectUnary(mux, opts, projectv1.ProjectService_GetProjectPreviews_FullMethodName, s.GetProjectPreviews)
 	registerProjectUnary(mux, opts, projectv1.ProjectService_SaveBoardView_FullMethodName, s.SaveBoardView)
 	registerProjectUnary(mux, opts, projectv1.ProjectService_ListBoardViews_FullMethodName, s.ListBoardViews)
 	registerProjectUnary(mux, opts, projectv1.ProjectService_GetBoard_FullMethodName, s.GetBoard)

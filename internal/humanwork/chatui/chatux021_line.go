@@ -19,6 +19,9 @@ func chatux021MembershipLine(m Model, msg Message) (ui.Node, bool) {
 		return nil, false
 	}
 	children := []ui.Node{html.Span(html.Props{Class: "chatux021-line-text", Dir: "auto", Text: line})}
+	if link, ok := issue3728LineLink(m, msg); ok {
+		children = append(children, link)
+	}
 	if msg.TimeLabel != "" {
 		children = append(children, html.Time(html.Props{Class: "message-time", Text: msg.TimeLabel}))
 	}
@@ -29,6 +32,15 @@ func chatux021MembershipLine(m Model, msg Message) (ui.Node, bool) {
 // the messages around it: the next message by the same person still shows who
 // wrote it.
 func chatux021IsLine(msg Message) bool {
+	if _, card := chat.ParseClockCard(msg.Body); card {
+		return true
+	}
+	if IsFormCardBody(msg.Body) {
+		return true
+	}
+	if _, stage := chat.ParseJourneyStage(msg.Body); stage {
+		return true
+	}
 	_, ok := chat.ParseMembershipAdded(msg.Body)
 	return ok
 }
@@ -40,7 +52,13 @@ func chatux021IsLine(msg Message) bool {
 func chatux021LineText(m Model, msg Message) (string, bool) {
 	subject, ok := chat.ParseMembershipAdded(msg.Body)
 	if !ok {
-		return "", false
+		if text, card := issue3808CardText(m, msg); card {
+			return text, true
+		}
+		if text, stage := issue3728LineText(m, msg); stage {
+			return text, true
+		}
+		return issue3795CardText(m, msg)
 	}
 	someone := laneText(m, chatux021Copy, keyChatux021SomeoneElse)
 	actor := strings.TrimSpace(msg.Author)

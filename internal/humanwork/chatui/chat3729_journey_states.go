@@ -23,3 +23,11 @@ func journeyStateText(m Model, state string) string {
 	words := journeyStateWords[state]
 	return chatbug039Text(state, words[chatbug039LocaleIndex(m.Locale)], words[0])
 }
+
+// journeyRetryWords labels the retry control on a card that failed
+// temporarily (#3729).
+var journeyRetryWords = [3]string{"Try again", "Erneut versuchen", "حاول مرة أخرى"}
+
+func journeyRetryText(m Model) string {
+	return chatbug039Text("retry", journeyRetryWords[chatbug039LocaleIndex(m.Locale)], journeyRetryWords[0])
+}

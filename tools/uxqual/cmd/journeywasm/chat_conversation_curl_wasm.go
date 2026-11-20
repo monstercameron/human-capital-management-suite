@@ -30,6 +30,7 @@ func copyChatConversationAPICurl(conversationID string) {
 	finished := false
 	defer func() {
 		if recover() != nil && !finished {
+			clientTelemetry.CountPanic("chat-conversation-curl.copy-chat-con")
 			failure()
 		}
 	}()

@@ -105,6 +105,10 @@ func logChatStream(event chatStreamEvent) {
 		event.At = time.Now()
 	}
 	chatStreamLog.Add(event)
+	clientTelemetry.CountStream(event.Event)
+	if event.Rollover {
+		clientTelemetry.CountStream("rollover")
+	}
 	publishChatStreamLog(chatStreamLog)
 }
 
