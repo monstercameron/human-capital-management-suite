@@ -16,9 +16,24 @@ func chatmapComposerControl(m Model, id string, disabled bool) ui.Node {
 	if !composerLocationAvailable(m) {
 		return nil
 	}
-	return ChatmapShareSheet(m.Locale, id, m.CurrentTenantID, m.SelectedID, disabled)
+	return chatmapShareSheetAudience(m.Locale, id, m.CurrentTenantID, m.SelectedID, chatmapAudience(m), disabled)
 }
 func ChatmapShareSheet(locale, id, tenant, conversation string, disabled bool) ui.Node {
+	return ChatmapShareSheetFor(locale, id, tenant, conversation, "", disabled)
+}
+
+// ChatmapShareSheetFor is the Location sheet for one conversation; destination
+// is that conversation's name as people read it ("#benefits"), shown so the
+// audience is never a guess.
+func ChatmapShareSheetFor(locale, id, tenant, conversation, destination string, disabled bool) ui.Node {
+	audienceText := ""
+	if destination != "" {
+		audienceText = ChatmapAudienceText(locale, destination)
+	}
+	return chatmapShareSheetAudience(locale, id, tenant, conversation, audienceText, disabled)
+}
+
+func chatmapShareSheetAudience(locale, id, tenant, conversation, audienceText string, disabled bool) ui.Node {
 	t := func(k string) string { return ChatmapText(locale, k) }
 	button := func(action, key string) ui.Node {
 		return html.Button(html.Props{Type: "button", Class: "button secondary small", Text: t(key), Title: t(key), Disabled: disabled, Data: map[string]string{"chatmap-action": action}})
@@ -35,15 +50,16 @@ func ChatmapShareSheet(locale, id, tenant, conversation string, disabled bool) u
 	panel := anchoredChatLayer(html.Props{Class: "chatmap-sheet", Dir: chatmapDirection(locale), ID: id + "-location", Hidden: true, Role: "dialog", Data: map[string]string{"chatmap-sheet": "true", "tenant": tenant, "conversation": conversation, "locale": locale, "chatmap-source": "device", "chatmap-precision": "approximate"}, Aria: map[string]string{"label": t("location")}}, "location",
 		html.Div(html.Props{Class: "side-heading"}, html.H2(html.Props{Text: t("location")}), button("sheet-close", "close")),
 		html.P(html.Props{Text: t("explain")}),
+		html.P(html.Props{Class: "field-hint", Dir: "auto", Hidden: audienceText == "", Data: map[string]string{"chatmap-destination": "true"}, Text: audienceText}),
 		html.Div(html.Props{Class: "chatmap-segments", Role: "group", Aria: map[string]string{"label": t("location")}}, segments...),
 		html.Div(html.Props{Class: "chatmap-choice", Data: map[string]string{"chatmap-choice": "device"}}, button("device", "device")),
-		html.Div(html.Props{Class: "chatmap-choice", Hidden: true, Data: map[string]string{"chatmap-choice": "typed_address"}}, html.Label(html.Props{}, ui.Text(t("address")), html.Input(html.Props{Type: "text", Class: "chat-input", Data: map[string]string{"chatmap-field": "readable"}, Aria: map[string]string{"describedby": id + "-location-status"}})), button("lookup", "find"), html.Select(html.Props{Hidden: true, Data: map[string]string{"chatmap-field": "lookup"}, Aria: map[string]string{"label": t("address")}}), html.P(html.Props{Class: "field-hint", Hidden: true, Data: map[string]string{"chatmap-unavailable": "lookup"}, Text: t("lookup")})),
+		html.Div(html.Props{Class: "chatmap-choice", Hidden: true, Data: map[string]string{"chatmap-choice": "typed_address"}}, html.Label(html.Props{}, ui.Text(t("address")), html.Input(html.Props{Type: "text", Class: "chat-input", Data: map[string]string{"chatmap-field": "readable"}, Aria: map[string]string{"describedby": id + "-location-status"}})), button("lookup", "find"), html.Select(html.Props{Hidden: true, Data: map[string]string{"chatmap-field": "lookup"}, Aria: map[string]string{"label": t("address")}}), html.P(html.Props{Class: "field-hint", Hidden: true, Data: map[string]string{"chatmap-unavailable": "lookup"}, Text: t("lookup_full")})),
 		html.Div(html.Props{Class: "chatmap-choice", Hidden: true, Data: map[string]string{"chatmap-choice": "job_site"}}, html.Label(html.Props{}, ui.Text(t("site")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "siteid"}}, html.Option(html.Props{Text: t("site")}))), html.P(html.Props{Class: "field-hint", Hidden: true, Data: map[string]string{"chatmap-unavailable": "sites"}, Text: t("sites_unavailable")})),
 		html.Div(html.Props{Class: "chatmap-preview-frame", TabIndex: 0, Role: "group", Aria: map[string]string{"label": t("preview")}, Data: map[string]string{"chatmap-preview-region": "true"}}, html.Div(html.Props{Class: "chatmap-preview"}, icon("pin"), html.Img(html.Props{Class: "chatmap-picture", Hidden: true, Alt: t("preview"), Width: "400", Height: "200", Data: map[string]string{"chatmap-preview": "true"}})), html.Div(html.Props{Class: "chatmap-nudges"}, nudges...)),
 		html.Label(html.Props{}, ui.Text(t("precision")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "precision"}}, option("approximate", "approximate"), option("exact", "exact"))),
 		html.Label(html.Props{}, ui.Text(t("note")), html.Textarea(html.Props{Rows: 2, Data: map[string]string{"chatmap-field": "note"}, Aria: map[string]string{"describedby": id + "-location-status"}})),
-		html.Label(html.Props{}, ui.Text(t("duration")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "duration"}}, option("hour", "hour"), option("day", "day"), option("keep", "keep"), option("live15", "live15"), option("live60", "live60"), option("live480", "live480"))),
-		html.P(html.Props{Class: "field-hint", Text: t("retention")}),
+		html.Label(html.Props{}, ui.Text(t("duration")), html.Select(html.Props{Data: map[string]string{"chatmap-field": "duration"}, Aria: map[string]string{"describedby": id + "-location-retention"}}, option("hour", "hour"), option("day", "day"), option("keep", "keep"), option("live15", "live15"), option("live60", "live60"), option("live480", "live480"))),
+		html.P(html.Props{ID: id + "-location-retention", Class: "field-hint", Data: map[string]string{"chatmap-retention": "true"}, Text: ChatmapDurationHint(locale, "hour", 0)}),
 		html.P(html.Props{Class: "field-hint", Hidden: true, Data: map[string]string{"chatmap-live-note": "true"}, Text: t("live_note")}),
 		html.P(html.Props{ID: id + "-location-status", Role: "status", Aria: map[string]string{"live": "polite"}, Data: map[string]string{"chatmap-status": "true"}}),
 		html.Button(html.Props{Type: "button", Class: "chatmap-send", Text: t("send"), Disabled: true, Data: map[string]string{"chatmap-action": "send"}}),

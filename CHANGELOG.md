@@ -1,3 +1,11 @@
+## 2026-11-19 — Chat location sharing: five repairs (5 issues)
+
+- Location sharing settings load again for workspace administrators. (#58, already in place; regression test added)
+- Opening a conversation sends far fewer background requests, so long conversations load faster. (#3676, partial)
+- The Location sheet no longer lets you send a typed address that could not be found, and tells you what to do instead when address lookup is unavailable. (#3862)
+- The Location sheet now explains how long a location is kept for each duration choice, including that Keep with the message still ends at your workspace's limit. (#3863)
+- The Location sheet now names who will see your location and closes and clears itself when you switch to another conversation. (#3908)
+
 ## 2026-11-19 — Chat storage and test fixtures: six repairs (6 issues)
 
 - Chat identity lookups no longer copy protobuf state, so the Go quality check passes. (#63, already in place; regression test added)

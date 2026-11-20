@@ -27,6 +27,9 @@ var integrate2Browser struct {
 	readerKey    string
 	locationKey  string
 	directoryKey string
+	// #3676: messages already answered by the reader and location reads.
+	askedReader    issue3676Asked
+	askedLocations issue3676Asked
 }
 
 func configureIntegrate2Chat(cfg journeyclient.Config) func() {
@@ -41,6 +44,8 @@ func configureIntegrate2Chat(cfg journeyclient.Config) func() {
 	integrate2Browser.readerKey = ""
 	integrate2Browser.locationKey = ""
 	integrate2Browser.directoryKey = ""
+	integrate2Browser.askedReader.Reset()
+	integrate2Browser.askedLocations.Reset()
 	integrate2Browser.room = ""
 	integrate2Browser.epoch++
 	epoch := integrate2Browser.epoch
@@ -109,6 +114,7 @@ func configureIntegrate2Chat(cfg journeyclient.Config) func() {
 		integrate2Browser.Lock()
 		integrate2Browser.readerKey = ""
 		integrate2Browser.Unlock()
+		integrate2Browser.askedReader.Reset()
 		chatlang004ResetAudience()
 		chatBrowser.mutate(func(m *chatui.Model) { m.ReaderSelections = nil; integrate2PrepareReaderSelections(m) })
 		integrate2SyncProjection()
@@ -279,7 +285,9 @@ func integrate2SyncProjection() {
 	read := func() bool {
 		failed := false
 		seen := map[string]bool{}
-		messages := integrate2ReaderMessages(m)
+		var recorded []chatui.Message
+		all := integrate2ReaderMessages(m)
+		messages := integrate2Browser.askedReader.Unasked(m.SelectedID, all)
 		for start := 0; start < len(messages); start += 100 {
 			host := cfg.Tenant
 			for _, room := range m.Conversations {
@@ -288,7 +296,8 @@ func integrate2SyncProjection() {
 				}
 			}
 			query := url.Values{"conversation": {m.SelectedID}, "tenant": {host}}
-			for _, msg := range messages[start:min(start+100, len(messages))] {
+			pageMessages := messages[start:min(start+100, len(messages))]
+			for _, msg := range pageMessages {
 				if msg.ID != "" && !seen[msg.ID] {
 					query.Add("message", msg.ID)
 					seen[msg.ID] = true
@@ -308,13 +317,19 @@ func integrate2SyncProjection() {
 				failed = true
 			}
 			// A composed policy read may withhold original text; failures cannot grant that text.
-			integrate2ApplyPolicyAnswer(selected, messages, query["message"], part, err)
+			integrate2ApplyPolicyAnswer(selected, all, query["message"], part, err)
+			if err == nil || chatux012HTTPFinal(err) {
+				integrate2Browser.askedReader.Answered(m.SelectedID, pageMessages)
+				recorded = append(recorded, pageMessages...)
+			}
 		}
 		ui.PostAsync(func() {
+			applied := false
 			committed := chatBrowser.commit(generation, func(current *chatui.Model) {
 				if current.SelectedID != m.SelectedID || current.CurrentUser != m.CurrentUser || current.CurrentTenantID != m.CurrentTenantID {
 					return
 				}
+				applied = true
 				next := map[string]chatui.ReaderSelection{}
 				for id, v := range current.ReaderSelections {
 					next[id] = v
@@ -324,8 +339,11 @@ func integrate2SyncProjection() {
 				}
 				current.ReaderSelections = next
 			})
-			if committed {
+			if committed && applied {
 				chatStreamRender.Schedule()
+			} else {
+				// The answer was not kept (the person moved on), so it is asked again on return.
+				integrate2Browser.askedReader.Forget(m.SelectedID, recorded)
 			}
 		})
 		if !failed && len(readerUnsettled(selected)) > 0 {
@@ -388,7 +406,7 @@ func integrate2SyncLocations(ctx context.Context, cfg journeyclient.Config) {
 		failed := false
 		pending := []chatui.Message{}
 		queued := map[string]bool{}
-		for _, msg := range integrate2ReaderMessages(m) {
+		for _, msg := range integrate2Browser.askedLocations.Unasked(m.SelectedID, integrate2ReaderMessages(m)) {
 			if msg.ID == "" || answered[msg.ID] || queued[msg.ID] {
 				continue
 			}
@@ -444,6 +462,13 @@ func integrate2SyncLocations(ctx context.Context, cfg journeyclient.Config) {
 				}
 			}
 		}
+		askedNow := make([]chatui.Message, 0, len(pending))
+		for _, msg := range pending {
+			if answered[msg.ID] {
+				askedNow = append(askedNow, msg)
+			}
+		}
+		integrate2Browser.askedLocations.Answered(m.SelectedID, askedNow)
 		found := make(map[string][]chatui.ChatmapEmbed, len(locations))
 		for id, embeds := range locations {
 			found[id] = embeds
@@ -452,11 +477,17 @@ func integrate2SyncLocations(ctx context.Context, cfg journeyclient.Config) {
 			if ctx.Err() != nil {
 				return
 			}
+			applied := false
 			chatBrowser.commit(generation, func(current *chatui.Model) {
 				if current.SelectedID == m.SelectedID && current.CurrentUser == m.CurrentUser && current.CurrentTenantID == m.CurrentTenantID {
-					current.MessageLocations = found
+					current.MessageLocations = issue3676MergeLocations(current.MessageLocations, askedNow, found)
+					applied = true
 				}
 			})
+			if !applied {
+				// The answer was not kept (the person moved on), so it is asked again on return.
+				integrate2Browser.askedLocations.Forget(m.SelectedID, askedNow)
+			}
 			chatStreamRender.Schedule()
 		})
 		return !failed

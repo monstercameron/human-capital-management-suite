@@ -75,6 +75,8 @@ type chatmapBrowser struct {
 	sites                     []chat.LocationSite
 	observe, visible          js.Func
 	mutation, images          js.Value
+	// openedFor is the conversation the open Location sheet was opened in.
+	openedFor string
 }
 
 func init() {
@@ -98,6 +100,10 @@ func init() {
 		if sheet.Truthy() {
 			b.sheet = sheet
 			field := target.Get("dataset").Get("chatmapField").String()
+			if field == "readable" {
+				// An edited address is no longer the one that was found.
+				b.chatmapInvalidateAddress(sheet)
+			}
 			if field == "lookup" {
 				index, err := strconv.Atoi(target.Get("value").String())
 				if err == nil && index >= 0 && index < len(b.places) {
@@ -237,9 +243,10 @@ func (b *chatmapBrowser) readDraft(sheet js.Value) (ChatmapDraft, error) {
 		}
 		return ChatmapDraft{Place: chat.LocationPlace{Source: chat.LocationJobSite, SiteID: chatmapValue(sheet, "siteid"), CapturedAt: now, Precision: "exact"}, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now)}, nil
 	}
-	if text := strings.TrimSpace(chatmapValue(sheet, "readable")); chat.LocationSource(chatmapValue(sheet, "source")) == chat.LocationAddress && chatmapValue(sheet, "lat") == "" && text != "" {
-		// Typed text alone is a complete share: no position is invented for it.
-		return ChatmapDraft{Place: chat.LocationPlace{Source: chat.LocationAddress, Address: text, CapturedAt: now, Precision: "exact"}, Note: chatmapValue(sheet, "note"), ExpiresAt: ChatmapExpiry(chatmapValue(sheet, "duration"), now), Captured: true}, nil
+	if err := chatmapAddressReady(chat.LocationSource(chatmapValue(sheet, "source")), chatmapValue(sheet, "lat")); err != nil {
+		// Typed words alone are not sendable (#3862): the person has to find the
+		// address and see the point readers will get.
+		return ChatmapDraft{}, err
 	}
 	lat, e1 := chatmapNumber(sheet, "lat")
 	lon, e2 := chatmapNumber(sheet, "lon")
@@ -270,6 +277,7 @@ func (b *chatmapBrowser) preview(sheet js.Value) {
 	if node := sheet.Call("querySelector", "[data-chatmap-live-note]"); node.Truthy() {
 		node.Set("hidden", !live)
 	}
+	chatmapSyncRetention(sheet)
 	draft, err := b.readDraft(sheet)
 	if err != nil {
 		if send := sheet.Call("querySelector", "[data-chatmap-action=send]"); send.Truthy() {
@@ -277,6 +285,14 @@ func (b *chatmapBrowser) preview(sheet js.Value) {
 		}
 		if live && err == chat.ErrLocationUnavailable {
 			b.status(sheet, "live_device")
+		}
+		if err == errChatmapAddressUnresolved {
+			if image := sheet.Call("querySelector", "[data-chatmap-preview]"); image.Truthy() {
+				image.Set("hidden", true)
+			}
+			if strings.TrimSpace(chatmapValue(sheet, "readable")) != "" {
+				b.status(sheet, chatmapAddressStatusKey(chatmapLookupUnavailable(sheet)))
+			}
 		}
 		return
 	}
@@ -288,17 +304,6 @@ func (b *chatmapBrowser) preview(sheet js.Value) {
 				draft.Place.Address = site.Address
 			}
 		}
-	}
-	if draft.Place.Position == nil && draft.Place.Source == chat.LocationAddress {
-		// No position to draw: readers get the typed address and "Map detail
-		// unavailable", and the person can send it as it stands.
-		if image := sheet.Call("querySelector", "[data-chatmap-preview]"); image.Truthy() {
-			image.Set("hidden", true)
-		}
-		if send := sheet.Call("querySelector", "[data-chatmap-action=send]"); send.Truthy() {
-			send.Set("disabled", false)
-		}
-		return
 	}
 	pic, err := (chat.SchematicMap{}).Render(draft.Place, chat.LocationMapZoom(draft.Place, chat.MapSize{Width: 400, Height: 200}), chat.MapSize{Width: 400, Height: 200}, chatmapTheme(sheet, sheet.Get("dataset").Get("locale").String()))
 	if err != nil {
@@ -345,6 +350,11 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 	if action == "toggle" {
 		chatui.ToggleLocationComposer(button)
 		if panel := button.Call("closest", ".chatmap-control").Call("querySelector", "[data-chatmap-sheet]"); panel.Truthy() {
+			b.openedFor = ""
+			if !panel.Get("hidden").Bool() {
+				b.openedFor = chatBrowser.snapshot().SelectedID
+			}
+			chatmapSyncRetention(panel)
 			go b.applyPolicy(panel, js.Undefined())
 		}
 		return
@@ -469,7 +479,9 @@ func (b *chatmapBrowser) handleClick(event js.Value) {
 		d, err := b.readDraft(sheet)
 		if err != nil {
 			key := "no_fix"
-			if _, live := ChatmapLiveDuration(chatmapValue(sheet, "duration")); live && err == chat.ErrLocationUnavailable {
+			if err == errChatmapAddressUnresolved {
+				key = chatmapAddressStatusKey(chatmapLookupUnavailable(sheet))
+			} else if _, live := ChatmapLiveDuration(chatmapValue(sheet, "duration")); live && err == chat.ErrLocationUnavailable {
 				key = "live_device"
 			} else if err == chat.ErrLocationUnavailable {
 				key = "sites_unavailable"
@@ -765,6 +777,7 @@ func (b *chatmapBrowser) load(sheet js.Value, action string) {
 	b.status(sheet, "")
 }
 func (b *chatmapBrowser) observeCards() {
+	b.closeStaleSheet()
 	cards := js.Global().Get("document").Call("querySelectorAll", ".chatmap-card[data-share]:not([data-share='']):not([data-chatmap-observed])")
 	for i := 0; i < cards.Get("length").Int(); i++ {
 		card := cards.Index(i)
@@ -851,6 +864,11 @@ func (b *chatmapBrowser) choiceUnavailable(sheet js.Value, action string) {
 	}
 	if button := sheet.Call("querySelector", "[data-chatmap-action="+action+"]"); button.Truthy() {
 		button.Set("disabled", true)
+	}
+	if action == "lookup" {
+		// Say what to do instead, in the status the person hears (#3862).
+		b.status(sheet, "lookup_full")
+		return
 	}
 	b.status(sheet, "")
 }

@@ -1,6 +1,9 @@
 package chatui
 
 func ChatmapText(locale, key string) string {
+	if text := chatmapSweepText(locale, key); text != "" {
+		return text
+	}
 	en := map[string]string{
 		"schematic": "Schematic · no map data", "agent_supplied": "Supplied by an agent", "integration_supplied": "Supplied by an integration", "you": "You", "loading": "Loading locations…", "empty": "No locations are shared here. Share a point below.", "find": "Find address", "load_sites": "Load job sites", "close": "Close map", "location": "Location", "where": "Where I am", "address": "An address", "site": "A job site",
 		"explain": "Share a point with everyone who can read this conversation, for the duration you choose. It is never used for time or pay.",

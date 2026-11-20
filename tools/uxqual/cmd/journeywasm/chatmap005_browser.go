@@ -251,6 +251,7 @@ func (b *chatmapBrowser) applyPolicy(sheet js.Value, formHost js.Value) {
 		return
 	}
 	chatmapPolicy = policy
+	chatmapSyncRetention(sheet)
 	if !policy.SharingEnabled {
 		b.status(sheet, "sharing_off")
 		for _, key := range []string{"device", "send", "lookup"} {
