@@ -173,6 +173,8 @@ var issue3744En = map[string]string{
 	"save":        "Save the message in focus for later",
 	"sheet":       "Show this list",
 	"escape":      "Close the open panel, menu or dialog",
+	"open":        "Show keyboard shortcuts",
+	"open_note":   "Or press ? when you are not typing in a field.",
 }
 
 var issue3744De = map[string]string{
@@ -189,6 +191,8 @@ var issue3744De = map[string]string{
 	"save":        "Fokussierte Nachricht für später speichern",
 	"sheet":       "Diese Liste anzeigen",
 	"escape":      "Geöffnetes Fenster, Menü oder Dialog schließen",
+	"open":        "Tastenkürzel anzeigen",
+	"open_note":   "Oder drücke ?, wenn du gerade nicht in einem Feld tippst.",
 }
 
 var issue3744Ar = map[string]string{
@@ -205,4 +209,6 @@ var issue3744Ar = map[string]string{
 	"save":        "حفظ الرسالة المحددة لوقت لاحق",
 	"sheet":       "عرض هذه القائمة",
 	"escape":      "إغلاق اللوحة أو القائمة أو مربع الحوار المفتوح",
+	"open":        "عرض اختصارات لوحة المفاتيح",
+	"open_note":   "أو اضغط ? عندما لا تكتب في حقل.",
 }

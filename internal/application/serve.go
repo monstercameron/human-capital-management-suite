@@ -1817,6 +1817,15 @@ func ComposeServe(ctx context.Context, in ServeInput) (*App, error) {
 	// From here the caller's lifecycle owns the provider's lifetime through
 	// the ordered shutdown step above. Earlier returns leave this function
 	// responsible for cleaning up the partially composed provider.
+	// Issue 3732: a local demo org starts with promotions at several stages.
+	// It never fails the start; what it could not seed is logged.
+	if cfg.DevDemoJourneys && cell.Journey != nil {
+		seeded := seedLocalDevDemoJourneys(ctx, cell.Journey, baseVerifier, cfg, options.Now)
+		logger.Info("hcmnext.local_dev_demo_journeys_ready", "journeys_created", seeded.Created)
+		for _, note := range seeded.Notes {
+			logger.Info("hcmnext.local_dev_demo_journeys_note", "note", note)
+		}
+	}
 	clockCommitted = true
 	telemetryCommitted = true
 	agentDatabaseCommitted = true

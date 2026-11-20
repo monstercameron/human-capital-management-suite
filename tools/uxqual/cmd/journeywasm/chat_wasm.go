@@ -1456,6 +1456,8 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 		},
 		SetJourneyDecisionDraft: setChatJourneyDecisionDraft,
 		RequestAttention:        func() { requestChatAttention(cfg) },
+		RequestCatchUp:          func(thread, since string) { requestChatCatchUp(cfg, thread, since) },
+		DismissCatchUp:          dismissChatCatchUp,
 		OpenAddMembers: func() {
 			chatBrowser.mutate(func(model *chatui.Model) { model.ShowAddMembers, model.AddMembersError = true, "" })
 			refreshChatRoute()

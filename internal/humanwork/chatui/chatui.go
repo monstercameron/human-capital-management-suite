@@ -369,6 +369,12 @@ type Callbacks struct {
 	// RequestAttention reads the viewer's own work for the private "What needs my
 	// attention?" brief (issue 3986). It reads only; it never changes work.
 	RequestAttention func()
+	// RequestCatchUp asks for the private "Catch me up" brief (issue 3785) of the
+	// open conversation, or of the thread rooted at threadRootID; sinceID is the
+	// first unread message when the person asked from the "New" line. It reads
+	// only. DismissCatchUp closes the card of that scope. Both nil hides the offer.
+	RequestCatchUp func(threadRootID, sinceID string)
+	DismissCatchUp func(threadRootID string)
 	// SetChannelAgentPrivacy requires, or stops requiring, private agent answers
 	// in the open channel (AGENTUX-070).
 	SetChannelAgentPrivacy func(private bool)
@@ -932,6 +938,12 @@ type Model struct {
 	// Case is what the server said about the open conversation's governed case
 	// (issue 3812). Transient client state.
 	Case CaseState
+	// Evidence is what the server said about the evidence attached to the open
+	// conversation's case (issue 3782). Transient client state.
+	Evidence EvidenceState
+	// Hold is what the server said about the open conversation's legal hold
+	// (issue 3779); only a workspace administrator is told. Transient client state.
+	Hold HoldState
 	// PinReview is the private review of a pinned message against later ones
 	// (issue 3960). Transient client state, never stored.
 	PinReview PinReviewState
@@ -947,6 +959,9 @@ type Model struct {
 	JourneyDecisions map[string]JourneyDecisionState
 	// Attention is the last read of the viewer's own work (issue3986_attention.go).
 	Attention AttentionBrief
+	// CatchUp is the last "Catch me up" brief (issue3785_catchup.go): private,
+	// transient client state, cleared with the viewer.
+	CatchUp CatchUpBrief
 	// Text resolves a catalog key to the viewer's language. When nil, or when
 	// the key is unknown to the caller's catalog, the reviewed English copy in
 	// this package is used so the tree never shows a raw key.

@@ -171,6 +171,10 @@ func renderChatPage(props chatPageProps) ui.Node {
 	model = ackProject(model, active)
 	// Issue 3812: the governed case this conversation is bound to.
 	model = caseProject(model, active)
+	// Issue 3782: reviewed evidence attached to that case.
+	model = evidenceProject(model, active)
+	// Issue 3779: the legal hold on this conversation, told only to an administrator.
+	model = holdProject(model, active)
 	// Issue 3960: Review pinned guidance, in Conversation details.
 	model = pinReviewProject(model)
 	// Issue 3959: Prepare an analysis, in a message's menu.

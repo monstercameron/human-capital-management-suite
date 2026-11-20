@@ -114,8 +114,29 @@ func chatKeyboardBlocked(root, target js.Value) bool {
 		}
 	}
 	doc := js.Global().Get("document")
-	return doc.Call("querySelector", "dialog[open],[role=dialog]:not([hidden]),[aria-modal=true]:not([hidden]),[role=menu]:not([hidden])").Truthy() ||
-		root.Call("querySelector", "[data-chat-layer]:not([hidden])").Truthy()
+	return chatKeyboardLayerVisible(doc, "dialog[open],[role=dialog]:not([hidden]),[aria-modal=true]:not([hidden]),[role=menu]:not([hidden])") ||
+		chatKeyboardLayerVisible(root, "[data-chat-layer]:not([hidden])")
+}
+
+// chatKeyboardLayerVisible is true when something the selector names is drawn.
+// A closed popover, drawer or menu can carry role=dialog or role=menu without
+// the hidden attribute (the browser hides it with display:none), and counting
+// it would leave the question mark key dead on the page (#900005).
+func chatKeyboardLayerVisible(scope js.Value, selector string) bool {
+	nodes := scope.Call("querySelectorAll", selector)
+	for i := 0; i < nodes.Length(); i++ {
+		node := nodes.Index(i)
+		if node.Get("checkVisibility").Type() == js.TypeFunction {
+			if node.Call("checkVisibility").Bool() {
+				return true
+			}
+			continue
+		}
+		if node.Get("getClientRects").Type() == js.TypeFunction && node.Call("getClientRects").Length() > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func chatKeyboardRows(root js.Value) (ids []string, unread []bool, current string, rows map[string]js.Value) {

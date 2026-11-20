@@ -118,6 +118,10 @@ func (s *Service) Dispose(ctx context.Context, actor string, r Record, reason st
 	}
 	for _, h := range holds {
 		if h.Active() {
+			// A hold on a conversation covers every record in it (#3779).
+			if h.ConversationID != "" && h.ConversationID == r.ConversationID {
+				return ErrHeld
+			}
 			for _, id := range r.HoldIDs {
 				if id == h.HoldID {
 					return ErrHeld

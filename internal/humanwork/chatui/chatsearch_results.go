@@ -165,7 +165,6 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	}
 	controls = append(controls, html.Label(html.Props{For: "chatsearch-kind"}, html.Span(html.Props{Text: t("kind")}), html.Select(html.Props{ID: "chatsearch-kind", Name: "kind", Data: map[string]string{"chat-select-value": string(active.Kind)}}, options...)))
 	controls = append(controls, chatsearchWrittenControl(locale, active.Language))
-	controls = append(controls, issue3945OrderControl(locale, issue3945Oldest(active)))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
 		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox", Checked: controlChecked[field]}), ui.Text(t(field))))
 	}

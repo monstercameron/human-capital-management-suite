@@ -21,6 +21,8 @@ func chatSettingsPage(view View) ui.Node {
 			Loading: view.ChatRetentionLoading, Editable: editable,
 			Error: view.ChatRetentionError, Notice: view.ChatRetentionNotice, OnSave: view.SaveChatRetentionPolicy,
 		}),
+		// What the saved retention policy would remove, read-only (#3778).
+		RetentionPreview: chatui.ChatRetentionPreviewWorkspaceSettingsPanel(view.Locale.Resolved),
 		// The workspace's translation settings and glossary (CHATLANG-007).
 		Translation: chatui.TranslationAdminSettings(view.Locale.Resolved, func(key string) string { return view.Locale.Text(key) }),
 		// The workspace's location sharing settings (CHATMAP-006).
@@ -31,6 +33,8 @@ func chatSettingsPage(view View) ui.Node {
 		Reactions: chatui.AgentReactionWorkspaceSettingsPanel(view.Locale.Resolved),
 		// Teams kept out of the same conversation (#3783).
 		Barriers: chatui.ChatBarrierWorkspaceSettingsPanel(view.Locale.Resolved),
+		// Legal holds on conversations, placed and released by administrators (#3779).
+		Holds: chatui.ChatHoldWorkspaceSettingsPanel(view.Locale.Resolved),
 		// Who did what in Chat, readable and downloadable by an administrator (#3780).
 		Audit: chatui.ChatAuditWorkspaceSettingsPanel(view.Locale.Resolved),
 	})

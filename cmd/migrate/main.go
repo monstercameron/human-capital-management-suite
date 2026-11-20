@@ -229,6 +229,9 @@ func spec(command string, rest []string) bootstrap.Spec {
 	if command == chatTaskModelsCommand {
 		return chatTaskModelsSpec(rest)
 	}
+	if command == qualifyChattoneCommand {
+		return qualifyChattoneSpec(rest)
+	}
 	if command == workSurfaceDemoCommand {
 		return workSurfaceDemoSpec(rest)
 	}

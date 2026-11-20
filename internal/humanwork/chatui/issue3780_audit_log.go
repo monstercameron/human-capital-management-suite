@@ -132,6 +132,9 @@ var chatAuditCopy = map[string][3]string{
 	"w_moderation.notify":        {"Sent a moderation notice", "Hat einen Moderationshinweis gesendet", "أرسل إشعار إشراف"},
 	"w_moderation.original_view": {"Viewed the unmasked original", "Hat das unmaskierte Original angesehen", "اطّلع على النسخة الأصلية غير المقنّعة"},
 	"w_audit.export":             {"Downloaded the audit log", "Hat das Prüfprotokoll heruntergeladen", "نزّل سجل التدقيق"},
+	"w_hold.place":               {"Placed a legal hold", "Hat eine rechtliche Aufbewahrungspflicht festgelegt", "فرض حجزًا قانونيًا"},
+	"w_hold.release":             {"Released a legal hold", "Hat eine rechtliche Aufbewahrungspflicht aufgehoben", "رفع حجزًا قانونيًا"},
+	"a_holds":                    {"Legal holds", "Rechtliche Aufbewahrungspflichten", "الحجوزات القانونية"},
 }
 
 // chatAuditActionLabels are the kinds of event the filter offers, in order.
@@ -142,6 +145,7 @@ var chatAuditActionFilters = []struct{ Value, Key string }{
 	{"chat.app", "a_apps"},
 	{"moderation", "a_moderation"},
 	{"chat.conversation", "a_conversation"},
+	{"hold", "a_holds"},
 	{"audit", "a_audit"},
 }
 

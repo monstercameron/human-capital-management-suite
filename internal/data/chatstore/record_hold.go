@@ -81,11 +81,17 @@ func attachHold(ctx context.Context, tx dbport.Tx, tenantID, recordID, holdID st
 // delete and its hold check see the same snapshot.
 func recordHeld(ctx context.Context, tx dbport.Tx, tenantID, recordID string) (bool, error) {
 	var held bool
+	// A hold on a conversation (#3779) covers every post in it, whether or not
+	// the post has produced a governance event yet.
 	err := tx.QueryRow(ctx, `SELECT EXISTS (
 		SELECT 1 FROM chat_record_inventory inv
 		JOIN chat_record_hold h ON h.tenant_id = inv.tenant_id
 			AND h.hold_id IN (SELECT jsonb_array_elements_text(inv.hold_ids))
 		WHERE inv.tenant_id=$1 AND inv.record_id=$2 AND h.released_at IS NULL
+	) OR EXISTS (
+		SELECT 1 FROM chat_post p
+		JOIN chat_record_hold h ON h.tenant_id = p.tenant_id AND h.conversation_id = p.conversation_id
+		WHERE p.tenant_id=$1 AND 'post:' || p.id = $2 AND h.conversation_id <> '' AND h.released_at IS NULL
 	)`, tenantID, recordID).Scan(&held)
 	return held, err
 }

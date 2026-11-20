@@ -28,7 +28,7 @@ func TestIssue3788_TrayControlIsADisclosureWithTheCount(t *testing.T) {
 			t.Fatalf("missing %q in %s", want, markup)
 		}
 	}
-	if strings.Contains(markup, `id="issue3788-panel-tray"`) {
+	if strings.Contains(markup, `class="issue3788-tray"`) {
 		t.Fatal("tray drawn while closed")
 	}
 	// A page that cannot reach the server draws no control at all, never a dead one.

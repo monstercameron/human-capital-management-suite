@@ -143,11 +143,13 @@ func chatlangMessageOf(m Model, msg Message) chatlangMessage {
 // chatlangBodyProps puts the language and direction of the text that is shown
 // on the element that holds it, so a screen reader pronounces it in the right
 // voice and right-to-left text is laid out right inside a left-to-right page
-// and the reverse. A message whose language is not known keeps "auto".
+// and the reverse. A message whose language is not known keeps "auto" in a left-to-right page and
+// takes the page direction in a right-to-left one (#900005).
 func chatlangBodyProps(m Model, msg Message, props html.Props) html.Props {
 	if lang := chatlangMessageOf(m, msg).BodyLang; lang != "" {
 		props.Lang, props.Dir = lang, chatlangDir(lang)
 	}
+	props.Dir = issue900005BodyDir(m, props.Dir)
 	return props
 }
 

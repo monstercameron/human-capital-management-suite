@@ -37,6 +37,9 @@ type ChatExtensions struct {
 	// Cases binds conversations to governed cases (issue 3812); nil when the
 	// product has no administrator check to decide with.
 	Cases ChatCaseService
+	// CaseEvidence attaches reviewed conversation messages to the case a
+	// conversation is bound to (issue 3782); nil when cases are off.
+	CaseEvidence ChatCaseEvidenceService
 	// Admission bounds the extension lanes. Integration event pulls are derived
 	// work and are shed first; governance records take the read lane. A nil
 	// runtime leaves these calls unmetered, which is the streaming-disabled
@@ -169,7 +172,7 @@ func (ChatRecordAuthority) Authorize(ctx context.Context, actor, tenant, action,
 	if !ok || v.actor != actor || v.tenant != tenant {
 		return "", chat.ErrPermissionDenied
 	}
-	if v.manager && (strings.HasPrefix(action, "retention.") || strings.HasPrefix(action, "audit.")) {
+	if v.manager && (strings.HasPrefix(action, "retention.") || strings.HasPrefix(action, "audit.") || strings.HasPrefix(action, "hold.")) {
 		return "chat:tenant-admin:" + tenant, nil
 	}
 	if v.revision == 0 {

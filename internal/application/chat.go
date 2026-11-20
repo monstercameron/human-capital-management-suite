@@ -336,6 +336,7 @@ func composeChat(ctx context.Context, cfg ServeConfig, now chatcore.Clock, facts
 		TodoStore:     store,
 		Barriers:      newChatBarrierApplication(store, grants, facts),
 		Cases:         newChatCaseApplication(store, routed, grants),
+		CaseEvidence:  composeChatCaseEvidence(store, routed, grants),
 		// CHATMOD-002: to-do, poll and widget text passes the same filters as a message.
 		ContentFilter: filterPolicy,
 	}

@@ -11,26 +11,11 @@ import (
 // ISSUE-3945: the result order. Newest first stays the default; "Oldest first"
 // is asked for with a sort:oldest word in the query, which is why it survives
 // every page of the answer, a recent-search replay, opening a result and coming
-// back, and shows as a removable chip like any other applied choice. Both the
-// Refine search select and the always-visible switch write that same word.
+// back, and shows as a removable chip like any other applied choice. The
+// always-visible switch writes that word. Refine search has no second control for it (#900005).
 
 // issue3945Oldest reports whether the parsed query asks for oldest first.
 func issue3945Oldest(f chatsearch.Filters) bool { return f.Order == chatsearch.OrderOldest }
-
-// issue3945OrderControl is the Refine search field. The empty value is the
-// default, so choosing Newest first removes the word instead of adding one.
-func issue3945OrderControl(locale string, oldest bool) ui.Node {
-	t := func(key string) string { return chatsearchText(locale, key) }
-	options := []ui.Node{
-		html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: !oldest, Text: t("newest")}),
-		html.Option(html.Props{Value: chatsearch.OrderOldest, Selected: oldest, Text: t("oldest")}),
-	}
-	selected := ""
-	if oldest {
-		selected = chatsearch.OrderOldest
-	}
-	return html.Label(html.Props{For: "chatsearch-order"}, html.Span(html.Props{Text: t("order")}), html.Select(html.Props{ID: "chatsearch-order", Name: "order", Data: map[string]string{"chat-select-value": selected}}, options...))
-}
 
 // issue3945OrderSwitch is the two-option switch above the results: it names the
 // order in use, applies the other one at once and keeps the query and filters.

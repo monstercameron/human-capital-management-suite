@@ -524,7 +524,7 @@ func chatsearchSubmit(event js.Value) {
 	}
 	values := map[string]string{}
 	checks := map[string]bool{}
-	for _, name := range []string{"channel", "person", "kind", "written", "order", "before", "after", "on"} {
+	for _, name := range []string{"channel", "person", "kind", "written", "before", "after", "on"} {
 		values[name] = form.Call("querySelector", "[name='"+name+"']").Get("value").String()
 	}
 	for _, name := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {

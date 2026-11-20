@@ -47,6 +47,7 @@ func chatbug045PanelRows(m Model, h handlers) []ui.Node {
 	}
 	add("emoji-tone", chatbug045EmojiToneRow(m))
 	add("composer-enter", issue3934Row(m))
+	add("shortcuts", issue900005ShortcutsRow(m))
 	return rows
 }
 

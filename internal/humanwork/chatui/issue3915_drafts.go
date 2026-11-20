@@ -238,7 +238,11 @@ func issue3915Click(e ui.MouseEvent, m Model, local localStore, drafts *browserD
 	switch action {
 	case issue3915Toggle:
 		e.PreventDefault()
-		local.update(func(u *localUI) { u.draftsOpen, u.draftsAsk, u.draftsNote = !u.draftsOpen, "", "" })
+		local.update(func(u *localUI) {
+			was := u.draftsOpen
+			issue900002Exclusive(u, issue900002Drafts)
+			u.draftsOpen, u.draftsAsk, u.draftsNote = !was, "", ""
+		})
 		return true
 	case issue3915OpenAct:
 		e.PreventDefault()

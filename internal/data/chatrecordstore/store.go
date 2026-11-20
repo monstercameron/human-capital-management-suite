@@ -210,7 +210,7 @@ func (s *Store) Events(ctx context.Context, t string) ([]chatrecords.AuditEvent,
 // caller.
 func (s *Store) PutHold(ctx context.Context, h chatrecords.Hold) error {
 	return s.txTenant(ctx, h.TenantID, func(tx dbport.Tx) error {
-		_, e := tx.Exec(ctx, `INSERT INTO chat_record_hold(tenant_id,hold_id,matter_ref,reason,placed_by,placed_at,released_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tenant_id,hold_id) DO NOTHING`, h.TenantID, h.HoldID, h.MatterRef, h.Reason, h.PlacedBy, h.PlacedAt, h.ReleasedAt)
+		_, e := tx.Exec(ctx, `INSERT INTO chat_record_hold(tenant_id,hold_id,matter_ref,reason,placed_by,placed_at,released_at,conversation_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (tenant_id,hold_id) DO NOTHING`, h.TenantID, h.HoldID, h.MatterRef, h.Reason, h.PlacedBy, h.PlacedAt, h.ReleasedAt, h.ConversationID)
 		return e
 	})
 }
@@ -222,14 +222,14 @@ func (s *Store) HoldsPage(ctx context.Context, t, after string, limit int) ([]ch
 	limit = clampPageLimit(limit)
 	var out []chatrecords.Hold
 	err := s.txTenant(ctx, t, func(tx dbport.Tx) error {
-		rows, e := tx.Query(ctx, `SELECT hold_id,matter_ref,reason,placed_by,placed_at,released_at FROM chat_record_hold WHERE tenant_id=$1 AND hold_id>$2 ORDER BY hold_id LIMIT $3`, t, after, limit)
+		rows, e := tx.Query(ctx, `SELECT hold_id,matter_ref,reason,placed_by,placed_at,released_at,conversation_id,released_by,release_reason FROM chat_record_hold WHERE tenant_id=$1 AND hold_id>$2 ORDER BY hold_id LIMIT $3`, t, after, limit)
 		if e != nil {
 			return e
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var h chatrecords.Hold
-			if e = rows.Scan(&h.HoldID, &h.MatterRef, &h.Reason, &h.PlacedBy, &h.PlacedAt, &h.ReleasedAt); e != nil {
+			if e = rows.Scan(&h.HoldID, &h.MatterRef, &h.Reason, &h.PlacedBy, &h.PlacedAt, &h.ReleasedAt, &h.ConversationID, &h.ReleasedBy, &h.ReleaseReason); e != nil {
 				return e
 			}
 			h.TenantID = t
@@ -242,14 +242,14 @@ func (s *Store) HoldsPage(ctx context.Context, t, after string, limit int) ([]ch
 func (s *Store) Holds(ctx context.Context, t string) ([]chatrecords.Hold, error) {
 	var out []chatrecords.Hold
 	err := s.txTenant(ctx, t, func(tx dbport.Tx) error {
-		rows, e := tx.Query(ctx, `SELECT hold_id,matter_ref,reason,placed_by,placed_at,released_at FROM chat_record_hold WHERE tenant_id=$1`, t)
+		rows, e := tx.Query(ctx, `SELECT hold_id,matter_ref,reason,placed_by,placed_at,released_at,conversation_id,released_by,release_reason FROM chat_record_hold WHERE tenant_id=$1`, t)
 		if e != nil {
 			return e
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var h chatrecords.Hold
-			if e = rows.Scan(&h.HoldID, &h.MatterRef, &h.Reason, &h.PlacedBy, &h.PlacedAt, &h.ReleasedAt); e != nil {
+			if e = rows.Scan(&h.HoldID, &h.MatterRef, &h.Reason, &h.PlacedBy, &h.PlacedAt, &h.ReleasedAt, &h.ConversationID, &h.ReleasedBy, &h.ReleaseReason); e != nil {
 				return e
 			}
 			h.TenantID = t

@@ -388,7 +388,7 @@ func issue3787Click(e ui.MouseEvent, m Model, local localStore) bool {
 			local.update(func(u *localUI) { u.followUpsOpen = false })
 			return true
 		}
-		local.update(func(u *localUI) { u.followUpsOpen = true })
+		local.update(func(u *localUI) { issue900002Exclusive(u, issue900002FollowUps) })
 		// Opening always asks again, so the list is never older than the click.
 		if m.Callbacks.LoadFollowUps != nil {
 			m.Callbacks.LoadFollowUps()

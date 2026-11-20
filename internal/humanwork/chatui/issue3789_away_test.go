@@ -245,3 +245,32 @@ func TestIssue3789_StylesUseLogicalPropertiesAndTouchTargets(t *testing.T) {
 		t.Error("the away styles are not part of the page stylesheet")
 	}
 }
+
+// A date further out than the server accepts is said as a date problem on the
+// page, not sent to be refused with a message about the cover.
+func TestIssue3789_AFarDateIsADateProblemNotACoverProblem(t *testing.T) {
+	m := issue3789Model("en-US")
+	now := time.Now()
+	far := now.AddDate(2, 0, 0).Format(issue3789DateLayout)
+	e := issue3789Typed(m, far, "priya", now)
+	if e.Problem != "far_date" {
+		t.Fatalf("problem = %q, want far_date", e.Problem)
+	}
+	ok := issue3789Typed(m, now.AddDate(0, 0, 300).Format(issue3789DateLayout), "priya", now)
+	if ok.Problem != "" {
+		t.Fatalf("a date within a year was refused: %q", ok.Problem)
+	}
+	got := issue3789Render(t, m)
+	if !strings.Contains(got, `max="`) {
+		t.Errorf("the date field has no latest date: %s", got)
+	}
+	m.Away.Note = "far_date"
+	if !strings.Contains(issue3789Render(t, m), "within the next year") {
+		t.Error("the far date note is not shown")
+	}
+	for _, locale := range []string{"de-DE", "ar"} {
+		if v := issue3789Copy[locale][k3789FarDate]; v == "" || v == issue3789Copy["en-US"][k3789FarDate] {
+			t.Errorf("%s has no far date text", locale)
+		}
+	}
+}

@@ -415,7 +415,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				return
 			}
-			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3756Click(e, m, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || issue3915Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || chatside001Click(e, m, local) || chatux008Click(e, m) || issue3930Click(e, m, local) || issue3942Click(e, m) || issue3973Click(e, m, local, drafts) || issue3917Click(e, m, local) || issue3964Click(e, m, local, drafts) || issue3977Click(e, m, local, drafts) || issue3986Click(e, m, local) || issue3990Click(e, m, local) || issue3963Click(e, m, local) || issue3920Click(e, m) || issue3789Click(e, m) {
+			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3756Click(e, m, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || issue3915Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || chatside001Click(e, m, local) || chatux008Click(e, m) || issue3930Click(e, m, local) || issue3942Click(e, m) || issue3973Click(e, m, local, drafts) || issue3917Click(e, m, local) || issue3964Click(e, m, local, drafts) || issue3977Click(e, m, local, drafts) || issue3986Click(e, m, local) || issue3990Click(e, m, local) || issue3963Click(e, m, local) || issue3920Click(e, m) || issue3789Click(e, m) || issue3785Click(e, m) {
+				return
+			}
+			if action, _, _ := eventAction(e); action == issue900005ShortcutsAction {
+				issue900005OpenShortcuts(e, m.Locale)
 				return
 			}
 			if action, _, _ := eventAction(e); chatux001Click(m, action) || issue3892Click(e, action) {
@@ -2266,21 +2270,8 @@ func rail(m Model, h handlers) ui.Node {
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "cancel-section-create"}, Text: m.t(KeyCancel)}),
 				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.Callbacks.CreateSection == nil || len(sections) >= 30, Text: m.t(KeyCreate)}))))
 	list = append(list, chatside001NamePrompt(m))
-	// The toggles name these regions with aria-controls, so each region is in the
-	// page whether or not it is open: a closed one is an empty hidden element.
-	if h.local.followedOpen {
-		list = append(list, html.WithKey(issue3916Panel(m), "followed-threads"))
-	} else {
-		list = append(list, html.WithKey(html.Section(html.Props{ID: "issue3916-panel", Hidden: true}), "followed-threads"))
-	}
-	if h.local.followUpsOpen {
-		list = append(list, html.WithKey(issue3787Panel(m), "follow-ups"))
-	} else {
-		list = append(list, html.WithKey(html.Section(html.Props{ID: "issue3787-panel", Hidden: true}), "follow-ups"))
-	}
-	if h.local.scheduledOpen && m.Callbacks.LoadScheduled != nil {
-		list = append(list, html.WithKey(issue3788Tray(m, h.local), "scheduled-posts"))
-	}
+	// The Followed threads, Follow-ups and Scheduled regions are drawn under their
+	// own buttons in the fixed block (issue900002_rail_panels.go), not in this list.
 	shown, filterRows := sections, 0
 	_, _, mutedOut := issue3936Tally(sections)
 	if h.local.unreadOnly {
@@ -2311,7 +2302,7 @@ func rail(m Model, h handlers) ui.Node {
 		head, search, issue3936Control(m, h, sections),
 		// Saved and Moderation stay fixed above the list instead of scrolling
 		// away with it (CHATUX-020).
-		html.Div(html.Props{Class: "rail-fixed"}, chatsaveSidebar(m), issue3915Sidebar(m, h), issue3916Control(m, h), issue3787Control(m, h), issue3788Control(m, h), chatmod005Sidebar(m)),
+		html.Div(html.Props{Class: "rail-fixed"}, issue900002Fixed(m, h)...),
 		chatux007Jump(m, chatux007Up),
 		html.Div(html.Props{Class: "rail-scroll"}, list...),
 		chatux007Jump(m, chatux007Down),
@@ -3001,7 +2992,7 @@ func timelineBody(m Model, h handlers) []ui.Node {
 		}
 		unread := m.UnreadFromID != "" && msg.ID == m.UnreadFromID
 		if unread {
-			add(html.WithKey(html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})), "unread:"+msg.ID))
+			add(html.WithKey(issue3785UnreadDivider(m, msg.ID), "unread:"+msg.ID))
 		}
 		continued := !unread && i > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, prev) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == prev.AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(prev.SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != prev.ID && !chatux021IsLine(msg) && !chatux021IsLine(prev)
 		add(html.WithKey(message(m, h, msg, continued), agentUX075MessageKey(m, msg.ID)))
@@ -3023,6 +3014,7 @@ func timelineBody(m Model, h handlers) []ui.Node {
 		}
 	}
 	items = append(items, issue3737Rows(m)...)
+	items = append(items, issue3785Rows(m)...)
 	if m.HasNewer {
 		items = append(items, html.WithKey(html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Title: m.t(KeyLoadNewerHint), Text: m.t(KeyLoadNewer)}), "load-newer"))
 	}
@@ -3837,7 +3829,7 @@ func threadPane(m Model, h handlers) ui.Node {
 		// CHATATTACH-001: a reply takes files too.
 		chatux032ThreadDrafts(m),
 	}, chatux014ThreadTools(m, h, !canReply)...)...)
-	return html.Aside(html.Props{Class: "chat-side thread-pane", Role: "complementary", Aria: map[string]string{"label": m.t(KeyThreadRegion)}}, paneHandle(m, "details"), heading, chatListenThreadHost(m), body, composer)
+	return html.Aside(html.Props{Class: "chat-side thread-pane", Role: "complementary", Aria: map[string]string{"label": m.t(KeyThreadRegion)}}, paneHandle(m, "details"), heading, issue3785ThreadSlot(m), chatListenThreadHost(m), body, composer)
 }
 
 func details(m Model, h handlers) ui.Node {

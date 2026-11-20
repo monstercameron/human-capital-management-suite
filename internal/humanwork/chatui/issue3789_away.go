@@ -32,13 +32,13 @@ type AwayView struct {
 	// notice for mentions of this person.
 	Hidden, NotifyCover bool
 	// Note is the last save's outcome: "", "saved", "ended", "failed",
-	// "conflict", "invalid", "choose_date" or "past_date".
+	// "conflict", "invalid", "choose_date", "past_date" or "far_date".
 	Note string
 }
 
 // AwayEdit is a change the person made. A zero Until ends the absence. Problem
-// is set instead of a save when the typed date cannot be used: "choose_date" or
-// "past_date"; the page then says so and sends nothing.
+// is set instead of a save when the typed date cannot be used: "choose_date",
+// "past_date" or "far_date"; the page then says so and sends nothing.
 type AwayEdit struct {
 	Until               time.Time
 	CoverID             string
@@ -74,6 +74,7 @@ const (
 	k3789Invalid     = "chat.issue3789.invalid"
 	k3789ChooseDate  = "chat.issue3789.choose_date"
 	k3789PastDate    = "chat.issue3789.past_date"
+	k3789FarDate     = "chat.issue3789.far_date"
 	k3789AwayUntil   = "chat.issue3789.away_until"
 	k3789CoveredBy   = "chat.issue3789.covered_by"
 	k3789Colleague   = "chat.issue3789.colleague"
@@ -103,6 +104,7 @@ var issue3789Copy = map[string]map[string]string{
 		k3789Invalid:     "That cover is not available. Pick someone else.",
 		k3789ChooseDate:  "Choose the date you are away until.",
 		k3789PastDate:    "Choose a date after today.",
+		k3789FarDate:     "Choose a date within the next year.",
 		k3789AwayUntil:   "Away until {date}",
 		k3789CoveredBy:   "{name} covers",
 		k3789Colleague:   "A colleague",
@@ -130,6 +132,7 @@ var issue3789Copy = map[string]map[string]string{
 		k3789Invalid:     "Diese Vertretung ist nicht verfügbar. Wählen Sie jemand anderen.",
 		k3789ChooseDate:  "Wählen Sie das Datum, bis zu dem Sie abwesend sind.",
 		k3789PastDate:    "Wählen Sie ein Datum nach heute.",
+		k3789FarDate:     "Wählen Sie ein Datum innerhalb des nächsten Jahres.",
 		k3789AwayUntil:   "Abwesend bis {date}",
 		k3789CoveredBy:   "Vertretung: {name}",
 		k3789Colleague:   "Eine Kollegin oder ein Kollege",
@@ -157,6 +160,7 @@ var issue3789Copy = map[string]map[string]string{
 		k3789Invalid:     "هذا الشخص غير متاح للنيابة. اختر شخصًا آخر.",
 		k3789ChooseDate:  "اختر تاريخ انتهاء غيابك.",
 		k3789PastDate:    "اختر تاريخًا بعد اليوم.",
+		k3789FarDate:     "اختر تاريخًا خلال السنة القادمة.",
 		k3789AwayUntil:   "خارج المكتب حتى {date}",
 		k3789CoveredBy:   "ينوب عنه {name}",
 		k3789Colleague:   "أحد الزملاء",
@@ -171,6 +175,10 @@ func issue3789Textf(m Model, key string, vars map[string]string) string {
 }
 
 const issue3789DateLayout = "2006-01-02"
+
+// issue3789MaxDays is the furthest day an absence may end, a little inside the
+// year the server accepts so a day boundary never tips a valid choice over.
+const issue3789MaxDays = 364
 
 // issue3789Date writes the day an absence ends, in the person's zone.
 func issue3789Date(m Model, at time.Time) string {
@@ -258,6 +266,10 @@ func issue3789Typed(m Model, date, cover string, now time.Time) AwayEdit {
 		e.Problem = "past_date"
 		return e
 	}
+	if day.After(now.AddDate(0, 0, issue3789MaxDays)) {
+		e.Problem = "far_date"
+		return e
+	}
 	e.Until = day.UTC()
 	return e
 }
@@ -320,6 +332,8 @@ func issue3789NoteText(m Model) string {
 		return issue3789Text(m, k3789ChooseDate)
 	case "past_date":
 		return issue3789Text(m, k3789PastDate)
+	case "far_date":
+		return issue3789Text(m, k3789FarDate)
 	}
 	return ""
 }
@@ -395,7 +409,7 @@ func issue3789Row(m Model) ui.Node {
 		html.P(html.Props{Class: "field-hint chat-prefs-note away-status", Role: "status", Dir: "auto", Data: map[string]string{"away-status": "true"}, Text: status}),
 		html.Div(html.Props{Class: "away-fields", Role: "group", Aria: map[string]string{"label": title}},
 			html.Label(html.Props{For: "chat-away-until", Class: "away-label", Dir: "auto", Text: issue3789Text(m, k3789UntilLabel)}),
-			html.Input(html.Props{ID: "chat-away-until", Class: "chat-input", Type: "date", Data: map[string]string{"chat-value": chosen}, Raw: map[string]any{"min": tomorrow}}),
+			html.Input(html.Props{ID: "chat-away-until", Class: "chat-input", Type: "date", Data: map[string]string{"chat-value": chosen}, Raw: map[string]any{"min": tomorrow, "max": time.Now().In(loc).AddDate(0, 0, issue3789MaxDays).Format(issue3789DateLayout)}}),
 			html.Label(html.Props{For: "chat-away-cover", Class: "away-label", Dir: "auto", Text: issue3789Text(m, k3789CoverLabel)}),
 			html.Select(html.Props{ID: "chat-away-cover", Class: "chat-input"}, options...)),
 		html.Div(html.Props{Class: "chat-prefs-choices", Role: "group", Aria: map[string]string{"label": title}}, awayButtons(m, v.Active)...),

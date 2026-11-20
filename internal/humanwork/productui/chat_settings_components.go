@@ -20,8 +20,13 @@ type ChatSettingsPageProps struct {
 	Reactions ui.Node
 	// Audit is the workspace's audit log of who did what in Chat (#3780).
 	Audit ui.Node
+	// RetentionPreview is the read-only preview of what the saved retention
+	// policy would remove (#3778).
+	RetentionPreview ui.Node
 	// Barriers is the workspace's information barriers between teams (#3783).
 	Barriers ui.Node
+	// Holds is the workspace's legal holds on conversations (#3779).
+	Holds ui.Node
 }
 
 func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
@@ -29,5 +34,5 @@ func ChatSettingsPage(props ChatSettingsPageProps) ui.Node {
 	if props.AgentReactions != nil {
 		reactions = ui.CreateElement(AgentAnswerReactionSettings, *props.AgentReactions)
 	}
-	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, reactions, props.Translation, props.Location, props.Voice, props.Reactions, props.Barriers, props.Audit)
+	return html.Div(html.Props{Class: "chat-settings-page"}, props.Settings, props.RetentionPreview, reactions, props.Translation, props.Location, props.Voice, props.Reactions, props.Barriers, props.Holds, props.Audit)
 }

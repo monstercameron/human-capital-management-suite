@@ -366,6 +366,7 @@ func virtualTimelineBody(m Model, h handlers, messages []Message, layout virtual
 		items = append(items, html.WithKey(RenderEphemeralMessage(m, privateMessage, time.Now()), "ephemeral:"+privateMessage.ID))
 	}
 	items = append(items, issue3737Rows(m)...)
+	items = append(items, issue3785Rows(m)...)
 	protected := []string{m.EditingID, m.MenuID, m.PickerID, focusedVirtualMessageID()}
 	seen := map[string]bool{}
 	for _, id := range protected {
@@ -402,7 +403,7 @@ func virtualMessageRow(m Model, h handlers, msg Message, index int, messages []M
 	}
 	unread := m.UnreadFromID != "" && msg.ID == m.UnreadFromID
 	if unread {
-		children = append(children, html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})))
+		children = append(children, issue3785UnreadDivider(m, msg.ID))
 	}
 	continued := !unread && index > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, messages[index-1]) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == messages[index-1].AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(messages[index-1].SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != messages[index-1].ID && !chatux021IsLine(msg) && !chatux021IsLine(messages[index-1])
 	children = append(children, message(m, h, msg, continued))

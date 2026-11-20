@@ -18,6 +18,10 @@ async function signIn(page) {
 async function openChat(page, url = general) {
   await signIn(page);
   await page.goto(url);
+  // A cold first load right after sign-in can stay on the skeleton while the
+  // workspace module is still being fetched; a reload (as the sibling specs do)
+  // settles it.
+  await page.reload();
   await expect(page.locator(".message[data-message-id]").first()).toBeVisible({
     timeout: 40000,
   });
@@ -147,11 +151,8 @@ test("#3881 member and role label filters are independent and the role list has 
   await expect(role).toBeVisible({ timeout: 15000 });
   await role.fill("Amina");
   await expect(role).toHaveValue("Amina");
-  const members = page
-    .locator("input[type='search']")
-    .filter({ hasNot: page.locator("#role-filter") })
-    .and(page.locator(":not(#role-filter)"))
-    .first();
+  // The Members filter in Conversation details (not the global search box).
+  const members = page.locator("#member-filter");
   await expect(members).toBeVisible();
   await members.fill("Darius");
   await expect(members).toHaveValue("Darius");

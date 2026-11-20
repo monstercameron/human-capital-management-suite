@@ -75,7 +75,8 @@ func (k EventKind) Valid() bool {
 		EventCustomObjectCorrected, EventCustomObjectRetired, EventSecurityAlert, EventSecurityAudit,
 		EventClockPunchAccepted, EventClockPunchRejected, EventClockSessionOpened,
 		EventClockSessionClosed, EventClockExceptionRaised, EventClockTimecardApproved,
-		EventClockTimecardReopened, EventClockDeviceOffline:
+		EventClockTimecardReopened, EventClockDeviceOffline,
+		EventChatMessagePosted, EventChatApprovalDecided:
 		return true
 	default:
 		return false

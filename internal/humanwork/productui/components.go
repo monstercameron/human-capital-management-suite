@@ -79,7 +79,7 @@ func personAvatarWithFallback(props personAvatarProps) ui.Node {
 		return html.Img(html.Props{
 			Class: class, Src: photoURL, Loading: "lazy", Width: "64", Height: "64",
 			Aria:    map[string]string{"hidden": "true"},
-			Raw:     map[string]any{"alt": "", "decoding": "async"},
+			Raw:     map[string]any{"alt": "", "decoding": "async", portraitInitialsAttr: portraitFallbackLabel(props.Name, props.Initials)},
 			OnError: onError,
 		})
 	}

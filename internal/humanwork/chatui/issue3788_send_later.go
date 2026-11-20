@@ -612,7 +612,7 @@ func issue3788Click(e ui.MouseEvent, m Model, local localStore, clear func(conve
 			local.update(func(u *localUI) { u.scheduledOpen, u.scheduledEdit = false, "" })
 			return true
 		}
-		local.update(func(u *localUI) { u.scheduledOpen = true })
+		local.update(func(u *localUI) { issue900002Exclusive(u, issue900002Scheduled) })
 		// Opening always asks again, so the list is never older than the click.
 		if m.Callbacks.LoadScheduled != nil {
 			m.Callbacks.LoadScheduled()

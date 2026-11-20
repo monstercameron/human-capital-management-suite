@@ -62,6 +62,11 @@ type Hold struct {
 	PlacedBy   string     `json:"placed_by"`
 	PlacedAt   time.Time  `json:"placed_at"`
 	ReleasedAt *time.Time `json:"released_at,omitempty"`
+	// ConversationID is the conversation the hold covers (#3779); empty for a
+	// hold that names records directly.
+	ConversationID string `json:"conversation_id,omitempty"`
+	ReleasedBy     string `json:"released_by,omitempty"`
+	ReleaseReason  string `json:"release_reason,omitempty"`
 }
 
 func (h Hold) Active() bool { return h.ReleasedAt == nil }

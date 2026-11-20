@@ -130,6 +130,7 @@ const (
 	FieldWorkspace             = "workspace"
 	FieldDevBrowserLogin       = "dev-browser-login"
 	FieldDevWorkforceBootstrap = "dev-workforce-bootstrap"
+	FieldDevDemoJourneys       = "dev-demo-journeys"
 	FieldOTelExporter          = "otel-exporter"
 	FieldOTelEndpoint          = "otel-endpoint"
 
@@ -304,8 +305,11 @@ type ServeConfig struct {
 	Workspace             bool
 	DevBrowserLogin       bool
 	DevWorkforceBootstrap bool
-	OTelExporter          string
-	OTelEndpoint          string
+	// DevDemoJourneys seeds a few promotions at distinct stages for the demo
+	// company on start (issue 3732); local development only.
+	DevDemoJourneys bool
+	OTelExporter    string
+	OTelEndpoint    string
 
 	ExecutionAuthority       bool
 	ExecutionAuthorityDigest string
@@ -424,6 +428,7 @@ func ServeConfigFields() []bootstrap.Field {
 		{Name: FieldWorkspace, Usage: "serve the human-facing Promotion workspace on the HTTP edge", Default: "true", Kind: bootstrap.KindBool},
 		{Name: FieldDevBrowserLogin, Usage: "dev-only: serve a pasted-token sign-in form for the workspace at " + workspace.PathLogin, Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldDevWorkforceBootstrap, Usage: "dev-only: seed the deterministic local demo workforce on startup", Default: "false", Kind: bootstrap.KindBool},
+		{Name: FieldDevDemoJourneys, Usage: "dev-only: seed a few promotions at distinct stages for each demo company on startup, so the Journeys list is not empty", Default: "false", Kind: bootstrap.KindBool},
 		{Name: FieldOTelExporter, Usage: "OTel exporter: none, stdout, or otlphttp", Default: OTelExporterNone},
 		{Name: FieldOTelEndpoint, Usage: "OTLP/HTTP collector endpoint; required when -" + FieldOTelExporter + "=" + OTelExporterOTLPHTTP},
 		{Name: FieldExecutionAuthority, Usage: "compose this cell with the caller-driven promotion execution driver, so ExecuteIntent runs through the workflow engine; false opts back out to the refusing cell (then -scheduler must also be false)", Default: "true", Kind: bootstrap.KindBool},
@@ -499,6 +504,7 @@ func ServeConfigFieldsForArgs(args []string) []bootstrap.Field {
 		FieldMigrate:                  "false",
 		FieldDevBrowserLogin:          "true",
 		FieldDevWorkforceBootstrap:    "true",
+		FieldDevDemoJourneys:          "true",
 		FieldExecutionAuthority:       "true",
 		FieldExecutionAuthorityDigest: "sha256:local-dev-profile-authority",
 		FieldExecutionApprover:        pack.ExecutionApproverKey,
@@ -661,6 +667,9 @@ func ServeConfigFromValues(values *bootstrap.Values) (ServeConfig, error) {
 	if cfg.DevWorkforceBootstrap, err = values.Bool(FieldDevWorkforceBootstrap); err != nil {
 		return ServeConfig{}, err
 	}
+	if cfg.DevDemoJourneys, err = values.Bool(FieldDevDemoJourneys); err != nil {
+		return ServeConfig{}, err
+	}
 	if cfg.ExecutionAuthority, err = values.Bool(FieldExecutionAuthority); err != nil {
 		return ServeConfig{}, err
 	}
@@ -699,6 +708,9 @@ func (c ServeConfig) Validate() error {
 	}
 	if c.DevWorkforceBootstrap && c.Profile != ServeProfileLocalDev {
 		return fmt.Errorf("-%s is available only with -%s=%s", FieldDevWorkforceBootstrap, FieldProfile, ServeProfileLocalDev)
+	}
+	if c.DevDemoJourneys && c.Profile != ServeProfileLocalDev {
+		return fmt.Errorf("-%s is available only with -%s=%s", FieldDevDemoJourneys, FieldProfile, ServeProfileLocalDev)
 	}
 	if c.ParameterEnvironment != "" && c.ParameterEnvironment != "SANDBOX" && c.ParameterEnvironment != "PRODUCTION" {
 		return fmt.Errorf("-%s must be SANDBOX or PRODUCTION", FieldParameterEnvironment)

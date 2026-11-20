@@ -46,6 +46,8 @@ func overlayIntegrate1Chat(next http.Handler, runtime composedChat, voice VoiceS
 	next = OverlayChatNotifications(next, chatNotificationsPort(runtime), admission)
 	// Issue 3786: the personal digest of what was held back.
 	next = OverlayChatDigest(next, chatDigestPort(runtime), admission)
+	// Issue 3785: the private "Catch me up" brief of what was missed.
+	next = OverlayChatCatchUp(next, chatCatchUpPort(runtime), admission)
 	// Issue 3920: the weekly quiet-hours schedule and one-off pause.
 	next = OverlayChatQuietSchedule(next, chatQuietSchedulePort(runtime), admission)
 	// Issue 3789: away until a date, with a named cover.
@@ -63,10 +65,16 @@ func overlayIntegrate1Chat(next http.Handler, runtime composedChat, voice VoiceS
 	next = OverlayAgentReactions(next, agentReactionServiceFor(runtime), admission)
 	if runtime.extensions != nil {
 		next = OverlayChatAudit(next, runtime.extensions, admission)
+		// Issue 3778: a read-only preview of what the saved retention policy would remove.
+		next = OverlayChatRetentionPreview(next, runtime.extensions, admission)
+		// Issue 3779: legal holds on a conversation, placed and released by administrators.
+		next = OverlayChatHolds(next, runtime.extensions, admission)
 		// Issue 3783: information barriers between groups, set by administrators.
 		next = OverlayChatBarriers(next, runtime.extensions.Barriers, admission)
 		// Issue 3812: conversations bound to a governed case.
 		next = OverlayChatCase(next, runtime.extensions.Cases, admission)
+		// Issue 3782: reviewed conversation evidence attached to the bound case.
+		next = OverlayChatCaseEvidence(next, runtime.extensions.CaseEvidence, admission)
 	}
 	return OverlayChatVoice(next, voice, admission)
 }

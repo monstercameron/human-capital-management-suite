@@ -80,6 +80,8 @@ sources:
   - internal/data/chatstore/migrations/00070_issue3920_quiet_schedule.sql
   - internal/data/chatstore/migrations/00072_issue3998_input_request.sql
   - internal/data/chatstore/migrations/00073_issue3789_away.sql
+  - internal/data/chatstore/migrations/00075_issue3809_webhook_channel.sql
+  - internal/data/chatstore/migrations/00076_issue3779_conversation_hold.sql
   - internal/data/chatroutestore/store.go
 
 defaults:
@@ -859,6 +861,11 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: false
+  - table: chat_case_evidence
+    migration: internal/data/chatstore/migrations/00074_issue3782_case_evidence.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: true
   - table: chat_information_barrier
     migration: internal/data/chatstore/migrations/00062_issue3783_information_barrier.sql
     owner_package: internal/data/chatstore
@@ -914,3 +921,8 @@ tables:
     owner_package: internal/data/chatstore
     tenant_scoping_column: tenant_id
     append_only: true
+  - table: chat_webhook_channel
+    migration: internal/data/chatstore/migrations/00075_issue3809_webhook_channel.sql
+    owner_package: internal/data/chatstore
+    tenant_scoping_column: tenant_id
+    append_only: false

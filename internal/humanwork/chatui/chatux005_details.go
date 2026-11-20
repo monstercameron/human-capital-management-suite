@@ -367,6 +367,8 @@ func chatux005Details(m Model, h handlers) ui.Node {
 		issue3917Section(m, h),
 		issue3964Section(m, h),
 		issue3812Section(m),
+		issue3782Section(m),
+		issue3779Section(m),
 		decisionsDetailsSection(m),
 		memoryDetailsSection(m),
 		linkedWorkDetailsSection(m),

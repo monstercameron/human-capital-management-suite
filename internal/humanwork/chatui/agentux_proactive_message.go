@@ -45,7 +45,7 @@ func RenderAgentAnnouncementMessage(model Model, message AgentAnnouncementMessag
 		class = "message agent-reply-row " + class
 		children = append(children, renderAgentAuthorLine(model, name, message.PostedAt))
 	}
-	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: "auto"}, markdownMessageBody(model, envelope.Body)...))
+	children = append(children, html.Div(html.Props{Class: "agent-reply-answer", Dir: issue900005BodyDir(model, "auto")}, markdownMessageBody(model, envelope.Body)...))
 	children = append(children, renderAgentReplySources(model, envelope)...)
 	children = append(children, agentux048ScheduleFooter(model, message)...)
 	// CHATUX-042: an announcement is the standalone variant of the answer.

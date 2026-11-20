@@ -7,7 +7,7 @@ import (
 
 func TestIssue3945_DefaultIsNewestAndOffersOldest(t *testing.T) {
 	markup := renderNode(t, RenderChatSearch("en-US", ChatSearchView{Query: "deadline"}))
-	for _, want := range []string{`data-chatsearch-action="order"`, `data-extra="oldest"`, `data-extra="newest"`, "Newest first", "Oldest first", `id="chatsearch-order"`, `name="order"`} {
+	for _, want := range []string{`data-chatsearch-action="order"`, `data-extra="oldest"`, `data-extra="newest"`, "Newest first", "Oldest first"} {
 		if !strings.Contains(markup, want) {
 			t.Fatalf("missing %q in %s", want, markup)
 		}
@@ -29,9 +29,6 @@ func TestIssue3945_OldestIsMarkedChosenAndRemovable(t *testing.T) {
 	}
 	if !strings.Contains(markup, `data-extra="sort:oldest"`) || !strings.Contains(markup, "Remove filter: Result order Oldest first") {
 		t.Fatalf("applied order has no removable chip: %s", markup)
-	}
-	if !strings.Contains(markup, `<option selected value="oldest">Oldest first`) {
-		t.Fatalf("Refine search does not show Oldest first: %s", markup)
 	}
 }
 

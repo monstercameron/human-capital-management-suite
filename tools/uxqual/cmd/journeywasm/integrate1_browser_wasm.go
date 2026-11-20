@@ -22,7 +22,7 @@ func disposeIntegrate1Chat() {
 func configureIntegrate1Chat(cfg journeyclient.Config) {
 	disposeIntegrate1Chat()
 	configureChattoneBrowser(cfg)
-	integrate1ChatCleanups = []func(){configureIntegrate2Chat(cfg), disposeChattoneBrowser, installSavedMessages(cfg), installChatWork(cfg), installWorkHandoff(cfg), installDecisions(cfg), installMemory(cfg), installLinkedWork(cfg), installFormCards(cfg), installOnboardingCards(cfg), installIntentRequests(cfg), installPostAcks(cfg), installConversationCase(cfg), configureChatremove(cfg, cfg.Locale), installChatVoice(personaChatHTTPConfig(cfg), func(post chat.Post) {
+	integrate1ChatCleanups = []func(){configureIntegrate2Chat(cfg), disposeChattoneBrowser, installSavedMessages(cfg), installChatWork(cfg), installWorkHandoff(cfg), installDecisions(cfg), installMemory(cfg), installLinkedWork(cfg), installFormCards(cfg), installOnboardingCards(cfg), installIntentRequests(cfg), installPostAcks(cfg), installConversationCase(cfg), installCaseEvidence(cfg), configureChatremove(cfg, cfg.Locale), installChatVoice(personaChatHTTPConfig(cfg), func(post chat.Post) {
 		current := chatBrowser.snapshot()
 		if current.SelectedID == post.ConversationID {
 			go func() {

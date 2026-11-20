@@ -66,6 +66,9 @@ func start() error {
 	// mid-keystroke in server-rendered, interactive markup for the several
 	// seconds this binary takes to fetch, instantiate and dial.
 	capturePreHydrationChatFieldValues()
+	// Issue 900003: a portrait that failed before this client started becomes
+	// initials on every page, not only where the avatar component mounts.
+	productui.InstallPortraitGuard()
 	raw, err := readIsland(configElementID)
 	if err != nil {
 		return err
