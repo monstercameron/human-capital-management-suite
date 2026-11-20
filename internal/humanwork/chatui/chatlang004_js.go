@@ -106,8 +106,11 @@ func focusMessageAfterEdit(id string) {
 		row := chatlangFindByAttr(doc, ".message[data-message-id],.thread-message[data-message-id]", "data-message-id", id)
 		if row.Truthy() {
 			row.Call("setAttribute", "tabindex", "-1")
+			return row
 		}
-		return row
+		// The message is gone (deleted or no longer readable): the message box is
+		// the safe place to continue from (#3605).
+		return doc.Call("querySelector", ".chat-composer textarea.composer-input")
 	})
 }
 

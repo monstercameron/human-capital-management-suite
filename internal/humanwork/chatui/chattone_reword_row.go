@@ -157,12 +157,15 @@ func RenderChattoneRewordRow(locale string, v ChattoneRewordState, status string
 			if !s.MembersMayViewOriginal {
 				press = view[0]
 			}
+			// The scope heading joins the setting's label in each control's name, so
+			// the two scopes never read alike (issue 3946).
+			scopeID := "chattone-reword-" + id + "-scope"
 			body := []ui.Node{
-				html.H5(html.Props{Class: "chattone-reword-scope", Dir: "auto", Text: title}),
+				html.H5(html.Props{ID: scopeID, Class: "chattone-reword-scope", Dir: "auto", Text: title}),
 				chattoneRewordRow(locale, modeKey, t("mode"), t(s.Mode+"_help"), saved, nil,
-					chattoneRewordGroup(modeKey, chattoneRewordLabelID(modeKey), chattoneRewordHelpID(modeKey), modeButtons...)),
+					chattoneRewordGroup(modeKey, scopeID+" "+chattoneRewordLabelID(modeKey), chattoneRewordHelpID(modeKey), modeButtons...)),
 				chattoneRewordRow(locale, viewKey, t("view"), t(viewHelp), saved,
-					chattoneRewordSwitch(viewKey, chattoneRewordLabelID(viewKey), chattoneRewordHelpID(viewKey), s.MembersMayViewOriginal, press, busy)),
+					chattoneRewordSwitch(viewKey, scopeID+" "+chattoneRewordLabelID(viewKey), chattoneRewordHelpID(viewKey), s.MembersMayViewOriginal, press, busy)),
 			}
 			return html.Div(html.Props{Class: "chattone-reword-admin-scope", Data: map[string]string{"scope": id}}, append(body, extra...)...)
 		}

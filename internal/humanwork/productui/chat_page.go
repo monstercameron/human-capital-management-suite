@@ -51,6 +51,16 @@ func BuildChatPage(view View, model chatui.Model) ui.Node {
 	if model.Locale == "" {
 		model.Locale = view.Locale.Resolved
 	}
+	if view.Locale.Resolved != "" && model.Locale != view.Locale.Resolved {
+		// The route's locale is the active one. A model read under another
+		// locale (a soft locale switch) must not keep its copy, direction or
+		// numerals: the page re-reads under the new locale, and until it does
+		// it is drawn in the active one (#3630).
+		model.Locale = view.Locale.Resolved
+		model.Direction = ""
+		model.Number = nil
+		model.Text = nil
+	}
 	if model.Direction == "" {
 		model.Direction = string(view.Locale.Direction)
 	}

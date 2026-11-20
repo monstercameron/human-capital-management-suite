@@ -33,7 +33,7 @@ func chatbug045ReadingForm(m RenderingSettingsModel) ui.Node {
 	t := func(k string) string { return RenderingText(m.Locale, k) }
 	options := []ui.Node{}
 	for _, l := range chatbug045Languages {
-		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == chatrender.Language(m.Preference.ReadingLanguage)}))
+		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == issue3682ReadingLanguage(m.Locale, m.Preference.ReadingLanguage)}))
 	}
 	status := "help"
 	if m.Loading {
@@ -58,7 +58,7 @@ func chatbug045ReadingForm(m RenderingSettingsModel) ui.Node {
 		chatux031ReadingRow(m, options, m.Saved && !m.Loading && !m.Failed),
 		html.P(html.Props{ID: "chatrender-settings-status", Class: "chatux031-status", Role: "status", Data: map[string]string{"state": chatux031State(m)}, Text: t(status)}),
 		html.Label(html.Props{Class: "chatrender-check chatrender-switch", For: "chatrender-translate"},
-			html.Input(html.Props{ID: "chatrender-translate", Class: "switch", Role: "switch", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.TranslationUnavailable, Title: ChatFeatureUnavailable(m.Locale)}),
+			html.Input(html.Props{ID: "chatrender-translate", Class: "switch", Role: "switch", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.TranslationUnavailable, Title: translateUnavailableTitle(m)}),
 			html.Span(html.Props{Text: t("translate")})),
 		html.Div(html.Props{Class: "chatrender-more", Data: map[string]string{"chat-disclosure": "true"}},
 			chatPolishDisclosureLabel(html.Props{Class: "chatrender-more-toggle", Text: chatbug045Text(Model{Locale: m.Locale}, keyChatbug045More)}),

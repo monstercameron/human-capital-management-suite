@@ -60,7 +60,7 @@ func RenderingSettings(m RenderingSettingsModel) ui.Node {
 	t := func(k string) string { return RenderingText(m.Locale, k) }
 	options := []ui.Node{}
 	for _, l := range []string{"en", "de", "fr", "es", "pt", "ar", "ja", "hi"} {
-		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == chatrender.Language(m.Preference.ReadingLanguage)}))
+		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == issue3682ReadingLanguage(m.Locale, m.Preference.ReadingLanguage)}))
 	}
 	status := "help"
 	if m.Loading {
@@ -75,7 +75,7 @@ func RenderingSettings(m RenderingSettingsModel) ui.Node {
 		html.P(html.Props{ID: "chatrender-settings-status", Role: "status", Text: t(status)}),
 		html.Label(html.Props{For: "chatrender-reading", Text: t("reading")}),
 		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Disabled: m.Loading, Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
-		html.Label(html.Props{Class: "chatrender-check", For: "chatrender-translate"}, html.Input(html.Props{ID: "chatrender-translate", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.Loading || m.TranslationUnavailable, Title: ChatFeatureUnavailable(m.Locale)}), html.Span(html.Props{Text: t("translate")})),
+		html.Label(html.Props{Class: "chatrender-check", For: "chatrender-translate"}, html.Input(html.Props{ID: "chatrender-translate", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.Loading || m.TranslationUnavailable, Title: translateUnavailableTitle(m)}), html.Span(html.Props{Text: t("translate")})),
 	}
 	for _, field := range []struct{ key, name string }{{"further", "further"}, {"source", "never"}} {
 		checkboxes := []ui.Node{html.Legend(html.Props{Text: t(field.key)})}

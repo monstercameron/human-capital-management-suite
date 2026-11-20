@@ -106,7 +106,7 @@ func chatbug058View(p chatbug058Props, s chatbug058State, change ui.Handler) ui.
 	t := func(key string) string { return RenderingText(p.Locale, key) }
 	options := make([]ui.Node, 0, len(chatbug045Languages))
 	for _, l := range chatbug045Languages {
-		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == chatrender.Language(s.Preference.ReadingLanguage)}))
+		options = append(options, html.Option(html.Props{Value: l, Text: t(l), Selected: l == issue3682ReadingLanguage(p.Locale, s.Preference.ReadingLanguage)}))
 	}
 	status := ""
 	switch {
@@ -125,12 +125,12 @@ func chatbug058View(p chatbug058Props, s chatbug058State, change ui.Handler) ui.
 		html.P(html.Props{Class: "chatbug058-status", Role: "status", Aria: map[string]string{"live": "polite"}, Text: status}))
 	if p.Section != nil {
 		return html.Section(html.Props{Class: "details-section details-reading"},
-			p.Section(sectionContent{Label: laneText(m, chatbug058Copy, keyChatbug058Row), Value: ui.Text(t(chatrender.Language(s.Preference.ReadingLanguage))), Body: form, Failed: s.Failed}))
+			p.Section(sectionContent{Label: laneText(m, chatbug058Copy, keyChatbug058Row), Value: ui.Text(t(issue3682ReadingLanguage(p.Locale, s.Preference.ReadingLanguage))), Body: form, Failed: s.Failed}))
 	}
 	return html.Section(html.Props{Class: "details-section details-reading"},
 		chatPolishDisclosure(html.Props{Class: "channel-widget-edit"},
 			chatPolishDisclosureLabel(html.Props{Class: "channel-widget-summary"},
 				html.Span(html.Props{Class: "channel-widget-summary-label", Text: laneText(m, chatbug058Copy, keyChatbug058Row)}),
-				html.Span(html.Props{Class: "channel-widget-summary-value", Text: t(chatrender.Language(s.Preference.ReadingLanguage))})),
+				html.Span(html.Props{Class: "channel-widget-summary-value", Text: t(issue3682ReadingLanguage(p.Locale, s.Preference.ReadingLanguage))})),
 			form))
 }

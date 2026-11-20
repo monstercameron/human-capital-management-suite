@@ -20,8 +20,8 @@ const ChatUX048Styles = `.chat-workspace .chattone-reword{display:grid;gap:0;min
 	`.chat-workspace .chattone-reword-scope{margin:0;padding:8px 12px 0;font-size:.875rem;font-weight:600;line-height:20px;color:var(--ink)}` +
 	`.chat-workspace .chattone-reword-admin-scope+.chattone-reword-admin-scope{margin-block-start:4px;border-block-start:1px solid var(--line)}` +
 	`.chat-workspace .chattone-reword-row+.chattone-reword-row{border-block-start:1px solid var(--line)}` +
-	`.chat-workspace .chattone-reword-seg{margin:0 12px 10px;block-size:auto;min-block-size:28px;flex-wrap:nowrap}` +
-	`.chat-workspace .chattone-reword-choice{flex:1 1 auto;block-size:auto;min-block-size:24px;padding:4px 8px;line-height:1.2;text-align:center;white-space:normal;overflow-wrap:anywhere}` +
+	`.chat-workspace .chattone-reword-seg{margin:0 12px 10px;block-size:auto;min-block-size:28px;flex-wrap:wrap;gap:4px}` +
+	`.chat-workspace .chattone-reword-choice{flex:1 1 auto;block-size:auto;min-block-size:24px;min-inline-size:min-content;padding:4px 8px;line-height:1.2;text-align:center;white-space:normal;overflow-wrap:normal;word-break:keep-all;hyphens:none}` +
 	`.chat-workspace .chattone-reword-choice[aria-pressed="true"]{background:var(--surface);border-color:var(--accent);color:var(--ink)}` +
 	`.chat-workspace .chattone-reword-choice:disabled{opacity:.6;cursor:default}` +
 	`.chat-workspace .chattone-reword-choice:focus-visible,.chat-workspace .chattone-reword-switch:focus-visible .chatmod-switch-track{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +

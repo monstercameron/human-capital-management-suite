@@ -1,3 +1,15 @@
+## 2026-11-19 — Chat preferences and message language: nine repairs (9 issues)
+
+- The Chat preferences panel stays fully on screen in narrow right-to-left layouts. (#82, already in place; regression test added)
+- The Account and Language menus in the page header now open and stay open on the Chat page. (#3596, already in place; regression test added)
+- Keyboard users stay in the message language editor when it opens and return to the message when it closes. (#3605, partial)
+- On phones the Chat conversation list bar no longer lets the workspace logo sit over its buttons. (#3607, partial)
+- Chat now switches to the new language right away after you change language, without a reload. (#3630)
+- Chat preferences now show your interface language as the reading language until you choose another. (#3682)
+- The Off, Offered to writers and On choices in Chat preferences no longer break in the middle of a word. (#3842, partial)
+- The translate switch in Chat preferences no longer says the feature is unavailable when it is on and working. (#3884)
+- Chat preferences now announce which scope (whole workspace or this channel) each rewording choice and switch belongs to. (#3946)
+
 ## 2026-11-19 — Chat moderation and reporting: nine repairs (9 issues)
 
 - Dismissing or restoring a moderation item now asks for confirmation first and lets you add a note. (#3697)
