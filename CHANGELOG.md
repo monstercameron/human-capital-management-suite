@@ -1,3 +1,9 @@
+## 2026-11-19 — Chat admin: country and retention forms say what is wrong (3 issues)
+
+- The country form on chat location settings now rejects unknown countries and symbols with a clear message that names the accepted formats. (#3699)
+- A refused country on the chat location settings now shows an error at the Country field instead of a generic failure. (#3700, already in place; regression test added)
+- Chat settings now explain the allowed storage limit range and mark the Basis field on the country form as required. (#3703, already in place; regression test added)
+
 ## 2026-11-19 — Local development: the documented start command works again
 
 - `npm run dev:server` (the `local-dev` profile) starts with its built-in settings: on first start the server creates the chat and agent databases if they are missing, gives each its own database login and prepares the agent database. Before this, the built-in settings named one login for every database, which Chat and agents refuse, so the server stopped at startup unless extra environment variables were set by hand. The README now lists the two commands that load the chat schema and its demo rooms.

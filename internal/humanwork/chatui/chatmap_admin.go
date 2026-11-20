@@ -118,7 +118,7 @@ var chatmapAdminCopy = map[string][3]string{
 	"admin_basis_hint":      {"Recorded with the change, for example the agreement or the date it is expected.", "Wird mit der Änderung festgehalten, zum Beispiel die Vereinbarung oder das erwartete Datum.", "يُسجَّل مع التغيير، مثل الاتفاق أو التاريخ المتوقع."},
 	"admin_save_country":    {"Save country", "Land speichern", "حفظ البلد"},
 	"admin_country_invalid": {"Enter a country and the basis for the choice.", "Geben Sie ein Land und die Grundlage der Entscheidung ein.", "أدخل بلداً وأساس القرار."},
-	"admin_country_refused": {"The country or the basis is too long or not valid. A country can be up to 8 characters and the basis up to 500.", "Land oder Grundlage ist zu lang oder ungültig. Ein Land darf höchstens 8 Zeichen haben, die Grundlage höchstens 500.", "البلد أو الأساس طويل أو غير صالح. يمكن أن يبلغ البلد 8 أحرف على الأكثر والأساس 500 حرف على الأكثر."},
+	"admin_country_refused": {"That is not a country we know, or the basis is too long. Enter a two-letter country code such as DE or US, or a country name such as France, with no symbols. The basis can be up to 500 characters.", "Das ist kein bekanntes Land, oder die Grundlage ist zu lang. Geben Sie einen zweistelligen Ländercode wie DE oder US oder einen Ländernamen wie Frankreich ein, ohne Sonderzeichen. Die Grundlage darf höchstens 500 Zeichen haben.", "هذا ليس بلداً معروفاً أو أن الأساس طويل جداً. أدخل رمز بلد من حرفين مثل DE أو US أو اسم بلد مثل فرنسا دون رموز. يمكن أن يبلغ الأساس 500 حرف على الأكثر."},
 	"admin_everywhere":      {"Everywhere else", "Überall sonst", "في كل مكان آخر"},
 	"admin_row":             {"%s: location sharing %s. Basis: %s", "%s: Standortfreigabe %s. Grundlage: %s", "%s: مشاركة الموقع %s. الأساس: %s"},
 }
