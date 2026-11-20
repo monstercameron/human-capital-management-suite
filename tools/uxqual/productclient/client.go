@@ -55,6 +55,10 @@ type Service struct {
 	ListJourneys                 func(context.Context, *journeyv1.ListJourneysRequest) (*journeyv1.ListJourneysResponse, error)
 	ListNotifications            func(context.Context, *notificationv1.ListNotificationsRequest) (*notificationv1.ListNotificationsResponse, error)
 	MarkNotificationRead         func(context.Context, *notificationv1.MarkNotificationReadRequest) (*notificationv1.MarkNotificationReadResponse, error)
+	// ChatNotifications backs the chat items of the bell (issue 3733).
+	ChatNotifications *ChatNotificationFeed
+	// ChatDigest backs the digest of the bell (issue 3786).
+	ChatDigest                   *ChatDigestFeed
 	ListWorkers                  func(context.Context, *journeyv1.ListWorkersRequest) (*journeyv1.ListWorkersResponse, error)
 	GetPreferences               func(context.Context, *journeyv1.GetProductPreferencesRequest) (*journeyv1.GetProductPreferencesResponse, error)
 	GetWorkerIDPolicy            func(context.Context, *journeyv1.GetWorkerIDPolicyRequest) (*journeyv1.GetWorkerIDPolicyResponse, error)
@@ -1226,6 +1230,15 @@ func load(ctx context.Context, service Service, session Session, state State, ba
 	}
 	view.PersonWorkflows = projectPersonWorkflows(view, view.SelectedPerson)
 	view.MarkNotificationRead = notificationReadHandler(context.WithoutCancel(ctx), service)
+	// Issue 3733: chat items for the bell, read fresh on every load so a
+	// revoked conversation never lingers, and named from the people this page knows.
+	view.ChatNotifications, view.ChatNotificationsUnavailable = loadChatNotifications(ctx, service.ChatNotifications)
+	nameChatNotificationAuthors(view.ChatNotifications, view.People)
+	view.MarkChatNotificationRead, view.MarkAllChatNotificationsRead = chatNotificationReadHandlers(context.WithoutCancel(ctx), service.ChatNotifications)
+	// Issue 3786: the personal digest, read fresh on every load.
+	view.ChatDigest, view.ChatDigestUnavailable = loadChatDigest(ctx, service.ChatDigest)
+	nameChatDigestAuthors(view.ChatDigest, view.People)
+	view.SaveChatDigestPref, view.ChatDigestSeen = chatDigestHandlers(context.WithoutCancel(ctx), service.ChatDigest)
 	loadErr := errors.Join(failures...)
 	if journeyclient.ErrorHasCode(loadErr, codes.Unauthenticated) {
 		view.SignedOut = productui.UnauthenticatedRecovery()

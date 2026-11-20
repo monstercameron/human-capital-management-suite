@@ -250,6 +250,7 @@ func watchPersonaChat(ctx context.Context, cfg journeyclient.Config, conversatio
 					model.PersonaInvocations = chatbug079StoredAnswers(previous, reconcileAgentPending(previous, personaChatInvocations(payload.Invocations, cfg, conversation)), time.Now())
 					model.AgentRetries = chatbug047Settled(model.AgentRetries, model.PersonaInvocations)
 					model.AgentFeedbackSaved = personaFeedbackSaved.stored(payload.Invocations)
+					model.PersonaOutcomes = personaChatOutcomes(payload.Outcomes, conversation)
 					model.PersonaActivityReady = true
 					bindAgentInvocationConversations(model)
 					locale := productui.ResolveProductLocale(model.Locale)
@@ -323,7 +324,7 @@ func quietPersonaChatWatch(cfg journeyclient.Config, conversation string) {
 		if model.SelectedID != conversation || model.CurrentTenantID != cfg.Tenant || model.CurrentUser != cfg.Subject {
 			return
 		}
-		model.PersonaInvocations, model.ResolvedPersonaMentions, model.PersonaPostActors = nil, nil, nil
+		model.PersonaInvocations, model.ResolvedPersonaMentions, model.PersonaPostActors, model.PersonaOutcomes = nil, nil, nil, nil
 		model.PersonaActivityReady = true
 		model.PersonaLookup = chatui.PersonaLookupReady
 		model.PersonaLookupConversationID = conversation
@@ -336,7 +337,7 @@ func failPersonaChatWatch(cfg journeyclient.Config, conversation string) {
 		if model.SelectedID != conversation || model.CurrentTenantID != cfg.Tenant || model.CurrentUser != cfg.Subject {
 			return
 		}
-		model.PersonaInvocations, model.ResolvedPersonaMentions, model.PersonaPostActors = nil, nil, nil
+		model.PersonaInvocations, model.ResolvedPersonaMentions, model.PersonaPostActors, model.PersonaOutcomes = nil, nil, nil, nil
 		model.PersonaActivityReady = true
 		model.PersonaLookup = chatui.PersonaLookupFailed
 		model.PersonaLookupConversationID = conversation

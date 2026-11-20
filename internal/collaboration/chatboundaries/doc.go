@@ -17,7 +17,7 @@
 //	chatroutingadapter -> chat, chatpolicy, chatrouting
 //	chatrewrite, chatsearch, chatrender, chatrecords, chatrouting, chatstream,
 //	chatadmission, chatapps, chatcalls, chatfilter, chatgate, chatlang,
-//	chatmedia, chatpilot, chatpolicy -> no other chat* package
+//	chatmedia, chatpilot, chatpolicy, chatbarrier -> no other chat* package
 //
 // The test pins the layering rule, not this edge list: a new lateral edge
 // between domain libraries is a review decision, while an upward import is

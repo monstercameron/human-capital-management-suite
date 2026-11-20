@@ -1081,6 +1081,12 @@ message DecideJourneyRequest {
   string intent_id = 1;
   bool approve = 2;
   string reason = 3;
+  // expected_proposal_revision_id is the proposal revision the approver
+  // reviewed (JourneyDetail.journey.proposal_revision_id). When set, the
+  // decision is refused with FAILED_PRECONDITION unless it is still the
+  // current revision, so a decision never lands on a proposal that changed
+  // after it was read. Empty keeps the unbound behaviour of earlier callers.
+  string expected_proposal_revision_id = 4;
 }
 
 message DecideJourneyResponse {

@@ -518,7 +518,13 @@ func notificationMenu(view View) ui.Node {
 			}
 		})
 	}
+	chatReads := ui.UseState(map[string]bool{})
+	chatMarkAll := ui.UseEvent(func(ui.MouseEvent) { markAllChatNotificationsRead(view, chatReads, readError) })
+	chatVisible := navigationDestinationAuthorized(view, PageChat)
 	unread := unreadWorkflowNotificationsWithOverrides(view.WorkflowNotifications, readOverrides.Get())
+	if chatVisible {
+		unread += unreadChatNotificationsWithOverrides(view.ChatNotifications, chatReads.Get())
+	}
 	label := view.Locale.Text("shell.notifications") + ", " + view.Locale.Plural("notifications.unread_count", int64(unread))
 	children := []ui.Node{
 		html.H2(html.Props{}, ui.Text(view.Locale.Text("shell.notifications"))),
@@ -536,6 +542,10 @@ func notificationMenu(view View) ui.Node {
 			},
 		}))
 		children = append(children, appLink(view, html.Props{}, statefulHref(view, PageWork), ui.Text(view.Locale.Text("shell.open_work"))))
+	}
+	if chatVisible {
+		children = append(children, chatNotificationSection(view, chatReads, readError, chatMarkAll)...)
+		children = append(children, ui.CreateElement(ChatDigestPanel, ChatDigestPanelProps{I18nProps: I18nProps{Locale: view.Locale}, Digest: view.ChatDigest, Unavailable: view.ChatDigestUnavailable, Save: view.SaveChatDigestPref, Seen: view.ChatDigestSeen, Navigate: view.Navigate}))
 	}
 	trigger := []ui.Node{navIcon("notifications")}
 	if unread > 0 {

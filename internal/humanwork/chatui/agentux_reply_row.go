@@ -100,6 +100,8 @@ func personaReplyRowsForPost(model Model, local localUI, postID string, now time
 			rows = append(rows, html.WithKey(renderPersonaPrivateAnswer(model, local, message, PersonaProgressProjection{Settling: !model.PersonaActivityReady}), "agent-answer:"+message.ID))
 		}
 	}
+	// #3803: how a run ended, for the members who did not ask it.
+	rows = append(rows, personaOutcomeRows(model, postID)...)
 	if len(rows) == 0 {
 		// CHATBUG-040: room for the card that is still on its way.
 		if reserve := chatbug040ReservedRow(model, postID); reserve != nil {

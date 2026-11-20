@@ -21,9 +21,32 @@ const browsePurposeFanout = 4
 // from the channel's team widget; a channel whose purpose cannot be read keeps
 // a row without a purpose line, and nothing else is affected.
 func fillChatBrowsePurposes(active journeyclient.Config, rooms []chatui.Conversation) {
+	purposes := readChatPurposes(active, rooms)
+	if len(purposes) == 0 {
+		return
+	}
+	chatBrowser.mutate(func(model *chatui.Model) {
+		for i := range model.Browse {
+			if purpose, ok := purposes[model.Browse[i].ID]; ok {
+				model.Browse[i].Topic = purpose
+			}
+		}
+		for i := range model.Conversations {
+			if purpose, ok := purposes[model.Conversations[i].ID]; ok && strings.TrimSpace(model.Conversations[i].Topic) == "" {
+				model.Conversations[i].Topic = purpose
+			}
+		}
+	})
+	refreshChatRoute()
+}
+
+// readChatPurposes reads each room's listed purpose from its team widget, a few
+// at a time, and returns the ones that have one by room id. A room whose purpose
+// cannot be read is left out; the server decides what the caller may read.
+func readChatPurposes(active journeyclient.Config, rooms []chatui.Conversation) map[string]string {
 	client := channelTodoClient()
 	if client == nil || len(rooms) == 0 {
-		return
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
@@ -53,20 +76,5 @@ func fillChatBrowsePurposes(active journeyclient.Config, rooms []chatui.Conversa
 		}(room.ID, channelTodoHost(room.ID, active.Tenant))
 	}
 	wg.Wait()
-	if len(purposes) == 0 {
-		return
-	}
-	chatBrowser.mutate(func(model *chatui.Model) {
-		for i := range model.Browse {
-			if purpose, ok := purposes[model.Browse[i].ID]; ok {
-				model.Browse[i].Topic = purpose
-			}
-		}
-		for i := range model.Conversations {
-			if purpose, ok := purposes[model.Conversations[i].ID]; ok && strings.TrimSpace(model.Conversations[i].Topic) == "" {
-				model.Conversations[i].Topic = purpose
-			}
-		}
-	})
-	refreshChatRoute()
+	return purposes
 }

@@ -51,7 +51,7 @@ func (s *agentServedAssembly) BindAgentUXAmbient(d agentUXAmbientDeps) error {
 			return d.Extensions.channelWriteActor(ctx, chatcore.Principal{TenantID: tenant, SubjectID: actor}, tenant, conversation, channelTodoStatusAction("ADD"))
 		}
 	}
-	composition := agentUXAmbientComposition{Chat: d.Chat, TodoAuthority: todoAuthority, Now: d.Now, Planner: d.Planner, EnsureDM: agentUXAmbientDMEnsurer(d.Chat, d.Service)}
+	composition := agentUXAmbientComposition{Chat: d.Chat, TodoAuthority: todoAuthority, Now: d.Now, Planner: d.Planner, EnsureDM: agentUXAmbientDMEnsurer(d.Chat, d.Service), Workflows: s.ambientWorkflows}
 	if d.Agents != nil && d.Personas != nil && d.Core != nil && d.TenantUUID != nil {
 		store := agentUXAmbientTriggerStore{agents: d.Agents, tenantUUID: d.TenantUUID}
 		principals := AgentAnnouncementServicePrincipal{Agents: d.Agents, Personas: d.Personas, Principals: GovernancePersonaPrincipalAuthority{DB: d.Core, TenantUUID: d.TenantUUID}, TenantUUID: d.TenantUUID, Now: d.Now}

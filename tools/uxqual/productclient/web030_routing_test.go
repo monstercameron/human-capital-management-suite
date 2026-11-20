@@ -232,6 +232,10 @@ func TestTodo_WEB_030_Security(t *testing.T) {
 		"NavigateWorkflowDraftHistory": true,
 		"ApplyWorkflowTemplateOverlay": true,
 		"ShareDocument":                true,
+		// Feeds of the bell that read the person's own chat state and write only
+		// their own read, seen and choice answers (issues 3733 and 3786).
+		"ChatNotifications": true,
+		"ChatDigest":        true,
 	}
 	// Both Resolve* hooks return only projections the viewer may read; found=false is denial.
 	// ObserveRead hears read completions (name, latency, error) and reads nothing itself.

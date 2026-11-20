@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/monstercameron/human-capital-management-suite/internal/humanwork/chatui"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Document unfurls in chat. It follows the share-link embeds
@@ -21,6 +23,49 @@ import (
 const chatDocPreviewLimit = 50
 
 const chatDocPreviewFreshFor = time.Minute
+
+// chatDocFailedFreshFor is how long a failed read is shown before it is read
+// again on its own (issue 3750); the card also offers an explicit retry.
+const chatDocFailedFreshFor = 15 * time.Second
+
+func chatDocFreshFor(state string) time.Duration {
+	if state == "failed" {
+		return chatDocFailedFreshFor
+	}
+	return chatDocPreviewFreshFor
+}
+
+// chatDocDefaultAnswers is what every claimed document shows before the read
+// names it. A read that errored is a retryable failure, never a claim that the
+// reader lacks access; a read that answered without naming a document keeps
+// the neutral card, which says nothing about whether it exists.
+func chatDocDefaultAnswers(ids []string, err error) map[string]chatui.DocPreview {
+	state := "unavailable"
+	if err != nil && status.Code(err) != codes.PermissionDenied {
+		// A refusal stays neutral; every other error can be retried.
+		state = "failed"
+	}
+	answers := make(map[string]chatui.DocPreview, len(ids))
+	for _, id := range ids {
+		answers[id] = chatui.DocPreview{ID: id, State: state}
+	}
+	return answers
+}
+
+// retryFailed makes every failed answer stale so the next pass reads it again.
+func (c *chatDocPreviewCache) retryFailed(identity string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if identity != c.identity {
+		return
+	}
+	for id, entry := range c.entries {
+		if !entry.pending && entry.value.State == "failed" {
+			entry.at = time.Time{}
+			c.entries[id] = entry
+		}
+	}
+}
 
 // chatDocPreviewPendingTimeout bounds how long a claim may sit "loading"
 // (C-3). claim() never reissues an entry it still marks pending, so a read
@@ -93,7 +138,7 @@ func chatDocPreviewIDs(model chatui.Model) []string {
 func chatDocPreviewFingerprint(model chatui.Model) string {
 	ready := 0
 	for _, preview := range model.DocPreviews {
-		if preview.State == "ready" || preview.State == "unavailable" {
+		if preview.State == "ready" || preview.State == "unavailable" || preview.State == "failed" {
 			ready++
 		}
 	}
@@ -119,11 +164,11 @@ func (c *chatDocPreviewCache) claim(identity string, ids []string, now time.Time
 			// slot below can reclaim it for one more attempt.
 			entry.pending = false
 			if entry.value.State != "ready" {
-				entry.value = chatui.DocPreview{ID: id, State: "unavailable"}
+				entry.value = chatui.DocPreview{ID: id, State: "failed"}
 			}
 			c.entries[id] = entry
 		}
-		if ok && (entry.pending || now.Sub(entry.at) < chatDocPreviewFreshFor) {
+		if ok && (entry.pending || now.Sub(entry.at) < chatDocFreshFor(entry.value.State)) {
 			shown[id] = entry.value
 			continue
 		}
@@ -179,7 +224,7 @@ func (c *chatDocPreviewCache) revalidateIn(identity string, ids []string, now ti
 		if !ok || entry.pending {
 			continue
 		}
-		left := chatDocPreviewFreshFor - now.Sub(entry.at)
+		left := chatDocFreshFor(entry.value.State) - now.Sub(entry.at)
 		if left <= 0 {
 			continue
 		}

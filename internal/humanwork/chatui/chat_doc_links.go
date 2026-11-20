@@ -29,7 +29,7 @@ type DocPreview struct {
 	// source line names it (empty until the preview service sends one).
 	Collection string
 	Readable   bool
-	State      string // loading, ready, unavailable
+	State      string // loading, ready, unavailable, failed (a retryable read failure)
 }
 
 // CHATBUG-014: each is searched for only in text that holds one of the fixed
@@ -258,6 +258,10 @@ func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
 		// A document card never borrows the forwarded-message copy
 		// ("Message preview unavailable").
 		content = append(content, html.Span(html.Props{Class: "chat-doc-embed-locked", Text: m.t(KeyDocRestricted)}))
+	case "failed":
+		// Issue 3750: a read that failed is not a refusal; say so and offer
+		// the retry, and keep the neutral line for the unreadable document.
+		content = append(content, issue3750FailedCard(m)...)
 	default:
 		// C-1 (r4): an unresolved card is a skeleton -- a title bar and a
 		// shorter byline bar in the ready card's own rows -- so the layout

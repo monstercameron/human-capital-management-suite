@@ -56,6 +56,9 @@ type agentUXAmbientComposition struct {
 	// private reminder; nil leaves that to whoever created the conversation.
 	EnsureDM func(ctx context.Context, tenant, person, agent string) error
 	Planner  AgentUXAmbientRunPlanner
+	// Workflows lists the workflows an administrator tagged as offerable from
+	// Chat; nil leaves workflow offers off (issue 3805).
+	Workflows AgentUXAmbientWorkflowCatalog
 }
 
 // agentUXAmbientServed is the composed ambient surface and the workload that
@@ -75,7 +78,7 @@ func composeAgentUXAmbient(c agentUXAmbientComposition) agentUXAmbientServed {
 		return agentUXAmbientServed{}
 	}
 	zone := agentUXAmbientZone(c.Chat)
-	service := &AgentUXAmbientService{DB: c.Chat, Now: c.Now}
+	service := &AgentUXAmbientService{DB: c.Chat, Now: c.Now, Workflows: c.Workflows}
 	if c.Planner != nil {
 		service.Model = AgentUXAmbientModelAdapter{Planner: c.Planner}
 	}
@@ -110,7 +113,7 @@ func (w *AgentUXAmbientWorker) TickTenant(ctx context.Context, tenant string) er
 		return nil
 	}
 	var failures []error
-	if w.Service.Model != nil {
+	if w.Service.Model != nil || w.Service.Workflows != nil {
 		failures = append(failures, w.Outbox.Drain(ctx, tenant))
 	}
 	if w.Announcements.Store != nil && w.Announcements.Outbox != nil && w.Announcements.Delivery != nil {

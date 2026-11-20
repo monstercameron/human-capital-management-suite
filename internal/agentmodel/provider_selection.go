@@ -74,6 +74,9 @@ func defaultFakeReply(_ int, req schemaflux.CompletionRequest) (string, error) {
 			break
 		}
 	}
+	if goal == "" {
+		goal = defaultFakeInputGoal(prompt)
+	}
 	text := goal
 	if exact, ok := strings.CutPrefix(text, "Reply with exactly:"); ok {
 		text = strings.TrimSpace(exact)
@@ -91,6 +94,24 @@ func defaultFakeReply(_ int, req schemaflux.CompletionRequest) (string, error) {
 		return "", err
 	}
 	return string(encoded), nil
+}
+
+// defaultFakeInputGoal reads the goal from the "Input:" JSON object a platform
+// model step carries (issue 2897); it is empty when there is none.
+func defaultFakeInputGoal(prompt string) string {
+	_, input, found := strings.Cut(prompt, "\nInput:\n")
+	if !found {
+		return ""
+	}
+	// The object is one line; skill context may follow it.
+	line, _, _ := strings.Cut(input, "\n")
+	var fields struct {
+		Goal string `json:"goal"`
+	}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &fields); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(fields.Goal)
 }
 
 func defaultFakeExtraction(prompt string) (string, error) {

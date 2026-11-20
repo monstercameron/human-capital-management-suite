@@ -2923,6 +2923,12 @@ func productCatalogMessages(locale string, source map[string]localize.Message) m
 	for key, translated := range workflowNotificationTranslations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}
+	for key, translated := range chatNotificationTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
+	for key, translated := range chatDigestTranslations(locale) {
+		messages[key] = localize.Message{Text: translated}
+	}
 	for key, translated := range journeyTrackerTranslations(locale) {
 		messages[key] = localize.Message{Text: translated}
 	}

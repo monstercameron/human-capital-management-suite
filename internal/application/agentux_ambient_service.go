@@ -44,6 +44,9 @@ type AgentUXAmbientOffer struct {
 	Time                                                                               AgentUXAmbientTime
 	Zone                                                                               string
 	Locale                                                                             string
+	// WorkflowID is the catalog workflow a WORKFLOW_START offer proposes. It is
+	// the administrator's catalog entry, never text from the message.
+	WorkflowID string
 }
 
 type AgentUXAmbientGrant struct {
@@ -60,6 +63,9 @@ type AgentUXAmbientService struct {
 	// Names comes from the existing people directory, never the model.
 	MemberNames  func(context.Context, string, string) (map[string]string, error)
 	AuthorLocale func(context.Context, string, string) (string, error)
+	// Workflows lists the workflows an administrator tagged as offerable from
+	// Chat for a person; without it no workflow is ever offered (issue 3805).
+	Workflows AgentUXAmbientWorkflowCatalog
 }
 
 func agentUXAmbientMember(ctx context.Context, tx dbport.Tx, tenant, conversation, person string, manage bool) error {
@@ -80,7 +86,8 @@ func (s *AgentUXAmbientService) SetGrant(ctx context.Context, tenant, conversati
 	if !s.available() {
 		return ErrAgentUXAmbientInvalid
 	}
-	if g.Agent != "task-catcher" && g.Agent != "reminder" || g.AutomaticPublic && g.Agent != "task-catcher" {
+	workflowOffers := g.Agent == AgentUXAmbientWorkflowAgent && s.Workflows != nil
+	if g.Agent != "task-catcher" && g.Agent != "reminder" && !workflowOffers || g.AutomaticPublic && g.Agent != "task-catcher" {
 		return ErrAgentUXAmbientInvalid
 	}
 	if g.ConversationLimit == 0 {
@@ -97,14 +104,16 @@ func (s *AgentUXAmbientService) SetGrant(ctx context.Context, tenant, conversati
 			return err
 		}
 		var installationVersion uint64
-		if err := tx.QueryRow(ctx, `SELECT version FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND status='ACTIVE' AND 'chat.posts.read'=ANY(granted_scopes) FOR SHARE`, tenant, conversation, g.Agent).Scan(&installationVersion); err != nil {
-			if errors.Is(err, dbport.ErrNoRows) {
+		if !workflowOffers {
+			if err := tx.QueryRow(ctx, `SELECT version FROM chat_app_installation WHERE tenant_id=$1 AND conversation_id=$2 AND app_id=$3 AND status='ACTIVE' AND 'chat.posts.read'=ANY(granted_scopes) FOR SHARE`, tenant, conversation, g.Agent).Scan(&installationVersion); err != nil {
+				if errors.Is(err, dbport.ErrNoRows) {
+					return ErrAgentUXAmbientDenied
+				}
+				return err
+			}
+			if installationVersion == 0 {
 				return ErrAgentUXAmbientDenied
 			}
-			return err
-		}
-		if installationVersion == 0 {
-			return ErrAgentUXAmbientDenied
 		}
 		_, err := tx.Exec(ctx, `INSERT INTO agentux_ambient_grant(tenant_id,conversation_id,agent_id,enabled,automatic_public,conversation_limit,daily_limit,updated_by,enabled_at,installation_version) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(tenant_id,conversation_id,agent_id) DO UPDATE SET enabled=EXCLUDED.enabled,automatic_public=EXCLUDED.automatic_public,conversation_limit=EXCLUDED.conversation_limit,daily_limit=EXCLUDED.daily_limit,updated_by=EXCLUDED.updated_by,installation_version=EXCLUDED.installation_version,enabled_at=CASE WHEN (NOT agentux_ambient_grant.enabled AND EXCLUDED.enabled) OR agentux_ambient_grant.installation_version<>EXCLUDED.installation_version THEN EXCLUDED.enabled_at ELSE agentux_ambient_grant.enabled_at END`, tenant, conversation, g.Agent, g.Enabled, g.AutomaticPublic, g.ConversationLimit, g.DailyLimit, actor, s.Now().UTC(), installationVersion)
 		if err != nil {

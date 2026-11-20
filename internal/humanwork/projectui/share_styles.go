@@ -188,6 +188,41 @@ const projectUIShareStyles = `
 .projectui-journey-link{display:inline-flex;align-items:center;gap:.45rem;min-block-size:2.25rem;padding-inline:.75rem .875rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer}
 .projectui-journey-link:hover{background:var(--hcm-hover-surface)}
 .projectui-journey-actions .projectui-share-panel{inset-inline-end:0}
+.projectui-journey-discussed{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .75rem;margin-block:.25rem}
+.projectui-journey-discussed[hidden]{display:none}
+.projectui-journey-discussed-title{margin:0;font-size:.875rem;font-weight:600;color:var(--muted)}
+.projectui-journey-discussed-list{display:flex;flex-wrap:wrap;gap:.5rem;margin:0;padding:0;list-style:none}
+.projectui-journey-discussed-link{display:inline-flex;align-items:center;min-block-size:2.25rem;max-inline-size:100%;padding-inline:.75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font-size:.875rem;font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.projectui-journey-discussed-link:hover{background:var(--hcm-hover-surface)}
+.projectui-journey-discussed-note{margin:0;font-size:.8125rem;color:var(--muted)}
+@media (pointer:coarse){.projectui-journey-discussed-link{min-block-size:2.75rem}}
+.projectui-journey-clarify{display:grid;gap:.5rem;margin-block:.25rem;max-inline-size:44rem}
+.projectui-journey-clarify[hidden]{display:none}
+.projectui-journey-clarify-title{margin:0;font-size:.875rem;font-weight:600;color:var(--muted)}
+.projectui-journey-clarify-status,.projectui-journey-clarify-note{margin:0;font-size:.8125rem;color:var(--muted)}
+.projectui-journey-clarify-list{display:grid;gap:.5rem;margin:0;padding:0;list-style:none}
+.projectui-journey-clarify-item{display:flex;flex-wrap:wrap;align-items:baseline;gap:.25rem .75rem;padding:.5rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);font-size:.875rem;overflow-wrap:anywhere}
+.projectui-journey-clarify-state{color:var(--muted);font-size:.8125rem}
+.projectui-journey-clarify-link{display:inline-flex;align-items:center;min-block-size:2.25rem;color:var(--ink);font-weight:600}
+.projectui-clarify-ask,.projectui-clarify-cancel{justify-self:start;min-block-size:2.25rem;padding-inline:.875rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer}
+.projectui-clarify-send{min-block-size:2.25rem;padding-inline:.875rem;border-radius:var(--hcm-radius-control);font:inherit;font-size:.875rem;font-weight:600;cursor:pointer}
+.projectui-clarify-ask:hover,.projectui-clarify-cancel:hover{background:var(--hcm-hover-surface)}
+.projectui-clarify-send[disabled]{opacity:.5;cursor:not-allowed}
+.projectui-clarify-ask:focus-visible,.projectui-clarify-send:focus-visible,.projectui-clarify-cancel:focus-visible,.projectui-journey-clarify-link:focus-visible,.projectui-clarify-question:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}
+.projectui-clarify-dialog{inline-size:min(32rem,calc(100vw - 2rem));max-inline-size:none;padding:0;border:1px solid var(--pu-line);border-radius:var(--hcm-radius-surface);background:var(--surface);color:var(--ink);box-shadow:var(--hcm-shadow-raised)}
+.projectui-clarify-dialog::backdrop{background:color-mix(in srgb,#000 40%,transparent)}
+.projectui-clarify-form{display:grid;gap:.5rem;padding:1.125rem 1.25rem 1.25rem}
+.projectui-clarify-heading{margin:0;font-size:1.0625rem}
+.projectui-clarify-case,.projectui-clarify-revision,.projectui-clarify-audience,.projectui-clarify-note,.projectui-clarify-hint,.projectui-clarify-busy{margin:0;font-size:.875rem;overflow-wrap:anywhere}
+.projectui-clarify-revision,.projectui-clarify-hint,.projectui-clarify-busy{color:var(--muted);font-size:.8125rem}
+.projectui-clarify-audience{padding:.5rem .75rem;border-radius:var(--hcm-radius-control);background:var(--hcm-hover-surface)}
+.projectui-clarify-label{font-size:.875rem;font-weight:600}
+.projectui-clarify-question{inline-size:100%;min-block-size:6rem;padding:.5rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.9375rem;resize:vertical}
+.projectui-clarify-error{margin:0;padding:.5rem .75rem;border-radius:var(--hcm-radius-control);background:var(--hcm-color-danger-surface);color:var(--hcm-color-danger);font-size:.8125rem}
+.projectui-clarify-error[hidden]{display:none}
+.projectui-clarify-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem}
+@media (pointer:coarse){.projectui-clarify-ask,.projectui-clarify-send,.projectui-clarify-cancel,.projectui-journey-clarify-link{min-block-size:2.75rem}}
+@media (prefers-reduced-motion:reduce){.projectui-clarify-dialog,.projectui-clarify-dialog *{transition:none;animation:none}}
 .projectui-ticket-linker .projectui-share-select{inline-size:100%;min-block-size:2.5rem;padding:.5rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit}
 .projectui-ticket-linker .projectui-filter-search input{inline-size:100%;min-block-size:2.25rem;padding-inline:2rem .75rem;border:1px solid var(--control-border);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit}
 .projectui-linker-list{max-block-size:min(45dvh,22rem);overflow:auto}

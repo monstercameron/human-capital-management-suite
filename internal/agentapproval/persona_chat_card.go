@@ -11,6 +11,10 @@ import (
 
 const PersonaChatCardLifetime = 15 * time.Minute
 
+// AgentsTaskPath is the served Agents page a card opens a task on (issue 3802).
+// The older /workspace/app/agents address is not a page.
+const AgentsTaskPath = "/workspace/app/chat/agents"
+
 const (
 	personaChatCardKind = "agent_action_approval"
 	personaChatOpenTask = "open_task_view"
@@ -36,6 +40,9 @@ type PersonaChatCard struct {
 	ExpiresAt    time.Time
 	TaskViewHref string
 	Card         chatapps.Card
+	// ReReview is the optional private comparison with the revision the
+	// invoker reviewed before (issue #3971). It carries no approval authority.
+	ReReview *ReReview
 }
 
 // PersonaChatCardCallback is server-resolved callback context. ActorID,
@@ -71,7 +78,7 @@ func BuildPersonaChatCard(approval AgentActionApproval, invocationID, invokerID 
 		return PersonaChatCard{}, ErrChatCardExpired
 	}
 	query := url.Values{"task": []string{approval.TaskID}}
-	href := "/workspace/app/agents?" + query.Encode()
+	href := AgentsTaskPath + "?" + query.Encode()
 	actions, changes, sources, uncertainties := personaCardDetails(approval.Items)
 	card := PersonaChatCard{
 		ApprovalID: approval.ID, InvocationID: invocationID, InvokerID: invokerID,
@@ -200,8 +207,20 @@ func samePersonaChatCard(left, right PersonaChatCard) bool {
 		return false
 	}
 	for key, value := range right.Card.Values {
+		if left.ReReview != nil && issue3971Redactable(key) {
+			continue
+		}
 		if left.Card.Values[key] != value {
 			return false
+		}
+	}
+	if left.ReReview != nil {
+		// A card with a re-review comparison may omit entries the viewer cannot
+		// see (issue #3971) but never add or alter one.
+		for _, key := range issue3971RedactableKeys {
+			if !entriesSubset(left.Card.Values[key], right.Card.Values[key]) {
+				return false
+			}
 		}
 	}
 	return true

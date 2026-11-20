@@ -60,8 +60,15 @@ func (s AgentUXAmbientSurface) Snapshot(ctx context.Context, conversation string
 		if o.Kind == "REMINDER" {
 			name = "Reminder"
 		}
+		startHref := ""
+		if o.Kind == AgentUXAmbientWorkflowKind {
+			name = "Workflow Offer"
+			if o.State == "ACCEPTED" {
+				startHref = AgentUXAmbientWorkflowStartHref(o.WorkflowID)
+			}
+		}
 		canManage := o.Scope == "PRIVATE" || o.Kind == "TASK" || manages
-		result.Cards = append(result.Cards, chatui.AgentUXAmbientCard{ID: o.ID, AgentID: o.Agent, Conversation: conversation, Source: o.Source, AgentName: name, Kind: o.Kind, Scope: o.Scope, Person: o.Person, Reason: o.Reason, Title: o.Title, State: o.State, SourceHref: href, Zone: zone, Ask: o.Time.Ask, Lead: o.Time.Lead, Due: o.Time.At, Fire: o.Time.Fire, Revision: o.Revision, CanManage: canManage})
+		result.Cards = append(result.Cards, chatui.AgentUXAmbientCard{ID: o.ID, AgentID: o.Agent, Conversation: conversation, Source: o.Source, AgentName: name, Kind: o.Kind, Scope: o.Scope, Person: o.Person, Reason: o.Reason, Title: o.Title, State: o.State, SourceHref: href, Zone: zone, Ask: o.Time.Ask, Lead: o.Time.Lead, Due: o.Time.At, Fire: o.Time.Fire, Revision: o.Revision, CanManage: canManage, StartHref: startHref})
 	}
 	grants, optout, err := s.Service.Grants(ctx, tenant, conversation, person)
 	if err != nil {

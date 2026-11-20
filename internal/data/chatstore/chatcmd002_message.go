@@ -371,6 +371,17 @@ func (s *Store) Chatcmd002Mutate(ctx context.Context, r chat.Chatcmd002Request, 
 			if err != nil {
 				return err
 			}
+		case chat.Chatcmd002OperationChangeTask:
+			var changed bool
+			card, changed, err = s.issue3947ChangeTask(ctx, tx, r, post, card, now)
+			if err != nil {
+				return err
+			}
+			if !changed {
+				// The task already reads as asked: nothing to write.
+				result, err = chatPost(post)
+				return err
+			}
 		case "CLOSE", "REOPEN":
 			if !chatcmd002Own(post, r.Principal) {
 				return chat.ErrPermissionDenied

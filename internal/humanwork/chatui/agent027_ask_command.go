@@ -50,7 +50,7 @@ func agent027Text(m Model, reason string) string {
 // conversation: it is a conversation with an agent, or agents are placed in it
 // for this person.
 func agent027AskAvailable(m Model) bool {
-	return m.selected().Agent || len(personaMentionCandidates(m, "")) > 0
+	return m.selected().Agent || len(personaMentionCandidates(m, "")) > 0 || issue3756Available(m)
 }
 
 // agent027AskRefusal reads the text after "/ask" the way the server does and
@@ -83,6 +83,16 @@ func agent027AskRefusal(m Model, args string) string {
 // sent, and lets a good one through to be sent as typed.
 func agent027AskCheck(rt composerCommandRuntime, args string) bool {
 	if reason := agent027AskRefusal(rt.Model, args); reason != "" {
+		if reason == agent027NeedsAgent && rt.AskGeneral != nil {
+			// No agent is named: the question is for the General agent
+			// (issue 3756), which is the one agent everybody has.
+			if question := strings.TrimSpace(args); question != "" {
+				rt.AskGeneral(question)
+			} else {
+				rt.Notice(issue3756Text(rt.Model, "needs_question"))
+			}
+			return false
+		}
 		rt.Notice(agent027Text(rt.Model, reason))
 		return false
 	}

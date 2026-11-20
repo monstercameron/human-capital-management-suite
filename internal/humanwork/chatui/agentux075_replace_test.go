@@ -106,14 +106,14 @@ func TestTodo_AGENTP_020_TaskCardKeepsTheSlot(t *testing.T) {
 	}
 	for _, state := range []string{"running", "awaiting_approval"} {
 		progress := model.PersonaInvocations[0].Projection.Progress
-		model.PersonaInvocations[0].Projection.Task = &PersonaTaskCardProps{ID: "task-1", Title: "Review the holiday guide", State: state, OpenTaskHref: "/workspace/app/agents?task=task-1", AwaitingApproval: state == "awaiting_approval"}
+		model.PersonaInvocations[0].Projection.Task = &PersonaTaskCardProps{ID: "task-1", Title: "Review the holiday guide", State: state, OpenTaskHref: "/workspace/app/chat/agents?task=task-1", AwaitingApproval: state == "awaiting_approval"}
 		model.PersonaInvocations[0].Projection.Progress = progress
 		rows := personaReplyRowsForPost(model, localUI{}, "question", now)
 		if len(rows) != 1 || agentUX075KeyOf(rows[0]) != agentUX075KeyOf(before[0]) {
 			t.Fatalf("%s: the task card is not in the working message's slot: %d rows", state, len(rows))
 		}
 		markup := renderNode(t, rows[0])
-		if !strings.Contains(markup, "/workspace/app/agents?task=task-1") || !strings.Contains(markup, "Review the holiday guide · "+state) {
+		if !strings.Contains(markup, "/workspace/app/chat/agents?task=task-1") || !strings.Contains(markup, "Review the holiday guide · "+state) {
 			t.Fatalf("%s: the task card or its link is missing: %s", state, markup)
 		}
 	}

@@ -25,7 +25,7 @@ func TestTodo_AGENTP_014_ApprovalCardProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(markup, card.Digest) || !strings.Contains(markup, "open_task_view") || !strings.Contains(markup, "/workspace/app/agents?task=task-1") {
+	if !strings.Contains(markup, card.Digest) || !strings.Contains(markup, "open_task_view") || !strings.Contains(markup, "/workspace/app/chat/agents?task=task-1") {
 		t.Fatalf("typed chat card lacks exact digest and task link: %s", markup)
 	}
 	if !strings.Contains(markup, "PromoteWorker v3") || !strings.Contains(markup, "job.level | L4 → L5") || !strings.Contains(markup, "report-7 (TRUSTED_INTERNAL)") || !strings.Contains(markup, "source is current as of the task checkpoint") {
@@ -60,7 +60,7 @@ func TestTodo_AGENTP_014_Golden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `<div class="chatapp-card" data-card-kind="agent_action_approval"><div data-field="approval_id">approval-1</div><div data-field="invocation_id">invocation-1</div><div data-field="invoker_id">user-1</div><div data-field="item_digest">__DIGEST__</div><div data-field="expires_at">2026-09-28T12:15:00Z</div><div data-field="task_view">/workspace/app/agents?task=task-1</div><div data-field="route">open_task_view</div><div data-field="review_reason">product_approval_surface_required</div><div data-field="actions">item-1: PromoteWorker v3</div><div data-field="material_changes">item-1: job.level | L4 → L5</div><div data-field="sources">item-1: report-7 (TRUSTED_INTERNAL)</div><div data-field="uncertainty">item-1: source is current as of the task checkpoint</div></div>`
+	want := `<div class="chatapp-card" data-card-kind="agent_action_approval"><div data-field="approval_id">approval-1</div><div data-field="invocation_id">invocation-1</div><div data-field="invoker_id">user-1</div><div data-field="item_digest">__DIGEST__</div><div data-field="expires_at">2026-09-28T12:15:00Z</div><div data-field="task_view">/workspace/app/chat/agents?task=task-1</div><div data-field="route">open_task_view</div><div data-field="review_reason">product_approval_surface_required</div><div data-field="actions">item-1: PromoteWorker v3</div><div data-field="material_changes">item-1: job.level | L4 → L5</div><div data-field="sources">item-1: report-7 (TRUSTED_INTERNAL)</div><div data-field="uncertainty">item-1: source is current as of the task checkpoint</div></div>`
 	want = strings.ReplaceAll(want, "__DIGEST__", card.Digest)
 	if got != want {
 		t.Fatalf("typed approval card bytes changed:\n got %s\nwant %s", got, want)

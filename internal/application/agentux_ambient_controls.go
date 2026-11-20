@@ -76,6 +76,9 @@ func (s *AgentUXAmbientService) Control(ctx context.Context, tenant, conversatio
 		if offer.Revision != cmd.ExpectedRevision {
 			return ErrAgentUXAmbientInvalid
 		}
+		if offer.Kind == AgentUXAmbientWorkflowKind {
+			return s.controlWorkflowOffer(ctx, tx, tenant, conversation, actor, cmd, &offer)
+		}
 		if offer.State == "CANCELLED" && cmd.Action != "DISMISS" || offer.State == "DISMISSED" || offer.State == "NOT_TASK" {
 			return ErrAgentUXAmbientDenied
 		}
@@ -296,7 +299,18 @@ func (s *AgentUXAmbientService) Grants(ctx context.Context, tenant, conversation
 			}
 			result = append(result, g)
 		}
-		return rows.Err()
+		rows.Close()
+		if err = rows.Err(); err != nil {
+			return err
+		}
+		if s.Workflows != nil {
+			g, err := s.agentUXAmbientWorkflowGrant(ctx, tx, tenant, conversation, s.Now().UTC().Truncate(24*time.Hour))
+			if err != nil {
+				return err
+			}
+			result = append(result, g)
+		}
+		return nil
 	})
 	return result, optout, err
 }

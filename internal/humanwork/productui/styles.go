@@ -81,6 +81,8 @@ func initPlatformStyles() {
 	platformStyles += projectui.Styles() + projectPageStylesheet()
 	platformStyles += projectWorkflowConfigurationStylesheet()
 	platformStyles += workflowNotificationStylesheet()
+	platformStyles += chatNotificationStylesheet()
+	platformStyles += chatDigestStylesheet()
 	platformStyles += clockPageStylesheet()
 	platformStyles += personaAdminStylesheet()
 	platformStyles += agentUX073Stylesheet()

@@ -502,6 +502,12 @@ type JourneySubmissionRecord struct {
 type Decision struct {
 	Approve bool
 	Reason  string
+	// ExpectedProposalRevisionID is the proposal revision the approver
+	// reviewed. When set, the engine refuses the decision with
+	// ErrJourneyStage unless it is still the journey's current revision, so a
+	// decision never lands on a proposal that changed after it was read
+	// (#3724). Empty keeps the unbound behaviour of earlier callers.
+	ExpectedProposalRevisionID string
 }
 
 // Acknowledgement records that the employee's promotion acknowledgement was

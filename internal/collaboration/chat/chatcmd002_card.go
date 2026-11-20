@@ -49,6 +49,13 @@ type Chatcmd002Task struct {
 	// DueTimed is true when DueAt has a time of day the author wrote (an hour
 	// from now, a full timestamp); a date alone leaves it false (#3951).
 	DueTimed bool `json:"due_timed,omitempty"`
+	// Changed names what the last change to this task touched (assignee, due,
+	// assignee-due) and who made it and when (#3947); empty for a task nobody
+	// has changed since it was posted.
+	Changed               string `json:"changed,omitempty"`
+	ChangedBySubjectID    string `json:"changed_by_subject_id,omitempty"`
+	ChangedByHomeTenantID string `json:"changed_by_home_tenant_id,omitempty"`
+	ChangedAtUnix         int64  `json:"changed_at_unix,omitempty"`
 }
 type Chatcmd002View struct {
 	Card      Chatcmd002Card `json:"card"`
@@ -97,6 +104,16 @@ type Chatcmd002Mutation struct {
 	Card      *Chatcmd002Card `json:"card,omitempty"`
 	// Text is the new option of an ADD_OPTION.
 	Text string `json:"text,omitempty"`
+	// CHANGE_TASK (#3947): ItemID names the task; SetAssignee and SetDue say
+	// which of the two the person changed, so an untouched one is never
+	// rewritten. An empty assignee takes the task from its assignee and an empty
+	// DueAt clears the date.
+	SetAssignee          bool       `json:"set_assignee,omitempty"`
+	AssigneeHomeTenantID string     `json:"assignee_home_tenant_id,omitempty"`
+	AssigneeID           string     `json:"assignee_id,omitempty"`
+	SetDue               bool       `json:"set_due,omitempty"`
+	DueAt                *time.Time `json:"due_at,omitempty"`
+	DueTimed             bool       `json:"due_timed,omitempty"`
 }
 
 func chatcmd002Text(text string, max int) bool {

@@ -130,6 +130,10 @@ type PersonaProfile struct {
 	EvalLimits               EvaluationLimits                                `json:"eval_limits"`
 	DataClassesRead          []string                                        `json:"data_classes_read,omitempty"`
 	DataClassesWritten       []string                                        `json:"data_classes_written,omitempty"`
+	// Consults is the reviewed, version-pinned list of specialists this persona
+	// may bring into a thread (issue #3806). It is sealed into the digest, so
+	// changing it needs a new reviewed version.
+	Consults []ConsultRef `json:"consults,omitempty"`
 }
 
 // TemplateProvenance pins the immutable starter copied into this tenant-owned
@@ -235,6 +239,9 @@ type Validator struct {
 	Skills    SkillResolver
 	Grants    SkillGrantResolver
 	Manifests ManifestCompatibility
+	// Consults resolves the specialists a profile lists. Required only when a
+	// profile declares consults.
+	Consults ConsultResolver
 }
 
 // ValidationResult is the trusted output of profile validation.
@@ -252,6 +259,9 @@ var referencePattern = regexp.MustCompile(`(?i)(https?://|ftp://|\btool\b|\breci
 // boundary. It never mutates the caller's profile.
 func (v Validator) Validate(profile PersonaProfile) (ValidationResult, error) {
 	if err := validateShape(profile); err != nil {
+		return ValidationResult{}, err
+	}
+	if err := v.validateConsults(profile); err != nil {
 		return ValidationResult{}, err
 	}
 	if referencePattern.MatchString(profile.Instructions) {
@@ -622,6 +632,9 @@ func verifyReview(version PersonaVersion, review ReviewRecord) error {
 }
 
 func validateShape(p PersonaProfile) error {
+	if err := validateConsultShape(p); err != nil {
+		return err
+	}
 	if err := agentdocref.Validate(p.DocumentReferences, agentdocref.MaxPersonaReferences); err != nil {
 		return fmt.Errorf("%w: document references: %w", ErrInvalidProfile, err)
 	}
@@ -839,6 +852,7 @@ func cloneProfile(p PersonaProfile) PersonaProfile {
 	p.ExampleQuestions = append([]string(nil), p.ExampleQuestions...)
 	p.DataClassesRead = append([]string(nil), p.DataClassesRead...)
 	p.DataClassesWritten = append([]string(nil), p.DataClassesWritten...)
+	p.Consults = append([]ConsultRef(nil), p.Consults...)
 	return p
 }
 

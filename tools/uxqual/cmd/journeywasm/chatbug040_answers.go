@@ -29,6 +29,8 @@ type personaChatAnswer struct {
 type personaChatActivity struct {
 	Invocations []personaChatInvocation `json:"invocations"`
 	Answers     []personaChatAnswer     `json:"answers"`
+	// Outcomes are how every asker's finished runs ended (#3803).
+	Outcomes []personaChatOutcome `json:"outcomes"`
 }
 
 // chatbug040ApplyAnswers puts the stored private answers that came with the

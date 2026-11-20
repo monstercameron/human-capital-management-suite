@@ -3814,12 +3814,18 @@ func (x *ExecuteJourneyResponse) GetDetail() *JourneyDetail {
 }
 
 type DecideJourneyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	IntentId      string                 `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
-	Approve       bool                   `protobuf:"varint,2,opt,name=approve,proto3" json:"approve,omitempty"`
-	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	IntentId string                 `protobuf:"bytes,1,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	Approve  bool                   `protobuf:"varint,2,opt,name=approve,proto3" json:"approve,omitempty"`
+	Reason   string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	// expected_proposal_revision_id is the proposal revision the approver
+	// reviewed (JourneyDetail.journey.proposal_revision_id). When set, the
+	// decision is refused with FAILED_PRECONDITION unless it is still the
+	// current revision, so a decision never lands on a proposal that changed
+	// after it was read. Empty keeps the unbound behaviour of earlier callers.
+	ExpectedProposalRevisionId string `protobuf:"bytes,4,opt,name=expected_proposal_revision_id,json=expectedProposalRevisionId,proto3" json:"expected_proposal_revision_id,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *DecideJourneyRequest) Reset() {
@@ -3869,6 +3875,13 @@ func (x *DecideJourneyRequest) GetApprove() bool {
 func (x *DecideJourneyRequest) GetReason() string {
 	if x != nil {
 		return x.Reason
+	}
+	return ""
+}
+
+func (x *DecideJourneyRequest) GetExpectedProposalRevisionId() string {
+	if x != nil {
+		return x.ExpectedProposalRevisionId
 	}
 	return ""
 }
@@ -9204,11 +9217,12 @@ const file_hcmnext_journey_v1_journey_service_proto_rawDesc = "" +
 	"\x15ExecuteJourneyRequest\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"S\n" +
 	"\x16ExecuteJourneyResponse\x129\n" +
-	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\"e\n" +
+	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\"\xa8\x01\n" +
 	"\x14DecideJourneyRequest\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\x12\x18\n" +
 	"\aapprove\x18\x02 \x01(\bR\aapprove\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"R\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12A\n" +
+	"\x1dexpected_proposal_revision_id\x18\x04 \x01(\tR\x1aexpectedProposalRevisionId\"R\n" +
 	"\x15DecideJourneyResponse\x129\n" +
 	"\x06detail\x18\x01 \x01(\v2!.hcmnext.journey.v1.JourneyDetailR\x06detail\"o\n" +
 	"\x19AcknowledgeJourneyRequest\x12\x1b\n" +

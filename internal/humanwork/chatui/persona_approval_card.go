@@ -10,7 +10,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentapproval"
 )
 
-const personaApprovalTaskPath = "/workspace/app/agents"
+const personaApprovalTaskPath = agentapproval.AgentsTaskPath
 
 // PersonaApprovalCard is the server-owned, typed projection of one
 // AGENT2-006 approval for an ephemeral chat post. It has no chat approval
@@ -54,11 +54,16 @@ func RenderPersonaApprovalCard(model Model, card PersonaApprovalCard, now time.T
 			children = append(children, html.P(html.Props{Class: field.class, Text: value}))
 		}
 	}
+	children = append(children, issue3971Section(model, card))
 	active := !now.IsZero() && now.Before(card.ExpiresAt)
 	if !active {
 		children = append(children, html.P(html.Props{Class: "persona-approval-expired", Role: "status", Text: personaApprovalText(model, "chat.persona_approval.expired", "This approval is no longer available.")}))
 	} else if href, ok := safePersonaApprovalTaskHref(card.TaskViewHref, values["task_view"]); ok {
-		children = append(children, html.A(html.Props{Class: "persona-approval-task-link", Href: href, Aria: map[string]string{"label": personaApprovalText(model, "chat.persona_approval.open_task", "Open in task view")}}, ui.Text(personaApprovalText(model, "chat.persona_approval.open_task", "Open in task view"))))
+		linkText := personaApprovalText(model, "chat.persona_approval.open_task", "Open in task view")
+		if issue3971FreshReview(card) {
+			linkText = issue3971Text(model, "fresh")
+		}
+		children = append(children, html.A(html.Props{Class: "persona-approval-task-link", Href: href, Aria: map[string]string{"label": linkText}}, ui.Text(linkText)))
 	}
 	return html.Article(html.Props{Class: "persona-chat-approval-card", Role: "region", Aria: map[string]string{"label": label}, Data: map[string]string{
 		"agent-card-kind": "action-approval", "agent-delivery": "ephemeral", "agent-visibility": "invoker",

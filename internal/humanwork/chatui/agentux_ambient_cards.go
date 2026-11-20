@@ -17,9 +17,12 @@ type AgentUXAmbientCard struct {
 	Due                                                                                                         time.Time
 	Fire                                                                                                        []time.Time
 	CanManage, Busy, Editing, Error                                                                             bool
+	// StartHref is where an accepted workflow offer leads: the workflow's own
+	// start page (issue 3805). It carries no message text.
+	StartHref string
 }
 
-const AgentUXAmbientCardStyles = `.agentux-ambient-card{min-width:0;max-width:100%;padding:12px;border-radius:var(--hcm-radius-control);overflow-wrap:anywhere}.agentux-ambient-card>*{min-width:0;max-width:100%}.agentux-ambient-actions{display:flex;flex-wrap:wrap;gap:8px;margin-block-start:10px}.agentux-ambient-card input,.agentux-ambient-card textarea{width:100%;min-width:0;max-width:100%;box-sizing:border-box}.agentux-ambient-card button{white-space:normal;overflow-wrap:anywhere;min-height:40px}.agentux-ambient-card label{display:block;margin-block:8px 4px}.agentux-ambient-card p{margin-block:6px}.agentux-ambient-card a{overflow-wrap:anywhere}`
+const AgentUXAmbientCardStyles = `.agentux-ambient-card{min-width:0;max-width:100%;padding:12px;border-radius:var(--hcm-radius-control);overflow-wrap:anywhere}.agentux-ambient-card>*{min-width:0;max-width:100%}.agentux-ambient-actions{display:flex;flex-wrap:wrap;gap:8px;margin-block-start:10px}.agentux-ambient-card input,.agentux-ambient-card textarea{width:100%;min-width:0;max-width:100%;box-sizing:border-box}.agentux-ambient-card button{white-space:normal;overflow-wrap:anywhere;min-height:40px}.agentux-ambient-card label{display:block;margin-block:8px 4px}.agentux-ambient-card p{margin-block:6px}.agentux-ambient-card a{overflow-wrap:anywhere}.agentux-workflow-offer button,.agentux-workflow-offer a.button{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none}`
 
 // RenderAgentUXAmbientCard takes only the server's recipient-filtered cards.
 // The local check is a second fence, not a replacement for server filtering.
@@ -37,6 +40,9 @@ func RenderAgentUXAmbientCard(m Model, c AgentUXAmbientCard) ui.Node {
 		c.Ask = ""
 		c.Lead = ""
 		c.Editing = false
+	}
+	if c.Kind == "WORKFLOW_START" {
+		return renderAgentUXAmbientWorkflowCard(m, c)
 	}
 	key := "channel_task"
 	if c.Kind == "REMINDER" {

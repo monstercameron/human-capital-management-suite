@@ -93,8 +93,16 @@ func (s *Service) InviteGroupMember(ctx context.Context, r AddMembershipRequest)
 	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
 		return Membership{}, err
 	}
-	if !s.activeGroupManager(ctx, r.Principal, c) {
+	// Issue 3812: in a conversation bound to a case, the case owner invites.
+	caseBound, caseOwner, err := s.caseRoster(ctx, r.Principal, c)
+	if err != nil {
+		return Membership{}, err
+	}
+	if !caseOwner && !s.activeGroupManager(ctx, r.Principal, c) {
 		return Membership{}, ErrPermissionDenied
+	}
+	if err := caseRosterRefusal(caseBound, caseOwner); err != nil {
+		return Membership{}, err
 	}
 	if m.HomeTenantID == r.Principal.TenantID && m.SubjectID == r.Principal.SubjectID {
 		return Membership{}, ErrInvalidArgument
@@ -103,6 +111,10 @@ func (s *Service) InviteGroupMember(ctx context.Context, r AddMembershipRequest)
 	m.JoinedAt = timePtr(s.now())
 	m.LeftAt = nil
 	m.HistoryVisibility = FromJoin
+	// Issue 3783: an invite is a way in like any other.
+	if err := s.checkMembershipBarrier(ctx, m.TenantID, m.ConversationID, homeSubjects(m.TenantID, m)); err != nil {
+		return Membership{}, err
+	}
 	return s.store.PutMembership(ctx, r.Principal, m)
 }
 
@@ -123,8 +135,20 @@ func (s *Service) RevokeGroupMember(ctx context.Context, r RemoveMembershipReque
 	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
 		return Membership{}, err
 	}
-	if !s.activeGroupManager(ctx, r.Principal, c) {
+	caseBound, caseOwner, err := s.caseRoster(ctx, r.Principal, c)
+	if err != nil {
+		return Membership{}, err
+	}
+	if !caseOwner && !s.activeGroupManager(ctx, r.Principal, c) {
 		return Membership{}, ErrPermissionDenied
+	}
+	if caseBound {
+		// Issue 3812: only the case owner revokes, and never the case owner.
+		if targetOwner, err := s.caseOwnerIs(ctx, c, r.SubjectID); err != nil {
+			return Membership{}, err
+		} else if targetOwner || !caseOwner {
+			return Membership{}, &CaseRestrictionError{Action: CaseActionMembership}
+		}
 	}
 	return s.store.RemoveMembership(ctx, r.Principal, c.TenantID, c.ID, r.HomeTenantID, r.SubjectID, r.ExpectedRevision)
 }

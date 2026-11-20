@@ -122,6 +122,11 @@ func (b *agentUXAmbientBrowser) request(conversation, action string, input any) 
 		if b.changed != nil && applied {
 			b.changed(state.Snapshot, state.Failed)
 		}
+		// Issue 3805: accepting a workflow offer takes the person to the
+		// workflow's own start page, where they review and submit it themselves.
+		if href := ambientWorkflowStartTarget(command, state.Snapshot, applied && err == nil); href != "" {
+			js.Global().Get("location").Set("href", href)
+		}
 	}()
 }
 

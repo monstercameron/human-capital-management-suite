@@ -325,6 +325,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			row := &persona.VersionHistory[i]
 			resolved, resolveErr := resolvePersonaAdminDocumentReferences(ctx, s.Documents, string(tenant), p.Subject(), row.DocumentReferences)
 			if resolveErr != nil {
+				logPersonaAdminDocumentsFailure("version_history", resolveErr)
 				out.DocumentsState.Unavailable = true
 				row.Documents = nil
 			} else {
@@ -385,6 +386,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 		}
 		persona.DocumentReferences, err = resolvePersonaAdminDocumentReferences(ctx, s.Documents, string(tenant), p.Subject(), profile.DocumentReferences)
 		if err != nil {
+			logPersonaAdminDocumentsFailure("references", err)
 			out.DocumentsState.Unavailable = true
 			persona.DocumentReferences = nil
 		} else if lineReader, ok := s.Documents.(interface {
@@ -456,6 +458,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 			if documents, ok := s.Documents.(PersonaAdminPlacementDocumentReader); ok {
 				count, titles, readErr := agentux034MemberDocuments(ctx, documents, string(tenant), p.Subject(), target, in.ConversationID)
 				if readErr != nil {
+					logPersonaAdminDocumentsFailure("placement_documents", readErr)
 					out.DocumentsState.Unavailable = true
 				} else {
 					installation.OfficialDocumentCount = &count
@@ -470,6 +473,7 @@ func (s *PersonaAdminCatalogService) Snapshot(ctx context.Context, req productui
 	// AGENTUX-3757: with no agents there are no reference documents to read, so a
 	// missing document reader is not a failed load and shows no retry banner.
 	if s.Documents == nil && len(out.Personas) > 0 {
+		logPersonaAdminDocumentsFailure("reader_not_wired", nil)
 		out.DocumentsState.Unavailable = true
 	}
 	if s.Targets != nil && s.Installations != nil && s.Skills != nil && s.Grants != nil && len(users) > 0 && len(conversations) > 0 {

@@ -48,6 +48,9 @@ var agentux066Copy = map[string]map[string]string{
 // ambientAgentName names an agent that reads messages here: its display name in
 // the room's directory, else its identifier written as words.
 func ambientAgentName(m Model, id string) string {
+	if id == "workflow-offer" {
+		return laneText(m, issue3805WorkflowOfferCopy, keyWorkflowOfferAgent)
+	}
 	for _, persona := range m.ResolvedPersonaMentions {
 		if persona.Reference.ID == id && strings.TrimSpace(persona.Reference.Display) != "" {
 			return persona.Reference.Display

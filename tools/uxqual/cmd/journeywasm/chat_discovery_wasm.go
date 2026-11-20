@@ -49,12 +49,20 @@ func withChatDiscoveryCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 		})
 		refreshChatRoute()
 	}
+	callbacks.LoadFindChannels = func() { startChatFindChannels(cfg) }
 	callbacks.OpenSearchChannel = func(id string) {
 		model := chatBrowser.snapshot()
 		name := ""
-		for _, channel := range model.SearchChannels {
-			if channel.ID == id {
-				name = channel.Name
+		// A channel found by the contact finder (issue 3963) is a browse or finder
+		// row rather than a search result; all three open the same way.
+		for _, list := range [][]chatui.Conversation{model.SearchChannels, model.FindChannels, model.Browse} {
+			for _, channel := range list {
+				if channel.ID == id {
+					name = channel.Name
+					break
+				}
+			}
+			if name != "" {
 				break
 			}
 		}

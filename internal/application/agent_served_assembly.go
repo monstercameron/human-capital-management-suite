@@ -99,6 +99,7 @@ type agentServedAssembly struct {
 	ProjectSkill       *AgentProjectSkill
 	Restore            AgentRestoreRuntime
 	agentUX            agentUXServed
+	ambientWorkflows   AgentUXAmbientWorkflowCatalog
 	browserLogin       bool
 	publicOrigin       string
 	now                func() time.Time

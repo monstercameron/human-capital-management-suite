@@ -34,6 +34,9 @@ type Dependencies struct {
 	// host this service before the engine is wired - the same rule
 	// internal/transport/admin applies to each of its optional ports.
 	Engine workspace.JourneyEngine
+	// Announcer is told after each accepted decision so a conversation the
+	// journey was shared into can say it was decided (#3728). Nil is valid.
+	Announcer workspace.JourneyDecisionAnnouncer
 	// Preferences is the authenticated product-workspace preference store.
 	// The handler derives tenant and principal from trusted context before
 	// forwarding, so the wire contract cannot select another user's record.
@@ -709,9 +712,19 @@ func (s *server) DecideJourney(ctx context.Context, req *journeyv1.DecideJourney
 	detail, err := eng.Decide(ctx, req.GetIntentId(), workspace.Decision{
 		Approve: req.GetApprove(),
 		Reason:  req.GetReason(),
+
+		ExpectedProposalRevisionID: req.GetExpectedProposalRevisionId(),
 	})
 	if err != nil {
 		return nil, ownedError(err, principal, inv, "decide")
+	}
+	// The decision is durable; telling the conversations it was shared into is
+	// a courtesy that cannot fail it (#3728).
+	if s.deps.Announcer != nil {
+		s.deps.Announcer.AnnounceJourneyDecision(ctx, workspace.JourneyDecisionEvent{
+			IntentID: req.GetIntentId(), Approve: req.GetApprove(),
+			Stage: detail.Summary.Stage, ProposalRevisionID: detail.Summary.ProposalRevisionID,
+		})
 	}
 	return &journeyv1.DecideJourneyResponse{Detail: toDetail(detail, auth.diagnosticsAuthorized(ctx))}, nil
 }

@@ -356,6 +356,15 @@ func (e *journeyEngine) Decide(ctx context.Context, intentID string, d workspace
 	if simulated.Revision == nil {
 		return workspace.JourneyDetail{}, fmt.Errorf("%w: executable simulation returned no minted proposal revision", workspace.ErrJourneyStage)
 	}
+	// #3724: a decision made against a reviewed revision lands only on that
+	// revision. The current revision comes from the re-simulation above, the
+	// same source the journey read reports, so a proposal edited after the
+	// approver read it is refused before anything is claimed or completed.
+	if expected := strings.TrimSpace(d.ExpectedProposalRevisionID); expected != "" && expected != artifact.GetProposalRevisionId() {
+		phase = "stale_revision"
+		return workspace.JourneyDetail{}, fmt.Errorf(
+			"%w: the proposal changed after it was reviewed; review the current proposal before deciding", workspace.ErrJourneyStage)
+	}
 	phase = "prepare"
 	start, startErr := e.svc.executionStart(inst, artifact, journeyApprovalRef(intentID), *simulated.Revision)
 	if startErr != nil {

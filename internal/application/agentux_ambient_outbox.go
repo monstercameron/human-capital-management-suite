@@ -50,8 +50,17 @@ func (w AgentUXAmbientOutbox) Drain(ctx context.Context, tenant string) error {
 					return err
 				}
 			}
-			for _, agent := range []string{"task-catcher", "reminder"} {
+			agents := []string{"task-catcher", "reminder"}
+			if w.Service.Model == nil {
+				agents = nil
+			}
+			for _, agent := range agents {
 				if err = w.Service.ProcessMessage(ctx, tenant, e.conversation, e.source, agent, zone); err != nil {
+					return err
+				}
+			}
+			if w.Service.Workflows != nil {
+				if err = w.Service.ProcessWorkflowOffer(ctx, tenant, e.conversation, e.source); err != nil {
 					return err
 				}
 			}

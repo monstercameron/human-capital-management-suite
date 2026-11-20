@@ -1611,6 +1611,8 @@ func detailView(p Page, v DetailView) ui.Node {
 		html.Div(html.Props{Class: "jn-detail-toolbar"},
 			detailNavigationLocale(p.Locale, v),
 			productui.ProjectJourneyActions(p.Locale, v.Journey.WorkerName, valueOrJourneyCapabilities(p.JourneyCapabilities))),
+		journeyDiscussedSlot(p),
+		journeyClarifySlot(p),
 		heroSectionLocale(p.Locale, v.Journey, v.Diagnostics),
 		outcomeReasonSectionLocale(p.Locale, v),
 		progressSummarySectionLocale(p.Locale, v.Progress),
