@@ -1,3 +1,12 @@
+## 2026-11-19 — Chat storage and test fixtures: six repairs (6 issues)
+
+- Chat identity lookups no longer copy protobuf state, so the Go quality check passes. (#63, already in place; regression test added)
+- Resetting the demo chat data no longer fails when posts have source classifications. (#89, already in place; regression test added)
+- Chat storage tenant-isolation checks now cover the location and voice setting tables. (#95, already in place; regression test added)
+- The chat contention performance test now always uses its own isolated test database. (#96, already in place; regression test added)
+- Sidebar unread counts no longer re-check chat history on every refresh after you send a message. (#97)
+- Chat performance tests no longer fail on Windows when the test database would be created in a very long folder path. (#98)
+
 ## 2026-11-19 — Chat admin: country and retention forms say what is wrong (3 issues)
 
 - The country form on chat location settings now rejects unknown countries and symbols with a clear message that names the accepted formats. (#3699)

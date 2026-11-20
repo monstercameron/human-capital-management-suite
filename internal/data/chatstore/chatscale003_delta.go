@@ -59,9 +59,17 @@ var chatscaleCachedSQL = chatscaleReaders + `,
  ORDER BY p.sequence DESC LIMIT $5) p
  WHERE c.head>c.head_sequence GROUP BY c.conversation_id
  ), cached AS MATERIALIZED (
- SELECT c.conversation_id,c.unread+COALESCE(a.unread,0) AS unread,c.mentions+COALESCE(a.mentions,0) AS mentions
+ SELECT c.conversation_id,c.unread+COALESCE(a.unread,0) AS unread,c.mentions+COALESCE(a.mentions,0) AS mentions,
+ c.head,c.head_sequence,c.window_rows+COALESCE(a.unread,0) AS window_rows
  FROM cached0 c LEFT JOIN added a USING (conversation_id)
  WHERE c.window_rows+COALESCE(a.unread,0)<=$5
+ ), advanced AS (
+ -- A row whose conversation moved on (the person's own sends and posts they
+ -- cannot count move the head without adding unread) is saved at the head it was
+ -- just counted to, so the next read finds it current and probes no history.
+ UPDATE chatscale_read_state s SET unread=c.unread,mentions=c.mentions,head_sequence=c.head,window_rows=c.window_rows
+ FROM cached c WHERE c.head>c.head_sequence AND s.tenant_id=$1 AND s.home_tenant_id=$2 AND s.member_id=$3
+ AND s.conversation_id=c.conversation_id RETURNING s.conversation_id
  ), missing AS MATERIALIZED (
  SELECT r.* FROM reader r WHERE NOT EXISTS(SELECT 1 FROM cached c WHERE c.conversation_id=r.conversation_id)
  ), counted AS MATERIALIZED (

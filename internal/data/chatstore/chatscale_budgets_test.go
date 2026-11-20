@@ -299,6 +299,11 @@ func chatscaleSidebarBudget(t *testing.T, s *Store) {
 				if n.Rows*n.Loops > 0 {
 					return fmt.Errorf("warm sidebar reads %v history rows: %s", n.Rows*n.Loops, raw)
 				}
+				// Issue #97: the contract is that no probe runs at all, not
+				// that the probe returns nothing.
+				if n.Loops > 0 {
+					return fmt.Errorf("warm sidebar executes %v history probes (%v rows): %s", n.Loops, n.Rows*n.Loops, raw)
+				}
 			}
 			for _, c := range n.Children {
 				if err := walk(c); err != nil {

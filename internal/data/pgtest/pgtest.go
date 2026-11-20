@@ -238,7 +238,7 @@ func startEmbedded() (string, func() error, error) {
 	// Earlier test processes that died before their stop function ran leave
 	// their runtime directories behind; reclaim the abandoned ones first.
 	sweepStaleRuntimes(os.TempDir(), staleRuntimeAge, time.Now())
-	runtimePath, err := os.MkdirTemp("", runtimePrefix)
+	runtimePath, err := createRuntimeParentDir(runtime.GOOS)
 	if err != nil {
 		return "", nil, fmt.Errorf("create runtime directory: %w", err)
 	}

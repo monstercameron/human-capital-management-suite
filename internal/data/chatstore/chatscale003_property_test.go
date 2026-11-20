@@ -291,8 +291,19 @@ func TestTodo_CHATSCALE_003_Integration_SendKeepsCache(t *testing.T) {
 		t.Fatalf("after one send unread=%d want %d", got.Unread, first.Unread+1)
 	}
 	state()
-	if stamped != was || stamped >= head {
-		t.Fatalf("the cached row was recounted: head stamp %d -> %d, head %d", was, stamped, head)
+	// The delta serves the new post and then stamps the row at the head it was
+	// counted to (issue #97), so the next read probes no history.
+	if stamped <= was || stamped != head {
+		t.Fatalf("the cached row was not advanced by the delta: head stamp %d -> %d, head %d", was, stamped, head)
+	}
+	var window int64
+	if err := s.RunTenantTx(ctx, chatscaleTenant, func(tx dbport.Tx) error {
+		return tx.QueryRow(ctx, `SELECT window_rows FROM chatscale_read_state WHERE tenant_id=$1 AND conversation_id='c3-room-0'`, chatscaleTenant).Scan(&window)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if window != int64(first.Unread)+1 {
+		t.Fatalf("window_rows=%d after the delta, want %d", window, first.Unread+1)
 	}
 	// An edit still invalidates, and the recount stamps the new head.
 	w.exec(`UPDATE chat_post SET tombstoned=true,revision=revision+1,updated_at=now() WHERE tenant_id=$1 AND id='c3-late'`, chatscaleTenant)
