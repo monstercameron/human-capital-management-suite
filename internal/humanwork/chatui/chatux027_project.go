@@ -35,7 +35,7 @@ func chatux027RoleChange(e ui.ChangeEvent, m Model) {
 // has left the roster is not shown, even if a stale read still names them.
 func chatux027RoleRows(m Model, h handlers, parts *channelWidgetParts) (rows []ui.Node, people int) {
 	disabled := parts.Disabled || m.Callbacks.SetChannelTeamRoleLabel == nil
-	query := strings.ToLower(strings.TrimSpace(m.MemberQuery))
+	query := strings.ToLower(strings.TrimSpace(h.local.roleQuery))
 	for i, member := range m.ChannelTeam.Members {
 		present := false
 		for _, current := range m.Members {
@@ -73,13 +73,16 @@ func chatux027RoleRows(m Model, h handlers, parts *channelWidgetParts) (rows []u
 func chatux027RolesBody(m Model, h handlers, parts *channelWidgetParts) ui.Node {
 	rows, people := chatux027RoleRows(m, h, parts)
 	children := []ui.Node{chatux027Help(m.t(KeyTeamNote))}
-	if people > 8 || m.MemberQuery != "" {
+	if people > 8 || h.local.roleQuery != "" {
 		children = append(children, html.Div(html.Props{Class: "member-filter"},
 			html.Label(html.Props{Class: "sr-only", For: "role-filter", Text: m.t(KeyMemberFilter)}),
 			icon("search"),
-			html.Input(html.Props{ID: "role-filter", Class: "chat-search", Type: "search", Placeholder: m.t(KeyMemberFilter), Data: map[string]string{"chat-value": m.MemberQuery}, AutoComplete: "off", OnInput: h.memberFilter})))
+			html.Input(html.Props{ID: "role-filter", Class: "chat-search", Type: "search", Placeholder: m.t(KeyMemberFilter), Data: map[string]string{"chat-value": h.local.roleQuery, "action": issue3881RoleFilterAction}, AutoComplete: "off", OnInput: h.detailsInput})))
 	}
 	children = append(children, html.Ul(html.Props{Class: "manage-role-list"}, rows...))
+	if strings.TrimSpace(h.local.roleQuery) != "" && len(rows) == 0 {
+		children = append(children, html.P(html.Props{Class: "member-empty", Role: "status", Text: strings.ReplaceAll(chatux005Text(m, "no_match"), "{query}", strings.TrimSpace(h.local.roleQuery))}))
+	}
 	return html.Div(html.Props{}, children...)
 }
 
@@ -110,7 +113,7 @@ func chatux027MilestoneAdder(m Model, h handlers, parts *channelWidgetParts) ui.
 	open := chatux027IsOpen(h.local, scope, "milestone", false)
 	label := laneText(m, chatux027Copy, chatux027KeyAddMilestone)
 	disabled := parts.Disabled
-	toggle := html.Button(html.Props{Class: "button secondary small", Type: "button", Text: label,
+	toggle := html.Button(html.Props{ID: issue3882MilestoneToggleID, Class: "button secondary small", Type: "button", Text: label,
 		Data: map[string]string{"action": "manage-section", "id": "milestone", "extra": scope + ":" + map[bool]string{true: "1", false: "0"}[open]},
 		Aria: map[string]string{"expanded": boolString(open), "controls": "chat-manage-milestone-add"}})
 	var fields ui.Node

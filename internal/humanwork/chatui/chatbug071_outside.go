@@ -115,7 +115,7 @@ func chatbug071NamedIn(text, name string) bool {
 func (s mentionStore) reconcileOutsiders(target, value string) bool {
 	kept := s.box.outsiders[:0]
 	for _, item := range s.box.outsiders {
-		if item.Target == target && !chatbug071NamedIn(value, item.Reference.Display) {
+		if item.Target == target && s.inOpenConversation(item) && !chatbug071NamedIn(value, item.Reference.Display) {
 			continue
 		}
 		kept = append(kept, item)
@@ -172,6 +172,7 @@ func (s mentionStore) SettleOutsiders(m Model) []personaDraftMention {
 	if s.box == nil {
 		return nil
 	}
+	s.recoverDraftMentions(m)
 	if len(m.Members) > 0 {
 		kept := s.box.personas[:0]
 		for _, item := range s.box.personas {

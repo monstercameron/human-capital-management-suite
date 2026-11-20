@@ -167,11 +167,15 @@ func TestTodo_CHATMOD_002_AuthorKeepsFailedText(t *testing.T) {
 	if box := s.keepFailedText("c1", "", "a message"); box != "chat-composer" || s.snapshot().Draft != "a message" {
 		t.Fatalf("main composer: box=%q draft=%q", box, s.snapshot().Draft)
 	}
+	s.setThreadDraft("root", "an unsent reply")
 	model := s.snapshot()
 	swapChatDraft(&model, map[string]string{}, "c2")
-	if model.ThreadDrafts != nil {
-		t.Fatal("a thread draft followed the author into another conversation")
+	// #3904: a thread draft is kept by its root message for the way back; it is
+	// shown only while that thread is open.
+	if model.ThreadDrafts["root"] != "an unsent reply" {
+		t.Fatalf("thread drafts changed on a conversation switch: %v", model.ThreadDrafts)
 	}
+	s.setThreadDraft("root", "")
 	for key, want := range map[string]string{"reply:root": "root", "composer:c1": ""} {
 		if parent, ok := chatmod002KeyParent(key); !ok || parent != want {
 			t.Errorf("%s: parent=%q ok=%v", key, parent, ok)

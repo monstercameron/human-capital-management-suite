@@ -134,7 +134,7 @@ func chatlangW10Click(m Model, local localStore, action, id string) bool {
 // reads them in. ISSUE-3690: selected is the language the query already names,
 // so the choice mirrors the active filter ("" is Any language).
 func chatsearchWrittenControl(locale, selected string) ui.Node {
-	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: chattoneW10Text(locale, "search_any_language")})}
+	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: selected == "", Text: chattoneW10Text(locale, "search_any_language")})}
 	for _, tag := range []string{"en", "de", "fr", "es", "pt", "ar", "ja", "hi"} {
 		options = append(options, html.Option(html.Props{Value: tag, Selected: tag == selected, Text: chatlangLanguageName(locale, tag)}))
 	}

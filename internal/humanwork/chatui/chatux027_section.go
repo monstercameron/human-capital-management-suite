@@ -116,6 +116,11 @@ func chatux027Click(e ui.MouseEvent, local localStore) bool {
 	}
 	group, state := extra[:cut], extra[cut+1:]
 	local.update(func(u *localUI) { u.toggleSection(group, id, state == "1") })
+	// Issue 3882: a Cancel inside the row that closes leaves focus on nothing;
+	// it goes back to the control that opened the row.
+	if target := issue3882ReturnFocusID(id, state); target != "" {
+		focusField(target)
+	}
 	return true
 }
 

@@ -27,6 +27,13 @@ package chatui
 // More inside the row (styles.go), so these rules are for 768 px and up with a
 // pointer that can hover.
 //
+// #3845: reaching up over the gap was not enough room. The bar is taller than
+// the gap and the message above's bottom padding together, so it hid the last
+// words of that message's final line while the pointer rested on the row below.
+// Every row now keeps its bar inside itself, 4 px under its top edge, as the
+// first row and the row under a divider already did, and the author line keeps
+// the room the bar takes (196 px, 84 px in a narrow column).
+//
 // CHATBUG-097: a message right under a date or unread divider keeps its bar
 // inside its own row, like the list's first message: the bar reaches up over
 // the gap by design, and without this it is drawn across the divider. The
@@ -37,14 +44,15 @@ package chatui
 // rule that placed the bar before, so that they win wherever they are joined.
 const ChatBug076Styles = `
 @media(min-width:768px) and (pointer:fine){
-.chat-workspace .message-list .message .message-actions{top:4px;transform:translateY(-100%)}
-.chat-workspace .message-list .message .message-meta{padding-inline-end:0}
+.chat-workspace .message-list .message .message-actions{top:4px;transform:none}
+.chat-workspace .message-list .message .message-meta{padding-inline-end:196px}
 .chat-workspace .message-list .message.continued:has(>.message-actions){background:color-mix(in srgb,var(--hcm-color-text) 7%,transparent)}
 .chat-workspace .message-list>.message:first-of-type .message-actions,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-actions{top:4px;transform:none}
 .chat-workspace .message-list>.message:first-of-type .message-meta,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-meta{padding-inline-end:196px}
 .chat-workspace .message-list>.day-divider + .message .message-actions,.chat-workspace .message-list>.unread-divider + .message .message-actions,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-actions,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-actions{top:4px;transform:none}
 .chat-workspace .message-list>.day-divider + .message .message-meta,.chat-workspace .message-list>.unread-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-meta{padding-inline-end:196px}
 @container chatmain (max-width:560px){
+.chat-workspace .message-list .message .message-meta{padding-inline-end:84px}
 .chat-workspace .message-list>.message:first-of-type .message-meta,.chat-workspace .message-list>[data-virtual-spacer="before"]+.virtual-row>.message .message-meta{padding-inline-end:84px}
 .chat-workspace .message-list>.day-divider + .message .message-meta,.chat-workspace .message-list>.unread-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.day-divider + .message .message-meta,.chat-workspace .message-list .virtual-row>.unread-divider + .message .message-meta{padding-inline-end:84px}
 }

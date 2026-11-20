@@ -8,6 +8,8 @@ import (
 )
 
 func chatcmd003UIFixture() Model {
+	// Every test starts with no draft settings kept from an earlier one (#3906).
+	chatcmd003KeptReset()
 	return Model{SelectedID: "room", CurrentUser: "me", Locale: "en-US", State: StateReady, Conversations: []Conversation{{ID: "room", Kind: PublicChannel, Name: "general", Joined: true}}, Members: []Member{{ID: "me", Name: "Author", HomeTenantID: "t"}, {ID: "dana", Name: "Dana", HomeTenantID: "t"}}}
 }
 

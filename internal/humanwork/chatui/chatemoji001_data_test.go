@@ -72,6 +72,7 @@ var emojiReferenceList = []emojiReference{
 	emojiRef("house", "travel-places", false, 0x1F3E0),
 	emojiRef("automobile", "travel-places", false, 0x1F697),
 	emojiRef("airplane", "travel-places", false, 0x2708, 0xFE0F),
+	emojiRef("rocket", "travel-places", false, 0x1F680),
 	emojiRef("sun", "travel-places", false, 0x2600, 0xFE0F),
 	emojiRef("star", "travel-places", false, 0x2B50),
 	emojiRef("fire", "travel-places", false, 0x1F525),

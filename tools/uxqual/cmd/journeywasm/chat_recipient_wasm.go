@@ -965,6 +965,13 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		layout.FavoritesCollapsed = model.FavoritesCollapsed
 		reportWriteError := func(err error) {
 			if recipientGenerationActive(generation) {
+				// Issue 3950: edits that exist only on this page are said, kept
+				// on screen, retried on their own and guarded against a reload.
+				if chatBrowser.noteDraftSaveFailed() {
+					chatDraftWriterFor(cfg).Retry()
+					setChatDraftUnloadGuard(true)
+					refreshChatRoute()
+				}
 				if chatside001Failed() {
 					return
 				}
@@ -1059,6 +1066,12 @@ func persistChatRecipientSidebar(cfg journeyclient.Config, model chatui.Model, d
 		takePendingSidebarRetry()
 		chatside001Confirmed()
 		chatBrowser.markDraftsPersisted(draftRevision, cfg, draftEpoch)
+		chatDraftWriterFor(cfg).Succeeded()
+		cleared := chatBrowser.clearDraftSaveFailure()
+		setChatDraftUnloadGuard(chatBrowser.draftsUnsaved())
+		if cleared {
+			refreshChatRoute()
+		}
 		chatRecipientBrowser.Lock()
 		if generation != chatRecipientBrowser.generation {
 			chatRecipientBrowser.Unlock()

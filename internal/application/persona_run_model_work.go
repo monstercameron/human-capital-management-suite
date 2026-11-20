@@ -21,6 +21,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentpersona"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentrun"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentsystem/runstate"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/agentstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/kernel/values"
 	trustdlp "github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
@@ -192,7 +193,7 @@ func (s *DatabasePersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context
 		// limit would make every continuation ineligible.
 	}
 	done = agentUXSpeedEvent(ctx, "store.thread_context")
-	goal, history, refs, err := s.readThreadContext(ctx, admission, profile, route.ThreadClass)
+	goal, history, refs, attachments, err := s.readThreadContextBody(ctx, admission, profile, route.ThreadClass)
 	done()
 	if err != nil {
 		return PersonaRunModelWork{}, err
@@ -216,7 +217,7 @@ func (s *DatabasePersonaRunModelWorkSource) BuildPersonaRunModelWork(ctx context
 	if err := validateExecutorRequest(request); err != nil {
 		return PersonaRunModelWork{}, fmt.Errorf("%w: generated executor binding: %v", errPersonaRunModelWork, err)
 	}
-	return PersonaRunModelWork{Request: request, Facts: facts, HasFacts: withFacts, General: personaAnswersGenerally(profile)}, nil
+	return PersonaRunModelWork{Request: request, Facts: facts, HasFacts: withFacts, General: personaAnswersGenerally(profile), Attachments: attachments}, nil
 }
 
 func validatePersonaModelWorkBinding(admission agentrun.Record, run runstate.Run) error {
@@ -343,10 +344,17 @@ func (s *DatabasePersonaRunModelWorkSource) resolveRoute(ctx context.Context, ad
 }
 
 func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Context, admission agentrun.Record, profile agentpersona.PersonaProfile, class trustdlp.DataClass) (string, []string, []agentmodel.ContextReference, error) {
+	goal, history, refs, _, err := s.readThreadContextBody(ctx, admission, profile, class)
+	return goal, history, refs, err
+}
+
+// readThreadContextBody is readThreadContext and also says what became of the
+// files attached to the posts it read (issue 3961).
+func (s *DatabasePersonaRunModelWorkSource) readThreadContextBody(ctx context.Context, admission agentrun.Record, profile agentpersona.PersonaProfile, class trustdlp.DataClass) (string, []string, []agentmodel.ContextReference, chat.AttachmentReceipt, error) {
 	request := admission.Request
 	posts, err := disclosePersonaThreadPosts(ctx, s.threads, s.now, admission, string(class))
 	if err != nil || len(posts) == 0 || len(posts) > agentinvoke.MaxThreadPosts {
-		return "", nil, nil, fmt.Errorf("%w: authorized thread context unavailable", errPersonaRunModelWork)
+		return "", nil, nil, chat.AttachmentReceipt{}, fmt.Errorf("%w: authorized thread context unavailable", errPersonaRunModelWork)
 	}
 	goal := ""
 	history := make([]string, 0, len(posts))
@@ -354,7 +362,7 @@ func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Contex
 	invokingPostSeen := false
 	for _, post := range posts {
 		if post.TenantID != request.Source.TenantID || post.ConversationID != request.Audience.ID || post.ThreadID != request.Context.ID || strings.TrimSpace(post.ID) == "" {
-			return "", nil, nil, fmt.Errorf("%w: thread snapshot escaped admitted scope", errPersonaRunModelWork)
+			return "", nil, nil, chat.AttachmentReceipt{}, fmt.Errorf("%w: thread snapshot escaped admitted scope", errPersonaRunModelWork)
 		}
 		if !invokingPostSeen && post.ID == request.Source.Ref && post.AuthorID == request.Principal.InvokerID && !post.Bot {
 			// Where the answer goes is the asker's request, not part of the
@@ -367,12 +375,12 @@ func (s *DatabasePersonaRunModelWorkSource) readThreadContext(ctx context.Contex
 		refs = append(refs, agentmodel.ContextReference{ID: post.ID, Version: "thread", Digest: digestPersonaThreadPost(post)})
 	}
 	if strings.TrimSpace(goal) == "" {
-		return "", nil, nil, fmt.Errorf("%w: invoking user message missing from thread snapshot", errPersonaRunModelWork)
+		return "", nil, nil, chat.AttachmentReceipt{}, fmt.Errorf("%w: invoking user message missing from thread snapshot", errPersonaRunModelWork)
 	}
 	if strings.TrimSpace(profile.Instructions) == "" || profile.InstructionsDigest == "" {
-		return "", nil, nil, fmt.Errorf("%w: persona instructions are unavailable", errPersonaRunModelWork)
+		return "", nil, nil, chat.AttachmentReceipt{}, fmt.Errorf("%w: persona instructions are unavailable", errPersonaRunModelWork)
 	}
-	return goal, history, refs, nil
+	return goal, history, refs, personaThreadAttachmentReceipt(posts), nil
 }
 
 func (s *DatabasePersonaRunModelWorkSource) buildExecutorRequest(ctx context.Context, admission agentrun.Record, run runstate.Run, profile agentpersona.PersonaProfile, manifest agentmanifest.Manifest, route PersonaRunModelRoute, budget PersonaRunEffectivePolicy, goal string, history []string, refs []agentmodel.ContextReference) (AgentModelExecutorRequest, error) {

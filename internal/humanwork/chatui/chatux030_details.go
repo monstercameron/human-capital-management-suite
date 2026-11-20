@@ -54,18 +54,21 @@ func chatux030Gate(m Model) ui.Node {
 
 // chatux030PeopleWindow keeps the first rows of a long member list and offers
 // the rest behind a button. A filtered list is never cut: whoever typed a name
-// wants every match.
-func chatux030PeopleWindow(m Model, h handlers, rows []ui.Node, filtered bool) ([]ui.Node, ui.Node) {
+// wants every match. It returns the first rows, the button, and the rows the
+// button reveals (nil while collapsed). The button always sits between the two
+// groups, so after Enter on it the next Tab lands on the first revealed person
+// (ISSUE-3893).
+func chatux030PeopleWindow(m Model, h handlers, rows []ui.Node, filtered bool) (first []ui.Node, more ui.Node, revealed []ui.Node) {
 	if filtered || len(rows) <= chatux030MembersVisible {
-		return rows, nil
+		return rows, nil, nil
 	}
 	all := h.local.detailGroups[chatux030MembersKey]
 	label := laneTextf(m, chatux030Copy, chatux030KeyShowAll, map[string]string{"n": strings.TrimSpace(m.n(len(rows)))})
+	first = rows[:chatux030MembersVisible]
 	if all {
 		label = laneText(m, chatux030Copy, chatux030KeyShowFewer)
-	} else {
-		rows = rows[:chatux030MembersVisible]
+		revealed = rows[chatux030MembersVisible:]
 	}
-	return rows, html.Button(html.Props{Class: "button secondary small details-members-more", Type: "button", Text: label,
-		Data: map[string]string{"action": "details-group", "id": chatux030MembersKey}, Aria: map[string]string{"expanded": boolString(all)}})
+	return first, html.Button(html.Props{Class: "button secondary small details-members-more", Type: "button", Text: label,
+		Data: map[string]string{"action": "details-group", "id": chatux030MembersKey}, Aria: map[string]string{"expanded": boolString(all)}}), revealed
 }

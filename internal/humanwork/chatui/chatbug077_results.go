@@ -171,11 +171,13 @@ func chatsearchResult(m Model, people chatsearchPeople, row chatsearch.Row, word
 	label := chatsearchText(locale, "open") + ": " + wherePlain
 
 	var main ui.Node
+	snippetID := ""
 	text := html.Div(html.Props{Class: "chatsearch-text", Dir: "auto"}, highlightText(chatDisplayText(row.Text), words)...)
 	switch {
 	case chatsearchMessageKey(row) != "":
 		var summary string
-		main, summary = chatsearchMessageBody(m, people, row, words, saved)
+		snippetID = issue3941SnippetID(data["target"], data["kind"])
+		main, summary = chatsearchMessageBody(m, people, row, words, saved, snippetID)
 		if summary != "" {
 			label += " · " + summary
 		}
@@ -185,19 +187,26 @@ func chatsearchResult(m Model, people chatsearchPeople, row chatsearch.Row, word
 		label = chatsearchText(locale, "open") + ": " + chatsearchKind(locale, row.Kind)
 		main = html.Div(html.Props{Class: "chatsearch-plain"}, text)
 	default:
+		// #3898: the file's own name is part of the control's accessible name.
+		label = issue3898Label(locale, row, wherePlain)
 		line := []ui.Node{html.Strong(html.Props{Class: "chatsearch-kind", Text: chatsearchKind(locale, row.Kind)})}
 		if row.Private {
 			line = append(line, html.Span(html.Props{Class: "chatsearch-private", Text: chatsearchText(locale, "only")}))
 		}
 		main = html.Div(html.Props{Class: "chatsearch-plain"}, html.Div(html.Props{Class: "chatsearch-meta"}, line...), text)
 	}
-	open := html.Button(html.Props{Type: "button", Class: "chatsearch-open", Data: data, Aria: map[string]string{"label": label}}, whereNodes...)
+	openAria := map[string]string{"label": label}
+	if snippetID != "" {
+		// #3941: the excerpt is read with the button, not found separately.
+		openAria["describedby"] = snippetID
+	}
+	open := html.Button(html.Props{Type: "button", Class: "chatsearch-open", Data: data, Aria: openAria}, whereNodes...)
 	return html.Div(html.Props{Class: "chatsearch-result", Data: data}, open, main)
 }
 
 // chatsearchMessageBody is the avatar, the author and time line and the text of
 // a result that is one message, and a short spoken summary of them.
-func chatsearchMessageBody(m Model, people chatsearchPeople, row chatsearch.Row, words string, saved bool) (ui.Node, string) {
+func chatsearchMessageBody(m Model, people chatsearchPeople, row chatsearch.Row, words string, saved bool, snippetID string) (ui.Node, string) {
 	locale := m.Locale
 	name := people[row.AuthorID]
 	conversation, known := chatsearchConversation(m, row)
@@ -272,7 +281,7 @@ func chatsearchMessageBody(m Model, people chatsearchPeople, row chatsearch.Row,
 	return html.Div(html.Props{Class: "chatsearch-message"}, lead,
 		html.Div(html.Props{Class: "chatsearch-main"},
 			html.Div(html.Props{Class: "chatsearch-meta"}, meta...),
-			html.Div(html.Props{Class: "chatsearch-text"}, text))), summary
+			html.Div(html.Props{Class: "chatsearch-text", ID: snippetID}, text))), summary
 }
 
 // chatsearchBodyLimit is how much of a post a result shows before it is cut

@@ -8,5 +8,6 @@ func rememberShareTrigger(ui.Event) {}
 func restoreShareFocus()            {}
 func RestoreShareFocus()            {}
 func focusShareDialog()             {}
+func focusShareFilter()             {}
 func EnsureShareFocus() bool        { return false }
 func trapShareFocus(ui.Event) bool  { return false }

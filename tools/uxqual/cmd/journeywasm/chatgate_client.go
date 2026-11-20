@@ -214,6 +214,26 @@ func chatgateSubmitProblems(locale string, d chatgate.Definition, answers map[st
 	}
 	return problems
 }
+
+// chatgateReasonValue is what the person typed in the reason input of a decision.
+func chatgateReasonValue(action, id string, values map[string]string) string {
+	switch action {
+	case "admit", "decline":
+		return values["gate-reason-"+id]
+	case "bulk-admit", "bulk-decline":
+		return values["gate-bulk-reason"]
+	}
+	return "-"
+}
+
+// chatgateReasonRefused is true when the service refused a decision for its reason.
+func chatgateReasonRefused(action string, fields map[string]string) bool {
+	switch action {
+	case "admit", "decline", "bulk-admit", "bulk-decline":
+		return fields["reason"] != ""
+	}
+	return false
+}
 func chatgateLines(s string) []string {
 	out := []string{}
 	for _, line := range strings.Split(s, "\n") {

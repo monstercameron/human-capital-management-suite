@@ -243,6 +243,8 @@ const (
 	KeyRepliesOne                     = "chat.replies_one"
 	KeyNew                            = "chat.new"
 	KeyJumpNewest                     = "chat.jump_newest"
+	KeyJumpNewestSkip                 = "chat.jump_newest_skip"
+	KeyLoadNewerHint                  = "chat.load_newer_hint"
 	KeyMore                           = "chat.more"
 	KeyConversationMore               = "chat.conversation_more"
 	KeyCopyConversationReference      = "chat.copy_conversation_reference"
@@ -652,11 +654,13 @@ var englishCopy = map[string]string{
 	KeyRepliesOne:               "1 reply",
 	KeyNew:                      "New",
 	KeyJumpNewest:               "Jump to newest",
+	KeyJumpNewestSkip:           "Skip to the latest message",
+	KeyLoadNewerHint:            "Loads the next messages here; you stay where you are",
 	KeyMore:                     "More actions",
 	KeyCopyLink:                 "Copy link",
 	KeyCopyContents:             "Copy message contents",
 	KeyCopyContentsEmpty:        "No message text to copy",
-	KeyCopyContentsSuccess:      "Message contents copied",
+	KeyCopyContentsSuccess:      "Text copied",
 	KeyCopyContentsFailure:      "Could not copy message contents. Check clipboard access and try again.",
 	KeyShareToChannel:           "Share to channel",
 	KeyShareTitle:               "Share message to a channel",

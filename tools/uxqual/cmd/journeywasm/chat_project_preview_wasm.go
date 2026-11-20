@@ -77,6 +77,8 @@ func resolveChatProjectPreview(ctx context.Context, active journeyclient.Config,
 	if assignee := task.GetAssigneeId(); assignee != "" {
 		names, photos := projectDirectory(ctx, active)
 		preview.Assignee, preview.AssigneePhoto = projectclient.PersonName(assignee, names), photos[assignee]
+		// The claim rests on the stable assignee id, never on the display name (#3994).
+		preview.WaitsOnViewer = chatui.TaskWaitsOnSubject(preview.StatusTone, assignee, strings.TrimSpace(active.Subject))
 	}
 	return preview
 }

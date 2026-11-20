@@ -51,9 +51,16 @@ func chatux041FormDirty(m Model, form string) bool {
 // form in data-id; a checkbox for a status change names the status.
 func chatux041Input(e ui.InputEvent, m Model, local localStore) {
 	action, id, _ := eventAction(e)
+	if action == issue3881RoleFilterAction {
+		if value := e.GetValue(); local.get().roleQuery != value {
+			local.update(func(u *localUI) { u.roleQuery = value })
+		}
+		return
+	}
 	if action != chatux041InputAction {
 		return
 	}
+	issue3909RememberPurpose(local, id, e.GetValue())
 	key, value := chatux041DirtyKey(m, id), false
 	if strings.HasPrefix(id, "ack:") {
 		key, value = id, filterChecked("chatstate-ack")

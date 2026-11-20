@@ -76,14 +76,30 @@ func createDialog(m Model, h handlers) ui.Node {
 			glyph = html.Span(html.Props{Class: "kind-card-glyph", Aria: map[string]string{"hidden": "true"}}, icon(k.glyph))
 		}
 		title, note := chatux015Kind(m, k.kind, k.key, k.sub)
-		cards = append(cards, html.Button(html.Props{Class: "kind-card", Type: "button", Role: "radio", Data: map[string]string{"action": "create-kind", "id": string(k.kind)},
+		// Issue 3877: one tab stop (the selected card); arrows move among them.
+		tab := -1
+		if kind == k.kind || (kind == KindUnchosen && k.kind == createKinds[0].kind) {
+			tab = 0
+		}
+		cards = append(cards, html.Button(html.Props{ID: chatissue3877KindID(k.kind), Class: "kind-card", Type: "button", Role: "radio", TabIndex: tab, Data: map[string]string{"action": "create-kind", "id": string(k.kind)},
 			Aria: map[string]string{"checked": boolString(kind == k.kind)}},
 			glyph, html.Span(html.Props{Class: "kind-card-text"}, html.Strong(html.Props{Text: title}), html.Span(html.Props{Text: note}))))
 	}
 	channel := kind == PublicChannel || kind == PrivateChannel
 	fields := []ui.Node{
 		html.Div(html.Props{Class: "side-heading"}, html.H2(html.Props{Text: m.t(KeyCreateTitle)}), actionButton("icon-button", "close-create", "", m.t(KeyClose), m.Callbacks.CloseCreate == nil, icon("close"))),
-		html.Div(html.Props{Class: "kind-cards", Role: "radiogroup", Aria: map[string]string{"label": m.t(KeyKind)}}, cards...),
+		html.Div(html.Props{Class: "kind-cards", Role: "radiogroup", OnKeyDown: h.kindArrow, Aria: map[string]string{"label": m.t(KeyKind)}}, cards...),
+	}
+	if kind == KindUnchosen {
+		// ISSUE-3849: no type is chosen yet, so there is nothing to fill in or
+		// submit; the cards above say who can see each type.
+		fields = append(fields, html.P(html.Props{Class: "field-hint", Text: chatissue3849Prompt(m)}),
+			html.Div(html.Props{Class: "dialog-actions"},
+				html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.CloseCreate == nil, Data: map[string]string{"action": "close-create"}, Text: m.t(KeyCancel)}),
+				html.Button(html.Props{Class: "button", Type: "submit", Disabled: true, Text: m.t(KeyStartConversation)})))
+		return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
+			html.Dialog(html.Props{Class: "chat-dialog create-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.t(KeyCreateTitle), "modal": "true"}},
+				html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.createSubmit}, fields...)))
 	}
 	if kind != DirectMessage {
 		prefix := ui.Node(nil)
@@ -95,6 +111,8 @@ func createDialog(m Model, h handlers) ui.Node {
 		if channel {
 			prefix = html.Span(html.Props{Class: "name-prefix", Aria: map[string]string{"hidden": "true"}, Text: "#"})
 			nameValue = local.nameTyped
+		} else if local.groupName != "" {
+			nameValue = local.groupName
 		}
 		hint := ui.Node(nil)
 		describedBy := map[string]string{}
@@ -104,7 +122,11 @@ func createDialog(m Model, h handlers) ui.Node {
 			describedBy["describedby"] = "new-chat-name-hint"
 			// CHATBUG-072: a refused character or a refusal from the service
 			// says why in the hint's place, in the error colour.
-			if note := createNameNote(m, local, kind); note != "" {
+			if chatissue3875Removed(m, local, kind) {
+				// ISSUE-3875: the character is already gone and the name is
+				// valid, so say so politely and leave the box valid.
+				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint", Role: "status", Text: laneText(m, chatissue3875Copy, keyChatissue3875Removed)})
+			} else if note := createNameNote(m, local, kind); note != "" {
 				hint = html.P(html.Props{ID: "new-chat-name-hint", Class: "field-hint field-error", Role: "alert", Text: note})
 				describedBy["invalid"] = "true"
 			} else if note := chatbug3714NameNote(m, local, kind); note != "" {
@@ -160,13 +182,14 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	if !full {
 		chips = append(chips, html.WithKey(html.Input(html.Props{ID: "new-chat-member-search", Class: "chip-input chat-input", Type: "text", AutoComplete: "off", AutoFocus: m.ShowAddMembers, Placeholder: m.t(KeyAddPeoplePlaceholder),
 			Data: map[string]string{"chat-value": local.pickQuery}, OnInput: h.pickInput, OnKeyDown: h.pickKey,
-			Aria: map[string]string{"controls": "new-chat-member-options", "autocomplete": "list"}}), "chip-input"))
+			Aria: map[string]string{"controls": "new-chat-member-options", "autocomplete": "list", "expanded": boolString(!full && (strings.TrimSpace(local.pickQuery) != "" || m.ShowAddMembers) && !local.pickDismissed)}}), "chip-input"))
 	}
 	suggestions := ui.Node(html.Div(html.Props{Class: "pick-slot"}))
 	// C-4 (r4): adding people to an existing conversation lists the first
 	// few people not already in it before any typing, from the directory
 	// the session already holds, so the dialog is useful at a glance.
-	if !full && (strings.TrimSpace(local.pickQuery) != "" || m.ShowAddMembers) {
+	open := !full && (strings.TrimSpace(local.pickQuery) != "" || m.ShowAddMembers) && !local.pickDismissed
+	if open {
 		people := pickCandidates(m, local.pickQuery, local.picked)
 		rows := make([]ui.Node, 0, len(people))
 		for i, p := range people {
@@ -202,7 +225,7 @@ func memberPicker(m Model, h handlers, kind ConversationKind) ui.Node {
 	return html.Div(html.Props{Class: "prefs-field member-picker"},
 		html.Label(html.Props{For: "new-chat-member-search", Text: label}),
 		html.Div(html.Props{Class: "chip-field"}, chips...),
-		suggestions)
+		suggestions, chatissue3864Announcer(local.pickNote))
 }
 
 // addMembersDialog lets a reader add people to the selected conversation
@@ -279,9 +302,10 @@ func browseDialog(m Model, h handlers) ui.Node {
 		}
 		var action ui.Node
 		if c.Joined {
-			action = html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.Callbacks.SelectConversation == nil, Data: map[string]string{"action": "browse-open", "id": c.ID}, Text: m.t(KeyBrowseOpen)})
+			action = html.Button(html.Props{Class: "button secondary small", Type: "button", Disabled: m.Callbacks.SelectConversation == nil, Aria: issue3921ActionAria(m.t(KeyBrowseOpen), c), Data: map[string]string{"action": "browse-open", "id": c.ID}, Text: m.t(KeyBrowseOpen)})
 		} else {
-			action = html.Button(html.Props{Class: "button small", Type: "button", Disabled: m.Callbacks.JoinConversation == nil, Data: map[string]string{"action": "join", "id": c.ID}, Text: chatgateJoinLabel(m, c)})
+			action = html.Button(html.Props{Class: "button small", Type: "button", Disabled: m.Callbacks.JoinConversation == nil, Aria: issue3921JoinAria(m, c), Data: issue3821JoinData(m, c, map[string]string{"action": "join", "id": c.ID}), Text: chatgateJoinLabel(m, c)})
+			rowAction = issue3821JoinData(m, c, map[string]string{"action": rowAction})["action"]
 		}
 		meta := []string{m.t(kindKey(c.Kind))}
 		var joinedLabel ui.Node
@@ -302,7 +326,7 @@ func browseDialog(m Model, h handlers) ui.Node {
 		for _, part := range meta {
 			metaParts = append(metaParts, html.Span(html.Props{Class: "meta-part", Text: part}))
 		}
-		text := []ui.Node{html.Strong(html.Props{Text: c.Name}), html.Span(html.Props{Class: "browse-meta"}, metaParts...)}
+		text := []ui.Node{html.Strong(html.Props{Text: c.Name}), html.Span(html.Props{ID: issue3921MetaID(c), Class: "browse-meta"}, metaParts...)}
 		// CHATSTATE-002: a channel's status shows wherever the channel is listed.
 		if view, ok := m.ChannelStatuses[c.ID]; ok {
 			if chip := ChannelStatusChip(m, view); chip != nil {
@@ -316,7 +340,7 @@ func browseDialog(m Model, h handlers) ui.Node {
 		if note := chatgateBrowseNote(m, c); note != nil {
 			text = append(text, note)
 		}
-		rows = append(rows, html.WithKey(html.Li(html.Props{Class: "browse-row", Data: map[string]string{"conversation-id": c.ID, "action": rowAction, "id": c.ID}},
+		rows = append(rows, html.WithKey(html.Li(html.Props{Class: "browse-row", Data: issue3821JoinData(m, c, map[string]string{"conversation-id": c.ID, "action": rowAction, "id": c.ID})},
 			kindGlyph(m, c, m.t(kindKey(c.Kind))), html.Div(html.Props{Class: "browse-text"}, text...),
 			html.Div(html.Props{Class: "browse-actions"}, joinedLabel, chatux025LeaveButton(m, h, c), action)), "browse:"+c.ID))
 	}
@@ -337,6 +361,7 @@ func browseDialog(m Model, h handlers) ui.Node {
 				html.Label(html.Props{Class: "sr-only", For: "browse-filter"}, ui.Text(m.t(KeyBrowseFilter))),
 				icon("search"),
 				html.Input(html.Props{ID: "browse-filter", Class: "chat-search", Type: "search", Placeholder: m.t(KeyBrowseFilter), Data: map[string]string{"chat-value": m.BrowseQuery}, AutoComplete: "off", AutoFocus: true, OnInput: h.browseFilter})),
+			issue3922BrowseStatusNode(m, len(entries)),
 			body,
 			html.Div(html.Props{Class: "dialog-actions browse-footer"},
 				html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.OpenCreate == nil, Data: map[string]string{"action": "browse-to-create"}}, icon("plus"), ui.Text(m.t(KeyBrowseCreate)))),

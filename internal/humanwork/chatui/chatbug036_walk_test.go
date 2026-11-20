@@ -859,7 +859,7 @@ func TestTodo_CHATBUG_036_Browser(t *testing.T) {
 		{"saved-done", "tab", `^Done 1$`, true},
 		{"saved-done", "tab", `^All 2$`, true},
 		{"saved-done", "button", `^Close$`, true},
-		{"saved-todo", "listitem", `^Open in the conversation$`, true},
+		{"saved-todo", "button", `^Open in the conversation$`, true},
 		// Panes.
 		{"thread", "complementary", `^Thread replies$`, true},
 		{"thread", "button", `^Close thread$`, true},
@@ -870,7 +870,7 @@ func TestTodo_CHATBUG_036_Browser(t *testing.T) {
 		{"create", "dialog", `^Create conversation$`, true},
 		{"create", "radio", `^Direct message `, true},
 		{"browse", "dialog", `^Browse channels$`, true},
-		{"browse", "button", `^Open$`, true},
+		{"browse", "button", `^Open (?:[^c]|c[^o]).*$`, true},
 		// Search and the agent's answer.
 		{"search", "region", `^Results for “holiday”$`, true},
 		{"feedback", "button", `^Helpful$`, true},

@@ -72,7 +72,7 @@ func TestTodo_CHATBUG_071_Render(t *testing.T) {
 		m.Draft = chatbug071Pick(t, m, mentionStore{box: box}, "chat-composer", "hi @Sofia", "Sofia Beltran")
 		underDraft(t, chatbug071Composer(t, chatbug071Page(t, m, box)))
 		// Another conversation's composer does not carry the line.
-		m.SelectedID = "dm"
+		m.SelectedID, m.Draft = "dm", "" // the other conversation has its own draft
 		if form := chatbug071Composer(t, chatbug071Page(t, m, box)); strings.Contains(form, "composer-outside-note") {
 			t.Errorf("the note followed the viewer into another conversation: %s", form)
 		}

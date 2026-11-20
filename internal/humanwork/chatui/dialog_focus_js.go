@@ -10,6 +10,7 @@ import (
 
 var chatDialogTrigger js.Value
 var chatDialogTriggerAction string
+var chatDialogTriggerFallback string
 var chatDialogOpeningPending bool
 var chatDialogKeyGuard js.Func
 var chatDialogKeyGuardDocument js.Value
@@ -32,6 +33,7 @@ func rememberChatDialogTriggerJS(event js.Value, action string) {
 	if trigger.Truthy() {
 		chatDialogTrigger = trigger
 		chatDialogTriggerAction = action
+		chatDialogTriggerFallback = chatDialogMenuTriggerSelector(trigger.Call("closest", "[data-chat-disclosure]"))
 		chatDialogOpeningPending = true
 		installChatDialogKeyGuard()
 	}
@@ -169,6 +171,7 @@ func restoreChatDialogFocus() {
 		if !chatFocusRestoreAllowed(chatFocusHeldNow()) {
 			chatDialogTrigger = js.Undefined()
 			chatDialogTriggerAction = ""
+			chatDialogTriggerFallback = ""
 			frame.Release()
 			return nil
 		}
@@ -178,10 +181,16 @@ func restoreChatDialogFocus() {
 				trigger = doc.Call("querySelector", "button[data-action='"+chatDialogTriggerAction+"']")
 			}
 		}
-		if trigger.Truthy() && trigger.Get("isConnected").Bool() && trigger.Call("getClientRects").Get("length").Int() > 0 {
+		if !chatDialogTriggerUsable(trigger) && chatDialogTriggerFallback != "" {
+			// The opener was a menu item that left with its menu (#3885): the
+			// menu's own button is where the person came from.
+			trigger = doc.Call("querySelector", chatDialogTriggerFallback)
+		}
+		if chatDialogTriggerUsable(trigger) {
 			trigger.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 			chatDialogTrigger = js.Undefined()
 			chatDialogTriggerAction = ""
+			chatDialogTriggerFallback = ""
 			frame.Release()
 			return nil
 		}
@@ -191,6 +200,7 @@ func restoreChatDialogFocus() {
 		}
 		chatDialogTrigger = js.Undefined()
 		chatDialogTriggerAction = ""
+		chatDialogTriggerFallback = ""
 		frame.Release()
 		return nil
 	})
@@ -199,6 +209,19 @@ func restoreChatDialogFocus() {
 		return
 	}
 	frame.Invoke()
+}
+
+func chatDialogTriggerUsable(trigger js.Value) bool {
+	return trigger.Truthy() && trigger.Get("isConnected").Bool() && trigger.Call("getClientRects").Get("length").Int() > 0
+}
+
+// chatDialogMenuTriggerSelector names the toggle of the menu an opener sits in,
+// or "" for an opener that is not in a menu.
+func chatDialogMenuTriggerSelector(menu js.Value) string {
+	if !menu.Truthy() {
+		return ""
+	}
+	return chatDialogMenuToggleSelector(menu.Get("className").String())
 }
 
 func firstChatDialogFocusable(dialog js.Value) js.Value {

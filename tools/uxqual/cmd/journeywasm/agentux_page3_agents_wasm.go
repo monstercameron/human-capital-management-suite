@@ -417,6 +417,7 @@ func mountAgentRequestDocumentPicker() {
 	markup, err := ui.RenderToString(productui.AgentRequestDocumentPicker(locale))
 	if err == nil {
 		mount.Set("innerHTML", markup)
+		showAgentPickerPurposeWording()
 	}
 }
 

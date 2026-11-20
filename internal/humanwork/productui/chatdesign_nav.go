@@ -23,7 +23,9 @@ const (
 
 // ChatRailDefault reports whether page opens with the navigation as a rail
 // unless the person chose otherwise.
-func ChatRailDefault(page PageID) bool { return page == PageChat }
+// Conversations and Agents are two pages of the Chat section (#3846) and share
+// one navigation state, so moving between them does not shift the layout.
+func ChatRailDefault(page PageID) bool { return page == PageChat || page == PageAgents }
 
 // navRailCollapsed is whether the shell draws the navigation as its rail: the
 // person's collapse, or Chat's default where they did not ask for the full

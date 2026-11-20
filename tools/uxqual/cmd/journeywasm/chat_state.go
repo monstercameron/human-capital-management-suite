@@ -167,6 +167,9 @@ type chatState struct {
 	draftRevs  map[string]uint64
 	draftRev   uint64
 	draftEpoch uint64
+	// draftSync is what the page knows about its drafts against the account's
+	// copy: other tabs' versions and failed writes (issue3953_draft_sync.go).
+	draftSync draftSyncState
 	// directory maps a subject id to a display name for this session, and
 	// directoryRead says the session's own read has happened.
 	//
@@ -278,6 +281,7 @@ func (s *chatState) reset(client chatv1.ConversationServiceClient, cfg journeycl
 	s.drafts = make(map[string]string)
 	s.draftRevs = make(map[string]uint64)
 	s.draftRev = 0
+	s.draftSync = draftSyncState{}
 	s.draftEpoch++
 	s.directory = make(map[string]string)
 	s.photos = make(map[string]string)
@@ -1009,6 +1013,13 @@ func (s *chatState) newestHeldSequence() uint64 {
 	return newest
 }
 
+// clearJumpTarget drops the pin or search target the reader opened earlier, so a
+// later render does not mark it again once they have gone back to the newest
+// messages (#3987).
+func (s *chatState) clearJumpTarget() {
+	s.mutate(func(m *chatui.Model) { m.FocusMessageID = "" })
+}
+
 func (s *chatState) replaceLatestChatMessages(conversationID string, messages []chatui.Message, olderCursor string, fence ...chatTimelinePageFence) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1018,6 +1029,7 @@ func (s *chatState) replaceLatestChatMessages(conversationID string, messages []
 	s.model.Messages = append([]chatui.Message(nil), messages...)
 	s.model.Messages, s.model.HasOlder = boundChatMessages(s.model.Messages, chatMessageWindow, olderCursor != "")
 	s.model.HasNewer = false
+	s.model.FocusMessageID = "" // the earlier pin or search target is not the newest page (#3987)
 	s.newerScanSequence = 0
 	s.olderCursor = olderCursor
 	s.cursor.Seen = make(map[string]uint64, len(messages))
@@ -1145,12 +1157,20 @@ func (s *chatState) loadDrafts(drafts map[string]string) {
 	}
 	for id, body := range drafts {
 		if s.draftRevs[id] != 0 {
+			// Edited here and not yet saved: keep the text, and keep the account's
+			// different draft too if another tab wrote it (issue 3953).
+			s.noteServerDraftLocked(id, body)
 			continue
 		}
 		if strings.TrimSpace(body) == "" {
 			continue
 		}
+		prior := s.drafts[id]
 		s.drafts[id] = body
+		s.noteAdoptedDraftLocked(id, body)
+		if id != s.model.SelectedID {
+			s.keepReplacedDraftLocked(id, prior)
+		}
 	}
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
 	s.settleComposerLocked(composer)
@@ -1173,6 +1193,9 @@ func (s *chatState) settleComposerLocked(composer string) {
 	s.model.Draft = composer
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
 	if strings.TrimSpace(server) != "" {
+		// The other version is not dropped: it waits beside the composer for a
+		// choice (issue 3953).
+		s.recordDraftConflictLocked(selected, server)
 		s.noticeToken++
 		s.notice = chatui.DraftUpdatedElsewhereText(s.model.Locale)
 		s.model.Notice, s.model.NoticeRetry = s.notice, false
@@ -1192,14 +1215,25 @@ func (s *chatState) rebaseDrafts(server map[string]string, cfg journeyclient.Con
 	if s.drafts == nil {
 		s.drafts = make(map[string]string)
 	}
+	replaced := make(map[string]string)
 	for id := range s.drafts {
 		if s.draftRevs[id] == 0 {
+			replaced[id] = s.drafts[id]
 			delete(s.drafts, id)
+			delete(s.draftSync.base, id)
 		}
 	}
 	for id, body := range server {
 		if s.draftRevs[id] == 0 && strings.TrimSpace(body) != "" {
 			s.drafts[id] = body
+			s.noteAdoptedDraftLocked(id, body)
+			if id != s.model.SelectedID {
+				s.keepReplacedDraftLocked(id, replaced[id])
+			}
+		} else if s.draftRevs[id] != 0 {
+			// This tab's own unsaved text wins, as before; another tab's different
+			// text is kept beside it rather than dropped (issue 3953).
+			s.noteServerDraftLocked(id, body)
 		}
 	}
 	s.model.Preferences.Drafts = copyChatDrafts(s.drafts)
@@ -1221,11 +1255,14 @@ func (s *chatState) markDraftsPersisted(revision uint64, cfg journeyclient.Confi
 		s.mu.Unlock()
 		return
 	}
+	covered := make(map[string]bool, len(s.draftRevs))
 	for id, localRevision := range s.draftRevs {
 		if localRevision <= revision {
+			covered[id] = true
 			delete(s.draftRevs, id)
 		}
 	}
+	s.notePersistedLocked(covered)
 	s.mu.Unlock()
 }
 
@@ -1266,7 +1303,10 @@ func swapChatDraft(model *chatui.Model, drafts map[string]string, next string) {
 		}
 	}
 	model.SelectedID = next
-	model.AuthorBlocked, model.ThreadDrafts = nil, nil
+	// Thread drafts (and each reply's "Also send to" choice) are kept by root
+	// message, which names its conversation, so they stay for the way back
+	// (#3904); only the refusals belong to the room that was open.
+	model.AuthorBlocked = nil
 	model.Draft = drafts[next]
 	model.Preferences.Drafts = copyChatDrafts(drafts)
 }

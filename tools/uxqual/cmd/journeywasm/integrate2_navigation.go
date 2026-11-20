@@ -6,7 +6,7 @@ import "github.com/monstercameron/human-capital-management-suite/internal/humanw
 // Retained conversation state is only a fallback when the address names no room.
 func integrate2AddressSelection(rooms []chatui.Conversation, address, previous string) string {
 	if address != "" {
-		selected, _ := resolveChatChannelFragment(rooms, address)
+		selected, _ := resolveChatChannelAddress(rooms, address)
 		return selected
 	}
 	for _, room := range rooms {

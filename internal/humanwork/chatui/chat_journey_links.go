@@ -34,6 +34,9 @@ type JourneyPreview struct {
 	Stage, StageTone string
 	Effective        string // YYYY-MM-DD
 	Approver         string
+	// WaitsOnViewer is the resolver's answer, from stable identities, that
+	// this journey asks the viewer for an approval now (#3994).
+	WaitsOnViewer bool
 }
 
 var journeyURLPattern = chatperf2Literals(regexp.MustCompile(`https?://[^\s<>"']+|/workspace/app/journeys\?[^\s<>"']+`), "http://", "https://", "/workspace/app/journeys?")
@@ -202,8 +205,9 @@ func journeyPreviewCard(m Model, p JourneyPreview) ui.Node {
 	if p.Approver != "" {
 		meta = append(meta, html.Span(html.Props{Class: "chat-project-embed-assignee chat-work-card-waits"}, ui.Text(m.tf(KeyJourneyApprover, map[string]string{"name": p.Approver}))))
 	}
-	// A journey still under way waits on its approver.
-	waits := workCardWaitsOnViewer(m, p.Approver, p.StageTone != "done")
+	// Only the resolver's identity-based answer, and only in a stage that asks
+	// for an approval, claims the journey waits on the reader (#3994).
+	waits := p.WaitsOnViewer && p.StageTone != "done" && journeyStageAwaitsApprover(p.Stage)
 	children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...), workCardAction(m, waits))
 	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed chat-journey-embed", Href: JourneyReferenceURL(p.IntentID), Data: map[string]string{"action": "open-journey-reference", "id": p.IntentID, "tone": p.StageTone}, Aria: map[string]string{"label": m.tf(KeyOpenJourney, map[string]string{"title": p.Worker})}}, waits), children...)
 }

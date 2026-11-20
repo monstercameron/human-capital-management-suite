@@ -153,7 +153,9 @@ func (s *Service) Reads(ctx context.Context, a Actor, scope Scope) ([]ReadAudit,
 			return e
 		}
 		for _, audit := range tx.State().Audits {
-			if audit.Person == a.Person {
+			// The list is who else has read the person's answers: their own
+			// reads (resuming a draft, viewing their answers) are not in it.
+			if audit.Person == a.Person && audit.Reader != a.Person {
 				out = append(out, audit)
 			}
 		}

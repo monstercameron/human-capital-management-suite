@@ -6,7 +6,7 @@ import gwccss "github.com/monstercameron/GoWebComponents/v5/css"
 // workspace. Content and availability remain owned by agents_page.go; this
 // sheet only gives that semantic markup a bounded, theme-aware layout.
 func agentsStylesheet() string {
-	return buildTypedSheet(declareAgentsStyles) + agentUX045Styles
+	return buildTypedSheet(declareAgentsStyles) + agentUX045Styles + agentUX3776Styles
 }
 
 func declareAgentsStyles() {

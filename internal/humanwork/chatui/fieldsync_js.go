@@ -176,7 +176,7 @@ func installFieldSync() {
 				return
 			}
 			sizeObserver.Call("disconnect")
-			nodes := doc.Call("querySelectorAll", "["+listAnchorAttr+"],.message-list>.message,.virtual-row,.thread-scroll,.thread-replies,.chat-composer,.composer-agent-token")
+			nodes := doc.Call("querySelectorAll", "["+listAnchorAttr+"],.message-list>.message,.message-list>.day-group>.message,.virtual-row,.thread-scroll,.thread-replies,.chat-composer,.composer-agent-token")
 			for i := 0; i < nodes.Length(); i++ {
 				sizeObserver.Call("observe", nodes.Index(i))
 			}

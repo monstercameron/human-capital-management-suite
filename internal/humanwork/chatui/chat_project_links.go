@@ -38,6 +38,9 @@ type ProjectTaskPreview struct {
 	StatusTone    string // todo, doing or done
 	Assignee      string
 	AssigneePhoto string
+	// WaitsOnViewer is the resolver's answer, from stable identities, that
+	// this open task is assigned to the viewer (#3994).
+	WaitsOnViewer bool
 	Priority      string
 	PriorityID    string
 	Due           string

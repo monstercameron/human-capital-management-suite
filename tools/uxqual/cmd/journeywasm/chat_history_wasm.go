@@ -118,7 +118,7 @@ func (controller *chatHistoryController) pushState(state chatNavigationState) {
 		return
 	}
 	clone.Set(chatHistoryStateField, encodeChatNavigationState(state))
-	if _, ok := browserCall(history, "pushState", clone, "", chatHistoryHref(state.ConversationID)); !ok {
+	if _, ok := browserCall(history, "pushState", clone, "", chatHrefWithThread(chatHistoryHref(state.ConversationID), state)); !ok {
 		return
 	}
 	productHistory.RecordSameRoutePush()
@@ -136,6 +136,7 @@ func encodeChatNavigationState(state chatNavigationState) js.Value {
 	entry.Set("person", state.PersonID)
 	entry.Set("focus", state.FocusMessageID)
 	entry.Set("focusSequence", strconv.FormatUint(state.FocusSequence, 10))
+	entry.Set("list", state.ShowList)
 	return entry
 }
 
@@ -165,7 +166,7 @@ func (controller *chatHistoryController) replace(model chatui.Model) {
 		return
 	}
 	clone.Set(chatHistoryStateField, encodeChatNavigationState(state))
-	if browserHistoryReplaceState(history, clone, chatPageHref(state.ConversationID)) {
+	if browserHistoryReplaceState(history, clone, chatHrefWithThread(chatPageHref(state.ConversationID), state)) {
 		chatClaimOwnAddress()
 	}
 }
@@ -225,6 +226,13 @@ func (controller *chatHistoryController) restore(event js.Value, cfg journeyclie
 	} else if state.PersonID == "" && current.ShowPerson && current.Callbacks.ClosePerson != nil {
 		current.Callbacks.ClosePerson()
 	}
+	// On a phone the entry reached may be the conversation list or a conversation:
+	// show the one the entry recorded (#3768). The callback only changes the view;
+	// restoring is set, so it adds no history entry of its own.
+	current = chatBrowser.snapshot()
+	if set, open := chatListRestore(state, current.SidebarOpen, chatNavigationPhone()); set && current.Callbacks.ToggleSidebar != nil {
+		current.Callbacks.ToggleSidebar(open)
+	}
 }
 
 func readChatNavigationState(historyState js.Value) (chatNavigationState, bool) {
@@ -245,6 +253,9 @@ func readChatNavigationState(historyState js.Value) (chatNavigationState, bool) 
 		return chatNavigationState{}, false
 	}
 	state := chatNavigationState{OwnerTenantID: tenant.String(), OwnerSubject: subject.String(), ConversationID: conversation.String(), ShowDetails: details.Bool(), ShowThread: thread.Bool(), ThreadParentID: parent.String()}
+	if list, listOK := browserProperty(entry, "list"); listOK && list.Type() == js.TypeBoolean {
+		state.ShowList = list.Bool()
+	}
 	if personOK {
 		state.PersonID = person.String()
 	}

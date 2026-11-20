@@ -33,7 +33,7 @@ func TestTodo_CHATSEARCH_003_Browser(t *testing.T) {
 	}
 	for _, want := range []string{
 		">Agents</h3>", ">Your agent tasks</h3>", ">Your scheduled announcements</h3>",
-		`href="/workspace/app/agents"`, `href="/workspace/app/agents?task=task+1#agents-task-title"`, `href="/workspace/app/agent-operations"`,
+		`href="/workspace/app/chat/agents?locale=en-US"`, `href="/workspace/app/chat/agents?locale=en-US&amp;task=task+1#agents-task-title"`, `href="/workspace/app/admin/agents?locale=en-US"`,
 		`data-chatsearch-action="visit"`, `data-kind="agent"`, `data-kind="agent_task"`, `data-kind="agent_announcement"`,
 		"Answers questions about the ", "Open result: Agent · Holiday Helper",
 		`value="agent"`, `value="agent_task"`, `value="agent_announcement"`,
@@ -105,9 +105,9 @@ func TestTodo_CHATSEARCH_002_Browser_Workspace(t *testing.T) {
 		{ID: "message:p1", Kind: chatsearch.Message, KindLabel: "Message", Text: "The holiday calendar is in the handbook", Where: "#general", Href: "/workspace/app/chat#channel=general&at=12&message=p1"},
 		{ID: "thread:p3", Kind: chatsearch.Thread, KindLabel: "Thread reply", Text: "Holiday pay is in section 4", Where: "Thread replies", Href: "/workspace/app/chat#channel=unlisted+room&at=14&message=p2&thread=1"},
 		{ID: "voice:p4:v", Kind: chatsearch.Voice, KindLabel: "Voice message", Text: "Morning. The holiday rota is late.", Where: "#general", Href: "/workspace/app/chat#channel=general&at=16&message=p4&sentence=2"},
-		{ID: "agent:persona.holiday", Kind: chatsearch.Agent, KindLabel: "Agent", Text: "Holiday Helper", Where: "Agents", Href: "/workspace/app/agents"},
-		{ID: "agent_task:task 1", Kind: chatsearch.AgentTask, KindLabel: "Agent task", Text: "Summarise the holiday guide", Where: "Your agent tasks", Href: "/workspace/app/agents?task=task+1#agents-task-title"},
-		{ID: "agent_announcement:announce-1", Kind: chatsearch.AgentAnnouncement, KindLabel: "Scheduled announcement", Text: "Post the holiday calendar every Monday", Where: "#general", Href: "/workspace/app/agent-operations"},
+		{ID: "agent:persona.holiday", Kind: chatsearch.Agent, KindLabel: "Agent", Text: "Holiday Helper", Where: "Agents", Href: "/workspace/app/chat/agents?locale=en-US"},
+		{ID: "agent_task:task 1", Kind: chatsearch.AgentTask, KindLabel: "Agent task", Text: "Summarise the holiday guide", Where: "Your agent tasks", Href: "/workspace/app/chat/agents?locale=en-US&task=task+1#agents-task-title"},
+		{ID: "agent_announcement:announce-1", Kind: chatsearch.AgentAnnouncement, KindLabel: "Scheduled announcement", Text: "Post the holiday calendar every Monday", Where: "#general", Href: "/workspace/app/admin/agents?locale=en-US"},
 	}
 	if len(rows) != len(want) {
 		t.Fatalf("rows=%+v", rows)

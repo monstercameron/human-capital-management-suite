@@ -83,6 +83,8 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<annotation cp="🚗" type="tts">سيارة</annotation>
 		<annotation cp="✈️">رحلة | سفر | طيران | مطار</annotation>
 		<annotation cp="✈️" type="tts">طائرة</annotation>
+		<annotation cp="🚀">إطلاق | صاروخ | فضاء</annotation>
+		<annotation cp="🚀" type="tts">صاروخ</annotation>
 		<annotation cp="☀️">أشعة | شمس | طقس | مشمس</annotation>
 		<annotation cp="☀️" type="tts">شمس</annotation>
 		<annotation cp="⭐">سماء | نجم | نجمة</annotation>

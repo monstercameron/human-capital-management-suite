@@ -16,6 +16,10 @@ var imageViewerClose func(bool)
 var imageViewerDisplayCleanup func()
 var imageViewerOriginalCleanup func()
 
+// imageViewerOrigin is the thumbnail that opened the viewer; stepping through
+// the gallery does not change it, so closing returns focus there (#3853).
+var imageViewerOrigin js.Value
+
 // openImageViewer opens the viewer on the thumbnail that was pressed.
 func openImageViewer(event ui.Event, title, closeLabel, downloadLabel, actualSizeLabel, fitScreenLabel string) {
 	target := event.JSValue().Get("target")
@@ -30,6 +34,7 @@ func openImageViewer(event ui.Event, title, closeLabel, downloadLabel, actualSiz
 	if workspace := button.Call("closest", ".chat-workspace"); workspace.Truthy() && workspace.Get("lang").Type() == js.TypeString {
 		locale = workspace.Get("lang").String()
 	}
+	imageViewerOrigin = button
 	showImageViewer(button, chatbug083ViewerLabels(locale, title, closeLabel, downloadLabel, actualSizeLabel, fitScreenLabel), "")
 }
 
@@ -117,7 +122,21 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 		if from != "" {
 			from += " · "
 		}
-		from += labels.position(index+1, len(siblings))
+		// A list that still offers older or newer messages holds more images
+		// than the viewer can step through (#3852).
+		partial := false
+		if list := button.Call("closest", ".thread-pane,.message-list"); list.Truthy() {
+			partial = list.Call("querySelector", ".load-older,.load-newer").Truthy()
+			// A long conversation also keeps loaded messages off the page
+			// behind its scroll spacers; their images are not in the gallery.
+			spacers := list.Call("querySelectorAll", "[data-virtual-spacer]")
+			for i := 0; i < spacers.Get("length").Int(); i++ {
+				if spacers.Index(i).Get("offsetHeight").Float() > 0 {
+					partial = true
+				}
+			}
+		}
+		from += chatImageViewerPosition(labels, index+1, len(siblings), partial)
 	}
 	if from != "" {
 		caption.Call("appendChild", imageViewerElement(doc, "span", "chat-image-viewer-from", from))
@@ -252,19 +271,29 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 		onMutation.Release()
 		onResize.Release()
 		if restore {
-			focus := button
+			// Focus goes back to the thumbnail that opened the viewer, not to
+			// the last image stepped to, which may be far off screen (#3853).
+			origin := button
+			if imageViewerOrigin.Truthy() {
+				origin = imageViewerOrigin
+			}
+			focus, byID := origin, false
 			if !focus.Get("isConnected").Bool() {
 				buttons := doc.Call("querySelectorAll", ".attachment-image-open")
 				for i := 0; i < buttons.Get("length").Int(); i++ {
 					candidate := buttons.Index(i)
-					if candidate.Get("dataset").Get("id").String() == button.Get("dataset").Get("id").String() {
-						focus = candidate
+					if candidate.Get("dataset").Get("id").String() == origin.Get("dataset").Get("id").String() {
+						focus, byID = candidate, true
 						break
 					}
 				}
 			}
-			if focus.Get("isConnected").Bool() {
-				focus.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+			plan := chatImageViewerFocusPlan(origin.Get("isConnected").Bool(), byID, button.Get("isConnected").Bool())
+			if plan == chatImageViewerFocusLast {
+				focus = button
+			}
+			if plan != chatImageViewerFocusNone {
+				focus.Call("focus", js.ValueOf(map[string]any{"preventScroll": !plan.scrolls()}))
 			}
 		}
 	}

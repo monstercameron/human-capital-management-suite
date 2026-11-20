@@ -32,7 +32,7 @@ const Chatsave002Styles = `
 .chatsave-item:hover,.chatsave-item:focus-visible{background:color-mix(in srgb,var(--ink) 5%,transparent)}
 .chatsave-item:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:-2px}
 .chatsave-avatar{display:flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;border-radius:6px;background:var(--soft)}
-.chatsave-item .avatar.chatsave-avatar{width:24px;height:24px;font-size:.625rem;border-radius:6px}
+.chatsave-item .avatar.chatsave-avatar{width:24px;height:24px;font-size:.625rem}
 .chatsave-avatar-empty{color:var(--muted)}
 .chatsave-avatar-empty .chat-icon{width:14px;height:14px}
 .chatsave-main{min-width:0}
@@ -42,6 +42,10 @@ const Chatsave002Styles = `
 .chatsave-where{flex:0 1 auto;min-width:0;min-height:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.8125rem;text-decoration:none}
 .chatsave-where:hover{color:var(--accent);text-decoration:underline}
 .chatsave-time{flex:none;color:var(--muted);font-size:.75rem;white-space:nowrap}
+.chatsave-jump{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;min-width:24px;height:24px;min-height:24px;margin-inline-start:auto;padding:0;border:0;border-radius:var(--hcm-radius-xs);background:none;color:var(--muted);cursor:pointer;align-self:center}
+.chatsave-jump .chat-icon{width:14px;height:14px}
+.chatsave-jump:hover{background:var(--soft);color:var(--ink)}
+.chatsave-jump:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:1px}
 .chatsave-where+.chatsave-time::before{content:"·";margin-inline-end:6px}
 .chatsave-text{position:relative;margin-block-start:2px;max-height:5.9em;overflow:hidden;min-width:0}
 .chatsave-text.is-expanded{max-height:none}
@@ -66,6 +70,9 @@ const Chatsave002Styles = `
 .chatsave-note-form{margin:6px 0 0}
 .chatsave-note-input,.chatsave-due-input{width:100%;min-width:0;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;font-size:.875rem}
 .chatsave-note-hint{margin:3px 0 0;color:var(--muted);font-size:.6875rem}
+.chatsave-note-private,.chatsave-privacy{margin:4px 0 0;color:var(--muted);font-size:.75rem;overflow-wrap:anywhere}
+.chatsave-privacy{margin:0;padding:6px 16px}
+.chatsave-note-buttons{display:flex;flex-wrap:wrap;gap:6px;margin-block-start:6px}
 .chatsave-donebar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-block-start:6px;color:var(--muted);font-size:.8125rem}
 .chatsave-done-mark{display:inline-flex;align-items:center;gap:4px}
 .chatsave-done-mark .chat-icon{width:14px;height:14px;color:var(--hcm-color-success)}
@@ -82,10 +89,11 @@ const Chatsave002Styles = `
 .chatsave-act-remove{color:var(--muted)}
 .chatsave-filled path{fill:currentColor}
 .chatsave-anchor{position:relative;display:inline-flex}
-.chatsave-menu{position:absolute;top:calc(100% + 6px);bottom:auto;inset-inline-end:0;inset-inline-start:auto;z-index:6;display:flex;flex-direction:column;box-sizing:border-box;min-width:224px;max-width:calc(100vw - 32px);padding:4px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);box-shadow:var(--hcm-shadow-raised)}
+.chatsave-menu{position:absolute;top:calc(100% + 6px);bottom:auto;inset-inline-end:0;inset-inline-start:auto;z-index:6;display:flex;flex-direction:column;box-sizing:border-box;min-width:min(224px,calc(100vw - 32px));max-width:calc(100vw - 32px);padding:4px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);box-shadow:var(--hcm-shadow-raised)}
 .chatsave-menu-item{white-space:nowrap}
-.chatsave-pick{display:flex;align-items:center;gap:6px;padding:6px 8px 4px}
-.chatsave-pick .button{flex:none}
+.chatsave-pick{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:6px 8px 4px}
+.chatsave-pick .chatsave-due-input{width:100%;min-width:0;max-width:100%}
+.chatsave-pick .button{align-self:stretch;white-space:normal}
 .chatsave-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:40px 16px;color:var(--muted);text-align:center}
 .chatsave-empty .chat-icon{width:28px;height:28px}
 .chatsave-empty p{max-width:26ch;margin:0;font-size:.875rem}
@@ -93,18 +101,21 @@ const Chatsave002Styles = `
 .chatsave-skeleton .chatsave-bar-name{width:40%}
 .chatsave-skeleton .chatsave-bar-short{width:60%}
 .chatsave-load-more{align-self:flex-start;margin:12px 0}
-.timeline-frame:has(.message.search-target) .jump-newest{visibility:hidden;opacity:0;pointer-events:none}
 .chatsave-undo{position:sticky;inset-block-end:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:auto -16px 0;padding:10px 16px;border-top:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:.875rem}
 .chatsave-undo-button{padding:2px 6px;border:0;border-radius:var(--hcm-radius-xs);background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer}
 .chatsave-undo-button:hover{background:var(--soft)}
 @media(max-width:760px),(pointer:coarse){
 .chatsave-actions{position:static;grid-column:2;justify-content:flex-start;gap:4px;height:auto;margin-block-start:6px;padding:0;border:0;background:none;box-shadow:none;opacity:1;pointer-events:auto}
 .chatsave-actions .message-action{width:44px;min-width:44px;height:44px;min-height:44px}
+.chatsave-header .chatsave-back.icon-button,.chatsave-header .chat-panel-close.chat-panel-close.icon-button{inline-size:44px;min-inline-size:44px;block-size:44px;min-block-size:44px}
 .chatsave-menu-item{min-height:44px}
 .chatsave-reopen,.chatsave-more,.chatsave-undo-button{min-height:44px}
+.chatsave-jump{width:44px;min-width:44px;height:44px;min-height:44px}
 .chatsave-chip{height:32px}
 .chatsave-chip-clear{width:32px;height:32px}
 .chatsave-note-hint{display:none}
+.chatsave-note-buttons .button{min-height:44px}
+.chatsave-pick .button,.chatsave-due-input{min-height:44px}
 }
 @media(max-width:760px){
 .chatsave-panel{inset:0;inline-size:100%;max-inline-size:none;block-size:100dvh;max-block-size:none;border-inline-start:0}

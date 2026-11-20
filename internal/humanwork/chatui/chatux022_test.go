@@ -102,10 +102,10 @@ func TestTodo_CHATUX_022(t *testing.T) {
 		}
 	})
 
-	t.Run("Pin and Save are shown only where there is no bar for them", func(t *testing.T) {
-		const twins = ".message-menu :is(.menu-bar-twin,.menu-item.chatsave-action)"
+	t.Run("The Pin twin is shown only where there is no bar for it; Save is always in the menu (issue 3719)", func(t *testing.T) {
+		const twins = ".message-menu .menu-bar-twin"
 		if !strings.HasPrefix(ChatUX022Styles, "\n"+twins+"{display:none}\n") {
-			t.Fatalf("Pin and Save are not hidden in the menu by default: %s", ChatUX022Styles)
+			t.Fatalf("the Pin twin is not hidden in the menu by default: %s", ChatUX022Styles)
 		}
 		for _, context := range []string{"@media(max-width:767px),(pointer:coarse){" + twins + "{display:flex}}", "@container chatmain (max-width:560px){" + twins + "{display:flex}}"} {
 			if !strings.Contains(Stylesheet, context) {

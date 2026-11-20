@@ -22,12 +22,21 @@ type localUI struct {
 	pickQuery            string
 	picked               []mentionCandidate
 	pickActive           int
+	pickDismissed        bool
+	pickNote             string
 	nameRefused          bool
 	nameMissing          bool
 	nameTyped            string
-	purposeEditing       bool
-	purposeDraft         string
-	railLeave            string
+	// groupName and groupPicked are the Group message draft (ISSUE-3865): the
+	// name as typed, and the recipients set aside while another type is shown.
+	groupName      string
+	groupPicked    []mentionCandidate
+	purposeEditing bool
+	purposeDraft   string
+	// purposeByRoom keeps each conversation's unsaved purpose while another is
+	// open (issue3909_purpose_draft.go).
+	purposeByRoom map[string]purposeKept
+	railLeave     string
 	// side is the sidebar's own sections state (CHATSIDE-001).
 	side chatside001UI
 	// composerNotice explains a composer command that could not run, such as
@@ -53,9 +62,13 @@ type localUI struct {
 	composerPreview, threadComposerPreview bool
 	// sentCount is how many messages the viewer has sent from the composer this
 	// page session; the Enter hint goes after three (composerHintVisible).
-	sentCount       int
-	agentFeedback   map[string]string
-	agentProfileID  string
+	sentCount      int
+	agentFeedback  map[string]string
+	agentProfileID string
+	// threadPeek is the thread set aside so the channel shows on a narrow
+	// screen after View in channel (issue3894_thread_peek.go).
+	threadPeek      string
+	threadUI        threadChoiceUI
 	emojiCompletion emojiCompletion
 	// channelSuggest is the composer's "#" channel list (chatux051_channels.go).
 	channelSuggest channelSuggestState
@@ -64,6 +77,9 @@ type localUI struct {
 	// detailGroups is which collapsed groups of Conversation details the viewer
 	// has opened this page session (chatux005_details.go).
 	detailGroups map[string]bool
+	// roleQuery is the Role labels filter's own text, kept apart from the
+	// Members filter (issue3881_role_filter.go).
+	roleQuery string
 	// modAuthorHidden is the stamp of each CHATMOD-002 refusal line the author
 	// has typed past (chatmod002_author.go).
 	modAuthorHidden map[string]int64
@@ -81,7 +97,13 @@ type localUI struct {
 	agentShareAsk string
 	// privateAnswer is the composer's "Private answer" switch (agentux070_private_answer.go).
 	privateAnswer bool
-	seq           uint64
+	// privateByRoom keeps the switch of each conversation's unsent draft while
+	// another conversation is open (issue3992_private_answer.go).
+	privateByRoom map[string]bool
+	// privateAsk is, per private conversation, the channel question moved into it
+	// and still unsent (issue3969_private_question.go).
+	privateAsk map[string]issue3969Origin
+	seq        uint64
 	// menuSeq is seq as of the last change to commandMenu, which is what the
 	// command list writes into data-open (issue 3827: not every local change).
 	menuSeq uint64
@@ -108,17 +130,22 @@ func (s localStore) update(change func(*localUI)) {
 // changes, without asking for another render: the caller is rendering already.
 func (s localStore) forRoom(room string) {
 	if s.box.room != room {
+		s.box.keepPrivateAnswer(s.box.room)
+		s.box.keepPurposeEdit(s.box.room)
 		s.box.room = room
 		s.box.chatcmd003 = chatcmd003Preview{Generation: s.box.chatcmd003.Generation + 1}
 		s.box.tray = ""
 		s.box.pointerRow, s.box.focusRow = "", ""
 		s.box.searchOpen = false
 		s.box.pollReady = false
+		s.box.roleQuery = ""
 		s.box.agentProfileID = ""
+		s.box.threadPeek = ""
 		s.box.agentShareAsk = ""
-		s.box.privateAnswer = false
+		s.box.privateAnswer = s.box.privateAnswerForRoom(room)
 		s.box.cardEdit = ""
 		s.box.purposeEditing, s.box.purposeDraft = false, ""
+		s.box.restorePurposeEdit(room)
 		s.box.emojiCompletion = emojiCompletion{Active: -1}
 		s.box.commandMenu = composerCommandMenu{}
 	}
@@ -130,7 +157,10 @@ func (s localStore) resetCreate() {
 	s.box.pickQuery = ""
 	s.box.picked = nil
 	s.box.pickActive = 0
+	s.box.pickDismissed = false
+	s.box.pickNote = ""
 	s.box.nameRefused, s.box.nameMissing, s.box.nameTyped = false, false, ""
+	s.box.groupName, s.box.groupPicked = "", nil
 }
 
 // pickCandidates lists people the viewer can add to a new conversation: the

@@ -66,6 +66,8 @@ func configureAgentService(conn grpc.ClientConnInterface, cfg journeyclient.Conf
 	agentBrowser.Unlock()
 	configurePersonaAdminDocumentService(documentv1.NewDocumentServiceClient(conn))
 	installAgentRequestDocumentHandlers()
+	installAgentDraftListeners()
+	installAgentSelectionListeners()
 	installAgentPageObserver()
 	scheduleAgentPageHydration()
 	if install {
@@ -109,14 +111,10 @@ const (
 
 func hydrateAgentTaskPage() {
 	document := js.Global().Get("document")
-	if detail := document.Call("querySelector", "[data-task-view][data-task-request]"); detail.Truthy() {
-		prefix := agentTaskTitlePrefix(domDataset(detail, "taskRequest"))
-		current := document.Get("title").String()
-		if prefix != "" && !strings.HasPrefix(current, prefix+" · ") {
-			document.Set("title", prefix+" · "+current)
-		}
-	}
+	syncAgentTaskTabTitle(document)
 	input := document.Call("getElementById", "agents-composer-input")
+	restoreAgentComposerDraft(input)
+	focusAgentReturnRow(document)
 	storage, _ := browserSessionStorage()
 	if tasks := document.Call("querySelector", ".agents-tasks"); tasks.Truthy() && storage.Truthy() {
 		counts := map[string]int{}
@@ -177,6 +175,21 @@ func handleAgentFollowUpClick(event js.Value) {
 		return
 	}
 	event.Call("preventDefault")
+	// #3975: the composer is on this page, so quote the request into it in place.
+	// Leaving the page lost the text (the storage hand-off below is refused by
+	// the browser-state policy), and an unsent draft is kept under the quote.
+	if input := js.Global().Get("document").Call("getElementById", "agents-composer-input"); input.Truthy() {
+		input.Set("value", agentFollowUpComposerValue(input.Get("value").String(), domDataset(button, "agentFollowUpContext")))
+		rememberAgentComposerDraft(input)
+		if status := js.Global().Get("document").Call("getElementById", "agents-composer-status"); status.Truthy() {
+			status.Set("textContent", domDataset(status, "msgFollowUp"))
+		}
+		input.Call("scrollIntoView", map[string]any{"block": "center"})
+		input.Call("focus")
+		end := input.Get("value").Get("length")
+		input.Call("setSelectionRange", end, end)
+		return
+	}
 	context := agentFollowUpContext(domDataset(button, "agentFollowUpContext"))
 	if storage, ok := browserSessionStorage(); ok {
 		browserStorageSet(storage, agentFollowUpStorageKey, context)
@@ -203,6 +216,7 @@ func handleAgentAskAgainClick(event js.Value) {
 		return
 	}
 	input.Set("value", domDataset(button, "agentRetryPrompt"))
+	rememberAgentComposerDraft(input)
 	personaID := generalAgentSelection(domDataset(button, "agentRetryPersona"))
 	choices := document.Call("querySelectorAll", `input[name="agent"]`)
 	for index := 0; index < choices.Get("length").Int(); index++ {
@@ -300,6 +314,10 @@ func handleAgentTaskListClick(event js.Value) {
 		if storage, ok := browserSessionStorage(); ok {
 			browserStorageSet(storage, agentTaskFocusStorageKey, domDataset(back, "agentBackTaskId"))
 		}
+		// #3981: Close changes the address through the router; redraw the task
+		// region from it and return focus to the row that was open.
+		setAgentFocusReturn(domDataset(back, "agentBackTaskId"))
+		scheduleAgentSelectionReconcile()
 		return
 	}
 	if retry := target.Call("closest", "button[data-agent-page-retry]"); retry.Truthy() {
@@ -541,6 +559,7 @@ func handleAgentComposerClick(event js.Value) {
 			}
 			setStatus("done")
 			input.Set("value", "")
+			agentDraftStore.Clear()
 			clearAgentRequestDocuments(input.Call("closest", "form"))
 			button.Set("disabled", false)
 			renderAgentTasks(false, false)

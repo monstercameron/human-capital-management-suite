@@ -34,7 +34,7 @@ func chatListingSelection(previous, address string, addressRooms []chatui.Conver
 		return previous, wasListed && complete
 	}
 	if address != "" {
-		resolved, _ := resolveChatChannelFragment(addressRooms, address)
+		resolved, _ := resolveChatChannelAddress(addressRooms, address)
 		return resolved, false
 	}
 	return "", false

@@ -3,6 +3,7 @@
 package chatui
 
 import (
+	"strings"
 	"syscall/js"
 
 	"github.com/monstercameron/GoWebComponents/v5/ui"
@@ -11,14 +12,64 @@ import (
 var personPaneWasOpen bool
 var personPanePersonID string
 var personTrigger js.Value
+var personTriggerID, personTriggerScope string
 var personFocusComposer bool
 var personFocusGeneration uint64
 var composerFocusGeneration uint64
 
 func rememberPersonTrigger(event ui.Event) {
-	target := event.JSValue().Get("target")
-	if target.Truthy() {
-		personTrigger = target.Call("closest", "[data-action='open-person']")
+	rememberPersonTriggerFrom(event.JSValue().Get("target"))
+}
+
+// rememberPersonTriggerFrom keeps the control that first opened a person. While
+// a person pane is already open, a person followed from inside it (a manager, a
+// teammate) is not the control to return to: Close and Back go back to where
+// the person was first opened (issue 3874). A person opened from elsewhere (for
+// example another author in the conversation) does become the control to
+// return to.
+func rememberPersonTriggerFrom(target js.Value) {
+	if !target.Truthy() {
+		return
+	}
+	if personPaneWasOpen && personTrigger.Truthy() && target.Call("closest", ".person-pane").Truthy() {
+		return
+	}
+	personTrigger = target.Call("closest", "[data-action='open-person']")
+	personTriggerID, personTriggerScope = "", ".chat-workspace"
+	if !personTrigger.Truthy() {
+		return
+	}
+	if id := personTrigger.Call("getAttribute", "data-id"); id.Truthy() {
+		personTriggerID = id.String()
+	}
+	if details := personTrigger.Call("closest", ".chat-details"); details.Truthy() {
+		personTriggerScope = ".chat-details"
+	}
+}
+
+// restorePersonTriggerFocus puts focus back where the person was opened: the
+// opening control when it is still on the page, else the same person's control
+// in the same area (the panel is drawn again after Back), else the details
+// panel's own close button.
+func restorePersonTriggerFocus() {
+	opts := js.ValueOf(map[string]any{"preventScroll": true})
+	if personTrigger.Truthy() && personTrigger.Get("isConnected").Bool() {
+		personTrigger.Call("focus", opts)
+		return
+	}
+	doc := js.Global().Get("document")
+	if personTriggerID != "" && !strings.ContainsAny(personTriggerID, "\"\\") {
+		scope := personTriggerScope
+		if scope == "" {
+			scope = ".chat-workspace"
+		}
+		if el := doc.Call("querySelector", scope+" [data-action='open-person'][data-id=\""+personTriggerID+"\"]"); el.Truthy() {
+			el.Call("focus", opts)
+			return
+		}
+	}
+	if el := doc.Call("querySelector", ".chat-details [data-action='close-details']"); el.Truthy() {
+		el.Call("focus", opts)
 	}
 }
 
@@ -61,8 +112,8 @@ func syncPersonFocusFor(open bool, personID string) {
 			}
 		} else if personFocusComposer {
 			personFocusComposer = false
-		} else if personTrigger.Truthy() && personTrigger.Get("isConnected").Bool() {
-			personTrigger.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+		} else {
+			restorePersonTriggerFocus()
 		}
 		frame.Release()
 		return nil

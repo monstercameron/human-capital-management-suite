@@ -15,12 +15,12 @@ import (
 // that shows it.
 func TestTodo_CHATBUG_076(t *testing.T) {
 	const bar = ".chat-workspace .message-list .message .message-actions"
-	if !strings.Contains(ChatBug076Styles, "@media(min-width:768px) and (pointer:fine){\n"+bar+"{top:4px;transform:translateY(-100%)}") {
-		t.Fatalf("the bar is not placed with its bottom edge 4px inside the message's top padding, from 768px up: %s", ChatBug076Styles)
+	if !strings.Contains(ChatBug076Styles, "@media(min-width:768px) and (pointer:fine){\n"+bar+"{top:4px;transform:none}") {
+		t.Fatalf("the bar is not placed 4px under the message's own top edge, from 768px up (#3845): %s", ChatBug076Styles)
 	}
 	// Nothing joined later may move it back: the last rule for the selector, in
 	// the whole stylesheet, is this one.
-	if top, transform := chatbugCascadeValue(Stylesheet, bar, "top"), chatbugCascadeValue(Stylesheet, bar, "transform"); top != "4px" || transform != "translateY(-100%)" {
+	if top, transform := chatbugCascadeValue(Stylesheet, bar, "top"), chatbugCascadeValue(Stylesheet, bar, "transform"); top != "4px" || transform != "none" {
 		t.Fatalf("a later sheet moves the bar: top=%q transform=%q", top, transform)
 	}
 	// The message's top padding is at least the 4px the bar reaches into it, so
@@ -28,9 +28,9 @@ func TestTodo_CHATBUG_076(t *testing.T) {
 	if padding := chatbugCascadeValue(Stylesheet, ".message", "padding-block-start"); padding != "8px" {
 		t.Fatalf("premise changed: a message's top padding is %q, the bar is placed for 8px", padding)
 	}
-	// The author line no longer keeps room for a bar that is not over it.
-	if got := chatbugCascadeValue(Stylesheet, ".chat-workspace .message-list .message .message-meta", "padding-inline-end"); got != "0" {
-		t.Fatalf("the author line still keeps %q free for the bar", got)
+	// The bar is inside the row (#3845), so the author line keeps room for it.
+	if got := chatbugCascadeValue(Stylesheet, ".chat-workspace .message-list .message .message-meta", "padding-inline-end"); got != "84px" && got != "196px" {
+		t.Fatalf("the author line keeps %q free for the bar", got)
 	}
 	if got := chatbugCascadeValue(Stylesheet, ".chat-workspace .message-list .message.continued:has(>.message-actions)", "background"); !strings.Contains(got, "color-mix") {
 		t.Fatalf("a grouped message is not tinted while its bar is shown: %q", got)

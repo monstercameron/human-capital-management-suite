@@ -46,6 +46,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/monstercameron/human-capital-management-suite/internal/application"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatroutestore"
 	"github.com/monstercameron/human-capital-management-suite/internal/data/chatstore"
 	"github.com/monstercameron/human-capital-management-suite/internal/platform/bootstrap"
@@ -168,9 +169,9 @@ func migrateConfigFields() []bootstrap.Field {
 			Default: "false",
 		},
 		{
-			Name:    fieldChatSeedMediaRoot,
-			Usage:   "chat seed: durable root for uploaded media bytes",
-			Default: defaultArtifactRootPath + "/chat-media",
+			Name:  fieldChatSeedMediaRoot,
+			Env:   application.EnvChatMediaRoot,
+			Usage: "chat seed: durable root for uploaded media bytes; when unset, the same root serve uses (HCMNEXT_ARTIFACT_ROOT/chat-media, else .artifacts/chat-media)",
 		},
 		{
 			Name:    fieldAssetDir,

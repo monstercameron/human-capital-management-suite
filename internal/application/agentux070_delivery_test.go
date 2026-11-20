@@ -198,10 +198,11 @@ func (r *agentUX070Room) deliver(options agentUX070Delivery) (PersonaReplyDelive
 	recorder := &personaReplyReceiptRecorder{next: current, store: r.receipts, actors: &personaReceiptActorFixture{actor: personaReplyActor{AgentID: "agent:policy-helper", Display: "Policy Helper", InvokerHandle: "owner"}}}
 	documents := []agentdocref.ResolvedDocument{{Reference: agentdocref.Reference{DocumentID: "pto-policy"}, Title: "Paid time off policy"}}
 	details := []PersonaReplyCitationDetail{{DocumentID: "pto-policy", VersionID: "1", Index: 1}}
-	return recorder.Deliver(r.ctx, PersonaReplyDeliveryRequest{Principal: r.asker, Output: output, IdempotencyKey: output.Identity().AdmissionID, Documents: documents, CitationDetails: details})
+	return recorder.Deliver(r.ctx, PersonaReplyDeliveryRequest{Principal: r.asker, Output: output, IdempotencyKey: output.Identity().AdmissionID, Documents: documents, CitationDetails: details, Attachments: options.attachments})
 }
 
 type agentUX070Delivery struct {
+	attachments        chat.AttachmentReceipt
 	conversation       string
 	alwaysPrivate      bool
 	channelPrivate     bool

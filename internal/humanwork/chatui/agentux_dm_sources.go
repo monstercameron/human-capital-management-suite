@@ -28,6 +28,8 @@ type agentReplyEnvelope struct {
 	QuestionText  string
 	QuestionAt    time.Time
 	Sources       []agentReplySource
+	// Receipt is what the run did with the files attached to the thread (issue 3961).
+	Receipt chat.AttachmentReceipt
 }
 
 type agentQuestionContext struct {
@@ -41,7 +43,9 @@ func parseAgentReplyEnvelope(body string) agentReplyEnvelope {
 	// sources; it is read before them and kept last on the answer's text, where
 	// the body's renderer turns it into the line in the reader's language.
 	clean, notFromDocuments := chat.SplitUngrounded(body)
+	clean, receipt := issue3961Split(clean)
 	envelope := parseAgentReplyEnvelopeText(clean)
+	envelope.Receipt = receipt
 	if notFromDocuments {
 		envelope.Body = strings.TrimSpace(envelope.Body + "\n" + chat.UngroundedMark())
 	}
@@ -249,6 +253,9 @@ func renderAgentReplySources(model Model, envelope agentReplyEnvelope) []ui.Node
 		nodes = append(nodes, html.Section(html.Props{Class: "agent-reply-sources", Aria: map[string]string{"label": agentReplyFallback(model.Locale, "chat.agent.sources", "Sources")}},
 			html.H4(html.Props{Text: agentReplyFallback(model.Locale, "chat.agent.sources", "Sources")}), html.Ul(html.Props{}, items...)))
 	}
+	if receipt := issue3961Receipt(model, envelope.Receipt); receipt != nil {
+		nodes = append(nodes, receipt)
+	}
 	return nodes
 }
 
@@ -280,4 +287,4 @@ func renderAgentQuestionContext(model Model, envelope agentReplyEnvelope, timeLa
 	return html.Aside(html.Props{Class: "agent-question-context", Aria: map[string]string{"label": prefix + " " + conversation}}, children...)
 }
 
-const AgentDMSourcesStyles = `.agent-reply-sources{margin-block:.65rem 0;padding-block-start:.55rem;border-block-start:1px solid var(--line)}.agent-reply-sources h4{margin:0 0 .3rem;font-size:.78rem;color:var(--muted)}.agent-reply-sources ul{margin:0;padding-inline-start:1.2rem}.agent-reply-source-link,.agent-reply-backlink{color:var(--accent);overflow-wrap:anywhere}.agent-dm-avatar{background:var(--soft);color:var(--accent);border:1px solid var(--line)}.agent-identity-line{display:inline-flex;align-items:center;gap:.45rem;min-width:0}`
+const AgentDMSourcesStyles = `.agent-reply-sources{margin-block:.65rem 0;padding-block-start:.55rem;border-block-start:1px solid var(--line)}.agent-reply-sources h4{margin:0 0 .3rem;font-size:.78rem;color:var(--muted)}.agent-reply-sources ul{margin:0;padding-inline-start:1.2rem}.agent-reply-source-link,.agent-reply-backlink{color:var(--accent);overflow-wrap:anywhere}.agent-dm-avatar{background:var(--soft);color:var(--accent);border:1px solid var(--line)}.agent-identity-line{display:inline-flex;align-items:center;gap:.45rem;min-width:0}` + issue3961Styles

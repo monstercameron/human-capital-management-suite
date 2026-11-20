@@ -14,6 +14,7 @@ func chatsearchAppendPage(previous chatui.ChatSearchView, cursor string, outcome
 		return outcome
 	}
 	merged := outcome
+	merged.LoadingMore, merged.Fresh = false, nil
 	merged.Response.Groups = nil
 	listed := map[string]bool{}
 	for _, group := range previous.Response.Groups {
@@ -41,6 +42,7 @@ func chatsearchAppendPage(previous chatui.ChatSearchView, cursor string, outcome
 				continue
 			}
 			listed[key] = true
+			merged.Fresh = append(merged.Fresh, chatui.Issue3899RowKey(row))
 			merged.Response.Groups[at].Rows = append(merged.Response.Groups[at].Rows, row)
 		}
 		merged.Response.Groups[at].Count = len(merged.Response.Groups[at].Rows)
@@ -56,4 +58,17 @@ func chatsearchAppendPage(previous chatui.ChatSearchView, cursor string, outcome
 		}
 	}
 	return merged
+}
+
+// chatsearchBeginView is the view shown while a search request is out. A first
+// page shows only the progress. The next page keeps the results already read on
+// screen with its control marked busy (#3899): replacing them with a progress
+// frame reset the scroll position and dropped keyboard focus.
+func chatsearchBeginView(previous chatui.ChatSearchView, query, cursor string) chatui.ChatSearchView {
+	if cursor != "" && previous.Query == query && previous.Error == "" && !previous.Loading {
+		held := previous
+		held.LoadingMore, held.Fresh = true, nil
+		return held
+	}
+	return chatui.ChatSearchView{Query: query, Loading: true}
 }

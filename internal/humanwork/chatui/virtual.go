@@ -388,7 +388,7 @@ func virtualTimelineBody(m Model, h handlers, messages []Message, layout virtual
 		}
 	}
 	if m.HasNewer {
-		items = append(items, html.WithKey(html.Div(html.Props{Class: "virtual-footer", Data: map[string]string{"virtual-footer": "true"}}, html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Text: m.t(KeyLoadNewer)})), "load-newer"))
+		items = append(items, html.WithKey(html.Div(html.Props{Class: "virtual-footer", Data: map[string]string{"virtual-footer": "true"}}, html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Title: m.t(KeyLoadNewerHint), Text: m.t(KeyLoadNewer)})), "load-newer"))
 	}
 	return items
 }

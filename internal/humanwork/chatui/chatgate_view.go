@@ -183,10 +183,7 @@ func renderGateApplicant(v GateView) ui.Node {
 		nodes = append(nodes, gateButton(v, "withdraw", "withdraw", v.Submission.ID, false))
 	}
 	audit := []ui.Node{html.H3(html.Props{Text: t("readers")})}
-	for _, a := range v.Reads {
-		name := gateReaderName(v, a)
-		audit = append(audit, html.P(html.Props{Text: name + " · " + a.Purpose + " · " + a.At.Format("2006-01-02")}))
-	}
+	audit = append(audit, gateReaderNodes(v)...)
 	if mine := renderGateMySegments(v); mine != nil {
 		nodes = append(nodes, mine)
 	}
@@ -337,13 +334,15 @@ func renderGateQueue(v GateView) ui.Node {
 			}
 			items = append(items, html.P(html.Props{Text: label + ": " + gateAnswerText(value)}))
 		}
-		items = append(items, html.Label(html.Props{For: "gate-reason-" + sub.ID, Text: t("reason")}), html.Input(html.Props{ID: "gate-reason-" + sub.ID, Type: "text", Required: true}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "admit", "admit", sub.ID, true), gateButton(v, "decline", "decline", sub.ID, false)))
+		items = append(items, gateReasonInput(v, "gate-reason-"+sub.ID, true)...)
+		items = append(items, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "admit", "admit", sub.ID, true), gateButton(v, "decline", "decline", sub.ID, false)))
 		nodes = append(nodes, html.Fieldset(html.Props{}, items...))
 	}
 	if n == 0 {
 		nodes = append(nodes, html.P(html.Props{Text: t("empty")}))
 	}
-	nodes = append(nodes, html.Label(html.Props{For: "gate-bulk-reason", Text: t("reason")}), html.Input(html.Props{ID: "gate-bulk-reason", Type: "text"}), html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "bulk-admit", "admitSelected", "", false), gateButton(v, "bulk-decline", "declineSelected", "", false)))
+	nodes = append(nodes, gateReasonInput(v, "gate-bulk-reason", false)...)
+	nodes = append(nodes, html.Div(html.Props{Class: "chatgate-actions"}, gateButton(v, "bulk-admit", "admitSelected", "", false), gateButton(v, "bulk-decline", "declineSelected", "", false)))
 	return html.Section(html.Props{}, nodes...)
 }
 func renderGateAnswers(v GateView) ui.Node {
@@ -383,7 +382,7 @@ func renderGateAnswers(v GateView) ui.Node {
 			rows = append(rows, html.Tr(html.Props{Data: map[string]string{"gate-answer-row": "true"}}, html.Td(html.Props{Text: name}), html.Td(html.Props{Text: label}), html.Td(html.Props{Text: gateAnswerText(answers[id])})))
 		}
 	}
-	nodes := []ui.Node{html.H2(html.Props{Text: t("answerView")}), html.Label(html.Props{For: "gate-filter", Text: t("filter")}), html.Input(html.Props{ID: "gate-filter", Type: "search"}), html.P(html.Props{ID: "gate-answer-count", Role: "status", Text: fmt.Sprintf(t("count"), len(rows))}), html.Div(html.Props{Class: "chatgate-table-wrap"}, html.Table(html.Props{},
+	nodes := []ui.Node{html.H2(html.Props{Text: t("answerView")}), html.Label(html.Props{For: "gate-filter", Text: t("filter")}), html.Input(html.Props{ID: "gate-filter", Type: "search"}), html.P(html.Props{ID: "gate-answer-count", Role: "status", Text: gateAnswerCount(v.Locale, len(rows))}), html.Div(html.Props{Class: "chatgate-table-wrap"}, html.Table(html.Props{},
 		html.Thead(html.Props{}, html.Tr(html.Props{}, html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("person")}), html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("label")}), html.Th(html.Props{Raw: map[string]any{"scope": "col"}, Text: t("answerCol")}))),
 		html.Tbody(html.Props{}, rows...)))}
 	if v.ExportAllowed {
@@ -408,7 +407,7 @@ func renderGateAnswers(v GateView) ui.Node {
 		}
 		sort.Strings(values)
 		for _, value := range values {
-			nodes = append(nodes, html.P(html.Props{Text: label + ": " + value + " · " + fmt.Sprintf(t("count"), counts[id][value])}))
+			nodes = append(nodes, html.P(html.Props{Text: label + ": " + value + " · " + gateAnswerCount(v.Locale, counts[id][value])}))
 		}
 	}
 	return html.Section(html.Props{}, nodes...)

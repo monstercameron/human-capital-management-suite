@@ -60,10 +60,15 @@ func agentux070Row(m Model, local localUI, refs []ChatReference) ui.Node {
 	if local.privateAnswer {
 		line = agentux070Text(m, "line.private")
 	}
-	return html.Div(html.Props{Class: "composer-private-answer", Data: map[string]string{"private-answer": boolString(local.privateAnswer)}},
+	children := []ui.Node{
 		html.Button(html.Props{Class: "composer-private-switch", Type: "button", Role: "switch", Data: map[string]string{"action": "agent-private-answer"},
 			Aria: map[string]string{"checked": boolString(local.privateAnswer)}, Text: agentux070Text(m, "toggle")}),
-		html.Span(html.Props{Class: "composer-private-line", Role: "status", Dir: "auto", Text: line}))
+		html.Span(html.Props{Class: "composer-private-line", Role: "status", Dir: "auto", Text: line}),
+	}
+	// Issue 3969: the question itself stays in the channel; say so, and offer the
+	// separate private route.
+	children = append(children, issue3969Notes(m, refs)...)
+	return html.Div(html.Props{Class: "composer-private-answer", Data: map[string]string{"private-answer": boolString(local.privateAnswer)}}, children...)
 }
 
 // agentux070Click turns the switch over. It reports whether the press was on it.

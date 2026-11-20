@@ -87,19 +87,9 @@ func (s *chatState) shareFilter(query string) {
 		s.mu.Unlock()
 		return
 	}
+	// #3918: the filter only narrows the list. The checked destination is the
+	// intended audience and stays until the person removes it.
 	s.model.ShareQuery = query
-	if s.model.ShareDestinationID != "" {
-		visible := false
-		for _, room := range s.model.ShareDestinations {
-			if room.ID == s.model.ShareDestinationID && strings.Contains(strings.ToLower(room.Name), strings.ToLower(strings.TrimSpace(query))) {
-				visible = true
-				break
-			}
-		}
-		if !visible {
-			s.model.ShareDestinationID = ""
-		}
-	}
 	s.model.ShareVersion++
 	s.mu.Unlock()
 }
@@ -109,6 +99,13 @@ func (s *chatState) shareSelect(destination string) bool {
 	defer s.mu.Unlock()
 	if s.model.SharePending || s.model.ShareLoading {
 		return false
+	}
+	if destination == "" {
+		// #3918: removing the checked destination before sharing.
+		s.model.ShareDestinationID, s.model.ShareError = "", ""
+		s.model.ShareVersion++
+		s.shareAttemptDestination, s.shareAttemptKey = "", ""
+		return true
 	}
 	for _, room := range s.model.ShareDestinations {
 		if room.ID == destination && room.ID != s.model.ShareSourceRoomID && (room.Kind == chatui.PublicChannel || room.Kind == chatui.PrivateChannel) {

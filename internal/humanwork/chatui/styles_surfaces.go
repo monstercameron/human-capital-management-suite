@@ -2,7 +2,7 @@ package chatui
 
 // surfaceStyles covers the create and browse dialogs, the inline channel tray
 // (to-do list and poll), person mention chips and the quiet-hours popover.
-const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;border-radius:var(--hcm-radius-surface)}.chat-dialog .side-heading{margin:0 -24px 14px;padding:0 24px}` +
+const surfaceStyles = `.chat-dialog{width:min(560px,100%);padding:0 24px 22px;border-radius:var(--hcm-radius-surface)}.chat-dialog .side-heading{margin:0 -24px 14px;padding:0 24px;background:var(--surface);z-index:2}` +
 	// create dialog
 	`.kind-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}` +
 	`.kind-card{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--hcm-radius-control);background:var(--surface);color:var(--ink);font:inherit;text-align:start;cursor:pointer}` +

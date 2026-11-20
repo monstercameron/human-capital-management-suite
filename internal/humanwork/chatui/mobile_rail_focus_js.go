@@ -54,17 +54,25 @@ func setMobileRailModal(open bool) js.Value {
 		style.Call("setProperty", "--chat-edge-start", strconv.FormatFloat(box.Get("left").Float(), 'f', 2, 64)+"px")
 		style.Call("setProperty", "--chat-edge-end", strconv.FormatFloat(js.Global().Get("innerWidth").Float()-box.Get("right").Float(), 'f', 2, 64)+"px")
 	}
+	resultsMounted := root.Call("querySelector", ".chat-main .chat-search-results").Truthy()
 	if modal {
 		rail.Call("setAttribute", "role", "dialog")
-		rail.Call("setAttribute", "aria-modal", "true")
+		// aria-modal hides everything outside the dialog from assistive
+		// technology, which would hide the results lifted over the drawer.
+		if mobileRailAdvertisesModal(resultsMounted) {
+			rail.Call("setAttribute", "aria-modal", "true")
+		} else {
+			rail.Call("removeAttribute", "aria-modal")
+		}
 	} else {
 		rail.Call("setAttribute", "role", "navigation")
 		rail.Call("removeAttribute", "aria-modal")
 	}
-	for _, selector := range []string{".chat-main", ".chat-side", ".chat-skip"} {
+	inertMain, inertSide, inertSkip := mobileRailBackgroundInert(modal, resultsMounted)
+	for selector, inert := range map[string]bool{".chat-main": inertMain, ".chat-side": inertSide, ".chat-skip": inertSkip} {
 		el := root.Call("querySelector", selector)
 		if el.Truthy() {
-			el.Set("inert", modal)
+			el.Set("inert", inert)
 		}
 	}
 	return rail
@@ -207,6 +215,11 @@ func trapMobileRailFocus(event ui.Event) bool {
 	}
 	rail := setMobileRailModal(true)
 	if !rail.Truthy() {
+		return false
+	}
+	// With results lifted over the drawer, Tab must be free to leave the rail
+	// and reach them; wrapping it back to the first row would strand them.
+	if !mobileRailAdvertisesModal(js.Global().Get("document").Call("querySelector", ".chat-workspace .chat-main .chat-search-results").Truthy()) {
 		return false
 	}
 	items := rail.Call("querySelectorAll", "a[href]:not([tabindex='-1']),button:not([disabled]),input:not([disabled]),summary,[tabindex]:not([tabindex='-1'])")

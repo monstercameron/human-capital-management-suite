@@ -52,8 +52,12 @@ const chatsearchRecentMax = 5
 // cursor (:focus-within), so it needs no state of its own. Pressing one fills
 // the box and searches for it.
 func chatsearchRecentList(m Model) ui.Node {
-	if strings.TrimSpace(m.Search) != "" || len(m.SearchRecent) == 0 {
+	if strings.TrimSpace(m.Search) != "" {
 		return nil
+	}
+	if len(m.SearchRecent) == 0 {
+		// ISSUE-3928: a finished clear is announced after the list is gone.
+		return issue3928ClearedNotice(m)
 	}
 	items := make([]ui.Node, 0, chatsearchRecentMax)
 	for _, query := range m.SearchRecent {
@@ -71,5 +75,5 @@ func chatsearchRecentList(m Model) ui.Node {
 	}
 	label := chatsearchText(m.Locale, "recent")
 	return html.Div(html.Props{Class: "rail-search-recent", Role: "group", Aria: map[string]string{"label": label}},
-		append([]ui.Node{html.Span(html.Props{Class: "rail-search-recent-title", Text: label})}, items...)...)
+		append(append([]ui.Node{html.Span(html.Props{Class: "rail-search-recent-title", Text: label})}, items...), issue3928Footer(m)...)...)
 }

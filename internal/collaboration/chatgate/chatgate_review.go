@@ -16,8 +16,11 @@ type ReviewDecision struct {
 
 func (s *Service) ReviewMany(ctx context.Context, c Command, decisions []ReviewDecision, reason string) error {
 	_, e := s.mutate(ctx, c, "admin", []any{decisions, reason}, func(tx Transaction) (any, error) {
-		if len(decisions) == 0 || len(decisions) > 100 || strings.TrimSpace(reason) == "" {
+		if len(decisions) == 0 || len(decisions) > 100 {
 			return nil, ErrInvalid
+		}
+		if strings.TrimSpace(reason) == "" {
+			return nil, FieldError{Field: "reason", Cause: ErrInvalid}
 		}
 		seen := map[string]bool{}
 		indices := []int{}

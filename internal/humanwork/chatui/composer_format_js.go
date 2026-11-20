@@ -16,9 +16,14 @@ func applyComposerFormat(id, kind string) {
 	if !field.Truthy() || field.Get("disabled").Truthy() || field.Get("value").Type() != js.TypeString {
 		return
 	}
-	updated, from, to := formatSelection(field.Get("value").String(), kind, field.Get("selectionStart").Int(), field.Get("selectionEnd").Int())
-	field.Set("value", updated)
-	field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	value := field.Get("value").String()
+	updated, from, to := formatSelection(value, kind, field.Get("selectionStart").Int(), field.Get("selectionEnd").Int())
+	// Issue #3902: an editing command keeps the change on the browser's undo
+	// stack; the value write below is the fallback and cannot be undone.
+	if start, end, insert := composerMinimalEdit(value, updated); !composerEditUndoable(doc, field, start, end, insert) {
+		field.Set("value", updated)
+		field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	}
 	if field = doc.Call("getElementById", id); field.Truthy() {
 		field.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 		field.Call("setSelectionRange", from, to)

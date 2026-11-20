@@ -72,10 +72,12 @@ func TestTodo_CHATBUG_071_Pick(t *testing.T) {
 		}
 		// Typing on keeps the line; taking the name out of the draft ends it.
 		store.ReconcilePersonas("chat-composer", draft+"are you free?")
+		m.Draft = draft + "are you free?"
 		if outside := store.SettleOutsiders(m); len(outside) != 1 {
 			t.Errorf("%s: typing after the name dropped the note", name)
 		}
 		store.ReconcilePersonas("chat-composer", "hi ")
+		m.Draft = "hi " // the model carries the text the person now has (issue 3943 recovers from it)
 		if outside := store.SettleOutsiders(m); len(outside) != 0 {
 			t.Errorf("%s: the note outlived the name: %+v", name, outside)
 		}

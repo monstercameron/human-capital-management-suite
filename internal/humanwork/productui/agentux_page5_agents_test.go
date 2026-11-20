@@ -126,9 +126,8 @@ func TestAgentUXPage5_RelativeTimePluralAndDigits(t *testing.T) {
 			t.Fatalf("%s five hours = %q, want %q", tc.locale, got, tc.fiveHours)
 		}
 	}
-	locale := ResolveProductLocale("ar")
 	markup := renderAgentUXPage5(t, "ar", AgentSnapshot{Availability: AgentsAvailable, Tasks: []AgentTask{{ID: "done", State: AgentTaskCompleted}}}, false)
-	if want := `aria-label="` + locale.Text("agents.task_count") + `" class="agents-task-filter-count">١</span>`; !strings.Contains(markup, want) {
+	if want := `class="agents-task-filter-count">١</span>`; !strings.Contains(markup, want) {
 		t.Fatalf("Arabic tab count did not use Arabic-Indic digits: %s", markup)
 	}
 }

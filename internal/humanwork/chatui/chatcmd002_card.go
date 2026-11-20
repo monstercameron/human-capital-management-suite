@@ -37,7 +37,8 @@ func chatcmd002Votes(m Model, total int) string {
 }
 
 func chatcmd002Stamp(m Model, at time.Time) string {
-	return at.In(chatcmd003Location(m)).Format("2006-01-02 15:04")
+	at = at.In(chatcmd003Location(m))
+	return at.Format("2006-01-02 15:04") + " " + chatcmd002Offset(at)
 }
 
 // chatcmd002Poll draws a poll's options. A named poll votes on the press and
@@ -60,13 +61,16 @@ func chatcmd002Poll(m Model, post string, view chat.Chatcmd002View, preview, clo
 	if poll.Anonymous {
 		meta = append(meta, chatcmd003Text(m, "chip-anonymous"))
 	}
+	if poll.AddOptions == "members" && !closed {
+		meta = append(meta, chatcmd003Text(m, "chip-add-members"))
+	}
 	switch {
 	case view.Card.ClosedAt != nil:
-		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closed-at"), "date", chatcmd002Stamp(m, *view.Card.ClosedAt)))
+		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closed-at"), "date", chatcmd002Deadline(m, *view.Card.ClosedAt)))
 	case closed && poll.ClosesAt != nil:
-		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closed-at"), "date", chatcmd002Stamp(m, *poll.ClosesAt)))
+		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closed-at"), "date", chatcmd002Deadline(m, *poll.ClosesAt)))
 	case poll.ClosesAt != nil:
-		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closes-at"), "date", chatcmd002Stamp(m, *poll.ClosesAt)))
+		meta = append(meta, chatcmd002Fill(chatcmd003Text(m, "closes-at"), "date", chatcmd002Deadline(m, *poll.ClosesAt)))
 	}
 	nodes := []ui.Node{}
 	if len(meta) > 0 {
@@ -132,6 +136,10 @@ func chatcmd002Poll(m Model, post string, view chat.Chatcmd002View, preview, clo
 	if !preview && !closed && view.CanAddOption && m.Chatcmd002.Mutate != nil {
 		nodes = append(nodes, chatcmd002AddOptionRow(m, post))
 	}
+	if !preview && !closed && poll.AddOptions == "members" && len(poll.Options) >= chat.Chatcmd002MaxOptions {
+		// The poll took all it can: say so where the add field would be.
+		nodes = append(nodes, html.P(html.Props{Class: "chatcmd002-note", Role: "status", Text: chatcmd003Text(m, "options-full")}))
+	}
 	if ballot && !closed {
 		if view.Voted {
 			nodes = append(nodes, html.P(html.Props{Class: "chatcmd002-note", Role: "status", Text: chatcmd003Text(m, "cast-done")}))
@@ -187,7 +195,7 @@ func chatcmd002Todo(m Model, post string, view chat.Chatcmd002View, preview, clo
 			parts = append(parts, html.Span(html.Props{Class: "chatcmd002-chip", Dir: "auto", Text: chatcmd002Fill(chatcmd003Text(m, "assigned"), "name", chatcmd002PersonName(m, item.AssigneeHomeTenantID, item.AssigneeID))}))
 		}
 		if item.DueAt != nil {
-			parts = append(parts, html.Time(html.Props{Class: "chatcmd002-chip", Text: chatcmd002Fill(chatcmd003Text(m, "due"), "date", item.DueAt.In(chatcmd003Location(m)).Format("2006-01-02"))}))
+			parts = append(parts, html.Time(html.Props{Class: "chatcmd002-chip", Text: chatcmd002Fill(chatcmd003Text(m, "due"), "date", chatcmd002DueText(m, item))}))
 		}
 		if item.Completed {
 			name := chatcmd002PersonName(m, item.CompletedByHomeTenantID, item.CompletedBySubjectID)
@@ -214,7 +222,7 @@ func Chatcmd002RenderCard(m Model, post string, view chat.Chatcmd002View, previe
 	}
 	head := []ui.Node{icon(glyph), html.H4(html.Props{Class: "chatcmd002-title", Dir: "auto", Text: c.Title})}
 	if closed {
-		head = append(head, html.Span(html.Props{Class: "chatcmd002-closed", Text: chatcmd003Text(m, "closed")}))
+		head = append(head, html.Span(html.Props{Class: "chatcmd002-closed chat-work-card-status", Text: chatcmd003Text(m, "closed")}))
 	}
 	children := []ui.Node{html.Div(html.Props{Class: "chatcmd002-head"}, head...)}
 	editing := !preview && post != "" && m.cardEditing == post && chatcmd002CanEdit(m, view)
@@ -249,7 +257,11 @@ func Chatcmd002RenderCard(m Model, post string, view chat.Chatcmd002View, previe
 		foot = append(foot, html.Button(html.Props{Class: "chatcmd002-link", Type: "button", Disabled: m.Chatcmd002.Mutate == nil, Data: map[string]string{"action": "chatcmd002-close", "id": post, "extra": operation}, Text: chatcmd003Text(m, label)}))
 		children = append(children, html.Div(html.Props{Class: "chatcmd002-foot"}, foot...))
 	}
-	return html.Section(html.Props{Class: "chatcmd002-card", Dir: agentReplyDirection(m.Locale), Data: map[string]string{"card": c.Kind}, Aria: map[string]string{"label": chatcmd003Text(m, c.Kind)}}, children...)
+	waits := chatcmd002WaitsOnViewer(m, view, preview, closed)
+	if waits {
+		children = append(children, html.Span(html.Props{Class: "chat-work-card-action", Text: workCardWaitingText(m.Locale)}))
+	}
+	return html.Section(workCardProps(m, html.Props{Class: "chatcmd002-card", Dir: agentReplyDirection(m.Locale), Data: map[string]string{"card": c.Kind}, Aria: map[string]string{"label": chatcmd003Text(m, c.Kind)}}, waits), children...)
 }
 
 func chatcmd002ProjectedBody(m Model, msg Message, fallback ui.Node) ui.Node {
@@ -426,7 +438,7 @@ const chatcmd002Styles = `.chatcmd002-card,.chatcmd003-preview{box-sizing:border
 	`.chatcmd002-tick{flex:none;display:inline-grid;place-items:center;width:20px;height:20px;padding:0;border:1.5px solid var(--muted);border-radius:4px;background:var(--hcm-color-surface,var(--surface));color:var(--hcm-color-on-brand,#fff);cursor:pointer}` +
 	`.chatcmd002-tick[aria-checked="true"]{border-color:var(--hcm-color-brand-primary,var(--accent));background:var(--hcm-color-brand-primary,var(--accent))}.chatcmd002-tick .chat-icon{width:14px;height:14px}.chatcmd002-tick:disabled{cursor:default;opacity:.6}.chatcmd002-tick:focus-visible{outline:2px solid var(--hcm-color-focus);outline-offset:2px}` +
 	`.chatcmd002-chip{flex:none;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:.75rem;white-space:nowrap}` +
-	`.chatcmd002-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}.chatcmd002-link{padding:0;border:0;background:none;color:var(--hcm-color-brand-primary,var(--accent));font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer}.chatcmd002-link:hover{text-decoration:underline}.chatcmd002-link:disabled{color:var(--muted);cursor:default;text-decoration:none}` +
+	`.chatcmd002-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}.chatcmd002-link{padding:0;border:0;background:none;color:var(--chat-accent-text,var(--accent));font:inherit;font-size:.8125rem;font-weight:600;cursor:pointer}.chatcmd002-link:hover{text-decoration:underline}.chatcmd002-link:disabled{color:var(--muted);cursor:default;text-decoration:none}` +
 	`@media(pointer:coarse){.chatcmd002-vote,.chatcmd002-choice{min-height:44px}.chatcmd002-tick{width:24px;height:24px}}` +
 	`.chatcmd003-preview{display:grid;gap:10px;max-width:none;margin:8px 0}.chatcmd003-preview h3{margin:0;font-size:.9375rem}.chatcmd003-preview .chatcmd002-card{max-width:none;margin:0;background:var(--soft)}` +
 	`.chatcmd003-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}.chatcmd003-setting{display:grid;gap:4px;min-width:0;font-size:.8125rem}.chatcmd003-setting label{color:var(--muted)}.chatcmd003-setting select,.chatcmd003-setting input{width:100%;min-width:0}` +

@@ -16,10 +16,20 @@ type ChatSearchView struct {
 	Recent       []string
 	Loading      bool
 	Error        string
+	// DraftBefore and DraftAfter are the dates the person typed into Refine
+	// search when Error is "daterange" (ISSUE-3859): they are not applied, so the
+	// fields keep them while the chips keep showing the last applied query.
+	DraftBefore, DraftAfter string
 	// Context is the page's own model. ChatSearchMount sets it so a result can
 	// be drawn like a message (people, conversations, documents and agents the
 	// page already knows); nil draws a result from its own fields alone.
 	Context *Model
+	// LoadingMore is true while "Show next results" is fetching a page: the
+	// results already read stay on screen (#3899) and the control says it is busy.
+	LoadingMore bool
+	// Fresh lists the results (kind, NUL, id) the last page added, so the first
+	// of them can be marked and announced (#3899).
+	Fresh []string
 }
 
 // ChatSearchMount draws the search outcome from the model, so the progress
@@ -47,7 +57,12 @@ func searchReturnBar(m Model) ui.Node {
 // chatSearchCount is the number of results on the page, and false while the
 // search is still running or failed.
 func chatSearchCount(v *ChatSearchView) (int, bool) {
-	if v == nil || v.Loading || (v.Error != "" && v.Error != "invalid" && v.Error != "meaning") {
+	if v == nil || v.Loading || (v.Error != "" && !chatsearchInputError(v.Error)) {
+		return 0, false
+	}
+	// ISSUE-3859: results are hidden while a filter is rejected, so the count of
+	// the answer they came from is not stated either.
+	if v.Error == "invalid" || v.Error == "daterange" {
 		return 0, false
 	}
 	total := 0
@@ -93,11 +108,11 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	button := func(action, label, extra string) ui.Node {
 		return html.Button(html.Props{Type: "button", Text: label, Data: map[string]string{"chatsearch-action": action, "extra": extra}, Disabled: v.Loading})
 	}
-	if v.Error != "" && v.Error != "invalid" && v.Error != "meaning" {
+	if v.Error != "" && !chatsearchInputError(v.Error) {
 		if len(v.Response.Groups) == 0 {
 			// CHATBUG-022: the failure says so once and offers the retry, so a
 			// person is never left looking at a box that did nothing.
-			notice := html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{Text: t("unavailable")}), button("retry", t("retry"), ""))
+			notice := html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{ID: Issue3857SummaryID, TabIndex: -1, Text: t("unavailable")}), button("retry", t("retry"), ""))
 			if v.Conversation == nil {
 				return notice
 			}
@@ -111,7 +126,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		previous.Error = ""
 		return html.Div(html.Props{}, html.Div(html.Props{Class: "search-status", Role: "status"}, html.P(html.Props{Text: t("unavailable")}), button("retry", t("retry"), "")), RenderChatSearch(locale, previous))
 	}
-	parsed, _ := chatsearch.Parse(v.Query)
+	// ISSUE-3691: names typed without quotes are read back as the one person or
+	// channel they name, so chips and fields never show a raw id or half a name.
+	parsed, _ := chatsearch.Parse(chatsearchDisplayQuery(v))
 	children := []ui.Node{}
 	errorAssociation := map[string]string{}
 	if v.Error != "" {
@@ -121,7 +138,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	// unmirrored control kept the DOM value of an earlier search, so a stale box
 	// was re-applied and the form hid the active filters.
 	active := parsed.Filters
-	controlValues := map[string]string{"channel": active.Conversation, "person": active.Person, "before": active.Before, "after": active.After, "on": active.On}
+	controlValues := map[string]string{"channel": active.Conversation, "person": chatsearchPersonName(v, active.Person), "before": active.Before, "after": active.After, "on": active.On}
 	controlChecked := map[string]bool{"file": active.File, "link": active.Link, "reactions": active.Reactions, "threads": active.Threads, "mentions": active.MentionsMe, "agent": active.Agent, "mine": active.Mine, "voice": active.Voice}
 	controls := []ui.Node{}
 	for _, field := range []string{"channel", "person", "before", "after", "on"} {
@@ -129,9 +146,20 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		if field == "before" || field == "after" || field == "on" {
 			typ = "date"
 		}
+		if v.Error == "daterange" && (field == "before" || field == "after") {
+			// ISSUE-3859: the fields hold what was typed, say which one to
+			// change, and are marked invalid for assistive technology.
+			draft, key := v.DraftBefore, "daterangeBefore"
+			if field == "after" {
+				draft, key = v.DraftAfter, "daterangeAfter"
+			}
+			id := "chatsearch-" + field + "-error"
+			controls = append(controls, html.Label(html.Props{For: "chatsearch-" + field}, html.Span(html.Props{Text: t(field)}), html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Value: draft, Aria: map[string]string{"invalid": "true", "describedby": id + " chatsearch-error"}}), html.Span(html.Props{ID: id, Class: "chatsearch-field-error", Text: t(key)})))
+			continue
+		}
 		controls = append(controls, html.Label(html.Props{For: "chatsearch-" + field}, html.Span(html.Props{Text: t(field)}), html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: typ, Value: controlValues[field], Aria: errorAssociation})))
 	}
-	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Text: t("all")})}
+	options := []ui.Node{html.Option(html.Props{Raw: map[string]any{"value": ""}, Selected: active.Kind == "", Text: t("all")})}
 	for _, kind := range chatsearchKindChoices(v.Response) {
 		options = append(options, html.Option(html.Props{Value: string(kind), Selected: kind == active.Kind, Text: chatsearchKind(locale, kind)}))
 	}
@@ -153,7 +181,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			if value == "agent" {
 				label += t("agent")
 			} else {
-				label += t("person") + " " + value
+				label += t("person") + " " + chatsearchPersonName(v, strings.TrimPrefix(value, "@"))
 			}
 		case "kind":
 			label += chatsearchKind(locale, chatsearch.Kind(value))
@@ -171,17 +199,26 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		default:
 			label += t(key) + " " + value
 		}
-		chips = append(chips, button("remove", label, chip))
+		chips = append(chips, issue3860Chip(t("remove")+": ", label, chip, v.Loading))
+	}
+	if scope := issue3860Scope(locale, parsed.Text); scope != nil {
+		children = append(children, scope)
 	}
 	children = append(children, html.Div(html.Props{Class: "chatsearch-chips"}, chips...))
 	if v.Loading {
 		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: locale, Shape: LoadingShapeList, Status: t("loading"), RetryData: map[string]string{"chatsearch-action": "retry", "extra": ""}}))
 	} else if v.Error != "" {
 		key := v.Error
-		if key != "invalid" && key != "meaning" {
+		if !chatsearchInputError(key) {
 			key = "error"
 		}
-		children = append(children, html.P(html.Props{Role: "alert", ID: "chatsearch-error", Text: t(key)}), button("retry", t("retry"), ""))
+		if key == "daterange" {
+			// ISSUE-3859: the fix is editing the dates, so there is no generic
+			// retry; the note tells the chips (applied) from the fields (edited).
+			children = append(children, html.P(html.Props{Role: "alert", ID: "chatsearch-error", Text: t(key)}), html.P(html.Props{Class: "chatsearch-draft-note", Text: t("draftnote")}))
+		} else {
+			children = append(children, html.P(html.Props{Role: "alert", ID: "chatsearch-error", Text: t(key)}), button("retry", t("retry"), ""))
+		}
 	} else {
 		// The count is printed once, in the page header; the results start here.
 		groups, saved := chatsearchDedupe(v.Response.Groups)
@@ -190,7 +227,21 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			if wider == "" {
 				wider = "*"
 			}
-			children = append(children, html.P(html.Props{Role: "status", Text: strings.ReplaceAll(t("empty"), "{query}", v.Query)}), button("widen", t("widen"), wider))
+			// #3897: widening removes filters, so it is offered only while one
+			// is applied; an unfiltered search says what to try instead.
+			restricted := len(parsed.Chips) > 0
+			emptyKey := "empty"
+			if !restricted {
+				emptyKey = "emptyplain"
+			}
+			children = append(children, html.P(html.Props{Role: "status", Text: strings.ReplaceAll(t(emptyKey), "{query}", v.Query)}))
+			if chatsearchUnknownPerson(v, active.Person) {
+				// ISSUE-3691: say why a first name found nobody.
+				children = append(children, html.P(html.Props{Class: "chatsearch-person-hint", Text: t("personhint")}))
+			}
+			if restricted {
+				children = append(children, button("widen", t("widen"), wider))
+			}
 		}
 		context := Model{}
 		if v.Context != nil {
@@ -198,15 +249,24 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		}
 		context.Locale = locale
 		people := chatsearchPeopleOf(context)
+		boundaryDrawn := false
 		for _, g := range groups {
 			rows := []ui.Node{html.H3(html.Props{Text: chatux010GroupName(locale, g.Kind)})}
 			for _, row := range g.Rows {
+				if !boundaryDrawn && issue3899Fresh(v, row) {
+					boundaryDrawn = true
+					rows = append(rows, issue3899Boundary(locale, v))
+				}
 				rows = append(rows, chatsearchResult(context, people, row, parsed.Text, saved[chatsearchMessageKey(row)]))
 			}
 			children = append(children, html.Section(html.Props{}, rows...))
 		}
 		if v.Response.NextCursor != "" {
-			children = append(children, button("more", t("more"), v.Response.NextCursor))
+			if v.LoadingMore {
+				children = append(children, html.Button(html.Props{Type: "button", Class: "chatsearch-more", Text: t("loading"), Disabled: true, Aria: map[string]string{"busy": "true"}}))
+			} else {
+				children = append(children, button("more", t("more"), v.Response.NextCursor))
+			}
 		}
 		if len(v.Response.Unavailable) > 0 {
 			names := []string{}

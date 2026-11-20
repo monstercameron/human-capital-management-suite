@@ -39,6 +39,9 @@ type chatDraftWriter struct {
 	write      func()
 	timer      debounceTimer
 	generation uint64
+	// failures counts the writes in a row that did not reach the account
+	// (issue3950_draft_retry.go).
+	failures int
 }
 
 func newChatDraftWriter(schedule debounceScheduler, delay time.Duration, write func()) *chatDraftWriter {

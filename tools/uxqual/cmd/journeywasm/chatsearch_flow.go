@@ -45,6 +45,14 @@ func (f *chatsearchFlow) begin(query, key string, active, retry bool) (generatio
 	return f.Generation, true
 }
 
+// reject records that the controls were refused before any search was sent
+// (ISSUE-3859). The answer the page still holds is no longer the current
+// outcome, so applying the very same filters again sends again instead of being
+// taken for a repeat of an answered search and leaving the error in place.
+func (f *chatsearchFlow) reject() {
+	f.Settled = false
+}
+
 // complete records the end of search generation, answered or failed. It is
 // false for a completion that was overtaken by a newer search or by clearing
 // the box; such a completion, a cancellation arriving late included, changes

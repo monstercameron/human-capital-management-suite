@@ -151,7 +151,7 @@ func chatsearchTaskRows(tasks ChatSearchAgentTasks) func(context.Context, *trust
 			if task.TenantID != p.Tenant().String() || task.UserID != p.Subject() || strings.TrimSpace(task.Goal) == "" {
 				continue
 			}
-			rows = append(rows, chatsearch.Row{ID: task.ID, Text: task.Goal, OwnerID: task.UserID, Private: true, At: task.CreatedAt, Target: chatsearch.Target{ItemID: task.ID}})
+			rows = append(rows, chatsearch.Row{ID: task.ID, Text: task.Goal, OwnerID: task.UserID, Private: true, State: string(task.State), At: task.CreatedAt, Target: chatsearch.Target{ItemID: task.ID}})
 		}
 		return rows, nil
 	}

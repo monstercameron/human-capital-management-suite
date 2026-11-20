@@ -28,12 +28,12 @@ func TestTodo_CHAT_030_ShareAttemptState(t *testing.T) {
 		t.Fatal("eligible destination rejected")
 	}
 	s.shareFilter("nothing matches")
-	if s.snapshot().ShareDestinationID != "" {
-		t.Fatal("filtered-out destination stayed selected")
+	if s.snapshot().ShareDestinationID != "dest" {
+		t.Fatal("filter discarded the selected destination")
 	}
 	s.shareFilter("")
-	if !s.shareSelect("dest") {
-		t.Fatal("destination was not selectable after clearing filter")
+	if s.snapshot().ShareDestinationID != "dest" {
+		t.Fatal("destination lost after clearing filter")
 	}
 	a, ok := s.beginShare(func() string { return "key-1" })
 	if !ok || a.Key != "key-1" || a.SourceRoom != "source" || a.SourcePost != "post" || a.Destination != "dest" {
@@ -99,5 +99,29 @@ func TestTodo_CHAT_030_ShareSurvivesProjection(t *testing.T) {
 	m := s.snapshot()
 	if m.SharePostID != "post" || m.ShareDestinationID != "dest" || m.Draft != "unsent" {
 		t.Fatalf("projection erased local share or draft: %#v", m)
+	}
+}
+
+func TestIssue3918_FilterKeepsSelectionAndClearRemovesIt(t *testing.T) {
+	s := &chatState{cfg: journeyclient.Config{Tenant: "tenant", Subject: "alice"}}
+	s.model = chatui.Model{SelectedID: "source", Messages: []chatui.Message{{ID: "post", Body: "hello"}}}
+	gen, _ := s.openShare("post")
+	s.shareListing(gen, []chatui.Conversation{{ID: "eng", Name: "engineering", Kind: chatui.PublicChannel}, {ID: "ben", Name: "benefits", Kind: chatui.PublicChannel}}, "")
+	if !s.shareSelect("eng") {
+		t.Fatal("select failed")
+	}
+	s.shareFilter("benefits")
+	if s.snapshot().ShareDestinationID != "eng" {
+		t.Fatal("filtering discarded the checked destination")
+	}
+	if a, ok := s.beginShare(func() string { return "k" }); !ok || a.Destination != "eng" {
+		t.Fatalf("hidden selected destination cannot be shared: %#v %v", a, ok)
+	}
+	s.finishShare(chatShareAttempt{Generation: s.shareGeneration, SourceRoom: "source", SourcePost: "post", Destination: "eng", Config: s.cfg}, "failed")
+	if !s.shareSelect("") || s.snapshot().ShareDestinationID != "" {
+		t.Fatal("selection could not be removed")
+	}
+	if _, ok := s.beginShare(func() string { return "k2" }); ok {
+		t.Fatal("share allowed with no destination")
 	}
 }

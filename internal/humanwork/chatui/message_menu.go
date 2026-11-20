@@ -55,9 +55,10 @@ func messageMenuNextIndex(key string, current, length int) int {
 // ChatUX022Styles is joined into the workspace stylesheet through
 // ChatMsgListStyles.
 const ChatUX022Styles = `
-.message-menu :is(.menu-bar-twin,.menu-item.chatsave-action){display:none}
-@media(max-width:767px),(pointer:coarse){.message-menu :is(.menu-bar-twin,.menu-item.chatsave-action){display:flex}}
-@container chatmain (max-width:560px){.message-menu :is(.menu-bar-twin,.menu-item.chatsave-action){display:flex}}
+.message-menu .menu-bar-twin{display:none}
+.message-menu .menu-item.chatsave-action{display:flex}
+@media(max-width:767px),(pointer:coarse){.message-menu .menu-bar-twin{display:flex}}
+@container chatmain (max-width:560px){.message-menu .menu-bar-twin{display:flex}}
 .message-menu .menu-confirm-text{margin:0;padding:8px 12px 4px;max-inline-size:260px;font-size:.875rem;line-height:1.4;color:var(--hcm-color-text)}
 `
 

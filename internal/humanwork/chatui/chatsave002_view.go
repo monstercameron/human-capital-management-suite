@@ -135,7 +135,9 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	if view.ReminderMenu == key {
 		class += " has-menu"
 	}
-	props := html.Props{ID: "chatsave-item-" + row.PostID, Class: class, Data: data, TabIndex: html.TabIndexZero}
+	// Issue 3879: the item is a plain list item; its way into the conversation is
+	// the named Open button, and a press on the row itself is only a pointer shortcut.
+	props := html.Props{ID: "chatsave-item-" + row.PostID, Class: class, Data: data}
 
 	if row.Availability != "readable" {
 		status := copy.NoAccess
@@ -154,7 +156,6 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	}
 
 	props.Data["saved-action"] = "open"
-	props.Title = chatsave002Text(loc, "item_open")
 	body, msg := chatsave002Body(m, chatsave002Message(row))
 	author := msg.Author
 	if author == "" {
@@ -180,6 +181,8 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 	if label != "" {
 		meta = append(meta, html.Time(html.Props{Class: "chatsave-time", Text: label}))
 	}
+	openLabel := chatsave002Text(loc, "item_open")
+	meta = append(meta, html.Button(html.Props{ID: "chatsave-jump-" + row.PostID, Class: "chatsave-jump", Type: "button", Title: openLabel, Data: map[string]string{"saved-action": "open", "saved-host": row.TenantID, "saved-conversation": row.ConversationID, "saved-post": row.PostID}, Aria: map[string]string{"label": openLabel}}, icon("link")))
 
 	expanded := view.Expanded[row.PostID]
 	textClass := "chatsave-text"
@@ -228,7 +231,11 @@ func chatsave002Item(view SavedMessagesView, m Model, copy SavedCopy, now time.T
 		noteData := map[string]string{"saved-form": "note", "saved-host": row.TenantID, "saved-conversation": row.ConversationID, "saved-post": row.PostID}
 		main = append(main, html.Form(html.Props{Class: "chatsave-note-form", Data: noteData},
 			html.Label(html.Props{Class: "sr-only", For: noteID, Text: copy.Note}),
-			html.Input(html.Props{ID: noteID, Class: "chatsave-note-input", Name: "note", Type: "text", Placeholder: chatsave002Text(loc, "note_ph"), AutoComplete: "off", MaxLength: 4000, Data: map[string]string{"chat-value": row.Note}, Aria: map[string]string{"describedby": "chatsave-status"}}),
+			html.Input(html.Props{ID: noteID, Class: "chatsave-note-input", Name: "note", Type: "text", Placeholder: chatsave002Text(loc, "note_ph"), AutoComplete: "off", MaxLength: 4000, Data: map[string]string{"chat-value": row.Note}, Aria: map[string]string{"describedby": "chatsave-status chatsave-note-private-" + row.PostID}}),
+			html.P(html.Props{ID: "chatsave-note-private-" + row.PostID, Class: "chatsave-note-private", Text: chatsave002Text(loc, "note_private")}),
+			html.Div(html.Props{Class: "chatsave-note-buttons"},
+				html.Button(html.Props{Class: "button small", Type: "submit", Text: chatsave002Text(loc, "note_save")}),
+				html.Button(html.Props{ID: "chatsave-note-cancel-" + row.PostID, Class: "button secondary small", Type: "button", Text: chatsave002Text(loc, "note_cancel"), Data: map[string]string{"saved-action": "note-cancel", "saved-host": row.TenantID, "saved-conversation": row.ConversationID, "saved-post": row.PostID}})),
 			html.P(html.Props{Class: "chatsave-note-hint", Text: chatsave002Text(loc, "note_hint")})))
 	} else if strings.TrimSpace(row.Note) != "" {
 		main = append(main, html.Button(html.Props{ID: "chatsave-note-" + row.PostID + "-text", Class: "chatsave-note", Type: "button", Title: chatsave002Text(loc, "act_note_edit"), Data: map[string]string{"saved-action": "note", "saved-host": row.TenantID, "saved-conversation": row.ConversationID, "saved-post": row.PostID}, Aria: map[string]string{"label": chatsave002Text(loc, "act_note_edit") + ": " + row.Note}},
@@ -393,6 +400,10 @@ func chatsave002Render(view SavedMessagesView) ui.Node {
 	nodes = append(nodes, html.P(html.Props{ID: "chatsave-status", Class: statusClass, Role: "status", Text: status, Aria: map[string]string{"live": "polite"}, Data: map[string]string{"saved-status": "true"}}))
 	if view.Error != "" {
 		nodes = append(nodes, chatsave002Button("button secondary small chatsave-retry", copy.Retry, "retry"))
+	}
+	// Issue 3933: saved items, notes and reminders are personal; say so up front.
+	if !view.Loading {
+		nodes = append(nodes, html.P(html.Props{ID: "chatsave-privacy", Class: "chatsave-privacy", Text: chatsave002Text(loc, "private")}))
 	}
 	// CHATUX-040: on All, the saved messages that only All holds are named.
 	if note := chatux040AllNote(loc, todo, done, all); tab == "all" && note != "" && !view.Loading && view.Error == "" {

@@ -227,6 +227,7 @@ func (d *browserDrafts) clear() {
 	}
 	clear(d.values)
 	forgetAllClearedDrafts()
+	clearMentionCarry()
 	d.values = make(map[string]string)
 	d.selected = ""
 	d.discarded = true

@@ -317,7 +317,7 @@ func (s *Service) Submit(ctx context.Context, c Command, version string, values 
 func (s *Service) Review(ctx context.Context, c Command, id string, expected uint64, admit bool, reason string) (Submission, error) {
 	raw, e := s.mutate(ctx, c, "admin", []any{id, expected, admit, reason}, func(tx Transaction) (any, error) {
 		if strings.TrimSpace(reason) == "" {
-			return nil, ErrInvalid
+			return nil, FieldError{Field: "reason", Cause: ErrInvalid}
 		}
 		for i := range tx.State().Submissions {
 			sub := &tx.State().Submissions[i]

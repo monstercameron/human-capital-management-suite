@@ -42,7 +42,7 @@ func chatux041GateState(m Model, c Conversation) string {
 	}
 	gate, gated := chatgateJoin(m, c)
 	if !gated {
-		if c.Kind == PrivateChannel {
+		if c.Kind == PrivateChannel || c.Kind == GroupChat {
 			return laneText(m, chatux041Copy, chatux041KeyGateInvite)
 		}
 		return laneText(m, chatux041Copy, chatux041KeyGateAnyone)

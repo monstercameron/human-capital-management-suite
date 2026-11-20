@@ -52,10 +52,10 @@ func TestTodo_CHATSEARCH_002_Workspace(t *testing.T) {
 	if first.ID != "chat:message:p1" || first.Kind != "chat" || first.KindLabel != "Message" || first.Label != "The holiday calendar is in the handbook" || first.Description != "#general" || first.Href != "/workspace/app/chat#channel=c-general&at=12&message=p1" || first.Icon != chat.Icon {
 		t.Fatalf("message row = %+v", first)
 	}
-	if agent.KindLabel != "Agent" || agent.Label != "Holiday Helper" || agent.Href != "/workspace/app/agents" || agent.Icon != agents.Icon {
+	if agent.KindLabel != "Agent" || agent.Label != "Holiday Helper" || agent.Href != "/workspace/app/chat/agents?locale=en-US" || agent.Icon != agents.Icon {
 		t.Fatalf("agent row = %+v", agent)
 	}
-	if task.KindLabel != "Agent task" || task.Href != "/workspace/app/agents?task=t1#agents-task-title" {
+	if task.KindLabel != "Agent task" || task.Href != "/workspace/app/chat/agents?locale=en-US&task=t1#agents-task-title" {
 		t.Fatalf("task row = %+v", task)
 	}
 	seen := map[string]bool{}

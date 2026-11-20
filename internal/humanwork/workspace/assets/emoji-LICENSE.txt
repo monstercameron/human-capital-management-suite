@@ -11,17 +11,17 @@ Data versions
 -------------
 Unicode emoji data: version 17.0 (emoji-test.txt, dated 2025-08-05, 21:01:01 GMT)
 CLDR annotations: not stated in the source files (see the SHA-256 of each file)
-Emoji in the list: 58 (9 groups)
+Emoji in the list: 59 (9 groups)
 
 Source files (SHA-256)
 ----------------------
-5c10dc5d2142ef36b07bd7fd13384f0bab4b23a4497f72f84d0722a4360a2dd9  annotations/ar.xml
-0aeaaefa27a3ddc01ec7baa423b01e89914c8285343a88449bda00b7af4bd1c1  annotations/de.xml
-a4b12830ebc06271793656166bee377205fb657c8766098998ccf742699031e7  annotations/en.xml
+1d037cc2866619edca9a1a2c5f53f808654a4e5d9b4caa34e9e582f608697593  annotations/ar.xml
+b029e5758d1f87631f6368a8a63fed1576db9da3c9b9add73cb87a91539cefa4  annotations/de.xml
+c3cd6a73ee4ffe7f610d3e78c10e9016a08425d1d1860353419e89de94259dc8  annotations/en.xml
 27c09beec7cff0e0d867764e6abb5b7492c5e958c16a2565e5a355e65ab9b4aa  annotationsDerived/ar.xml
 3c7d1c530a34bd50349747722c782a2ad749272609fe33f0a2758fbf6e6886b8  annotationsDerived/de.xml
 da7f2d390cb6b75e1102b94a94e705a6b6079fd4f798931a89f8774e2225712a  annotationsDerived/en.xml
-d7c49e9bbc15993db83b994ae3696b72bacceb5acc16a8f35c836052dde966b7  emoji-test.txt
+e5c7819d5f9e154ffc3928ff9867d833fc0d6e54cf2322cb371693c5ed944ba7  emoji-test.txt
 
 Copyright notices carried by the sources
 ----------------------------------------

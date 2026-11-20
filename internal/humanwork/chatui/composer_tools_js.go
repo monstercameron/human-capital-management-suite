@@ -161,9 +161,12 @@ func insertComposerMention(id string) {
 		from, to = start.Int(), end.Int()
 	}
 	updated, caret := composerMentionInsert(value, from, to)
-	field.Set("value", updated)
-	field.Call("setSelectionRange", caret, caret)
-	field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	// Issue #3902: an editing command keeps the @ on the browser's undo stack.
+	if start, end, insert := composerMinimalEdit(value, updated); !composerEditUndoable(doc, field, start, end, insert) {
+		field.Set("value", updated)
+		field.Call("setSelectionRange", caret, caret)
+		field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	}
 	if field = doc.Call("getElementById", id); field.Truthy() {
 		field.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 		field.Call("setSelectionRange", caret, caret)

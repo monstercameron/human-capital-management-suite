@@ -26,7 +26,7 @@ const ChatComposerToolsStyles = `.chat-workspace .chat-composer .composer-toolba
 	// The formatted preview (AGENTUX-063) scrolls like the field it replaces;
 	// an empty preview shows the field's placeholder, muted like one.
 	`.chat-workspace .composer-preview{overflow-y:auto}` +
-	`.chat-workspace .composer-preview-placeholder{color:var(--muted)}` +
+	`.chat-workspace .composer-preview-placeholder{color:var(--muted)}` + issue3935Styles +
 	`.chat-workspace .composer-glyph{font-size:.875rem;font-weight:700;line-height:1;letter-spacing:0;pointer-events:none}.chat-workspace .composer-mention-button .composer-glyph{font-size:1rem}` +
 	// Voice message and Location are opened from the Add menu. Their own buttons
 	// stay in the page as the openers their panels anchor to and return focus to,

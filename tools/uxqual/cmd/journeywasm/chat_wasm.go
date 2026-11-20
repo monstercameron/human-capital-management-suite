@@ -66,6 +66,9 @@ func configureChatBrowser(conn grpc.ClientConnInterface, cfg journeyclient.Confi
 	client := chatv1.NewConversationServiceClient(conn)
 	chatWorkers = journeyv1.NewJourneyServiceClient(conn)
 	chatBrowser.reset(client, cfg, func() chatui.Callbacks { return chatCallbacks(cfg) })
+	// A new session starts with nothing unsaved (issue 3950): the previous
+	// session's leave-site prompt must not outlive its drafts.
+	setChatDraftUnloadGuard(false)
 	if origin := js.Global().Get("location").Get("origin"); origin.Truthy() {
 		chatBrowser.mutate(func(m *chatui.Model) { m.EmbedOrigin = origin.String() })
 	}
@@ -1046,12 +1049,18 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 				model.Pane.RailCollapsed = !open
 				model.SidebarOpen = open
 			})
+			// On a phone the list is a screen of its own: opening it is a history
+			// step, so Back from a conversation shows it (#3768).
+			if open && chatNavigationPhone() {
+				chatHistory.push(chatBrowser.snapshot())
+			}
 			refreshChatRoute()
 		},
 		OpenCreate: func() {
 			chatBrowser.mutate(func(model *chatui.Model) {
 				model.ShowCreate = true
-				model.NewKind = chatui.PublicChannel
+				// Issue 3849: no type is preselected; the person chooses one.
+				model.NewKind = chatui.KindUnchosen
 				model.NewName = ""
 			})
 			refreshChatRoute()
@@ -1075,6 +1084,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			navigation := chatBrowser.snapshot()
 			navigation.SelectedID = conversationID
 			navigation.Search = ""
+			navigation.SidebarOpen = false
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
 			navigation.FocusMessageID = postID
 			state := chatNavigationStateFromModel(navigation)
@@ -1094,6 +1104,7 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			navigation.SelectedID, navigation.ShowDetails = id, true
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
 			navigation.FocusMessageID = ""
+			navigation.SidebarOpen = false
 			chatHistory.push(navigation)
 			openChatConversation(cfg, id)
 			chatBrowser.mutate(func(model *chatui.Model) { model.ShowDetails = true; model.RailMenuID = ""; model.SidebarOpen = false })
@@ -1186,12 +1197,22 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			}()
 		},
 		ThreadDraftChanged: func(parentID, value string) { chatBrowser.setThreadDraft(parentID, value) },
+		ThreadAlsoChanged:  func(parentID string, also bool) { chatBrowser.setThreadAlso(parentID, also) },
 		DraftChanged: func(conversationID, value string) {
 			// Local only. No RPC, no revalidation: see the file comment.
 			chatBrowser.setDraft(conversationID, value)
 			scheduleChatDraftEmbeds(cfg, conversationID, value)
-			scheduleChatDraftPersist(cfg)
+			changedChatDraftPersist(cfg, value)
 		},
+		DraftConflictResolved: func(conversationID string) {
+			chatBrowser.resolveDraftConflict(conversationID)
+			// The chosen text becomes the account's copy, so the other version is
+			// not offered again by the next read.
+			scheduleChatDraftPersist(cfg)
+			refreshChatRoute()
+		},
+		RetryDraftSave: func() { flushChatDraftPersist(cfg) },
+
 		MentionPicked: refreshChatRoute,
 		SendMessage: func(conversationID, body string) {
 			// The room on screen decides where this goes, and a room still
@@ -1212,40 +1233,16 @@ func chatCallbacks(cfg journeyclient.Config) chatui.Callbacks {
 			go sendPersonaChat(cfg, chatBrowser.selectedID(), parentID, body, refs)
 		},
 		ReplyInThread: func(parentID, body string) {
-			go func() {
-				client := chatBrowser.conversationClient()
-				if client == nil || parentID == "" {
-					return
-				}
-				active := chatBrowser.config(cfg)
-				conversationID := chatBrowser.selectedID()
-				if conversationID == "" {
-					return
-				}
-				// A reply keys its idempotency on the thread, not the room, so
-				// the same text in the conversation and under a message are two
-				// different attempts.
-				chatBrowser.clearAuthorBlocked(chatui.ModAuthorKeyReply(parentID))
-				key := chatBrowser.sendKey(conversationID+"\x00"+parentID, body, func() string {
-					return fmt.Sprintf("wasm-reply-%d", time.Now().UnixNano())
-				})
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				callCtx := chatRPCContext(ctx, active)
-				_, err := client.SendPost(callCtx, &chatv1.SendPostRequest{
-					TenantId: active.Tenant, ConversationId: conversationID, Body: body, ParentId: parentID, IdempotencyKey: key,
-				})
-				if chatmod002Failed("post this reply", err, conversationID, chatui.ModAuthorKeyReply(parentID), chatui.ModAuthorSurfaceMessage, body) {
-					return
-				}
-				chatBrowser.clearSendKey(conversationID + "\x00" + parentID)
-				refreshChatThread(callCtx, client, active, conversationID, parentID)
-				invalidateChatRecipientProjection()
-				chatBrowser.clearNotice(0)
-				chatStreamRender.Schedule()
-			}()
+			// The room is read now, not inside the goroutine, so a switch right
+			// after Send cannot pair this parent with another room (#3997).
+			conversationID := chatBrowser.selectedID()
+			go sendThreadReply(cfg, conversationID, parentID, body, false)
 		},
-		SearchFocus: func() { chatsearchLoadRecent(cfg) },
+		ReplyInThreadIn: func(conversationID, parentID, body string, alsoChannel bool) {
+			go sendThreadReply(cfg, conversationID, parentID, body, alsoChannel)
+		},
+		SearchFocus:       func() { chatsearchLoadRecent(cfg) },
+		SearchClearRecent: func() { chatsearchClearRecent(cfg) },
 		Search: func(query string) {
 			query = strings.TrimSpace(query)
 			if chatsearchBegin(cfg, query) {
@@ -1702,6 +1699,8 @@ func pushChatHistoryForSelection(id string) {
 	navigation.Search = ""
 	navigation.ShowThread, navigation.ThreadParentID = false, ""
 	navigation.FocusMessageID = ""
+	// Choosing a conversation leaves the phone's list screen (#3768).
+	navigation.SidebarOpen = false
 	chatHistory.push(navigation)
 }
 
@@ -1828,7 +1827,9 @@ func openChatConversationAt(cfg journeyclient.Config, id string, sequence uint64
 				ui.PostAsync(func() {
 					current := chatBrowser.snapshot()
 					if current.SelectedID == id && current.FocusMessageID == postID {
-						chatui.FocusSearchMessage(postID)
+						chatui.FocusSearchMessageOrElse(postID, func() {
+							chatSearchHitMissing(id, productui.ResolveProductLocale(chatBrowser.config(cfg).Locale).Text(chatui.KeySearchMessageUnavailable))
+						})
 					}
 				})
 			}
@@ -1871,7 +1872,9 @@ func openChatSearchHitInCurrentConversation(cfg journeyclient.Config, conversati
 		ui.PostAsync(func() {
 			current := chatBrowser.snapshot()
 			if current.SelectedID == conversationID && current.FocusMessageID == postID {
-				chatui.FocusSearchMessage(postID)
+				chatui.FocusSearchMessageOrElse(postID, func() {
+					chatSearchHitMissing(conversationID, productui.ResolveProductLocale(active.Locale).Text(chatui.KeySearchMessageUnavailable))
+				})
 			}
 		})
 	}
@@ -1985,16 +1988,16 @@ func chatCopyableBody(model chatui.Model, postID string) (string, bool) {
 	}
 	for _, message := range model.Messages {
 		if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-			return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, message)), true
+			return chatui.Issue3718MessageClipboardText(model, message), true
 		}
 	}
 	if model.ShowThread {
 		if model.ThreadParent != nil && model.ThreadParentID == postID && model.ThreadParent.ID == postID && strings.TrimSpace(model.ThreadParent.Body) != "" {
-			return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, *model.ThreadParent)), true
+			return chatui.Issue3718MessageClipboardText(model, *model.ThreadParent), true
 		}
 		for _, message := range model.ThreadMessages {
 			if message.ID == postID && strings.TrimSpace(message.Body) != "" {
-				return chatui.Chatcmd002PlainBody(chatui.ReaderMessageBody(model, message)), true
+				return chatui.Issue3718MessageClipboardText(model, message), true
 			}
 		}
 	}

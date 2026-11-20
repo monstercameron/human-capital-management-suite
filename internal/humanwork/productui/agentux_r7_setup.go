@@ -149,8 +149,11 @@ func agentUXR7Purpose(locale LocaleContext, raw, language string) (string, strin
 }
 func agentUXR7Description(locale LocaleContext, raw string) ui.Node {
 	text, language := agentUXR7Purpose(locale, strings.TrimSpace(raw), agentUXR7ContentLanguage(raw))
-	if raw == locale.Text("agents.general_agent_purpose") {
+	if raw == locale.Text("agents.general_agent_purpose") || raw == locale.Text("agents.general_agent_purpose_documents") {
 		language = locale.Resolved
+		// #3974: the wording that points at the document picker is carried on the
+		// node so the browser can swap it in once it mounts the picker.
+		return html.Small(html.Props{Class: "muted", Raw: map[string]any{"lang": language, "data-agent-general-purpose": "true", "data-purpose-plain": locale.Text("agents.general_agent_purpose"), "data-purpose-documents": locale.Text("agents.general_agent_purpose_documents")}}, html.Tag("bdi", html.Props{}, ui.Text(text)))
 	}
 	return html.Small(html.Props{Class: "muted", Raw: map[string]any{"lang": language}}, html.Tag("bdi", html.Props{}, ui.Text(text)))
 }

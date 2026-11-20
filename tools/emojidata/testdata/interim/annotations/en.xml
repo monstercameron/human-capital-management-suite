@@ -83,6 +83,8 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<annotation cp="🚗" type="tts">automobile</annotation>
 		<annotation cp="✈️">aeroplane | airplane</annotation>
 		<annotation cp="✈️" type="tts">airplane</annotation>
+		<annotation cp="🚀">launch | rocket | space</annotation>
+		<annotation cp="🚀" type="tts">rocket</annotation>
 		<annotation cp="☀️">bright | rays | sun | sunny</annotation>
 		<annotation cp="☀️" type="tts">sun</annotation>
 		<annotation cp="⭐">star</annotation>

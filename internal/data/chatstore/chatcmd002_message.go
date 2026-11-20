@@ -399,6 +399,10 @@ func (s *Store) Chatcmd002Mutate(ctx context.Context, r chat.Chatcmd002Request, 
 			if next.Kind != card.Kind || next.Validate() != nil || next.ClosedAt != nil || next.Interacted {
 				return chat.ErrInvalidArgument
 			}
+			if card.Todo != nil && next.AssigneeOnlyGap() >= 0 && card.AssigneeOnlyGap() < 0 {
+				// An edit may not turn a list into one with items nobody can complete (#3923).
+				return chat.ErrInvalidArgument
+			}
 			if card.Poll != nil {
 				if len(next.Poll.Options) != len(card.Poll.Options) {
 					return chat.ErrInvalidArgument

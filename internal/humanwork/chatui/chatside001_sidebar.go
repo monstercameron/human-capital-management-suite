@@ -242,7 +242,16 @@ func chatside001CreateError(m Model) ui.Node {
 	if m.side.err == "" || m.side.renaming != "" || m.side.moveTo != "" {
 		return nil
 	}
-	return html.P(html.Props{Class: "section-name-error", Role: "alert", Text: m.side.err})
+	return html.P(html.Props{ID: "chat-new-section-error", Class: "section-name-error", Role: "alert", Text: m.side.err})
+}
+
+// issue3714SectionFieldAria ties the add menu's section name field to the
+// refusal printed under it (Issue 3714).
+func issue3714SectionFieldAria(m Model) map[string]string {
+	if chatside001CreateError(m) == nil {
+		return nil
+	}
+	return map[string]string{"invalid": "true", "describedby": "chat-new-section-error"}
 }
 
 // chatside001NameForm is the small name field used to rename a section and to
@@ -307,7 +316,9 @@ func chatside001NameSubmitted(m Model, local localStore) {
 	default:
 		return
 	}
+	back := issue3890ReturnID(state.renaming, state.moveTo)
 	local.update(func(u *localUI) { u.side = chatside001UI{} })
+	returnFocusToOptions(back)
 }
 
 // chatside001CreateSubmitted saves the add menu's New section form with the
@@ -335,7 +346,9 @@ func chatside001NameKey(e ui.KeyboardEvent, local localStore) {
 	}
 	e.PreventDefault()
 	e.StopPropagation()
+	back := issue3890ReturnID(local.get().side.renaming, local.get().side.moveTo)
 	local.update(func(u *localUI) { u.side = chatside001UI{} })
+	returnFocusToOptions(back)
 }
 
 // chatside001Click handles the sidebar's own steps and reports whether it
@@ -358,15 +371,17 @@ func chatside001Click(e ui.MouseEvent, m Model, local localStore) bool {
 	case "side-rename":
 		local.update(func(u *localUI) { u.side = chatside001UI{renaming: id} })
 		closeMenu()
-		focusField(chatside001NameField)
+		focusSectionNameForm()
 		return true
 	case "side-move-new":
 		local.update(func(u *localUI) { u.side = chatside001UI{moveTo: id} })
 		closeMenu()
-		focusField(chatside001NameField)
+		focusSectionNameForm()
 		return true
 	case "side-name-cancel":
+		back := issue3890ReturnID(local.get().side.renaming, local.get().side.moveTo)
 		local.update(func(u *localUI) { u.side = chatside001UI{} })
+		returnFocusToOptions(back)
 		return true
 	case "open-section-create", "cancel-section-create":
 		if local.get().side.err != "" {

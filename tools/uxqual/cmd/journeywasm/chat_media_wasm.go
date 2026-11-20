@@ -364,9 +364,13 @@ func fetchChatMedia(cfg journeyclient.Config, conversationID, id string, epoch u
 	deadline := time.AfterFunc(20*time.Second, func() { controller.Call("abort") })
 	defer func() { deadline.Stop(); unregisterChatMediaFetch(id, epoch) }()
 	signal := controller.Get("signal")
-	grant, expiresAt, ok := mintChatMediaGrant(cfg, conversationID, id, signal)
+	grant, expiresAt, ok, grantStatus := mintChatMediaGrantStatus(cfg, conversationID, id, signal)
 	if !ok {
-		chatMediaCache.FailIfEpoch(id, epoch, time.Now().Add(20*time.Second))
+		cooldown, unavailable := chatMediaFailurePolicy(grantStatus)
+		if unavailable {
+			chatBrowser.markChatMediaPreviewUnavailable(id)
+		}
+		chatMediaCache.FailIfEpoch(id, epoch, time.Now().Add(cooldown))
 		return
 	}
 	url, status, encoded, charge := readChatMediaBytes(cfg, conversationID, id, grant, signal)
@@ -379,9 +383,8 @@ func fetchChatMedia(cfg journeyclient.Config, conversationID, id string, epoch u
 		return
 	}
 	if url == "" {
-		cooldown := 20 * time.Second
-		if status == 413 {
-			cooldown = time.Hour
+		cooldown, unavailable := chatMediaFailurePolicy(status)
+		if unavailable {
 			chatBrowser.markChatMediaPreviewUnavailable(id)
 		}
 		chatMediaCache.FailIfEpoch(id, epoch, time.Now().Add(cooldown))
@@ -399,32 +402,40 @@ func fetchChatMedia(cfg journeyclient.Config, conversationID, id string, epoch u
 
 // mintChatMediaGrant asks the media boundary for a download authorization.
 func mintChatMediaGrant(cfg journeyclient.Config, conversationID, id string, signal js.Value) (grant string, expiresAt time.Time, ok bool) {
+	grant, expiresAt, ok, _ = mintChatMediaGrantStatus(cfg, conversationID, id, signal)
+	return grant, expiresAt, ok
+}
+
+// mintChatMediaGrantStatus is mintChatMediaGrant that also says which HTTP status
+// refused the grant (0 when none was received), so a missing object can be told
+// from a passing fault.
+func mintChatMediaGrantStatus(cfg journeyclient.Config, conversationID, id string, signal js.Value) (grant string, expiresAt time.Time, ok bool, refused int) {
 	response, err := chatMediaFetch(chatMediaRoute+id+"/grant", cfg, conversationID, "", signal)
 	if err != nil || !response.Truthy() {
 		setChatMediaDiagnostic(id, "failed", "grant-fetch", 0)
-		return "", time.Time{}, false
+		return "", time.Time{}, false, 0
 	}
 	status := response.Get("status").Int()
 	if status != 200 {
 		setChatMediaDiagnostic(id, "failed", "grant-http-status", status)
-		return "", time.Time{}, false
+		return "", time.Time{}, false, status
 	}
 	body := awaitChatJS(response.Call("json"))
 	if !body.Truthy() {
 		setChatMediaDiagnostic(id, "failed", "grant-json", status)
-		return "", time.Time{}, false
+		return "", time.Time{}, false, 0
 	}
 	grant = body.Get("grant").String()
 	if grant == "" {
 		setChatMediaDiagnostic(id, "failed", "grant-empty", status)
-		return "", time.Time{}, false
+		return "", time.Time{}, false, 0
 	}
 	if stated := body.Get("grant_expires_at").String(); stated != "" {
 		if parsed, parseErr := time.Parse(time.RFC3339, stated); parseErr == nil {
 			expiresAt = parsed
 		}
 	}
-	return grant, expiresAt, true
+	return grant, expiresAt, true, 0
 }
 
 // readChatMediaBytes reads the artifact with its grant and returns an object

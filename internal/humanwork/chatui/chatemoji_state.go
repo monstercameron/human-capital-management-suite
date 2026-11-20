@@ -205,7 +205,7 @@ func emojiScrolled(st emojiPickerState, v emojiView, scroll, viewH float64) (emo
 	changed := first != oldFirst || last != oldLast
 	// The marked tab follows the top row; a change of category is a render too.
 	if !changed && !v.seq.query {
-		before, after := emojiRowAtScroll(v.rows, st.Scroll), emojiRowAtScroll(v.rows, scroll)
+		before, after := emojiRowShown(v.rows, st.Scroll, v.metrics), emojiRowShown(v.rows, scroll, v.metrics)
 		if before >= 0 && after >= 0 && before < len(v.rows) && after < len(v.rows) && v.rows[before].Group != v.rows[after].Group {
 			changed = true
 		}

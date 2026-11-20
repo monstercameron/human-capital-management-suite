@@ -41,6 +41,15 @@ func focusShareDialog() {
 	})
 }
 
+// focusShareFilter moves focus to the destination filter now, before the
+// control that was activated (the Remove button) leaves the page.
+func focusShareFilter() {
+	input := js.Global().Get("document").Call("querySelector", "#share-filter")
+	if input.Truthy() && !input.Get("disabled").Bool() {
+		input.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+	}
+}
+
 // EnsureShareFocus repairs focus after a deferred dialog render without
 // interrupting someone already using a control inside it.
 func EnsureShareFocus() bool {
@@ -70,12 +79,18 @@ func RestoreShareFocus() {
 		if js.Global().Get("document").Call("querySelector", ".share-dialog").Truthy() {
 			return false
 		}
-		buttons := js.Global().Get("document").Call("querySelectorAll", ".message-action[data-action='menu']")
-		for i := 0; i < buttons.Get("length").Int(); i++ {
-			button := buttons.Index(i)
-			if button.Get("dataset").Get("id").String() == id && button.Call("getClientRects").Get("length").Int() > 0 {
-				button.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
-				return true
+		// #3866: the More actions button, else the message itself, before the composer.
+		doc := js.Global().Get("document")
+		if id != "" {
+			for _, selector := range shareReturnSelectors(id) {
+				target := doc.Call("querySelector", selector)
+				if !target.Truthy() {
+					continue
+				}
+				target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+				if doc.Get("activeElement").Equal(target) {
+					return true
+				}
 			}
 		}
 		composer := js.Global().Get("document").Call("querySelector", "#chat-composer")

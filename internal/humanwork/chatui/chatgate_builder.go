@@ -32,7 +32,7 @@ func renderGateBuilder(v GateView) ui.Node {
 	for i, f := range d.Fields {
 		id := strconv.Itoa(i)
 		prefix := "gate-editor-" + id + "-"
-		items := []ui.Node{html.Legend(html.Props{Text: f.Label}), gateEditorInput(v, prefix+"label", "label", "text"), gateEditorInput(v, prefix+"help", "help", "text"), gateEditorInput(v, prefix+"purpose", "why", "text"), gateEditorInput(v, prefix+"days", "days", "number"), html.Label(html.Props{For: prefix + "kind", Text: t("kind")})}
+		items := []ui.Node{html.Legend(html.Props{Text: f.Label}), gateEditorInput(v, prefix+"label", "label", "text"), gateEditorInput(v, prefix+"help", "help", "text"), gateEditorInput(v, prefix+"purpose", "why", "text"), gateEditorInput(v, prefix+"days", "retentionLabel", "number"), html.Label(html.Props{For: prefix + "kind", Text: t("kind")})}
 		kinds := []ui.Node{}
 		for _, kind := range []string{"short_text", "long_text", "single_choice", "multiple_choice", "boolean", "date", "person", "team", "location", "acknowledgement"} {
 			k, _ := registry.Kind(kind, "1.0.0")

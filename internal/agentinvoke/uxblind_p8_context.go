@@ -31,6 +31,10 @@ type ThreadPost struct {
 	Bot                                                    bool
 	Files                                                  []ThreadAttachment
 	Embeds                                                 []ThreadAttachment
+	// AttachmentCount is how many files the post carries by reference. A file
+	// is never loaded with the thread, so this is a count and nothing more
+	// (issue 3961); Files and Embeds stay what they were.
+	AttachmentCount int
 }
 
 type ThreadAttachment struct {

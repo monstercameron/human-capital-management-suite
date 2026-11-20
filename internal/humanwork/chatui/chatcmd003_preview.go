@@ -3,6 +3,7 @@ package chatui
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -52,7 +53,10 @@ type chatcmd003Preview struct {
 	Draft                        chat.Chatcmd003Draft
 	// Settings is what the person chose in the preview's controls. A choice
 	// holds while the text is read again.
-	Settings   map[string]string
+	Settings map[string]string
+	// Before is the ordinary message the composer held when the add menu turned
+	// it into this card draft; Cancel puts it back (#3905).
+	Before     string
 	Generation uint64
 	Error      string
 }
@@ -67,6 +71,18 @@ func chatcmd003Location(m Model) *time.Location {
 // chatcmd003Parse reads a command's text into a draft and tidies it. The draft
 // keeps the card as typed in Original, so "Use what I typed" can put it back.
 func chatcmd003Parse(m Model, kind, raw string) (chat.Chatcmd003Draft, error) {
+	return chatcmd003ParseAs(m, kind, raw, false)
+}
+
+// chatcmd003ParseAs is chatcmd003Parse; one typed to-do line stays one task
+// when oneTask is set (the preview's "Keep as one task").
+func chatcmd003ParseAs(m Model, kind, raw string, oneTask bool) (chat.Chatcmd003Draft, error) {
+	return chatcmd003ParseWith(m, kind, raw, oneTask, nil)
+}
+
+// chatcmd003ParseWith is chatcmd003ParseAs with the person's choices about the
+// dates and owners it reads (#3931).
+func chatcmd003ParseWith(m Model, kind, raw string, oneTask bool, settings map[string]string) (chat.Chatcmd003Draft, error) {
 	now := time.Now().In(chatcmd003Location(m))
 	var draft chat.Chatcmd003Draft
 	var err error
@@ -77,7 +93,7 @@ func chatcmd003Parse(m Model, kind, raw string) (chat.Chatcmd003Draft, error) {
 		for _, member := range m.Members {
 			members = append(members, chat.Chatcmd004Member{HomeTenantID: member.HomeTenantID, ID: member.ID, Name: member.Name})
 		}
-		draft, err = chat.Chatcmd004ParseTodo(raw, members, m.CurrentUser, now, chat.Chatcmd004ResolveDate)
+		draft, err = chat.Chatcmd004ParseTodoReviewed(raw, members, m.CurrentUser, now, chat.Chatcmd004ResolveDate, oneTask, chatcmd003Review(settings))
 	}
 	if err != nil {
 		return draft, err
@@ -164,12 +180,13 @@ func chatcmd003Apply(m Model, c chat.Chatcmd002Card, settings map[string]string)
 			p.AddOptions = value
 		}
 		if value, ok := settings["closes"]; ok {
-			p.ClosesAt = chatcmd003Closes(m, value, p.ClosesAt)
+			p.ClosesAt = chatcmd003ClosesKept(m, value, p.ClosesAt, settings)
 		}
 	}
 	if c.Todo != nil && settings["tick"] != "" {
 		c.Todo.Tick = settings["tick"]
 	}
+	chatcmd003Picks(m, &c, settings)
 	return c
 }
 
@@ -189,7 +206,7 @@ func chatcmd003Structural(changes []chat.Chatcmd003Change) []chat.Chatcmd003Chan
 // choices on it. Anything still on its way for the earlier text (a model tidy)
 // is dropped by the new generation.
 func chatcmd003Draw(m Model, state chatcmd003Preview, kind, raw string) chatcmd003Preview {
-	draft, err := chatcmd003Parse(m, kind, raw)
+	draft, err := chatcmd003ParseWith(m, kind, raw, state.Settings["split"] == "one", state.Settings)
 	state.Error = ""
 	if err != nil {
 		state.Error = "parse"
@@ -198,6 +215,7 @@ func chatcmd003Draw(m Model, state chatcmd003Preview, kind, raw string) chatcmd0
 		draft.Card, draft.Changes = chatcmd003CloneCard(draft.Original), chatcmd003Structural(draft.Changes)
 	}
 	draft.Card = chatcmd003Apply(m, draft.Card, state.Settings)
+	chatcmd003Assign(m, &draft, state.Settings)
 	state.Draft, state.Busy, state.Posting = draft, false, false
 	state.Generation++
 	return state
@@ -214,7 +232,12 @@ func chatcmd003Effective(m Model, state chatcmd003Preview, target string) chatcm
 	if !ok {
 		return state
 	}
-	return chatcmd003Draw(m, chatcmd003Preview{Open: true, Touched: true, Conversation: m.SelectedID, Target: target, Generation: state.Generation}, kind, raw)
+	next := chatcmd003Preview{Open: true, Touched: true, Conversation: m.SelectedID, Target: target, Generation: state.Generation}
+	if settings, typed, kept := chatcmd003Recall(m, kind); kept {
+		// The settings chosen on this draft before the page was left.
+		next.Settings, next.Typed = settings, typed
+	}
+	return chatcmd003Draw(m, next, kind, raw)
 }
 
 // chatcmd003Adopt stores the preview the page shows for target, so the buttons
@@ -240,6 +263,12 @@ func chatcmd003Follow(m Model, local localStore, target, value string) bool {
 	}
 	kind, raw, ok := chatcmd003Line(m, target, value)
 	if !ok {
+		if target == "chat-composer" && strings.TrimSpace(value) != "" {
+			// Other text is another message. An empty field may only be a page
+			// not yet given its saved draft, so it keeps them (Cancel and a
+			// post forget them).
+			chatcmd003Forget(m)
+		}
 		switch {
 		case mine || chatcmd003Effective(m, state, target).Open:
 			local.update(func(u *localUI) { u.chatcmd003 = chatcmd003Preview{Touched: true, Generation: state.Generation + 1} })
@@ -253,8 +282,17 @@ func chatcmd003Follow(m Model, local localStore, target, value string) bool {
 		return true
 	}
 	next := chatcmd003Preview{Open: true, Touched: true, Conversation: m.SelectedID, Target: target, Generation: state.Generation}
+	if mine {
+		next.Before = state.Before
+	}
 	if mine && state.Draft.Card.Kind == kind {
 		next.Typed, next.Settings, next.Standing = state.Typed, state.Settings, state.Standing
+	} else if target == "chat-composer" {
+		// A draft opened again (another conversation and back, or the page
+		// left and returned to) takes the settings chosen on it (#3906).
+		if settings, typed, kept := chatcmd003Recall(m, kind); kept {
+			next.Settings, next.Typed = settings, typed
+		}
 	}
 	if target == "thread-composer" {
 		next.Parent = m.ThreadParentID
@@ -310,6 +348,15 @@ func chatcmd003Send(m Model, local localStore, target, body string) bool {
 // handler: the preview closes and the composer is left empty. It reports
 // whether the key was the preview's.
 func chatcmd003Key(e ui.KeyboardEvent, m Model, local localStore, target string) bool {
+	if group, current, options, ok := chatcmd003RadioTarget(e); ok {
+		// An arrow key on one of the settings' radios moves its choice.
+		if focus, taken := chatcmd003RadioKey(m, local, e.GetKey(), group, current, options); taken {
+			e.PreventDefault()
+			e.StopPropagation()
+			chatcmd003RadioFocus(focus)
+			return true
+		}
+	}
 	if e.GetKey() != "Escape" || composerIsComposing(e) {
 		return false
 	}
@@ -338,13 +385,19 @@ func chatcmd003CancelPreview(e ui.KeyboardEvent, m Model, local localStore, targ
 // every other change of the text is filed (the tab's draft store and the
 // client), so the text does not come back when the page is reloaded.
 func chatcmd003Empty(m Model, state chatcmd003Preview) {
-	replaceComposerText(state.Target, "", 0)
-	setDOMValue(state.Target, "")
+	chatcmd003Put(m, state, "")
+}
+
+// chatcmd003Put leaves the composer of a closed preview holding text, the caret
+// at its end, and files it as the draft.
+func chatcmd003Put(m Model, state chatcmd003Preview, text string) {
+	replaceComposerText(state.Target, text, len(utf16.Encode([]rune(text))))
+	setDOMValue(state.Target, text)
 	switch {
 	case state.Target == "chat-composer" && m.Callbacks.DraftChanged != nil:
-		m.Callbacks.DraftChanged(state.Conversation, "")
+		m.Callbacks.DraftChanged(state.Conversation, text)
 	case state.Target == "thread-composer" && m.Callbacks.ThreadDraftChanged != nil:
-		m.Callbacks.ThreadDraftChanged(state.Parent, "")
+		m.Callbacks.ThreadDraftChanged(state.Parent, text)
 	}
 	focusField(state.Target)
 }
@@ -353,6 +406,10 @@ func chatcmd003Empty(m Model, state chatcmd003Preview) {
 // can be. The preview says it in words; Post stays disabled until it is gone.
 func chatcmd003Problem(c chat.Chatcmd002Card) string {
 	if c.Validate() == nil {
+		if chatcmd003AssigneeGap(c) {
+			// Only the assignee may complete items and one has none (#3923).
+			return "assignee-needed"
+		}
 		return ""
 	}
 	switch {
@@ -419,7 +476,13 @@ func chatcmd003Post(m Model, local localStore) {
 	if !state.Open || state.Busy || m.Chatcmd002.Post == nil || state.Error == "parse" || strings.TrimSpace(state.Draft.Raw) == "" {
 		return
 	}
-	// "In an hour" counts from the press, not from the last keystroke.
+	// The closing time is the one the preview shows. If the draft sat until that
+	// time is out of date, it is counted again and shown, and the press waits.
+	if chatcmd003ClosesStale(m, state.Settings) {
+		next := chatcmd003ClosesRefresh(m, state)
+		local.update(func(u *localUI) { u.chatcmd003 = next })
+		return
+	}
 	card := chatcmd003Apply(m, chatcmd003CloneCard(state.Draft.Card), state.Settings)
 	if chatcmd003Problem(card) != "" {
 		return
@@ -439,6 +502,7 @@ func chatcmd003Post(m Model, local localStore) {
 			})
 			return
 		}
+		chatcmd003Forget(m)
 		local.update(func(u *localUI) {
 			u.chatcmd003 = chatcmd003Preview{Touched: true, Generation: current.Generation + 1}
 			u.commandMenu = composerCommandMenu{}
@@ -465,6 +529,27 @@ func chatcmd003AddLine(m Model, target, kind, value string) string {
 	return "/" + kind + " " + rest
 }
 
+// chatcmd003AddOpen is the add menu's Poll and To-do list over a composer that
+// holds current. The menu writes the command word into the composer, so
+// choosing from the menu and typing the command are one way in and the text
+// itself says it is a card. An ordinary message the composer held is kept in
+// the preview so Cancel can give it back (#3905).
+func chatcmd003AddOpen(m Model, local localStore, target, kind, current string) bool {
+	value := chatcmd003AddLine(m, target, kind, current)
+	replaceComposerText(target, value, len(utf16.Encode([]rune(value))))
+	chatcmd003Follow(m, local, target, value)
+	if _, _, wasCard := chatcmd003Line(m, target, strings.TrimSpace(current)); !wasCard && strings.TrimSpace(current) != "" {
+		if _, _, command := parseComposerCommand(strings.TrimSpace(current)); !command {
+			local.update(func(u *localUI) {
+				if u.chatcmd003.Open && u.chatcmd003.Target == target {
+					u.chatcmd003.Before = current
+				}
+			})
+		}
+	}
+	return true
+}
+
 func chatcmd003Action(m Model, local localStore, action, id, extra string) bool {
 	if action == "composer-add" && (extra == "poll" || extra == "todo") && chatcmd003Available(m) {
 		closeComposerAddMenu(false)
@@ -472,13 +557,7 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 		if target == "" {
 			target = "chat-composer"
 		}
-		// The menu writes the command word into the composer, so choosing from
-		// the menu and typing the command are one way in and the text itself
-		// says it is a card.
-		value := chatcmd003AddLine(m, target, extra, domValue(target))
-		replaceComposerText(target, value, len(utf16.Encode([]rune(value))))
-		chatcmd003Follow(m, local, target, value)
-		return true
+		return chatcmd003AddOpen(m, local, target, extra, domValue(target))
 	}
 	if action == "chatbug057-move" {
 		// The channel's standing poll becomes the draft of a card; posting it
@@ -526,16 +605,20 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 	switch action {
 	case "chatcmd003-cancel":
 		commandMenuShow(state.Target, nil, 0)
+		chatcmd003Forget(m)
 		local.update(func(u *localUI) {
 			u.chatcmd003 = chatcmd003Preview{Touched: true, Generation: state.Generation + 1}
 			u.commandMenu = composerCommandMenu{}
 		})
-		chatcmd003Empty(m, state)
+		// A message the card draft was made from comes back; an empty composer
+		// stays empty (#3905).
+		chatcmd003Put(m, state, state.Before)
 	case "chatcmd003-original":
 		// "Use what I typed", and back to the tidied wording.
 		state.Typed = extra != "tidied"
 		next := chatcmd003Draw(m, state, kind, state.Draft.Raw)
 		local.update(func(u *localUI) { u.chatcmd003 = next })
+		chatcmd003Remember(m, next)
 		focusField(state.Target)
 	case "chatcmd003-set":
 		// One of the preview's controls: id names the setting, extra its value.
@@ -545,9 +628,22 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 				settings[name] = value
 			}
 		}
+		if id == "closes" {
+			// A preset is counted once, when it is chosen (#3926).
+			delete(settings, settingClosesAt)
+			if pin := chatcmd003ClosesPin(m, extra); pin != "" {
+				settings[settingClosesAt] = pin
+			}
+		}
 		state.Settings = settings
 		next := chatcmd003Draw(m, state, kind, state.Draft.Raw)
 		local.update(func(u *localUI) { u.chatcmd003 = next })
+		chatcmd003Remember(m, next)
+		if id == "closes" || strings.HasPrefix(id, "due-") || strings.HasPrefix(id, "owner-") || strings.HasPrefix(id, "pick-") {
+			// The closing-time note's button is gone once a time is chosen;
+			// focus goes to the choice it set (#3924, #3931).
+			focusField(chatcmd003RadioID(id, extra))
+		}
 	case "chatcmd003-tidy":
 		if m.Chatcmd002.Tidy == nil || state.Error == "parse" {
 			return true
@@ -563,6 +659,16 @@ func chatcmd003Action(m Model, local localStore, action, id, extra string) bool 
 					u.chatcmd003.Error = "tidy-fallback"
 				} else {
 					draft.Card = chatcmd003Apply(m, draft.Card, state.Settings)
+					if len(draft.Unresolved) == 0 {
+						draft.Unresolved = state.Draft.Unresolved
+					}
+					if len(draft.DueReads) == 0 {
+						draft.DueReads = state.Draft.DueReads
+					}
+					if len(draft.OwnerReads) == 0 {
+						draft.OwnerReads = state.Draft.OwnerReads
+					}
+					chatcmd003Assign(m, &draft, state.Settings)
 					u.chatcmd003.Draft = draft
 				}
 			})
@@ -591,6 +697,10 @@ func chatcmd003Switch(m Model, name, label string, on, disabled bool) ui.Node {
 // for a value the copy table does not hold (a typed date).
 func chatcmd003Choice(m Model, name, label, current string, disabled bool, prefix string, labels map[string]string, options ...string) ui.Node {
 	buttons := make([]ui.Node, 0, len(options))
+	stop := current
+	if !slices.Contains(options, current) && len(options) > 0 {
+		stop = options[0]
+	}
 	for _, option := range options {
 		text := labels[option]
 		if text == "" {
@@ -600,7 +710,12 @@ func chatcmd003Choice(m Model, name, label, current string, disabled bool, prefi
 		if option == current {
 			class += " selected"
 		}
-		buttons = append(buttons, html.Button(html.Props{Class: class, Type: "button", Role: "radio", Disabled: disabled,
+		// One Tab stop at the chosen option; the arrow keys reach the rest.
+		tab := -1
+		if option == stop {
+			tab = 0
+		}
+		buttons = append(buttons, html.Button(html.Props{ID: chatcmd003RadioID(name, option), Class: class, Type: "button", Role: "radio", Disabled: disabled, TabIndex: tab,
 			Data: map[string]string{"action": "chatcmd003-set", "id": name, "extra": option},
 			Aria: map[string]string{"checked": boolString(option == current)}, Text: text}))
 	}
@@ -632,7 +747,8 @@ func chatcmd003Settings(m Model, state chatcmd003Preview) ui.Node {
 				chatcmd003Switch(m, "multiple", "multiple", p.Multiple, state.Busy),
 				chatcmd003Switch(m, "anonymous", "anonymous", p.Anonymous, state.Busy)),
 			chatcmd003Choice(m, "results", "results", p.Results, state.Busy, "", nil, "always", "after-voting", "after-closing"),
-			chatcmd003Choice(m, "closes", "closes", closes, state.Busy, "closes-", labels, presets...))
+			chatcmd003Choice(m, "closes", "closes", closes, state.Busy, "closes-", labels, presets...),
+			chatcmd003Choice(m, "add", "add-options", p.AddOptions, state.Busy, "add-", nil, "author", "members"))
 	}
 	if t := state.Draft.Card.Todo; t != nil {
 		rows = append(rows, chatcmd003Choice(m, "tick", "tick-policy", t.Tick, state.Busy, "", nil, "anyone", "assignee", "author"))
@@ -652,7 +768,7 @@ func chatcmd003Changes(m Model, changes []chat.Chatcmd003Change) ui.Node {
 		case change.Kind == chat.Chatcmd004ChangeAssignee:
 			rows = append(rows, html.Li(html.Props{Dir: "auto", Text: chatcmd002Fill(chatcmd003Text(m, "change-assignee"), "task", change.Before, "name", change.After)}))
 		case change.Kind == chat.Chatcmd004ChangeDue:
-			rows = append(rows, html.Li(html.Props{Dir: "auto", Text: chatcmd002Fill(chatcmd003Text(m, "change-due"), "task", change.Before, "date", change.After)}))
+			rows = append(rows, html.Li(html.Props{Dir: "auto", Text: chatcmd002Fill(chatcmd003Text(m, "change-due"), "task", change.Before, "date", chatcmd003ChangeDue(m, change.After))}))
 		case change.After == "":
 			rows = append(rows, html.Li(html.Props{Dir: "auto", Text: chatcmd002Fill(chatcmd003Text(m, "merged"), "text", change.Before)}))
 		default:
@@ -710,11 +826,22 @@ func chatcmd003PreviewView(m Model, state chatcmd003Preview) ui.Node {
 		for _, issue := range state.Draft.Issues {
 			key := issue
 			if issue == "assignee" {
+				if len(state.Draft.Unresolved) > 0 {
+					// Said by name, with the choice of owner, below.
+					continue
+				}
 				key = "ambiguous-assignee"
 			}
 			children = append(children, html.P(html.Props{Class: "chatcmd003-note", Role: "status", Text: chatcmd003Text(m, key)}))
 		}
+		if choice := chatcmd003SplitChoice(m, state); choice != nil {
+			children = append(children, choice)
+		}
+		children = append(children, chatcmd003Unresolved(m, state)...)
+		children = append(children, chatcmd003Reviews(m, state)...)
 		children = append(children, chatcmd003Settings(m, state))
+		children = append(children, chatcmd003AssigneeOnly(m, state)...)
+		children = append(children, chatcmd003ClosesNotes(m, state)...)
 	}
 	if note := chatbug057MoveNote(m, state); note != nil {
 		children = append(children, note)

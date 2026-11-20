@@ -22,14 +22,6 @@ import (
 // card carries data-waits="you", the accent frame and tint, and the action
 // slot says so in words, so the difference is not colour alone.
 
-// workCardWaitsOnViewer reports whether an open work object waits on the
-// reader. The previews carry the display name the resolver authorized, not an
-// id, so the match is on that name.
-func workCardWaitsOnViewer(m Model, name string, open bool) bool {
-	name, viewer := strings.TrimSpace(name), strings.TrimSpace(m.CurrentUserName)
-	return open && name != "" && viewer != "" && strings.EqualFold(name, viewer)
-}
-
 // workCardWaitingText is the action slot's sentence for the reader.
 func workCardWaitingText(locale string) string {
 	switch lower := strings.ToLower(locale); {

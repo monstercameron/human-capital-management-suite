@@ -372,7 +372,12 @@ func TestTodo_UIPOLISH_012_Golden(t *testing.T) {
 	// Re-pinned 2026-11-12 (#3839): the product stylesheet gains the collapsed
 	// rail flyout block (chatDesignNavFlyoutStylesheet) and rail items with child
 	// pages render a flyout trigger instead of a plain link.
-	const want = "d22323b27b139da71941b5024d0a83380375ca55055a7e033e20812da8bdf549"
+	// Re-pinned 2026-11-19 for the Chat defect sweep: the served Chat stylesheet
+	// gains the issue rules of that sweep (search, composer, polls and to-dos,
+	// threads, details, saved, moderation, phone layout and touch targets), and
+	// the product stylesheet gains the Agents page and account-link rules
+	// (#3764, #3776, #3961).
+	const want = "bfae89c4c3d9cb1335f804ba34c710af0995292471ef511971f5aad13e512dd1"
 	if digest != want {
 		t.Fatalf("production Home document golden = %s, want %s; the document is in %s", digest, want, goldenReviewCopy(t, "uipolish012-home", doc))
 	}

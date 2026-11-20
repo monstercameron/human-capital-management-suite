@@ -273,7 +273,7 @@ func renderAgentsPage(view View, locale LocaleContext, snapshot AgentSnapshot) u
 	children = append(children,
 		agentsIntroLine(view, locale),
 	)
-	main := []ui.Node{tagAgentComposerForView(view, locale, snapshot)}
+	main := []ui.Node{issue3776Participant(view, locale, snapshot), tagAgentComposerForView(view, locale, snapshot)}
 	if len(snapshot.Threads) > 0 {
 		main = append(main, tagAgentThreads(locale, snapshot))
 	}
@@ -413,10 +413,11 @@ func tagAgentTasks(view View, locale LocaleContext, snapshot AgentSnapshot) ui.N
 				"data-agent-task-filter": category,
 				"aria-selected":          fmt.Sprint(category == selected),
 				"aria-controls":          "agents-task-list",
+				"aria-label":             agentTaskFilterName(locale, category, len(groups[category])),
 				"tabindex":               map[bool]string{true: "0", false: "-1"}[category == selected],
 			}},
 				html.Span(html.Props{Class: "agents-task-filter-label"}, ui.Text(locale.Text("agents.filter."+category+"_label"))),
-				html.Span(html.Props{Class: "agents-task-filter-count", Aria: map[string]string{"label": locale.Text("agents.task_count")}}, ui.Text(locale.FormatNumber(fmt.Sprint(len(groups[category])), 0))),
+				html.Span(html.Props{Class: "agents-task-filter-count"}, ui.Text(locale.FormatNumber(fmt.Sprint(len(groups[category])), 0))),
 			))
 		}
 		listing = append(listing, html.Div(html.Props{Class: "agents-task-filters", Role: "tablist", Aria: map[string]string{"label": locale.Text("agents.task_filters")}}, filters...))
@@ -617,9 +618,10 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 		}
 	}
 	children := make([]ui.Node, 0, 8)
+	generalPurpose := issue3974GeneralPurpose(locale, snapshot)
 	if len(snapshot.Agents) > 0 {
 		choices := make([]ui.Node, 0, len(snapshot.Agents)+1)
-		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true, generalAgentIcon()))
+		choices = append(choices, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), generalPurpose, true, generalAgentIcon()))
 		// Each agent wears its stored icon; one without a stored icon takes its
 		// fallback among the agents listed here, as Chat does among the agents it
 		// knows, so the same agent has the same picture on both pages.
@@ -638,7 +640,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 		}
 		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, choices...)))
 	} else {
-		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), locale.Text("agents.general_agent_purpose"), true, generalAgentIcon()))))
+		children = append(children, html.Fieldset(html.Props{Class: "agents-agent-choices"}, html.Legend(html.Props{}, ui.Text(locale.Text("agents.who_should_answer"))), html.Div(html.Props{}, agentChoice(locale, "agents-choice-general", "", locale.Text("agents.general_agent"), generalPurpose, true, generalAgentIcon()))))
 		children = append(children, html.P(html.Props{Class: "agents-general-agent muted", Role: "status"}, ui.Text(agentUXR7Text(locale, "other_agents"))))
 	}
 	inputProps := html.Props{ID: "agents-composer-input", Name: "prompt", Rows: 3, Placeholder: locale.Text("agents.composer_placeholder")}
@@ -657,6 +659,7 @@ func tagAgentComposerForView(view View, locale LocaleContext, snapshot AgentSnap
 			"aria-live": "polite", "data-msg-working": locale.Text("agents.start_working"), "data-msg-done": locale.Text("agents.start_done"),
 			"data-msg-empty": locale.Text("agents.start_empty"), "data-msg-disabled": locale.Text("agents.start_disabled"),
 			"data-msg-denied": locale.Text("agents.start_denied"), "data-msg-failed": locale.Text("agents.start_failed"),
+			"data-msg-follow-up": issue3975Text(locale, "follow_up"), "data-msg-draft-restored": issue3975Text(locale, "draft_restored"),
 		}}),
 	)
 	if !snapshot.StartAvailable {
@@ -688,7 +691,7 @@ func tagAgentTaskView(view View, locale LocaleContext, task AgentTask) ui.Node {
 }
 
 func tagAgentTaskViewWithRetry(view View, locale LocaleContext, task AgentTask, retryAvailable bool) ui.Node {
-	task.State = AgentTaskSettledState(task)
+	task = agentUX3681Settle(task)
 	if task.State == AgentTaskCompleted && strings.TrimSpace(task.AnswerText) == "" {
 		task.AnswerText = task.ResultPreview
 	}
@@ -930,7 +933,7 @@ func taskControlStatus(locale LocaleContext) ui.Node {
 }
 
 func answerBlock(locale LocaleContext, answer string) ui.Node {
-	if answer == "" {
+	if strings.TrimSpace(answer) == "" {
 		return nil
 	}
 	return html.Section(html.Props{Class: "agents-task-answer"},

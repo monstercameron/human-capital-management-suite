@@ -4,7 +4,7 @@ package chatui
 // Restore button, the Moderation and Saved segmented control, search results
 // and the phone items. It is part of ChatLane4Styles, so it sits after the
 // older chat rules and decides ties with them.
-const chatlane9Styles = chatbug082Styles + chatux015Styles + chatux010RecentStyles + chatlane9VarDefaults
+const chatlane9Styles = chatbug082Styles + chatux015Styles + chatux010RecentStyles + issue3928Styles + chatlane9VarDefaults
 
 const chatbug082Styles = `.chatstate-notice-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border-block-start:1px solid var(--line);background:var(--surface)}` +
 	`.chatstate-notice-bar>.chatstate-notice{flex:1 1 16rem;margin:0;padding:0;background:transparent;font-size:.875rem;color:var(--muted)}` +

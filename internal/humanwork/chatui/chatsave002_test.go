@@ -127,8 +127,8 @@ func TestTodo_CHATSAVE_002(t *testing.T) {
 		t.Errorf("the attachment indicator is missing")
 	}
 	// The whole item is one target: it opens the message, from a click or Enter.
-	if chatPolishAttr(items[1], "data-saved-action") != "open" || chatPolishAttr(items[1], "tabindex") != "0" || chatPolishAttr(items[1], "data-saved-sequence") != "7" {
-		t.Errorf("the item is not one focusable target that opens the message")
+	if chatPolishAttr(items[1], "data-saved-action") != "open" || chatPolishAttr(items[1], "tabindex") != "" || chatPolishAttr(items[1], "data-saved-sequence") != "7" {
+		t.Errorf("the item is not a plain row that a press opens (the Open button is the keyboard route, issue 3879)")
 	}
 	// Four icon buttons, in order, each named; no text buttons, no disclosure rows.
 	buttons := chatsave002Find(t, markup, func(n *xhtml.Node) bool {
@@ -234,7 +234,7 @@ func TestTodo_CHATSAVE_002_Panel(t *testing.T) {
 			t.Errorf("%s empty: %s", tab, empty)
 		}
 	}
-	if copy.EmptyTodo != "Hover a message and press the bookmark to keep it here." || copy.EmptyDone != "Things you tick off appear here." {
+	if copy.EmptyTodo != "Use the bookmark on a message to keep it here." || copy.EmptyDone != "Things you tick off appear here." {
 		t.Errorf("the empty sentences are not the designed ones")
 	}
 	loading := renderNode(t, RenderSavedMessages(SavedMessagesView{Locale: "en-US", Loading: true}))
@@ -408,8 +408,8 @@ func TestTodo_CHATSAVE_002_Accessibility(t *testing.T) {
 		t.Errorf("%d segments are in the tab order, want 1", inOrder)
 	}
 	for _, item := range chatsave002Find(t, markup, func(n *xhtml.Node) bool { return n.Data == "li" && chatsave002Class(n, "chatsave-item") }) {
-		if chatPolishAttr(item, "tabindex") != "0" {
-			t.Errorf("an item is not in the tab order")
+		if chatPolishAttr(item, "tabindex") != "" {
+			t.Errorf("a list item must not be a tab stop; its Open button and toolbar are (issue 3879)")
 		}
 	}
 	// Style contract: touch targets, focus, reduced motion, right-to-left, tokens only.

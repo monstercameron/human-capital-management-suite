@@ -69,6 +69,9 @@ type PersonaRunModelWork struct {
 	Facts    personaAgentFacts
 	HasFacts bool
 	General  bool
+	// Attachments is what became of the files attached to the thread the run
+	// read (issue 3961).
+	Attachments chatcore.AttachmentReceipt
 }
 
 // PersonaRunModelWorkSource reconstructs one trusted model request from the
@@ -497,7 +500,7 @@ func (e *personaAdmittedRunExecutor) execute(ctx context.Context, admission agen
 		return fmt.Errorf("%w: checkpoint validated result: %v", ErrPersonaRunExecutorUnavailable, err)
 	}
 	done = agentUXSpeedStage(ctx, "delivery")
-	extra := personaDeliveryExtra{General: work.General, SaidSo: saidNotFromDocuments, Searched: searchRan && !searchFoundNothing}
+	extra := personaDeliveryExtra{General: work.General, SaidSo: saidNotFromDocuments, Searched: searchRan && !searchFoundNothing, Attachments: work.Attachments}
 	if work.HasFacts {
 		extra.Named = personaFactsNamedDocuments(modelResult.Result.Text, work.Facts.Documents)
 	}
@@ -577,7 +580,7 @@ func (e *personaAdmittedRunExecutor) deliverWith(ctx context.Context, admission 
 			invocation.Grant.ExpiresAt = admission.Request.Deadline
 			ctx = WithPersonaDMInvocation(ctx, invocation)
 		}
-		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID, Documents: documents, CitationDetails: citationDetails, NotFromDocuments: notFromDocuments})
+		return e.reply.Deliver(ctx, PersonaReplyDeliveryRequest{Principal: principal, Output: persisted, IdempotencyKey: admission.ID, Documents: documents, CitationDetails: citationDetails, NotFromDocuments: notFromDocuments, Attachments: extra.Attachments})
 	}
 	if _, hasPrincipal := trust.FromContext(ctx); hasPrincipal || isNilPersonaOutputPort(e.backgroundReply) {
 		return PersonaReplyDeliveryReceipt{}, ErrPersonaRunOutputRejected

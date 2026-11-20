@@ -39,13 +39,13 @@ const (
 // withChatDiscoveryCallbacks adds the actions this file owns.
 func withChatDiscoveryCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Config) chatui.Callbacks {
 	callbacks.OpenBrowse = func() {
-		chatBrowser.mutate(func(model *chatui.Model) { model.ShowBrowse = true })
+		chatBrowser.mutate(func(model *chatui.Model) { model.ShowBrowse, model.BrowseAnnounce = true, false })
 		refreshChatRoute()
 		go loadChatBrowse(cfg)
 	}
 	callbacks.CloseBrowse = func() {
 		chatBrowser.mutate(func(model *chatui.Model) {
-			model.ShowBrowse, model.Browse, model.BrowseQuery = false, nil, ""
+			model.ShowBrowse, model.Browse, model.BrowseQuery, model.BrowseAnnounce = false, nil, "", false
 		})
 		refreshChatRoute()
 	}
@@ -84,7 +84,14 @@ func withChatDiscoveryCallbacks(callbacks chatui.Callbacks, cfg journeyclient.Co
 	callbacks.FilterBrowse = func(query string) {
 		// Local only: the listing is already in hand, so typing costs nothing.
 		chatBrowser.filterChatBrowseQuery(query)
+		seq := chatBrowser.startChatBrowseAnnounce()
 		refreshChatRoute()
+		// Announce the count once typing pauses, not on every keystroke (#3922).
+		time.AfterFunc(chatBrowseAnnounceQuiet, func() {
+			if chatBrowser.settleChatBrowseAnnounce(seq) {
+				refreshChatRoute()
+			}
+		})
 	}
 	callbacks.RequestJoinConversation = func(id string) {
 		current := chatBrowser.snapshot()
@@ -423,6 +430,12 @@ func chatDraftWriterFor(cfg journeyclient.Config) *chatDraftWriter {
 
 // scheduleChatDraftPersist joins the pending drafts write.
 func scheduleChatDraftPersist(cfg journeyclient.Config) { chatDraftWriterFor(cfg).Schedule() }
+
+// changedChatDraftPersist persists a draft change: typing is debounced, a clear
+// is written at once (issue 3939).
+func changedChatDraftPersist(cfg journeyclient.Config, value string) {
+	chatDraftWriterFor(cfg).Changed(value)
+}
 
 // flushChatDraftPersist cancels the pending write and persists now.
 func flushChatDraftPersist(cfg journeyclient.Config) { chatDraftWriterFor(cfg).Flush() }

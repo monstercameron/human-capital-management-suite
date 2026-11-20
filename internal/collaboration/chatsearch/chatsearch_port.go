@@ -102,7 +102,11 @@ type Row struct {
 	// Language is the language a message was written in, when the source knows it
 	// (the "written in" filter).
 	Language string
-	_        incomparable
+	// State is where an agent task stands (issue 3758): the task's own state
+	// code, which the result turns into a word in the reader's language. It is
+	// empty for every other kind.
+	State string
+	_     incomparable
 }
 
 type Request struct {

@@ -19,6 +19,10 @@ func channelNamed(kind ConversationKind) bool {
 // name the service accepts.
 func createNameInput(m Model, local localStore, typed string) {
 	if !channelNamed(createKindOf(m, local.get())) {
+		if createKindOf(m, local.get()) == GroupChat && local.get().groupName != typed {
+			// ISSUE-3865: the group's name is kept for a trip through another type.
+			local.update(func(u *localUI) { u.groupName = typed })
+		}
 		return
 	}
 	name, refused := chat.NormalizeChannelName(typed)

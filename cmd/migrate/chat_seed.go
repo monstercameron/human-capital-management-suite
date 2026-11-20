@@ -194,9 +194,7 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 	if opts.Now.IsZero() {
 		opts.Now = time.Now().UTC()
 	}
-	if opts.MediaRoot == "" {
-		opts.MediaRoot = filepath.Join(defaultArtifactRootPath, "chat-media")
-	}
+	opts.MediaRoot = chatSeedMediaRoot(opts.MediaRoot)
 	employees, err := chatSeedWorkforce(opts.Tenant)
 	if err != nil {
 		return err
@@ -322,6 +320,7 @@ func runChatSeedCommand(ctx context.Context, store *chatstore.Store, routes chat
 	fmt.Fprintf(out, "seeded chat demo for %s (%s): %d conversations, %d memberships, %d posts, %d threads with %d replies, %d reactions, %d pins, %d image posts, %d animated posts\n",
 		opts.Tenant, opts.Scale, receipt.Conversations, receipt.Memberships, receipt.Posts, receipt.Threads, receipt.ThreadReplies, receipt.Reactions, receipt.Pins, receipt.Images, receipt.GIFs)
 	fmt.Fprintf(out, "history spans %s to %s\n", receipt.EarliestPost.Format(time.RFC3339), receipt.LatestPost.Format(time.RFC3339))
+	fmt.Fprint(out, chatSeedMediaReport(opts.MediaRoot))
 	return nil
 }
 

@@ -860,10 +860,7 @@ func (s *Service) PinPost(ctx context.Context, r PinPostRequest) (Pin, error) {
 	if err != nil {
 		return Pin{}, err
 	}
-	if c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID {
-		return Pin{}, ErrPermissionDenied
-	}
-	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
+	if err := s.authorizePin(ctx, r.Principal, c, x.PostID); err != nil {
 		return Pin{}, err
 	}
 	x.PinnedBy = r.Principal.SubjectID
@@ -879,10 +876,7 @@ func (s *Service) UnpinPost(ctx context.Context, r UnpinPostRequest) error {
 	if e != nil {
 		return e
 	}
-	if c.OwnerID != r.Principal.SubjectID || r.Principal.TenantID != c.TenantID {
-		return ErrPermissionDenied
-	}
-	if err := s.authorize(ctx, r.Principal, c, chatpolicy.ActionRead); err != nil {
+	if err := s.authorizeUnpin(ctx, r.Principal, c, r.PostID); err != nil {
 		return err
 	}
 	return s.store.RemovePin(ctx, r.Principal, r.TenantID, r.ConversationID, r.PostID, r.Principal.TenantID, r.ExpectedRevision)

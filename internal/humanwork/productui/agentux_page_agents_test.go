@@ -46,7 +46,7 @@ func TestTodo_AGENTUX_001(t *testing.T) {
 	}
 	for _, want := range []string{
 		"People Coach", "Who should answer?", ">Ask<", "Plan a longer task", "usually within a minute",
-		`class="agents-task-filter-label">Active</span>`, `aria-label="Task count" class="agents-task-filter-count">1</span>`, `class="agents-task-filter-label">Completed</span>`, `class="agents-task-filter-label">Failed</span>`, `data-task-category="active"`,
+		`class="agents-task-filter-label">Active</span>`, `class="agents-task-filter-count">1</span>`, `aria-label="Active, 1 task"`, `class="agents-task-filter-label">Completed</span>`, `class="agents-task-filter-label">Failed</span>`, `data-task-category="active"`,
 		`aria-label="Open task: Review the open policy"`, "Reading the policy", "The handbook is current.",
 		"The agent stopped before it could answer. Nothing was changed.", "Show older",
 	} {

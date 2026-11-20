@@ -21,7 +21,7 @@ func TestTodo_CHAT_031_Accessibility(t *testing.T) {
 	markup := render(t, model)
 
 	for _, want := range []string{
-		`<a class="chat-skip" href="#chat-main">Skip to conversation</a>`,
+		`<a class="chat-skip" data-action="skip-to-conversation" href="#chat-main">Skip to conversation</a>`,
 		`id="chat-main"`, `role="log"`, `aria-label="Conversation messages"`, `aria-live="polite"`,
 		`<label class="sr-only" for="chat-composer">Message</label>`,
 		`id="chat-composer"`, `aria-describedby="composer-help"`,

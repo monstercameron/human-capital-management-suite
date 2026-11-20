@@ -90,8 +90,8 @@ func projectPreviewCard(m Model, preview ProjectTaskPreview) ui.Node {
 	if len(meta) > 0 {
 		children = append(children, html.Span(html.Props{Class: "chat-project-embed-meta"}, meta...))
 	}
-	// An open ticket waits on its assignee.
-	waits := workCardWaitsOnViewer(m, preview.Assignee, preview.StatusTone != "done")
+	// Only the resolver's identity-based answer claims the ticket waits on the reader (#3994).
+	waits := preview.WaitsOnViewer && preview.StatusTone != "done"
 	children = append(children, workCardAction(m, waits))
 	return html.A(workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-project-embed", Href: ProjectTaskReferenceURL(preview.ProjectID, preview.TaskID), Data: map[string]string{"action": "open-project-task-reference", "project": preview.ProjectID, "task": preview.TaskID, "id": preview.ProjectID, "extra": preview.TaskID}, Aria: map[string]string{"label": m.tf(KeyOpenProjectTask, map[string]string{"title": title})}}, waits), children...)
 }

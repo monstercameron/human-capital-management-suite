@@ -29,7 +29,9 @@ func (b *chatsaveBrowser) panel() js.Value {
 func (b *chatsaveBrowser) selectTab(tab string) {
 	b.tab, b.tabSettled = tab, true
 	b.errorCode, b.commandFailed = "", false
-	b.reminderMenu, b.editingNote, b.pickingDate = "", "", false
+	// Issue 3910: a note being written stays open and keeps its text; changing
+	// the filter is not a choice to cancel it.
+	b.reminderMenu, b.pickingDate = "", false
 	b.render()
 }
 
@@ -41,9 +43,11 @@ func (b *chatsaveBrowser) focusAfterRemoval(item js.Value) {
 		return
 	}
 	for _, sibling := range []string{"nextElementSibling", "previousElementSibling"} {
-		if next := item.Get(sibling); next.Truthy() && next.Get("id").String() != "" {
-			b.focusID = next.Get("id").String()
-			return
+		if next := item.Get(sibling); next.Truthy() {
+			if id := chatsaveItemFocusID(next); id != "" {
+				b.focusID = id
+				return
+			}
 		}
 	}
 }
@@ -90,8 +94,18 @@ func (b *chatsaveBrowser) runUndo() {
 			b.command(undo.host, command)
 		}
 	}
-	b.focusID = "chatsave-item-" + undo.item.PostID
+	b.focusID = "chatsave-jump-" + undo.item.PostID
 	b.render()
+}
+
+// chatsaveItemFocusID is the control an item hands focus to: its Open button,
+// or for an item that cannot be opened its first toolbar button (issue 3879:
+// the list item itself is not focusable).
+func chatsaveItemFocusID(item js.Value) string {
+	if control := item.Call("querySelector", ".chatsave-jump,.chatsave-act"); control.Truthy() {
+		return control.Get("id").String()
+	}
+	return ""
 }
 
 // dueCommand sets a reminder (or clears it when at is nil) and closes the menu.
@@ -128,6 +142,7 @@ func (b *chatsaveBrowser) closeMenu(refocus bool) {
 func (b *chatsaveBrowser) cancelNote() {
 	post := chatsavePostOf(b.editingNote)
 	b.editingNote = ""
+	b.noteDrafts.discard("chatsave-note-field-" + post)
 	if post != "" {
 		b.focusID = "chatsave-note-" + post
 	}
@@ -274,7 +289,7 @@ func (b *chatsaveBrowser) panelKey(event, target js.Value) bool {
 		}
 		focus := items.Index(next)
 		b.active = focus.Call("getAttribute", "data-saved-key").String()
-		b.focusID = focus.Get("id").String()
+		b.focusID = chatsaveItemFocusID(focus)
 		b.render()
 		focus.Call("scrollIntoView", map[string]any{"block": "nearest"})
 		return true

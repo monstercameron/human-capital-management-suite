@@ -213,7 +213,9 @@ func chatLayerKind(action string) string {
 		return "reaction"
 	case "menu":
 		return "menu"
-	case "details", "agents-here":
+	case "details", "agents-here", "header-details", "header-pinned", "header-members", "header-map":
+		// The header's own shortcuts open the same panel (issue 3883), so Close
+		// details returns focus to whichever of them opened it.
 		return "details"
 	case "reply", "stats":
 		// The thread-count link opens the same thread as Reply in thread, so focus

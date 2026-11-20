@@ -83,6 +83,8 @@ For terms of use, see http://www.unicode.org/copyright.html
 		<annotation cp="🚗" type="tts">Auto</annotation>
 		<annotation cp="✈️">fliegen | Flug | Flugzeug | Reise</annotation>
 		<annotation cp="✈️" type="tts">Flugzeug</annotation>
+		<annotation cp="🚀">Rakete | Start | Weltraum</annotation>
+		<annotation cp="🚀" type="tts">Rakete</annotation>
 		<annotation cp="☀️">sonnig | Sonne | Strahlen | Wetter</annotation>
 		<annotation cp="☀️" type="tts">Sonne</annotation>
 		<annotation cp="⭐">Favorit | Himmel | Stern</annotation>

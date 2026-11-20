@@ -44,7 +44,12 @@ func chatPageOnScreen() (kind, query string) {
 // chatPageBaseHref is the address of the conversation alone.
 func chatPageBaseHref(conversationID string) string {
 	if conversationID != "" {
-		return chatHistoryHref(conversationID)
+		// #3965: closing a page returns to the conversation with its thread.
+		state := chatNavigationStateFromModel(chatBrowser.snapshot())
+		if state.ConversationID != conversationID {
+			state = chatNavigationState{}
+		}
+		return chatHrefWithThread(chatHistoryHref(conversationID), state)
 	}
 	href := currentPath()
 	if query := currentQuery(); query != "" {

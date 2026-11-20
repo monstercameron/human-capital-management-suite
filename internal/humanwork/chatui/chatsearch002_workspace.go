@@ -49,7 +49,7 @@ func ChatSearchWorkspaceResults(m Model, response chatsearch.Response, words str
 			if row.Kind == chatsearch.Person || row.ID == "" {
 				continue
 			}
-			href := ChatSearchRowHref(row)
+			href := ChatSearchRowHrefFor(m.Locale, row)
 			if href == "" {
 				continue
 			}
@@ -85,7 +85,13 @@ func ChatSearchWorkspaceResults(m Model, response chatsearch.Response, words str
 // and the sentence the result names. It is "" when the result names nothing an
 // address can open.
 func ChatSearchRowHref(row chatsearch.Row) string {
-	if href := ChatSearchAgentHref(row); href != "" {
+	return ChatSearchRowHrefFor("", row)
+}
+
+// ChatSearchRowHrefFor is ChatSearchRowHref for an agent result that keeps the
+// reader's locale in its address (issue 3758).
+func ChatSearchRowHrefFor(locale string, row chatsearch.Row) string {
+	if href := ChatSearchAgentHrefFor(locale, row); href != "" {
 		return href
 	}
 	target := row.Target

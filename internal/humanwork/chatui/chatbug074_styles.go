@@ -3,7 +3,7 @@ package chatui
 // ChatLane2Styles holds the layout rules of the channel card work (CHATBUG-074,
 // CHATBUG-057). They come last in the stylesheet so they decide ties with the
 // earlier tray rules.
-const ChatLane2Styles = chatbug074Styles + chatcmd001Styles + chatcmd003Styles + chatcmd002TrayStyles + chatcmd002PreviewStyles + chatcmd002EditStyles + chatux025Styles
+const ChatLane2Styles = chatbug074Styles + chatcmd001Styles + chatcmd003Styles + chatcmd002TrayStyles + chatcmd002PreviewStyles + chatcmd002EditStyles + chatux025Styles + issue3850BrowseStyles + issue3861Styles
 
 // chatcmd001Styles: the line that stands where the command list was, once a
 // command is chosen (its usage) or a word turned out not to be one.

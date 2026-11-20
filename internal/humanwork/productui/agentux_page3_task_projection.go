@@ -58,6 +58,8 @@ func localizedAgentFailureReason(locale LocaleContext, reason string) string {
 	}
 	lower := strings.ToLower(reason)
 	switch {
+	case reason == agentNoAnswerFailure:
+		return locale.Text("agents.failure_no_answer")
 	case strings.Contains(lower, "too long"), strings.Contains(lower, "timed out"), strings.Contains(lower, "timeout"):
 		return locale.Text("agents.failure_timeout")
 	case strings.Contains(lower, "not allowed"), strings.Contains(lower, "permission"), strings.Contains(lower, "cannot read"), strings.Contains(lower, "could not read"):

@@ -32,6 +32,8 @@ type PersonaReplyDeliveryRequest struct {
 	// NotFromDocuments is set when a general-purpose agent answered with no
 	// document behind the answer (AGENTUX-076). The card shows the mark.
 	NotFromDocuments bool
+	// Attachments is what the run did with the files on the thread (issue 3961).
+	Attachments chat.AttachmentReceipt
 }
 
 // PersonaReplyDeliveryReceipt reports the durable or recipient-only chat effect.
@@ -149,6 +151,9 @@ func (d *PersonaReplyDelivery) deliverPublic(ctx context.Context, request Person
 	if request.NotFromDocuments && decision.Body != "" {
 		decision.Body += "\n" + chat.UngroundedMark()
 	}
+	if mark := chat.AttachmentReceiptMark(request.Attachments); mark != "" && decision.Body != "" {
+		decision.Body += "\n" + mark
+	}
 	if decision.Body == "" {
 		personaReplyFallbackNote(ctx, "rendered_body_empty", "")
 		return d.privateFallback(ctx, request, chat.PrivateReasonAudience)
@@ -218,6 +223,9 @@ func (d *PersonaReplyDelivery) deliverPrivate(ctx context.Context, request Perso
 	}
 	if request.NotFromDocuments {
 		body += "\n" + chat.UngroundedMark()
+	}
+	if mark := chat.AttachmentReceiptMark(request.Attachments); mark != "" {
+		body += "\n" + mark
 	}
 	if marker := chat.PrivateReasonMarker(reason); marker != "" {
 		body += "\n" + marker

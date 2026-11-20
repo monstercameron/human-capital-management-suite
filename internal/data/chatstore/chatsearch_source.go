@@ -217,6 +217,13 @@ func (s *Store) searchChatContent(ctx context.Context, q chatsearch.Request, kin
 			// referenced so every kind takes the same arguments.
 			query += ` AND ($12::text[] IS NULL OR true)`
 		}
+		if q.Filters.Mine && id == "" && q.OpenIDs == nil {
+			// ISSUE-3679: is:mine keeps the reader's own rows (Match's rule), so the
+			// database drops the rest before any is authorized or rendered; a busy
+			// workspace otherwise spends the source's whole time limit on rows
+			// that are then discarded. $3 is the reader.
+			query += ` AND (payload->>'AuthorID'=$3 OR payload->>'OwnerID'=$3)`
+		}
 		query += ` AND ($13::text[] IS NULL OR true) AND ($8::timestamptz IS NULL OR (order_at,($10::text||chr(1)||order_id) COLLATE "C")<($8,$9::text)) ORDER BY order_at DESC,order_id COLLATE "C" DESC LIMIT $11`
 		limit := q.Limit
 		if limit == 0 {

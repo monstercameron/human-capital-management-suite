@@ -102,7 +102,7 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 	// results it replaces or the snapshots would nest one inside the next.
 	conversation := model
 	conversation.ChatSearch, conversation.SearchOpened = nil, false
-	view := chatui.ChatSearchView{Query: query, Loading: true}
+	view := chatsearchBeginView(previous, query, cursor)
 	chatsearchBrowser.view = view
 	if chatsearchBrowser.cancel != nil {
 		chatsearchBrowser.cancel()
@@ -161,6 +161,12 @@ func chatsearchLoad(query, cursor string, delayMillis int, retry bool) {
 			chatsearchBrowser.Unlock()
 			if shown {
 				refreshChatRoute()
+				// #3857: a control the update replaced took focus with it.
+				chatsearchRepairLostFocus()
+				if len(outcome.Fresh) > 0 {
+					// #3899: continue at the seam, not at the top.
+					chatsearchFocusNewResults()
+				}
 				if e == nil {
 					chatsearchRefreshRecent(cfg, generation)
 				}
@@ -200,7 +206,7 @@ func chatsearchClick(event js.Value) {
 		}
 		chatsearchStart(cfg, extra, 0, false)
 	case "remove":
-		query, e := chatsearch.RemoveChip(view.Query, extra)
+		query, e := chatsearchRemoveChip(chatBrowser.snapshot(), view.Query, extra)
 		if e == nil {
 			if query == "" {
 				query = "*"
@@ -228,6 +234,7 @@ func chatsearchClick(event js.Value) {
 		if e != nil {
 			return
 		}
+		chatsearchRememberOrigin(button)
 		// Keep the private query on this controller; the existing navigation
 		// loads a bounded two-sided message window around the exact sequence.
 		model := chatBrowser.snapshot()
@@ -289,6 +296,11 @@ func chatsearchReturn() {
 		chatBrowser.mutate(chatsearchModelBack)
 		chatPageSync()
 		refreshChatRoute()
+		// #3896: focus lands on the result that was opened, at its old scroll.
+		chatsearchBrowser.Lock()
+		held := chatsearchBrowser.view
+		chatsearchBrowser.Unlock()
+		chatsearchFocusAfterReturn(held)
 	}
 }
 
@@ -493,14 +505,30 @@ func chatsearchSubmit(event js.Value) {
 	chatsearchBrowser.Lock()
 	v, cfg := chatsearchBrowser.view, chatsearchBrowser.config
 	chatsearchBrowser.Unlock()
-	query, e := chatsearchControlQuery(v.Query, values, checks)
+	query, e := chatsearchControlQuery(chatsearchControlBase(chatBrowser.snapshot(), v.Query), values, checks)
 	if e != nil {
+		before, after, reversed := chatsearchReversedRange(v.Query, values)
 		chatsearchBrowser.Lock()
 		chatsearchBrowser.view.Error = "invalid"
+		if reversed {
+			// ISSUE-3859: name the dates, keep what was typed, and leave the
+			// last applied query to the chips.
+			chatsearchBrowser.view.Error = "daterange"
+			chatsearchBrowser.view.DraftBefore, chatsearchBrowser.view.DraftAfter = before, after
+		}
+		chatsearchBrowser.flow.reject()
 		view := chatsearchBrowser.view
 		chatsearchBrowser.Unlock()
 		chatBrowser.mutate(func(m *chatui.Model) { chatsearchModelShow(m, view) })
 		refreshChatRoute()
+		if reversed {
+			// Focus returns to the After field, the one to change.
+			ui.PostAsync(func() {
+				if field := js.Global().Get("document").Call("getElementById", "chatsearch-after"); field.Truthy() {
+					field.Call("focus")
+				}
+			})
+		}
 		return
 	}
 	chatsearchBegin(cfg, query)
@@ -517,7 +545,12 @@ func chatsearchLoadRecent(cfg journeyclient.Config) {
 		if err := chatsearchRequest(ctx, http.DefaultClient, chatBrowser.config(cfg), "/api/chat/search/recent", http.MethodGet, nil, &recent); err != nil {
 			return
 		}
-		chatBrowser.mutate(func(m *chatui.Model) { m.SearchRecent = recent })
+		chatBrowser.mutate(func(m *chatui.Model) {
+			m.SearchRecent = recent
+			if len(recent) > 0 {
+				m.SearchRecentStatus = ""
+			}
+		})
 		refreshChatRoute()
 	}()
 }

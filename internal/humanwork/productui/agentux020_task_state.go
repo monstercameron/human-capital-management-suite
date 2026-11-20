@@ -46,6 +46,11 @@ func AgentTaskStateFromStored(value string) AgentTaskState {
 // the projection carried a state the page knows, but which holds an answer, is
 // a completed task: its answer is on the page, so it is not listed as failed.
 func AgentTaskSettledState(task AgentTask) AgentTaskState {
+	return agentUX3681Settle(task).State
+}
+
+// agentTaskBaseState is the state before the placeholder-answer rule of #3681.
+func agentTaskBaseState(task AgentTask) AgentTaskState {
 	state := AgentTaskStateFromStored(string(task.State))
 	if state == AgentTaskUnknown && strings.TrimSpace(task.FailureReason) == "" &&
 		(strings.TrimSpace(task.AnswerText) != "" || strings.TrimSpace(task.ResultPreview) != "") {
@@ -65,7 +70,7 @@ func AgentTaskGroup(task AgentTask) string {
 func agentUX020SettledTasks(snapshot AgentSnapshot) AgentSnapshot {
 	tasks := make([]AgentTask, len(snapshot.Tasks))
 	for index, task := range snapshot.Tasks {
-		task.State = AgentTaskSettledState(task)
+		task = agentUX3681Settle(task)
 		if task.State == AgentTaskCompleted && strings.TrimSpace(task.AnswerText) == "" {
 			task.AnswerText = task.ResultPreview
 		}
@@ -74,7 +79,7 @@ func agentUX020SettledTasks(snapshot AgentSnapshot) AgentSnapshot {
 	snapshot.Tasks = tasks
 	if snapshot.SelectedTask != nil {
 		selected := *snapshot.SelectedTask
-		selected.State = AgentTaskSettledState(selected)
+		selected = agentUX3681Settle(selected)
 		if selected.State == AgentTaskCompleted && strings.TrimSpace(selected.AnswerText) == "" {
 			selected.AnswerText = selected.ResultPreview
 		}

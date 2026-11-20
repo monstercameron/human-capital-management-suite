@@ -24,9 +24,9 @@ func TestTodo_CHATSAVE_002_Browser(t *testing.T) {
 	now := time.Date(2026, time.October, 1, 8, 30, 0, 0, time.UTC)
 	const doc = "doc-47892b80-d600-4401-8244-e2fa2a31caa7"
 	want := map[string]struct{ todo, tomorrow, empty, direction string }{
-		"en-US": {"To do", "Tomorrow 9:00 AM", "Hover a message and press the bookmark to keep it here.", "ltr"},
-		"de-DE": {"Zu erledigen", "Morgen 09:00", "Fahren Sie über eine Nachricht und wählen Sie das Lesezeichen, um sie hier zu behalten.", "ltr"},
-		"ar":    {"للتنفيذ", "غدًا ٠٩:٠٠", "مرّر المؤشر فوق رسالة واضغط على العلامة المرجعية لإبقائها هنا.", "rtl"},
+		"en-US": {"To do", "Tomorrow 9:00 AM", "Use the bookmark on a message to keep it here.", "ltr"},
+		"de-DE": {"Zu erledigen", "Morgen 09:00", "Wählen Sie bei einer Nachricht das Lesezeichen, um sie hier zu behalten.", "ltr"},
+		"ar":    {"للتنفيذ", "غدًا ٠٩:٠٠", "اضغط على العلامة المرجعية في رسالة لإبقائها هنا.", "rtl"},
 	}
 	for locale, words := range want {
 		ctx := productui.ResolveProductLocale(locale)

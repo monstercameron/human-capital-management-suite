@@ -62,6 +62,9 @@ type chatsaveBrowser struct {
 	// tabSettled is true once the panel has chosen its tab for this opening
 	// (CHATBUG-091): the first tab with items, or the one the person pressed.
 	tabSettled bool
+	// noteDrafts holds notes being written that the last draw did not keep on
+	// screen (issue 3910).
+	noteDrafts chatsaveNoteDrafts
 }
 
 // settleTab opens the panel on the first tab that holds items, once the list has
@@ -359,6 +362,15 @@ func (b *chatsaveBrowser) render() {
 		field := fields.Index(i)
 		if id := field.Get("id").String(); id != "" {
 			values[id] = field.Get("value").String()
+			// Only a note still being written is a draft; Save and Cancel clear
+			// editingNote before the redraw that removes the field.
+			if b.editingNote != "" && id == "chatsave-note-field-"+chatsavePostOf(b.editingNote) {
+				saved := ""
+				if attr := field.Call("getAttribute", "data-chat-value"); attr.Type() == js.TypeString {
+					saved = attr.String()
+				}
+				b.noteDrafts.remember(id, values[id], saved)
+			}
 			if field.Get("selectionStart").Type() == js.TypeNumber {
 				starts[id] = [2]int{field.Get("selectionStart").Int(), field.Get("selectionEnd").Int()}
 			}
@@ -381,6 +393,8 @@ func (b *chatsaveBrowser) render() {
 			if at, ok := starts[id]; ok && field.Get("setSelectionRange").Type() == js.TypeFunction && field.Get("type").String() != "datetime-local" {
 				field.Call("setSelectionRange", at[0], at[1])
 			}
+		} else if draft, ok := b.noteDrafts.recall(id); ok {
+			field.Set("value", draft)
 		} else if value := field.Call("getAttribute", "data-chat-value"); value.Type() == js.TypeString {
 			field.Set("value", value.String())
 		}
@@ -508,7 +522,13 @@ func (b *chatsaveBrowser) click(event js.Value) {
 	if tab := target.Call("closest", "[data-saved-tab]"); tab.Truthy() {
 		event.Call("preventDefault")
 		event.Call("stopPropagation")
-		b.selectTab(tab.Call("getAttribute", "data-saved-tab").String())
+		name := tab.Call("getAttribute", "data-saved-tab").String()
+		// Issue 3878: a link in an empty panel is removed by the tab it selects;
+		// a keyboard press on it moves focus to that tab instead of to the page.
+		if tab.Get("classList").Call("contains", "chatsave-empty-link").Bool() {
+			b.focusID = chatsaveTabFocusID(name)
+		}
+		b.selectTab(name)
 		return
 	}
 	button := target.Call("closest", "[data-saved-action]")
@@ -614,6 +634,14 @@ func (b *chatsaveBrowser) click(event js.Value) {
 		b.focusID = "chatsave-note-field-" + postID
 		b.render()
 		return
+	case "note-cancel":
+		// Issue 3911: the visible Cancel closes the editor without saving, and
+		// focus returns to the note control the editor replaced.
+		b.editingNote = ""
+		b.noteDrafts.discard("chatsave-note-field-" + postID)
+		b.focusID = "chatsave-note-" + postID
+		b.render()
+		return
 	case "done", "remove":
 		// The item leaves the list at once; the Undo line puts it back.
 		b.focusAfterRemoval(button.Call("closest", "[data-saved-item]"))
@@ -682,6 +710,7 @@ func (b *chatsaveBrowser) submit(event js.Value) {
 	if form.Call("getAttribute", "data-saved-form").String() == "note" {
 		command := chatsaveCommand{Action: "note", ConversationID: conversationID, PostID: postID, Note: &value}
 		b.editingNote = ""
+		b.noteDrafts.discard("chatsave-note-field-" + postID)
 		b.focusID = "chatsave-note-" + postID
 		if b.commandFailed {
 			b.errorCode = ""
@@ -757,6 +786,7 @@ func (b *chatsaveBrowser) close() { b.hide(true) }
 // it; a page that opens in its place (Moderation, search results) keeps focus.
 func (b *chatsaveBrowser) hide(refocus bool) {
 	b.reminderMenu, b.editingNote, b.pickingDate, b.active = "", "", false, ""
+	b.noteDrafts.reset()
 	doc := js.Global().Get("document")
 	if panel := doc.Call("getElementById", "chatsave-list"); panel.Truthy() {
 		panel.Set("hidden", true)
@@ -764,6 +794,9 @@ func (b *chatsaveBrowser) hide(refocus bool) {
 			panel.Call("hidePopover")
 		}
 	}
+	// The list behind the panel was inert while it covered the screen; it must be
+	// live again before focus goes back to the control that opened it (#3867).
+	chatui.SyncPhonePanelModal()
 	if button := doc.Call("querySelector", "[data-saved-action=toggle]"); button.Truthy() {
 		button.Call("setAttribute", "aria-expanded", "false")
 		if refocus {
@@ -825,6 +858,9 @@ func (b *chatsaveBrowser) open() {
 	b.focusID = "chatsave-tab-" + b.tab
 	b.render()
 	b.measure(panel)
+	// A panel that fills a phone screen makes the list behind it inert and takes
+	// focus (#3867).
+	chatui.SyncPhonePanelModal()
 	b.applyFocus(panel)
 	chatPageSync()
 }

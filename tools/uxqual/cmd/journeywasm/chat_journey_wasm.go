@@ -186,6 +186,8 @@ func readChatJourney(ctx context.Context, active journeyclient.Config, client jo
 	if approver := strings.TrimSpace(response.GetDetail().GetApprover()); approver != "" {
 		names, _ := projectDirectory(ctx, active)
 		preview.Approver = chatDirectoryDisplayName(approver, names)
+		// The claim rests on the stable subject, never on the display name (#3994).
+		preview.WaitsOnViewer = chatui.JourneyWaitsOnSubject(stage, approver, strings.TrimSpace(active.Subject))
 	}
 	return preview
 }

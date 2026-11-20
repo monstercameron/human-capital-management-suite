@@ -46,6 +46,9 @@ type Chatcmd002Task struct {
 	AssigneeID           string     `json:"assignee_id,omitempty"`
 	AssigneeName         string     `json:"assignee_name,omitempty"`
 	DueAt                *time.Time `json:"due_at,omitempty"`
+	// DueTimed is true when DueAt has a time of day the author wrote (an hour
+	// from now, a full timestamp); a date alone leaves it false (#3951).
+	DueTimed bool `json:"due_timed,omitempty"`
 }
 type Chatcmd002View struct {
 	Card      Chatcmd002Card `json:"card"`
@@ -207,6 +210,13 @@ type Chatcmd003Draft struct {
 	Raw      string             `json:"raw"`
 	Issues   []string           `json:"issues,omitempty"`
 	Changes  []Chatcmd003Change `json:"changes,omitempty"`
+	// Unresolved lists the names of a to-do list that fit no member (or
+	// several), so the preview can say those tasks have no owner.
+	Unresolved []Chatcmd004Unresolved `json:"unresolved,omitempty"`
+	// DueReads and OwnerReads are the dates and owners read out of the tasks,
+	// with the choices open on each (#3931).
+	DueReads   []Chatcmd004DueRead   `json:"due_reads,omitempty"`
+	OwnerReads []Chatcmd004OwnerRead `json:"owner_reads,omitempty"`
 }
 
 // Chatcmd003Change is one thing the preview changed in what was typed. Kind is

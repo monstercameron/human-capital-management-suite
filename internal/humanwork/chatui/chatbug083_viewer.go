@@ -44,6 +44,8 @@ const ChatBug083Styles = `
 type chatbug083Labels struct {
 	Title, Close, Download, ActualSize, Fit string
 	OpenOriginal, Previous, Next, Position  string
+	// PositionLoaded is Position for a gallery limited to the loaded messages.
+	PositionLoaded string
 	// ArabicDigits says counts are written as the dates beside them are.
 	ArabicDigits bool
 }
@@ -61,7 +63,7 @@ func chatbug083ViewerLabels(locale, title, closeLabel, download, actualSize, fit
 	language := chatEmojiLocale(locale)
 	words := chatbug083Copy[language]
 	return chatbug083Labels{Title: title, Close: closeLabel, Download: download, ActualSize: actualSize, Fit: fit,
-		OpenOriginal: words[0], Previous: words[1], Next: words[2], Position: words[3], ArabicDigits: language == "ar"}
+		OpenOriginal: words[0], Previous: words[1], Next: words[2], Position: words[3], PositionLoaded: issue3852LoadedPosition[language], ArabicDigits: language == "ar"}
 }
 
 // position fills "{n} of {total}" for the nth of total images.

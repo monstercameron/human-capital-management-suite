@@ -18,10 +18,10 @@ func TestChatDesign_3777_JourneyAndTicketShareOneWorkCard(t *testing.T) {
 		}
 		m := Model{Locale: locale, CurrentUser: "u-me", CurrentUserName: "Dana Reyes"}
 		journey := func(approver, tone string) string {
-			return chatDesignRender(t, journeyPreviewCard(m, JourneyPreview{IntentID: "intent-1", Readable: true, State: "ready", Workflow: "Promotion", Worker: "Sam Lee", From: "P3", To: "P4", Stage: "JOURNEY_STAGE_MANAGER_APPROVAL", StageTone: tone, Approver: approver}))
+			return chatDesignRender(t, journeyPreviewCard(m, JourneyPreview{IntentID: "intent-1", Readable: true, State: "ready", Workflow: "Promotion", Worker: "Sam Lee", From: "P3", To: "P4", Stage: "JOURNEY_STAGE_MANAGER_APPROVAL", StageTone: tone, Approver: approver, WaitsOnViewer: approver == "Dana Reyes"}))
 		}
 		ticket := func(assignee, tone string) string {
-			return chatDesignRender(t, projectPreviewCard(m, ProjectTaskPreview{ProjectID: "proj-1", TaskID: "task-1", Title: "Fix the badge reader", Readable: true, State: "ready", Key: "OPS-7", Status: "In progress", StatusTone: tone, Assignee: assignee}))
+			return chatDesignRender(t, projectPreviewCard(m, ProjectTaskPreview{ProjectID: "proj-1", TaskID: "task-1", Title: "Fix the badge reader", Readable: true, State: "ready", Key: "OPS-7", Status: "In progress", StatusTone: tone, Assignee: assignee, WaitsOnViewer: strings.EqualFold(assignee, "dana reyes")}))
 		}
 		cards := map[string]map[string]string{
 			"journey": {"informational": journey("Kim Park", "active"), "waiting": journey("Dana Reyes", "active"), "done": journey("Dana Reyes", "done")},
@@ -59,10 +59,6 @@ func TestChatDesign_3777_JourneyAndTicketShareOneWorkCard(t *testing.T) {
 				t.Errorf("%s %s: not the shared informational card: %s", locale, name, markup)
 			}
 		}
-	}
-	// A reader without a known name is never told a card waits on them.
-	if workCardWaitsOnViewer(Model{}, "", true) || workCardWaitsOnViewer(Model{CurrentUserName: "Dana Reyes"}, "", true) || workCardWaitsOnViewer(Model{}, "Dana Reyes", true) {
-		t.Fatal("an unknown reader or an unassigned object is treated as waiting on the reader")
 	}
 }
 

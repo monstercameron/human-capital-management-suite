@@ -39,6 +39,11 @@ func countedLabel(m Model, label string, count int) string {
 	if written == "" {
 		return label
 	}
+	if dateLocale(m.Locale) == "ar" {
+		// Issue 3763: a middle dot beside Arabic-Indic digits reads as an
+		// extra zero (15 looks like 150), so the count sits in parentheses.
+		return label + " (" + written + ")"
+	}
 	return label + " · " + written
 }
 

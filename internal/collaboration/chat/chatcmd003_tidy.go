@@ -159,7 +159,7 @@ func chatcmd003LooseLines(raw string) []string {
 // chatcmd003LooseOptions splits a run of loosely typed options.
 func chatcmd003LooseOptions(text string) []string {
 	var options []string
-	for _, part := range chatcmd003OptionBreak.Split(text, -1) {
+	for _, part := range chatcmd003SplitOptions(text) {
 		part = chatcmd003LeadingWord.ReplaceAllString(strings.TrimSpace(part), "")
 		part = strings.TrimSpace(strings.TrimRight(part, "?؟."))
 		if part != "" {

@@ -140,6 +140,7 @@
 # subgroup: transport-air
 2708 FE0F                                              ; fully-qualified   # ✈️ E0.6 airplane
 2708                                                   ; unqualified       # ✈ E0.6 airplane
+1F680                                                  ; fully-qualified   # 🚀 E0.6 rocket
 
 # subgroup: sky & weather
 2600 FE0F                                              ; fully-qualified   # ☀️ E0.6 sun

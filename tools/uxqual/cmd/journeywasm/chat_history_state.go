@@ -18,10 +18,14 @@ type chatNavigationState struct {
 	PersonID       string
 	FocusMessageID string
 	FocusSequence  uint64
+	// ShowList is the phone's conversation list shown as a screen of its own
+	// (#3768); it is never set on a wider screen, where the rail is part of the page.
+	ShowList bool
 }
 
 func chatNavigationStateFromModel(model chatui.Model) chatNavigationState {
 	state := chatNavigationState{OwnerTenantID: model.CurrentTenantID, OwnerSubject: model.CurrentUser, ConversationID: model.SelectedID, ShowDetails: model.ShowDetails}
+	state.ShowList = model.SidebarOpen && chatNavigationPhone()
 	if model.ShowThread && model.ThreadParentID != "" {
 		state.ShowThread = true
 		state.ThreadParentID = model.ThreadParentID

@@ -21,7 +21,7 @@ func chatPolishPinAction(key string) string {
 
 func chatPolishSearchOutcome(previous chatui.ChatSearchView, conversation chatui.Model, query string, response chatsearch.Response, recent []string, errorCode string) chatui.ChatSearchView {
 	view := chatui.ChatSearchView{Query: query, Response: response, Recent: recent, Error: errorCode}
-	if errorCode != "" && errorCode != "invalid" && errorCode != "meaning" {
+	if errorCode != "" && errorCode != "invalid" && errorCode != "meaning" && errorCode != "daterange" {
 		view.Response, view.Recent = previous.Response, previous.Recent
 		view.Conversation = &conversation
 	}

@@ -281,6 +281,7 @@ type Callbacks struct {
 	SearchFocus        func()
 	SearchMore         func()
 	SearchMoreChannels func()
+	SearchClearRecent  func() // deletes the stored recent searches (ISSUE-3928)
 	OpenSearchMessage  func(conversationID, postID string, sequence uint64)
 	OpenSearchChannel  func(conversationID string)
 	LoadMembers        func()
@@ -326,8 +327,13 @@ type Callbacks struct {
 	RetryPersonaMentions      func()
 	// SetChannelAgentPrivacy requires, or stops requiring, private agent answers
 	// in the open channel (AGENTUX-070).
-	SetChannelAgentPrivacy        func(private bool)
-	DraftChanged                  func(string, string)
+	SetChannelAgentPrivacy func(private bool)
+	DraftChanged           func(string, string)
+	// DraftConflictResolved says the person settled the other version of a
+	// conversation's draft (issue 3953); RetryDraftSave asks for the unsaved
+	// drafts to be written now (issue 3950).
+	DraftConflictResolved         func(conversationID string)
+	RetryDraftSave                func()
 	MentionPicked                 func() // the "@" menu's choice is in the draft: the page draws the note under the composer
 	OpenThread                    func(string)
 	CloseThread                   func()
@@ -374,12 +380,15 @@ type Callbacks struct {
 	SetEditDraft                  func(string, string)
 	// ThreadDraftChanged reports the reply box's text under one root message.
 	ThreadDraftChanged func(parentID, value string)
-	EditMessage        func(string, string, uint64)
-	DeleteMessage      func(string, uint64)
-	ResizeRail         func(int)
-	ResizeDetails      func(int)
-	RestorePanes       func()
-	DismissNotice      func()
+	// ThreadAlsoChanged reports the "Also send to the conversation" choice of
+	// one thread's reply box (#3901).
+	ThreadAlsoChanged func(parentID string, also bool)
+	EditMessage       func(string, string, uint64)
+	DeleteMessage     func(string, uint64)
+	ResizeRail        func(int)
+	ResizeDetails     func(int)
+	RestorePanes      func()
+	DismissNotice     func()
 	// MarkUnreadFrom moves the viewer's read position to just before a
 	// message. When nil the message menu does not offer it (CHATUX-022).
 	MarkUnreadFrom func(postID string)
@@ -388,6 +397,12 @@ type Callbacks struct {
 	ReplyInThread func(parentID, body string)
 	// ReplyInThreadWithReferences posts a reply with canonical typed references.
 	ReplyInThreadWithReferences func(parentID, body string, refs []ChatReference)
+	// ReplyInThreadIn posts a reply under parentID in conversationID, both
+	// captured when the reader pressed Send, and, when alsoChannel is set, the
+	// same words in the conversation. The owner reports each destination's
+	// outcome and retries only the missing one (#3997). When nil, ReplyInThread
+	// and SendMessage are used.
+	ReplyInThreadIn func(conversationID, parentID, body string, alsoChannel bool)
 	// FilterBrowse narrows Model.Browse by a typed query.
 	FilterBrowse func(query string)
 	// FilterMembers narrows the details member list by a typed query.
@@ -514,14 +529,22 @@ type Model struct {
 	// ThreadDrafts is the text of each open thread's reply box by root message, so
 	// a reply that failed keeps its text (CHATMOD-002).
 	ThreadDrafts map[string]string
+	// ThreadAlso is, by root message, whether that thread's reply is also to be
+	// sent to the conversation (#3901). It is kept with the draft.
+	ThreadAlso map[string]bool
 
 	State  LoadState
 	Error  string
 	Notice string
 	// NoticeRetry offers a retry control beside the notice (for example when
 	// the live feed has stopped and Callbacks.Retry resubscribes).
-	NoticeRetry   bool
-	Conversations []Conversation
+	NoticeRetry bool
+	// DraftConflicts holds, per conversation, a different draft another tab or
+	// device saved while this one had its own (issue 3953). DraftUnsaved says the
+	// latest edits could not be saved yet (issue 3950).
+	DraftConflicts map[string]string
+	DraftUnsaved   bool
+	Conversations  []Conversation
 	// PreviewConversation is an authorized public channel the viewer can read
 	// before joining. It is intentionally kept out of the persistent rail.
 	PreviewConversation *Conversation
@@ -629,6 +652,7 @@ type Model struct {
 	GateAudience              map[string]GateAudienceOptions
 	Search                    string
 	SearchRecent              []string // newest first; offered under the search box while it is empty
+	SearchRecentStatus        string   // "cleared" or "failed" after Clear was pressed in the recent-searches popover (ISSUE-3928)
 	SearchLoading             bool
 	SearchLoadingMore         bool
 	SearchLoadingMoreChannels bool
@@ -661,6 +685,7 @@ type Model struct {
 	ShowBrowse        bool
 	Browse            []Conversation
 	BrowseQuery       string
+	BrowseAnnounce    bool // the person stopped typing in the Browse filter: the status says how many match (#3922)
 	SidebarOpen       bool
 	ShowDetails       bool
 	ShowThread        bool
@@ -773,11 +798,15 @@ type Model struct {
 	side chatside001UI
 }
 
-// n formats a count for display. The client's Number may return "" for zero,
-// the tray's no-value signal, so a count that must read zero goes through nz.
+// n formats a count for display. The client's Number answers "" for zero, so
+// a zero is written here in the locale's numerals instead of printing blank
+// (#3632); a surface that means "no value" hides its element, as the badges do.
 func (m Model) n(v int) string {
 	if m.Number != nil {
-		return m.Number(v)
+		if s := m.Number(v); s != "" || v != 0 {
+			return s
+		}
+		return chatNumeral(m.Locale, "0")
 	}
 	return chatNumeral(m.Locale, itoa(v))
 }

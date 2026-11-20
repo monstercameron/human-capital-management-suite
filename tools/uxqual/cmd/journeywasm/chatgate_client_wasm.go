@@ -295,6 +295,14 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 		if action == "publish" {
 			req.Version = values["gate-version"]
 		}
+		if problems := chatui.GateReasonProblem(view.Locale, action, id, chatgateReasonValue(action, id, values)); len(problems) > 0 {
+			// A decision needs a reason. Say so under the reason input before
+			// anything is sent; focus goes to the marked input on render.
+			view.FieldErrors = problems
+			view.Notice = chatui.GateText(view.Locale, "reasonNotice")
+			render()
+			return nil
+		}
 		if action == "try" {
 			req.Person = values["gate-sample-person"]
 		}
@@ -336,6 +344,10 @@ func mountChatgate(cfg journeyclient.Config, view chatui.GateView) {
 					_ = json.Unmarshal(reply.Result, &outcome)
 					label := map[string]string{"admitted": "joined", "declined": "declined", "review": "waiting"}[outcome]
 					view.Notice = chatui.GateText(view.Locale, "preview") + ": " + chatui.GateText(view.Locale, label)
+				} else if chatgateReasonRefused(action, reply.Fields) {
+					// The service still refused the reason: reviewer words, under the input.
+					view.Notice = chatui.GateText(view.Locale, "reasonNotice")
+					view.FieldErrors = chatui.GateReasonProblem(view.Locale, action, id, "")
 				} else {
 					view.Notice = chatui.GateText(view.Locale, "next")
 					view.FieldErrors = map[string]string{}

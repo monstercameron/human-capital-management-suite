@@ -175,6 +175,8 @@ type chatEscapeState struct {
 	SectionCreate, Search, Share, RailMenu, Picker, Menu bool
 	Create, Browse, AddMembers, Person, Thread, Details  bool
 	SearchText, Editing, Sidebar                         bool
+	// PickSuggest is the recipient search's open suggestion list (issue 3876).
+	PickSuggest bool
 }
 
 // chatEscapeStep names the one thing Escape closes, topmost first, or "" when
@@ -197,6 +199,8 @@ func chatEscapeStep(s chatEscapeState) string {
 		return "menu"
 	case s.Tray != "" && (top == s.Tray || top == ""):
 		return "tray"
+	case s.PickSuggest:
+		return "pick-suggest"
 	case s.Create:
 		return "create"
 	case s.Browse:

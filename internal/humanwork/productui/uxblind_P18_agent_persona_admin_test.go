@@ -484,7 +484,7 @@ func TestIssue_3610_ZeroStarterEmptyStateNamesOnlyRenderedControl(t *testing.T) 
 			if !strings.Contains(bare, personaAdminText(locale, "empty_no_starter")) {
 				t.Fatalf("zero-starter empty state has no no-template copy: %s", bare)
 			}
-			if !strings.Contains(bare, personaAdminR5SetupText(locale, "no_template")) {
+			if !strings.Contains(bare, personaAdminR5SetupText(locale, "no_template_no_agents")) {
 				t.Fatalf("zero-starter, zero-agent page has no no-template notice: %s", bare)
 			}
 

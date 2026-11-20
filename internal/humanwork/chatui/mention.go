@@ -793,6 +793,9 @@ type mentionBox struct {
 	outsiders      []personaDraftMention
 	conversationID string
 	seq            uint64
+	// restored and carryOwner serve issue3993_mention_carry.go.
+	restored   bool
+	carryOwner string
 }
 
 type personaDraftMention struct {
@@ -801,6 +804,9 @@ type personaDraftMention struct {
 	Start, End     int
 	Reference      ChatReference
 	Detached       bool
+	// Restored marks a chip taken back from a previous mount that the agent
+	// lookup has not yet confirmed (issue3993_mention_carry.go).
+	Restored bool
 }
 
 type mentionStore struct {
@@ -845,7 +851,7 @@ func (s mentionStore) AddPersonaToken(target, conversationID string, reference C
 func (s mentionStore) ReconcilePersonas(target, value string) {
 	kept := s.box.personas[:0]
 	for _, item := range s.box.personas {
-		if item.Target == target && !item.Detached && !draftMentionPresent(value, item) {
+		if item.Target == target && !item.Detached && s.inOpenConversation(item) && !draftMentionPresent(value, item) {
 			continue
 		}
 		kept = append(kept, item)

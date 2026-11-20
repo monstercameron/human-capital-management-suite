@@ -229,7 +229,7 @@ func docPreviewCard(m Model, preview DocPreview) ui.Node {
 // line above already links it. The card keeps the title for assistive
 // technology as its name.
 func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
-	content := []ui.Node{html.Span(html.Props{Class: "chat-embed-label", Text: m.t(KeyDocEmbedTitle)})}
+	content := []ui.Node{html.Span(html.Props{Class: "chat-embed-label chat-work-card-type"}, embedGlyph(docEmbedGlyphPath), ui.Text(m.t(KeyDocEmbedTitle)))}
 	// more opens the rest of a snippet the card shows cut (CHATBUG-089).
 	var more ui.Node
 	switch preview.State {
@@ -269,10 +269,10 @@ func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
 			html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-title", Aria: map[string]string{"hidden": "true"}}),
 			html.Span(html.Props{Class: "chat-doc-skeleton chat-doc-skeleton-byline", Aria: map[string]string{"hidden": "true"}}),
 			html.Span(html.Props{Class: "sr-only", Text: m.t(KeyDocEmbedLoading)}))
-		return html.Div(html.Props{Class: "chat-embed chat-doc-embed is-loading", Data: map[string]string{"embed-state": preview.State}, Aria: map[string]string{"busy": "true"}}, content...)
+		return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-doc-embed is-loading", Data: map[string]string{"embed-state": preview.State}, Aria: map[string]string{"busy": "true"}}, false), content...)
 	}
 	if preview.State == "ready" && preview.Readable {
-		props := html.Props{Class: "chat-embed chat-embed-link chat-doc-embed", Href: DocReferenceURL(preview.ID), Data: map[string]string{"action": "open-doc-reference", "id": preview.ID}}
+		props := workCardProps(m, html.Props{Class: "chat-embed chat-embed-link chat-doc-embed", Href: DocReferenceURL(preview.ID), Data: map[string]string{"action": "open-doc-reference", "id": preview.ID}}, false)
 		if titleAbove && preview.Title != "" {
 			props.Aria = map[string]string{"label": m.tf(KeyOpenDocument, map[string]string{"title": preview.Title})}
 		}
@@ -281,5 +281,5 @@ func docPreviewCardFor(m Model, preview DocPreview, titleAbove bool) ui.Node {
 		}
 		return html.A(props, content...)
 	}
-	return html.Div(html.Props{Class: "chat-embed chat-doc-embed", Data: map[string]string{"embed-state": preview.State}}, content...)
+	return html.Div(workCardProps(m, html.Props{Class: "chat-embed chat-doc-embed", Data: map[string]string{"embed-state": preview.State}}, false), content...)
 }

@@ -444,6 +444,9 @@ func PersonaAdminPage(props PersonaAdminPageProps) ui.Node {
 		newAgentAction = html.Button(html.Props{Class: "button primary", Type: "button", Aria: map[string]string{"controls": newAgentTarget, "expanded": "false"}, Raw: map[string]any{"data-persona-new-agent": newAgentTarget}}, ui.Text(personaAdminText(locale, "new_agent")))
 	} else if !props.Snapshot.StartersState.Unavailable {
 		newAgentNote = personaAdminNoStarterNotice(locale, props.Snapshot.SubjectOptions, props.ViewerSubject)
+		if len(props.Snapshot.Personas) == 0 {
+			newAgentNote = personaAdminNoAgentsNotice(locale, props.Snapshot.SubjectOptions, props.ViewerSubject)
+		}
 	}
 	editor := ui.Node(nil)
 	if startersAvailable {

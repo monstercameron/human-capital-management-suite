@@ -239,6 +239,7 @@ func (a *ChatgateApplication) GateRequest(ctx context.Context, r ChatgateRequest
 		if err != nil {
 			return ChatgateReply{}, err
 		}
+		a.nameGateReaders(ctx, actor, scope, &v)
 		v.Held, err = a.Service.HasHold(ctx, actor, scope)
 		if err != nil {
 			return ChatgateReply{}, err

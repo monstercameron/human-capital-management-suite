@@ -83,8 +83,8 @@ func TestTodo_CHATEMOJI_001(t *testing.T) {
 	if got, want := strings.Join(order, ","), strings.Join(ExpectedGroups, ","); got != want {
 		t.Fatalf("groups in order %q, want %q (Component must not be a group)", got, want)
 	}
-	if len(set.Entries) != 58 || out.Summary.Variants != 30 {
-		t.Fatalf("%d emoji and %d variants, want 58 and 30", len(set.Entries), out.Summary.Variants)
+	if len(set.Entries) != 59 || out.Summary.Variants != 30 {
+		t.Fatalf("%d emoji and %d variants, want 59 and 30", len(set.Entries), out.Summary.Variants)
 	}
 	// Each entry sits inside its group's range, in group order.
 	for gi, g := range set.Groups {

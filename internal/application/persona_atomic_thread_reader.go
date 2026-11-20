@@ -61,7 +61,7 @@ func (r PersonaAtomicThreadReader) ReadThread(ctx context.Context, req agentinvo
 	for _, post := range snapshot.Posts {
 		posts = append(posts, agentinvoke.ThreadPost{
 			TenantID: post.TenantID, ConversationID: post.ConversationID, ThreadID: req.ThreadID,
-			ID: post.ID, AuthorID: post.AuthorID, Body: post.Body,
+			ID: post.ID, AuthorID: post.AuthorID, Body: post.Body, AttachmentCount: personaPostAttachmentCount(post.References),
 		})
 	}
 	return posts, nil

@@ -42,7 +42,8 @@ type handlers struct {
 	teamPurposeSubmit, projectDetailsSubmit, milestoneSubmit ui.Handler
 	roleChange, detailsInput                                 ui.Handler
 	pollCreate, pollInput                                    ui.Handler
-	pickInput, pickKey                                       ui.Handler
+	pickInput, pickKey, kindArrow                            ui.Handler
+	threadAlso                                               ui.Handler
 	createName, purposeKey                                   ui.Handler
 	// mentionView is the "@" suggestion list as of this render.
 	mentionView                       mentionState
@@ -51,6 +52,9 @@ type handlers struct {
 	// composerRefs are the references the main composer's draft holds, for the
 	// "Private answer" switch (AGENTUX-070).
 	composerRefs []ChatReference
+	// threadRefs are the references the open thread's draft holds: a reply that
+	// asks an agent is not copied to the conversation (#3997).
+	threadRefs []ChatReference
 	// mentionOutside is the people the drafts name who are not members (CHATBUG-071).
 	mentionOutside []personaDraftMention
 	// local is the tray and create-dialog state as of this render.
@@ -64,7 +68,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if body == "" {
 			// A send from the formatted preview has no field to read: the
 			// model holds the same draft the preview shows.
-			body = m.ThreadDrafts[m.ThreadParentID]
+			body = threadDraftNow(m, local.get())
 		}
 		if chatcmd003Send(m, local, "thread-composer", body) {
 			return
@@ -85,7 +89,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		}
 		// A sent reply leaves no preview behind.
 		local.update(func(u *localUI) { u.threadComposerPreview = false })
-		replyInThread(m, mention)
+		replyInThread(m, mention, local)
 	}
 	closeDrawer := func() {
 		if m.SidebarOpen && m.Callbacks.ToggleSidebar != nil {
@@ -96,12 +100,20 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		st := local.get()
 		for _, p := range pickCandidates(m, st.pickQuery, st.picked) {
 			if p.ID == id {
+				note := chatissue3864Note(m, "added", p.Name)
 				local.update(func(u *localUI) {
 					u.picked = append(append([]mentionCandidate(nil), u.picked...), p)
-					u.pickQuery, u.pickActive = "", 0
+					u.pickQuery, u.pickActive, u.pickDismissed = "", 0, false
+					u.pickNote = note
 				})
 				setDOMValue("new-chat-member-search", "")
-				focusField("new-chat-member-search")
+				if chatissue3864PickTarget(createKindOf(m, local.get())) == "#new-chat-member-search" {
+					focusField("new-chat-member-search")
+				} else {
+					// ISSUE-3864: a direct message's search box is gone once a
+					// person is chosen, so focus moves to the chip's Remove.
+					focusDialogTarget(chatissue3864PickTarget(DirectMessage))
+				}
 				return
 			}
 		}
@@ -248,6 +260,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			u.commandMenu = composerCommandMenu{}
 			u.sentCount++
 			u.privateAnswer = false
+			delete(u.privateAsk, m.SelectedID)
 			// A sent draft leaves no preview behind.
 			u.composerPreview = false
 		})
@@ -372,6 +385,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		threadReplyHint:   mentionReplyHint(m, mention, "thread-composer"),
 		composerAgentName: mention.PersonaDisplay("chat-composer", m.SelectedID),
 		composerRefs:      mention.PersonaReferences("chat-composer", m.SelectedID, m.Draft),
+		threadRefs:        mention.PersonaReferences("thread-composer", m.SelectedID, m.ThreadDrafts[m.ThreadParentID]),
 		mentionOutside:    mention.SettleOutsiders(m),
 		local:             local.get(),
 		rootClick: ui.UseEvent(func(e ui.MouseEvent) {
@@ -384,10 +398,10 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				return
 			}
-			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || chatside001Click(e, m, local) || chatux008Click(e, m) {
+			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || chatside001Click(e, m, local) || chatux008Click(e, m) {
 				return
 			}
-			if action, _, _ := eventAction(e); chatux001Click(m, action) {
+			if action, _, _ := eventAction(e); chatux001Click(m, action) || issue3892Click(e, action) {
 				return
 			}
 			if action, _, _ := eventAction(e); action == "chat-search-open" {
@@ -492,12 +506,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				restoreChatLayerFocus(kind)
 				return
 			case "create-kind":
-				local.update(func(u *localUI) {
-					u.createKind = ConversationKind(id)
-					if u.createKind == DirectMessage && len(u.picked) > 1 {
-						u.picked = u.picked[:1]
-					}
-				})
+				chatissue3865Select(m, local, ConversationKind(id))
 				return
 			case "create-pick":
 				pick(id)
@@ -508,11 +517,15 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 					for _, p := range u.picked {
 						if p.ID != id {
 							kept = append(kept, p)
+						} else {
+							u.pickNote = chatissue3864Note(m, "removed", p.Name)
 						}
 					}
 					u.picked = kept
 				})
-				focusField("new-chat-member-search")
+				// ISSUE-3864: the Remove button that had focus is gone after
+				// the render, so focus moves on purpose, not only if lost.
+				focusDialogTarget(chatissue3864RemoveTarget())
 				return
 			case "browse-open":
 				if m.Callbacks.SelectConversation != nil {
@@ -653,7 +666,16 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				return
 			}
 			if action == "reveal-thread-parent" {
+				if m.ShowThread && m.ThreadParentID != "" && issue3894Narrow() {
+					local.update(func(u *localUI) { u.threadPeek = m.ThreadParentID })
+					focusField("chat-thread-return")
+				}
 				revealThreadParent(m.ShowThread, m.ThreadParentID)
+				return
+			}
+			if action == "return-to-thread" {
+				local.update(func(u *localUI) { u.threadPeek = "" })
+				focusField("thread-view-in-channel")
 				return
 			}
 			if action == "giphy-toggle" {
@@ -706,7 +728,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				switch action {
 				case "open-create", "open-browse", "browse-to-create", "open-add-members":
 					focusChatDialog()
-				case "close-create", "close-browse", "close-add-members":
+				case "close-create", "close-browse", "close-add-members", actionGateJoin:
+					// Issue 3821: Browse is put away for the gate form, so the
+					// form's opener (and its Close) returns to the Browse button.
 					restoreChatDialogFocus()
 				}
 				if openRailMenu && m.Callbacks.OpenRailMenu != nil {
@@ -793,6 +817,10 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				return
 			}
+			if trapPhonePanelFocus(e) {
+				e.PreventDefault()
+				return
+			}
 			if m.RailMenuID != "" {
 				if moveRailMenuFocus(e) {
 					e.PreventDefault()
@@ -837,6 +865,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				Share: m.SharePostID != "", RailMenu: m.RailMenuID != "", Picker: m.PickerID != "", Menu: m.MenuID != "",
 				Create: m.ShowCreate, Browse: m.ShowBrowse, AddMembers: m.ShowAddMembers, Person: m.ShowPerson && !m.searching(), Thread: m.ShowThread && !m.searching(), Details: m.ShowDetails && !m.searching(),
 				SearchText: m.Search != "" && m.Callbacks.Search != nil, Editing: m.EditingID != "", Sidebar: m.SidebarOpen,
+				PickSuggest: (m.ShowCreate || m.ShowAddMembers) && pickSuggestOpen(m, localNow, createKindOf(m, localNow)),
 			}) {
 			case "section-create":
 				closeSectionCreate(true)
@@ -861,6 +890,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				kind := localNow.tray
 				local.update(func(u *localUI) { u.tray = "" })
 				restoreChatLayerFocus(kind)
+			case "pick-suggest":
+				// Issue 3876: the list closes first; the form stays whole.
+				local.update(func(u *localUI) { u.pickDismissed = true })
 			case "create":
 				act("close-create", "")
 				restoreChatDialogFocus()
@@ -982,6 +1014,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 			st := local.get()
 			kind := createKindOf(m, st)
+			if kind == KindUnchosen {
+				return
+			}
 			if name == "" && kind == DirectMessage {
 				for _, p := range st.picked {
 					name = p.Name
@@ -1031,14 +1066,25 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			}
 			m.Callbacks.AddMembers(ids)
 		}),
-		kindPick: ui.UseEvent(func(ui.ChangeEvent) {}),
+		kindPick:  ui.UseEvent(func(ui.ChangeEvent) {}),
+		kindArrow: ui.UseEvent(func(e ui.KeyboardEvent) { chatissue3877Key(m, local, e) }),
 		pickInput: ui.UseEvent(func(e ui.InputEvent) {
 			value := e.GetValue()
-			local.update(func(u *localUI) { u.pickQuery, u.pickActive = value, 0 })
+			local.update(func(u *localUI) { u.pickQuery, u.pickActive, u.pickDismissed = value, 0, false })
 		}),
 		pickKey: ui.UseEvent(func(e ui.KeyboardEvent) {
 			st := local.get()
 			people := pickCandidates(m, st.pickQuery, st.picked)
+			// Issue 3876: an Escaped list is hidden, so no key may pick from
+			// it unseen; Down, Up or Enter opens it again.
+			if st.pickDismissed {
+				switch e.GetKey() {
+				case "ArrowDown", "ArrowUp", "Enter":
+					e.PreventDefault()
+					local.update(func(u *localUI) { u.pickDismissed = false })
+					return
+				}
+			}
 			switch e.GetKey() {
 			case "ArrowDown", "ArrowUp":
 				if len(people) == 0 {
@@ -1084,6 +1130,9 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				if len(m.Sections) < 30 && chatside001CreateSubmitted(m, local, name) {
 					closeSectionCreate(true)
 					chatux002CloseSidebarPanels()
+				} else if len(m.Sections) < 30 {
+					// Issue 3714: the refusal is under the field; the caret goes back to it.
+					focusField("chat-new-section")
 				}
 			}
 		}),
@@ -1234,6 +1283,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				local.update(func(u *localUI) { u.pollReady = ready })
 			}
 		}),
+		threadAlso:   ui.UseEvent(func(e ui.ChangeEvent) { setThreadAlso(m, local, m.ThreadParentID, e.IsChecked()) }),
 		threadSubmit: ui.UseEvent(func(e ui.FormEvent) { e.PreventDefault(); threadSend() }),
 		threadInput: ui.UseEvent(func(e ui.InputEvent) {
 			setComposerSendReady("thread-composer", e.GetValue())
@@ -1255,7 +1305,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 	}
 }
 
-func replyInThread(m Model, mention mentionStore) {
+func replyInThread(m Model, mention mentionStore, local localStore) {
 	// CHATATTACH-001: a reply that holds files is sent with them, with or
 	// without words.
 	if chatattach001ReplyWithFiles(m, mention) {
@@ -1264,30 +1314,21 @@ func replyInThread(m Model, mention mentionStore) {
 	raw := domValue("thread-composer")
 	if raw == "" {
 		// A send from the formatted preview has no field to read.
-		raw = m.ThreadDrafts[m.ThreadParentID]
+		raw = threadDraftNow(m, local.get())
 	}
 	body := emojiShortcodesInText(strings.TrimSpace(raw))
 	if body == "" || m.ThreadParentID == "" {
 		return
 	}
 	refs := mention.PersonaReferences("thread-composer", m.SelectedID, raw)
-	if len(refs) > 0 {
-		if m.Callbacks.ReplyInThreadWithReferences == nil {
-			return
-		}
-		m.Callbacks.ReplyInThreadWithReferences(m.ThreadParentID, body, refs)
-	} else if m.Callbacks.ReplyInThread != nil {
-		m.Callbacks.ReplyInThread(m.ThreadParentID, body)
-	} else {
+	// CHATUX-014: "Also send to the conversation" posts the reply's words in the
+	// conversation too (see dispatchThreadReply for the rules).
+	if !dispatchThreadReply(m, body, refs, domChecked(threadAlsoChannelID)) {
 		return
 	}
-	// CHATUX-014: "Also send to the conversation" posts the reply's words in the
-	// conversation too. A reply that asks an agent is never copied: the copy
-	// would ask it again and a second run is a second charge.
-	if len(refs) == 0 && domChecked(threadAlsoChannelID) && m.Callbacks.SendMessage != nil {
-		m.Callbacks.SendMessage(m.SelectedID, body)
-	}
 	setDOMChecked(threadAlsoChannelID, false)
+	local.update(func(u *localUI) { u.threadUI.live = threadLiveDraft{} })
+	setThreadAlso(m, local, m.ThreadParentID, false)
 	mention.RemovePersonas("thread-composer", m.SelectedID)
 	pinAgentChatAfterSend("thread-composer")
 	setDOMValue("thread-composer", "")
@@ -1397,6 +1438,10 @@ func (m Model) actWith(action, id, extra string) {
 		return
 	}
 	m.act(action, id)
+	// Issue 3883: Close details puts focus back on the control that opened it.
+	if kind := issue3883CloseLayerKind(action); kind != "" {
+		restoreChatLayerFocus(kind)
+	}
 	if action != "rail-menu" && m.RailMenuID != "" && cb.OpenRailMenu != nil {
 		clearRailMenuDismiss()
 		cb.OpenRailMenu("")
@@ -1437,6 +1482,8 @@ func (m Model) act(action, id string) {
 			setDOMValue("chat-search", id)
 			cb.Search(id)
 		}
+	case "search-clear-recent":
+		issue3928DispatchClear(cb)
 	case "rail-copy-reference":
 		if cb.CopyConversationReference != nil {
 			for _, conversation := range m.Conversations {
@@ -1537,6 +1584,8 @@ func (m Model) act(action, id string) {
 		call(cb.CloseAddMembers)
 	case actionChatbug071Add:
 		chatbug071Add(m, id)
+	case actionDraftConflictKeep, actionDraftConflictUse, actionDraftConflictBoth, actionDraftSaveRetry:
+		draftSyncAction(m, action)
 	case "browse-to-create":
 		call(cb.CloseBrowse)
 		call(cb.OpenCreate)
@@ -1546,6 +1595,9 @@ func (m Model) act(action, id string) {
 		} else if cb.JoinConversation != nil {
 			cb.JoinConversation(id)
 		}
+	case actionGateJoin:
+		// The page's gate hook opens the form; Browse is put away.
+		call(cb.CloseBrowse)
 	case "join-confirm":
 		if cb.JoinConversation != nil {
 			cb.JoinConversation(id)
@@ -1681,6 +1733,12 @@ func (m Model) act(action, id string) {
 	case "share-destination":
 		if cb.SelectShareDestination != nil {
 			cb.SelectShareDestination(id)
+		}
+	case "share-clear":
+		if cb.SelectShareDestination != nil {
+			cb.SelectShareDestination("")
+			// The Remove button leaves the page; keep focus inside the dialog.
+			focusShareFilter()
 		}
 	case "share-submit":
 		call(cb.ShareMessage)
@@ -1824,10 +1882,25 @@ func Workspace(model Model) ui.Node {
 	mention := mentionStore{box: ui.UseRef(&mentionBox{}).Get(), tick: ui.UseState(uint64(0))}
 	// A mention typed in one conversation never carries into another.
 	mention.ForConversation(model.SelectedID)
+	// Issue 3993: a mention picked before leaving Chat comes back with its draft.
+	carryOwner := ""
+	if drafts.hasOwner(model) {
+		carryOwner = drafts.owner(model)
+	}
+	mention.RestoreCarried(carryOwner, func(id string) string {
+		if value, ok := drafts.values[id]; ok {
+			return value
+		}
+		return model.Preferences.Drafts[id]
+	})
+	mention.SettleRestoredAgents(model)
 	// Rows that arrive while the menu is open do not move the highlight off its option.
 	mention.SettleActive(model)
 	local := localStore{box: ui.UseRef(&localUI{}).Get(), tick: ui.UseState(uint64(0))}
 	local.forRoom(model.SelectedID)
+	if !model.ShowThread {
+		local.box.threadPeek = ""
+	}
 	model.deleteAsk = chatbug081Settle(local, model.MenuID)
 	model.cardEditing = local.get().cardEdit
 	model.side = local.get().side
@@ -1839,6 +1912,11 @@ func Workspace(model Model) ui.Node {
 				clearChatScrollMemory()
 				clearMobileRailFocus()
 				clearMessageMenuGeometry()
+				// Drafts discarded by a logout or an identity change take their
+				// mentions with them (issue 3993).
+				if !drafts.discarded {
+					mention.Carry()
+				}
 				drafts.releaseMemory()
 				giphy.closeAll()
 			}
@@ -1899,6 +1977,7 @@ func Workspace(model Model) ui.Node {
 	}
 	syncPersonFocusFor(model.ShowPerson, personID)
 	syncMobileRailFocus(model.SidebarOpen)
+	syncPhonePanelModal()
 	syncOpenMessageMenu(model.MenuID)
 	syncImageViewer(model.SelectedID, model.CurrentUser)
 	installPaneResize()
@@ -1945,6 +2024,9 @@ func Workspace(model Model) ui.Node {
 		"sidebar-open": boolString(model.SidebarOpen), "details-open": boolString(sideOpen),
 		"thread-open": boolString(model.ShowThread),
 	}
+	if issue3894Peeking(model, h.local) {
+		data["thread-peek"] = "true"
+	}
 	if model.CurrentUser != "" {
 		data["principal"] = model.CurrentUser
 	}
@@ -1954,6 +2036,7 @@ func Workspace(model Model) ui.Node {
 		chatSearchLayer(model, h),
 		chatbug099Announcer(model),
 		skipLink(model),
+		issue3894Return(model, h.local),
 		html.Div(html.Props{Class: "chat-layout", Aria: map[string]string{"hidden": boolString(model.SharePostID != "")}}, rail(model, h), timeline(model, h), sideColumn(model, h)),
 	}
 	if model.SidebarOpen {
@@ -1994,7 +2077,7 @@ func withPaneData(data map[string]string, p PaneSizes) map[string]string {
 }
 
 func skipLink(m Model) ui.Node {
-	return html.A(html.Props{Class: "chat-skip", Href: "#chat-main"}, ui.Text(m.t(KeySkip)))
+	return html.A(html.Props{Class: "chat-skip", Href: "#chat-main", Data: map[string]string{"action": issue3892SkipAction}}, ui.Text(m.t(KeySkip)))
 }
 
 func notice(m Model) ui.Node {
@@ -2044,9 +2127,9 @@ func rail(m Model, h handlers) ui.Node {
 			html.Span(html.Props{Class: "chatux002-item-text"},
 				html.Span(html.Props{Class: "chatux002-item-name", Dir: "auto", Text: m.t(KeyNewSection)}),
 				html.Span(html.Props{Class: "chatux002-item-note", Dir: "auto", Text: chatux002Text(m, keyChatux002SectionNote)}))),
-		html.Form(html.Props{Class: "section-create-form", OnSubmit: h.sectionSubmit},
+		html.Form(html.Props{Class: "section-create-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.sectionSubmit},
 			html.Label(html.Props{For: "chat-new-section"}, ui.Text(m.t(KeySectionName))),
-			html.Input(html.Props{ID: "chat-new-section", Class: "chat-input", Type: "text", MaxLength: 80, Placeholder: m.t(KeySectionName), Required: true, AutoComplete: "off"}),
+			html.Input(html.Props{ID: "chat-new-section", Class: "chat-input", Type: "text", MaxLength: 80, Placeholder: m.t(KeySectionName), Required: true, AutoComplete: "off", Aria: issue3714SectionFieldAria(m)}),
 			chatside001CreateError(m),
 			html.Div(html.Props{Class: "section-create-actions"},
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "cancel-section-create"}, Text: m.t(KeyCancel)}),
@@ -2179,7 +2262,7 @@ func railRow(m Model, c Conversation) ui.Node {
 	if c.Mentions > 0 {
 		children = append(children, html.Span(html.Props{Class: "chat-badge mention", Text: m.n(c.Mentions), Aria: map[string]string{"label": m.tf(KeyMentionCount, map[string]string{"n": m.n(c.Mentions)})}}))
 	} else if c.Unread > 0 && !c.Muted {
-		children = append(children, html.Span(html.Props{Class: chatDesignUnreadBadgeClass(c), Text: m.n(c.Unread), Aria: map[string]string{"label": m.tf(KeyUnreadCount, map[string]string{"n": m.n(c.Unread)})}}))
+		children = append(children, html.Span(html.Props{Class: chatDesignUnreadBadgeClass(c), Text: m.n(c.Unread), Title: issue3721UnreadNote(m), Aria: map[string]string{"label": m.tf(KeyUnreadCount, map[string]string{"n": m.n(c.Unread)})}}))
 	}
 	rowAria := map[string]string{"current": boolString(c.ID == m.SelectedID)}
 	moreName := label
@@ -2469,7 +2552,7 @@ func timeline(m Model, h handlers) ui.Node {
 		}
 		content = append(content,
 			html.WithKey(html.Div(html.Props{Class: "timeline-frame"}, timeline,
-				html.WithKey(html.Button(html.Props{Class: "jump-newest", Type: "button", Data: map[string]string{"action": "jump-newest"}, Aria: map[string]string{"label": m.t(KeyJumpNewest)}}, icon("arrow-down"), html.Span(html.Props{Text: m.t(KeyJumpNewest)})), "jump")), "timeline-frame"),
+				html.WithKey(html.Button(html.Props{Class: "jump-newest", Type: "button", Data: map[string]string{"action": "jump-newest"}, Aria: map[string]string{"label": issue3848JumpLabel(m)}}, icon("arrow-down"), html.Span(html.Props{Text: issue3848JumpLabel(m)})), "jump")), "timeline-frame"),
 			html.WithKey(composer(m, h), "composer"))
 	} else {
 		content = append(content, timeline)
@@ -2491,10 +2574,9 @@ func searchCountLabel(m Model) string {
 		if n == 0 {
 			return chatsearchText(m.Locale, "none")
 		}
-		if n == 1 {
-			return m.t(KeySearchCountOne)
-		}
-		return m.tf(KeySearchCount, map[string]string{"n": m.n(n)})
+		// #3900: while another page is available the number is what has been
+		// loaded so far, and it says so; it is a total only at the end.
+		return issue3900CountLabel(m, n, m.ChatSearch.Response.NextCursor != "")
 	}
 	if m.SearchLoading || m.SearchError != "" {
 		return ""
@@ -2715,23 +2797,43 @@ func timelineBody(m Model, h handlers) []ui.Node {
 	}
 	var prev Message
 	var prevDay string
+	// Each day's separator and messages share one wrapper so the sticky date pill
+	// is bounded by its own day (#3871). Rows with no date stay in the open group.
+	var group []ui.Node
+	groupDay := ""
+	add := func(nodes ...ui.Node) {
+		if groupDay != "" {
+			group = append(group, nodes...)
+			return
+		}
+		items = append(items, nodes...)
+	}
+	flush := func() {
+		if groupDay != "" {
+			items = append(items, issue3871Group(groupDay, group))
+			group, groupDay = nil, ""
+		}
+	}
 	for i, msg := range messages {
 		day := dayKey(msg.SentAt)
 		if day != "" && day != prevDay {
-			items = append(items, html.WithKey(html.Div(html.Props{Class: "day-divider", Role: "separator", Aria: map[string]string{"label": dayLabel(m, msg.SentAt)}}, html.Span(html.Props{Text: dayLabel(m, msg.SentAt)})), "day:"+day))
+			flush()
+			groupDay = day
+			add(html.WithKey(html.Div(html.Props{Class: "day-divider", Role: "separator", Aria: map[string]string{"label": dayLabel(m, msg.SentAt)}}, html.Span(html.Props{Text: dayLabel(m, msg.SentAt)})), "day:"+day))
 		}
 		unread := m.UnreadFromID != "" && msg.ID == m.UnreadFromID
 		if unread {
-			items = append(items, html.WithKey(html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})), "unread:"+msg.ID))
+			add(html.WithKey(html.Div(html.Props{Class: "unread-divider", Role: "separator", Aria: map[string]string{"label": m.t(KeyNew)}}, html.Span(html.Props{Text: m.t(KeyNew)})), "unread:"+msg.ID))
 		}
 		continued := !unread && i > 0 && !messageIsAgent(m, msg) && !messageIsAgent(m, prev) && day == prevDay && msg.AuthorID != "" && msg.AuthorID == prev.AuthorID && !msg.SentAt.IsZero() && msg.SentAt.Sub(prev.SentAt) < 5*time.Minute && m.EditingID != msg.ID && m.EditingID != prev.ID && !chatux021IsLine(msg) && !chatux021IsLine(prev)
-		items = append(items, html.WithKey(message(m, h, msg, continued), agentUX075MessageKey(m, msg.ID)))
+		add(html.WithKey(message(m, h, msg, continued), agentUX075MessageKey(m, msg.ID)))
 		if m.selected().Agent {
-			items = append(items, personaReplyRowsForPost(m, h.local, msg.ID, time.Now())...)
+			add(personaReplyRowsForPost(m, h.local, msg.ID, time.Now())...)
 		}
-		items = append(items, ambientCardsForPost(m, msg.ID)...)
+		add(ambientCardsForPost(m, msg.ID)...)
 		prev, prevDay = msg, day
 	}
+	flush()
 	items = append(items, ambientCardsUnplaced(m, messages)...)
 	for _, privateMessage := range ephemeral {
 		matched := false
@@ -2743,7 +2845,7 @@ func timelineBody(m Model, h handlers) []ui.Node {
 		}
 	}
 	if m.HasNewer {
-		items = append(items, html.WithKey(html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Text: m.t(KeyLoadNewer)}), "load-newer"))
+		items = append(items, html.WithKey(html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Title: m.t(KeyLoadNewerHint), Text: m.t(KeyLoadNewer)}), "load-newer"))
 	}
 	return items
 }
@@ -3151,7 +3253,7 @@ func composer(m Model, h handlers) ui.Node {
 		OnInput: h.composerInput, OnKeyDown: h.composerKey,
 		Aria: commandMenuFieldAria(h.local.commandMenu, id, emojiCompletionFieldAria(h.local.emojiCompletion, id, channelSuggestFieldAria(m, h.local.channelSuggest, id, docSuggestFieldAria(h.local.docSuggest, id, mentionModelFieldAria(m, h.mentionView, id, fieldAria)))))}))
 	if composerPreviewOn(h.local, id) {
-		field = composerPreviewBody(m, m.Draft, placeholder)
+		field = composerPreviewBody(issue3907PreviewMentions(m, h.composerRefs), m.Draft, placeholder, id)
 	} else {
 		fieldLabel = html.Label(html.Props{Class: "sr-only", For: id}, ui.Text(m.t(KeyMessage)))
 	}
@@ -3169,12 +3271,14 @@ func composer(m Model, h handlers) ui.Node {
 		modAuthorLine(m, h.local, ModAuthorKeyComposer(m.SelectedID), "chatmod002-blocked"),
 		chatComposerHint(m, h),
 		chatbug071OutsideNote(m, h.mentionOutside, id),
+		draftSyncNote(m, id),
 		agentux070Row(m, h.local, h.composerRefs),
+		issue3969Banner(m, h.local),
 		chatlangComposerLine(m),
 		chatgate014Composer(m, disabled),
 		chatattach001Drafts(m),
 		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewDraftEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
-		composerFormatRow(m, id, disabled),
+		composerFormatRowFor(m, h.local, id, disabled),
 		composerToolRow(m, h, id, disabled, canSend),
 	)
 }
@@ -3422,7 +3526,7 @@ func threadPane(m Model, h handlers) ui.Node {
 		m.renderReferences = root.PersonaReferences
 		body := chatDisplayBody(ReaderMessageBody(m, *root))
 		rootChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, root.AuthorID, root.Author, "message-author person-name", ui.Text(root.Author)), html.Time(html.Props{Class: "message-time", Text: chatux025ThreadStamp(m, *root)}),
-			html.Button(html.Props{Class: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), chatcmd002ProjectedBody(m, *root, html.Div(chatlangBodyProps(m, *root, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, body)...))}
+			html.Button(html.Props{Class: "thread-view-in-channel", ID: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), chatcmd002ProjectedBody(m, *root, html.Div(chatlangBodyProps(m, *root, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, body)...))}
 		rootChildren = append(rootChildren, chatbug073EditedMark(m, *root))
 		rootChildren = append(rootChildren, chatlangExtrasThread(m, h, *root)...)
 		rootChildren = append(rootChildren, integrate2MessageLocations(m, *root)...)
@@ -3436,6 +3540,7 @@ func threadPane(m Model, h handlers) ui.Node {
 		if len(root.Attachments) > 0 {
 			rootChildren = append(rootChildren, attachments(m, *root))
 		}
+		rootChildren = issue3996WrapRoot(m, h, *root, body, rootChildren)
 		if chips := reactionRow(m, *root); chips != nil {
 			rootChildren = append(rootChildren, chips)
 		}
@@ -3461,7 +3566,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			}
 			m.renderReferences = msg.PersonaReferences
 			if agentContent, isAgent := chatux003ThreadAgentReply(m, h, msg); isAgent {
-				replies = append(replies, html.Div(html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}, integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, agentContent...)))
+				replies = append(replies, html.Div(issue3988ThreadReplyProps(m, msg, html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}), integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, agentContent...)))
 				continue
 			}
 			body := chatDisplayBody(ReaderMessageBody(m, msg))
@@ -3477,7 +3582,7 @@ func threadPane(m Model, h handlers) ui.Node {
 			content = append(content, projectPreviewEmbeds(m, body)...)
 			content = append(content, journeyPreviewEmbeds(m, body)...)
 			content = append(content, threadMessageMenu(m, msg)...)
-			replies = append(replies, html.Div(html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}, integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, content...)))
+			replies = append(replies, html.Div(issue3988ThreadReplyProps(m, msg, html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}), integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, content...)))
 		}
 		visibleCount := 0
 		for _, msg := range m.ThreadMessages {
@@ -3500,14 +3605,14 @@ func threadPane(m Model, h handlers) ui.Node {
 	body := html.Div(html.Props{Class: "thread-scroll", Data: map[string]string{"chat-thread-anchor": m.SelectedID + ":" + m.ThreadParentID}}, items[1:]...)
 	canReply := (m.Callbacks.ReplyInThread != nil || (m.Callbacks.ReplyInThreadWithReferences != nil && len(personaMentionCandidates(m, "")) > 0)) && m.ThreadParentID != ""
 	var replyLabel ui.Node
-	replyField := ui.Node(html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": m.ThreadDrafts[m.ThreadParentID]}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
+	replyField := ui.Node(html.Textarea(html.Props{ID: "thread-composer", Class: "composer-input", Name: "reply", Placeholder: agentThreadPlaceholder(m), Rows: 1, Dir: agentReplyDirection(m.Locale), Disabled: !canReply, Data: map[string]string{"chat-value": threadDraftNow(m, h.local)}, OnKeyDown: h.threadKey, OnInput: h.threadInput,
 		Aria: modAuthorDescribe(m, h.local, ModAuthorKeyReply(m.ThreadParentID), "chatmod002-blocked-reply", commandMenuFieldAria(h.local.commandMenu, "thread-composer", emojiCompletionFieldAria(h.local.emojiCompletion, "thread-composer", channelSuggestFieldAria(m, h.local.channelSuggest, "thread-composer", mentionModelFieldAria(m, h.mentionView, "thread-composer", nil)))))}))
 	if composerPreviewOn(h.local, threadComposerID) {
-		replyField = composerPreviewBody(m, m.ThreadDrafts[m.ThreadParentID], agentThreadPlaceholder(m))
+		replyField = composerPreviewBody(issue3907PreviewMentions(m, h.threadRefs), threadDraftNow(m, h.local), agentThreadPlaceholder(m), threadComposerID)
 	} else {
 		replyLabel = html.Label(html.Props{Class: "sr-only", For: "thread-composer"}, ui.Text(m.t(KeyReplySend)))
 	}
-	composer := html.Form(html.Props{Class: "thread-composer", Data: map[string]string{"send-capable": boolString(canReply), "format-row": chatux032ThreadFormatState(h.local)}, OnSubmit: h.threadSubmit, Aria: map[string]string{"label": m.t(KeyReplySend)}}, append([]ui.Node{
+	composer := html.Form(html.Props{Class: "thread-composer", Data: issue3873ComposerData(h.local, map[string]string{"send-capable": boolString(canReply), "format-row": chatux032ThreadFormatState(h.local)}), OnSubmit: h.threadSubmit, Aria: map[string]string{"label": m.t(KeyReplySend)}}, append([]ui.Node{
 		chatcmd003PreviewFor(m, h.local.chatcmd003, "thread-composer", h.threadPreviewKey),
 		replyLabel,
 		mentionMenu(m, h.mentionView, "thread-composer"),
@@ -3898,6 +4003,7 @@ func shareDialog(m Model, h handlers) ui.Node {
 			html.P(html.Props{Class: "share-disclosure", Text: m.t(KeyShareDisclosure)}),
 			html.Label(html.Props{For: "share-filter", Text: m.t(KeyShareDestination)}),
 			html.Input(html.Props{ID: "share-filter", Class: "chat-input", Type: "search", Placeholder: m.t(KeyShareFilter), Data: map[string]string{"chat-value": m.ShareQuery}, AutoComplete: "off", AutoFocus: true, Disabled: m.SharePending, OnInput: h.shareFilter}),
+			issue3918SelectedNode(m),
 			listing,
 			html.Div(html.Props{Class: "dialog-actions"},
 				html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.CloseShare == nil || m.SharePending, Data: map[string]string{"action": "close-share"}, Text: m.t(KeyCancel)}),

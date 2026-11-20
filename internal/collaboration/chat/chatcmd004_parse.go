@@ -41,7 +41,7 @@ var (
 // without a year: "oct 9", "October 9th, 2026", "9 oct", "9. Oktober". Without
 // a year it is the next such day, this year or the one after.
 func chatcmd004MonthDay(text string, now time.Time) (time.Time, bool) {
-	fields := strings.Fields(strings.NewReplacer(",", " ", ".", " ").Replace(text))
+	fields := strings.Fields(strings.NewReplacer(",", " ", "،", " ", ".", " ").Replace(chatcmd004Digits(text)))
 	if len(fields) < 2 || len(fields) > 3 {
 		return time.Time{}, false
 	}
@@ -89,7 +89,7 @@ func chatcmd004MonthDay(text string, now time.Time) (time.Time, bool) {
 // Chatcmd004ResolveDate only resolves unambiguous dates. The caller supplies
 // the conversation/author zone in now; numeric local dates need confirmation.
 func Chatcmd004ResolveDate(text string, now time.Time) (time.Time, error) {
-	text = strings.TrimSpace(text)
+	text = chatcmd004Digits(strings.TrimSpace(text))
 	if due, err := time.Parse(time.RFC3339, text); err == nil {
 		return due, nil
 	}
@@ -119,7 +119,9 @@ func Chatcmd004ResolveDate(text string, now time.Time) (time.Time, error) {
 		}
 	}
 	if due, err := time.ParseInLocation("2006-01-02", text, now.Location()); err == nil {
-		return due.Add(23*time.Hour + 59*time.Minute), nil
+		// 23:59 on that local date, built in the zone: adding 23h59m would
+		// cross midnight on a 23-hour day and fall an hour short on a 25-hour one.
+		return time.Date(due.Year(), due.Month(), due.Day(), 23, 59, 0, 0, now.Location()), nil
 	}
 	if due, ok := chatcmd004MonthDay(text, now); ok {
 		return due, nil
@@ -131,7 +133,7 @@ func Chatcmd004ResolveDate(text string, now time.Time) (time.Time, error) {
 // before it to say so: today, tomorrow, the full name of a weekday, a month
 // with a day, or a date written year-month-day.
 func chatcmd004Standalone(phrase string, now time.Time) bool {
-	phrase = strings.ToLower(phrase)
+	phrase = chatcmd004Digits(strings.ToLower(phrase))
 	if word, ok := chatcmd004DayWords[phrase]; ok {
 		phrase = word
 	}
@@ -152,18 +154,19 @@ func chatcmd004Standalone(phrase string, now time.Time) bool {
 // the end or the start of the task. rest is the task without it. unread is
 // true when "by" is followed by figures that are not a date this can read
 // (03/04 is March or April), which the preview asks about.
-func chatcmd004Due(text string, now time.Time, resolve func(string, time.Time) (time.Time, error)) (due *time.Time, rest string, unread bool) {
+func chatcmd004Due(text string, now time.Time, resolve func(string, time.Time) (time.Time, error)) (due *time.Time, rest string, unread bool, typed string) {
 	rest = text
 	if spans := chatcmd004DateLead.FindAllStringSubmatchIndex(text, -1); len(spans) > 0 {
 		last := spans[len(spans)-1]
 		value := strings.TrimRight(strings.TrimSpace(text[last[1]:]), ".,!")
 		before := strings.TrimSpace(text[:last[2]])
 		if at, err := resolve(value, now); err == nil && before != "" {
-			return &at, before, false
+			return &at, before, false, value
 		}
 		switch strings.ToLower(text[last[2]:last[3]]) {
-		case "by", "bis", "بحلول":
-			unread = strings.ContainsAny(value, "0123456789")
+		case "by", "due", "until", "before", "bis", "vor", "بحلول", "قبل":
+			// "on" and "am" are left out: "on 5th floor" is no deadline.
+			unread = strings.ContainsAny(chatcmd004Digits(value), "0123456789")
 		}
 	}
 	words := strings.Fields(text)
@@ -171,17 +174,17 @@ func chatcmd004Due(text string, now time.Time, resolve func(string, time.Time) (
 		tail := strings.TrimRight(strings.Join(words[len(words)-n:], " "), ".,!")
 		if chatcmd004Standalone(tail, now) {
 			if at, err := resolve(tail, now); err == nil {
-				return &at, strings.TrimRight(strings.Join(words[:len(words)-n], " "), " ,:-"), false
+				return &at, strings.TrimRight(strings.Join(words[:len(words)-n], " "), " ,:-"), false, tail
 			}
 		}
 		head := strings.TrimRight(strings.Join(words[:n], " "), ".,:-")
 		if chatcmd004Standalone(head, now) {
 			if at, err := resolve(head, now); err == nil {
-				return &at, strings.Join(words[n:], " "), false
+				return &at, strings.Join(words[n:], " "), false, head
 			}
 		}
 	}
-	return nil, text, unread
+	return nil, text, unread, ""
 }
 
 // chatcmd004Assignee finds the one member a task names: a mention, or a first
@@ -236,9 +239,14 @@ func chatcmd004Assignee(text string, members []Chatcmd004Member, author string) 
 // and for each part between semicolons. One line without a semicolon is split
 // at its commas instead ("book the room, send invites"). A line that became
 // several tasks is reported, so the preview can say it was split.
-func chatcmd004LooseTasks(raw string) (tasks []string, changes []Chatcmd003Change) {
+func chatcmd004LooseTasks(raw string, literal bool) (tasks []string, changes []Chatcmd003Change) {
 	lines := chatcmd003LooseLines(raw)
 	for _, line := range lines {
+		if literal {
+			// Each typed line stays one task, commas and semicolons included.
+			tasks = append(tasks, chatcmd004Unquote(line))
+			continue
+		}
 		var parts []string
 		for _, part := range strings.FieldsFunc(line, func(r rune) bool { return r == ';' || r == '؛' }) {
 			if part = strings.TrimSpace(part); part != "" {
@@ -246,7 +254,7 @@ func chatcmd004LooseTasks(raw string) (tasks []string, changes []Chatcmd003Chang
 			}
 		}
 		if len(lines) == 1 && len(parts) == 1 {
-			parts = chatcmd003LooseItems(strings.ReplaceAll(parts[0], "،", ","))
+			parts = chatcmd004SplitCommas(strings.ReplaceAll(parts[0], "،", ","))
 		}
 		if len(parts) > 1 {
 			changes = append(changes, Chatcmd003Change{Kind: Chatcmd004ChangeSplit, Before: line, After: strconv.Itoa(len(parts))})
@@ -257,6 +265,21 @@ func chatcmd004LooseTasks(raw string) (tasks []string, changes []Chatcmd003Chang
 }
 
 func Chatcmd004ParseTodo(raw string, members []Chatcmd004Member, author string, now time.Time, resolveDate func(string, time.Time) (time.Time, error)) (Chatcmd003Draft, error) {
+	return chatcmd004ParseTodo(raw, members, author, now, resolveDate, false)
+}
+
+// Chatcmd004ParseTodoLiteral reads raw as Chatcmd004ParseTodo does, except that
+// each loosely typed line is one task: nothing is split at its commas or
+// semicolons. It is what the preview's "Keep as one task" asks for.
+func Chatcmd004ParseTodoLiteral(raw string, members []Chatcmd004Member, author string, now time.Time, resolveDate func(string, time.Time) (time.Time, error)) (Chatcmd003Draft, error) {
+	return chatcmd004ParseTodo(raw, members, author, now, resolveDate, true)
+}
+
+func chatcmd004ParseTodo(raw string, members []Chatcmd004Member, author string, now time.Time, resolveDate func(string, time.Time) (time.Time, error), literal bool) (Chatcmd003Draft, error) {
+	return chatcmd004ParseTodoReviewed(raw, members, author, now, resolveDate, literal, Chatcmd004Review{})
+}
+
+func chatcmd004ParseTodoReviewed(raw string, members []Chatcmd004Member, author string, now time.Time, resolveDate func(string, time.Time) (time.Time, error), literal bool, review Chatcmd004Review) (Chatcmd003Draft, error) {
 	d := Chatcmd003Draft{Raw: raw, Card: Chatcmd002Card{Kind: "todo", Todo: &Chatcmd002Todo{Tick: "anyone"}}}
 	a, err := Chatcmd003ParseArguments(raw)
 	if err != nil {
@@ -265,7 +288,7 @@ func Chatcmd004ParseTodo(raw string, members []Chatcmd004Member, author string, 
 	texts := a.Items
 	if !a.Explicit {
 		// A setting typed among loose tasks (tick=author) is not a task.
-		texts, d.Changes = chatcmd004LooseTasks(raw)
+		texts, d.Changes = chatcmd004LooseTasks(raw, literal)
 	} else {
 		d.Card.Title = a.Text
 	}
@@ -286,16 +309,35 @@ func Chatcmd004ParseTodo(raw string, members []Chatcmd004Member, author string, 
 		item := Chatcmd002Task{ChannelTodoItem: ChannelTodoItem{Text: text}}
 		// Each task is read on its own, so a name or a date belongs to the task
 		// that carries it and to no other.
+		place := len(d.Card.Todo.Items)
 		assignee, rest, ambiguous := chatcmd004Assignee(item.Text, members, author)
 		if assignee != nil {
+			// The name is a reading the author may decline (#3931).
+			kept := review.KeepOwner[place]
+			d.OwnerReads = append(d.OwnerReads, Chatcmd004OwnerRead{Item: place, Name: assignee.Name, Task: item.Text, Kept: kept})
+			if kept {
+				assignee, ambiguous = nil, false
+			}
+		}
+		if assignee != nil {
 			item.AssigneeHomeTenantID, item.AssigneeID, item.AssigneeName, item.Text = assignee.HomeTenantID, assignee.ID, assignee.Name, rest
+			if token := chatcmd004OtherMention(item.Text, members, *assignee); token != "" {
+				d.Unresolved = append(d.Unresolved, Chatcmd004Unresolved{Item: len(d.Card.Todo.Items), Token: token, Owner: assignee.Name})
+			}
 		} else if ambiguous {
 			d.Issues = append(d.Issues, "assignee")
+			if token := chatcmd004UnresolvedToken(item.Text); token != "" {
+				d.Unresolved = append(d.Unresolved, Chatcmd004Unresolved{Item: len(d.Card.Todo.Items), Token: token})
+			}
 		}
 		if resolveDate != nil {
-			due, rest, unread := chatcmd004Due(item.Text, now, resolveDate)
+			due, rest, unread, typed, read := chatcmd004ReadDue(item.Text, now, resolveDate, place, review.Due[place])
+			if read != nil {
+				d.DueReads = append(d.DueReads, *read)
+			}
 			if due != nil {
 				item.DueAt, item.Text = due, rest
+				item.DueTimed = chatcmd004Timed(typed)
 				if due.Before(now) {
 					d.Issues = append(d.Issues, "past-date")
 				}
@@ -307,7 +349,7 @@ func Chatcmd004ParseTodo(raw string, members []Chatcmd004Member, author string, 
 			d.Changes = append(d.Changes, Chatcmd003Change{Kind: Chatcmd004ChangeAssignee, Before: item.Text, After: assignee.Name})
 		}
 		if item.DueAt != nil {
-			d.Changes = append(d.Changes, Chatcmd003Change{Kind: Chatcmd004ChangeDue, Before: item.Text, After: item.DueAt.In(now.Location()).Format("2006-01-02")})
+			d.Changes = append(d.Changes, Chatcmd003Change{Kind: Chatcmd004ChangeDue, Before: item.Text, After: chatcmd004DueChange(item, now)})
 		}
 		d.Card.Todo.Items = append(d.Card.Todo.Items, item)
 	}

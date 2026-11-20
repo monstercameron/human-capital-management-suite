@@ -46,18 +46,45 @@ func chatsearch003Name(locale string, kind chatsearch.Kind, heading bool) (strin
 // agent, the task on that page for a task, and the agent operations page for
 // an announcement. It is "" for a result of any other kind.
 func ChatSearchAgentHref(row chatsearch.Row) string {
+	return ChatSearchAgentHrefFor("", row)
+}
+
+// Issue 3758: the Agents page is served at /workspace/app/chat/agents. The old
+// /workspace/app/agents address is not a page: opening a task from a search
+// result there showed "This page does not exist". A result now leads to the
+// page's own address, keeps the reader's language and names the task by its
+// exact id.
+const (
+	issue3758AgentsPath     = "/workspace/app/chat/agents"
+	issue3758OperationsPath = "/workspace/app/admin/agents"
+)
+
+// ChatSearchAgentHrefFor is ChatSearchAgentHref with the reader's locale carried
+// in the address, so the page opens in the language the result was read in.
+func ChatSearchAgentHrefFor(locale string, row chatsearch.Row) string {
+	query := url.Values{}
+	if locale = strings.TrimSpace(locale); locale != "" {
+		query.Set("locale", locale)
+	}
+	var path, fragment string
 	switch row.Kind {
 	case chatsearch.Agent:
-		return "/workspace/app/agents"
+		path = issue3758AgentsPath
 	case chatsearch.AgentTask:
-		if row.Target.ItemID == "" {
-			return "/workspace/app/agents"
+		path = issue3758AgentsPath
+		if row.Target.ItemID != "" {
+			query.Set("task", row.Target.ItemID)
+			fragment = "#agents-task-title"
 		}
-		return "/workspace/app/agents?" + url.Values{"task": {row.Target.ItemID}}.Encode() + "#agents-task-title"
 	case chatsearch.AgentAnnouncement:
-		return "/workspace/app/agent-operations"
+		path = issue3758OperationsPath
+	default:
+		return ""
 	}
-	return ""
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+	return path + fragment
 }
 
 // chatsearch003Result draws an agent result: the kind, "Only you" on a record
@@ -69,13 +96,16 @@ func chatsearch003Result(locale string, row chatsearch.Row, words string) ui.Nod
 	if row.Private {
 		line = append(line, html.Span(html.Props{Class: "chatsearch-private", Text: chatsearchText(locale, "only")}))
 	}
+	if state := issue3758StateLabel(locale, row); state != "" {
+		line = append(line, html.Span(html.Props{Class: "chatsearch-agent-state", Data: map[string]string{"task-state": strings.ToLower(row.State)}, Text: state}))
+	}
 	title, rest, _ := strings.Cut(chatDisplayText(row.Text), "\n")
 	body := []ui.Node{html.Div(html.Props{Class: "chatsearch-meta"}, line...), html.Div(html.Props{Class: "chatsearch-text", Dir: "auto"}, highlightText(title, words)...)}
 	if rest = strings.TrimSpace(rest); rest != "" {
 		body = append(body, html.Div(html.Props{Class: "chatsearch-text chatsearch-agent-purpose", Dir: "auto"}, highlightText(rest, words)...))
 	}
 	label := chatsearchText(locale, "open") + ": " + kind + " · " + title
-	link := html.A(html.Props{Class: "chatsearch-open chatsearch-agent-link", Href: ChatSearchAgentHref(row), Aria: map[string]string{"label": label}}, html.Div(html.Props{Class: "chatsearch-plain"}, body...))
+	link := html.A(html.Props{Class: "chatsearch-open chatsearch-agent-link", Href: ChatSearchAgentHrefFor(locale, row), Aria: map[string]string{"label": label}}, html.Div(html.Props{Class: "chatsearch-plain"}, body...))
 	return html.Div(html.Props{Class: "chatsearch-result chatsearch-agent-result", Data: map[string]string{"chatsearch-action": "visit", "kind": string(row.Kind)}}, link)
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/monstercameron/human-capital-management-suite/internal/agentdocref"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentegress"
 	"github.com/monstercameron/human-capital-management-suite/internal/agentmodel"
+	"github.com/monstercameron/human-capital-management-suite/internal/collaboration/chat"
 	trustdlp "github.com/monstercameron/human-capital-management-suite/internal/trust/dlp"
 )
 
@@ -97,6 +98,8 @@ type personaDeliveryExtra struct {
 	General  bool
 	SaidSo   bool
 	Searched bool
+	// Attachments is the receipt for the files on the thread (issue 3961).
+	Attachments chat.AttachmentReceipt
 }
 
 // personaNotFromDocuments decides the typed flag. A general-purpose agent's

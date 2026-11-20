@@ -575,6 +575,7 @@ func queuePagedChatReactions(cfg journeyclient.Config, conversation string, gene
 
 func jumpToNewestChatMessages(cfg journeyclient.Config) {
 	if !chatBrowser.snapshot().HasNewer {
+		chatBrowser.clearJumpTarget()
 		chatui.ScrollToNewest()
 		return
 	}

@@ -41,7 +41,7 @@ func currentChatChannelFragment(loaded ...[]chatui.Conversation) (id, hash strin
 	if len(loaded) > 0 {
 		rooms = loaded[0]
 	}
-	resolved, _ := resolveChatChannelFragment(rooms, refs[0].ID)
+	resolved, _ := resolveChatChannelAddress(rooms, refs[0].ID)
 	return resolved, hash
 }
 
@@ -74,13 +74,14 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 			navigation.SelectedID = id
 			navigation.ShowThread, navigation.ThreadParentID = false, ""
 			navigation.FocusMessageID = ""
-			chatHistory.replace(navigation)
+			chatHistory.replace(chatNavigationForAddress(navigation, hash))
 			// CHATSEARCH-002: an address written by the workspace search names
 			// the message to open at.
 			if !chatsearchOpenAddressed(active, id, hash) {
 				openChatConversation(active, id)
 			}
 			chatApplyAddressTab(id, hash)
+			go chatRestoreAddressedThread(id, chatAddressOpenThread(hash))
 			return
 		}
 	}
@@ -164,12 +165,13 @@ func openChatChannelFragment(cfg journeyclient.Config) {
 		navigation.SelectedID = id
 		navigation.ShowThread, navigation.ThreadParentID = false, ""
 		navigation.FocusMessageID = ""
-		chatHistory.replace(navigation)
+		chatHistory.replace(chatNavigationForAddress(navigation, hash))
 		queued := chatBrowser.finishChatOpen(id, chatBrowser.currentGeneration())
 		if !chatsearchOpenAddressed(active, id, hash) {
 			openChatConversation(active, id)
 		}
 		chatApplyAddressTab(id, hash)
+		go chatRestoreAddressedThread(id, chatAddressOpenThread(hash))
 		for _, body := range queued {
 			sendChatMessage(active, id, body)
 		}

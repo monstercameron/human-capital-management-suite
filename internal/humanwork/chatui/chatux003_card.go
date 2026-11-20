@@ -265,4 +265,4 @@ const ChatUX003Styles = `.agent-reply-head{display:flex;align-items:center;gap:8
 	`@media(max-width:480px){.agent-reply-state-divider,.agent-progress-cancel{order:1}.agent-reply-counter{order:2;flex:1 0 100%;margin-inline-start:0}}` +
 	`@media(pointer:coarse){.agent-reply-action{min-height:44px}}` +
 	`.agent-feedback-unsaved{color:var(--hcm-color-danger);font-size:.8125rem;line-height:1.4}` +
-	chatBug054Styles + chatBug047Styles + chatUX016Styles + chatUX017Styles + chatUX024Styles + chatUX026Styles + chatUX028Styles + chatUX070Styles + chatUX070MarkStyles
+	chatBug054Styles + chatBug047Styles + chatUX016Styles + chatUX017Styles + chatUX024Styles + chatUX026Styles + issue3918Styles + chatUX028Styles + chatUX070Styles + chatIssue3969Styles + chatUX070MarkStyles

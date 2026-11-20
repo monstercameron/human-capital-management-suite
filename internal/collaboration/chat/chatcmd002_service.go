@@ -85,7 +85,7 @@ func (s *Chatcmd002Service) authorize(ctx context.Context, r Chatcmd002Request, 
 	return nil
 }
 func (s *Chatcmd002Service) Post(ctx context.Context, r Chatcmd002PostRequest) (Post, error) {
-	if !r.Accepted || r.IdempotencyKey == "" || r.Card.Validate() != nil || r.Card.ClosedAt != nil || r.Card.Interacted {
+	if !r.Accepted || r.IdempotencyKey == "" || r.Card.Validate() != nil || r.Card.ClosedAt != nil || r.Card.Interacted || r.Card.AssigneeOnlyGap() >= 0 {
 		return Post{}, ErrInvalidArgument
 	}
 	if err := s.authorize(ctx, Chatcmd002Request{Principal: r.Principal, TenantID: r.TenantID, ConversationID: r.ConversationID}, true); err != nil {

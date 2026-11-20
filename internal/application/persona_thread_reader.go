@@ -118,7 +118,7 @@ func threadResult(posts []chat.Post, threadID string) PersonaThreadReadResult {
 	result := PersonaThreadReadResult{Posts: make([]agentinvoke.ThreadPost, 0, len(posts)), Provenance: make([]PersonaThreadPostProvenance, 0, len(posts))}
 	for i := len(posts) - 1; i >= 0; i-- {
 		post := posts[i]
-		result.Posts = append(result.Posts, agentinvoke.ThreadPost{TenantID: post.TenantID, ConversationID: post.ConversationID, ThreadID: threadID, ID: post.ID, AuthorID: post.AuthorID, Body: post.Body})
+		result.Posts = append(result.Posts, agentinvoke.ThreadPost{TenantID: post.TenantID, ConversationID: post.ConversationID, ThreadID: threadID, ID: post.ID, AuthorID: post.AuthorID, Body: post.Body, AttachmentCount: personaPostAttachmentCount(post.References)})
 		result.Provenance = append(result.Provenance, PersonaThreadPostProvenance{Owner: "chat", TenantID: post.TenantID, ConversationID: post.ConversationID, PostID: post.ID, Version: post.Revision, Citation: fmt.Sprintf("chat://%s/%s#%s", post.TenantID, post.ConversationID, post.ID), Source: clonePersonaSource(post.SourceAttribution)})
 	}
 	return result

@@ -31,11 +31,11 @@ func TestChatDesign_3772_UnreadCountsSitInPills(t *testing.T) {
 			t.Fatalf("%s: the count names do not say what is counted: %q / %q", locale, unreadName, mentionName)
 		}
 		channel := chatDesignRender(t, railRow(m, Conversation{ID: "c", Name: "general", Kind: PublicChannel, Joined: true, Unread: 3}))
-		if !strings.Contains(channel, `aria-label="`+unreadName+`" class="chat-badge">`) {
+		if !strings.Contains(channel, `aria-label="`+unreadName+`" class="chat-badge" title="`+issue3721UnreadNote(m)+`">`) {
 			t.Errorf("%s: a channel's unread count is not the neutral pill with its name: %s", locale, channel)
 		}
 		direct := chatDesignRender(t, railRow(m, Conversation{ID: "d", Name: "Sam Lee", Kind: DirectMessage, Joined: true, Unread: 3}))
-		if !strings.Contains(direct, `aria-label="`+unreadName+`" class="chat-badge direct">`) {
+		if !strings.Contains(direct, `aria-label="`+unreadName+`" class="chat-badge direct" title="`+issue3721UnreadNote(m)+`">`) {
 			t.Errorf("%s: a direct message's unread count is not marked for the accent pill: %s", locale, direct)
 		}
 		mention := chatDesignRender(t, railRow(m, Conversation{ID: "m", Name: "general", Kind: PublicChannel, Joined: true, Unread: 5, Mentions: 2}))

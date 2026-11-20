@@ -14,7 +14,7 @@ func withAgentUXPage5Messages(catalog map[string]map[string]localize.Message) ma
 			"agents.setup": {Text: "Set up agents"},
 			// #3776: a task that finished with nothing to show says so.
 			"agents.task_no_answer": {Text: "Finished without an answer."},
-			"agents.composer_help":  {Text: "Write your question or describe the work you need."}, "agents.general_agent_purpose": {Text: "Answers everyday questions. It does not look anything up in company documents unless you add them below."},
+			"agents.composer_help":  {Text: "Write your question or describe the work you need."}, "agents.general_agent_purpose": {Text: "Answers everyday questions. It does not look anything up in company documents."}, "agents.general_agent_purpose_documents": {Text: "Answers everyday questions. It does not look anything up in company documents unless you add them below."},
 			"agents.only_general_agent": {Text: "Only the General agent is available to you. Ask your administrator if you need another agent."},
 			"agents.actions_help":       {Text: "Ask: get an answer here, usually within a minute. Plan a longer task: the agent shows you a plan to approve, then works in the background and lists the result under Tasks."},
 			"agents.unavailable_title":  {Text: "Agents could not be loaded"}, "agents.load_failed_detail": {Text: "Try again. If the problem continues, contact your workspace administrator."},
@@ -42,7 +42,7 @@ func withAgentUXPage5Messages(catalog map[string]map[string]localize.Message) ma
 			"agents.answered_by": {Text: "Agent: {agent}"}, "agents.page_title": {Text: "Agenten"}, "agents.composer_placeholder": {Text: "Zum Beispiel: Wie viele Urlaubstage kann ich ins nächste Jahr übertragen?"},
 			"agents.setup":          {Text: "Agenten einrichten"},
 			"agents.task_no_answer": {Text: "Ohne Antwort beendet."},
-			"agents.composer_help":  {Text: "Schreiben Sie Ihre Frage oder beschreiben Sie die benötigte Arbeit."}, "agents.general_agent_purpose": {Text: "Beantwortet alltägliche Fragen. Er schlägt nichts in Unternehmensdokumenten nach, außer Sie fügen sie unten hinzu."},
+			"agents.composer_help":  {Text: "Schreiben Sie Ihre Frage oder beschreiben Sie die benötigte Arbeit."}, "agents.general_agent_purpose": {Text: "Beantwortet alltägliche Fragen. Er schlägt nichts in Unternehmensdokumenten nach."}, "agents.general_agent_purpose_documents": {Text: "Beantwortet alltägliche Fragen. Er schlägt nichts in Unternehmensdokumenten nach, außer Sie fügen sie unten hinzu."},
 			"agents.only_general_agent": {Text: "Nur der Allgemeine Agent ist für Sie verfügbar. Fragen Sie Ihre Administration, wenn Sie einen anderen Agenten benötigen."},
 			"agents.actions_help":       {Text: "Fragen: Sie erhalten hier meist innerhalb einer Minute eine Antwort. Längere Aufgabe planen: Der Agent zeigt Ihnen zuerst einen Plan zur Freigabe, arbeitet dann im Hintergrund und listet das Ergebnis unter Aufgaben auf."},
 			"agents.unavailable_title":  {Text: "Agenten konnten nicht geladen werden"}, "agents.load_failed_detail": {Text: "Versuchen Sie es erneut. Wenn das Problem bleibt, wenden Sie sich an Ihre Workspace-Administration."},
@@ -70,7 +70,7 @@ func withAgentUXPage5Messages(catalog map[string]map[string]localize.Message) ma
 			"agents.page_title": {Text: "الوكلاء"}, "agents.composer_placeholder": {Text: "مثال: كم يومًا من الإجازة يمكن ترحيله إلى العام المقبل؟"},
 			"agents.setup":          {Text: "إعداد الوكلاء"},
 			"agents.task_no_answer": {Text: "انتهت المهمة دون إجابة."},
-			"agents.composer_help":  {Text: "اكتب سؤالك أو صف العمل الذي تحتاج إليه."}, "agents.general_agent_purpose": {Text: "يجيب عن الأسئلة اليومية. لا يبحث في مستندات الشركة إلا إذا أضفتها أدناه."},
+			"agents.composer_help":  {Text: "اكتب سؤالك أو صف العمل الذي تحتاج إليه."}, "agents.general_agent_purpose": {Text: "يجيب عن الأسئلة اليومية. لا يبحث في مستندات الشركة."}, "agents.general_agent_purpose_documents": {Text: "يجيب عن الأسئلة اليومية. لا يبحث في مستندات الشركة إلا إذا أضفتها أدناه."},
 			"agents.only_general_agent": {Text: "الوكيل العام وحده متاح لك. اطلب من المسؤول وكيلاً آخر إذا كنت بحاجة إليه."},
 			"agents.actions_help":       {Text: "اسأل: احصل على إجابة هنا، عادةً خلال دقيقة. خطط لمهمة أطول: يعرض الوكيل خطة للموافقة عليها، ثم يعمل في الخلفية ويسرد النتيجة ضمن المهام."},
 			"agents.unavailable_title":  {Text: "تعذر تحميل الوكلاء"}, "agents.load_failed_detail": {Text: "حاول مرة أخرى. إذا استمرت المشكلة، فتواصل مع مسؤول مساحة العمل."},
@@ -103,5 +103,5 @@ func withAgentUXPage5Messages(catalog map[string]map[string]localize.Message) ma
 	} {
 		catalog["ar"][key] = message
 	}
-	return catalog
+	return withIssue3681Messages(withIssue3982Messages(catalog))
 }

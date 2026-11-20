@@ -67,8 +67,8 @@ func TestChatDesign_3771_ChatOpensWithTheNavigationRail(t *testing.T) {
 		t.Fatalf("an explicit collapse on Chat renders %q", class)
 	}
 
-	// No change on other pages, the Agents page under Chat included.
-	for _, page := range []PageID{PageHome, PagePeople, PageAgents} {
+	// No change on other pages. The Agents page shares Chat's state (#3846).
+	for _, page := range []PageID{PageHome, PagePeople} {
 		_, class, toggle := chatDesignShell(t, testView(page))
 		if strings.Contains(class, " nav-collapsed ") || !strings.Contains(toggle, `aria-expanded="true"`) {
 			t.Errorf("%s: the navigation is collapsed by default: %q %s", page, class, toggle)
@@ -92,7 +92,7 @@ func TestChatDesign_3771_OnlyAChoiceIsStoredForChat(t *testing.T) {
 		{"chat expanded", PageChat, false, true, "expanded"},
 		{"chat collapsed", PageChat, true, false, "collapsed"},
 		{"home collapsed", PageHome, true, false, ""},
-		{"agents expanded", PageAgents, false, true, ""},
+		{"agents expanded", PageAgents, false, true, "expanded"},
 	} {
 		view := testView(tc.page)
 		view.NavCollapsed, view.NavExpanded = tc.collapsed, tc.expanded

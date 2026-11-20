@@ -36,8 +36,8 @@ func TestChatDesign_3773_DayPillSticksBelowTheHeaderFade(t *testing.T) {
 	if offset < fadeEnd {
 		t.Fatalf("the day pill sticks at %dpx, inside the %dpx fade under the header", offset, fadeEnd)
 	}
-	if !strings.Contains(sticky, "pointer-events:none") {
-		t.Error("the floating day row takes clicks meant for the messages under it")
+	if strings.Contains(sticky, "pointer-events:none") {
+		t.Error("the day strip lets clicks through to messages hidden under it (#3843)")
 	}
 	// A stuck rule line would strike through the messages behind the pill.
 	if !strings.Contains(Stylesheet, `.chat-workspace .message-list .day-divider::before,.chat-workspace .message-list .day-divider::after{content:none}`) {

@@ -121,11 +121,17 @@ func insertComposerEmoji(targetID, emoji string, keepOpen bool) {
 		return
 	}
 	value := field.Get("value").String()
-	updated, caret := insertEmojiAtUTF16(value, emoji, field.Get("selectionStart").Int(), field.Get("selectionEnd").Int())
-	field.Set("value", updated)
-	// This marks the field as user-typed and follows the same draft callback as
-	// keyboard input, so a render cannot roll back a picker insertion.
-	field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	from, to := field.Get("selectionStart").Int(), field.Get("selectionEnd").Int()
+	updated, caret := insertEmojiAtUTF16(value, emoji, from, to)
+	// Issue #3902: an editing command keeps the insertion on the browser's undo
+	// stack. The command fires the input event itself; the value write is the
+	// fallback and cannot be undone.
+	if from < 0 || to < from || !composerEditUndoable(emojiDocument(), field, from, to, emoji) {
+		field.Set("value", updated)
+		// This marks the field as user-typed and follows the same draft callback as
+		// keyboard input, so a render cannot roll back a picker insertion.
+		field.Call("dispatchEvent", js.Global().Get("Event").New("input", map[string]any{"bubbles": true}))
+	}
 	field = emojiDocument().Call("getElementById", targetID)
 	if !field.Truthy() {
 		return

@@ -74,6 +74,9 @@ func chatEmojiPickerNode(m Model, st emojiPickerState, kind string, ix *emojiset
 	if last >= first && last >= 0 {
 		topSpace = v.rows[first].Y
 		bottomSpace = v.total - (v.rows[last].Y + v.rows[last].H)
+		if !v.seq.query {
+			bottomSpace += emojiTail(v.rows, v.total, viewH)
+		}
 		for i := first; i <= last; i++ {
 			gridRows = append(gridRows, chatEmojiRow(m, inner, v, base, i, active))
 		}
@@ -173,7 +176,7 @@ func chatEmojiCurrentGroup(st emojiPickerState, v emojiView) (int, bool) {
 	if v.seq.query || len(v.rows) == 0 {
 		return 0, false
 	}
-	return v.rows[emojiRowAtScroll(v.rows, st.Scroll)].Group, true
+	return v.rows[emojiRowShown(v.rows, st.Scroll, v.metrics)].Group, true
 }
 
 func chatEmojiStickyLabel(m Model, st emojiPickerState, v emojiView) string {

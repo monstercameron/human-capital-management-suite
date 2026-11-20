@@ -18,7 +18,7 @@ import (
 func TestTodo_CHATBUG_091_Browser(t *testing.T) {
 	type want struct{ truth, link, firstUse string }
 	words := map[string]want{
-		"en-US": {"Nothing left to do. Done holds 2.", "Show Done", "Hover a message and press the bookmark to keep it here."},
+		"en-US": {"Nothing left to do. Done holds 2.", "Show Done", "Use the bookmark on a message to keep it here."},
 		"de-DE": {"Nichts mehr zu erledigen. Unter Erledigt: 2.", "Erledigt anzeigen", ""},
 		"ar":    {"لا شيء متبقٍ للتنفيذ. في تم: ٢.", "عرض تم", ""},
 	}
