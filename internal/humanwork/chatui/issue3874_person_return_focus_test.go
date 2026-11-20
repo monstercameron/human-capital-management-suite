@@ -140,3 +140,28 @@ func TestIssue3874_CloseReturnsToTheLatestAuthorOpenedOutsideThePane(t *testing.
 		t.Fatalf("Close moved focus to %v, want the author opened last", focused)
 	}
 }
+
+// Back redraws the details panel after the person pane is gone, so the first
+// frame finds neither the member row nor the close button. Focus must still
+// land on the member once the panel is drawn, not stay on BODY.
+func TestIssue3874_BackWaitsForTheDetailsPanelToBeDrawn(t *testing.T) {
+	issue3874Reset()
+	defer issue3874Reset()
+	var focused []string
+	staleRow := issue3874Opener(t, "stale", "amina", true, false, false, &focused)
+	newRow := issue3874Opener(t, "member-row", "amina", true, false, true, &focused)
+	queries := 0
+	issue3874Frames(t, func(sel string) js.Value {
+		queries++
+		if queries > 6 && sel == ".chat-details [data-action='open-person'][data-id=\"amina\"]" {
+			return newRow
+		}
+		return js.Null()
+	})
+	rememberPersonTriggerFrom(staleRow)
+	syncPersonFocusFor(true, "amina")
+	syncPersonFocus(false)
+	if len(focused) != 1 || focused[0] != "member-row" {
+		t.Fatalf("Back moved focus to %v after %d lookups, want the member row once drawn", focused, queries)
+	}
+}

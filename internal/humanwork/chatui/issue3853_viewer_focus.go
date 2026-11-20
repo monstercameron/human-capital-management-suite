@@ -34,3 +34,11 @@ func chatImageViewerFocusPlan(originConnected, originFoundByID, lastConnected bo
 // keeps the scroll position; the fallback brings its thumbnail into view so
 // focus is never left off screen.
 func (f chatImageViewerFocus) scrolls() bool { return f == chatImageViewerFocusLast }
+
+// chatImageViewerNeedsScroll reports whether a thumbnail that holds focus is
+// not wholly inside the part of the page a reader can see (the window clipped
+// by the message list). The list may have moved while the viewer was open, so
+// the opener can be off screen even though focus never left it.
+func chatImageViewerNeedsScroll(top, bottom, regionTop, regionBottom float64) bool {
+	return top < regionTop || bottom > regionBottom
+}

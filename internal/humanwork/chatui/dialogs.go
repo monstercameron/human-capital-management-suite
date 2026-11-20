@@ -99,7 +99,7 @@ func createDialog(m Model, h handlers) ui.Node {
 				html.Button(html.Props{Class: "button", Type: "submit", Disabled: true, Text: m.t(KeyStartConversation)})))
 		return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
 			html.Dialog(html.Props{Class: "chat-dialog create-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.t(KeyCreateTitle), "modal": "true"}},
-				html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.createSubmit}, fields...)))
+				html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"noValidate": true}, OnSubmit: h.createSubmit}, fields...)))
 	}
 	if kind != DirectMessage {
 		prefix := ui.Node(nil)
@@ -163,7 +163,7 @@ func createDialog(m Model, h handlers) ui.Node {
 		html.Button(html.Props{Class: "button", Type: "submit", Disabled: disabled, Text: submit})))
 	return html.Div(html.Props{Class: "chat-dialog-backdrop", Role: "presentation"},
 		html.Dialog(html.Props{Class: "chat-dialog create-dialog", Open: true, Role: "dialog", Aria: map[string]string{"label": m.t(KeyCreateTitle), "modal": "true"}},
-			html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.createSubmit}, fields...)))
+			html.Form(html.Props{Class: "dialog-form", Raw: map[string]any{"noValidate": true}, OnSubmit: h.createSubmit}, fields...)))
 }
 
 // memberPicker adds people as removable chips from a name search. The chips

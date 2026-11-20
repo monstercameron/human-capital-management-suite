@@ -132,6 +132,9 @@ func chatsearchModelShow(m *chatui.Model, view chatui.ChatSearchView) bool {
 // bar.
 func chatsearchModelOpened(m *chatui.Model, view chatui.ChatSearchView) {
 	m.Search, m.ChatSearch, m.SearchOpened = view.Query, &view, true
+	// #61: on a phone the open Conversations drawer hides the conversation pane;
+	// a result opened behind it left the person on the list.
+	m.SidebarOpen = false
 }
 
 // chatsearchModelOpenFilter shows where a filter result is managed: the

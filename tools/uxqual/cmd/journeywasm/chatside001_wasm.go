@@ -317,8 +317,8 @@ func withChatside001Callbacks(callbacks chatui.Callbacks, cfg journeyclient.Conf
 
 // chatside001SidebarAnnounced is what a layout-changed notice from the event
 // stream does in this tab: when another tab saved a newer layout, read it and
-// draw it. Only the layout is taken; the drafts and the rest of the sidebar
-// document stay as they are. A read that fails changes nothing and the periodic
+// draw it. The layout is drawn; drafts go through loadDrafts, which keeps this
+// tab's own text and offers another tab's different draft (issue 3953). A read that fails changes nothing and the periodic
 // read stays the fallback.
 func chatside001SidebarAnnounced(cfg journeyclient.Config, revision uint64) {
 	chatRecipientBrowser.Lock()
@@ -354,6 +354,11 @@ func chatside001SidebarAnnounced(cfg journeyclient.Config, revision uint64) {
 		}
 		chatRecipientBrowser.Unlock()
 		chatBrowser.mutate(func(m *chatui.Model) { applyRecipientLayout(m, layout, hosts) })
+		// Issue 3953: the revision taken above is the one this tab's next draft
+		// write rides on, so another tab's draft in this read must be compared
+		// with this tab's own now. Skipped, the next write succeeds on the fresh
+		// revision and replaces the other tab's text without a word.
+		chatBrowser.loadDrafts(layout.Drafts)
 		refreshChatRoute()
 	}()
 }

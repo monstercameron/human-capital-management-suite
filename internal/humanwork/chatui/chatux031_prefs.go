@@ -37,7 +37,7 @@ func chatux031ReadingRow(m RenderingSettingsModel, options []ui.Node, saved bool
 	title := chatbug045Text(Model{Locale: m.Locale}, keyChatbug045Reading)
 	children := []ui.Node{
 		html.Label(html.Props{Class: "chat-prefs-title", For: "chatrender-reading", Text: title}),
-		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Class: "chatux031-select", Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
+		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Class: "chatux031-select", Value: issue3682ReadingLanguage(m.Locale, m.Preference.ReadingLanguage), Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
 	}
 	// The slot is always drawn and a fixed width, so the select does not move
 	// when the tick appears.

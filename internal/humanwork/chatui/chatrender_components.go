@@ -74,7 +74,7 @@ func RenderingSettings(m RenderingSettingsModel) ui.Node {
 		html.H3(html.Props{ID: "chatrender-settings-title", Text: t("title")}),
 		html.P(html.Props{ID: "chatrender-settings-status", Role: "status", Text: t(status)}),
 		html.Label(html.Props{For: "chatrender-reading", Text: t("reading")}),
-		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Disabled: m.Loading, Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
+		html.Select(html.Props{ID: "chatrender-reading", Name: "reading", Value: issue3682ReadingLanguage(m.Locale, m.Preference.ReadingLanguage), Disabled: m.Loading, Aria: map[string]string{"describedby": "chatrender-settings-status"}}, options...),
 		html.Label(html.Props{Class: "chatrender-check", For: "chatrender-translate"}, html.Input(html.Props{ID: "chatrender-translate", Name: "translate", Type: "checkbox", Checked: m.Preference.Translate, Disabled: m.Loading || m.TranslationUnavailable, Title: translateUnavailableTitle(m)}), html.Span(html.Props{Text: t("translate")})),
 	}
 	for _, field := range []struct{ key, name string }{{"further", "further"}, {"source", "never"}} {

@@ -111,6 +111,10 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 	}
 	caption := imageViewerElement(doc, "div", "chat-image-viewer-caption", "")
 	caption.Call("appendChild", imageViewerElement(doc, "span", "chat-image-viewer-name", text("mediaName")))
+	// The author's description of the image (issue 3962), apart from its file name.
+	if description := text("mediaAlt"); description != "" {
+		caption.Call("appendChild", imageViewerElement(doc, "span", "chat-image-viewer-description", description))
+	}
 	from := text("mediaAuthor")
 	if sent := text("mediaSent"); sent != "" {
 		if from != "" {
@@ -159,7 +163,17 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 	if !canDownload {
 		download.Call("setAttribute", "hidden", "")
 	}
-	for _, tool := range []js.Value{zoomButton, openButton, download} {
+	// #3917: View message brings the message the image was sent in into view.
+	viewerLocale := ""
+	if lang := workspace.Get("lang"); lang.Type() == js.TypeString {
+		viewerLocale = lang.String()
+	}
+	viewMessage := imageViewerElement(doc, "button", "chat-image-viewer-message", issue3917ViewerText(viewerLocale, "view_message"))
+	viewMessage.Call("setAttribute", "aria-label", issue3917ViewerText(viewerLocale, "view_message")+": "+text("mediaName"))
+	note := imageViewerElement(doc, "p", "chat-image-viewer-note", "")
+	note.Call("setAttribute", "role", "status")
+	note.Call("setAttribute", "aria-live", "polite")
+	for _, tool := range []js.Value{zoomButton, openButton, download, viewMessage} {
 		tools.Call("appendChild", tool)
 	}
 	previous := imageViewerElement(doc, "button", "chat-image-viewer-step chat-image-viewer-prev", "‹")
@@ -191,7 +205,7 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 	for _, img := range []js.Value{preview, full, original} {
 		media.Call("appendChild", img)
 	}
-	for _, part := range []js.Value{caption, tools, closeButton, previous, media, next} {
+	for _, part := range []js.Value{caption, tools, closeButton, previous, media, next, note} {
 		backdrop.Call("appendChild", part)
 	}
 	doc.Get("body").Call("appendChild", backdrop)
@@ -294,6 +308,18 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 			}
 			if plan != chatImageViewerFocusNone {
 				focus.Call("focus", js.ValueOf(map[string]any{"preventScroll": !plan.scrolls()}))
+				// The list can have moved while the viewer was open: an opener
+				// that is no longer in view is brought into it (#3853).
+				rect := focus.Call("getBoundingClientRect")
+				regionTop, regionBottom := 0.0, js.Global().Get("window").Get("innerHeight").Float()
+				if list := focus.Call("closest", ".message-list"); list.Truthy() {
+					listRect := list.Call("getBoundingClientRect")
+					regionTop = max(regionTop, listRect.Get("top").Float())
+					regionBottom = min(regionBottom, listRect.Get("bottom").Float())
+				}
+				if chatImageViewerNeedsScroll(rect.Get("top").Float(), rect.Get("bottom").Float(), regionTop, regionBottom) {
+					focus.Call("scrollIntoView", js.ValueOf(map[string]any{"block": "nearest"}))
+				}
 			}
 		}
 	}
@@ -318,6 +344,14 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 			if bridge := js.Global().Get("hcmChatMediaDownload"); bridge.Type() == js.TypeFunction {
 				bridge.Invoke(post, text("mediaId"))
 			}
+		case clicked.Equal(viewMessage):
+			if issue3917ViewMessageGone(post) {
+				note.Set("textContent", issue3917ViewerText(viewerLocale, "gone"))
+				return nil
+			}
+			room, dir, origin := imageViewerRoom, workspace.Get("dir").String(), button
+			imageViewerClose(false)
+			issue3917ViewMessage(post, room, viewerLocale, dir, func() { showImageViewer(origin, labels, "") })
 		case clicked.Equal(openButton):
 			if source := originalSource(); source != "" {
 				js.Global().Call("open", source, "_blank", "noopener")
@@ -359,7 +393,7 @@ func showImageViewer(button js.Value, labels chatbug083Labels, focusOn string) {
 			step(chatImageViewerStep(key, rtl), "")
 		case key == "Tab":
 			var focusables []js.Value
-			for _, control := range []js.Value{closeButton, previous, next, zoomButton, openButton, download} {
+			for _, control := range []js.Value{closeButton, previous, next, zoomButton, openButton, download, viewMessage} {
 				if !control.Get("disabled").Bool() && !control.Get("hidden").Bool() {
 					focusables = append(focusables, control)
 				}

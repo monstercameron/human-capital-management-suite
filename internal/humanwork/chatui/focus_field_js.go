@@ -12,6 +12,7 @@ import "syscall/js"
 func focusField(id string) {
 	doc := js.Global().Get("document")
 	frames := 0
+	pressed := doc.Get("activeElement")
 	var step js.Func
 	step = js.FuncOf(func(js.Value, []js.Value) any {
 		frames++
@@ -21,7 +22,7 @@ func focusField(id string) {
 		if el.Truthy() && lost {
 			el.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
 		}
-		if frames >= 45 || (!lost && !active.Equal(el)) {
+		if focusFieldDone(frames, lost, active.Equal(el), active.Equal(pressed)) {
 			step.Release()
 			return nil
 		}

@@ -172,10 +172,6 @@ func ChatmapWorkspaceSettings(m ChatmapAdminModel) ui.Node {
 	switch {
 	case m.Loading:
 		problem = t("admin_loading")
-	case m.Invalid:
-		problem = t("admin_country_invalid")
-	case m.CountryRejected:
-		problem = t("admin_country_refused")
 	case m.Failed:
 		problem = t(m.failureKey())
 	}
@@ -232,19 +228,30 @@ func ChatmapWorkspaceSettings(m ChatmapAdminModel) ui.Node {
 		countries = append(countries, html.Ul(html.Props{Class: "chatlangadmin-terms", Aria: map[string]string{"label": t("admin_countries")}}, rows...))
 	}
 	countryAria := map[string]string{"describedby": "chatmapadmin-country-hint"}
+	countryError := []ui.Node{}
 	if m.Invalid || m.CountryRejected {
 		countryAria["invalid"] = "true"
+		countryAria["describedby"] = "chatmapadmin-country-error chatmapadmin-country-hint"
+		message := t("admin_country_refused")
+		if m.Invalid {
+			message = t("admin_country_invalid")
+		}
+		countryError = append(countryError, html.P(html.Props{ID: "chatmapadmin-country-error", Class: "field-hint field-error", Role: "alert", Text: message}))
 	}
-	countries = append(countries, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatmapadmin": "country"}, OnSubmit: m.SaveCountry, Aria: map[string]string{"labelledby": "chatmapadmin-countries-title"}},
+	countryForm := []ui.Node{
 		html.Label(html.Props{For: "chatmapadmin-country", Text: t("admin_country")}),
 		html.Input(html.Props{ID: "chatmapadmin-country", Name: "country", Type: "text", MaxLength: 40, Required: true, Disabled: m.Loading, Dir: "auto", Aria: countryAria}),
+	}
+	countryForm = append(countryForm, countryError...)
+	countryForm = append(countryForm,
 		html.P(html.Props{ID: "chatmapadmin-country-hint", Class: "field-hint", Text: t("admin_country_hint")}),
 		html.Label(html.Props{For: "chatmapadmin-country-state", Text: t("admin_country_state")}),
 		html.Select(html.Props{ID: "chatmapadmin-country-state", Name: "state", Disabled: m.Loading}, html.Option(html.Props{Value: "off", Selected: true, Text: t("admin_off")}), html.Option(html.Props{Value: "on", Text: t("admin_on")})),
 		html.Label(html.Props{For: "chatmapadmin-basis", Text: t("admin_basis")}),
 		html.Input(html.Props{ID: "chatmapadmin-basis", Name: "basis", Type: "text", MaxLength: 500, Required: true, Disabled: m.Loading, Dir: "auto", Aria: map[string]string{"describedby": "chatmapadmin-basis-hint"}}),
 		html.P(html.Props{ID: "chatmapadmin-basis-hint", Class: "field-hint", Text: t("admin_basis_hint")}),
-		html.Div(html.Props{Class: "chatlangadmin-actions"}, html.Button(html.Props{Type: "submit", Class: "button", Text: t("admin_save_country"), Disabled: m.Loading || m.SaveCountry.Value() == nil}), chatmapAdminSaved(m, "country"))))
+		html.Div(html.Props{Class: "chatlangadmin-actions"}, html.Button(html.Props{Type: "submit", Class: "button", Text: t("admin_save_country"), Disabled: m.Loading || m.SaveCountry.Value() == nil}), chatmapAdminSaved(m, "country")))
+	countries = append(countries, html.Form(html.Props{Class: "chatlangadmin-form", Data: map[string]string{"chatmapadmin": "country"}, OnSubmit: m.SaveCountry, Aria: map[string]string{"labelledby": "chatmapadmin-countries-title"}}, countryForm...))
 	sections := []ui.Node{
 		html.H2(html.Props{ID: "chatmapadmin-title", Text: t("admin_title")}),
 		html.P(html.Props{Class: "field-hint", Text: t("admin_intro")}),

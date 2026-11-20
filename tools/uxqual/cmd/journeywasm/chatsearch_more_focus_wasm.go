@@ -42,7 +42,42 @@ func chatsearchFocusNewResults() {
 		target.Call("focus", map[string]any{"preventScroll": false})
 		target.Call("scrollIntoView", map[string]any{"block": "nearest"})
 		tick.Release()
+		chatsearchKeepNewResultFocus()
 		return nil
 	})
 	js.Global().Call("setTimeout", tick, 0)
+}
+
+// chatsearchKeepNewResultFocus checks a few times that the focus just placed on
+// the first new result survived the page's follow-up redraws (the recent
+// searches refresh and avatar loads redraw the list a moment later and replace
+// the focused control, which drops focus to the body). Each check looks the seam
+// up again, so it follows the redrawn control.
+func chatsearchKeepNewResultFocus() {
+	document := js.Global().Get("document")
+	for _, delay := range issue3899RefocusDelays {
+		var check js.Func
+		check = js.FuncOf(func(js.Value, []js.Value) any {
+			defer check.Release()
+			active := document.Get("activeElement")
+			isBody := !active.Truthy() || active.Equal(document.Get("body"))
+			seam := document.Call("getElementById", chatui.Issue3899BoundaryID)
+			var target js.Value
+			if seam.Truthy() {
+				target = seam.Get("nextElementSibling")
+				if target.Truthy() {
+					if control := target.Call("querySelector", ".chatsearch-open"); control.Truthy() {
+						target = control
+					}
+				} else {
+					target = seam
+				}
+			}
+			if issue3899ShouldRefocus(isBody, target.Truthy()) {
+				target.Call("focus", map[string]any{"preventScroll": true})
+			}
+			return nil
+		})
+		js.Global().Call("setTimeout", check, delay)
+	}
 }

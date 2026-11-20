@@ -170,6 +170,10 @@ func chatFocusRestoreAllowed(h chatFocusHolder) bool { return h.Idle || !h.Conne
 type chatEscapeState struct {
 	// TopLayer is the kind of the topmost open anchored layer, "" if none.
 	TopLayer string
+	// ShellPopover is an open workspace-header menu (Account, Language,
+	// Notifications). Escape is the shell's to close it, so Chat closes
+	// nothing (issue 3596).
+	ShellPopover bool
 	// Tray is the open channel tray ("todo", "poll") or "".
 	Tray                                                 string
 	SectionCreate, Search, Share, RailMenu, Picker, Menu bool
@@ -184,6 +188,9 @@ type chatEscapeState struct {
 // waits its turn: a reaction picker behind an open to-do list stays open.
 func chatEscapeStep(s chatEscapeState) string {
 	top := s.TopLayer
+	if s.ShellPopover {
+		return ""
+	}
 	switch {
 	case s.SectionCreate && top == "":
 		return "section-create"

@@ -33,7 +33,7 @@ func TestIssue3714_ChannelFormSubmitsWithoutNativeRequiredBubble(t *testing.T) {
 	}
 	form := dialog[formAt:]
 	form = form[:strings.Index(form, ">")+1]
-	if !strings.Contains(form, "novalidate") {
+	if !strings.Contains(strings.ToLower(form), "novalidate") {
 		t.Errorf("the create form lets the browser stop an empty channel name silently; form is %s", form)
 	}
 }

@@ -118,7 +118,7 @@ func chatbug058View(p chatbug058Props, s chatbug058State, change ui.Handler) ui.
 	form := html.Form(html.Props{Class: "chatbug058-form", Dir: direction(p.Locale), OnChange: change, OnSubmit: change},
 		html.P(html.Props{Class: "field-hint", Text: laneText(m, chatbug058Copy, keyChatbug058Note)}),
 		html.Label(html.Props{For: chatbug058ReadingField, Text: t("reading")}),
-		html.Select(html.Props{ID: chatbug058ReadingField, Class: "chat-input", Name: "reading"}, options...),
+		html.Select(html.Props{ID: chatbug058ReadingField, Class: "chat-input", Name: "reading", Value: issue3682ReadingLanguage(p.Locale, s.Preference.ReadingLanguage)}, options...),
 		html.Label(html.Props{Class: "chatbug058-switch", For: chatbug058TranslateField},
 			html.Input(html.Props{ID: chatbug058TranslateField, Class: "switch", Type: "checkbox", Name: "translate", Checked: s.Preference.Translate}),
 			html.Span(html.Props{Text: t("translate")})),

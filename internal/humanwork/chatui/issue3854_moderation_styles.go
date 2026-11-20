@@ -6,13 +6,16 @@ package chatui
 // Permissions explanation, so they sat against the edge while the tabs, search
 // and cards kept the page's 16px inset. Every child of the page but its heading
 // gets the inset again, with logical properties so right-to-left reads the same.
+// The doubled class outranks the muted reset; a :root prefix cannot be used
+// because this whole sheet sits inside @scope (.chat-workspace), where :root
+// never matches (the running app showed the text at 0px inset).
 //
 // #3854: the permission matrix is five columns. Words are no longer broken into
 // characters; the wide table keeps a readable width inside its scroll region,
 // and on a phone each role becomes a card with the permission named beside each
 // switch (the label comes from the cell's data-label, in the reader's language).
 const issue3854ModerationStyles = `
-:root .chatremove.chatmod005-page>:not(.chatmod005-heading){margin-inline:16px}
+.chatremove.chatmod005-page.chatmod005-page>:not(.chatmod005-heading){margin-inline:16px}
 .chatremove .chatmod005-perm-table{min-inline-size:36rem}
 .chatremove .chatmod005-perm-table :is(th,td){overflow-wrap:normal;word-break:normal}
 @media(max-width:640px){.chatremove .chatmod005-perm-table{min-inline-size:0;display:block}

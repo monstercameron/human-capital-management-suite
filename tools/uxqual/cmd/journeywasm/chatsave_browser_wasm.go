@@ -65,6 +65,19 @@ type chatsaveBrowser struct {
 	// noteDrafts holds notes being written that the last draw did not keep on
 	// screen (issue 3910).
 	noteDrafts chatsaveNoteDrafts
+	// Issue 3932: the private-label view. label and unlabelled narrow the list;
+	// editingLabels names the item whose label editor is open; labelManage is
+	// "rename" or "remove" while the chosen label's manager is open.
+	label         string
+	unlabelled    bool
+	editingLabels string
+	labelManage   string
+	// Issue 3958: select mode, the selection (by item key) and the open
+	// meeting brief. afterSync runs when the list has been read again.
+	selecting bool
+	selected  map[string]bool
+	brief     *chatsaveBriefState
+	afterSync func(error)
 }
 
 // settleTab opens the panel on the first tab that holds items, once the list has
@@ -129,6 +142,8 @@ func installSavedMessages(cfg journeyclient.Config) func() {
 			if target := args[0].Get("target"); target.Truthy() && target.Get("id").String() == "chatsave-search" {
 				b.query = target.Get("value").String()
 				b.render()
+			} else if target.Truthy() {
+				b.briefInput(target)
 			}
 		}
 		return nil
@@ -300,6 +315,10 @@ func (b *chatsaveBrowser) sync() {
 			}
 			b.marks()
 			b.render()
+			if done := b.afterSync; done != nil && !b.refreshPending {
+				b.afterSync = nil
+				done(err)
+			}
 			if !b.nextCommand() && b.refreshPending {
 				b.sync()
 			}
@@ -312,6 +331,10 @@ func (b *chatsaveBrowser) view() chatui.SavedMessagesView {
 	cfg.Locale = b.locale()
 	b.settleTab()
 	page := chat.SavedPage{Items: []chat.SavedItem{}}
+	if b.loaded && b.label != "" && !chatsaveLabelInUse(b.page, b.label) {
+		// The chosen label is gone (renamed or removed here or on another device).
+		b.label, b.labelManage = "", ""
+	}
 	query := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(b.query), "in: saved")))
 	for _, item := range b.page.Items {
 		if !chatsaveInTab(item, b.tab) {
@@ -321,11 +344,16 @@ func (b *chatsaveBrowser) view() chatui.SavedMessagesView {
 		if item.Availability == "readable" && item.Post != nil {
 			text += "\n" + item.Post.Body
 		}
+		if !chatsaveInLabelView(item, b.label, b.unlabelled) {
+			continue
+		}
+		text += "\n" + strings.Join(item.Labels, "\n")
 		if query != "" && !strings.Contains(strings.ToLower(text), query) {
 			continue
 		}
 		page.Items = append(page.Items, item)
 	}
+	labels := chatsaveLabelsView(b.page, b.label, b.unlabelled, b.editingLabels, b.labelManage)
 	snapshot := chatBrowser.snapshot()
 	rows := chatsaveRows(page, cfg, snapshot)
 	listError, actionError := chatsaveActionFailure(b.errorCode, b.commandFailed)
@@ -335,8 +363,10 @@ func (b *chatsaveBrowser) view() chatui.SavedMessagesView {
 		undo = b.undo.kind
 	}
 	// Times are the viewer's: Go's local zone in the browser is the page's own.
-	return chatui.SavedMessagesView{Locale: cfg.Locale, Tab: b.tab, Query: b.query, Rows: rows, Error: listError, ActionError: actionError, Action: b.failedAction, DocPreviews: snapshot.DocPreviews, EmbedOrigin: snapshot.EmbedOrigin, Loading: b.busy && !b.loaded,
-		Model: snapshot, Now: time.Now(), TodoCount: todo, DoneCount: done, AllCount: all, Expanded: b.expanded, Active: b.active, EditingNote: b.editingNote, ReminderMenu: b.reminderMenu, PickingDate: b.pickingDate, Undo: undo}
+	view := chatui.SavedMessagesView{Locale: cfg.Locale, Tab: b.tab, Query: b.query, Rows: rows, Error: listError, ActionError: actionError, Action: b.failedAction, DocPreviews: snapshot.DocPreviews, EmbedOrigin: snapshot.EmbedOrigin, Loading: b.busy && !b.loaded,
+		Model: snapshot, Now: time.Now(), TodoCount: todo, DoneCount: done, AllCount: all, Expanded: b.expanded, Active: b.active, EditingNote: b.editingNote, ReminderMenu: b.reminderMenu, PickingDate: b.pickingDate, Undo: undo, Labels: labels}
+	b.briefDecorate(&view, snapshot, cfg)
+	return view
 }
 
 func (b *chatsaveBrowser) render() {
@@ -390,11 +420,13 @@ func (b *chatsaveBrowser) render() {
 		id := field.Get("id").String()
 		if value, ok := values[id]; ok {
 			field.Set("value", value)
+			chatsaveKeepRestored(field, value)
 			if at, ok := starts[id]; ok && field.Get("setSelectionRange").Type() == js.TypeFunction && field.Get("type").String() != "datetime-local" {
 				field.Call("setSelectionRange", at[0], at[1])
 			}
 		} else if draft, ok := b.noteDrafts.recall(id); ok {
 			field.Set("value", draft)
+			chatsaveKeepRestored(field, draft)
 		} else if value := field.Call("getAttribute", "data-chat-value"); value.Type() == js.TypeString {
 			field.Set("value", value.String())
 		}
@@ -411,6 +443,18 @@ func (b *chatsaveBrowser) render() {
 	b.applyFocus(mount)
 }
 
+// chatsaveKeepRestored tells the page's field observer that text put back into
+// a redrawn field is the person's own, so its sweep does not write the saved
+// value over it a tick later (issue 3910).
+func chatsaveKeepRestored(field js.Value, restored string) {
+	attr := field.Call("getAttribute", "data-chat-value")
+	if attr.Type() != js.TypeString || !chatsaveRestoreNeedsKeep(restored, attr.String()) {
+		return
+	}
+	field.Set("__chatTyped", true)
+	field.Set("__chatApplied", attr.String())
+}
+
 // applyFocus puts focus where the last action asked for it, once.
 func (b *chatsaveBrowser) applyFocus(mount js.Value) {
 	id := b.focusID
@@ -421,7 +465,7 @@ func (b *chatsaveBrowser) applyFocus(mount js.Value) {
 	// After a click, focus goes only where the person is about to type or choose
 	// (the note field, the date field, the reminder menu); it is never parked on
 	// an item or a button the pointer is not over.
-	if b.pointer && !strings.HasPrefix(id, "chatsave-note-field-") && !strings.HasPrefix(id, "chatsave-due-") && !strings.HasPrefix(id, "chatsave-preset-") {
+	if b.pointer && !strings.HasPrefix(id, "chatsave-labels-field-") && !strings.HasPrefix(id, "chatsave-label-rename-field") && !strings.HasPrefix(id, "chatsave-note-field-") && !strings.HasPrefix(id, "chatsave-due-") && !strings.HasPrefix(id, "chatsave-preset-") && !strings.HasPrefix(id, "chatsave-brief-") {
 		return
 	}
 	focus := js.Global().Get("document").Call("getElementById", id)
@@ -552,6 +596,16 @@ func (b *chatsaveBrowser) click(event js.Value) {
 	conversationID := button.Call("getAttribute", "data-saved-conversation").String()
 	postID := button.Call("getAttribute", "data-saved-post").String()
 	key := chatui.SavedItemKey(host, conversationID, postID)
+	if strings.HasPrefix(action, "label-") {
+		if b.labelClick(action, button, host, conversationID, postID) {
+			return
+		}
+	}
+	if strings.HasPrefix(action, "select-") || strings.HasPrefix(action, "brief-") {
+		if b.briefClick(action, host, conversationID, postID) {
+			return
+		}
+	}
 	switch action {
 	case "toggle":
 		panel := b.panel()
@@ -672,7 +726,7 @@ func (b *chatsaveBrowser) click(event js.Value) {
 // that follows every command replaces it with what the service holds.
 func (b *chatsaveBrowser) applyLocal(host string, command chatsaveCommand) {
 	switch command.Action {
-	case "save", "remove", "done", "reopen", "due", "note":
+	case "save", "remove", "done", "reopen", "due", "note", "labels", "rename_label", "remove_label":
 	default:
 		return
 	}
@@ -703,9 +757,17 @@ func (b *chatsaveBrowser) submit(event js.Value) {
 	}
 	event.Call("preventDefault")
 	event.Call("stopPropagation")
+	if form.Call("getAttribute", "data-saved-form").String() == "brief" {
+		b.briefSubmit()
+		return
+	}
 	host := form.Call("getAttribute", "data-saved-host").String()
 	conversationID := form.Call("getAttribute", "data-saved-conversation").String()
 	postID := form.Call("getAttribute", "data-saved-post").String()
+	if kind := form.Call("getAttribute", "data-saved-form").String(); kind == "labels" || kind == "label-rename" {
+		b.labelSubmit(kind, form, host, conversationID, postID)
+		return
+	}
 	value := form.Call("querySelector", "input").Get("value").String()
 	if form.Call("getAttribute", "data-saved-form").String() == "note" {
 		command := chatsaveCommand{Action: "note", ConversationID: conversationID, PostID: postID, Note: &value}
@@ -786,6 +848,8 @@ func (b *chatsaveBrowser) close() { b.hide(true) }
 // it; a page that opens in its place (Moderation, search results) keeps focus.
 func (b *chatsaveBrowser) hide(refocus bool) {
 	b.reminderMenu, b.editingNote, b.pickingDate, b.active = "", "", false, ""
+	b.editingLabels, b.labelManage = "", ""
+	b.briefReset()
 	b.noteDrafts.reset()
 	doc := js.Global().Get("document")
 	if panel := doc.Call("getElementById", "chatsave-list"); panel.Truthy() {

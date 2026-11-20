@@ -51,11 +51,11 @@ func rememberPersonTriggerFrom(target js.Value) {
 // opening control when it is still on the page, else the same person's control
 // in the same area (the panel is drawn again after Back), else the details
 // panel's own close button.
-func restorePersonTriggerFocus() {
+func restorePersonTriggerFocus() bool {
 	opts := js.ValueOf(map[string]any{"preventScroll": true})
 	if personTrigger.Truthy() && personTrigger.Get("isConnected").Bool() {
 		personTrigger.Call("focus", opts)
-		return
+		return true
 	}
 	doc := js.Global().Get("document")
 	if personTriggerID != "" && !strings.ContainsAny(personTriggerID, "\"\\") {
@@ -65,12 +65,14 @@ func restorePersonTriggerFocus() {
 		}
 		if el := doc.Call("querySelector", scope+" [data-action='open-person'][data-id=\""+personTriggerID+"\"]"); el.Truthy() {
 			el.Call("focus", opts)
-			return
+			return true
 		}
 	}
 	if el := doc.Call("querySelector", ".chat-details [data-action='close-details']"); el.Truthy() {
 		el.Call("focus", opts)
+		return true
 	}
+	return false
 }
 
 func syncPersonFocus(open bool) {
@@ -112,8 +114,14 @@ func syncPersonFocusFor(open bool, personID string) {
 			}
 		} else if personFocusComposer {
 			personFocusComposer = false
-		} else {
-			restorePersonTriggerFocus()
+		} else if !restorePersonTriggerFocus() {
+			// Back redraws the details panel a frame or more after the person
+			// pane goes; keep looking for a place to return to (issue 3874).
+			attempts++
+			if attempts < 60 {
+				js.Global().Call("requestAnimationFrame", frame)
+				return nil
+			}
 		}
 		frame.Release()
 		return nil

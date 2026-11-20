@@ -31,23 +31,30 @@ func chatcmd003RadioTarget(e ui.KeyboardEvent) (group, current string, options [
 }
 
 // chatcmd003RadioFocus moves focus to the option the arrow key chose. The group
-// is drawn again with the new choice first, so the focus waits for that frame.
+// is drawn again with the new choice first, and that can land several frames
+// after the key, so the focus is put back each frame the page has lost it or
+// still holds another option of the group, until it has stayed on the chosen
+// option for a few frames. Focus the person moved elsewhere is left alone.
 func chatcmd003RadioFocus(id string) {
 	doc := js.Global().Get("document")
-	frames := 0
+	frames, steady := 0, 0
 	var step js.Func
 	step = js.FuncOf(func(js.Value, []js.Value) any {
 		frames++
-		if el := doc.Call("getElementById", id); el.Truthy() && (frames >= 2 || !doc.Get("activeElement").Equal(el)) {
-			if !doc.Get("activeElement").Equal(el) {
-				el.Call("focus")
-			}
-			if frames >= 3 {
-				step.Release()
-				return nil
-			}
+		el := doc.Call("getElementById", id)
+		active := doc.Get("activeElement")
+		switch {
+		case el.Truthy() && active.Equal(el):
+			steady++
+		case el.Truthy() && (!active.Truthy() || active.Equal(doc.Get("body")) || chatcmd003InRadioGroup(active)):
+			steady = 0
+			el.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+		case el.Truthy():
+			// Focus went somewhere else on purpose.
+			step.Release()
+			return nil
 		}
-		if frames >= 12 {
+		if steady >= 4 || frames >= 60 {
 			step.Release()
 			return nil
 		}
@@ -55,4 +62,13 @@ func chatcmd003RadioFocus(id string) {
 		return nil
 	})
 	js.Global().Call("requestAnimationFrame", step)
+}
+
+// chatcmd003InRadioGroup reports whether el sits inside one of the preview
+// radio groups.
+func chatcmd003InRadioGroup(el js.Value) bool {
+	if el.Get("closest").Type() != js.TypeFunction {
+		return false
+	}
+	return el.Call("closest", `.chatcmd003-preview [role="radiogroup"]`).Truthy()
 }

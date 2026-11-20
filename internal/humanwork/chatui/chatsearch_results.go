@@ -41,7 +41,7 @@ func ChatSearchMount(m Model) ui.Node {
 	}
 	view := *m.ChatSearch
 	view.Context = &m
-	return html.Div(html.Props{ID: "chatsearch-results", Data: map[string]string{"locale": m.Locale, "active": "true"}}, RenderChatSearch(m.Locale, view))
+	return html.Div(html.Props{ID: "chatsearch-results", Data: map[string]string{"locale": m.Locale, "active": "true"}}, issue3929SaveControl(m), RenderChatSearch(m.Locale, view))
 }
 
 // searching reports that the results, not a conversation, are on screen: there
@@ -138,7 +138,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	// unmirrored control kept the DOM value of an earlier search, so a stale box
 	// was re-applied and the form hid the active filters.
 	active := parsed.Filters
-	controlValues := map[string]string{"channel": active.Conversation, "person": chatsearchPersonName(v, active.Person), "before": active.Before, "after": active.After, "on": active.On}
+	controlValues := map[string]string{"channel": issue3937InFieldValue(v, active.Conversation), "person": chatsearchPersonName(v, active.Person), "before": active.Before, "after": active.After, "on": active.On}
 	controlChecked := map[string]bool{"file": active.File, "link": active.Link, "reactions": active.Reactions, "threads": active.Threads, "mentions": active.MentionsMe, "agent": active.Agent, "mine": active.Mine, "voice": active.Voice}
 	controls := []ui.Node{}
 	for _, field := range []string{"channel", "person", "before", "after", "on"} {
@@ -163,8 +163,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 	for _, kind := range chatsearchKindChoices(v.Response) {
 		options = append(options, html.Option(html.Props{Value: string(kind), Selected: kind == active.Kind, Text: chatsearchKind(locale, kind)}))
 	}
-	controls = append(controls, html.Label(html.Props{For: "chatsearch-kind"}, html.Span(html.Props{Text: t("kind")}), html.Select(html.Props{ID: "chatsearch-kind", Name: "kind"}, options...)))
+	controls = append(controls, html.Label(html.Props{For: "chatsearch-kind"}, html.Span(html.Props{Text: t("kind")}), html.Select(html.Props{ID: "chatsearch-kind", Name: "kind", Data: map[string]string{"chat-select-value": string(active.Kind)}}, options...)))
 	controls = append(controls, chatsearchWrittenControl(locale, active.Language))
+	controls = append(controls, issue3945OrderControl(locale, issue3945Oldest(active)))
 	for _, field := range []string{"file", "link", "reactions", "threads", "mentions", "agent", "mine", "voice"} {
 		controls = append(controls, html.Label(html.Props{Class: "chatsearch-check", For: "chatsearch-" + field}, html.Input(html.Props{ID: "chatsearch-" + field, Name: field, Type: "checkbox", Checked: controlChecked[field]}), ui.Text(t(field))))
 	}
@@ -176,7 +177,7 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		label := t("remove") + ": "
 		switch key {
 		case "in":
-			label += t("channel") + " " + value
+			label += issue3937InChipLabel(v, locale, t("channel"), value)
 		case "from":
 			if value == "agent" {
 				label += t("agent")
@@ -185,6 +186,8 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			}
 		case "kind":
 			label += chatsearchKind(locale, chatsearch.Kind(value))
+		case "sort":
+			label += t("order") + " " + issue3945ChipLabel(locale, strings.ToLower(value))
 		case "lang", "language":
 			label += chattoneW10Text(locale, "search_written") + " " + chatlangLanguageName(locale, value)
 		case "has":
@@ -205,6 +208,9 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 		children = append(children, scope)
 	}
 	children = append(children, html.Div(html.Props{Class: "chatsearch-chips"}, chips...))
+	if strings.TrimSpace(v.Query) != "" && !chatsearchInputError(v.Error) {
+		children = append(children, issue3945OrderSwitch(locale, issue3945Oldest(active)))
+	}
 	if v.Loading {
 		children = append(children, ChatLoadingFrame(LoadingFrame{Locale: locale, Shape: LoadingShapeList, Status: t("loading"), RetryData: map[string]string{"chatsearch-action": "retry", "extra": ""}}))
 	} else if v.Error != "" {
@@ -227,9 +233,12 @@ func RenderChatSearch(locale string, v ChatSearchView) ui.Node {
 			if wider == "" {
 				wider = "*"
 			}
+			if issue3945Oldest(active) {
+				wider += " sort:oldest"
+			}
 			// #3897: widening removes filters, so it is offered only while one
 			// is applied; an unfiltered search says what to try instead.
-			restricted := len(parsed.Chips) > 0
+			restricted := issue3945Restricted(parsed.Chips)
 			emptyKey := "empty"
 			if !restricted {
 				emptyKey = "emptyplain"
@@ -314,12 +323,19 @@ func ResolveChatSearchQuery(m Model, query string) (string, error) {
 		if key == "in" {
 			value = strings.TrimPrefix(value, "#")
 			resolved, used := resolveSearchFilterName(tokens[i+1:], value, func(name string) string {
+				// ISSUE-3937: two rooms can carry one name; the open one is meant.
+				first := ""
 				for _, c := range m.Conversations {
 					if strings.EqualFold(displayName(m, c), name) || strings.EqualFold(c.Name, name) {
-						return c.ID
+						if c.ID == m.SelectedID {
+							return c.ID
+						}
+						if first == "" {
+							first = c.ID
+						}
 					}
 				}
-				return ""
+				return first
 			})
 			value, i = resolved, i+used
 		}

@@ -63,6 +63,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 		chatperfCatchUp()
 		pageLeft := chatperfPageMounted()
 		installChatSoundUnlock()
+		installChatAttention()
 		// The sound poll reads every conversation in the list. It is not needed
 		// to draw the page, so it waits for the first timeline.
 		stopChatSoundPolling := chatperfStartAfterFirstPaint(startChatSoundPolling)
@@ -78,6 +79,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 		// CHATBUG-068: an address typed into this tab is read by a listener
 		// that outlives the page's own mounts (chatbug068_address_wasm.go).
 		installChatAddressWatch()
+		installChatShellLinkWatch()
 		unknownClick := js.FuncOf(func(_ js.Value, args []js.Value) any {
 			if len(args) == 0 {
 				return nil
@@ -147,6 +149,28 @@ func renderChatPage(props chatPageProps) ui.Node {
 	// CHATCMD-002: polls and to-do lists posted as messages, and what the server
 	// said this reader may see and do on each.
 	model = chatcmd002Project(model, active)
+	// Issue 3790: Create task on a message, and the work a message became.
+	model = chatworkProject(model, active)
+	// Issue 3794: hand off one linked work item to another person.
+	model = handoffProject(model)
+	// Issue 3792: /decide and the Decisions list.
+	model = decisionsProject(model, active)
+	// Issue 3723: Start a promotion from a message or /promote.
+	model = workflowHandoffProject(model, props.View)
+	// Issue 3804: what the agents of this channel remember.
+	model = memoryProject(model, active)
+	// Issue 3791: Work from this conversation, in Conversation details.
+	model = linkedworkProject(model, active)
+	// Issue 3795: form cards an agent posted for this reader to fill in.
+	model = formcardProject(model, active)
+	// Issue 3793: /leave and the typed requests it opens.
+	model = requestProject(model, active)
+	// Issue 3815: posts that ask the channel to acknowledge them.
+	model = ackProject(model, active)
+	// Issue 3812: the governed case this conversation is bound to.
+	model = caseProject(model, active)
+	// Issue 3960: Review pinned guidance, in Conversation details.
+	model = pinReviewProject(model)
 	// Live finding: the server-rendered #chat-search and #chat-composer keep
 	// taking keystrokes for the few seconds this client takes to mount, and
 	// the client's first render otherwise starts both from an empty model --
@@ -169,7 +193,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 	chatHistory.seed(model)
 	// CHATBUG-052: the tab names the conversation that is open (or the page that
 	// covers it), and follows it when it changes.
-	ui.UseEffectOf(func() func() { syncChatTabTitle(); return nil }, struct{ Title string }{chatui.ChatTabTitle(model, "", "")})
+	ui.UseEffectOf(func() func() { syncChatTabTitle(); return nil }, struct{ Title, Badge string }{chatui.ChatTabTitle(model, "", ""), chatTabBadge(model)})
 	ui.UseEffectOf(func() func() {
 		if model.State == chatui.StateReady {
 			recordSelectedChatVisit(model.CurrentTenantID, model.CurrentUser, model.SelectedID)
@@ -183,6 +207,7 @@ func renderChatPage(props chatPageProps) ui.Node {
 	ui.UseEffectOf(func() func() { resolveVisibleChatDocs(chatBrowser.config(journeyclient.Config{})); return nil }, chatDocPreviewFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatProjectTasks(chatBrowser.config(journeyclient.Config{})); return nil }, chatProjectTaskPreviewFingerprint(model))
 	ui.UseEffectOf(func() func() { resolveVisibleChatJourneys(chatBrowser.config(journeyclient.Config{})); return nil }, chatJourneyFingerprint(model))
+	ui.UseEffectOf(func() func() { return stopChatJourneyWatches }, struct{}{})
 	ui.UseEffectOf(func() func() { integrate2SyncProjection(); return nil }, integrate2ProjectionKey(model))
 	ui.UseEffectOf(func() func() { chatcmd002Sync(); return nil }, chatcmd002Fingerprint(model))
 	// CHATBUG-014: the reads the first paint does not need start once a settled

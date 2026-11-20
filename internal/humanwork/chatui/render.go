@@ -32,6 +32,7 @@ type handlers struct {
 	previewKey, threadPreviewKey                             ui.Handler
 	browseFilter                                             ui.Handler
 	shareFilter                                              ui.Handler
+	shareNote                                                ui.Handler
 	memberFilter                                             ui.Handler
 	sectionSubmit                                            ui.Handler
 	sideNameSubmit, sideNameKey                              ui.Handler
@@ -41,10 +42,12 @@ type handlers struct {
 	todoNewMode, todoNewMember                               ui.Handler
 	teamPurposeSubmit, projectDetailsSubmit, milestoneSubmit ui.Handler
 	roleChange, detailsInput                                 ui.Handler
+	journeyDecisionInput                                     ui.Handler
 	pollCreate, pollInput                                    ui.Handler
 	pickInput, pickKey, kindArrow                            ui.Handler
 	threadAlso                                               ui.Handler
 	createName, purposeKey                                   ui.Handler
+	quietSched                                               ui.Handler // ISSUE-3920: the weekly quiet-hours editor's submit
 	// mentionView is the "@" suggestion list as of this render.
 	mentionView                       mentionState
 	mentionReplyHint, threadReplyHint string
@@ -271,6 +274,20 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			m.Callbacks.DraftChanged(m.SelectedID, "")
 		}
 	}
+	// Issue 3788: a message kept for later leaves the box the way a sent one does.
+	clearComposerAfterSchedule := func(conversation string) {
+		local.update(func(u *localUI) {
+			u.emojiCompletion = emojiCompletion{Active: -1}
+			u.commandMenu = composerCommandMenu{}
+			u.composerPreview = false
+		})
+		mention.RemovePersonas("chat-composer", conversation)
+		setDOMValue("chat-composer", "")
+		drafts.set(conversation, "")
+		if m.Callbacks.DraftChanged != nil {
+			m.Callbacks.DraftChanged(conversation, "")
+		}
+	}
 	savePrefs := func(mutate func(*Preferences)) {
 		next := m.Preferences
 		if next.Drafts != nil {
@@ -308,7 +325,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		doc := local.get().docSuggest
 		channel := local.get().channelSuggest
 		action := composerKeyAction(composerKeyState{
-			Draft: value, Shift: shiftHeld(e), Composing: composerIsComposing(e),
+			Draft: value, Shift: shiftHeld(e), Composing: composerIsComposing(e), EnterNewline: composerEnterNewline(m), Command: commandHeld(e),
 			MentionOpen: state.Open, MentionHighlighted: state.Active >= 0 && state.Active < len(options), MentionLoading: mentionPeopleLoading(m) && !m.MembersFailed,
 			MentionAgentHighlighted: mentionOptionIsAgent(options, state.Active),
 			EmojiOpen:               emoji.Open && emoji.Target == target, EmojiHighlighted: emoji.Active >= 0 && emoji.Active < len(emojiCompletionItems(emoji.Query)),
@@ -357,7 +374,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 		if composerIsComposing(e) || shiftHeld(e) {
 			return
 		}
-		if emojiCompletionKey(local, e.GetKey(), target) || docSuggestKey(local, e.GetKey(), target) || channelSuggestKey(m, local, e.GetKey(), target) {
+		if emojiCompletionKey(local, e.GetKey(), target) || docSuggestRetryKey(m, local, e.GetKey(), target) || docSuggestKey(local, e.GetKey(), target) || channelSuggestKey(m, local, e.GetKey(), target) {
 			e.PreventDefault()
 			e.StopPropagation()
 			return
@@ -398,16 +415,22 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				return
 			}
-			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || chatside001Click(e, m, local) || chatux008Click(e, m) {
+			if composerToolsClick(e, m, local) || chatux005Click(e, local) || chatbug082Click(e, m, local) || chatux021Click(e, m, local) || agentux070Click(e, local) || issue3756Click(e, m, local) || issue3969Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || agentux070ChannelPrivacyClick(e, m) || chatux020Click(e, m, local) || issue3915Click(e, m, local, drafts, func() { mention.RemovePersonas("chat-composer", m.SelectedID) }) || chatside001Click(e, m, local) || chatux008Click(e, m) || issue3930Click(e, m, local) || issue3942Click(e, m) || issue3973Click(e, m, local, drafts) || issue3917Click(e, m, local) || issue3964Click(e, m, local, drafts) || issue3977Click(e, m, local, drafts) || issue3986Click(e, m, local) || issue3990Click(e, m, local) || issue3963Click(e, m, local) || issue3920Click(e, m) {
 				return
 			}
 			if action, _, _ := eventAction(e); chatux001Click(m, action) || issue3892Click(e, action) {
 				return
 			}
-			if action, _, _ := eventAction(e); action == "chat-search-open" {
+			if action, _, extra := eventAction(e); action == "chat-search-open" {
 				// The header icon does not open a second box: it moves the caret
-				// into the sidebar's own search box.
-				focusChatSearchBox(m)
+				// into the sidebar's own search box. The header's icon (it names
+				// its conversation) scopes the box to that conversation first
+				// (#3937); the sidebar's own entry stays global.
+				if strings.HasPrefix(extra, "in:") {
+					focusChatSearchScoped(m)
+				} else {
+					focusChatSearchBox(m)
+				}
 				return
 			} else if action == "chat-search-close" {
 				chatux015CloseSearch(m)
@@ -443,6 +466,19 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				}
 				return
 			}
+			if action, id, _ := eventAction(e); action == issue3938ViewAction || action == issue3938CloseAction {
+				e.PreventDefault()
+				if action == issue3938ViewAction {
+					rememberChatDialogTrigger(e, action)
+				}
+				issue3938Action(local, action, id)
+				if action == issue3938ViewAction {
+					focusChatDialog()
+				} else {
+					restoreChatDialogFocus()
+				}
+				return
+			}
 			if action, id, _ := eventAction(e); action == "agent-profile-open" || action == "agent-profile-close" {
 				e.PreventDefault()
 				if action == "agent-profile-close" {
@@ -468,7 +504,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				requestAgentDocumentAccess(m)
 				return
 			}
-			if chatbug092HandleAction(e, local) || chatux026HandleAction(e, m, local) || chatux003HandleAction(e, m, local.get(), mention) {
+			if issue3936Click(e, m, local) || issue3737Click(e, m) || issue3916Click(e, m, local) || issue3787Click(e, m, local) || issue3788Click(e, m, local, clearComposerAfterSchedule) || chatbug092HandleAction(e, local) || chatux026HandleAction(e, m, local) || chatux003HandleAction(e, m, local.get(), mention) {
 				return
 			}
 			switch action, id, _ := eventAction(e); action {
@@ -539,6 +575,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				closeDrawer()
 				local.resetCreate()
 			}
+			if action, _, _ := eventAction(e); action == "doc-suggest-retry" {
+				e.PreventDefault()
+				docSuggestRetry(m, local)
+				return
+			}
 			if action, _, extra := eventAction(e); action == "doc-suggest-pick" {
 				if index, err := strconv.Atoi(extra); err == nil {
 					docSuggestPick(local, index-1)
@@ -549,6 +590,24 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.PreventDefault()
 				if m.Callbacks.RetryPersonaMentions != nil {
 					m.Callbacks.RetryPersonaMentions()
+				}
+				return
+			}
+			if action, _, _ := eventAction(e); action == "work-preview-retry" {
+				e.PreventDefault()
+				if m.Callbacks.RetryWorkPreviews != nil {
+					m.Callbacks.RetryWorkPreviews()
+				}
+				return
+			}
+			if action, id, _ := eventAction(e); journeyDecisionAct(m, action, id) {
+				e.PreventDefault()
+				return
+			}
+			if action, id, _ := eventAction(e); action == "retry-journey" {
+				e.PreventDefault()
+				if m.Callbacks.RetryJourney != nil && id != "" {
+					m.Callbacks.RetryJourney(id)
 				}
 				return
 			}
@@ -789,6 +848,38 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				e.StopPropagation()
 				return
 			}
+			if issue3930Key(e, m, local) {
+				e.PreventDefault()
+				e.StopPropagation()
+				return
+			}
+			if issue3973Key(e, m) || issue3788Key(e, local) {
+				e.PreventDefault()
+				e.StopPropagation()
+				return
+			}
+			if issue3929Key(e, m) {
+				e.PreventDefault()
+				e.StopPropagation()
+				return
+			}
+			if issue3917Key(e, m) {
+				e.PreventDefault()
+				e.StopPropagation()
+				return
+			}
+			if local.get().reactionsFor != "" {
+				if e.GetKey() == "Escape" {
+					e.PreventDefault()
+					issue3938Action(local, issue3938CloseAction, "")
+					restoreChatDialogFocus()
+					return
+				}
+				if trapChatDialogFocus(e) {
+					e.PreventDefault()
+					return
+				}
+			}
 			if local.get().agentProfileID != "" {
 				if e.GetKey() == "Escape" {
 					e.PreventDefault()
@@ -844,7 +935,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				}
 			}
 			// CHATBUG-073: Enter in the edit box saves; Shift+Enter is a line break.
-			if chatbug073EditKey(e, m.EditingID) {
+			if chatbug073EditKey(e, m.EditingID, composerEnterNewline(m)) {
 				return
 			}
 			if pane := eventPane(e); pane != "" {
@@ -861,7 +952,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			// Escape closes the one topmost thing; chatEscapeStep owns the order.
 			localNow := local.get()
 			switch chatEscapeStep(chatEscapeState{
-				TopLayer: chatTopLayerKind(), Tray: localNow.tray, SectionCreate: sectionCreateOpen(), Search: localNow.searchOpen,
+				TopLayer: chatTopLayerKind(), ShellPopover: chatShellPopoverOpen(), Tray: localNow.tray, SectionCreate: sectionCreateOpen(), Search: localNow.searchOpen,
 				Share: m.SharePostID != "", RailMenu: m.RailMenuID != "", Picker: m.PickerID != "", Menu: m.MenuID != "",
 				Create: m.ShowCreate, Browse: m.ShowBrowse, AddMembers: m.ShowAddMembers, Person: m.ShowPerson && !m.searching(), Thread: m.ShowThread && !m.searching(), Details: m.ShowDetails && !m.searching(),
 				SearchText: m.Search != "" && m.Callbacks.Search != nil, Editing: m.EditingID != "", Sidebar: m.SidebarOpen,
@@ -929,6 +1020,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 			if m.Callbacks.DraftChanged != nil {
 				m.Callbacks.DraftChanged(m.SelectedID, e.GetValue())
 			}
+			issue3963Typed(m, local, e.GetValue())
 			mentionTrack("chat-composer")
 			docSuggestTrack(m, local, "chat-composer")
 			emojiCompletionTyped(e, local, "chat-composer")
@@ -1118,6 +1210,11 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				m.Callbacks.FilterShare(e.GetValue())
 			}
 		}),
+		shareNote: ui.UseEvent(func(e ui.InputEvent) {
+			if m.Callbacks.ChangeShareNote != nil {
+				m.Callbacks.ChangeShareNote(e.GetValue())
+			}
+		}),
 		memberFilter: ui.UseEvent(func(e ui.InputEvent) {
 			if m.Callbacks.FilterMembers != nil {
 				m.Callbacks.FilterMembers(e.GetValue())
@@ -1132,7 +1229,7 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 					chatux002CloseSidebarPanels()
 				} else if len(m.Sections) < 30 {
 					// Issue 3714: the refusal is under the field; the caret goes back to it.
-					focusField("chat-new-section")
+					focusRefusedSectionField()
 				}
 			}
 		}),
@@ -1256,8 +1353,13 @@ func bindHandlers(m Model, giphy *giphyPickerViews, mention mentionStore, local 
 				m.Callbacks.SetChannelProjectDetails(strings.TrimSpace(domValue("channel-project-title")), strings.TrimSpace(domValue("channel-project-summary")))
 			}
 		}),
-		roleChange:   ui.UseEvent(func(e ui.ChangeEvent) { chatux027RoleChange(e, m) }),
-		detailsInput: ui.UseEvent(func(e ui.InputEvent) { chatux041Input(e, m, local) }),
+		roleChange:           ui.UseEvent(func(e ui.ChangeEvent) { chatux027RoleChange(e, m) }),
+		detailsInput:         ui.UseEvent(func(e ui.InputEvent) { chatux041Input(e, m, local) }),
+		journeyDecisionInput: ui.UseEvent(func(e ui.InputEvent) { journeyDecisionDraftInput(m, e, e.GetValue()) }),
+		quietSched: ui.UseEvent(func(e ui.FormEvent) {
+			e.PreventDefault()
+			issue3920Submit(m)
+		}),
 		milestoneSubmit: ui.UseEvent(func(e ui.FormEvent) {
 			e.PreventDefault()
 			if m.Callbacks.AddChannelProjectMilestone != nil && !m.ChannelWidgetsPending {
@@ -1441,6 +1543,7 @@ func (m Model) actWith(action, id, extra string) {
 	// Issue 3883: Close details puts focus back on the control that opened it.
 	if kind := issue3883CloseLayerKind(action); kind != "" {
 		restoreChatLayerFocus(kind)
+		watchChatLayerOpenerFocus(kind)
 	}
 	if action != "rail-menu" && m.RailMenuID != "" && cb.OpenRailMenu != nil {
 		clearRailMenuDismiss()
@@ -1484,6 +1587,8 @@ func (m Model) act(action, id string) {
 		}
 	case "search-clear-recent":
 		issue3928DispatchClear(cb)
+	case "search-saved", "search-saved-edit", "search-saved-cancel", "search-saved-update", "search-saved-delete":
+		issue3929Act(m, action, id)
 	case "rail-copy-reference":
 		if cb.CopyConversationReference != nil {
 			for _, conversation := range m.Conversations {
@@ -1720,6 +1825,20 @@ func (m Model) act(action, id string) {
 		}
 	case "mark-unread":
 		chatux022MarkUnread(m, id)
+	case "workflow-start":
+		m.workflowHandoffOpen(id)
+	case "work-open":
+		m.chatworkOpen(id)
+	case "ack-require":
+		m.ackRequire(id)
+	case "case-unbind":
+		m.caseUnbind()
+	case "handoff-open", "handoff-accept", "handoff-decline", "handoff-withdraw":
+		m.workHandoffAction(action, id)
+	case "decision-mark":
+		m.decisionsMark(id)
+	case "memory-remember", "memory-approve", "memory-forget", "memory-goto", "memory-retry":
+		m.memoryAction(action, id)
 	case "open-share":
 		if cb.OpenShare != nil {
 			cb.OpenShare(id)
@@ -1778,6 +1897,8 @@ func (m Model) act(action, id string) {
 				}
 			}
 		}
+	case "pinreview-open", "pinreview-close", "pinreview-toggle", "pinreview-keep", "pinreview-inspect":
+		m.pinReviewAction(action, id)
 	case "pin-copy":
 		if cb.CopyPinReference != nil && !m.PinReferenceUnavailable {
 			cb.CopyPinReference(id)
@@ -1879,6 +2000,7 @@ func Workspace(model Model) ui.Node {
 	drafts := ui.UseRef(&browserDrafts{}).Get()
 	drafts.prepare(&model)
 	model.railDrafts = chatux020Drafts(model, drafts)
+	model.railDraftBodies = issue3915Bodies(model, drafts)
 	mention := mentionStore{box: ui.UseRef(&mentionBox{}).Get(), tick: ui.UseState(uint64(0))}
 	// A mention typed in one conversation never carries into another.
 	mention.ForConversation(model.SelectedID)
@@ -1903,6 +2025,8 @@ func Workspace(model Model) ui.Node {
 	}
 	model.deleteAsk = chatbug081Settle(local, model.MenuID)
 	model.cardEditing = local.get().cardEdit
+	model.issue3954Plan = local.get().plan
+	model.issue3947 = local.get().task
 	model.side = local.get().side
 	paneResizeOwner = owner
 	ui.UseEffectOf(func() func() {
@@ -1962,7 +2086,7 @@ func Workspace(model Model) ui.Node {
 		// the elements the layers were drawn on.
 		thread, details, person, dialog bool
 	}{local.get().seq, local.get().tray, model.PickerID, model.MenuID, model.ShowThread, model.ShowDetails, model.ShowPerson,
-		model.ShowCreate || model.ShowBrowse || model.ShowAddMembers || model.JoinPromptID != "" || model.SharePostID != "" || local.get().agentProfileID != ""})
+		model.ShowCreate || model.ShowBrowse || model.ShowAddMembers || model.JoinPromptID != "" || model.SharePostID != "" || local.get().agentProfileID != "" || local.get().reactionsFor != ""})
 	useChatEmoji(model, local)
 	ui.UseEffectOf(func() func() { revealThreadParent(model.ShowThread, model.ThreadParentID); return nil }, struct {
 		open bool
@@ -2060,7 +2184,10 @@ func Workspace(model Model) ui.Node {
 	if h.local.agentProfileID != "" {
 		children = append(children, agentProfileDialog(model, h.local.agentProfileID))
 	}
-	return html.Div(html.Props{Class: "chat-workspace", Dir: model.Direction, Lang: model.Locale, Data: withPaneData(data, model.Pane), OnClick: h.rootClick, OnKeyDown: h.rootKey}, children...)
+	if h.local.reactionsFor != "" {
+		children = append(children, issue3938Dialog(model, h.local.reactionsFor))
+	}
+	return html.Div(html.Props{Class: "chat-workspace", Dir: model.Direction, Lang: model.Locale, Data: withPaneData(data, model.Pane), OnClick: h.rootClick, OnInput: h.journeyDecisionInput, OnKeyDown: h.rootKey}, children...)
 }
 
 // withPaneData carries the viewer's pane sizes as data attributes: the
@@ -2127,7 +2254,7 @@ func rail(m Model, h handlers) ui.Node {
 			html.Span(html.Props{Class: "chatux002-item-text"},
 				html.Span(html.Props{Class: "chatux002-item-name", Dir: "auto", Text: m.t(KeyNewSection)}),
 				html.Span(html.Props{Class: "chatux002-item-note", Dir: "auto", Text: chatux002Text(m, keyChatux002SectionNote)}))),
-		html.Form(html.Props{Class: "section-create-form", Raw: map[string]any{"novalidate": true}, OnSubmit: h.sectionSubmit},
+		html.Form(html.Props{Class: "section-create-form", Raw: map[string]any{"noValidate": true}, OnSubmit: h.sectionSubmit},
 			html.Label(html.Props{For: "chat-new-section"}, ui.Text(m.t(KeySectionName))),
 			html.Input(html.Props{ID: "chat-new-section", Class: "chat-input", Type: "text", MaxLength: 80, Placeholder: m.t(KeySectionName), Required: true, AutoComplete: "off", Aria: issue3714SectionFieldAria(m)}),
 			chatside001CreateError(m),
@@ -2135,27 +2262,46 @@ func rail(m Model, h handlers) ui.Node {
 				html.Button(html.Props{Class: "button secondary small", Type: "button", Data: map[string]string{"action": "cancel-section-create"}, Text: m.t(KeyCancel)}),
 				html.Button(html.Props{Class: "button small", Type: "submit", Disabled: m.Callbacks.CreateSection == nil || len(sections) >= 30, Text: m.t(KeyCreate)}))))
 	list = append(list, chatside001NamePrompt(m))
-	for _, section := range sections {
+	if h.local.followedOpen {
+		list = append(list, html.WithKey(issue3916Panel(m), "followed-threads"))
+	}
+	if h.local.followUpsOpen {
+		list = append(list, html.WithKey(issue3787Panel(m), "follow-ups"))
+	}
+	if h.local.scheduledOpen && m.Callbacks.LoadScheduled != nil {
+		list = append(list, html.WithKey(issue3788Tray(m, h.local), "scheduled-posts"))
+	}
+	shown, filterRows := sections, 0
+	_, _, mutedOut := issue3936Tally(sections)
+	if h.local.unreadOnly {
+		shown, filterRows = issue3936View(m, h.local.unreadKept, sections)
+	}
+	for _, section := range shown {
 		var menu ui.Node
 		if section.ID == menuHost {
 			menu = chatux002ChannelsMenu(m, sectionCreate)
 		}
 		list = append(list, html.WithKey(railSection(m, section, menu), "section:"+section.ID))
 	}
-	if len(sections) == 0 {
+	if h.local.unreadOnly {
+		list = append(list, html.WithKey(issue3936Note(m, mutedOut, filterRows), "unread-note"))
+	} else if len(sections) == 0 {
 		list = append(list, html.WithKey(railEmpty(m), "empty"))
 	}
 	// Archived is the last section of the list, in the flow of the list's own
-	// scroll, so no band can sit over a row (CHATBUG-092).
-	list = append(list, chatbug092ArchivedSection(m, h))
+	// scroll, so no band can sit over a row (CHATBUG-092). The Unread filter
+	// leaves it out: archived conversations are not live unread activity.
+	if !h.local.unreadOnly {
+		list = append(list, chatbug092ArchivedSection(m, h))
+	}
 	// CHATUX-007 and #3674: Jump to unread sits outside the list's scroll area,
 	// in a strip above and below it that takes space only while the control is
 	// shown, so it never covers a row or a section heading.
-	return html.Nav(html.Props{Class: "chat-rail chat-sidebar", Role: "navigation", Aria: map[string]string{"label": m.t(KeyNav)}},
-		head, search,
+	return html.Nav(html.Props{Class: "chat-rail chat-sidebar", Role: "navigation", Aria: map[string]string{"label": m.t(KeyNav), "keyshortcuts": issue3744NavKeyShortcuts}},
+		head, search, issue3936Control(m, h, sections),
 		// Saved and Moderation stay fixed above the list instead of scrolling
 		// away with it (CHATUX-020).
-		html.Div(html.Props{Class: "rail-fixed"}, chatsaveSidebar(m), chatmod005Sidebar(m)),
+		html.Div(html.Props{Class: "rail-fixed"}, chatsaveSidebar(m), issue3915Sidebar(m, h), issue3916Control(m, h), issue3787Control(m, h), issue3788Control(m, h), chatmod005Sidebar(m)),
 		chatux007Jump(m, chatux007Up),
 		html.Div(html.Props{Class: "rail-scroll"}, list...),
 		chatux007Jump(m, chatux007Down),
@@ -2510,6 +2656,10 @@ func timeline(m Model, h handlers) ui.Node {
 			headerChildren = append(headerChildren, chip)
 		}
 	}
+	// Issue 3812: the conversation belongs to a governed case.
+	if badge := issue3812Badge(m); badge != nil && hasSelection && !m.searching() {
+		headerChildren = append(headerChildren, badge)
+	}
 	if hasSelection && !m.searching() {
 		actions := chatside001HeaderStar(m, c, chatux001HeaderActions(m, h, c, detailsBtn))
 		headerChildren = append(headerChildren, html.Div(html.Props{Class: "conversation-actions"}, actions...))
@@ -2543,8 +2693,21 @@ func timeline(m Model, h handlers) ui.Node {
 			// this bar, in flow above the messages, leads back to the results.
 			content = append(content, html.WithKey(searchReturnBar(m), "search-return"))
 		}
+		if bar := issue3930Bar(m, h); bar != nil {
+			content = append(content, html.WithKey(bar, "date-jump"))
+		}
+		if bar := issue3942Bar(m); bar != nil {
+			content = append(content, html.WithKey(bar, "reading-resume"))
+		}
+		if panel := issue3973Panel(m); panel != nil {
+			content = append(content, html.WithKey(panel, "handover"))
+		}
 		if bar := chatlangBar(m, h); bar != nil {
 			content = append(content, html.WithKey(bar, "chatlang-bar"))
+		}
+		// Issue 3793: the typed request (/leave) a person is filling in.
+		if panel := intentRequestPanel(m); panel != nil {
+			content = append(content, html.WithKey(panel, "intent-request"))
 		}
 		// CHATGATE-005: a member who must answer the channel's questions again.
 		if banner := chatgateBanner(m); banner != nil {
@@ -2784,7 +2947,7 @@ func timelineBody(m Model, h handlers) []ui.Node {
 			))}
 	}
 	ephemeral := VisibleEphemeralMessages(m.EphemeralMessages, time.Now())
-	if len(m.Messages) == 0 && len(ephemeral) == 0 {
+	if len(m.Messages) == 0 && len(ephemeral) == 0 && len(issue3737Open(m)) == 0 {
 		return []ui.Node{html.Div(html.Props{Class: "state-panel", Role: "status"}, html.H2(html.Props{Text: m.t(KeyNoMessages)}), html.P(html.Props{Text: m.t(KeyEmptyBody)}))}
 	}
 	items := make([]ui.Node, 0, len(m.Messages)+len(ephemeral)+4)
@@ -2844,6 +3007,7 @@ func timelineBody(m Model, h handlers) []ui.Node {
 			items = append(items, html.WithKey(RenderEphemeralMessage(m, privateMessage, time.Now()), "ephemeral:"+privateMessage.ID))
 		}
 	}
+	items = append(items, issue3737Rows(m)...)
 	if m.HasNewer {
 		items = append(items, html.WithKey(html.Button(html.Props{Class: "button secondary small load-newer", Type: "button", Disabled: m.Callbacks.LoadNewer == nil, Data: map[string]string{"action": "load-newer"}, Title: m.t(KeyLoadNewerHint), Text: m.t(KeyLoadNewer)}), "load-newer"))
 	}
@@ -2948,6 +3112,12 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 		plain.Moderation.Restored = nil
 		return chatmod004WithRestoredLine(m, message(plain, h, msg, continued))
 	}
+	if card, ok := issue3808ClockCard(m, msg); ok {
+		return card
+	}
+	if card, ok := issue3795FormCard(m, msg); ok {
+		return card
+	}
 	if line, ok := chatux021MembershipLine(m, msg); ok {
 		return line
 	}
@@ -2969,6 +3139,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 		envelope.Body = ReaderMessageBody(m, msg)
 	}
 	m.renderReferences = msg.PersonaReferences
+	m.renderWorkReferences = msg.WorkReferences
 	reactAction, reactLabel, reactIcon := "react", m.t(KeyReact), "smile"
 	if msg.Reacted {
 		reactAction, reactLabel, reactIcon = "unreact", m.t(KeyRemoveReaction), "smile-filled"
@@ -3061,7 +3232,7 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 		contentChildren = append(contentChildren, context)
 	}
 	contentChildren = append(contentChildren, chatbug047QuestionQuote(m, msg, envelope.Backlink != ""))
-	contentChildren = append(contentChildren, body, chatbug073EditedMark(m, msg), modAuthorMaskedNote(m, msg, own), unresolvedMessageRecovery(m, msg))
+	contentChildren = append(contentChildren, issue3919ForwardNote(m, msg), body, chatbug073EditedMark(m, msg), modAuthorMaskedNote(m, msg, own), unresolvedMessageRecovery(m, msg))
 	contentChildren = append(contentChildren, chatlangExtras(m, h, msg)...)
 	contentChildren = append(contentChildren, renderAgentReplySources(m, envelope)...)
 	if msg.PersonaActor != nil && msg.PersonaActor.valid() {
@@ -3069,6 +3240,8 @@ func message(m Model, h handlers, msg Message, continued bool) ui.Node {
 		contentChildren = append(contentChildren, feedback)
 	}
 	contentChildren = append(contentChildren, integrate2MessageLocations(m, msg)...)
+	contentChildren = append(contentChildren, chatworkChips(m, msg)...)
+	contentChildren = append(contentChildren, ackBlock(m, msg)...)
 	embedBody := envelope.Body
 	if msg.PersonaActor.valid() {
 		// The Sources row is the reference for an agent's documents: no second
@@ -3149,6 +3322,9 @@ func reactionRow(m Model, msg Message) ui.Node {
 		label := chatux019ReactionLabel(m, chip)
 		items = append(items, html.Button(html.Props{Class: class, Type: "button", Disabled: m.Callbacks.ReactWith == nil && m.Callbacks.RemoveReactionWith == nil, Data: map[string]string{"action": "toggle-reaction", "id": msg.ID, "emoji": chip.Emoji}, Aria: map[string]string{"label": label, "pressed": boolString(chip.Mine)}, Title: label},
 			html.Span(html.Props{Class: "reaction-emoji"}, chatEmojiGlyphNode(m, chip.Emoji)), html.Span(html.Props{Class: "reaction-count", Text: m.n(chip.Count)})))
+	}
+	if len(items) > 0 {
+		items = append(items, issue3938ViewButton(m, msg))
 	}
 	if canPick && !emptyPicker {
 		items = append(items, html.Button(html.Props{Class: "reaction add", Type: "button", Data: map[string]string{"action": "react-pick", "id": msg.ID}, Aria: map[string]string{"label": m.t(KeyReact), "expanded": boolString(pickerOpen)}, Title: m.t(KeyReact)}, icon("smile"), html.Span(html.Props{Text: "+"})))
@@ -3274,10 +3450,16 @@ func composer(m Model, h handlers) ui.Node {
 		draftSyncNote(m, id),
 		agentux070Row(m, h.local, h.composerRefs),
 		issue3969Banner(m, h.local),
+		issue3756Card(m, h.local),
+		issue3986Panel(m, h.local),
+		issue3990Panel(m, h.local),
+		issue3963Panel(m, h.local),
+		issue3788Panel(m, h.local),
+		issue3788Confirmation(m, h.local),
 		chatlangComposerLine(m),
 		chatgate014Composer(m, disabled),
 		chatattach001Drafts(m),
-		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewDraftEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyPreviewEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
+		html.Div(html.Props{Class: "composer-embeds"}, append(append(append(append(linkEmbeds(m, m.Draft), docPreviewDraftEmbeds(m, m.Draft)...), projectPreviewEmbeds(m, m.Draft)...), journeyDraftEmbeds(m, m.Draft)...), channelReferenceLinks(m, m.Draft)...)...),
 		composerFormatRowFor(m, h.local, id, disabled),
 		composerToolRow(m, h, id, disabled, canSend),
 	)
@@ -3524,6 +3706,7 @@ func threadPane(m Model, h handlers) ui.Node {
 	items := []ui.Node{chatux008Heading(m, roomName)}
 	if root != nil {
 		m.renderReferences = root.PersonaReferences
+		m.renderWorkReferences = root.WorkReferences
 		body := chatDisplayBody(ReaderMessageBody(m, *root))
 		rootChildren := []ui.Node{html.Div(html.Props{Class: "message-meta"}, personButton(m, root.AuthorID, root.Author, "message-author person-name", ui.Text(root.Author)), html.Time(html.Props{Class: "message-time", Text: chatux025ThreadStamp(m, *root)}),
 			html.Button(html.Props{Class: "thread-view-in-channel", ID: "thread-view-in-channel", Type: "button", Data: map[string]string{"action": "reveal-thread-parent"}, Text: m.t(KeyViewInChannel)})), chatcmd002ProjectedBody(m, *root, html.Div(chatlangBodyProps(m, *root, html.Props{Class: "message-body", Dir: "auto"}), markdownMessageBody(m, body)...))}
@@ -3565,6 +3748,7 @@ func threadPane(m Model, h handlers) ui.Node {
 				continue
 			}
 			m.renderReferences = msg.PersonaReferences
+			m.renderWorkReferences = msg.WorkReferences
 			if agentContent, isAgent := chatux003ThreadAgentReply(m, h, msg); isAgent {
 				replies = append(replies, html.Div(issue3988ThreadReplyProps(m, msg, html.Props{Class: "thread-message", Data: map[string]string{"message-id": msg.ID}}), integrate1MessageAvatar(m, msg, "avatar small"), html.Div(html.Props{Class: "thread-message-body"}, agentContent...)))
 				continue
@@ -3574,6 +3758,8 @@ func threadPane(m Model, h handlers) ui.Node {
 			content = append(content, chatbug073EditedMark(m, msg))
 			content = append(content, chatlangExtrasThread(m, h, msg)...)
 			content = append(content, integrate2MessageLocations(m, msg)...)
+			content = append(content, chatworkChips(m, msg)...)
+			content = append(content, ackBlock(m, msg)...)
 			content = append(content, linkEmbeds(m, body)...)
 			if msg.PersonaActor != nil {
 				content = append(content, PersonaBadgeLocalized(m.Locale, msg.PersonaActor))
@@ -4005,6 +4191,9 @@ func shareDialog(m Model, h handlers) ui.Node {
 			html.Input(html.Props{ID: "share-filter", Class: "chat-input", Type: "search", Placeholder: m.t(KeyShareFilter), Data: map[string]string{"chat-value": m.ShareQuery}, AutoComplete: "off", AutoFocus: true, Disabled: m.SharePending, OnInput: h.shareFilter}),
 			issue3918SelectedNode(m),
 			listing,
+			issue3919NoteField(m, h),
+			issue3919Summary(m),
+			issue3919Kept(m),
 			html.Div(html.Props{Class: "dialog-actions"},
 				html.Button(html.Props{Class: "button secondary", Type: "button", Disabled: m.Callbacks.CloseShare == nil || m.SharePending, Data: map[string]string{"action": "close-share"}, Text: m.t(KeyCancel)}),
 				html.Button(html.Props{Class: "button", Type: "button", Disabled: m.Callbacks.ShareMessage == nil || m.ShareDestinationID == "" || m.SharePending || m.ShareLoading, Data: map[string]string{"action": "share-submit"}, Text: map[bool]string{true: m.t(KeySharePending), false: m.t(KeyShareSubmit)}[m.SharePending]}))))
@@ -4076,9 +4265,19 @@ func attachments(m Model, msg Message) ui.Node {
 					raw["height"] = itoa(a.Height)
 				}
 				media := map[string]string{"action": "view-image", "id": a.ID, "media-id": a.ID, "media-thumb": "thumbnail", "media-display": "display", "media-original": "original", "media-width": itoa(a.Width), "media-height": itoa(a.Height), "media-bytes": strconv.FormatInt(a.Bytes, 10), "media-animated": strconv.FormatBool(a.IsGIF()), "media-name": name}
+				issue3962Data(media, a)
+				alt, described := issue3962Alt(a, name)
+				openName := name
+				if described {
+					openName = alt
+				}
+				if a.Decorative {
+					// An empty alt is how a decorative image says so; Props.Alt omits "".
+					raw["alt"] = ""
+				}
 				// CHATBUG-083: the viewer names who sent the image and when.
 				chatbug083Describe(m, msg, media)
-				children = append(children, html.Button(html.Props{Class: "attachment-image-open", Type: "button", Data: media, Aria: map[string]string{"label": m.t(KeyOpenImage) + ": " + name}, Title: m.t(KeyOpenImage)}, html.Img(html.Props{Alt: name, OnError: chatAttachmentImageErrorHandler(), Raw: raw})))
+				children = append(children, html.Button(html.Props{Class: "attachment-image-open", Type: "button", Data: media, Aria: map[string]string{"label": m.t(KeyOpenImage) + ": " + openName}, Title: m.t(KeyOpenImage)}, html.Img(html.Props{Alt: alt, OnError: chatAttachmentImageErrorHandler(), Raw: raw})))
 				if m.Callbacks.DownloadAttachment != nil {
 					children = append(children, html.Button(html.Props{Class: "attachment-download", Type: "button", Data: map[string]string{"action": "download-attachment", "id": msg.ID, "extra": a.ID}, Aria: map[string]string{"label": m.t(KeyDownloadAttachment) + ": " + name}, Text: m.t(KeyDownloadAttachment)}))
 				}

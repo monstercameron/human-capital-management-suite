@@ -53,6 +53,25 @@ func chatsearchRepairLostFocus() {
 	chatsearchFocusSelector("#"+chatui.Issue3857SummaryID, 0, true)
 }
 
+// chatsearchFocusAttempts is how many 40 ms ticks a redraw may take (about 4 s,
+// a loaded machine or a long list) before the focus repair gives up.
+const chatsearchFocusAttempts = 100
+
+func chatsearchRefocusIfLost(selector string, delayMS int) {
+	var again js.Func
+	again = js.FuncOf(func(js.Value, []js.Value) any {
+		defer again.Release()
+		if !chatsearchFocusIsLost() {
+			return nil
+		}
+		if target := js.Global().Get("document").Call("querySelector", selector); target.Truthy() {
+			target.Call("focus", map[string]any{"preventScroll": true})
+		}
+		return nil
+	})
+	js.Global().Call("setTimeout", again, delayMS)
+}
+
 func chatsearchFocusIsLost() bool {
 	doc := js.Global().Get("document")
 	active := doc.Get("activeElement")
@@ -73,7 +92,7 @@ func chatsearchFocusSelector(selector string, scroll float64, onlyIfLost bool) {
 		}
 		target := doc.Call("querySelector", selector)
 		if !target.Truthy() {
-			if attempts < 12 {
+			if attempts < chatsearchFocusAttempts {
 				js.Global().Call("setTimeout", tick, 40)
 				return nil
 			}
@@ -88,6 +107,11 @@ func chatsearchFocusSelector(selector string, scroll float64, onlyIfLost bool) {
 		// The saved offset already shows the result; focusing must not move it.
 		target.Call("focus", map[string]any{"preventScroll": scroll > 0})
 		tick.Release()
+		// A slow redraw can replace the target right after it took focus; look
+		// again shortly and put focus back only if it fell to the page.
+		for _, delay := range []int{250, 900} {
+			chatsearchRefocusIfLost(selector, delay)
+		}
 		return nil
 	})
 	js.Global().Call("setTimeout", tick, 0)

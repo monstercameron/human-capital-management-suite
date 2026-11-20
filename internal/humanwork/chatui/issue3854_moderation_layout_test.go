@@ -70,7 +70,13 @@ func TestIssue3854_PermissionMatrixReflowsOnPhones(t *testing.T) {
 // field and the cards, set with logical properties so it holds in RTL, and the
 // rule outranks the muted-text reset that zeroed it.
 func TestIssue3856_ModerationTextHasTheContentInset(t *testing.T) {
-	rule := issue3854Rule(t, ":root .chatremove.chatmod005-page>:not(.chatmod005-heading){")
+	// The stylesheet is wrapped in @scope (.chat-workspace): a selector that starts
+	// at :root can never match inside it, so the rule must not rely on :root to
+	// outrank the muted reset (the running app showed the text at 0px inset).
+	if strings.Contains(issue3854ModerationStyles, ":root .chatremove.chatmod005-page>") {
+		t.Fatal("the inset rule starts at :root, which never matches inside the chat @scope")
+	}
+	rule := issue3854Rule(t, ".chatremove.chatmod005-page.chatmod005-page>:not(.chatmod005-heading){")
 	if !strings.Contains(rule, "margin-inline:16px") {
 		t.Fatalf("the page children have no inline inset: %s", rule)
 	}

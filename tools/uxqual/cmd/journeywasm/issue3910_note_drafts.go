@@ -31,3 +31,11 @@ func (d *chatsaveNoteDrafts) reset() { *d = nil }
 // chatsaveTabFocusID is the element focus goes to after a press selects a tab
 // from somewhere other than the tab strip, such as an empty state's link (issue 3878).
 func chatsaveTabFocusID(tab string) string { return "chatsave-tab-" + tab }
+
+// chatsaveRestoreNeedsKeep reports whether a field that render has just filled
+// with restored text must be marked as typed. The page's field observer sweeps
+// every [data-chat-value] box a tick after the redraw and writes the attribute
+// (the saved note) over any box it did not see typed in; a restored draft that
+// differs from the attribute would be wiped there (issue 3910, seen in the
+// served build: the editor stayed open but came back empty).
+func chatsaveRestoreNeedsKeep(restored, attribute string) bool { return restored != attribute }

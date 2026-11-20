@@ -54,6 +54,15 @@ func restoreChatLayerFocus(kinds ...string) {
 			}
 			if opener.Truthy() && opener.Get("isConnected").Truthy() {
 				opener.Call("focus", map[string]any{"preventScroll": true})
+			} else if len(kinds) > 0 {
+				// The hover bar that held the opener is gone: the message keeps focus (issue 3722).
+				if id := root.Get("__chatLayerOpenerID_" + kinds[0]); id.Type() == js.TypeString {
+					if selector := issue3722MessageSelector(id.String()); selector != "" {
+						if message := root.Call("querySelector", selector); message.Truthy() {
+							message.Call("focus", map[string]any{"preventScroll": true})
+						}
+					}
+				}
 			}
 		}
 	}

@@ -96,3 +96,22 @@ func TestIssue3873_CompactStylesKeepToolRow(t *testing.T) {
 		t.Errorf("show rule (%d) must follow the compact hide rule (%d)", show, hide)
 	}
 }
+
+// TestIssue3873_PreviewLayoutDoesNotDependOnFocus: pressing the toggle moves
+// focus onto it; the previewing composer must keep one layout either way, or the
+// button slides from under the pointer and the press is lost.
+func TestIssue3873_PreviewLayoutDoesNotDependOnFocus(t *testing.T) {
+	for _, want := range []string{
+		`.chat-workspace .thread-composer[data-preview="true"]{flex-direction:column;align-items:stretch;padding:0}`,
+		`.chat-workspace .thread-composer[data-preview="true"] .composer-toolbar{padding:2px 6px 6px;flex:none}`,
+		`.chat-workspace .thread-composer[data-preview="true"] :is(.format-tools,.emoji-control){display:none}`,
+	} {
+		at := strings.Index(Stylesheet, want)
+		if at < 0 {
+			t.Fatalf("stylesheet missing %q", want)
+		}
+		if compact := strings.Index(Stylesheet, `.thread-composer:not(:focus-within){flex-direction:row`); compact < 0 || at < compact {
+			t.Errorf("rule %q must follow the focus-dependent compact layout", want)
+		}
+	}
+}

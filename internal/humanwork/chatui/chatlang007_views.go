@@ -250,7 +250,7 @@ func translationSettingsEntry(m Model, c Conversation) ui.Node {
 // TranslationAdminPageStyles is the administration page's own sheet. The chat
 // stylesheet is scoped to the chat workspace, which the page is not inside, so
 // the page asks for the translation rules itself.
-const TranslationAdminPageStyles = ChatlangAdminStyles + ChatlangPageStyles + ChatlangMonitorStyles
+const TranslationAdminPageStyles = ChatlangAdminStyles + ChatlangPageStyles + ChatlangMonitorStyles + Chat3703Styles
 
 // ChatlangPageStyles finishes the page's settings: each setting is a block with
 // its "Saved" beside it, and the heading and the hints read at the page's size.

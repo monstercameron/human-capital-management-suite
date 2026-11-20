@@ -15,11 +15,19 @@ func chatux026Focus(selector string) {
 	if selector == "" || frame.Type() != js.TypeFunction || !document.Truthy() {
 		return
 	}
-	attempts := 0
+	attempts, settled := 0, 0
 	var callback js.Func
 	callback = js.FuncOf(func(js.Value, []js.Value) any {
 		if target := document.Call("querySelector", selector); target.Truthy() {
 			target.Call("focus", js.ValueOf(map[string]any{"preventScroll": true}))
+			// Issue 3895: a redraw can land after the first focus and replace the
+			// element again; look once more on the next frames.
+			onTarget := document.Get("activeElement").Equal(target)
+			settled++
+			if focusNeedsAnotherFrame(onTarget, settled) {
+				frame.Invoke(callback)
+				return nil
+			}
 			callback.Release()
 			return nil
 		}

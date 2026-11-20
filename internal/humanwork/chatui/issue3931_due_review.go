@@ -89,11 +89,11 @@ func chatcmd003ReviewGroup(m Model, state chatcmd003Preview, group, label string
 		html.Div(html.Props{Class: "chatcmd003-choices"}, buttons...))
 }
 
-func chatcmd003ReviewDate(m Model, at *time.Time) string {
+func chatcmd003ReviewDate(m Model, at *time.Time, timed bool) string {
 	if at == nil {
 		return ""
 	}
-	return chatcmd002DueText(m, chat.Chatcmd002Task{DueAt: at})
+	return chatcmd002DueText(m, chat.Chatcmd002Task{DueAt: at, DueTimed: timed})
 }
 
 // chatcmd003Reviews is the preview's part for the dates and owners it read:
@@ -108,7 +108,7 @@ func chatcmd003Reviews(m Model, state chatcmd003Preview) []ui.Node {
 		for _, option := range read.Options {
 			known = known || option.Key == chosen
 			keys = append(keys, option.Key)
-			date := chatcmd003ReviewDate(m, option.At)
+			date := chatcmd003ReviewDate(m, option.At, option.Key == "infer" && chat.Chatcmd004PhraseIsTimed(read.Phrase))
 			switch option.Key {
 			case "infer":
 				texts = append(texts, chatcmd002Fill(chatcmd003Text(m, "due-infer"), "date", date, "phrase", read.Phrase))

@@ -52,3 +52,15 @@ func TestIssue3878_EmptyLinkFocusesSelectedTab(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue3910_RestoredDraftIsMarkedTypedOnlyWhenItDiffersFromTheSavedNote(t *testing.T) {
+	if !chatsaveRestoreNeedsKeep("my draft", "") {
+		t.Fatal("a restored draft that differs from the saved note must be kept against the field sweep")
+	}
+	if !chatsaveRestoreNeedsKeep("", "saved note") {
+		t.Fatal("a draft cleared by the person must be kept against the field sweep")
+	}
+	if chatsaveRestoreNeedsKeep("same", "same") {
+		t.Fatal("text equal to the saved note needs no protection")
+	}
+}

@@ -71,6 +71,9 @@ func jumpPendingForRoom(room string) bool {
 }
 
 func installFieldSync() {
+	// Issues #3837, #3682: a select keeps its chosen option when the reconciler
+	// appends its options again (issue3837_select_reappend_js.go).
+	InstallSelectReappendGuard()
 	fieldSyncOnce.Do(func() {
 		doc := js.Global().Get("document")
 		if !doc.Truthy() {

@@ -138,5 +138,5 @@ func chatsearchWrittenControl(locale, selected string) ui.Node {
 	for _, tag := range []string{"en", "de", "fr", "es", "pt", "ar", "ja", "hi"} {
 		options = append(options, html.Option(html.Props{Value: tag, Selected: tag == selected, Text: chatlangLanguageName(locale, tag)}))
 	}
-	return html.Label(html.Props{For: "chatsearch-written"}, html.Span(html.Props{Text: chattoneW10Text(locale, "search_written")}), html.Select(html.Props{ID: "chatsearch-written", Name: "written"}, options...))
+	return html.Label(html.Props{For: "chatsearch-written"}, html.Span(html.Props{Text: chattoneW10Text(locale, "search_written")}), html.Select(html.Props{ID: "chatsearch-written", Name: "written", Data: map[string]string{"chat-select-value": selected}}, options...))
 }
