@@ -66,6 +66,10 @@ const wasmBuildTags = "grpcnotrace,nethttpomithttp2"
 // 61.56 MB and its gzip from 12.95 MB to 11.89 MB (CHATBUG-014).
 const wasmGCFlags = "github.com/monstercameron/human-capital-management-suite/...=-l"
 
+// bundleBuilder is how run builds the bundle; tests replace it to exercise run's
+// handling of a failed build without two real wasm links (issue #3799).
+var bundleBuilder = buildBundle
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -78,6 +82,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	out := flags.String("out", "", "directory to write "+wasmFile+" and "+wasmExecFile+" into (required)")
 	root := flags.String("root", ".", "module root used to create an embed overlay")
 	overlay := flags.String("overlay", "", "optional Go build overlay mapping workspace embed inputs to -out")
+	sizeReport := flags.String("size-report", "", "optional file to write the per-package size attribution of "+wasmFile+" to (JSON when it ends in .json); written even when the budget gate fails")
 	flags.Usage = func() {
 		fmt.Fprintf(stderr, "usage: go run ./tools/uxqual/cmd/journeywasm -out <dir>\n\n"+
 			"Builds the Promotion journey page's wasm client and the matching Go\n"+
@@ -92,8 +97,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 		flags.Usage()
 		return 2
 	}
-	if err := build(*out, stdout); err != nil {
-		fmt.Fprintf(stderr, "journeywasm: %v\n", err)
+	symbols := ""
+	if strings.TrimSpace(*sizeReport) != "" {
+		dir, err := os.MkdirTemp("", "journeywasm-symbols-")
+		if err != nil {
+			fmt.Fprintf(stderr, "journeywasm: %v\n", err)
+			return 1
+		}
+		defer os.RemoveAll(dir)
+		symbols = filepath.Join(dir, wasmFile)
+	}
+	buildErr := bundleBuilder(*out, symbols, stdout)
+	if symbols != "" {
+		// An over-budget bundle is exactly when the attribution is wanted, so
+		// the report is written whenever the symbol module was linked.
+		if _, statErr := os.Stat(symbols); statErr == nil {
+			if err := writeSizeReport(*out, symbols, *sizeReport, stdout); err != nil {
+				fmt.Fprintf(stderr, "journeywasm: %v\n", err)
+				if buildErr == nil {
+					return 1
+				}
+			}
+		}
+	}
+	if buildErr != nil {
+		fmt.Fprintf(stderr, "journeywasm: %v\n", buildErr)
 		return 1
 	}
 	if strings.TrimSpace(*overlay) != "" {
@@ -145,6 +173,15 @@ func writeGoOverlay(root, outDir, overlayPath string) error {
 
 // build writes both halves of the bundle into outDir.
 func build(outDir string, stdout io.Writer) error {
+	return buildBundle(outDir, "", stdout)
+}
+
+// buildBundle is build with an optional second link. When symbolsPath is not
+// empty the same packages and overlays are linked again with the function-name
+// table left in, into symbolsPath, for the size attribution (issue #3799): the
+// shipped module is stripped, so its functions cannot be named. The second
+// module is only ever read for its code sizes; it is never served.
+func buildBundle(outDir, symbolsPath string, stdout io.Writer) error {
 	goBin, err := goBinary()
 	if err != nil {
 		return err
@@ -219,17 +256,20 @@ func build(outDir string, stdout io.Writer) error {
 	default:
 		return catalogErr
 	}
-	compile := func(overlay string) ([]byte, error) {
-		buildArgs := args
+	compileTo := func(overlay, ldflags, target string) ([]byte, error) {
+		buildArgs := append([]string{}, args...)
+		buildArgs[2] = "-ldflags=" + ldflags
 		if overlay != "" {
-			buildArgs = append(append([]string{}, args...), "-overlay="+overlay)
+			buildArgs = append(buildArgs, "-overlay="+overlay)
 		}
-		cmd := exec.Command(goBin, append(buildArgs, "-o", wasmPath, wasmPackage)...)
+		cmd := exec.Command(goBin, append(buildArgs, "-o", target, wasmPackage)...)
 		cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 		// The build's own diagnostics are the useful part of a failure, so they
 		// are carried into the error rather than discarded.
 		return cmd.CombinedOutput()
 	}
+	compile := func(overlay string) ([]byte, error) { return compileTo(overlay, "-s -w", wasmPath) }
+	usedOverlay := overlayPath
 	output, err := compile(overlayPath)
 	if err != nil && (standErr == nil || catalogErr == nil) {
 		// A newer gRPC or x/net can name something the stand-ins lack, and an
@@ -237,12 +277,18 @@ func build(outDir string, stdout io.Writer) error {
 		// larger bundle, not a broken build: say why and build without them.
 		fmt.Fprintf(stdout, "journeywasm: the build with the client overlays did not compile, building without them:\n%s\n", output)
 		output, err = compile(fetchOnlyPath)
+		usedOverlay = fetchOnlyPath
 	}
 	if err != nil {
 		if len(output) > 0 {
 			return fmt.Errorf("building %s for js/wasm: %w\n%s", wasmPackage, err, output)
 		}
 		return fmt.Errorf("building %s for js/wasm: %w", wasmPackage, err)
+	}
+	if symbolsPath != "" {
+		if output, err := compileTo(usedOverlay, "-w", symbolsPath); err != nil {
+			return fmt.Errorf("linking %s with symbols for the size report: %w\n%s", wasmPackage, err, output)
+		}
 	}
 
 	shimSource, err := wasmExecSource(goBin)

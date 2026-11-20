@@ -1,3 +1,8 @@
+## 2026-11-20 — Browser client: size ceiling removed; per-package size report added (#3799, partial)
+
+- The build no longer refuses the browser client for being larger than 64 MiB (13 MiB compressed). The owner removed that ceiling; the client was 67.2 MiB after the Chat feature waves and the build had stopped. The build still requires both files to exist and hold something, and the runtime shim keeps its own limits.
+- `JOURNEY_SIZE_REPORT=1 scripts/build.sh hcmnext` writes a per-package breakdown of the client's size, and CI uploads it, so growth can be traced to the code that caused it (#3799, partial: nothing was moved out of the client).
+
 ## 2026-11-20 — Chat large features, first complete slices (third wave) (28 issues)
 
 - No code change. Verified the existing rule (governance_composition in definitions/architecture/architecture-rules.yaml) and tests in tools/policy/archrules/governance_test.go; (#388, partial)

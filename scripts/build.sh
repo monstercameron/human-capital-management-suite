@@ -35,7 +35,12 @@ for c in "${cmds[@]}"; do
     # Building the helper to a named .artifacts path avoids `go run`'s
     # temporary executable cleanup race on Windows.
     go build -o "$asset_tool" ./tools/uxqual/cmd/journeywasm
-    "$asset_tool" -root "$root" -out "$embed" -overlay "$embed/assets.overlay.json"
+    # JOURNEY_SIZE_REPORT=1 (set by CI) also writes the per-package size
+    # attribution of journey.wasm, even when the budget gate then fails. It
+    # costs a second link, so local builds skip it unless asked.
+    size_report=()
+    [ -n "${JOURNEY_SIZE_REPORT:-}" ] && size_report=(-size-report "$out/journey-wasm-size-report.json")
+    "$asset_tool" -root "$root" -out "$embed" -overlay "$embed/assets.overlay.json" ${size_report[@]+"${size_report[@]}"}
     go build -overlay="$embed/assets.overlay.json" -o "$out/$c.exe" "./cmd/$c"
     # Generate the release SBOM from the built binary's embedded module graph
     # and enforce the P1B runtime boundary before considering the build ready.

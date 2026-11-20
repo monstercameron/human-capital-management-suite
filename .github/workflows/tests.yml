@@ -127,7 +127,20 @@ jobs:
       # Build outputs live under .artifacts and enter the executable through
       # a Go build overlay; the checked-in asset tree stays source-only.
       - name: Build embedded frontend assets
+        env:
+          JOURNEY_SIZE_REPORT: "1"
         run: bash scripts/build.sh hcmnext
+
+      # Per-package attribution of journey.wasm beside the size budget gate,
+      # uploaded even when the gate fails (issue #3799).
+      - name: Upload journey.wasm size attribution
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: journey-wasm-size-report
+          path: .artifacts/bin/journey-wasm-size-report.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Run the quality gate (gofmt, go vet, staticcheck)
         run: go run ./tools/quality

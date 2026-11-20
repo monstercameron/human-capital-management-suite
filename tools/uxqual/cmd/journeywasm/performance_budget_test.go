@@ -13,8 +13,8 @@ import (
 func TestTodo_WEB_236_PerformanceBudget(t *testing.T) {
 	out := t.TempDir()
 	for _, budget := range [...]assetSizeBudget{
-		{name: wasmFile, max: maxJourneyWasmBytes},
-		{name: wasmFile + ".gz", max: maxJourneyWasmGzipBytes},
+		{name: wasmFile},
+		{name: wasmFile + ".gz"},
 		{name: wasmExecFile, max: maxWasmExecBytes},
 		{name: wasmExecFile + ".gz", max: maxWasmExecGzipBytes},
 	} {
@@ -26,12 +26,24 @@ func TestTodo_WEB_236_PerformanceBudget(t *testing.T) {
 		t.Fatalf("under-budget assets rejected: %v", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(out, wasmFile+".gz"), make([]byte, maxJourneyWasmGzipBytes+1), 0o600); err != nil {
+	// The browser client has no size ceiling: a module larger than any ceiling
+	// this gate still holds passes.
+	for _, name := range []string{wasmFile, wasmFile + ".gz"} {
+		if err := os.WriteFile(filepath.Join(out, name), make([]byte, maxWasmExecBytes+1), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := checkJourneyAssetBudgets(out); err != nil {
+		t.Fatalf("a large browser client was refused although it has no ceiling: %v", err)
+	}
+
+	// The runtime shim keeps its ceilings.
+	if err := os.WriteFile(filepath.Join(out, wasmExecFile+".gz"), make([]byte, maxWasmExecGzipBytes+1), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	err := checkJourneyAssetBudgets(out)
-	if err == nil || !strings.Contains(err.Error(), wasmFile+".gz") || !strings.Contains(err.Error(), "exceeds") {
-		t.Fatalf("over-budget compressed bundle error = %v", err)
+	if err == nil || !strings.Contains(err.Error(), wasmExecFile+".gz") || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("over-budget compressed shim error = %v", err)
 	}
 }
 
